@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -953,6 +954,68 @@ func TestKHIDirectFileUpload(t *testing.T) {
 				if !strings.Contains(recorder.Body.String(), tc.wantErrMsg) {
 					t.Errorf("got error message %s, want %s", recorder.Body.String(), tc.wantErrMsg)
 				}
+			}
+		})
+	}
+}
+
+func TestRegisterConnectServiceHandler(t *testing.T) {
+	testCases := []struct {
+		name        string
+		basePath    string
+		requestPath string
+		wantCode    int
+		wantBody    string
+	}{
+		{
+			name:        "routes connect service with root base path",
+			basePath:    "",
+			requestPath: "/api.v1.TestService/TestMethod",
+			wantCode:    http.StatusOK,
+			wantBody:    "connect-ok",
+		},
+		{
+			name:        "routes connect service with subpath base path",
+			basePath:    "/foo",
+			requestPath: "/foo/api.v1.TestService/TestMethod",
+			wantCode:    http.StatusOK,
+			wantBody:    "connect-ok",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			logger.InitGlobalKHILogger()
+			serverConfig := ServerConfig{
+				StaticFolderPath: "dist",
+				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
+				ServerBasePath:   tc.basePath,
+			}
+			inspectionServer, err := createTestInspectionServer()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			engine := gin.New()
+			basePath, router := SetupKHIServerRoutes(engine, inspectionServer, &serverConfig)
+
+			dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("connect-ok"))
+			})
+			coreinit.RegisterConnectServiceHandler(router, basePath, "/api.v1.TestService/", dummyHandler)
+
+			recorder := httptest.NewRecorder()
+			req, err := http.NewRequest("POST", tc.requestPath, nil)
+			if err != nil {
+				t.Fatalf("unexpected error creating request: %v", err)
+			}
+			engine.ServeHTTP(recorder, req)
+
+			if recorder.Code != tc.wantCode {
+				t.Errorf("got response code %d, want %d", recorder.Code, tc.wantCode)
+			}
+			if recorder.Body.String() != tc.wantBody {
+				t.Errorf("got body %q, want %q", recorder.Body.String(), tc.wantBody)
 			}
 		})
 	}

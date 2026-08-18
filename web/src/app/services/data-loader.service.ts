@@ -33,6 +33,7 @@ import { ProgressReporter } from 'src/app/services/progress/progress-interface';
 import { ImportInspectionClientService } from 'src/app/services/api/import-inspection-client.service';
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
 import { BackendSyncService } from 'src/app/services/api/backend-sync-interface';
+import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 
 /**
  * Service for importing, downloading, and parsing inspection data.
@@ -49,6 +50,7 @@ export class InspectionDataLoaderService {
   });
   private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
   private readonly importClient = inject(ImportInspectionClientService);
+  private readonly workbenchClient = inject(WorkbenchClientService);
 
   /**
    * Opens file selector dialog to pick a local .khi file and uploads it to the backend server.
@@ -105,41 +107,6 @@ export class InspectionDataLoaderService {
   }
 
   /**
-   * Downloads and loads an inspection dataset from the backend server.
-   *
-   * @param inspectionID Unique ID of the inspection.
-   */
-  public async loadInspectionDataFromBackend(inspectionID: string) {
-    this.progress.show();
-    this.progress.updateProgress({
-      message: 'Downloading inspection data...',
-      percent: 0,
-      mode: 'determinate',
-    });
-    try {
-      const data = await lastValueFrom(
-        this.backendService.getInspectionData(inspectionID, (allSize, done) => {
-          this.progress.updateProgress({
-            message: `Downloading inspection data...(${ProgressUtil.formatPogressMessageByBytes(
-              done,
-              allSize,
-            )})`,
-            percent: (done / allSize) * 100,
-            mode: 'determinate',
-          });
-        }),
-      );
-      this.progress.dismiss();
-      await this.parseAndStoreInspectionData(await data.content.arrayBuffer());
-    } catch (e) {
-      console.error(e);
-      alert(
-        `Failed to load the inspection data. Please try query with shorter duration.`,
-      );
-    }
-  }
-
-  /**
    * Parses raw binary inspection data into the InspectionDataStore.
    *
    * @param rawInspectionData Binary inspection data.
@@ -186,5 +153,51 @@ export class InspectionDataLoaderService {
       );
     }
     this.progress.dismiss();
+  }
+
+  public async loadInspectionDataFromBackend(inspectionID: string) {
+    const sessionMatch =
+      typeof window !== 'undefined'
+        ? window.location.pathname.match(/\/session\/([^/]+)/)
+        : null;
+    const sessionId = sessionMatch ? sessionMatch[1] : '0';
+    // Concurrently open backend workbench session
+    this.workbenchClient
+      .openWorkbench(sessionId, inspectionID, (msg, pct) => {
+        console.debug(`[Workbench] ${msg} (${pct}%)`);
+      })
+      .catch((err) => {
+        console.warn(`[Workbench] Failed to open workbench session:`, err);
+      });
+
+    this.progress.show();
+    this.progress.updateProgress({
+      message: 'Downloading inspection data...',
+      percent: 0,
+      mode: 'determinate',
+    });
+    try {
+      const data = await lastValueFrom(
+        this.backendService.getInspectionData(inspectionID, (allSize, done) => {
+          this.progress.updateProgress({
+            message: `Downloading inspection data...(${ProgressUtil.formatPogressMessageByBytes(
+              done,
+              allSize,
+            )})`,
+            percent: (done / allSize) * 100,
+            mode: 'determinate',
+          });
+        }),
+      );
+      this.progress.dismiss();
+      this.parseAndStoreInspectionData(await data.content.arrayBuffer());
+    } catch (e) {
+      console.error(e);
+      // Since the file size could be large, there could be several reasons for failure, including browser limitations.
+      // Smaller file size should always be an option.
+      alert(
+        `Failed to load the inspection data. Please try query with shorter duration.`,
+      );
+    }
   }
 }

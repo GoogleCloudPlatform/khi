@@ -1,0 +1,161 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { OpenWorkbenchResponse_Stage } from 'src/app/generated/api/v1/workbench_pb';
+import { ConnectClientService } from 'src/app/services/api/connect-client.service';
+import { UserIdentityService } from 'src/app/services/api/workbench/user-identity.service';
+import {
+  WorkbenchClientService,
+  WorkbenchOpenProgressCallback,
+} from 'src/app/services/api/workbench/workbench-client.service';
+
+describe('WorkbenchClientService', () => {
+  let service: WorkbenchClientService;
+  let mockConnectClient: jasmine.SpyObj<ConnectClientService>;
+  let mockUserIdentity: { readonly userId: string };
+
+  beforeEach(() => {
+    mockUserIdentity = { userId: 'usr-1' };
+    mockConnectClient = jasmine.createSpyObj('ConnectClientService', [], {
+      workbenchClient: {
+        openWorkbench: jasmine.createSpy('openWorkbench'),
+        heartbeatWorkbench: jasmine.createSpy('heartbeatWorkbench'),
+        closeWorkbench: jasmine.createSpy('closeWorkbench'),
+      },
+    });
+
+    TestBed.configureTestingModule({
+      providers: [
+        WorkbenchClientService,
+        { provide: ConnectClientService, useValue: mockConnectClient },
+        { provide: UserIdentityService, useValue: mockUserIdentity },
+      ],
+    });
+    service = TestBed.inject(WorkbenchClientService);
+  });
+
+  afterEach(() => {
+    service.ngOnDestroy();
+  });
+
+  it('should be created and have inactive initial state', () => {
+    expect(service).toBeTruthy();
+    expect(service.activeWorkbenchId()).toBeNull();
+    expect(service.isWorkbenchActive()).toBeFalse();
+  });
+
+  it('should stream progress events and set active workbench on openWorkbench', async () => {
+    async function* mockStream() {
+      yield {
+        $typeName: 'api.v1.OpenWorkbenchResponse' as const,
+        stage: OpenWorkbenchResponse_Stage.READING_FILE,
+        progressPercentage: 10,
+        message: 'Reading...',
+      };
+      yield {
+        $typeName: 'api.v1.OpenWorkbenchResponse' as const,
+        stage: OpenWorkbenchResponse_Stage.READY,
+        progressPercentage: 100,
+        message: 'Ready!',
+        workbenchId: 'usr-1-session-0',
+      };
+    }
+
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockStream());
+
+    const progressUpdates: {
+      stage: OpenWorkbenchResponse_Stage;
+      pct: number;
+    }[] = [];
+    const onProgress: WorkbenchOpenProgressCallback = (_msg, pct, stage) => {
+      progressUpdates.push({ stage, pct });
+    };
+
+    const workbenchId = await service.openWorkbench(
+      'session-0',
+      'inspection-1',
+      onProgress,
+    );
+
+    expect(workbenchId).toBe('usr-1-session-0');
+    expect(service.activeWorkbenchId()).toBe('usr-1-session-0');
+    expect(service.isWorkbenchActive()).toBeTrue();
+    expect(progressUpdates.length).toBe(2);
+    expect(progressUpdates[0].stage).toBe(
+      OpenWorkbenchResponse_Stage.READING_FILE,
+    );
+    expect(progressUpdates[1].stage).toBe(OpenWorkbenchResponse_Stage.READY);
+  });
+
+  it('should invoke heartbeat periodically after workbench is opened', fakeAsync(() => {
+    async function* mockStream() {
+      yield {
+        $typeName: 'api.v1.OpenWorkbenchResponse' as const,
+        stage: OpenWorkbenchResponse_Stage.READY,
+        progressPercentage: 100,
+        message: 'Ready!',
+        workbenchId: 'usr-1-session-0',
+      };
+    }
+
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockStream());
+    (
+      mockConnectClient.workbenchClient.heartbeatWorkbench as jasmine.Spy
+    ).and.returnValue(Promise.resolve({ active: true }));
+
+    service.openWorkbench('session-0', 'inspection-1');
+    tick();
+
+    expect(
+      mockConnectClient.workbenchClient.heartbeatWorkbench,
+    ).not.toHaveBeenCalled();
+
+    // Advance 15 seconds
+    tick(15000);
+    expect(
+      mockConnectClient.workbenchClient.heartbeatWorkbench,
+    ).toHaveBeenCalledWith({
+      workbenchId: 'usr-1-session-0',
+    });
+
+    // Advance another 15 seconds
+    tick(15000);
+    expect(
+      mockConnectClient.workbenchClient.heartbeatWorkbench,
+    ).toHaveBeenCalledTimes(2);
+  }));
+
+  it('should close workbench and clear active state on closeWorkbench', async () => {
+    (
+      mockConnectClient.workbenchClient.closeWorkbench as jasmine.Spy
+    ).and.returnValue(Promise.resolve({ closed: true }));
+
+    await service.closeWorkbench('usr-1-session-0');
+
+    expect(
+      mockConnectClient.workbenchClient.closeWorkbench,
+    ).toHaveBeenCalledWith({
+      workbenchId: 'usr-1-session-0',
+    });
+    expect(service.activeWorkbenchId()).toBeNull();
+    expect(service.isWorkbenchActive()).toBeFalse();
+  });
+});

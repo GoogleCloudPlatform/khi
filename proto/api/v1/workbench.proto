@@ -1,0 +1,83 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package api.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1";
+
+// WorkbenchService manages in-memory analysis sessions for .khi datasets.
+service WorkbenchService {
+  // Opens or attaches to an in-memory Workbench session with real-time loading progress streaming.
+  rpc OpenWorkbench(OpenWorkbenchRequest) returns (stream OpenWorkbenchResponse);
+
+  // Sends periodic heartbeat to keep the Workbench session alive in memory.
+  rpc HeartbeatWorkbench(HeartbeatWorkbenchRequest) returns (HeartbeatWorkbenchResponse);
+
+  // Explicitly closes and releases an active Workbench session.
+  rpc CloseWorkbench(CloseWorkbenchRequest) returns (CloseWorkbenchResponse);
+}
+
+// Request to open or attach to a Workbench session for a specific inspection dataset.
+message OpenWorkbenchRequest {
+  // Unique persistent identifier for the user / client browser instance.
+  string user_id = 1;
+  // Session identifier matching the frontend route session ID.
+  string session_id = 2;
+  // The inspection ID to open.
+  string inspection_id = 3;
+}
+
+// Streamed loading progress or completion status for OpenWorkbench.
+message OpenWorkbenchResponse {
+  // Execution phase of the dataset loading process.
+  enum Stage {
+    STAGE_UNSPECIFIED = 0;
+    STAGE_INITIALIZING = 1;
+    STAGE_READING_FILE = 2;
+    STAGE_PARSING_CHUNKS = 3;
+    STAGE_INDEXING_DATA = 4;
+    STAGE_READY = 5;
+  }
+  Stage stage = 1;
+  double progress_percentage = 2;
+  string message = 3;
+
+  // The active workbench ID assigned to this session.
+  string workbench_id = 4;
+}
+
+// Request to refresh the lease TTL of an active Workbench session.
+message HeartbeatWorkbenchRequest {
+  string workbench_id = 1;
+}
+
+// Response confirming heartbeat reception and updated lease expiration time.
+message HeartbeatWorkbenchResponse {
+  bool active = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// Request to close and release a Workbench session immediately.
+message CloseWorkbenchRequest {
+  string workbench_id = 1;
+}
+
+// Response confirming closure of a Workbench session.
+message CloseWorkbenchResponse {
+  bool closed = 1;
+}
