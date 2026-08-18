@@ -56,6 +56,7 @@ import { BackendAPI, DownloadProgressReporter } from './backend-api-interface';
 import { ProgressDialogStatusUpdator } from '../progress/progress-interface';
 import { ProgressUtil } from '../progress/progress-util';
 import { UploadToken } from 'src/app/common/schema/form-types';
+import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 
 /**
  * An implementation of BackendAPI interface.
@@ -88,13 +89,7 @@ export class BackendAPIImpl implements BackendAPI {
    * Get the server base path configuration path which is a configuration given as meta tag from backend.
    */
   public static getServerBasePath(): string {
-    const basePathTag = document.getElementById('server-base-path');
-    if (basePathTag === null) return '';
-    let content = basePathTag.getAttribute('content');
-    if (content?.endsWith('/')) {
-      content = content.substring(0, content.length - 1);
-    }
-    return content ?? '';
+    return ApiPathUtil.getServerBasePath();
   }
 
   public getInspectionTypes() {
