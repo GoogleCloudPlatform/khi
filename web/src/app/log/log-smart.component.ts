@@ -198,7 +198,6 @@ export class LogSmartComponent {
       return {
         logEntry: log,
         logBody: this.logBodyResource.value() ?? '',
-        parsedLogBody: log.body,
         resourceRefs,
       };
     },

@@ -85,8 +85,7 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
     },
   });
   private readonly previousRevisionResource = resource({
-    params: () =>
-      this.selectionManager.previousOfSelectedRevision()?.structId,
+    params: () => this.selectionManager.previousOfSelectedRevision()?.structId,
     loader: async ({ params: structId }) => {
       if (structId === undefined) {
         return null;
@@ -161,6 +160,13 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
    * Signal containing the currently selected resource revision.
    */
   protected readonly currentRevision = this.selectionManager.selectedRevision;
+
+  /**
+   * Computed raw string of the current revision's content before stripping managed fields.
+   */
+  protected readonly currentRevisionRawBody = computed(() => {
+    return this.currentRevisionResource.value() ?? '';
+  });
 
   /**
    * Computed string of the current revision's content, formatted according to managed fields visibility.

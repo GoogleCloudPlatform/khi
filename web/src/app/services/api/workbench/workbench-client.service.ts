@@ -30,6 +30,33 @@ export type WorkbenchOpenProgressCallback = (
 ) => void;
 
 /**
+ * Parameters for the timeline and log filter pipeline.
+ */
+export interface FilterTimelineParams {
+  readonly timelineQuery?: string;
+  readonly timelineExclusionQuery?: string;
+  readonly logQuery?: string;
+  readonly excludeNoLogs?: boolean;
+}
+
+/**
+ * Filter progress callback for streaming updates.
+ */
+export type FilterProgressCallback = (
+  stageName: string,
+  current: number,
+  total: number,
+) => void;
+
+/**
+ * Final result of the filter pipeline.
+ */
+export interface FilterTimelineResult {
+  readonly timelineIds: readonly number[];
+  readonly logIds: readonly number[];
+}
+
+/**
  * WorkbenchClientService manages the lifecycle and communication with the backend WorkbenchService.
  */
 @Injectable({
@@ -178,6 +205,60 @@ export class WorkbenchClientService implements OnDestroy {
     const yaml = res.yaml ?? '';
     this.structYamlCache.put(structId, yaml);
     return yaml;
+  }
+
+  /**
+   * Evaluates the timeline and log filter pipeline on the backend Workbench session and returns the final filtered IDs.
+   *
+   * @param params The search queries and options for the pipeline.
+   * @param onProgress Optional callback invoked when progress updates are streamed from the server.
+   * @param signal Optional AbortSignal to cancel the streaming RPC.
+   * @returns The filtered timeline IDs and log IDs.
+   */
+  public async filterTimeline(
+    params: FilterTimelineParams,
+    onProgress?: FilterProgressCallback,
+    signal?: AbortSignal,
+  ): Promise<FilterTimelineResult> {
+    const workbenchId = this.activeWorkbenchIdSignal();
+    if (!workbenchId) {
+      throw new Error('No active Workbench session found.');
+    }
+
+    const responseStream = this.connectClient.workbenchClient.filterTimeline(
+      {
+        workbenchId,
+        timelineQuery: params.timelineQuery ?? '',
+        timelineExclusionQuery: params.timelineExclusionQuery ?? '',
+        logQuery: params.logQuery ?? '',
+        excludeNoLogs: params.excludeNoLogs ?? false,
+      },
+      { signal },
+    );
+
+    let result: FilterTimelineResult = {
+      timelineIds: [],
+      logIds: [],
+    };
+
+    for await (const res of responseStream) {
+      if (res.payload.case === 'progress' && res.payload.value) {
+        if (onProgress) {
+          onProgress(
+            res.payload.value.stageName ?? '',
+            res.payload.value.current ?? 0,
+            res.payload.value.total ?? 0,
+          );
+        }
+      } else if (res.payload.case === 'result' && res.payload.value) {
+        result = {
+          timelineIds: res.payload.value.timelineIds ?? [],
+          logIds: res.payload.value.logIds ?? [],
+        };
+      }
+    }
+
+    return result;
   }
 
   private startHeartbeat(workbenchId: string): void {

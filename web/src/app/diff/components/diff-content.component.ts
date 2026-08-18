@@ -78,6 +78,11 @@ export class DiffContentComponent {
   readonly currentRevisionContent = input.required<string>();
 
   /**
+   * The unstripped raw content string of the current revision.
+   */
+  readonly currentRevisionRawBody = input<string>('');
+
+  /**
    * The content string of the previous revision to diff against.
    */
   readonly previousRevisionContent = input<string | null>(null);
@@ -154,13 +159,14 @@ export class DiffContentComponent {
     // To still show tooltips on other fields, we extract the managedFields from the original unstripped YAML
     // and provide them explicitly to the provider.
     const revision = this.currentRevision();
+    const rawBody = this.currentRevisionRawBody();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let overrideFields: any[] | undefined = undefined;
 
-    if (revision && revision.bodyYAML) {
+    if (rawBody) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const yamlData = yaml.load(revision.bodyYAML) as any;
+        const yamlData = yaml.load(rawBody) as any;
         if (
           yamlData &&
           yamlData['metadata'] &&

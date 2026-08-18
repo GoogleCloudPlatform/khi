@@ -45,13 +45,6 @@ export const Default: Story = {
 kind: Pod
 metadata:
   name: test-pod`,
-          parsedLogBody: {
-            apiVersion: 'v1',
-            kind: 'Pod',
-            metadata: {
-              name: 'test-pod',
-            },
-          },
           referencedTimelineIds: [],
         },
         timezoneShift: 0,
@@ -82,7 +75,6 @@ export const Loading: Story = {
         vm: {
           logEntry,
           logBody: '',
-          parsedLogBody: null,
           referencedTimelineIds: [],
         },
         timezoneShift: 0,

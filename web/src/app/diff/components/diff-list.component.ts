@@ -180,7 +180,7 @@ export class DiffListComponent {
       let isContentChanged = true;
       if (index > 0) {
         const prevRev = tl.revisions[index - 1];
-        isContentChanged = rev.bodyYAML !== prevRev.bodyYAML;
+        isContentChanged = rev.structId !== prevRev.structId;
       }
 
       const log = rev.logIndex !== -1 ? ls[rev.logIndex] : null;

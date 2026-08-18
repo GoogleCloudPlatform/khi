@@ -71,7 +71,9 @@ describe('DiffSmartComponent', () => {
               mockSelectedRevision.set(rev);
             },
             onHighlightRevision: jasmine.createSpy('onHighlightRevision'),
-            onMoveRevisionSelection: jasmine.createSpy('onMoveRevisionSelection'),
+            onMoveRevisionSelection: jasmine.createSpy(
+              'onMoveRevisionSelection',
+            ),
           },
         },
       ],

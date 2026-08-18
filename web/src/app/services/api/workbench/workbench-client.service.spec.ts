@@ -35,6 +35,7 @@ describe('WorkbenchClientService', () => {
         openWorkbench: jasmine.createSpy('openWorkbench'),
         heartbeatWorkbench: jasmine.createSpy('heartbeatWorkbench'),
         readStructYAML: jasmine.createSpy('readStructYAML'),
+        filterTimeline: jasmine.createSpy('filterTimeline'),
         closeWorkbench: jasmine.createSpy('closeWorkbench'),
       },
     });
@@ -223,5 +224,82 @@ describe('WorkbenchClientService', () => {
     expect(
       mockConnectClient.workbenchClient.readStructYAML,
     ).toHaveBeenCalledTimes(1);
+  });
+
+  it('should stream progress and return final result on filterTimeline', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(
+      (async function* () {
+        yield {
+          stage: OpenWorkbenchResponse_Stage.READY,
+          progressPercentage: 100,
+          message: 'Ready',
+          workbenchId: 'usr-1-session-0',
+        };
+      })(),
+    );
+
+    async function* mockFilterStream() {
+      yield {
+        payload: {
+          case: 'progress' as const,
+          value: {
+            stageName: 'Timeline CEL filter',
+            current: 10,
+            total: 100,
+          },
+        },
+      };
+      yield {
+        payload: {
+          case: 'result' as const,
+          value: {
+            timelineIds: [1, 2, 3],
+            logIds: [10, 20],
+          },
+        },
+      };
+    }
+
+    (
+      mockConnectClient.workbenchClient.filterTimeline as jasmine.Spy
+    ).and.returnValue(mockFilterStream());
+
+    await service.openWorkbench('session-0', 'inspection-1');
+
+    const progressReports: { stage: string; current: number; total: number }[] =
+      [];
+    const result = await service.filterTimeline(
+      {
+        timelineQuery: 'name == "pod-a"',
+        excludeNoLogs: true,
+      },
+      (stage, current, total) => {
+        progressReports.push({ stage, current, total });
+      },
+    );
+
+    expect(
+      mockConnectClient.workbenchClient.filterTimeline,
+    ).toHaveBeenCalledWith(
+      {
+        workbenchId: 'usr-1-session-0',
+        timelineQuery: 'name == "pod-a"',
+        timelineExclusionQuery: '',
+        logQuery: '',
+        excludeNoLogs: true,
+      },
+      jasmine.any(Object),
+    );
+
+    expect(progressReports.length).toBe(1);
+    expect(progressReports[0]).toEqual({
+      stage: 'Timeline CEL filter',
+      current: 10,
+      total: 100,
+    });
+    expect(result.timelineIds).toEqual([1, 2, 3]);
+    expect(result.logIds).toEqual([10, 20]);
   });
 });
