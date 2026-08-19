@@ -95,6 +95,9 @@ var JobRunnerInitializer = &coreinit.Initializer{
 			if _, err := io.Copy(file, reader); err != nil {
 				return fmt.Errorf("failed to write export file: %w", err)
 			}
+			if err := file.Sync(); err != nil {
+				return fmt.Errorf("failed to sync export file: %w", err)
+			}
 			return nil
 		})
 		return nil
