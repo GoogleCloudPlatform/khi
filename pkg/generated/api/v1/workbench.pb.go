@@ -145,6 +145,59 @@ func (OpenWorkbenchResponse_Stage) EnumDescriptor() ([]byte, []int) {
 	return file_api_v1_workbench_proto_rawDescGZIP(), []int{1, 0}
 }
 
+// Lifecycle state of search index construction.
+type StreamIndexProgressResponse_IndexState int32
+
+const (
+	StreamIndexProgressResponse_INDEX_STATE_UNSPECIFIED StreamIndexProgressResponse_IndexState = 0
+	StreamIndexProgressResponse_INDEX_STATE_BUILDING    StreamIndexProgressResponse_IndexState = 1
+	StreamIndexProgressResponse_INDEX_STATE_READY       StreamIndexProgressResponse_IndexState = 2
+	StreamIndexProgressResponse_INDEX_STATE_FAILED      StreamIndexProgressResponse_IndexState = 3
+)
+
+// Enum value maps for StreamIndexProgressResponse_IndexState.
+var (
+	StreamIndexProgressResponse_IndexState_name = map[int32]string{
+		0: "INDEX_STATE_UNSPECIFIED",
+		1: "INDEX_STATE_BUILDING",
+		2: "INDEX_STATE_READY",
+		3: "INDEX_STATE_FAILED",
+	}
+	StreamIndexProgressResponse_IndexState_value = map[string]int32{
+		"INDEX_STATE_UNSPECIFIED": 0,
+		"INDEX_STATE_BUILDING":    1,
+		"INDEX_STATE_READY":       2,
+		"INDEX_STATE_FAILED":      3,
+	}
+)
+
+func (x StreamIndexProgressResponse_IndexState) Enum() *StreamIndexProgressResponse_IndexState {
+	p := new(StreamIndexProgressResponse_IndexState)
+	*p = x
+	return p
+}
+
+func (x StreamIndexProgressResponse_IndexState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StreamIndexProgressResponse_IndexState) Descriptor() protoreflect.EnumDescriptor {
+	return file_api_v1_workbench_proto_enumTypes[2].Descriptor()
+}
+
+func (StreamIndexProgressResponse_IndexState) Type() protoreflect.EnumType {
+	return &file_api_v1_workbench_proto_enumTypes[2]
+}
+
+func (x StreamIndexProgressResponse_IndexState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StreamIndexProgressResponse_IndexState.Descriptor instead.
+func (StreamIndexProgressResponse_IndexState) EnumDescriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{3, 0}
+}
+
 // Request to open or attach to a Workbench session for a specific inspection dataset.
 type OpenWorkbenchRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -279,6 +332,113 @@ func (x *OpenWorkbenchResponse) GetWorkbenchId() string {
 	return ""
 }
 
+// Request to stream the search index construction progress of a Workbench session.
+type StreamIndexProgressRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The active workbench session identifier.
+	WorkbenchId   *string `protobuf:"bytes,1,opt,name=workbench_id,json=workbenchId" json:"workbench_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamIndexProgressRequest) Reset() {
+	*x = StreamIndexProgressRequest{}
+	mi := &file_api_v1_workbench_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamIndexProgressRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamIndexProgressRequest) ProtoMessage() {}
+
+func (x *StreamIndexProgressRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamIndexProgressRequest.ProtoReflect.Descriptor instead.
+func (*StreamIndexProgressRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *StreamIndexProgressRequest) GetWorkbenchId() string {
+	if x != nil && x.WorkbenchId != nil {
+		return *x.WorkbenchId
+	}
+	return ""
+}
+
+// Progress update or terminal state of search index construction.
+type StreamIndexProgressResponse struct {
+	state              protoimpl.MessageState                  `protogen:"open.v1"`
+	State              *StreamIndexProgressResponse_IndexState `protobuf:"varint,1,opt,name=state,enum=api.v1.StreamIndexProgressResponse_IndexState" json:"state,omitempty"`
+	ProgressPercentage *float64                                `protobuf:"fixed64,2,opt,name=progress_percentage,json=progressPercentage" json:"progress_percentage,omitempty"`
+	Message            *string                                 `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *StreamIndexProgressResponse) Reset() {
+	*x = StreamIndexProgressResponse{}
+	mi := &file_api_v1_workbench_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamIndexProgressResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamIndexProgressResponse) ProtoMessage() {}
+
+func (x *StreamIndexProgressResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamIndexProgressResponse.ProtoReflect.Descriptor instead.
+func (*StreamIndexProgressResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *StreamIndexProgressResponse) GetState() StreamIndexProgressResponse_IndexState {
+	if x != nil && x.State != nil {
+		return *x.State
+	}
+	return StreamIndexProgressResponse_INDEX_STATE_UNSPECIFIED
+}
+
+func (x *StreamIndexProgressResponse) GetProgressPercentage() float64 {
+	if x != nil && x.ProgressPercentage != nil {
+		return *x.ProgressPercentage
+	}
+	return 0
+}
+
+func (x *StreamIndexProgressResponse) GetMessage() string {
+	if x != nil && x.Message != nil {
+		return *x.Message
+	}
+	return ""
+}
+
 // Request to refresh the lease TTL of an active Workbench session.
 type HeartbeatWorkbenchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -289,7 +449,7 @@ type HeartbeatWorkbenchRequest struct {
 
 func (x *HeartbeatWorkbenchRequest) Reset() {
 	*x = HeartbeatWorkbenchRequest{}
-	mi := &file_api_v1_workbench_proto_msgTypes[2]
+	mi := &file_api_v1_workbench_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -301,7 +461,7 @@ func (x *HeartbeatWorkbenchRequest) String() string {
 func (*HeartbeatWorkbenchRequest) ProtoMessage() {}
 
 func (x *HeartbeatWorkbenchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[2]
+	mi := &file_api_v1_workbench_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -314,7 +474,7 @@ func (x *HeartbeatWorkbenchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatWorkbenchRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatWorkbenchRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{2}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *HeartbeatWorkbenchRequest) GetWorkbenchId() string {
@@ -335,7 +495,7 @@ type HeartbeatWorkbenchResponse struct {
 
 func (x *HeartbeatWorkbenchResponse) Reset() {
 	*x = HeartbeatWorkbenchResponse{}
-	mi := &file_api_v1_workbench_proto_msgTypes[3]
+	mi := &file_api_v1_workbench_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -347,7 +507,7 @@ func (x *HeartbeatWorkbenchResponse) String() string {
 func (*HeartbeatWorkbenchResponse) ProtoMessage() {}
 
 func (x *HeartbeatWorkbenchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[3]
+	mi := &file_api_v1_workbench_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -360,7 +520,7 @@ func (x *HeartbeatWorkbenchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatWorkbenchResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatWorkbenchResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{3}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *HeartbeatWorkbenchResponse) GetActive() bool {
@@ -390,7 +550,7 @@ type ReadStructYAMLRequest struct {
 
 func (x *ReadStructYAMLRequest) Reset() {
 	*x = ReadStructYAMLRequest{}
-	mi := &file_api_v1_workbench_proto_msgTypes[4]
+	mi := &file_api_v1_workbench_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -402,7 +562,7 @@ func (x *ReadStructYAMLRequest) String() string {
 func (*ReadStructYAMLRequest) ProtoMessage() {}
 
 func (x *ReadStructYAMLRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[4]
+	mi := &file_api_v1_workbench_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -415,7 +575,7 @@ func (x *ReadStructYAMLRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadStructYAMLRequest.ProtoReflect.Descriptor instead.
 func (*ReadStructYAMLRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{4}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReadStructYAMLRequest) GetWorkbenchId() string {
@@ -443,7 +603,7 @@ type ReadStructYAMLResponse struct {
 
 func (x *ReadStructYAMLResponse) Reset() {
 	*x = ReadStructYAMLResponse{}
-	mi := &file_api_v1_workbench_proto_msgTypes[5]
+	mi := &file_api_v1_workbench_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -455,7 +615,7 @@ func (x *ReadStructYAMLResponse) String() string {
 func (*ReadStructYAMLResponse) ProtoMessage() {}
 
 func (x *ReadStructYAMLResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[5]
+	mi := &file_api_v1_workbench_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -468,7 +628,7 @@ func (x *ReadStructYAMLResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadStructYAMLResponse.ProtoReflect.Descriptor instead.
 func (*ReadStructYAMLResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{5}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ReadStructYAMLResponse) GetYaml() string {
@@ -497,7 +657,7 @@ type FilterTimelineRequest struct {
 
 func (x *FilterTimelineRequest) Reset() {
 	*x = FilterTimelineRequest{}
-	mi := &file_api_v1_workbench_proto_msgTypes[6]
+	mi := &file_api_v1_workbench_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -509,7 +669,7 @@ func (x *FilterTimelineRequest) String() string {
 func (*FilterTimelineRequest) ProtoMessage() {}
 
 func (x *FilterTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[6]
+	mi := &file_api_v1_workbench_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -522,7 +682,7 @@ func (x *FilterTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterTimelineRequest.ProtoReflect.Descriptor instead.
 func (*FilterTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{6}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *FilterTimelineRequest) GetWorkbenchId() string {
@@ -575,7 +735,7 @@ type FilterProgress struct {
 
 func (x *FilterProgress) Reset() {
 	*x = FilterProgress{}
-	mi := &file_api_v1_workbench_proto_msgTypes[7]
+	mi := &file_api_v1_workbench_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -587,7 +747,7 @@ func (x *FilterProgress) String() string {
 func (*FilterProgress) ProtoMessage() {}
 
 func (x *FilterProgress) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[7]
+	mi := &file_api_v1_workbench_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -600,7 +760,7 @@ func (x *FilterProgress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterProgress.ProtoReflect.Descriptor instead.
 func (*FilterProgress) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{7}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *FilterProgress) GetStageName() string {
@@ -637,7 +797,7 @@ type SparseBitset struct {
 
 func (x *SparseBitset) Reset() {
 	*x = SparseBitset{}
-	mi := &file_api_v1_workbench_proto_msgTypes[8]
+	mi := &file_api_v1_workbench_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -649,7 +809,7 @@ func (x *SparseBitset) String() string {
 func (*SparseBitset) ProtoMessage() {}
 
 func (x *SparseBitset) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[8]
+	mi := &file_api_v1_workbench_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -662,7 +822,7 @@ func (x *SparseBitset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SparseBitset.ProtoReflect.Descriptor instead.
 func (*SparseBitset) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{8}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SparseBitset) GetIndices() []uint32 {
@@ -696,7 +856,7 @@ type FilterResult struct {
 
 func (x *FilterResult) Reset() {
 	*x = FilterResult{}
-	mi := &file_api_v1_workbench_proto_msgTypes[9]
+	mi := &file_api_v1_workbench_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -708,7 +868,7 @@ func (x *FilterResult) String() string {
 func (*FilterResult) ProtoMessage() {}
 
 func (x *FilterResult) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[9]
+	mi := &file_api_v1_workbench_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -721,7 +881,7 @@ func (x *FilterResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterResult.ProtoReflect.Descriptor instead.
 func (*FilterResult) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{9}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *FilterResult) GetTimelineMode() FilterResultMode {
@@ -768,7 +928,7 @@ type FilterTimelineResponse struct {
 
 func (x *FilterTimelineResponse) Reset() {
 	*x = FilterTimelineResponse{}
-	mi := &file_api_v1_workbench_proto_msgTypes[10]
+	mi := &file_api_v1_workbench_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -780,7 +940,7 @@ func (x *FilterTimelineResponse) String() string {
 func (*FilterTimelineResponse) ProtoMessage() {}
 
 func (x *FilterTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[10]
+	mi := &file_api_v1_workbench_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -793,7 +953,7 @@ func (x *FilterTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterTimelineResponse.ProtoReflect.Descriptor instead.
 func (*FilterTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{10}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *FilterTimelineResponse) GetPayload() isFilterTimelineResponse_Payload {
@@ -847,7 +1007,7 @@ type CloseWorkbenchRequest struct {
 
 func (x *CloseWorkbenchRequest) Reset() {
 	*x = CloseWorkbenchRequest{}
-	mi := &file_api_v1_workbench_proto_msgTypes[11]
+	mi := &file_api_v1_workbench_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -859,7 +1019,7 @@ func (x *CloseWorkbenchRequest) String() string {
 func (*CloseWorkbenchRequest) ProtoMessage() {}
 
 func (x *CloseWorkbenchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[11]
+	mi := &file_api_v1_workbench_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -872,7 +1032,7 @@ func (x *CloseWorkbenchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseWorkbenchRequest.ProtoReflect.Descriptor instead.
 func (*CloseWorkbenchRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{11}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CloseWorkbenchRequest) GetWorkbenchId() string {
@@ -892,7 +1052,7 @@ type CloseWorkbenchResponse struct {
 
 func (x *CloseWorkbenchResponse) Reset() {
 	*x = CloseWorkbenchResponse{}
-	mi := &file_api_v1_workbench_proto_msgTypes[12]
+	mi := &file_api_v1_workbench_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -904,7 +1064,7 @@ func (x *CloseWorkbenchResponse) String() string {
 func (*CloseWorkbenchResponse) ProtoMessage() {}
 
 func (x *CloseWorkbenchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[12]
+	mi := &file_api_v1_workbench_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -917,7 +1077,7 @@ func (x *CloseWorkbenchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseWorkbenchResponse.ProtoReflect.Descriptor instead.
 func (*CloseWorkbenchResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{12}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CloseWorkbenchResponse) GetClosed() bool {
@@ -948,7 +1108,19 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\x12STAGE_READING_FILE\x10\x02\x12\x18\n" +
 	"\x14STAGE_PARSING_CHUNKS\x10\x03\x12\x17\n" +
 	"\x13STAGE_INDEXING_DATA\x10\x04\x12\x0f\n" +
-	"\vSTAGE_READY\x10\x05\">\n" +
+	"\vSTAGE_READY\x10\x05\"?\n" +
+	"\x1aStreamIndexProgressRequest\x12!\n" +
+	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\"\xa2\x02\n" +
+	"\x1bStreamIndexProgressResponse\x12D\n" +
+	"\x05state\x18\x01 \x01(\x0e2..api.v1.StreamIndexProgressResponse.IndexStateR\x05state\x12/\n" +
+	"\x13progress_percentage\x18\x02 \x01(\x01R\x12progressPercentage\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"r\n" +
+	"\n" +
+	"IndexState\x12\x1b\n" +
+	"\x17INDEX_STATE_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14INDEX_STATE_BUILDING\x10\x01\x12\x15\n" +
+	"\x11INDEX_STATE_READY\x10\x02\x12\x16\n" +
+	"\x12INDEX_STATE_FAILED\x10\x03\">\n" +
 	"\x19HeartbeatWorkbenchRequest\x12!\n" +
 	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\"o\n" +
 	"\x1aHeartbeatWorkbenchResponse\x12\x16\n" +
@@ -991,9 +1163,10 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\x10FilterResultMode\x12\"\n" +
 	"\x1eFILTER_RESULT_MODE_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aFILTER_RESULT_MODE_INCLUDE\x10\x01\x12\x1e\n" +
-	"\x1aFILTER_RESULT_MODE_EXCLUDE\x10\x022\xb4\x03\n" +
+	"\x1aFILTER_RESULT_MODE_EXCLUDE\x10\x022\x96\x04\n" +
 	"\x10WorkbenchService\x12N\n" +
-	"\rOpenWorkbench\x12\x1c.api.v1.OpenWorkbenchRequest\x1a\x1d.api.v1.OpenWorkbenchResponse0\x01\x12[\n" +
+	"\rOpenWorkbench\x12\x1c.api.v1.OpenWorkbenchRequest\x1a\x1d.api.v1.OpenWorkbenchResponse0\x01\x12`\n" +
+	"\x13StreamIndexProgress\x12\".api.v1.StreamIndexProgressRequest\x1a#.api.v1.StreamIndexProgressResponse0\x01\x12[\n" +
 	"\x12HeartbeatWorkbench\x12!.api.v1.HeartbeatWorkbenchRequest\x1a\".api.v1.HeartbeatWorkbenchResponse\x12O\n" +
 	"\x0eReadStructYAML\x12\x1d.api.v1.ReadStructYAMLRequest\x1a\x1e.api.v1.ReadStructYAMLResponse\x12Q\n" +
 	"\x0eFilterTimeline\x12\x1d.api.v1.FilterTimelineRequest\x1a\x1e.api.v1.FilterTimelineResponse0\x01\x12O\n" +
@@ -1011,50 +1184,56 @@ func file_api_v1_workbench_proto_rawDescGZIP() []byte {
 	return file_api_v1_workbench_proto_rawDescData
 }
 
-var file_api_v1_workbench_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_api_v1_workbench_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_api_v1_workbench_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_api_v1_workbench_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_api_v1_workbench_proto_goTypes = []any{
-	(FilterResultMode)(0),              // 0: api.v1.FilterResultMode
-	(OpenWorkbenchResponse_Stage)(0),   // 1: api.v1.OpenWorkbenchResponse.Stage
-	(*OpenWorkbenchRequest)(nil),       // 2: api.v1.OpenWorkbenchRequest
-	(*OpenWorkbenchResponse)(nil),      // 3: api.v1.OpenWorkbenchResponse
-	(*HeartbeatWorkbenchRequest)(nil),  // 4: api.v1.HeartbeatWorkbenchRequest
-	(*HeartbeatWorkbenchResponse)(nil), // 5: api.v1.HeartbeatWorkbenchResponse
-	(*ReadStructYAMLRequest)(nil),      // 6: api.v1.ReadStructYAMLRequest
-	(*ReadStructYAMLResponse)(nil),     // 7: api.v1.ReadStructYAMLResponse
-	(*FilterTimelineRequest)(nil),      // 8: api.v1.FilterTimelineRequest
-	(*FilterProgress)(nil),             // 9: api.v1.FilterProgress
-	(*SparseBitset)(nil),               // 10: api.v1.SparseBitset
-	(*FilterResult)(nil),               // 11: api.v1.FilterResult
-	(*FilterTimelineResponse)(nil),     // 12: api.v1.FilterTimelineResponse
-	(*CloseWorkbenchRequest)(nil),      // 13: api.v1.CloseWorkbenchRequest
-	(*CloseWorkbenchResponse)(nil),     // 14: api.v1.CloseWorkbenchResponse
-	(*timestamppb.Timestamp)(nil),      // 15: google.protobuf.Timestamp
+	(FilterResultMode)(0),                       // 0: api.v1.FilterResultMode
+	(OpenWorkbenchResponse_Stage)(0),            // 1: api.v1.OpenWorkbenchResponse.Stage
+	(StreamIndexProgressResponse_IndexState)(0), // 2: api.v1.StreamIndexProgressResponse.IndexState
+	(*OpenWorkbenchRequest)(nil),                // 3: api.v1.OpenWorkbenchRequest
+	(*OpenWorkbenchResponse)(nil),               // 4: api.v1.OpenWorkbenchResponse
+	(*StreamIndexProgressRequest)(nil),          // 5: api.v1.StreamIndexProgressRequest
+	(*StreamIndexProgressResponse)(nil),         // 6: api.v1.StreamIndexProgressResponse
+	(*HeartbeatWorkbenchRequest)(nil),           // 7: api.v1.HeartbeatWorkbenchRequest
+	(*HeartbeatWorkbenchResponse)(nil),          // 8: api.v1.HeartbeatWorkbenchResponse
+	(*ReadStructYAMLRequest)(nil),               // 9: api.v1.ReadStructYAMLRequest
+	(*ReadStructYAMLResponse)(nil),              // 10: api.v1.ReadStructYAMLResponse
+	(*FilterTimelineRequest)(nil),               // 11: api.v1.FilterTimelineRequest
+	(*FilterProgress)(nil),                      // 12: api.v1.FilterProgress
+	(*SparseBitset)(nil),                        // 13: api.v1.SparseBitset
+	(*FilterResult)(nil),                        // 14: api.v1.FilterResult
+	(*FilterTimelineResponse)(nil),              // 15: api.v1.FilterTimelineResponse
+	(*CloseWorkbenchRequest)(nil),               // 16: api.v1.CloseWorkbenchRequest
+	(*CloseWorkbenchResponse)(nil),              // 17: api.v1.CloseWorkbenchResponse
+	(*timestamppb.Timestamp)(nil),               // 18: google.protobuf.Timestamp
 }
 var file_api_v1_workbench_proto_depIdxs = []int32{
 	1,  // 0: api.v1.OpenWorkbenchResponse.stage:type_name -> api.v1.OpenWorkbenchResponse.Stage
-	15, // 1: api.v1.HeartbeatWorkbenchResponse.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 2: api.v1.FilterResult.timeline_mode:type_name -> api.v1.FilterResultMode
-	10, // 3: api.v1.FilterResult.timeline_bitset:type_name -> api.v1.SparseBitset
-	0,  // 4: api.v1.FilterResult.log_mode:type_name -> api.v1.FilterResultMode
-	10, // 5: api.v1.FilterResult.log_bitset:type_name -> api.v1.SparseBitset
-	9,  // 6: api.v1.FilterTimelineResponse.progress:type_name -> api.v1.FilterProgress
-	11, // 7: api.v1.FilterTimelineResponse.result:type_name -> api.v1.FilterResult
-	2,  // 8: api.v1.WorkbenchService.OpenWorkbench:input_type -> api.v1.OpenWorkbenchRequest
-	4,  // 9: api.v1.WorkbenchService.HeartbeatWorkbench:input_type -> api.v1.HeartbeatWorkbenchRequest
-	6,  // 10: api.v1.WorkbenchService.ReadStructYAML:input_type -> api.v1.ReadStructYAMLRequest
-	8,  // 11: api.v1.WorkbenchService.FilterTimeline:input_type -> api.v1.FilterTimelineRequest
-	13, // 12: api.v1.WorkbenchService.CloseWorkbench:input_type -> api.v1.CloseWorkbenchRequest
-	3,  // 13: api.v1.WorkbenchService.OpenWorkbench:output_type -> api.v1.OpenWorkbenchResponse
-	5,  // 14: api.v1.WorkbenchService.HeartbeatWorkbench:output_type -> api.v1.HeartbeatWorkbenchResponse
-	7,  // 15: api.v1.WorkbenchService.ReadStructYAML:output_type -> api.v1.ReadStructYAMLResponse
-	12, // 16: api.v1.WorkbenchService.FilterTimeline:output_type -> api.v1.FilterTimelineResponse
-	14, // 17: api.v1.WorkbenchService.CloseWorkbench:output_type -> api.v1.CloseWorkbenchResponse
-	13, // [13:18] is the sub-list for method output_type
-	8,  // [8:13] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	2,  // 1: api.v1.StreamIndexProgressResponse.state:type_name -> api.v1.StreamIndexProgressResponse.IndexState
+	18, // 2: api.v1.HeartbeatWorkbenchResponse.expires_at:type_name -> google.protobuf.Timestamp
+	0,  // 3: api.v1.FilterResult.timeline_mode:type_name -> api.v1.FilterResultMode
+	13, // 4: api.v1.FilterResult.timeline_bitset:type_name -> api.v1.SparseBitset
+	0,  // 5: api.v1.FilterResult.log_mode:type_name -> api.v1.FilterResultMode
+	13, // 6: api.v1.FilterResult.log_bitset:type_name -> api.v1.SparseBitset
+	12, // 7: api.v1.FilterTimelineResponse.progress:type_name -> api.v1.FilterProgress
+	14, // 8: api.v1.FilterTimelineResponse.result:type_name -> api.v1.FilterResult
+	3,  // 9: api.v1.WorkbenchService.OpenWorkbench:input_type -> api.v1.OpenWorkbenchRequest
+	5,  // 10: api.v1.WorkbenchService.StreamIndexProgress:input_type -> api.v1.StreamIndexProgressRequest
+	7,  // 11: api.v1.WorkbenchService.HeartbeatWorkbench:input_type -> api.v1.HeartbeatWorkbenchRequest
+	9,  // 12: api.v1.WorkbenchService.ReadStructYAML:input_type -> api.v1.ReadStructYAMLRequest
+	11, // 13: api.v1.WorkbenchService.FilterTimeline:input_type -> api.v1.FilterTimelineRequest
+	16, // 14: api.v1.WorkbenchService.CloseWorkbench:input_type -> api.v1.CloseWorkbenchRequest
+	4,  // 15: api.v1.WorkbenchService.OpenWorkbench:output_type -> api.v1.OpenWorkbenchResponse
+	6,  // 16: api.v1.WorkbenchService.StreamIndexProgress:output_type -> api.v1.StreamIndexProgressResponse
+	8,  // 17: api.v1.WorkbenchService.HeartbeatWorkbench:output_type -> api.v1.HeartbeatWorkbenchResponse
+	10, // 18: api.v1.WorkbenchService.ReadStructYAML:output_type -> api.v1.ReadStructYAMLResponse
+	15, // 19: api.v1.WorkbenchService.FilterTimeline:output_type -> api.v1.FilterTimelineResponse
+	17, // 20: api.v1.WorkbenchService.CloseWorkbench:output_type -> api.v1.CloseWorkbenchResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_workbench_proto_init() }
@@ -1062,7 +1241,7 @@ func file_api_v1_workbench_proto_init() {
 	if File_api_v1_workbench_proto != nil {
 		return
 	}
-	file_api_v1_workbench_proto_msgTypes[10].OneofWrappers = []any{
+	file_api_v1_workbench_proto_msgTypes[12].OneofWrappers = []any{
 		(*FilterTimelineResponse_Progress)(nil),
 		(*FilterTimelineResponse_Result)(nil),
 	}
@@ -1071,8 +1250,8 @@ func file_api_v1_workbench_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_workbench_proto_rawDesc), len(file_api_v1_workbench_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   13,
+			NumEnums:      3,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

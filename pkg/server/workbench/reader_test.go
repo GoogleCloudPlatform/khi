@@ -140,3 +140,46 @@ func TestWorkbench_NewWorkbenchFromReader(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatByteSize(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input int64
+		want  string
+	}{
+		{
+			name:  "bytes below 1 KB",
+			input: 512,
+			want:  "512 B",
+		},
+		{
+			name:  "exact 1 KB",
+			input: 1024,
+			want:  "1.0 KB",
+		},
+		{
+			name:  "kilobytes with decimal",
+			input: 1536,
+			want:  "1.5 KB",
+		},
+		{
+			name:  "megabytes",
+			input: 15 * 1024 * 1024,
+			want:  "15.0 MB",
+		},
+		{
+			name:  "gigabytes",
+			input: 2 * 1024 * 1024 * 1024,
+			want:  "2.0 GB",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := formatByteSize(tc.input)
+			if got != tc.want {
+				t.Errorf("formatByteSize(%d) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}

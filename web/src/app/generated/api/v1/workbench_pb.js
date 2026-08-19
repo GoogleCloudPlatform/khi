@@ -31,7 +31,7 @@ import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 export const file_api_v1_workbench =
   /*@__PURE__*/
   fileDesc(
-    "ChZhcGkvdjEvd29ya2JlbmNoLnByb3RvEgZhcGkudjEiUgoUT3BlbldvcmtiZW5jaFJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhUKDWluc3BlY3Rpb25faWQYAyABKAkipAIKFU9wZW5Xb3JrYmVuY2hSZXNwb25zZRIyCgVzdGFnZRgBIAEoDjIjLmFwaS52MS5PcGVuV29ya2JlbmNoUmVzcG9uc2UuU3RhZ2USGwoTcHJvZ3Jlc3NfcGVyY2VudGFnZRgCIAEoARIPCgdtZXNzYWdlGAMgASgJEhQKDHdvcmtiZW5jaF9pZBgEIAEoCSKSAQoFU3RhZ2USFQoRU1RBR0VfVU5TUEVDSUZJRUQQABIWChJTVEFHRV9JTklUSUFMSVpJTkcQARIWChJTVEFHRV9SRUFESU5HX0ZJTEUQAhIYChRTVEFHRV9QQVJTSU5HX0NIVU5LUxADEhcKE1NUQUdFX0lOREVYSU5HX0RBVEEQBBIPCgtTVEFHRV9SRUFEWRAFIjEKGUhlYXJ0YmVhdFdvcmtiZW5jaFJlcXVlc3QSFAoMd29ya2JlbmNoX2lkGAEgASgJIlwKGkhlYXJ0YmVhdFdvcmtiZW5jaFJlc3BvbnNlEg4KBmFjdGl2ZRgBIAEoCBIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJAChVSZWFkU3RydWN0WUFNTFJlcXVlc3QSFAoMd29ya2JlbmNoX2lkGAEgASgJEhEKCXN0cnVjdF9pZBgCIAEoDSImChZSZWFkU3RydWN0WUFNTFJlc3BvbnNlEgwKBHlhbWwYASABKAkikwEKFUZpbHRlclRpbWVsaW5lUmVxdWVzdBIUCgx3b3JrYmVuY2hfaWQYASABKAkSFgoOdGltZWxpbmVfcXVlcnkYAiABKAkSIAoYdGltZWxpbmVfZXhjbHVzaW9uX3F1ZXJ5GAMgASgJEhEKCWxvZ19xdWVyeRgEIAEoCRIXCg9leGNsdWRlX25vX2xvZ3MYBSABKAgiRAoORmlsdGVyUHJvZ3Jlc3MSEgoKc3RhZ2VfbmFtZRgBIAEoCRIPCgdjdXJyZW50GAIgASgNEg0KBXRvdGFsGAMgASgNIi4KDFNwYXJzZUJpdHNldBIPCgdpbmRpY2VzGAEgAygNEg0KBW1hc2tzGAIgAygHIsQBCgxGaWx0ZXJSZXN1bHQSLwoNdGltZWxpbmVfbW9kZRgBIAEoDjIYLmFwaS52MS5GaWx0ZXJSZXN1bHRNb2RlEi0KD3RpbWVsaW5lX2JpdHNldBgCIAEoCzIULmFwaS52MS5TcGFyc2VCaXRzZXQSKgoIbG9nX21vZGUYAyABKA4yGC5hcGkudjEuRmlsdGVyUmVzdWx0TW9kZRIoCgpsb2dfYml0c2V0GAQgASgLMhQuYXBpLnYxLlNwYXJzZUJpdHNldCJ3ChZGaWx0ZXJUaW1lbGluZVJlc3BvbnNlEioKCHByb2dyZXNzGAEgASgLMhYuYXBpLnYxLkZpbHRlclByb2dyZXNzSAASJgoGcmVzdWx0GAIgASgLMhQuYXBpLnYxLkZpbHRlclJlc3VsdEgAQgkKB3BheWxvYWQiLQoVQ2xvc2VXb3JrYmVuY2hSZXF1ZXN0EhQKDHdvcmtiZW5jaF9pZBgBIAEoCSIoChZDbG9zZVdvcmtiZW5jaFJlc3BvbnNlEg4KBmNsb3NlZBgBIAEoCCp2ChBGaWx0ZXJSZXN1bHRNb2RlEiIKHkZJTFRFUl9SRVNVTFRfTU9ERV9VTlNQRUNJRklFRBAAEh4KGkZJTFRFUl9SRVNVTFRfTU9ERV9JTkNMVURFEAESHgoaRklMVEVSX1JFU1VMVF9NT0RFX0VYQ0xVREUQAjK0AwoQV29ya2JlbmNoU2VydmljZRJOCg1PcGVuV29ya2JlbmNoEhwuYXBpLnYxLk9wZW5Xb3JrYmVuY2hSZXF1ZXN0Gh0uYXBpLnYxLk9wZW5Xb3JrYmVuY2hSZXNwb25zZTABElsKEkhlYXJ0YmVhdFdvcmtiZW5jaBIhLmFwaS52MS5IZWFydGJlYXRXb3JrYmVuY2hSZXF1ZXN0GiIuYXBpLnYxLkhlYXJ0YmVhdFdvcmtiZW5jaFJlc3BvbnNlEk8KDlJlYWRTdHJ1Y3RZQU1MEh0uYXBpLnYxLlJlYWRTdHJ1Y3RZQU1MUmVxdWVzdBoeLmFwaS52MS5SZWFkU3RydWN0WUFNTFJlc3BvbnNlElEKDkZpbHRlclRpbWVsaW5lEh0uYXBpLnYxLkZpbHRlclRpbWVsaW5lUmVxdWVzdBoeLmFwaS52MS5GaWx0ZXJUaW1lbGluZVJlc3BvbnNlMAESTwoOQ2xvc2VXb3JrYmVuY2gSHS5hcGkudjEuQ2xvc2VXb3JrYmVuY2hSZXF1ZXN0Gh4uYXBpLnYxLkNsb3NlV29ya2JlbmNoUmVzcG9uc2VCP1o9Z2l0aHViLmNvbS9Hb29nbGVDbG91ZFBsYXRmb3JtL2toaS9wa2cvZ2VuZXJhdGVkL2FwaS92MTthcGl2MWIIZWRpdGlvbnNw6Ac",
+    "ChZhcGkvdjEvd29ya2JlbmNoLnByb3RvEgZhcGkudjEiUgoUT3BlbldvcmtiZW5jaFJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhUKDWluc3BlY3Rpb25faWQYAyABKAkipAIKFU9wZW5Xb3JrYmVuY2hSZXNwb25zZRIyCgVzdGFnZRgBIAEoDjIjLmFwaS52MS5PcGVuV29ya2JlbmNoUmVzcG9uc2UuU3RhZ2USGwoTcHJvZ3Jlc3NfcGVyY2VudGFnZRgCIAEoARIPCgdtZXNzYWdlGAMgASgJEhQKDHdvcmtiZW5jaF9pZBgEIAEoCSKSAQoFU3RhZ2USFQoRU1RBR0VfVU5TUEVDSUZJRUQQABIWChJTVEFHRV9JTklUSUFMSVpJTkcQARIWChJTVEFHRV9SRUFESU5HX0ZJTEUQAhIYChRTVEFHRV9QQVJTSU5HX0NIVU5LUxADEhcKE1NUQUdFX0lOREVYSU5HX0RBVEEQBBIPCgtTVEFHRV9SRUFEWRAFIjIKGlN0cmVhbUluZGV4UHJvZ3Jlc3NSZXF1ZXN0EhQKDHdvcmtiZW5jaF9pZBgBIAEoCSL+AQobU3RyZWFtSW5kZXhQcm9ncmVzc1Jlc3BvbnNlEj0KBXN0YXRlGAEgASgOMi4uYXBpLnYxLlN0cmVhbUluZGV4UHJvZ3Jlc3NSZXNwb25zZS5JbmRleFN0YXRlEhsKE3Byb2dyZXNzX3BlcmNlbnRhZ2UYAiABKAESDwoHbWVzc2FnZRgDIAEoCSJyCgpJbmRleFN0YXRlEhsKF0lOREVYX1NUQVRFX1VOU1BFQ0lGSUVEEAASGAoUSU5ERVhfU1RBVEVfQlVJTERJTkcQARIVChFJTkRFWF9TVEFURV9SRUFEWRACEhYKEklOREVYX1NUQVRFX0ZBSUxFRBADIjEKGUhlYXJ0YmVhdFdvcmtiZW5jaFJlcXVlc3QSFAoMd29ya2JlbmNoX2lkGAEgASgJIlwKGkhlYXJ0YmVhdFdvcmtiZW5jaFJlc3BvbnNlEg4KBmFjdGl2ZRgBIAEoCBIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJAChVSZWFkU3RydWN0WUFNTFJlcXVlc3QSFAoMd29ya2JlbmNoX2lkGAEgASgJEhEKCXN0cnVjdF9pZBgCIAEoDSImChZSZWFkU3RydWN0WUFNTFJlc3BvbnNlEgwKBHlhbWwYASABKAkikwEKFUZpbHRlclRpbWVsaW5lUmVxdWVzdBIUCgx3b3JrYmVuY2hfaWQYASABKAkSFgoOdGltZWxpbmVfcXVlcnkYAiABKAkSIAoYdGltZWxpbmVfZXhjbHVzaW9uX3F1ZXJ5GAMgASgJEhEKCWxvZ19xdWVyeRgEIAEoCRIXCg9leGNsdWRlX25vX2xvZ3MYBSABKAgiRAoORmlsdGVyUHJvZ3Jlc3MSEgoKc3RhZ2VfbmFtZRgBIAEoCRIPCgdjdXJyZW50GAIgASgNEg0KBXRvdGFsGAMgASgNIi4KDFNwYXJzZUJpdHNldBIPCgdpbmRpY2VzGAEgAygNEg0KBW1hc2tzGAIgAygHIsQBCgxGaWx0ZXJSZXN1bHQSLwoNdGltZWxpbmVfbW9kZRgBIAEoDjIYLmFwaS52MS5GaWx0ZXJSZXN1bHRNb2RlEi0KD3RpbWVsaW5lX2JpdHNldBgCIAEoCzIULmFwaS52MS5TcGFyc2VCaXRzZXQSKgoIbG9nX21vZGUYAyABKA4yGC5hcGkudjEuRmlsdGVyUmVzdWx0TW9kZRIoCgpsb2dfYml0c2V0GAQgASgLMhQuYXBpLnYxLlNwYXJzZUJpdHNldCJ3ChZGaWx0ZXJUaW1lbGluZVJlc3BvbnNlEioKCHByb2dyZXNzGAEgASgLMhYuYXBpLnYxLkZpbHRlclByb2dyZXNzSAASJgoGcmVzdWx0GAIgASgLMhQuYXBpLnYxLkZpbHRlclJlc3VsdEgAQgkKB3BheWxvYWQiLQoVQ2xvc2VXb3JrYmVuY2hSZXF1ZXN0EhQKDHdvcmtiZW5jaF9pZBgBIAEoCSIoChZDbG9zZVdvcmtiZW5jaFJlc3BvbnNlEg4KBmNsb3NlZBgBIAEoCCp2ChBGaWx0ZXJSZXN1bHRNb2RlEiIKHkZJTFRFUl9SRVNVTFRfTU9ERV9VTlNQRUNJRklFRBAAEh4KGkZJTFRFUl9SRVNVTFRfTU9ERV9JTkNMVURFEAESHgoaRklMVEVSX1JFU1VMVF9NT0RFX0VYQ0xVREUQAjKWBAoQV29ya2JlbmNoU2VydmljZRJOCg1PcGVuV29ya2JlbmNoEhwuYXBpLnYxLk9wZW5Xb3JrYmVuY2hSZXF1ZXN0Gh0uYXBpLnYxLk9wZW5Xb3JrYmVuY2hSZXNwb25zZTABEmAKE1N0cmVhbUluZGV4UHJvZ3Jlc3MSIi5hcGkudjEuU3RyZWFtSW5kZXhQcm9ncmVzc1JlcXVlc3QaIy5hcGkudjEuU3RyZWFtSW5kZXhQcm9ncmVzc1Jlc3BvbnNlMAESWwoSSGVhcnRiZWF0V29ya2JlbmNoEiEuYXBpLnYxLkhlYXJ0YmVhdFdvcmtiZW5jaFJlcXVlc3QaIi5hcGkudjEuSGVhcnRiZWF0V29ya2JlbmNoUmVzcG9uc2USTwoOUmVhZFN0cnVjdFlBTUwSHS5hcGkudjEuUmVhZFN0cnVjdFlBTUxSZXF1ZXN0Gh4uYXBpLnYxLlJlYWRTdHJ1Y3RZQU1MUmVzcG9uc2USUQoORmlsdGVyVGltZWxpbmUSHS5hcGkudjEuRmlsdGVyVGltZWxpbmVSZXF1ZXN0Gh4uYXBpLnYxLkZpbHRlclRpbWVsaW5lUmVzcG9uc2UwARJPCg5DbG9zZVdvcmtiZW5jaBIdLmFwaS52MS5DbG9zZVdvcmtiZW5jaFJlcXVlc3QaHi5hcGkudjEuQ2xvc2VXb3JrYmVuY2hSZXNwb25zZUI/Wj1naXRodWIuY29tL0dvb2dsZUNsb3VkUGxhdGZvcm0va2hpL3BrZy9nZW5lcmF0ZWQvYXBpL3YxO2FwaXYxYghlZGl0aW9uc3DoBw",
     [file_google_protobuf_timestamp],
   );
 
@@ -68,12 +68,44 @@ export const OpenWorkbenchResponse_Stage =
   tsEnum(OpenWorkbenchResponse_StageSchema);
 
 /**
+ * Describes the message api.v1.StreamIndexProgressRequest.
+ * Use `create(StreamIndexProgressRequestSchema)` to create a new message.
+ */
+export const StreamIndexProgressRequestSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 2);
+
+/**
+ * Describes the message api.v1.StreamIndexProgressResponse.
+ * Use `create(StreamIndexProgressResponseSchema)` to create a new message.
+ */
+export const StreamIndexProgressResponseSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 3);
+
+/**
+ * Describes the enum api.v1.StreamIndexProgressResponse.IndexState.
+ */
+export const StreamIndexProgressResponse_IndexStateSchema =
+  /*@__PURE__*/
+  enumDesc(file_api_v1_workbench, 3, 0);
+
+/**
+ * Lifecycle state of search index construction.
+ *
+ * @generated from enum api.v1.StreamIndexProgressResponse.IndexState
+ */
+export const StreamIndexProgressResponse_IndexState =
+  /*@__PURE__*/
+  tsEnum(StreamIndexProgressResponse_IndexStateSchema);
+
+/**
  * Describes the message api.v1.HeartbeatWorkbenchRequest.
  * Use `create(HeartbeatWorkbenchRequestSchema)` to create a new message.
  */
 export const HeartbeatWorkbenchRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 2);
+  messageDesc(file_api_v1_workbench, 4);
 
 /**
  * Describes the message api.v1.HeartbeatWorkbenchResponse.
@@ -81,7 +113,7 @@ export const HeartbeatWorkbenchRequestSchema =
  */
 export const HeartbeatWorkbenchResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 3);
+  messageDesc(file_api_v1_workbench, 5);
 
 /**
  * Describes the message api.v1.ReadStructYAMLRequest.
@@ -89,7 +121,7 @@ export const HeartbeatWorkbenchResponseSchema =
  */
 export const ReadStructYAMLRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 4);
+  messageDesc(file_api_v1_workbench, 6);
 
 /**
  * Describes the message api.v1.ReadStructYAMLResponse.
@@ -97,7 +129,7 @@ export const ReadStructYAMLRequestSchema =
  */
 export const ReadStructYAMLResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 5);
+  messageDesc(file_api_v1_workbench, 7);
 
 /**
  * Describes the message api.v1.FilterTimelineRequest.
@@ -105,7 +137,7 @@ export const ReadStructYAMLResponseSchema =
  */
 export const FilterTimelineRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 6);
+  messageDesc(file_api_v1_workbench, 8);
 
 /**
  * Describes the message api.v1.FilterProgress.
@@ -113,7 +145,7 @@ export const FilterTimelineRequestSchema =
  */
 export const FilterProgressSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 7);
+  messageDesc(file_api_v1_workbench, 9);
 
 /**
  * Describes the message api.v1.SparseBitset.
@@ -121,7 +153,7 @@ export const FilterProgressSchema =
  */
 export const SparseBitsetSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 8);
+  messageDesc(file_api_v1_workbench, 10);
 
 /**
  * Describes the message api.v1.FilterResult.
@@ -129,7 +161,7 @@ export const SparseBitsetSchema =
  */
 export const FilterResultSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 9);
+  messageDesc(file_api_v1_workbench, 11);
 
 /**
  * Describes the message api.v1.FilterTimelineResponse.
@@ -137,7 +169,7 @@ export const FilterResultSchema =
  */
 export const FilterTimelineResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 10);
+  messageDesc(file_api_v1_workbench, 12);
 
 /**
  * Describes the message api.v1.CloseWorkbenchRequest.
@@ -145,7 +177,7 @@ export const FilterTimelineResponseSchema =
  */
 export const CloseWorkbenchRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 11);
+  messageDesc(file_api_v1_workbench, 13);
 
 /**
  * Describes the message api.v1.CloseWorkbenchResponse.
@@ -153,7 +185,7 @@ export const CloseWorkbenchRequestSchema =
  */
 export const CloseWorkbenchResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 12);
+  messageDesc(file_api_v1_workbench, 14);
 
 /**
  * Describes the enum api.v1.FilterResultMode.

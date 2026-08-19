@@ -43,6 +43,7 @@ import { CommonModule } from '@angular/common';
 
 import { HeaderSmartComponent } from 'src/app/header/header-smart.component';
 import { TimelineToolbarSmartComponent } from 'src/app/timeline-toolbar/timeline-toolbar-smart.component';
+import { IndexProgressSmartComponent } from 'src/app/index-progress/index-progress-smart.component';
 import { openStartupDialog } from 'src/app/dialogs/startup/startup-smart.component';
 import { openReleaseNotesDialog } from 'src/app/dialogs/release-notes/release-notes-smart.component';
 import {
@@ -66,7 +67,12 @@ import {
 @Component({
   templateUrl: './main.component.html',
   styleUrls: ['./main.component.scss'],
-  imports: [CommonModule, HeaderSmartComponent, TimelineToolbarSmartComponent],
+  imports: [
+    CommonModule,
+    HeaderSmartComponent,
+    TimelineToolbarSmartComponent,
+    IndexProgressSmartComponent,
+  ],
   providers: [LayoutService, MenuManager],
 })
 export class AppComponent implements OnInit, OnDestroy, AfterViewInit {

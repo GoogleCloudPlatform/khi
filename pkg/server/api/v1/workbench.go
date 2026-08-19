@@ -76,6 +76,64 @@ func (s *WorkbenchServiceServer) OpenWorkbench(
 	return stream.Send(finalRes)
 }
 
+// StreamIndexProgress streams the search index construction progress and final status for an active Workbench session.
+func (s *WorkbenchServiceServer) StreamIndexProgress(
+	ctx context.Context,
+	req *connect.Request[apiv1.StreamIndexProgressRequest],
+	stream *connect.ServerStream[apiv1.StreamIndexProgressResponse],
+) error {
+	msg := req.Msg
+	if msg.GetWorkbenchId() == "" {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
+	}
+
+	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	if err != nil {
+		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
+			return connect.NewError(connect.CodeNotFound, err)
+		}
+		return connect.NewError(connect.CodeInternal, err)
+	}
+
+	eventCh, unsubscribe := wb.SubscribeIndexProgress(ctx)
+	defer unsubscribe()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case event, ok := <-eventCh:
+			if !ok {
+				return nil
+			}
+			var protoState apiv1.StreamIndexProgressResponse_IndexState
+			switch event.State {
+			case workbench.IndexStateBuilding:
+				protoState = apiv1.StreamIndexProgressResponse_INDEX_STATE_BUILDING
+			case workbench.IndexStateReady:
+				protoState = apiv1.StreamIndexProgressResponse_INDEX_STATE_READY
+			case workbench.IndexStateFailed:
+				protoState = apiv1.StreamIndexProgressResponse_INDEX_STATE_FAILED
+			default:
+				protoState = apiv1.StreamIndexProgressResponse_INDEX_STATE_UNSPECIFIED
+			}
+
+			res := &apiv1.StreamIndexProgressResponse{
+				State:              protoState.Enum(),
+				ProgressPercentage: proto.Float64(event.ProgressPercentage),
+				Message:            proto.String(event.Message),
+			}
+			if err := stream.Send(res); err != nil {
+				return err
+			}
+
+			if event.State == workbench.IndexStateReady || event.State == workbench.IndexStateFailed {
+				return nil
+			}
+		}
+	}
+}
+
 // HeartbeatWorkbench refreshes the lease expiration time for an active Workbench session.
 func (s *WorkbenchServiceServer) HeartbeatWorkbench(
 	ctx context.Context,

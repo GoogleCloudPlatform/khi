@@ -19,6 +19,7 @@ import {
   FilterResultMode,
   OpenWorkbenchResponse_Stage,
   SparseBitsetSchema,
+  StreamIndexProgressResponse_IndexState,
 } from 'src/app/generated/api/v1/workbench_pb';
 import { create } from '@bufbuild/protobuf';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
@@ -38,6 +39,7 @@ describe('WorkbenchClientService', () => {
     mockConnectClient = jasmine.createSpyObj('ConnectClientService', [], {
       workbenchClient: {
         openWorkbench: jasmine.createSpy('openWorkbench'),
+        streamIndexProgress: jasmine.createSpy('streamIndexProgress'),
         heartbeatWorkbench: jasmine.createSpy('heartbeatWorkbench'),
         readStructYAML: jasmine.createSpy('readStructYAML'),
         filterTimeline: jasmine.createSpy('filterTimeline'),
@@ -326,5 +328,40 @@ describe('WorkbenchClientService', () => {
     expect(result.logMode).toBe(FilterResultMode.INCLUDE);
     expect(result.logBitset?.indices).toEqual([0]);
     expect(result.logBitset?.masks).toEqual([(1 << 10) | (1 << 20)]);
+  });
+
+  it('should stream index progress and update index state signals', async () => {
+    async function* mockIndexStream() {
+      yield {
+        state: StreamIndexProgressResponse_IndexState.BUILDING,
+        progressPercentage: 40,
+        message: 'Building index...',
+      };
+      yield {
+        state: StreamIndexProgressResponse_IndexState.READY,
+        progressPercentage: 100,
+        message: 'Search index ready.',
+      };
+    }
+
+    (
+      mockConnectClient.workbenchClient.streamIndexProgress as jasmine.Spy
+    ).and.returnValue(mockIndexStream());
+
+    expect(service.indexState()).toBe(
+      StreamIndexProgressResponse_IndexState.UNSPECIFIED,
+    );
+    expect(service.isIndexBuilding()).toBeFalse();
+    expect(service.isIndexReady()).toBeFalse();
+
+    await service.streamIndexProgress('usr-1-session-0');
+
+    expect(service.indexState()).toBe(
+      StreamIndexProgressResponse_IndexState.READY,
+    );
+    expect(service.indexProgressPercentage()).toBe(100);
+    expect(service.indexMessage()).toBe('Search index ready.');
+    expect(service.isIndexReady()).toBeTrue();
+    expect(service.isIndexBuilding()).toBeFalse();
   });
 });

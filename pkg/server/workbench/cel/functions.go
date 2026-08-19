@@ -39,29 +39,79 @@ var (
 	}
 )
 
+func combinePatterns(patterns []string) string {
+	if len(patterns) == 0 {
+		return ""
+	}
+	if len(patterns) == 1 {
+		return patterns[0]
+	}
+	return "(?:" + strings.Join(patterns, ")|(?:") + ")"
+}
+
+// resolveStructYAML resolves the YAML string representation for a given struct ID, using the cache if available or serializing on-demand from the intern pool.
+func resolveStructYAML(structID uint32, pool *khifilev6model.InternPool, structYAMLs map[uint32]string) (string, bool) {
+	if structYAMLs != nil {
+		if yaml, ok := structYAMLs[structID]; ok {
+			return yaml, true
+		}
+	}
+	if pool == nil {
+		return "", false
+	}
+	s := pool.ResolveStructFromID(structID)
+	if s == nil {
+		return "", false
+	}
+	node, err := khifilev6model.FromInternedStruct(s, pool)
+	if err != nil {
+		return "", false
+	}
+	yamlBytes, err := (&structured.YAMLNodeSerializer{}).Serialize(node)
+	if err != nil {
+		return "", false
+	}
+	return string(yamlBytes), true
+}
+
+// resolveStructNode resolves the structured.Node from an interned struct ID.
+func resolveStructNode(structID uint32, pool *khifilev6model.InternPool) (structured.Node, bool) {
+	if pool == nil {
+		return nil, false
+	}
+	s := pool.ResolveStructFromID(structID)
+	if s == nil {
+		return nil, false
+	}
+	node, err := khifilev6model.FromInternedStruct(s, pool)
+	if err != nil {
+		return nil, false
+	}
+	return node, true
+}
+
 // MatchTimelinePath checks if any key in timeline's path matches the given pattern(s) case-insensitively.
 func MatchTimelinePath(t *TimelineData, key string, patterns []string) bool {
 	if t == nil || t.Path == nil || len(patterns) == 0 {
 		return false
 	}
 
-	for _, pattern := range patterns {
-		re, err := regexCompile(pattern)
-		if err != nil {
-			continue
-		}
+	combinedPattern := combinePatterns(patterns)
+	re, err := regexCompile(combinedPattern)
+	if err != nil {
+		return false
+	}
 
-		if key == "*" {
-			for _, val := range t.Path {
-				if re.MatchString(val) {
-					return true
-				}
+	if key == "*" {
+		for _, val := range t.Path {
+			if re.MatchString(val) {
+				return true
 			}
-		} else {
-			if val, ok := t.Path[strings.ToLower(key)]; ok {
-				if re.MatchString(val) {
-					return true
-				}
+		}
+	} else {
+		if val, ok := t.Path[strings.ToLower(key)]; ok {
+			if re.MatchString(val) {
+				return true
 			}
 		}
 	}
@@ -74,46 +124,75 @@ func MatchTimelineRevisionBodyField(t *TimelineData, pathKey string, patterns []
 		return false
 	}
 
+	combinedPattern := combinePatterns(patterns)
+
 	for _, r := range t.Revisions {
 		if r.ResourceBodyStructID == 0 {
 			continue
 		}
-		s := pool.ResolveStructFromID(r.ResourceBodyStructID)
-		if s == nil {
+		node, ok := resolveStructNode(r.ResourceBodyStructID, pool)
+		if !ok {
 			continue
 		}
-		node, err := khifilev6model.FromInternedStruct(s, pool)
-		if err != nil {
-			continue
-		}
-
-		if matchNodeField(node, pathKey, patterns) {
+		if matchNodeField(node, pathKey, combinedPattern) {
 			return true
 		}
 	}
 	return false
 }
 
-// MatchLogField checks if a log body or field matches the given pattern(s).
-func MatchLogField(l *LogData, pathKey string, patterns []string, pool *khifilev6model.InternPool) bool {
-	if l == nil || len(patterns) == 0 || l.BodyStructID == 0 || pool == nil {
-		return false
+// MatchLogField checks if a log body or field matches the given regular expression pattern(s).
+func MatchLogField(
+	l *LogData,
+	pathKey string,
+	patterns []string,
+	pool *khifilev6model.InternPool,
+	trigramIndex *TrigramIndex,
+	structYAMLs map[uint32]string,
+) (bool, error) {
+	if l == nil || len(patterns) == 0 || l.BodyStructID == 0 {
+		return false, nil
 	}
 
-	s := pool.ResolveStructFromID(l.BodyStructID)
-	if s == nil {
-		return false
-	}
-	node, err := khifilev6model.FromInternedStruct(s, pool)
-	if err != nil {
-		return false
+	combinedPattern := combinePatterns(patterns)
+
+	// Candidate pre-filtering with TrigramIndex:
+	// If trigram index exists and the struct ID is not in candidate bitmap, prune early.
+	if trigramIndex != nil {
+		candidateBitmap := trigramIndex.FindCandidateStructs(combinedPattern)
+		if candidateBitmap != nil && !candidateBitmap.Contains(l.BodyStructID) {
+			return false, nil
+		}
 	}
 
-	return matchNodeField(node, pathKey, patterns)
+	// Wildcard search (pathKey == "*"):
+	if pathKey == "*" {
+		yaml, ok := resolveStructYAML(l.BodyStructID, pool, structYAMLs)
+		if !ok {
+			return false, nil
+		}
+		re, err := regexCompile(combinedPattern)
+		if err != nil {
+			return false, nil
+		}
+		return re.MatchString(yaml), nil
+	}
+
+	// Field-specific search (pathKey != "*"):
+	node, ok := resolveStructNode(l.BodyStructID, pool)
+	if !ok {
+		return false, nil
+	}
+	return matchNodeField(node, pathKey, combinedPattern), nil
 }
 
-func matchNodeField(node structured.Node, pathKey string, patterns []string) bool {
+func matchNodeField(node structured.Node, pathKey string, pattern string) bool {
 	if node == nil {
+		return false
+	}
+
+	re, err := regexCompile(pattern)
+	if err != nil {
 		return false
 	}
 
@@ -122,57 +201,26 @@ func matchNodeField(node structured.Node, pathKey string, patterns []string) boo
 		if err != nil {
 			return false
 		}
-		bodyYAML := string(yamlBytes)
-		for _, pattern := range patterns {
-			re, err := regexCompile(pattern)
-			if err != nil {
-				continue
-			}
-			if re.MatchString(bodyYAML) {
-				return true
-			}
-		}
-		return false
+		return re.MatchString(string(yamlBytes))
 	}
 
-	// Use NodeReader for path traversal without full YAML serialization
 	reader := structured.NewNodeReader(node)
 	targetReader, err := reader.GetReader(pathKey)
 	if err != nil {
 		return false
 	}
 
-	// If target is a scalar node, match its scalar string value
 	if targetReader.Node.Type() == structured.ScalarNodeType {
 		val, err := targetReader.Node.NodeScalarValue()
 		if err != nil || val == nil {
 			return false
 		}
-		valStr := fmt.Sprintf("%v", val)
-		for _, pattern := range patterns {
-			re, err := regexCompile(pattern)
-			if err != nil {
-				continue
-			}
-			if re.MatchString(valStr) {
-				return true
-			}
-		}
-	} else {
-		// If target is a sub-object/array, serialize only that sub-tree to YAML
-		subYAML, err := (&structured.YAMLNodeSerializer{}).Serialize(targetReader.Node)
-		if err == nil {
-			subStr := string(subYAML)
-			for _, pattern := range patterns {
-				re, err := regexCompile(pattern)
-				if err != nil {
-					continue
-				}
-				if re.MatchString(subStr) {
-					return true
-				}
-			}
-		}
+		return re.MatchString(fmt.Sprintf("%v", val))
 	}
-	return false
+
+	subYAML, err := (&structured.YAMLNodeSerializer{}).Serialize(targetReader.Node)
+	if err != nil {
+		return false
+	}
+	return re.MatchString(string(subYAML))
 }

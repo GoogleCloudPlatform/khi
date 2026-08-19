@@ -106,4 +106,47 @@ describe('ProgressOverlayComponent', () => {
     fixture.detectChanges();
     expect(await matProgress[0].getMode()).toBe('indeterminate');
   });
+
+  it('should render multi-tier progress bars when tasks are provided', async () => {
+    progressObserverStatus.next({
+      message: 'Opening file...',
+      percent: 45,
+      mode: 'determinate',
+      tasks: [
+        {
+          id: 'client',
+          label: 'Client',
+          message: 'Parsing local chunks...',
+          percent: 70,
+          mode: 'determinate',
+        },
+        {
+          id: 'server',
+          label: 'Server',
+          message: 'Indexing backend data...',
+          percent: 20,
+          mode: 'determinate',
+        },
+      ],
+    });
+    fixture.detectChanges();
+
+    const taskLabels = fixture.debugElement
+      .queryAll(By.css('.task-label'))
+      .map((el) => el.nativeElement.innerText);
+    expect(taskLabels).toEqual(['Client', 'Server']);
+
+    const taskMessages = fixture.debugElement
+      .queryAll(By.css('.task-message'))
+      .map((el) => el.nativeElement.innerText);
+    expect(taskMessages).toEqual([
+      'Parsing local chunks...',
+      'Indexing backend data...',
+    ]);
+
+    const matProgressBars = await loader.getAllHarnesses(MatProgressBarHarness);
+    expect(matProgressBars.length).toBe(2);
+    expect(await matProgressBars[0].getValue()).toBe(70);
+    expect(await matProgressBars[1].getValue()).toBe(20);
+  });
 });

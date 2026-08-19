@@ -29,6 +29,32 @@ import (
 // ProgressCallback receives streaming progress updates during dataset loading.
 type ProgressCallback func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error
 
+// countingReader wraps an io.Reader and tracks the total number of bytes read.
+type countingReader struct {
+	r         io.Reader
+	bytesRead int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.bytesRead += int64(n)
+	return n, err
+}
+
+// formatByteSize formats a byte count into a human-readable string with units (B, KB, MB, GB, etc.).
+func formatByteSize(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
 // NewWorkbenchFromReader creates and initializes a Workbench instance by parsing chunks from the given reader.
 func NewWorkbenchFromReader(
 	ctx context.Context,
@@ -38,13 +64,13 @@ func NewWorkbenchFromReader(
 	totalSize int64,
 	onProgress ProgressCallback,
 ) (*Workbench, error) {
-	khiReader, err := khifilev6model.NewReader(reader)
+	cr := &countingReader{r: reader}
+	khiReader, err := khifilev6model.NewReader(cr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create KHI file reader: %w", err)
 	}
 
 	wb := NewWorkbench(id, inspectionID)
-	var processedBytes int64
 
 	for {
 		select {
@@ -62,15 +88,17 @@ func NewWorkbenchFromReader(
 		}
 
 		if totalSize > 0 {
-			processedBytes += int64(len(chunk.Data))
-			pct := 10.0 + (float64(processedBytes)/float64(totalSize))*70.0
-			if pct > 80.0 {
-				pct = 80.0
+			processed := cr.bytesRead
+			if processed > totalSize {
+				processed = totalSize
 			}
-			if onProgress != nil {
-				if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_PARSING_CHUNKS, pct, fmt.Sprintf("Parsing chunks (type %d)...", chunk.Type)); err != nil {
-					return nil, err
-				}
+			pct := 10.0 + (float64(processed)/float64(totalSize))*90.0
+			if pct > 100.0 {
+				pct = 100.0
+			}
+			msg := fmt.Sprintf("Reading dataset (%s / %s)...", formatByteSize(processed), formatByteSize(totalSize))
+			if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_PARSING_CHUNKS, pct, msg); err != nil {
+				return nil, err
 			}
 		}
 
@@ -79,15 +107,9 @@ func NewWorkbenchFromReader(
 		}
 	}
 
-	if onProgress != nil {
-		if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, 90, "Finalizing in-memory dataset index..."); err != nil {
-			return nil, err
-		}
-	}
-
-	searchIndex, err := wb.BuildSearchIndex()
+	searchIndex, err := wb.BuildBaseSearchIndex()
 	if err != nil {
-		return nil, fmt.Errorf("failed to build search index: %w", err)
+		return nil, fmt.Errorf("failed to build base search index: %w", err)
 	}
 	wb.searchIndex = searchIndex
 

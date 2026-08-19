@@ -21,6 +21,7 @@ import {
   FilterResultMode,
   OpenWorkbenchResponse_Stage,
   SparseBitset,
+  StreamIndexProgressResponse_IndexState,
 } from 'src/app/generated/api/v1/workbench_pb';
 import { LRUCache } from 'src/app/common/lru-cache';
 
@@ -82,6 +83,13 @@ export class WorkbenchClientService implements OnDestroy {
     WorkbenchClientService.STRUCT_YAML_CACHE_CAPACITY,
   );
 
+  private readonly indexStateSignal =
+    signal<StreamIndexProgressResponse_IndexState>(
+      StreamIndexProgressResponse_IndexState.UNSPECIFIED,
+    );
+  private readonly indexProgressPercentageSignal = signal<number>(0);
+  private readonly indexMessageSignal = signal<string>('');
+
   /**
    * The ID of the currently active Workbench session, or null if none is open.
    */
@@ -92,6 +100,39 @@ export class WorkbenchClientService implements OnDestroy {
    */
   public readonly isWorkbenchActive = computed(
     () => this.activeWorkbenchIdSignal() !== null,
+  );
+
+  /**
+   * Current index construction state.
+   */
+  public readonly indexState = this.indexStateSignal.asReadonly();
+
+  /**
+   * Current index construction progress percentage (0 - 100).
+   */
+  public readonly indexProgressPercentage =
+    this.indexProgressPercentageSignal.asReadonly();
+
+  /**
+   * Current index construction status message.
+   */
+  public readonly indexMessage = this.indexMessageSignal.asReadonly();
+
+  /**
+   * Whether the fulltext search index is currently building.
+   */
+  public readonly isIndexBuilding = computed(
+    () =>
+      this.indexStateSignal() ===
+      StreamIndexProgressResponse_IndexState.BUILDING,
+  );
+
+  /**
+   * Whether the fulltext search index is ready.
+   */
+  public readonly isIndexReady = computed(
+    () =>
+      this.indexStateSignal() === StreamIndexProgressResponse_IndexState.READY,
   );
 
   private heartbeatIntervalTimer: ReturnType<typeof setInterval> | null = null;
@@ -148,9 +189,40 @@ export class WorkbenchClientService implements OnDestroy {
       this.structYamlCache.clear();
       this.activeWorkbenchIdSignal.set(workbenchId);
       this.startHeartbeat(workbenchId);
+      void this.streamIndexProgress(workbenchId);
     }
 
     return workbenchId;
+  }
+
+  /**
+   * Subscribes to the index progress stream for the given workbenchId.
+   */
+  public async streamIndexProgress(
+    workbenchId: string,
+    abortSignal?: AbortSignal,
+  ): Promise<void> {
+    try {
+      const responseStream =
+        this.connectClient.workbenchClient.streamIndexProgress(
+          { workbenchId },
+          { signal: abortSignal },
+        );
+
+      for await (const res of responseStream) {
+        this.indexStateSignal.set(res.state);
+        this.indexProgressPercentageSignal.set(res.progressPercentage);
+        this.indexMessageSignal.set(res.message);
+      }
+    } catch (e) {
+      if (abortSignal?.aborted) {
+        return;
+      }
+      console.warn(
+        `[WorkbenchClient] StreamIndexProgress failed for ${workbenchId}:`,
+        e,
+      );
+    }
   }
 
   /**
@@ -176,6 +248,11 @@ export class WorkbenchClientService implements OnDestroy {
     this.stopHeartbeat();
     this.structYamlCache.clear();
     this.activeWorkbenchIdSignal.set(null);
+    this.indexStateSignal.set(
+      StreamIndexProgressResponse_IndexState.UNSPECIFIED,
+    );
+    this.indexProgressPercentageSignal.set(0);
+    this.indexMessageSignal.set('');
 
     if (id) {
       try {

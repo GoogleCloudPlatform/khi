@@ -15,14 +15,17 @@
 package workbench
 
 import (
+	"context"
 	"fmt"
-	"runtime"
 	"strings"
+	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
-	"golang.org/x/sync/errgroup"
 )
 
 // IndexedTimeline represents an in-memory indexed timeline optimized for CEL query evaluation.
@@ -43,11 +46,13 @@ type IndexedLog struct {
 
 // SearchIndex encapsulates the indexed timelines and logs of a Workbench session.
 type SearchIndex struct {
-	Timelines   []*IndexedTimeline
-	TimelineMap map[uint32]*IndexedTimeline
-	Logs        []*IndexedLog
-	LogMap      map[uint32]*IndexedLog
-	InternPool  *khifilev6model.InternPool
+	Timelines    []*IndexedTimeline
+	TimelineMap  map[uint32]*IndexedTimeline
+	Logs         []*IndexedLog
+	LogMap       map[uint32]*IndexedLog
+	InternPool   *khifilev6model.InternPool
+	StructYAMLs  map[uint32]string
+	TrigramIndex *cel.TrigramIndex
 }
 
 type styleMaps struct {
@@ -58,8 +63,8 @@ type styleMaps struct {
 	stateLabelMap        map[uint32]string
 }
 
-// BuildSearchIndex constructs an in-memory SearchIndex from the parsed Workbench chunks.
-func (w *Workbench) BuildSearchIndex() (*SearchIndex, error) {
+// BuildBaseSearchIndex constructs the base in-memory SearchIndex containing timelines, logs, and hierarchy mappings.
+func (w *Workbench) BuildBaseSearchIndex() (*SearchIndex, error) {
 	styles := w.buildStyleMaps()
 
 	logs, logMap, err := w.indexLogsParallel(styles)
@@ -77,12 +82,143 @@ func (w *Workbench) BuildSearchIndex() (*SearchIndex, error) {
 	w.computeAllTimelinePathsParallel(timelines, timelineMap)
 
 	return &SearchIndex{
-		Timelines:   timelines,
-		TimelineMap: timelineMap,
-		Logs:        logs,
-		LogMap:      logMap,
-		InternPool:  w.internPool,
+		Timelines:    timelines,
+		TimelineMap:  timelineMap,
+		Logs:         logs,
+		LogMap:       logMap,
+		InternPool:   w.internPool,
+		StructYAMLs:  nil,
+		TrigramIndex: nil,
 	}, nil
+}
+
+// serializeStructChunk converts a slice of StructIDs to their YAML representation.
+func serializeStructChunk(pool *khifilev6model.InternPool, chunk []uint32, onProcessed func(int)) map[uint32]string {
+	localYAML := make(map[uint32]string, len(chunk))
+	serializer := &structured.YAMLNodeSerializer{}
+	for _, id := range chunk {
+		s := pool.ResolveStructFromID(id)
+		if s != nil {
+			if node, err := khifilev6model.FromInternedStruct(s, pool); err == nil {
+				if yamlBytes, err := serializer.Serialize(node); err == nil {
+					localYAML[id] = string(yamlBytes)
+				}
+			}
+		}
+		onProcessed(1)
+	}
+	return localYAML
+}
+
+// BuildStructYAMLIndexWithProgress pre-serializes unique log struct bodies into YAML strings while streaming progress updates.
+func (w *Workbench) BuildStructYAMLIndexWithProgress(targetIndex *SearchIndex, onProgress ProgressCallback) (map[uint32]string, error) {
+	w.mu.RLock()
+	pool := w.internPool
+	w.mu.RUnlock()
+
+	if targetIndex == nil || pool == nil {
+		return nil, fmt.Errorf("search index or intern pool not initialized")
+	}
+
+	if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, 0.0, "Preparing unique structs for indexing..."); err != nil {
+		return nil, err
+	}
+
+	var uniqueBodyStructIDs []uint32
+	seenStructIDs := make(map[uint32]struct{})
+	for _, l := range targetIndex.Logs {
+		if l.Data != nil && l.Data.BodyStructID != 0 {
+			if _, ok := seenStructIDs[l.Data.BodyStructID]; !ok {
+				seenStructIDs[l.Data.BodyStructID] = struct{}{}
+				uniqueBodyStructIDs = append(uniqueBodyStructIDs, l.Data.BodyStructID)
+			}
+		}
+	}
+
+	yamlResults, err := worker.ParallelChunkMap(
+		context.Background(),
+		uniqueBodyStructIDs,
+		func(ctx context.Context, workerIdx int, chunk []uint32, onProcessed func(int)) (map[uint32]string, error) {
+			return serializeStructChunk(pool, chunk, onProcessed), nil
+		},
+		func(subPct float64, msg string) error {
+			return onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, subPct*100.0, msg)
+		},
+		worker.ProgressOptions{
+			Interval:    time.Second,
+			MessageFmt:  "Indexing structured log data(%d/%d)...",
+			MinProgress: 0.0,
+			MaxProgress: 1.0,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize struct YAMLs: %w", err)
+	}
+
+	totalStructs := 0
+	for _, res := range yamlResults {
+		totalStructs += len(res)
+	}
+	structYAMLs := make(map[uint32]string, totalStructs)
+	for _, res := range yamlResults {
+		for id, yamlStr := range res {
+			structYAMLs[id] = yamlStr
+		}
+	}
+
+	if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, 100.0, "Struct YAML indexing complete."); err != nil {
+		return nil, err
+	}
+
+	return structYAMLs, nil
+}
+
+// BuildTrigramIndexWithProgress constructs the trigram search index from pre-serialized struct YAMLs while streaming progress updates.
+func (w *Workbench) BuildTrigramIndexWithProgress(structYAMLs map[uint32]string, onProgress ProgressCallback) (*cel.TrigramIndex, error) {
+	trigramIndex := cel.NewTrigramIndex()
+	err := trigramIndex.BuildFromStructYAMLs(structYAMLs, func(subPct float64, msg string) error {
+		return onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, subPct*100.0, msg)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to build trigram index: %w", err)
+	}
+
+	if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, 100.0, "Text search index complete."); err != nil {
+		return nil, err
+	}
+
+	return trigramIndex, nil
+}
+
+// BuildAsyncIndexesWithProgress populates asynchronous search indexes (such as struct YAMLs and trigram indexes) on the target SearchIndex while streaming progress updates.
+func (w *Workbench) BuildAsyncIndexesWithProgress(targetIndex *SearchIndex, onProgress ProgressCallback) error {
+	if targetIndex == nil {
+		return fmt.Errorf("target search index is nil")
+	}
+
+	// Stage 1: Parallel Struct YAML Serialization (0% - 50%)
+	structYAMLs, err := w.BuildStructYAMLIndexWithProgress(targetIndex, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+		return onProgress(stage, progressPercentage*0.5, message)
+	})
+	if err != nil {
+		return err
+	}
+	targetIndex.StructYAMLs = structYAMLs
+
+	// Stage 2: Parallel Trigram Index Construction (50% - 100%)
+	trigramIndex, err := w.BuildTrigramIndexWithProgress(structYAMLs, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+		return onProgress(stage, 50.0+progressPercentage*0.5, message)
+	})
+	if err != nil {
+		return err
+	}
+	targetIndex.TrigramIndex = trigramIndex
+
+	if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, 100.0, "Search index ready."); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (w *Workbench) buildStyleMaps() *styleMaps {
@@ -110,43 +246,22 @@ func (w *Workbench) buildStyleMaps() *styleMaps {
 			s.stateLabelMap[rs.GetId()] = rs.GetLabel()
 		}
 	}
+
 	return s
 }
 
 func (w *Workbench) indexLogsParallel(styles *styleMaps) ([]*IndexedLog, map[uint32]*IndexedLog, error) {
-	numChunks := len(w.logChunks)
-	if numChunks == 0 {
+	if len(w.logChunks) == 0 {
 		return nil, make(map[uint32]*IndexedLog), nil
 	}
 
-	numWorkers := runtime.GOMAXPROCS(0)
-	if numWorkers > numChunks {
-		numWorkers = numChunks
-	}
-	if numWorkers < 1 {
-		numWorkers = 1
-	}
-
-	chunkSliceSize := (numChunks + numWorkers - 1) / numWorkers
-	workerResults := make([][]*IndexedLog, numWorkers)
-
-	g := new(errgroup.Group)
-	for wIdx := 0; wIdx < numWorkers; wIdx++ {
-		workerIndex := wIdx
-		startChunk := workerIndex * chunkSliceSize
-		endChunk := startChunk + chunkSliceSize
-		if endChunk > numChunks {
-			endChunk = numChunks
-		}
-		if startChunk >= endChunk {
-			continue
-		}
-
-		g.Go(func() error {
+	workerResults, err := worker.ParallelChunkMap(
+		context.Background(),
+		w.logChunks,
+		func(ctx context.Context, workerIdx int, chunk []*pbv6.LogChunk, onProcessed func(int)) ([]*IndexedLog, error) {
 			var localLogs []*IndexedLog
-			for c := startChunk; c < endChunk; c++ {
-				chunk := w.logChunks[c]
-				for _, log := range chunk.Logs {
+			for _, logChunk := range chunk {
+				for _, log := range logChunk.Logs {
 					sevOrder := styles.severityOrderMap[log.GetSeverityTypeId()]
 					ltLabel := styles.logTypeLabelMap[log.GetLogTypeId()]
 
@@ -163,13 +278,14 @@ func (w *Workbench) indexLogsParallel(styles *styleMaps) ([]*IndexedLog, map[uin
 						Data: lData,
 					})
 				}
+				onProcessed(1)
 			}
-			workerResults[workerIndex] = localLogs
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
+			return localLogs, nil
+		},
+		nil,
+		worker.ProgressOptions{},
+	)
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -206,39 +322,17 @@ func (w *Workbench) indexTimelinesParallel(
 	itemsMap map[uint32]*pbv6.TimelineItems,
 	logMap map[uint32]*IndexedLog,
 ) ([]*IndexedTimeline, map[uint32]*IndexedTimeline, error) {
-	numChunks := len(w.timelineChunks)
-	if numChunks == 0 {
+	if len(w.timelineChunks) == 0 {
 		return nil, make(map[uint32]*IndexedTimeline), nil
 	}
 
-	numWorkers := runtime.GOMAXPROCS(0)
-	if numWorkers > numChunks {
-		numWorkers = numChunks
-	}
-	if numWorkers < 1 {
-		numWorkers = 1
-	}
-
-	chunkSliceSize := (numChunks + numWorkers - 1) / numWorkers
-	workerResults := make([][]*IndexedTimeline, numWorkers)
-
-	g := new(errgroup.Group)
-	for wIdx := 0; wIdx < numWorkers; wIdx++ {
-		workerIndex := wIdx
-		startChunk := workerIndex * chunkSliceSize
-		endChunk := startChunk + chunkSliceSize
-		if endChunk > numChunks {
-			endChunk = numChunks
-		}
-		if startChunk >= endChunk {
-			continue
-		}
-
-		g.Go(func() error {
+	workerResults, err := worker.ParallelChunkMap(
+		context.Background(),
+		w.timelineChunks,
+		func(ctx context.Context, workerIdx int, chunk []*pbv6.TimelineChunk, onProcessed func(int)) ([]*IndexedTimeline, error) {
 			var localTimelines []*IndexedTimeline
-			for c := startChunk; c < endChunk; c++ {
-				chunk := w.timelineChunks[c]
-				for _, tl := range chunk.Timelines {
+			for _, timelineChunk := range chunk {
+				for _, tl := range timelineChunk.Timelines {
 					tlName := ""
 					if w.internPool != nil {
 						tlName = w.internPool.ResolveStringFromID(tl.GetNameStringId())
@@ -317,13 +411,14 @@ func (w *Workbench) indexTimelinesParallel(
 
 					localTimelines = append(localTimelines, indexedTL)
 				}
+				onProcessed(1)
 			}
-			workerResults[workerIndex] = localTimelines
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
+			return localTimelines, nil
+		},
+		nil,
+		worker.ProgressOptions{},
+	)
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -356,42 +451,24 @@ func (w *Workbench) linkTimelineHierarchy(timelines []*IndexedTimeline, timeline
 }
 
 func (w *Workbench) computeAllTimelinePathsParallel(timelines []*IndexedTimeline, timelineMap map[uint32]*IndexedTimeline) {
-	total := len(timelines)
-	if total == 0 {
+	if len(timelines) == 0 {
 		return
 	}
-	numWorkers := runtime.GOMAXPROCS(0)
-	if numWorkers > total {
-		numWorkers = total
-	}
-	if numWorkers < 1 {
-		numWorkers = 1
-	}
 
-	sliceSize := (total + numWorkers - 1) / numWorkers
-	g := new(errgroup.Group)
-
-	for wIdx := 0; wIdx < numWorkers; wIdx++ {
-		start := wIdx * sliceSize
-		end := start + sliceSize
-		if end > total {
-			end = total
-		}
-		if start >= end {
-			continue
-		}
-
-		g.Go(func() error {
-			for i := start; i < end; i++ {
-				tl := timelines[i]
+	_, _ = worker.ParallelChunkMap(
+		context.Background(),
+		timelines,
+		func(ctx context.Context, workerIdx int, chunk []*IndexedTimeline, onProcessed func(int)) (struct{}, error) {
+			for _, tl := range chunk {
 				tl.Path = tl.ComputePath(timelineMap)
 				tl.Data.Path = tl.Path
+				onProcessed(1)
 			}
-			return nil
-		})
-	}
-
-	_ = g.Wait()
+			return struct{}{}, nil
+		},
+		nil,
+		worker.ProgressOptions{},
+	)
 }
 
 // ComputePath resolves the timeline hierarchy path map for this timeline segment and all parent segments.

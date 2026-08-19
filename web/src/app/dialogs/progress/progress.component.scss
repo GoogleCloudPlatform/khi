@@ -14,14 +14,65 @@
  * limitations under the License.
  */
 
+@use '@angular/material' as mat;
+
+$detail-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$task-label-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 800);
+$task-message-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+
 .container {
-  display: flex;
-  min-width: 400px;
+  display: grid;
+  min-width: 440px;
   min-height: 60px;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 20px 50px;
+  padding: 20px 40px;
+  row-gap: 16px;
+  grid-template:
+    'content' auto
+    / 1fr;
+}
+
+.tasks-container {
+  display: grid;
+  row-gap: 16px;
+  grid-template:
+    'tasks' auto
+    / 1fr;
+}
+
+.task-row {
+  display: grid;
+  row-gap: 6px;
+  grid-template:
+    'header' auto
+    'bar' auto
+    / 1fr;
+}
+
+.task-header {
+  grid-area: header;
+  display: grid;
+  grid-template:
+    'label message' auto
+    / auto 1fr;
+  column-gap: 8px;
+  align-items: baseline;
+}
+
+.task-label {
+  grid-area: label;
+  font-weight: 500;
+  font-size: 14px;
+  color: $task-label-color;
+}
+
+.task-message {
+  grid-area: message;
+  font-size: 12px;
+  color: $task-message-color;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 p {
@@ -29,6 +80,7 @@ p {
 }
 
 .progress-detail {
-  margin: 5px 0 0;
-  color: dimgray;
+  font-size: 13px;
+  color: $detail-color;
+  text-align: center;
 }

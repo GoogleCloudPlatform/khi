@@ -403,3 +403,88 @@ func TestWorkbenchServiceServer_FilterTimeline(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkbenchServiceServer_StreamIndexProgress(t *testing.T) {
+	ts, client, _, validInspID := setupTestWorkbenchServer(t)
+	defer ts.Close()
+
+	// Open a workbench first
+	openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
+		UserId:       proto.String("user-1"),
+		SessionId:    proto.String("session-1"),
+		InspectionId: proto.String(validInspID),
+	}))
+	if err != nil {
+		t.Fatalf("OpenWorkbench() error = %v", err)
+	}
+	var validWBID string
+	for openStream.Receive() {
+		if openStream.Msg().GetWorkbenchId() != "" {
+			validWBID = openStream.Msg().GetWorkbenchId()
+		}
+	}
+	if err := openStream.Err(); err != nil {
+		t.Fatalf("OpenWorkbench() stream error = %v", err)
+	}
+
+	testCases := []struct {
+		name        string
+		req         *apiv1.StreamIndexProgressRequest
+		wantErrCode connect.Code
+	}{
+		{
+			name: "success on active workbench",
+			req: &apiv1.StreamIndexProgressRequest{
+				WorkbenchId: proto.String(validWBID),
+			},
+			wantErrCode: 0,
+		},
+		{
+			name: "fails with invalid argument when workbench_id is empty",
+			req: &apiv1.StreamIndexProgressRequest{
+				WorkbenchId: proto.String(""),
+			},
+			wantErrCode: connect.CodeInvalidArgument,
+		},
+		{
+			name: "fails with not found for non-existent workbench",
+			req: &apiv1.StreamIndexProgressRequest{
+				WorkbenchId: proto.String("non-existent-wb"),
+			},
+			wantErrCode: connect.CodeNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stream, err := client.StreamIndexProgress(context.Background(), connect.NewRequest(tc.req))
+			if err != nil {
+				t.Fatalf("StreamIndexProgress() error = %v", err)
+			}
+
+			var responses []*apiv1.StreamIndexProgressResponse
+			for stream.Receive() {
+				responses = append(responses, stream.Msg())
+			}
+			streamErr := stream.Err()
+
+			if tc.wantErrCode != 0 {
+				if streamErr == nil {
+					t.Fatalf("expected error code %v, got nil", tc.wantErrCode)
+				}
+				if connect.CodeOf(streamErr) != tc.wantErrCode {
+					t.Errorf("error code = %v, want %v (err = %v)", connect.CodeOf(streamErr), tc.wantErrCode, streamErr)
+				}
+				return
+			}
+
+			if streamErr != nil {
+				t.Fatalf("unexpected stream error: %v", streamErr)
+			}
+
+			if len(responses) == 0 {
+				t.Fatalf("expected streamed responses, got 0")
+			}
+		})
+	}
+}

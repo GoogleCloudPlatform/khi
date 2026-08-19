@@ -126,11 +126,26 @@ export class InspectionDataLoaderService {
         100,
         Math.round(localPercent * 0.5 + serverPercent * 0.5),
       );
-      const message = `${localMessage} | Server: ${serverMessage}`;
       this.progress.updateProgress({
-        message,
+        message: '',
         percent: combinedPercent,
         mode: 'determinate',
+        tasks: [
+          {
+            id: 'client',
+            label: 'Client',
+            message: localMessage,
+            percent: Math.round(localPercent),
+            mode: 'determinate',
+          },
+          {
+            id: 'server',
+            label: 'Server',
+            message: serverMessage,
+            percent: Math.round(serverPercent),
+            mode: 'determinate',
+          },
+        ],
       });
     };
 

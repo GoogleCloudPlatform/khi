@@ -257,11 +257,13 @@ func (e *TimelineEvaluator) Evaluate(ctx context.Context, t *TimelineData) (bool
 
 // LogEvaluator compiles and executes CEL expressions on LogData.
 type LogEvaluator struct {
-	mu         sync.Mutex
-	env        *cel.Env
-	program    cel.Program
-	currentLog *LogData
-	internPool *khifilev6model.InternPool
+	mu           sync.Mutex
+	env          *cel.Env
+	program      cel.Program
+	currentLog   *LogData
+	internPool   *khifilev6model.InternPool
+	trigramIndex *TrigramIndex
+	structYAMLs  map[uint32]string
 }
 
 // SetInternPool binds the InternPool for on-demand struct/string resolution.
@@ -269,6 +271,20 @@ func (e *LogEvaluator) SetInternPool(pool *khifilev6model.InternPool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.internPool = pool
+}
+
+// SetTrigramIndex binds the TrigramIndex for fast substring struct matching.
+func (e *LogEvaluator) SetTrigramIndex(idx *TrigramIndex) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.trigramIndex = idx
+}
+
+// SetStructYAMLs binds the pre-serialized StructYAMLs map for fast YAML regex matching.
+func (e *LogEvaluator) SetStructYAMLs(yamls map[uint32]string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.structYAMLs = yamls
 }
 
 // NewLogEvaluator creates a new LogEvaluator.
@@ -284,7 +300,11 @@ func NewLogEvaluator() (*LogEvaluator, error) {
 		if err != nil {
 			return types.False
 		}
-		return types.Bool(MatchLogField(eval.currentLog, string(pathKey), patterns, eval.internPool))
+		matched, err := MatchLogField(eval.currentLog, string(pathKey), patterns, eval.internPool, eval.trigramIndex, eval.structYAMLs)
+		if err != nil {
+			return types.WrapErr(err)
+		}
+		return types.Bool(matched)
 	}
 
 	bodyBindingUnary := func(arg ref.Val) ref.Val {
@@ -292,7 +312,11 @@ func NewLogEvaluator() (*LogEvaluator, error) {
 		if err != nil {
 			return types.False
 		}
-		return types.Bool(MatchLogField(eval.currentLog, "*", patterns, eval.internPool))
+		matched, err := MatchLogField(eval.currentLog, "*", patterns, eval.internPool, eval.trigramIndex, eval.structYAMLs)
+		if err != nil {
+			return types.WrapErr(err)
+		}
+		return types.Bool(matched)
 	}
 
 	env, err := cel.NewEnv(
@@ -399,6 +423,9 @@ func (e *LogEvaluator) Evaluate(ctx context.Context, l *LogData) (bool, error) {
 	out, _, err := e.program.Eval(lVars)
 	if err != nil {
 		return false, err
+	}
+	if types.IsError(out) {
+		return false, out.(*types.Err)
 	}
 
 	if b, ok := out.Value().(bool); ok {

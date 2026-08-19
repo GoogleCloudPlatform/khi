@@ -18,22 +18,57 @@ import { InjectionToken } from '@angular/core';
 import { Observable } from 'rxjs';
 
 /**
+ * The mode of the progress bar.
+ */
+export type ProgressMode = 'indeterminate' | 'determinate';
+
+/**
+ * ProgressTask represents a sub-task track in a multi-tier progress indicator.
+ */
+export interface ProgressTask {
+  /**
+   * Unique identifier for the progress task.
+   */
+  readonly id: string;
+  /**
+   * Human-readable label for the task (e.g., 'Client', 'Server').
+   */
+  readonly label: string;
+  /**
+   * Optional message detailing the current sub-task operation.
+   */
+  readonly message?: string;
+  /**
+   * Percentage completion of this task (0 - 100).
+   */
+  readonly percent: number;
+  /**
+   * Progress bar mode for this task.
+   */
+  readonly mode: ProgressMode;
+}
+
+/**
  * CurrentProgress is a data type to represent the current status of a task.
  */
 export interface CurrentProgress {
   /**
    * A message string shown at the bottom of the progress bar.
    */
-  message: string;
+  readonly message: string;
   /**
    * Percentage of the progress bar.
    * This value is disregarded when mode field is `indeterminate`.
    */
-  percent: number;
+  readonly percent: number;
   /**
    * The mode of progress bar.
    */
-  mode: 'indeterminate' | 'determinate';
+  readonly mode: ProgressMode;
+  /**
+   * Optional sub-tasks for multi-tier progress display.
+   */
+  readonly tasks?: readonly ProgressTask[];
 }
 
 /**

@@ -31,6 +31,7 @@ import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 export class ConnectClientService {
   private readonly transport = createConnectTransport({
     baseUrl: ApiPathUtil.getServerBaseUrl(),
+    useBinaryFormat: true,
   });
 
   /**

@@ -1,0 +1,216 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package cel
+
+import (
+	"sort"
+	"sync"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+)
+
+func TestTrigramIndex(t *testing.T) {
+	const (
+		structID1 = 1
+		structID2 = 2
+	)
+
+	yaml1 := `metadata:
+  name: pod-a
+  namespace: default
+spec:
+  containers:
+  - name: nginx
+    image: nginx:latest
+`
+	yaml2 := `metadata:
+  name: pod-b
+  namespace: kube-system
+spec:
+  containers:
+  - name: coredns
+    image: coredns:v1.9
+`
+	structYAMLs := map[uint32]string{
+		structID1: yaml1,
+		structID2: yaml2,
+	}
+
+	idx := NewTrigramIndex()
+	if err := idx.BuildFromStructYAMLs(structYAMLs, nil); err != nil {
+		t.Fatalf("BuildFromStructYAMLs() error = %v", err)
+	}
+
+	testCases := []struct {
+		name            string
+		query           string
+		wantCandidates  []uint32
+		isUnconstrained bool
+	}{
+		{
+			name:           "match literal regex >= 3 chars",
+			query:          "nginx",
+			wantCandidates: []uint32{structID1},
+		},
+		{
+			name:           "match case-insensitive regex flag",
+			query:          "(?i)COREDNS",
+			wantCandidates: []uint32{structID2},
+		},
+		{
+			name:           "match regex with wildcard and anchors",
+			query:          "(?s)^.*pod-a.*$",
+			wantCandidates: []uint32{structID1},
+		},
+		{
+			name:           "match regex matching common pattern in both structs",
+			query:          "namespace:\\s+.*",
+			wantCandidates: []uint32{structID1, structID2},
+		},
+		{
+			name:           "match regex with alternative literals",
+			query:          "nginx|coredns",
+			wantCandidates: []uint32{structID1, structID2},
+		},
+		{
+			name:           "match regex with alternative literals where one does not match",
+			query:          "nginx|redis",
+			wantCandidates: []uint32{structID1},
+		},
+		{
+			name:           "match regex with alternative literals and suffix concatenation",
+			query:          "(?s)containers:.*(nginx|coredns)",
+			wantCandidates: []uint32{structID1, structID2},
+		},
+		{
+			name:           "match regex with alternative literals and specific suffix constraint",
+			query:          "(nginx|coredns).*latest",
+			wantCandidates: []uint32{structID1},
+		},
+		{
+			name:            "match regex with unconstrained alternative branch (fallback to all structs)",
+			query:           "nginx|.*",
+			isUnconstrained: true,
+		},
+		{
+			name:            "match regex with short literal (<3 chars) in alternative branch (fallback to all structs)",
+			query:           "nginx|v1",
+			isUnconstrained: true,
+		},
+		{
+			name:           "match regex with alternative literals containing 3-char prefix",
+			query:          "nginx|v1\\.[0-9]",
+			wantCandidates: []uint32{structID1, structID2},
+		},
+		{
+			name:           "match regex with 3-char literal prefix before character class",
+			query:          "v1\\.[0-9]",
+			wantCandidates: []uint32{structID2},
+		},
+		{
+			name:            "match regex with <3 chars without trigram (fallback to all scan)",
+			query:           "v1",
+			isUnconstrained: true,
+		},
+		{
+			name:           "non-matching regex",
+			query:          "redis",
+			wantCandidates: []uint32{},
+		},
+		{
+			name:            "match all with dot star",
+			query:           ".*",
+			isUnconstrained: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotBitmap := idx.FindCandidateStructs(tc.query)
+			if tc.isUnconstrained {
+				if gotBitmap != nil {
+					t.Errorf("FindCandidateStructs(%q) expected nil (unconstrained), got %v", tc.query, gotBitmap.ToArray())
+				}
+				return
+			}
+
+			var got []uint32
+			if gotBitmap != nil {
+				got = gotBitmap.ToArray()
+			}
+			sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
+			want := make([]uint32, len(tc.wantCandidates))
+			copy(want, tc.wantCandidates)
+			sort.Slice(want, func(i, j int) bool { return want[i] < want[j] })
+
+			if diff := cmp.Diff(want, got, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("FindCandidateStructs(%q) mismatch (-want +got):\n%s", tc.query, diff)
+			}
+		})
+	}
+}
+
+func TestTrigramIndex_ProgressCallback(t *testing.T) {
+	structYAMLs := map[uint32]string{
+		1: "foo: bar",
+	}
+
+	var reports []float64
+	callback := func(progressPercentage float64, message string) error {
+		reports = append(reports, progressPercentage)
+		return nil
+	}
+
+	idx := NewTrigramIndex()
+	if err := idx.BuildFromStructYAMLs(structYAMLs, callback); err != nil {
+		t.Fatalf("BuildFromStructYAMLs() error = %v", err)
+	}
+
+	if len(reports) == 0 {
+		t.Errorf("expected progress reports, got none")
+	}
+}
+
+func TestTrigramIndex_ConcurrentQuery(t *testing.T) {
+	const structID = 42
+	structYAMLs := map[uint32]string{
+		structID: "foo: bar_baz_qux",
+	}
+
+	idx := NewTrigramIndex()
+	if err := idx.BuildFromStructYAMLs(structYAMLs, nil); err != nil {
+		t.Fatalf("BuildFromStructYAMLs() error = %v", err)
+	}
+
+	const numGoroutines = 20
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				bm := idx.FindCandidateStructs("bar_baz")
+				if bm == nil || !bm.Contains(structID) {
+					t.Errorf("expected candidate to contain struct %d", structID)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+}

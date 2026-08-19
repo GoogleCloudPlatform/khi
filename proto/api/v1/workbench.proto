@@ -25,6 +25,9 @@ service WorkbenchService {
   // Opens or attaches to an in-memory Workbench session with real-time loading progress streaming.
   rpc OpenWorkbench(OpenWorkbenchRequest) returns (stream OpenWorkbenchResponse);
 
+  // Streams the search index construction progress and final status for an active Workbench session.
+  rpc StreamIndexProgress(StreamIndexProgressRequest) returns (stream StreamIndexProgressResponse);
+
   // Sends periodic heartbeat to keep the Workbench session alive in memory.
   rpc HeartbeatWorkbench(HeartbeatWorkbenchRequest) returns (HeartbeatWorkbenchResponse);
 
@@ -65,6 +68,26 @@ message OpenWorkbenchResponse {
 
   // The active workbench ID assigned to this session.
   string workbench_id = 4;
+}
+
+// Request to stream the search index construction progress of a Workbench session.
+message StreamIndexProgressRequest {
+  // The active workbench session identifier.
+  string workbench_id = 1;
+}
+
+// Progress update or terminal state of search index construction.
+message StreamIndexProgressResponse {
+  // Lifecycle state of search index construction.
+  enum IndexState {
+    INDEX_STATE_UNSPECIFIED = 0;
+    INDEX_STATE_BUILDING = 1;
+    INDEX_STATE_READY = 2;
+    INDEX_STATE_FAILED = 3;
+  }
+  IndexState state = 1;
+  double progress_percentage = 2;
+  string message = 3;
 }
 
 // Request to refresh the lease TTL of an active Workbench session.

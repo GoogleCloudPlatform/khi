@@ -143,7 +143,9 @@ func TestWorkbenchManager_HeartbeatAndClose(t *testing.T) {
 	mgr := NewWorkbenchManager(inspectionServer, 50*time.Millisecond, 0)
 	defer mgr.Stop()
 
-	wb, err := mgr.GetOrOpen(context.Background(), "user-session-1", validInspectionID, nil)
+	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
+
+	wb, err := mgr.GetOrOpen(context.Background(), "user-session-1", validInspectionID, noopProgress)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -177,7 +179,9 @@ func TestWorkbenchManager_LeasesAndRemove(t *testing.T) {
 	mgr := NewWorkbenchManager(inspectionServer, 50*time.Millisecond, 0)
 	defer mgr.Stop()
 
-	wb, err := mgr.GetOrOpen(context.Background(), "user-session-1", validInspectionID, nil)
+	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
+
+	wb, err := mgr.GetOrOpen(context.Background(), "user-session-1", validInspectionID, noopProgress)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -207,7 +211,9 @@ func TestWorkbenchManager_GetAndTouch(t *testing.T) {
 	mgr := NewWorkbenchManager(inspectionServer, 50*time.Millisecond, 0)
 	defer mgr.Stop()
 
-	wb, err := mgr.GetOrOpen(context.Background(), "user-session-1", validInspectionID, nil)
+	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
+
+	wb, err := mgr.GetOrOpen(context.Background(), "user-session-1", validInspectionID, noopProgress)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -267,8 +273,10 @@ func TestWorkbenchManager_ReopenDifferentInspection(t *testing.T) {
 
 	workbenchID := "user-session-same"
 
+	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
+
 	// 1. Open inspection 1
-	wb1, err := mgr.GetOrOpen(context.Background(), workbenchID, validInspectionID1, nil)
+	wb1, err := mgr.GetOrOpen(context.Background(), workbenchID, validInspectionID1, noopProgress)
 	if err != nil {
 		t.Fatalf("GetOrOpen(inspection1) unexpected error: %v", err)
 	}

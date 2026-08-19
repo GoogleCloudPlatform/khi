@@ -16,10 +16,32 @@ limitations under the License.
 
 @if (currentStatus | async; as progress) {
   <div class="container">
-    <mat-progress-bar
-      [mode]="progress.mode"
-      [value]="progress.percent"
-    ></mat-progress-bar>
-    <p class="progress-detail">{{ progress.message }}</p>
+    @if (progress.tasks && progress.tasks.length > 0) {
+      <div class="tasks-container">
+        @for (task of progress.tasks; track task.id) {
+          <div class="task-row">
+            <div class="task-header">
+              <span class="task-label">{{ task.label }}</span>
+              @if (task.message) {
+                <span class="task-message">{{ task.message }}</span>
+              }
+            </div>
+            <mat-progress-bar
+              [mode]="task.mode"
+              [value]="task.percent"
+            ></mat-progress-bar>
+          </div>
+        }
+      </div>
+      @if (progress.message) {
+        <p class="progress-detail">{{ progress.message }}</p>
+      }
+    } @else {
+      <mat-progress-bar
+        [mode]="progress.mode"
+        [value]="progress.percent"
+      ></mat-progress-bar>
+      <p class="progress-detail">{{ progress.message }}</p>
+    }
   </div>
 }

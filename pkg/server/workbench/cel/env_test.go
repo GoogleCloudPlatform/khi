@@ -172,6 +172,19 @@ user:
 		t.Fatalf("failed to create LogEvaluator: %v", err)
 	}
 	eval.SetInternPool(pool)
+	yamlBytes, err := (&structured.YAMLNodeSerializer{}).Serialize(logNode)
+	if err != nil {
+		t.Fatalf("failed to serialize yaml: %v", err)
+	}
+	structYAMLs := map[uint32]string{
+		sRef.ID(): string(yamlBytes),
+	}
+	trigramIndex := NewTrigramIndex()
+	if err := trigramIndex.BuildFromStructYAMLs(structYAMLs, nil); err != nil {
+		t.Fatalf("failed to build trigram index: %v", err)
+	}
+	eval.SetTrigramIndex(trigramIndex)
+	eval.SetStructYAMLs(structYAMLs)
 
 	testLog := &LogData{
 		ID:           10,
@@ -208,13 +221,23 @@ user:
 			want:       true,
 		},
 		{
-			name:       "body alias B with wildcard",
-			expression: `B("create")`,
+			name:       "body helper non-matching",
+			expression: `body("user.username", "anonymous")`,
+			want:       false,
+		},
+		{
+			name:       "body helper with pattern list matching one",
+			expression: `body("user.username", ["non-existent", "admin"])`,
 			want:       true,
 		},
 		{
-			name:       "body helper non-matching",
-			expression: `body("user.username", "anonymous")`,
+			name:       "body alias B with pattern list matching one",
+			expression: `B(["non-existent", "create"])`,
+			want:       true,
+		},
+		{
+			name:       "body alias B with pattern list matching none",
+			expression: `B(["non-existent-1", "non-existent-2"])`,
 			want:       false,
 		},
 	}
@@ -311,6 +334,89 @@ func TestValidateLogQuery(t *testing.T) {
 			err := ValidateLogQuery(tc.query)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("ValidateLogQuery() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestLogEvaluator_FallbackWithoutTrigramIndex(t *testing.T) {
+	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	logNode, err := structured.FromYAML(`verb: create
+user:
+  username: system:admin
+`)
+	if err != nil {
+		t.Fatalf("failed to parse log yaml node: %v", err)
+	}
+	sRef, err := khifilev6model.ToInternedStruct(logNode, pool)
+	if err != nil {
+		t.Fatalf("failed to intern log struct: %v", err)
+	}
+
+	eval, err := NewLogEvaluator()
+	if err != nil {
+		t.Fatalf("failed to create LogEvaluator: %v", err)
+	}
+	eval.SetInternPool(pool)
+	// Trigram index is NOT set (fallback to full scan)
+
+	testLog := &LogData{
+		ID:           10,
+		LogType:      "k8s-audit",
+		Severity:     3,
+		Summary:      "failed to schedule pod",
+		BodyStructID: sRef.ID(),
+	}
+
+	testCases := []struct {
+		name       string
+		expression string
+		want       bool
+	}{
+		{
+			name:       "wildcard body search succeeds by falling back to full text match",
+			expression: `body("create")`,
+			want:       true,
+		},
+		{
+			name:       "wildcard body search with non-matching pattern returns false",
+			expression: `body("non-existent-keyword")`,
+			want:       false,
+		},
+		{
+			name:       "wildcard body search with pattern list",
+			expression: `body(["non-existent", "create"])`,
+			want:       true,
+		},
+		{
+			name:       "specific body field search succeeds without trigram index",
+			expression: `body("user.username", "system:admin")`,
+			want:       true,
+		},
+		{
+			name:       "specific body field search with pattern list succeeds without trigram index",
+			expression: `body("user.username", ["non-existent", "system:admin"])`,
+			want:       true,
+		},
+		{
+			name:       "severity check succeeds without trigram index",
+			expression: `severity >= ERROR`,
+			want:       true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := eval.Compile(tc.expression); err != nil {
+				t.Fatalf("Compile() error = %v", err)
+			}
+
+			got, err := eval.Evaluate(context.Background(), testLog)
+			if err != nil {
+				t.Fatalf("Evaluate() unexpected error = %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Evaluate() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

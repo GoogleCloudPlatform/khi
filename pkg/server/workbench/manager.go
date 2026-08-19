@@ -128,6 +128,8 @@ func (m *WorkbenchManager) GetOrOpen(ctx context.Context, workbenchID string, in
 		m.leases[workbenchID] = time.Now().Add(m.ttl)
 		m.mu.Unlock()
 
+		loadedWb.StartAsyncIndexing(context.Background())
+
 		return loadedWb, nil
 	})
 	if err != nil {

@@ -118,6 +118,8 @@ func (f *LogCELFilter) Process(
 				return fmt.Errorf("failed to initialize log evaluator: %w", err)
 			}
 			logEval.SetInternPool(index.InternPool)
+			logEval.SetTrigramIndex(index.TrigramIndex)
+			logEval.SetStructYAMLs(index.StructYAMLs)
 			if err := logEval.Compile(f.query); err != nil {
 				return fmt.Errorf("invalid log query: %w", err)
 			}

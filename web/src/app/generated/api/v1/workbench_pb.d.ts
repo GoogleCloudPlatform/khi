@@ -144,6 +144,88 @@ export enum OpenWorkbenchResponse_Stage {
 export declare const OpenWorkbenchResponse_StageSchema: GenEnum<OpenWorkbenchResponse_Stage>;
 
 /**
+ * Request to stream the search index construction progress of a Workbench session.
+ *
+ * @generated from message api.v1.StreamIndexProgressRequest
+ */
+export declare type StreamIndexProgressRequest =
+  Message<'api.v1.StreamIndexProgressRequest'> & {
+    /**
+     * The active workbench session identifier.
+     *
+     * @generated from field: string workbench_id = 1;
+     */
+    workbenchId: string;
+  };
+
+/**
+ * Describes the message api.v1.StreamIndexProgressRequest.
+ * Use `create(StreamIndexProgressRequestSchema)` to create a new message.
+ */
+export declare const StreamIndexProgressRequestSchema: GenMessage<StreamIndexProgressRequest>;
+
+/**
+ * Progress update or terminal state of search index construction.
+ *
+ * @generated from message api.v1.StreamIndexProgressResponse
+ */
+export declare type StreamIndexProgressResponse =
+  Message<'api.v1.StreamIndexProgressResponse'> & {
+    /**
+     * @generated from field: api.v1.StreamIndexProgressResponse.IndexState state = 1;
+     */
+    state: StreamIndexProgressResponse_IndexState;
+
+    /**
+     * @generated from field: double progress_percentage = 2;
+     */
+    progressPercentage: number;
+
+    /**
+     * @generated from field: string message = 3;
+     */
+    message: string;
+  };
+
+/**
+ * Describes the message api.v1.StreamIndexProgressResponse.
+ * Use `create(StreamIndexProgressResponseSchema)` to create a new message.
+ */
+export declare const StreamIndexProgressResponseSchema: GenMessage<StreamIndexProgressResponse>;
+
+/**
+ * Lifecycle state of search index construction.
+ *
+ * @generated from enum api.v1.StreamIndexProgressResponse.IndexState
+ */
+export enum StreamIndexProgressResponse_IndexState {
+  /**
+   * @generated from enum value: INDEX_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: INDEX_STATE_BUILDING = 1;
+   */
+  BUILDING = 1,
+
+  /**
+   * @generated from enum value: INDEX_STATE_READY = 2;
+   */
+  READY = 2,
+
+  /**
+   * @generated from enum value: INDEX_STATE_FAILED = 3;
+   */
+  FAILED = 3,
+}
+
+/**
+ * Describes the enum api.v1.StreamIndexProgressResponse.IndexState.
+ */
+export declare const StreamIndexProgressResponse_IndexStateSchema: GenEnum<StreamIndexProgressResponse_IndexState>;
+
+/**
  * Request to refresh the lease TTL of an active Workbench session.
  *
  * @generated from message api.v1.HeartbeatWorkbenchRequest
@@ -502,6 +584,16 @@ export declare const WorkbenchService: GenService<{
     methodKind: 'server_streaming';
     input: typeof OpenWorkbenchRequestSchema;
     output: typeof OpenWorkbenchResponseSchema;
+  };
+  /**
+   * Streams the search index construction progress and final status for an active Workbench session.
+   *
+   * @generated from rpc api.v1.WorkbenchService.StreamIndexProgress
+   */
+  streamIndexProgress: {
+    methodKind: 'server_streaming';
+    input: typeof StreamIndexProgressRequestSchema;
+    output: typeof StreamIndexProgressResponseSchema;
   };
   /**
    * Sends periodic heartbeat to keep the Workbench session alive in memory.

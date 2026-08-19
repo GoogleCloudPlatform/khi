@@ -81,3 +81,62 @@ export const DeterminateComplete: Story = {
     } as CurrentProgress),
   ],
 };
+
+export const MultiTierClientAndServer: Story = {
+  decorators: [
+    createProgressDecorator({
+      mode: 'determinate',
+      percent: 50,
+      message: 'Opening dataset...',
+      tasks: [
+        {
+          id: 'client',
+          label: 'Client',
+          message: 'Parsing local chunks (80%)...',
+          percent: 80,
+          mode: 'determinate',
+        },
+        {
+          id: 'server',
+          label: 'Server',
+          message: 'Reading backend stream (40%)...',
+          percent: 40,
+          mode: 'determinate',
+        },
+      ],
+    }),
+  ],
+};
+
+export const MultiTierThreeTasks: Story = {
+  decorators: [
+    createProgressDecorator({
+      mode: 'determinate',
+      percent: 60,
+      message: 'Processing multi-stage pipeline...',
+      tasks: [
+        {
+          id: 'download',
+          label: 'Download',
+          message: 'Complete',
+          percent: 100,
+          mode: 'determinate',
+        },
+        {
+          id: 'client-parse',
+          label: 'Client Parse',
+          message: 'Parsing logs (65%)...',
+          percent: 65,
+          mode: 'determinate',
+        },
+        {
+          id: 'server-index',
+          label: 'Server Parse',
+          message: 'Indexing chunks...',
+          percent: 25,
+          mode: 'determinate',
+        },
+      ],
+    }),
+  ],
+};

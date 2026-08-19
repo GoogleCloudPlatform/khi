@@ -194,9 +194,9 @@ func TestWorkbench_BuildSearchIndex(t *testing.T) {
 	wb.logChunks = append(wb.logChunks, logChunk)
 	wb.timelineChunks = append(wb.timelineChunks, timelineChunk)
 
-	index, err := wb.BuildSearchIndex()
+	index, err := wb.BuildBaseSearchIndex()
 	if err != nil {
-		t.Fatalf("BuildSearchIndex() unexpected error = %v", err)
+		t.Fatalf("BuildBaseSearchIndex() unexpected error = %v", err)
 	}
 
 	if len(index.Timelines) != 1 {
@@ -215,7 +215,7 @@ func TestWorkbench_BuildSearchIndex(t *testing.T) {
 	}
 }
 
-func TestBuildSearchIndex(t *testing.T) {
+func TestBuildBaseSearchIndex(t *testing.T) {
 	testCases := []struct {
 		name             string
 		setupWorkbench   func() *Workbench
@@ -358,19 +358,19 @@ func TestBuildSearchIndex(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := tc.setupWorkbench()
-			idx, err := wb.BuildSearchIndex()
+			idx, err := wb.BuildBaseSearchIndex()
 			if (err != nil) != tc.wantErr {
-				t.Fatalf("BuildSearchIndex() error = %v, wantErr = %v", err, tc.wantErr)
+				t.Fatalf("BuildBaseSearchIndex() error = %v, wantErr = %v", err, tc.wantErr)
 			}
 			if tc.wantErr {
 				return
 			}
 
 			if len(idx.Logs) != tc.wantTotalLogs {
-				t.Errorf("BuildSearchIndex() total logs mismatch (-want +got):\n%s", cmp.Diff(tc.wantTotalLogs, len(idx.Logs)))
+				t.Errorf("BuildBaseSearchIndex() total logs mismatch (-want +got):\n%s", cmp.Diff(tc.wantTotalLogs, len(idx.Logs)))
 			}
 			if len(idx.Timelines) != tc.wantTotalTLs {
-				t.Errorf("BuildSearchIndex() total timelines mismatch (-want +got):\n%s", cmp.Diff(tc.wantTotalTLs, len(idx.Timelines)))
+				t.Errorf("BuildBaseSearchIndex() total timelines mismatch (-want +got):\n%s", cmp.Diff(tc.wantTotalTLs, len(idx.Timelines)))
 			}
 
 			tl1 := idx.TimelineMap[1]
