@@ -15,20 +15,23 @@
  */
 
 import { TestBed } from '@angular/core/testing';
-import { InspectionDataLoaderService } from './data-loader.service';
+import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import {
   PROGRESS_DIALOG_STATUS_UPDATOR,
   ProgressDialogStatusUpdator,
-} from './progress/progress-interface';
-import { BACKEND_API, BackendAPI } from './api/backend-api-interface';
+} from 'src/app/services/progress/progress-interface';
+import {
+  BACKEND_API,
+  BackendAPI,
+} from 'src/app/services/api/backend-api-interface';
 import {
   EXTENSION_STORE,
   ExtensionStore,
-} from '../extensions/extension-common/extension-store';
-import { InspectionDataStore } from './inspection-data-store.service';
-import { ImportInspectionClientService } from './api/import-inspection-client.service';
-import { BACKEND_SYNC } from './api/backend-sync.service';
-import { BackendSyncService } from './api/backend-sync-interface';
+} from 'src/app/extensions/extension-common/extension-store';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
+import { ImportInspectionClientService } from 'src/app/services/api/import-inspection-client.service';
+import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
+import { BackendSyncService } from 'src/app/services/api/backend-sync-interface';
 
 describe('InspectionDataLoaderService', () => {
   let service: InspectionDataLoaderService;

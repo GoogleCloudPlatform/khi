@@ -17,7 +17,6 @@ package defaultinit
 import (
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
-	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	serverapiv1 "github.com/GoogleCloudPlatform/khi/pkg/server/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/importinspection"
 )
@@ -48,7 +47,7 @@ var ImportInspectionInitializer = &coreinit.Initializer{
 		importSessionManager := importinspection.NewImportSessionManager(inspectionServer, inspectionServer.IOConfig())
 		importInspectionServer := serverapiv1.NewImportInspectionServiceServer(importSessionManager)
 		importInspectionPath, importInspectionHandler := apiv1connect.NewImportInspectionServiceHandler(importInspectionServer)
-		server.RegisterConnectServiceHandler(router, basePath, importInspectionPath, importInspectionHandler)
+		coreinit.RegisterConnectServiceHandler(router, basePath, importInspectionPath, importInspectionHandler)
 
 		return nil
 	},

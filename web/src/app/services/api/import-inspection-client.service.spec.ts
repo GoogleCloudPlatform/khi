@@ -18,7 +18,7 @@ import { TestBed } from '@angular/core/testing';
 import {
   ImportInspectionClientService,
   ImportFileOptions,
-} from './import-inspection-client.service';
+} from 'src/app/services/api/import-inspection-client.service';
 import { Client } from '@connectrpc/connect';
 import { ImportInspectionService } from 'src/app/generated/api/v1/import_inspection_pb';
 
