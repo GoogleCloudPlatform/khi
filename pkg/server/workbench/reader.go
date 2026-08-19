@@ -102,7 +102,7 @@ func (w *Workbench) ingestChunk(chunk *khifilev6model.Chunk) error {
 			return err
 		}
 		w.metadataChunks = append(w.metadataChunks, &meta)
-	case khifilev6model.ChunkTypeInternPool:
+	case khifilev6model.ChunkTypeInternPool, khifilev6model.ChunkTypeServerInternPool:
 		var pool khifilev6.InterningPoolChunk
 		if err := proto.Unmarshal(chunk.Data, &pool); err != nil {
 			return err

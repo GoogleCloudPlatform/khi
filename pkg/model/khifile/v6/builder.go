@@ -35,6 +35,7 @@ type BuilderProgressReporter interface {
 type Builder struct {
 	idGenerator         *IDGenerator
 	internPool          *InternPool
+	serverInternPool    *InternPool
 	TimelineAccumulator *TimelineAccumulator
 	LogAccumulator      *LogAccumulator
 	MetadataAccumulator *MetadataAccumulator
@@ -44,12 +45,14 @@ type Builder struct {
 func NewBuilder() *Builder {
 	gen := NewIDGenerator()
 	internPool := NewInternPool(gen)
-	logAcc := NewLogAccumulator(internPool, gen)
+	serverPool := NewServerInternPool(internPool, gen)
+	logAcc := NewLogAccumulator(internPool, serverPool, gen)
 
 	return &Builder{
 		idGenerator:         gen,
 		internPool:          internPool,
-		TimelineAccumulator: NewTimelineAccumulator(gen, internPool, logAcc),
+		serverInternPool:    serverPool,
+		TimelineAccumulator: NewTimelineAccumulator(gen, internPool, serverPool, logAcc),
 		LogAccumulator:      logAcc,
 		MetadataAccumulator: NewMetadataAccumulator(),
 	}
@@ -119,29 +122,38 @@ func (b *Builder) Build(w io.Writer, reporter BuilderProgressReporter) error {
 	}
 
 	report(0.8, "Writing intern pool chunks")
-	// 5. Write InternPoolChunk (Strings, FieldPathSets, and Structs)
-	stringSeq := mapSeq(b.internPool.SortedStringRefs(), func(ref *InternStringRef) *pb.InternString {
+	// 5. Write Client InternPoolChunk (ChunkTypeInternPool = 2)
+	clientStringSeq := mapSeq(b.internPool.SortedStringRefs(), func(ref *InternStringRef) *pb.InternString {
 		return ref.ToProto()
 	})
-	stringGen := NewInternPoolGenerator(stringSeq)
-	if err := writer.WriteGenerator(stringGen); err != nil {
-		return fmt.Errorf("failed to write intern string chunks: %w", err)
+	clientStringGen := NewInternPoolGenerator(ChunkTypeInternPool, clientStringSeq)
+	if err := writer.WriteGenerator(clientStringGen); err != nil {
+		return fmt.Errorf("failed to write client intern string chunks: %w", err)
 	}
 
-	fieldSetSeq := mapSeq(b.internPool.FieldSetRefs(), func(ref *FieldPathSetRef) *pb.InternFieldPathSet {
+	// 6. Write Server InternPoolChunk (ChunkTypeServerInternPool = 6)
+	serverStringSeq := mapSeq(b.serverInternPool.SortedStringRefs(), func(ref *InternStringRef) *pb.InternString {
 		return ref.ToProto()
 	})
-	fieldPathSetGen := NewInternFieldPathSetGenerator(fieldSetSeq)
+	serverStringGen := NewInternPoolGenerator(ChunkTypeServerInternPool, serverStringSeq)
+	if err := writer.WriteGenerator(serverStringGen); err != nil {
+		return fmt.Errorf("failed to write server intern string chunks: %w", err)
+	}
+
+	fieldSetSeq := mapSeq(b.serverInternPool.FieldSetRefs(), func(ref *FieldPathSetRef) *pb.InternFieldPathSet {
+		return ref.ToProto()
+	})
+	fieldPathSetGen := NewInternFieldPathSetGenerator(ChunkTypeServerInternPool, fieldSetSeq)
 	if err := writer.WriteGenerator(fieldPathSetGen); err != nil {
-		return fmt.Errorf("failed to write intern field path set chunks: %w", err)
+		return fmt.Errorf("failed to write server intern field path set chunks: %w", err)
 	}
 
-	structSeq := mapSeq(b.internPool.StructRefs(), func(ref *InternStructRef) *khifile.InternedStruct {
+	structSeq := mapSeq(b.serverInternPool.StructRefs(), func(ref *InternStructRef) *khifile.InternedStruct {
 		return ref.ToProto()
 	})
-	structGen := NewInternStructGenerator(structSeq)
+	structGen := NewInternStructGenerator(ChunkTypeServerInternPool, structSeq)
 	if err := writer.WriteGenerator(structGen); err != nil {
-		return fmt.Errorf("failed to write intern struct chunks: %w", err)
+		return fmt.Errorf("failed to write server intern struct chunks: %w", err)
 	}
 
 	report(1.0, "Done")

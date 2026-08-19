@@ -114,8 +114,9 @@ func TestBuilder_Build(t *testing.T) {
 					ChunkTypeTimeline,
 					ChunkTypeTimeline,
 					ChunkTypeInternPool,
-					ChunkTypeInternPool,
-					ChunkTypeInternPool,
+					ChunkTypeServerInternPool,
+					ChunkTypeServerInternPool,
+					ChunkTypeServerInternPool,
 				}
 
 				var gotTypes []ChunkType

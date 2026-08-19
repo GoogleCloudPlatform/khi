@@ -23,9 +23,14 @@ import (
 // IDNamespace represents a namespace for generating unique IDs.
 type IDNamespace uint32
 
+// ServerStringIDBase is the base offset for server-only string IDs to prevent collisions with client string IDs.
+const ServerStringIDBase uint32 = 0x80000000
+
 const (
 	// IDString is the namespace for string IDs.
 	IDString IDNamespace = iota
+	// IDServerString is the namespace for server-only string IDs.
+	IDServerString
 	// IDFieldSet is the namespace for field set IDs.
 	IDFieldSet
 	// IDStruct is the namespace for struct IDs.
@@ -54,13 +59,15 @@ type IDGenerator struct {
 	counters [idNamespaceMax]nsCounter
 }
 
-// NewIDGenerator creates a new IDGenerator.
+// NewIDGenerator creates a new IDGenerator initialized with starting counter values.
 func NewIDGenerator() *IDGenerator {
-	return &IDGenerator{}
+	g := &IDGenerator{}
+	g.counters[IDServerString].value.Store(ServerStringIDBase)
+	return g
 }
 
 // New allocates a fresh uint32 ID in the given namespace.
-// IDs start from 1.
+// IDs start from 1 (or ServerStringIDBase + 1 for IDServerString).
 // Note: This method panics if the namespace is invalid.
 func (g *IDGenerator) New(ns IDNamespace) uint32 {
 	if ns >= idNamespaceMax {

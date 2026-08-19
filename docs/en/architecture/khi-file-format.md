@@ -73,17 +73,20 @@ Each chunk is a Protobuf binary. The root message type of a chunk depends on the
 | Log Chunk | 3 | `LogChunk` | [log.proto](../../../proto/khifile/v6/log.proto) |
 | Timeline Style Chunk | 4 | `TimelineStyleChunk` | [style.proto](../../../proto/khifile/v6/style.proto) |
 | Timeline Chunk | 5 | `TimelineChunk` | [timeline.proto](../../../proto/khifile/v6/timeline.proto) |
+| Server Interning Pool Chunk | 6 | `InterningPoolChunk` | [intern_pool.proto](../../../proto/khifile/v6/intern_pool.proto) |
 
 ### 4.1 Chunk Shared Rules
 
 * **No Order Guarantee**: The occurrence order of chunks is not restricted in this file structure. Parsers must load all inspection data into memory or stream it sequentially, considering dependencies, to correctly resolve references, such as string IDs and style IDs, appearing in the file.
+* **Server-Only Chunk Skipping**: Chunks unrecognized or not required by a client (such as Server Interning Pool Chunk `Type 6`) are skipped by seeking past the chunk payload without performing gzip decompression.
 * **Size Limit and Chunk Splitting**: To avoid the Protobuf parser size limit, each chunk is automatically split into multiple chunks so that one chunk does not exceed 64MB before compression. Chunks of the same type may appear multiple times in a single file.
 * **ID Allocation and Orphaned IDs**: Various IDs, such as string IDs and style IDs, start from 1. The ID value `0` is reserved for "no reference" (NULL). Due to parallel processing on the backend, some IDs might be allocated but never used. Therefore, there is no guarantee that the allocated ID values are completely contiguous.
 
 ### 4.2 Interning Pool Chunk Optimization
 
-[InterningPoolChunk](../../../proto/khifile/v6/intern_pool.proto) stores string data by interning it to eliminate duplication. This chunk adopts the following mechanisms to optimize data size and compression ratio:
+[InterningPoolChunk](../../../proto/khifile/v6/intern_pool.proto) stores string data, field path sets, and structured structs by interning them to eliminate duplication. This chunk adopts the following mechanisms to optimize data size and compression ratio:
 
+* **Client vs Server Pool Partitioning**: Strings are partitioned into client-facing strings (stored in `ChunkTypeInternPool = 2`) and server-only strings/structs/field path sets (stored in `ChunkTypeServerInternPool = 6`). Client string IDs are densely allocated starting from 1, allowing the frontend to allocate compact TypedArrays, while server string IDs start at `0x80000001` to avoid ID collisions. Frontend parsers skip `ChunkTypeServerInternPool` chunks without decompression.
 * **Compression Efficiency via String Sorting**: When outputting the string list, strings are sorted by their values in dictionary order, not by the numerical order of IDs. When a chunk is split every 64MB, this sorting groups similar strings together within the same chunk, dramatically increasing the compression ratio for compression algorithms like gzip.
 * **Structured Data Flattening (InternedStruct)**: When serializing nested structured map data, such as log bodies, key paths are joined with a null character (`\x00`) and converted to a flat key set (`FieldPathSet`). A unique ID (`FieldPathSetID`) is allocated to the unique key set and managed in the pool. Values are stored in the `Values` list in the order of the flattened keys. This heavily deduplicates the schema definitions of structured data and significantly reduces the file size.
   * **Example 1: Nested Maps and Lists**

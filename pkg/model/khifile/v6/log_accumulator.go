@@ -38,17 +38,22 @@ type StagingLog struct {
 // by interning their structured data using an InternPool.
 // It is safe for concurrent use by multiple goroutines.
 type LogAccumulator struct {
-	pool         *InternPool
+	clientPool   *InternPool
+	serverPool   *InternPool
 	idGen        *IDGenerator
 	logs         []*pb.Log
 	parserIDToID map[string]uint32
 	mu           sync.RWMutex
 }
 
-// NewLogAccumulator creates a new LogAccumulator with the provided InternPool and IDGenerator.
-func NewLogAccumulator(pool *InternPool, idGen *IDGenerator) *LogAccumulator {
+// NewLogAccumulator creates a new LogAccumulator with the provided client and server InternPools and IDGenerator.
+func NewLogAccumulator(clientPool *InternPool, serverPool *InternPool, idGen *IDGenerator) *LogAccumulator {
+	if serverPool == nil {
+		serverPool = clientPool
+	}
 	return &LogAccumulator{
-		pool:         pool,
+		clientPool:   clientPool,
+		serverPool:   serverPool,
 		idGen:        idGen,
 		logs:         make([]*pb.Log, 0),
 		parserIDToID: make(map[string]uint32),
@@ -65,7 +70,7 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 		return fmt.Errorf("log type or its ID is missing")
 	}
 
-	internedBody, err := ToInternedStruct(s.Log.Node, a.pool)
+	internedBody, err := ToInternedStruct(s.Log.Node, a.serverPool)
 	if err != nil {
 		return fmt.Errorf("failed to intern log body: %w", err)
 	}
@@ -79,7 +84,7 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 	pbLog.Ts = timestamppb.New(s.Timestamp)
 	pbLog.SeverityTypeId = s.Severity.Id
 
-	summaryStrRef := a.pool.InternString(s.Summary)
+	summaryStrRef := a.clientPool.InternString(s.Summary)
 	pbLog.SummaryStringId = &summaryStrRef.id
 
 	pbLog.LogTypeId = s.LogType.Id

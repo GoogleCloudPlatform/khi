@@ -134,29 +134,29 @@ var _ ChunkGenerator = (*splittingGenerator[proto.Message, proto.Message])(nil)
 
 // NewInternPoolGenerator creates a SplittingGenerator for InternPool chunks.
 // It groups pb.InternString messages into pb.InterningPoolChunk respecting the size limit.
-func NewInternPoolGenerator(seq iter.Seq[*pb.InternString]) ChunkGenerator {
+func NewInternPoolGenerator(chunkType ChunkType, seq iter.Seq[*pb.InternString]) ChunkGenerator {
 	wrapper := func(batch []*pb.InternString) *pb.InterningPoolChunk {
 		return &pb.InterningPoolChunk{Strings: batch}
 	}
-	return NewSplittingGenerator(ChunkTypeInternPool, seq, DefaultChunkSizeLimit, wrapper)
+	return NewSplittingGenerator(chunkType, seq, DefaultChunkSizeLimit, wrapper)
 }
 
 // NewInternFieldPathSetGenerator creates a SplittingGenerator for InternPool chunks containing field path sets.
 // It groups pb.InternFieldPathSet messages into pb.InterningPoolChunk respecting the size limit.
-func NewInternFieldPathSetGenerator(seq iter.Seq[*pb.InternFieldPathSet]) ChunkGenerator {
+func NewInternFieldPathSetGenerator(chunkType ChunkType, seq iter.Seq[*pb.InternFieldPathSet]) ChunkGenerator {
 	wrapper := func(batch []*pb.InternFieldPathSet) *pb.InterningPoolChunk {
 		return &pb.InterningPoolChunk{FieldPathSets: batch}
 	}
-	return NewSplittingGenerator(ChunkTypeInternPool, seq, DefaultChunkSizeLimit, wrapper)
+	return NewSplittingGenerator(chunkType, seq, DefaultChunkSizeLimit, wrapper)
 }
 
 // NewInternStructGenerator creates a SplittingGenerator for InternPool chunks containing structs.
 // It groups khifile.InternedStruct messages into pb.InterningPoolChunk respecting the size limit.
-func NewInternStructGenerator(seq iter.Seq[*khifile.InternedStruct]) ChunkGenerator {
+func NewInternStructGenerator(chunkType ChunkType, seq iter.Seq[*khifile.InternedStruct]) ChunkGenerator {
 	wrapper := func(batch []*khifile.InternedStruct) *pb.InterningPoolChunk {
 		return &pb.InterningPoolChunk{Structs: batch}
 	}
-	return NewSplittingGenerator(ChunkTypeInternPool, seq, DefaultChunkSizeLimit, wrapper)
+	return NewSplittingGenerator(chunkType, seq, DefaultChunkSizeLimit, wrapper)
 }
 
 // NewLogGenerator creates a SplittingGenerator for Log chunks.

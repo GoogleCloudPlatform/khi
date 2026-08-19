@@ -152,7 +152,8 @@ func (cs *TimelineChangeSet) AddAlias(aliasPath, targetPath *TimelinePath) {
 // Flush converts staging events, revisions, and aliases to serialized types and writes them to the TimelineAccumulator.
 func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 	registry := accumulator.registry
-	pool := registry.internPool
+	clientPool := registry.clientPool
+	serverPool := registry.serverPool
 	logAcc := registry.logAcc
 
 	resolvedLogID, ok := logAcc.ResolveLogID(cs.Log.ID)
@@ -178,7 +179,7 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 		for _, r := range revisions {
 			var bodyStructID *uint32
 			if r.ResourceBody != nil {
-				structRef, err := ToInternedStruct(r.ResourceBody, pool)
+				structRef, err := ToInternedStruct(r.ResourceBody, serverPool)
 				if err != nil {
 					return fmt.Errorf("failed to intern resource body for revision: %w", err)
 				}
@@ -187,7 +188,7 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 
 			var principalID *uint32
 			if r.Principal != "" {
-				ref := pool.InternString(r.Principal)
+				ref := clientPool.InternString(r.Principal)
 				principalID = &ref.id
 			}
 
@@ -208,13 +209,13 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 
 			var pbAnnotations []*pb.FieldAnnotation
 			for _, fa := range r.FieldAnnotations {
-				fieldPathRef := pool.InternString(fa.FieldPath)
+				fieldPathRef := clientPool.InternString(fa.FieldPath)
 				pbAnn := &pb.FieldAnnotation{
 					FieldPathStringId: &fieldPathRef.id,
 				}
 				if fa.MutatingWebhook != nil {
-					configRef := pool.InternString(fa.MutatingWebhook.Configuration)
-					webhookRef := pool.InternString(fa.MutatingWebhook.Webhook)
+					configRef := clientPool.InternString(fa.MutatingWebhook.Configuration)
+					webhookRef := clientPool.InternString(fa.MutatingWebhook.Webhook)
 					var round int32 = int32(fa.MutatingWebhook.Round)
 					var index int32 = int32(fa.MutatingWebhook.Index)
 					pbAnn.Payload = &pb.FieldAnnotation_MutatingWebhook{

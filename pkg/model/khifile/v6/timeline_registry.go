@@ -27,8 +27,10 @@ import (
 type TimelineRegistry struct {
 	// idGen is used to generate unique IDs for new TimelineBuilder (TimelineItems) instances.
 	idGen *IDGenerator
-	// internPool is passed to new TimelineBuilder instances for string interning.
-	internPool *InternPool
+	// clientPool is passed to new TimelineBuilder instances for client string interning.
+	clientPool *InternPool
+	// serverPool is passed to new TimelineBuilder instances for struct interning.
+	serverPool *InternPool
 	// logAcc is the LogAccumulator reference used to resolve log IDs.
 	logAcc *LogAccumulator
 	// builders is a concurrent map caching *TimelinePath to its *TimelineBuilder.
@@ -38,10 +40,14 @@ type TimelineRegistry struct {
 }
 
 // NewTimelineRegistry creates a new registry for managing TimelineBuilders.
-func NewTimelineRegistry(idGen *IDGenerator, sp *InternPool, logAcc *LogAccumulator) *TimelineRegistry {
+func NewTimelineRegistry(idGen *IDGenerator, clientPool *InternPool, serverPool *InternPool, logAcc *LogAccumulator) *TimelineRegistry {
+	if serverPool == nil {
+		serverPool = clientPool
+	}
 	return &TimelineRegistry{
 		idGen:      idGen,
-		internPool: sp,
+		clientPool: clientPool,
+		serverPool: serverPool,
 		logAcc:     logAcc,
 	}
 }
@@ -59,7 +65,7 @@ func (r *TimelineRegistry) GetBuilder(path *TimelinePath) *TimelineBuilder {
 	newBuilder := &TimelineBuilder{
 		Path:            path,
 		TimelineItemsID: newID,
-		internPool:      r.internPool,
+		internPool:      r.clientPool,
 	}
 	r.idToBuilder.Store(newID, newBuilder)
 

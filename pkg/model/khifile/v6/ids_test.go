@@ -31,6 +31,8 @@ func TestIDGenerator(t *testing.T) {
 			{"first string", IDString, 1},
 			{"second string", IDString, 2},
 			{"first fieldset", IDFieldSet, 1},
+			{"first server string", IDServerString, ServerStringIDBase + 1},
+			{"second server string", IDServerString, ServerStringIDBase + 2},
 		}
 
 		for _, step := range steps {

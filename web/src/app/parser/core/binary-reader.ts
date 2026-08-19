@@ -17,6 +17,14 @@
 import { assertNecessaryAPI } from 'src/app/common/misc-util';
 
 /**
+ * Header metadata for a single chunk.
+ */
+export interface ChunkHeader {
+  readonly size: number;
+  readonly typeId: number;
+}
+
+/**
  * Data associated with a single chunk in the KHI file.
  */
 export interface ChunkData {
@@ -75,9 +83,9 @@ export class BinaryReader {
   }
 
   /**
-   * Reads the next chunk metadata and its binary payload, decompressing the payload using gzip.
+   * Reads the next chunk header (size and typeId) and advances the offset by 8 bytes.
    */
-  public async readNextChunk(): Promise<ChunkData> {
+  public readChunkHeader(): ChunkHeader {
     if (this.offset === 0) {
       throw new Error('Header must be read before reading chunks');
     }
@@ -92,11 +100,31 @@ export class BinaryReader {
     // Chunk type (32 bit unsigned int, little endian)
     const typeId = this.dv.getUint32(this.offset + 4, true);
 
-    if (this.offset + 8 + size > this.buffer.byteLength) {
+    this.offset += 8;
+    return { size, typeId };
+  }
+
+  /**
+   * Skips the chunk payload without decompressing, advancing the offset by the specified size.
+   * @param size The size of the chunk payload in bytes.
+   */
+  public skipChunkPayload(size: number): void {
+    if (this.offset + size > this.buffer.byteLength) {
+      throw new Error('Unexpected end of file while skipping chunk');
+    }
+    this.offset += size;
+  }
+
+  /**
+   * Reads and decompresses the chunk payload, advancing the offset by the specified size.
+   * @param size The size of the chunk payload in bytes.
+   */
+  public async readChunkPayload(size: number): Promise<Uint8Array> {
+    if (this.offset + size > this.buffer.byteLength) {
       throw new Error('Unexpected end of file while reading chunk data');
     }
 
-    const compressedData = new Uint8Array(this.buffer, this.offset + 8, size);
+    const compressedData = new Uint8Array(this.buffer, this.offset, size);
 
     // Decompress the gzip data
     const decompressionStream = new DecompressionStream('gzip');
@@ -109,8 +137,16 @@ export class BinaryReader {
     ).arrayBuffer();
 
     const data = new Uint8Array(uncompressedBuffer);
+    this.offset += size;
+    return data;
+  }
 
-    this.offset += 8 + size;
+  /**
+   * Reads the next chunk metadata and its binary payload, decompressing the payload using gzip.
+   */
+  public async readNextChunk(): Promise<ChunkData> {
+    const { size, typeId } = this.readChunkHeader();
+    const data = await this.readChunkPayload(size);
     return { size, typeId, data };
   }
 }

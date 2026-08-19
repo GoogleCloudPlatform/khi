@@ -96,7 +96,16 @@ export class KHIFileParser {
     // 3. Chunk Streaming & Ingestion Phase
     while (reader.hasMore()) {
       const offset = reader.currentOffset;
-      const { typeId, data } = await reader.readNextChunk();
+      const { size, typeId } = reader.readChunkHeader();
+
+      const assembler = activeAssemblers.get(typeId);
+      if (!assembler) {
+        // Skip unhandled chunk (e.g. server-only chunks) without decompression.
+        reader.skipChunkPayload(size);
+        continue;
+      }
+
+      const data = await reader.readChunkPayload(size);
 
       const currentRatio = reader.currentOffset / buffer.byteLength;
       const currentPercent = Math.min(
@@ -112,11 +121,6 @@ export class KHIFileParser {
       progressReporter?.reportMessage(
         `Parsing (${formatBytes(reader.currentOffset)} / ${formatBytes(buffer.byteLength)})...`,
       );
-
-      const assembler = activeAssemblers.get(typeId);
-      if (!assembler) {
-        throw new Error(`Unknown chunk type ${typeId} at offset ${offset}.`);
-      }
 
       executedTypeIds.add(typeId);
 

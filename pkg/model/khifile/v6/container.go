@@ -39,11 +39,12 @@ var (
 type ChunkType uint32
 
 const (
-	ChunkTypeMetadata      ChunkType = 1
-	ChunkTypeInternPool    ChunkType = 2
-	ChunkTypeLog           ChunkType = 3
-	ChunkTypeTimelineStyle ChunkType = 4
-	ChunkTypeTimeline      ChunkType = 5
+	ChunkTypeMetadata         ChunkType = 1
+	ChunkTypeInternPool       ChunkType = 2
+	ChunkTypeLog              ChunkType = 3
+	ChunkTypeTimelineStyle    ChunkType = 4
+	ChunkTypeTimeline         ChunkType = 5
+	ChunkTypeServerInternPool ChunkType = 6
 )
 
 // Writer writes chunks to a KHI v6 file.

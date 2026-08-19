@@ -103,9 +103,11 @@ func (r *InternStructRef) ToProto() *pb.InternedStruct {
 // InternPool manages interning of strings, field path sets, and structs to reduce memory usage.
 // It uses sync.Map for concurrent access and relies on IDGenerator for generating IDs.
 type InternPool struct {
-	idGen   *IDGenerator
-	strToID sync.Map // map[string]uint32
-	idToStr sync.Map // map[uint32]string
+	parentPool *InternPool
+	idGen      *IDGenerator
+	idNs       IDNamespace
+	strToID    sync.Map // map[string]uint32
+	idToStr    sync.Map // map[uint32]string
 
 	fieldSetToID sync.Map // map[string]uint32 (key is byte representation of []uint32)
 	idToFieldSet sync.Map // map[uint32][]uint32
@@ -118,6 +120,16 @@ type InternPool struct {
 func NewInternPool(idGen *IDGenerator) *InternPool {
 	return &InternPool{
 		idGen: idGen,
+		idNs:  IDString,
+	}
+}
+
+// NewServerInternPool creates a new server-only InternPool delegating string lookup to parent when available.
+func NewServerInternPool(parent *InternPool, idGen *IDGenerator) *InternPool {
+	return &InternPool{
+		parentPool: parent,
+		idGen:      idGen,
+		idNs:       IDServerString,
 	}
 }
 
@@ -161,14 +173,24 @@ func (p *InternPool) InternString(value string) *InternStringRef {
 	if id, ok := p.strToID.Load(value); ok {
 		return &InternStringRef{pool: p, id: id.(uint32)}
 	}
+	if p.parentPool != nil {
+		if id, ok := p.parentPool.strToID.Load(value); ok {
+			return &InternStringRef{pool: p.parentPool, id: id.(uint32)}
+		}
+	}
 
 	// Call ToValidUTF8 for every calls are costly and majority of value are expected not to contain invalid utf8, so check it after the first lookup.
 	value = strings.ToValidUTF8(value, "\uFFFD")
 	if id, ok := p.strToID.Load(value); ok {
 		return &InternStringRef{pool: p, id: id.(uint32)}
 	}
+	if p.parentPool != nil {
+		if id, ok := p.parentPool.strToID.Load(value); ok {
+			return &InternStringRef{pool: p.parentPool, id: id.(uint32)}
+		}
+	}
 
-	id := p.idGen.New(IDString)
+	id := p.idGen.New(p.idNs)
 	p.idToStr.Store(id, value)
 
 	actual, loaded := p.strToID.LoadOrStore(value, id)
@@ -191,6 +213,11 @@ func (p *InternPool) ResolveStringFromID(id uint32) string {
 func (p *InternPool) resolveStringFromID(id uint32) string {
 	if value, ok := p.idToStr.Load(id); ok {
 		return value.(string)
+	}
+	if p.parentPool != nil {
+		if value, ok := p.parentPool.idToStr.Load(id); ok {
+			return value.(string)
+		}
 	}
 	return ""
 }

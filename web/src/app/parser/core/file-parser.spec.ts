@@ -207,4 +207,57 @@ describe('KHIFileParser', () => {
     expect(mockProgressReporter.reportProgress).toHaveBeenCalledWith(100);
     expect(mockProgressReporter.complete).toHaveBeenCalled();
   });
+
+  it('should skip unhandled chunk types without decompressing or erroring', async () => {
+    const parser = new KHIFileParser(registry);
+
+    const data1 = new TextEncoder().encode('hello');
+    const compressed1 = await compressData(data1);
+
+    // Dummy compressed data for chunk type 99 (not in blueprint)
+    const dataUnhandled = new Uint8Array([1, 2, 3, 4]);
+    const compressedUnhandled = await compressData(dataUnhandled);
+
+    const data2 = new Uint8Array([42]);
+    const compressed2 = await compressData(data2);
+
+    const bufferSize =
+      4 +
+      8 +
+      compressed1.length +
+      8 +
+      compressedUnhandled.length +
+      8 +
+      compressed2.length;
+    const buffer = new ArrayBuffer(bufferSize);
+    const dv = new DataView(buffer);
+    const uint8View = new Uint8Array(buffer);
+
+    uint8View.set([75, 72, 73, 6], 0);
+
+    // Chunk 1: Type 1 (Handled)
+    dv.setUint32(4, compressed1.length, true);
+    dv.setUint32(8, 1, true);
+    uint8View.set(compressed1, 12);
+
+    // Chunk 2: Type 99 (Unhandled / Server-only, Should be skipped)
+    const offset2 = 12 + compressed1.length;
+    dv.setUint32(offset2, compressedUnhandled.length, true);
+    dv.setUint32(offset2 + 4, 99, true);
+    uint8View.set(compressedUnhandled, offset2 + 8);
+
+    // Chunk 3: Type 2 (Handled)
+    const offset3 = offset2 + 8 + compressedUnhandled.length;
+    dv.setUint32(offset3, compressed2.length, true);
+    dv.setUint32(offset3 + 4, 2, true);
+    uint8View.set(compressed2, offset3 + 8);
+
+    const result = await parser.parse(buffer);
+
+    expect(result).toBeDefined();
+    expect(mockAssembler1.ingest).toHaveBeenCalledWith('hello');
+    expect(mockAssembler2.ingest).toHaveBeenCalledWith(42);
+    expect(mockAssembler1.assembleInto).toHaveBeenCalled();
+    expect(mockAssembler2.assembleInto).toHaveBeenCalled();
+  });
 });

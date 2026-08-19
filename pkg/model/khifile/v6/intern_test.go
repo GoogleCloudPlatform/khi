@@ -627,3 +627,58 @@ func TestInternPool_IngestChunk(t *testing.T) {
 		})
 	}
 }
+
+func TestServerInternPool(t *testing.T) {
+	testCases := []struct {
+		name       string
+		clientStrs []string
+		serverStrs []string
+		checkStr   string
+		wantID     uint32
+	}{
+		{
+			name:       "server string not in client pool gets server id",
+			clientStrs: []string{"client-only"},
+			serverStrs: []string{"server-only"},
+			checkStr:   "server-only",
+			wantID:     ServerStringIDBase + 1,
+		},
+		{
+			name:       "server string already in client pool reuses client id",
+			clientStrs: []string{"shared-string"},
+			serverStrs: []string{"shared-string"},
+			checkStr:   "shared-string",
+			wantID:     1,
+		},
+		{
+			name:       "multiple strings with mixed client reuse",
+			clientStrs: []string{"first-client", "second-client"},
+			serverStrs: []string{"second-client", "server-first"},
+			checkStr:   "server-first",
+			wantID:     ServerStringIDBase + 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			idGen := NewIDGenerator()
+			clientPool := NewInternPool(idGen)
+			serverPool := NewServerInternPool(clientPool, idGen)
+
+			for _, s := range tc.clientStrs {
+				clientPool.InternString(s)
+			}
+			for _, s := range tc.serverStrs {
+				serverPool.InternString(s)
+			}
+
+			ref := serverPool.InternString(tc.checkStr)
+			if ref.id != tc.wantID {
+				t.Errorf("InternString(%q) id = %d, want %d", tc.checkStr, ref.id, tc.wantID)
+			}
+			if resolved := ref.Resolve(); resolved != tc.checkStr {
+				t.Errorf("Resolve() = %q, want %q", resolved, tc.checkStr)
+			}
+		})
+	}
+}

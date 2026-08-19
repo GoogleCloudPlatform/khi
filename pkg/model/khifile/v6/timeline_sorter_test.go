@@ -149,8 +149,9 @@ func TestCompareChronological(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			logAcc := NewLogAccumulator(internPool, idGen)
-			registry := NewTimelineRegistry(idGen, internPool, logAcc)
+			serverPool := NewServerInternPool(internPool, idGen)
+			logAcc := NewLogAccumulator(internPool, serverPool, idGen)
+			registry := NewTimelineRegistry(idGen, internPool, serverPool, logAcc)
 
 			tc.setupFunc(registry)
 
@@ -249,8 +250,9 @@ func TestCompareGroupedChronological(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			logAcc := NewLogAccumulator(internPool, idGen)
-			registry := NewTimelineRegistry(idGen, internPool, logAcc)
+			serverPool := NewServerInternPool(internPool, idGen)
+			logAcc := NewLogAccumulator(internPool, serverPool, idGen)
+			registry := NewTimelineRegistry(idGen, internPool, serverPool, logAcc)
 			tc.setupFunc(registry)
 
 			got := CompareGroupedChronological(tc.a, tc.b, registry, parentToChildren, "-")

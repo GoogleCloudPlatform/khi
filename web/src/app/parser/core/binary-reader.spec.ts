@@ -116,6 +116,58 @@ describe('BinaryReader', () => {
     expect(reader.hasMore()).toBeFalse();
   });
 
+  it('should read chunk header and payload separately, allowing skipping payload', async () => {
+    const data1 = new Uint8Array([10, 20]);
+    const compressed1 = await compressData(data1);
+
+    const data2 = new Uint8Array([30, 40, 50]);
+    const compressed2 = await compressData(data2);
+
+    const bufferSize = 4 + 8 + compressed1.length + 8 + compressed2.length;
+    const buffer = new ArrayBuffer(bufferSize);
+    const dv = new DataView(buffer);
+    const uint8View = new Uint8Array(buffer);
+
+    // Header
+    uint8View.set([75, 72, 73, 6], 0);
+
+    // Chunk 1 Header (type = 99 to be skipped)
+    dv.setUint32(4, compressed1.length, true);
+    dv.setUint32(8, 99, true);
+    uint8View.set(compressed1, 12);
+
+    // Chunk 2 Header (type = 2 to be read)
+    const offset2 = 12 + compressed1.length;
+    dv.setUint32(offset2, compressed2.length, true);
+    dv.setUint32(offset2 + 4, 2, true);
+    uint8View.set(compressed2, offset2 + 8);
+
+    const reader = new BinaryReader(buffer);
+    reader.readHeader();
+
+    // Read first chunk header
+    const header1 = reader.readChunkHeader();
+    expect(header1.size).toBe(compressed1.length);
+    expect(header1.typeId).toBe(99);
+    expect(reader.currentOffset).toBe(12);
+
+    // Skip first chunk payload
+    reader.skipChunkPayload(header1.size);
+    expect(reader.currentOffset).toBe(offset2);
+
+    // Read second chunk header
+    const header2 = reader.readChunkHeader();
+    expect(header2.size).toBe(compressed2.length);
+    expect(header2.typeId).toBe(2);
+    expect(reader.currentOffset).toBe(offset2 + 8);
+
+    // Read payload of second chunk
+    const chunk2Data = await reader.readChunkPayload(header2.size);
+    expect(Array.from(chunk2Data)).toEqual(Array.from(data2));
+    expect(reader.currentOffset).toBe(bufferSize);
+    expect(reader.hasMore()).toBeFalse();
+  });
+
   it('should throw an error if chunk header is incomplete', async () => {
     // Header (4) + incomplete chunk header (4)
     const buffer = new Uint8Array([75, 72, 73, 6, 2, 0, 0, 0]).buffer;
