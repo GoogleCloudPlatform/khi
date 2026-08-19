@@ -73,6 +73,9 @@ func run() int {
 	case code := <-exitCh:
 		return code
 	default:
+		if engine.Context().Err() != nil {
+			return <-exitCh
+		}
 		return 0
 	}
 }
