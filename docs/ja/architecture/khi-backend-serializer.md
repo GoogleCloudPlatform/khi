@@ -61,7 +61,7 @@ Protobuf でのシリアライズやデータサイズ最適化の基盤とな�
 
 ```go
 // pkg/model/khifile/v6/ids.go にて定義されている名前空間付きのIDジェネレーター
-gen := &IDGenerator{}
+gen := NewIDGenerator()
 
 // タイムラインのIDを発行
 timelineID := gen.New(IDTimelinePath)
@@ -79,7 +79,7 @@ InternPool が文字列と構造化データのフィールドパスを管理し
 
 ```go
 // IDGeneratorを渡してプールを初期化
-gen := &IDGenerator{}
+gen := NewIDGenerator()
 pool := NewInternPool(gen)
 
 // 文字列をプールに登録して一意の ID である InternStringRef を取得

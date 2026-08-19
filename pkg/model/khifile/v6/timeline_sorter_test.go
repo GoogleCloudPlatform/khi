@@ -24,7 +24,7 @@ import (
 )
 
 func TestCompareAlphabetical(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 	timelineType := &pb.TimelineType{Id: proto.Uint32(1)}
@@ -84,7 +84,7 @@ func TestCompareAlphabetical(t *testing.T) {
 }
 
 func TestCompareChronological(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 	timelineType := &pb.TimelineType{Id: proto.Uint32(1)}
@@ -163,7 +163,7 @@ func TestCompareChronological(t *testing.T) {
 }
 
 func TestCompareGroupedChronological(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 	timelineType := &pb.TimelineType{Id: proto.Uint32(1)}

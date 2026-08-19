@@ -24,7 +24,7 @@ import (
 )
 
 func TestInternPool_Intern(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	pool := NewInternPool(idGen)
 
 	testCases := []struct {
@@ -64,7 +64,7 @@ func TestInternPool_Intern(t *testing.T) {
 }
 
 func TestInternPool_Intern_InvalidUTF8(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	pool := NewInternPool(idGen)
 
 	testCases := []struct {
@@ -108,7 +108,7 @@ func TestInternPool_Intern_InvalidUTF8(t *testing.T) {
 }
 
 func TestInternPool_ResolveStringFromID(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	pool := NewInternPool(idGen)
 	ref1 := pool.InternString("foo")
 	ref2 := pool.InternString("bar")
@@ -151,7 +151,7 @@ func TestInternPool_ResolveStringFromID(t *testing.T) {
 }
 
 func TestInternStringRef_ToProto(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	pool := NewInternPool(idGen)
 	ref := pool.InternString("foo")
 
@@ -173,7 +173,7 @@ func TestInternStringRef_ToProto(t *testing.T) {
 }
 
 func TestInternPool_SortedRefs(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	pool := NewInternPool(idGen)
 	pool.InternString("c")
 	pool.InternString("a")
@@ -220,7 +220,7 @@ func TestInternPool_SortedRefs(t *testing.T) {
 }
 
 func TestInternPool_InternFieldSet(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	pool := NewInternPool(idGen)
 
 	testCases := []struct {
@@ -270,7 +270,7 @@ func TestInternPool_InternFieldSet(t *testing.T) {
 }
 
 func TestInternPool_FieldSetRefs(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	pool := NewInternPool(idGen)
 
 	pool.InternFieldSet([]string{"a", "b"})
@@ -318,7 +318,7 @@ func TestInternPool_FieldSetRefs(t *testing.T) {
 }
 
 func TestInternPool_InternStruct(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	pool := NewInternPool(idGen)
 
 	fieldSetID1 := pool.InternFieldSet([]string{"foo", "bar"}).id
@@ -435,7 +435,7 @@ func TestInternPool_InternStruct(t *testing.T) {
 }
 
 func TestInternPool_StructRefs(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	pool := NewInternPool(idGen)
 
 	fsID := pool.InternFieldSet([]string{"key"}).id

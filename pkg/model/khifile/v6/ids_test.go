@@ -21,7 +21,7 @@ import (
 
 func TestIDGenerator(t *testing.T) {
 	t.Run("sequential new", func(t *testing.T) {
-		g := &IDGenerator{}
+		g := NewIDGenerator()
 
 		steps := []struct {
 			name string
@@ -44,7 +44,7 @@ func TestIDGenerator(t *testing.T) {
 	})
 
 	t.Run("set and new", func(t *testing.T) {
-		g := &IDGenerator{}
+		g := NewIDGenerator()
 		g.Set(IDString, 5)
 
 		steps := []struct {
@@ -67,7 +67,7 @@ func TestIDGenerator(t *testing.T) {
 	})
 
 	t.Run("concurrent new", func(t *testing.T) {
-		g := &IDGenerator{}
+		g := NewIDGenerator()
 		const (
 			numGoroutines = 10
 			numIncrements = 100

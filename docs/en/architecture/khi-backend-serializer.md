@@ -61,7 +61,7 @@ An interface to issue and manage unique integer IDs for various elements. It man
 
 ```go
 // Namespace-scoped ID generator defined in pkg/model/khifile/v6/ids.go
-gen := &IDGenerator{}
+gen := NewIDGenerator()
 
 // Issue a timeline ID
 timelineID := gen.New(IDTimelinePath)
@@ -79,7 +79,7 @@ This mechanism eliminates holding duplicate long strings in heap memory within t
 
 ```go
 // Initialize pool by passing IDGenerator
-gen := &IDGenerator{}
+gen := NewIDGenerator()
 pool := NewInternPool(gen)
 
 // Register a string to the pool to get a unique ID (InternStringRef)

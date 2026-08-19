@@ -54,6 +54,11 @@ type IDGenerator struct {
 	counters [idNamespaceMax]nsCounter
 }
 
+// NewIDGenerator creates a new IDGenerator.
+func NewIDGenerator() *IDGenerator {
+	return &IDGenerator{}
+}
+
 // New allocates a fresh uint32 ID in the given namespace.
 // IDs start from 1.
 // Note: This method panics if the namespace is invalid.

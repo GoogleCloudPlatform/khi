@@ -26,7 +26,7 @@ import (
 )
 
 func TestLogChangeSet_Flush(t *testing.T) {
-	idGen := &khifilev6.IDGenerator{}
+	idGen := khifilev6.NewIDGenerator()
 	pool := khifilev6.NewInternPool(idGen)
 	logAcc := khifilev6.NewLogAccumulator(pool, idGen)
 
@@ -71,7 +71,7 @@ func TestLogChangeSet_Flush(t *testing.T) {
 }
 
 func TestTimelineChangeSet_Flush(t *testing.T) {
-	idGen := &khifilev6.IDGenerator{}
+	idGen := khifilev6.NewIDGenerator()
 	pool := khifilev6.NewInternPool(idGen)
 	logAcc := khifilev6.NewLogAccumulator(pool, idGen)
 	accumulator := khifilev6.NewTimelineAccumulator(idGen, pool, logAcc)

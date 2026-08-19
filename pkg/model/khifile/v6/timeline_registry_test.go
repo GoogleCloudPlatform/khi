@@ -22,7 +22,7 @@ import (
 )
 
 func TestTimelineRegistry_GetBuilder(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 

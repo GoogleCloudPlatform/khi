@@ -192,7 +192,7 @@ time_val: 2026-04-20T03:00:00Z
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			idGenGot := &IDGenerator{}
+			idGenGot := NewIDGenerator()
 			poolGot := NewInternPool(idGenGot)
 
 			node, err := structured.FromYAML(tc.yaml)
@@ -208,7 +208,7 @@ time_val: 2026-04-20T03:00:00Z
 				return
 			}
 
-			idGenWant := &IDGenerator{}
+			idGenWant := NewIDGenerator()
 			poolWant := NewInternPool(idGenWant)
 			want := tc.want(poolWant)
 
@@ -240,7 +240,7 @@ time_val: 2026-04-20T03:00:00Z
 }
 
 func TestFromInternedValue(t *testing.T) {
-	idGen := &IDGenerator{}
+	idGen := NewIDGenerator()
 	pool := NewInternPool(idGen)
 	helloStrID := pool.InternString("hello").id
 	timeVal := time.Date(2026, 4, 20, 3, 0, 0, 0, time.UTC)

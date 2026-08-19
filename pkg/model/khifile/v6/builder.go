@@ -42,7 +42,7 @@ type Builder struct {
 
 // NewBuilder initializes a new v6 Builder with all necessary accumulators and pools.
 func NewBuilder() *Builder {
-	gen := &IDGenerator{}
+	gen := NewIDGenerator()
 	internPool := NewInternPool(gen)
 	logAcc := NewLogAccumulator(internPool, gen)
 
