@@ -18,14 +18,33 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestTimelineEvaluator(t *testing.T) {
+	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	node, err := structured.FromYAML(`kind: Pod
+metadata:
+  name: pod-sample
+spec:
+  containers:
+  - name: nginx
+`)
+	if err != nil {
+		t.Fatalf("failed to parse yaml node: %v", err)
+	}
+	sRef, err := khifilev6model.ToInternedStruct(node, pool)
+	if err != nil {
+		t.Fatalf("failed to intern struct: %v", err)
+	}
+
 	eval, err := NewTimelineEvaluator()
 	if err != nil {
 		t.Fatalf("failed to create TimelineEvaluator: %v", err)
 	}
+	eval.SetInternPool(pool)
 
 	testTimeline := &TimelineData{
 		ID:           1,
@@ -39,14 +58,8 @@ func TestTimelineEvaluator(t *testing.T) {
 		MaxSeverity: 2, // WARNING
 		Revisions: []RevisionInfo{
 			{
-				Body: map[string]any{
-					"spec": map[string]any{
-						"containers": []any{
-							map[string]any{"name": "nginx"},
-						},
-					},
-				},
-				BodyYAML: "kind: Pod\nmetadata:\n  name: pod-sample\nspec:\n  containers:\n  - name: nginx\n",
+				ResourceBodyStructID: sRef.ID(),
+				Severity:             2,
 			},
 		},
 	}
@@ -99,8 +112,8 @@ func TestTimelineEvaluator(t *testing.T) {
 		},
 		{
 			name:       "revision_body alias RB with path",
-			expression: `RB("spec.containers", "nginx")`,
-			want:       false, // spec.containers is a slice, resolved by YAML wildcard
+			expression: `RB("metadata.name", "pod-sample")`,
+			want:       true,
 		},
 		{
 			name:       "minSeverity helper",
@@ -141,23 +154,31 @@ func TestTimelineEvaluator(t *testing.T) {
 }
 
 func TestLogEvaluator(t *testing.T) {
+	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	logNode, err := structured.FromYAML(`verb: create
+user:
+  username: system:admin
+`)
+	if err != nil {
+		t.Fatalf("failed to parse log yaml node: %v", err)
+	}
+	sRef, err := khifilev6model.ToInternedStruct(logNode, pool)
+	if err != nil {
+		t.Fatalf("failed to intern log struct: %v", err)
+	}
+
 	eval, err := NewLogEvaluator()
 	if err != nil {
 		t.Fatalf("failed to create LogEvaluator: %v", err)
 	}
+	eval.SetInternPool(pool)
 
 	testLog := &LogData{
-		ID:       10,
-		LogType:  "k8s-audit",
-		Severity: 3, // ERROR
-		Summary:  "failed to schedule pod",
-		Body: map[string]any{
-			"verb": "create",
-			"user": map[string]any{
-				"username": "system:admin",
-			},
-		},
-		BodyYAML: "verb: create\nuser:\n  username: system:admin\n",
+		ID:           10,
+		LogType:      "k8s-audit",
+		Severity:     3, // ERROR
+		Summary:      "failed to schedule pod",
+		BodyStructID: sRef.ID(),
 	}
 
 	testCases := []struct {

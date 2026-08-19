@@ -198,7 +198,7 @@ func TestFilterTimelinePipeline(t *testing.T) {
 				LogQuery:      `severity >= ERROR`,
 				ExcludeNoLogs: true,
 			},
-			wantTimelines: []uint32{2},
+			wantTimelines: []uint32{1, 2},
 			wantLogs:      []uint32{2},
 		},
 	}

@@ -15,12 +15,14 @@
 package workbench
 
 import (
+	"fmt"
+	"runtime"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
+	"golang.org/x/sync/errgroup"
 )
 
 // IndexedTimeline represents an in-memory indexed timeline optimized for CEL query evaluation.
@@ -45,211 +47,351 @@ type SearchIndex struct {
 	TimelineMap map[uint32]*IndexedTimeline
 	Logs        []*IndexedLog
 	LogMap      map[uint32]*IndexedLog
+	InternPool  *khifilev6model.InternPool
+}
+
+type styleMaps struct {
+	severityOrderMap     map[uint32]uint32
+	logTypeLabelMap      map[uint32]string
+	timelineTypeLabelMap map[uint32]string
+	verbLabelMap         map[uint32]string
+	stateLabelMap        map[uint32]string
 }
 
 // BuildSearchIndex constructs an in-memory SearchIndex from the parsed Workbench chunks.
 func (w *Workbench) BuildSearchIndex() (*SearchIndex, error) {
-	idx := &SearchIndex{
-		TimelineMap: make(map[uint32]*IndexedTimeline),
-		LogMap:      make(map[uint32]*IndexedLog),
+	styles := w.buildStyleMaps()
+
+	logs, logMap, err := w.indexLogsParallel(styles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to index logs: %w", err)
 	}
 
-	severityOrderMap := make(map[uint32]uint32)
-	logTypeLabelMap := make(map[uint32]string)
-	timelineTypeLabelMap := make(map[uint32]string)
-	verbLabelMap := make(map[uint32]string)
-	stateLabelMap := make(map[uint32]string)
+	itemsMap := w.buildTimelineItemsMap()
+	timelines, timelineMap, err := w.indexTimelinesParallel(styles, itemsMap, logMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to index timelines: %w", err)
+	}
 
+	w.linkTimelineHierarchy(timelines, timelineMap)
+	w.computeAllTimelinePathsParallel(timelines, timelineMap)
+
+	return &SearchIndex{
+		Timelines:   timelines,
+		TimelineMap: timelineMap,
+		Logs:        logs,
+		LogMap:      logMap,
+		InternPool:  w.internPool,
+	}, nil
+}
+
+func (w *Workbench) buildStyleMaps() *styleMaps {
+	s := &styleMaps{
+		severityOrderMap:     make(map[uint32]uint32),
+		logTypeLabelMap:      make(map[uint32]string),
+		timelineTypeLabelMap: make(map[uint32]string),
+		verbLabelMap:         make(map[uint32]string),
+		stateLabelMap:        make(map[uint32]string),
+	}
 	if w.styleChunk != nil {
-		for _, s := range w.styleChunk.Severities {
-			severityOrderMap[s.GetId()] = uint32(s.GetOrder())
+		for _, sev := range w.styleChunk.Severities {
+			s.severityOrderMap[sev.GetId()] = uint32(sev.GetOrder())
 		}
 		for _, lt := range w.styleChunk.LogTypes {
-			logTypeLabelMap[lt.GetId()] = lt.GetLabel()
+			s.logTypeLabelMap[lt.GetId()] = lt.GetLabel()
 		}
 		for _, tt := range w.styleChunk.TimelineTypes {
-			timelineTypeLabelMap[tt.GetId()] = tt.GetLabel()
+			s.timelineTypeLabelMap[tt.GetId()] = tt.GetLabel()
 		}
 		for _, v := range w.styleChunk.Verbs {
-			verbLabelMap[v.GetId()] = v.GetLabel()
+			s.verbLabelMap[v.GetId()] = v.GetLabel()
 		}
 		for _, rs := range w.styleChunk.RevisionStates {
-			stateLabelMap[rs.GetId()] = rs.GetLabel()
+			s.stateLabelMap[rs.GetId()] = rs.GetLabel()
 		}
 	}
+	return s
+}
 
-	serializer := &structured.YAMLNodeSerializer{}
+func (w *Workbench) indexLogsParallel(styles *styleMaps) ([]*IndexedLog, map[uint32]*IndexedLog, error) {
+	numChunks := len(w.logChunks)
+	if numChunks == 0 {
+		return nil, make(map[uint32]*IndexedLog), nil
+	}
 
-	// Index Logs
-	for _, chunk := range w.logChunks {
-		for _, log := range chunk.Logs {
-			summary := ""
-			if w.internPool != nil {
-				summary = w.internPool.ResolveStringFromID(log.GetSummaryStringId())
-			}
+	numWorkers := runtime.GOMAXPROCS(0)
+	if numWorkers > numChunks {
+		numWorkers = numChunks
+	}
+	if numWorkers < 1 {
+		numWorkers = 1
+	}
 
-			severityOrder := severityOrderMap[log.GetSeverityTypeId()]
-			logType := logTypeLabelMap[log.GetLogTypeId()]
+	chunkSliceSize := (numChunks + numWorkers - 1) / numWorkers
+	workerResults := make([][]*IndexedLog, numWorkers)
 
-			var bodyMap map[string]any
-			bodyYAML := ""
+	g := new(errgroup.Group)
+	for wIdx := 0; wIdx < numWorkers; wIdx++ {
+		workerIndex := wIdx
+		startChunk := workerIndex * chunkSliceSize
+		endChunk := startChunk + chunkSliceSize
+		if endChunk > numChunks {
+			endChunk = numChunks
+		}
+		if startChunk >= endChunk {
+			continue
+		}
 
-			if log.GetBodyStructId() != 0 && w.internPool != nil {
-				if s := w.internPool.ResolveStructFromID(log.GetBodyStructId()); s != nil {
-					if node, err := khifilev6model.FromInternedStruct(s, w.internPool); err == nil {
-						if m, ok := nodeToValue(node).(map[string]any); ok {
-							bodyMap = m
-						}
-						if yamlBytes, err := serializer.Serialize(node); err == nil {
-							bodyYAML = string(yamlBytes)
-						}
+		g.Go(func() error {
+			var localLogs []*IndexedLog
+			for c := startChunk; c < endChunk; c++ {
+				chunk := w.logChunks[c]
+				for _, log := range chunk.Logs {
+					sevOrder := styles.severityOrderMap[log.GetSeverityTypeId()]
+					ltLabel := styles.logTypeLabelMap[log.GetLogTypeId()]
+
+					lData := &cel.LogData{
+						ID:              log.GetId(),
+						LogType:         ltLabel,
+						Severity:        sevOrder,
+						SummaryStringID: log.GetSummaryStringId(),
+						BodyStructID:    log.GetBodyStructId(),
 					}
+
+					localLogs = append(localLogs, &IndexedLog{
+						ID:   log.GetId(),
+						Data: lData,
+					})
 				}
 			}
+			workerResults[workerIndex] = localLogs
+			return nil
+		})
+	}
 
-			lData := &cel.LogData{
-				ID:       log.GetId(),
-				LogType:  logType,
-				Severity: severityOrder,
-				Summary:  summary,
-				Body:     bodyMap,
-				BodyYAML: bodyYAML,
-			}
+	if err := g.Wait(); err != nil {
+		return nil, nil, err
+	}
 
-			indexedLog := &IndexedLog{
-				ID:   log.GetId(),
-				Data: lData,
-			}
-			idx.Logs = append(idx.Logs, indexedLog)
-			idx.LogMap[log.GetId()] = indexedLog
+	totalLogs := 0
+	for _, res := range workerResults {
+		totalLogs += len(res)
+	}
+
+	logs := make([]*IndexedLog, 0, totalLogs)
+	logMap := make(map[uint32]*IndexedLog, totalLogs)
+
+	for _, res := range workerResults {
+		for _, item := range res {
+			logs = append(logs, item)
+			logMap[item.ID] = item
 		}
 	}
 
-	// Index Timelines and TimelineItems
+	return logs, logMap, nil
+}
+
+func (w *Workbench) buildTimelineItemsMap() map[uint32]*pbv6.TimelineItems {
 	itemsMap := make(map[uint32]*pbv6.TimelineItems)
 	for _, chunk := range w.timelineChunks {
 		for _, item := range chunk.TimelineItems {
 			itemsMap[item.GetId()] = item
 		}
 	}
+	return itemsMap
+}
 
-	for _, chunk := range w.timelineChunks {
-		for _, tl := range chunk.Timelines {
-			tlName := ""
-			if w.internPool != nil {
-				tlName = w.internPool.ResolveStringFromID(tl.GetNameStringId())
-			}
-			tlType := timelineTypeLabelMap[tl.GetTimelineType()]
+func (w *Workbench) indexTimelinesParallel(
+	styles *styleMaps,
+	itemsMap map[uint32]*pbv6.TimelineItems,
+	logMap map[uint32]*IndexedLog,
+) ([]*IndexedTimeline, map[uint32]*IndexedTimeline, error) {
+	numChunks := len(w.timelineChunks)
+	if numChunks == 0 {
+		return nil, make(map[uint32]*IndexedTimeline), nil
+	}
 
-			var logIDs []uint32
-			var events []cel.EventInfo
-			var revisions []cel.RevisionInfo
-			var maxSeverity uint32
+	numWorkers := runtime.GOMAXPROCS(0)
+	if numWorkers > numChunks {
+		numWorkers = numChunks
+	}
+	if numWorkers < 1 {
+		numWorkers = 1
+	}
 
-			if item, ok := itemsMap[tl.GetTimelineItemsId()]; ok {
-				for _, evt := range item.Events {
-					logIDs = append(logIDs, evt.GetLogId())
-					sev := uint32(0)
-					if logObj, exists := idx.LogMap[evt.GetLogId()]; exists {
-						sev = logObj.Data.Severity
-					}
-					if sev > maxSeverity {
-						maxSeverity = sev
-					}
-					events = append(events, cel.EventInfo{
-						LogID:    evt.GetLogId(),
-						Severity: sev,
-					})
-				}
+	chunkSliceSize := (numChunks + numWorkers - 1) / numWorkers
+	workerResults := make([][]*IndexedTimeline, numWorkers)
 
-				for _, rev := range item.Revisions {
-					logIDs = append(logIDs, rev.GetLogId())
-					principal := ""
+	g := new(errgroup.Group)
+	for wIdx := 0; wIdx < numWorkers; wIdx++ {
+		workerIndex := wIdx
+		startChunk := workerIndex * chunkSliceSize
+		endChunk := startChunk + chunkSliceSize
+		if endChunk > numChunks {
+			endChunk = numChunks
+		}
+		if startChunk >= endChunk {
+			continue
+		}
+
+		g.Go(func() error {
+			var localTimelines []*IndexedTimeline
+			for c := startChunk; c < endChunk; c++ {
+				chunk := w.timelineChunks[c]
+				for _, tl := range chunk.Timelines {
+					tlName := ""
 					if w.internPool != nil {
-						principal = w.internPool.ResolveStringFromID(rev.GetPrincipalStringId())
+						tlName = w.internPool.ResolveStringFromID(tl.GetNameStringId())
 					}
-					verb := verbLabelMap[rev.GetVerbType()]
-					state := stateLabelMap[rev.GetStateType()]
+					tlType := styles.timelineTypeLabelMap[tl.GetTimelineType()]
 
-					sev := uint32(0)
-					if logObj, exists := idx.LogMap[rev.GetLogId()]; exists {
-						sev = logObj.Data.Severity
-					}
-					if sev > maxSeverity {
-						maxSeverity = sev
-					}
+					var logIDs []uint32
+					var events []cel.EventInfo
+					var revisions []cel.RevisionInfo
+					var maxSeverity uint32
 
-					var bodyMap map[string]any
-					bodyYAML := ""
-
-					if rev.GetResourceBodyStructId() != 0 && w.internPool != nil {
-						if s := w.internPool.ResolveStructFromID(rev.GetResourceBodyStructId()); s != nil {
-							if node, err := khifilev6model.FromInternedStruct(s, w.internPool); err == nil {
-								if m, ok := nodeToValue(node).(map[string]any); ok {
-									bodyMap = m
-								}
-								if yamlBytes, err := serializer.Serialize(node); err == nil {
-									bodyYAML = string(yamlBytes)
-								}
+					if item, ok := itemsMap[tl.GetTimelineItemsId()]; ok {
+						for _, evt := range item.Events {
+							logID := evt.GetLogId()
+							logIDs = append(logIDs, logID)
+							sev := uint32(0)
+							if logObj, exists := logMap[logID]; exists {
+								sev = logObj.Data.Severity
 							}
+							if sev > maxSeverity {
+								maxSeverity = sev
+							}
+							events = append(events, cel.EventInfo{
+								LogID:    logID,
+								Severity: sev,
+							})
+						}
+
+						for _, rev := range item.Revisions {
+							logID := rev.GetLogId()
+							logIDs = append(logIDs, logID)
+							verb := styles.verbLabelMap[rev.GetVerbType()]
+							state := styles.stateLabelMap[rev.GetStateType()]
+
+							sev := uint32(0)
+							if logObj, exists := logMap[logID]; exists {
+								sev = logObj.Data.Severity
+							}
+							if sev > maxSeverity {
+								maxSeverity = sev
+							}
+
+							changedTime := int64(0)
+							if rev.ChangedTime != nil {
+								changedTime = rev.ChangedTime.AsTime().UnixNano()
+							}
+
+							revisions = append(revisions, cel.RevisionInfo{
+								LogID:                logID,
+								ChangedTime:          changedTime,
+								PrincipalStringID:    rev.GetPrincipalStringId(),
+								Verb:                 verb,
+								State:                state,
+								ResourceBodyStructID: rev.GetResourceBodyStructId(),
+								Severity:             sev,
+							})
 						}
 					}
 
-					changedTime := int64(0)
-					if rev.ChangedTime != nil {
-						changedTime = rev.ChangedTime.AsTime().UnixNano()
+					tData := &cel.TimelineData{
+						ID:           tl.GetId(),
+						Name:         tlName,
+						TimelineType: tlType,
+						Path:         make(map[string]string),
+						Events:       events,
+						Revisions:    revisions,
+						MaxSeverity:  maxSeverity,
 					}
 
-					revisions = append(revisions, cel.RevisionInfo{
-						LogID:       rev.GetLogId(),
-						ChangedTime: changedTime,
-						Principal:   principal,
-						Verb:        verb,
-						State:       state,
-						Body:        bodyMap,
-						BodyYAML:    bodyYAML,
-						Severity:    sev,
-					})
+					indexedTL := &IndexedTimeline{
+						ID:       tl.GetId(),
+						ParentID: tl.GetParentTimelineId(),
+						LogIDs:   logIDs,
+						Data:     tData,
+					}
+
+					localTimelines = append(localTimelines, indexedTL)
 				}
 			}
+			workerResults[workerIndex] = localTimelines
+			return nil
+		})
+	}
 
-			tData := &cel.TimelineData{
-				ID:           tl.GetId(),
-				Name:         tlName,
-				TimelineType: tlType,
-				Path:         make(map[string]string),
-				Events:       events,
-				Revisions:    revisions,
-				MaxSeverity:  maxSeverity,
-			}
+	if err := g.Wait(); err != nil {
+		return nil, nil, err
+	}
 
-			indexedTL := &IndexedTimeline{
-				ID:       tl.GetId(),
-				ParentID: tl.GetParentTimelineId(),
-				LogIDs:   logIDs,
-				Data:     tData,
-			}
+	totalTimelines := 0
+	for _, res := range workerResults {
+		totalTimelines += len(res)
+	}
 
-			idx.Timelines = append(idx.Timelines, indexedTL)
-			idx.TimelineMap[tl.GetId()] = indexedTL
+	timelines := make([]*IndexedTimeline, 0, totalTimelines)
+	timelineMap := make(map[uint32]*IndexedTimeline, totalTimelines)
+
+	for _, res := range workerResults {
+		for _, item := range res {
+			timelines = append(timelines, item)
+			timelineMap[item.ID] = item
 		}
 	}
 
-	// Link parent-child hierarchy and compute paths
-	for _, tl := range idx.Timelines {
+	return timelines, timelineMap, nil
+}
+
+func (w *Workbench) linkTimelineHierarchy(timelines []*IndexedTimeline, timelineMap map[uint32]*IndexedTimeline) {
+	for _, tl := range timelines {
 		if tl.ParentID != 0 {
-			if parent, exists := idx.TimelineMap[tl.ParentID]; exists {
+			if parent, exists := timelineMap[tl.ParentID]; exists {
 				parent.ChildrenIDs = append(parent.ChildrenIDs, tl.ID)
 			}
 		}
 	}
+}
 
-	for _, tl := range idx.Timelines {
-		tl.Path = tl.ComputePath(idx.TimelineMap)
-		tl.Data.Path = tl.Path
+func (w *Workbench) computeAllTimelinePathsParallel(timelines []*IndexedTimeline, timelineMap map[uint32]*IndexedTimeline) {
+	total := len(timelines)
+	if total == 0 {
+		return
+	}
+	numWorkers := runtime.GOMAXPROCS(0)
+	if numWorkers > total {
+		numWorkers = total
+	}
+	if numWorkers < 1 {
+		numWorkers = 1
 	}
 
-	return idx, nil
+	sliceSize := (total + numWorkers - 1) / numWorkers
+	g := new(errgroup.Group)
+
+	for wIdx := 0; wIdx < numWorkers; wIdx++ {
+		start := wIdx * sliceSize
+		end := start + sliceSize
+		if end > total {
+			end = total
+		}
+		if start >= end {
+			continue
+		}
+
+		g.Go(func() error {
+			for i := start; i < end; i++ {
+				tl := timelines[i]
+				tl.Path = tl.ComputePath(timelineMap)
+				tl.Data.Path = tl.Path
+			}
+			return nil
+		})
+	}
+
+	_ = g.Wait()
 }
 
 // ComputePath resolves the timeline hierarchy path map for this timeline segment and all parent segments.
@@ -275,33 +417,4 @@ func (tl *IndexedTimeline) ComputePath(tlMap map[uint32]*IndexedTimeline) map[st
 		curr = tlMap[curr.ParentID]
 	}
 	return path
-}
-
-func nodeToValue(node structured.Node) any {
-	if node == nil {
-		return nil
-	}
-	switch node.Type() {
-	case structured.ScalarNodeType:
-		val, err := node.NodeScalarValue()
-		if err != nil {
-			return nil
-		}
-		return val
-	case structured.MapNodeType:
-		res := make(map[string]any)
-		node.Children()(func(k structured.NodeChildrenKey, v structured.Node) bool {
-			res[k.Key] = nodeToValue(v)
-			return true
-		})
-		return res
-	case structured.SequenceNodeType:
-		var list []any
-		node.Children()(func(k structured.NodeChildrenKey, v structured.Node) bool {
-			list = append(list, nodeToValue(v))
-			return true
-		})
-		return list
-	}
-	return nil
 }

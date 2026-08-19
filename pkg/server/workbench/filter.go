@@ -16,6 +16,8 @@ package workbench
 
 import (
 	"context"
+	"log/slog"
+	"time"
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 )
@@ -64,8 +66,8 @@ func NewDefaultPipeline(params FilterPipelineParams) *Pipeline {
 		NewIncludeDescendantsFilter(),
 		NewTimelineCELExclusionFilter(params.TimelineExclusionQuery),
 		NewLogCELFilter(params.LogQuery),
-		NewIncludeAncestorsFilter(),
 		NewExcludeNoLogsFilter(params.ExcludeNoLogs),
+		NewIncludeAncestorsFilter(),
 	)
 }
 
@@ -77,6 +79,7 @@ func (p *Pipeline) Execute(
 ) (*apiv1.FilterResult, error) {
 	filterCtx := NewFilterContext()
 
+	totalStart := time.Now()
 	for _, filter := range p.filters {
 		select {
 		case <-ctx.Done():
@@ -84,13 +87,30 @@ func (p *Pipeline) Execute(
 		default:
 		}
 
+		stageStart := time.Now()
 		if err := filter.Process(ctx, filterCtx, index, report); err != nil {
 			return nil, err
 		}
+		duration := time.Since(stageStart)
+		slog.DebugContext(ctx, "filter stage completed",
+			"stage", filter.Name(),
+			"duration", duration.String(),
+			"duration_ms", duration.Milliseconds(),
+			"matching_timelines", len(filterCtx.TimelineIDs),
+			"matching_logs", len(filterCtx.LogIDs),
+		)
 	}
 
 	tlMode, tlBitset := EncodeFilterResultBitset(len(index.Timelines), filterCtx.TimelineIDs)
 	logMode, logBitset := EncodeFilterResultBitset(len(index.Logs), filterCtx.LogIDs)
+
+	totalDuration := time.Since(totalStart)
+	slog.DebugContext(ctx, "filter pipeline completed",
+		"total_duration", totalDuration.String(),
+		"total_duration_ms", totalDuration.Milliseconds(),
+		"result_timelines", len(filterCtx.TimelineIDs),
+		"result_logs", len(filterCtx.LogIDs),
+	)
 
 	return &apiv1.FilterResult{
 		TimelineMode:   tlMode.Enum(),

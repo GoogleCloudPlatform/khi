@@ -31,14 +31,13 @@ type EventInfo struct {
 
 // RevisionInfo represents lightweight revision history metadata associated with a timeline for CEL evaluation.
 type RevisionInfo struct {
-	LogID       uint32
-	ChangedTime int64
-	Principal   string
-	Verb        string
-	State       string
-	Body        map[string]any
-	BodyYAML    string
-	Severity    uint32
+	LogID                uint32
+	ChangedTime          int64
+	PrincipalStringID    uint32
+	Verb                 string
+	State                string
+	ResourceBodyStructID uint32
+	Severity             uint32
 }
 
 // TimelineData encapsulates the indexed timeline attributes and nested items required for CEL evaluation.
@@ -52,14 +51,14 @@ type TimelineData struct {
 	MaxSeverity  uint32
 }
 
-// LogData encapsulates the indexed log attributes and body required for CEL evaluation.
+// LogData encapsulates the indexed log attributes and struct ID required for CEL evaluation.
 type LogData struct {
-	ID       uint32
-	LogType  string
-	Severity uint32
-	Summary  string
-	Body     map[string]any
-	BodyYAML string
+	ID              uint32
+	LogType         string
+	Severity        uint32
+	SummaryStringID uint32
+	Summary         string
+	BodyStructID    uint32
 }
 
 // WithTimelineContext binds the given TimelineData to the context for CEL evaluation.

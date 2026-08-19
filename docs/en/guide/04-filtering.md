@@ -14,13 +14,13 @@ By default, the toolbar opens in Standard Mode:
 
 ![Standard Mode Toolbar](/docs/en/images/filter-normal-toolbar.png)
 
-| Number | Component | Description |
-| :--- | :--- | :--- |
-| **1** | **Switch to Advanced Mode** | Toggles between Standard Mode and Advanced Mode with CEL expressions. |
-| **2** | **Add Timeline Filter** | Opens the dialog to add a timeline filtering rule. |
-| **3** | **Min Severity Filter** | Filters logs so that only logs at or above the selected severity are shown. |
-| **4** | **Log Search Field** | Searches or filters log text by keywords. |
-| **5** | **Timezone Setting** | Changes the display timezone for logs and timelines. |
+| Number | Component                   | Description                                                                 |
+| :----- | :-------------------------- | :-------------------------------------------------------------------------- |
+| **1**  | **Switch to Advanced Mode** | Toggles between Standard Mode and Advanced Mode with CEL expressions.       |
+| **2**  | **Add Timeline Filter**     | Opens the dialog to add a timeline filtering rule.                          |
+| **3**  | **Min Severity Filter**     | Filters logs so that only logs at or above the selected severity are shown. |
+| **4**  | **Log Search Field**        | Searches or filters log text by keywords.                                   |
+| **5**  | **Timezone Setting**        | Changes the display timezone for logs and timelines.                        |
 
 ### Advanced Mode
 
@@ -28,15 +28,15 @@ Clicking the search-gear icon on the left switches the toolbar to Advanced Mode:
 
 ![Advanced Mode Toolbar](/docs/en/images/filter-advanced-toolbar.png)
 
-| Number | Component | Description |
-| :--- | :--- | :--- |
-| **1** | **Switch to Standard Mode** | Returns to Standard Mode. |
-| **2** | **Positive Timeline Filter** | Enter a CEL expression to include matching timelines. |
-| **3** | **Negative Timeline Filter** | Enter a CEL expression to exclude matching timelines. |
-| **4** | **Log Filter** | Enter a CEL expression to evaluate and filter individual logs by message, severity, or attributes. |
-| **5** | **CEL Help Button** | Displays help for available fields and syntax. |
-| **6** | **Filter Settings Button** | Opens advanced settings for the filtering pipeline. |
-| **7** | **Timezone Setting** | Changes the display timezone for logs and timelines. |
+| Number | Component                    | Description                                                                                        |
+| :----- | :--------------------------- | :------------------------------------------------------------------------------------------------- |
+| **1**  | **Switch to Standard Mode**  | Returns to Standard Mode.                                                                          |
+| **2**  | **Positive Timeline Filter** | Enter a CEL expression to include matching timelines.                                              |
+| **3**  | **Negative Timeline Filter** | Enter a CEL expression to exclude matching timelines.                                              |
+| **4**  | **Log Filter**               | Enter a CEL expression to evaluate and filter individual logs by message, severity, or attributes. |
+| **5**  | **CEL Help Button**          | Displays help for available fields and syntax.                                                     |
+| **6**  | **Filter Settings Button**   | Opens advanced settings for the filtering pipeline.                                                |
+| **7**  | **Timezone Setting**         | Changes the display timezone for logs and timelines.                                               |
 
 ## Basic Filtering Concepts
 
@@ -56,10 +56,10 @@ Clicking the "Add filter" button opens the timeline filter dialog. In most cases
 
 ![Timeline Regex Filter Dialog](/docs/en/images/filter-regex-pattern.png)
 
-| Number | Component | Description |
-| :--- | :--- | :--- |
-| **1** | **Filter Pattern (Regex)** | Enter a regular expression pattern to match against timeline names. |
-| **2** | **Include / Exclude Toggle** | Choose whether to include or exclude matching timelines. |
+| Number | Component                    | Description                                                         |
+| :----- | :--------------------------- | :------------------------------------------------------------------ |
+| **1**  | **Filter Pattern (Regex)**   | Enter a regular expression pattern to match against timeline names. |
+| **2**  | **Include / Exclude Toggle** | Choose whether to include or exclude matching timelines.            |
 
 If no timeline type is specified, KHI matches the regular expression across all timeline types and hierarchy levels.
 
@@ -104,8 +104,8 @@ In Advanced Mode, KHI evaluates timelines and logs through a 6-step filtering pi
 2. **Add Descendant Timelines**: Automatically includes child timelines (such as subresources and containers) belonging to the matched timelines.
 3. **Exclude Timelines with Negative Filters**: Removes timelines that match the negative CEL expression.
 4. **Apply Log Filters**: Evaluates the log CEL expression against each log in the remaining timelines and removes non-matching logs.
-5. **Add Ancestor Timelines**: Automatically adds parent and ancestor timelines to maintain the visible tree structure.
-6. **Remove Empty Timelines**: Excludes timelines that contain no active logs from the final view.
+5. **Remove Empty Timelines**: Excludes timelines that contain no active logs from the final view.
+6. **Add Ancestor Timelines**: Automatically adds parent and ancestor timelines to maintain the visible tree structure.
 
 Standard Mode filtering is internally translated into Advanced Mode CEL filters before execution.
 

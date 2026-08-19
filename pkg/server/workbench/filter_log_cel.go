@@ -17,9 +17,13 @@ package workbench
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"golang.org/x/sync/errgroup"
@@ -49,6 +53,20 @@ func (f *LogCELFilter) Process(
 	index *SearchIndex,
 	report ProgressReporter,
 ) error {
+	pprofPath := fmt.Sprintf("/tmp/khi-pprof-log-cel-%d.pprof", time.Now().UnixNano())
+	pprofFile, err := os.Create(pprofPath)
+	if err == nil {
+		if err := pprof.StartCPUProfile(pprofFile); err == nil {
+			defer func() {
+				pprof.StopCPUProfile()
+				_ = pprofFile.Close()
+				slog.InfoContext(ctx, "saved CPU profile for log CEL filter", "path", pprofPath)
+			}()
+		} else {
+			_ = pprofFile.Close()
+		}
+	}
+
 	candidateLogIDsMap := make(map[uint32]struct{})
 	for id := range filterCtx.TimelineIDs {
 		if tl, ok := index.TimelineMap[id]; ok {
@@ -99,6 +117,7 @@ func (f *LogCELFilter) Process(
 			if err != nil {
 				return fmt.Errorf("failed to initialize log evaluator: %w", err)
 			}
+			logEval.SetInternPool(index.InternPool)
 			if err := logEval.Compile(f.query); err != nil {
 				return fmt.Errorf("invalid log query: %w", err)
 			}

@@ -19,6 +19,9 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 )
 
 var (
@@ -66,86 +69,110 @@ func MatchTimelinePath(t *TimelineData, key string, patterns []string) bool {
 }
 
 // MatchTimelineRevisionBodyField checks if any revision in timeline matches the pathKey and pattern(s).
-func MatchTimelineRevisionBodyField(t *TimelineData, pathKey string, patterns []string) bool {
-	if t == nil || len(patterns) == 0 {
+func MatchTimelineRevisionBodyField(t *TimelineData, pathKey string, patterns []string, pool *khifilev6model.InternPool) bool {
+	if t == nil || len(patterns) == 0 || pool == nil {
 		return false
 	}
 
 	for _, r := range t.Revisions {
-		for _, pattern := range patterns {
-			re, err := regexCompile(pattern)
-			if err != nil {
-				continue
-			}
+		if r.ResourceBodyStructID == 0 {
+			continue
+		}
+		s := pool.ResolveStructFromID(r.ResourceBodyStructID)
+		if s == nil {
+			continue
+		}
+		node, err := khifilev6model.FromInternedStruct(s, pool)
+		if err != nil {
+			continue
+		}
 
-			if pathKey == "*" {
-				if re.MatchString(r.BodyYAML) {
-					return true
-				}
-			} else {
-				val, ok := resolveMapPath(r.Body, pathKey)
-				if ok && re.MatchString(fmt.Sprintf("%v", val)) {
-					return true
-				}
-			}
+		if matchNodeField(node, pathKey, patterns) {
+			return true
 		}
 	}
 	return false
 }
 
 // MatchLogField checks if a log body or field matches the given pattern(s).
-func MatchLogField(l *LogData, pathKey string, patterns []string) bool {
-	if l == nil || len(patterns) == 0 {
+func MatchLogField(l *LogData, pathKey string, patterns []string, pool *khifilev6model.InternPool) bool {
+	if l == nil || len(patterns) == 0 || l.BodyStructID == 0 || pool == nil {
 		return false
 	}
 
-	for _, pattern := range patterns {
-		re, err := regexCompile(pattern)
-		if err != nil {
-			continue
-		}
+	s := pool.ResolveStructFromID(l.BodyStructID)
+	if s == nil {
+		return false
+	}
+	node, err := khifilev6model.FromInternedStruct(s, pool)
+	if err != nil {
+		return false
+	}
 
-		if pathKey == "*" {
-			if re.MatchString(l.BodyYAML) {
+	return matchNodeField(node, pathKey, patterns)
+}
+
+func matchNodeField(node structured.Node, pathKey string, patterns []string) bool {
+	if node == nil {
+		return false
+	}
+
+	if pathKey == "*" {
+		yamlBytes, err := (&structured.YAMLNodeSerializer{}).Serialize(node)
+		if err != nil {
+			return false
+		}
+		bodyYAML := string(yamlBytes)
+		for _, pattern := range patterns {
+			re, err := regexCompile(pattern)
+			if err != nil {
+				continue
+			}
+			if re.MatchString(bodyYAML) {
 				return true
 			}
-		} else {
-			val, ok := resolveMapPath(l.Body, pathKey)
-			if ok && re.MatchString(fmt.Sprintf("%v", val)) {
+		}
+		return false
+	}
+
+	// Use NodeReader for path traversal without full YAML serialization
+	reader := structured.NewNodeReader(node)
+	targetReader, err := reader.GetReader(pathKey)
+	if err != nil {
+		return false
+	}
+
+	// If target is a scalar node, match its scalar string value
+	if targetReader.Node.Type() == structured.ScalarNodeType {
+		val, err := targetReader.Node.NodeScalarValue()
+		if err != nil || val == nil {
+			return false
+		}
+		valStr := fmt.Sprintf("%v", val)
+		for _, pattern := range patterns {
+			re, err := regexCompile(pattern)
+			if err != nil {
+				continue
+			}
+			if re.MatchString(valStr) {
 				return true
+			}
+		}
+	} else {
+		// If target is a sub-object/array, serialize only that sub-tree to YAML
+		subYAML, err := (&structured.YAMLNodeSerializer{}).Serialize(targetReader.Node)
+		if err == nil {
+			subStr := string(subYAML)
+			for _, pattern := range patterns {
+				re, err := regexCompile(pattern)
+				if err != nil {
+					continue
+				}
+				if re.MatchString(subStr) {
+					return true
+				}
 			}
 		}
 	}
 	return false
-}
-
-func resolveMapPath(m map[string]any, pathKey string) (any, bool) {
-	if m == nil {
-		return nil, false
-	}
-	parts := strings.Split(pathKey, ".")
-	var current any = m
-
-	for _, part := range parts {
-		currMap, ok := current.(map[string]any)
-		if !ok {
-			return nil, false
-		}
-		val, exists := currMap[part]
-		if !exists {
-			return nil, false
-		}
-		current = val
-	}
-
-	if current == nil {
-		return nil, false
-	}
-	if _, isMap := current.(map[string]any); isMap {
-		return nil, false
-	}
-	if _, isSlice := current.([]any); isSlice {
-		return nil, false
-	}
-	return current, true
 }
