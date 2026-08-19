@@ -18,6 +18,7 @@ import { signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import {
   CancellationError,
+  isCancellationError,
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
@@ -147,24 +148,31 @@ export class BackendFilter implements LogTimelineFilter {
       throw new CancellationError();
     }
 
-    const res = await this.workbenchClient.filterTimeline(
-      {
-        timelineQuery: this.timelineQuery(),
-        timelineExclusionQuery: this.timelineExclusionQuery(),
-        logQuery: this.logQuery(),
-        excludeNoLogs: this.excludeNoLogs(),
-      },
-      (_stageName, current, total) => {
-        onProgress?.(current, total);
-      },
-      signal,
-    );
+    try {
+      const res = await this.workbenchClient.filterTimeline(
+        {
+          timelineQuery: this.timelineQuery(),
+          timelineExclusionQuery: this.timelineExclusionQuery(),
+          logQuery: this.logQuery(),
+          excludeNoLogs: this.excludeNoLogs(),
+        },
+        (_stageName, current, total) => {
+          onProgress?.(current, total);
+        },
+        signal,
+      );
 
-    this.lastCacheKey = currentKey;
-    this.lastResultContext = {
-      timelineIds: new Set(res.timelineIds),
-      logIds: new Set(res.logIds),
-    };
-    return this.lastResultContext;
+      this.lastCacheKey = currentKey;
+      this.lastResultContext = {
+        timelineIds: new Set(res.timelineIds),
+        logIds: new Set(res.logIds),
+      };
+      return this.lastResultContext;
+    } catch (err) {
+      if (signal?.aborted || isCancellationError(err)) {
+        throw new CancellationError();
+      }
+      throw err;
+    }
   }
 }

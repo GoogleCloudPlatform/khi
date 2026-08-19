@@ -63,7 +63,7 @@ export class LogSmartComponent {
   private readonly logBodyResource = resource({
     params: () => this.selectionManager.selectedLog()?.structId,
     loader: async ({ params: structId }) => {
-      if (structId === undefined) {
+      if (!structId || structId <= 0) {
         return '';
       }
       try {

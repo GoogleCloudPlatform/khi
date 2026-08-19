@@ -51,7 +51,9 @@ describe('CelValidationClientService', () => {
       const res = await service.validateTimelineQuery('');
       expect(res.valid).toBeTrue();
       expect(res.errorMessage).toBe('');
-      expect(mockCelValidationClient.validateTimelineQuery).not.toHaveBeenCalled();
+      expect(
+        mockCelValidationClient.validateTimelineQuery,
+      ).not.toHaveBeenCalled();
     });
 
     it('should return RPC response when query is valid', async () => {
@@ -63,7 +65,9 @@ describe('CelValidationClientService', () => {
       const res = await service.validateTimelineQuery('name == "pod-1"');
       expect(res.valid).toBeTrue();
       expect(res.errorMessage).toBe('');
-      expect(mockCelValidationClient.validateTimelineQuery).toHaveBeenCalledWith(
+      expect(
+        mockCelValidationClient.validateTimelineQuery,
+      ).toHaveBeenCalledWith(
         { query: 'name == "pod-1"' },
         { signal: undefined },
       );

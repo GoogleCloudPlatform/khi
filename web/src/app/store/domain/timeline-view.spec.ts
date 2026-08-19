@@ -303,4 +303,38 @@ describe('TimelineView', () => {
     expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalled();
     expect(view.filteredLogIds()).toEqual(new Set([200]));
   });
+
+  it('should cleanly suppress cancellation errors without logging to console.error', async () => {
+    const logStoreSpy = jasmine.createSpyObj<LogStore>('LogStore', [
+      'getLog',
+      'logs',
+    ]);
+    logStoreSpy.logs.and.returnValue([][Symbol.iterator]());
+    const timelineStoreSpy = jasmine.createSpyObj<TimelineStore>(
+      'TimelineStore',
+      ['getTimeline'],
+    );
+    Object.defineProperty(timelineStoreSpy, 'logStore', {
+      get: () => logStoreSpy,
+    });
+    Object.defineProperty(timelineStoreSpy, 'timelines', {
+      get: () => [],
+    });
+
+    const consoleSpy = spyOn(console, 'error');
+    const mockWorkbenchClient = jasmine.createSpyObj<WorkbenchClientService>(
+      'WorkbenchClientService',
+      ['isWorkbenchActive', 'filterTimeline'],
+    );
+    mockWorkbenchClient.isWorkbenchActive.and.returnValue(true);
+    mockWorkbenchClient.filterTimeline.and.rejectWith(
+      new Error('signal is aborted without reason'),
+    );
+
+    const view = new TimelineView(timelineStoreSpy, mockWorkbenchClient);
+
+    await waitForFiltering(view);
+
+    expect(consoleSpy).not.toHaveBeenCalled();
+  });
 });

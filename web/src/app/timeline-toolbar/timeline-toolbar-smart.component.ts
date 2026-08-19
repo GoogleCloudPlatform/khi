@@ -24,7 +24,16 @@ import {
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
+import {
+  Subject,
+  debounceTime,
+  distinctUntilChanged,
+  from,
+  map,
+  of,
+  switchMap,
+  takeUntil,
+} from 'rxjs';
 import { ViewStateService } from 'src/app/services/view-state.service';
 import { SelectionManager } from 'src/app/services/selection-manager.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
@@ -207,46 +216,13 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     this.viewStateService.advancedLogCel.asReadonly();
 
   /** Validation result error output for timeline include CEL queries. */
-  protected readonly timelineIncludeCelError = toSignal(
-    toObservable(this.viewStateService.advancedTimelineIncludeCel).pipe(
-      debounceTime(200),
-      distinctUntilChanged(),
-      switchMap(async (val) => {
-        if (!val || val.trim() === '') return '';
-        const res = await this.celValidationClient.validateTimelineQuery(val);
-        return res.valid ? '' : res.errorMessage;
-      }),
-    ),
-    { initialValue: '' },
-  );
+  protected readonly timelineIncludeCelError = signal<string>('');
 
   /** Validation result error output for timeline exclude CEL queries. */
-  protected readonly timelineExcludeCelError = toSignal(
-    toObservable(this.viewStateService.advancedTimelineExcludeCel).pipe(
-      debounceTime(200),
-      distinctUntilChanged(),
-      switchMap(async (val) => {
-        if (!val || val.trim() === '') return '';
-        const res = await this.celValidationClient.validateTimelineQuery(val);
-        return res.valid ? '' : res.errorMessage;
-      }),
-    ),
-    { initialValue: '' },
-  );
+  protected readonly timelineExcludeCelError = signal<string>('');
 
   /** Validation result error output for log CEL queries. */
-  protected readonly logCelError = toSignal(
-    toObservable(this.viewStateService.advancedLogCel).pipe(
-      debounceTime(200),
-      distinctUntilChanged(),
-      switchMap(async (val) => {
-        if (!val || val.trim() === '') return '';
-        const res = await this.celValidationClient.validateLogQuery(val);
-        return res.valid ? '' : res.errorMessage;
-      }),
-    ),
-    { initialValue: '' },
-  );
+  protected readonly logCelError = signal<string>('');
 
   /** Active option toggle matching log hits. */
   protected readonly hideTimelinesWithoutMatchingLogs = toSignal(
@@ -255,30 +231,19 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   );
 
   constructor() {
-    // Synchronize standard filter changes to advanced CEL inputs
-    effect(() => {
-      if (!this.isAdvancedMode()) {
-        const filters = this.timelineFilters();
-        const severity = this.selectedSeverity();
-        const searchQuery = this.logSearchQuery();
-
-        const includeCel = compileFiltersToCel(filters, severity);
-        const excludeCel = compileExclusionFiltersToCel(filters);
-        const logCel = compileLogFiltersToCel(severity, searchQuery);
-
-        this.viewStateService.advancedTimelineIncludeCel.set(includeCel);
-        this.viewStateService.advancedTimelineExcludeCel.set(excludeCel);
-        this.viewStateService.advancedLogCel.set(logCel);
-      }
-    });
-
-    // Synchronize active queries to the active TimelineView backend filter
+    // Synchronize hideTimelinesWithoutMatchingLogs to backend filter
     effect(() => {
       const view = this.inspectionDataStore.timelineView();
       if (!view) return;
 
       const hideNoLogs = this.hideTimelinesWithoutMatchingLogs() ?? true;
+      view.backendFilter.updateFilterParams({
+        excludeNoLogs: hideNoLogs,
+      });
+    });
 
+    // Synchronize standard filter changes to advanced CEL inputs and backend filter
+    effect(() => {
       if (!this.isAdvancedMode()) {
         const filters = this.timelineFilters();
         const severity = this.selectedSeverity();
@@ -288,31 +253,134 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
         const timelineExclusionQuery = compileExclusionFiltersToCel(filters);
         const logQuery = compileLogFiltersToCel(severity, searchQuery);
 
-        view.backendFilter.updateFilterParams({
-          timelineQuery,
+        this.viewStateService.advancedTimelineIncludeCel.set(timelineQuery);
+        this.viewStateService.advancedTimelineExcludeCel.set(
           timelineExclusionQuery,
-          logQuery,
-          excludeNoLogs: hideNoLogs,
-        });
-      } else {
-        const includeQuery =
-          this.viewStateService.advancedTimelineIncludeCel() ?? '';
-        const excludeQuery =
-          this.viewStateService.advancedTimelineExcludeCel() ?? '';
-        const logQuery = this.viewStateService.advancedLogCel() ?? '';
+        );
+        this.viewStateService.advancedLogCel.set(logQuery);
 
-        const includeError = this.timelineIncludeCelError();
-        const excludeError = this.timelineExcludeCelError();
-        const logError = this.logCelError();
+        this.timelineIncludeCelError.set('');
+        this.timelineExcludeCelError.set('');
+        this.logCelError.set('');
 
-        view.backendFilter.updateFilterParams({
-          timelineQuery: includeError === '' ? includeQuery : '',
-          timelineExclusionQuery: excludeError === '' ? excludeQuery : '',
-          logQuery: logError === '' ? logQuery : '',
-          excludeNoLogs: hideNoLogs,
-        });
+        const view = this.inspectionDataStore.timelineView();
+        if (view) {
+          view.backendFilter.updateFilterParams({
+            timelineQuery,
+            timelineExclusionQuery,
+            logQuery,
+          });
+        }
       }
     });
+
+    // Debounced validation and application for Advanced Mode timeline include CEL queries
+    toObservable(this.viewStateService.advancedTimelineIncludeCel)
+      .pipe(
+        debounceTime(200),
+        distinctUntilChanged(),
+        switchMap((val) => {
+          if (!this.isAdvancedMode()) {
+            return of({ query: val, valid: true, error: '' });
+          }
+          if (!val || val.trim() === '') {
+            return of({ query: '', valid: true, error: '' });
+          }
+          return from(this.celValidationClient.validateTimelineQuery(val)).pipe(
+            map((res) => ({
+              query: val,
+              valid: res.valid,
+              error: res.valid ? '' : res.errorMessage,
+            })),
+          );
+        }),
+        takeUntil(this.destroyed),
+      )
+      .subscribe((result) => {
+        if (this.isAdvancedMode()) {
+          this.timelineIncludeCelError.set(result.error);
+        }
+        if (result.valid && this.isAdvancedMode()) {
+          const view = this.inspectionDataStore.timelineView();
+          if (view) {
+            view.backendFilter.updateFilterParams({
+              timelineQuery: result.query,
+            });
+          }
+        }
+      });
+
+    // Debounced validation and application for Advanced Mode timeline exclude CEL queries
+    toObservable(this.viewStateService.advancedTimelineExcludeCel)
+      .pipe(
+        debounceTime(200),
+        distinctUntilChanged(),
+        switchMap((val) => {
+          if (!this.isAdvancedMode()) {
+            return of({ query: val, valid: true, error: '' });
+          }
+          if (!val || val.trim() === '') {
+            return of({ query: '', valid: true, error: '' });
+          }
+          return from(this.celValidationClient.validateTimelineQuery(val)).pipe(
+            map((res) => ({
+              query: val,
+              valid: res.valid,
+              error: res.valid ? '' : res.errorMessage,
+            })),
+          );
+        }),
+        takeUntil(this.destroyed),
+      )
+      .subscribe((result) => {
+        if (this.isAdvancedMode()) {
+          this.timelineExcludeCelError.set(result.error);
+        }
+        if (result.valid && this.isAdvancedMode()) {
+          const view = this.inspectionDataStore.timelineView();
+          if (view) {
+            view.backendFilter.updateFilterParams({
+              timelineExclusionQuery: result.query,
+            });
+          }
+        }
+      });
+
+    // Debounced validation and application for Advanced Mode log CEL queries
+    toObservable(this.viewStateService.advancedLogCel)
+      .pipe(
+        debounceTime(200),
+        distinctUntilChanged(),
+        switchMap((val) => {
+          if (!this.isAdvancedMode()) {
+            return of({ query: val, valid: true, error: '' });
+          }
+          if (!val || val.trim() === '') {
+            return of({ query: '', valid: true, error: '' });
+          }
+          return from(this.celValidationClient.validateLogQuery(val)).pipe(
+            map((res) => ({
+              query: val,
+              valid: res.valid,
+              error: res.valid ? '' : res.errorMessage,
+            })),
+          );
+        }),
+        takeUntil(this.destroyed),
+      )
+      .subscribe((result) => {
+        if (this.isAdvancedMode()) {
+          this.logCelError.set(result.error);
+        }
+        if (result.valid && this.isAdvancedMode()) {
+          const view = this.inspectionDataStore.timelineView();
+          if (view) {
+            view.backendFilter.updateFilterParams({
+              logQuery: result.query,
+            });
+          }
+        }
+      });
   }
 
   ngOnDestroy() {

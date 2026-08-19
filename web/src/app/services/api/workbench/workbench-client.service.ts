@@ -189,6 +189,10 @@ export class WorkbenchClientService implements OnDestroy {
    * @returns The YAML string representation.
    */
   public async readStructYAML(structId: number): Promise<string> {
+    if (!structId || structId <= 0) {
+      return '';
+    }
+
     const cached = this.structYamlCache.get(structId);
     if (cached !== undefined) {
       return cached;

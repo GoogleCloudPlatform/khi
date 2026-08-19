@@ -215,8 +215,14 @@ export class V6StyleAssembler implements IDataAssembler<TimelineStyleChunk> {
       });
     }
     if (proto.iconAtlas) {
-      const msdfIconImage = proto.iconAtlas.msdfIconImage.map((u) => u.buffer);
-      const bmfontJson = proto.iconAtlas.bmfontJson.buffer;
+      const msdfIconImage = proto.iconAtlas.msdfIconImage.map((u) =>
+        u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength),
+      );
+      const bmfontJson = proto.iconAtlas.bmfontJson.buffer.slice(
+        proto.iconAtlas.bmfontJson.byteOffset,
+        proto.iconAtlas.bmfontJson.byteOffset +
+          proto.iconAtlas.bmfontJson.byteLength,
+      );
       const nameToCodepoints = new Map<string, string>(
         Object.entries(proto.iconAtlas.nameToCodepoints),
       );

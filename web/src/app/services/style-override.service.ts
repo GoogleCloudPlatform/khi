@@ -189,8 +189,7 @@ export class StyleOverrideService implements StyleStoreLike {
       return originalTypes;
     }
     return originalTypes.map(
-      (type: ReadonlyDomainElement<LogType>) =>
-        overrides.get(type.id) ?? type,
+      (type: ReadonlyDomainElement<LogType>) => overrides.get(type.id) ?? type,
     );
   }
 

@@ -64,11 +64,11 @@ func NewWorkbenchManager(inspectionServer *coreinspection.InspectionTaskServer, 
 
 // GetOrOpen retrieves an existing active Workbench session or loads the dataset into a new one.
 func (m *WorkbenchManager) GetOrOpen(ctx context.Context, workbenchID string, inspectionID string, onProgress ProgressCallback) (*Workbench, error) {
-	// Check if already open and active
+	// Check if already open and active for the same inspection dataset
 	m.mu.Lock()
 	wb, ok := m.workbenches[workbenchID]
 	lease, hasLease := m.leases[workbenchID]
-	if ok && hasLease && lease.After(time.Now()) && !wb.IsClosed() {
+	if ok && hasLease && lease.After(time.Now()) && !wb.IsClosed() && wb.InspectionID() == inspectionID {
 		m.leases[workbenchID] = time.Now().Add(m.ttl)
 		m.mu.Unlock()
 		if onProgress != nil {
@@ -77,6 +77,11 @@ func (m *WorkbenchManager) GetOrOpen(ctx context.Context, workbenchID string, in
 			}
 		}
 		return wb, nil
+	}
+	if ok && wb != nil && !wb.IsClosed() {
+		wb.Close()
+		delete(m.workbenches, workbenchID)
+		delete(m.leases, workbenchID)
 	}
 	m.mu.Unlock()
 

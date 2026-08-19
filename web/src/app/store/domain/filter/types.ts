@@ -28,6 +28,44 @@ export class CancellationError extends Error {
 }
 
 /**
+ * Checks whether an error is caused by a cancellation or abort operation.
+ *
+ * @param err - The error to check.
+ * @returns True if the error indicates a cancelled or aborted operation.
+ */
+export function isCancellationError(err: unknown): boolean {
+  if (!err) return false;
+  if (err instanceof CancellationError) return true;
+  if (
+    typeof DOMException !== 'undefined' &&
+    err instanceof DOMException &&
+    err.name === 'AbortError'
+  ) {
+    return true;
+  }
+  if (typeof err === 'object' && err !== null) {
+    const errorObj = err as Record<string, unknown>;
+    if (
+      errorObj['name'] === 'AbortError' ||
+      errorObj['name'] === 'CancellationError'
+    ) {
+      return true;
+    }
+    if (typeof errorObj['message'] === 'string') {
+      const msg = errorObj['message'].toLowerCase();
+      if (
+        msg.includes('aborted') ||
+        msg.includes('canceled') ||
+        msg.includes('cancelled')
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * Represents the evaluation state passed through the timeline and log filtering pipeline.
  * Contains the intermediate subsets of timeline and log IDs remaining after each filter step.
  */

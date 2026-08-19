@@ -161,6 +161,14 @@ describe('WorkbenchClientService', () => {
     expect(service.isWorkbenchActive()).toBeFalse();
   });
 
+  it('should return empty string without RPC call if structId is 0 or negative', async () => {
+    const yaml = await service.readStructYAML(0);
+    expect(yaml).toBe('');
+    expect(
+      mockConnectClient.workbenchClient.readStructYAML,
+    ).not.toHaveBeenCalled();
+  });
+
   it('should throw error on readStructYAML if no workbench session is active', async () => {
     await expectAsync(service.readStructYAML(42)).toBeRejectedWithError(
       'No active Workbench session found.',

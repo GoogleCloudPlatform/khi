@@ -70,7 +70,7 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
   private readonly currentRevisionResource = resource({
     params: () => this.selectionManager.selectedRevision()?.structId,
     loader: async ({ params: structId }) => {
-      if (structId === undefined) {
+      if (!structId || structId <= 0) {
         return '';
       }
       try {
@@ -87,7 +87,7 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
   private readonly previousRevisionResource = resource({
     params: () => this.selectionManager.previousOfSelectedRevision()?.structId,
     loader: async ({ params: structId }) => {
-      if (structId === undefined) {
+      if (!structId || structId <= 0) {
         return null;
       }
       try {

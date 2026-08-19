@@ -379,8 +379,8 @@ export class TimelineSmartComponent {
     }
 
     const allTimelines = this.filteredTimelines();
-    const globalMatch = allTimelines.find((t: ReadonlyDomainElement<Timeline>) =>
-      t.hasLog(targetLog),
+    const globalMatch = allTimelines.find(
+      (t: ReadonlyDomainElement<Timeline>) => t.hasLog(targetLog),
     );
     return globalMatch ? { timeline: globalMatch, targetTimeNs } : null;
   }

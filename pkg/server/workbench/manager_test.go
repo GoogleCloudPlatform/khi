@@ -246,3 +246,62 @@ func TestWorkbenchManager_GetAndTouch(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkbenchManager_ReopenDifferentInspection(t *testing.T) {
+	inspectionServer, validInspectionID1 := createTestInspectionServer(t)
+
+	// Create second inspection
+	validInspectionID2, err := inspectionServer.CreateInspection("test-type")
+	if err != nil {
+		t.Fatalf("failed to create second inspection: %v", err)
+	}
+	runner := inspectionServer.GetInspection(validInspectionID2)
+	if err := runner.Run(context.Background(), &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}); err != nil {
+		t.Fatalf("failed to run second inspection: %v", err)
+	}
+	<-runner.Wait()
+
+	mgr := NewWorkbenchManager(inspectionServer, 5*time.Second, 0)
+	defer mgr.Stop()
+
+	workbenchID := "user-session-same"
+
+	// 1. Open inspection 1
+	wb1, err := mgr.GetOrOpen(context.Background(), workbenchID, validInspectionID1, nil)
+	if err != nil {
+		t.Fatalf("GetOrOpen(inspection1) unexpected error: %v", err)
+	}
+	if wb1.InspectionID() != validInspectionID1 {
+		t.Errorf("wb1.InspectionID() = %q, want %q", wb1.InspectionID(), validInspectionID1)
+	}
+
+	// 2. Open inspection 2 with the SAME workbench ID
+	var progressStages []apiv1.OpenWorkbenchResponse_Stage
+	progressCb := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error {
+		progressStages = append(progressStages, stage)
+		return nil
+	}
+
+	wb2, err := mgr.GetOrOpen(context.Background(), workbenchID, validInspectionID2, progressCb)
+	if err != nil {
+		t.Fatalf("GetOrOpen(inspection2) unexpected error: %v", err)
+	}
+
+	// Verify old workbench is closed
+	if !wb1.IsClosed() {
+		t.Errorf("expected wb1 to be closed after opening different inspection")
+	}
+
+	// Verify new workbench has inspection 2
+	if wb2.InspectionID() != validInspectionID2 {
+		t.Errorf("wb2.InspectionID() = %q, want %q", wb2.InspectionID(), validInspectionID2)
+	}
+
+	// Verify full progress lifecycle was executed for inspection 2 (not just STAGE_READY attached)
+	if len(progressStages) < 2 {
+		t.Errorf("expected full progress events for new inspection, got: %v", progressStages)
+	}
+	if progressStages[0] != apiv1.OpenWorkbenchResponse_STAGE_INITIALIZING {
+		t.Errorf("first progress stage = %v, want STAGE_INITIALIZING", progressStages[0])
+	}
+}
