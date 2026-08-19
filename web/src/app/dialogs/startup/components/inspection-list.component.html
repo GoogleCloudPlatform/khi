@@ -40,11 +40,9 @@
 } @else {
   <div class="empty-state">
     <p>No recent inspections found.</p>
-    @if (!isViewerMode()) {
-      <button mat-stroked-button (click)="createNewInspection.emit()">
-        New Inspection
-        <mat-icon>add</mat-icon>
-      </button>
-    }
+    <button mat-stroked-button (click)="createNewInspection.emit()">
+      New Inspection
+      <mat-icon>add</mat-icon>
+    </button>
   </div>
 }

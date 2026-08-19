@@ -28,10 +28,7 @@ import { ProgressDialogService } from 'src/app/services/progress/progress-dialog
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
 
 import { of } from 'rxjs';
-import {
-  GetConfigResponse,
-  GetInspectionResponse,
-} from 'src/app/common/schema/api-types';
+import { GetInspectionResponse } from 'src/app/common/schema/api-types';
 import {
   EXTENSION_STORE,
   ExtensionStore,
@@ -50,14 +47,8 @@ describe('StartupDialogComponent', () => {
     });
 
     backendAPISpy = jasmine.createSpyObj<BackendAPI>('BackendAPIService', [
-      'getConfig',
       'patchInspection',
     ]);
-    backendAPISpy.getConfig.and.returnValue(
-      of<GetConfigResponse>({
-        viewerMode: false,
-      }),
-    );
     backendAPISpy.patchInspection.and.returnValue(of());
 
     TestBed.configureTestingModule({

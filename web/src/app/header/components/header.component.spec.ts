@@ -54,19 +54,6 @@ describe('HeaderComponent', () => {
     expect(badgeEl.nativeElement.textContent).toContain('v1.2.3');
   });
 
-  it('should render viewer mode badge when viewerMode is true', () => {
-    fixture.componentRef.setInput('viewerMode', true);
-    fixture.detectChanges();
-
-    const badgeEls = fixture.debugElement.queryAll(By.css('.version-badge'));
-    const viewerBadge = badgeEls.find((el) =>
-      el.nativeElement.classList.contains('viewer'),
-    );
-
-    expect(viewerBadge).toBeTruthy();
-    expect(viewerBadge!.nativeElement.textContent).toContain('Viewer Mode');
-  });
-
   it('should emit menuItemClick when a menu item is clicked', async () => {
     const mockItem: MenuItemViewModel = {
       id: 'test-item',

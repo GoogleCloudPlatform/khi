@@ -125,9 +125,8 @@ describe('InspectionListComponent', () => {
     );
   });
 
-  it('should show New Inspection button in empty state when not in viewer mode', () => {
+  it('should show New Inspection button in empty state', () => {
     fixture.componentRef.setInput('items', []);
-    fixture.componentRef.setInput('isViewerMode', false);
     fixture.detectChanges();
 
     const button = fixture.debugElement.query(By.css('.empty-state button'));
@@ -137,15 +136,6 @@ describe('InspectionListComponent', () => {
     spyOn(component.createNewInspection, 'emit');
     button.nativeElement.click();
     expect(component.createNewInspection.emit).toHaveBeenCalled();
-  });
-
-  it('should not show New Inspection button in empty state when in viewer mode', () => {
-    fixture.componentRef.setInput('items', []);
-    fixture.componentRef.setInput('isViewerMode', true);
-    fixture.detectChanges();
-
-    const button = fixture.debugElement.query(By.css('.empty-state button'));
-    expect(button).toBeFalsy();
   });
 
   it('should propagate openInspectionResult event', () => {

@@ -26,9 +26,6 @@
         >Session: {{ sessionId() }}</span
       >
     }
-    @if (viewerMode()) {
-      <span class="version-badge viewer">Viewer Mode</span>
-    }
   </div>
   <div class="main-menu">
     @for (group of menuGroups(); track group.id) {

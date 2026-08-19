@@ -15,7 +15,6 @@
  */
 
 import { Component, inject, computed } from '@angular/core';
-import { BACKEND_API } from '../services/api/backend-api-interface';
 import {
   MenuManager,
   MenuItemViewModel,
@@ -43,7 +42,6 @@ export class HeaderSmartComponent {
   /** Menu manager service. */
   protected readonly menuManager = inject(MenuManager);
 
-  private readonly backendAPI = inject(BACKEND_API);
   private readonly backendSync = inject<BackendSyncService>(BACKEND_SYNC);
   private readonly windowConnector = inject(WindowConnectorService);
 
@@ -52,12 +50,6 @@ export class HeaderSmartComponent {
 
   /** Current version of the application. */
   protected readonly version = VERSION;
-
-  /** Whether the application is in viewer mode. */
-  protected readonly viewerMode = toSignal(
-    this.backendAPI.getConfig().pipe(map((config) => config.viewerMode)),
-    { initialValue: false },
-  );
 
   /** Session ID for multi-window identification. */
   protected readonly sessionId = toSignal(

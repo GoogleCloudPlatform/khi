@@ -23,9 +23,6 @@ import {
 } from '../../services/frame-connection/window-connector.service';
 import { InMemoryWindowConnectionProvider } from '../../services/frame-connection/window-connection-provider.service';
 import { GraphPageDataSource } from 'src/app/services/frame-connection/frames/graph-page-datasource.service';
-import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
-import { GetConfigResponse } from 'src/app/common/schema/api-types';
-import { of } from 'rxjs';
 import { BACKEND_SYNC } from '../../services/api/backend-sync.service';
 
 describe('GraphComponent', () => {
@@ -36,16 +33,6 @@ describe('GraphComponent', () => {
         {
           provide: WINDOW_CONNECTION_PROVIDER,
           useValue: new InMemoryWindowConnectionProvider(),
-        },
-        {
-          provide: BACKEND_API,
-          useValue: {
-            getConfig: () => {
-              return of<GetConfigResponse>({
-                viewerMode: false,
-              });
-            },
-          },
         },
         {
           provide: BACKEND_SYNC,

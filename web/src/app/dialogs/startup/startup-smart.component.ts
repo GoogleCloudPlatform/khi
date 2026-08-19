@@ -20,7 +20,7 @@ import {
   MatDialogRef,
   MatDialogConfig,
 } from '@angular/material/dialog';
-import { interval, startWith, map } from 'rxjs';
+import { interval, startWith } from 'rxjs';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionMetadataDialogComponent } from '../inspection-metadata/inspection-metadata.component';
 import { openNewInspectionDialog } from '../new-inspection/new-inspection.component';
@@ -80,11 +80,6 @@ export class StartupDialogSmartComponent {
   protected readonly tasks = this.backendSync.tasks.value;
 
   protected readonly isLoading = computed(() => this.tasks() === undefined);
-
-  protected readonly isViewerMode = toSignal(
-    this.backendAPI.getConfig().pipe(map((config) => config.viewerMode)),
-    { initialValue: false },
-  );
 
   private readonly ticker = toSignal(
     interval(StartupDialogSmartComponent.UI_TIME_REFRESH_INTERVAL).pipe(

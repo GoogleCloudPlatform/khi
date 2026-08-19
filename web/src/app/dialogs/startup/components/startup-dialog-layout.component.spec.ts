@@ -42,7 +42,6 @@ class MockStartupSideMenuComponent {
 class MockStartupDialogContentComponent {
   public readonly items = input.required<InspectionListItemViewModel[]>();
   public readonly isLoading = input<boolean>(false);
-  public readonly isViewerMode = input<boolean>(false);
   public readonly openInspectionResult = output<string>();
   public readonly openInspectionMetadata = output<string>();
   public readonly cancelInspection = output<string>();

@@ -55,9 +55,6 @@ export class HeaderComponent {
   /** Current version of the application. */
   readonly version = input<string>('');
 
-  /** Whether the application is in viewer mode. */
-  readonly viewerMode = input<boolean>(false);
-
   /** Menu groups to display. */
   readonly menuGroups = input<MenuGroupViewModel[]>([]);
 

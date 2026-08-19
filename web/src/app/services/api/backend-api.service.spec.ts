@@ -29,7 +29,6 @@ import { ViewStateService } from '../view-state.service';
 import { ProgressDialogStatusUpdator } from 'src/app/services/progress/progress-interface';
 import {
   CreateInspectionResponse,
-  GetConfigResponse,
   GetInspectionFeatureResponse,
   GetInspectionResponse,
   GetInspectionTypesResponse,
@@ -67,25 +66,6 @@ describe('BackendAPIImpl testing', () => {
     expect(BackendAPIImpl.getServerBasePath()).toEqual('/api/v3');
     document.getElementById('server-base-path')?.remove();
     expect(BackendAPIImpl.getServerBasePath()).toEqual('');
-  });
-
-  it('calls the config API only single time when client calls getConfig method multiple times', () => {
-    const testData: GetConfigResponse = {
-      viewerMode: true,
-    };
-    api.getConfig().subscribe((data) => {
-      expect(data).toEqual({
-        viewerMode: true,
-      });
-    });
-    api.getConfig().subscribe((data) => {
-      expect(data).toEqual({
-        viewerMode: true,
-      });
-    });
-    const req = httpTestingController.expectOne('/api/v3/config');
-    expect(req.request.method).toEqual('GET');
-    req.flush(testData);
   });
 
   it('can call getInspectionTypes', () => {

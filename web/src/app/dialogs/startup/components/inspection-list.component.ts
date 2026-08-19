@@ -48,9 +48,6 @@ export class InspectionListComponent {
   /** Whether the list is loading. */
   public readonly isLoading = input<boolean>(false);
 
-  /** Whether the application is in viewer mode (read-only). */
-  public readonly isViewerMode = input<boolean>(false);
-
   /** Emits when the user clicks to create a new inspection from the empty state. */
   public readonly createNewInspection = output<void>();
 

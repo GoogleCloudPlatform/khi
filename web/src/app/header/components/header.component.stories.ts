@@ -126,21 +126,8 @@ type Story = StoryObj<HeaderComponent>;
 export const Default: Story = {
   args: {
     version: '1.2.3',
-    viewerMode: false,
     menuGroups: mockMenuGroups,
     serverStatus: BackendConnectionStatus.Connecting,
-    serverMemory: '120MB',
-    serverMaxMemory: '512MB',
-    sessionId: '1',
-  },
-};
-
-export const Viewer: Story = {
-  args: {
-    version: '1.2.3',
-    viewerMode: true,
-    menuGroups: mockMenuGroups,
-    serverStatus: BackendConnectionStatus.Connected,
     serverMemory: '120MB',
     serverMaxMemory: '512MB',
     sessionId: '1',
@@ -150,7 +137,6 @@ export const Viewer: Story = {
 export const OnlyCurrentMemory: Story = {
   args: {
     version: '1.2.3',
-    viewerMode: false,
     menuGroups: mockMenuGroups,
     serverStatus: BackendConnectionStatus.Connected,
     serverMemory: '120MB',
@@ -162,7 +148,6 @@ export const OnlyCurrentMemory: Story = {
 export const Disconnected: Story = {
   args: {
     version: '1.2.3',
-    viewerMode: false,
     menuGroups: mockMenuGroups,
     serverStatus: BackendConnectionStatus.Disconnected,
     serverMemory: '',

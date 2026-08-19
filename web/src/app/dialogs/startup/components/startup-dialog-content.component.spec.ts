@@ -28,7 +28,6 @@ import { InspectionListComponent } from './inspection-list.component';
 class MockInspectionListComponent {
   public readonly items = input.required<InspectionListItemViewModel[]>();
   public readonly isLoading = input<boolean>(false);
-  public readonly isViewerMode = input<boolean>(false);
   public readonly createNewInspection = output<void>();
   public readonly openInspectionResult = output<string>();
   public readonly openInspectionMetadata = output<string>();
@@ -170,9 +169,8 @@ describe('StartupDialogContentComponent', () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it('should pass isLoading and isViewerMode to inspection list', () => {
+  it('should pass isLoading to inspection list', () => {
     fixture.componentRef.setInput('isLoading', true);
-    fixture.componentRef.setInput('isViewerMode', true);
     fixture.detectChanges();
 
     const listEl = fixture.debugElement.query(
@@ -181,6 +179,5 @@ describe('StartupDialogContentComponent', () => {
     const list = listEl.componentInstance as MockInspectionListComponent;
 
     expect(list.isLoading()).toBeTrue();
-    expect(list.isViewerMode()).toBeTrue();
   });
 });

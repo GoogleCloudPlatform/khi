@@ -23,10 +23,6 @@ $light-gray: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
 $badge-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
 
 $badge-bg-color: $light-gray;
-$viewer-badge-bg-color: mat.m2-get-color-from-palette(
-  mat.$m2-blue-palette,
-  500
-);
 $color-shadow-light: rgba($dark-gray, 0.1);
 $color-shadow-dark: rgba($dark-gray, 0.5);
 
@@ -135,11 +131,6 @@ header {
   color: $primary-text-color;
   background-color: $badge-bg-color;
   box-shadow: 0 1px 2px $color-shadow-light;
-
-  &.viewer {
-    background-color: $viewer-badge-bg-color;
-    color: $badge-text-color;
-  }
 }
 
 .session-badge {

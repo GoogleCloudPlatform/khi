@@ -33,8 +33,6 @@ import {
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
-import { of } from 'rxjs';
-import { GetConfigResponse } from 'src/app/common/schema/api-types';
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
 import { MenuManager } from 'src/app/services/menu/menu-manager.service';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -74,13 +72,7 @@ describe('AppComponent', () => {
         },
         {
           provide: BACKEND_API,
-          useValue: {
-            getConfig: () => {
-              return of<GetConfigResponse>({
-                viewerMode: false,
-              });
-            },
-          },
+          useValue: {},
         },
         {
           provide: BACKEND_SYNC,

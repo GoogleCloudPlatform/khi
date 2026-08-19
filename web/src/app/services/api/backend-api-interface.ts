@@ -16,7 +16,6 @@
 
 import { Observable } from 'rxjs';
 import {
-  GetConfigResponse,
   GetInspectionFeatureResponse,
   GetInspectionResponse,
   GetInspectionTypesResponse,
@@ -47,11 +46,6 @@ export type DownloadProgressReporter = (
 export const BACKEND_API = new InjectionToken<BackendAPI>('BACKEND_API');
 
 export interface BackendAPI {
-  /**
-   * Get configuration applied on this frontend.
-   * Expected called endpoint: GET /api/v3/config
-   */
-  getConfig(): Observable<GetConfigResponse>;
   /**
    * Get the list of inspection types.
    * Expected called endpoint: GET /api/v3/inspection/types

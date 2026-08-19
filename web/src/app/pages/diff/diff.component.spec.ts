@@ -23,9 +23,6 @@ import {
   WindowConnectorService,
 } from 'src/app/services/frame-connection/window-connector.service';
 import { DiffPageDataSource } from 'src/app/services/frame-connection/frames/diff-page-datasource.service';
-import { GetConfigResponse } from 'src/app/common/schema/api-types';
-import { of } from 'rxjs';
-import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
 import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
 import { signal } from '@angular/core';
@@ -42,16 +39,6 @@ describe('DiffComponent', () => {
         {
           provide: WINDOW_CONNECTION_PROVIDER,
           useValue: new InMemoryWindowConnectionProvider(),
-        },
-        {
-          provide: BACKEND_API,
-          useValue: {
-            getConfig: () => {
-              return of<GetConfigResponse>({
-                viewerMode: false,
-              });
-            },
-          },
         },
         {
           provide: BACKEND_SYNC,

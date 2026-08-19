@@ -48,9 +48,6 @@ export class StartupDialogLayoutComponent {
   /** Whether the tasks are loading. */
   public readonly isLoading = input<boolean>(false);
 
-  /** Whether the application is in viewer mode (read-only). */
-  public readonly isViewerMode = input<boolean>(false);
-
   /** Emitted when the user clicks the 'New Investigation' button. */
   public readonly newInvestigation = output<void>();
 

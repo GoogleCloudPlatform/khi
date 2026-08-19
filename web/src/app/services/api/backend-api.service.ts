@@ -29,7 +29,6 @@ import {
   PopupAnswerValidationResult,
   PopupFormRequest,
   InspectionMetadataOfRunResult,
-  GetConfigResponse,
   InspectionPatchRequest,
 } from '../../common/schema/api-types';
 import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
@@ -48,7 +47,6 @@ import {
   of,
   range,
   reduce,
-  retry,
   shareReplay,
   switchMap,
   withLatestFrom,
@@ -82,18 +80,8 @@ export class BackendAPIImpl implements BackendAPI {
    */
   private readonly baseUrl: string;
 
-  private readonly getConfigObservable: Observable<GetConfigResponse>;
-
   constructor() {
     this.baseUrl = BackendAPIImpl.getServerBasePath() + this.API_BASE_PATH;
-
-    const getConfigUrl = this.baseUrl + '/config';
-    this.getConfigObservable = this.http
-      .get<GetConfigResponse>(getConfigUrl)
-      .pipe(
-        retry({ delay: 1000 }),
-        shareReplay(1), // the config is cached at the first time of the loading.
-      );
   }
 
   /**
@@ -107,13 +95,6 @@ export class BackendAPIImpl implements BackendAPI {
       content = content.substring(0, content.length - 1);
     }
     return content ?? '';
-  }
-
-  /**
-   * Get configuration of this frontend from the server.
-   */
-  public getConfig(): Observable<GetConfigResponse> {
-    return this.getConfigObservable;
   }
 
   public getInspectionTypes() {
