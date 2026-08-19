@@ -74,7 +74,9 @@ func coepCoopMiddleware() gin.HandlerFunc {
 	}
 }
 
-func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.InspectionTaskServer, serverConfig *ServerConfig) *gin.Engine {
+// SetupKHIServerRoutes mounts base middlewares, static files, and standard REST routes onto engine.
+// It returns the normalized base path without trailing slash and the created gin.IRouter.
+func SetupKHIServerRoutes(engine *gin.Engine, inspectionServer *coreinspection.InspectionTaskServer, serverConfig *ServerConfig) (string, gin.IRouter) {
 	engine.Use(coepCoopMiddleware())
 	basePathWithoutTrailingSlash := strings.TrimSuffix(serverConfig.ServerBasePath, "/")
 	engine.Use(redirectMiddleware(basePathWithoutTrailingSlash+"/", basePathWithoutTrailingSlash+"/session/0")) // Request for `/` shouldn't be handled by `static.Serve`, redirect `/session/0` to be handled by patternToString
@@ -478,5 +480,11 @@ func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.Inspec
 			ctx.String(http.StatusOK, "")
 		})
 	}
+	return basePathWithoutTrailingSlash, router
+}
+
+// CreateKHIServer creates and sets up standard KHI routes on engine, returning the engine for chaining.
+func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.InspectionTaskServer, serverConfig *ServerConfig) *gin.Engine {
+	SetupKHIServerRoutes(engine, inspectionServer, serverConfig)
 	return engine
 }
