@@ -17,17 +17,6 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { InspectionData } from 'src/app/store/domain/inspection-data';
 import { TimelineView } from 'src/app/store/domain/timeline-view';
-import {
-  CelTimelineFilter,
-  CelTimelineExclusionFilter,
-  CelLogFilter,
-} from 'src/app/store/domain/filter/cel-filter';
-import {
-  IncludeAncestorsFilter,
-  ExcludeNoLogsFilter,
-  IncludeDescendantsFilter,
-} from 'src/app/store/domain/filter/other-filter';
-import { SearchWorkerManager } from 'src/app/services/search-worker-manager.service';
 import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 
 /**
@@ -38,13 +27,6 @@ import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench
 export class InspectionDataStore {
   private readonly _inspectionData = signal<InspectionData | null>(null);
   private readonly _timelineView = signal<TimelineView | null>(null);
-  private readonly celTimelineFilter = inject(CelTimelineFilter);
-  private readonly celTimelineExclusionFilter = inject(
-    CelTimelineExclusionFilter,
-  );
-  private readonly celLogFilter = inject(CelLogFilter);
-  private readonly excludeNoLogsFilter = inject(ExcludeNoLogsFilter);
-  private readonly searchWorkerManager = inject(SearchWorkerManager);
   private readonly workbenchClient = inject(WorkbenchClientService);
 
   /**
@@ -74,21 +56,7 @@ export class InspectionDataStore {
       return;
     }
 
-    void this.searchWorkerManager.syncData(
-      data.internPool,
-      data.logStore,
-      data.timelineStore,
-      data.styleStore,
-    );
-
     const view = new TimelineView(data.timelineStore, this.workbenchClient);
-    view.addFilter(this.celTimelineFilter);
-    view.addFilter(new IncludeDescendantsFilter());
-    view.addFilter(this.celTimelineExclusionFilter);
-    view.addFilter(this.celLogFilter);
-    view.addFilter(new IncludeAncestorsFilter());
-    view.addFilter(this.excludeNoLogsFilter);
-
     this._timelineView.set(view);
   }
 }

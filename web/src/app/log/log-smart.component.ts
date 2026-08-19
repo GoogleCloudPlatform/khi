@@ -19,6 +19,7 @@ import { InspectionDataStore } from 'src/app/services/inspection-data-store.serv
 import { SelectionManager } from 'src/app/services/selection-manager.service';
 import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 import { Log } from 'src/app/store/domain/log';
+import { TimelinePathNode } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { CommonModule } from '@angular/common';
 import { AngularSplitModule } from 'angular-split';
@@ -178,7 +179,7 @@ export class LogSmartComponent {
             timeline.type.id,
           );
           const pathNodes: ResourcePathNodeViewModel[] = timeline.path.map(
-            (node) => ({
+            (node: TimelinePathNode) => ({
               id: node.id,
               label: node.label,
               type: this.styleOverrideService.getTimelineType(node.type.id),

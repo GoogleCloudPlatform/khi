@@ -386,3 +386,27 @@ func (e *LogEvaluator) Evaluate(ctx context.Context, l *LogData) (bool, error) {
 	}
 	return false, nil
 }
+
+// ValidateTimelineQuery validates a CEL timeline expression syntax and types.
+func ValidateTimelineQuery(query string) error {
+	if query == "" {
+		return nil
+	}
+	eval, err := NewTimelineEvaluator()
+	if err != nil {
+		return err
+	}
+	return eval.Compile(query)
+}
+
+// ValidateLogQuery validates a CEL log expression syntax and types.
+func ValidateLogQuery(query string) error {
+	if query == "" {
+		return nil
+	}
+	eval, err := NewLogEvaluator()
+	if err != nil {
+		return err
+	}
+	return eval.Compile(query)
+}

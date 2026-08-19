@@ -1,0 +1,50 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package api.v1;
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1";
+
+// Request to validate a CEL timeline filter query syntax and types.
+message ValidateTimelineQueryRequest {
+  string query = 1;
+}
+
+// Response indicating whether the timeline CEL query is valid.
+message ValidateTimelineQueryResponse {
+  bool valid = 1;
+  string error_message = 2;
+}
+
+// Request to validate a CEL log filter query syntax and types.
+message ValidateLogQueryRequest {
+  string query = 1;
+}
+
+// Response indicating whether the log CEL query is valid.
+message ValidateLogQueryResponse {
+  bool valid = 1;
+  string error_message = 2;
+}
+
+// CELValidationService provides stateless CEL expression syntax and type validation.
+service CELValidationService {
+  // Validates a timeline CEL query expression against registered schemas and custom functions.
+  rpc ValidateTimelineQuery(ValidateTimelineQueryRequest) returns (ValidateTimelineQueryResponse);
+
+  // Validates a log CEL query expression against registered schemas and custom functions.
+  rpc ValidateLogQuery(ValidateLogQueryRequest) returns (ValidateLogQueryResponse);
+}

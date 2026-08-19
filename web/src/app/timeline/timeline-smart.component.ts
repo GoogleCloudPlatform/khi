@@ -45,7 +45,6 @@ import { TimelineChartMouseEvent } from 'src/app/timeline/components/timeline-ch
 import { bisectLeft } from 'src/app/common/misc-util';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
-import { CelTimelineExclusionFilter } from 'src/app/store/domain/filter/cel-filter';
 
 /**
  * Smart component for the timeline view.
@@ -74,10 +73,6 @@ export class TimelineSmartComponent {
   private readonly selectionManager = inject(SelectionManager);
 
   private readonly styleOverrideService = inject(StyleOverrideService);
-
-  private readonly celTimelineExclusionFilter = inject(
-    CelTimelineExclusionFilter,
-  );
 
   private readonly inspectionData = computed(() => {
     return this.inspectionDataStore.inspectionData();
@@ -375,7 +370,8 @@ export class TimelineSmartComponent {
       const descendants = new Set(currentSelected.descendants());
       const allTimelines = this.filteredTimelines();
       const descendantMatch = allTimelines.find(
-        (t) => descendants.has(t) && t.hasLog(targetLog),
+        (t: ReadonlyDomainElement<Timeline>) =>
+          descendants.has(t) && t.hasLog(targetLog),
       );
       if (descendantMatch) {
         return { timeline: descendantMatch, targetTimeNs };
@@ -383,7 +379,9 @@ export class TimelineSmartComponent {
     }
 
     const allTimelines = this.filteredTimelines();
-    const globalMatch = allTimelines.find((t) => t.hasLog(targetLog));
+    const globalMatch = allTimelines.find((t: ReadonlyDomainElement<Timeline>) =>
+      t.hasLog(targetLog),
+    );
     return globalMatch ? { timeline: globalMatch, targetTimeNs } : null;
   }
 
@@ -585,7 +583,7 @@ export class TimelineSmartComponent {
    */
   protected excludeTimeline(timeline: Timeline): void {
     if (this.viewStateService.isAdvancedMode()) {
-      const currentExpr = this.celTimelineExclusionFilter.celExpr();
+      const currentExpr = this.viewStateService.advancedTimelineExcludeCel();
       const escapedName = timeline.name
         .replace(/\\/g, '\\\\')
         .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -594,7 +592,7 @@ export class TimelineSmartComponent {
       const updatedExpr = currentExpr
         ? `${currentExpr} || ${predicate}`
         : predicate;
-      this.celTimelineExclusionFilter.updateFilter(updatedExpr);
+      this.viewStateService.advancedTimelineExcludeCel.set(updatedExpr);
       return;
     }
 
@@ -640,12 +638,12 @@ export class TimelineSmartComponent {
    */
   protected excludeTimelineType(typeLabel: string): void {
     if (this.viewStateService.isAdvancedMode()) {
-      const currentExpr = this.celTimelineExclusionFilter.celExpr();
+      const currentExpr = this.viewStateService.advancedTimelineExcludeCel();
       const predicate = `match("${typeLabel}", ".*")`;
       const updatedExpr = currentExpr
         ? `${currentExpr} || ${predicate}`
         : predicate;
-      this.celTimelineExclusionFilter.updateFilter(updatedExpr);
+      this.viewStateService.advancedTimelineExcludeCel.set(updatedExpr);
       return;
     }
 

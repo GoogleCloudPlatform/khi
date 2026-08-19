@@ -188,7 +188,10 @@ export class StyleOverrideService implements StyleStoreLike {
     if (overrides.size === 0) {
       return originalTypes;
     }
-    return originalTypes.map((type) => overrides.get(type.id) ?? type);
+    return originalTypes.map(
+      (type: ReadonlyDomainElement<LogType>) =>
+        overrides.get(type.id) ?? type,
+    );
   }
 
   /**
@@ -207,7 +210,10 @@ export class StyleOverrideService implements StyleStoreLike {
     if (overrides.size === 0) {
       return originalStates;
     }
-    return originalStates.map((state) => overrides.get(state.id) ?? state);
+    return originalStates.map(
+      (state: ReadonlyDomainElement<RevisionState>) =>
+        overrides.get(state.id) ?? state,
+    );
   }
 
   /**
@@ -219,7 +225,10 @@ export class StyleOverrideService implements StyleStoreLike {
     if (overrides.size === 0) {
       return originalTypes;
     }
-    return originalTypes.map((type) => overrides.get(type.id) ?? type);
+    return originalTypes.map(
+      (type: ReadonlyDomainElement<TimelineType>) =>
+        overrides.get(type.id) ?? type,
+    );
   }
 
   /**

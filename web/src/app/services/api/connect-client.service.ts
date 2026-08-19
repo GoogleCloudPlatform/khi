@@ -18,6 +18,7 @@ import { Injectable } from '@angular/core';
 import { createClient, Client } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { WorkbenchService } from 'src/app/generated/api/v1/workbench_pb';
+import { CELValidationService } from 'src/app/generated/api/v1/cel_validation_pb';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 
 /**
@@ -36,4 +37,10 @@ export class ConnectClientService {
    */
   public readonly workbenchClient: Client<typeof WorkbenchService> =
     createClient(WorkbenchService, this.transport);
+
+  /**
+   * CELValidationService Connect-RPC client.
+   */
+  public readonly celValidationClient: Client<typeof CELValidationService> =
+    createClient(CELValidationService, this.transport);
 }

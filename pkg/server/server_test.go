@@ -887,8 +887,8 @@ func TestKHIDirectFileUpload(t *testing.T) {
 		{
 			name:              "file size exceeds the limit",
 			tokenID:           "test-token-2",
-			content:           strings.Repeat("a", 1024*1024*1024+1),
-			maxUploadFileSize: 1024 * 1024 * 1024,
+			content:           "toolongcontent",
+			maxUploadFileSize: 5,
 			wantCode:          400,
 			wantErr:           true,
 			wantErrMsg:        "file size exceeds the limit",

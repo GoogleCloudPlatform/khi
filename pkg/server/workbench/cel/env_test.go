@@ -218,3 +218,79 @@ func TestLogEvaluator(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateTimelineQuery(t *testing.T) {
+	testCases := []struct {
+		name    string
+		query   string
+		wantErr bool
+	}{
+		{
+			name:    "empty query is valid",
+			query:   "",
+			wantErr: false,
+		},
+		{
+			name:    "valid timeline query",
+			query:   `name == "pod-sample" && minSeverity(WARNING)`,
+			wantErr: false,
+		},
+		{
+			name:    "invalid syntax query",
+			query:   `name == &&`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid variable query",
+			query:   `unknownVar == "test"`,
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateTimelineQuery(tc.query)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("ValidateTimelineQuery() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateLogQuery(t *testing.T) {
+	testCases := []struct {
+		name    string
+		query   string
+		wantErr bool
+	}{
+		{
+			name:    "empty query is valid",
+			query:   "",
+			wantErr: false,
+		},
+		{
+			name:    "valid log query",
+			query:   `severity >= INFO && body("verb", "create")`,
+			wantErr: false,
+		},
+		{
+			name:    "invalid syntax query",
+			query:   `severity >= `,
+			wantErr: true,
+		},
+		{
+			name:    "invalid function call",
+			query:   `nonExistentFunction("test")`,
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateLogQuery(tc.query)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("ValidateLogQuery() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+		})
+	}
+}

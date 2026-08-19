@@ -72,6 +72,21 @@ export class ViewStateService {
    */
   public readonly standardLogSearchQuery = signal<string>('');
 
+  /**
+   * The persistent advanced mode timeline include CEL query.
+   */
+  public readonly advancedTimelineIncludeCel = signal<string>('');
+
+  /**
+   * The persistent advanced mode timeline exclude CEL query.
+   */
+  public readonly advancedTimelineExcludeCel = signal<string>('');
+
+  /**
+   * The persistent advanced mode log CEL query.
+   */
+  public readonly advancedLogCel = signal<string>('');
+
   private timezoneShiftSubject: BehaviorSubject<number> = new BehaviorSubject(
     -new Date().getTimezoneOffset() / 60,
   );
