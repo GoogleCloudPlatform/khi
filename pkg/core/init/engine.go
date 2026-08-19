@@ -28,6 +28,8 @@ type Engine struct {
 	mu               sync.Mutex
 	runHooks         []func(ctx context.Context) error
 	terminationHooks []func() error
+	terminateOnce    sync.Once
+	terminateErr     error
 }
 
 // NewEngine creates a new Engine wrapping the provided parent context.
@@ -95,14 +97,19 @@ func (e *Engine) Run() error {
 // Terminate cancels the context and executes all registered termination hooks in reverse order.
 func (e *Engine) Terminate() error {
 	e.cancel()
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.terminateOnce.Do(func() {
+		e.mu.Lock()
+		hooks := e.terminationHooks
+		e.terminationHooks = nil
+		e.mu.Unlock()
 
-	var errs []error
-	for i := len(e.terminationHooks) - 1; i >= 0; i-- {
-		if err := e.terminationHooks[i](); err != nil {
-			errs = append(errs, err)
+		var errs []error
+		for i := len(hooks) - 1; i >= 0; i-- {
+			if err := hooks[i](); err != nil {
+				errs = append(errs, err)
+			}
 		}
-	}
-	return errors.Join(errs...)
+		e.terminateErr = errors.Join(errs...)
+	})
+	return e.terminateErr
 }

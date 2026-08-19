@@ -174,4 +174,41 @@ func TestEngine_Lifecycle(t *testing.T) {
 			t.Errorf("Terminate() expected aggregated error containing err1 and err2, got %v", err)
 		}
 	})
+
+	t.Run("is idempotent when calling Terminate multiple times", func(t *testing.T) {
+		ResetInitializersForTest()
+		defer ResetInitializersForTest()
+
+		callCount := 0
+		termErr := errors.New("term error")
+		RegisterInitializer(&Initializer{
+			ID: "idempotent-term",
+			Init: func(ctx *InitContext) error {
+				ctx.OnTerminate(func() error {
+					callCount++
+					return termErr
+				})
+				return nil
+			},
+		})
+
+		engine := NewEngine(context.Background())
+		if err := engine.Init(); err != nil {
+			t.Fatalf("Init() failed: %v", err)
+		}
+
+		errFirst := engine.Terminate()
+		if !errors.Is(errFirst, termErr) {
+			t.Errorf("first Terminate() expected %v, got %v", termErr, errFirst)
+		}
+
+		errSecond := engine.Terminate()
+		if !errors.Is(errSecond, termErr) {
+			t.Errorf("second Terminate() expected %v, got %v", termErr, errSecond)
+		}
+
+		if callCount != 1 {
+			t.Errorf("expected termination hook to be called exactly once, got %d", callCount)
+		}
+	})
 }

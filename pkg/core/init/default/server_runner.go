@@ -78,13 +78,21 @@ var ServerRunnerInitializer = &coreinit.Initializer{
 
 		ctx.OnRun(func(runCtx context.Context) error {
 			slog.Info("Starting Kubernetes History Inspector server...")
+			errCh := make(chan error, 1)
 			go func() {
 				if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 					slog.Error(fmt.Sprintf("Failed to start server: %v", err))
+					errCh <- err
 				}
 			}()
 			displayStartMessage(*serverParams.Host, *serverParams.Port, debugParams.NoColor != nil && *debugParams.NoColor)
-			return nil
+
+			select {
+			case <-runCtx.Done():
+				return nil
+			case err := <-errCh:
+				return err
+			}
 		})
 
 		ctx.OnTerminate(func() error {

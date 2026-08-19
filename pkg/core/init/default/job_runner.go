@@ -87,7 +87,7 @@ var JobRunnerInitializer = &coreinit.Initializer{
 				return fmt.Errorf("failed to get result reader: %w", err)
 			}
 			defer reader.Close()
-			file, err := os.OpenFile(*jobParams.ExportDestination, os.O_WRONLY|os.O_CREATE, 0644)
+			file, err := os.OpenFile(*jobParams.ExportDestination, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
 				return fmt.Errorf("failed to open export file: %w", err)
 			}

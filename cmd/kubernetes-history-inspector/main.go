@@ -69,5 +69,10 @@ func run() int {
 		return 1
 	}
 
-	return <-exitCh
+	select {
+	case code := <-exitCh:
+		return code
+	default:
+		return 0
+	}
 }
