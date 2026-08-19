@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -46,7 +45,6 @@ const embeddedStaticFolderPath = "dist/browser"
 var embeddedStaticFolder embed.FS
 
 type ServerConfig struct {
-	ViewerMode       bool
 	StaticFolderPath string
 	ResourceMonitor  ResourceMonitor
 	ServerBasePath   string
@@ -113,373 +111,367 @@ func SetupKHIServerRoutes(engine *gin.Engine, inspectionServer *coreinspection.I
 		}
 		ctx.Writer.Write([]byte(replacedIndexHtml))
 	})
-	// GET /api/v3/config
-	// Returns configuration map used in frontend.
-	router.GET("/api/v3/config", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, config.NewGetConfigResponseFromParameters())
+
+	// GET /api/v3/inspection/types
+	// Returns the list of inspection types available on the inspection server.
+	router.GET("/api/v3/inspection/types", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, &GetInspectionTypesResponse{
+			Types: inspectionServer.GetAllInspectionTypes(),
+		})
 	})
 
-	if !serverConfig.ViewerMode {
-		// GET /api/v3/inspection/types
-		// Returns the list of inspection types available on the inspection server.
-		router.GET("/api/v3/inspection/types", func(ctx *gin.Context) {
-			ctx.JSON(http.StatusOK, &GetInspectionTypesResponse{
-				Types: inspectionServer.GetAllInspectionTypes(),
-			})
-		})
-
-		// GET /api/v3/inspection
-		// Returns the all started inspections on the inspection server.
-		router.GET("/api/v3/inspection", func(ctx *gin.Context) {
-			inspections := inspectionServer.GetAllRunners()
-			responseInspections := map[string]SerializedMetadata{}
-			for _, inspection := range inspections {
-				if inspection.Started() {
-					md, err := inspection.GetCurrentMetadata()
-					if err != nil {
-						ctx.String(http.StatusInternalServerError, err.Error())
-						return
-					}
-
-					m, err := inspectionmetadata.GetSerializableSubsetMapFromMetadataSet(md, filter.NewEnabledFilter(inspectionmetadata.LabelKeyIncludedInTaskListFlag, false))
-					if err != nil {
-						ctx.String(http.StatusInternalServerError, err.Error())
-						return
-					}
-					responseInspections[inspection.ID] = m
-				}
-			}
-
-			ctx.JSON(http.StatusOK, &GetInspectionsResponse{
-				Inspections: responseInspections,
-				ServerStat: &ServerStat{
-					CurrentMemoryUsage: serverConfig.ResourceMonitor.GetUsedMemory(),
-					TotalMemory:        serverConfig.ResourceMonitor.GetTotalMemory(),
-				},
-			})
-		})
-
-		// POST /api/v3/inspection/tasks
-		router.POST("/api/v3/inspection/types/:typeID", func(ctx *gin.Context) {
-			typeID := ctx.Param("typeID")
-			inspectionId, err := inspectionServer.CreateInspection(typeID)
-			if err != nil {
-				// only the not found error is expected here
-				ctx.String(http.StatusNotFound, err.Error())
-				return
-			}
-			ctx.JSON(http.StatusAccepted, &PostInspectionResponse{InspectionID: inspectionId})
-		})
-		// PATCH /api/v3/inspection/<inspection-id>
-		router.PATCH("/api/v3/inspection/:inspectionID", func(ctx *gin.Context) {
-			inspectionID := ctx.Param("inspectionID")
-			task := inspectionServer.GetInspection(inspectionID)
-			if task == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("inspection %s was not found", inspectionID))
-				return
-			}
-			var reqBody PatchInspectionRequest
-			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			md, err := task.GetCurrentMetadata()
-			if err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			var header *inspectionmetadata.HeaderMetadata
-			header, found := typedmap.Get(md, inspectionmetadata.HeaderMetadataKey)
-			if !found {
-				ctx.String(http.StatusBadRequest, "header not found")
-				return
-			}
-			header.InspectionName = reqBody.Name
-			header.SuggestedFileName = fmt.Sprintf("%s.khi", reqBody.Name)
-			ctx.String(http.StatusAccepted, "ok")
-		})
-		// PUT /api/v3/inspection/<inspection-id>/features
-		router.PUT("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {
-			inspectionID := ctx.Param("inspectionID")
-			task := inspectionServer.GetInspection(inspectionID)
-			if task == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
-				return
-			}
-			var reqBody PutInspectionFeatureRequest
-			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			err := task.SetFeatureList(reqBody.Features)
-			if err != nil {
-				ctx.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-			ctx.String(http.StatusAccepted, "ok")
-		})
-		// PATCH /api/v3/inspection/<inspection-id>/features
-		router.PATCH("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {
-			inspectionID := ctx.Param("inspectionID")
-			task := inspectionServer.GetInspection(inspectionID)
-			if task == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
-				return
-			}
-			var reqBody PatchInspectionFeatureRequest
-			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			err := task.UpdateFeatureMap(reqBody.Features)
-			if err != nil {
-				ctx.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-			ctx.String(http.StatusAccepted, "ok")
-		})
-		// GET /api/v3/inspection/<inspection-id>/features
-		router.GET("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {
-			inspectionID := ctx.Param("inspectionID")
-			task := inspectionServer.GetInspection(inspectionID)
-			if task == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
-				return
-			}
-			features, err := task.FeatureList()
-			if err != nil {
-				ctx.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-			ctx.JSON(http.StatusOK, GetInspectionFeatureResponse{
-				Features: features,
-			})
-		})
-
-		router.POST("/api/v3/inspection/:inspectionID/dryrun", func(ctx *gin.Context) {
-			inspectionID := ctx.Param("inspectionID")
-			currentTask := inspectionServer.GetInspection(inspectionID)
-			if currentTask == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
-				return
-			}
-			var reqBody PostInspectionDryRunRequest
-			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			result, err := currentTask.DryRun(ctx, &inspectioncore_contract.InspectionRequest{
-				Values: reqBody,
-			})
-			if err != nil {
-				ctx.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-			ctx.JSON(http.StatusOK, result)
-		})
-
-		router.POST("/api/v3/inspection/:inspectionID/run", func(ctx *gin.Context) {
-			inspectionID := ctx.Param("inspectionID")
-			currentTask := inspectionServer.GetInspection(inspectionID)
-			if currentTask == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
-				return
-			}
-			var reqBody PostInspectionDryRunRequest
-			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			err := currentTask.Run(ctx, &inspectioncore_contract.InspectionRequest{
-				Values: reqBody,
-			})
-			if err != nil {
-				ctx.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-			ctx.String(http.StatusAccepted, "ok")
-		})
-
-		router.POST("/api/v3/inspection/:inspectionID/cancel", func(ctx *gin.Context) {
-			inspectionID := ctx.Param("inspectionID")
-			currentTask := inspectionServer.GetInspection(inspectionID)
-			if currentTask == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
-				return
-			}
-			err := currentTask.Cancel()
-			if err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			ctx.String(http.StatusOK, "ok")
-		})
-
-		router.GET("/api/v3/inspection/:inspectionID/metadata", func(ctx *gin.Context) {
-			inspectionID := ctx.Param("inspectionID")
-			currentTask := inspectionServer.GetInspection(inspectionID)
-			if currentTask == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
-				return
-			}
-			result, err := currentTask.Metadata()
-			if err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			ctx.JSON(http.StatusOK, result)
-		})
-
-		router.GET("/api/v3/inspection/:inspectionID/data", func(ctx *gin.Context) {
-			inspectionID := ctx.Param("inspectionID")
-			currentTask := inspectionServer.GetInspection(inspectionID)
-			if currentTask == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
-				return
-			}
-
-			// parse range queries
-			var rangeStart int64
-			var maxSize int64 = math.MaxInt64
-			startQueryStr := ctx.Query("start")
-			maxSizeQueryStr := ctx.Query("maxSize")
-			if startQueryStr != "" {
-				var err error
-				rangeStart, err = strconv.ParseInt(startQueryStr, 10, 64)
+	// GET /api/v3/inspection
+	// Returns the all started inspections on the inspection server.
+	router.GET("/api/v3/inspection", func(ctx *gin.Context) {
+		inspections := inspectionServer.GetAllRunners()
+		responseInspections := map[string]SerializedMetadata{}
+		for _, inspection := range inspections {
+			if inspection.Started() {
+				md, err := inspection.GetCurrentMetadata()
 				if err != nil {
-					ctx.String(http.StatusBadRequest, err.Error())
+					ctx.String(http.StatusInternalServerError, err.Error())
 					return
 				}
-			}
-			if maxSizeQueryStr != "" {
-				var err error
-				maxSize, err = strconv.ParseInt(maxSizeQueryStr, 10, 64)
+
+				m, err := inspectionmetadata.GetSerializableSubsetMapFromMetadataSet(md, filter.NewEnabledFilter(inspectionmetadata.LabelKeyIncludedInTaskListFlag, false))
 				if err != nil {
-					ctx.String(http.StatusBadRequest, err.Error())
+					ctx.String(http.StatusInternalServerError, err.Error())
 					return
 				}
+				responseInspections[inspection.ID] = m
 			}
+		}
 
-			result, err := currentTask.Result()
-			if err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			inspectionDataReader, err := result.ResultStore.GetRangeReader(rangeStart, maxSize)
-			if err != nil {
-				ctx.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-			defer inspectionDataReader.Close()
-			fileSize, err := result.ResultStore.GetInspectionResultSizeInBytes()
-			if err != nil {
-				ctx.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-			ctx.DataFromReader(http.StatusOK, min(maxSize, int64(fileSize)-rangeStart), "application/octet-stream", inspectionDataReader, map[string]string{})
+		ctx.JSON(http.StatusOK, &GetInspectionsResponse{
+			Inspections: responseInspections,
+			ServerStat: &ServerStat{
+				CurrentMemoryUsage: serverConfig.ResourceMonitor.GetUsedMemory(),
+				TotalMemory:        serverConfig.ResourceMonitor.GetTotalMemory(),
+			},
 		})
+	})
 
-		router.GET("/api/v3/popup", func(ctx *gin.Context) {
-			currentPopup := popup.Instance.GetCurrentPopup()
-			if currentPopup == nil {
-				ctx.String(http.StatusOK, "")
-				return
-			}
-			ctx.JSON(http.StatusOK, currentPopup)
+	// POST /api/v3/inspection/types/:typeID
+	router.POST("/api/v3/inspection/types/:typeID", func(ctx *gin.Context) {
+		typeID := ctx.Param("typeID")
+		inspectionId, err := inspectionServer.CreateInspection(typeID)
+		if err != nil {
+			// only the not found error is expected here
+			ctx.String(http.StatusNotFound, err.Error())
+			return
+		}
+		ctx.JSON(http.StatusAccepted, &PostInspectionResponse{InspectionID: inspectionId})
+	})
+	// PATCH /api/v3/inspection/<inspection-id>
+	router.PATCH("/api/v3/inspection/:inspectionID", func(ctx *gin.Context) {
+		inspectionID := ctx.Param("inspectionID")
+		task := inspectionServer.GetInspection(inspectionID)
+		if task == nil {
+			ctx.String(http.StatusNotFound, fmt.Sprintf("inspection %s was not found", inspectionID))
+			return
+		}
+		var reqBody PatchInspectionRequest
+		if err := ctx.ShouldBindJSON(&reqBody); err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		md, err := task.GetCurrentMetadata()
+		if err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		var header *inspectionmetadata.HeaderMetadata
+		header, found := typedmap.Get(md, inspectionmetadata.HeaderMetadataKey)
+		if !found {
+			ctx.String(http.StatusBadRequest, "header not found")
+			return
+		}
+		header.InspectionName = reqBody.Name
+		header.SuggestedFileName = fmt.Sprintf("%s.khi", reqBody.Name)
+		ctx.String(http.StatusAccepted, "ok")
+	})
+	// PUT /api/v3/inspection/<inspection-id>/features
+	router.PUT("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {
+		inspectionID := ctx.Param("inspectionID")
+		task := inspectionServer.GetInspection(inspectionID)
+		if task == nil {
+			ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
+			return
+		}
+		var reqBody PutInspectionFeatureRequest
+		if err := ctx.ShouldBindJSON(&reqBody); err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		err := task.SetFeatureList(reqBody.Features)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		ctx.String(http.StatusAccepted, "ok")
+	})
+	// PATCH /api/v3/inspection/<inspection-id>/features
+	router.PATCH("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {
+		inspectionID := ctx.Param("inspectionID")
+		task := inspectionServer.GetInspection(inspectionID)
+		if task == nil {
+			ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
+			return
+		}
+		var reqBody PatchInspectionFeatureRequest
+		if err := ctx.ShouldBindJSON(&reqBody); err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		err := task.UpdateFeatureMap(reqBody.Features)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		ctx.String(http.StatusAccepted, "ok")
+	})
+	// GET /api/v3/inspection/<inspection-id>/features
+	router.GET("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {
+		inspectionID := ctx.Param("inspectionID")
+		task := inspectionServer.GetInspection(inspectionID)
+		if task == nil {
+			ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
+			return
+		}
+		features, err := task.FeatureList()
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		ctx.JSON(http.StatusOK, GetInspectionFeatureResponse{
+			Features: features,
 		})
+	})
 
-		router.POST("/api/v3/popup/validate", func(ctx *gin.Context) {
-			request := &popup.PopupAnswerResponse{}
-			if err := ctx.ShouldBindJSON(request); err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			result, err := popup.Instance.Validate(request)
-			if errors.Is(err, popup.NoCurrentPopup) {
-				ctx.String(http.StatusNotFound, err.Error())
-				return
-			}
-			if errors.Is(err, popup.CurrentPopupIsntMatchingWithGivenId) {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			if err != nil {
-				ctx.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-			ctx.JSON(http.StatusOK, result)
+	router.POST("/api/v3/inspection/:inspectionID/dryrun", func(ctx *gin.Context) {
+		inspectionID := ctx.Param("inspectionID")
+		currentTask := inspectionServer.GetInspection(inspectionID)
+		if currentTask == nil {
+			ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
+			return
+		}
+		var reqBody PostInspectionDryRunRequest
+		if err := ctx.ShouldBindJSON(&reqBody); err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		result, err := currentTask.DryRun(ctx, &inspectioncore_contract.InspectionRequest{
+			Values: reqBody,
 		})
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		ctx.JSON(http.StatusOK, result)
+	})
 
-		router.POST("/api/v3/popup/answer", func(ctx *gin.Context) {
-			request := &popup.PopupAnswerResponse{}
-			if err := ctx.ShouldBindJSON(request); err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			err := popup.Instance.Answer(request)
-			if errors.Is(err, popup.NoCurrentPopup) {
-				ctx.String(http.StatusNotFound, err.Error())
-				return
-			}
-			if errors.Is(err, popup.CurrentPopupIsntMatchingWithGivenId) {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
+	router.POST("/api/v3/inspection/:inspectionID/run", func(ctx *gin.Context) {
+		inspectionID := ctx.Param("inspectionID")
+		currentTask := inspectionServer.GetInspection(inspectionID)
+		if currentTask == nil {
+			ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
+			return
+		}
+		var reqBody PostInspectionDryRunRequest
+		if err := ctx.ShouldBindJSON(&reqBody); err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		err := currentTask.Run(ctx, &inspectioncore_contract.InspectionRequest{
+			Values: reqBody,
+		})
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		ctx.String(http.StatusAccepted, "ok")
+	})
+
+	router.POST("/api/v3/inspection/:inspectionID/cancel", func(ctx *gin.Context) {
+		inspectionID := ctx.Param("inspectionID")
+		currentTask := inspectionServer.GetInspection(inspectionID)
+		if currentTask == nil {
+			ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
+			return
+		}
+		err := currentTask.Cancel()
+		if err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		ctx.String(http.StatusOK, "ok")
+	})
+
+	router.GET("/api/v3/inspection/:inspectionID/metadata", func(ctx *gin.Context) {
+		inspectionID := ctx.Param("inspectionID")
+		currentTask := inspectionServer.GetInspection(inspectionID)
+		if currentTask == nil {
+			ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
+			return
+		}
+		result, err := currentTask.Metadata()
+		if err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		ctx.JSON(http.StatusOK, result)
+	})
+
+	router.GET("/api/v3/inspection/:inspectionID/data", func(ctx *gin.Context) {
+		inspectionID := ctx.Param("inspectionID")
+		currentTask := inspectionServer.GetInspection(inspectionID)
+		if currentTask == nil {
+			ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
+			return
+		}
+
+		// parse range queries
+		var rangeStart int64
+		var maxSize int64 = math.MaxInt64
+		startQueryStr := ctx.Query("start")
+		maxSizeQueryStr := ctx.Query("maxSize")
+		if startQueryStr != "" {
+			var err error
+			rangeStart, err = strconv.ParseInt(startQueryStr, 10, 64)
 			if err != nil {
-				ctx.String(http.StatusInternalServerError, err.Error())
+				ctx.String(http.StatusBadRequest, err.Error())
 				return
 			}
+		}
+		if maxSizeQueryStr != "" {
+			var err error
+			maxSize, err = strconv.ParseInt(maxSizeQueryStr, 10, 64)
+			if err != nil {
+				ctx.String(http.StatusBadRequest, err.Error())
+				return
+			}
+		}
+
+		result, err := currentTask.Result()
+		if err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		inspectionDataReader, err := result.ResultStore.GetRangeReader(rangeStart, maxSize)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		defer inspectionDataReader.Close()
+		fileSize, err := result.ResultStore.GetInspectionResultSizeInBytes()
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		ctx.DataFromReader(http.StatusOK, min(maxSize, int64(fileSize)-rangeStart), "application/octet-stream", inspectionDataReader, map[string]string{})
+	})
+
+	router.GET("/api/v3/popup", func(ctx *gin.Context) {
+		currentPopup := popup.Instance.GetCurrentPopup()
+		if currentPopup == nil {
 			ctx.String(http.StatusOK, "")
-		})
+			return
+		}
+		ctx.JSON(http.StatusOK, currentPopup)
+	})
 
-		router.POST("/api/v3/upload", func(ctx *gin.Context) {
-			localUploadFileStoreProvider, convertible := serverConfig.UploadFileStore.StoreProvider.(*upload.LocalUploadFileStoreProvider)
-			if !convertible {
-				ctx.String(http.StatusBadRequest, "invalid operation. Current UploadFileStore.StoreProvider is not supporting to be written directly")
-				return
-			}
-			file, err := ctx.FormFile("file")
-			if err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
+	router.POST("/api/v3/popup/validate", func(ctx *gin.Context) {
+		request := &popup.PopupAnswerResponse{}
+		if err := ctx.ShouldBindJSON(request); err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		result, err := popup.Instance.Validate(request)
+		if errors.Is(err, popup.NoCurrentPopup) {
+			ctx.String(http.StatusNotFound, err.Error())
+			return
+		}
+		if errors.Is(err, popup.CurrentPopupIsntMatchingWithGivenId) {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		ctx.JSON(http.StatusOK, result)
+	})
 
-			id := ctx.Request.FormValue("upload-token-id")
-			if id == "" {
-				ctx.String(http.StatusBadRequest, "missing upload-token-id")
-				return
-			}
+	router.POST("/api/v3/popup/answer", func(ctx *gin.Context) {
+		request := &popup.PopupAnswerResponse{}
+		if err := ctx.ShouldBindJSON(request); err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		err := popup.Instance.Answer(request)
+		if errors.Is(err, popup.NoCurrentPopup) {
+			ctx.String(http.StatusNotFound, err.Error())
+			return
+		}
+		if errors.Is(err, popup.CurrentPopupIsntMatchingWithGivenId) {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		ctx.String(http.StatusOK, "")
+	})
 
-			token := &upload.DirectUploadToken{ID: id}
-			if parameters.Server.MaxUploadFileSizeInBytes != nil && *parameters.Server.MaxUploadFileSizeInBytes < int(file.Size) {
-				ctx.String(http.StatusBadRequest, fmt.Sprintf("file size exceeds the limit (%d bytes)", *parameters.Server.MaxUploadFileSizeInBytes))
-				return
-			}
+	router.POST("/api/v3/upload", func(ctx *gin.Context) {
+		localUploadFileStoreProvider, convertible := serverConfig.UploadFileStore.StoreProvider.(*upload.LocalUploadFileStoreProvider)
+		if !convertible {
+			ctx.String(http.StatusBadRequest, "invalid operation. Current UploadFileStore.StoreProvider is not supporting to be written directly")
+			return
+		}
+		file, err := ctx.FormFile("file")
+		if err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
 
-			err = serverConfig.UploadFileStore.SetResultOnStartingUpload(token)
-			if err != nil {
-				ctx.String(http.StatusInternalServerError, err.Error())
-				return
-			}
+		id := ctx.Request.FormValue("upload-token-id")
+		if id == "" {
+			ctx.String(http.StatusBadRequest, "missing upload-token-id")
+			return
+		}
 
-			multipart, err := file.Open()
-			if err != nil {
-				ctx.String(http.StatusBadRequest, err.Error())
-				return
-			}
-			defer multipart.Close()
+		token := &upload.DirectUploadToken{ID: id}
+		if parameters.Server.MaxUploadFileSizeInBytes != nil && *parameters.Server.MaxUploadFileSizeInBytes < int(file.Size) {
+			ctx.String(http.StatusBadRequest, fmt.Sprintf("file size exceeds the limit (%d bytes)", *parameters.Server.MaxUploadFileSizeInBytes))
+			return
+		}
 
-			err = localUploadFileStoreProvider.Write(token, multipart)
-			if err != nil {
-				serverConfig.UploadFileStore.SetResultOnCompletedUpload(token, err)
-				ctx.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-			serverConfig.UploadFileStore.SetResultOnCompletedUpload(token, nil)
+		err = serverConfig.UploadFileStore.SetResultOnStartingUpload(token)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
 
-			ctx.String(http.StatusOK, "")
-		})
-	}
+		multipart, err := file.Open()
+		if err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		defer multipart.Close()
+
+		err = localUploadFileStoreProvider.Write(token, multipart)
+		if err != nil {
+			serverConfig.UploadFileStore.SetResultOnCompletedUpload(token, err)
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		serverConfig.UploadFileStore.SetResultOnCompletedUpload(token, nil)
+
+		ctx.String(http.StatusOK, "")
+	})
+
 	return basePathWithoutTrailingSlash, router
 }
 

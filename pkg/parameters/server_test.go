@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@ func TestServerParameters(t *testing.T) {
 			},
 			name: "default",
 			want: &ServerParameters{
-				ViewerMode:               testutil.P(false),
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
 				BasePath:                 testutil.P("/"),
@@ -52,7 +51,6 @@ func TestServerParameters(t *testing.T) {
 			},
 			name: "FrontendResourceBasePath uses BasePath when not set",
 			want: &ServerParameters{
-				ViewerMode:               testutil.P(false),
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
 				BasePath:                 testutil.P("/foo/bar/"),
@@ -68,7 +66,6 @@ func TestServerParameters(t *testing.T) {
 			},
 			name: "FrontendResourceBasePath should complement the last /",
 			want: &ServerParameters{
-				ViewerMode:               testutil.P(false),
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
 				BasePath:                 testutil.P("/foo/bar/"),

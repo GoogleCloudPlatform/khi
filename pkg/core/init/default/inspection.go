@@ -1,3 +1,17 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package defaultinit
 
 import (
@@ -37,7 +51,6 @@ var InspectionTaskServerInitializer = &coreinit.Initializer{
 	},
 	Init: func(ctx *coreinit.InitContext) error {
 		commonParams := coreinit.MustGet(ctx, CommonParametersKey)
-		serverParams := coreinit.MustGet(ctx, ServerParametersKey)
 		authParams := coreinit.MustGet(ctx, AuthParametersKey)
 		debugParams := coreinit.MustGet(ctx, DebugParametersKey)
 
@@ -50,10 +63,8 @@ var InspectionTaskServerInitializer = &coreinit.Initializer{
 			return fmt.Errorf("failed to construct inspection server: %w", err)
 		}
 
-		if !*serverParams.ViewerMode {
-			if err := generated.RegisterAllInspectionTasks(inspectionServer); err != nil {
-				return err
-			}
+		if err := generated.RegisterAllInspectionTasks(inspectionServer); err != nil {
+			return err
 		}
 		style.LockRegistry()
 		inspectionServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(

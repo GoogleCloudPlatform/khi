@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -254,7 +253,6 @@ func TestApiResponses(t *testing.T) {
 		t.Fatalf("unexpected error %s", err)
 	}
 	serverConfig := ServerConfig{
-		ViewerMode:       false,
 		StaticFolderPath: "dist",
 		ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000, TotalMemory: 2000},
 		ServerBasePath:   "/foo",
@@ -708,18 +706,6 @@ func TestApiResponses(t *testing.T) {
 			RequestPath:   "/foo/api/v3/popup",
 			BodyValidator: bodyCompareWithStringExpectedValue(""),
 		},
-		{
-			// 042
-			ExpectedCode:  200,
-			RequestMethod: "GET",
-			RequestPath:   "/foo/api/v3/config",
-			Before: func() {
-				parameters.Server.ViewerMode = testutil.P(true)
-			},
-			BodyValidator: bodyCompareWithStruct(&config.GetConfigResponse{
-				ViewerMode: true,
-			}),
-		},
 	}
 
 	stat := map[string]string{}
@@ -763,21 +749,19 @@ func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {
 	testCases := []struct {
 		name           string
 		serverBasePath string
-		viewerMode     bool
 		requestMethod  string
 		requestPath    string
 		wantCode       int
 	}{
 		{
-			name:           "custom server base path on non-viewer mode",
+			name:           "custom server base path",
 			serverBasePath: "/custom/base/path/foo",
 			requestMethod:  "GET",
 			requestPath:    "/custom/base/path/foo/api/v3/inspection/types",
 			wantCode:       200,
 		},
 		{
-			name:          "viewer mode should serve the static resource",
-			viewerMode:    true,
+			name:          "session route should serve the static resource",
 			requestMethod: "GET",
 			requestPath:   "/session/100",
 			wantCode:      200,
@@ -796,15 +780,7 @@ func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {
 			wantCode:       200,
 		},
 		{
-			name:          "viewer mode shouldn't serve task related endpoints",
-			viewerMode:    true,
-			requestMethod: "GET",
-			requestPath:   "/api/v3/inspection",
-			wantCode:      404,
-		},
-		{
-			name:           "viewer mode should serve the static resource with custom server base path",
-			viewerMode:     true,
+			name:           "session route should serve the static resource with custom server base path",
 			serverBasePath: "/custom/base/path/foo",
 			requestMethod:  "GET",
 			requestPath:    "/custom/base/path/foo/session/100",
@@ -821,7 +797,6 @@ func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {
 			defer testutil.MustPlaceTemporalFile(fmt.Sprintf("%s/test.html", embeddedStaticFolderPath), "")()
 			recorer := httptest.NewRecorder()
 			config := ServerConfig{
-				ViewerMode:       tc.viewerMode,
 				StaticFolderPath: embeddedStaticFolderPath,
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   tc.serverBasePath,
@@ -841,7 +816,6 @@ func TestKHIServerRedirects(t *testing.T) {
 	testCases := []struct {
 		name           string
 		serverBasePath string
-		viewerMode     bool
 		requestMethod  string
 		requestPath    string
 		wantCode       int
@@ -849,7 +823,6 @@ func TestKHIServerRedirects(t *testing.T) {
 	}{
 		{
 			name:          "the root path should be redirected to the default session path",
-			viewerMode:    false,
 			requestMethod: "GET",
 			requestPath:   "/",
 			redirectTo:    "/session/0",
@@ -857,7 +830,6 @@ func TestKHIServerRedirects(t *testing.T) {
 		},
 		{
 			name:           "the root path should be redirected to the default session path with custom server base path",
-			viewerMode:     false,
 			serverBasePath: "/custom/base/path",
 			requestMethod:  "GET",
 			requestPath:    "/custom/base/path/",
@@ -874,7 +846,6 @@ func TestKHIServerRedirects(t *testing.T) {
 			}
 			recorer := httptest.NewRecorder()
 			config := ServerConfig{
-				ViewerMode:       tc.viewerMode,
 				StaticFolderPath: "dist",
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   tc.serverBasePath,
@@ -944,7 +915,6 @@ func TestKHIDirectFileUpload(t *testing.T) {
 			store := upload.NewUploadFileStore(provider)
 			store.GetUploadToken(tc.tokenID, &upload.NopWaitUploadFileVerifier{}, "test-field")
 			serverConfig := ServerConfig{
-				ViewerMode:       false,
 				StaticFolderPath: "dist",
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   "/foo",
