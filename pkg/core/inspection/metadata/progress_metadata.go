@@ -197,6 +197,16 @@ func (p *Progress) MarkError() error {
 }
 
 func (p *Progress) updateTotalTaskProgress() {
+	if p.totalTaskCount <= 0 {
+		if p.Phase == TaskPhaseDone {
+			p.TotalProgress.Message = "Complete"
+			p.TotalProgress.Percentage = 1
+		} else {
+			p.TotalProgress.Message = ""
+			p.TotalProgress.Percentage = 0
+		}
+		return
+	}
 	p.TotalProgress.Message = fmt.Sprintf("%d of %d tasks complete", p.resolvedTaskCount, p.totalTaskCount)
 	p.TotalProgress.Percentage = float32(p.resolvedTaskCount) / float32(p.totalTaskCount)
 }

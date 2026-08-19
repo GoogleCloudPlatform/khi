@@ -101,3 +101,19 @@ func TestCancelClearTasks(t *testing.T) {
 		t.Errorf("The result status is not in the expected status\n%s", diff)
 	}
 }
+
+func TestDoneZeroTasks(t *testing.T) {
+	progress := NewProgress()
+	if err := progress.MarkDone(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := &Progress{
+		Phase:          "DONE",
+		TotalProgress:  &TaskProgressMetadata{Id: "Total", Label: "Total", Message: "Complete", Percentage: 1},
+		TaskProgresses: []*TaskProgressMetadata{},
+	}
+	if diff := cmp.Diff(want, progress, cmpopts.IgnoreUnexported(Progress{})); diff != "" {
+		t.Errorf("Progress mismatch (-want +got):\n%s", diff)
+	}
+}

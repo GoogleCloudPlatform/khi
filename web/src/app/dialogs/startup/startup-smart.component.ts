@@ -142,7 +142,6 @@ export class StartupDialogSmartComponent {
 
   protected openKhiFile() {
     this.loader.uploadFromFile();
-    this.dialogRef.close();
   }
 
   protected cancelTask(id: string) {
