@@ -17,8 +17,10 @@ package options
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/oauth"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/ratelimit"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc"
 )
 
 func fromClientFactoryOptionsModifier(modifier googlecloud.ClientFactoryOptionsModifiers) googlecloud.ClientFactoryOption {
@@ -88,4 +90,16 @@ func GRPCConnPool(num int) googlecloud.ClientFactoryOption {
 		opts = append(opts, option.WithGRPCConnectionPool(num))
 		return opts, nil
 	})
+}
+
+// AdaptiveRateLimiter returns a googlecloud.ClientFactoryOption that configures Logging clients to use
+// adaptive rate limiting managed by the given ratelimit.Pool.
+func AdaptiveRateLimiter(pool *ratelimit.Pool) googlecloud.ClientFactoryOption {
+	return func(s *googlecloud.ClientFactory) error {
+		s.LoggingClientOptions = append(s.LoggingClientOptions, func(opts []option.ClientOption, c googlecloud.ResourceContainer) ([]option.ClientOption, error) {
+			opts = append(opts, option.WithGRPCDialOption(grpc.WithChainUnaryInterceptor(ratelimit.PoolUnaryClientInterceptor(pool, c))))
+			return opts, nil
+		})
+		return nil
+	}
 }

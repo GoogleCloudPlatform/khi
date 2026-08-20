@@ -19,11 +19,14 @@ import (
 	"errors"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	optionspkg "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/options"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/ratelimit"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -42,6 +45,27 @@ var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
 		if optionsFromContext != nil {
 			options = *optionsFromContext
 		}
+
+		if parameters.RateLimit.LoggingAdaptiveRateLimitEnabled == nil || *parameters.RateLimit.LoggingAdaptiveRateLimitEnabled {
+			quotaProjectID := ""
+			if parameters.Auth.QuotaProjectID != nil {
+				quotaProjectID = *parameters.Auth.QuotaProjectID
+			}
+			cfg := ratelimit.DefaultAdaptiveRateLimiterConfig()
+			if parameters.RateLimit.LoggingInitialQPS != nil {
+				cfg.InitialQPS = *parameters.RateLimit.LoggingInitialQPS
+			}
+			if parameters.RateLimit.LoggingMinQPS != nil {
+				cfg.MinQPS = *parameters.RateLimit.LoggingMinQPS
+			}
+			if parameters.RateLimit.LoggingMaxQPS != nil {
+				cfg.MaxQPS = *parameters.RateLimit.LoggingMaxQPS
+			}
+
+			limiterPool := ratelimit.NewPool(cfg, quotaProjectID)
+			options = append(options, optionspkg.AdaptiveRateLimiter(limiterPool))
+		}
+
 		return options, nil
 	},
 	coretask.WithSelectionPriority(googlecloudcommon_contract.DefaultAPIClientOptionTasksPriority),

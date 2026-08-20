@@ -163,6 +163,38 @@ func Int(name string, value int, usage string, envKey string) *int {
 	return resultPtr
 }
 
+// Float64 is similar to flag.Float64 but it also parses value from specified environment variable when the parameter was not provided explicitly on command line argument.
+// Environment variables are ignored when the given envKey is an empty string.
+func Float64(name string, value float64, usage string, envKey string) *float64 {
+	result := value
+	resultPtr := &result
+	if envKey != "" {
+		usage = fmt.Sprintf("%s [environment variable key: \"%s\"]", usage, envKey)
+	}
+	fromCmdArgs := flag.Float64(name, value, usage)
+	flagParsers = append(flagParsers, func() error {
+		providedFromCmdArgs, err := isProvidedFromCommandlineArgs(name)
+		if err != nil {
+			return err
+		}
+		if providedFromCmdArgs {
+			*resultPtr = *fromCmdArgs
+		} else if isProvidedFromEnvironmentVariable(envKey) {
+			envValue := os.Getenv(envKey)
+			floatEnv, err := strconv.ParseFloat(envValue, 64)
+			if err != nil {
+				return err
+			}
+			*resultPtr = floatEnv
+		}
+		return nil
+	})
+	flagValueDumper = append(flagValueDumper, func() string {
+		return fmt.Sprintf("%s: %v", name, *resultPtr)
+	})
+	return resultPtr
+}
+
 func isProvidedFromCommandlineArgs(key string) (bool, error) {
 	if !flag.Parsed() {
 		return false, fmt.Errorf("command line arguments are not yet parsed")

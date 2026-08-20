@@ -35,6 +35,9 @@ var (
 
 	// DebugParametersKey stores parsed DebugParameters.
 	DebugParametersKey = typedmap.NewTypedKey[*parameters.DebugParameters]("khi.google.com/init/params/debug")
+
+	// RateLimitParametersKey stores parsed RateLimitParameters.
+	RateLimitParametersKey = typedmap.NewTypedKey[*parameters.RateLimitParameters]("khi.google.com/init/params/ratelimit")
 )
 
 const (
@@ -56,6 +59,7 @@ var ParameterStoresInitializer = &coreinit.Initializer{
 		parameters.AddStore(parameters.Job)
 		parameters.AddStore(parameters.Auth)
 		parameters.AddStore(parameters.Debug)
+		parameters.AddStore(parameters.RateLimit)
 		return nil
 	},
 }
@@ -75,6 +79,7 @@ var ParameterParseInitializer = &coreinit.Initializer{
 		coreinit.Set(ctx, JobParametersKey, parameters.Job)
 		coreinit.Set(ctx, AuthParametersKey, parameters.Auth)
 		coreinit.Set(ctx, DebugParametersKey, parameters.Debug)
+		coreinit.Set(ctx, RateLimitParametersKey, parameters.RateLimit)
 		return nil
 	},
 }

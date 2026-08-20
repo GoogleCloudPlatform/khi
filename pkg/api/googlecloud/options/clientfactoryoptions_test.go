@@ -19,6 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/oauth"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/ratelimit"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
@@ -249,6 +250,29 @@ func TestGRPCConnPool(t *testing.T) {
 	}
 
 	opts, err := clientOpts[0]([]option.ClientOption{}, container)
+	if err != nil {
+		t.Errorf("client option returned an unexpected error: %v", err)
+	}
+	if len(opts) != 1 {
+		t.Errorf("Expected 1 option to be added, but got %d", len(opts))
+	}
+}
+
+func TestAdaptiveRateLimiter(t *testing.T) {
+	pool := ratelimit.NewPool(ratelimit.DefaultAdaptiveRateLimiterConfig(), "")
+	optionFunc := AdaptiveRateLimiter(pool)
+	container := googlecloud.Project("any-project")
+	clientFactory := googlecloud.ClientFactory{}
+	err := optionFunc(&clientFactory)
+	if err != nil {
+		t.Errorf("optionFunc returned an unexpected error: %v", err)
+	}
+	loggingOpts := clientFactory.LoggingClientOptions
+	if len(loggingOpts) != 1 {
+		t.Errorf("Expected 1 option to be added, but got %d", len(loggingOpts))
+	}
+
+	opts, err := loggingOpts[0]([]option.ClientOption{}, container)
 	if err != nil {
 		t.Errorf("client option returned an unexpected error: %v", err)
 	}

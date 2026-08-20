@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/options"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
@@ -49,17 +50,19 @@ func TestAPIClientFactoryOptionsTask(t *testing.T) {
 	testCases := []struct {
 		desc           string
 		prepareContext func(ctx context.Context) context.Context
-		wantOptions    []googlecloud.ClientFactoryOption
+		disabled       bool
+		wantCount      int
 	}{
 		{
-			desc: "without options in context",
+			desc: "without options in context includes adaptive rate limiter by default",
 			prepareContext: func(ctx context.Context) context.Context {
 				return ctx
 			},
-			wantOptions: []googlecloud.ClientFactoryOption{},
+			disabled:  false,
+			wantCount: 1, // AdaptiveRateLimiter option
 		},
 		{
-			desc: "with options",
+			desc: "with options in context",
 			prepareContext: func(ctx context.Context) context.Context {
 				opt1 := coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, option1)
 				opt2 := coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, option2)
@@ -67,19 +70,35 @@ func TestAPIClientFactoryOptionsTask(t *testing.T) {
 				ctx, _ = opt2(ctx, inspectioncore_contract.TaskModeRun)
 				return ctx
 			},
-			wantOptions: []googlecloud.ClientFactoryOption{option1, option2},
+			disabled:  false,
+			wantCount: 3, // 2 from context + 1 AdaptiveRateLimiter option
+		},
+		{
+			desc: "with adaptive rate limit disabled",
+			prepareContext: func(ctx context.Context) context.Context {
+				return ctx
+			},
+			disabled:  true,
+			wantCount: 0,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			enabledBefore := parameters.RateLimit.LoggingAdaptiveRateLimitEnabled
+			disabledVal := !tc.disabled
+			parameters.RateLimit.LoggingAdaptiveRateLimitEnabled = &disabledVal
+			defer func() {
+				parameters.RateLimit.LoggingAdaptiveRateLimitEnabled = enabledBefore
+			}()
+
 			ctx := tc.prepareContext(context.Background())
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
 			gotOptions, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryOptionsTask, inspectioncore_contract.TaskModeRun, map[string]any{})
 			if err != nil {
 				t.Fatalf("APIClientFactoryOptionsTask failed: %v", err)
 			}
-			if len(gotOptions) != len(tc.wantOptions) {
-				t.Errorf("got %d options, want %d", len(gotOptions), len(tc.wantOptions))
+			if len(gotOptions) != tc.wantCount {
+				t.Errorf("got %d options, want %d", len(gotOptions), tc.wantCount)
 			}
 		})
 	}

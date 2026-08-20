@@ -352,3 +352,115 @@ func TestInt(t *testing.T) {
 		})
 	}
 }
+
+func TestFloat64(t *testing.T) {
+	testCases := []struct {
+		name           string
+		cmdArgKey      string
+		envKey         string
+		value          float64
+		cmdArgs        []string
+		before         func()
+		after          func()
+		want           float64
+		wantErrOnParse bool
+	}{
+		{
+			name:      "from command line argument",
+			cmdArgKey: "foo",
+			envKey:    "",
+			value:     1.5,
+			cmdArgs:   []string{"--foo=2.5"},
+			before:    func() {},
+			after:     func() {},
+			want:      2.5,
+		},
+		{
+			name:      "from environment variable",
+			cmdArgKey: "foo",
+			envKey:    "FOO",
+			value:     1.5,
+			cmdArgs:   []string{},
+			before: func() {
+				os.Setenv("FOO", "2.5")
+			},
+			after: func() {
+				os.Unsetenv("FOO")
+			},
+			want: 2.5,
+		},
+		{
+			name:      "both provided, command line argument is prioritized",
+			cmdArgKey: "foo",
+			envKey:    "FOO",
+			value:     1.5,
+			cmdArgs:   []string{"--foo=2.5"},
+			before: func() {
+				os.Setenv("FOO", "3.5")
+			},
+			after: func() {
+				os.Unsetenv("FOO")
+			},
+			want: 2.5,
+		},
+		{
+			name:      "default value",
+			cmdArgKey: "foo",
+			envKey:    "",
+			value:     1.5,
+			cmdArgs:   []string{},
+			before:    func() {},
+			after:     func() {},
+			want:      1.5,
+		},
+		{
+			name:      "empty environment variable",
+			cmdArgKey: "foo",
+			envKey:    "FOO",
+			value:     1.5,
+			cmdArgs:   []string{},
+			before: func() {
+				os.Setenv("FOO", "")
+			},
+			after: func() {
+				os.Unsetenv("FOO")
+			},
+			want:           1.5,
+			wantErrOnParse: true,
+		},
+		{
+			name:      "invalid environment variable",
+			cmdArgKey: "foo",
+			envKey:    "FOO",
+			value:     1.5,
+			cmdArgs:   []string{},
+			before: func() {
+				os.Setenv("FOO", "invalid")
+			},
+			after: func() {
+				os.Unsetenv("FOO")
+			},
+			want:           1.5,
+			wantErrOnParse: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.before()
+			defer tc.after()
+			defer Reset()
+			setCommandlineArguments(t, tc.cmdArgs)
+			gotPointer := Float64(tc.cmdArgKey, tc.value, "", tc.envKey)
+			err := Parse()
+			if tc.wantErrOnParse && err == nil {
+				t.Errorf("unexpected error, got nil, want error")
+			}
+			if !tc.wantErrOnParse && err != nil {
+				t.Errorf("unexpected error, got %v, want nil", err)
+			}
+			if *gotPointer != tc.want {
+				t.Errorf("unexpected result, got %v, want %v", *gotPointer, tc.want)
+			}
+		})
+	}
+}
