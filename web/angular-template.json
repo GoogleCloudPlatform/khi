@@ -31,7 +31,6 @@
               "src/styles.scss"
             ],
             "scripts": [],
-            "webWorkerTsConfig": "tsconfig.worker.json",
             "browser": "src/main.ts"
           },
           "configurations": {},
@@ -74,8 +73,7 @@
               "./node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
               "src/styles.scss"
             ],
-            "scripts": [],
-            "webWorkerTsConfig": "tsconfig.worker.json"
+            "scripts": []
           }
         },
         "lint": {
