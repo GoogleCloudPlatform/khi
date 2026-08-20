@@ -15,6 +15,7 @@
  */
 
 import { KHIFileParser } from 'src/app/parser/core/file-parser';
+import { KHIChunkDecodeError } from 'src/app/parser/errors/parser-errors';
 import {
   ParserBlueprint,
   ChunkDefinition,
@@ -259,5 +260,40 @@ describe('KHIFileParser', () => {
     expect(mockAssembler2.ingest).toHaveBeenCalledWith(42);
     expect(mockAssembler1.assembleInto).toHaveBeenCalled();
     expect(mockAssembler2.assembleInto).toHaveBeenCalled();
+  });
+
+  it('should accurately report chunkIndex in decode error when unhandled chunks are skipped', async () => {
+    mockAssembler2.ingest.and.throwError('Decode failed');
+    const parser = new KHIFileParser(registry);
+
+    const dataUnhandled = new Uint8Array([1, 2, 3]);
+    const compressedUnhandled = await compressData(dataUnhandled);
+
+    const data2 = new Uint8Array([42]);
+    const compressed2 = await compressData(data2);
+
+    const bufferSize =
+      4 + 8 + compressedUnhandled.length + 8 + compressed2.length;
+    const buffer = new ArrayBuffer(bufferSize);
+    const dv = new DataView(buffer);
+    const uint8View = new Uint8Array(buffer);
+
+    uint8View.set([75, 72, 73, 6], 0);
+
+    // Chunk 0: Type 99 (Unhandled / Skipped)
+    dv.setUint32(4, compressedUnhandled.length, true);
+    dv.setUint32(8, 99, true);
+    uint8View.set(compressedUnhandled, 12);
+
+    // Chunk 1: Type 2 (Handled, will fail during ingest)
+    const offset1 = 12 + compressedUnhandled.length;
+    dv.setUint32(offset1, compressed2.length, true);
+    dv.setUint32(offset1 + 4, 2, true);
+    uint8View.set(compressed2, offset1 + 8);
+
+    await expectAsync(parser.parse(buffer)).toBeRejectedWithError(
+      KHIChunkDecodeError,
+      /Failed to decode chunk \(typeId: 2, index: 1, offset: \d+\) in version 6\./,
+    );
   });
 });

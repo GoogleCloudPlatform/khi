@@ -102,6 +102,7 @@ export class KHIFileParser {
       if (!assembler) {
         // Skip unhandled chunk (e.g. server-only chunks) without decompression.
         reader.skipChunkPayload(size);
+        chunkIndex++;
         continue;
       }
 
