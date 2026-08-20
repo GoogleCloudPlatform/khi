@@ -214,3 +214,24 @@ func TestTrigramIndex_ConcurrentQuery(t *testing.T) {
 
 	wg.Wait()
 }
+
+func BenchmarkBuildFromStructYAMLs(b *testing.B) {
+	structYAMLs := make(map[uint32]string, 1000)
+	for i := uint32(1); i <= 1000; i++ {
+		structYAMLs[i] = `metadata:
+  name: pod-sample-` + string(rune('a'+i%26)) + `
+  namespace: default
+spec:
+  containers:
+  - name: nginx-` + string(rune('a'+i%26)) + `
+    image: nginx:latest
+`
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for b.Loop() {
+		idx := NewTrigramIndex()
+		_ = idx.BuildFromStructYAMLs(structYAMLs, nil)
+	}
+}

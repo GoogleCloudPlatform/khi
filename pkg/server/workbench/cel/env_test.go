@@ -46,16 +46,23 @@ spec:
 	}
 	eval.SetInternPool(pool)
 
-	testTimeline := &TimelineData{
+	nsTimeline := &TimelineData{
 		ID:           1,
+		Name:         "default",
+		TimelineType: "Namespace",
+	}
+	kindTimeline := &TimelineData{
+		ID:           2,
+		ParentID:     1,
+		Name:         "Pod",
+		TimelineType: "Kind",
+	}
+	testTimeline := &TimelineData{
+		ID:           3,
+		ParentID:     2,
 		Name:         "pod-sample",
 		TimelineType: "Pod",
-		Path: map[string]string{
-			"namespace": "default",
-			"kind":      "Pod",
-			"name":      "pod-sample",
-		},
-		MaxSeverity: 2, // WARNING
+		MaxSeverity:  2, // WARNING
 		Revisions: []RevisionInfo{
 			{
 				ResourceBodyStructID: sRef.ID(),
@@ -63,6 +70,12 @@ spec:
 			},
 		},
 	}
+	tlMap := map[uint32]*TimelineData{
+		1: nsTimeline,
+		2: kindTimeline,
+		3: testTimeline,
+	}
+	eval.SetTimelineMap(tlMap)
 
 	testCases := []struct {
 		name       string

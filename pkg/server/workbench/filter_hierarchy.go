@@ -169,12 +169,13 @@ func (f *ExcludeNoLogsFilter) Process(
 
 		if tl, ok := index.TimelineMap[id]; ok {
 			hasLogs := false
-			for _, logID := range tl.LogIDs {
+			tl.ForEachLogID(func(logID uint32) bool {
 				if _, exists := filterCtx.LogIDs[logID]; exists {
 					hasLogs = true
-					break
+					return false
 				}
-			}
+				return true
+			})
 			if hasLogs {
 				retainedTimelineIDs[id] = struct{}{}
 			}

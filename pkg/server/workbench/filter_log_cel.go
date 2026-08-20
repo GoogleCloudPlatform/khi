@@ -70,9 +70,10 @@ func (f *LogCELFilter) Process(
 	candidateLogIDsMap := make(map[uint32]struct{})
 	for id := range filterCtx.TimelineIDs {
 		if tl, ok := index.TimelineMap[id]; ok {
-			for _, logID := range tl.LogIDs {
+			tl.ForEachLogID(func(logID uint32) bool {
 				candidateLogIDsMap[logID] = struct{}{}
-			}
+				return true
+			})
 		}
 	}
 
@@ -133,8 +134,8 @@ func (f *LogCELFilter) Process(
 				}
 
 				logID := candidateLogIDs[i]
-				if logObj, ok := index.LogMap[logID]; ok {
-					matched, err := logEval.Evaluate(groupCtx, logObj.Data)
+				if logObj := index.GetLog(logID); logObj != nil {
+					matched, err := logEval.Evaluate(groupCtx, logObj)
 					if err != nil {
 						return fmt.Errorf("error evaluating log query: %w", err)
 					}

@@ -26,35 +26,27 @@ import (
 func createSampleWorkbench() *Workbench {
 	wb := NewWorkbench("wb-test", "test-inspection")
 	wb.searchIndex = &SearchIndex{
-		TimelineMap: make(map[uint32]*IndexedTimeline),
-		LogMap:      make(map[uint32]*IndexedLog),
+		TimelineMap: make(map[uint32]*cel.TimelineData),
 	}
 
 	// 3 logs:
 	// Log 1: Pod-A event, severity INFO (1)
 	// Log 2: Pod-A event, severity ERROR (3)
 	// Log 3: Pod-B event, severity INFO (1)
-	log1 := &IndexedLog{
-		ID: 1,
-		Data: &cel.LogData{
+	wb.searchIndex.Logs = []cel.LogData{
+		{
 			ID:       1,
 			LogType:  "k8s-event",
 			Severity: 1, // INFO
 			Summary:  "Pod A started",
 		},
-	}
-	log2 := &IndexedLog{
-		ID: 2,
-		Data: &cel.LogData{
+		{
 			ID:       2,
 			LogType:  "k8s-event",
 			Severity: 3, // ERROR
 			Summary:  "Pod A crashed",
 		},
-	}
-	log3 := &IndexedLog{
-		ID: 3,
-		Data: &cel.LogData{
+		{
 			ID:       3,
 			LogType:  "k8s-event",
 			Severity: 1, // INFO
@@ -62,85 +54,57 @@ func createSampleWorkbench() *Workbench {
 		},
 	}
 
-	wb.searchIndex.Logs = []*IndexedLog{log1, log2, log3}
-	wb.searchIndex.LogMap[1] = log1
-	wb.searchIndex.LogMap[2] = log2
-	wb.searchIndex.LogMap[3] = log3
-
 	// Timeline 1: Root Namespace "default" (parent of Pod A and Pod B)
 	// Timeline 2: Pod A (child of 1), has Log 1 and 2
 	// Timeline 3: Pod B (child of 1), has Log 3
 	// Timeline 4: Pod B Container C (child of 3), has Log 3
-	tl1 := &IndexedTimeline{
-		ID:          1,
-		ParentID:    0,
-		ChildrenIDs: []uint32{2, 3},
-		Data: &cel.TimelineData{
-			ID:           1,
-			Name:         "default",
-			TimelineType: "Namespace",
-			Path: map[string]string{
-				"namespace": "default",
-			},
-			MaxSeverity: 3,
-		},
+	tl1 := &cel.TimelineData{
+		ID:           1,
+		ParentID:     0,
+		ChildrenIDs:  []uint32{2, 3},
+		Name:         "default",
+		TimelineType: "Namespace",
+		MaxSeverity:  3,
 	}
 
-	tl2 := &IndexedTimeline{
-		ID:          2,
-		ParentID:    1,
-		ChildrenIDs: nil,
-		LogIDs:      []uint32{1, 2},
-		Data: &cel.TimelineData{
-			ID:           2,
-			Name:         "pod-a",
-			TimelineType: "Pod",
-			Path: map[string]string{
-				"namespace": "default",
-				"kind":      "Pod",
-				"name":      "pod-a",
-			},
-			MaxSeverity: 3,
+	tl2 := &cel.TimelineData{
+		ID:           2,
+		ParentID:     1,
+		ChildrenIDs:  nil,
+		Name:         "pod-a",
+		TimelineType: "Pod",
+		Events: []cel.EventInfo{
+			{LogID: 1, Severity: 1},
+			{LogID: 2, Severity: 3},
 		},
+		MaxSeverity: 3,
 	}
 
-	tl3 := &IndexedTimeline{
-		ID:          3,
-		ParentID:    1,
-		ChildrenIDs: []uint32{4},
-		LogIDs:      []uint32{3},
-		Data: &cel.TimelineData{
-			ID:           3,
-			Name:         "pod-b",
-			TimelineType: "Pod",
-			Path: map[string]string{
-				"namespace": "default",
-				"kind":      "Pod",
-				"name":      "pod-b",
-			},
-			MaxSeverity: 1,
+	tl3 := &cel.TimelineData{
+		ID:           3,
+		ParentID:     1,
+		ChildrenIDs:  []uint32{4},
+		Name:         "pod-b",
+		TimelineType: "Pod",
+		Events: []cel.EventInfo{
+			{LogID: 3, Severity: 1},
 		},
+		MaxSeverity: 1,
 	}
 
-	tl4 := &IndexedTimeline{
-		ID:          4,
-		ParentID:    3,
-		ChildrenIDs: nil,
-		LogIDs:      []uint32{3},
-		Data: &cel.TimelineData{
-			ID:           4,
-			Name:         "container-b",
-			TimelineType: "Container",
-			Path: map[string]string{
-				"namespace": "default",
-				"kind":      "Pod",
-				"container": "container-b",
-			},
-			MaxSeverity: 1,
+	tl4 := &cel.TimelineData{
+		ID:           4,
+		ParentID:     3,
+		ChildrenIDs:  nil,
+		Name:         "container-b",
+		TimelineType: "Container",
+		Events: []cel.EventInfo{
+			{LogID: 3, Severity: 1},
 		},
+		MaxSeverity: 1,
 	}
 
-	wb.searchIndex.Timelines = []*IndexedTimeline{tl1, tl2, tl3, tl4}
+	wb.searchIndex.Timelines = []*cel.TimelineData{tl1, tl2, tl3, tl4}
 	wb.searchIndex.TimelineMap[1] = tl1
 	wb.searchIndex.TimelineMap[2] = tl2
 	wb.searchIndex.TimelineMap[3] = tl3

@@ -17,7 +17,6 @@ package workbench
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -28,31 +27,28 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
-// IndexedTimeline represents an in-memory indexed timeline optimized for CEL query evaluation.
-type IndexedTimeline struct {
-	ID          uint32
-	ParentID    uint32
-	ChildrenIDs []uint32
-	LogIDs      []uint32
-	Path        map[string]string
-	Data        *cel.TimelineData
-}
+// IndexedTimeline is an alias for cel.TimelineData.
+type IndexedTimeline = cel.TimelineData
 
-// IndexedLog represents an in-memory indexed log optimized for CEL query evaluation.
-type IndexedLog struct {
-	ID   uint32
-	Data *cel.LogData
-}
+// IndexedLog is an alias for cel.LogData.
+type IndexedLog = cel.LogData
 
 // SearchIndex encapsulates the indexed timelines and logs of a Workbench session.
 type SearchIndex struct {
-	Timelines    []*IndexedTimeline
-	TimelineMap  map[uint32]*IndexedTimeline
-	Logs         []*IndexedLog
-	LogMap       map[uint32]*IndexedLog
+	Timelines    []*cel.TimelineData
+	TimelineMap  map[uint32]*cel.TimelineData
+	Logs         []cel.LogData
 	InternPool   *khifilev6model.InternPool
 	StructYAMLs  map[uint32]string
 	TrigramIndex *cel.TrigramIndex
+}
+
+// GetLog retrieves a log entry by its 1-based log ID in O(1) time.
+func (s *SearchIndex) GetLog(id uint32) *cel.LogData {
+	if s == nil || id == 0 || int(id) > len(s.Logs) {
+		return nil
+	}
+	return &s.Logs[id-1]
 }
 
 type styleMaps struct {
@@ -67,25 +63,23 @@ type styleMaps struct {
 func (w *Workbench) BuildBaseSearchIndex() (*SearchIndex, error) {
 	styles := w.buildStyleMaps()
 
-	logs, logMap, err := w.indexLogsParallel(styles)
+	logs, err := w.indexLogsParallel(styles)
 	if err != nil {
 		return nil, fmt.Errorf("failed to index logs: %w", err)
 	}
 
 	itemsMap := w.buildTimelineItemsMap()
-	timelines, timelineMap, err := w.indexTimelinesParallel(styles, itemsMap, logMap)
+	timelines, timelineMap, err := w.indexTimelinesParallel(styles, itemsMap, logs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to index timelines: %w", err)
 	}
 
 	w.linkTimelineHierarchy(timelines, timelineMap)
-	w.computeAllTimelinePathsParallel(timelines, timelineMap)
 
 	return &SearchIndex{
 		Timelines:    timelines,
 		TimelineMap:  timelineMap,
 		Logs:         logs,
-		LogMap:       logMap,
 		InternPool:   w.internPool,
 		StructYAMLs:  nil,
 		TrigramIndex: nil,
@@ -126,11 +120,12 @@ func (w *Workbench) BuildStructYAMLIndexWithProgress(targetIndex *SearchIndex, o
 
 	var uniqueBodyStructIDs []uint32
 	seenStructIDs := make(map[uint32]struct{})
-	for _, l := range targetIndex.Logs {
-		if l.Data != nil && l.Data.BodyStructID != 0 {
-			if _, ok := seenStructIDs[l.Data.BodyStructID]; !ok {
-				seenStructIDs[l.Data.BodyStructID] = struct{}{}
-				uniqueBodyStructIDs = append(uniqueBodyStructIDs, l.Data.BodyStructID)
+	for i := range targetIndex.Logs {
+		l := &targetIndex.Logs[i]
+		if l.BodyStructID != 0 {
+			if _, ok := seenStructIDs[l.BodyStructID]; !ok {
+				seenStructIDs[l.BodyStructID] = struct{}{}
+				uniqueBodyStructIDs = append(uniqueBodyStructIDs, l.BodyStructID)
 			}
 		}
 	}
@@ -250,32 +245,27 @@ func (w *Workbench) buildStyleMaps() *styleMaps {
 	return s
 }
 
-func (w *Workbench) indexLogsParallel(styles *styleMaps) ([]*IndexedLog, map[uint32]*IndexedLog, error) {
+func (w *Workbench) indexLogsParallel(styles *styleMaps) ([]cel.LogData, error) {
 	if len(w.logChunks) == 0 {
-		return nil, make(map[uint32]*IndexedLog), nil
+		return nil, nil
 	}
 
 	workerResults, err := worker.ParallelChunkMap(
 		context.Background(),
 		w.logChunks,
-		func(ctx context.Context, workerIdx int, chunk []*pbv6.LogChunk, onProcessed func(int)) ([]*IndexedLog, error) {
-			var localLogs []*IndexedLog
+		func(ctx context.Context, workerIdx int, chunk []*pbv6.LogChunk, onProcessed func(int)) ([]cel.LogData, error) {
+			var localLogs []cel.LogData
 			for _, logChunk := range chunk {
 				for _, log := range logChunk.Logs {
 					sevOrder := styles.severityOrderMap[log.GetSeverityTypeId()]
 					ltLabel := styles.logTypeLabelMap[log.GetLogTypeId()]
 
-					lData := &cel.LogData{
+					localLogs = append(localLogs, cel.LogData{
 						ID:              log.GetId(),
 						LogType:         ltLabel,
 						Severity:        sevOrder,
 						SummaryStringID: log.GetSummaryStringId(),
 						BodyStructID:    log.GetBodyStructId(),
-					}
-
-					localLogs = append(localLogs, &IndexedLog{
-						ID:   log.GetId(),
-						Data: lData,
 					})
 				}
 				onProcessed(1)
@@ -286,25 +276,28 @@ func (w *Workbench) indexLogsParallel(styles *styleMaps) ([]*IndexedLog, map[uin
 		worker.ProgressOptions{},
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	totalLogs := 0
-	for _, res := range workerResults {
-		totalLogs += len(res)
-	}
-
-	logs := make([]*IndexedLog, 0, totalLogs)
-	logMap := make(map[uint32]*IndexedLog, totalLogs)
-
+	maxLogID := uint32(0)
 	for _, res := range workerResults {
 		for _, item := range res {
-			logs = append(logs, item)
-			logMap[item.ID] = item
+			if item.ID > maxLogID {
+				maxLogID = item.ID
+			}
 		}
 	}
 
-	return logs, logMap, nil
+	logs := make([]cel.LogData, maxLogID)
+	for _, res := range workerResults {
+		for _, item := range res {
+			if item.ID > 0 {
+				logs[item.ID-1] = item
+			}
+		}
+	}
+
+	return logs, nil
 }
 
 func (w *Workbench) buildTimelineItemsMap() map[uint32]*pbv6.TimelineItems {
@@ -320,17 +313,24 @@ func (w *Workbench) buildTimelineItemsMap() map[uint32]*pbv6.TimelineItems {
 func (w *Workbench) indexTimelinesParallel(
 	styles *styleMaps,
 	itemsMap map[uint32]*pbv6.TimelineItems,
-	logMap map[uint32]*IndexedLog,
-) ([]*IndexedTimeline, map[uint32]*IndexedTimeline, error) {
+	logs []cel.LogData,
+) ([]*cel.TimelineData, map[uint32]*cel.TimelineData, error) {
 	if len(w.timelineChunks) == 0 {
-		return nil, make(map[uint32]*IndexedTimeline), nil
+		return nil, make(map[uint32]*cel.TimelineData), nil
+	}
+
+	getLogSeverity := func(logID uint32) uint32 {
+		if logID > 0 && int(logID) <= len(logs) {
+			return logs[logID-1].Severity
+		}
+		return 0
 	}
 
 	workerResults, err := worker.ParallelChunkMap(
 		context.Background(),
 		w.timelineChunks,
-		func(ctx context.Context, workerIdx int, chunk []*pbv6.TimelineChunk, onProcessed func(int)) ([]*IndexedTimeline, error) {
-			var localTimelines []*IndexedTimeline
+		func(ctx context.Context, workerIdx int, chunk []*pbv6.TimelineChunk, onProcessed func(int)) ([]*cel.TimelineData, error) {
+			var localTimelines []*cel.TimelineData
 			for _, timelineChunk := range chunk {
 				for _, tl := range timelineChunk.Timelines {
 					tlName := ""
@@ -339,7 +339,6 @@ func (w *Workbench) indexTimelinesParallel(
 					}
 					tlType := styles.timelineTypeLabelMap[tl.GetTimelineType()]
 
-					var logIDs []uint32
 					var events []cel.EventInfo
 					var revisions []cel.RevisionInfo
 					var maxSeverity uint32
@@ -347,11 +346,7 @@ func (w *Workbench) indexTimelinesParallel(
 					if item, ok := itemsMap[tl.GetTimelineItemsId()]; ok {
 						for _, evt := range item.Events {
 							logID := evt.GetLogId()
-							logIDs = append(logIDs, logID)
-							sev := uint32(0)
-							if logObj, exists := logMap[logID]; exists {
-								sev = logObj.Data.Severity
-							}
+							sev := getLogSeverity(logID)
 							if sev > maxSeverity {
 								maxSeverity = sev
 							}
@@ -363,14 +358,9 @@ func (w *Workbench) indexTimelinesParallel(
 
 						for _, rev := range item.Revisions {
 							logID := rev.GetLogId()
-							logIDs = append(logIDs, logID)
 							verb := styles.verbLabelMap[rev.GetVerbType()]
 							state := styles.stateLabelMap[rev.GetStateType()]
-
-							sev := uint32(0)
-							if logObj, exists := logMap[logID]; exists {
-								sev = logObj.Data.Severity
-							}
+							sev := getLogSeverity(logID)
 							if sev > maxSeverity {
 								maxSeverity = sev
 							}
@@ -394,22 +384,15 @@ func (w *Workbench) indexTimelinesParallel(
 
 					tData := &cel.TimelineData{
 						ID:           tl.GetId(),
+						ParentID:     tl.GetParentTimelineId(),
 						Name:         tlName,
 						TimelineType: tlType,
-						Path:         make(map[string]string),
 						Events:       events,
 						Revisions:    revisions,
 						MaxSeverity:  maxSeverity,
 					}
 
-					indexedTL := &IndexedTimeline{
-						ID:       tl.GetId(),
-						ParentID: tl.GetParentTimelineId(),
-						LogIDs:   logIDs,
-						Data:     tData,
-					}
-
-					localTimelines = append(localTimelines, indexedTL)
+					localTimelines = append(localTimelines, tData)
 				}
 				onProcessed(1)
 			}
@@ -427,8 +410,8 @@ func (w *Workbench) indexTimelinesParallel(
 		totalTimelines += len(res)
 	}
 
-	timelines := make([]*IndexedTimeline, 0, totalTimelines)
-	timelineMap := make(map[uint32]*IndexedTimeline, totalTimelines)
+	timelines := make([]*cel.TimelineData, 0, totalTimelines)
+	timelineMap := make(map[uint32]*cel.TimelineData, totalTimelines)
 
 	for _, res := range workerResults {
 		for _, item := range res {
@@ -440,7 +423,7 @@ func (w *Workbench) indexTimelinesParallel(
 	return timelines, timelineMap, nil
 }
 
-func (w *Workbench) linkTimelineHierarchy(timelines []*IndexedTimeline, timelineMap map[uint32]*IndexedTimeline) {
+func (w *Workbench) linkTimelineHierarchy(timelines []*cel.TimelineData, timelineMap map[uint32]*cel.TimelineData) {
 	for _, tl := range timelines {
 		if tl.ParentID != 0 {
 			if parent, exists := timelineMap[tl.ParentID]; exists {
@@ -448,50 +431,4 @@ func (w *Workbench) linkTimelineHierarchy(timelines []*IndexedTimeline, timeline
 			}
 		}
 	}
-}
-
-func (w *Workbench) computeAllTimelinePathsParallel(timelines []*IndexedTimeline, timelineMap map[uint32]*IndexedTimeline) {
-	if len(timelines) == 0 {
-		return
-	}
-
-	_, _ = worker.ParallelChunkMap(
-		context.Background(),
-		timelines,
-		func(ctx context.Context, workerIdx int, chunk []*IndexedTimeline, onProcessed func(int)) (struct{}, error) {
-			for _, tl := range chunk {
-				tl.Path = tl.ComputePath(timelineMap)
-				tl.Data.Path = tl.Path
-				onProcessed(1)
-			}
-			return struct{}{}, nil
-		},
-		nil,
-		worker.ProgressOptions{},
-	)
-}
-
-// ComputePath resolves the timeline hierarchy path map for this timeline segment and all parent segments.
-func (tl *IndexedTimeline) ComputePath(tlMap map[uint32]*IndexedTimeline) map[string]string {
-	path := make(map[string]string)
-	visited := make(map[uint32]struct{})
-	curr := tl
-	for curr != nil {
-		if _, seen := visited[curr.ID]; seen {
-			break
-		}
-		visited[curr.ID] = struct{}{}
-
-		if curr.Data != nil {
-			typeKey := strings.ToLower(curr.Data.TimelineType)
-			if typeKey != "" {
-				path[typeKey] = curr.Data.Name
-			}
-		}
-		if curr.ParentID == 0 {
-			break
-		}
-		curr = tlMap[curr.ParentID]
-	}
-	return path
 }

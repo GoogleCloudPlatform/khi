@@ -112,6 +112,8 @@ func NewWorkbenchFromReader(
 		return nil, fmt.Errorf("failed to build base search index: %w", err)
 	}
 	wb.searchIndex = searchIndex
+	wb.logChunks = nil
+	wb.timelineChunks = nil
 
 	return wb, nil
 }

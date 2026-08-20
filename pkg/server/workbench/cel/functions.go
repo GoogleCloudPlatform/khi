@@ -90,9 +90,9 @@ func resolveStructNode(structID uint32, pool *khifilev6model.InternPool) (struct
 	return node, true
 }
 
-// MatchTimelinePath checks if any key in timeline's path matches the given pattern(s) case-insensitively.
-func MatchTimelinePath(t *TimelineData, key string, patterns []string) bool {
-	if t == nil || t.Path == nil || len(patterns) == 0 {
+// MatchTimelinePath checks if any key in timeline's hierarchy path matches the given pattern(s) case-insensitively.
+func MatchTimelinePath(t *TimelineData, key string, patterns []string, tlMap map[uint32]*TimelineData) bool {
+	if t == nil || len(patterns) == 0 {
 		return false
 	}
 
@@ -102,18 +102,25 @@ func MatchTimelinePath(t *TimelineData, key string, patterns []string) bool {
 		return false
 	}
 
-	if key == "*" {
-		for _, val := range t.Path {
-			if re.MatchString(val) {
+	targetKeyLower := strings.ToLower(key)
+	visited := make(map[uint32]struct{})
+	curr := t
+	for curr != nil {
+		if _, seen := visited[curr.ID]; seen {
+			break
+		}
+		visited[curr.ID] = struct{}{}
+
+		typeKey := strings.ToLower(curr.TimelineType)
+		if key == "*" || (typeKey != "" && typeKey == targetKeyLower) {
+			if re.MatchString(curr.Name) {
 				return true
 			}
 		}
-	} else {
-		if val, ok := t.Path[strings.ToLower(key)]; ok {
-			if re.MatchString(val) {
-				return true
-			}
+		if curr.ParentID == 0 || tlMap == nil {
+			break
 		}
+		curr = tlMap[curr.ParentID]
 	}
 	return false
 }

@@ -48,6 +48,7 @@ type TimelineEvaluator struct {
 	program         cel.Program
 	currentTimeline *TimelineData
 	internPool      *khifilev6model.InternPool
+	timelineMap     map[uint32]*TimelineData
 }
 
 // SetInternPool binds the InternPool for on-demand struct resolution.
@@ -55,6 +56,13 @@ func (e *TimelineEvaluator) SetInternPool(pool *khifilev6model.InternPool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.internPool = pool
+}
+
+// SetTimelineMap binds the timeline map for hierarchy-based path resolution.
+func (e *TimelineEvaluator) SetTimelineMap(m map[uint32]*TimelineData) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.timelineMap = m
 }
 
 // NewTimelineEvaluator creates a new TimelineEvaluator.
@@ -70,7 +78,7 @@ func NewTimelineEvaluator() (*TimelineEvaluator, error) {
 		if err != nil {
 			return types.False
 		}
-		return types.Bool(MatchTimelinePath(eval.currentTimeline, string(key), patterns))
+		return types.Bool(MatchTimelinePath(eval.currentTimeline, string(key), patterns, eval.timelineMap))
 	}
 
 	matchBindingUnary := func(arg ref.Val) ref.Val {
@@ -78,7 +86,7 @@ func NewTimelineEvaluator() (*TimelineEvaluator, error) {
 		if err != nil {
 			return types.False
 		}
-		return types.Bool(MatchTimelinePath(eval.currentTimeline, "*", patterns))
+		return types.Bool(MatchTimelinePath(eval.currentTimeline, "*", patterns, eval.timelineMap))
 	}
 
 	rbBindingBinary := func(lhs, rhs ref.Val) ref.Val {
@@ -232,10 +240,11 @@ func (e *TimelineEvaluator) Evaluate(ctx context.Context, t *TimelineData) (bool
 	e.currentTimeline = t
 	defer func() { e.currentTimeline = nil }()
 
+	path := t.ComputePath(e.timelineMap)
 	tVars := map[string]any{
 		"name":         t.Name,
 		"timelineType": t.TimelineType,
-		"path":         t.Path,
+		"path":         path,
 		"UNKNOWN":      int64(0),
 		"INFO":         int64(1),
 		"WARNING":      int64(2),

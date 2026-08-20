@@ -25,25 +25,22 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestIndexedTimeline_ComputePath(t *testing.T) {
+func TestTimelineData_ComputePath(t *testing.T) {
 	testCases := []struct {
 		name     string
 		targetID uint32
-		tlMap    map[uint32]*IndexedTimeline
+		tlMap    map[uint32]*cel.TimelineData
 		wantPath map[string]string
 	}{
 		{
 			name:     "single root timeline",
 			targetID: 1,
-			tlMap: map[uint32]*IndexedTimeline{
+			tlMap: map[uint32]*cel.TimelineData{
 				1: {
-					ID:       1,
-					ParentID: 0,
-					Data: &cel.TimelineData{
-						ID:           1,
-						Name:         "cluster-1",
-						TimelineType: "Cluster",
-					},
+					ID:           1,
+					ParentID:     0,
+					Name:         "cluster-1",
+					TimelineType: "Cluster",
 				},
 			},
 			wantPath: map[string]string{
@@ -53,33 +50,24 @@ func TestIndexedTimeline_ComputePath(t *testing.T) {
 		{
 			name:     "multi-level hierarchical timeline",
 			targetID: 3,
-			tlMap: map[uint32]*IndexedTimeline{
+			tlMap: map[uint32]*cel.TimelineData{
 				1: {
-					ID:       1,
-					ParentID: 0,
-					Data: &cel.TimelineData{
-						ID:           1,
-						Name:         "default",
-						TimelineType: "Namespace",
-					},
+					ID:           1,
+					ParentID:     0,
+					Name:         "default",
+					TimelineType: "Namespace",
 				},
 				2: {
-					ID:       2,
-					ParentID: 1,
-					Data: &cel.TimelineData{
-						ID:           2,
-						Name:         "frontend-deployment",
-						TimelineType: "Deployment",
-					},
+					ID:           2,
+					ParentID:     1,
+					Name:         "frontend-deployment",
+					TimelineType: "Deployment",
 				},
 				3: {
-					ID:       3,
-					ParentID: 2,
-					Data: &cel.TimelineData{
-						ID:           3,
-						Name:         "frontend-pod-abc",
-						TimelineType: "Pod",
-					},
+					ID:           3,
+					ParentID:     2,
+					Name:         "frontend-pod-abc",
+					TimelineType: "Pod",
 				},
 			},
 			wantPath: map[string]string{
@@ -91,24 +79,18 @@ func TestIndexedTimeline_ComputePath(t *testing.T) {
 		{
 			name:     "handles cycle safely without infinite loop",
 			targetID: 1,
-			tlMap: map[uint32]*IndexedTimeline{
+			tlMap: map[uint32]*cel.TimelineData{
 				1: {
-					ID:       1,
-					ParentID: 2,
-					Data: &cel.TimelineData{
-						ID:           1,
-						Name:         "node-1",
-						TimelineType: "Node",
-					},
+					ID:           1,
+					ParentID:     2,
+					Name:         "node-1",
+					TimelineType: "Node",
 				},
 				2: {
-					ID:       2,
-					ParentID: 1, // Cycle back to 1
-					Data: &cel.TimelineData{
-						ID:           2,
-						Name:         "node-parent",
-						TimelineType: "ParentNode",
-					},
+					ID:           2,
+					ParentID:     1, // Cycle back to 1
+					Name:         "node-parent",
+					TimelineType: "ParentNode",
 				},
 			},
 			wantPath: map[string]string{
@@ -202,16 +184,14 @@ func TestWorkbench_BuildSearchIndex(t *testing.T) {
 	if len(index.Timelines) != 1 {
 		t.Fatalf("len(index.Timelines) = %d, want 1", len(index.Timelines))
 	}
-	if len(index.Logs) != 1 {
-		t.Fatalf("len(index.Logs) = %d, want 1", len(index.Logs))
+	if log := index.GetLog(10); log == nil {
+		t.Fatalf("index.GetLog(10) is nil, want log")
 	}
 
 	tl := index.Timelines[0]
-	if tl.Path["cluster"] != "my-cluster" {
-		t.Errorf("tl.Path[\"cluster\"] = %q, want %q", tl.Path["cluster"], "my-cluster")
-	}
-	if tl.Data.Path["cluster"] != "my-cluster" {
-		t.Errorf("tl.Data.Path[\"cluster\"] = %q, want %q", tl.Data.Path["cluster"], "my-cluster")
+	path := tl.ComputePath(index.TimelineMap)
+	if path["cluster"] != "my-cluster" {
+		t.Errorf("path[\"cluster\"] = %q, want %q", path["cluster"], "my-cluster")
 	}
 }
 
@@ -377,44 +357,49 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 			if tl1 == nil {
 				t.Fatal("timeline 1 not found in index")
 			}
-			if diff := cmp.Diff(tc.wantTL1Path, tl1.Data.Path); diff != "" {
+			if diff := cmp.Diff(tc.wantTL1Path, tl1.ComputePath(idx.TimelineMap)); diff != "" {
 				t.Errorf("timeline 1 Path mismatch (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.wantTL1Children, tl1.ChildrenIDs); diff != "" {
 				t.Errorf("timeline 1 ChildrenIDs mismatch (-want +got):\n%s", diff)
 			}
-			if tl1.Data.MaxSeverity != tc.wantTL1MaxSev {
-				t.Errorf("timeline 1 MaxSeverity mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL1MaxSev, tl1.Data.MaxSeverity))
+			if tl1.MaxSeverity != tc.wantTL1MaxSev {
+				t.Errorf("timeline 1 MaxSeverity mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL1MaxSev, tl1.MaxSeverity))
 			}
 
 			tl2 := idx.TimelineMap[2]
 			if tl2 == nil {
 				t.Fatal("timeline 2 not found in index")
 			}
-			if diff := cmp.Diff(tc.wantTL2Path, tl2.Data.Path); diff != "" {
+			if diff := cmp.Diff(tc.wantTL2Path, tl2.ComputePath(idx.TimelineMap)); diff != "" {
 				t.Errorf("timeline 2 Path mismatch (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantTL2MaxSev, tl2.Data.MaxSeverity); diff != "" {
-				t.Errorf("timeline 2 MaxSeverity mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL2MaxSev, tl2.Data.MaxSeverity))
+			if diff := cmp.Diff(tc.wantTL2MaxSev, tl2.MaxSeverity); diff != "" {
+				t.Errorf("timeline 2 MaxSeverity mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL2MaxSev, tl2.MaxSeverity))
 			}
-			if diff := cmp.Diff(tc.wantTL2LogIDs, tl2.LogIDs); diff != "" {
+			var tl2LogIDs []uint32
+			tl2.ForEachLogID(func(id uint32) bool {
+				tl2LogIDs = append(tl2LogIDs, id)
+				return true
+			})
+			if diff := cmp.Diff(tc.wantTL2LogIDs, tl2LogIDs); diff != "" {
 				t.Errorf("timeline 2 LogIDs mismatch (-want +got):\n%s", diff)
 			}
 
-			log1 := idx.LogMap[1]
+			log1 := idx.GetLog(1)
 			if log1 == nil {
 				t.Fatal("log 1 not found in index")
 			}
-			if log1.Data.Severity != tc.wantLog1Severity {
-				t.Errorf("log 1 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog1Severity, log1.Data.Severity))
+			if log1.Severity != tc.wantLog1Severity {
+				t.Errorf("log 1 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog1Severity, log1.Severity))
 			}
 
-			log2 := idx.LogMap[2]
+			log2 := idx.GetLog(2)
 			if log2 == nil {
 				t.Fatal("log 2 not found in index")
 			}
-			if log2.Data.Severity != tc.wantLog2Severity {
-				t.Errorf("log 2 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog2Severity, log2.Data.Severity))
+			if log2.Severity != tc.wantLog2Severity {
+				t.Errorf("log 2 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog2Severity, log2.Severity))
 			}
 		})
 	}

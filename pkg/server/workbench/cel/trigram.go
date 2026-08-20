@@ -17,8 +17,9 @@ package cel
 import (
 	"context"
 	"regexp/syntax"
-	"strings"
 	"sync"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/RoaringBitmap/roaring/v2"
@@ -53,57 +54,85 @@ type yamlEntry struct {
 	yaml string
 }
 
-// extractTrigramsFromYAML extracts unique lowercase 3-rune trigrams from the given YAML string.
-func extractTrigramsFromYAML(yamlStr string) []string {
-	lowerYAML := strings.ToLower(yamlStr)
-	runes := []rune(lowerYAML)
-	if len(runes) < 3 {
-		return nil
-	}
-	trigramSet := make(map[string]struct{}, len(runes)-2)
-	for i := 0; i <= len(runes)-3; i++ {
-		trigramSet[string(runes[i:i+3])] = struct{}{}
-	}
-	trigrams := make([]string, 0, len(trigramSet))
-	for tri := range trigramSet {
-		trigrams = append(trigrams, tri)
-	}
-	return trigrams
-}
+// processYAMLEntryChunk processes a slice of yamlEntry, returning worker-local trigram-to-StructIDs mapping.
+func processYAMLEntryChunk(chunk []yamlEntry, onProcessed func(int)) map[string][]uint32 {
+	localTrigrams := make(map[string][]uint32)
+	var buf [12]byte
 
-// processYAMLEntryChunk processes a slice of yamlEntry, returning worker-local Roaring Bitmaps.
-func processYAMLEntryChunk(chunk []yamlEntry, onProcessed func(int)) map[string]*roaring.Bitmap {
-	localBitmaps := make(map[string]*roaring.Bitmap)
 	for _, entry := range chunk {
-		trigrams := extractTrigramsFromYAML(entry.yaml)
-		for _, tri := range trigrams {
-			bm, exists := localBitmaps[tri]
-			if !exists {
-				bm = roaring.NewBitmap()
-				localBitmaps[tri] = bm
-			}
-			bm.Add(entry.id)
+		yamlStr := entry.yaml
+		id := entry.id
+		if len(yamlStr) < 3 {
+			onProcessed(1)
+			continue
 		}
+
+		var r0, r1, r2 rune
+		var count int
+
+		for offset := 0; offset < len(yamlStr); {
+			r, size := utf8.DecodeRuneInString(yamlStr[offset:])
+			offset += size
+			rLower := unicode.ToLower(r)
+
+			if count == 0 {
+				r0 = rLower
+				count = 1
+				continue
+			}
+			if count == 1 {
+				r1 = rLower
+				count = 2
+				continue
+			}
+
+			r2 = rLower
+			n := utf8.EncodeRune(buf[0:], r0)
+			n += utf8.EncodeRune(buf[n:], r1)
+			n += utf8.EncodeRune(buf[n:], r2)
+
+			triKey := string(buf[:n])
+			if ids, exists := localTrigrams[triKey]; exists {
+				if len(ids) == 0 || ids[len(ids)-1] != id {
+					localTrigrams[triKey] = append(ids, id)
+				}
+			} else {
+				localTrigrams[triKey] = []uint32{id}
+			}
+
+			r0 = r1
+			r1 = r2
+		}
+
 		onProcessed(1)
 	}
-	return localBitmaps
+
+	return localTrigrams
 }
 
-// mergeTrigramChunk merges worker-local bitmaps for the given slice of trigrams using roaring.FastOr.
-func mergeTrigramChunk(chunk []string, results []map[string]*roaring.Bitmap, onProcessed func(int)) map[string]*roaring.Bitmap {
+// mergeTrigramChunk merges worker-local struct ID slices for the given slice of trigrams into Roaring Bitmaps.
+func mergeTrigramChunk(chunk []string, results []map[string][]uint32, onProcessed func(int)) map[string]*roaring.Bitmap {
 	localMerged := make(map[string]*roaring.Bitmap, len(chunk))
 	for _, tri := range chunk {
-		var bms []*roaring.Bitmap
+		totalCount := 0
 		for _, res := range results {
-			if bm, ok := res[tri]; ok {
-				bms = append(bms, bm)
+			totalCount += len(res[tri])
+		}
+		if totalCount == 0 {
+			onProcessed(1)
+			continue
+		}
+
+		allIDs := make([]uint32, 0, totalCount)
+		for _, res := range results {
+			if ids, ok := res[tri]; ok {
+				allIDs = append(allIDs, ids...)
 			}
 		}
-		if len(bms) == 1 {
-			localMerged[tri] = bms[0]
-		} else if len(bms) > 1 {
-			localMerged[tri] = roaring.FastOr(bms...)
-		}
+
+		bm := roaring.NewBitmap()
+		bm.AddMany(allIDs)
+		localMerged[tri] = bm
 		onProcessed(1)
 	}
 	return localMerged
@@ -132,7 +161,7 @@ func (t *TrigramIndex) BuildFromStructYAMLs(structYAMLs map[uint32]string, onPro
 	results, err := worker.ParallelChunkMap(
 		context.Background(),
 		entries,
-		func(ctx context.Context, workerIdx int, chunk []yamlEntry, onProcessed func(int)) (map[string]*roaring.Bitmap, error) {
+		func(ctx context.Context, workerIdx int, chunk []yamlEntry, onProcessed func(int)) (map[string][]uint32, error) {
 			return processYAMLEntryChunk(chunk, onProcessed), nil
 		},
 		onProgress,
