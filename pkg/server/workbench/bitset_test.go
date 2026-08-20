@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 )
@@ -68,14 +69,14 @@ func TestEncodeFilterResultBitset(t *testing.T) {
 	testCases := []struct {
 		name       string
 		totalCount int
-		matchedIDs map[uint32]struct{}
+		matchedIDs *roaring.Bitmap
 		wantMode   apiv1.FilterResultMode
 		wantBitset *apiv1.SparseBitset
 	}{
 		{
 			name:       "empty dataset and empty matched",
 			totalCount: 0,
-			matchedIDs: map[uint32]struct{}{},
+			matchedIDs: roaring.NewBitmap(),
 			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE,
 			wantBitset: &apiv1.SparseBitset{
 				Indices: []uint32{},
@@ -85,7 +86,7 @@ func TestEncodeFilterResultBitset(t *testing.T) {
 		{
 			name:       "0% matched selects INCLUDE mode with empty bitset",
 			totalCount: 5,
-			matchedIDs: map[uint32]struct{}{},
+			matchedIDs: roaring.NewBitmap(),
 			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE,
 			wantBitset: &apiv1.SparseBitset{
 				Indices: []uint32{},
@@ -95,10 +96,8 @@ func TestEncodeFilterResultBitset(t *testing.T) {
 		{
 			name:       "100% matched selects EXCLUDE mode with empty bitset",
 			totalCount: 4,
-			matchedIDs: map[uint32]struct{}{
-				1: {}, 2: {}, 3: {}, 4: {},
-			},
-			wantMode: apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE,
+			matchedIDs: roaring.BitmapOf(1, 2, 3, 4),
+			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE,
 			wantBitset: &apiv1.SparseBitset{
 				Indices: []uint32{},
 				Masks:   []uint32{},
@@ -107,12 +106,8 @@ func TestEncodeFilterResultBitset(t *testing.T) {
 		{
 			name:       "minority matched (<= 50%) selects INCLUDE mode",
 			totalCount: 65,
-			matchedIDs: map[uint32]struct{}{
-				1:  {}, // block 0, bit 1 -> 1 << 1 = 0x2
-				31: {}, // block 0, bit 31 -> 1 << 31 = 0x80000000
-				64: {}, // block 2, bit 0 -> 1 << 0 = 0x1
-			},
-			wantMode: apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE,
+			matchedIDs: roaring.BitmapOf(1, 31, 64),
+			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE,
 			wantBitset: &apiv1.SparseBitset{
 				Indices: []uint32{0, 2},
 				Masks:   []uint32{0x80000002, 0x1},
@@ -121,10 +116,8 @@ func TestEncodeFilterResultBitset(t *testing.T) {
 		{
 			name:       "majority matched (> 50%) selects EXCLUDE mode",
 			totalCount: 5,
-			matchedIDs: map[uint32]struct{}{
-				1: {}, 2: {}, 3: {}, 4: {},
-			},
-			wantMode: apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE,
+			matchedIDs: roaring.BitmapOf(1, 2, 3, 4),
+			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE,
 			// Excluded item is 5 (block 0, bit 5 -> 1 << 5 = 0x20)
 			wantBitset: &apiv1.SparseBitset{
 				Indices: []uint32{0},
@@ -134,12 +127,8 @@ func TestEncodeFilterResultBitset(t *testing.T) {
 		{
 			name:       "boundary spanning multiple blocks",
 			totalCount: 96,
-			matchedIDs: map[uint32]struct{}{
-				32: {}, // block 1, bit 0
-				63: {}, // block 1, bit 31
-				96: {}, // block 3, bit 0
-			},
-			wantMode: apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE,
+			matchedIDs: roaring.BitmapOf(32, 63, 96),
+			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE,
 			wantBitset: &apiv1.SparseBitset{
 				Indices: []uint32{1, 3},
 				Masks:   []uint32{0x80000001, 0x1},

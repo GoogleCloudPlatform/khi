@@ -16,19 +16,17 @@ package workbench
 
 import (
 	"context"
-	"sort"
 	"testing"
 
+	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/google/go-cmp/cmp"
 )
 
-func mapToSortedSlice(m map[uint32]struct{}) []uint32 {
-	res := make([]uint32, 0, len(m))
-	for k := range m {
-		res = append(res, k)
+func bitmapToSlice(bm *roaring.Bitmap) []uint32 {
+	if bm == nil {
+		return nil
 	}
-	sort.Slice(res, func(i, j int) bool { return res[i] < res[j] })
-	return res
+	return bm.ToArray()
 }
 
 func TestTimelineCELFilter(t *testing.T) {
@@ -67,7 +65,7 @@ func TestTimelineCELFilter(t *testing.T) {
 			if tc.wantErr {
 				return
 			}
-			got := mapToSortedSlice(filterCtx.TimelineIDs)
+			got := bitmapToSlice(filterCtx.TimelineIDs)
 			if diff := cmp.Diff(tc.wantTimelines, got); diff != "" {
 				t.Errorf("TimelineCELFilter mismatch (-want +got):\n%s", diff)
 			}
@@ -103,14 +101,12 @@ func TestIncludeDescendantsFilter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := NewIncludeDescendantsFilter()
 			filterCtx := NewFilterContext()
-			for _, id := range tc.initialIDs {
-				filterCtx.TimelineIDs[id] = struct{}{}
-			}
+			filterCtx.TimelineIDs.AddMany(tc.initialIDs)
 			err := f.Process(context.Background(), filterCtx, wb.searchIndex, nil)
 			if err != nil {
 				t.Fatalf("Process() unexpected error: %v", err)
 			}
-			got := mapToSortedSlice(filterCtx.TimelineIDs)
+			got := bitmapToSlice(filterCtx.TimelineIDs)
 			if diff := cmp.Diff(tc.wantTimelines, got); diff != "" {
 				t.Errorf("IncludeDescendantsFilter mismatch (-want +got):\n%s", diff)
 			}
@@ -151,9 +147,7 @@ func TestTimelineCELExclusionFilter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := NewTimelineCELExclusionFilter(tc.query)
 			filterCtx := NewFilterContext()
-			for _, id := range tc.initialIDs {
-				filterCtx.TimelineIDs[id] = struct{}{}
-			}
+			filterCtx.TimelineIDs.AddMany(tc.initialIDs)
 			err := f.Process(context.Background(), filterCtx, wb.searchIndex, nil)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("Process() error = %v, wantErr = %v", err, tc.wantErr)
@@ -161,7 +155,7 @@ func TestTimelineCELExclusionFilter(t *testing.T) {
 			if tc.wantErr {
 				return
 			}
-			got := mapToSortedSlice(filterCtx.TimelineIDs)
+			got := bitmapToSlice(filterCtx.TimelineIDs)
 			if diff := cmp.Diff(tc.wantTimelines, got); diff != "" {
 				t.Errorf("TimelineCELExclusionFilter mismatch (-want +got):\n%s", diff)
 			}
@@ -191,6 +185,12 @@ func TestLogCELFilter(t *testing.T) {
 			wantLogs:           []uint32{2},
 		},
 		{
+			name:               "deduplicate logs across multiple matching timelines",
+			initialTimelineIDs: []uint32{3, 4},
+			query:              `severity >= INFO`,
+			wantLogs:           []uint32{3},
+		},
+		{
 			name:               "invalid log query syntax",
 			initialTimelineIDs: []uint32{2},
 			query:              `severity ==`,
@@ -202,9 +202,7 @@ func TestLogCELFilter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := NewLogCELFilter(tc.query)
 			filterCtx := NewFilterContext()
-			for _, id := range tc.initialTimelineIDs {
-				filterCtx.TimelineIDs[id] = struct{}{}
-			}
+			filterCtx.TimelineIDs.AddMany(tc.initialTimelineIDs)
 			err := f.Process(context.Background(), filterCtx, wb.searchIndex, nil)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("Process() error = %v, wantErr = %v", err, tc.wantErr)
@@ -212,7 +210,7 @@ func TestLogCELFilter(t *testing.T) {
 			if tc.wantErr {
 				return
 			}
-			got := mapToSortedSlice(filterCtx.LogIDs)
+			got := bitmapToSlice(filterCtx.LogIDs)
 			if diff := cmp.Diff(tc.wantLogs, got); diff != "" {
 				t.Errorf("LogCELFilter mismatch (-want +got):\n%s", diff)
 			}
@@ -243,14 +241,12 @@ func TestIncludeAncestorsFilter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := NewIncludeAncestorsFilter()
 			filterCtx := NewFilterContext()
-			for _, id := range tc.initialIDs {
-				filterCtx.TimelineIDs[id] = struct{}{}
-			}
+			filterCtx.TimelineIDs.AddMany(tc.initialIDs)
 			err := f.Process(context.Background(), filterCtx, wb.searchIndex, nil)
 			if err != nil {
 				t.Fatalf("Process() unexpected error: %v", err)
 			}
-			got := mapToSortedSlice(filterCtx.TimelineIDs)
+			got := bitmapToSlice(filterCtx.TimelineIDs)
 			if diff := cmp.Diff(tc.wantTimelines, got); diff != "" {
 				t.Errorf("IncludeAncestorsFilter mismatch (-want +got):\n%s", diff)
 			}
@@ -287,17 +283,13 @@ func TestExcludeNoLogsFilter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := NewExcludeNoLogsFilter(tc.enabled)
 			filterCtx := NewFilterContext()
-			for _, id := range tc.initialTimelineIDs {
-				filterCtx.TimelineIDs[id] = struct{}{}
-			}
-			for _, id := range tc.initialLogIDs {
-				filterCtx.LogIDs[id] = struct{}{}
-			}
+			filterCtx.TimelineIDs.AddMany(tc.initialTimelineIDs)
+			filterCtx.LogIDs.AddMany(tc.initialLogIDs)
 			err := f.Process(context.Background(), filterCtx, wb.searchIndex, nil)
 			if err != nil {
 				t.Fatalf("Process() unexpected error: %v", err)
 			}
-			got := mapToSortedSlice(filterCtx.TimelineIDs)
+			got := bitmapToSlice(filterCtx.TimelineIDs)
 			if diff := cmp.Diff(tc.wantTimelines, got); diff != "" {
 				t.Errorf("ExcludeNoLogsFilter mismatch (-want +got):\n%s", diff)
 			}

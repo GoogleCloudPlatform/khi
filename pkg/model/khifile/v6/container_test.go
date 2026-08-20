@@ -204,3 +204,71 @@ func TestContainer_WriteAndRead_E2E(t *testing.T) {
 		t.Errorf("Expected EOF at the end, got: %v", err)
 	}
 }
+
+func TestContainer_NextRawChunk_And_Decompress(t *testing.T) {
+	testCases := []struct {
+		name      string
+		chunkType ChunkType
+		message   proto.Message
+	}{
+		{
+			name:      "metadata chunk",
+			chunkType: ChunkTypeMetadata,
+			message: &structpb.Struct{
+				Fields: map[string]*structpb.Value{"key": {Kind: &structpb.Value_StringValue{StringValue: "meta"}}},
+			},
+		},
+		{
+			name:      "log chunk",
+			chunkType: ChunkTypeLog,
+			message: &structpb.Struct{
+				Fields: map[string]*structpb.Value{"message": {Kind: &structpb.Value_StringValue{StringValue: "log entry"}}},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			w, err := NewWriter(&buf)
+			if err != nil {
+				t.Fatalf("NewWriter returned error: %v", err)
+			}
+			if err := w.WriteChunk(tc.chunkType, tc.message); err != nil {
+				t.Fatalf("WriteChunk returned error: %v", err)
+			}
+
+			r, err := NewReader(&buf)
+			if err != nil {
+				t.Fatalf("NewReader returned error: %v", err)
+			}
+
+			rawChunk, err := r.NextRawChunk()
+			if err != nil {
+				t.Fatalf("NextRawChunk returned error: %v", err)
+			}
+			if rawChunk.Type != tc.chunkType {
+				t.Errorf("NextRawChunk() Type = %d, want %d", rawChunk.Type, tc.chunkType)
+			}
+			if len(rawChunk.Data) == 0 {
+				t.Errorf("NextRawChunk() Data is empty")
+			}
+
+			decompressed, err := rawChunk.Decompress()
+			if err != nil {
+				t.Fatalf("Decompress returned error: %v", err)
+			}
+			if decompressed.Type != tc.chunkType {
+				t.Errorf("Decompress() Type = %d, want %d", decompressed.Type, tc.chunkType)
+			}
+
+			var gotMsg structpb.Struct
+			if err := proto.Unmarshal(decompressed.Data, &gotMsg); err != nil {
+				t.Fatalf("Unmarshal decompressed data failed: %v", err)
+			}
+			if diff := cmp.Diff(tc.message, &gotMsg, protocmp.Transform()); diff != "" {
+				t.Errorf("Decompressed proto mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

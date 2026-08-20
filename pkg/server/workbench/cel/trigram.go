@@ -54,9 +54,9 @@ type yamlEntry struct {
 	yaml string
 }
 
-// processYAMLEntryChunk processes a slice of yamlEntry, returning worker-local trigram-to-StructIDs mapping.
-func processYAMLEntryChunk(chunk []yamlEntry, onProcessed func(int)) map[string][]uint32 {
-	localTrigrams := make(map[string][]uint32)
+// processYAMLEntryChunk processes a slice of yamlEntry, returning worker-local trigram-to-RoaringBitmap mapping.
+func processYAMLEntryChunk(chunk []yamlEntry, onProcessed func(int)) map[string]*roaring.Bitmap {
+	localTrigrams := make(map[string]*roaring.Bitmap)
 	var buf [12]byte
 
 	for _, entry := range chunk {
@@ -92,13 +92,12 @@ func processYAMLEntryChunk(chunk []yamlEntry, onProcessed func(int)) map[string]
 			n += utf8.EncodeRune(buf[n:], r2)
 
 			triKey := string(buf[:n])
-			if ids, exists := localTrigrams[triKey]; exists {
-				if len(ids) == 0 || ids[len(ids)-1] != id {
-					localTrigrams[triKey] = append(ids, id)
-				}
-			} else {
-				localTrigrams[triKey] = []uint32{id}
+			bm, exists := localTrigrams[triKey]
+			if !exists {
+				bm = roaring.NewBitmap()
+				localTrigrams[triKey] = bm
 			}
+			bm.Add(id)
 
 			r0 = r1
 			r1 = r2
@@ -110,29 +109,27 @@ func processYAMLEntryChunk(chunk []yamlEntry, onProcessed func(int)) map[string]
 	return localTrigrams
 }
 
-// mergeTrigramChunk merges worker-local struct ID slices for the given slice of trigrams into Roaring Bitmaps.
-func mergeTrigramChunk(chunk []string, results []map[string][]uint32, onProcessed func(int)) map[string]*roaring.Bitmap {
+// mergeTrigramChunk merges worker-local Roaring Bitmaps for the given slice of trigrams.
+func mergeTrigramChunk(chunk []string, results []map[string]*roaring.Bitmap, onProcessed func(int)) map[string]*roaring.Bitmap {
 	localMerged := make(map[string]*roaring.Bitmap, len(chunk))
 	for _, tri := range chunk {
-		totalCount := 0
+		var bms []*roaring.Bitmap
 		for _, res := range results {
-			totalCount += len(res[tri])
+			if bm, ok := res[tri]; ok {
+				bms = append(bms, bm)
+			}
 		}
-		if totalCount == 0 {
+
+		if len(bms) == 0 {
 			onProcessed(1)
 			continue
 		}
 
-		allIDs := make([]uint32, 0, totalCount)
-		for _, res := range results {
-			if ids, ok := res[tri]; ok {
-				allIDs = append(allIDs, ids...)
-			}
+		if len(bms) == 1 {
+			localMerged[tri] = bms[0]
+		} else {
+			localMerged[tri] = roaring.FastOr(bms...)
 		}
-
-		bm := roaring.NewBitmap()
-		bm.AddMany(allIDs)
-		localMerged[tri] = bm
 		onProcessed(1)
 	}
 	return localMerged
@@ -161,7 +158,7 @@ func (t *TrigramIndex) BuildFromStructYAMLs(ctx context.Context, structYAMLs map
 	results, err := worker.ParallelChunkMap(
 		ctx,
 		entries,
-		func(ctx context.Context, workerIdx int, chunk []yamlEntry, onProcessed func(int)) (map[string][]uint32, error) {
+		func(ctx context.Context, workerIdx int, chunk []yamlEntry, onProcessed func(int)) (map[string]*roaring.Bitmap, error) {
 			return processYAMLEntryChunk(chunk, onProcessed), nil
 		},
 		onProgress,

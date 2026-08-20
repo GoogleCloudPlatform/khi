@@ -18,6 +18,7 @@ import (
 	"slices"
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"github.com/RoaringBitmap/roaring/v2"
 )
 
 // BuildSparseBitset encodes a slice of uint32 IDs into a compact SparseBitset.
@@ -48,15 +49,14 @@ func BuildSparseBitset(ids []uint32) *apiv1.SparseBitset {
 
 // EncodeFilterResultBitset encodes matched entity IDs against totalCount sequential 1-indexed IDs into a FilterResultMode and SparseBitset.
 // It automatically selects either INCLUDE or EXCLUDE mode to minimize payload size.
-func EncodeFilterResultBitset(totalCount int, matchedIDs map[uint32]struct{}) (apiv1.FilterResultMode, *apiv1.SparseBitset) {
-	matchedCount := len(matchedIDs)
+func EncodeFilterResultBitset(totalCount int, matchedIDs *roaring.Bitmap) (apiv1.FilterResultMode, *apiv1.SparseBitset) {
+	if matchedIDs == nil {
+		matchedIDs = roaring.NewBitmap()
+	}
+	matchedCount := int(matchedIDs.GetCardinality())
 
 	if matchedCount <= totalCount/2 {
-		targetIDs := make([]uint32, 0, matchedCount)
-		for id := range matchedIDs {
-			targetIDs = append(targetIDs, id)
-		}
-		return apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE, BuildSparseBitset(targetIDs)
+		return apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE, BuildSparseBitset(matchedIDs.ToArray())
 	}
 
 	excludedCount := totalCount - matchedCount
@@ -65,7 +65,7 @@ func EncodeFilterResultBitset(totalCount int, matchedIDs map[uint32]struct{}) (a
 	}
 	targetIDs := make([]uint32, 0, excludedCount)
 	for id := 1; id <= totalCount; id++ {
-		if _, ok := matchedIDs[uint32(id)]; !ok {
+		if !matchedIDs.Contains(uint32(id)) {
 			targetIDs = append(targetIDs, uint32(id))
 		}
 	}

@@ -78,25 +78,39 @@ func createTestKhiFileData(t *testing.T) []byte {
 	return buf.Bytes()
 }
 
-func TestWorkbench_NewWorkbenchFromReader(t *testing.T) {
+func TestWorkbench_NewFromReader(t *testing.T) {
 	testKhiData := createTestKhiFileData(t)
 
 	testCases := []struct {
 		name      string
+		ctx       func() context.Context
 		reader    func() *bytes.Reader
 		totalSize int64
 		wantErr   bool
 	}{
 		{
 			name:      "successfully parses chunks from reader",
+			ctx:       context.Background,
 			reader:    func() *bytes.Reader { return bytes.NewReader(testKhiData) },
 			totalSize: int64(len(testKhiData)),
 			wantErr:   false,
 		},
 		{
 			name:      "fails on invalid stream",
+			ctx:       context.Background,
 			reader:    func() *bytes.Reader { return bytes.NewReader([]byte("not a khi file")) },
 			totalSize: 14,
+			wantErr:   true,
+		},
+		{
+			name: "fails on canceled context",
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			},
+			reader:    func() *bytes.Reader { return bytes.NewReader(testKhiData) },
+			totalSize: int64(len(testKhiData)),
 			wantErr:   true,
 		},
 	}
@@ -109,8 +123,8 @@ func TestWorkbench_NewWorkbenchFromReader(t *testing.T) {
 				return nil
 			}
 
-			wb, err := NewWorkbenchFromReader(
-				context.Background(),
+			wb, err := NewFromReader(
+				tc.ctx(),
 				"wb-test-1",
 				"inspection-1",
 				tc.reader(),
@@ -119,7 +133,7 @@ func TestWorkbench_NewWorkbenchFromReader(t *testing.T) {
 			)
 
 			if (err != nil) != tc.wantErr {
-				t.Fatalf("NewWorkbenchFromReader() error = %v, wantErr = %v", err, tc.wantErr)
+				t.Fatalf("NewFromReader() error = %v, wantErr = %v", err, tc.wantErr)
 			}
 			if tc.wantErr {
 				return
@@ -143,8 +157,21 @@ func TestWorkbench_NewWorkbenchFromReader(t *testing.T) {
 			if len(wb.timelineChunks) != 0 {
 				t.Errorf("len(timelineChunks) = %d, want 0 (released after indexing)", len(wb.timelineChunks))
 			}
-			if len(capturedStages) == 0 {
-				t.Errorf("expected captured progress stages")
+			hasParsing := false
+			hasIndexing := false
+			for _, s := range capturedStages {
+				if s == apiv1.OpenWorkbenchResponse_STAGE_PARSING_CHUNKS {
+					hasParsing = true
+				}
+				if s == apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA {
+					hasIndexing = true
+				}
+			}
+			if !hasParsing {
+				t.Errorf("expected STAGE_PARSING_CHUNKS in captured stages: %v", capturedStages)
+			}
+			if !hasIndexing {
+				t.Errorf("expected STAGE_INDEXING_DATA in captured stages: %v", capturedStages)
 			}
 		})
 	}

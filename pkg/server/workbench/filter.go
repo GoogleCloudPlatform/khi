@@ -20,19 +20,20 @@ import (
 	"time"
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"github.com/RoaringBitmap/roaring/v2"
 )
 
 // FilterContext holds the mutable sets of matching timeline and log IDs across pipeline filter stages.
 type FilterContext struct {
-	TimelineIDs map[uint32]struct{}
-	LogIDs      map[uint32]struct{}
+	TimelineIDs *roaring.Bitmap
+	LogIDs      *roaring.Bitmap
 }
 
 // NewFilterContext initializes an empty FilterContext.
 func NewFilterContext() *FilterContext {
 	return &FilterContext{
-		TimelineIDs: make(map[uint32]struct{}),
-		LogIDs:      make(map[uint32]struct{}),
+		TimelineIDs: roaring.NewBitmap(),
+		LogIDs:      roaring.NewBitmap(),
 	}
 }
 
@@ -96,8 +97,8 @@ func (p *Pipeline) Execute(
 			"stage", filter.Name(),
 			"duration", duration.String(),
 			"duration_ms", duration.Milliseconds(),
-			"matching_timelines", len(filterCtx.TimelineIDs),
-			"matching_logs", len(filterCtx.LogIDs),
+			"matching_timelines", filterCtx.TimelineIDs.GetCardinality(),
+			"matching_logs", filterCtx.LogIDs.GetCardinality(),
 		)
 	}
 
@@ -108,8 +109,8 @@ func (p *Pipeline) Execute(
 	slog.DebugContext(ctx, "filter pipeline completed",
 		"total_duration", totalDuration.String(),
 		"total_duration_ms", totalDuration.Milliseconds(),
-		"result_timelines", len(filterCtx.TimelineIDs),
-		"result_logs", len(filterCtx.LogIDs),
+		"result_timelines", filterCtx.TimelineIDs.GetCardinality(),
+		"result_logs", filterCtx.LogIDs.GetCardinality(),
 	)
 
 	return &apiv1.FilterResult{

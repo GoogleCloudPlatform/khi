@@ -121,6 +121,32 @@ func (w *Writer) WriteGenerator(gen ChunkGenerator) error {
 	}
 }
 
+// RawChunk represents a parsed chunk container with compressed payload bytes from a KHI v6 file.
+type RawChunk struct {
+	Type ChunkType
+	Data []byte // Compressed gzip data
+}
+
+// Decompress decompresses the gzip payload and returns a Chunk with uncompressed protobuf data.
+func (rc *RawChunk) Decompress() (*Chunk, error) {
+	gr, err := gzip.NewReader(bytes.NewReader(rc.Data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gr.Close()
+
+	const maxUncompressedSize = 64 * 1024 * 1024 // 64MB limit to match Protobuf parser limits
+	uncompressed, err := io.ReadAll(io.LimitReader(gr, maxUncompressedSize))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decompress payload: %w", err)
+	}
+
+	return &Chunk{
+		Type: rc.Type,
+		Data: uncompressed,
+	}, nil
+}
+
 // Chunk represents a parsed chunk from a KHI v6 file.
 type Chunk struct {
 	Type ChunkType
@@ -150,9 +176,9 @@ func NewReader(r io.Reader) (*Reader, error) {
 	return &Reader{r: r}, nil
 }
 
-// NextChunk reads the next chunk size and type, decompresses the payload, and returns it.
+// NextRawChunk reads the next chunk header and returns the raw compressed payload without decompressing it.
 // Returns io.EOF if no more chunks are available.
-func (r *Reader) NextChunk() (*Chunk, error) {
+func (r *Reader) NextRawChunk() (*RawChunk, error) {
 	// 1. Read chunk header (Size, Type)
 	var header [8]byte
 	if _, err := io.ReadFull(r.r, header[:]); err != nil {
@@ -175,21 +201,18 @@ func (r *Reader) NextChunk() (*Chunk, error) {
 		return nil, fmt.Errorf("failed to read chunk payload: %w", err)
 	}
 
-	// 3. Decompress payload
-	gr, err := gzip.NewReader(bytes.NewReader(payload))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
-	}
-	defer gr.Close()
-
-	const maxUncompressedSize = 64 * 1024 * 1024 // 64MB limit to match Protobuf parser limits
-	uncompressed, err := io.ReadAll(io.LimitReader(gr, maxUncompressedSize))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decompress payload: %w", err)
-	}
-
-	return &Chunk{
+	return &RawChunk{
 		Type: chunkType,
-		Data: uncompressed,
+		Data: payload,
 	}, nil
+}
+
+// NextChunk reads the next chunk size and type, decompresses the payload, and returns it.
+// Returns io.EOF if no more chunks are available.
+func (r *Reader) NextChunk() (*Chunk, error) {
+	rawChunk, err := r.NextRawChunk()
+	if err != nil {
+		return nil, err
+	}
+	return rawChunk.Decompress()
 }

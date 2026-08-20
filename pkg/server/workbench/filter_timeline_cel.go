@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
+	"github.com/RoaringBitmap/roaring/v2"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -109,7 +110,7 @@ func (f *TimelineCELFilter) Process(
 				}
 
 				currentProcessed := atomic.AddUint32(&processedCount, 1)
-				if currentProcessed%500 == 0 || currentProcessed == totalTimelines {
+				if currentProcessed%1000 == 0 || currentProcessed == totalTimelines {
 					if report != nil {
 						reportMu.Lock()
 						_ = report(f.Name(), currentProcessed, totalTimelines)
@@ -127,9 +128,7 @@ func (f *TimelineCELFilter) Process(
 	}
 
 	for _, localMatched := range results {
-		for _, id := range localMatched {
-			filterCtx.TimelineIDs[id] = struct{}{}
-		}
+		filterCtx.TimelineIDs.AddMany(localMatched)
 	}
 
 	return nil
@@ -162,16 +161,12 @@ func (f *TimelineCELExclusionFilter) Process(
 	totalTimelines := uint32(len(index.Timelines))
 	if f.exclusionQuery == "" {
 		if report != nil {
-			return report(f.Name(), uint32(len(filterCtx.TimelineIDs)), totalTimelines)
+			return report(f.Name(), uint32(filterCtx.TimelineIDs.GetCardinality()), totalTimelines)
 		}
 		return nil
 	}
 
-	candidateIDs := make([]uint32, 0, len(filterCtx.TimelineIDs))
-	for id := range filterCtx.TimelineIDs {
-		candidateIDs = append(candidateIDs, id)
-	}
-
+	candidateIDs := filterCtx.TimelineIDs.ToArray()
 	totalCandidates := len(candidateIDs)
 	if totalCandidates == 0 {
 		if report != nil {
@@ -242,13 +237,13 @@ func (f *TimelineCELExclusionFilter) Process(
 		return err
 	}
 
-	excludedSet := make(map[uint32]struct{})
+	excludedSet := roaring.NewBitmap()
 	var markExcludeDescendants func(id uint32)
 	markExcludeDescendants = func(id uint32) {
-		if _, exists := excludedSet[id]; exists {
+		if excludedSet.Contains(id) {
 			return
 		}
-		excludedSet[id] = struct{}{}
+		excludedSet.Add(id)
 		if tl, ok := index.TimelineMap[id]; ok {
 			for _, childID := range tl.ChildrenIDs {
 				markExcludeDescendants(childID)
@@ -262,12 +257,10 @@ func (f *TimelineCELExclusionFilter) Process(
 		}
 	}
 
-	for id := range excludedSet {
-		delete(filterCtx.TimelineIDs, id)
-	}
+	filterCtx.TimelineIDs.AndNot(excludedSet)
 
 	if report != nil {
-		if err := report(f.Name(), uint32(len(filterCtx.TimelineIDs)), totalTimelines); err != nil {
+		if err := report(f.Name(), uint32(filterCtx.TimelineIDs.GetCardinality()), totalTimelines); err != nil {
 			return err
 		}
 	}

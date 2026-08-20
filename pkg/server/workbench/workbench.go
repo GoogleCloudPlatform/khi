@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -129,17 +128,13 @@ func (w *Workbench) ReadStructYAML(structID uint32) (string, error) {
 		return "", ErrStructNotFound
 	}
 
-	node, err := khifilev6model.FromInternedStruct(s, w.internPool)
+	serializer := khifilev6model.NewDirectYAMLSerializer()
+	yamlStr, err := serializer.SerializeStruct(s, w.internPool)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode interned struct: %w", err)
+		return "", fmt.Errorf("failed to serialize struct to YAML: %w", err)
 	}
 
-	yamlBytes, err := (&structured.YAMLNodeSerializer{}).Serialize(node)
-	if err != nil {
-		return "", fmt.Errorf("failed to serialize node to YAML: %w", err)
-	}
-
-	return string(yamlBytes), nil
+	return yamlStr, nil
 }
 
 // IndexStatus returns the current index construction status snapshot.

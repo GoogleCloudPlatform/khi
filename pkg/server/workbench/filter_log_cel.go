@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
+	"github.com/RoaringBitmap/roaring/v2"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -49,20 +50,65 @@ func (f *LogCELFilter) Process(
 	index *SearchIndex,
 	report ProgressReporter,
 ) error {
-	candidateLogIDsMap := make(map[uint32]struct{})
-	for id := range filterCtx.TimelineIDs {
-		if tl, ok := index.TimelineMap[id]; ok {
-			tl.ForEachLogID(func(logID uint32) bool {
-				candidateLogIDsMap[logID] = struct{}{}
-				return true
-			})
-		}
+	if filterCtx.TimelineIDs.IsEmpty() || len(index.Logs) == 0 {
+		return nil
 	}
 
-	candidateLogIDs := make([]uint32, 0, len(candidateLogIDsMap))
-	for id := range candidateLogIDsMap {
-		candidateLogIDs = append(candidateLogIDs, id)
+	timelineIDs := filterCtx.TimelineIDs.ToArray()
+	totalTimelines := len(timelineIDs)
+
+	numTimelineWorkers := runtime.GOMAXPROCS(0)
+	if numTimelineWorkers > totalTimelines {
+		numTimelineWorkers = totalTimelines
 	}
+	if numTimelineWorkers < 1 {
+		numTimelineWorkers = 1
+	}
+
+	workerBitmaps := make([]*roaring.Bitmap, numTimelineWorkers)
+	timelineChunkSize := (totalTimelines + numTimelineWorkers - 1) / numTimelineWorkers
+
+	candG, candCtx := errgroup.WithContext(ctx)
+	for w := 0; w < numTimelineWorkers; w++ {
+		workerIdx := w
+		start := workerIdx * timelineChunkSize
+		end := start + timelineChunkSize
+		if end > totalTimelines {
+			end = totalTimelines
+		}
+		if start >= end {
+			continue
+		}
+
+		candG.Go(func() error {
+			localBM := roaring.NewBitmap()
+			for i := start; i < end; i++ {
+				select {
+				case <-candCtx.Done():
+					return candCtx.Err()
+				default:
+				}
+				tlID := timelineIDs[i]
+				if tl, ok := index.TimelineMap[tlID]; ok {
+					tl.ForEachLogID(func(logID uint32) bool {
+						if logID > 0 && int(logID) <= len(index.Logs) {
+							localBM.Add(logID)
+						}
+						return true
+					})
+				}
+			}
+			workerBitmaps[workerIdx] = localBM
+			return nil
+		})
+	}
+
+	if err := candG.Wait(); err != nil {
+		return err
+	}
+
+	candLogBitmap := roaring.FastOr(workerBitmaps...)
+	candidateLogIDs := candLogBitmap.ToArray()
 
 	totalCandidateLogs := uint32(len(candidateLogIDs))
 	if totalCandidateLogs == 0 {
@@ -145,9 +191,7 @@ func (f *LogCELFilter) Process(
 	}
 
 	for _, localMatched := range results {
-		for _, id := range localMatched {
-			filterCtx.LogIDs[id] = struct{}{}
-		}
+		filterCtx.LogIDs.AddMany(localMatched)
 	}
 
 	return nil

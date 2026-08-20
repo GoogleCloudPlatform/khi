@@ -115,7 +115,7 @@ func (m *WorkbenchManager) GetOrOpen(ctx context.Context, workbenchID string, in
 			return nil, err
 		}
 
-		loadedWb, err := NewWorkbenchFromReader(ctx, workbenchID, inspectionID, reader, totalSize, onProgress)
+		loadedWb, err := NewFromReader(ctx, workbenchID, inspectionID, reader, totalSize, onProgress)
 		if err != nil {
 			return nil, err
 		}

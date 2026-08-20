@@ -16,6 +16,8 @@ package workbench
 
 import (
 	"context"
+
+	"github.com/RoaringBitmap/roaring/v2"
 )
 
 // IncludeDescendantsFilter expands the matching timeline set by recursively including all child and descendant timelines.
@@ -40,13 +42,13 @@ func (f *IncludeDescendantsFilter) Process(
 	index *SearchIndex,
 	report ProgressReporter,
 ) error {
-	descendantTimelineIDs := make(map[uint32]struct{})
+	descendantTimelineIDs := roaring.NewBitmap()
 	var markDescendants func(id uint32)
 	markDescendants = func(id uint32) {
-		if _, exists := descendantTimelineIDs[id]; exists {
+		if descendantTimelineIDs.Contains(id) {
 			return
 		}
-		descendantTimelineIDs[id] = struct{}{}
+		descendantTimelineIDs.Add(id)
 		if tl, ok := index.TimelineMap[id]; ok {
 			for _, childID := range tl.ChildrenIDs {
 				markDescendants(childID)
@@ -54,7 +56,7 @@ func (f *IncludeDescendantsFilter) Process(
 		}
 	}
 
-	for id := range filterCtx.TimelineIDs {
+	for _, id := range filterCtx.TimelineIDs.ToArray() {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -66,7 +68,7 @@ func (f *IncludeDescendantsFilter) Process(
 	filterCtx.TimelineIDs = descendantTimelineIDs
 
 	if report != nil {
-		if err := report(f.Name(), uint32(len(filterCtx.TimelineIDs)), uint32(len(index.Timelines))); err != nil {
+		if err := report(f.Name(), uint32(filterCtx.TimelineIDs.GetCardinality()), uint32(len(index.Timelines))); err != nil {
 			return err
 		}
 	}
@@ -96,19 +98,19 @@ func (f *IncludeAncestorsFilter) Process(
 	index *SearchIndex,
 	report ProgressReporter,
 ) error {
-	ancestorTimelineIDs := make(map[uint32]struct{})
+	ancestorTimelineIDs := roaring.NewBitmap()
 	var markAncestors func(id uint32)
 	markAncestors = func(id uint32) {
-		if _, exists := ancestorTimelineIDs[id]; exists {
+		if ancestorTimelineIDs.Contains(id) {
 			return
 		}
-		ancestorTimelineIDs[id] = struct{}{}
+		ancestorTimelineIDs.Add(id)
 		if tl, ok := index.TimelineMap[id]; ok && tl.ParentID != 0 {
 			markAncestors(tl.ParentID)
 		}
 	}
 
-	for id := range filterCtx.TimelineIDs {
+	for _, id := range filterCtx.TimelineIDs.ToArray() {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -120,7 +122,7 @@ func (f *IncludeAncestorsFilter) Process(
 	filterCtx.TimelineIDs = ancestorTimelineIDs
 
 	if report != nil {
-		if err := report(f.Name(), uint32(len(filterCtx.TimelineIDs)), uint32(len(index.Timelines))); err != nil {
+		if err := report(f.Name(), uint32(filterCtx.TimelineIDs.GetCardinality()), uint32(len(index.Timelines))); err != nil {
 			return err
 		}
 	}
@@ -154,13 +156,13 @@ func (f *ExcludeNoLogsFilter) Process(
 ) error {
 	if !f.enabled {
 		if report != nil {
-			return report(f.Name(), uint32(len(filterCtx.TimelineIDs)), uint32(len(index.Timelines)))
+			return report(f.Name(), uint32(filterCtx.TimelineIDs.GetCardinality()), uint32(len(index.Timelines)))
 		}
 		return nil
 	}
 
-	retainedTimelineIDs := make(map[uint32]struct{})
-	for id := range filterCtx.TimelineIDs {
+	retainedTimelineIDs := roaring.NewBitmap()
+	for _, id := range filterCtx.TimelineIDs.ToArray() {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -170,14 +172,14 @@ func (f *ExcludeNoLogsFilter) Process(
 		if tl, ok := index.TimelineMap[id]; ok {
 			hasLogs := false
 			tl.ForEachLogID(func(logID uint32) bool {
-				if _, exists := filterCtx.LogIDs[logID]; exists {
+				if filterCtx.LogIDs.Contains(logID) {
 					hasLogs = true
 					return false
 				}
 				return true
 			})
 			if hasLogs {
-				retainedTimelineIDs[id] = struct{}{}
+				retainedTimelineIDs.Add(id)
 			}
 		}
 	}
@@ -185,7 +187,7 @@ func (f *ExcludeNoLogsFilter) Process(
 	filterCtx.TimelineIDs = retainedTimelineIDs
 
 	if report != nil {
-		if err := report(f.Name(), uint32(len(filterCtx.TimelineIDs)), uint32(len(index.Timelines))); err != nil {
+		if err := report(f.Name(), uint32(filterCtx.TimelineIDs.GetCardinality()), uint32(len(index.Timelines))); err != nil {
 			return err
 		}
 	}
