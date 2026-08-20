@@ -17,6 +17,7 @@ package workbench
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -303,5 +304,45 @@ func TestWorkbenchManager_ReopenDifferentInspection(t *testing.T) {
 	}
 	if progressStages[0] != apiv1.OpenWorkbenchResponse_STAGE_INITIALIZING {
 		t.Errorf("first progress stage = %v, want STAGE_INITIALIZING", progressStages[0])
+	}
+}
+
+func TestWorkbenchManager_ConcurrentGetOrOpen(t *testing.T) {
+	inspectionServer, validInspectionID := createTestInspectionServer(t)
+
+	mgr := NewWorkbenchManager(inspectionServer, 5*time.Second, 0)
+	defer mgr.Stop()
+
+	const numConcurrent = 10
+	workbenchID := "concurrent-user-session"
+
+	results := make([]*Workbench, numConcurrent)
+	errs := make([]error, numConcurrent)
+
+	var wg sync.WaitGroup
+	wg.Add(numConcurrent)
+
+	for i := 0; i < numConcurrent; i++ {
+		workerIdx := i
+		go func() {
+			defer wg.Done()
+			wb, err := mgr.GetOrOpen(context.Background(), workbenchID, validInspectionID, nil)
+			results[workerIdx] = wb
+			errs[workerIdx] = err
+		}()
+	}
+
+	wg.Wait()
+
+	for i := 0; i < numConcurrent; i++ {
+		if errs[i] != nil {
+			t.Fatalf("goroutine %d returned error: %v", i, errs[i])
+		}
+		if results[i] == nil {
+			t.Fatalf("goroutine %d returned nil Workbench", i)
+		}
+		if results[i] != results[0] {
+			t.Errorf("goroutine %d returned workbench instance %p, want %p", i, results[i], results[0])
+		}
 	}
 }

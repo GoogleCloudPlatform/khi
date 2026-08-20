@@ -24,6 +24,7 @@ import (
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"golang.org/x/sync/singleflight"
 )
 
 var (
@@ -43,6 +44,7 @@ type WorkbenchManager struct {
 	inspectionServer *coreinspection.InspectionTaskServer
 	ttl              time.Duration
 	sweeper          *Sweeper
+	loadGroup        singleflight.Group
 }
 
 // NewWorkbenchManager creates a new WorkbenchManager instance with automatic background sweeping.
@@ -64,6 +66,12 @@ func NewWorkbenchManager(inspectionServer *coreinspection.InspectionTaskServer, 
 
 // GetOrOpen retrieves an existing active Workbench session or loads the dataset into a new one.
 func (m *WorkbenchManager) GetOrOpen(ctx context.Context, workbenchID string, inspectionID string, onProgress ProgressCallback) (*Workbench, error) {
+	if onProgress == nil {
+		onProgress = func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+			return nil
+		}
+	}
+
 	// Check if already open and active for the same inspection dataset
 	m.mu.Lock()
 	wb, ok := m.workbenches[workbenchID]
@@ -71,10 +79,8 @@ func (m *WorkbenchManager) GetOrOpen(ctx context.Context, workbenchID string, in
 	if ok && hasLease && lease.After(time.Now()) && !wb.IsClosed() && wb.InspectionID() == inspectionID {
 		m.leases[workbenchID] = time.Now().Add(m.ttl)
 		m.mu.Unlock()
-		if onProgress != nil {
-			if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_READY, 100, "Workbench attached."); err != nil {
-				return nil, err
-			}
+		if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_READY, 100, "Workbench attached."); err != nil {
+			return nil, err
 		}
 		return wb, nil
 	}
@@ -85,42 +91,55 @@ func (m *WorkbenchManager) GetOrOpen(ctx context.Context, workbenchID string, in
 	}
 	m.mu.Unlock()
 
-	// Load data from inspection source
-	if onProgress != nil {
+	// Deduplicate concurrent dataset loading for the same workbenchID using singleflight
+	res, err, _ := m.loadGroup.Do(workbenchID, func() (any, error) {
+		m.mu.Lock()
+		if wb, ok := m.workbenches[workbenchID]; ok && !wb.IsClosed() && wb.InspectionID() == inspectionID {
+			m.leases[workbenchID] = time.Now().Add(m.ttl)
+			m.mu.Unlock()
+			return wb, nil
+		}
+		m.mu.Unlock()
+
 		if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_INITIALIZING, 0, "Initializing workbench session..."); err != nil {
 			return nil, err
 		}
-	}
 
-	reader, totalSize, err := m.loadInspectionData(inspectionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load inspection data: %w", err)
-	}
-	defer reader.Close()
+		reader, totalSize, err := m.loadInspectionData(inspectionID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load inspection data: %w", err)
+		}
+		defer reader.Close()
 
-	if onProgress != nil {
 		if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_READING_FILE, 10, "Opening inspection dataset..."); err != nil {
 			return nil, err
 		}
-	}
 
-	wb, err = NewWorkbenchFromReader(ctx, workbenchID, inspectionID, reader, totalSize, onProgress)
+		loadedWb, err := NewWorkbenchFromReader(ctx, workbenchID, inspectionID, reader, totalSize, onProgress)
+		if err != nil {
+			return nil, err
+		}
+
+		m.mu.Lock()
+		if oldWb, exists := m.workbenches[workbenchID]; exists && oldWb != nil && oldWb != loadedWb {
+			oldWb.Close()
+		}
+		m.workbenches[workbenchID] = loadedWb
+		m.leases[workbenchID] = time.Now().Add(m.ttl)
+		m.mu.Unlock()
+
+		return loadedWb, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	m.mu.Lock()
-	m.workbenches[workbenchID] = wb
-	m.leases[workbenchID] = time.Now().Add(m.ttl)
-	m.mu.Unlock()
-
-	if onProgress != nil {
-		if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_READY, 100, "Workbench ready."); err != nil {
-			return nil, err
-		}
+	loadedWb := res.(*Workbench)
+	if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_READY, 100, "Workbench ready."); err != nil {
+		return nil, err
 	}
 
-	return wb, nil
+	return loadedWb, nil
 }
 
 // loadInspectionData loads the KHI result reader and byte size for the given inspection ID.

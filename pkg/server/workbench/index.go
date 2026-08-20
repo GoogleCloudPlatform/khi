@@ -15,7 +15,6 @@
 package workbench
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -30,6 +29,7 @@ type IndexedTimeline struct {
 	ParentID    uint32
 	ChildrenIDs []uint32
 	LogIDs      []uint32
+	Path        map[string]string
 	Data        *cel.TimelineData
 }
 
@@ -245,22 +245,29 @@ func (w *Workbench) BuildSearchIndex() (*SearchIndex, error) {
 	}
 
 	for _, tl := range idx.Timelines {
-		tl.Data.Path = w.computeTimelinePath(tl, idx.TimelineMap)
+		tl.Path = tl.ComputePath(idx.TimelineMap)
+		tl.Data.Path = tl.Path
 	}
 
 	return idx, nil
 }
 
-func (w *Workbench) computeTimelinePath(tl *IndexedTimeline, tlMap map[uint32]*IndexedTimeline) map[string]string {
+// ComputePath resolves the timeline hierarchy path map for this timeline segment and all parent segments.
+func (tl *IndexedTimeline) ComputePath(tlMap map[uint32]*IndexedTimeline) map[string]string {
 	path := make(map[string]string)
+	visited := make(map[uint32]struct{})
 	curr := tl
 	for curr != nil {
+		if _, seen := visited[curr.ID]; seen {
+			break
+		}
+		visited[curr.ID] = struct{}{}
+
 		if curr.Data != nil {
 			typeKey := strings.ToLower(curr.Data.TimelineType)
 			if typeKey != "" {
 				path[typeKey] = curr.Data.Name
 			}
-			path[fmt.Sprintf("level_%d", curr.ID)] = curr.Data.Name
 		}
 		if curr.ParentID == 0 {
 			break
