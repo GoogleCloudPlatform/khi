@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,24 @@
  * limitations under the License.
  */
 
+$header-background-color: #3f51b5;
+$header-text-color: #fff;
+$title-text-color: #696969;
+$description-text-color: #696969;
+
 .container {
   width: 900px;
+  display: grid;
+  grid-template:
+    'header' auto
+    'body' auto
+    / 1fr;
 
-  // header
   .request-message-container {
-    background-color: #3f51b5;
+    grid-area: header;
+    background-color: $header-background-color;
     padding: 4px 10px;
-    color: white;
+    color: $header-text-color;
 
     .request-message {
       margin: 0;
@@ -31,55 +41,33 @@
   }
 
   .popup-body {
+    grid-area: body;
     padding: 10px;
+    display: grid;
+    grid-template:
+      'title' auto
+      'description' auto
+      'input' auto
+      / 1fr;
+    row-gap: 8px;
 
     .popup-body-input {
-      display: flex;
-      justify-content: center;
+      grid-area: input;
     }
   }
 
-  .popup-body-footer {
-    margin: 10px 0 0;
-    display: flex;
-    justify-content: flex-end;
-  }
-
   .popup-body-title {
+    grid-area: title;
     font-size: 16px;
     font-weight: 700;
-    color: dimgray;
+    color: $title-text-color;
     margin: 0;
   }
 
   .popup-body-description {
+    grid-area: description;
     font-size: 12px;
-    color: dimgray;
-  }
-
-  .validation-error {
-    color: red;
-    font-size: 12px;
-  }
-}
-
-.input-text-type-textarea {
-  width: 850px;
-  white-space: pre;
-  overflow-wrap: normal;
-  overflow-x: scroll;
-}
-
-.popup-redirect-type-container {
-  width: 100%;
-
-  .open-popup-again-paragraph {
-    margin: 10px;
-    text-decoration: underline;
-    color: blue;
-
-    &:hover {
-      cursor: pointer;
-    }
+    color: $description-text-color;
+    margin: 0;
   }
 }

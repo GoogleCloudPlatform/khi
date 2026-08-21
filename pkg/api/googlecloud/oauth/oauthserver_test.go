@@ -25,11 +25,13 @@ import (
 	"testing"
 	"time"
 
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/oauth2"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 const (
@@ -108,7 +110,7 @@ func TestNewOAuthServer(t *testing.T) {
 	}
 
 	if _, ok := server.tokenExchanger.(*defaultTokenExchanger); !ok {
-		t.Error("default token exchanger should be of type defualtTokenExchanger")
+		t.Error("default token exchanger should be of type defaultTokenExchanger")
 	}
 }
 
@@ -133,9 +135,9 @@ func TestOAuthCallbackHandler_Success(t *testing.T) {
 				t.Errorf("resolved token mismatch (-want +got):\n%s", diff)
 			}
 		case err := <-server.tokenResolutionError:
-			t.Errorf("Expected token, but got error: %v", err)
+			t.Errorf("expected token, but got error: %v", err)
 		case <-time.After(1 * time.Second):
-			t.Error("Timed out waiting for token")
+			t.Error("timed out waiting for token")
 		}
 	}()
 
@@ -169,9 +171,9 @@ func TestOAuthCallbackHandler_InvalidState(t *testing.T) {
 				t.Errorf("error message does not contain 'invalid state code received'")
 			}
 		case <-server.resolvedToken:
-			t.Error("Expected error, but got token")
+			t.Error("expected error, but got token")
 		case <-time.After(1 * time.Second):
-			t.Error("Timed out waiting for error")
+			t.Error("timed out waiting for error")
 		}
 	}()
 
@@ -210,9 +212,9 @@ func TestOAuthCallbackHandler_ExchangeError(t *testing.T) {
 				t.Errorf("expected error %v, got %v", exchangeErr, err)
 			}
 		case <-server.resolvedToken:
-			t.Error("Expected error, but got token")
+			t.Error("expected error, but got token")
 		case <-time.After(1 * time.Second):
-			t.Error("Timed out waiting for error")
+			t.Error("timed out waiting for error")
 		}
 	}()
 
@@ -263,9 +265,9 @@ func TestOAuthCallbackHandler_RedirectError(t *testing.T) {
 				t.Errorf("error message does not contain 'authentication failed with redirect error'")
 			}
 		case <-server.resolvedToken:
-			t.Error("Expected error, but got token")
+			t.Error("expected error, but got token")
 		case <-time.After(1 * time.Second):
-			t.Error("Timed out waiting for error")
+			t.Error("timed out waiting for error")
 		}
 	}()
 
@@ -308,15 +310,17 @@ func TestRequestToken_Success(t *testing.T) {
 			currentState = state
 		}
 
-		wantPopupFormRequest := &popup.PopupFormRequest{
-			Title:       "OAuth Token",
-			Type:        "popup_redirect",
-			Description: "Please login to your Google account to get the access token.",
-			Options: map[string]string{
-				"redirectTo": fmt.Sprintf("http://localhost/auth?client_id=test-client-id&redirect_uri=http%%3A%%2F%%2Flocalhost%%2Foauth%%2Fcallback&response_type=code&scope=test-scope&state=%s", currentState),
+		wantPopupForm := &apiv1.PopupForm{
+			Id:          currentPopup.Id,
+			Title:       proto.String("OAuth Token"),
+			Description: proto.String("Please login to your Google account to get the access token."),
+			Payload: &apiv1.PopupForm_OauthLogin{
+				OauthLogin: &apiv1.OAuthLoginPopupPayload{
+					AuthUrl: proto.String(fmt.Sprintf("http://localhost/auth?client_id=test-client-id&redirect_uri=http%%3A%%2F%%2Flocalhost%%2Foauth%%2Fcallback&response_type=code&scope=test-scope&state=%s", currentState)),
+				},
 			},
 		}
-		if diff := cmp.Diff(wantPopupFormRequest, currentPopup, cmpopts.IgnoreFields(popup.PopupFormRequest{}, "Id")); diff != "" {
+		if diff := cmp.Diff(wantPopupForm, currentPopup, protocmp.Transform()); diff != "" {
 			t.Errorf("popup metadata mismatch (-want +got):\n%s", diff)
 		}
 

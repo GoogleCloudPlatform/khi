@@ -14,19 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<div class="container">
-  <div class="request-message-container">
-    <p class="request-message">KHI backend server requested your action</p>
-  </div>
-  <div class="popup-body">
-    <p class="popup-body-title">{{ formRequest.form.title }}</p>
-    <p class="popup-body-description">{{ formRequest.form.description }}</p>
-    <div class="popup-body-input">
-      @if (contentComponent(); as component) {
-        <ng-container
-          *ngComponentOutlet="component; inputs: contentInputs()"
-        ></ng-container>
-      }
-    </div>
-  </div>
+<div class="oauth-login-container">
+  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  <p class="open-popup-again-paragraph">
+    <button class="reopen-button" type="button" (click)="openAuthWindow()">
+      Open the login window again
+    </button>
+  </p>
 </div>

@@ -15,135 +15,247 @@
 package popup
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 var popupIDGenerator = idgenerator.NewPrefixIDGenerator("popup-")
 
-var PopupOptionRedirectTargetKey = "redirectTo"
+var (
+	// NoCurrentPopup indicates that an operation was attempted when no popup was active.
+	NoCurrentPopup = fmt.Errorf("no active current popup")
+	// CurrentPopupIsntMatchingWithGivenId indicates that the requested popup ID does not match the active popup.
+	CurrentPopupIsntMatchingWithGivenId = fmt.Errorf("given id is not matching with the current popup")
+)
 
-var NoCurrentPopup = fmt.Errorf("no active current popup")
-var CurrentPopupIsntMatchingWithGivenId = fmt.Errorf("given id is not matching with the current popup")
-
-// PopupForm is an abstract interface to represent the type to define the form shown from backend to frontend.
+// PopupForm is a polymorphic interface for backend popup implementations.
 type PopupForm interface {
-	// GetMetadata return the metadata type needed to show the form to frontend
-	GetMetadata() PopupFormMetadata
-	// Validate receives the input from frontend and returns validation result
-	Validate(req *PopupAnswerResponse) string
+	// BuildProtoForm constructs the proto message for this popup with the given ID.
+	BuildProtoForm(id string) *apiv1.PopupForm
+	// Validate handles answer validation for this popup.
+	Validate(ctx context.Context, req *apiv1.ValidatePopupAnswerRequest) (*apiv1.ValidatePopupAnswerResponse, error)
+	// Answer handles answer submission for this popup. Returns the resolved result string for ShowPopup.
+	Answer(ctx context.Context, req *apiv1.SubmitPopupAnswerRequest) (string, error)
 }
 
-// PopupFormMetadata contains data needed for showing input ui on frontend side.
-type PopupFormMetadata struct {
-	// The title of this form
-	Title string
-	// Type of input field. Currently, only `text` or `popup_redirect` is the supported value.
-	Type string
-	// Description of this form.
+// TextPopupForm represents a standard text input popup.
+type TextPopupForm struct {
+	Title       string
 	Description string
 	Placeholder string
-
-	// The other option values of the request.
-	Options map[string]string `json:"options"`
+	Validator   func(value string) string
 }
 
-// PopupFormRequest is a popup display request that is actually passed to the frontend.
-type PopupFormRequest struct {
-	Id          string            `json:"id"`
-	Title       string            `json:"title"`
-	Type        string            `json:"type"`
-	Description string            `json:"description"`
-	Placeholder string            `json:"placeholder"`
-	Options     map[string]string `json:"options"`
-}
-
-// PopupAnswerResponse is the container of the data to validate/answer shown popup form.
-type PopupAnswerResponse struct {
-	Id    string `json:"id"`
-	Value string `json:"value"`
-}
-
-// PopupAnswerValidationResult is the type passed from the frontend to validate the popup.
-type PopupAnswerValidationResult struct {
-	Id              string `json:"id"`
-	ValidationError string `json:"validationError"`
-}
-
-// PopupManager receives questions shown to user from frontend.
-type PopupManager struct {
-	newPopupLock        sync.Mutex
-	popupWaiter         sync.WaitGroup
-	popupResult         string
-	currentPopupRequest *PopupFormRequest
-	currentPopup        PopupForm
-}
-
-func NewPopupManager() *PopupManager {
-	return &PopupManager{
-		newPopupLock:        sync.Mutex{},
-		popupWaiter:         sync.WaitGroup{},
-		popupResult:         "",
-		currentPopupRequest: nil,
-		currentPopup:        nil,
+// BuildProtoForm implements PopupForm.
+func (t *TextPopupForm) BuildProtoForm(id string) *apiv1.PopupForm {
+	return &apiv1.PopupForm{
+		Id:          proto.String(id),
+		Title:       proto.String(t.Title),
+		Description: proto.String(t.Description),
+		Payload: &apiv1.PopupForm_Text{
+			Text: &apiv1.TextPopupPayload{
+				Placeholder: proto.String(t.Placeholder),
+			},
+		},
 	}
 }
 
-// ShowPopup shows the popup UI on frontend side and wait until receiving the input.
-func (p *PopupManager) ShowPopup(popup PopupForm) (string, error) {
-	id := popupIDGenerator.Generate()
-	metadata := popup.GetMetadata()
-	p.newPopupLock.Lock()
-	defer p.newPopupLock.Unlock()
-	p.currentPopup = popup
-	p.currentPopupRequest = &PopupFormRequest{
-		Id:          id,
-		Title:       metadata.Title,
-		Type:        metadata.Type,
-		Description: metadata.Description,
-		Placeholder: metadata.Placeholder,
-		Options:     metadata.Options,
+// Validate implements PopupForm.
+func (t *TextPopupForm) Validate(_ context.Context, req *apiv1.ValidatePopupAnswerRequest) (*apiv1.ValidatePopupAnswerResponse, error) {
+	var errStr string
+	if t.Validator != nil {
+		errStr = t.Validator(req.GetText().GetValue())
 	}
-	p.popupWaiter = sync.WaitGroup{}
-	p.popupWaiter.Add(1)
-	p.popupWaiter.Wait()
-	return p.popupResult, nil
-}
-
-// GetCurrentPopup returns currently active popup request data needed in frontend side to show the popup
-func (p *PopupManager) GetCurrentPopup() *PopupFormRequest {
-	return p.currentPopupRequest
-}
-
-// Validate receives form input and check if the request is valid to receive. If it was not valid, it returns validation error in string.
-func (p *PopupManager) Validate(request *PopupAnswerResponse) (*PopupAnswerValidationResult, error) {
-	if p.currentPopupRequest == nil {
-		return nil, NoCurrentPopup
-	}
-	if p.currentPopupRequest.Id != request.Id {
-		return nil, CurrentPopupIsntMatchingWithGivenId
-	}
-	return &PopupAnswerValidationResult{
-		Id:              request.Id,
-		ValidationError: p.currentPopup.Validate(request),
+	return &apiv1.ValidatePopupAnswerResponse{
+		Id:              proto.String(req.GetId()),
+		ValidationError: proto.String(errStr),
 	}, nil
 }
 
-// Answer determine the result of the form. This method assume the request is already validated before.
-func (p *PopupManager) Answer(request *PopupAnswerResponse) error {
-	if p.currentPopupRequest == nil {
+// Answer implements PopupForm.
+func (t *TextPopupForm) Answer(_ context.Context, req *apiv1.SubmitPopupAnswerRequest) (string, error) {
+	return req.GetText().GetValue(), nil
+}
+
+var _ PopupForm = (*TextPopupForm)(nil)
+
+// PopupEventType represents the lifecycle state change of a popup form.
+type PopupEventType int
+
+const (
+	// PopupEventTypeOpened indicates a new popup has been displayed.
+	PopupEventTypeOpened PopupEventType = iota
+	// PopupEventTypeDismissed indicates the active popup has been closed or answered.
+	PopupEventTypeDismissed
+)
+
+// PopupEvent represents a popup lifecycle event delivered to subscribers.
+type PopupEvent struct {
+	Type PopupEventType
+	Form *apiv1.PopupForm
+}
+
+// PopupManager manages questions shown to user from frontend.
+type PopupManager struct {
+	mu           sync.Mutex
+	popupWaiter  chan struct{}
+	popupResult  string
+	currentProto *apiv1.PopupForm
+	currentForm  PopupForm
+	subscribers  map[chan PopupEvent]struct{}
+}
+
+// NewPopupManager creates an initialized instance of PopupManager.
+func NewPopupManager() *PopupManager {
+	return &PopupManager{
+		mu:           sync.Mutex{},
+		popupWaiter:  nil,
+		popupResult:  "",
+		currentProto: nil,
+		currentForm:  nil,
+		subscribers:  make(map[chan PopupEvent]struct{}),
+	}
+}
+
+// Subscribe registers a listener for popup lifecycle events.
+// It returns a receive-only channel and an unsubscribe function to clean up resources.
+func (p *PopupManager) Subscribe() (<-chan PopupEvent, func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	ch := make(chan PopupEvent, 10)
+	if p.subscribers == nil {
+		p.subscribers = make(map[chan PopupEvent]struct{})
+	}
+	p.subscribers[ch] = struct{}{}
+
+	if p.currentProto != nil {
+		ch <- PopupEvent{
+			Type: PopupEventTypeOpened,
+			Form: p.currentProto,
+		}
+	}
+
+	unsubscribe := func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		delete(p.subscribers, ch)
+		close(ch)
+	}
+	return ch, unsubscribe
+}
+
+func (p *PopupManager) broadcastLocked(ev PopupEvent) {
+	for ch := range p.subscribers {
+		select {
+		case ch <- ev:
+		default:
+		}
+	}
+}
+
+// ShowPopup shows the popup UI on frontend side and waits until receiving the input.
+func (p *PopupManager) ShowPopup(popup PopupForm) (string, error) {
+	id := popupIDGenerator.Generate()
+	protoForm := popup.BuildProtoForm(id)
+
+	waiter := make(chan struct{})
+
+	p.mu.Lock()
+	p.currentForm = popup
+	p.currentProto = protoForm
+	p.popupWaiter = waiter
+	p.broadcastLocked(PopupEvent{
+		Type: PopupEventTypeOpened,
+		Form: p.currentProto,
+	})
+	p.mu.Unlock()
+
+	<-waiter
+
+	p.mu.Lock()
+	result := p.popupResult
+	p.mu.Unlock()
+
+	return result, nil
+}
+
+// GetCurrentPopup returns currently active popup proto data needed in frontend side to show the popup.
+func (p *PopupManager) GetCurrentPopup() *apiv1.PopupForm {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.currentProto
+}
+
+// Validate receives form input and checks if the request is valid to receive.
+func (p *PopupManager) Validate(ctx context.Context, request *apiv1.ValidatePopupAnswerRequest) (*apiv1.ValidatePopupAnswerResponse, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.currentProto == nil || p.currentForm == nil {
+		return nil, NoCurrentPopup
+	}
+	if p.currentProto.GetId() != request.GetId() {
+		return nil, CurrentPopupIsntMatchingWithGivenId
+	}
+	return p.currentForm.Validate(ctx, request)
+}
+
+// Answer processes the finalized answer for the active popup.
+func (p *PopupManager) Answer(ctx context.Context, request *apiv1.SubmitPopupAnswerRequest) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.currentProto == nil || p.currentForm == nil {
 		return NoCurrentPopup
 	}
-	if p.currentPopupRequest.Id != request.Id {
+	if p.currentProto.GetId() != request.GetId() {
 		return CurrentPopupIsntMatchingWithGivenId
 	}
-	p.popupResult = request.Value
-	p.currentPopup = nil
-	p.currentPopupRequest = nil
-	p.popupWaiter.Done()
+	res, err := p.currentForm.Answer(ctx, request)
+	if err != nil {
+		return err
+	}
+	p.popupResult = res
+	p.currentForm = nil
+	p.currentProto = nil
+	if p.popupWaiter != nil {
+		close(p.popupWaiter)
+		p.popupWaiter = nil
+	}
+	p.broadcastLocked(PopupEvent{
+		Type: PopupEventTypeDismissed,
+	})
 	return nil
 }
 
+// DismissActivePopup dismisses the active popup from the server side without waiting for user submission.
+func (p *PopupManager) DismissActivePopup(id string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.currentProto == nil || p.currentForm == nil {
+		return NoCurrentPopup
+	}
+	if p.currentProto.GetId() != id {
+		return CurrentPopupIsntMatchingWithGivenId
+	}
+	p.currentForm = nil
+	p.currentProto = nil
+	if p.popupWaiter != nil {
+		close(p.popupWaiter)
+		p.popupWaiter = nil
+	}
+	p.broadcastLocked(PopupEvent{
+		Type: PopupEventTypeDismissed,
+	})
+	return nil
+}
+
+// Instance is the singleton instance of PopupManager.
 var Instance *PopupManager = NewPopupManager()

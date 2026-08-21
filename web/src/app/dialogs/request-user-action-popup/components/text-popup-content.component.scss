@@ -1,0 +1,63 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+$validation-error-color: #d32f2f;
+
+.text-popup-container {
+  display: grid;
+  grid-template:
+    'input' auto
+    'error' auto
+    'footer' auto
+    / 1fr;
+  row-gap: 8px;
+}
+
+.input-container {
+  grid-area: input;
+  display: grid;
+  grid-template:
+    'textarea' 1fr
+    / 1fr;
+}
+
+.input-text-type-textarea {
+  grid-area: textarea;
+  width: 100%;
+  box-sizing: border-box;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: scroll;
+}
+
+.validation-error {
+  grid-area: error;
+  color: $validation-error-color;
+  font-size: 12px;
+  margin: 0;
+}
+
+.popup-footer {
+  grid-area: footer;
+  display: grid;
+  grid-template:
+    'spacer button' 1fr
+    / 1fr auto;
+}
+
+.submit-button {
+  grid-area: button;
+}

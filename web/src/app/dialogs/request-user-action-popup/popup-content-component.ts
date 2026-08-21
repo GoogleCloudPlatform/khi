@@ -14,29 +14,17 @@
  * limitations under the License.
  */
 
-import { InjectionToken, Signal } from '@angular/core';
 import { Client } from '@connectrpc/connect';
 import { PopupForm, PopupService } from 'src/app/generated/api/v1/popup_pb';
 
 /**
- * The injection token to get the actual PopupManager implementation.
+ * Inputs provided dynamically to popup content child components.
  */
-export const POPUP_MANAGER = new InjectionToken<PopupManager>('POPUP_MANAGER');
-
-/**
- * PopupFormWithClient pairs an active PopupForm with its communication client.
- */
-export interface PopupFormWithClient {
+export interface PopupContentInputs extends Record<string, unknown> {
+  /** The active popup form message from the server. */
   readonly form: PopupForm;
+  /** The Connect-RPC client used to interact with PopupService. */
   readonly client: Client<typeof PopupService>;
-}
-
-/**
- * PopupManager provides reactive access to server-requested popups.
- */
-export interface PopupManager {
-  /**
-   * Signal providing the currently active popup form and its client, or null if no popup is active.
-   */
-  readonly currentPopup: Signal<PopupFormWithClient | null>;
+  /** Callback to notify the parent dialog when the popup interaction has completed. */
+  readonly onComplete?: () => void;
 }

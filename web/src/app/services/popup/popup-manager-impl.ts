@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,86 +14,81 @@
  * limitations under the License.
  */
 
+import { Injectable, inject, signal, OnDestroy } from '@angular/core';
+import { PopupForm } from 'src/app/generated/api/v1/popup_pb';
+import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import {
-  distinctUntilKeyChanged,
-  exhaustMap,
-  interval,
-  map,
-  Observable,
-  retry,
-  shareReplay,
-  throwError,
-} from 'rxjs';
-import {
-  PopupClient,
-  PopupFormRequestWithClient,
+  PopupFormWithClient,
   PopupManager,
-} from './popup-manager';
-import {
-  PopupAnswerResponse,
-  PopupAnswerValidationResult,
-  PopupFormRequest,
-} from 'src/app/common/schema/api-types';
-import { BACKEND_API, BackendAPI } from '../api/backend-api-interface';
-import { Injectable, inject } from '@angular/core';
+} from 'src/app/services/popup/popup-manager';
 
-export const NilPopupFormRequest: PopupFormRequest = {
-  id: 'none',
-  title: '',
-  type: 'text',
-  description: '',
-  placeholder: '',
-  options: {},
-};
+/**
+ * PopupManagerImpl continuously watches the server for popup lifecycle events using Connect-RPC streaming.
+ */
+@Injectable({ providedIn: 'root' })
+export class PopupManagerImpl implements PopupManager, OnDestroy {
+  private readonly connectClient = inject(ConnectClientService);
 
-@Injectable({ providedIn: 'any' })
-export class PopupManagerImpl implements PopupManager {
-  private readonly backendAPI = inject<BackendAPI>(BACKEND_API);
+  private readonly _currentPopup = signal<PopupFormWithClient | null>(null);
 
-  private readonly popupRequest = interval(1000).pipe(
-    exhaustMap(
-      () => this.backendAPI.getPopup() as Observable<PopupFormRequest>,
-    ),
-    map((req) => req ?? NilPopupFormRequest),
-    distinctUntilKeyChanged('id'),
-    retry(),
-    shareReplay({
-      bufferSize: 1,
-      refCount: true,
-    }),
-  );
+  /**
+   * Signal providing the currently active popup form and its client, or null if no popup is active.
+   */
+  public readonly currentPopup = this._currentPopup.asReadonly();
 
-  requests(): Observable<PopupFormRequestWithClient> {
-    return this.popupRequest.pipe(
-      map((request) => ({
-        ...request,
-        client: new PopupClientImpl(request.id, this.backendAPI),
-      })),
-    );
+  private readonly abortController = new AbortController();
+
+  constructor() {
+    this.startWatchLoop();
   }
-}
 
-export class PopupClientImpl implements PopupClient {
-  constructor(
-    public readonly popupId: string,
-    private backendAPI: BackendAPI,
-  ) {}
-  validate(data: PopupAnswerResponse): Observable<PopupAnswerValidationResult> {
-    if (data.id === this.popupId) {
-      return this.backendAPI.validatePopupAnswer(data);
-    } else {
-      return throwError(() => {
-        return 'the popup id is not for this client';
+  private async startWatchLoop(): Promise<void> {
+    while (!this.abortController.signal.aborted) {
+      try {
+        const responseStream = this.connectClient.popupClient.watchPopup(
+          {},
+          { signal: this.abortController.signal },
+        );
+
+        for await (const res of responseStream) {
+          if (this.abortController.signal.aborted) {
+            break;
+          }
+
+          switch (res.event.case) {
+            case 'popup':
+              this.handlePopupEvent(res.event.value);
+              break;
+            case 'dismissed':
+              this.handleDismissedEvent();
+              break;
+          }
+        }
+      } catch {
+        if (this.abortController.signal.aborted) {
+          break;
+        }
+        // Reconnect after 1 second if a connection drop or network failure occurred.
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  private handlePopupEvent(form: PopupForm): void {
+    const current = this._currentPopup();
+    if (current?.form.id !== form.id) {
+      this._currentPopup.set({
+        form,
+        client: this.connectClient.popupClient,
       });
     }
   }
-  answer(data: PopupAnswerResponse): Observable<void> {
-    if (data.id === this.popupId) {
-      return this.backendAPI.answerPopup(data);
-    } else {
-      return throwError(() => {
-        return 'the popup id is not for this client';
-      });
-    }
+
+  private handleDismissedEvent(): void {
+    this._currentPopup.set(null);
+  }
+
+  ngOnDestroy(): void {
+    this.abortController.abort();
   }
 }

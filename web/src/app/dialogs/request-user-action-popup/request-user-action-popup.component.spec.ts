@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,11 @@
  * limitations under the License.
  */
 
-import {
-  ComponentFixture,
-  fakeAsync,
-  TestBed,
-  tick,
-} from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import {
   RequestUserActionPopupComponent,
   RequestUserActionPopupRequest,
-} from './request-user-action-popup.component';
+} from 'src/app/dialogs/request-user-action-popup/request-user-action-popup.component';
 import {
   MAT_DIALOG_DATA,
   MatDialog,
@@ -33,9 +28,17 @@ import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { Component } from '@angular/core';
-import { PopupFormRequestWithClient } from 'src/app/services/popup/popup-manager';
+import { PopupFormWithClient } from 'src/app/services/popup/popup-manager';
+import { create } from '@bufbuild/protobuf';
+import {
+  PopupFormSchema,
+  PopupService,
+} from 'src/app/generated/api/v1/popup_pb';
+import { Client } from '@connectrpc/connect';
+import { TextPopupContentComponent } from 'src/app/dialogs/request-user-action-popup/components/text-popup-content.component';
+import { OAuthLoginPopupContentComponent } from 'src/app/dialogs/request-user-action-popup/components/oauth-login-popup-content.component';
 import { By } from '@angular/platform-browser';
-import { MockPopupClient } from 'src/app/services/popup/mock';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('RequestUserActionPopup in dialog context', () => {
   @Component({
@@ -46,9 +49,21 @@ describe('RequestUserActionPopup in dialog context', () => {
 
   let testingWrapper: ComponentFixture<TestingDialogWrapComponent>;
   let loader: HarnessLoader;
+  let mockClient: jasmine.SpyObj<Client<typeof PopupService>>;
+
   beforeEach(async () => {
+    mockClient = jasmine.createSpyObj('PopupService', [
+      'validatePopupAnswer',
+      'submitPopupAnswer',
+    ]);
+    mockClient.validatePopupAnswer.and.resolveTo({
+      id: 'foo',
+      validationError: '',
+      $typeName: 'api.v1.ValidatePopupAnswerResponse',
+    });
+
     await TestBed.configureTestingModule({
-      imports: [TestingDialogWrapComponent],
+      imports: [TestingDialogWrapComponent, NoopAnimationsModule],
     }).compileComponents();
     testingWrapper = TestBed.createComponent(TestingDialogWrapComponent);
     testingWrapper.detectChanges();
@@ -56,8 +71,8 @@ describe('RequestUserActionPopup in dialog context', () => {
   });
 
   async function testIfDialogShowingUpWithParam(
-    request: PopupFormRequestWithClient,
-  ) {
+    request: PopupFormWithClient,
+  ): Promise<void> {
     const matDialog = TestBed.inject(MatDialog);
     matDialog.open<
       RequestUserActionPopupComponent,
@@ -72,71 +87,63 @@ describe('RequestUserActionPopup in dialog context', () => {
     matDialog.closeAll();
   }
 
-  it('should be instanciated with type=text', async () => {
+  it('should be instantiated with text popup', async () => {
     await testIfDialogShowingUpWithParam({
-      id: 'foo',
-      type: 'text',
-      title: 'foo title',
-      description: 'test description',
-      placeholder: 'test placeholder',
-      options: {},
-      client: new MockPopupClient(),
+      form: create(PopupFormSchema, {
+        id: 'foo',
+        title: 'foo title',
+        description: 'test description',
+        payload: {
+          case: 'text',
+          value: {
+            placeholder: 'test placeholder',
+          },
+        },
+      }),
+      client: mockClient,
     });
   });
 });
 
-describe('RequestUserActionPopup', () => {
+describe('RequestUserActionPopup dynamic rendering', () => {
   let matDialogRefSpy: jasmine.SpyObj<
     MatDialogRef<RequestUserActionPopupRequest, void>
   >;
+  let mockClient: jasmine.SpyObj<Client<typeof PopupService>>;
+
   beforeEach(async () => {
     matDialogRefSpy = jasmine.createSpyObj('MatDialogRef', ['close'], {
       disableClose: false,
     });
-  });
-  it('should have disbaled submit button at first', async () => {
-    await TestBed.configureTestingModule({
-      imports: [RequestUserActionPopupComponent],
-      providers: [
-        {
-          provide: MAT_DIALOG_DATA,
-          useValue: {
-            formRequest: {
-              id: 'foo',
-              type: 'text',
-              title: 'foo title',
-              description: 'test description',
-              placeholder: 'test placeholder',
-              client: new MockPopupClient(),
-            },
-          },
-        },
-        {
-          provide: MatDialogRef,
-          useValue: matDialogRefSpy,
-        },
-      ],
-    }).compileComponents();
-    const fixture = TestBed.createComponent(RequestUserActionPopupComponent);
-    fixture.detectChanges();
-    const button = fixture.debugElement.query(By.css('.submit-button'));
-    expect(button.nativeElement.disabled).toBe(true);
+    mockClient = jasmine.createSpyObj('PopupService', [
+      'validatePopupAnswer',
+      'submitPopupAnswer',
+    ]);
+    mockClient.validatePopupAnswer.and.resolveTo({
+      id: 'foo',
+      validationError: '',
+      $typeName: 'api.v1.ValidatePopupAnswerResponse',
+    });
   });
 
-  it('should update the disabled status of submit button by input', fakeAsync(async () => {
+  it('should render TextPopupContentComponent for text popup', async () => {
     await TestBed.configureTestingModule({
-      imports: [RequestUserActionPopupComponent],
+      imports: [RequestUserActionPopupComponent, NoopAnimationsModule],
       providers: [
         {
           provide: MAT_DIALOG_DATA,
           useValue: {
             formRequest: {
-              id: 'foo',
-              type: 'text',
-              title: 'foo title',
-              description: 'test description',
-              placeholder: 'test placeholder',
-              client: new MockPopupClient(),
+              form: create(PopupFormSchema, {
+                id: 'foo',
+                title: 'Text Popup Title',
+                description: 'Text description',
+                payload: {
+                  case: 'text',
+                  value: { placeholder: 'test' },
+                },
+              }),
+              client: mockClient,
             },
           },
         },
@@ -146,40 +153,36 @@ describe('RequestUserActionPopup', () => {
         },
       ],
     }).compileComponents();
+
     const fixture = TestBed.createComponent(RequestUserActionPopupComponent);
     fixture.detectChanges();
-    const textarea = fixture.debugElement.query(
-      By.css('.input-text-type-textarea'),
+    await fixture.whenStable();
+
+    const textContent = fixture.debugElement.query(
+      By.directive(TextPopupContentComponent),
     );
-    const button = fixture.debugElement.query(By.css('.submit-button'));
+    expect(textContent).not.toBeNull();
+  });
 
-    textarea.nativeElement.value = 'valid';
-    textarea.nativeElement.dispatchEvent(new Event('input'));
-    tick(1000);
-    fixture.detectChanges();
-    expect(button.nativeElement.disabled).toBe(false);
-
-    textarea.nativeElement.value = 'invalid';
-    textarea.nativeElement.dispatchEvent(new Event('input'));
-    tick(1000);
-    fixture.detectChanges();
-    expect(button.nativeElement.disabled).toBe(true);
-  }));
-
-  it('should close dialog after submit', fakeAsync(async () => {
+  it('should render OAuthLoginPopupContentComponent for oauthLogin popup', async () => {
+    spyOn(window, 'open');
     await TestBed.configureTestingModule({
-      imports: [RequestUserActionPopupComponent],
+      imports: [RequestUserActionPopupComponent, NoopAnimationsModule],
       providers: [
         {
           provide: MAT_DIALOG_DATA,
           useValue: {
             formRequest: {
-              id: 'foo',
-              type: 'text',
-              title: 'foo title',
-              description: 'test description',
-              placeholder: 'test placeholder',
-              client: new MockPopupClient(),
+              form: create(PopupFormSchema, {
+                id: 'foo',
+                title: 'OAuth Login Title',
+                description: 'OAuth description',
+                payload: {
+                  case: 'oauthLogin',
+                  value: { authUrl: 'http://example.com/auth' },
+                },
+              }),
+              client: mockClient,
             },
           },
         },
@@ -189,62 +192,47 @@ describe('RequestUserActionPopup', () => {
         },
       ],
     }).compileComponents();
+
     const fixture = TestBed.createComponent(RequestUserActionPopupComponent);
     fixture.detectChanges();
+    await fixture.whenStable();
 
-    const textarea = fixture.debugElement.query(
-      By.css('.input-text-type-textarea'),
+    const oauthContent = fixture.debugElement.query(
+      By.directive(OAuthLoginPopupContentComponent),
     );
-    const button = fixture.debugElement.query(By.css('.submit-button'));
+    expect(oauthContent).not.toBeNull();
+  });
 
-    textarea.nativeElement.value = 'valid';
-    textarea.nativeElement.dispatchEvent(new Event('input'));
-    tick(1000);
-    fixture.detectChanges();
-    button.nativeElement.click();
-    tick(1000);
+  it('should close dialog when onCompleted is called', () => {
+    TestBed.configureTestingModule({
+      imports: [RequestUserActionPopupComponent, NoopAnimationsModule],
+      providers: [
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+            formRequest: {
+              form: create(PopupFormSchema, {
+                id: 'foo',
+                title: 'Text Popup Title',
+                description: 'Text description',
+                payload: {
+                  case: 'text',
+                  value: { placeholder: 'test' },
+                },
+              }),
+              client: mockClient,
+            },
+          },
+        },
+        {
+          provide: MatDialogRef,
+          useValue: matDialogRefSpy,
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(RequestUserActionPopupComponent);
+    fixture.componentInstance.onCompleted();
     expect(matDialogRefSpy.close).toHaveBeenCalled();
-  }));
-
-  it('should show the valdiation error', fakeAsync(async () => {
-    await TestBed.configureTestingModule({
-      imports: [RequestUserActionPopupComponent],
-      providers: [
-        {
-          provide: MAT_DIALOG_DATA,
-          useValue: {
-            formRequest: {
-              id: 'foo',
-              type: 'text',
-              title: 'foo title',
-              description: 'test description',
-              placeholder: 'test placeholder',
-              client: new MockPopupClient(),
-            },
-          },
-        },
-        {
-          provide: MatDialogRef,
-          useValue: matDialogRefSpy,
-        },
-      ],
-    }).compileComponents();
-    const fixture = TestBed.createComponent(RequestUserActionPopupComponent);
-    fixture.detectChanges();
-
-    const textarea = fixture.debugElement.query(
-      By.css('.input-text-type-textarea'),
-    );
-    const validationError = fixture.debugElement.query(
-      By.css('.validation-error'),
-    );
-
-    textarea.nativeElement.value = 'invalid';
-    textarea.nativeElement.dispatchEvent(new Event('input'));
-    tick(1000);
-    fixture.detectChanges();
-    expect(validationError.nativeElement.textContent).toBe(
-      "invalid isn't valid",
-    );
-  }));
+  });
 });

@@ -1,0 +1,122 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package api.v1;
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1";
+
+// PopupService provides APIs for server-requested user interactions and authentication popups.
+service PopupService {
+  // Watches real-time popup events from the server. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
+  rpc WatchPopup(WatchPopupRequest) returns (stream WatchPopupResponse);
+
+  // Validates the current input in the active popup dialog without submitting the final answer.
+  rpc ValidatePopupAnswer(ValidatePopupAnswerRequest) returns (ValidatePopupAnswerResponse);
+
+  // Submits the finalized answer for the active popup dialog.
+  rpc SubmitPopupAnswer(SubmitPopupAnswerRequest) returns (SubmitPopupAnswerResponse);
+}
+
+// Request to start watching popup events.
+message WatchPopupRequest {}
+
+// TextPopupPayload contains configuration specific to text input popups.
+message TextPopupPayload {
+  // Placeholder text for the input textarea.
+  string placeholder = 1;
+}
+
+// OAuthLoginPopupPayload contains configuration specific to OAuth authentication popups.
+message OAuthLoginPopupPayload {
+  // Target URL to open in a new window or tab for OAuth login.
+  string auth_url = 1;
+}
+
+// PopupForm describes an active user interaction form requested by the backend.
+message PopupForm {
+  // Unique identifier for the popup instance.
+  string id = 1;
+
+  // Title displayed on the popup header.
+  string title = 2;
+
+  // Detailed instruction or description shown inside the popup.
+  string description = 3;
+
+  // Specialized payload depending on the popup interaction type.
+  oneof payload {
+    TextPopupPayload text = 4;
+    OAuthLoginPopupPayload oauth_login = 5;
+  }
+}
+
+// WatchPopupResponse delivers real-time notifications about popup lifecycle changes.
+message WatchPopupResponse {
+  // Event delivered through the stream.
+  oneof event {
+    // Fired when a new popup is requested or currently active upon connecting.
+    PopupForm popup = 1;
+
+    // Fired when the active popup is closed, dismissed, or completed.
+    bool dismissed = 2;
+  }
+}
+
+// Validation payload for text input popups.
+message TextPopupValidationRequest {
+  // Current text entered by the user.
+  string value = 1;
+}
+
+// Request to validate an in-progress answer for an active popup.
+message ValidatePopupAnswerRequest {
+  // Popup instance identifier.
+  string id = 1;
+
+  // Type-specific validation payload matching the active popup form.
+  oneof payload {
+    TextPopupValidationRequest text = 2;
+  }
+}
+
+// Response containing validation feedback for the provided input value.
+message ValidatePopupAnswerResponse {
+  // Popup instance identifier.
+  string id = 1;
+
+  // Validation error message. Empty string if the input is valid.
+  string validation_error = 2;
+}
+
+// Answer payload for text input popups.
+message TextPopupAnswer {
+  // Finalized text value submitted by the user.
+  string value = 1;
+}
+
+// Request to submit the finalized answer for an active popup.
+message SubmitPopupAnswerRequest {
+  // Popup instance identifier.
+  string id = 1;
+
+  // Type-specific answer payload matching the active popup form.
+  oneof payload {
+    TextPopupAnswer text = 2;
+  }
+}
+
+// Response confirming answer submission.
+message SubmitPopupAnswerResponse {}

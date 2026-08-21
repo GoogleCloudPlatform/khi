@@ -23,9 +23,10 @@ import {
   viewChild,
   ElementRef,
   ViewContainerRef,
+  effect,
 } from '@angular/core';
 import { LayoutService } from 'src/app/services/layout/layout.service';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject } from 'rxjs';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
   POPUP_MANAGER,
@@ -52,7 +53,6 @@ import {
   RequestUserActionPopupComponent,
   RequestUserActionPopupRequest,
 } from 'src/app/dialogs/request-user-action-popup/request-user-action-popup.component';
-import { NilPopupFormRequest } from 'src/app/services/popup/popup-manager-impl';
 
 import {
   MenuManager,
@@ -111,6 +111,34 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   private readonly notificationManager: NotificationManager =
     inject(NotificationManager);
 
+  constructor() {
+    let lastDialogRef: MatDialogRef<RequestUserActionPopupComponent> | null =
+      null;
+
+    effect(() => {
+      const activePopup = this.popupManager.currentPopup();
+      if (activePopup) {
+        if (!lastDialogRef) {
+          lastDialogRef = this.dialog.open<
+            RequestUserActionPopupComponent,
+            RequestUserActionPopupRequest
+          >(RequestUserActionPopupComponent, {
+            data: {
+              formRequest: activePopup,
+            },
+          });
+          this.notificationManager.notify({
+            title: 'KHI requests additional parameter',
+            body: `Please supply ${activePopup.form.title} to proceed tasks`,
+          });
+        }
+      } else {
+        lastDialogRef?.close();
+        lastDialogRef = null;
+      }
+    });
+  }
+
   /**
    * Initializes the component.
    * Checks for data in URL, opens startup dialog if needed, and starts monitoring popup requests.
@@ -121,33 +149,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
       openStartupDialog(this.dialog);
     }
     openReleaseNotesDialog(this.dialog, this.settingsStorage);
-    // Start monitoring popup request from server.
 
-    let lastDialogRef: MatDialogRef<RequestUserActionPopupComponent> | null =
-      null;
-    this.popupManager
-      .requests()
-      .pipe(takeUntil(this.destroyed))
-      .subscribe((formRequest) => {
-        // The last opened dialog will be closed automatically When the popup was cancelled from server side.
-        if (formRequest.id === NilPopupFormRequest.id) {
-          lastDialogRef?.close();
-          lastDialogRef = null;
-          return;
-        }
-        lastDialogRef = this.dialog.open<
-          RequestUserActionPopupComponent,
-          RequestUserActionPopupRequest
-        >(RequestUserActionPopupComponent, {
-          data: {
-            formRequest,
-          },
-        });
-        this.notificationManager.notify({
-          title: 'KHI requests additional parameter',
-          body: `Please supply ${formRequest.title} to proceed tasks`,
-        });
-      });
     this.diffPageSourceSender.activate();
     this.graphPageSourceSender.activate();
   }

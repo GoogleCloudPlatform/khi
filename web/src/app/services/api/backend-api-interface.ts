@@ -24,9 +24,6 @@ import {
   InspectionMetadataOfRunResult,
   InspectionPatchRequest,
   InspectionRunRequest,
-  PopupAnswerResponse,
-  PopupAnswerValidationResult,
-  PopupFormRequest,
 } from '../../common/schema/api-types';
 import { InspectionClient } from './backend-api.service';
 import { InjectionToken } from '@angular/core';
@@ -156,26 +153,6 @@ export interface BackendAPI {
    * @param inspectionID inspection ID to cancel
    */
   cancelInspection(inspectionID: string): Observable<void>;
-
-  /**
-   * Get the current popup request.
-   * Expected called endpoint: GET /api/v3/popup
-   */
-  getPopup(): Observable<PopupFormRequest | null>;
-
-  /**
-   * Validate the request for the current popup
-   * Expected called endpoint: POST /api/v3/popup/validate
-   */
-  validatePopupAnswer(
-    answer: PopupAnswerResponse,
-  ): Observable<PopupAnswerValidationResult>;
-
-  /**
-   * Answer the current request for the popup
-   * Expected called endpoint: POST /api/v3/popup/answer
-   */
-  answerPopup(answer: PopupAnswerResponse): Observable<void>;
 
   /**
    * Upload the file as the one bound to the token.

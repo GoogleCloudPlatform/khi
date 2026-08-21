@@ -16,7 +16,6 @@ package server
 
 import (
 	"embed"
-	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -31,7 +30,6 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
@@ -369,59 +367,6 @@ func SetupKHIServerRoutes(engine *gin.Engine, inspectionServer *coreinspection.I
 			return
 		}
 		ctx.DataFromReader(http.StatusOK, min(maxSize, int64(fileSize)-rangeStart), "application/octet-stream", inspectionDataReader, map[string]string{})
-	})
-
-	router.GET("/api/v3/popup", func(ctx *gin.Context) {
-		currentPopup := popup.Instance.GetCurrentPopup()
-		if currentPopup == nil {
-			ctx.String(http.StatusOK, "")
-			return
-		}
-		ctx.JSON(http.StatusOK, currentPopup)
-	})
-
-	router.POST("/api/v3/popup/validate", func(ctx *gin.Context) {
-		request := &popup.PopupAnswerResponse{}
-		if err := ctx.ShouldBindJSON(request); err != nil {
-			ctx.String(http.StatusBadRequest, err.Error())
-			return
-		}
-		result, err := popup.Instance.Validate(request)
-		if errors.Is(err, popup.NoCurrentPopup) {
-			ctx.String(http.StatusNotFound, err.Error())
-			return
-		}
-		if errors.Is(err, popup.CurrentPopupIsntMatchingWithGivenId) {
-			ctx.String(http.StatusBadRequest, err.Error())
-			return
-		}
-		if err != nil {
-			ctx.String(http.StatusInternalServerError, err.Error())
-			return
-		}
-		ctx.JSON(http.StatusOK, result)
-	})
-
-	router.POST("/api/v3/popup/answer", func(ctx *gin.Context) {
-		request := &popup.PopupAnswerResponse{}
-		if err := ctx.ShouldBindJSON(request); err != nil {
-			ctx.String(http.StatusBadRequest, err.Error())
-			return
-		}
-		err := popup.Instance.Answer(request)
-		if errors.Is(err, popup.NoCurrentPopup) {
-			ctx.String(http.StatusNotFound, err.Error())
-			return
-		}
-		if errors.Is(err, popup.CurrentPopupIsntMatchingWithGivenId) {
-			ctx.String(http.StatusBadRequest, err.Error())
-			return
-		}
-		if err != nil {
-			ctx.String(http.StatusInternalServerError, err.Error())
-			return
-		}
-		ctx.String(http.StatusOK, "")
 	})
 
 	router.POST("/api/v3/upload", func(ctx *gin.Context) {

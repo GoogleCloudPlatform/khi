@@ -15,40 +15,57 @@
 package popup
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 type testPopupForm struct{}
 
-// GetMetadata implements PopupForm.
-func (t *testPopupForm) GetMetadata() PopupFormMetadata {
-	return PopupFormMetadata{
-		Title:       "foo",
-		Type:        "bar",
-		Description: "baz",
-		Placeholder: "qux",
+// BuildProtoForm implements PopupForm.
+func (t *testPopupForm) BuildProtoForm(id string) *apiv1.PopupForm {
+	return &apiv1.PopupForm{
+		Id:          proto.String(id),
+		Title:       proto.String("foo"),
+		Description: proto.String("baz"),
+		Payload: &apiv1.PopupForm_Text{
+			Text: &apiv1.TextPopupPayload{
+				Placeholder: proto.String("qux"),
+			},
+		},
 	}
 }
 
 // Validate implements PopupForm.
-func (t *testPopupForm) Validate(req *PopupAnswerResponse) string {
-	if strings.Contains(req.Value, "ok") {
-		return ""
-	} else {
-		return "answer for test popup must contain ok"
+func (t *testPopupForm) Validate(_ context.Context, req *apiv1.ValidatePopupAnswerRequest) (*apiv1.ValidatePopupAnswerResponse, error) {
+	errStr := ""
+	if !strings.Contains(req.GetText().GetValue(), "ok") {
+		errStr = "answer for test popup must contain ok"
 	}
+	return &apiv1.ValidatePopupAnswerResponse{
+		Id:              proto.String(req.GetId()),
+		ValidationError: proto.String(errStr),
+	}, nil
 }
 
-var _ PopupForm = &testPopupForm{}
+// Answer implements PopupForm.
+func (t *testPopupForm) Answer(_ context.Context, req *apiv1.SubmitPopupAnswerRequest) (string, error) {
+	return req.GetText().GetValue(), nil
+}
+
+var _ PopupForm = (*testPopupForm)(nil)
 
 func TestPopupManager(t *testing.T) {
+	ctx := context.Background()
 	pm := NewPopupManager()
+
 	t.Run("GetCurrentPopup returns nil when no popup shown", func(t *testing.T) {
 		cp := pm.GetCurrentPopup()
 		if cp != nil {
@@ -69,55 +86,70 @@ func TestPopupManager(t *testing.T) {
 			}
 			wg.Done()
 		}()
-		<-time.After(time.Second)
+		<-time.After(50 * time.Millisecond)
 		cp := pm.GetCurrentPopup()
-		if diff := cmp.Diff(cp, &PopupFormRequest{
-			Title:       "foo",
-			Type:        "bar",
-			Description: "baz",
-			Placeholder: "qux",
-		}, cmpopts.IgnoreFields(PopupFormRequest{}, "Id")); diff != "" {
-			t.Error(diff)
+		if cp == nil {
+			t.Fatal("expected non-nil popup form")
 		}
-		if cp.Id == "" {
-			t.Error("Id is empty")
+		if diff := cmp.Diff(&apiv1.PopupForm{
+			Id:          cp.Id,
+			Title:       proto.String("foo"),
+			Description: proto.String("baz"),
+			Payload: &apiv1.PopupForm_Text{
+				Text: &apiv1.TextPopupPayload{
+					Placeholder: proto.String("qux"),
+				},
+			},
+		}, cp, protocmp.Transform()); diff != "" {
+			t.Errorf("popup form mismatch (-want +got):\n%s", diff)
 		}
-		pm.Answer(&PopupAnswerResponse{
-			Id:    cp.Id,
-			Value: "ok",
+		if cp.GetId() == "" {
+			t.Error("id is empty")
+		}
+		_ = pm.Answer(ctx, &apiv1.SubmitPopupAnswerRequest{
+			Id: cp.Id,
+			Payload: &apiv1.SubmitPopupAnswerRequest_Text{
+				Text: &apiv1.TextPopupAnswer{Value: proto.String("ok")},
+			},
 		})
 		wg.Wait()
 	})
 
 	t.Run("Validate returns the result obtained from the Validate method on PopupForm", func(t *testing.T) {
 		go func() {
-			<-time.After(time.Second)
+			<-time.After(50 * time.Millisecond)
 			p := pm.GetCurrentPopup()
-			result, err := pm.Validate(&PopupAnswerResponse{
-				Id:    p.Id,
-				Value: "ng",
+			result, err := pm.Validate(ctx, &apiv1.ValidatePopupAnswerRequest{
+				Id: p.Id,
+				Payload: &apiv1.ValidatePopupAnswerRequest_Text{
+					Text: &apiv1.TextPopupValidationRequest{Value: proto.String("ng")},
+				},
 			})
 			if err != nil {
 				t.Errorf("%s", err.Error())
 			}
-			if result.ValidationError != "answer for test popup must contain ok" {
-				t.Errorf("expected answer for test popup must contain ok but got %s", result.ValidationError)
+			if result.GetValidationError() != "answer for test popup must contain ok" {
+				t.Errorf("expected answer for test popup must contain ok but got %s", result.GetValidationError())
 			}
 
-			result, err = pm.Validate(&PopupAnswerResponse{
-				Id:    p.Id,
-				Value: "ok",
+			result, err = pm.Validate(ctx, &apiv1.ValidatePopupAnswerRequest{
+				Id: p.Id,
+				Payload: &apiv1.ValidatePopupAnswerRequest_Text{
+					Text: &apiv1.TextPopupValidationRequest{Value: proto.String("ok")},
+				},
 			})
 			if err != nil {
 				t.Errorf("%s", err.Error())
 			}
-			if result.ValidationError != "" {
-				t.Errorf("expected empty but got %s", result.ValidationError)
+			if result.GetValidationError() != "" {
+				t.Errorf("expected empty but got %s", result.GetValidationError())
 			}
 
-			pm.Answer(&PopupAnswerResponse{
-				Id:    p.Id,
-				Value: "ok",
+			_ = pm.Answer(ctx, &apiv1.SubmitPopupAnswerRequest{
+				Id: p.Id,
+				Payload: &apiv1.SubmitPopupAnswerRequest_Text{
+					Text: &apiv1.TextPopupAnswer{Value: proto.String("ok")},
+				},
 			})
 		}()
 		result, err := pm.ShowPopup(&testPopupForm{})
@@ -131,18 +163,22 @@ func TestPopupManager(t *testing.T) {
 
 	t.Run("Validate returns an error when it got request for non current popup", func(t *testing.T) {
 		go func() {
-			<-time.After(time.Second)
+			<-time.After(50 * time.Millisecond)
 			p := pm.GetCurrentPopup()
-			_, err := pm.Validate(&PopupAnswerResponse{
-				Id:    "foo",
-				Value: "ok",
+			_, err := pm.Validate(ctx, &apiv1.ValidatePopupAnswerRequest{
+				Id: proto.String("foo"),
+				Payload: &apiv1.ValidatePopupAnswerRequest_Text{
+					Text: &apiv1.TextPopupValidationRequest{Value: proto.String("ok")},
+				},
 			})
 			if err != CurrentPopupIsntMatchingWithGivenId {
 				t.Errorf("%s", err.Error())
 			}
-			pm.Answer(&PopupAnswerResponse{
-				Id:    p.Id,
-				Value: "ok",
+			_ = pm.Answer(ctx, &apiv1.SubmitPopupAnswerRequest{
+				Id: p.Id,
+				Payload: &apiv1.SubmitPopupAnswerRequest_Text{
+					Text: &apiv1.TextPopupAnswer{Value: proto.String("ok")},
+				},
 			})
 		}()
 		result, err := pm.ShowPopup(&testPopupForm{})
@@ -156,18 +192,22 @@ func TestPopupManager(t *testing.T) {
 
 	t.Run("Answer returns an error when it got a request for non current popup", func(t *testing.T) {
 		go func() {
-			<-time.After(time.Second)
+			<-time.After(50 * time.Millisecond)
 			p := pm.GetCurrentPopup()
-			err := pm.Answer(&PopupAnswerResponse{
-				Id:    "foo",
-				Value: "ok",
+			err := pm.Answer(ctx, &apiv1.SubmitPopupAnswerRequest{
+				Id: proto.String("foo"),
+				Payload: &apiv1.SubmitPopupAnswerRequest_Text{
+					Text: &apiv1.TextPopupAnswer{Value: proto.String("ok")},
+				},
 			})
 			if err != CurrentPopupIsntMatchingWithGivenId {
 				t.Errorf("expected %s but got %s", CurrentPopupIsntMatchingWithGivenId, err)
 			}
-			pm.Answer(&PopupAnswerResponse{
-				Id:    p.Id,
-				Value: "ok",
+			_ = pm.Answer(ctx, &apiv1.SubmitPopupAnswerRequest{
+				Id: p.Id,
+				Payload: &apiv1.SubmitPopupAnswerRequest_Text{
+					Text: &apiv1.TextPopupAnswer{Value: proto.String("ok")},
+				},
 			})
 		}()
 		result, err := pm.ShowPopup(&testPopupForm{})
@@ -176,6 +216,66 @@ func TestPopupManager(t *testing.T) {
 		}
 		if result != "ok" {
 			t.Errorf("expected ok but got %s", result)
+		}
+	})
+
+	t.Run("Subscribe receives events for open and dismissed", func(t *testing.T) {
+		events, unsubscribe := pm.Subscribe()
+		defer unsubscribe()
+
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			p := pm.GetCurrentPopup()
+			_ = pm.Answer(ctx, &apiv1.SubmitPopupAnswerRequest{
+				Id: p.Id,
+				Payload: &apiv1.SubmitPopupAnswerRequest_Text{
+					Text: &apiv1.TextPopupAnswer{Value: proto.String("ok")},
+				},
+			})
+		}()
+
+		go func() {
+			_, _ = pm.ShowPopup(&testPopupForm{})
+		}()
+
+		ev1 := <-events
+		if ev1.Type != PopupEventTypeOpened {
+			t.Errorf("ev1.Type = %v, want %v", ev1.Type, PopupEventTypeOpened)
+		}
+		if ev1.Form == nil || ev1.Form.GetTitle() != "foo" {
+			t.Errorf("ev1.Form mismatch: %+v", ev1.Form)
+		}
+
+		ev2 := <-events
+		if ev2.Type != PopupEventTypeDismissed {
+			t.Errorf("ev2.Type = %v, want %v", ev2.Type, PopupEventTypeDismissed)
+		}
+	})
+
+	t.Run("DismissActivePopup dismisses the current popup", func(t *testing.T) {
+		events, unsubscribe := pm.Subscribe()
+		defer unsubscribe()
+
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			p := pm.GetCurrentPopup()
+			if p != nil {
+				_ = pm.DismissActivePopup(p.GetId())
+			}
+		}()
+
+		go func() {
+			_, _ = pm.ShowPopup(&testPopupForm{})
+		}()
+
+		ev1 := <-events
+		if ev1.Type != PopupEventTypeOpened {
+			t.Errorf("ev1.Type = %v, want %v", ev1.Type, PopupEventTypeOpened)
+		}
+
+		ev2 := <-events
+		if ev2.Type != PopupEventTypeDismissed {
+			t.Errorf("ev2.Type = %v, want %v", ev2.Type, PopupEventTypeDismissed)
 		}
 	})
 }

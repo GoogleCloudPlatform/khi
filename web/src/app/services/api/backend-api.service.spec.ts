@@ -36,9 +36,6 @@ import {
   InspectionDryRunResponse,
   InspectionMetadataOfRunResult,
   InspectionRunRequest,
-  PopupAnswerResponse,
-  PopupAnswerValidationResult,
-  PopupFormRequest,
 } from '../../common/schema/api-types';
 import { BackendAPI } from './backend-api-interface';
 import { of } from 'rxjs';
@@ -354,63 +351,6 @@ describe('BackendAPIImpl testing', () => {
     expect(req.request.method).toEqual('POST');
 
     req.flush('');
-  });
-
-  it('can call getPopup', (done) => {
-    const testResponse: PopupFormRequest = {
-      id: 'test',
-      title: 'test',
-      type: 'text',
-      description: 'test',
-      placeholder: 'test',
-      options: {},
-    };
-
-    api.getPopup().subscribe((data) => {
-      expect(data).toBe(testResponse);
-      done();
-    });
-    const req = httpTestingController.expectOne('/api/v3/popup');
-
-    expect(req.request.method).toBe('GET');
-    req.flush(testResponse);
-  });
-
-  it('can call validatePopupAnswer', (done) => {
-    const testRequest: PopupAnswerResponse = {
-      id: 'test',
-      value: 'foo',
-    };
-    const testResponse: PopupAnswerValidationResult = {
-      id: 'test',
-      validationError: 'foo',
-    };
-
-    api.validatePopupAnswer(testRequest).subscribe((data) => {
-      expect(data).toBe(testResponse);
-      done();
-    });
-    const req = httpTestingController.expectOne('/api/v3/popup/validate');
-
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toBe(testRequest);
-    req.flush(testResponse);
-  });
-
-  it('can call answerPopup', (done) => {
-    const testRequest: PopupAnswerResponse = {
-      id: 'test',
-      value: 'foo',
-    };
-
-    api.answerPopup(testRequest).subscribe(() => {
-      done();
-    });
-    const req = httpTestingController.expectOne('/api/v3/popup/answer');
-
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toBe(testRequest);
-    req.flush('ok');
   });
 });
 

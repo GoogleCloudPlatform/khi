@@ -25,9 +25,6 @@ import {
   GetInspectionResponse,
   InspectionDryRunRequest,
   InspectionRunRequest,
-  PopupAnswerResponse,
-  PopupAnswerValidationResult,
-  PopupFormRequest,
   InspectionMetadataOfRunResult,
   InspectionPatchRequest,
 } from '../../common/schema/api-types';
@@ -245,22 +242,6 @@ export class BackendAPIImpl implements BackendAPI {
         );
       }),
     );
-  }
-
-  public getPopup(): Observable<PopupFormRequest | null> {
-    const url = this.baseUrl + `/popup`;
-    return this.http.get<PopupFormRequest | null>(url);
-  }
-
-  public validatePopupAnswer(
-    answer: PopupAnswerResponse,
-  ): Observable<PopupAnswerValidationResult> {
-    const url = this.baseUrl + `/popup/validate`;
-    return this.http.post<PopupAnswerValidationResult>(url, answer);
-  }
-  public answerPopup(answer: PopupAnswerResponse): Observable<void> {
-    const url = this.baseUrl + `/popup/answer`;
-    return this.http.post(url, answer).pipe(map(() => {}));
   }
 
   public cancelInspection(inspectionID: string) {

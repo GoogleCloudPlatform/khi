@@ -22,9 +22,11 @@ import (
 	"sync"
 	"time"
 
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
+	"google.golang.org/protobuf/proto"
 )
 
 // oauthTokenSource is an implementation of oauth2.TokenSource that requests tokens from the OAuthServer.
@@ -41,35 +43,41 @@ func (o *oauthTokenSource) Token() (*oauth2.Token, error) {
 var _ oauth2.TokenSource = (*oauthTokenSource)(nil)
 
 type oauthTokenPopup struct {
-	oauthCodeURL  string
-	popupClosable bool
+	oauthCodeURL string
 }
 
-// GetMetadata implements popup.PopupForm.
-func (o *oauthTokenPopup) GetMetadata() popup.PopupFormMetadata {
-	return popup.PopupFormMetadata{
-		Title:       "OAuth Token",
-		Type:        "popup_redirect",
-		Description: "Please login to your Google account to get the access token.",
-		Options: map[string]string{
-			popup.PopupOptionRedirectTargetKey: o.oauthCodeURL,
+// BuildProtoForm implements popup.PopupForm.
+func (o *oauthTokenPopup) BuildProtoForm(id string) *apiv1.PopupForm {
+	return &apiv1.PopupForm{
+		Id:          proto.String(id),
+		Title:       proto.String("OAuth Token"),
+		Description: proto.String("Please login to your Google account to get the access token."),
+		Payload: &apiv1.PopupForm_OauthLogin{
+			OauthLogin: &apiv1.OAuthLoginPopupPayload{
+				AuthUrl: proto.String(o.oauthCodeURL),
+			},
 		},
 	}
 }
 
 // Validate implements popup.PopupForm.
-func (o *oauthTokenPopup) Validate(req *popup.PopupAnswerResponse) string {
-	if o.popupClosable {
-		return ""
-	} else {
-		return "Authentication is not finished yet. Please check another tab."
-	}
+func (o *oauthTokenPopup) Validate(_ context.Context, req *apiv1.ValidatePopupAnswerRequest) (*apiv1.ValidatePopupAnswerResponse, error) {
+	return &apiv1.ValidatePopupAnswerResponse{
+		Id:              proto.String(req.GetId()),
+		ValidationError: proto.String(""),
+	}, nil
 }
+
+// Answer implements popup.PopupForm.
+func (o *oauthTokenPopup) Answer(_ context.Context, _ *apiv1.SubmitPopupAnswerRequest) (string, error) {
+	return "", nil
+}
+
+var _ popup.PopupForm = (*oauthTokenPopup)(nil)
 
 func newoauthTokenPopup(redirectTarget string) *oauthTokenPopup {
 	return &oauthTokenPopup{
-		oauthCodeURL:  redirectTarget,
-		popupClosable: false,
+		oauthCodeURL: redirectTarget,
 	}
 }
 
@@ -133,7 +141,7 @@ func NewOAuthServer(engine *gin.Engine, oauthConfig *oauth2.Config, oauthRedirec
 }
 
 // configureServer configures the Gin engine to handle OAuth redirect callbacks. It registers a GET handler for the specified
-// oauthhRedirectTargetServingPath.
+// oauthRedirectTargetServingPath.
 func (s *OAuthServer) configureServer() {
 	s.engine.GET(s.oauthRedirectTargetServingPath, func(ctx *gin.Context) {
 		if handleErrorRedirect(ctx) {
@@ -187,7 +195,9 @@ func (s *OAuthServer) requestToken() (*oauth2.Token, error) {
 		}
 	}()
 	defer func() {
-		redirectPopup.popupClosable = true
+		if cp := popup.Instance.GetCurrentPopup(); cp != nil {
+			_ = popup.Instance.DismissActivePopup(cp.GetId())
+		}
 	}()
 
 	select {

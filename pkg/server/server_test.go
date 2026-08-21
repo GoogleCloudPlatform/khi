@@ -37,38 +37,14 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
-
-type testPopupForm struct{}
-
-// GetMetadata implements popup.PopupForm.
-func (t testPopupForm) GetMetadata() popup.PopupFormMetadata {
-	return popup.PopupFormMetadata{
-		Title:       "foo",
-		Type:        "bar",
-		Description: "baz",
-	}
-}
-
-// Validate implements popup.PopupForm.
-func (t testPopupForm) Validate(req *popup.PopupAnswerResponse) string {
-	if strings.Contains(req.Value, "ok") {
-		return ""
-	} else {
-		return "answer for test popup must contain ok"
-	}
-}
-
-var _ popup.PopupForm = testPopupForm{}
 
 type testScenarioStep struct {
 	RequestMethod    string
@@ -186,19 +162,6 @@ func bodyCompareWithStringExpectedValue(expected string, options ...cmp.Option) 
 	return func(t *testing.T, body string, stat map[string]string) {
 		if diff := cmp.Diff(expected, body, options...); diff != "" {
 			t.Errorf("the result is not matching with the expected response\n%s\nexpected:\n%s\nactual:%s", diff, expected, body)
-		}
-	}
-}
-
-func bodyCompareWithStruct[T any](expected *T, options ...cmp.Option) func(t *testing.T, body string, stat map[string]string) {
-	return func(t *testing.T, body string, stat map[string]string) {
-		parsedActual := new(T)
-		err := json.Unmarshal([]byte(body), parsedActual)
-		if err != nil {
-			t.Errorf("unexpected error\n%v", err)
-		}
-		if diff := cmp.Diff(expected, parsedActual, options...); diff != "" {
-			t.Errorf("the result is not matching with the expected response\n%s", diff)
 		}
 	}
 }
@@ -594,118 +557,6 @@ func TestApiResponses(t *testing.T) {
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection",
 			BodyValidator: taskCompare("task-3", `{"error":{"errorMessages":[]},"progress":{"phase":"ERROR","progresses":[],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"1 of 3 tasks complete","percentage":0.33333334}}}`, "header"),
-		},
-		{
-			// 034
-			ExpectedCode:  200,
-			RequestMethod: "GET",
-			RequestPath:   "/foo/api/v3/popup",
-			BodyValidator: bodyCompareWithStringExpectedValue(""),
-			After: func(stat map[string]string) {
-				go func() {
-					popup.Instance.ShowPopup(testPopupForm{})
-				}()
-				<-time.After(time.Second)
-				p := popup.Instance.GetCurrentPopup()
-				stat["popup-id"] = p.Id
-			},
-		},
-		{
-			// 035
-			ExpectedCode:  200,
-			RequestMethod: "GET",
-			RequestPath:   "/foo/api/v3/popup",
-			BodyValidator: bodyCompareWithStruct(
-				&popup.PopupFormRequest{
-					Title:       "foo",
-					Type:        "bar",
-					Description: "baz",
-				},
-				cmpopts.IgnoreFields(popup.PopupFormRequest{}, "Id"),
-			),
-		},
-		{
-			// 036
-			ExpectedCode:  200,
-			RequestMethod: "POST",
-			RequestPath:   "/foo/api/v3/popup/validate",
-			RequestGenerator: func(t *testing.T, stat map[string]string) any {
-				return popup.PopupAnswerResponse{
-					Id:    stat["popup-id"],
-					Value: "ng",
-				}
-			},
-			BodyValidator: bodyCompareWithStruct(
-				&popup.PopupAnswerValidationResult{
-					ValidationError: "answer for test popup must contain ok",
-				}, cmpopts.IgnoreFields(popup.PopupAnswerValidationResult{}, "Id"),
-			),
-		},
-		{
-			// 037
-			ExpectedCode:  200,
-			RequestMethod: "POST",
-			RequestPath:   "/foo/api/v3/popup/validate",
-			RequestGenerator: func(t *testing.T, stat map[string]string) any {
-				return popup.PopupAnswerResponse{
-					Id:    stat["popup-id"],
-					Value: "ok",
-				}
-			},
-			BodyValidator: bodyCompareWithStruct(
-				&popup.PopupAnswerValidationResult{
-					ValidationError: "",
-				}, cmpopts.IgnoreFields(popup.PopupAnswerValidationResult{}, "Id"),
-			),
-		},
-		{
-			// 038
-			ExpectedCode:  400,
-			RequestMethod: "POST",
-			RequestPath:   "/foo/api/v3/popup/validate",
-			RequestGenerator: func(t *testing.T, stat map[string]string) any {
-				return popup.PopupAnswerResponse{
-					Id:    "non-valid-id",
-					Value: "ok",
-				}
-			},
-			BodyValidator: bodyCompareWithStringExpectedValue("given id is not matching with the current popup"),
-		},
-		{
-			// 039
-			ExpectedCode:  400,
-			RequestMethod: "POST",
-			RequestPath:   "/foo/api/v3/popup/answer",
-			RequestGenerator: func(t *testing.T, stat map[string]string) any {
-				return popup.PopupAnswerResponse{
-					Id:    "non-valid-id",
-					Value: "ok",
-				}
-			},
-			BodyValidator: bodyCompareWithStringExpectedValue("given id is not matching with the current popup"),
-		},
-		{
-			// 040
-			ExpectedCode:  200,
-			RequestMethod: "POST",
-			RequestPath:   "/foo/api/v3/popup/answer",
-			RequestGenerator: func(t *testing.T, stat map[string]string) any {
-				return popup.PopupAnswerResponse{
-					Id:    stat["popup-id"],
-					Value: "ok",
-				}
-			},
-			BodyValidator: bodyCompareWithStringExpectedValue(""),
-			After: func(stat map[string]string) {
-				delete(stat, "popup-id")
-			},
-		},
-		{
-			// 041
-			ExpectedCode:  200,
-			RequestMethod: "GET",
-			RequestPath:   "/foo/api/v3/popup",
-			BodyValidator: bodyCompareWithStringExpectedValue(""),
 		},
 	}
 
