@@ -24,6 +24,7 @@ import {
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { Subscription } from 'rxjs';
 import { CollapseTimelineFilter } from 'src/app/store/domain/filter/collapse-filter';
 import { BackendFilter } from 'src/app/store/domain/filter/backend-filter';
@@ -61,8 +62,8 @@ export class TimelineView {
   public readonly excludeNoLogs;
 
   private readonly _context = signal<LogTimelineFilterContext>({
-    timelineIds: new Set(),
-    logIds: new Set(),
+    timelineIds: IdBitset.createEmpty(),
+    logIds: IdBitset.createEmpty(),
   });
   private readonly _isFiltering = signal<boolean>(false);
   private readonly _progress = signal<FilteringProgressInfo | null>(null);
@@ -105,7 +106,7 @@ export class TimelineView {
   public readonly filteredLogs = computed<ReadonlyDomainElement<Log>[]>(() => {
     const ctx = this.context();
     const logs: ReadonlyDomainElement<Log>[] = [];
-    for (const id of ctx.logIds) {
+    for (const id of ctx.logIds.values()) {
       logs.push(this.store.logStore.getLog(id));
     }
     logs.sort((a, b) => {
@@ -117,9 +118,9 @@ export class TimelineView {
   });
 
   /**
-   * Emits the set of log IDs that successfully passed the pipeline evaluation.
+   * Emits the bitset of log IDs that successfully passed the pipeline evaluation.
    */
-  public readonly filteredLogIds = computed<Set<number>>(() => {
+  public readonly filteredLogIds = computed<IdBitset>(() => {
     return this.context().logIds;
   });
 
@@ -137,15 +138,9 @@ export class TimelineView {
     this.excludeNoLogs = this.backendFilter.excludeNoLogs;
 
     // Initialize context with all timelines/logs initially
-    const allTimelines = this.store.timelines;
-    const allTimelineIds = new Set(allTimelines.map((t) => t.id));
-    const allLogIds = new Set<number>();
-    for (const l of this.store.logStore.logs()) {
-      allLogIds.add(l.id);
-    }
     this._context.set({
-      timelineIds: allTimelineIds,
-      logIds: allLogIds,
+      timelineIds: IdBitset.fromSequential(this.store.timelines.length),
+      logIds: IdBitset.fromSequential(this.store.logStore.count),
     });
 
     this.addFilter(this.backendFilter);
@@ -234,16 +229,9 @@ export class TimelineView {
 
     this._isFiltering.set(true);
 
-    const allTimelines = this.store.timelines;
-    const allTimelineIds = new Set(allTimelines.map((t) => t.id));
-    const allLogIds = new Set<number>();
-    for (const l of this.store.logStore.logs()) {
-      allLogIds.add(l.id);
-    }
-
     let ctx: LogTimelineFilterContext = {
-      timelineIds: allTimelineIds,
-      logIds: allLogIds,
+      timelineIds: IdBitset.fromSequential(this.store.timelines.length),
+      logIds: IdBitset.fromSequential(this.store.logStore.count),
     };
 
     try {

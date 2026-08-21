@@ -16,6 +16,7 @@
 
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { Observable } from 'rxjs';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
  * Error thrown when a filter operation is cancelled or aborted.
@@ -71,13 +72,13 @@ export function isCancellationError(err: unknown): boolean {
  */
 export interface LogTimelineFilterContext {
   /**
-   * Set of remaining timeline IDs that are currently active in the filtered view.
+   * Bitset of remaining timeline IDs that are currently active in the filtered view.
    */
-  timelineIds: Set<number>;
+  readonly timelineIds: IdBitset;
   /**
-   * Set of remaining log IDs that are currently active in the filtered view.
+   * Bitset of remaining log IDs that are currently active in the filtered view.
    */
-  logIds: Set<number>;
+  readonly logIds: IdBitset;
 }
 
 /**

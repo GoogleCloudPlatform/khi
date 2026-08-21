@@ -17,7 +17,11 @@
 import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { UserIdentityService } from 'src/app/services/api/workbench/user-identity.service';
-import { OpenWorkbenchResponse_Stage } from 'src/app/generated/api/v1/workbench_pb';
+import {
+  FilterResultMode,
+  OpenWorkbenchResponse_Stage,
+  SparseBitset,
+} from 'src/app/generated/api/v1/workbench_pb';
 import { LRUCache } from 'src/app/common/lru-cache';
 
 /**
@@ -49,11 +53,13 @@ export type FilterProgressCallback = (
 ) => void;
 
 /**
- * Final result of the filter pipeline.
+ * Final result of the filter pipeline containing sparse bitset representations of matching items.
  */
 export interface FilterTimelineResult {
-  readonly timelineIds: readonly number[];
-  readonly logIds: readonly number[];
+  readonly timelineMode?: FilterResultMode;
+  readonly timelineBitset?: SparseBitset;
+  readonly logMode?: FilterResultMode;
+  readonly logBitset?: SparseBitset;
 }
 
 /**
@@ -240,10 +246,7 @@ export class WorkbenchClientService implements OnDestroy {
       { signal },
     );
 
-    let result: FilterTimelineResult = {
-      timelineIds: [],
-      logIds: [],
-    };
+    let result: FilterTimelineResult = {};
 
     for await (const res of responseStream) {
       if (res.payload.case === 'progress' && res.payload.value) {
@@ -256,8 +259,10 @@ export class WorkbenchClientService implements OnDestroy {
         }
       } else if (res.payload.case === 'result' && res.payload.value) {
         result = {
-          timelineIds: res.payload.value.timelineIds ?? [],
-          logIds: res.payload.value.logIds ?? [],
+          timelineMode: res.payload.value.timelineMode,
+          timelineBitset: res.payload.value.timelineBitset,
+          logMode: res.payload.value.logMode,
+          logBitset: res.payload.value.logBitset,
         };
       }
     }

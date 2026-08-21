@@ -22,6 +22,7 @@ import {
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 
@@ -163,11 +164,20 @@ export class BackendFilter implements LogTimelineFilter {
       );
 
       this.lastCacheKey = currentKey;
-      this.lastResultContext = {
-        timelineIds: new Set(res.timelineIds),
-        logIds: new Set(res.logIds),
+      const resultContext: LogTimelineFilterContext = {
+        timelineIds: IdBitset.fromSparseBitset(
+          res.timelineMode,
+          res.timelineBitset,
+          timelineStore.timelines.length,
+        ),
+        logIds: IdBitset.fromSparseBitset(
+          res.logMode,
+          res.logBitset,
+          timelineStore.logStore.count,
+        ),
       };
-      return this.lastResultContext;
+      this.lastResultContext = resultContext;
+      return resultContext;
     } catch (err) {
       if (signal?.aborted || isCancellationError(err)) {
         throw new CancellationError();

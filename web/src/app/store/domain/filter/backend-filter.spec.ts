@@ -18,6 +18,14 @@ import { BackendFilter } from 'src/app/store/domain/filter/backend-filter';
 import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { LogTimelineFilterContext } from 'src/app/store/domain/filter/types';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
+import {
+  FilterResultMode,
+  SparseBitsetSchema,
+} from 'src/app/generated/api/v1/workbench_pb';
+import { create } from '@bufbuild/protobuf';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { Log } from 'src/app/store/domain/log';
 
 describe('BackendFilter', () => {
   let mockWorkbenchClient: jasmine.SpyObj<WorkbenchClientService>;
@@ -28,7 +36,20 @@ describe('BackendFilter', () => {
       'WorkbenchClientService',
       ['isWorkbenchActive', 'filterTimeline'],
     );
-    timelineStoreDummy = {} as TimelineStore;
+    timelineStoreDummy = {
+      timelines: [
+        { id: 1 } as unknown as Timeline,
+        { id: 2 } as unknown as Timeline,
+        { id: 3 } as unknown as Timeline,
+      ],
+      logStore: {
+        count: 2,
+        logs: function* () {
+          yield { id: 10 } as unknown as Log;
+          yield { id: 20 } as unknown as Log;
+        },
+      },
+    } as unknown as TimelineStore;
   });
 
   it('should initialize with default parameter values', () => {
@@ -63,8 +84,8 @@ describe('BackendFilter', () => {
     const filter = new BackendFilter(mockWorkbenchClient);
 
     const initialContext: LogTimelineFilterContext = {
-      timelineIds: new Set([1, 2, 3]),
-      logIds: new Set([10, 20]),
+      timelineIds: IdBitset.fromAll([1, 2, 3]),
+      logIds: IdBitset.fromAll([10, 20]),
     };
 
     const res = await filter.process(initialContext, timelineStoreDummy);
@@ -75,8 +96,16 @@ describe('BackendFilter', () => {
   it('should call workbenchClient.filterTimeline and cache results', async () => {
     mockWorkbenchClient.isWorkbenchActive.and.returnValue(true);
     mockWorkbenchClient.filterTimeline.and.resolveTo({
-      timelineIds: [1, 2],
-      logIds: [10],
+      timelineMode: FilterResultMode.INCLUDE,
+      timelineBitset: create(SparseBitsetSchema, {
+        indices: [0],
+        masks: [(1 << 1) | (1 << 2)],
+      }),
+      logMode: FilterResultMode.INCLUDE,
+      logBitset: create(SparseBitsetSchema, {
+        indices: [0],
+        masks: [1 << 10],
+      }),
     });
 
     const filter = new BackendFilter(mockWorkbenchClient);
@@ -85,13 +114,13 @@ describe('BackendFilter', () => {
     });
 
     const initialContext: LogTimelineFilterContext = {
-      timelineIds: new Set([1, 2, 3]),
-      logIds: new Set([10, 20]),
+      timelineIds: IdBitset.fromAll([1, 2, 3]),
+      logIds: IdBitset.fromAll([10, 20]),
     };
 
     const res1 = await filter.process(initialContext, timelineStoreDummy);
-    expect(res1.timelineIds).toEqual(new Set([1, 2]));
-    expect(res1.logIds).toEqual(new Set([10]));
+    expect(Array.from(res1.timelineIds.values())).toEqual([1, 2]);
+    expect(Array.from(res1.logIds.values())).toEqual([10]);
     expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalledTimes(1);
 
     // Second call with same parameters should return cached result without calling RPC

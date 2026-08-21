@@ -21,6 +21,12 @@ import {
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
+import {
+  FilterResultMode,
+  SparseBitsetSchema,
+} from 'src/app/generated/api/v1/workbench_pb';
+import { create } from '@bufbuild/protobuf';
 import {
   WorkbenchClientService,
   FilterTimelineParams,
@@ -255,7 +261,10 @@ describe('TimelineView', () => {
     });
 
     // Resolve the filter process
-    resolveProcess({ timelineIds: new Set(), logIds: new Set() });
+    resolveProcess({
+      timelineIds: IdBitset.createEmpty(),
+      logIds: IdBitset.createEmpty(),
+    });
 
     // Wait for complete pipeline termination
     await waitForFiltering(view);
@@ -290,8 +299,16 @@ describe('TimelineView', () => {
       (_params: FilterTimelineParams, onProgress?: FilterProgressCallback) => {
         onProgress?.('Timeline CEL filter', 5, 10);
         return Promise.resolve({
-          timelineIds: [100],
-          logIds: [200],
+          timelineMode: FilterResultMode.INCLUDE,
+          timelineBitset: create(SparseBitsetSchema, {
+            indices: [3],
+            masks: [1 << 4],
+          }),
+          logMode: FilterResultMode.INCLUDE,
+          logBitset: create(SparseBitsetSchema, {
+            indices: [6],
+            masks: [1 << 8],
+          }),
         });
       },
     );
@@ -301,7 +318,7 @@ describe('TimelineView', () => {
     await waitForFiltering(view);
 
     expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalled();
-    expect(view.filteredLogIds()).toEqual(new Set([200]));
+    expect(Array.from(view.filteredLogIds().values())).toEqual([200]);
   });
 
   it('should cleanly suppress cancellation errors without logging to console.error', async () => {

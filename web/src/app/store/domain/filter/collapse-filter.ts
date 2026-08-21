@@ -146,7 +146,7 @@ export class CollapseTimelineFilter implements LogTimelineFilter {
       return context;
     }
 
-    const nextTimelineIds = new Set(context.timelineIds);
+    const nextTimelineIds = context.timelineIds.clone();
 
     for (const collapsedId of this._collapsedTimelineIds) {
       if (!nextTimelineIds.has(collapsedId)) {

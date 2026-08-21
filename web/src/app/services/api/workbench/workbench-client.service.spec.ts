@@ -15,7 +15,12 @@
  */
 
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { OpenWorkbenchResponse_Stage } from 'src/app/generated/api/v1/workbench_pb';
+import {
+  FilterResultMode,
+  OpenWorkbenchResponse_Stage,
+  SparseBitsetSchema,
+} from 'src/app/generated/api/v1/workbench_pb';
+import { create } from '@bufbuild/protobuf';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { UserIdentityService } from 'src/app/services/api/workbench/user-identity.service';
 import {
@@ -263,8 +268,16 @@ describe('WorkbenchClientService', () => {
         payload: {
           case: 'result' as const,
           value: {
-            timelineIds: [1, 2, 3],
-            logIds: [10, 20],
+            timelineMode: FilterResultMode.INCLUDE,
+            timelineBitset: create(SparseBitsetSchema, {
+              indices: [0],
+              masks: [0xe], // 1, 2, 3
+            }),
+            logMode: FilterResultMode.INCLUDE,
+            logBitset: create(SparseBitsetSchema, {
+              indices: [0],
+              masks: [(1 << 10) | (1 << 20)],
+            }),
           },
         },
       };
@@ -307,7 +320,11 @@ describe('WorkbenchClientService', () => {
       current: 10,
       total: 100,
     });
-    expect(result.timelineIds).toEqual([1, 2, 3]);
-    expect(result.logIds).toEqual([10, 20]);
+    expect(result.timelineMode).toBe(FilterResultMode.INCLUDE);
+    expect(result.timelineBitset?.indices).toEqual([0]);
+    expect(result.timelineBitset?.masks).toEqual([0xe]);
+    expect(result.logMode).toBe(FilterResultMode.INCLUDE);
+    expect(result.logBitset?.indices).toEqual([0]);
+    expect(result.logBitset?.masks).toEqual([(1 << 10) | (1 << 20)]);
   });
 });

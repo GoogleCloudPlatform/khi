@@ -18,6 +18,7 @@ import { CollapseTimelineFilter } from 'src/app/store/domain/filter/collapse-fil
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { LogTimelineFilterContext } from 'src/app/store/domain/filter/types';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 describe('CollapseTimelineFilter', () => {
   let filter: CollapseTimelineFilter;
@@ -59,8 +60,8 @@ describe('CollapseTimelineFilter', () => {
     filter.setCollapsedTimelineIds(new Set([1]));
 
     const initialContext: LogTimelineFilterContext = {
-      timelineIds: new Set([1, 2, 3, 4]),
-      logIds: new Set([10, 20]),
+      timelineIds: IdBitset.fromAll([1, 2, 3, 4]),
+      logIds: IdBitset.fromAll([10, 20]),
     };
 
     const result = await filter.process(initialContext, timelineStoreSpy);
