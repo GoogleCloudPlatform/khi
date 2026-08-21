@@ -319,24 +319,65 @@ export declare type FilterProgress = Message<'api.v1.FilterProgress'> & {
 export declare const FilterProgressSchema: GenMessage<FilterProgress>;
 
 /**
- * Final result containing the IDs of all timelines and logs that passed the filter pipeline.
+ * SparseBitset encodes a sparse set of 32-bit blocks.
+ *
+ * @generated from message api.v1.SparseBitset
+ */
+export declare type SparseBitset = Message<'api.v1.SparseBitset'> & {
+  /**
+   * Block indices (item_id / 32) containing at least one set bit.
+   *
+   * @generated from field: repeated uint32 indices = 1;
+   */
+  indices: number[];
+
+  /**
+   * 32-bit bitmasks corresponding to each block index where the i-th bit represents (item_id % 32).
+   *
+   * @generated from field: repeated fixed32 masks = 2;
+   */
+  masks: number[];
+};
+
+/**
+ * Describes the message api.v1.SparseBitset.
+ * Use `create(SparseBitsetSchema)` to create a new message.
+ */
+export declare const SparseBitsetSchema: GenMessage<SparseBitset>;
+
+/**
+ * Final result containing the sparse bitsets of all timelines and logs that passed the filter pipeline.
  *
  * @generated from message api.v1.FilterResult
  */
 export declare type FilterResult = Message<'api.v1.FilterResult'> & {
   /**
-   * List of timeline IDs that passed all active timeline filter stages.
+   * Mode indicating whether timeline_bitset represents matching (INCLUDE) or filtered-out (EXCLUDE) timelines.
    *
-   * @generated from field: repeated uint32 timeline_ids = 1;
+   * @generated from field: api.v1.FilterResultMode timeline_mode = 1;
    */
-  timelineIds: number[];
+  timelineMode: FilterResultMode;
 
   /**
-   * List of log IDs that passed all active log filter stages.
+   * Sparse bitset of timeline IDs passing or excluded by the filter pipeline.
    *
-   * @generated from field: repeated uint32 log_ids = 2;
+   * @generated from field: api.v1.SparseBitset timeline_bitset = 2;
    */
-  logIds: number[];
+  timelineBitset?: SparseBitset | undefined;
+
+  /**
+   * Mode indicating whether log_bitset represents matching (INCLUDE) or filtered-out (EXCLUDE) logs.
+   *
+   * @generated from field: api.v1.FilterResultMode log_mode = 3;
+   */
+  logMode: FilterResultMode;
+
+  /**
+   * Sparse bitset of log IDs passing or excluded by the filter pipeline.
+   *
+   * @generated from field: api.v1.SparseBitset log_bitset = 4;
+   */
+  logBitset?: SparseBitset | undefined;
 };
 
 /**
@@ -418,6 +459,33 @@ export declare type CloseWorkbenchResponse =
  * Use `create(CloseWorkbenchResponseSchema)` to create a new message.
  */
 export declare const CloseWorkbenchResponseSchema: GenMessage<CloseWorkbenchResponse>;
+
+/**
+ * Mode specifying whether the associated sparse bitset represents matching or excluded items.
+ *
+ * @generated from enum api.v1.FilterResultMode
+ */
+export enum FilterResultMode {
+  /**
+   * @generated from enum value: FILTER_RESULT_MODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: FILTER_RESULT_MODE_INCLUDE = 1;
+   */
+  INCLUDE = 1,
+
+  /**
+   * @generated from enum value: FILTER_RESULT_MODE_EXCLUDE = 2;
+   */
+  EXCLUDE = 2,
+}
+
+/**
+ * Describes the enum api.v1.FilterResultMode.
+ */
+export declare const FilterResultModeSchema: GenEnum<FilterResultMode>;
 
 /**
  * WorkbenchService manages in-memory analysis sessions for .khi datasets.

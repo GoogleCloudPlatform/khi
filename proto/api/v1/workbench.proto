@@ -116,12 +116,31 @@ message FilterProgress {
   uint32 total = 3;
 }
 
-// Final result containing the IDs of all timelines and logs that passed the filter pipeline.
+// SparseBitset encodes a sparse set of 32-bit blocks.
+message SparseBitset {
+  // Block indices (item_id / 32) containing at least one set bit.
+  repeated uint32 indices = 1;
+  // 32-bit bitmasks corresponding to each block index where the i-th bit represents (item_id % 32).
+  repeated fixed32 masks = 2;
+}
+
+// Mode specifying whether the associated sparse bitset represents matching or excluded items.
+enum FilterResultMode {
+  FILTER_RESULT_MODE_UNSPECIFIED = 0;
+  FILTER_RESULT_MODE_INCLUDE = 1;
+  FILTER_RESULT_MODE_EXCLUDE = 2;
+}
+
+// Final result containing the sparse bitsets of all timelines and logs that passed the filter pipeline.
 message FilterResult {
-  // List of timeline IDs that passed all active timeline filter stages.
-  repeated uint32 timeline_ids = 1;
-  // List of log IDs that passed all active log filter stages.
-  repeated uint32 log_ids = 2;
+  // Mode indicating whether timeline_bitset represents matching (INCLUDE) or filtered-out (EXCLUDE) timelines.
+  FilterResultMode timeline_mode = 1;
+  // Sparse bitset of timeline IDs passing or excluded by the filter pipeline.
+  SparseBitset timeline_bitset = 2;
+  // Mode indicating whether log_bitset represents matching (INCLUDE) or filtered-out (EXCLUDE) logs.
+  FilterResultMode log_mode = 3;
+  // Sparse bitset of log IDs passing or excluded by the filter pipeline.
+  SparseBitset log_bitset = 4;
 }
 
 // Streamed message emitted during FilterTimeline execution.
