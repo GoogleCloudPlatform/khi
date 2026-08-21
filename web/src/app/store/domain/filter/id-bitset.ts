@@ -20,6 +20,19 @@ import {
 } from 'src/app/generated/api/v1/workbench_pb';
 
 /**
+ * Calculates the Hamming weight (number of set bits) of a 32-bit integer in constant time.
+ */
+function popcount(v: number): number {
+  let x = v >>> 0;
+  x = x - ((x >>> 1) & 0x55555555);
+  x = (x & 0x33333333) + ((x >>> 2) & 0x33333333);
+  x = (x + (x >>> 4)) & 0x0f0f0f0f;
+  x = x + (x >>> 8);
+  x = x + (x >>> 16);
+  return x & 0x3f;
+}
+
+/**
  * High-performance bitset implementation for tracking positive integer entity IDs.
  * Utilizes a contiguous 32-bit typed array (`Uint32Array`) to perform sub-millisecond bitwise operations
  * and eliminate JavaScript object allocation overhead during timeline and log filtering.
@@ -165,10 +178,7 @@ export class IdBitset {
    * @param maxId - Optional maximum ID to preallocate storage for.
    * @returns An IdBitset with all specified IDs set.
    */
-  public static fromAll(
-    allIds: Iterable<number>,
-    maxId?: number,
-  ): IdBitset {
+  public static fromAll(allIds: Iterable<number>, maxId?: number): IdBitset {
     let calculatedMax = maxId ?? 0;
     if (maxId === undefined && Array.isArray(allIds)) {
       for (let i = 0; i < allIds.length; i++) {
@@ -190,10 +200,30 @@ export class IdBitset {
    */
   public static fromSequential(totalCount: number): IdBitset {
     const count = totalCount ?? 0;
-    const bitset = new IdBitset(count);
-    for (let id = 1; id <= count; id++) {
-      bitset.add(id);
+    if (count <= 0) {
+      return new IdBitset(0);
     }
+    const bitset = new IdBitset(count);
+    const words = bitset.words;
+    const lastWordIdx = count >>> 5;
+
+    if (lastWordIdx === 0) {
+      words[0] =
+        count === 31 ? 0xfffffffe : (((1 << (count + 1)) - 1) & ~1) >>> 0;
+    } else {
+      words[0] = 0xfffffffe;
+      if (lastWordIdx > 1) {
+        words.fill(0xffffffff, 1, lastWordIdx);
+      }
+      const remainingBits = count & 31;
+      const lastWordMask =
+        remainingBits === 31
+          ? 0xffffffff
+          : ((1 << (remainingBits + 1)) - 1) >>> 0;
+      words[lastWordIdx] = lastWordMask;
+    }
+
+    bitset.count = count;
     return bitset;
   }
 
@@ -226,12 +256,7 @@ export class IdBitset {
           const oldWord = bitset.words[wordIdx];
           const newWord = oldWord & ~mask;
           if (oldWord !== newWord) {
-            // Count number of cleared bits to keep size accurate
-            let clearedBits = oldWord ^ newWord;
-            while (clearedBits !== 0) {
-              bitset.count--;
-              clearedBits &= clearedBits - 1;
-            }
+            bitset.count -= popcount(oldWord ^ newWord);
             bitset.words[wordIdx] = newWord;
           }
         }
@@ -256,11 +281,7 @@ export class IdBitset {
       const oldWord = bitset.words[wordIdx];
       const newWord = oldWord | mask;
       if (oldWord !== newWord) {
-        let addedBits = oldWord ^ newWord;
-        while (addedBits !== 0) {
-          bitset.count++;
-          addedBits &= addedBits - 1;
-        }
+        bitset.count += popcount(oldWord ^ newWord);
         bitset.words[wordIdx] = newWord;
       }
     }

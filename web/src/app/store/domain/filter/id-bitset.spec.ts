@@ -91,16 +91,23 @@ describe('IdBitset', () => {
   });
 
   it('should create sequential bitset from 1 to totalCount with fromSequential', () => {
-    const bitset = IdBitset.fromSequential(5);
-    expect(bitset.size).toBe(5);
-    expect(bitset.has(0)).toBeFalse();
-    expect(bitset.has(1)).toBeTrue();
-    expect(bitset.has(2)).toBeTrue();
-    expect(bitset.has(3)).toBeTrue();
-    expect(bitset.has(4)).toBeTrue();
-    expect(bitset.has(5)).toBeTrue();
-    expect(bitset.has(6)).toBeFalse();
-    expect(Array.from(bitset.values())).toEqual([1, 2, 3, 4, 5]);
+    const testCounts = [0, 1, 30, 31, 32, 33, 63, 64, 65, 1000];
+    for (const count of testCounts) {
+      const bitset = IdBitset.fromSequential(count);
+      expect(bitset.size).toBe(count);
+      expect(bitset.has(0)).toBeFalse();
+      for (let id = 1; id <= count; id++) {
+        expect(bitset.has(id)).toBeTrue();
+      }
+      expect(bitset.has(count + 1)).toBeFalse();
+
+      const values = Array.from(bitset.values());
+      expect(values.length).toBe(count);
+      if (count > 0) {
+        expect(values[0]).toBe(1);
+        expect(values[values.length - 1]).toBe(count);
+      }
+    }
   });
 
   describe('fromSparseBitset', () => {

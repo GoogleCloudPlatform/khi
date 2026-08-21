@@ -15,7 +15,7 @@
 package workbench
 
 import (
-	"sort"
+	"slices"
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 )
@@ -33,7 +33,7 @@ func BuildSparseBitset(ids []uint32) *apiv1.SparseBitset {
 	for idx := range blockMap {
 		indices = append(indices, idx)
 	}
-	sort.Slice(indices, func(i, j int) bool { return indices[i] < indices[j] })
+	slices.Sort(indices)
 
 	masks := make([]uint32, 0, len(indices))
 	for _, idx := range indices {
@@ -60,6 +60,9 @@ func EncodeFilterResultBitset(totalCount int, matchedIDs map[uint32]struct{}) (a
 	}
 
 	excludedCount := totalCount - matchedCount
+	if excludedCount < 0 {
+		excludedCount = 0
+	}
 	targetIDs := make([]uint32, 0, excludedCount)
 	for id := 1; id <= totalCount; id++ {
 		if _, ok := matchedIDs[uint32(id)]; !ok {
