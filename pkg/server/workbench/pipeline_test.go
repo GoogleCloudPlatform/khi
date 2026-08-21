@@ -218,10 +218,15 @@ func TestFilterTimelinePipeline(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(tc.wantTimelines, res.GetTimelineIds()); diff != "" {
+			allTLIDs := []uint32{1, 2, 3, 4}
+			allLogIDs := []uint32{1, 2, 3}
+			gotTimelineIDs := decodeSparseBitset(res.GetTimelineMode(), res.GetTimelineBitset(), allTLIDs)
+			gotLogIDs := decodeSparseBitset(res.GetLogMode(), res.GetLogBitset(), allLogIDs)
+
+			if diff := cmp.Diff(tc.wantTimelines, gotTimelineIDs); diff != "" {
 				t.Errorf("FilterTimeline() timeline IDs mismatch (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantLogs, res.GetLogIds()); diff != "" {
+			if diff := cmp.Diff(tc.wantLogs, gotLogIDs); diff != "" {
 				t.Errorf("FilterTimeline() log IDs mismatch (-want +got):\n%s", diff)
 			}
 			if len(progressReports) == 0 {
@@ -229,6 +234,39 @@ func TestFilterTimelinePipeline(t *testing.T) {
 			}
 		})
 	}
+}
+
+func decodeSparseBitset(mode apiv1.FilterResultMode, bitset *apiv1.SparseBitset, allIDs []uint32) []uint32 {
+	if bitset == nil {
+		return nil
+	}
+	blockMap := make(map[uint32]uint32)
+	for i, idx := range bitset.Indices {
+		blockMap[idx] = bitset.Masks[i]
+	}
+	isSet := func(id uint32) bool {
+		mask, ok := blockMap[id/32]
+		if !ok {
+			return false
+		}
+		return (mask & (1 << (id % 32))) != 0
+	}
+
+	var result []uint32
+	if mode == apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE {
+		for _, id := range allIDs {
+			if isSet(id) {
+				result = append(result, id)
+			}
+		}
+	} else {
+		for _, id := range allIDs {
+			if !isSet(id) {
+				result = append(result, id)
+			}
+		}
+	}
+	return result
 }
 
 func TestFilterTimelineCancellation(t *testing.T) {

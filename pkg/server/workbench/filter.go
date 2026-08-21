@@ -16,7 +16,6 @@ package workbench
 
 import (
 	"context"
-	"sort"
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 )
@@ -90,21 +89,13 @@ func (p *Pipeline) Execute(
 		}
 	}
 
-	// Convert maps to sorted slices for deterministic output
-	resultTimelineIDs := make([]uint32, 0, len(filterCtx.TimelineIDs))
-	for id := range filterCtx.TimelineIDs {
-		resultTimelineIDs = append(resultTimelineIDs, id)
-	}
-	sort.Slice(resultTimelineIDs, func(i, j int) bool { return resultTimelineIDs[i] < resultTimelineIDs[j] })
-
-	resultLogIDs := make([]uint32, 0, len(filterCtx.LogIDs))
-	for id := range filterCtx.LogIDs {
-		resultLogIDs = append(resultLogIDs, id)
-	}
-	sort.Slice(resultLogIDs, func(i, j int) bool { return resultLogIDs[i] < resultLogIDs[j] })
+	tlMode, tlBitset := EncodeFilterResultBitset(len(index.Timelines), filterCtx.TimelineIDs)
+	logMode, logBitset := EncodeFilterResultBitset(len(index.Logs), filterCtx.LogIDs)
 
 	return &apiv1.FilterResult{
-		TimelineIds: resultTimelineIDs,
-		LogIds:      resultLogIDs,
+		TimelineMode:   tlMode.Enum(),
+		TimelineBitset: tlBitset,
+		LogMode:        logMode.Enum(),
+		LogBitset:      logBitset,
 	}, nil
 }
