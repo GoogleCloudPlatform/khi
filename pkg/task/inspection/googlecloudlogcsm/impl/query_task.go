@@ -83,10 +83,10 @@ func namespaceStructuredMatcher(filter *gcpqueryutil.SetFilterParseResult) loges
 		return nil
 	}
 	if filter.ValidationError != "" {
-		return logestimator.CustomFilter(fmt.Sprintf(`-- Failed to generate namespace filter due to the validation error "%s"`, filter.ValidationError))
+		return logestimator.Comment(fmt.Sprintf(`Failed to generate namespace filter due to the validation error "%s"`, filter.ValidationError))
 	}
 	if filter.SubtractMode {
-		return logestimator.CustomFilter("-- Unsupported operation")
+		return logestimator.Comment("Unsupported operation")
 	}
 	selectedNamespaces := []string{}
 	for _, additive := range filter.Additives {
@@ -99,7 +99,7 @@ func namespaceStructuredMatcher(filter *gcpqueryutil.SetFilterParseResult) loges
 		selectedNamespaces = append(selectedNamespaces, additive)
 	}
 	if len(selectedNamespaces) == 0 {
-		return logestimator.CustomFilter(`resource.labels.namespace_name="" -- Invalid: No namespaces remain to filter for CSM traffic logs.`)
+		return logestimator.WithComment(logestimator.ResourceLabel("namespace_name", logestimator.Exact("")), "Invalid: No namespaces remain to filter for CSM traffic logs.")
 	}
 	return logestimator.ResourceLabel("namespace_name", logestimator.ContainsAny(selectedNamespaces...))
 }

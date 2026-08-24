@@ -51,7 +51,7 @@ func GenerateSerialPortStructuredQuery(taskMode inspectioncore_contract.Inspecti
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		filters := []logestimator.LoggingMonitoringMatcher{
 			logIDFilter,
-			logestimator.CustomFilter("-- instance name filters to be determined after node name discovery"),
+			logestimator.Comment("instance name filters to be determined after node name discovery"),
 		}
 		if subFilter != nil {
 			filters = append(filters, subFilter)

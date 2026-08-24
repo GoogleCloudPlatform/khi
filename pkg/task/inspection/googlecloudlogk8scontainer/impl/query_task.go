@@ -17,7 +17,6 @@ package googlecloudlogk8scontainer_impl
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
@@ -42,32 +41,12 @@ func GenerateK8sContainerStructuredQuery(
 		logestimator.LogID(logestimator.NoneOf("server-accesslog-stackdriver", "client-accesslog-stackdriver")),
 	}
 
-	if namespacesFilter != nil {
-		switch {
-		case namespacesFilter.ValidationError != "":
-			filters = append(filters, logestimator.CustomFilter(generateNamespacesFilter(namespacesFilter)))
-		case namespacesFilter.SubtractMode:
-			if len(namespacesFilter.Subtractives) > 0 {
-				filters = append(filters, logestimator.ResourceLabel("namespace_name", logestimator.NoneOf(namespacesFilter.Subtractives...)))
-			}
-		case len(namespacesFilter.Additives) == 0:
-			filters = append(filters, logestimator.CustomFilter(generateNamespacesFilter(namespacesFilter)))
-		default:
-			filters = append(filters, logestimator.ResourceLabel("namespace_name", logestimator.OneOf(namespacesFilter.Additives...)))
-		}
+	if nsMatcher := generateNamespacesFilter(namespacesFilter); nsMatcher != nil {
+		filters = append(filters, nsMatcher)
 	}
 
-	if podNamesFilter != nil {
-		switch {
-		case podNamesFilter.ValidationError != "":
-			filters = append(filters, logestimator.CustomFilter(generatePodNamesFilter(podNamesFilter)))
-		case podNamesFilter.SubtractMode:
-			if len(podNamesFilter.Subtractives) > 0 {
-				filters = append(filters, logestimator.CustomFilter(generatePodNamesFilter(podNamesFilter)))
-			}
-		default:
-			filters = append(filters, logestimator.CustomFilter(generatePodNamesFilter(podNamesFilter)))
-		}
+	if podMatcher := generatePodNamesFilter(podNamesFilter); podMatcher != nil {
+		filters = append(filters, podMatcher)
 	}
 
 	return &logestimator.StructuredLogQuery{
@@ -82,56 +61,44 @@ func GenerateK8sContainerQuery(cluster googlecloudk8scommon_contract.GoogleCloud
 	return GenerateK8sContainerStructuredQuery(cluster, namespacesFilter, podNamesFilter).GenerateCloudLoggingQuery()
 }
 
-func generateNamespacesFilter(namespacesFilter *gcpqueryutil.SetFilterParseResult) string {
+func generateNamespacesFilter(namespacesFilter *gcpqueryutil.SetFilterParseResult) logestimator.LoggingMonitoringMatcher {
+	if namespacesFilter == nil {
+		return nil
+	}
 	if namespacesFilter.ValidationError != "" {
-		return fmt.Sprintf("-- Failed to generate namespaces filter due to the validation error \"%s\"", namespacesFilter.ValidationError)
+		return logestimator.Comment(fmt.Sprintf(`Failed to generate namespaces filter due to the validation error "%s"`, namespacesFilter.ValidationError))
 	}
 	if namespacesFilter.SubtractMode {
 		if len(namespacesFilter.Subtractives) == 0 {
-			return "-- No namespace filter"
+			return nil
 		}
-		namespacesWithQuotes := []string{}
-		for _, namespace := range namespacesFilter.Subtractives {
-			namespacesWithQuotes = append(namespacesWithQuotes, fmt.Sprintf(`"%s"`, namespace))
-		}
-		return fmt.Sprintf(`-resource.labels.namespace_name=(%s)`, strings.Join(namespacesWithQuotes, " OR "))
+		return logestimator.ResourceLabel("namespace_name", logestimator.NoneOf(namespacesFilter.Subtractives...))
 	}
 
 	if len(namespacesFilter.Additives) == 0 {
-		return `-- Invalid: none of the resources will be selected. Ignoring namespace filter.`
+		return logestimator.Comment("Invalid: none of the resources will be selected. Ignoring namespace filter.")
 	}
-	namespacesWithQuotes := []string{}
-	for _, namespace := range namespacesFilter.Additives {
-		namespacesWithQuotes = append(namespacesWithQuotes, fmt.Sprintf(`"%s"`, namespace))
-	}
-	return fmt.Sprintf(`resource.labels.namespace_name=(%s)`, strings.Join(namespacesWithQuotes, " OR "))
-
+	return logestimator.ResourceLabel("namespace_name", logestimator.OneOf(namespacesFilter.Additives...))
 }
 
-func generatePodNamesFilter(podNamesFilter *gcpqueryutil.SetFilterParseResult) string {
+func generatePodNamesFilter(podNamesFilter *gcpqueryutil.SetFilterParseResult) logestimator.LoggingMonitoringMatcher {
+	if podNamesFilter == nil {
+		return nil
+	}
 	if podNamesFilter.ValidationError != "" {
-		return fmt.Sprintf("-- Failed to generate pod name filter due to the validation error \"%s\"", podNamesFilter.ValidationError)
+		return logestimator.Comment(fmt.Sprintf(`Failed to generate pod name filter due to the validation error "%s"`, podNamesFilter.ValidationError))
 	}
 	if podNamesFilter.SubtractMode {
 		if len(podNamesFilter.Subtractives) == 0 {
-			return "-- No pod name filter"
+			return nil
 		}
-
-		podNamesWithQuotes := []string{}
-		for _, podName := range podNamesFilter.Subtractives {
-			podNamesWithQuotes = append(podNamesWithQuotes, fmt.Sprintf(`"%s"`, podName))
-		}
-		return fmt.Sprintf(`-resource.labels.pod_name:(%s)`, strings.Join(podNamesWithQuotes, " OR "))
+		return logestimator.ResourceLabel("pod_name", logestimator.NotContainsAny(podNamesFilter.Subtractives...))
 	}
 
 	if len(podNamesFilter.Additives) == 0 {
-		return `-- Invalid: none of the resources will be selected. Ignoring pod name filter.`
+		return logestimator.Comment("Invalid: none of the resources will be selected. Ignoring pod name filter.")
 	}
-	podNamesWithQuotes := []string{}
-	for _, podName := range podNamesFilter.Additives {
-		podNamesWithQuotes = append(podNamesWithQuotes, fmt.Sprintf(`"%s"`, podName))
-	}
-	return fmt.Sprintf(`resource.labels.pod_name:(%s)`, strings.Join(podNamesWithQuotes, " OR "))
+	return logestimator.ResourceLabel("pod_name", logestimator.ContainsAny(podNamesFilter.Additives...))
 }
 
 type containerListLogEntriesTaskSetting struct {

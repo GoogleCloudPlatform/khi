@@ -53,7 +53,7 @@ func TestGenerateSerialPortStructuredQuery(t *testing.T) {
 				`(LOG_ID("serialconsole.googleapis.com/serial_port_1_output") OR LOG_ID("serialconsole.googleapis.com/serial_port_2_output") OR LOG_ID("serialconsole.googleapis.com/serial_port_3_output") OR LOG_ID("serialconsole.googleapis.com/serial_port_debug_output"))
 -- instance name filters to be determined after node name discovery`,
 			},
-			wantSupportMetricsFlag: false,
+			wantSupportMetricsFlag: true,
 		},
 		{
 			name:               "dryrun with substrings",

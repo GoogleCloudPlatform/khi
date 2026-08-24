@@ -85,18 +85,12 @@ func GenerateK8sAuditStructuredQuery(cluster googlecloudk8scommon_contract.Googl
 		logestimator.CustomFilter(`protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")`),
 	}
 
-	if auditKindFilter != nil {
-		kindSnippet := generateAuditKindFilter(auditKindFilter)
-		if kindSnippet != "" && kindSnippet != "-- No kind filter" {
-			filters = append(filters, logestimator.CustomFilter(kindSnippet))
-		}
+	if kindFilterMatcher := generateAuditKindFilter(auditKindFilter); kindFilterMatcher != nil {
+		filters = append(filters, kindFilterMatcher)
 	}
 
-	if namespaceFilter != nil {
-		namespaceSnippet := generateK8sAuditNamespaceFilter(namespaceFilter)
-		if namespaceSnippet != "" && namespaceSnippet != "-- No namespace filter" {
-			filters = append(filters, logestimator.CustomFilter(namespaceSnippet))
-		}
+	if namespaceFilterMatcher := generateK8sAuditNamespaceFilter(namespaceFilter); namespaceFilterMatcher != nil {
+		filters = append(filters, namespaceFilterMatcher)
 	}
 
 	return &logestimator.StructuredLogQuery{
@@ -114,60 +108,64 @@ func GenerateK8sAuditQuery(cluster googlecloudk8scommon_contract.GoogleCloudClus
 
 // generateAuditKindFilter creates a log filter snippet for Kubernetes resource kinds
 // based on the parsed filter result.
-func generateAuditKindFilter(filter *gcpqueryutil.SetFilterParseResult) string {
+func generateAuditKindFilter(filter *gcpqueryutil.SetFilterParseResult) logestimator.LoggingMonitoringMatcher {
+	if filter == nil {
+		return nil
+	}
 	if filter.ValidationError != "" {
-		return fmt.Sprintf(`-- Failed to generate kind filter due to the validation error "%s"`, filter.ValidationError)
+		return logestimator.Comment(fmt.Sprintf(`Failed to generate kind filter due to the validation error "%s"`, filter.ValidationError))
 	}
 	if filter.SubtractMode {
 		if len(filter.Subtractives) == 0 {
-			return "-- No kind filter"
+			return nil
 		}
-		return fmt.Sprintf(`-protoPayload.methodName=~"\.(%s)\."`, strings.Join(filter.Subtractives, "|"))
-	} else {
-		if len(filter.Additives) == 0 {
-			return `-- Invalid: none of the resources will be selected. Ignoring kind filter.`
-		}
-		return fmt.Sprintf(`protoPayload.methodName=~"\.(%s)\."`, strings.Join(filter.Additives, "|"))
+		return logestimator.CustomFilter(fmt.Sprintf(`-protoPayload.methodName=~"\.(%s)\."`, strings.Join(filter.Subtractives, "|")))
 	}
+	if len(filter.Additives) == 0 {
+		return logestimator.Comment("Invalid: none of the resources will be selected. Ignoring kind filter.")
+	}
+	return logestimator.CustomFilter(fmt.Sprintf(`protoPayload.methodName=~"\.(%s)\."`, strings.Join(filter.Additives, "|")))
 }
 
 // generateK8sAuditNamespaceFilter creates a log filter snippet for Kubernetes namespaces
 // based on the parsed filter result.
-func generateK8sAuditNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) string {
+func generateK8sAuditNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) logestimator.LoggingMonitoringMatcher {
+	if filter == nil {
+		return nil
+	}
 	if filter.ValidationError != "" {
-		return fmt.Sprintf(`-- Failed to generate namespace filter due to the validation error "%s"`, filter.ValidationError)
+		return logestimator.Comment(fmt.Sprintf(`Failed to generate namespace filter due to the validation error "%s"`, filter.ValidationError))
 	}
 	if filter.SubtractMode {
-		return "-- Unsupported operation"
-	} else {
-		hasClusterScope := slices.Contains(filter.Additives, "#cluster-scoped")
-		hasNamespacedScope := slices.Contains(filter.Additives, "#namespaced")
-		if hasClusterScope && hasNamespacedScope {
-			return "-- No namespace filter"
-		}
-		if !hasClusterScope && hasNamespacedScope {
-			return `protoPayload.resourceName:"namespaces/"`
-		}
-		if hasClusterScope && !hasNamespacedScope {
-			if len(filter.Additives) == 1 { // 1 is used for #cluster-scope
-				return `-protoPayload.resourceName:"/namespaces/"`
-			}
-			resourceNameContains := []string{}
-			for _, additive := range filter.Additives {
-				if strings.HasPrefix(additive, "#") {
-					continue
-				}
-				resourceNameContains = append(resourceNameContains, fmt.Sprintf(`"/namespaces/%s"`, additive))
-			}
-			return fmt.Sprintf(`(protoPayload.resourceName:(%s) OR NOT (protoPayload.resourceName:"/namespaces/"))`, strings.Join(resourceNameContains, " OR "))
-		}
-		if len(filter.Additives) == 0 {
-			return `-- Invalid: none of the resources will be selected. Ignoring namespace filter.`
+		return logestimator.Comment("Unsupported operation")
+	}
+	hasClusterScope := slices.Contains(filter.Additives, "#cluster-scoped")
+	hasNamespacedScope := slices.Contains(filter.Additives, "#namespaced")
+	if hasClusterScope && hasNamespacedScope {
+		return nil
+	}
+	if !hasClusterScope && hasNamespacedScope {
+		return logestimator.CustomFilter(`protoPayload.resourceName:"namespaces/"`)
+	}
+	if hasClusterScope && !hasNamespacedScope {
+		if len(filter.Additives) == 1 { // 1 is used for #cluster-scope
+			return logestimator.CustomFilter(`-protoPayload.resourceName:"/namespaces/"`)
 		}
 		resourceNameContains := []string{}
 		for _, additive := range filter.Additives {
+			if strings.HasPrefix(additive, "#") {
+				continue
+			}
 			resourceNameContains = append(resourceNameContains, fmt.Sprintf(`"/namespaces/%s"`, additive))
 		}
-		return fmt.Sprintf(`protoPayload.resourceName:(%s)`, strings.Join(resourceNameContains, " OR "))
+		return logestimator.CustomFilter(fmt.Sprintf(`(protoPayload.resourceName:(%s) OR NOT (protoPayload.resourceName:"/namespaces/"))`, strings.Join(resourceNameContains, " OR ")))
 	}
+	if len(filter.Additives) == 0 {
+		return logestimator.Comment("Invalid: none of the resources will be selected. Ignoring namespace filter.")
+	}
+	resourceNameContains := []string{}
+	for _, additive := range filter.Additives {
+		resourceNameContains = append(resourceNameContains, fmt.Sprintf(`"/namespaces/%s"`, additive))
+	}
+	return logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:(%s)`, strings.Join(resourceNameContains, " OR ")))
 }

@@ -93,7 +93,7 @@ resource.labels.cluster_name="foo-cluster"
 -LOG_ID("server-accesslog-stackdriver")
 -LOG_ID("client-accesslog-stackdriver")
 -- Invalid: none of the resources will be selected. Ignoring namespace filter.
-resource.labels.pod_name:("nginx-pod")`,
+resource.labels.pod_name:"nginx-pod"`,
 		},
 		{
 			Name: "with both filters",
@@ -111,7 +111,7 @@ resource.labels.cluster_name="foo-cluster"
 -LOG_ID("server-accesslog-stackdriver")
 -LOG_ID("client-accesslog-stackdriver")
 resource.labels.namespace_name="kube-system"
-resource.labels.pod_name:("nginx-pod")`,
+resource.labels.pod_name:"nginx-pod"`,
 		},
 		{
 			Name: "with complex filters",
@@ -287,15 +287,15 @@ func TestGenerateK8sContainerStructuredQuery_MetricSupport(t *testing.T) {
 			wantMonitoringFilterBody: `resource.type = "k8s_container" AND resource.labels.project_id = "foo-project" AND resource.labels.location = "foo-location" AND resource.labels.cluster_name = "foo-cluster" AND metric.labels.log != "server-accesslog-stackdriver" AND metric.labels.log != "client-accesslog-stackdriver" AND resource.labels.namespace_name != "kube-system"`,
 		},
 		{
-			desc: "not all supported when custom pod name filter is present",
+			desc: "all supported when pod name filter is present with has_substring",
 			namespaceFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"kube-system"},
 			},
 			podNameFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"nginx-pod"},
 			},
-			wantAllSupported:         false,
-			wantMonitoringFilterBody: `resource.type = "k8s_container" AND resource.labels.project_id = "foo-project" AND resource.labels.location = "foo-location" AND resource.labels.cluster_name = "foo-cluster" AND metric.labels.log != "server-accesslog-stackdriver" AND metric.labels.log != "client-accesslog-stackdriver" AND resource.labels.namespace_name = "kube-system"`,
+			wantAllSupported:         true,
+			wantMonitoringFilterBody: `resource.type = "k8s_container" AND resource.labels.project_id = "foo-project" AND resource.labels.location = "foo-location" AND resource.labels.cluster_name = "foo-cluster" AND metric.labels.log != "server-accesslog-stackdriver" AND metric.labels.log != "client-accesslog-stackdriver" AND resource.labels.namespace_name = "kube-system" AND resource.labels.pod_name = has_substring("nginx-pod")`,
 		},
 	}
 

@@ -39,7 +39,7 @@ func GenerateGCPNetworkAPIStructuredQuery(taskMode inspectioncore_contract.Inspe
 				ResourceTypes: []string{"gce_network"},
 				Filters: []logestimator.LoggingMonitoringMatcher{
 					logestimator.CustomFilter(`-protoPayload.methodName:("list" OR "get" OR "watch")`),
-					logestimator.CustomFilter("-- neg name filters to be determined after audit log query"),
+					logestimator.Comment("neg name filters to be determined after audit log query"),
 				},
 			},
 		}
