@@ -23,9 +23,11 @@ import (
 )
 
 type QueryItem struct {
-	Id    string `json:"id"`
-	Name  string `json:"name"`
-	Query string `json:"query"`
+	Id             string `json:"id"`
+	Name           string `json:"name"`
+	Query          string `json:"query"`
+	EstimatedCount *int64 `json:"estimatedCount,omitempty"`
+	Incomplete     bool   `json:"incomplete,omitempty"`
 }
 
 type QueryMetadata struct {
@@ -46,20 +48,39 @@ func (q *QueryMetadata) ToSerializable() interface{} {
 	return q.Queries
 }
 
+// SetQuery sets or updates the query item with no estimated count (nil).
 func (q *QueryMetadata) SetQuery(id string, name string, queryString string) {
+	q.setQueryInternal(id, name, queryString, nil, false)
+}
+
+// SetIncompleteQuery sets or updates the query item marked as incomplete without an estimated count.
+func (q *QueryMetadata) SetIncompleteQuery(id string, name string, queryString string) {
+	q.setQueryInternal(id, name, queryString, nil, true)
+}
+
+// SetQueryWithEstimate sets or updates the query item along with its estimated log count.
+func (q *QueryMetadata) SetQueryWithEstimate(id string, name string, queryString string, estimatedCount int64) {
+	q.setQueryInternal(id, name, queryString, &estimatedCount, false)
+}
+
+func (q *QueryMetadata) setQueryInternal(id string, name string, queryString string, estimatedCount *int64, incomplete bool) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	for _, qi := range q.Queries {
 		if qi.Id == id {
 			qi.Name = name
 			qi.Query = queryString
+			qi.EstimatedCount = estimatedCount
+			qi.Incomplete = incomplete
 			return
 		}
 	}
 	q.Queries = append(q.Queries, &QueryItem{
-		Id:    id,
-		Name:  name,
-		Query: queryString,
+		Id:             id,
+		Name:           name,
+		Query:          queryString,
+		EstimatedCount: estimatedCount,
+		Incomplete:     incomplete,
 	})
 }
 

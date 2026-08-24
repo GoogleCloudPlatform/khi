@@ -42,3 +42,25 @@ func TestQuerySerializeInSortedOrder(t *testing.T) {
 		t.Errorf("Query info serialization result was not in the sorted order\n%s", diff)
 	}
 }
+
+func ptr[T any](v T) *T {
+	return &v
+}
+
+func TestQueryMetadata_SetQueryWithEstimate(t *testing.T) {
+	qm := NewQueryMetadata()
+	qm.SetQuery("q1", "Query 1", "resource.type=k8s_container")
+	qm.SetQueryWithEstimate("q2", "Query 2", "resource.type=k8s_node", 1500)
+
+	// Update existing query q1 with estimate
+	qm.SetQueryWithEstimate("q1", "Query 1 Updated", "resource.type=k8s_container updated", 3200)
+
+	expected := []*QueryItem{
+		{Id: "q1", Name: "Query 1 Updated", Query: "resource.type=k8s_container updated", EstimatedCount: ptr(int64(3200))},
+		{Id: "q2", Name: "Query 2", Query: "resource.type=k8s_node", EstimatedCount: ptr(int64(1500))},
+	}
+
+	if diff := cmp.Diff(expected, qm.ToSerializable()); diff != "" {
+		t.Errorf("SetQueryWithEstimate mismatch (-want +got):\n%s", diff)
+	}
+}

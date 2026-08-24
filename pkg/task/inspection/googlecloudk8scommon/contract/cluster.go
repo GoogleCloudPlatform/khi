@@ -77,3 +77,8 @@ func (g *GoogleCloudClusterIdentity) PrefixFor(usage ClusterNameUsage) string {
 func (g *GoogleCloudClusterIdentity) UniqueDigest() string {
 	return fmt.Sprintf("%s|%s|%s|%s", g.ProjectID, g.PrefixPolicy.Prefix, g.ClusterName, g.Location)
 }
+
+// IsComplete returns true if ProjectID, ClusterName, and Location are all non-empty.
+func (g *GoogleCloudClusterIdentity) IsComplete() bool {
+	return g.ProjectID != "" && g.ClusterName != "" && g.Location != ""
+}
