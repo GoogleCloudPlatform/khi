@@ -48,6 +48,7 @@ import { BackendSyncService } from 'src/app/services/api/backend-sync-interface'
 import { MatCardModule } from '@angular/material/card';
 import { CommonModule } from '@angular/common';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { KHICommonModule } from 'src/app/common/common.module';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -77,16 +78,115 @@ import {
 } from 'src/app/extensions/extension-common/extension-store';
 
 export interface NewInspectionDialogResult {
-  inspectionTaskStarted: boolean;
+  readonly inspectionTaskStarted: boolean;
+}
+
+/**
+ * Severity level based on estimated log volume.
+ */
+export enum TotalEstimatedLogsSeverity {
+  Normal = 'normal',
+  Warning = 'warning',
+  Danger = 'danger',
+}
+
+/**
+ * Summary of total estimated log count across all queries.
+ */
+export interface TotalEstimatedLogsSummary {
+  readonly knownCount: number;
+  readonly isComplete: boolean;
+  readonly isEstimating: boolean;
+  readonly isIncomplete: boolean;
+  readonly displayText: string;
+  readonly severity: TotalEstimatedLogsSeverity;
+}
+
+/**
+ * Computes the aggregate estimated log count summary across all queries.
+ */
+export function computeTotalEstimatedLogs(
+  queries?: InspectionMetadataQuery[],
+): TotalEstimatedLogsSummary | undefined {
+  if (!queries || queries.length === 0) {
+    return undefined;
+  }
+  const hasIncomplete = queries.some((q) => q.incomplete);
+  const hasUnestimated = queries.some(
+    (q) => q.estimatedCount === undefined && !q.incomplete,
+  );
+  const knownCount = queries
+    .filter((q) => q.estimatedCount !== undefined)
+    .reduce((sum, q) => sum + (q.estimatedCount ?? 0), 0);
+
+  let severity = TotalEstimatedLogsSeverity.Normal;
+  if (knownCount >= 5_000_000) {
+    severity = TotalEstimatedLogsSeverity.Danger;
+  } else if (knownCount >= 1_000_000) {
+    severity = TotalEstimatedLogsSeverity.Warning;
+  }
+
+  const formattedCount = knownCount.toLocaleString('en-US');
+  if (hasIncomplete) {
+    if (knownCount > 0) {
+      return {
+        knownCount,
+        isComplete: false,
+        isEstimating: false,
+        isIncomplete: true,
+        displayText: `>${formattedCount} logs estimated (some parameters incomplete)`,
+        severity,
+      };
+    }
+    return {
+      knownCount: 0,
+      isComplete: false,
+      isEstimating: false,
+      isIncomplete: true,
+      displayText: 'Incomplete parameters',
+      severity: TotalEstimatedLogsSeverity.Normal,
+    };
+  }
+
+  if (hasUnestimated) {
+    if (knownCount > 0) {
+      return {
+        knownCount,
+        isComplete: false,
+        isEstimating: true,
+        isIncomplete: false,
+        displayText: `>${formattedCount} logs estimated so far`,
+        severity,
+      };
+    }
+    return {
+      knownCount: 0,
+      isComplete: false,
+      isEstimating: true,
+      isIncomplete: false,
+      displayText: 'Estimating total logs...',
+      severity: TotalEstimatedLogsSeverity.Normal,
+    };
+  }
+
+  return {
+    knownCount,
+    isComplete: true,
+    isEstimating: false,
+    isIncomplete: false,
+    displayText: `~${formattedCount} total logs estimated`,
+    severity,
+  };
 }
 
 export interface ParameterPageViewModel {
-  rootGroupForm: GroupParameterFormField;
-  queries: InspectionMetadataQuery[];
-  plan: InspectionMetadataPlan;
-  job?: InspectionMetadataJobModeCommand;
-  errorFieldCount: number;
-  fieldCount: number;
+  readonly rootGroupForm: GroupParameterFormField;
+  readonly queries: InspectionMetadataQuery[];
+  readonly plan: InspectionMetadataPlan;
+  readonly job?: InspectionMetadataJobModeCommand;
+  readonly errorFieldCount: number;
+  readonly fieldCount: number;
+  readonly totalEstimatedSummary?: TotalEstimatedLogsSummary;
 }
 
 export function openNewInspectionDialog(dialog: MatDialog) {
@@ -109,6 +209,7 @@ export function openNewInspectionDialog(dialog: MatDialog) {
     MatStepperModule,
     MatCardModule,
     MatProgressBarModule,
+    MatProgressSpinnerModule,
     MatIconModule,
     ReactiveFormsModule,
     MatFormFieldModule,
@@ -267,6 +368,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
           job: metadata.jobCommand,
           errorFieldCount: errorFieldCount,
           fieldCount: fieldCount,
+          totalEstimatedSummary: computeTotalEstimatedLogs(metadata.query),
         } as ParameterPageViewModel;
       }),
     ),

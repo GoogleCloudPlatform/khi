@@ -115,10 +115,46 @@ limitations under the License.
                 <mat-card-title>Query</mat-card-title>
               </mat-card-header>
               <mat-card-content>
+                @if (parameterViewModel.totalEstimatedSummary; as summary) {
+                  <div
+                    class="total-estimated-callout"
+                    [class.normal]="summary.severity === 'normal'"
+                    [class.warning]="summary.severity === 'warning'"
+                    [class.danger]="summary.severity === 'danger'"
+                  >
+                    @if (summary.isEstimating) {
+                      <mat-spinner diameter="16"></mat-spinner>
+                    } @else if (summary.severity === "danger") {
+                      <mat-icon>error</mat-icon>
+                    } @else if (summary.severity === "warning") {
+                      <mat-icon>warning</mat-icon>
+                    } @else {
+                      <mat-icon>info</mat-icon>
+                    }
+                    <span class="callout-text">{{ summary.displayText }}</span>
+                  </div>
+                }
                 @for (query of parameterViewModel.queries; track query.name) {
                   <mat-card class="query-card">
                     <mat-card-header>
                       <mat-card-title>{{ query.name }}</mat-card-title>
+                      <mat-card-subtitle class="query-status-subtitle">
+                        @if (query.incomplete) {
+                          <span class="query-incomplete"
+                            >Incomplete parameters</span
+                          >
+                        } @else if (query.estimatedCount !== undefined) {
+                          <span class="query-estimated-count"
+                            >~{{ query.estimatedCount | number }} logs
+                            estimated</span
+                          >
+                        } @else {
+                          <div class="query-estimating">
+                            <mat-spinner diameter="14"></mat-spinner>
+                            <span>Estimating...</span>
+                          </div>
+                        }
+                      </mat-card-subtitle>
                     </mat-card-header>
                     <mat-card-content>
                       <pre class="query-section-query-pre">{{

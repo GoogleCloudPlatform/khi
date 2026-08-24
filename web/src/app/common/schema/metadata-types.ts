@@ -27,9 +27,11 @@ export type InspectionMetadataPlan = {
 };
 
 export type InspectionMetadataQuery = {
-  id: string;
-  name: string;
-  query: string;
+  readonly id: string;
+  readonly name: string;
+  readonly query: string;
+  readonly estimatedCount?: number;
+  readonly incomplete?: boolean;
 };
 
 export type InspectionMetadataErrorSet = {

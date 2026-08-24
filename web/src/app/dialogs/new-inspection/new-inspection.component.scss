@@ -19,6 +19,17 @@
 $inspection-type-icon-size: 80px;
 $selected-color: #283593;
 $query-accent: #283593;
+$total-count-warning-color: #f57c00;
+$total-count-danger-color: #d32f2f;
+$callout-normal-bg: #e8eaf6;
+$callout-normal-border: #c5cae9;
+$callout-normal-text: #283593;
+$callout-warning-bg: #fff3e0;
+$callout-warning-border: #ffe0b2;
+$callout-warning-text: #e65100;
+$callout-danger-bg: #ffebee;
+$callout-danger-border: #ffcdd2;
+$callout-danger-text: #c62828;
 
 mat-dialog-content {
   overflow: hidden;
@@ -229,8 +240,102 @@ mat-step {
   margin: 0 0 5px;
 }
 
+.total-estimated-callout {
+  display: grid;
+  grid-template:
+    'icon text' auto
+    / auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  margin: 0 0 10px;
+  border-radius: 4px;
+  font-size: 0.88em;
+  line-height: 1.4;
+
+  mat-icon {
+    grid-area: icon;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  mat-spinner {
+    grid-area: icon;
+  }
+
+  .callout-text {
+    grid-area: text;
+    font-weight: 500;
+  }
+
+  &.normal {
+    background-color: $callout-normal-bg;
+    border: 1px solid $callout-normal-border;
+    color: $callout-normal-text;
+
+    mat-icon {
+      color: $callout-normal-text;
+    }
+  }
+
+  &.warning {
+    background-color: $callout-warning-bg;
+    border: 1px solid $callout-warning-border;
+    color: $callout-warning-text;
+
+    mat-icon {
+      color: $callout-warning-text;
+    }
+  }
+
+  &.danger {
+    background-color: $callout-danger-bg;
+    border: 1px solid $callout-danger-border;
+    color: $callout-danger-text;
+
+    mat-icon {
+      color: $callout-danger-text;
+    }
+  }
+}
+
 .query-card {
   margin: 0 0 5px;
+
+  .query-status-subtitle {
+    display: block;
+    margin: 2px 0 4px;
+    font-size: 0.85em;
+    line-height: 1.2;
+
+    .query-estimated-count {
+      opacity: 0.85;
+    }
+
+    .query-incomplete {
+      font-style: italic;
+      opacity: 0.7;
+    }
+
+    .query-estimating {
+      display: grid;
+      grid-template:
+        'spinner text' auto
+        / auto 1fr;
+      align-items: center;
+      gap: 6px;
+      opacity: 0.85;
+
+      mat-spinner {
+        grid-area: spinner;
+      }
+
+      span {
+        grid-area: text;
+      }
+    }
+  }
 }
 
 .query-section-query-pre {
