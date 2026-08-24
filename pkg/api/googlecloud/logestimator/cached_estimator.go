@@ -171,6 +171,9 @@ func (e *CachedStructuredLogEstimator) Close() {
 	for _, task := range e.activeTasks {
 		task.cancel()
 	}
+	for _, flight := range e.flights {
+		flight.cancel()
+	}
 	e.activeTasks = make(map[string]*taskFlight)
 	e.flights = make(map[string]*flightCall)
 	e.cache = make(map[string]*EstimateResult)

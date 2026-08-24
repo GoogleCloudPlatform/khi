@@ -132,7 +132,7 @@ export function computeTotalEstimatedLogs(
       return {
         knownCount,
         isComplete: false,
-        isEstimating: false,
+        isEstimating: hasUnestimated,
         isIncomplete: true,
         displayText: `>${formattedCount} logs estimated (some parameters incomplete)`,
         severity,
@@ -141,7 +141,7 @@ export function computeTotalEstimatedLogs(
     return {
       knownCount: 0,
       isComplete: false,
-      isEstimating: false,
+      isEstimating: hasUnestimated,
       isIncomplete: true,
       displayText: 'Incomplete parameters',
       severity: TotalEstimatedLogsSeverity.Normal,

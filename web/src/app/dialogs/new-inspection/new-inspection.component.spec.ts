@@ -220,5 +220,22 @@ describe('NewInspectionDialogTest', () => {
         severity: TotalEstimatedLogsSeverity.Normal,
       });
     });
+
+    it('should set isEstimating to true when some queries are incomplete and others are still estimating', () => {
+      const queries: InspectionMetadataQuery[] = [
+        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 1000 },
+        { id: 'q2', name: 'q2', query: 'query2' },
+        { id: 'q3', name: 'q3', query: 'query3', incomplete: true },
+      ];
+      const result = computeTotalEstimatedLogs(queries);
+      expect(result).toEqual({
+        knownCount: 1000,
+        isComplete: false,
+        isEstimating: true,
+        isIncomplete: true,
+        displayText: '>1,000 logs estimated (some parameters incomplete)',
+        severity: TotalEstimatedLogsSeverity.Normal,
+      });
+    });
   });
 });

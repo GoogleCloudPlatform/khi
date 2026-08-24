@@ -71,6 +71,9 @@ func (f *MonitoringClientFetcher) QueryMetricCount(ctx context.Context, containe
 			return 0, fmt.Errorf("failed to query time series: %w", err)
 		}
 		for _, pt := range resp.GetPoints() {
+			if pt == nil || pt.GetValue() == nil {
+				continue
+			}
 			totalCount += pt.GetValue().GetInt64Value()
 		}
 	}
