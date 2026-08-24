@@ -18,66 +18,73 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+// GenerateGKEAuditStructuredQuery generates a structured query for GKE API audit logs.
+func GenerateGKEAuditStructuredQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
+	return &logestimator.StructuredLogQuery{
+		Incomplete:                !cluster.IsComplete(),
+		ResourceTypes:             []string{"gke_cluster", "gke_nodepool"},
+		IgnoreMetricsResourceType: []string{"gke_cluster", "gke_nodepool"},
+		Filters: []logestimator.LoggingMonitoringMatcher{
+			logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
+			logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
+			logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.ClusterName)),
+			logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
+			logestimator.CustomFilter(`protoPayload.serviceName="container.googleapis.com"`),
+		},
+	}
+}
+
+// GenerateGKEAuditQuery generates a query for GKE API audit logs.
 func GenerateGKEAuditQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
-	return fmt.Sprintf(`log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
-resource.type=("gke_cluster" OR "gke_nodepool")
-resource.labels.project_id="%s"
-resource.labels.location="%s"
-resource.labels.cluster_name="%s"
-protoPayload.serviceName="container.googleapis.com"
-`, cluster.ProjectID, cluster.Location, cluster.ClusterName)
+	return GenerateGKEAuditStructuredQuery(cluster).GenerateCloudLoggingQuery()
 }
 
 type gkeAPIListLogEntriesTaskSetting struct {
 }
 
-// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
-// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID.Ref(),
 	}
 }
 
-// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (g *gkeAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
-	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-
-		QueryName:    "GKE Audit logs",
-		ExampleQuery: GenerateGKEAuditQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: "gcp-project-id", Location: "gcp-location", ClusterName: "gcp-cluster-name"}),
-	}
+// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (g *gkeAPIListLogEntriesTaskSetting) QueryName() string {
+	return "GKE Audit logs"
 }
 
-// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (g *gkeAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (g *gkeAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID.Ref())
-	return []string{GenerateGKEAuditQuery(cluster)}, nil
+	return []*logestimator.StructuredLogQuery{GenerateGKEAuditStructuredQuery(cluster)}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudloggkeapiaudit_contract.ListLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 1, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*gkeAPIListLogEntriesTaskSetting)(nil)
+var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*gkeAPIListLogEntriesTaskSetting)(nil)
 
-var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&gkeAPIListLogEntriesTaskSetting{})
+var ListLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&gkeAPIListLogEntriesTaskSetting{})

@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -29,77 +31,103 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// generateGCPNetworkAPIQuery generates a query for network API logs.
-func generateGCPNetworkAPIQuery(taskMode inspectioncore_contract.InspectionTaskModeType, negNames []string) []string {
+// GenerateGCPNetworkAPIStructuredQuery generates a structured query slice for network API logs.
+func GenerateGCPNetworkAPIStructuredQuery(taskMode inspectioncore_contract.InspectionTaskModeType, negNames []string) []*logestimator.StructuredLogQuery {
+	if taskMode == inspectioncore_contract.TaskModeDryRun {
+		return []*logestimator.StructuredLogQuery{
+			{
+				ResourceTypes: []string{"gce_network"},
+				Filters: []logestimator.LoggingMonitoringMatcher{
+					logestimator.CustomFilter(`-protoPayload.methodName:("list" OR "get" OR "watch")`),
+					logestimator.CustomFilter("-- neg name filters to be determined after audit log query"),
+				},
+			},
+		}
+	}
+
 	nodeNamesWithNetworkEndpointGroups := []string{}
 	for _, negName := range negNames {
 		nodeNamesWithNetworkEndpointGroups = append(nodeNamesWithNetworkEndpointGroups, fmt.Sprintf("networkEndpointGroups/%s", negName))
 	}
-	if taskMode == inspectioncore_contract.TaskModeDryRun {
-		return []string{queryFromNegNameFilter("-- neg name filters to be determined after audit log query")}
-	} else {
-		result := []string{}
-		groups := gcpqueryutil.SplitToChildGroups(nodeNamesWithNetworkEndpointGroups, 10)
-		for _, group := range groups {
-			negNameFilter := fmt.Sprintf("protoPayload.resourceName:(%s)", strings.Join(group, " OR "))
-			result = append(result, queryFromNegNameFilter(negNameFilter))
-		}
-		return result
+	result := []*logestimator.StructuredLogQuery{}
+	groups := gcpqueryutil.SplitToChildGroups(nodeNamesWithNetworkEndpointGroups, 10)
+	for _, group := range groups {
+		negNameFilter := fmt.Sprintf("protoPayload.resourceName:(%s)", strings.Join(group, " OR "))
+		result = append(result, &logestimator.StructuredLogQuery{
+			ResourceTypes: []string{"gce_network"},
+			Filters: []logestimator.LoggingMonitoringMatcher{
+				logestimator.CustomFilter(`-protoPayload.methodName:("list" OR "get" OR "watch")`),
+				logestimator.CustomFilter(negNameFilter),
+			},
+		})
 	}
+	return result
 }
 
-func queryFromNegNameFilter(negNameFilter string) string {
-	return fmt.Sprintf(`resource.type="gce_network"
--protoPayload.methodName:("list" OR "get" OR "watch")
-%s
-`, negNameFilter)
+// GenerateGCPNetworkAPIQuery generates a query for network API logs.
+func GenerateGCPNetworkAPIQuery(taskMode inspectioncore_contract.InspectionTaskModeType, negNames []string) []string {
+	structuredQueries := GenerateGCPNetworkAPIStructuredQuery(taskMode, negNames)
+	result := make([]string, 0, len(structuredQueries))
+	for _, sq := range structuredQueries {
+		result = append(result, sq.GenerateCloudLoggingQuery())
+	}
+	return result
 }
 
-type networkAPIListLogEntiesTaskSetting struct{}
+type networkAPIListLogEntriesTaskSetting struct{}
 
-// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntiesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (n *networkAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlognetworkapiaudit_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
-// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntiesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (n *networkAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlognetworkapiaudit_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(),
 	}
 }
 
-// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntiesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
-	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-
-		QueryName:    "GCP network log",
-		ExampleQuery: generateGCPNetworkAPIQuery(inspectioncore_contract.TaskModeRun, []string{"neg-id-1", "neg-id-2"})[0],
-	}
+// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (n *networkAPIListLogEntriesTaskSetting) QueryName() string {
+	return "GCP network log"
 }
 
-// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntiesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	negs := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref())
-	negNames := []string{}
-	for negName := range negs {
-		negNames = append(negNames, negName)
+// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (n *networkAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+	taskMode, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskMode)
+	if err != nil {
+		taskMode = inspectioncore_contract.TaskModeRun
 	}
-	return generateGCPNetworkAPIQuery(taskMode, negNames), nil
+	var negNames []string
+	if taskMode == inspectioncore_contract.TaskModeRun {
+		negs := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref())
+		for negName := range negs {
+			negNames = append(negNames, negName)
+		}
+	}
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlognetworkapiaudit_contract.ClusterIdentityTaskID.Ref())
+	queries := GenerateGCPNetworkAPIStructuredQuery(taskMode, negNames)
+	if clusterIdentity.ProjectID == "" {
+		for _, q := range queries {
+			q.Incomplete = true
+		}
+	}
+	return queries, nil
 }
 
-// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntiesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (n *networkAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntiesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (n *networkAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 1, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*networkAPIListLogEntiesTaskSetting)(nil)
+var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*networkAPIListLogEntriesTaskSetting)(nil)
 
-var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&networkAPIListLogEntiesTaskSetting{})
+var ListLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&networkAPIListLogEntriesTaskSetting{})

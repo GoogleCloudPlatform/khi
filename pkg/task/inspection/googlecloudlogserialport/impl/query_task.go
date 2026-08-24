@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -32,47 +34,67 @@ import (
 
 const MaxNodesPerQuery = 30
 
-func GenerateSerialPortQuery(taskMode inspectioncore_contract.InspectionTaskModeType, foundNodeNames []string, nodeNameSubstrings []string) []string {
+// GenerateSerialPortStructuredQuery generates structured log queries for serial port logs.
+func GenerateSerialPortStructuredQuery(taskMode inspectioncore_contract.InspectionTaskModeType, foundNodeNames []string, nodeNameSubstrings []string) []*logestimator.StructuredLogQuery {
+	logIDFilter := logestimator.LogID(logestimator.OneOf(
+		"serialconsole.googleapis.com/serial_port_1_output",
+		"serialconsole.googleapis.com/serial_port_2_output",
+		"serialconsole.googleapis.com/serial_port_3_output",
+		"serialconsole.googleapis.com/serial_port_debug_output",
+	))
+
+	var subFilter logestimator.LoggingMonitoringMatcher
+	if len(nodeNameSubstrings) > 0 {
+		subFilter = logestimator.CustomFilter(fmt.Sprintf(`labels."compute.googleapis.com/resource_name":(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(nodeNameSubstrings), " OR ")))
+	}
+
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
-		return []string{
-			generateSerialPortQueryWithInstanceNameFilter("-- instance name filters to be determined after node name discovery", generateNodeNameSubstringLogFilter(nodeNameSubstrings)),
+		filters := []logestimator.LoggingMonitoringMatcher{
+			logIDFilter,
+			logestimator.CustomFilter("-- instance name filters to be determined after node name discovery"),
 		}
-	} else {
-		result := []string{}
-		instanceNameGroups := gcpqueryutil.SplitToChildGroups(foundNodeNames, MaxNodesPerQuery)
-		for _, group := range instanceNameGroups {
-			instanceNameFilter := fmt.Sprintf(`labels."compute.googleapis.com/resource_name"=(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(group), " OR "))
-			result = append(result, generateSerialPortQueryWithInstanceNameFilter(instanceNameFilter, generateNodeNameSubstringLogFilter(nodeNameSubstrings)))
+		if subFilter != nil {
+			filters = append(filters, subFilter)
 		}
-		return result
+		return []*logestimator.StructuredLogQuery{
+			{
+				Filters: filters,
+			},
+		}
 	}
-}
 
-func generateNodeNameSubstringLogFilter(nodeNameSubstrings []string) string {
-	if len(nodeNameSubstrings) == 0 {
-		return "-- No node name substring filters are specified."
-	} else {
-		return fmt.Sprintf(`labels."compute.googleapis.com/resource_name":(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(nodeNameSubstrings), " OR "))
+	result := []*logestimator.StructuredLogQuery{}
+	instanceNameGroups := gcpqueryutil.SplitToChildGroups(foundNodeNames, MaxNodesPerQuery)
+	for _, group := range instanceNameGroups {
+		instanceNameFilter := logestimator.CustomFilter(fmt.Sprintf(`labels."compute.googleapis.com/resource_name"=(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(group), " OR ")))
+		filters := []logestimator.LoggingMonitoringMatcher{
+			logIDFilter,
+			instanceNameFilter,
+		}
+		if subFilter != nil {
+			filters = append(filters, subFilter)
+		}
+		result = append(result, &logestimator.StructuredLogQuery{
+			Filters: filters,
+		})
 	}
+	return result
 }
 
-func generateSerialPortQueryWithInstanceNameFilter(instanceNameFilter string, nodeNameSubstringFilter string) string {
-	return fmt.Sprintf(`LOG_ID("serialconsole.googleapis.com%%2Fserial_port_1_output") OR
-LOG_ID("serialconsole.googleapis.com%%2Fserial_port_2_output") OR
-LOG_ID("serialconsole.googleapis.com%%2Fserial_port_3_output") OR
-LOG_ID("serialconsole.googleapis.com%%2Fserial_port_debug_output")
-
-%s
-
-%s`, instanceNameFilter, nodeNameSubstringFilter)
+// GenerateSerialPortQuery generates query strings for serial port logs.
+func GenerateSerialPortQuery(taskMode inspectioncore_contract.InspectionTaskModeType, foundNodeNames []string, nodeNameSubstrings []string) []string {
+	sqs := GenerateSerialPortStructuredQuery(taskMode, foundNodeNames, nodeNameSubstrings)
+	res := make([]string, len(sqs))
+	for i, sq := range sqs {
+		res[i] = sq.GenerateCloudLoggingQuery()
+	}
+	return res
 }
-
-var LogQueryTask = googlecloudcommon_contract.NewListLogEntriesTask(&serialPortLoggingFilterTaskSetting{})
 
 type serialPortLoggingFilterTaskSetting struct {
 }
 
-// Dependencies implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
+// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref(),
@@ -81,39 +103,45 @@ func (s *serialPortLoggingFilterTaskSetting) Dependencies() []taskid.UntypedTask
 	}
 }
 
-// Description implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
-func (s *serialPortLoggingFilterTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
-	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-
-		QueryName: "Serial port log",
-		ExampleQuery: GenerateSerialPortQuery(inspectioncore_contract.TaskModeRun, []string{
-			"gke-test-cluster-node-1",
-			"gke-test-cluster-node-2",
-		}, []string{})[0],
-	}
+// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (s *serialPortLoggingFilterTaskSetting) QueryName() string {
+	return "Serial port log"
 }
 
-// LogFilters implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
-func (s *serialPortLoggingFilterTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (s *serialPortLoggingFilterTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	nodeNames := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref())
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())
-	return GenerateSerialPortQuery(taskMode, nodeNames, nodeNameSubstrings), nil
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref())
+	taskMode := inspectioncore_contract.TaskModeRun
+	if val, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskMode); err == nil {
+		taskMode = val
+	}
+	queries := GenerateSerialPortStructuredQuery(taskMode, nodeNames, nodeNameSubstrings)
+	if clusterIdentity.ProjectID == "" {
+		for _, q := range queries {
+			q.Incomplete = true
+		}
+	}
+	return queries, nil
 }
 
-// DefaultResourceNames implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
+// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
+// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlogserialport_contract.LogQueryTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
+// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 10, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*serialPortLoggingFilterTaskSetting)(nil)
+var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*serialPortLoggingFilterTaskSetting)(nil)
+
+var LogQueryTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&serialPortLoggingFilterTaskSetting{})

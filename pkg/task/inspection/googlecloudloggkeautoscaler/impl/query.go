@@ -18,72 +18,79 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-func generateAutoscalerQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, excludeStatus bool) string {
-	excludeStatusQueryFragment := "-- include query for status log"
-	if excludeStatus {
-		excludeStatusQueryFragment = `-jsonPayload.status: ""`
+// GenerateAutoscalerStructuredQuery generates a structured query for GKE cluster autoscaler logs.
+func GenerateAutoscalerStructuredQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, excludeStatus bool) *logestimator.StructuredLogQuery {
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
+		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
+		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster))),
+		logestimator.LogID(logestimator.Exact("container.googleapis.com/cluster-autoscaler-visibility")),
 	}
-	return fmt.Sprintf(`resource.type="k8s_cluster"
-resource.labels.project_id="%s"
-resource.labels.location="%s"
-resource.labels.cluster_name="%s"
-%s
-logName="projects/%s/logs/container.googleapis.com%%2Fcluster-autoscaler-visibility"`, cluster.ProjectID, cluster.Location, cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster), excludeStatusQueryFragment, cluster.ProjectID)
+	if excludeStatus {
+		filters = append(filters, logestimator.CustomFilter(`-jsonPayload.status: ""`))
+	}
+
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    !cluster.IsComplete(),
+		ResourceTypes: []string{"k8s_cluster"},
+		Filters:       filters,
+	}
+}
+
+// GenerateAutoscalerQuery generates a query for GKE cluster autoscaler logs.
+func GenerateAutoscalerQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, excludeStatus bool) string {
+	return GenerateAutoscalerStructuredQuery(cluster, excludeStatus).GenerateCloudLoggingQuery()
+}
+
+func generateAutoscalerQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, excludeStatus bool) string {
+	return GenerateAutoscalerQuery(cluster, excludeStatus)
 }
 
 type autoscalerListLogEntriesTaskSetting struct{}
 
-// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (a *autoscalerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
-// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (a *autoscalerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	}
 }
 
-// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (a *autoscalerListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
-	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-
-		QueryName: "Cluster autoscaler logs",
-		ExampleQuery: generateAutoscalerQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-			ProjectID:   "gcp-project-id",
-			Location:    "gcp-location",
-			ClusterName: "gcp-cluster-name",
-		}, true),
-	}
+// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (a *autoscalerListLogEntriesTaskSetting) QueryName() string {
+	return "Cluster autoscaler logs"
 }
 
-// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (a *autoscalerListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (a *autoscalerListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
-	return []string{generateAutoscalerQuery(cluster, true)}, nil
+	return []*logestimator.StructuredLogQuery{GenerateAutoscalerStructuredQuery(cluster, true)}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (a *autoscalerListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (a *autoscalerListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 1, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*autoscalerListLogEntriesTaskSetting)(nil)
+var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*autoscalerListLogEntriesTaskSetting)(nil)
 
-var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&autoscalerListLogEntriesTaskSetting{})
+var ListLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&autoscalerListLogEntriesTaskSetting{})

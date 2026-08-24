@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -30,45 +32,59 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// GenerateComputeAPIQuery generates a query for compute API logs.
-func GenerateComputeAPIQuery(taskMode inspectioncore_contract.InspectionTaskModeType, nodeNames []string) []string {
+// GenerateComputeAPIStructuredQuery generates a structured query slice for compute API logs.
+func GenerateComputeAPIStructuredQuery(taskMode inspectioncore_contract.InspectionTaskModeType, nodeNames []string) []*logestimator.StructuredLogQuery {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
-		return []string{
-			generateComputeAPIQueryWithInstanceNameFilter("-- instance name filters to be determined after node name discovery"),
+		return []*logestimator.StructuredLogQuery{
+			{
+				ResourceTypes: []string{"gce_instance"},
+				Filters: []logestimator.LoggingMonitoringMatcher{
+					logestimator.CustomFilter(`-protoPayload.methodName:("list" OR "get" OR "watch")`),
+					logestimator.Comment("instance name filters to be determined after node name discovery"),
+				},
+			},
 		}
-	} else {
-		result := []string{}
-		instanceNameGroups := gcpqueryutil.SplitToChildGroups(nodeNames, 30)
-		for _, group := range instanceNameGroups {
-			nodeNamesWithInstance := []string{}
-			for _, nodeName := range group {
-				nodeNamesWithInstance = append(nodeNamesWithInstance, fmt.Sprintf("instances/%s", nodeName))
-			}
-			instanceNameFilter := fmt.Sprintf("protoPayload.resourceName:(%s)", strings.Join(nodeNamesWithInstance, " OR "))
-			result = append(result, generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter))
-		}
-		return result
 	}
+
+	result := []*logestimator.StructuredLogQuery{}
+	instanceNameGroups := gcpqueryutil.SplitToChildGroups(nodeNames, 30)
+	for _, group := range instanceNameGroups {
+		nodeNamesWithInstance := []string{}
+		for _, nodeName := range group {
+			nodeNamesWithInstance = append(nodeNamesWithInstance, fmt.Sprintf("instances/%s", nodeName))
+		}
+		instanceNameFilter := fmt.Sprintf("protoPayload.resourceName:(%s)", strings.Join(nodeNamesWithInstance, " OR "))
+		result = append(result, &logestimator.StructuredLogQuery{
+			ResourceTypes: []string{"gce_instance"},
+			Filters: []logestimator.LoggingMonitoringMatcher{
+				logestimator.CustomFilter(`-protoPayload.methodName:("list" OR "get" OR "watch")`),
+				logestimator.CustomFilter(instanceNameFilter),
+			},
+		})
+	}
+	return result
 }
 
-func generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter string) string {
-	return fmt.Sprintf(`resource.type="gce_instance"
--protoPayload.methodName:("list" OR "get" OR "watch")
-%s
-`, instanceNameFilter)
+// GenerateComputeAPIQuery generates a query for compute API logs.
+func GenerateComputeAPIQuery(taskMode inspectioncore_contract.InspectionTaskModeType, nodeNames []string) []string {
+	structuredQueries := GenerateComputeAPIStructuredQuery(taskMode, nodeNames)
+	result := make([]string, 0, len(structuredQueries))
+	for _, sq := range structuredQueries {
+		result = append(result, sq.GenerateCloudLoggingQuery())
+	}
+	return result
 }
 
 type computeAPIListLogEntriesTaskSetting struct {
 }
 
-// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
-
 }
 
-// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref(),
@@ -76,34 +92,41 @@ func (c *computeAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTas
 	}
 }
 
-// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *computeAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
-	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
+// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (c *computeAPIListLogEntriesTaskSetting) QueryName() string {
+	return "Compute API Audit log"
+}
 
-		QueryName: "Compute API Audit log",
-		ExampleQuery: GenerateComputeAPIQuery(inspectioncore_contract.TaskModeRun, []string{
-			"gke-test-cluster-node-1",
-			"gke-test-cluster-node-2",
-		})[0],
+// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (c *computeAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+	taskMode, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskMode)
+	if err != nil {
+		taskMode = inspectioncore_contract.TaskModeRun
 	}
+	var nodeNames []string
+	if taskMode == inspectioncore_contract.TaskModeRun {
+		nodeNames = coretask.GetTaskResult(ctx, commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref())
+	}
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref())
+	queries := GenerateComputeAPIStructuredQuery(taskMode, nodeNames)
+	if !clusterIdentity.IsComplete() {
+		for _, q := range queries {
+			q.Incomplete = true
+		}
+	}
+	return queries, nil
 }
 
-// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *computeAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	nodeNames := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref())
-	return GenerateComputeAPIQuery(taskMode, nodeNames), nil
-}
-
-// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlogcomputeapiaudit_contract.ListLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
+	return 10, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*computeAPIListLogEntriesTaskSetting)(nil)
+var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*computeAPIListLogEntriesTaskSetting)(nil)
 
-var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&computeAPIListLogEntriesTaskSetting{})
+var ListLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&computeAPIListLogEntriesTaskSetting{})

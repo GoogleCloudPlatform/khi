@@ -18,78 +18,76 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// generateQuery generates a query for multicloud API logs.
+// GenerateMultiCloudAPIStructuredQuery generates a structured query for multicloud API logs.
+func GenerateMultiCloudAPIStructuredQuery(clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    !clusterIdentity.IsComplete(),
+		ResourceTypes: []string{"audited_resource"},
+		Filters: []logestimator.LoggingMonitoringMatcher{
+			logestimator.ResourceLabel("service", logestimator.Exact("gkemulticloud.googleapis.com")),
+			logestimator.ResourceLabel("method", logestimator.ContainsAny("Update", "Create", "Delete")),
+			logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
+			logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"projects/%s/locations/%s/"`, clusterIdentity.ProjectID, clusterIdentity.Location)),
+			logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"%s"`, clusterIdentity.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit))),
+		},
+	}
+}
+
+// GenerateMultiCloudAPIQuery generates a query for multicloud API logs.
+func GenerateMultiCloudAPIQuery(clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
+	return GenerateMultiCloudAPIStructuredQuery(clusterIdentity).GenerateCloudLoggingQuery()
+}
+
 func generateQuery(clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
-	return fmt.Sprintf(`
-log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
-resource.type="audited_resource"
-resource.labels.service="gkemulticloud.googleapis.com"
-resource.labels.method:("Update" OR "Create" OR "Delete")
-protoPayload.resourceName:"projects/%s/locations/%s/"
-protoPayload.resourceName:"%s"
-`, clusterIdentity.ProjectID, clusterIdentity.Location, clusterIdentity.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit))
+	return GenerateMultiCloudAPIQuery(clusterIdentity)
 }
 
 type multicloudAPIListLogEntriesTaskSetting struct {
 }
 
-// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (g *multicloudAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudlogmulticloudapiaudit_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
-// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (g *multicloudAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlogmulticloudapiaudit_contract.ClusterIdentityTaskID.Ref(),
 	}
 }
 
-// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (g *multicloudAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
-	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-		QueryName: "Multicloud API Logs",
-		ExampleQuery: generateQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-			ProjectID:   "example-project-id",
-			Location:    "example-location",
-			ClusterName: "example-cluster-name",
-			PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
-				Prefix: "awsClusters/",
-				RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
-					googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit,
-				},
-			},
-		}),
-	}
+// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (g *multicloudAPIListLogEntriesTaskSetting) QueryName() string {
+	return "Multicloud API Logs"
 }
 
-// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (g *multicloudAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (g *multicloudAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogmulticloudapiaudit_contract.ClusterIdentityTaskID.Ref())
-
-	return []string{generateQuery(clusterIdentity)}, nil
+	return []*logestimator.StructuredLogQuery{GenerateMultiCloudAPIStructuredQuery(clusterIdentity)}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (g *multicloudAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlogmulticloudapiaudit_contract.ListLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (g *multicloudAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 1, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*multicloudAPIListLogEntriesTaskSetting)(nil)
+var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*multicloudAPIListLogEntriesTaskSetting)(nil)
 
-var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&multicloudAPIListLogEntriesTaskSetting{})
+var ListLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&multicloudAPIListLogEntriesTaskSetting{})

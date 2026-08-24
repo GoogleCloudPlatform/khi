@@ -18,31 +18,41 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
+
+// GenerateComposerAuditStructuredQuery generates a structured query for Cloud Composer audit logs.
+func GenerateComposerAuditStructuredQuery(projectID, location, environmentName string) *logestimator.StructuredLogQuery {
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(projectID)),
+	}
+	if location != "" && location != "all" {
+		filters = append(filters, logestimator.ResourceLabel("location", logestimator.Exact(location)))
+	}
+	if environmentName != "" {
+		filters = append(filters, logestimator.ResourceLabel("environment_name", logestimator.Exact(environmentName)))
+	}
+	filters = append(filters,
+		logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
+		logestimator.CustomFilter(`protoPayload.serviceName="composer.googleapis.com"`),
+	)
+
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    projectID == "" || environmentName == "",
+		ResourceTypes: []string{"cloud_composer_environment"},
+		Filters:       filters,
+	}
+}
 
 // GenerateComposerAuditQuery generates a Cloud Logging filter string for Cloud Composer audit logs.
 func GenerateComposerAuditQuery(projectID, location, environmentName string) string {
-	locationFilter := ""
-	if location != "" && location != "all" {
-		locationFilter = fmt.Sprintf("resource.labels.location=\"%s\"\n", location)
-	}
-	environmentFilter := ""
-	if environmentName != "" {
-		environmentFilter = fmt.Sprintf("resource.labels.environment_name=\"%s\"\n", environmentName)
-	}
-
-	return fmt.Sprintf(`(log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access"))
-resource.type="cloud_composer_environment"
-resource.labels.project_id="%s"
-%s%sprotoPayload.serviceName="composer.googleapis.com"
-`, projectID, locationFilter, environmentFilter)
+	return GenerateComposerAuditStructuredQuery(projectID, location, environmentName).GenerateCloudLoggingQuery()
 }
 
 type composerAPIListLogEntriesTaskSetting struct{}
@@ -61,19 +71,16 @@ func (s *composerAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTa
 	}
 }
 
-// Description returns user-facing task metadata and example query.
-func (s *composerAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
-	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-		QueryName:    "Composer API Audit logs",
-		ExampleQuery: GenerateComposerAuditQuery("test-project", "us-central1", "test-environment"),
-	}
+// QueryName returns human-readable name of the query.
+func (s *composerAPIListLogEntriesTaskSetting) QueryName() string {
+	return "Composer API Audit logs"
 }
 
-// LogFilters returns the Cloud Logging query string.
-func (s *composerAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+// Queries returns the list of structured log queries for estimation and execution.
+func (s *composerAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogcomposerapiaudit_contract.ClusterIdentityTaskID.Ref())
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
-	return []string{GenerateComposerAuditQuery(clusterIdentity.ProjectID, clusterIdentity.Location, environmentName)}, nil
+	return []*logestimator.StructuredLogQuery{GenerateComposerAuditStructuredQuery(clusterIdentity.ProjectID, clusterIdentity.Location, environmentName)}, nil
 }
 
 // TaskID returns the implementation ID of this query task.
@@ -86,7 +93,7 @@ func (s *composerAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Co
 	return 1, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*composerAPIListLogEntriesTaskSetting)(nil)
+var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*composerAPIListLogEntriesTaskSetting)(nil)
 
 // ListLogEntriesTask is the task that queries Cloud Composer audit logs from Cloud Logging.
-var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&composerAPIListLogEntriesTaskSetting{})
+var ListLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&composerAPIListLogEntriesTaskSetting{})

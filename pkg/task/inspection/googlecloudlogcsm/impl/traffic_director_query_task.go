@@ -20,6 +20,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -28,15 +30,57 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+// GenerateCSMTrafficDirectorStructuredQuery generates a structured query for CSM Traffic Director logs.
+func GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID string, clusterIdentifiers []string, isDryRun bool) *logestimator.StructuredLogQuery {
+	if isDryRun {
+		clusterIdentifiers = []string{"dummy"}
+	}
+	if len(clusterIdentifiers) == 0 {
+		return nil
+	}
+
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(fleetProjectID)),
+		logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
+	}
+
+	switch {
+	case isDryRun:
+		filters = append(filters, logestimator.CustomFilter(`protoPayload.resourceName:"gsmrsvd-dummy" -- The actual resource name selector will be generated from other logs in the middle of the pipeline.`))
+	case len(clusterIdentifiers) == 1:
+		filters = append(filters, logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"gsmrsvd-%s"`, clusterIdentifiers[0])))
+	default:
+		quotedIdentifiers := make([]string, len(clusterIdentifiers))
+		for i, id := range clusterIdentifiers {
+			quotedIdentifiers[i] = fmt.Sprintf(`"gsmrsvd-%s"`, id)
+		}
+		filters = append(filters, logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:(%s)`, strings.Join(quotedIdentifiers, " OR "))))
+	}
+
+	return &logestimator.StructuredLogQuery{
+		Incomplete: fleetProjectID == "",
+		Filters:    filters,
+	}
+}
+
+// GenerateCSMTrafficDirectorQuery generates a query for CSM Traffic Director logs.
+func GenerateCSMTrafficDirectorQuery(fleetProjectID string, clusterIdentifiers []string, isDryRun bool) string {
+	sq := GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID, clusterIdentifiers, isDryRun)
+	if sq == nil {
+		return ""
+	}
+	return sq.GenerateCloudLoggingQuery()
+}
+
 type CSMTrafficDirectorListLogEntryTaskSetting struct{}
 
-// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	fleetProjectID := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.InputFleetProjectIDTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", fleetProjectID)}, nil
 }
 
-// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlogcsm_contract.InputFleetProjectIDTaskID.Ref(),
@@ -44,59 +88,42 @@ func (s *CSMTrafficDirectorListLogEntryTaskSetting) Dependencies() []taskid.Unty
 	}
 }
 
-// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (s *CSMTrafficDirectorListLogEntryTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
-	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-
-		QueryName: "CSM Traffic Director logs",
-		ExampleQuery: `(log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access"))
-  protoPayload.resourceName: "gsmrsvd-XXXX" -- XXXX part will be generated from other log parsing result
-  resource.labels.project_id="fleet-project"`,
-	}
+// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (s *CSMTrafficDirectorListLogEntryTaskSetting) QueryName() string {
+	return "CSM Traffic Director logs"
 }
 
-// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (s *CSMTrafficDirectorListLogEntryTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (s *CSMTrafficDirectorListLogEntryTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	fleetProjectID := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.InputFleetProjectIDTaskID.Ref())
 	clusterIdentifiers := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.CSMClusterIdentifierTaskID.Ref())
+	taskMode := inspectioncore_contract.TaskModeRun
+	if val, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskMode); err == nil {
+		taskMode = val
+	}
+	isDryRun := taskMode == inspectioncore_contract.TaskModeDryRun
 
-	dryRunComment := ""
-	if taskMode == inspectioncore_contract.TaskModeDryRun {
-		clusterIdentifiers = []string{"dummy"}
-		dryRunComment = " -- The actual resource name selector will be generated from other logs in the middle of the pipeline."
-	} else if len(clusterIdentifiers) == 0 {
-		slog.InfoContext(ctx, "No CSM BackendServices found in inventory. Skipping Traffic Director log query.")
+	sq := GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID, clusterIdentifiers, isDryRun)
+	if sq == nil {
+		if !isDryRun {
+			slog.InfoContext(ctx, "No CSM BackendServices found in inventory. Skipping Traffic Director log query.")
+		}
 		return nil, nil
 	}
 
-	resourceNameFilter := ""
-	if len(clusterIdentifiers) == 1 {
-		resourceNameFilter = fmt.Sprintf(`protoPayload.resourceName:"gsmrsvd-%s"`, clusterIdentifiers[0])
-	} else {
-		quotedIdentifiers := make([]string, len(clusterIdentifiers))
-		for i, id := range clusterIdentifiers {
-			quotedIdentifiers[i] = fmt.Sprintf(`"gsmrsvd-%s"`, id)
-		}
-		resourceNameFilter = fmt.Sprintf(`protoPayload.resourceName:(%s)`, strings.Join(quotedIdentifiers, " OR "))
-	}
-
-	query := fmt.Sprintf(`(log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access"))
-%s%s
-resource.labels.project_id="%s"`, resourceNameFilter, dryRunComment, fleetProjectID)
-
-	return []string{query}, nil
+	return []*logestimator.StructuredLogQuery{sq}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlogcsm_contract.ListCSMTrafficDirectorLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 1, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*CSMTrafficDirectorListLogEntryTaskSetting)(nil)
+var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*CSMTrafficDirectorListLogEntryTaskSetting)(nil)
 
-var ListCSMTrafficDirectorLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&CSMTrafficDirectorListLogEntryTaskSetting{})
+var ListCSMTrafficDirectorLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&CSMTrafficDirectorListLogEntryTaskSetting{})

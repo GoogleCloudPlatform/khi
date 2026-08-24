@@ -16,38 +16,72 @@ package googlecloudloggkeapiaudit_impl
 
 import (
 	"testing"
+	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestGenerateGKEAuditQuery(t *testing.T) {
+func TestGenerateGKEAuditStructuredQuery(t *testing.T) {
+	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+		ProjectID:   "test-project",
+		ClusterName: "test-cluster",
+		Location:    "asia-northeast1",
+	}
+
 	testCases := []struct {
-		clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity
-		expected        string
+		name                   string
+		cluster                googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		wantQuery              string
+		wantMetricFilters      []string
+		wantSupportMetricsFlag bool
 	}{
 		{
-			clusterIdentity: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-				ProjectID:   "test-project",
-				ClusterName: "test-cluster",
-				Location:    "asia-northeast1",
-			},
-			expected: `log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
-resource.type=("gke_cluster" OR "gke_nodepool")
+			name:    "standard GKE audit query",
+			cluster: cluster,
+			wantQuery: `resource.type=("gke_cluster" OR "gke_nodepool")
 resource.labels.project_id="test-project"
 resource.labels.location="asia-northeast1"
 resource.labels.cluster_name="test-cluster"
-protoPayload.serviceName="container.googleapis.com"
-`,
+(LOG_ID("cloudaudit.googleapis.com/activity") OR LOG_ID("cloudaudit.googleapis.com/data_access"))
+protoPayload.serviceName="container.googleapis.com"`,
+			wantMetricFilters:      nil,
+			wantSupportMetricsFlag: false,
 		},
 	}
 
 	for _, tc := range testCases {
-		result := GenerateGKEAuditQuery(tc.clusterIdentity)
-		if diff := cmp.Diff(result, tc.expected); diff != "" {
-			t.Errorf("GenerateGKEAuditQuery() mismatch (-want +got):\n%s", diff)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			sq := GenerateGKEAuditStructuredQuery(tc.cluster)
+			gotQuery := sq.GenerateCloudLoggingQuery()
+			if diff := cmp.Diff(tc.wantQuery, gotQuery); diff != "" {
+				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
+			}
+
+			legacyQuery := GenerateGKEAuditQuery(tc.cluster)
+			if diff := cmp.Diff(gotQuery, legacyQuery); diff != "" {
+				t.Errorf("GenerateGKEAuditQuery() mismatch (-want +got):\n%s", diff)
+			}
+
+			gotMetrics := sq.GenerateMonitoringMetricFilters()
+			if diff := cmp.Diff(tc.wantMetricFilters, gotMetrics); diff != "" {
+				t.Errorf("GenerateMonitoringMetricFilters() mismatch (-want +got):\n%s", diff)
+			}
+
+			if sq.AllFiltersSupportMetrics() != tc.wantSupportMetricsFlag {
+				t.Errorf("AllFiltersSupportMetrics() = %v, want %v", sq.AllFiltersSupportMetrics(), tc.wantSupportMetricsFlag)
+			}
+		})
 	}
 }
 
@@ -70,8 +104,68 @@ func TestGeneratedGKEAuditQueryIsValid(t *testing.T) {
 			query := GenerateGKEAuditQuery(tc.clusterIdentity)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
-				t.Errorf("%s", err.Error())
+				t.Errorf("IsValidLogQuery error: %s", err.Error())
 			}
 		})
+	}
+}
+
+func TestListLogEntriesTask_DryRun(t *testing.T) {
+	t.Parallel()
+	startTime := time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
+	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
+
+	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+		ClusterName: "test-cluster",
+		ProjectID:   "test-project",
+		Location:    "asia-northeast1",
+	}
+
+	resourceNamesInput := googlecloudcommon_contract.NewResourceNamesInput()
+	clientFactory, err := googlecloud.NewClientFactory()
+	if err != nil {
+		t.Fatalf("failed to create ClientFactory: %v", err)
+	}
+
+	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID.Ref(), cluster),
+	)
+	if err != nil {
+		t.Fatalf("dry run returned unexpected error: %v", err)
+	}
+	if len(gotLogs) != 0 {
+		t.Errorf("dry run should return 0 logs, got %d", len(gotLogs))
+	}
+
+	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
+	if !found {
+		t.Fatalf("QueryMetadata not found in metadata")
+	}
+
+	serialized := queryMetadata.ToSerializable().([]*inspectionmetadata.QueryItem)
+	if len(serialized) != 1 {
+		t.Fatalf("expected 1 QueryItem, got %d", len(serialized))
+	}
+
+	wantQuery := `resource.type=("gke_cluster" OR "gke_nodepool")
+resource.labels.project_id="test-project"
+resource.labels.location="asia-northeast1"
+resource.labels.cluster_name="test-cluster"
+(LOG_ID("cloudaudit.googleapis.com/activity") OR LOG_ID("cloudaudit.googleapis.com/data_access"))
+protoPayload.serviceName="container.googleapis.com"
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp <= "2025-01-01T01:01:00+0000"`
+
+	if diff := cmp.Diff(wantQuery, serialized[0].Query); diff != "" {
+		t.Errorf("query mismatch (-want +got):\n%s", diff)
+	}
+	if serialized[0].Name != "GKE Audit logs" {
+		t.Errorf("query name mismatch: got %q, want %q", serialized[0].Name, "GKE Audit logs")
 	}
 }

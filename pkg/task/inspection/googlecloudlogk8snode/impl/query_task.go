@@ -17,46 +17,50 @@ package googlecloudlogk8snode_impl
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
+
+// GenerateK8sNodeStructuredQuery generates a structured query for GKE node logs.
+func GenerateK8sNodeStructuredQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, nodeNameSubstrings []string) *logestimator.StructuredLogQuery {
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
+		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
+		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster))),
+		logestimator.LogID(logestimator.NoneOf("events")),
+	}
+
+	if len(nodeNameSubstrings) > 0 {
+		filters = append(filters, logestimator.ResourceLabel("node_name", logestimator.ContainsAny(nodeNameSubstrings...)))
+	}
+
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    !cluster.IsComplete(),
+		ResourceTypes: []string{"k8s_node"},
+		Filters:       filters,
+	}
+}
 
 // GenerateK8sNodeLogQuery generates a query for GKE node logs.
 func GenerateK8sNodeLogQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, nodeNameSubstrings []string) string {
-	return fmt.Sprintf(`resource.type="k8s_node"
-resource.labels.project_id="%s"
-resource.labels.location="%s"
-resource.labels.cluster_name="%s"
--log_id("events") -- ignore node related events because it's captured in k8s event log parsers
-%s
-`, cluster.ProjectID, cluster.Location, cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster), generateNodeNameSubstringLogFilter(nodeNameSubstrings))
-}
-
-func generateNodeNameSubstringLogFilter(nodeNameSubstrings []string) string {
-	if len(nodeNameSubstrings) == 0 {
-		return "-- No node name substring filters are specified."
-	} else {
-		return fmt.Sprintf("resource.labels.node_name:(%s)", strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(nodeNameSubstrings), " OR "))
-	}
+	return GenerateK8sNodeStructuredQuery(cluster, nodeNameSubstrings).GenerateCloudLoggingQuery()
 }
 
 type k8snodeListLogEntriesTaskSetting struct{}
 
-// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *k8snodeListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
-// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *k8snodeListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(),
@@ -64,36 +68,28 @@ func (c *k8snodeListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskRe
 	}
 }
 
-// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *k8snodeListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
-	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-
-		QueryName: "Kubernetes node logs",
-		ExampleQuery: GenerateK8sNodeLogQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-			ProjectID:   "gcp-project-id",
-			Location:    "gcp-location",
-			ClusterName: "gcp-cluster-name",
-		}, []string{"gke-test-cluster-node-1", "gke-test-cluster-node-2"}),
-	}
+// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (c *k8snodeListLogEntriesTaskSetting) QueryName() string {
+	return "Kubernetes node logs"
 }
 
-// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *k8snodeListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (c *k8snodeListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref())
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())
-	return []string{GenerateK8sNodeLogQuery(cluster, nodeNameSubstrings)}, nil
+	return []*logestimator.StructuredLogQuery{GenerateK8sNodeStructuredQuery(cluster, nodeNameSubstrings)}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *k8snodeListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlogk8snode_contract.ListLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (k *k8snodeListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 10, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*k8snodeListLogEntriesTaskSetting)(nil)
+var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*k8snodeListLogEntriesTaskSetting)(nil)
 
-var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&k8snodeListLogEntriesTaskSetting{})
+var ListLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&k8snodeListLogEntriesTaskSetting{})

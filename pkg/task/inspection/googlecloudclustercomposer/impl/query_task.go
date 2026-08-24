@@ -18,28 +18,53 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
+
+// GenerateComposerLogsStructuredQuery generates a structured query for Composer environment logs.
+func GenerateComposerLogsStructuredQuery(projectID, location, environmentName string, selectedComponents []string) *logestimator.StructuredLogQuery {
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(projectID)),
+		logestimator.ResourceLabel("location", logestimator.Exact(location)),
+		logestimator.ResourceLabel("environment_name", logestimator.Exact(environmentName)),
+	}
+
+	if !slices.Contains(selectedComponents, "@any") && len(selectedComponents) > 0 {
+		filters = append(filters, logestimator.LogID(logestimator.OneOf(selectedComponents...)))
+	}
+
+	filters = append(filters, logestimator.LogID(logestimator.NoneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")))
+
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    projectID == "" || location == "" || environmentName == "",
+		ResourceTypes: []string{"cloud_composer_environment"},
+		Filters:       filters,
+	}
+}
+
+// GenerateComposerLogsQuery generates a query for Composer environment logs.
+func GenerateComposerLogsQuery(projectID, location, environmentName string, selectedComponents []string) string {
+	return GenerateComposerLogsStructuredQuery(projectID, location, environmentName, selectedComponents).GenerateCloudLoggingQuery()
+}
 
 type composerListLogEntriesTaskSetting struct {
 	taskId    taskid.TaskImplementationID[[]*log.Log]
 	queryName string
 }
 
-// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *composerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
-// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *composerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(),
@@ -48,71 +73,34 @@ func (c *composerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskR
 	}
 }
 
-// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *composerListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
-	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-
-		QueryName:    c.queryName,
-		ExampleQuery: generateExampleQuery("test-project", "sample-composer-environment"),
-	}
+// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (c *composerListLogEntriesTaskSetting) QueryName() string {
+	return c.queryName
 }
 
-// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *composerListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+func (c *composerListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
 	selectedComponents := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerComponentsTaskID.Ref())
 
-	logIds := []string{}
-	logIDSelector := "-- no component filter specified. fetching all logs."
-	if !slices.Contains(selectedComponents, "@any") {
-		logIds = append(logIds, selectedComponents...)
-		for i := range logIds {
-			logIds[i] = fmt.Sprintf(`LOG_ID("%s")`, logIds[i])
-		}
-		logIDSelector = fmt.Sprintf("(%s)", strings.Join(logIds, " OR "))
-	}
-
-	return []string{fmt.Sprintf(`%s
-resource.type="cloud_composer_environment"
-resource.labels.project_id="%s"
-resource.labels.location="%s"
-resource.labels.environment_name="%s"
-
--LOG_ID("cloudaudit.googleapis.com/activity")
--LOG_ID("cloudaudit.googleapis.com/data_access")
-`, logIDSelector, clusterIdentity.ProjectID, clusterIdentity.Location, environmentName)}, nil
+	return []*logestimator.StructuredLogQuery{GenerateComposerLogsStructuredQuery(clusterIdentity.ProjectID, clusterIdentity.Location, environmentName, selectedComponents)}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *composerListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return c.taskId
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *composerListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 10, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*composerListLogEntriesTaskSetting)(nil)
+var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*composerListLogEntriesTaskSetting)(nil)
 
 // ComposerLogsQueryTask defines a task that gathers logs from Cloud Logging for multiple Composer components.
-var ComposerLogsQueryTask = googlecloudcommon_contract.NewListLogEntriesTask(&composerListLogEntriesTaskSetting{
+var ComposerLogsQueryTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&composerListLogEntriesTaskSetting{
 	taskId:    googlecloudclustercomposer_contract.ComposerLogsQueryTaskID,
 	queryName: "Composer Environment Logs",
 })
-
-func generateExampleQuery(projectId string, environmentName string) string {
-	composerFilter := composerEnvironmentLog(projectId, environmentName)
-	return fmt.Sprintf(`(LOG_ID("airflow-worker") OR LOG_ID("worker") OR LOG_ID("airflow-scheduler") OR LOG_ID("scheduler"))
-%s
-
--LOG_ID("cloudaudit.googleapis.com/activity")
--LOG_ID("cloudaudit.googleapis.com/data_access")`, composerFilter)
-}
-
-func composerEnvironmentLog(projectId string, environmentName string) string {
-	return fmt.Sprintf(`resource.type="cloud_composer_environment"
-resource.labels.project_id="%s"
-resource.labels.environment_name="%s"`, projectId, environmentName)
-}
