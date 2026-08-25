@@ -1,0 +1,97 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package api.v1;
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1";
+
+// FileParameterUploadService provides APIs to upload file form parameters in chunks.
+service FileParameterUploadService {
+  // Starts an upload session for a file form parameter and returns a session token.
+  rpc StartFileUpload(StartFileUploadRequest) returns (StartFileUploadResponse);
+
+  // Uploads a single chunk of the file parameter within an active upload session.
+  rpc UploadFileChunk(UploadFileChunkRequest) returns (UploadFileChunkResponse);
+
+  // Completes the upload session, moves the assembled file to the upload store, and prepares it for task consumption.
+  rpc CompleteFileUpload(CompleteFileUploadRequest) returns (CompleteFileUploadResponse);
+
+  // Aborts an in-progress upload session and cleans up temporary chunk files.
+  rpc AbortFileUpload(AbortFileUploadRequest) returns (AbortFileUploadResponse);
+}
+
+// Request to start a new file parameter upload session.
+message StartFileUploadRequest {
+  // Unique upload token ID issued by the inspection form metadata.
+  string upload_token_id = 1;
+
+  // Original name of the uploaded file.
+  string file_name = 2;
+
+  // Total size of the file in bytes.
+  int64 total_size_bytes = 3;
+}
+
+// Response returned when a file upload session has been started.
+message StartFileUploadResponse {
+  // Unique session token identifying this chunked upload session.
+  string session_token = 1;
+
+  // Recommended chunk size in bytes for the client.
+  int64 suggested_chunk_size_bytes = 2;
+}
+
+// Request to upload a single chunk of data for an active upload session.
+message UploadFileChunkRequest {
+  // Session token returned by StartFileUpload.
+  string session_token = 1;
+
+  // Byte offset of this chunk within the overall file.
+  int64 offset_bytes = 2;
+
+  // Binary payload of the chunk.
+  bytes data = 3;
+}
+
+// Response returned after successfully receiving a chunk.
+message UploadFileChunkResponse {
+  // Total number of bytes received so far for this session.
+  int64 total_received_bytes = 1;
+}
+
+// Request to complete the upload session.
+message CompleteFileUploadRequest {
+  // Session token returned by StartFileUpload.
+  string session_token = 1;
+}
+
+// Response returned upon successful file parameter upload completion.
+message CompleteFileUploadResponse {
+  // Total validated file size in bytes.
+  int64 file_size_bytes = 1;
+}
+
+// Request to abort an in-progress upload session.
+message AbortFileUploadRequest {
+  // Session token returned by StartFileUpload.
+  string session_token = 1;
+}
+
+// Response returned when an upload session has been aborted.
+message AbortFileUploadResponse {
+  // Indicates whether the session was successfully aborted and cleaned up.
+  bool aborted = 1;
+}
