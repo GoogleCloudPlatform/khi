@@ -165,6 +165,130 @@ spec:
 	}
 }
 
+func TestTrigramIndex_Unicode(t *testing.T) {
+	const (
+		structID1 = 1
+		structID2 = 2
+		structID3 = 3
+	)
+
+	yaml1 := `metadata:
+  name: pod-ascii
+  namespace: default
+spec:
+  containers:
+  - name: web
+`
+	yaml2 := `metadata:
+  name: pod-unicode
+  namespace: default
+  annotations:
+    description: データベース接続エラーが発生しました
+spec:
+  containers:
+  - name: db
+`
+	yaml3 := `metadata:
+  name: pod-mixed
+  namespace: default
+  annotations:
+    note: クラスターメンテナンス中 (cluster maintenance)
+`
+	structYAMLs := map[uint32]string{
+		structID1: yaml1,
+		structID2: yaml2,
+		structID3: yaml3,
+	}
+
+	idx := NewTrigramIndex()
+	if err := idx.BuildFromStructYAMLs(t.Context(), structYAMLs, nil); err != nil {
+		t.Fatalf("BuildFromStructYAMLs() error = %v", err)
+	}
+
+	testCases := []struct {
+		name            string
+		query           string
+		wantCandidates  []uint32
+		isUnconstrained bool
+	}{
+		{
+			name:           "match exact unicode multi-rune literal",
+			query:          "データベース",
+			wantCandidates: []uint32{structID2},
+		},
+		{
+			name:           "match unicode multi-rune substring",
+			query:          "接続エラー",
+			wantCandidates: []uint32{structID2},
+		},
+		{
+			name:           "match unicode substring in different struct",
+			query:          "クラスター",
+			wantCandidates: []uint32{structID3},
+		},
+		{
+			name:           "match mixed unicode and ascii in query",
+			query:          "メンテナンス中",
+			wantCandidates: []uint32{structID3},
+		},
+		{
+			name:           "match alternation of unicode literals",
+			query:          "データベース|クラスター",
+			wantCandidates: []uint32{structID2, structID3},
+		},
+		{
+			name:           "match alternation of ascii and unicode literals",
+			query:          "pod-ascii|接続エラー",
+			wantCandidates: []uint32{structID1, structID2},
+		},
+		{
+			name:            "unicode query shorter than 3 runes falls back to unconstrained",
+			query:           "バグ",
+			isUnconstrained: true,
+		},
+		{
+			name:            "alternation with short unicode branch falls back to unconstrained",
+			query:           "データベース|バグ",
+			isUnconstrained: true,
+		},
+		{
+			name:           "non-matching unicode term returns empty candidates",
+			query:          "認証エラー",
+			wantCandidates: []uint32{},
+		},
+		{
+			name:           "ascii query against index containing unicode structs",
+			query:          "maintenance",
+			wantCandidates: []uint32{structID3},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotBitmap := idx.FindCandidateStructs(tc.query)
+			if tc.isUnconstrained {
+				if gotBitmap != nil {
+					t.Errorf("FindCandidateStructs(%q) expected nil (unconstrained), got %v", tc.query, gotBitmap.ToArray())
+				}
+				return
+			}
+
+			var got []uint32
+			if gotBitmap != nil {
+				got = gotBitmap.ToArray()
+			}
+			sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
+			want := make([]uint32, len(tc.wantCandidates))
+			copy(want, tc.wantCandidates)
+			sort.Slice(want, func(i, j int) bool { return want[i] < want[j] })
+
+			if diff := cmp.Diff(want, got, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("FindCandidateStructs(%q) mismatch (-want +got):\n%s", tc.query, diff)
+			}
+		})
+	}
+}
+
 func TestTrigramIndex_ProgressCallback(t *testing.T) {
 	structYAMLs := map[uint32]string{
 		1: "foo: bar",

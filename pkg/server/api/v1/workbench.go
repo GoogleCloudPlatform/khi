@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
@@ -76,11 +77,12 @@ func (s *WorkbenchServiceServer) OpenWorkbench(
 	return stream.Send(finalRes)
 }
 
-// StreamIndexProgress streams the search index construction progress and final status for an active Workbench session.
-func (s *WorkbenchServiceServer) StreamIndexProgress(
+// WatchIndexProgress streams the search index construction progress and status for an active Workbench session.
+// The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
+func (s *WorkbenchServiceServer) WatchIndexProgress(
 	ctx context.Context,
-	req *connect.Request[apiv1.StreamIndexProgressRequest],
-	stream *connect.ServerStream[apiv1.StreamIndexProgressResponse],
+	req *connect.Request[apiv1.WatchIndexProgressRequest],
+	stream *connect.ServerStream[apiv1.WatchIndexProgressResponse],
 ) error {
 	msg := req.Msg
 	if msg.GetWorkbenchId() == "" {
@@ -98,27 +100,33 @@ func (s *WorkbenchServiceServer) StreamIndexProgress(
 	eventCh, unsubscribe := wb.SubscribeIndexProgress(ctx)
 	defer unsubscribe()
 
+	timer := time.NewTimer(30 * time.Second)
+	defer timer.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-timer.C:
+			// Normal 30s stream cycle termination; the client will reconnect.
+			return nil
 		case event, ok := <-eventCh:
 			if !ok {
 				return nil
 			}
-			var protoState apiv1.StreamIndexProgressResponse_IndexState
+			var protoState apiv1.WatchIndexProgressResponse_IndexState
 			switch event.State {
 			case workbench.IndexStateBuilding:
-				protoState = apiv1.StreamIndexProgressResponse_INDEX_STATE_BUILDING
+				protoState = apiv1.WatchIndexProgressResponse_INDEX_STATE_BUILDING
 			case workbench.IndexStateReady:
-				protoState = apiv1.StreamIndexProgressResponse_INDEX_STATE_READY
+				protoState = apiv1.WatchIndexProgressResponse_INDEX_STATE_READY
 			case workbench.IndexStateFailed:
-				protoState = apiv1.StreamIndexProgressResponse_INDEX_STATE_FAILED
+				protoState = apiv1.WatchIndexProgressResponse_INDEX_STATE_FAILED
 			default:
-				protoState = apiv1.StreamIndexProgressResponse_INDEX_STATE_UNSPECIFIED
+				protoState = apiv1.WatchIndexProgressResponse_INDEX_STATE_UNSPECIFIED
 			}
 
-			res := &apiv1.StreamIndexProgressResponse{
+			res := &apiv1.WatchIndexProgressResponse{
 				State:              protoState.Enum(),
 				ProgressPercentage: proto.Float64(event.ProgressPercentage),
 				Message:            proto.String(event.Message),

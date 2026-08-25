@@ -404,7 +404,7 @@ func TestWorkbenchServiceServer_FilterTimeline(t *testing.T) {
 	}
 }
 
-func TestWorkbenchServiceServer_StreamIndexProgress(t *testing.T) {
+func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
 	ts, client, _, validInspID := setupTestWorkbenchServer(t)
 	defer ts.Close()
 
@@ -429,26 +429,26 @@ func TestWorkbenchServiceServer_StreamIndexProgress(t *testing.T) {
 
 	testCases := []struct {
 		name        string
-		req         *apiv1.StreamIndexProgressRequest
+		req         *apiv1.WatchIndexProgressRequest
 		wantErrCode connect.Code
 	}{
 		{
 			name: "success on active workbench",
-			req: &apiv1.StreamIndexProgressRequest{
+			req: &apiv1.WatchIndexProgressRequest{
 				WorkbenchId: proto.String(validWBID),
 			},
 			wantErrCode: 0,
 		},
 		{
 			name: "fails with invalid argument when workbench_id is empty",
-			req: &apiv1.StreamIndexProgressRequest{
+			req: &apiv1.WatchIndexProgressRequest{
 				WorkbenchId: proto.String(""),
 			},
 			wantErrCode: connect.CodeInvalidArgument,
 		},
 		{
 			name: "fails with not found for non-existent workbench",
-			req: &apiv1.StreamIndexProgressRequest{
+			req: &apiv1.WatchIndexProgressRequest{
 				WorkbenchId: proto.String("non-existent-wb"),
 			},
 			wantErrCode: connect.CodeNotFound,
@@ -457,12 +457,12 @@ func TestWorkbenchServiceServer_StreamIndexProgress(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			stream, err := client.StreamIndexProgress(context.Background(), connect.NewRequest(tc.req))
+			stream, err := client.WatchIndexProgress(context.Background(), connect.NewRequest(tc.req))
 			if err != nil {
-				t.Fatalf("StreamIndexProgress() error = %v", err)
+				t.Fatalf("WatchIndexProgress() error = %v", err)
 			}
 
-			var responses []*apiv1.StreamIndexProgressResponse
+			var responses []*apiv1.WatchIndexProgressResponse
 			for stream.Receive() {
 				responses = append(responses, stream.Msg())
 			}

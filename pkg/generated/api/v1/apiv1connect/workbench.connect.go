@@ -50,9 +50,9 @@ const (
 	// WorkbenchServiceOpenWorkbenchProcedure is the fully-qualified name of the WorkbenchService's
 	// OpenWorkbench RPC.
 	WorkbenchServiceOpenWorkbenchProcedure = "/api.v1.WorkbenchService/OpenWorkbench"
-	// WorkbenchServiceStreamIndexProgressProcedure is the fully-qualified name of the
-	// WorkbenchService's StreamIndexProgress RPC.
-	WorkbenchServiceStreamIndexProgressProcedure = "/api.v1.WorkbenchService/StreamIndexProgress"
+	// WorkbenchServiceWatchIndexProgressProcedure is the fully-qualified name of the WorkbenchService's
+	// WatchIndexProgress RPC.
+	WorkbenchServiceWatchIndexProgressProcedure = "/api.v1.WorkbenchService/WatchIndexProgress"
 	// WorkbenchServiceHeartbeatWorkbenchProcedure is the fully-qualified name of the WorkbenchService's
 	// HeartbeatWorkbench RPC.
 	WorkbenchServiceHeartbeatWorkbenchProcedure = "/api.v1.WorkbenchService/HeartbeatWorkbench"
@@ -71,8 +71,8 @@ const (
 type WorkbenchServiceClient interface {
 	// Opens or attaches to an in-memory Workbench session with real-time loading progress streaming.
 	OpenWorkbench(context.Context, *connect.Request[v1.OpenWorkbenchRequest]) (*connect.ServerStreamForClient[v1.OpenWorkbenchResponse], error)
-	// Streams the search index construction progress and final status for an active Workbench session.
-	StreamIndexProgress(context.Context, *connect.Request[v1.StreamIndexProgressRequest]) (*connect.ServerStreamForClient[v1.StreamIndexProgressResponse], error)
+	// Watches the search index construction progress and status for an active Workbench session. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
+	WatchIndexProgress(context.Context, *connect.Request[v1.WatchIndexProgressRequest]) (*connect.ServerStreamForClient[v1.WatchIndexProgressResponse], error)
 	// Sends periodic heartbeat to keep the Workbench session alive in memory.
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
 	// Decodes an interned struct by ID and returns its formatted YAML string.
@@ -100,10 +100,10 @@ func NewWorkbenchServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workbenchServiceMethods.ByName("OpenWorkbench")),
 			connect.WithClientOptions(opts...),
 		),
-		streamIndexProgress: connect.NewClient[v1.StreamIndexProgressRequest, v1.StreamIndexProgressResponse](
+		watchIndexProgress: connect.NewClient[v1.WatchIndexProgressRequest, v1.WatchIndexProgressResponse](
 			httpClient,
-			baseURL+WorkbenchServiceStreamIndexProgressProcedure,
-			connect.WithSchema(workbenchServiceMethods.ByName("StreamIndexProgress")),
+			baseURL+WorkbenchServiceWatchIndexProgressProcedure,
+			connect.WithSchema(workbenchServiceMethods.ByName("WatchIndexProgress")),
 			connect.WithClientOptions(opts...),
 		),
 		heartbeatWorkbench: connect.NewClient[v1.HeartbeatWorkbenchRequest, v1.HeartbeatWorkbenchResponse](
@@ -135,12 +135,12 @@ func NewWorkbenchServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // workbenchServiceClient implements WorkbenchServiceClient.
 type workbenchServiceClient struct {
-	openWorkbench       *connect.Client[v1.OpenWorkbenchRequest, v1.OpenWorkbenchResponse]
-	streamIndexProgress *connect.Client[v1.StreamIndexProgressRequest, v1.StreamIndexProgressResponse]
-	heartbeatWorkbench  *connect.Client[v1.HeartbeatWorkbenchRequest, v1.HeartbeatWorkbenchResponse]
-	readStructYAML      *connect.Client[v1.ReadStructYAMLRequest, v1.ReadStructYAMLResponse]
-	filterTimeline      *connect.Client[v1.FilterTimelineRequest, v1.FilterTimelineResponse]
-	closeWorkbench      *connect.Client[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse]
+	openWorkbench      *connect.Client[v1.OpenWorkbenchRequest, v1.OpenWorkbenchResponse]
+	watchIndexProgress *connect.Client[v1.WatchIndexProgressRequest, v1.WatchIndexProgressResponse]
+	heartbeatWorkbench *connect.Client[v1.HeartbeatWorkbenchRequest, v1.HeartbeatWorkbenchResponse]
+	readStructYAML     *connect.Client[v1.ReadStructYAMLRequest, v1.ReadStructYAMLResponse]
+	filterTimeline     *connect.Client[v1.FilterTimelineRequest, v1.FilterTimelineResponse]
+	closeWorkbench     *connect.Client[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse]
 }
 
 // OpenWorkbench calls api.v1.WorkbenchService.OpenWorkbench.
@@ -148,9 +148,9 @@ func (c *workbenchServiceClient) OpenWorkbench(ctx context.Context, req *connect
 	return c.openWorkbench.CallServerStream(ctx, req)
 }
 
-// StreamIndexProgress calls api.v1.WorkbenchService.StreamIndexProgress.
-func (c *workbenchServiceClient) StreamIndexProgress(ctx context.Context, req *connect.Request[v1.StreamIndexProgressRequest]) (*connect.ServerStreamForClient[v1.StreamIndexProgressResponse], error) {
-	return c.streamIndexProgress.CallServerStream(ctx, req)
+// WatchIndexProgress calls api.v1.WorkbenchService.WatchIndexProgress.
+func (c *workbenchServiceClient) WatchIndexProgress(ctx context.Context, req *connect.Request[v1.WatchIndexProgressRequest]) (*connect.ServerStreamForClient[v1.WatchIndexProgressResponse], error) {
+	return c.watchIndexProgress.CallServerStream(ctx, req)
 }
 
 // HeartbeatWorkbench calls api.v1.WorkbenchService.HeartbeatWorkbench.
@@ -177,8 +177,8 @@ func (c *workbenchServiceClient) CloseWorkbench(ctx context.Context, req *connec
 type WorkbenchServiceHandler interface {
 	// Opens or attaches to an in-memory Workbench session with real-time loading progress streaming.
 	OpenWorkbench(context.Context, *connect.Request[v1.OpenWorkbenchRequest], *connect.ServerStream[v1.OpenWorkbenchResponse]) error
-	// Streams the search index construction progress and final status for an active Workbench session.
-	StreamIndexProgress(context.Context, *connect.Request[v1.StreamIndexProgressRequest], *connect.ServerStream[v1.StreamIndexProgressResponse]) error
+	// Watches the search index construction progress and status for an active Workbench session. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
+	WatchIndexProgress(context.Context, *connect.Request[v1.WatchIndexProgressRequest], *connect.ServerStream[v1.WatchIndexProgressResponse]) error
 	// Sends periodic heartbeat to keep the Workbench session alive in memory.
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
 	// Decodes an interned struct by ID and returns its formatted YAML string.
@@ -202,10 +202,10 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 		connect.WithSchema(workbenchServiceMethods.ByName("OpenWorkbench")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workbenchServiceStreamIndexProgressHandler := connect.NewServerStreamHandler(
-		WorkbenchServiceStreamIndexProgressProcedure,
-		svc.StreamIndexProgress,
-		connect.WithSchema(workbenchServiceMethods.ByName("StreamIndexProgress")),
+	workbenchServiceWatchIndexProgressHandler := connect.NewServerStreamHandler(
+		WorkbenchServiceWatchIndexProgressProcedure,
+		svc.WatchIndexProgress,
+		connect.WithSchema(workbenchServiceMethods.ByName("WatchIndexProgress")),
 		connect.WithHandlerOptions(opts...),
 	)
 	workbenchServiceHeartbeatWorkbenchHandler := connect.NewUnaryHandler(
@@ -236,8 +236,8 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case WorkbenchServiceOpenWorkbenchProcedure:
 			workbenchServiceOpenWorkbenchHandler.ServeHTTP(w, r)
-		case WorkbenchServiceStreamIndexProgressProcedure:
-			workbenchServiceStreamIndexProgressHandler.ServeHTTP(w, r)
+		case WorkbenchServiceWatchIndexProgressProcedure:
+			workbenchServiceWatchIndexProgressHandler.ServeHTTP(w, r)
 		case WorkbenchServiceHeartbeatWorkbenchProcedure:
 			workbenchServiceHeartbeatWorkbenchHandler.ServeHTTP(w, r)
 		case WorkbenchServiceReadStructYAMLProcedure:
@@ -259,8 +259,8 @@ func (UnimplementedWorkbenchServiceHandler) OpenWorkbench(context.Context, *conn
 	return connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.OpenWorkbench is not implemented"))
 }
 
-func (UnimplementedWorkbenchServiceHandler) StreamIndexProgress(context.Context, *connect.Request[v1.StreamIndexProgressRequest], *connect.ServerStream[v1.StreamIndexProgressResponse]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.StreamIndexProgress is not implemented"))
+func (UnimplementedWorkbenchServiceHandler) WatchIndexProgress(context.Context, *connect.Request[v1.WatchIndexProgressRequest], *connect.ServerStream[v1.WatchIndexProgressResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.WatchIndexProgress is not implemented"))
 }
 
 func (UnimplementedWorkbenchServiceHandler) HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error) {

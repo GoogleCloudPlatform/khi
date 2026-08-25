@@ -144,12 +144,12 @@ export enum OpenWorkbenchResponse_Stage {
 export declare const OpenWorkbenchResponse_StageSchema: GenEnum<OpenWorkbenchResponse_Stage>;
 
 /**
- * Request to stream the search index construction progress of a Workbench session.
+ * Request to watch the search index construction progress of a Workbench session.
  *
- * @generated from message api.v1.StreamIndexProgressRequest
+ * @generated from message api.v1.WatchIndexProgressRequest
  */
-export declare type StreamIndexProgressRequest =
-  Message<'api.v1.StreamIndexProgressRequest'> & {
+export declare type WatchIndexProgressRequest =
+  Message<'api.v1.WatchIndexProgressRequest'> & {
     /**
      * The active workbench session identifier.
      *
@@ -159,22 +159,22 @@ export declare type StreamIndexProgressRequest =
   };
 
 /**
- * Describes the message api.v1.StreamIndexProgressRequest.
- * Use `create(StreamIndexProgressRequestSchema)` to create a new message.
+ * Describes the message api.v1.WatchIndexProgressRequest.
+ * Use `create(WatchIndexProgressRequestSchema)` to create a new message.
  */
-export declare const StreamIndexProgressRequestSchema: GenMessage<StreamIndexProgressRequest>;
+export declare const WatchIndexProgressRequestSchema: GenMessage<WatchIndexProgressRequest>;
 
 /**
  * Progress update or terminal state of search index construction.
  *
- * @generated from message api.v1.StreamIndexProgressResponse
+ * @generated from message api.v1.WatchIndexProgressResponse
  */
-export declare type StreamIndexProgressResponse =
-  Message<'api.v1.StreamIndexProgressResponse'> & {
+export declare type WatchIndexProgressResponse =
+  Message<'api.v1.WatchIndexProgressResponse'> & {
     /**
-     * @generated from field: api.v1.StreamIndexProgressResponse.IndexState state = 1;
+     * @generated from field: api.v1.WatchIndexProgressResponse.IndexState state = 1;
      */
-    state: StreamIndexProgressResponse_IndexState;
+    state: WatchIndexProgressResponse_IndexState;
 
     /**
      * @generated from field: double progress_percentage = 2;
@@ -188,17 +188,17 @@ export declare type StreamIndexProgressResponse =
   };
 
 /**
- * Describes the message api.v1.StreamIndexProgressResponse.
- * Use `create(StreamIndexProgressResponseSchema)` to create a new message.
+ * Describes the message api.v1.WatchIndexProgressResponse.
+ * Use `create(WatchIndexProgressResponseSchema)` to create a new message.
  */
-export declare const StreamIndexProgressResponseSchema: GenMessage<StreamIndexProgressResponse>;
+export declare const WatchIndexProgressResponseSchema: GenMessage<WatchIndexProgressResponse>;
 
 /**
  * Lifecycle state of search index construction.
  *
- * @generated from enum api.v1.StreamIndexProgressResponse.IndexState
+ * @generated from enum api.v1.WatchIndexProgressResponse.IndexState
  */
-export enum StreamIndexProgressResponse_IndexState {
+export enum WatchIndexProgressResponse_IndexState {
   /**
    * @generated from enum value: INDEX_STATE_UNSPECIFIED = 0;
    */
@@ -221,9 +221,9 @@ export enum StreamIndexProgressResponse_IndexState {
 }
 
 /**
- * Describes the enum api.v1.StreamIndexProgressResponse.IndexState.
+ * Describes the enum api.v1.WatchIndexProgressResponse.IndexState.
  */
-export declare const StreamIndexProgressResponse_IndexStateSchema: GenEnum<StreamIndexProgressResponse_IndexState>;
+export declare const WatchIndexProgressResponse_IndexStateSchema: GenEnum<WatchIndexProgressResponse_IndexState>;
 
 /**
  * Request to refresh the lease TTL of an active Workbench session.
@@ -586,14 +586,14 @@ export declare const WorkbenchService: GenService<{
     output: typeof OpenWorkbenchResponseSchema;
   };
   /**
-   * Streams the search index construction progress and final status for an active Workbench session.
+   * Watches the search index construction progress and status for an active Workbench session. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
    *
-   * @generated from rpc api.v1.WorkbenchService.StreamIndexProgress
+   * @generated from rpc api.v1.WorkbenchService.WatchIndexProgress
    */
-  streamIndexProgress: {
+  watchIndexProgress: {
     methodKind: 'server_streaming';
-    input: typeof StreamIndexProgressRequestSchema;
-    output: typeof StreamIndexProgressResponseSchema;
+    input: typeof WatchIndexProgressRequestSchema;
+    output: typeof WatchIndexProgressResponseSchema;
   };
   /**
    * Sends periodic heartbeat to keep the Workbench session alive in memory.

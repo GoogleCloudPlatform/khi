@@ -97,6 +97,41 @@ func TestRegexToTrigramQuery(t *testing.T) {
 			pattern:    ".*",
 			wantString: "ALL",
 		},
+		{
+			name:       "unicode multibyte string with 3 runes",
+			pattern:    "エラー",
+			wantString: `TERM("エラー")`,
+		},
+		{
+			name:       "unicode multibyte string with more than 3 runes",
+			pattern:    "エラーログ",
+			wantString: `AND(TERM("エラー"), TERM("ラーロ"), TERM("ーログ"))`,
+		},
+		{
+			name:       "unicode multibyte string with fewer than 3 runes becomes ALL",
+			pattern:    "バグ",
+			wantString: "ALL",
+		},
+		{
+			name:       "mixed unicode and ascii string",
+			pattern:    "pod-エラー",
+			wantString: `AND(TERM("pod"), TERM("od-"), TERM("d-エ"), TERM("-エラ"), TERM("エラー"))`,
+		},
+		{
+			name:       "unicode case folding with accents",
+			pattern:    "CAFÉ",
+			wantString: `AND(TERM("caf"), TERM("afé"))`,
+		},
+		{
+			name:       "unicode alternation with full and short branches",
+			pattern:    "エラー|バグ",
+			wantString: "ALL",
+		},
+		{
+			name:       "unicode alternation with multi-rune branches",
+			pattern:    "エラー|警告ログ",
+			wantString: `OR(TERM("エラー"), AND(TERM("警告ロ"), TERM("告ログ")))`,
+		},
 	}
 
 	for _, tc := range testCases {
