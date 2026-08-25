@@ -159,8 +159,3 @@ func (m *ImportSessionManager) CompleteSession(token string) (*FinalizedImport, 
 func (m *ImportSessionManager) AbortSession(token string) error {
 	return m.chunkManager.AbortSession(token)
 }
-
-// validateReceivedRanges validates that the given byte ranges completely cover [0, expectedTotalSize).
-func validateReceivedRanges(ranges []ByteRange, expectedTotalSize int64) error {
-	return chunkedupload.ValidateReceivedRanges(ranges, expectedTotalSize)
-}

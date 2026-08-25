@@ -45,7 +45,6 @@ type AsyncTaskResult[T any] struct {
 
 type taskFlight[K comparable, T any] struct {
 	inputKey K
-	done     chan struct{}
 	cancel   context.CancelFunc
 }
 
@@ -101,7 +100,6 @@ func (m *AsyncTaskManager[K, T]) DoAsyncOrGet(
 	callCtx, callCancel := context.WithCancel(context.Background())
 	flight := &taskFlight[K, T]{
 		inputKey: inputKey,
-		done:     make(chan struct{}),
 		cancel:   callCancel,
 	}
 	m.inFlight[slotKey] = flight
@@ -120,7 +118,6 @@ func (m *AsyncTaskManager[K, T]) DoAsyncOrGet(
 		}
 
 		delete(m.inFlight, slotKey)
-		close(flight.done)
 
 		// Do not cache if the worker was canceled
 		if callCtx.Err() != nil {

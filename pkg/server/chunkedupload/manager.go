@@ -162,8 +162,8 @@ func (m *ChunkSessionManager) WriteChunk(token string, offset int64, data []byte
 		return 0, ErrEmptyChunkData
 	}
 
-	if offset+int64(len(data)) > session.TotalSize {
-		return 0, fmt.Errorf("%w: chunk end %d exceeds total size %d", ErrInvalidOffset, offset+int64(len(data)), session.TotalSize)
+	if offset > session.TotalSize-int64(len(data)) {
+		return 0, fmt.Errorf("%w: chunk exceeds total size %d", ErrInvalidOffset, session.TotalSize)
 	}
 
 	n, err := session.TempFile.WriteAt(data, offset)

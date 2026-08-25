@@ -16,6 +16,7 @@ package chunkedupload
 
 import (
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -128,6 +129,13 @@ func TestChunkSessionManager_WriteChunkErrors(t *testing.T) {
 			name:    "offset exceeds total size",
 			token:   session.Token,
 			offset:  25,
+			data:    []byte("a"),
+			wantErr: ErrInvalidOffset,
+		},
+		{
+			name:    "offset near math.MaxInt64 does not overflow",
+			token:   session.Token,
+			offset:  math.MaxInt64 - 1,
 			data:    []byte("a"),
 			wantErr: ErrInvalidOffset,
 		},

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { CancellationError } from 'src/app/utils/task-yielder';
+
 /**
  * Progress callback reporting uploaded bytes and total bytes.
  */
@@ -155,6 +157,6 @@ export async function executeChunkedUpload(
     throw firstError;
   }
   if (options.abortSignal?.aborted) {
-    throw new DOMException('Upload aborted by user', 'AbortError');
+    throw new CancellationError('Upload aborted by user');
   }
 }

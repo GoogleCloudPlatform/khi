@@ -18,6 +18,7 @@ import {
   executeChunkedUpload,
   ChunkUploadProgressCallback,
 } from 'src/app/services/api/chunked-uploader';
+import { CancellationError } from 'src/app/utils/task-yielder';
 
 describe('executeChunkedUpload', () => {
   it('should split file and upload chunks with progress updates', async () => {
@@ -103,6 +104,6 @@ describe('executeChunkedUpload', () => {
           }
         },
       }),
-    ).toBeRejected();
+    ).toBeRejectedWith(jasmine.any(CancellationError));
   });
 });
