@@ -56,6 +56,7 @@ export class TextPopupContentComponent implements OnInit {
   readonly validationError = signal<string>('');
   readonly isValid = computed(() => this.validationError() === '');
   readonly isSubmitting = signal<boolean>(false);
+  private validationRequestId = 0;
 
   readonly placeholder = computed(() => {
     const payload = this.form().payload;
@@ -99,6 +100,7 @@ export class TextPopupContentComponent implements OnInit {
   }
 
   private async runValidation(): Promise<void> {
+    const requestId = ++this.validationRequestId;
     const res = await this.client().validatePopupAnswer({
       id: this.form().id,
       payload: {
@@ -106,6 +108,8 @@ export class TextPopupContentComponent implements OnInit {
         value: { value: this.inputValue() },
       },
     });
-    this.validationError.set(res.validationError);
+    if (requestId === this.validationRequestId) {
+      this.validationError.set(res.validationError);
+    }
   }
 }

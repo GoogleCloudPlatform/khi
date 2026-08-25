@@ -119,4 +119,57 @@ describe('TextPopupContentComponent', () => {
     });
     expect(completedEmitted).toBeTrue();
   });
+
+  it('should discard out-of-order validation responses', async () => {
+    let resolveFirstValidation!: (value: {
+      id: string;
+      validationError: string;
+      $typeName: 'api.v1.ValidatePopupAnswerResponse';
+    }) => void;
+    const firstPromise = new Promise<{
+      id: string;
+      validationError: string;
+      $typeName: 'api.v1.ValidatePopupAnswerResponse';
+    }>((resolve) => {
+      resolveFirstValidation = resolve;
+    });
+
+    // Request 1 will hang until resolveFirstValidation is called.
+    mockClient.validatePopupAnswer.and.returnValue(
+      firstPromise as unknown as ReturnType<
+        typeof mockClient.validatePopupAnswer
+      >,
+    );
+
+    // User types first value
+    const inputPromise1 = component.onTextInput({
+      target: { value: 'first-slow' },
+    } as unknown as Event);
+
+    // Now user immediately types second value, which resolves quickly
+    mockClient.validatePopupAnswer.and.resolveTo({
+      id: 'test-id',
+      validationError: '',
+      $typeName: 'api.v1.ValidatePopupAnswerResponse',
+    });
+
+    await component.onTextInput({
+      target: { value: 'second-fast' },
+    } as unknown as Event);
+
+    expect(component.validationError()).toBe('');
+    expect(component.isValid()).toBeTrue();
+
+    // Stale first request finally resolves with an error after second request finished
+    resolveFirstValidation({
+      id: 'test-id',
+      validationError: 'Stale error from first input',
+      $typeName: 'api.v1.ValidatePopupAnswerResponse',
+    });
+    await inputPromise1;
+
+    // Stale error must be discarded and NOT overwrite current valid state
+    expect(component.validationError()).toBe('');
+    expect(component.isValid()).toBeTrue();
+  });
 });

@@ -278,4 +278,77 @@ func TestPopupManager(t *testing.T) {
 			t.Errorf("ev2.Type = %v, want %v", ev2.Type, PopupEventTypeDismissed)
 		}
 	})
+
+	t.Run("Subscribe unsubscribe is idempotent", func(t *testing.T) {
+		_, unsubscribe := pm.Subscribe()
+		// Calling unsubscribe multiple times must not panic.
+		unsubscribe()
+		unsubscribe()
+	})
+
+	t.Run("ShowPopup serializes concurrent calls", func(t *testing.T) {
+		seq := make([]string, 0, 2)
+		var seqMu sync.Mutex
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+			res, err := pm.ShowPopup(&testPopupForm{})
+			if err != nil {
+				t.Errorf("showPopup 1 error: %v", err)
+			}
+			seqMu.Lock()
+			seq = append(seq, "1:"+res)
+			seqMu.Unlock()
+		}()
+
+		// Wait briefly so goroutine 1 acquires showPopupMu first.
+		time.Sleep(20 * time.Millisecond)
+
+		go func() {
+			defer wg.Done()
+			res, err := pm.ShowPopup(&testPopupForm{})
+			if err != nil {
+				t.Errorf("showPopup 2 error: %v", err)
+			}
+			seqMu.Lock()
+			seq = append(seq, "2:"+res)
+			seqMu.Unlock()
+		}()
+
+		// Answer popup 1 first
+		time.Sleep(30 * time.Millisecond)
+		p1 := pm.GetCurrentPopup()
+		if p1 == nil {
+			t.Fatal("expected popup 1 to be active")
+		}
+		_ = pm.Answer(ctx, &apiv1.SubmitPopupAnswerRequest{
+			Id: p1.Id,
+			Payload: &apiv1.SubmitPopupAnswerRequest_Text{
+				Text: &apiv1.TextPopupAnswer{Value: proto.String("ans1")},
+			},
+		})
+
+		// Answer popup 2 second
+		time.Sleep(30 * time.Millisecond)
+		p2 := pm.GetCurrentPopup()
+		if p2 == nil {
+			t.Fatal("expected popup 2 to be active")
+		}
+		_ = pm.Answer(ctx, &apiv1.SubmitPopupAnswerRequest{
+			Id: p2.Id,
+			Payload: &apiv1.SubmitPopupAnswerRequest_Text{
+				Text: &apiv1.TextPopupAnswer{Value: proto.String("ans2")},
+			},
+		})
+
+		wg.Wait()
+
+		wantSeq := []string{"1:ans1", "2:ans2"}
+		if diff := cmp.Diff(wantSeq, seq); diff != "" {
+			t.Errorf("ShowPopup sequence mismatch (-want +got):\n%s", diff)
+		}
+	})
 }

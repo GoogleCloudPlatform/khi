@@ -17,6 +17,12 @@
 import { TestBed, fakeAsync, flush } from '@angular/core/testing';
 import { AppComponent } from 'src/app/pages/main/main.component';
 import { signal, Injector } from '@angular/core';
+import { create } from '@bufbuild/protobuf';
+import { Client } from '@connectrpc/connect';
+import {
+  PopupFormSchema,
+  PopupService,
+} from 'src/app/generated/api/v1/popup_pb';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import {
   WINDOW_CONNECTION_PROVIDER,
@@ -99,6 +105,56 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     expect(app).toBeTruthy();
+    fixture.destroy();
+    flush();
+  }));
+
+  it('should reopen dialog when popup changes to a different id directly', fakeAsync(() => {
+    const popupManager = TestBed.inject(POPUP_MANAGER) as MockPopupManager;
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+
+    const dummyClient = {
+      validatePopupAnswer: () =>
+        Promise.resolve({
+          id: 'test',
+          validationError: '',
+          $typeName: 'api.v1.ValidatePopupAnswerResponse',
+        }),
+      submitPopupAnswer: () =>
+        Promise.resolve({
+          $typeName: 'api.v1.SubmitPopupAnswerResponse',
+        }),
+    } as unknown as Client<typeof PopupService>;
+
+    // Show popup 1
+    popupManager.setCurrentPopup({
+      form: create(PopupFormSchema, {
+        id: 'popup-1',
+        title: 'Title 1',
+        description: 'Desc 1',
+        payload: { case: 'text', value: { placeholder: '' } },
+      }),
+      client: dummyClient,
+    });
+    TestBed.flushEffects();
+
+    // Directly transition to popup 2 with different ID
+    popupManager.setCurrentPopup({
+      form: create(PopupFormSchema, {
+        id: 'popup-2',
+        title: 'Title 2',
+        description: 'Desc 2',
+        payload: { case: 'text', value: { placeholder: '' } },
+      }),
+      client: dummyClient,
+    });
+    TestBed.flushEffects();
+
+    // Dismiss popups
+    popupManager.setCurrentPopup(null);
+    TestBed.flushEffects();
+
     fixture.destroy();
     flush();
   }));

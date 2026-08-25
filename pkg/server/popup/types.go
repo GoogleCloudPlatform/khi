@@ -103,6 +103,7 @@ type PopupEvent struct {
 // PopupManager manages questions shown to user from frontend.
 type PopupManager struct {
 	mu           sync.Mutex
+	showPopupMu  sync.Mutex
 	popupWaiter  chan struct{}
 	popupResult  string
 	currentProto *apiv1.PopupForm
@@ -114,6 +115,7 @@ type PopupManager struct {
 func NewPopupManager() *PopupManager {
 	return &PopupManager{
 		mu:           sync.Mutex{},
+		showPopupMu:  sync.Mutex{},
 		popupWaiter:  nil,
 		popupResult:  "",
 		currentProto: nil,
@@ -141,11 +143,14 @@ func (p *PopupManager) Subscribe() (<-chan PopupEvent, func()) {
 		}
 	}
 
+	var once sync.Once
 	unsubscribe := func() {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		delete(p.subscribers, ch)
-		close(ch)
+		once.Do(func() {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			delete(p.subscribers, ch)
+			close(ch)
+		})
 	}
 	return ch, unsubscribe
 }
@@ -161,6 +166,9 @@ func (p *PopupManager) broadcastLocked(ev PopupEvent) {
 
 // ShowPopup shows the popup UI on frontend side and waits until receiving the input.
 func (p *PopupManager) ShowPopup(popup PopupForm) (string, error) {
+	p.showPopupMu.Lock()
+	defer p.showPopupMu.Unlock()
+
 	id := popupIDGenerator.Generate()
 	protoForm := popup.BuildProtoForm(id)
 

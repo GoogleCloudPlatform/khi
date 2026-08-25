@@ -114,11 +114,17 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   constructor() {
     let lastDialogRef: MatDialogRef<RequestUserActionPopupComponent> | null =
       null;
+    let lastPopupId: string | null = null;
 
     effect(() => {
       const activePopup = this.popupManager.currentPopup();
       if (activePopup) {
+        if (lastDialogRef && lastPopupId !== activePopup.form.id) {
+          lastDialogRef.close();
+          lastDialogRef = null;
+        }
         if (!lastDialogRef) {
+          lastPopupId = activePopup.form.id;
           lastDialogRef = this.dialog.open<
             RequestUserActionPopupComponent,
             RequestUserActionPopupRequest
@@ -135,6 +141,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
       } else {
         lastDialogRef?.close();
         lastDialogRef = null;
+        lastPopupId = null;
       }
     });
   }
