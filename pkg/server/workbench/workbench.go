@@ -48,6 +48,7 @@ const (
 
 // IndexProgressEvent encapsulates an index progress notification broadcast to subscribers.
 type IndexProgressEvent struct {
+	InspectionID       string
 	State              IndexState
 	ProgressPercentage float64
 	Message            string
