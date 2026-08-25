@@ -20,6 +20,7 @@ import { createConnectTransport } from '@connectrpc/connect-web';
 import { WorkbenchService } from 'src/app/generated/api/v1/workbench_pb';
 import { CELValidationService } from 'src/app/generated/api/v1/cel_validation_pb';
 import { PopupService } from 'src/app/generated/api/v1/popup_pb';
+import { ServerStatusService } from 'src/app/generated/api/v1/server_status_pb';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 
 /**
@@ -53,4 +54,10 @@ export class ConnectClientService {
     PopupService,
     this.transport,
   );
+
+  /**
+   * ServerStatusService Connect-RPC client.
+   */
+  public readonly serverStatusClient: Client<typeof ServerStatusService> =
+    createClient(ServerStatusService, this.transport);
 }

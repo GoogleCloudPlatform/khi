@@ -19,6 +19,7 @@ import {
   GetInspectionResponse,
   GetInspectionTypesResponse,
 } from 'src/app/common/schema/api-types';
+import { ServerStat } from 'src/app/generated/api/v1/server_status_pb';
 
 /**
  * Connection status to the backend.
@@ -47,4 +48,9 @@ export interface BackendSyncService {
    * Monitored task lists on the backend.
    */
   readonly tasks: ResourceRef<GetInspectionResponse>;
+
+  /**
+   * Monitored host server resource statistics.
+   */
+  readonly serverStat: Signal<ServerStat | null>;
 }

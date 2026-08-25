@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { Injectable, InjectionToken, inject, signal } from '@angular/core';
+import {
+  Injectable,
+  InjectionToken,
+  OnDestroy,
+  inject,
+  signal,
+} from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, EMPTY, exhaustMap, retry, tap, timer } from 'rxjs';
 import { BACKEND_API, BackendAPI } from './backend-api-interface';
@@ -26,6 +32,8 @@ import {
   GetInspectionTypesResponse,
   GetInspectionResponse,
 } from 'src/app/common/schema/api-types';
+import { ConnectClientService } from 'src/app/services/api/connect-client.service';
+import { ServerStat } from 'src/app/generated/api/v1/server_status_pb';
 
 /**
  * Angular injection token for BackendSyncService.
@@ -45,11 +53,23 @@ export const PROGRESS_POLLING_INTERVAL = 1000;
 export const LIST_INSPECTION_TYPES_RETRY_TIME = 1000;
 
 /**
- * BackendSyncServiceImpl provides resources by polling backend endpoints.
+ * BackendSyncServiceImpl provides resources by polling backend endpoints and streaming server status.
  */
 @Injectable()
-export class BackendSyncServiceImpl implements BackendSyncService {
+export class BackendSyncServiceImpl implements BackendSyncService, OnDestroy {
   private readonly backendApi = inject<BackendAPI>(BACKEND_API);
+  private readonly connectClient = inject(ConnectClientService);
+  private readonly abortController = new AbortController();
+
+  /**
+   * Signal to manage host server resource statistics.
+   */
+  private readonly serverStatSignal = signal<ServerStat | null>(null);
+
+  /**
+   * Signal of the current host server resource statistics.
+   */
+  readonly serverStat = this.serverStatSignal.asReadonly();
 
   /**
    * Signal to manage the connection status internally.
@@ -62,6 +82,48 @@ export class BackendSyncServiceImpl implements BackendSyncService {
    * Signal of the current backend connection status.
    */
   readonly connectionStatus = this.connectionStatusSignal.asReadonly();
+
+  constructor() {
+    void this.startWatchingServerStat(this.abortController.signal);
+  }
+
+  ngOnDestroy(): void {
+    this.abortController.abort();
+  }
+
+  /**
+   * Subscribes to the server status stream, automatically reconnecting on 30s cycle termination.
+   */
+  private async startWatchingServerStat(
+    abortSignal: AbortSignal,
+  ): Promise<void> {
+    while (!abortSignal.aborted) {
+      try {
+        const stream = this.connectClient.serverStatusClient.watchServerStat(
+          {},
+          { signal: abortSignal },
+        );
+        for await (const res of stream) {
+          if (abortSignal.aborted) {
+            return;
+          }
+          if (res.serverStat) {
+            this.serverStatSignal.set(res.serverStat);
+          }
+          this.connectionStatusSignal.set(BackendConnectionStatus.Connected);
+        }
+        // Wait a brief moment before reconnecting on normal stream cycle expiration
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (err) {
+        if (abortSignal.aborted) {
+          return;
+        }
+        console.warn('Failed in watchServerStat:', err);
+        this.connectionStatusSignal.set(BackendConnectionStatus.Disconnected);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
 
   /**
    * Resource for the list of available inspection types.

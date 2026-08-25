@@ -59,11 +59,6 @@ export class HeaderSmartComponent {
     { initialValue: '' },
   );
 
-  /** Server statistics. */
-  private readonly serverStat = computed(
-    () => this.backendSync.tasks.value()?.serverStat,
-  );
-
   /** Server connection status from BackendSyncService. */
   protected readonly serverStatus = computed(() =>
     this.backendSync.connectionStatus(),
@@ -71,16 +66,34 @@ export class HeaderSmartComponent {
 
   /** Server current memory usage string. */
   protected readonly serverMemory = computed(() => {
-    const stat = this.serverStat();
-    if (!stat) return '';
-    return (stat.currentMemoryUsage / this.BYTES_TO_GB).toFixed(2);
+    const protoStat = this.backendSync.serverStat?.();
+    if (protoStat) {
+      return (Number(protoStat.currentMemoryUsage) / this.BYTES_TO_GB).toFixed(
+        2,
+      );
+    }
+    const legacyStat = this.backendSync.tasks.value()?.serverStat;
+    if (!legacyStat) return '';
+    return (legacyStat.currentMemoryUsage / this.BYTES_TO_GB).toFixed(2);
   });
 
   /** Server maximum memory limit string. */
   protected readonly serverMaxMemory = computed(() => {
-    const stat = this.serverStat();
-    if (!stat || stat.totalMemory === 0) return '';
-    return (stat.totalMemory / this.BYTES_TO_GB).toFixed(2);
+    const protoStat = this.backendSync.serverStat?.();
+    if (protoStat) {
+      if (protoStat.totalMemory === 0n) return '';
+      return (Number(protoStat.totalMemory) / this.BYTES_TO_GB).toFixed(2);
+    }
+    const legacyStat = this.backendSync.tasks.value()?.serverStat;
+    if (!legacyStat || legacyStat.totalMemory === 0) return '';
+    return (legacyStat.totalMemory / this.BYTES_TO_GB).toFixed(2);
+  });
+
+  /** Server CPU usage percentage string. */
+  protected readonly serverCpu = computed(() => {
+    const protoStat = this.backendSync.serverStat?.();
+    if (!protoStat || protoStat.cpuUsagePercentage == null) return '';
+    return `${protoStat.cpuUsagePercentage.toFixed(1)}%`;
   });
 
   /**

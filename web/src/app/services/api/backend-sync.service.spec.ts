@@ -23,10 +23,17 @@ import {
 import { BACKEND_API, BackendAPI } from './backend-api-interface';
 import { defer, of, throwError, EMPTY } from 'rxjs';
 import { BackendConnectionStatus } from './backend-sync-interface';
+import { ConnectClientService } from 'src/app/services/api/connect-client.service';
+import { ServerStat } from 'src/app/generated/api/v1/server_status_pb';
 
 describe('BackendSyncService', () => {
   let service: BackendSyncServiceImpl;
   let mockBackendApi: jasmine.SpyObj<BackendAPI>;
+  let mockConnectClient: {
+    serverStatusClient: {
+      watchServerStat: jasmine.Spy;
+    };
+  };
 
   beforeEach(() => {
     mockBackendApi = jasmine.createSpyObj('BackendAPI', [
@@ -41,12 +48,42 @@ describe('BackendSyncService', () => {
       }),
     );
 
+    mockConnectClient = {
+      serverStatusClient: {
+        watchServerStat: jasmine
+          .createSpy('watchServerStat')
+          .and.callFake((_req: unknown, opts?: { signal?: AbortSignal }) => {
+            return (async function* () {
+              yield {
+                serverStat: {
+                  currentMemoryUsage: 1024n * 1024n * 50n,
+                  totalMemory: 1024n * 1024n * 1024n * 16n,
+                  cpuUsagePercentage: 20.5,
+                } as ServerStat,
+              };
+              if (opts?.signal) {
+                await new Promise<void>((resolve) => {
+                  opts.signal!.addEventListener('abort', () => resolve(), {
+                    once: true,
+                  });
+                });
+              }
+            })();
+          }),
+      },
+    };
+
     TestBed.configureTestingModule({
       providers: [
         BackendSyncServiceImpl,
         { provide: BACKEND_API, useValue: mockBackendApi },
+        { provide: ConnectClientService, useValue: mockConnectClient },
       ],
     });
+  });
+
+  afterEach(() => {
+    service?.ngOnDestroy();
   });
 
   it('should be created', () => {
@@ -162,4 +199,19 @@ describe('BackendSyncService', () => {
     // Second call succeeds
     expect(service.connectionStatus()).toBe(BackendConnectionStatus.Connected);
   }));
+
+  it('should update serverStat from watchServerStat', async () => {
+    service = TestBed.inject(BackendSyncServiceImpl);
+
+    // Wait microtasks for async generator
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(service.serverStat()).toEqual(
+      jasmine.objectContaining({
+        currentMemoryUsage: 1024n * 1024n * 50n,
+        totalMemory: 1024n * 1024n * 1024n * 16n,
+        cpuUsagePercentage: 20.5,
+      }),
+    );
+  });
 });

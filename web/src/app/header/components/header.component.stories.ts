@@ -130,6 +130,19 @@ export const Default: Story = {
     serverStatus: BackendConnectionStatus.Connecting,
     serverMemory: '120MB',
     serverMaxMemory: '512MB',
+    serverCpu: '15.2%',
+    sessionId: '1',
+  },
+};
+
+export const WithCpuUsage: Story = {
+  args: {
+    version: '1.2.3',
+    menuGroups: mockMenuGroups,
+    serverStatus: BackendConnectionStatus.Connected,
+    serverMemory: '120MB',
+    serverMaxMemory: '512MB',
+    serverCpu: '45.8%',
     sessionId: '1',
   },
 };
@@ -141,6 +154,7 @@ export const OnlyCurrentMemory: Story = {
     serverStatus: BackendConnectionStatus.Connected,
     serverMemory: '120MB',
     serverMaxMemory: '',
+    serverCpu: '',
     sessionId: '1',
   },
 };
@@ -152,6 +166,7 @@ export const Disconnected: Story = {
     serverStatus: BackendConnectionStatus.Disconnected,
     serverMemory: '',
     serverMaxMemory: '',
+    serverCpu: '',
     sessionId: '',
   },
 };

@@ -92,5 +92,11 @@
         </span>
       </div>
     }
+    @if (serverCpu()) {
+      <div class="status-item cpu-usage" matTooltip="CPU usage on KHI server.">
+        <mat-icon>speed</mat-icon>
+        <span class="status-label">{{ serverCpu() }}</span>
+      </div>
+    }
   </div>
 </header>

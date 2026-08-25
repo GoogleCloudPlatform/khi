@@ -69,6 +69,9 @@ export class HeaderComponent {
   /** Server maximum memory limit string. */
   readonly serverMaxMemory = input<string>('');
 
+  /** Server CPU usage percentage string. */
+  readonly serverCpu = input<string>('');
+
   /** Session ID for multi-window identification. */
   readonly sessionId = input<string>('');
 

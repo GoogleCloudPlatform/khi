@@ -95,4 +95,24 @@ describe('HeaderComponent', () => {
 
     expect(emittedItem as MenuItemViewModel | null).toBe(mockItem);
   });
+
+  it('should render server memory when provided', () => {
+    fixture.componentRef.setInput('serverMemory', '1.50');
+    fixture.componentRef.setInput('serverMaxMemory', '16.00');
+    fixture.detectChanges();
+
+    const memoryEl = fixture.debugElement.query(By.css('.memory-usage'));
+    expect(memoryEl).toBeTruthy();
+    expect(memoryEl.nativeElement.textContent).toContain('1.50 GB');
+    expect(memoryEl.nativeElement.textContent).toContain('/ 16.00 GB');
+  });
+
+  it('should render server CPU usage when provided', () => {
+    fixture.componentRef.setInput('serverCpu', '23.4%');
+    fixture.detectChanges();
+
+    const cpuEl = fixture.debugElement.query(By.css('.cpu-usage'));
+    expect(cpuEl).toBeTruthy();
+    expect(cpuEl.nativeElement.textContent).toContain('23.4%');
+  });
 });

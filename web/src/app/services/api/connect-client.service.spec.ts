@@ -35,4 +35,9 @@ describe('ConnectClientService', () => {
     expect(service.workbenchClient).toBeTruthy();
     expect(typeof service.workbenchClient.openWorkbench).toBe('function');
   });
+
+  it('should initialize serverStatusClient with watchServerStat method', () => {
+    expect(service.serverStatusClient).toBeTruthy();
+    expect(typeof service.serverStatusClient.watchServerStat).toBe('function');
+  });
 });
