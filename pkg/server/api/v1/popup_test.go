@@ -179,6 +179,35 @@ func TestPopupServer_WatchPopup(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("watch popup stream with no active popup sends initial dismissed event", func(t *testing.T) {
+		pm := popup.NewPopupManager()
+		server := NewPopupServer(pm)
+
+		mux := http.NewServeMux()
+		path, handler := apiv1connect.NewPopupServiceHandler(server)
+		mux.Handle(path, handler)
+		ts := httptest.NewServer(mux)
+		defer ts.Close()
+
+		client := apiv1connect.NewPopupServiceClient(ts.Client(), ts.URL)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		stream, err := client.WatchPopup(ctx, connect.NewRequest(&v1.WatchPopupRequest{}))
+		if err != nil {
+			t.Fatalf("failed to open watch stream: %v", err)
+		}
+
+		if !stream.Receive() {
+			t.Fatalf("stream closed before receiving initial dismissed event: %v", stream.Err())
+		}
+		msg := stream.Msg()
+		if !msg.GetDismissed() {
+			t.Errorf("expected initial dismissed event, got %v", msg)
+		}
+	})
 }
 
 func TestPopupServer_ValidatePopupAnswer(t *testing.T) {

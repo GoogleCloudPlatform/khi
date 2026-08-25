@@ -223,6 +223,12 @@ func TestPopupManager(t *testing.T) {
 		events, unsubscribe := pm.Subscribe()
 		defer unsubscribe()
 
+		// Initial event when no popup is active must be dismissed.
+		ev0 := <-events
+		if ev0.Type != PopupEventTypeDismissed {
+			t.Errorf("ev0.Type = %v, want %v", ev0.Type, PopupEventTypeDismissed)
+		}
+
 		go func() {
 			time.Sleep(50 * time.Millisecond)
 			p := pm.GetCurrentPopup()
@@ -256,6 +262,12 @@ func TestPopupManager(t *testing.T) {
 		events, unsubscribe := pm.Subscribe()
 		defer unsubscribe()
 
+		// Initial event when no popup is active must be dismissed.
+		ev0 := <-events
+		if ev0.Type != PopupEventTypeDismissed {
+			t.Errorf("ev0.Type = %v, want %v", ev0.Type, PopupEventTypeDismissed)
+		}
+
 		go func() {
 			time.Sleep(50 * time.Millisecond)
 			p := pm.GetCurrentPopup()
@@ -276,6 +288,36 @@ func TestPopupManager(t *testing.T) {
 		ev2 := <-events
 		if ev2.Type != PopupEventTypeDismissed {
 			t.Errorf("ev2.Type = %v, want %v", ev2.Type, PopupEventTypeDismissed)
+		}
+	})
+
+	t.Run("Subscribe emits initial event based on active popup state", func(t *testing.T) {
+		// When no popup active, Subscribe emits PopupEventTypeDismissed.
+		events1, unsub1 := pm.Subscribe()
+		defer unsub1()
+		ev := <-events1
+		if ev.Type != PopupEventTypeDismissed {
+			t.Errorf("expected initial dismissed event, got %v", ev.Type)
+		}
+
+		// Start a popup in background
+		go func() {
+			_, _ = pm.ShowPopup(&testPopupForm{})
+		}()
+		time.Sleep(50 * time.Millisecond)
+
+		// When popup active, Subscribe emits PopupEventTypeOpened.
+		events2, unsub2 := pm.Subscribe()
+		defer unsub2()
+		evActive := <-events2
+		if evActive.Type != PopupEventTypeOpened || evActive.Form == nil || evActive.Form.GetTitle() != "foo" {
+			t.Errorf("expected initial opened event with form, got %+v", evActive)
+		}
+
+		// Clean up active popup
+		p := pm.GetCurrentPopup()
+		if p != nil {
+			_ = pm.DismissActivePopup(p.GetId())
 		}
 	})
 

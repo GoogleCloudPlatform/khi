@@ -141,6 +141,10 @@ func (p *PopupManager) Subscribe() (<-chan PopupEvent, func()) {
 			Type: PopupEventTypeOpened,
 			Form: p.currentProto,
 		}
+	} else {
+		ch <- PopupEvent{
+			Type: PopupEventTypeDismissed,
+		}
 	}
 
 	var once sync.Once
