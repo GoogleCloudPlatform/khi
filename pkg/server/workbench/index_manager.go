@@ -41,6 +41,7 @@ type InspectionIndexManager struct {
 	dataDir          string
 	inspectionServer *coreinspection.InspectionTaskServer
 	buildGroup       singleflight.Group
+	wg               sync.WaitGroup
 }
 
 // NewInspectionIndexManager creates an InspectionIndexManager.
@@ -92,7 +93,9 @@ func (m *InspectionIndexManager) StartAsyncIndexing(ctx context.Context, inspect
 		return
 	}
 
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		_, _, _ = m.buildGroup.Do(inspectionID, func() (any, error) {
 			// Check again under singleflight
 			if _, ok := m.GetTrigramIndex(inspectionID); ok {
@@ -164,6 +167,11 @@ func (m *InspectionIndexManager) StartAsyncIndexing(ctx context.Context, inspect
 			return idx, nil
 		})
 	}()
+}
+
+// Wait waits for all in-flight asynchronous indexing tasks to complete.
+func (m *InspectionIndexManager) Wait() {
+	m.wg.Wait()
 }
 
 // IndexStatus returns the current index status snapshot for the given inspection ID.

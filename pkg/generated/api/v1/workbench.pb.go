@@ -332,10 +332,10 @@ func (x *OpenWorkbenchResponse) GetWorkbenchId() string {
 	return ""
 }
 
-// Request to watch the search index construction progress of a Workbench session.
+// Request to watch the search index construction progress of an active Workbench session.
 type WatchIndexProgressRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The active workbench session identifier.
+	// The active workbench session identifier to stream search index construction progress for.
 	WorkbenchId   *string `protobuf:"bytes,1,opt,name=workbench_id,json=workbenchId" json:"workbench_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

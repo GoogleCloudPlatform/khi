@@ -144,14 +144,14 @@ export enum OpenWorkbenchResponse_Stage {
 export declare const OpenWorkbenchResponse_StageSchema: GenEnum<OpenWorkbenchResponse_Stage>;
 
 /**
- * Request to watch the search index construction progress of a Workbench session.
+ * Request to watch the search index construction progress of an active Workbench session.
  *
  * @generated from message api.v1.WatchIndexProgressRequest
  */
 export declare type WatchIndexProgressRequest =
   Message<'api.v1.WatchIndexProgressRequest'> & {
     /**
-     * The active workbench session identifier.
+     * The active workbench session identifier to stream search index construction progress for.
      *
      * @generated from field: string workbench_id = 1;
      */
@@ -586,7 +586,7 @@ export declare const WorkbenchService: GenService<{
     output: typeof OpenWorkbenchResponseSchema;
   };
   /**
-   * Watches the search index construction progress and status for an active Workbench session. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
+   * Watches the search index construction progress and status for an inspection dataset. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
    *
    * @generated from rpc api.v1.WorkbenchService.WatchIndexProgress
    */

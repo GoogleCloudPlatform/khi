@@ -168,10 +168,18 @@ func (w *Workbench) BuildStructYAMLIndexWithProgress(ctx context.Context, target
 	return structYAMLs, nil
 }
 
-// BuildTrigramIndexWithProgress constructs the trigram search index from pre-serialized struct YAMLs while streaming progress updates.
-func (w *Workbench) BuildTrigramIndexWithProgress(ctx context.Context, structYAMLs map[uint32]string, onProgress ProgressCallback) (*cel.TrigramIndex, error) {
+// BuildTrigramIndexWithProgress constructs the trigram search index from logs while streaming progress updates.
+func (w *Workbench) BuildTrigramIndexWithProgress(ctx context.Context, targetIndex *SearchIndex, onProgress ProgressCallback) (*cel.TrigramIndex, error) {
+	logItems := make([]cel.LogTrigramItem, 0, len(targetIndex.Logs))
+	for _, l := range targetIndex.Logs {
+		logItems = append(logItems, cel.LogTrigramItem{
+			ID:              l.ID,
+			SummaryStringID: l.SummaryStringID,
+			BodyStructID:    l.BodyStructID,
+		})
+	}
 	trigramIndex := cel.NewTrigramIndex()
-	err := trigramIndex.BuildFromStructYAMLs(ctx, structYAMLs, func(subPct float64, msg string) error {
+	err := trigramIndex.BuildFromLogPool(targetIndex.InternPool, logItems, func(subPct float64, msg string) error {
 		return onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, subPct*100.0, msg)
 	})
 	if err != nil {
@@ -229,7 +237,7 @@ func (w *Workbench) BuildAsyncIndexesWithProgress(ctx context.Context, targetInd
 			}
 		}
 	} else {
-		trigramIndex, err := w.BuildTrigramIndexWithProgress(ctx, structYAMLs, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+		trigramIndex, err := w.BuildTrigramIndexWithProgress(ctx, targetIndex, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
 			return onProgress(stage, 50.0+progressPercentage*0.5, message)
 		})
 		if err != nil {

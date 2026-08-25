@@ -354,8 +354,14 @@ describe('WorkbenchClientService', () => {
     expect(service.isIndexBuilding()).toBeFalse();
     expect(service.isIndexReady()).toBeFalse();
 
-    await service.watchIndexProgress('usr-1-session-0');
+    await service.watchIndexProgress('test-workbench-1');
 
+    expect(
+      mockConnectClient.workbenchClient.watchIndexProgress,
+    ).toHaveBeenCalledWith(
+      { workbenchId: 'test-workbench-1' },
+      jasmine.any(Object),
+    );
     expect(service.indexState()).toBe(
       WatchIndexProgressResponse_IndexState.READY,
     );

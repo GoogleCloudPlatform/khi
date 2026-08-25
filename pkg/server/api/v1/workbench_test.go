@@ -88,7 +88,8 @@ func createTestInspectionServerForWorkbench(t *testing.T) (*coreinspection.Inspe
 func setupTestWorkbenchServer(t *testing.T) (*httptest.Server, apiv1connect.WorkbenchServiceClient, *workbench.WorkbenchManager, string) {
 	inspectionServer, validInspID := createTestInspectionServerForWorkbench(t)
 
-	manager := workbench.NewWorkbenchManager(inspectionServer, nil, 100*time.Millisecond, 0)
+	indexMgr := workbench.NewInspectionIndexManager(inspectionServer, t.TempDir())
+	manager := workbench.NewWorkbenchManager(inspectionServer, indexMgr, 100*time.Millisecond, 0)
 	serverImpl := NewWorkbenchServiceServer(manager)
 	mux := http.NewServeMux()
 	path, handler := apiv1connect.NewWorkbenchServiceHandler(serverImpl)
@@ -405,27 +406,26 @@ func TestWorkbenchServiceServer_FilterTimeline(t *testing.T) {
 }
 
 func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
-	ts, client, _, validInspID := setupTestWorkbenchServer(t)
+	ts, client, manager, validInspID := setupTestWorkbenchServer(t)
 	defer ts.Close()
+	defer manager.Stop()
 
-	// Open a workbench first
+	// 1. Open workbench first
 	openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
-		UserId:       proto.String("user-1"),
-		SessionId:    proto.String("session-1"),
+		UserId:       proto.String("user-watch"),
+		SessionId:    proto.String("session-0"),
 		InspectionId: proto.String(validInspID),
 	}))
 	if err != nil {
 		t.Fatalf("OpenWorkbench() error = %v", err)
 	}
-	var validWBID string
 	for openStream.Receive() {
-		if openStream.Msg().GetWorkbenchId() != "" {
-			validWBID = openStream.Msg().GetWorkbenchId()
-		}
 	}
 	if err := openStream.Err(); err != nil {
 		t.Fatalf("OpenWorkbench() stream error = %v", err)
 	}
+
+	workbenchID := "user-watch-session-0"
 
 	testCases := []struct {
 		name        string
@@ -433,9 +433,9 @@ func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
 		wantErrCode connect.Code
 	}{
 		{
-			name: "success on active workbench",
+			name: "success on valid workbench id",
 			req: &apiv1.WatchIndexProgressRequest{
-				WorkbenchId: proto.String(validWBID),
+				WorkbenchId: proto.String(workbenchID),
 			},
 			wantErrCode: 0,
 		},
@@ -457,7 +457,9 @@ func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			stream, err := client.WatchIndexProgress(context.Background(), connect.NewRequest(tc.req))
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			stream, err := client.WatchIndexProgress(ctx, connect.NewRequest(tc.req))
 			if err != nil {
 				t.Fatalf("WatchIndexProgress() error = %v", err)
 			}

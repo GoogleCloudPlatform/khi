@@ -66,6 +66,11 @@ func NewWorkbenchManager(inspectionServer *coreinspection.InspectionTaskServer, 
 	return mgr
 }
 
+// IndexManager returns the InspectionIndexManager associated with this manager.
+func (m *WorkbenchManager) IndexManager() *InspectionIndexManager {
+	return m.indexManager
+}
+
 // GetOrOpen retrieves an existing active Workbench session or loads the dataset into a new one.
 func (m *WorkbenchManager) GetOrOpen(ctx context.Context, workbenchID string, inspectionID string, onProgress ProgressCallback) (*Workbench, error) {
 	if onProgress == nil {
@@ -252,16 +257,20 @@ func (m *WorkbenchManager) Remove(workbenchID string) {
 	}
 }
 
-// Stop stops the background sweeper and closes all open workbench sessions.
+// Stop stops the background sweeper, closes all open workbench sessions, and waits for active indexing jobs.
 func (m *WorkbenchManager) Stop() {
 	if m.sweeper != nil {
 		m.sweeper.Stop()
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	for _, wb := range m.workbenches {
 		wb.Close()
 	}
 	m.workbenches = make(map[string]*Workbench)
 	m.leases = make(map[string]time.Time)
+	m.mu.Unlock()
+
+	if m.indexManager != nil {
+		m.indexManager.Wait()
+	}
 }

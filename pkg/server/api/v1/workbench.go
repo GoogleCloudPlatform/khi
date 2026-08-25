@@ -103,6 +103,7 @@ func (s *WorkbenchServiceServer) WatchIndexProgress(
 	timer := time.NewTimer(30 * time.Second)
 	defer timer.Stop()
 
+	wb.StartAsyncIndexing(context.Background())
 	for {
 		select {
 		case <-ctx.Done():

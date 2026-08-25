@@ -71,7 +71,7 @@ const (
 type WorkbenchServiceClient interface {
 	// Opens or attaches to an in-memory Workbench session with real-time loading progress streaming.
 	OpenWorkbench(context.Context, *connect.Request[v1.OpenWorkbenchRequest]) (*connect.ServerStreamForClient[v1.OpenWorkbenchResponse], error)
-	// Watches the search index construction progress and status for an active Workbench session. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
+	// Watches the search index construction progress and status for an inspection dataset. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
 	WatchIndexProgress(context.Context, *connect.Request[v1.WatchIndexProgressRequest]) (*connect.ServerStreamForClient[v1.WatchIndexProgressResponse], error)
 	// Sends periodic heartbeat to keep the Workbench session alive in memory.
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
@@ -177,7 +177,7 @@ func (c *workbenchServiceClient) CloseWorkbench(ctx context.Context, req *connec
 type WorkbenchServiceHandler interface {
 	// Opens or attaches to an in-memory Workbench session with real-time loading progress streaming.
 	OpenWorkbench(context.Context, *connect.Request[v1.OpenWorkbenchRequest], *connect.ServerStream[v1.OpenWorkbenchResponse]) error
-	// Watches the search index construction progress and status for an active Workbench session. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
+	// Watches the search index construction progress and status for an inspection dataset. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
 	WatchIndexProgress(context.Context, *connect.Request[v1.WatchIndexProgressRequest], *connect.ServerStream[v1.WatchIndexProgressResponse]) error
 	// Sends periodic heartbeat to keep the Workbench session alive in memory.
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)

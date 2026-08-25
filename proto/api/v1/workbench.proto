@@ -25,7 +25,7 @@ service WorkbenchService {
   // Opens or attaches to an in-memory Workbench session with real-time loading progress streaming.
   rpc OpenWorkbench(OpenWorkbenchRequest) returns (stream OpenWorkbenchResponse);
 
-  // Watches the search index construction progress and status for an active Workbench session. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
+  // Watches the search index construction progress and status for an inspection dataset. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
   rpc WatchIndexProgress(WatchIndexProgressRequest) returns (stream WatchIndexProgressResponse);
 
   // Sends periodic heartbeat to keep the Workbench session alive in memory.
@@ -70,9 +70,9 @@ message OpenWorkbenchResponse {
   string workbench_id = 4;
 }
 
-// Request to watch the search index construction progress of a Workbench session.
+// Request to watch the search index construction progress of an active Workbench session.
 message WatchIndexProgressRequest {
-  // The active workbench session identifier.
+  // The active workbench session identifier to stream search index construction progress for.
   string workbench_id = 1;
 }
 

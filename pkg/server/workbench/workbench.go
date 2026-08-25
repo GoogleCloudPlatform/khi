@@ -188,6 +188,36 @@ func (w *Workbench) SubscribeIndexProgress(ctx context.Context) (<-chan IndexPro
 	return ch, unsubscribe
 }
 
+// AwaitIndex blocks until the search index construction reaches a terminal state (Ready or Failed), or the context is canceled.
+func (w *Workbench) AwaitIndex(ctx context.Context) error {
+	ch, unsubscribe := w.SubscribeIndexProgress(ctx)
+	defer unsubscribe()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case ev, ok := <-ch:
+			if !ok {
+				state, _, _, err := w.IndexStatus()
+				if state == IndexStateReady {
+					return nil
+				}
+				if state == IndexStateFailed {
+					return err
+				}
+				return fmt.Errorf("index progress subscription closed unexpectedly")
+			}
+			if ev.State == IndexStateReady {
+				return nil
+			}
+			if ev.State == IndexStateFailed {
+				return ev.Err
+			}
+		}
+	}
+}
+
 // notifyIndexSubscribersLocked broadcasts an index progress event to all active subscribers.
 // Caller must hold w.indexMu (either read or write lock).
 func (w *Workbench) notifyIndexSubscribersLocked(event IndexProgressEvent) {
