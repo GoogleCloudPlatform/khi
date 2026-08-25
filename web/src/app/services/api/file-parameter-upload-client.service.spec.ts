@@ -20,19 +20,15 @@ import {
   FileParameterUploadOptions,
 } from 'src/app/services/api/file-parameter-upload-client.service';
 import { Client } from '@connectrpc/connect';
+import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { FileParameterUploadService } from 'src/app/generated/api/v1/file_parameter_upload_pb';
 
 describe('FileParameterUploadClientService', () => {
   let service: FileParameterUploadClientService;
   let mockClient: jasmine.SpyObj<Client<typeof FileParameterUploadService>>;
+  let mockConnectClient: jasmine.SpyObj<ConnectClientService>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [FileParameterUploadClientService],
-    });
-
-    service = TestBed.inject(FileParameterUploadClientService);
-
     mockClient = jasmine.createSpyObj<
       Client<typeof FileParameterUploadService>
     >('FileParameterUploadClient', [
@@ -41,12 +37,22 @@ describe('FileParameterUploadClientService', () => {
       'completeFileUpload',
       'abortFileUpload',
     ]);
-    // Replace internal client with spy object for unit testing
-    (
-      service as unknown as {
-        client: Client<typeof FileParameterUploadService>;
-      }
-    ).client = mockClient;
+    mockConnectClient = jasmine.createSpyObj<ConnectClientService>(
+      'ConnectClientService',
+      [],
+      {
+        fileParameterUploadClient: mockClient,
+      },
+    );
+
+    TestBed.configureTestingModule({
+      providers: [
+        FileParameterUploadClientService,
+        { provide: ConnectClientService, useValue: mockConnectClient },
+      ],
+    });
+
+    service = TestBed.inject(FileParameterUploadClientService);
   });
 
   it('uploads a file in chunks and returns result on complete', async () => {

@@ -17,11 +17,14 @@
 import { Injectable } from '@angular/core';
 import { createClient, Client } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { WorkbenchService } from 'src/app/generated/api/v1/workbench_pb';
 import { CELValidationService } from 'src/app/generated/api/v1/cel_validation_pb';
+import { FileParameterUploadService } from 'src/app/generated/api/v1/file_parameter_upload_pb';
+import { ImportInspectionService } from 'src/app/generated/api/v1/import_inspection_pb';
 import { PopupService } from 'src/app/generated/api/v1/popup_pb';
 import { ServerStatusService } from 'src/app/generated/api/v1/server_status_pb';
+import { WorkbenchService } from 'src/app/generated/api/v1/workbench_pb';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
+import { environment } from 'src/environments/environment';
 
 /**
  * ConnectClientService manages Connect-RPC clients and transports.
@@ -32,7 +35,7 @@ import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 export class ConnectClientService {
   private readonly transport = createConnectTransport({
     baseUrl: ApiPathUtil.getServerBaseUrl(),
-    useBinaryFormat: true,
+    useBinaryFormat: environment.production,
   });
 
   /**
@@ -60,4 +63,18 @@ export class ConnectClientService {
    */
   public readonly serverStatusClient: Client<typeof ServerStatusService> =
     createClient(ServerStatusService, this.transport);
+
+  /**
+   * FileParameterUploadService Connect-RPC client.
+   */
+  public readonly fileParameterUploadClient: Client<
+    typeof FileParameterUploadService
+  > = createClient(FileParameterUploadService, this.transport);
+
+  /**
+   * ImportInspectionService Connect-RPC client.
+   */
+  public readonly importInspectionClient: Client<
+    typeof ImportInspectionService
+  > = createClient(ImportInspectionService, this.transport);
 }

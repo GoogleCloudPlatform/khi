@@ -20,19 +20,15 @@ import {
   ImportFileOptions,
 } from 'src/app/services/api/import-inspection-client.service';
 import { Client } from '@connectrpc/connect';
+import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { ImportInspectionService } from 'src/app/generated/api/v1/import_inspection_pb';
 
 describe('ImportInspectionClientService', () => {
   let service: ImportInspectionClientService;
   let mockClient: jasmine.SpyObj<Client<typeof ImportInspectionService>>;
+  let mockConnectClient: jasmine.SpyObj<ConnectClientService>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [ImportInspectionClientService],
-    });
-
-    service = TestBed.inject(ImportInspectionClientService);
-
     mockClient = jasmine.createSpyObj<Client<typeof ImportInspectionService>>(
       'ImportInspectionClient',
       [
@@ -42,12 +38,22 @@ describe('ImportInspectionClientService', () => {
         'abortImportInspection',
       ],
     );
-    // Replace internal client with spy object for unit testing
-    (
-      service as unknown as {
-        client: Client<typeof ImportInspectionService>;
-      }
-    ).client = mockClient;
+    mockConnectClient = jasmine.createSpyObj<ConnectClientService>(
+      'ConnectClientService',
+      [],
+      {
+        importInspectionClient: mockClient,
+      },
+    );
+
+    TestBed.configureTestingModule({
+      providers: [
+        ImportInspectionClientService,
+        { provide: ConnectClientService, useValue: mockConnectClient },
+      ],
+    });
+
+    service = TestBed.inject(ImportInspectionClientService);
   });
 
   it('uploads a file in chunks and returns inspection details on complete', async () => {

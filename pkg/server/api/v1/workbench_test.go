@@ -490,3 +490,41 @@ func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkbenchServiceServer_ProtoJSONClient(t *testing.T) {
+	ts, _, manager, validInspID := setupTestWorkbenchServer(t)
+	defer ts.Close()
+	defer manager.Stop()
+
+	// Client configured with connect.WithProtoJSON() to mimic frontend development mode.
+	jsonClient := apiv1connect.NewWorkbenchServiceClient(ts.Client(), ts.URL, connect.WithProtoJSON())
+
+	openStream, err := jsonClient.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
+		UserId:       proto.String("user-json"),
+		SessionId:    proto.String("session-0"),
+		InspectionId: proto.String(validInspID),
+	}))
+	if err != nil {
+		t.Fatalf("OpenWorkbench() with ProtoJSON error = %v", err)
+	}
+	var lastMsg *apiv1.OpenWorkbenchResponse
+	for openStream.Receive() {
+		lastMsg = openStream.Msg()
+	}
+	if err := openStream.Err(); err != nil {
+		t.Fatalf("OpenWorkbench() stream with ProtoJSON error = %v", err)
+	}
+	if lastMsg == nil || lastMsg.GetWorkbenchId() == "" {
+		t.Fatalf("expected last OpenWorkbench message to have workbench_id, got %v", lastMsg)
+	}
+
+	hbRes, err := jsonClient.HeartbeatWorkbench(context.Background(), connect.NewRequest(&apiv1.HeartbeatWorkbenchRequest{
+		WorkbenchId: proto.String(lastMsg.GetWorkbenchId()),
+	}))
+	if err != nil {
+		t.Fatalf("HeartbeatWorkbench() with ProtoJSON error = %v", err)
+	}
+	if !hbRes.Msg.GetActive() {
+		t.Errorf("HeartbeatWorkbench() active = false, want true")
+	}
+}

@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
-import { createClient, Client } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
+import { Injectable, inject } from '@angular/core';
+import { Client } from '@connectrpc/connect';
 import { ImportInspectionService } from 'src/app/generated/api/v1/import_inspection_pb';
-import { ApiPathUtil } from 'src/app/services/api/api-path-util';
+import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import {
   executeChunkedUpload,
   ChunkUploadProgressCallback,
@@ -68,14 +67,9 @@ export class ImportInspectionClientService {
   /** Default maximum number of concurrent chunk uploads. */
   public static readonly DEFAULT_MAX_CONCURRENCY = DEFAULT_MAX_CONCURRENCY;
 
-  private readonly client: Client<typeof ImportInspectionService>;
-
-  constructor() {
-    const transport = createConnectTransport({
-      baseUrl: ApiPathUtil.getServerBasePath(),
-    });
-    this.client = createClient(ImportInspectionService, transport);
-  }
+  private readonly connectClient = inject(ConnectClientService);
+  private readonly client: Client<typeof ImportInspectionService> =
+    this.connectClient.importInspectionClient;
 
   /**
    * Imports a .khi file in chunks to the backend server.

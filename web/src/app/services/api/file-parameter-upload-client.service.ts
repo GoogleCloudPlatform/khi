@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
-import { createClient, Client } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
+import { Injectable, inject } from '@angular/core';
+import { Client } from '@connectrpc/connect';
 import { FileParameterUploadService } from 'src/app/generated/api/v1/file_parameter_upload_pb';
-import { ApiPathUtil } from 'src/app/services/api/api-path-util';
+import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import {
   executeChunkedUpload,
   ChunkUploadProgressCallback,
@@ -54,14 +53,9 @@ export interface FileParameterUploadResult {
   providedIn: 'root',
 })
 export class FileParameterUploadClientService {
-  private readonly client: Client<typeof FileParameterUploadService>;
-
-  constructor() {
-    const transport = createConnectTransport({
-      baseUrl: ApiPathUtil.getServerBasePath(),
-    });
-    this.client = createClient(FileParameterUploadService, transport);
-  }
+  private readonly connectClient = inject(ConnectClientService);
+  private readonly client: Client<typeof FileParameterUploadService> =
+    this.connectClient.fileParameterUploadClient;
 
   /**
    * Uploads a file parameter to the backend using chunked transfer.

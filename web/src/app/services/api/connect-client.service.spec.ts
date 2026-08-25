@@ -35,9 +35,40 @@ describe('ConnectClientService', () => {
     expect(service.workbenchClient).toBeTruthy();
     expect(typeof service.workbenchClient.openWorkbench).toBe('function');
   });
-
   it('should initialize serverStatusClient with watchServerStat method', () => {
     expect(service.serverStatusClient).toBeTruthy();
     expect(typeof service.serverStatusClient.watchServerStat).toBe('function');
+  });
+
+  it('should initialize fileParameterUploadClient', () => {
+    expect(service.fileParameterUploadClient).toBeTruthy();
+    expect(typeof service.fileParameterUploadClient.startFileUpload).toBe(
+      'function',
+    );
+  });
+
+  it('should initialize importInspectionClient', () => {
+    expect(service.importInspectionClient).toBeTruthy();
+    expect(typeof service.importInspectionClient.startImportInspection).toBe(
+      'function',
+    );
+  });
+
+  it('should use JSON content-type when environment.production is false', async () => {
+    let capturedContentType: string | null = null;
+    spyOn(globalThis, 'fetch').and.callFake((_input, init) => {
+      const headers = new Headers(init?.headers);
+      capturedContentType = headers.get('content-type');
+      return Promise.resolve(
+        new Response(JSON.stringify({ active: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+
+    await service.workbenchClient.heartbeatWorkbench({ workbenchId: 'test' });
+
+    expect(capturedContentType).toContain('application/json');
   });
 });
