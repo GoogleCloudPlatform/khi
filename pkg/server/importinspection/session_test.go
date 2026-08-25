@@ -20,11 +20,11 @@ import (
 	"os"
 	"sync"
 	"testing"
-	"time"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
@@ -302,7 +302,11 @@ func TestImportSessionManager_Errors(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				manager.maxChunkSize = 10
+				manager.chunkManager = chunkedupload.NewChunkSessionManager(t.TempDir(), chunkedupload.WithMaxChunkSize(10))
+				session, err = manager.StartSession("test.khi", 100)
+				if err != nil {
+					return err
+				}
 				_, err = manager.WriteChunk(session.Token, 0, []byte("longer than 10 bytes"))
 				return err
 			},
@@ -350,10 +354,9 @@ func TestImportSessionManager_Errors(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				session.mu.Lock()
-				session.ExpiresAt = time.Now().Add(-1 * time.Minute)
-				session.mu.Unlock()
-				manager.cleaner.Cleanup(time.Now())
+				if err := manager.chunkManager.Evict(session.Token); err != nil {
+					return err
+				}
 				_, err = manager.WriteChunk(session.Token, 0, []byte("data"))
 				return err
 			},

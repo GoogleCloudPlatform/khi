@@ -15,59 +15,43 @@
 package importinspection
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"sync"
-	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 var (
 	// ErrSessionNotFound is returned when an import session token is not found or has expired.
-	ErrSessionNotFound = errors.New("import session not found or expired")
+	ErrSessionNotFound = chunkedupload.ErrSessionNotFound
 	// ErrInvalidTotalSize is returned when the specified total file size is non-positive.
-	ErrInvalidTotalSize = errors.New("total file size must be positive")
+	ErrInvalidTotalSize = chunkedupload.ErrInvalidTotalSize
 	// ErrEmptyChunkData is returned when an uploaded chunk contains empty data payload.
-	ErrEmptyChunkData = errors.New("chunk data must not be empty")
+	ErrEmptyChunkData = chunkedupload.ErrEmptyChunkData
 	// ErrInvalidOffset is returned when the chunk byte offset is invalid.
-	ErrInvalidOffset = errors.New("invalid chunk byte offset")
+	ErrInvalidOffset = chunkedupload.ErrInvalidOffset
 	// ErrChunkSizeTooLarge is returned when a single chunk exceeds the maximum permitted size limit.
-	ErrChunkSizeTooLarge = errors.New("chunk size exceeds maximum allowed limit")
+	ErrChunkSizeTooLarge = chunkedupload.ErrChunkSizeTooLarge
 )
 
 const (
-	// DefaultSuggestedChunkSize is the recommended chunk payload size (10MB).
-	DefaultSuggestedChunkSize = 25 * 1024 * 1024
+	// DefaultSuggestedChunkSize is the recommended chunk payload size (25MB).
+	DefaultSuggestedChunkSize = chunkedupload.DefaultSuggestedChunkSize
 	// DefaultMaxChunkSize is the maximum allowed single chunk payload (32MB).
-	DefaultMaxChunkSize = 32 * 1024 * 1024
+	DefaultMaxChunkSize = chunkedupload.DefaultMaxChunkSize
 	// DefaultSessionTTL is the duration after which an inactive import session expires.
-	DefaultSessionTTL = 30 * time.Minute
+	DefaultSessionTTL = chunkedupload.DefaultSessionTTL
 )
 
 // ByteRange represents an uploaded byte interval [Start, End).
-type ByteRange struct {
-	Start int64
-	End   int64
-}
+type ByteRange = chunkedupload.ByteRange
 
 // ImportSession represents an in-progress chunked upload session.
-type ImportSession struct {
-	Token          string
-	FileName       string
-	TotalSize      int64
-	ReceivedBytes  int64
-	ReceivedRanges []ByteRange
-	TempFilePath   string
-	TempFile       *os.File
-	ExpiresAt      time.Time
-	mu             sync.Mutex
-}
+type ImportSession = chunkedupload.ChunkSession
 
 // FinalizedImport represents the result of a completed and validated inspection import.
 type FinalizedImport struct {
@@ -78,186 +62,79 @@ type FinalizedImport struct {
 
 // ImportSessionManager manages the lifecycle of chunked upload sessions and registers imported inspections.
 type ImportSessionManager struct {
-	inspectionServer   *coreinspection.InspectionTaskServer
-	ioConfig           *inspectioncore_contract.IOConfig
-	tokenGenerator     idgenerator.IDGenerator
-	idGenerator        idgenerator.IDGenerator
-	sessions           map[string]*ImportSession
-	ttl                time.Duration
-	maxChunkSize       int64
-	suggestedChunkSize int64
-	cleaner            *ImportSessionCleaner
-	mu                 sync.RWMutex
+	inspectionServer *coreinspection.InspectionTaskServer
+	idGenerator      idgenerator.IDGenerator
+	chunkManager     *chunkedupload.ChunkSessionManager
 }
 
 // NewImportSessionManager creates a new ImportSessionManager instance.
 func NewImportSessionManager(server *coreinspection.InspectionTaskServer, ioConfig *inspectioncore_contract.IOConfig) *ImportSessionManager {
-	m := &ImportSessionManager{
-		inspectionServer:   server,
-		ioConfig:           ioConfig,
-		tokenGenerator:     idgenerator.NewPrefixIDGenerator("import-"),
-		idGenerator:        idgenerator.NewPrefixIDGenerator("inspection-imported-"),
-		sessions:           make(map[string]*ImportSession),
-		ttl:                DefaultSessionTTL,
-		maxChunkSize:       DefaultMaxChunkSize,
-		suggestedChunkSize: DefaultSuggestedChunkSize,
+	uploadDir := os.TempDir()
+	if ioConfig != nil && ioConfig.DataDestination != "" {
+		uploadDir = ioConfig.DataDestination
 	}
-	m.cleaner = NewImportSessionCleaner(m, DefaultCleanupInterval)
-	m.cleaner.Start()
-	return m
+
+	chunkManager := chunkedupload.NewChunkSessionManager(
+		uploadDir,
+		chunkedupload.WithTokenGenerator(idgenerator.NewPrefixIDGenerator("import-")),
+		chunkedupload.WithSessionTTL(DefaultSessionTTL),
+		chunkedupload.WithMaxChunkSize(DefaultMaxChunkSize),
+		chunkedupload.WithSuggestedChunkSize(DefaultSuggestedChunkSize),
+	)
+
+	return &ImportSessionManager{
+		inspectionServer: server,
+		idGenerator:      idgenerator.NewPrefixIDGenerator("inspection-imported-"),
+		chunkManager:     chunkManager,
+	}
 }
 
 // Close stops the background session cleaner and releases resources.
 func (m *ImportSessionManager) Close() {
-	if m.cleaner != nil {
-		m.cleaner.Stop()
+	if m.chunkManager != nil {
+		m.chunkManager.Close()
 	}
-}
-
-// GetActiveSessions returns a snapshot list of all currently registered import sessions.
-func (m *ImportSessionManager) GetActiveSessions() []*ImportSession {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	sessions := make([]*ImportSession, 0, len(m.sessions))
-	for _, s := range m.sessions {
-		sessions = append(sessions, s)
-	}
-	return sessions
 }
 
 // SuggestedChunkSize returns the recommended chunk size in bytes.
 func (m *ImportSessionManager) SuggestedChunkSize() int64 {
-	return m.suggestedChunkSize
+	return m.chunkManager.SuggestedChunkSize()
 }
 
 // StartSession initializes a new upload session and creates a temporary file to store incoming chunks.
 func (m *ImportSessionManager) StartSession(fileName string, totalSize int64) (*ImportSession, error) {
-	if totalSize <= 0 {
-		return nil, ErrInvalidTotalSize
-	}
-
-	uploadDir := os.TempDir()
-	if m.ioConfig != nil && m.ioConfig.DataDestination != "" {
-		uploadDir = m.ioConfig.DataDestination
-	}
-
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create upload directory: %w", err)
-	}
-
-	tempFile, err := os.CreateTemp(uploadDir, "khi-import-*.part")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temporary upload file: %w", err)
-	}
-
-	token := m.tokenGenerator.Generate()
-	session := &ImportSession{
-		Token:          token,
-		FileName:       fileName,
-		TotalSize:      totalSize,
-		ReceivedBytes:  0,
-		ReceivedRanges: make([]ByteRange, 0),
-		TempFilePath:   tempFile.Name(),
-		TempFile:       tempFile,
-		ExpiresAt:      time.Now().Add(m.ttl),
-	}
-
-	m.mu.Lock()
-	m.sessions[token] = session
-	m.mu.Unlock()
-
-	return session, nil
+	return m.chunkManager.StartSession(fileName, totalSize)
 }
 
 // WriteChunk writes a chunk of data at the specified byte offset to the session's temporary file.
 func (m *ImportSessionManager) WriteChunk(token string, offset int64, data []byte) (int64, error) {
-	m.mu.RLock()
-	session, exists := m.sessions[token]
-	m.mu.RUnlock()
-
-	if !exists {
-		return 0, ErrSessionNotFound
-	}
-
-	session.mu.Lock()
-	defer session.mu.Unlock()
-
-	if int64(len(data)) > m.maxChunkSize {
-		return 0, ErrChunkSizeTooLarge
-	}
-
-	if offset < 0 {
-		return 0, fmt.Errorf("%w: offset must be non-negative", ErrInvalidOffset)
-	}
-
-	if len(data) == 0 {
-		return 0, ErrEmptyChunkData
-	}
-
-	if offset+int64(len(data)) > session.TotalSize {
-		return 0, fmt.Errorf("%w: chunk end %d exceeds total size %d", ErrInvalidOffset, offset+int64(len(data)), session.TotalSize)
-	}
-
-	n, err := session.TempFile.WriteAt(data, offset)
-	if err != nil {
-		return 0, fmt.Errorf("failed to write chunk to temporary file: %w", err)
-	}
-	session.ReceivedRanges = append(session.ReceivedRanges, ByteRange{
-		Start: offset,
-		End:   offset + int64(n),
-	})
-	session.ReceivedBytes += int64(n)
-
-	session.ExpiresAt = time.Now().Add(m.ttl)
-
-	return session.ReceivedBytes, nil
+	return m.chunkManager.WriteChunk(token, offset, data)
 }
 
 // CompleteSession finalizes the session, validates the uploaded .khi file, moves it to the permanent destination,
 // and registers the imported inspection in the InspectionTaskServer.
 func (m *ImportSessionManager) CompleteSession(token string) (*FinalizedImport, error) {
-	m.mu.Lock()
-	session, exists := m.sessions[token]
-	if exists {
-		delete(m.sessions, token)
-	}
-	m.mu.Unlock()
+	inspectionID := m.idGenerator.Generate()
 
-	if !exists {
-		return nil, ErrSessionNotFound
-	}
-
-	session.mu.Lock()
-	defer session.mu.Unlock()
-
-	// Verify that the file upload is complete without missing byte ranges or overlaps.
-	if err := validateReceivedRanges(session.ReceivedRanges, session.TotalSize); err != nil {
-		session.TempFile.Close()
-		os.Remove(session.TempFilePath)
+	// Finalize chunks without moving yet to validate metadata
+	tempFilePath, err := m.chunkManager.FinalizeSession(token, "")
+	if err != nil {
 		return nil, err
 	}
 
-	// Close temporary file handle before reading and moving it.
-	if err := session.TempFile.Close(); err != nil {
-		os.Remove(session.TempFilePath)
-		return nil, fmt.Errorf("failed to close temporary upload file: %w", err)
-	}
-
 	// Validate KHI file structure and extract metadata.
-	header, metadataMap, err := ValidateAndExtractMetadata(session.TempFilePath)
+	header, metadataMap, err := ValidateAndExtractMetadata(tempFilePath)
 	if err != nil {
-		os.Remove(session.TempFilePath)
+		os.Remove(tempFilePath)
 		return nil, fmt.Errorf("failed to validate KHI file: %w", err)
 	}
 
-	inspectionID := m.idGenerator.Generate()
-	destinationDir := filepath.Dir(session.TempFilePath)
+	destinationDir := filepath.Dir(tempFilePath)
 	destinationPath := filepath.Join(destinationDir, inspectionID+".khi")
 
 	// Move file from temporary location to destination path.
-	if err := os.Rename(session.TempFilePath, destinationPath); err != nil {
-		os.Remove(session.TempFilePath)
+	if err := os.Rename(tempFilePath, destinationPath); err != nil {
+		os.Remove(tempFilePath)
 		return nil, fmt.Errorf("failed to persist inspection file: %w", err)
 	}
 
@@ -280,51 +157,10 @@ func (m *ImportSessionManager) CompleteSession(token string) (*FinalizedImport, 
 
 // AbortSession closes and deletes the temporary upload file and removes the session.
 func (m *ImportSessionManager) AbortSession(token string) error {
-	m.mu.Lock()
-	session, exists := m.sessions[token]
-	if exists {
-		delete(m.sessions, token)
-	}
-	m.mu.Unlock()
-
-	if !exists {
-		return ErrSessionNotFound
-	}
-
-	session.mu.Lock()
-	defer session.mu.Unlock()
-
-	session.TempFile.Close()
-	os.Remove(session.TempFilePath)
-	return nil
+	return m.chunkManager.AbortSession(token)
 }
 
-// validateReceivedRanges validates that the given byte ranges completely cover [0, expectedTotalSize)
-// without gaps or overlaps after sorting by start offset.
+// validateReceivedRanges validates that the given byte ranges completely cover [0, expectedTotalSize).
 func validateReceivedRanges(ranges []ByteRange, expectedTotalSize int64) error {
-	if len(ranges) == 0 {
-		return fmt.Errorf("incomplete upload: no data received")
-	}
-
-	sort.Slice(ranges, func(i, j int) bool {
-		return ranges[i].Start < ranges[j].Start
-	})
-
-	if ranges[0].Start != 0 {
-		return fmt.Errorf("incomplete upload: first chunk starts at offset %d, expected 0", ranges[0].Start)
-	}
-
-	for i := 0; i < len(ranges)-1; i++ {
-		if ranges[i].End != ranges[i+1].Start {
-			return fmt.Errorf("incomplete or overlapping upload: chunk %d ends at %d but next chunk starts at %d",
-				i, ranges[i].End, ranges[i+1].Start)
-		}
-	}
-
-	lastEnd := ranges[len(ranges)-1].End
-	if lastEnd != expectedTotalSize {
-		return fmt.Errorf("incomplete upload: received up to byte %d, expected %d", lastEnd, expectedTotalSize)
-	}
-
-	return nil
+	return chunkedupload.ValidateReceivedRanges(ranges, expectedTotalSize)
 }
