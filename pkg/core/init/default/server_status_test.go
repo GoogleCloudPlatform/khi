@@ -1,0 +1,88 @@
+package defaultinit
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/server"
+	"github.com/gin-gonic/gin"
+)
+
+func TestServerStatusServiceInitializer(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	testCases := []struct {
+		name        string
+		jobMode     bool
+		basePath    string
+		requestPath string
+		wantHit     bool
+	}{
+		{
+			name:        "registers route at root when not in job mode and empty base path",
+			jobMode:     false,
+			basePath:    "",
+			requestPath: "/api.v1.ServerStatusService/GetServerStat",
+			wantHit:     true,
+		},
+		{
+			name:        "registers route with custom base path when specified",
+			jobMode:     false,
+			basePath:    "/custom/prefix",
+			requestPath: "/custom/prefix/api.v1.ServerStatusService/GetServerStat",
+			wantHit:     true,
+		},
+		{
+			name:        "skips registration when in job mode",
+			jobMode:     true,
+			basePath:    "",
+			requestPath: "/api.v1.ServerStatusService/GetServerStat",
+			wantHit:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			engine := coreinit.NewEngine(context.Background())
+			ctx := engine.Context()
+			jobParams := &parameters.JobParameters{
+				JobMode: &tc.jobMode,
+			}
+			coreinit.Set(ctx, JobParametersKey, jobParams)
+
+			ginEngine := gin.New()
+			var router gin.IRouter = ginEngine.Group(tc.basePath)
+			serverConfig := &server.ServerConfig{
+				ResourceMonitor: &server.ResourceMonitorMock{
+					UsedMemory:  100,
+					TotalMemory: 200,
+					CPUUsage:    10.0,
+				},
+			}
+
+			coreinit.Set(ctx, ServerConfigKey, serverConfig)
+			coreinit.Set(ctx, GinRouterKey, router)
+			coreinit.Set(ctx, BasePathKey, tc.basePath)
+
+			if err := ServerStatusServiceInitializer.Init(ctx); err != nil {
+				t.Fatalf("ServerStatusServiceInitializer.Init() failed: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, tc.requestPath, nil)
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			ginEngine.ServeHTTP(w, req)
+
+			if tc.wantHit && w.Code == http.StatusNotFound {
+				t.Errorf("expected route %q to be registered, got 404", tc.requestPath)
+			}
+			if !tc.wantHit && w.Code != http.StatusNotFound {
+				t.Errorf("expected route %q not to be registered (404), got %d", tc.requestPath, w.Code)
+			}
+		})
+	}
+}

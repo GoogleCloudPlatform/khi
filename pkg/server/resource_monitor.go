@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
@@ -29,6 +30,9 @@ type ResourceMonitor interface {
 
 	// GetTotalMemory returns the total physical memory of the server in bytes.
 	GetTotalMemory() uint64
+
+	// GetCPUUsage returns the current CPU usage percentage across all cores (0.0 to 100.0).
+	GetCPUUsage() float64
 }
 
 // ResourceMonitorImpl is the real implementation of ResourceMonitor.
@@ -36,6 +40,8 @@ type ResourceMonitorImpl struct {
 	totalMemory uint64
 	once        sync.Once
 }
+
+var _ ResourceMonitor = (*ResourceMonitorImpl)(nil)
 
 // GetUsedMemory returns the current memory usage using runtime.MemStats (Alloc).
 func (r *ResourceMonitorImpl) GetUsedMemory() uint64 {
@@ -58,13 +64,26 @@ func (r *ResourceMonitorImpl) GetTotalMemory() uint64 {
 	return r.totalMemory
 }
 
-var _ ResourceMonitor = &ResourceMonitorImpl{}
+// GetCPUUsage returns the current CPU usage percentage using gopsutil.
+func (r *ResourceMonitorImpl) GetCPUUsage() float64 {
+	percents, err := cpu.Percent(0, false)
+	if err != nil || len(percents) == 0 {
+		if err != nil {
+			slog.Error("Failed to get CPU usage", "error", err)
+		}
+		return 0
+	}
+	return percents[0]
+}
 
 // ResourceMonitorMock is a mock implementation of ResourceMonitor for testing.
 type ResourceMonitorMock struct {
 	UsedMemory  uint64
 	TotalMemory uint64
+	CPUUsage    float64
 }
+
+var _ ResourceMonitor = (*ResourceMonitorMock)(nil)
 
 // GetUsedMemory returns the mocked used memory.
 func (r *ResourceMonitorMock) GetUsedMemory() uint64 {
@@ -76,4 +95,7 @@ func (r *ResourceMonitorMock) GetTotalMemory() uint64 {
 	return r.TotalMemory
 }
 
-var _ ResourceMonitor = &ResourceMonitorMock{}
+// GetCPUUsage returns the mocked CPU usage.
+func (r *ResourceMonitorMock) GetCPUUsage() float64 {
+	return r.CPUUsage
+}

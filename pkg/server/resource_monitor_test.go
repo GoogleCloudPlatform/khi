@@ -44,6 +44,13 @@ func TestResourceMonitorImpl(t *testing.T) {
 			t.Errorf("GetTotalMemory() cached value mismatch: got %d, want %d", got2, got)
 		}
 	})
+
+	t.Run("GetCPUUsage", func(t *testing.T) {
+		got := monitor.GetCPUUsage()
+		if got < 0 || got > 100 {
+			t.Errorf("GetCPUUsage() = %f; want 0 <= got <= 100", got)
+		}
+	})
 }
 
 func TestResourceMonitorMock(t *testing.T) {
@@ -52,15 +59,18 @@ func TestResourceMonitorMock(t *testing.T) {
 		mock      ResourceMonitorMock
 		wantUsed  uint64
 		wantTotal uint64
+		wantCPU   float64
 	}{
 		{
 			name: "mock returns set values",
 			mock: ResourceMonitorMock{
 				UsedMemory:  100,
 				TotalMemory: 1000,
+				CPUUsage:    25.5,
 			},
 			wantUsed:  100,
 			wantTotal: 1000,
+			wantCPU:   25.5,
 		},
 	}
 
@@ -71,6 +81,9 @@ func TestResourceMonitorMock(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantTotal, tc.mock.GetTotalMemory()); diff != "" {
 				t.Errorf("GetTotalMemory() mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantCPU, tc.mock.GetCPUUsage()); diff != "" {
+				t.Errorf("GetCPUUsage() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
