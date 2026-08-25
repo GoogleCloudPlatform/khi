@@ -17,14 +17,14 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import {
   BackendSyncServiceImpl,
-  PROGRESS_POLLING_INTERVAL,
   LIST_INSPECTION_TYPES_RETRY_TIME,
 } from './backend-sync.service';
 import { BACKEND_API, BackendAPI } from './backend-api-interface';
-import { defer, of, throwError, EMPTY } from 'rxjs';
+import { defer, of, throwError } from 'rxjs';
 import { BackendConnectionStatus } from './backend-sync-interface';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { ServerStat } from 'src/app/generated/api/v1/server_status_pb';
+import { InspectionListItem } from 'src/app/generated/api/v1/inspection_pb';
 
 describe('BackendSyncService', () => {
   let service: BackendSyncServiceImpl;
@@ -33,20 +33,14 @@ describe('BackendSyncService', () => {
     serverStatusClient: {
       watchServerStat: jasmine.Spy;
     };
+    inspectionClient: {
+      watchInspections: jasmine.Spy;
+    };
   };
 
   beforeEach(() => {
-    mockBackendApi = jasmine.createSpyObj('BackendAPI', [
-      'getInspectionTypes',
-      'getInspections',
-    ]);
+    mockBackendApi = jasmine.createSpyObj('BackendAPI', ['getInspectionTypes']);
     mockBackendApi.getInspectionTypes.and.returnValue(of({ types: [] }));
-    mockBackendApi.getInspections.and.returnValue(
-      of({
-        inspections: {},
-        serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
-      }),
-    );
 
     mockConnectClient = {
       serverStatusClient: {
@@ -60,6 +54,28 @@ describe('BackendSyncService', () => {
                   totalMemory: 1024n * 1024n * 1024n * 16n,
                   cpuUsagePercentage: 20.5,
                 } as ServerStat,
+              };
+              if (opts?.signal) {
+                await new Promise<void>((resolve) => {
+                  opts.signal!.addEventListener('abort', () => resolve(), {
+                    once: true,
+                  });
+                });
+              }
+            })();
+          }),
+      },
+      inspectionClient: {
+        watchInspections: jasmine
+          .createSpy('watchInspections')
+          .and.callFake((_req: unknown, opts?: { signal?: AbortSignal }) => {
+            return (async function* () {
+              yield {
+                inspections: [
+                  {
+                    id: 'insp-1',
+                  } as InspectionListItem,
+                ],
               };
               if (opts?.signal) {
                 await new Promise<void>((resolve) => {
@@ -103,36 +119,14 @@ describe('BackendSyncService', () => {
     expect(service.connectionStatus()).toBe(BackendConnectionStatus.Connected);
   }));
 
-  it('should become Connected when tasks succeeds', fakeAsync(() => {
-    service = TestBed.inject(BackendSyncServiceImpl);
-    service.tasks.value();
-    tick(PROGRESS_POLLING_INTERVAL);
-    expect(service.connectionStatus()).toBe(BackendConnectionStatus.Connected);
-  }));
-
   it('should become Disconnected when getInspectionTypes fails', fakeAsync(() => {
     mockBackendApi.getInspectionTypes.and.returnValue(
       throwError(() => new Error('API Error')),
     );
-    mockBackendApi.getInspections.and.returnValue(EMPTY);
 
     service = TestBed.inject(BackendSyncServiceImpl);
     service.inspectionTypes.value();
     tick();
-
-    expect(service.connectionStatus()).toBe(
-      BackendConnectionStatus.Disconnected,
-    );
-  }));
-
-  it('should become Disconnected when getInspections fails', fakeAsync(() => {
-    mockBackendApi.getInspections.and.returnValue(
-      throwError(() => new Error('API Error')),
-    );
-
-    service = TestBed.inject(BackendSyncServiceImpl);
-    service.tasks.value();
-    tick(PROGRESS_POLLING_INTERVAL);
 
     expect(service.connectionStatus()).toBe(
       BackendConnectionStatus.Disconnected,
@@ -150,7 +144,6 @@ describe('BackendSyncService', () => {
         return of({ types: [] });
       }),
     );
-    mockBackendApi.getInspections.and.returnValue(EMPTY);
 
     service = TestBed.inject(BackendSyncServiceImpl);
     service.inspectionTypes.value();
@@ -167,38 +160,18 @@ describe('BackendSyncService', () => {
     expect(service.connectionStatus()).toBe(BackendConnectionStatus.Connected);
   }));
 
-  it('should recover and become Connected when tasks succeeds after failure', fakeAsync(() => {
-    let callCount = 0;
-    mockBackendApi.getInspections.and.returnValue(
-      defer(() => {
-        callCount++;
-        if (callCount === 1) {
-          return throwError(() => new Error('API Error'));
-        }
-        return of({
-          inspections: {},
-          serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
-        });
-      }),
-    );
-    mockBackendApi.getInspectionTypes.and.returnValue(EMPTY);
-
+  it('should update inspections from watchInspections', async () => {
     service = TestBed.inject(BackendSyncServiceImpl);
-    service.tasks.value();
 
-    tick(); // Process timer(0)
+    // Wait microtasks for async generator
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
-    // First call happens immediately with timer(0) and fails
-    expect(service.connectionStatus()).toBe(
-      BackendConnectionStatus.Disconnected,
-    );
-
-    // Wait for the next polling interval
-    tick(PROGRESS_POLLING_INTERVAL);
-
-    // Second call succeeds
-    expect(service.connectionStatus()).toBe(BackendConnectionStatus.Connected);
-  }));
+    expect(service.inspections()).toEqual([
+      jasmine.objectContaining({
+        id: 'insp-1',
+      }),
+    ]);
+  });
 
   it('should update serverStat from watchServerStat', async () => {
     service = TestBed.inject(BackendSyncServiceImpl);

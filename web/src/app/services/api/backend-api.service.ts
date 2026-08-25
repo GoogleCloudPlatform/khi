@@ -17,9 +17,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
   GetInspectionTypesResponse,
-  CreateInspectionResponse,
   GetInspectionFeatureResponse,
-  PatchInspectionFeatureRequest,
   InspectionFeature,
   InspectionDryRunResponse,
   GetInspectionResponse,
@@ -28,7 +26,6 @@ import {
   InspectionMetadataOfRunResult,
   InspectionPatchRequest,
 } from '../../common/schema/api-types';
-import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import {
   EMPTY,
   Observable,
@@ -38,7 +35,7 @@ import {
   concat,
   debounceTime,
   exhaustMap,
-  filter,
+  from,
   map,
   mergeMap,
   of,
@@ -53,6 +50,13 @@ import { BackendAPI, DownloadProgressReporter } from './backend-api-interface';
 import { ProgressDialogStatusUpdator } from '../progress/progress-interface';
 import { ProgressUtil } from '../progress/progress-util';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
+import { ConnectClientService } from 'src/app/services/api/connect-client.service';
+import {
+  convertMapToParameterValues,
+  convertProtoDryRunResponseToFrontend,
+  convertProtoListItemToInspectionMetadata,
+  convertProtoMetadataToInspectionMetadataOfRunResult,
+} from 'src/app/services/api/inspection-converter';
 
 /**
  * An implementation of BackendAPI interface.
@@ -62,24 +66,11 @@ import { ApiPathUtil } from 'src/app/services/api/api-path-util';
   providedIn: 'root',
 })
 export class BackendAPIImpl implements BackendAPI {
-  private readonly http = inject(HttpClient);
   private readonly viewState = inject(ViewStateService);
-
-  private readonly API_BASE_PATH = '/api/v3';
+  private readonly connectClient = inject(ConnectClientService);
 
   private readonly MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE = 16 * 1024 * 1024;
   private readonly INSPECTION_DATA_DOWNLOAD_CONCURRENCY = 10;
-
-  /**
-   * The base address of the backend server.
-   *
-   * The index HTML file contains `<base>` tag to control the base address of resources in frontend to supporting KHI to be hosted with path rewriting behind reverse proxies.
-   */
-  private readonly baseUrl: string;
-
-  constructor() {
-    this.baseUrl = BackendAPIImpl.getServerBasePath() + this.API_BASE_PATH;
-  }
 
   /**
    * Get the server base path configuration path which is a configuration given as meta tag from backend.
@@ -88,88 +79,168 @@ export class BackendAPIImpl implements BackendAPI {
     return ApiPathUtil.getServerBasePath();
   }
 
-  public getInspectionTypes() {
-    const url = this.baseUrl + '/inspection/types';
-    return this.http.get<GetInspectionTypesResponse>(url);
+  public getInspectionTypes(): Observable<GetInspectionTypesResponse> {
+    return from(
+      this.connectClient.inspectionClient.getInspectionTypes({}),
+    ).pipe(
+      map((res) => ({
+        types: res.types.map((t) => ({
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          icon: t.icon,
+        })),
+      })),
+    );
   }
 
-  public getInspections() {
-    const url = this.baseUrl + '/inspection';
-    return this.http.get<GetInspectionResponse>(url);
+  public getInspections(): Observable<GetInspectionResponse> {
+    return from(this.connectClient.inspectionClient.getInspections({})).pipe(
+      map((res) => {
+        const inspections: {
+          [key: string]: ReturnType<
+            typeof convertProtoListItemToInspectionMetadata
+          >;
+        } = {};
+        for (const item of res.inspections) {
+          inspections[item.id] = convertProtoListItemToInspectionMetadata(item);
+        }
+        return {
+          inspections,
+          serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
+        };
+      }),
+    );
   }
 
   public createInspection(
     inspectionTypeId: string,
   ): Observable<InspectionClient> {
-    const url = this.baseUrl + '/inspection/types/' + inspectionTypeId;
-    return this.http
-      .post<CreateInspectionResponse>(url, null)
-      .pipe(
-        map(
-          (response) =>
-            new InspectionClient(this, response.inspectionID, this.viewState),
-        ),
-      );
+    return from(
+      this.connectClient.inspectionClient.createInspection({
+        inspectionTypeId,
+      }),
+    ).pipe(
+      map(
+        (res) => new InspectionClient(this, res.inspectionId, this.viewState),
+      ),
+    );
   }
 
   patchInspection(
     inspectionID: string,
     request: InspectionPatchRequest,
   ): Observable<void> {
-    const url = this.baseUrl + `/inspection/${inspectionID}`;
-    return this.http.patch<void>(url, request);
+    return from(
+      this.connectClient.inspectionClient.updateInspection({
+        inspectionId: inspectionID,
+        name: request.name,
+      }),
+    ).pipe(map(() => void 0));
   }
 
-  public getFeatureList(inspectionID: string) {
-    const url = this.baseUrl + `/inspection/${inspectionID}/features`;
-    return this.http.get<GetInspectionFeatureResponse>(url);
+  public getFeatureList(
+    inspectionID: string,
+  ): Observable<GetInspectionFeatureResponse> {
+    return from(
+      this.connectClient.inspectionClient.getInspectionFeatures({
+        inspectionId: inspectionID,
+      }),
+    ).pipe(
+      map((res) => ({
+        features: res.features.map((f) => ({
+          id: f.id,
+          label: f.label,
+          description: f.description,
+          enabled: f.enabled,
+        })),
+      })),
+    );
   }
 
   public setEnabledFeatures(
     inspectionID: string,
     featureMap: { [key: string]: boolean },
-  ) {
-    const url = this.baseUrl + `/inspection/${inspectionID}/features`;
-    const request: PatchInspectionFeatureRequest = {
-      features: featureMap,
-    };
-    return this.http.patch(url, request, {
-      responseType: 'text',
-    }) as Observable<unknown> as Observable<void>;
+  ): Observable<void> {
+    return from(
+      this.connectClient.inspectionClient.updateInspectionFeatures({
+        inspectionId: inspectionID,
+        featureStates: featureMap,
+      }),
+    ).pipe(map(() => void 0));
   }
 
-  public getInspectionMetadata(inspectionID: string) {
-    const url = this.baseUrl + `/inspection/${inspectionID}/metadata`;
-    return this.http.get<InspectionMetadataOfRunResult>(url);
+  public getInspectionMetadata(
+    inspectionID: string,
+  ): Observable<InspectionMetadataOfRunResult> {
+    return from(
+      this.connectClient.inspectionClient.getInspectionMetadata({
+        inspectionId: inspectionID,
+      }),
+    ).pipe(
+      map((res) => convertProtoMetadataToInspectionMetadataOfRunResult(res)),
+    );
   }
 
   public runInspection(
     inspectionID: string,
     request: InspectionRunRequest,
   ): Observable<void> {
-    const url = this.baseUrl + `/inspection/${inspectionID}/run`;
-    return this.http
-      .post(url, request, { responseType: 'text' })
-      .pipe(map(() => void 0));
+    const params = convertMapToParameterValues(
+      request as Record<string, unknown>,
+    );
+    const tzShift =
+      typeof request['timezoneShift'] === 'number'
+        ? (request['timezoneShift'] as number)
+        : 0;
+    return from(
+      this.connectClient.inspectionClient.runInspection({
+        inspectionId: inspectionID,
+        parameters: {
+          parameters: params,
+          timezoneShiftHours: tzShift,
+        },
+      }),
+    ).pipe(map(() => void 0));
   }
 
   public dryRunInspection(
     inspectionID: string,
     request: InspectionDryRunRequest,
   ): Observable<InspectionDryRunResponse> {
-    const url = this.baseUrl + `/inspection/${inspectionID}/dryrun`;
-    return this.http.post<InspectionDryRunResponse>(url, request);
+    const params = convertMapToParameterValues(
+      request as Record<string, unknown>,
+    );
+    const tzShift =
+      typeof request['timezoneShift'] === 'number'
+        ? (request['timezoneShift'] as number)
+        : 0;
+    return from(
+      this.connectClient.inspectionClient.dryRunInspection({
+        inspectionId: inspectionID,
+        parameters: {
+          parameters: params,
+          timezoneShiftHours: tzShift,
+        },
+      }),
+    ).pipe(map((res) => convertProtoDryRunResponseToFrontend(res)));
   }
 
   public getInspectionData(
     inspectionID: string,
     reporter: DownloadProgressReporter,
-  ) {
-    return this.getInspectionMetadata(inspectionID).pipe(
+  ): Observable<{ fileName: string; content: Blob }> {
+    return from(
+      this.connectClient.inspectionClient.getInspectionMetadata({
+        inspectionId: inspectionID,
+      }),
+    ).pipe(
       switchMap((metadata) => {
-        const totalSize = metadata.header.fileSize ?? 0;
-        const chunks = Math.ceil(
-          totalSize / this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE,
+        const totalSize = Number(metadata.header?.fileSize ?? 0n);
+        const fileName = metadata.header?.suggestedFilename || 'inspection.khi';
+        const chunks = Math.max(
+          1,
+          Math.ceil(totalSize / this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE),
         );
         const chunkLoaded: number[] = new Array(chunks).fill(0);
         return range(0, chunks).pipe(
@@ -180,45 +251,24 @@ export class BackendAPIImpl implements BackendAPI {
               this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE,
               totalSize - startInBytes,
             );
-            const params = `start=${startInBytes}&maxSize=${maxSizeInBytes}`;
-            return { index, params };
+            return { index, startInBytes, maxSizeInBytes };
           }),
-          mergeMap(({ index, params }) => {
-            const url = this.baseUrl + `/inspection/${inspectionID}/data`;
-            return this.http
-              .get(`${url}?${params}`, {
-                responseType: 'blob',
-                observe: 'events',
-                reportProgress: true,
-              })
-              .pipe(
-                map((event: HttpEvent<Blob>) => {
-                  let updated = false;
-                  let blob: Blob | null = null;
-
-                  if (event.type === HttpEventType.DownloadProgress) {
-                    chunkLoaded[index] = event.loaded;
-                    updated = true;
-                  } else if (event.type === HttpEventType.Response) {
-                    blob = event.body;
-                    if (blob) {
-                      chunkLoaded[index] = blob.size;
-                      updated = true;
-                    }
-                  }
-
-                  if (updated) {
-                    const doneBytes = chunkLoaded.reduce((a, b) => a + b, 0);
-                    reporter(totalSize, doneBytes);
-                  }
-
-                  return blob ? { index, blob } : null;
-                }),
-                filter(
-                  (result): result is { index: number; blob: Blob } =>
-                    result !== null,
-                ),
-              );
+          mergeMap(({ index, startInBytes, maxSizeInBytes }) => {
+            return from(
+              this.connectClient.inspectionClient.getInspectionDataChunk({
+                inspectionId: inspectionID,
+                offsetBytes: BigInt(startInBytes),
+                maxSizeBytes: BigInt(maxSizeInBytes),
+              }),
+            ).pipe(
+              map((chunk) => {
+                const blob = new Blob([chunk.data as BlobPart]);
+                chunkLoaded[index] = blob.size;
+                const doneBytes = chunkLoaded.reduce((a, b) => a + b, 0);
+                reporter(totalSize, doneBytes);
+                return { index, blob };
+              }),
+            );
           }, this.INSPECTION_DATA_DOWNLOAD_CONCURRENCY),
           reduce(
             (acc: Blob[], downloadResult: { index: number; blob: Blob }) => {
@@ -228,10 +278,8 @@ export class BackendAPIImpl implements BackendAPI {
             [],
           ),
           map((blobs) => {
-            const fileName = metadata.header.suggestedFilename;
             const content = new Blob(blobs);
-            if (content.size != totalSize) {
-              // The downloaded file is very likely broken if the inspection API works well.
+            if (content.size !== totalSize) {
               throw new Error(
                 `Downloaded size: ${content.size} != Content-Length: ${totalSize}`,
               );
@@ -243,11 +291,12 @@ export class BackendAPIImpl implements BackendAPI {
     );
   }
 
-  public cancelInspection(inspectionID: string) {
-    const url = this.baseUrl + `/inspection/${inspectionID}/cancel`;
-    return this.http
-      .post(url, null, { responseType: 'text' })
-      .pipe(map(() => {}));
+  public cancelInspection(inspectionID: string): Observable<void> {
+    return from(
+      this.connectClient.inspectionClient.cancelInspection({
+        inspectionId: inspectionID,
+      }),
+    ).pipe(map(() => void 0));
   }
 }
 

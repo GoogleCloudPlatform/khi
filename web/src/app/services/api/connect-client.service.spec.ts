@@ -39,7 +39,6 @@ describe('ConnectClientService', () => {
     expect(service.serverStatusClient).toBeTruthy();
     expect(typeof service.serverStatusClient.watchServerStat).toBe('function');
   });
-
   it('should initialize fileParameterUploadClient', () => {
     expect(service.fileParameterUploadClient).toBeTruthy();
     expect(typeof service.fileParameterUploadClient.startFileUpload).toBe(
@@ -70,5 +69,12 @@ describe('ConnectClientService', () => {
     await service.workbenchClient.heartbeatWorkbench({ workbenchId: 'test' });
 
     expect(capturedContentType).toContain('application/json');
+  });
+
+  it('should initialize inspectionClient with RPC methods', () => {
+    expect(service.inspectionClient).toBeTruthy();
+    expect(typeof service.inspectionClient.getInspectionTypes).toBe('function');
+    expect(typeof service.inspectionClient.watchInspections).toBe('function');
+    expect(typeof service.inspectionClient.createInspection).toBe('function');
   });
 });

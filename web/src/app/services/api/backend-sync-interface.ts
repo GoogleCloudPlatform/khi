@@ -15,11 +15,9 @@
  */
 
 import { ResourceRef, Signal } from '@angular/core';
-import {
-  GetInspectionResponse,
-  GetInspectionTypesResponse,
-} from 'src/app/common/schema/api-types';
+import { GetInspectionTypesResponse } from 'src/app/common/schema/api-types';
 import { ServerStat } from 'src/app/generated/api/v1/server_status_pb';
+import { InspectionListItem } from 'src/app/generated/api/v1/inspection_pb';
 
 /**
  * Connection status to the backend.
@@ -45,9 +43,9 @@ export interface BackendSyncService {
   readonly inspectionTypes: ResourceRef<GetInspectionTypesResponse>;
 
   /**
-   * Monitored task lists on the backend.
+   * Monitored inspection task list streamed via Connect-RPC.
    */
-  readonly tasks: ResourceRef<GetInspectionResponse>;
+  readonly inspections: Signal<readonly InspectionListItem[]>;
 
   /**
    * Monitored host server resource statistics.

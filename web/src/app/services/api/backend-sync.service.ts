@@ -22,18 +22,16 @@ import {
   signal,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { catchError, EMPTY, exhaustMap, retry, tap, timer } from 'rxjs';
+import { retry, tap } from 'rxjs';
 import { BACKEND_API, BackendAPI } from './backend-api-interface';
 import {
   BackendSyncService,
   BackendConnectionStatus,
 } from './backend-sync-interface';
-import {
-  GetInspectionTypesResponse,
-  GetInspectionResponse,
-} from 'src/app/common/schema/api-types';
+import { GetInspectionTypesResponse } from 'src/app/common/schema/api-types';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { ServerStat } from 'src/app/generated/api/v1/server_status_pb';
+import { InspectionListItem } from 'src/app/generated/api/v1/inspection_pb';
 
 /**
  * Angular injection token for BackendSyncService.
@@ -41,11 +39,6 @@ import { ServerStat } from 'src/app/generated/api/v1/server_status_pb';
 export const BACKEND_SYNC = new InjectionToken<BackendSyncService>(
   'BACKEND_SYNC',
 );
-
-/**
- * Interval to poll task progresses.
- */
-export const PROGRESS_POLLING_INTERVAL = 1000;
 
 /**
  * Interval to poll the list of inspection types.
@@ -72,6 +65,18 @@ export class BackendSyncServiceImpl implements BackendSyncService, OnDestroy {
   readonly serverStat = this.serverStatSignal.asReadonly();
 
   /**
+   * Signal to manage inspection items streamed from backend.
+   */
+  private readonly inspectionsSignal = signal<readonly InspectionListItem[]>(
+    [],
+  );
+
+  /**
+   * Monitored inspection task list streamed via Connect-RPC.
+   */
+  readonly inspections = this.inspectionsSignal.asReadonly();
+
+  /**
    * Signal to manage the connection status internally.
    */
   private readonly connectionStatusSignal = signal<BackendConnectionStatus>(
@@ -85,10 +90,43 @@ export class BackendSyncServiceImpl implements BackendSyncService, OnDestroy {
 
   constructor() {
     void this.startWatchingServerStat(this.abortController.signal);
+    void this.startWatchingInspections(this.abortController.signal);
   }
 
   ngOnDestroy(): void {
     this.abortController.abort();
+  }
+
+  /**
+   * Subscribes to the inspections stream, automatically reconnecting on 30s cycle termination.
+   */
+  private async startWatchingInspections(
+    abortSignal: AbortSignal,
+  ): Promise<void> {
+    while (!abortSignal.aborted) {
+      try {
+        const stream = this.connectClient.inspectionClient.watchInspections(
+          {},
+          { signal: abortSignal },
+        );
+        for await (const res of stream) {
+          if (abortSignal.aborted) {
+            return;
+          }
+          this.inspectionsSignal.set(res.inspections);
+          this.connectionStatusSignal.set(BackendConnectionStatus.Connected);
+        }
+        // Wait a brief moment before reconnecting on normal stream cycle expiration
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (err) {
+        if (abortSignal.aborted) {
+          return;
+        }
+        console.warn('Failed in watchInspections:', err);
+        this.connectionStatusSignal.set(BackendConnectionStatus.Disconnected);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
   }
 
   /**
@@ -136,25 +174,6 @@ export class BackendSyncServiceImpl implements BackendSyncService, OnDestroy {
         retry({
           delay: LIST_INSPECTION_TYPES_RETRY_TIME,
         }),
-      ),
-  });
-
-  /**
-   * Resource for the list of inspections and their tasks.
-   */
-  readonly tasks = rxResource<GetInspectionResponse, void>({
-    defaultValue: {
-      inspections: {},
-      serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
-    },
-    stream: () =>
-      timer(0, PROGRESS_POLLING_INTERVAL).pipe(
-        exhaustMap(() =>
-          this.backendApi.getInspections().pipe(
-            tap(this.getStatusUpdater('getInspections')),
-            catchError(() => EMPTY),
-          ),
-        ),
       ),
   });
 

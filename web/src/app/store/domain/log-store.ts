@@ -33,7 +33,7 @@ function align(offset: number, alignment: number): number {
  * Represents the shared memory structure of the log store.
  */
 export interface LogStoreSharedData {
-  readonly metadataSab: SharedArrayBuffer | ArrayBuffer;
+  readonly metadataSab: ArrayBuffer;
   readonly count: number;
   readonly idToIndex: (number | undefined)[];
 }
@@ -59,7 +59,7 @@ export interface LogDTO {
 export class LogStore {
   private readonly readOnly: boolean;
 
-  private metadataSab!: SharedArrayBuffer | ArrayBuffer;
+  private metadataSab!: ArrayBuffer;
   private ids!: Uint32Array;
   private timestamps!: BigUint64Array;
   private logTypeIds!: Uint32Array;

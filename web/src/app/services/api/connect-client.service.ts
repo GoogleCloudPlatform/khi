@@ -23,6 +23,7 @@ import { ImportInspectionService } from 'src/app/generated/api/v1/import_inspect
 import { PopupService } from 'src/app/generated/api/v1/popup_pb';
 import { ServerStatusService } from 'src/app/generated/api/v1/server_status_pb';
 import { WorkbenchService } from 'src/app/generated/api/v1/workbench_pb';
+import { InspectionService } from 'src/app/generated/api/v1/inspection_pb';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 import { environment } from 'src/environments/environment';
 
@@ -63,7 +64,6 @@ export class ConnectClientService {
    */
   public readonly serverStatusClient: Client<typeof ServerStatusService> =
     createClient(ServerStatusService, this.transport);
-
   /**
    * FileParameterUploadService Connect-RPC client.
    */
@@ -77,4 +77,10 @@ export class ConnectClientService {
   public readonly importInspectionClient: Client<
     typeof ImportInspectionService
   > = createClient(ImportInspectionService, this.transport);
+
+  /**
+   * InspectionService Connect-RPC client.
+   */
+  public readonly inspectionClient: Client<typeof InspectionService> =
+    createClient(InspectionService, this.transport);
 }

@@ -43,9 +43,7 @@ describe('DiffComponent', () => {
         {
           provide: BACKEND_SYNC,
           useValue: {
-            tasks: {
-              value: signal(null),
-            },
+            serverStat: signal(null),
             connectionStatus: signal(BackendConnectionStatus.Connected),
           },
         },

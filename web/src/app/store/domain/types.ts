@@ -32,28 +32,10 @@ export type ReadonlyDomainElement<T> = T extends Function
 export type Undefinable<T> = T | undefined;
 
 /**
- * Checks if SharedArrayBuffer is supported in the current environment.
+ * Helper to allocate an ArrayBuffer.
  */
-export function isSharedArrayBufferSupported(): boolean {
-  return typeof SharedArrayBuffer !== 'undefined';
-}
-
-/**
- * Helper to allocate a SharedArrayBuffer if supported, otherwise fallback to ArrayBuffer.
- */
-export function allocateBuffer(size: number): SharedArrayBuffer | ArrayBuffer {
-  return isSharedArrayBufferSupported()
-    ? new SharedArrayBuffer(size)
-    : new ArrayBuffer(size);
-}
-
-/**
- * Checks if the given buffer is a SharedArrayBuffer.
- */
-export function isSharedBuffer(
-  buffer: ArrayBuffer | SharedArrayBuffer,
-): boolean {
-  return isSharedArrayBufferSupported() && buffer instanceof SharedArrayBuffer;
+export function allocateBuffer(size: number): ArrayBuffer {
+  return new ArrayBuffer(size);
 }
 
 /**

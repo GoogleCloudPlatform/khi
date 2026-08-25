@@ -34,17 +34,9 @@ describe('HeaderSmartComponent', () => {
 
   const mockConnectionStatus = signal(BackendConnectionStatus.Connected);
   const mockServerStat = signal<ServerStat | null>(null);
-  const mockTasks = {
-    value: signal({
-      inspections: {},
-      serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
-    }),
-  };
-
   const mockBackendSync: Partial<BackendSyncService> = {
     connectionStatus: mockConnectionStatus,
     serverStat: mockServerStat,
-    tasks: mockTasks as unknown as BackendSyncService['tasks'],
   };
 
   const sessionSubject = new Subject<void>();

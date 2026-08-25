@@ -28,20 +28,20 @@ export interface StringEntryDTO {
   readonly value: string;
 }
 
-import { allocateBuffer, isSharedBuffer } from 'src/app/store/domain/types';
+import { allocateBuffer } from 'src/app/store/domain/types';
 
 /**
  * Represents the shared memory structure of the intern pool.
  * This can be transferred to a WebWorker via postMessage.
  */
 export interface InternPoolSharedData {
-  readonly bufferSabs: readonly (SharedArrayBuffer | ArrayBuffer)[];
-  readonly metadataSab: SharedArrayBuffer | ArrayBuffer;
+  readonly bufferSabs: readonly ArrayBuffer[];
+  readonly metadataSab: ArrayBuffer;
   readonly capacity: number;
 }
 
 /**
- * Manages the interned strings used in inspection data using SharedArrayBuffers.
+ * Manages the interned strings used in inspection data using ArrayBuffers.
  */
 export class InternPoolStore {
   /**
@@ -50,9 +50,9 @@ export class InternPoolStore {
   private readonly buffers: Uint8Array[] = [];
 
   /**
-   * The SharedArrayBuffers backing the encoded string buffers.
+   * The ArrayBuffers backing the encoded string buffers.
    */
-  private readonly bufferSabs: (SharedArrayBuffer | ArrayBuffer)[] = [];
+  private readonly bufferSabs: ArrayBuffer[] = [];
 
   /**
    * Tracks the buffer index for each string ID (1-based index, 0 represents uninitialized).
@@ -70,9 +70,9 @@ export class InternPoolStore {
   private lengths: Uint32Array;
 
   /**
-   * The single SharedArrayBuffer holding all metadata arrays.
+   * The single ArrayBuffer holding all metadata arrays.
    */
-  private metadataSab: SharedArrayBuffer | ArrayBuffer;
+  private metadataSab: ArrayBuffer;
 
   /**
    * Whether this store is read-only (for worker-side decoding).
@@ -154,7 +154,7 @@ export class InternPoolStore {
 
   /**
    * Reconstructs a read-only InternPoolStore instance from shared memory data.
-   * @param sharedData The SharedArrayBuffers and capacity metadata.
+   * @param sharedData The ArrayBuffers and capacity metadata.
    * @param maxBufferSize The maximum capacity of each buffer segment in bytes.
    */
   public static fromSharedData(
@@ -221,17 +221,12 @@ export class InternPoolStore {
 
     const buffer = this.buffers[bufferIndex];
     const bytes = buffer.subarray(offset, offset + length);
-    if (isSharedBuffer(bytes.buffer)) {
-      const nonSharedBytes = new Uint8Array(length);
-      nonSharedBytes.set(bytes);
-      return this.decoder.decode(nonSharedBytes);
-    }
     return this.decoder.decode(bytes);
   }
 
   /**
    * Transfers shared memory structure of this store.
-   * @returns The SharedArrayBuffers and metadata.
+   * @returns The ArrayBuffers and metadata.
    */
   public getSharedData(): InternPoolSharedData {
     return {
@@ -242,7 +237,7 @@ export class InternPoolStore {
   }
 
   /**
-   * Ensures the metadata TypedArrays can hold up to the given capacity by reallocating SharedArrayBuffers.
+   * Ensures the metadata TypedArrays can hold up to the given capacity by reallocating ArrayBuffers.
    * @param minCapacity The required minimum capacity.
    */
   private ensureCapacity(minCapacity: number): void {

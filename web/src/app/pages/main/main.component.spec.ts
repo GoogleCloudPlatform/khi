@@ -44,6 +44,7 @@ import { MenuManager } from 'src/app/services/menu/menu-manager.service';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { PROGRESS_DIALOG_STATUS_UPDATOR } from 'src/app/services/progress/progress-interface';
 import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
+import { InspectionListItem } from 'src/app/generated/api/v1/inspection_pb';
 
 describe('AppComponent', () => {
   let extensionStore: ExtensionStore;
@@ -84,12 +85,7 @@ describe('AppComponent', () => {
           provide: BACKEND_SYNC,
           useValue: {
             connectionStatus: signal(BackendConnectionStatus.Connected),
-            tasks: {
-              value: signal({
-                serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
-                inspections: {},
-              }),
-            },
+            inspections: signal<readonly InspectionListItem[]>([]),
           },
         },
         provideHttpClient(),

@@ -24,6 +24,7 @@ import {
 import { InMemoryWindowConnectionProvider } from '../../services/frame-connection/window-connection-provider.service';
 import { GraphPageDataSource } from 'src/app/services/frame-connection/frames/graph-page-datasource.service';
 import { BACKEND_SYNC } from '../../services/api/backend-sync.service';
+import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
 
 describe('GraphComponent', () => {
   beforeEach(async () => {
@@ -37,11 +38,8 @@ describe('GraphComponent', () => {
         {
           provide: BACKEND_SYNC,
           useValue: {
-            tasks: {
-              value: signal({
-                serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
-              }),
-            },
+            serverStat: signal(null),
+            connectionStatus: signal(BackendConnectionStatus.Connected),
           },
         },
         GraphPageDataSource,

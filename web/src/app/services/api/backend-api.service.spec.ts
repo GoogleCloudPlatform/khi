@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-import { HttpEventType, provideHttpClient } from '@angular/common/http';
-import {
-  provideHttpClientTesting,
-  HttpTestingController,
-} from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import {
   BackendAPIImpl,
@@ -28,34 +25,79 @@ import {
 import { ViewStateService } from '../view-state.service';
 import { ProgressDialogStatusUpdator } from 'src/app/services/progress/progress-interface';
 import {
-  CreateInspectionResponse,
-  GetInspectionFeatureResponse,
-  GetInspectionResponse,
-  GetInspectionTypesResponse,
   InspectionDryRunRequest,
   InspectionDryRunResponse,
-  InspectionMetadataOfRunResult,
   InspectionRunRequest,
 } from '../../common/schema/api-types';
 import { BackendAPI } from './backend-api-interface';
-import { of } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
+import { ConnectClientService } from 'src/app/services/api/connect-client.service';
+import { create } from '@bufbuild/protobuf';
+import {
+  CancelInspectionResponseSchema,
+  CreateInspectionResponseSchema,
+  DryRunInspectionResponseSchema,
+  GetInspectionDataChunkResponseSchema,
+  GetInspectionFeaturesResponseSchema,
+  GetInspectionMetadataResponseSchema,
+  GetInspectionTypesResponseSchema,
+  GetInspectionsResponseSchema,
+  InspectionPhase,
+  RunInspectionResponseSchema,
+  UpdateInspectionFeaturesResponseSchema,
+} from 'src/app/generated/api/v1/inspection_pb';
 
 describe('BackendAPIImpl testing', () => {
   let api: BackendAPIImpl;
-  let httpTestingController: HttpTestingController;
+  let mockInspectionClient: {
+    getInspectionTypes: jasmine.Spy;
+    getInspections: jasmine.Spy;
+    createInspection: jasmine.Spy;
+    patchInspection: jasmine.Spy;
+    getInspectionFeatures: jasmine.Spy;
+    updateInspectionFeatures: jasmine.Spy;
+    getInspectionMetadata: jasmine.Spy;
+    getInspectionDataChunk: jasmine.Spy;
+    runInspection: jasmine.Spy;
+    dryRunInspection: jasmine.Spy;
+    cancelInspection: jasmine.Spy;
+  };
 
   beforeEach(() => {
+    mockInspectionClient = {
+      getInspectionTypes: jasmine.createSpy('getInspectionTypes'),
+      getInspections: jasmine.createSpy('getInspections'),
+      createInspection: jasmine.createSpy('createInspection'),
+      patchInspection: jasmine.createSpy('patchInspection'),
+      getInspectionFeatures: jasmine
+        .createSpy('getInspectionFeatures')
+        .and.returnValue(
+          Promise.resolve(
+            create(GetInspectionFeaturesResponseSchema, { features: [] }),
+          ),
+        ),
+      updateInspectionFeatures: jasmine.createSpy('updateInspectionFeatures'),
+      getInspectionMetadata: jasmine.createSpy('getInspectionMetadata'),
+      getInspectionDataChunk: jasmine.createSpy('getInspectionDataChunk'),
+      runInspection: jasmine.createSpy('runInspection'),
+      dryRunInspection: jasmine.createSpy('dryRunInspection'),
+      cancelInspection: jasmine.createSpy('cancelInspection'),
+    };
+
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         BackendAPIImpl,
         ViewStateService,
+        {
+          provide: ConnectClientService,
+          useValue: { inspectionClient: mockInspectionClient },
+        },
       ],
     });
 
     api = TestBed.inject(BackendAPIImpl);
-    httpTestingController = TestBed.inject(HttpTestingController);
   });
 
   it('read server-base-path from meta tag', () => {
@@ -65,8 +107,24 @@ describe('BackendAPIImpl testing', () => {
     expect(BackendAPIImpl.getServerBasePath()).toEqual('');
   });
 
-  it('can call getInspectionTypes', () => {
-    const testData: GetInspectionTypesResponse = {
+  it('can call getInspectionTypes', async () => {
+    mockInspectionClient.getInspectionTypes.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionTypesResponseSchema, {
+          types: [
+            {
+              id: 'test',
+              name: 'test',
+              description: 'test',
+              icon: 'test.png',
+            },
+          ],
+        }),
+      ),
+    );
+
+    const data = await firstValueFrom(api.getInspectionTypes());
+    expect(data).toEqual({
       types: [
         {
           id: 'test',
@@ -75,210 +133,185 @@ describe('BackendAPIImpl testing', () => {
           icon: 'test.png',
         },
       ],
-    };
-
-    api.getInspectionTypes().subscribe((data) => {
-      expect(data).toEqual(testData);
     });
-    const req = httpTestingController.expectOne('/api/v3/inspection/types');
-
-    expect(req.request.method).toEqual('GET');
-    req.flush(testData);
+    expect(mockInspectionClient.getInspectionTypes).toHaveBeenCalledWith({});
   });
 
-  it('can call getTaskStatuses', () => {
-    const testData: GetInspectionResponse = {
-      inspections: {},
-      serverStat: {
-        currentMemoryUsage: 10,
-        totalMemory: 20,
-      },
-    };
-
-    api.getInspections().subscribe((data) => {
-      expect(data).toEqual(testData);
-    });
-    const req = httpTestingController.expectOne('/api/v3/inspection');
-
-    expect(req.request.method).toEqual('GET');
-    req.flush(testData);
-  });
-
-  it('can call createInspection', () => {
-    const testData: CreateInspectionResponse = {
-      inspectionID: 'test',
-    };
-
-    api.createInspection('test-inspection-type').subscribe((result) => {
-      expect(result.inspectionID).toEqual('test');
-    });
-    const req = httpTestingController.expectOne(
-      '/api/v3/inspection/types/test-inspection-type',
+  it('can call getTaskStatuses', async () => {
+    mockInspectionClient.getInspections.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionsResponseSchema, {
+          inspections: [
+            {
+              id: 'test-id',
+              progress: {
+                phase: InspectionPhase.RUNNING,
+              },
+            },
+          ],
+        }),
+      ),
     );
 
-    expect(req.request.method).toEqual('POST');
-    req.flush(testData);
+    const data = await firstValueFrom(api.getInspections());
+    expect(data.inspections['test-id']).toBeDefined();
+    expect(data.inspections['test-id'].progress.phase).toEqual('RUNNING');
+    expect(mockInspectionClient.getInspections).toHaveBeenCalledWith({});
   });
 
-  it('can call downloadFeatureList', () => {
-    const testData: GetInspectionFeatureResponse = {
-      features: [],
-    };
-
-    api.getFeatureList('test').subscribe((data) => {
-      expect(data).toEqual(testData);
-    });
-    const req = httpTestingController.expectOne(
-      '/api/v3/inspection/test/features',
+  it('can call createInspection', async () => {
+    mockInspectionClient.createInspection.and.returnValue(
+      Promise.resolve(
+        create(CreateInspectionResponseSchema, {
+          inspectionId: 'test',
+        }),
+      ),
     );
 
-    expect(req.request.method).toEqual('GET');
-    req.flush(testData);
+    const result = await firstValueFrom(
+      api.createInspection('test-inspection-type'),
+    );
+    expect(result.inspectionID).toEqual('test');
+    expect(mockInspectionClient.createInspection).toHaveBeenCalledWith({
+      inspectionTypeId: 'test-inspection-type',
+    });
   });
 
-  it('can call setEnabledFeatures', () => {
-    const apiSpy = jasmine.createSpy();
-    api.setEnabledFeatures('test', {}).subscribe(() => {
-      apiSpy();
-    });
-    const req = httpTestingController.expectOne(
-      '/api/v3/inspection/test/features',
+  it('can call downloadFeatureList', async () => {
+    mockInspectionClient.getInspectionFeatures.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionFeaturesResponseSchema, {
+          features: [],
+        }),
+      ),
     );
 
-    expect(req.request.method).toEqual('PATCH');
-    req.flush('ok');
-
-    expect(apiSpy).toHaveBeenCalledOnceWith();
+    const data = await firstValueFrom(api.getFeatureList('test'));
+    expect(data).toEqual({ features: [] });
+    expect(mockInspectionClient.getInspectionFeatures).toHaveBeenCalledWith({
+      inspectionId: 'test',
+    });
   });
 
-  it('can call getInspectionMetadata', () => {
-    const testData: InspectionMetadataOfRunResult = {
-      header: {
-        inspectionType: 'test',
-        inspectionName: 'test',
-        inspectionTypeIconPath: 'test',
-        inspectTimeUnixSeconds: 10,
-        startTimeUnixSeconds: 10,
-        endTimeUnixSeconds: 10,
-        suggestedFilename: 'test',
-      },
-      query: [],
-      plan: {
-        taskGraph: '',
-      },
-      log: [],
-      error: {
-        errorMessages: [],
-      },
-    };
-
-    api.getInspectionMetadata('test').subscribe((data) => {
-      expect(data).toEqual(testData);
-    });
-    const req = httpTestingController.expectOne(
-      '/api/v3/inspection/test/metadata',
+  it('can call setEnabledFeatures', async () => {
+    mockInspectionClient.updateInspectionFeatures.and.returnValue(
+      Promise.resolve(create(UpdateInspectionFeaturesResponseSchema, {})),
     );
 
-    expect(req.request.method).toEqual('GET');
-    req.flush(testData);
+    await firstValueFrom(api.setEnabledFeatures('test', {}));
+    expect(mockInspectionClient.updateInspectionFeatures).toHaveBeenCalledWith(
+      jasmine.objectContaining({ inspectionId: 'test' }),
+    );
   });
 
-  it('can call getInspectionData', () => {
+  it('can call getInspectionMetadata', async () => {
+    mockInspectionClient.getInspectionMetadata.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionMetadataResponseSchema, {
+          header: {
+            inspectionType: 'test',
+            inspectionName: 'test',
+            inspectionTypeIconPath: 'test',
+            inspectTimeUnixSeconds: 10n,
+            startTimeUnixSeconds: 10n,
+            endTimeUnixSeconds: 10n,
+            suggestedFilename: 'test',
+          },
+          queries: [],
+          plan: { taskGraph: '' },
+          logs: [],
+          error: { errorMessages: [] },
+        }),
+      ),
+    );
+
+    const data = await firstValueFrom(api.getInspectionMetadata('test'));
+    expect(data.header.inspectionName).toEqual('test');
+    expect(mockInspectionClient.getInspectionMetadata).toHaveBeenCalledWith({
+      inspectionId: 'test',
+    });
+  });
+
+  it('can call getInspectionData', async () => {
     const fileSize = 42;
-    const testMetadata: InspectionMetadataOfRunResult = {
-      header: {
-        inspectionType: 'test',
-        inspectionName: 'test',
-        inspectionTypeIconPath: 'test',
-        inspectTimeUnixSeconds: 10,
-        startTimeUnixSeconds: 10,
-        endTimeUnixSeconds: 10,
-        suggestedFilename: 'test',
-        fileSize: 42,
-      },
-      query: [],
-      plan: {
-        taskGraph: '',
-      },
-      log: [],
-      error: {
-        errorMessages: [],
-      },
-    };
-    api
-      .getInspectionData('test', () => {})
-      .subscribe((data) => {
-        expect(data.fileName).toEqual('test');
-        expect(data.content).toEqual(testData);
-      });
-    const testData = new Blob([new ArrayBuffer(fileSize)]);
-    const req0 = httpTestingController.expectOne(
-      '/api/v3/inspection/test/metadata',
+    mockInspectionClient.getInspectionMetadata.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionMetadataResponseSchema, {
+          header: {
+            inspectionType: 'test',
+            inspectionName: 'test',
+            suggestedFilename: 'test',
+            fileSize: BigInt(fileSize),
+          },
+        }),
+      ),
     );
-    expect(req0.request.method).toEqual('GET');
-    req0.flush(testMetadata);
-    const req1 = httpTestingController.expectOne(
-      `/api/v3/inspection/test/data?start=0&maxSize=${fileSize}`,
+    mockInspectionClient.getInspectionDataChunk.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionDataChunkResponseSchema, {
+          data: new Uint8Array(fileSize),
+        }),
+      ),
     );
-    expect(req1.request.method).toEqual('GET');
-    req1.flush(testData);
+
+    const data = await firstValueFrom(api.getInspectionData('test', () => {}));
+    expect(data.fileName).toEqual('test');
+    expect(data.content.size).toEqual(fileSize);
+    expect(mockInspectionClient.getInspectionDataChunk).toHaveBeenCalled();
   });
 
-  it('reports granular progress when getInspectionData receives progress events', () => {
+  it('reports granular progress when getInspectionData receives chunks', async () => {
     const fileSize = 100;
-    const testMetadata: InspectionMetadataOfRunResult = {
-      header: {
-        inspectionType: 'test',
-        inspectionName: 'test',
-        inspectionTypeIconPath: 'test',
-        inspectTimeUnixSeconds: 10,
-        startTimeUnixSeconds: 10,
-        endTimeUnixSeconds: 10,
-        suggestedFilename: 'test',
-        fileSize: 100,
-      },
-      query: [],
-      plan: {
-        taskGraph: '',
-      },
-      log: [],
-      error: {
-        errorMessages: [],
-      },
-    };
+    mockInspectionClient.getInspectionMetadata.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionMetadataResponseSchema, {
+          header: {
+            inspectionType: 'test',
+            inspectionName: 'test',
+            suggestedFilename: 'test',
+            fileSize: BigInt(fileSize),
+          },
+        }),
+      ),
+    );
+    mockInspectionClient.getInspectionDataChunk.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionDataChunkResponseSchema, {
+          data: new Uint8Array(fileSize),
+        }),
+      ),
+    );
     const reporterSpy = jasmine.createSpy('reporter');
-    api.getInspectionData('test', reporterSpy).subscribe();
-
-    const req0 = httpTestingController.expectOne(
-      '/api/v3/inspection/test/metadata',
-    );
-    req0.flush(testMetadata);
-
-    const req1 = httpTestingController.expectOne(
-      '/api/v3/inspection/test/data?start=0&maxSize=100',
-    );
-    req1.event({
-      type: HttpEventType.DownloadProgress,
-      loaded: 30,
-      total: 100,
-    });
-    expect(reporterSpy).toHaveBeenCalledWith(100, 30);
-
-    const testData = new Blob([new ArrayBuffer(fileSize)]);
-    req1.flush(testData);
+    await firstValueFrom(api.getInspectionData('test', reporterSpy));
     expect(reporterSpy).toHaveBeenCalledWith(100, 100);
   });
 
-  it('initializes progress dialog immediately when downloadInspectionDataAsFile is called', () => {
+  it('initializes progress dialog immediately when downloadInspectionDataAsFile is called', async () => {
     const progressSpy = jasmine.createSpyObj<ProgressDialogStatusUpdator>(
       'Progress',
       ['show', 'updateProgress', 'dismiss'],
     );
-    BackendAPIUtil.downloadInspectionDataAsFile(
-      api,
-      'test',
-      progressSpy,
-    ).subscribe();
+    mockInspectionClient.getInspectionMetadata.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionMetadataResponseSchema, {
+          header: {
+            suggestedFilename: 'test.khi',
+            fileSize: 10n,
+          },
+        }),
+      ),
+    );
+    mockInspectionClient.getInspectionDataChunk.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionDataChunkResponseSchema, {
+          data: new Uint8Array(10),
+        }),
+      ),
+    );
+
+    await firstValueFrom(
+      BackendAPIUtil.downloadInspectionDataAsFile(api, 'test', progressSpy),
+    );
 
     expect(progressSpy.show).toHaveBeenCalled();
     expect(progressSpy.updateProgress).toHaveBeenCalledWith({
@@ -286,71 +319,55 @@ describe('BackendAPIImpl testing', () => {
       percent: 0,
       mode: 'determinate',
     });
-
-    const req0 = httpTestingController.expectOne(
-      '/api/v3/inspection/test/metadata',
-    );
-    req0.flush({
-      header: { suggestedFilename: 'test.khi', fileSize: 10 },
-      query: [],
-      plan: { taskGraph: '' },
-      log: [],
-      error: { errorMessages: [] },
-    });
-    const req1 = httpTestingController.expectOne(
-      '/api/v3/inspection/test/data?start=0&maxSize=10',
-    );
-    req1.flush(new Blob([new ArrayBuffer(10)]));
+    expect(progressSpy.dismiss).toHaveBeenCalled();
   });
 
-  it('can call runTask', () => {
+  it('can call runTask', async () => {
     const testParameters: InspectionRunRequest = {
       test: 'foo',
     };
+    mockInspectionClient.runInspection.and.returnValue(
+      Promise.resolve(create(RunInspectionResponseSchema, {})),
+    );
 
-    api.runInspection('test', testParameters).subscribe(() => {});
-    const req = httpTestingController.expectOne('/api/v3/inspection/test/run');
-
-    expect(req.request.method).toEqual('POST');
-    expect(req.request.body).toEqual(testParameters);
-    req.flush('');
+    await firstValueFrom(api.runInspection('test', testParameters));
+    expect(mockInspectionClient.runInspection).toHaveBeenCalledWith(
+      jasmine.objectContaining({ inspectionId: 'test' }),
+    );
   });
 
-  it('can call dryRunTask', (done) => {
+  it('can call dryRunTask', async () => {
     const testParameters: InspectionDryRunRequest = {
       test: 'foo',
     };
-    const testResponse: InspectionDryRunResponse = {
-      metadata: {
-        form: [],
-        query: [],
-        plan: {
-          taskGraph: '',
-        },
-      },
-    };
-
-    api.dryRunInspection('test', testParameters).subscribe((response) => {
-      expect(response).toBe(testResponse);
-      done();
-    });
-    const req = httpTestingController.expectOne(
-      '/api/v3/inspection/test/dryrun',
+    mockInspectionClient.dryRunInspection.and.returnValue(
+      Promise.resolve(
+        create(DryRunInspectionResponseSchema, {
+          form: [],
+          queries: [],
+          plan: { taskGraph: '' },
+        }),
+      ),
     );
 
-    expect(req.request.method).toEqual('POST');
-    expect(req.request.body).toEqual(testParameters);
-    req.flush(testResponse);
+    const response = await firstValueFrom(
+      api.dryRunInspection('test', testParameters),
+    );
+    expect(response.metadata).toBeDefined();
+    expect(mockInspectionClient.dryRunInspection).toHaveBeenCalledWith(
+      jasmine.objectContaining({ inspectionId: 'test' }),
+    );
   });
 
-  it('can call cancelInspection', () => {
-    api.cancelInspection('test').subscribe(() => {});
-    const req = httpTestingController.expectOne(
-      '/api/v3/inspection/test/cancel',
+  it('can call cancelInspection', async () => {
+    mockInspectionClient.cancelInspection.and.returnValue(
+      Promise.resolve(create(CancelInspectionResponseSchema, {})),
     );
-    expect(req.request.method).toEqual('POST');
 
-    req.flush('');
+    await firstValueFrom(api.cancelInspection('test'));
+    expect(mockInspectionClient.cancelInspection).toHaveBeenCalledWith({
+      inspectionId: 'test',
+    });
   });
 });
 

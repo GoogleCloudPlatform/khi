@@ -26,9 +26,10 @@ import {
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { ProgressDialogService } from 'src/app/services/progress/progress-dialog.service';
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
+import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
+import { InspectionListItem } from 'src/app/generated/api/v1/inspection_pb';
 
 import { of } from 'rxjs';
-import { GetInspectionResponse } from 'src/app/common/schema/api-types';
 import {
   EXTENSION_STORE,
   ExtensionStore,
@@ -41,11 +42,6 @@ describe('StartupDialogComponent', () => {
   let backendAPISpy: jasmine.SpyObj<BackendAPI>;
 
   beforeEach(async () => {
-    const tasksSignal = signal<GetInspectionResponse>({
-      inspections: {},
-      serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
-    });
-
     backendAPISpy = jasmine.createSpyObj<BackendAPI>('BackendAPIService', [
       'patchInspection',
     ]);
@@ -65,9 +61,8 @@ describe('StartupDialogComponent', () => {
         {
           provide: BACKEND_SYNC,
           useValue: {
-            tasks: {
-              value: tasksSignal,
-            },
+            inspections: signal<readonly InspectionListItem[]>([]),
+            connectionStatus: signal(BackendConnectionStatus.Connected),
           },
         },
         {

@@ -45,10 +45,10 @@ function align(offset: number, alignment: number): number {
 /**
  * Represents the shared memory structure of the timeline store.
  * This is used to pass data to the worker threads.
- * To prevent the main thread from OOM killing, the main contents are shared via SharedArrayBuffer.
+ * To prevent the main thread from OOM killing, the main contents are shared via ArrayBuffer.
  */
 export interface TimelineStoreSharedData {
-  readonly metadataSab: SharedArrayBuffer | ArrayBuffer;
+  readonly metadataSab: ArrayBuffer;
   readonly timelineCount: number;
   readonly revisionCount: number;
   readonly eventCount: number;
@@ -130,7 +130,7 @@ interface TimelineStoreLayout {
 export class TimelineStore {
   private readonly readOnly: boolean;
 
-  private metadataSab!: SharedArrayBuffer | ArrayBuffer;
+  private metadataSab!: ArrayBuffer;
 
   // Timeline views
   private timelineIds!: Uint32Array;

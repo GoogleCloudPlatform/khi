@@ -19,18 +19,6 @@
 
 module.exports = function (config) {
   config.set({
-    customHeaders: [
-      {
-        match: '.*',
-        name: 'Cross-Origin-Opener-Policy',
-        value: 'same-origin',
-      },
-      {
-        match: '.*',
-        name: 'Cross-Origin-Embedder-Policy',
-        value: 'require-corp',
-      },
-    ],
     basePath: '',
     frameworks: ['jasmine', '@angular-devkit/build-angular'],
     plugins: [

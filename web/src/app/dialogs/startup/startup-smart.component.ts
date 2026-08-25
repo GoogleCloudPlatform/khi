@@ -41,11 +41,14 @@ import { StartupDialogLayoutComponent } from './components/startup-dialog-layout
 import { SidebarLink } from './types/startup-side-menu.types';
 import { InspectionListItemViewModel } from './types/inspection-activity.model';
 import {
-  InspectionMetadataProgressPhase,
   InspectionMetadataProgressElement,
   InspectionMetadataError,
 } from 'src/app/common/schema/metadata-types';
-import { BackendSyncService } from 'src/app/services/api/backend-sync-interface';
+import {
+  BackendConnectionStatus,
+  BackendSyncService,
+} from 'src/app/services/api/backend-sync-interface';
+import { convertProtoListItemToInspectionMetadata } from 'src/app/services/api/inspection-converter';
 
 /**
  * Smart component for the Startup Dialog.
@@ -77,9 +80,13 @@ export class StartupDialogSmartComponent {
 
   protected readonly links: SidebarLink[] = environment.links;
 
-  protected readonly tasks = this.backendSync.tasks.value;
+  protected readonly inspections = this.backendSync.inspections;
 
-  protected readonly isLoading = computed(() => this.tasks() === undefined);
+  protected readonly isLoading = computed(
+    () =>
+      this.backendSync.connectionStatus() ===
+        BackendConnectionStatus.Connecting && this.inspections().length === 0,
+  );
 
   private readonly ticker = toSignal(
     interval(StartupDialogSmartComponent.UI_TIME_REFRESH_INTERVAL).pipe(
@@ -89,34 +96,34 @@ export class StartupDialogSmartComponent {
 
   protected readonly vmTasks = computed(() => {
     this.ticker(); // register dependency
-    const tp = this.tasks();
-    if (!tp) return [] as InspectionListItemViewModel[];
-
-    const keys = Object.keys(tp.inspections).sort(
-      (a, b) =>
-        tp.inspections[a].header.inspectTimeUnixSeconds -
-        tp.inspections[b].header.inspectTimeUnixSeconds,
+    const streamedItems = this.inspections();
+    const sorted = [...streamedItems].sort((a, b) =>
+      Number(
+        (a.header?.inspectTimeUnixSeconds ?? 0n) -
+          (b.header?.inspectTimeUnixSeconds ?? 0n),
+      ),
     );
-    return keys.map((key) => {
-      const taskMetadata = tp.inspections[key];
+    return sorted.map((item) => {
+      const metadata = convertProtoListItemToInspectionMetadata(item);
+      const key = item.id;
       return {
         id: key,
-        label: taskMetadata.header.inspectionName,
+        label: metadata.header.inspectionName,
         inspectionTimeLabel: this.durationToTimeString(
-          Date.now() - taskMetadata.header.inspectTimeUnixSeconds * 1000,
+          Date.now() - metadata.header.inspectTimeUnixSeconds * 1000,
         ),
-        phase: taskMetadata.progress.phase as InspectionMetadataProgressPhase,
+        phase: metadata.progress.phase,
         totalProgress: {
-          id: key + '-' + taskMetadata.progress.totalProgress.id,
-          label: taskMetadata.progress.totalProgress.label,
-          message: taskMetadata.progress.totalProgress.message,
-          percentage: taskMetadata.progress.totalProgress.percentage * 100,
+          id: key + '-' + metadata.progress.totalProgress.id,
+          label: metadata.progress.totalProgress.label,
+          message: metadata.progress.totalProgress.message,
+          percentage: metadata.progress.totalProgress.percentage * 100,
           percentageLabel: (
-            taskMetadata.progress.totalProgress.percentage * 100
+            metadata.progress.totalProgress.percentage * 100
           ).toFixed(2),
           indeterminate: false,
         },
-        progresses: taskMetadata.progress.progresses.map(
+        progresses: metadata.progress.progresses.map(
           (p: InspectionMetadataProgressElement) => ({
             id: key + '-' + p.id,
             label: p.label,
@@ -126,7 +133,7 @@ export class StartupDialogSmartComponent {
             indeterminate: p.indeterminate,
           }),
         ),
-        errors: taskMetadata.error.errorMessages.map(
+        errors: metadata.error.errorMessages.map(
           (msg: InspectionMetadataError) => ({
             message: msg.message,
             link: msg.link || '',

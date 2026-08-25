@@ -32,8 +32,6 @@ import { InspectionData } from 'src/app/store/domain/inspection-data';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { ProgressReporter } from 'src/app/services/progress/progress-interface';
 import { ImportInspectionClientService } from 'src/app/services/api/import-inspection-client.service';
-import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
-import { BackendSyncService } from 'src/app/services/api/backend-sync-interface';
 import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 
 /**
@@ -46,9 +44,6 @@ export class InspectionDataLoaderService {
   );
   private readonly inspectionDataStore = inject(InspectionDataStore);
   private readonly backendService = inject<BackendAPI>(BACKEND_API);
-  private readonly backendSync = inject<BackendSyncService>(BACKEND_SYNC, {
-    optional: true,
-  });
   private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
   private readonly importClient = inject(ImportInspectionClientService);
   private readonly workbenchClient = inject(WorkbenchClientService);
@@ -96,7 +91,6 @@ export class InspectionDataLoaderService {
         },
       });
 
-      this.backendSync?.tasks.reload();
       this.progress.dismiss();
     } catch (e) {
       this.progress.dismiss();
