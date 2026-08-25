@@ -23,6 +23,7 @@ import (
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/gin-gonic/gin"
 )
 
@@ -76,6 +77,7 @@ func TestImportInspectionInitializer(t *testing.T) {
 			}
 
 			coreinit.Set(ctx, InspectionTaskServerKey, taskServer)
+			coreinit.Set(ctx, InspectionIndexManagerKey, workbench.NewInspectionIndexManager(taskServer, t.TempDir()))
 			coreinit.Set(ctx, GinRouterKey, router)
 			coreinit.Set(ctx, BasePathKey, tc.basePath)
 

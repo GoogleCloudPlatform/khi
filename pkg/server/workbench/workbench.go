@@ -76,6 +76,7 @@ type Workbench struct {
 	indexErr         error
 	indexSubscribers []chan IndexProgressEvent
 	cancelIndex      context.CancelFunc
+	indexManager     *InspectionIndexManager
 }
 
 // NewWorkbench creates a new Workbench instance.
@@ -85,6 +86,11 @@ func NewWorkbench(id string, inspectionID string) *Workbench {
 		inspectionID: inspectionID,
 		internPool:   khifilev6model.NewInternPool(nil),
 	}
+}
+
+// SetIndexManager sets the InspectionIndexManager used to retrieve or wait for background TrigramIndex instances.
+func (w *Workbench) SetIndexManager(im *InspectionIndexManager) {
+	w.indexManager = im
 }
 
 // ID returns the unique workbench identifier.

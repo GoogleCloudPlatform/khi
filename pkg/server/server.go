@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"log/slog"
@@ -40,10 +41,16 @@ const embeddedStaticFolderPath = "dist/browser"
 //go:embed dist/browser
 var embeddedStaticFolder embed.FS
 
+// InspectionIndexer defines the contract for asynchronously indexing an inspection.
+type InspectionIndexer interface {
+	StartAsyncIndexing(ctx context.Context, inspectionID string)
+}
+
 type ServerConfig struct {
 	StaticFolderPath string
 	ResourceMonitor  ResourceMonitor
 	ServerBasePath   string
+	IndexManager     InspectionIndexer
 }
 
 func redirectMiddleware(exactPath string, redirectTo string) gin.HandlerFunc {
@@ -283,6 +290,14 @@ func SetupKHIServerRoutes(engine *gin.Engine, inspectionServer *coreinspection.I
 		if err != nil {
 			ctx.String(http.StatusInternalServerError, err.Error())
 			return
+		}
+		if serverConfig.IndexManager != nil {
+			go func() {
+				<-currentTask.Wait()
+				if res, err := currentTask.Result(); err == nil && res != nil {
+					serverConfig.IndexManager.StartAsyncIndexing(context.Background(), inspectionID)
+				}
+			}()
 		}
 		ctx.String(http.StatusAccepted, "ok")
 	})

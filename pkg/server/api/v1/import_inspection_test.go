@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
@@ -28,6 +29,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/importinspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
@@ -73,7 +75,7 @@ func setupTestServer(t *testing.T) (apiv1connect.ImportInspectionServiceClient, 
 	}
 
 	manager := importinspection.NewImportSessionManager(server, ioConfig)
-	serviceServer := NewImportInspectionServiceServer(manager)
+	serviceServer := NewImportInspectionServiceServer(manager, nil)
 	mux := http.NewServeMux()
 	path, handler := apiv1connect.NewImportInspectionServiceHandler(serviceServer)
 	mux.Handle(path, handler)
@@ -352,6 +354,95 @@ func TestImportInspectionService_Errors(t *testing.T) {
 
 			if connect.CodeOf(err) != tc.wantCode {
 				t.Errorf("error code mismatch: got %v, want %v (error: %v)", connect.CodeOf(err), tc.wantCode, err)
+			}
+		})
+	}
+}
+
+func TestImportInspectionService_AsyncIndexingIntegration(t *testing.T) {
+	testCases := []struct {
+		name             string
+		withIndexManager bool
+	}{
+		{
+			name:             "triggers async indexing on complete when indexManager is configured",
+			withIndexManager: true,
+		},
+		{
+			name:             "completes cleanly when indexManager is nil",
+			withIndexManager: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			khiData := createTestBinaryKHIBytes(t, "Cluster-Test")
+			tempDir := t.TempDir()
+			destDir := t.TempDir()
+			ioConfig := &inspectioncore_contract.IOConfig{
+				TemporaryFolder: tempDir,
+				DataDestination: destDir,
+			}
+			server, err := coreinspection.NewServer(ioConfig)
+			if err != nil {
+				t.Fatalf("NewServer failed: %v", err)
+			}
+
+			manager := importinspection.NewImportSessionManager(server, ioConfig)
+			var indexManager *workbench.InspectionIndexManager
+			if tc.withIndexManager {
+				indexManager = workbench.NewInspectionIndexManager(server, destDir)
+			}
+
+			serviceServer := NewImportInspectionServiceServer(manager, indexManager)
+			mux := http.NewServeMux()
+			path, handler := apiv1connect.NewImportInspectionServiceHandler(serviceServer)
+			mux.Handle(path, handler)
+
+			httpServer := httptest.NewServer(mux)
+			defer httpServer.Close()
+			client := apiv1connect.NewImportInspectionServiceClient(httpServer.Client(), httpServer.URL)
+
+			ctx := context.Background()
+			startResp, err := client.StartImportInspection(ctx, connect.NewRequest(&apiv1.StartImportInspectionRequest{
+				FileName:       proto.String("cluster.khi"),
+				TotalSizeBytes: proto.Int64(int64(len(khiData))),
+			}))
+			if err != nil {
+				t.Fatalf("StartImportInspection failed: %v", err)
+			}
+
+			token := startResp.Msg.GetImportToken()
+			_, err = client.UploadInspectionChunk(ctx, connect.NewRequest(&apiv1.UploadInspectionChunkRequest{
+				ImportToken: proto.String(token),
+				OffsetBytes: proto.Int64(0),
+				Data:        khiData,
+			}))
+			if err != nil {
+				t.Fatalf("UploadInspectionChunk failed: %v", err)
+			}
+
+			completeResp, err := client.CompleteImportInspection(ctx, connect.NewRequest(&apiv1.CompleteImportInspectionRequest{
+				ImportToken: proto.String(token),
+			}))
+			if err != nil {
+				t.Fatalf("CompleteImportInspection failed: %v", err)
+			}
+
+			inspectionID := completeResp.Msg.GetInspectionId()
+			if tc.withIndexManager {
+				deadline := time.Now().Add(5 * time.Second)
+				var state workbench.IndexState
+				for time.Now().Before(deadline) {
+					state, _, _, _ = indexManager.IndexStatus(inspectionID)
+					if state == workbench.IndexStateBuilding || state == workbench.IndexStateReady {
+						break
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+				if state != workbench.IndexStateBuilding && state != workbench.IndexStateReady {
+					t.Errorf("expected index state to be building or ready, got %v", state)
+				}
 			}
 		})
 	}

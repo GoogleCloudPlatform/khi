@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -770,6 +771,116 @@ func TestRegisterConnectServiceHandler(t *testing.T) {
 			}
 			if recorder.Body.String() != tc.wantBody {
 				t.Errorf("got body %q, want %q", recorder.Body.String(), tc.wantBody)
+			}
+		})
+	}
+}
+
+type mockInspectionIndexer struct {
+	mu           sync.Mutex
+	indexedCalls []string
+}
+
+func (m *mockInspectionIndexer) StartAsyncIndexing(ctx context.Context, inspectionID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.indexedCalls = append(m.indexedCalls, inspectionID)
+}
+
+func (m *mockInspectionIndexer) IndexedCalls() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	res := make([]string, len(m.indexedCalls))
+	copy(res, m.indexedCalls)
+	return res
+}
+
+func TestKHIServerRoutes_RunTriggersAsyncIndexing(t *testing.T) {
+	testCases := []struct {
+		name             string
+		withIndexManager bool
+		wantIndexedCount int
+	}{
+		{
+			name:             "triggers async indexing when index manager is configured",
+			withIndexManager: true,
+			wantIndexedCount: 1,
+		},
+		{
+			name:             "does not panic or fail when index manager is nil",
+			withIndexManager: false,
+			wantIndexedCount: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			logger.InitGlobalKHILogger()
+			inspectionServer, err := createTestInspectionServer()
+			if err != nil {
+				t.Fatalf("createTestInspectionServer failed: %v", err)
+			}
+			taskID, err := inspectionServer.CreateInspection("foo")
+			if err != nil {
+				t.Fatalf("CreateInspection failed: %v", err)
+			}
+
+			mockIndexer := &mockInspectionIndexer{}
+			serverConfig := ServerConfig{
+				StaticFolderPath: "dist",
+				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
+				ServerBasePath:   "",
+			}
+			if tc.withIndexManager {
+				serverConfig.IndexManager = mockIndexer
+			}
+
+			engine := gin.New()
+			SetupKHIServerRoutes(engine, inspectionServer, &serverConfig)
+
+			task := inspectionServer.GetInspection(taskID)
+			if err := task.UpdateFeatureMap(map[string]bool{"feature-foo2#default": true}); err != nil {
+				t.Fatalf("UpdateFeatureMap failed: %v", err)
+			}
+
+			bodyBytes, err := json.Marshal(map[string]any{
+				"foo-input": "foo-input-value",
+			})
+			if err != nil {
+				t.Fatalf("json.Marshal failed: %v", err)
+			}
+			recorder := httptest.NewRecorder()
+			req, err := http.NewRequest("POST", fmt.Sprintf("/api/v3/inspection/%s/run", taskID), bytes.NewReader(bodyBytes))
+			if err != nil {
+				t.Fatalf("http.NewRequest failed: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			engine.ServeHTTP(recorder, req)
+
+			if recorder.Code != http.StatusAccepted {
+				t.Fatalf("POST /run returned code %d, want %d", recorder.Code, http.StatusAccepted)
+			}
+
+			<-task.Wait()
+
+			if tc.withIndexManager {
+				deadline := time.Now().Add(2 * time.Second)
+				for time.Now().Before(deadline) {
+					if len(mockIndexer.IndexedCalls()) == tc.wantIndexedCount {
+						break
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+
+			gotCalls := mockIndexer.IndexedCalls()
+			if diff := cmp.Diff(tc.wantIndexedCount, len(gotCalls)); diff != "" {
+				t.Errorf("indexed call count mismatch (-want +got):\n%s", diff)
+			}
+			if tc.withIndexManager && len(gotCalls) > 0 {
+				if diff := cmp.Diff(taskID, gotCalls[0]); diff != "" {
+					t.Errorf("indexed taskID mismatch (-want +got):\n%s", diff)
+				}
 			}
 		})
 	}

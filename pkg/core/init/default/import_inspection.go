@@ -30,6 +30,7 @@ var ImportInspectionInitializer = &coreinit.Initializer{
 	Dependencies: []coreinit.InitializerID{
 		InitializerIDGinServer,
 		InitializerIDInspectionTaskServer,
+		InitializerIDInspectionIndexManager,
 	},
 	Before: []coreinit.InitializerID{
 		InitializerIDServerRunner,
@@ -41,11 +42,12 @@ var ImportInspectionInitializer = &coreinit.Initializer{
 		}
 
 		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
+		indexManager := coreinit.MustGet(ctx, InspectionIndexManagerKey)
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
 
 		importSessionManager := importinspection.NewImportSessionManager(inspectionServer, inspectionServer.IOConfig())
-		importInspectionServer := serverapiv1.NewImportInspectionServiceServer(importSessionManager)
+		importInspectionServer := serverapiv1.NewImportInspectionServiceServer(importSessionManager, indexManager)
 		importInspectionPath, importInspectionHandler := apiv1connect.NewImportInspectionServiceHandler(importInspectionServer)
 		coreinit.RegisterConnectServiceHandler(router, basePath, importInspectionPath, importInspectionHandler)
 

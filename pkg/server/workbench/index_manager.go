@@ -166,6 +166,20 @@ func (m *InspectionIndexManager) StartAsyncIndexing(ctx context.Context, inspect
 	}()
 }
 
+// IndexStatus returns the current index status snapshot for the given inspection ID.
+func (m *InspectionIndexManager) IndexStatus(inspectionID string) (IndexState, float64, string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if idx, ok := m.memoryCache[inspectionID]; ok && idx != nil {
+		return IndexStateReady, 100.0, "Text search index ready.", nil
+	}
+	if ev, exists := m.latestEvent[inspectionID]; exists {
+		return ev.State, ev.ProgressPercentage, ev.Message, ev.Err
+	}
+	return IndexStateNotStarted, 0.0, "Index not started.", nil
+}
+
 // SubscribeIndexProgress returns a channel streaming IndexProgressEvents and a cancel function.
 func (m *InspectionIndexManager) SubscribeIndexProgress(ctx context.Context, inspectionID string) (<-chan IndexProgressEvent, func()) {
 	ch := make(chan IndexProgressEvent, 16)
@@ -217,10 +231,8 @@ func (m *InspectionIndexManager) SubscribeIndexProgress(ctx context.Context, ins
 	}
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			unsubscribe()
-		}
+		<-ctx.Done()
+		unsubscribe()
 	}()
 
 	return ch, unsubscribe

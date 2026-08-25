@@ -200,14 +200,43 @@ func (w *Workbench) BuildAsyncIndexesWithProgress(ctx context.Context, targetInd
 	}
 	targetIndex.StructYAMLs = structYAMLs
 
-	// Stage 2: Parallel Trigram Index Construction (50% - 100%)
-	trigramIndex, err := w.BuildTrigramIndexWithProgress(ctx, structYAMLs, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
-		return onProgress(stage, 50.0+progressPercentage*0.5, message)
-	})
-	if err != nil {
-		return err
+	// Stage 2: Trigram Index Acquisition (50% - 100%)
+	if w.indexManager != nil {
+		if idx, ok := w.indexManager.GetTrigramIndex(w.inspectionID); ok && idx != nil {
+			targetIndex.TrigramIndex = idx
+		} else {
+			subCtx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			ch, unsubscribe := w.indexManager.SubscribeIndexProgress(subCtx, w.inspectionID)
+			defer unsubscribe()
+
+			w.indexManager.StartAsyncIndexing(subCtx, w.inspectionID)
+
+			for ev := range ch {
+				pct := 50.0 + float64(ev.ProgressPercentage)*0.5
+				if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, pct, ev.Message); err != nil {
+					return err
+				}
+				if ev.State == IndexStateReady {
+					break
+				}
+				if ev.State == IndexStateFailed {
+					return fmt.Errorf("trigram index build failed: %w", ev.Err)
+				}
+			}
+			if idx, ok := w.indexManager.GetTrigramIndex(w.inspectionID); ok && idx != nil {
+				targetIndex.TrigramIndex = idx
+			}
+		}
+	} else {
+		trigramIndex, err := w.BuildTrigramIndexWithProgress(ctx, structYAMLs, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+			return onProgress(stage, 50.0+progressPercentage*0.5, message)
+		})
+		if err != nil {
+			return err
+		}
+		targetIndex.TrigramIndex = trigramIndex
 	}
-	targetIndex.TrigramIndex = trigramIndex
 
 	if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, 100.0, "Search index ready."); err != nil {
 		return err

@@ -138,6 +138,10 @@ func (m *ImportSessionManager) CompleteSession(token string) (*FinalizedImport, 
 		return nil, fmt.Errorf("failed to persist inspection file: %w", err)
 	}
 
+	// Invalidate any stale trigram index from a previous upload of the same ID.
+	_ = os.Remove(filepath.Join(destinationDir, inspectionID+".trigram"))
+	_ = os.Remove(filepath.Join(destinationDir, inspectionID+".trigram.tmp"))
+
 	store := inspectioncore_contract.NewFileSystemInspectionResultRepository(destinationPath)
 	fileSize, err := store.GetInspectionResultSizeInBytes()
 	if err != nil {

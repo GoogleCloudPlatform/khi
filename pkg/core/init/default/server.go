@@ -45,6 +45,7 @@ var GinServerInitializer = &coreinit.Initializer{
 	Dependencies: []coreinit.InitializerID{
 		InitializerIDGinEngine,
 		InitializerIDInspectionTaskServer,
+		InitializerIDInspectionIndexManager,
 	},
 	Before: []coreinit.InitializerID{
 		InitializerIDServerRunner,
@@ -70,6 +71,7 @@ var GinServerInitializer = &coreinit.Initializer{
 			StaticFolderPath: *serverParams.FrontendAssetFolder,
 			ResourceMonitor:  server.NewResourceMonitorImpl(),
 			ServerBasePath:   *serverParams.BasePath,
+			IndexManager:     coreinit.MustGet(ctx, InspectionIndexManagerKey),
 		}
 		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
 

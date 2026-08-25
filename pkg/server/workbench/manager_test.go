@@ -106,7 +106,7 @@ func TestWorkbenchManager_GetOrOpen(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mgr := NewWorkbenchManager(inspectionServer, 100*time.Millisecond, 0)
+			mgr := NewWorkbenchManager(inspectionServer, nil, 100*time.Millisecond, 0)
 			defer mgr.Stop()
 
 			var progressEvents []apiv1.OpenWorkbenchResponse_Stage
@@ -140,7 +140,7 @@ func TestWorkbenchManager_GetOrOpen(t *testing.T) {
 func TestWorkbenchManager_HeartbeatAndClose(t *testing.T) {
 	inspectionServer, validInspectionID := createTestInspectionServer(t)
 
-	mgr := NewWorkbenchManager(inspectionServer, 50*time.Millisecond, 0)
+	mgr := NewWorkbenchManager(inspectionServer, nil, 50*time.Millisecond, 0)
 	defer mgr.Stop()
 
 	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
@@ -176,7 +176,7 @@ func TestWorkbenchManager_HeartbeatAndClose(t *testing.T) {
 func TestWorkbenchManager_LeasesAndRemove(t *testing.T) {
 	inspectionServer, validInspectionID := createTestInspectionServer(t)
 
-	mgr := NewWorkbenchManager(inspectionServer, 50*time.Millisecond, 0)
+	mgr := NewWorkbenchManager(inspectionServer, nil, 50*time.Millisecond, 0)
 	defer mgr.Stop()
 
 	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
@@ -208,7 +208,7 @@ func TestWorkbenchManager_LeasesAndRemove(t *testing.T) {
 func TestWorkbenchManager_GetAndTouch(t *testing.T) {
 	inspectionServer, validInspectionID := createTestInspectionServer(t)
 
-	mgr := NewWorkbenchManager(inspectionServer, 50*time.Millisecond, 0)
+	mgr := NewWorkbenchManager(inspectionServer, nil, 50*time.Millisecond, 0)
 	defer mgr.Stop()
 
 	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
@@ -268,7 +268,7 @@ func TestWorkbenchManager_ReopenDifferentInspection(t *testing.T) {
 	}
 	<-runner.Wait()
 
-	mgr := NewWorkbenchManager(inspectionServer, 5*time.Second, 0)
+	mgr := NewWorkbenchManager(inspectionServer, nil, 5*time.Second, 0)
 	defer mgr.Stop()
 
 	workbenchID := "user-session-same"
@@ -318,7 +318,7 @@ func TestWorkbenchManager_ReopenDifferentInspection(t *testing.T) {
 func TestWorkbenchManager_ConcurrentGetOrOpen(t *testing.T) {
 	inspectionServer, validInspectionID := createTestInspectionServer(t)
 
-	mgr := NewWorkbenchManager(inspectionServer, 5*time.Second, 0)
+	mgr := NewWorkbenchManager(inspectionServer, nil, 5*time.Second, 0)
 	defer mgr.Stop()
 
 	const numConcurrent = 10
@@ -352,5 +352,69 @@ func TestWorkbenchManager_ConcurrentGetOrOpen(t *testing.T) {
 		if results[i] != results[0] {
 			t.Errorf("goroutine %d returned workbench instance %p, want %p", i, results[i], results[0])
 		}
+	}
+}
+
+func TestWorkbenchManager_WithInspectionIndexManager(t *testing.T) {
+	testCases := []struct {
+		name              string
+		withPrebuiltIndex bool
+	}{
+		{
+			name:              "loads prebuilt index when available in indexManager",
+			withPrebuiltIndex: true,
+		},
+		{
+			name:              "indexes asynchronously on demand when not prebuilt",
+			withPrebuiltIndex: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			inspectionServer, validInspectionID := createTestInspectionServer(t)
+			dataDir := t.TempDir()
+			indexMgr := NewInspectionIndexManager(inspectionServer, dataDir)
+
+			if tc.withPrebuiltIndex {
+				indexMgr.StartAsyncIndexing(context.Background(), validInspectionID)
+				deadline := time.Now().Add(5 * time.Second)
+				for time.Now().Before(deadline) {
+					state, _, _, _ := indexMgr.IndexStatus(validInspectionID)
+					if state == IndexStateReady {
+						break
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+
+			wbMgr := NewWorkbenchManager(inspectionServer, indexMgr, 5*time.Second, 0)
+			defer wbMgr.Stop()
+
+			wb, err := wbMgr.GetOrOpen(context.Background(), "wb-session-1", validInspectionID, func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error {
+				return nil
+			})
+			if err != nil {
+				t.Fatalf("GetOrOpen failed: %v", err)
+			}
+
+			// Wait for Workbench indexing to reach ready
+			deadline := time.Now().Add(5 * time.Second)
+			var state IndexState
+			for time.Now().Before(deadline) {
+				state, _, _, _ = wb.IndexStatus()
+				if state == IndexStateReady {
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+
+			if state != IndexStateReady {
+				t.Errorf("wb.IndexStatus() state = %v, want %v", state, IndexStateReady)
+			}
+			if wb.searchIndex == nil || wb.searchIndex.TrigramIndex == nil {
+				t.Errorf("expected searchIndex.TrigramIndex to be populated")
+			}
+		})
 	}
 }

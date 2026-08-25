@@ -88,7 +88,7 @@ func createTestInspectionServerForWorkbench(t *testing.T) (*coreinspection.Inspe
 func setupTestWorkbenchServer(t *testing.T) (*httptest.Server, apiv1connect.WorkbenchServiceClient, *workbench.WorkbenchManager, string) {
 	inspectionServer, validInspID := createTestInspectionServerForWorkbench(t)
 
-	manager := workbench.NewWorkbenchManager(inspectionServer, 100*time.Millisecond, 0)
+	manager := workbench.NewWorkbenchManager(inspectionServer, nil, 100*time.Millisecond, 0)
 	serverImpl := NewWorkbenchServiceServer(manager)
 	mux := http.NewServeMux()
 	path, handler := apiv1connect.NewWorkbenchServiceHandler(serverImpl)

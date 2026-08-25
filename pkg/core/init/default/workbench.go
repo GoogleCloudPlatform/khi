@@ -27,7 +27,27 @@ import (
 var (
 	// WorkbenchManagerKey stores the WorkbenchManager instance in the init context.
 	WorkbenchManagerKey = typedmap.NewTypedKey[*workbench.WorkbenchManager]("khi.google.com/init/workbench-manager")
+	// InspectionIndexManagerKey stores the InspectionIndexManager instance in the init context.
+	InspectionIndexManagerKey = typedmap.NewTypedKey[*workbench.InspectionIndexManager]("khi.google.com/init/inspection-index-manager")
 )
+
+// InitializerIDInspectionIndexManager identifies the Initializer that creates the InspectionIndexManager.
+const InitializerIDInspectionIndexManager coreinit.InitializerID = "khi.default/inspection-index-manager"
+
+// InspectionIndexManagerInitializer initializes the persistent InspectionIndexManager.
+var InspectionIndexManagerInitializer = &coreinit.Initializer{
+	ID: InitializerIDInspectionIndexManager,
+	Dependencies: []coreinit.InitializerID{
+		InitializerIDInspectionTaskServer,
+	},
+	Init: func(ctx *coreinit.InitContext) error {
+		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
+		dataDir := inspectionServer.IOConfig().DataDestination
+		indexManager := workbench.NewInspectionIndexManager(inspectionServer, dataDir)
+		coreinit.Set(ctx, InspectionIndexManagerKey, indexManager)
+		return nil
+	},
+}
 
 // InitializerIDWorkbenchService identifies the Initializer that mounts the WorkbenchService.
 const InitializerIDWorkbenchService coreinit.InitializerID = "khi.default/workbench-service"
@@ -38,6 +58,7 @@ var WorkbenchServiceInitializer = &coreinit.Initializer{
 	Dependencies: []coreinit.InitializerID{
 		InitializerIDGinServer,
 		InitializerIDInspectionTaskServer,
+		InitializerIDInspectionIndexManager,
 	},
 	Before: []coreinit.InitializerID{
 		InitializerIDServerRunner,
@@ -48,10 +69,11 @@ var WorkbenchServiceInitializer = &coreinit.Initializer{
 			return nil
 		}
 		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
+		indexManager := coreinit.MustGet(ctx, InspectionIndexManagerKey)
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
 
-		workbenchManager := workbench.NewWorkbenchManager(inspectionServer, 60*time.Second, 15*time.Second)
+		workbenchManager := workbench.NewWorkbenchManager(inspectionServer, indexManager, 15*time.Minute, 15*time.Second)
 		coreinit.Set(ctx, WorkbenchManagerKey, workbenchManager)
 
 		workbenchPath, workbenchHandler := apiv1connect.NewWorkbenchServiceHandler(apiv1impl.NewWorkbenchServiceServer(workbenchManager))
@@ -61,5 +83,6 @@ var WorkbenchServiceInitializer = &coreinit.Initializer{
 }
 
 func init() {
+	coreinit.RegisterInitializer(InspectionIndexManagerInitializer)
 	coreinit.RegisterInitializer(WorkbenchServiceInitializer)
 }

@@ -42,17 +42,19 @@ type WorkbenchManager struct {
 	workbenches      map[string]*Workbench
 	leases           map[string]time.Time
 	inspectionServer *coreinspection.InspectionTaskServer
+	indexManager     *InspectionIndexManager
 	ttl              time.Duration
 	sweeper          *Sweeper
 	loadGroup        singleflight.Group
 }
 
 // NewWorkbenchManager creates a new WorkbenchManager instance with automatic background sweeping.
-func NewWorkbenchManager(inspectionServer *coreinspection.InspectionTaskServer, ttl time.Duration, sweeperInterval time.Duration) *WorkbenchManager {
+func NewWorkbenchManager(inspectionServer *coreinspection.InspectionTaskServer, indexManager *InspectionIndexManager, ttl time.Duration, sweeperInterval time.Duration) *WorkbenchManager {
 	mgr := &WorkbenchManager{
 		workbenches:      make(map[string]*Workbench),
 		leases:           make(map[string]time.Time),
 		inspectionServer: inspectionServer,
+		indexManager:     indexManager,
 		ttl:              ttl,
 	}
 
@@ -119,6 +121,7 @@ func (m *WorkbenchManager) GetOrOpen(ctx context.Context, workbenchID string, in
 		if err != nil {
 			return nil, err
 		}
+		loadedWb.SetIndexManager(m.indexManager)
 
 		m.mu.Lock()
 		if oldWb, exists := m.workbenches[workbenchID]; exists && oldWb != nil && oldWb != loadedWb {
