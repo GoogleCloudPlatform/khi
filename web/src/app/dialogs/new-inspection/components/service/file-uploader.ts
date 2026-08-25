@@ -15,14 +15,9 @@
  */
 
 import { inject, InjectionToken } from '@angular/core';
-import { filter, map, Observable, of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { UploadToken } from '../../../../common/schema/form-types';
-import {
-  BACKEND_API,
-  BackendAPI,
-} from 'src/app/services/api/backend-api-interface';
-import { HttpEventType } from '@angular/common/http';
-import { unreachable } from 'src/app/common/misc-util';
+import { FileParameterUploadClientService } from 'src/app/services/api/file-parameter-upload-client.service';
 
 /**
  * Type for the status reported from the uploader.
@@ -71,49 +66,54 @@ export class MockFileUploader implements FileUploader {
  * An implementation of the file uploader to the KHI server.
  */
 export class KHIServerFileUploader implements FileUploader {
-  private readonly backendAPI: BackendAPI = inject(BACKEND_API);
+  private readonly uploadClient: FileParameterUploadClientService = inject(
+    FileParameterUploadClientService,
+  );
 
   upload(token: UploadToken, file: File): Observable<FileUploaderStatus> {
-    return this.backendAPI.uploadFile(token, file).pipe(
-      filter(
-        (status) =>
-          status.type !== HttpEventType.User &&
-          status.type !== HttpEventType.DownloadProgress,
-      ),
-      map((status) => {
-        switch (status.type) {
-          case HttpEventType.Response:
-            return {
-              done: true,
-              completeRatio: 1,
-              completeRatioUnknown: false,
-            };
-          case HttpEventType.ResponseHeader:
-          case HttpEventType.Sent:
-            return {
-              done: false,
-              completeRatio: 0,
-              completeRatioUnknown: false,
-            };
-          case HttpEventType.UploadProgress:
-            if (status.total !== undefined) {
-              // This status.total can be undefined but I don't know when it could be.
-              return {
-                done: status.loaded === status.total,
-                completeRatio: status.loaded / status.total,
+    return new Observable<FileUploaderStatus>((subscriber) => {
+      const abortController = new AbortController();
+
+      subscriber.next({
+        done: false,
+        completeRatio: 0,
+        completeRatioUnknown: false,
+      });
+
+      this.uploadClient
+        .uploadFile(token.id, file, {
+          abortSignal: abortController.signal,
+          onProgress: (uploadedBytes, totalBytes) => {
+            if (totalBytes > 0) {
+              subscriber.next({
+                done: uploadedBytes === totalBytes,
+                completeRatio: uploadedBytes / totalBytes,
                 completeRatioUnknown: false,
-              };
+              });
             } else {
-              return {
-                done: status.loaded === status.total,
+              subscriber.next({
+                done: false,
                 completeRatio: 0,
                 completeRatioUnknown: true,
-              };
+              });
             }
-          default:
-            unreachable(status);
-        }
-      }),
-    );
+          },
+        })
+        .then(() => {
+          subscriber.next({
+            done: true,
+            completeRatio: 1,
+            completeRatioUnknown: false,
+          });
+          subscriber.complete();
+        })
+        .catch((err: unknown) => {
+          subscriber.error(err);
+        });
+
+      return () => {
+        abortController.abort();
+      };
+    });
   }
 }

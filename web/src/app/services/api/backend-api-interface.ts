@@ -27,8 +27,6 @@ import {
 } from '../../common/schema/api-types';
 import { InspectionClient } from './backend-api.service';
 import { InjectionToken } from '@angular/core';
-import { UploadToken } from 'src/app/common/schema/form-types';
-import { HttpEvent } from '@angular/common/http';
 
 /**
  * A function type to report the progress of download.
@@ -153,9 +151,4 @@ export interface BackendAPI {
    * @param inspectionID inspection ID to cancel
    */
   cancelInspection(inspectionID: string): Observable<void>;
-
-  /**
-   * Upload the file as the one bound to the token.
-   */
-  uploadFile(token: UploadToken, file: File): Observable<HttpEvent<unknown>>;
 }

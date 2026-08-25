@@ -19,13 +19,17 @@ import { createClient, Client } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ImportInspectionService } from 'src/app/generated/api/v1/import_inspection_pb';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
+import {
+  executeChunkedUpload,
+  ChunkUploadProgressCallback,
+  DEFAULT_CHUNK_SIZE_BYTES,
+  DEFAULT_MAX_CONCURRENCY,
+} from 'src/app/services/api/chunked-uploader';
 
 /**
  * Callback function type for reporting file upload progress.
  */
-export interface ImportProgressCallback {
-  (uploadedBytes: number, totalBytes: number): void;
-}
+export type ImportProgressCallback = ChunkUploadProgressCallback;
 
 /**
  * Options for importing a .khi inspection file.
@@ -51,11 +55,6 @@ export interface ImportInspectionResult {
   readonly fileSizeBytes: number;
 }
 
-interface ChunkDescriptor {
-  readonly offset: number;
-  readonly length: number;
-}
-
 /**
  * Client service for uploading and importing .khi inspection files via Connect-RPC.
  */
@@ -64,10 +63,10 @@ interface ChunkDescriptor {
 })
 export class ImportInspectionClientService {
   /** Default chunk size in bytes (16 MB). */
-  public static readonly DEFAULT_CHUNK_SIZE_BYTES = 16 * 1024 * 1024;
+  public static readonly DEFAULT_CHUNK_SIZE_BYTES = DEFAULT_CHUNK_SIZE_BYTES;
 
   /** Default maximum number of concurrent chunk uploads. */
-  public static readonly DEFAULT_MAX_CONCURRENCY = 4;
+  public static readonly DEFAULT_MAX_CONCURRENCY = DEFAULT_MAX_CONCURRENCY;
 
   private readonly client: Client<typeof ImportInspectionService>;
 
@@ -104,92 +103,24 @@ export class ImportInspectionClientService {
         ? Number(startResponse.suggestedChunkSizeBytes)
         : ImportInspectionClientService.DEFAULT_CHUNK_SIZE_BYTES;
 
-    const chunks: ChunkDescriptor[] = [];
-    for (let offset = 0; offset < totalSize; offset += chunkSize) {
-      const length = Math.min(chunkSize, totalSize - offset);
-      chunks.push({ offset, length });
-    }
-
-    const maxConcurrency = Math.max(
-      1,
-      options?.maxConcurrency ??
-        ImportInspectionClientService.DEFAULT_MAX_CONCURRENCY,
-    );
-
-    const abortController = new AbortController();
-    if (options?.abortSignal) {
-      if (options.abortSignal.aborted) {
-        abortController.abort();
-      } else {
-        options.abortSignal.addEventListener(
-          'abort',
-          () => abortController.abort(),
-          { once: true },
-        );
-      }
-    }
-
     try {
-      let nextChunkIndex = 0;
-      let uploadedBytes = 0;
-      let firstError: unknown = null;
-
-      const workerCount = Math.min(maxConcurrency, chunks.length);
-      const workers = Array.from({ length: workerCount }, async () => {
-        while (true) {
-          if (abortController.signal.aborted || firstError !== null) {
-            break;
-          }
-
-          const index = nextChunkIndex++;
-          if (index >= chunks.length) {
-            break;
-          }
-
-          const chunk = chunks[index];
-          try {
-            const sliceBlob = file.slice(
-              chunk.offset,
-              chunk.offset + chunk.length,
-            );
-            const buffer = await sliceBlob.arrayBuffer();
-            const data = new Uint8Array(buffer);
-
-            if (abortController.signal.aborted || firstError !== null) {
-              break;
-            }
-
-            await this.client.uploadInspectionChunk(
-              {
-                importToken: token,
-                offsetBytes: BigInt(chunk.offset),
-                data,
-              },
-              { signal: abortController.signal },
-            );
-
-            uploadedBytes += chunk.length;
-            if (options?.onProgress) {
-              options.onProgress(uploadedBytes, totalSize);
-            }
-          } catch (err) {
-            if (firstError === null) {
-              firstError = err;
-              abortController.abort();
-            }
-            break;
-          }
-        }
+      await executeChunkedUpload({
+        file,
+        chunkSize,
+        maxConcurrency: options?.maxConcurrency,
+        abortSignal: options?.abortSignal,
+        onProgress: options?.onProgress,
+        uploadChunk: async (offsetBytes, data, signal) => {
+          await this.client.uploadInspectionChunk(
+            {
+              importToken: token,
+              offsetBytes: BigInt(offsetBytes),
+              data,
+            },
+            { signal },
+          );
+        },
       });
-
-      await Promise.all(workers);
-
-      if (firstError !== null) {
-        throw firstError;
-      }
-      if (options?.abortSignal?.aborted) {
-        throw new DOMException('Upload aborted by user', 'AbortError');
-      }
 
       const completeResponse = await this.client.completeImportInspection(
         {

@@ -52,7 +52,6 @@ import { ViewStateService } from '../view-state.service';
 import { BackendAPI, DownloadProgressReporter } from './backend-api-interface';
 import { ProgressDialogStatusUpdator } from '../progress/progress-interface';
 import { ProgressUtil } from '../progress/progress-util';
-import { UploadToken } from 'src/app/common/schema/form-types';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 
 /**
@@ -249,20 +248,6 @@ export class BackendAPIImpl implements BackendAPI {
     return this.http
       .post(url, null, { responseType: 'text' })
       .pipe(map(() => {}));
-  }
-
-  public uploadFile(
-    token: UploadToken,
-    file: File,
-  ): Observable<HttpEvent<unknown>> {
-    const url = this.baseUrl + `/upload`;
-    const formData = new FormData();
-    formData.append('upload-token-id', token.id);
-    formData.append('file', file, file.name);
-    return this.http.post(url, formData, {
-      reportProgress: true,
-      observe: 'events',
-    });
   }
 }
 
