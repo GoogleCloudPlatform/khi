@@ -1,0 +1,595 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package api.v1;
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1";
+
+// InspectionType represents a supported cluster or log platform type (e.g. GKE, Cloud Composer).
+message InspectionType {
+  // Unique identifier for the inspection type.
+  string id = 1;
+
+  // Human-readable display name of the inspection type.
+  string name = 2;
+
+  // Detailed description of the inspection type and its scope.
+  string description = 3;
+
+  // URI or path to the icon image representing this inspection type.
+  string icon = 4;
+
+  // Additional key-value metadata associated with the inspection type.
+  map<string, string> labels = 5;
+}
+
+// InspectionFeature represents a toggleable log source or analysis feature within an inspection runner.
+message InspectionFeature {
+  // Unique identifier for the feature.
+  string id = 1;
+
+  // Short descriptive label of the feature.
+  string label = 2;
+
+  // Detailed explanation of the feature and what data it inspects.
+  string description = 3;
+
+  // Whether this feature is currently enabled.
+  bool enabled = 4;
+}
+
+// InspectionPhase indicates the high-level execution state of an inspection run.
+enum InspectionPhase {
+  // Default unspecified phase.
+  INSPECTION_PHASE_UNSPECIFIED = 0;
+
+  // Inspection task graph is currently executing.
+  INSPECTION_PHASE_RUNNING = 1;
+
+  // Inspection execution completed successfully.
+  INSPECTION_PHASE_DONE = 2;
+
+  // Inspection encountered an unrecoverable error during execution.
+  INSPECTION_PHASE_ERROR = 3;
+
+  // Inspection was cancelled before completion.
+  INSPECTION_PHASE_CANCELLED = 4;
+}
+
+// TaskProgressElement conveys progress metrics for a single inspection task or the total progress.
+message TaskProgressElement {
+  // Unique identifier for the task element.
+  string id = 1;
+
+  // Display label for the progress element.
+  string label = 2;
+
+  // Status message describing current work.
+  string message = 3;
+
+  // Completion percentage between 0.0 and 1.0.
+  float percentage = 4;
+
+  // Whether progress is indeterminate without a calculable percentage.
+  bool indeterminate = 5;
+}
+
+// InspectionProgress represents the live execution progress of an inspection.
+message InspectionProgress {
+  // Current execution phase.
+  InspectionPhase phase = 1;
+
+  // Aggregated total progress across all tasks.
+  TaskProgressElement total_progress = 2;
+
+  // Individual progress breakdown for each executing task.
+  repeated TaskProgressElement progresses = 3;
+}
+
+// InspectionHeader holds metadata identifying the inspection and generated archive.
+message InspectionHeader {
+  // Inspection type ID used for this run.
+  string inspection_type = 1;
+
+  // User-assigned name for the inspection.
+  string inspection_name = 2;
+
+  // Icon path representing the inspection type.
+  string inspection_type_icon_path = 3;
+
+  // Unix timestamp in seconds when inspection was initialized.
+  int64 inspect_time_unix_seconds = 4;
+
+  // Unix timestamp in seconds when execution started.
+  int64 start_time_unix_seconds = 5;
+
+  // Unix timestamp in seconds when execution completed.
+  int64 end_time_unix_seconds = 6;
+
+  // Suggested filename for downloading the resulting archive.
+  string suggested_filename = 7;
+
+  // Total byte size of the generated inspection archive.
+  int64 file_size = 8;
+}
+
+// InspectionError describes a specific error or warning encountered during inspection.
+message InspectionError {
+  // Identifier of the error code or category.
+  string error_id = 1;
+
+  // Human-readable error message.
+  string message = 2;
+
+  // Optional URL pointing to troubleshooting documentation.
+  string link = 3;
+}
+
+// InspectionErrorSet contains errors reported during inspection execution.
+message InspectionErrorSet {
+  // Collection of error messages.
+  repeated InspectionError error_messages = 1;
+}
+
+// InspectionListItem summarizes an inspection runner session for listing and watching.
+message InspectionListItem {
+  // Unique inspection session ID.
+  string id = 1;
+
+  // Header metadata of the inspection.
+  InspectionHeader header = 2;
+
+  // Live execution progress of the inspection.
+  InspectionProgress progress = 3;
+
+  // Errors encountered during execution, if any.
+  InspectionErrorSet error = 4;
+}
+
+// ParameterHintType defines the severity of hint messages displayed under form inputs.
+enum ParameterHintType {
+  // Default unspecified hint type.
+  PARAMETER_HINT_TYPE_UNSPECIFIED = 0;
+
+  // Neutral informational hint.
+  PARAMETER_HINT_TYPE_NONE = 1;
+
+  // Error validation hint.
+  PARAMETER_HINT_TYPE_ERROR = 2;
+
+  // Warning validation hint.
+  PARAMETER_HINT_TYPE_WARNING = 3;
+
+  // Informational advisory hint.
+  PARAMETER_HINT_TYPE_INFO = 4;
+}
+
+// ValidationTiming defines when form field validation should be triggered.
+enum ValidationTiming {
+  // Default unspecified validation timing.
+  VALIDATION_TIMING_UNSPECIFIED = 0;
+
+  // Validation executes on every character change.
+  VALIDATION_TIMING_CHANGE = 1;
+
+  // Validation executes when input loses focus.
+  VALIDATION_TIMING_BLUR = 2;
+}
+
+// UploadStatus indicates the server-side receiving and verification status of an uploaded file.
+enum UploadStatus {
+  // Default unspecified upload status.
+  UPLOAD_STATUS_UNSPECIFIED = 0;
+
+  // Waiting for file upload to begin.
+  UPLOAD_STATUS_WAITING = 1;
+
+  // Upload in progress.
+  UPLOAD_STATUS_UPLOADING = 2;
+
+  // Verifying uploaded file integrity.
+  UPLOAD_STATUS_VERIFYING = 3;
+
+  // File upload and validation completed successfully.
+  UPLOAD_STATUS_DONE = 4;
+}
+
+// GroupFormField groups multiple form fields together with optional collapsing.
+message GroupFormField {
+  // Child form fields contained in this group.
+  repeated FormField children = 1;
+
+  // Whether the group can be collapsed by the user.
+  bool collapsible = 2;
+
+  // Whether the group is collapsed initially.
+  bool collapsed_by_default = 3;
+}
+
+// TextFormField configures a single-line or multi-line text input field.
+message TextFormField {
+  // Whether this input is read-only.
+  bool readonly = 1;
+
+  // Default text value.
+  string default_value = 2;
+
+  // Autocomplete suggestion candidates.
+  repeated string suggestions = 3;
+
+  // When field validation executes.
+  ValidationTiming validation_timing = 4;
+}
+
+// FileFormField configures a file upload input field.
+message FileFormField {
+  // Token ID to bind the uploaded file with the form field.
+  string token_id = 1;
+
+  // Current upload status of the file on the server.
+  UploadStatus status = 2;
+}
+
+// SetOption defines a selectable choice within a set form field.
+message SetOption {
+  // Unique option key.
+  string id = 1;
+
+  // Human-readable description of the option.
+  string description = 2;
+}
+
+// SetFormField configures a multi-select or tags input field.
+message SetFormField {
+  // Available selectable options.
+  repeated SetOption options = 1;
+
+  // Pre-selected default option keys.
+  repeated string default_values = 2;
+
+  // Whether arbitrary custom values can be typed and added.
+  bool allow_custom_value = 3;
+
+  // Whether a bulk "Select All" action is available.
+  bool allow_add_all = 4;
+
+  // Whether a bulk "Deselect All" action is available.
+  bool allow_remove_all = 5;
+}
+
+// FormField defines a single input field or group within the dynamic inspection parameter form.
+message FormField {
+  // Unique identifier for the form field.
+  string id = 1;
+
+  // Label text displayed above the input.
+  string label = 2;
+
+  // Explanatory description of the parameter.
+  string description = 3;
+
+  // Severity category of the hint.
+  ParameterHintType hint_type = 4;
+
+  // Hint or validation message text displayed beneath the input.
+  string hint = 5;
+
+  // Specific field type configuration.
+  oneof kind {
+    // Nested group containing sub-fields.
+    GroupFormField group = 6;
+
+    // Standard text input.
+    TextFormField text = 7;
+
+    // File upload field.
+    FileFormField file = 8;
+
+    // Multi-select option set field.
+    SetFormField set = 9;
+  }
+}
+
+// InspectionQuery contains a generated query string associated with the inspection.
+message InspectionQuery {
+  // Identifier of the query.
+  string id = 1;
+
+  // Human-readable query title.
+  string name = 2;
+
+  // Full query text (e.g. Cloud Logging filter expression).
+  string query = 3;
+}
+
+// InspectionPlan visualizes the resolved execution graph of tasks.
+message InspectionPlan {
+  // Mermaid or DOT graph definition of the task pipeline.
+  string task_graph = 1;
+}
+
+// InspectionLog contains diagnostic or operational logs captured during inspection.
+message InspectionLog {
+  // Unique identifier of the log stream.
+  string id = 1;
+
+  // Name of the log source or component.
+  string name = 2;
+
+  // Log contents.
+  string log = 3;
+}
+
+// InspectionJobCommand provides the CLI command equivalent for executing this inspection non-interactively.
+message InspectionJobCommand {
+  // CLI invocation command string.
+  string command = 1;
+}
+
+// TextParameterValue holds a string value for a text form field.
+message TextParameterValue {
+  // String value entered by the user.
+  string value = 1;
+}
+
+// SetParameterValue holds a set of selected string values for a set form field.
+message SetParameterValue {
+  // Selected option keys.
+  repeated string values = 1;
+}
+
+// FileParameterValue holds an uploaded file reference token.
+message FileParameterValue {
+  // Upload token string returned from file upload endpoint.
+  string token = 1;
+}
+
+// ParameterValue represents a single typed parameter argument submitted for dry-run or execution.
+message ParameterValue {
+  // Form field ID this value corresponds to.
+  string id = 1;
+
+  // Strongly-typed value variant.
+  oneof value {
+    // Text parameter value.
+    TextParameterValue text_value = 2;
+
+    // Set multi-select parameter value.
+    SetParameterValue set_value = 3;
+
+    // File token parameter value.
+    FileParameterValue file_value = 4;
+  }
+}
+
+// InspectionParameters contains the collection of user parameter values and time settings.
+message InspectionParameters {
+  // List of user-configured parameter values.
+  repeated ParameterValue parameters = 1;
+
+  // Timezone offset in hours relative to UTC applied during log query generation.
+  double timezone_shift_hours = 2;
+}
+
+// Request to list all supported inspection types.
+message GetInspectionTypesRequest {}
+
+// Response containing all supported inspection types.
+message GetInspectionTypesResponse {
+  // Supported inspection types.
+  repeated InspectionType types = 1;
+}
+
+// Request to list all active inspection runner sessions.
+message GetInspectionsRequest {}
+
+// Response containing the snapshot of active inspection runner sessions.
+message GetInspectionsResponse {
+  // Active inspections.
+  repeated InspectionListItem inspections = 1;
+}
+
+// Request to watch real-time inspection status and progress updates.
+message WatchInspectionsRequest {}
+
+// Response streamed with the latest active inspection runner states.
+message WatchInspectionsResponse {
+  // Active inspections.
+  repeated InspectionListItem inspections = 1;
+}
+
+// Request to create a new inspection runner session.
+message CreateInspectionRequest {
+  // ID of the inspection type to initialize (e.g. "gke").
+  string inspection_type_id = 1;
+}
+
+// Response returned upon successful inspection session creation.
+message CreateInspectionResponse {
+  // Unique ID assigned to the new inspection session.
+  string inspection_id = 1;
+}
+
+// Request to update inspection metadata such as display name.
+message UpdateInspectionRequest {
+  // Inspection session ID to update.
+  string inspection_id = 1;
+
+  // New display name for the inspection.
+  string name = 2;
+}
+
+// Response returned upon updating inspection settings.
+message UpdateInspectionResponse {}
+
+// Request to retrieve available features and their states for an inspection.
+message GetInspectionFeaturesRequest {
+  // Inspection session ID.
+  string inspection_id = 1;
+}
+
+// Response containing available features for an inspection.
+message GetInspectionFeaturesResponse {
+  // List of available inspection features.
+  repeated InspectionFeature features = 1;
+}
+
+// Request to update enabled features for an inspection.
+message UpdateInspectionFeaturesRequest {
+  // Inspection session ID.
+  string inspection_id = 1;
+
+  // Map of feature ID to enabled boolean (partial update).
+  map<string, bool> feature_states = 2;
+
+  // Replacement list of enabled feature IDs. If non-empty, replaces enabled features.
+  repeated string enabled_feature_ids = 3;
+}
+
+// Response returned upon updating inspection features.
+message UpdateInspectionFeaturesResponse {}
+
+// Request to dry-run an inspection task graph and evaluate parameters.
+message DryRunInspectionRequest {
+  // Inspection session ID.
+  string inspection_id = 1;
+
+  // User-submitted parameters to evaluate.
+  InspectionParameters parameters = 2;
+}
+
+// Response containing evaluated form fields, queries, and execution plan.
+message DryRunInspectionResponse {
+  // Form fields with updated hints and validation messages.
+  repeated FormField form = 1;
+
+  // Generated queries for the configured inspection.
+  repeated InspectionQuery queries = 2;
+
+  // Resolved task graph execution plan.
+  InspectionPlan plan = 3;
+
+  // CLI command representation for headless job execution.
+  InspectionJobCommand job_command = 4;
+}
+
+// Request to start asynchronous inspection execution.
+message RunInspectionRequest {
+  // Inspection session ID.
+  string inspection_id = 1;
+
+  // Final user-configured parameters for the run.
+  InspectionParameters parameters = 2;
+}
+
+// Response returned upon starting inspection execution.
+message RunInspectionResponse {}
+
+// Request to cancel an in-progress inspection.
+message CancelInspectionRequest {
+  // Inspection session ID.
+  string inspection_id = 1;
+}
+
+// Response returned upon cancelling an inspection.
+message CancelInspectionResponse {}
+
+// Request to retrieve full metadata of a finished inspection.
+message GetInspectionMetadataRequest {
+  // Inspection session ID.
+  string inspection_id = 1;
+}
+
+// Response containing complete metadata for an inspection.
+message GetInspectionMetadataResponse {
+  // Header metadata including timestamps and archive details.
+  InspectionHeader header = 1;
+
+  // Task execution plan.
+  InspectionPlan plan = 2;
+
+  // Executed queries.
+  repeated InspectionQuery queries = 3;
+
+  // Diagnostic logs from task execution.
+  repeated InspectionLog logs = 4;
+
+  // Errors encountered during execution, if any.
+  InspectionErrorSet error = 5;
+}
+
+// Request to download a byte chunk of the generated .khi inspection archive.
+message GetInspectionDataChunkRequest {
+  // Inspection session ID.
+  string inspection_id = 1;
+
+  // Zero-based byte offset to begin reading from.
+  int64 offset_bytes = 2;
+
+  // Maximum number of bytes to retrieve in this chunk.
+  int64 max_size_bytes = 3;
+}
+
+// Response containing a byte chunk of the inspection archive.
+message GetInspectionDataChunkResponse {
+  // Binary payload of the requested chunk.
+  bytes data = 1;
+
+  // Total byte size of the complete inspection archive.
+  int64 total_file_size_bytes = 2;
+}
+
+// InspectionService provides APIs for managing inspection lifecycles, configuration, and data retrieval.
+service InspectionService {
+  // Returns all supported inspection types.
+  rpc GetInspectionTypes(GetInspectionTypesRequest) returns (GetInspectionTypesResponse);
+
+  // Returns all currently active inspections (one-off snapshot).
+  rpc GetInspections(GetInspectionsRequest) returns (GetInspectionsResponse);
+
+  // Streams real-time updates of active inspections and progress.
+  // The server sends the latest state snapshot immediately upon connection.
+  // The stream terminates after approximately 30 seconds to support runtimes without long-lived connection support;
+  // clients are expected to automatically reconnect.
+  rpc WatchInspections(WatchInspectionsRequest) returns (stream WatchInspectionsResponse);
+
+  // Creates a new inspection runner session for a given inspection type.
+  rpc CreateInspection(CreateInspectionRequest) returns (CreateInspectionResponse);
+
+  // Updates inspection settings such as display title.
+  rpc UpdateInspection(UpdateInspectionRequest) returns (UpdateInspectionResponse);
+
+  // Lists features available for an inspection and their enabled state.
+  rpc GetInspectionFeatures(GetInspectionFeaturesRequest) returns (GetInspectionFeaturesResponse);
+
+  // Updates the enabled state of features for an inspection.
+  rpc UpdateInspectionFeatures(UpdateInspectionFeaturesRequest) returns (UpdateInspectionFeaturesResponse);
+
+  // Dry-runs an inspection task graph with user parameters, returning form fields, queries, and plan.
+  rpc DryRunInspection(DryRunInspectionRequest) returns (DryRunInspectionResponse);
+
+  // Executes an inspection task graph asynchronously.
+  rpc RunInspection(RunInspectionRequest) returns (RunInspectionResponse);
+
+  // Cancels an in-progress inspection run.
+  rpc CancelInspection(CancelInspectionRequest) returns (CancelInspectionResponse);
+
+  // Retrieves inspection metadata of a finished inspection.
+  rpc GetInspectionMetadata(GetInspectionMetadataRequest) returns (GetInspectionMetadataResponse);
+
+  // Downloads a chunk of the generated .khi inspection binary data.
+  rpc GetInspectionDataChunk(GetInspectionDataChunkRequest) returns (GetInspectionDataChunkResponse);
+}
