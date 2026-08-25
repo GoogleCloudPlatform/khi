@@ -22,27 +22,31 @@ import (
 	"strings"
 )
 
+// UploadFileStoreProvider defines operations for reading uploaded files.
 type UploadFileStoreProvider interface {
-	// Generate a UploadToken for frontend
+	// GetUploadToken generates an UploadToken for the given ID.
 	GetUploadToken(id string) UploadToken
-	// Read returns the io.ReadCloser interface to read the file with the given ID.
+
+	// Read returns the io.ReadCloser to read the file with the given token.
 	// The caller MUST close the returned ReadCloser.
 	Read(token UploadToken) (io.ReadCloser, error)
 }
 
+// DirectWritableUploadFileStoreProvider defines write operations for store providers.
 type DirectWritableUploadFileStoreProvider interface {
-	// Write writes file with given io.Writer interaface to the file with the given ID.
+	// Write writes file data from the given reader to the file identified by token.
 	Write(token UploadToken, reader io.Reader) error
+
+	// GetDestinationPath returns the absolute file system path for storing the uploaded file.
+	GetDestinationPath(token UploadToken) (string, error)
 }
 
-// LocalUploadFileStoreProvider is an implementation of UploadFileStore that stores files
-// in the local file system.
+// LocalUploadFileStoreProvider is an implementation of UploadFileStore that stores files in the local file system.
 type LocalUploadFileStoreProvider struct {
-	// directoryPath is the folder name where uploaded files are stored.
 	directoryPath string
 }
 
-// NewLocalUploadFileStoreProvider creates a new LocalUploadFileStore.
+// NewLocalUploadFileStoreProvider creates a new LocalUploadFileStoreProvider.
 func NewLocalUploadFileStoreProvider(directoryPath string) *LocalUploadFileStoreProvider {
 	return &LocalUploadFileStoreProvider{directoryPath: directoryPath}
 }
@@ -52,6 +56,7 @@ func (l *LocalUploadFileStoreProvider) GetUploadToken(id string) UploadToken {
 	return &DirectUploadToken{ID: id}
 }
 
+// Read implements UploadFileStoreProvider.
 func (l *LocalUploadFileStoreProvider) Read(token UploadToken) (io.ReadCloser, error) {
 	err := l.validateTokenFormat(token)
 	if err != nil {
@@ -65,20 +70,16 @@ func (l *LocalUploadFileStoreProvider) Read(token UploadToken) (io.ReadCloser, e
 		}
 		return nil, err
 	}
-	return file, nil // os.File implements io.ReadCloser
+	return file, nil
 }
 
+// Write implements DirectWritableUploadFileStoreProvider.
 func (l *LocalUploadFileStoreProvider) Write(token UploadToken, reader io.Reader) error {
-	err := l.validateTokenFormat(token)
+	destPath, err := l.GetDestinationPath(token)
 	if err != nil {
 		return err
 	}
-	err = l.ensureFolderExists()
-	if err != nil {
-		return err
-	}
-	filePath := filepath.Join(l.directoryPath, token.GetID())
-	file, err := os.Create(filePath)
+	file, err := os.Create(destPath)
 	if err != nil {
 		return err
 	}
@@ -86,16 +87,27 @@ func (l *LocalUploadFileStoreProvider) Write(token UploadToken, reader io.Reader
 
 	_, err = io.Copy(file, reader)
 	if err != nil {
-		_ = os.Remove(filePath)
+		_ = os.Remove(destPath)
 		return err
 	}
 
 	return nil
 }
 
+// GetDestinationPath returns the local filesystem destination path for the given token.
+func (l *LocalUploadFileStoreProvider) GetDestinationPath(token UploadToken) (string, error) {
+	err := l.validateTokenFormat(token)
+	if err != nil {
+		return "", err
+	}
+	err = l.ensureFolderExists()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(l.directoryPath, token.GetID()), nil
+}
+
 func (l *LocalUploadFileStoreProvider) ensureFolderExists() error {
-	// Create the directory (and any parent directories) if it doesn't exist.
-	// os.MkdirAll will not return an error if the directory already exists.
 	return os.MkdirAll(l.directoryPath, 0700)
 }
 
@@ -110,8 +122,7 @@ func (l *LocalUploadFileStoreProvider) validateTokenFormat(token UploadToken) er
 var _ UploadFileStoreProvider = &LocalUploadFileStoreProvider{}
 var _ DirectWritableUploadFileStoreProvider = &LocalUploadFileStoreProvider{}
 
-// InPlaceUploadFileStoreProvider is an implementation of UploadFileStore that
-// reads the file in place.
+// InPlaceUploadFileStoreProvider is an implementation of UploadFileStore that reads files in place.
 type InPlaceUploadFileStoreProvider struct{}
 
 // GetUploadToken implements UploadFileStoreProvider.
@@ -129,7 +140,7 @@ func (i *InPlaceUploadFileStoreProvider) Read(token UploadToken) (io.ReadCloser,
 		}
 		return nil, err
 	}
-	return file, nil // os.File implements io.ReadCloser
+	return file, nil
 }
 
 var _ UploadFileStoreProvider = &InPlaceUploadFileStoreProvider{}

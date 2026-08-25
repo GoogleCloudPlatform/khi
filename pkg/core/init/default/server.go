@@ -70,7 +70,6 @@ var GinServerInitializer = &coreinit.Initializer{
 			StaticFolderPath: *serverParams.FrontendAssetFolder,
 			ResourceMonitor:  &server.ResourceMonitorImpl{},
 			ServerBasePath:   *serverParams.BasePath,
-			UploadFileStore:  uploadFileStore,
 		}
 		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
 

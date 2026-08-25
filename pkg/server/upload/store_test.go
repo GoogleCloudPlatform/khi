@@ -191,9 +191,18 @@ func TestUploadFileStore(t *testing.T) {
 			t.Errorf("Unexpected error: %v", err)
 		}
 
+		// Initial query starts verification
+		result, err := store.GetResult(token, nil)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if result.Status != UploadStatusVerifying {
+			t.Errorf("Expected status 'Verifying', got '%v'", result.Status)
+		}
+
 		time.Sleep(100 * time.Millisecond) // Allow verification goroutine to run.
 
-		result, err := store.GetResult(token, nil)
+		result, err = store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
