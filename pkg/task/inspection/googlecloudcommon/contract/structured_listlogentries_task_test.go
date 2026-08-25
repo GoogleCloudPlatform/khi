@@ -103,6 +103,7 @@ func TestStructuredListLogEntriesTask_DryRun_FallbackWhenNoClient(t *testing.T) 
 		tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
 		tasktest.NewTaskDependencyValuePair(InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
 	)
 	if err != nil {
 		t.Fatalf("DryRun returned unexpected error: %v", err)
@@ -227,6 +228,7 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 				tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
 				tasktest.NewTaskDependencyValuePair[LogFetcher](LoggingFetcherTaskID.Ref(), fetcher),
 				tasktest.NewTaskDependencyValuePair(InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+				tasktest.NewTaskDependencyValuePair(APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
 			)
 			if err != nil {
 				t.Fatalf("dry run failed: %v", err)
@@ -421,6 +423,7 @@ func TestStructuredListLogEntriesTask_DryRun_EstimationCache(t *testing.T) {
 		tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
 		tasktest.NewTaskDependencyValuePair(InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
 	)
 	if err != nil {
 		t.Fatalf("first dryrun failed: %v", err)
@@ -439,6 +442,7 @@ func TestStructuredListLogEntriesTask_DryRun_EstimationCache(t *testing.T) {
 		tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
 		tasktest.NewTaskDependencyValuePair(InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
 	)
 	if err != nil {
 		t.Fatalf("second dryrun failed: %v", err)
@@ -503,6 +507,7 @@ func TestStructuredListLogEntriesTask_DryRun_Incomplete(t *testing.T) {
 				tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 				tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
 				tasktest.NewTaskDependencyValuePair(InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+				tasktest.NewTaskDependencyValuePair(APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
 			)
 			if err != nil {
 				t.Fatalf("dryrun failed: %v", err)
@@ -523,5 +528,49 @@ func TestStructuredListLogEntriesTask_DryRun_Incomplete(t *testing.T) {
 				t.Errorf("QueryItem mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestStructuredListLogEntriesTask_DryRun_CallOptionInjector(t *testing.T) {
+	taskSetting := &mockStructuredListLogEntriesTaskSetting{
+		queryName:     "test-query",
+		resourceNames: []string{"projects/test-project"},
+		queries: []*logestimator.StructuredLogQuery{
+			{
+				Incomplete:    true,
+				ResourceTypes: []string{"k8s_cluster"},
+				Filters:       []logestimator.LoggingMonitoringMatcher{logestimator.ResourceLabel("cluster_name", logestimator.Exact(""))},
+			},
+		},
+	}
+	task := NewStructuredListLogEntriesTask(taskSetting)
+	clientFactory, err := googlecloud.NewClientFactory()
+	if err != nil {
+		t.Fatalf("failed to create clientFactory: %v", err)
+	}
+
+	startTime := time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
+	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
+	resourceNamesInput := NewResourceNamesInput()
+	resourceNamesInput.UpdateDefaultResourceNamesForQuery("structured-test", []string{"projects/test-project"})
+
+	deps := []tasktest.TaskDependencyValues{
+		tasktest.NewTaskDependencyValuePair(InputStartTimeTaskID.Ref(), startTime),
+		tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
+		tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.NewTaskDependencyValuePair(InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+	}
+
+	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+	_, _, err = inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeDryRun, map[string]any{}, deps...)
+	if err != nil {
+		t.Fatalf("dryrun failed: %v", err)
+	}
+
+	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	_, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
+	if !found {
+		t.Fatalf("QueryMetadata not found")
 	}
 }

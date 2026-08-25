@@ -120,22 +120,24 @@ func (f *LoggingClientProbeFetcher) ProbeLogTimestamps(ctx context.Context, cont
 
 // StructuredLogEstimator estimates log volume for StructuredLogQuery.
 type StructuredLogEstimator struct {
-	MetricFetcher MetricLogCountFetcher
-	ProbeFetcher  LogSamplingProbeFetcher
-	TargetSamples int32
+	MetricFetcher      MetricLogCountFetcher
+	ProbeFetcher       LogSamplingProbeFetcher
+	CallOptionInjector *googlecloud.CallOptionInjector
+	TargetSamples      int32
 }
 
 // NewStructuredLogEstimator creates a StructuredLogEstimator with defaults.
-func NewStructuredLogEstimator(metricFetcher MetricLogCountFetcher, probeFetcher LogSamplingProbeFetcher) *StructuredLogEstimator {
+func NewStructuredLogEstimator(metricFetcher MetricLogCountFetcher, probeFetcher LogSamplingProbeFetcher, callOptionInjector *googlecloud.CallOptionInjector) *StructuredLogEstimator {
 	return &StructuredLogEstimator{
-		MetricFetcher: metricFetcher,
-		ProbeFetcher:  probeFetcher,
-		TargetSamples: 50,
+		MetricFetcher:      metricFetcher,
+		ProbeFetcher:       probeFetcher,
+		CallOptionInjector: callOptionInjector,
+		TargetSamples:      50,
 	}
 }
 
 // NewStructuredLogEstimatorFromClients constructs a StructuredLogEstimator directly from Google Cloud SDK clients.
-func NewStructuredLogEstimatorFromClients(loggingClient *logging.Client, metricClient *monitoring.MetricClient) *StructuredLogEstimator {
+func NewStructuredLogEstimatorFromClients(loggingClient *logging.Client, metricClient *monitoring.MetricClient, callOptionInjector *googlecloud.CallOptionInjector) *StructuredLogEstimator {
 	var metricFetcher MetricLogCountFetcher
 	if metricClient != nil {
 		metricFetcher = &MonitoringClientFetcher{Client: metricClient}
@@ -144,13 +146,17 @@ func NewStructuredLogEstimatorFromClients(loggingClient *logging.Client, metricC
 	if loggingClient != nil {
 		probeFetcher = &LoggingClientProbeFetcher{Client: loggingClient}
 	}
-	return NewStructuredLogEstimator(metricFetcher, probeFetcher)
+	return NewStructuredLogEstimator(metricFetcher, probeFetcher, callOptionInjector)
 }
 
 // Estimate estimates the total log volume for the given StructuredLogQuery over the time interval.
 // Cloud Monitoring queries for all resource types are executed concurrently.
 // If custom filters require sampling, a time-window bounded sampling probe is executed.
 func (e *StructuredLogEstimator) Estimate(ctx context.Context, container googlecloud.ResourceContainer, query *StructuredLogQuery, startTime, endTime time.Time) (*EstimateResult, error) {
+	if e.CallOptionInjector != nil {
+		ctx = e.CallOptionInjector.InjectToCallContext(ctx, container)
+	}
+
 	allSupported := query.AllFiltersSupportMetrics()
 	metricFilters := query.GenerateMonitoringMetricFilters()
 

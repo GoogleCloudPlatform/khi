@@ -70,6 +70,7 @@ func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSet
 		InputLoggingFilterResourceNameTaskID.Ref(),
 		LoggingFetcherTaskID.Ref(),
 		APIClientFactoryTaskID.Ref(),
+		APIClientCallOptionsInjectorTaskID.Ref(),
 	)
 	queryName := taskSetting.QueryName()
 
@@ -101,7 +102,8 @@ func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSet
 			// In DryRun: perform volume estimation across all container groups and record query metadata.
 			if taskMode != inspectioncore_contract.TaskModeRun {
 				clientFactory := coretask.GetTaskResult(ctx, APIClientFactoryTaskID.Ref())
-				return nil, estimateAndRecordQueries(ctx, taskID.String(), clientFactory, groups, queries, startTime, endTime, queryName)
+				callOptionInjector, _ := coretask.GetTaskResultOptional(ctx, APIClientCallOptionsInjectorTaskID.Ref())
+				return nil, estimateAndRecordQueries(ctx, taskID.String(), clientFactory, callOptionInjector, groups, queries, startTime, endTime, queryName)
 			}
 
 			// In Run mode: fetch logs across partitions.
@@ -185,6 +187,7 @@ func estimateAndRecordQueries(
 	ctx context.Context,
 	taskID string,
 	clientFactory *googlecloud.ClientFactory,
+	callOptionInjector *googlecloud.CallOptionInjector,
 	groups []*resourceContainerLogQueryGroup,
 	queries []*logestimator.StructuredLogQuery,
 	startTime, endTime time.Time,
@@ -218,7 +221,7 @@ func estimateAndRecordQueries(
 					if logErr != nil || monErr != nil {
 						return nil, fmt.Errorf("failed to initialize clients for container %s: loggingErr=%v, metricErr=%v", container.Identifier(), logErr, monErr)
 					}
-					return logestimator.NewStructuredLogEstimatorFromClients(loggingClient, metricClient), nil
+					return logestimator.NewStructuredLogEstimatorFromClients(loggingClient, metricClient, callOptionInjector), nil
 				},
 			)
 			if estErr != nil {

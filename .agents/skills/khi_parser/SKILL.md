@@ -66,6 +66,7 @@ Exposes interactive input fields (e.g., text boxes, multi-select checkboxes) to 
 Queries logs from the data source (e.g., Google Cloud Logging or local files) using parameters provided by the Form tasks.
 
 - **Utility:** `googlecloudcommon_contract.NewListLogEntriesTask` (for any logs on Cloud Logging) or `inspection_task.NewInspectionTask`.
+- **Google Cloud API Calling:** When calling Google Cloud APIs directly or through fetchers, refer to [googlecloud-api](skill://googlecloud-api) for mandatory `CallOptionInjector` usage and client configuration.
 
 ### Step 3: FieldSet Reading Tasks
 

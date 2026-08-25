@@ -54,7 +54,7 @@ func TestCachedStructuredLogEstimator_CacheHit(t *testing.T) {
 	var providerCalls int64
 	provider := func(ctx context.Context, container googlecloud.ResourceContainer) (*StructuredLogEstimator, error) {
 		atomic.AddInt64(&providerCalls, 1)
-		return NewStructuredLogEstimator(&mockMetricLogCountFetcher{count: 100}, nil), nil
+		return NewStructuredLogEstimator(&mockMetricLogCountFetcher{count: 100}, nil, nil), nil
 	}
 
 	query := &StructuredLogQuery{
@@ -99,7 +99,7 @@ func TestCachedStructuredLogEstimator_SingleflightDeduplication(t *testing.T) {
 		return NewStructuredLogEstimator(&mockMetricLogCountFetcher{
 			delay: 50 * time.Millisecond,
 			count: 200,
-		}, nil), nil
+		}, nil, nil), nil
 	}
 
 	query := &StructuredLogQuery{
@@ -156,14 +156,14 @@ func TestCachedStructuredLogEstimator_OutdatedQueryCancellation(t *testing.T) {
 				}()
 			},
 			count: 100,
-		}, nil), nil
+		}, nil, nil), nil
 	}
 
 	provider2 := func(ctx context.Context, container googlecloud.ResourceContainer) (*StructuredLogEstimator, error) {
 		return NewStructuredLogEstimator(&mockMetricLogCountFetcher{
 			delay: 10 * time.Millisecond,
 			count: 300,
-		}, nil), nil
+		}, nil, nil), nil
 	}
 
 	query1 := &StructuredLogQuery{
@@ -216,7 +216,7 @@ func TestCachedStructuredLogEstimator_IdenticalQueryDoesNotCancel(t *testing.T) 
 		return NewStructuredLogEstimator(&mockMetricLogCountFetcher{
 			delay: 50 * time.Millisecond,
 			count: 150,
-		}, nil), nil
+		}, nil, nil), nil
 	}
 
 	query := &StructuredLogQuery{
@@ -276,7 +276,7 @@ func TestCachedStructuredLogEstimator_ErrorNotCached(t *testing.T) {
 		if current == 1 {
 			return nil, errors.New("network failure")
 		}
-		return NewStructuredLogEstimator(&mockMetricLogCountFetcher{count: 500}, nil), nil
+		return NewStructuredLogEstimator(&mockMetricLogCountFetcher{count: 500}, nil, nil), nil
 	}
 
 	query := &StructuredLogQuery{
@@ -315,7 +315,7 @@ func TestCachedStructuredLogEstimator_Close(t *testing.T) {
 				}()
 			},
 			count: 100,
-		}, nil), nil
+		}, nil, nil), nil
 	}
 
 	query := &StructuredLogQuery{

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -299,7 +300,7 @@ func TestStructuredLogEstimator_Estimate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			estimator := NewStructuredLogEstimator(tt.metricFetcher, tt.probeFetcher)
+			estimator := NewStructuredLogEstimator(tt.metricFetcher, tt.probeFetcher, nil)
 			got, err := estimator.Estimate(context.Background(), googlecloud.Project("test-project"), tt.query, time.Now().Add(-time.Hour), time.Now())
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Estimate() error = %v, wantErr %v", err, tt.wantErr)
@@ -373,6 +374,7 @@ func TestLiveMetricEstimation(t *testing.T) {
 	estimator := NewStructuredLogEstimator(
 		&MonitoringClientFetcher{Client: metricClient},
 		&realLogProbeFetcher{client: logClient},
+		nil,
 	)
 
 	now := time.Now()
@@ -494,6 +496,7 @@ func TestEstimateClusterLogs(t *testing.T) {
 	estimator := NewStructuredLogEstimator(
 		&MonitoringClientFetcher{Client: metricClient},
 		&realLogProbeFetcher{client: logClient},
+		nil,
 	)
 
 	queries := []struct {
@@ -607,6 +610,7 @@ func TestEstimateTseKakeruClusterLogs(t *testing.T) {
 	estimator := NewStructuredLogEstimator(
 		&MonitoringClientFetcher{Client: metricClient},
 		&realLogProbeFetcher{client: logClient},
+		nil,
 	)
 
 	queries := []struct {
@@ -736,6 +740,7 @@ func TestAccuracyOneHourComparison(t *testing.T) {
 	estimator := NewStructuredLogEstimator(
 		&MonitoringClientFetcher{Client: metricClient},
 		&realLogProbeFetcher{client: logClient},
+		nil,
 	)
 
 	queries := []struct {
@@ -846,6 +851,105 @@ protoPayload.methodName=~"\.(deployments|replicasets|pods|nodes)\."`),
 
 			t.Logf(">>> [%s]\n    Estimated: %d (in %v, MetricBase: %d, Ratio: %.4f)\n    Actual:    %d (in %v, Pages: %d)\n    Error:     %.2f%% (diff: %d)",
 				item.logType, res.EstimatedCount, estElapsed, res.MetricCount, res.CustomFilterRatio, actualCount, actElapsed, pageCount, errPct, diff)
+		})
+	}
+}
+
+type mockCallOptionInjectorOption struct {
+	key   string
+	value string
+}
+
+func (m *mockCallOptionInjectorOption) ApplyToCallContext(ctx context.Context, container googlecloud.ResourceContainer) context.Context {
+	return context.WithValue(ctx, m.key, m.value)
+}
+
+func (m *mockCallOptionInjectorOption) ApplyToRawHTTPHeader(header http.Header, container googlecloud.ResourceContainer) {
+}
+
+var _ googlecloud.CallOptionInjectorOption = (*mockCallOptionInjectorOption)(nil)
+
+type mockContextCapturingMetricFetcher struct {
+	capturedContext context.Context
+	count           int64
+	err             error
+}
+
+func (m *mockContextCapturingMetricFetcher) QueryMetricCount(ctx context.Context, container googlecloud.ResourceContainer, metricFilter string, startTime, endTime time.Time) (int64, error) {
+	m.capturedContext = ctx
+	return m.count, m.err
+}
+
+type mockContextCapturingProbeFetcher struct {
+	capturedContext context.Context
+	timestamps      []time.Time
+	err             error
+}
+
+func (m *mockContextCapturingProbeFetcher) ProbeLogTimestamps(ctx context.Context, container googlecloud.ResourceContainer, filter string, maxEntries int32) ([]time.Time, error) {
+	m.capturedContext = ctx
+	return m.timestamps, m.err
+}
+
+func TestStructuredLogEstimator_CallOptionInjector(t *testing.T) {
+	testCases := []struct {
+		name               string
+		callOptionInjector *googlecloud.CallOptionInjector
+		wantInjectedKey    string
+		wantInjectedVal    string
+		wantPresent        bool
+	}{
+		{
+			name: "callOptionInjector is configured and options are injected into context",
+			callOptionInjector: googlecloud.NewCallOptionInjector(&mockCallOptionInjectorOption{
+				key:   "test-option-key",
+				value: "test-option-value",
+			}),
+			wantInjectedKey: "test-option-key",
+			wantInjectedVal: "test-option-value",
+			wantPresent:     true,
+		},
+		{
+			name:               "callOptionInjector is nil",
+			callOptionInjector: nil,
+			wantInjectedKey:    "test-option-key",
+			wantPresent:        false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			metricFetcher := &mockContextCapturingMetricFetcher{count: 100}
+			probeFetcher := &mockContextCapturingProbeFetcher{timestamps: []time.Time{time.Now()}}
+			estimator := NewStructuredLogEstimator(metricFetcher, probeFetcher, tc.callOptionInjector)
+
+			query := &StructuredLogQuery{
+				ResourceTypes: []string{"k8s_cluster"},
+				Filters: []LoggingMonitoringMatcher{
+					ResourceLabel("cluster_name", Exact("cluster-1")),
+					LogID(Exact("events")),
+				},
+			}
+
+			_, err := estimator.Estimate(context.Background(), googlecloud.Project("test-project"), query, time.Now().Add(-time.Hour), time.Now())
+			if err != nil {
+				t.Fatalf("Estimate() unexpected error = %v", err)
+			}
+
+			if metricFetcher.capturedContext == nil {
+				t.Fatal("metricFetcher.capturedContext is nil")
+			}
+
+			gotVal := metricFetcher.capturedContext.Value(tc.wantInjectedKey)
+			if tc.wantPresent {
+				if diff := cmp.Diff(tc.wantInjectedVal, gotVal); diff != "" {
+					t.Errorf("captured context value mismatch (-want +got):\n%s", diff)
+				}
+			} else {
+				if gotVal != nil {
+					t.Errorf("captured context value = %v, want nil", gotVal)
+				}
+			}
 		})
 	}
 }

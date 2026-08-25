@@ -35,3 +35,8 @@ When developing or modifying task-related files in the KHI project (under `pkg/t
 ## 5. Proposing an implementation plan
 
 - When you propose an implementation plan to user, include the expected task graph in Mermaid format.
+
+## 6. Calling Google Cloud APIs
+
+- When calling Google Cloud APIs (Cloud Logging, Cloud Monitoring, etc.), you **MUST** inject call options into `context.Context` using `CallOptionInjector.InjectToCallContext(ctx, container)` before executing the API call. Refer to the `googlecloud-api` skill for details and patterns.
+- Tasks calling Google Cloud APIs must depend on `googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref()` and retrieve it via `coretask.GetTaskResult(ctx, ...)` (or `coretask.GetTaskResultOptional` when maintaining compatibility with test fixtures that omit the injector).
