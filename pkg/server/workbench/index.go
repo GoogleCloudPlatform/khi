@@ -105,7 +105,7 @@ func serializeStructChunk(pool *khifilev6model.InternPool, chunk []uint32, onPro
 }
 
 // BuildStructYAMLIndexWithProgress pre-serializes unique log struct bodies into YAML strings while streaming progress updates.
-func (w *Workbench) BuildStructYAMLIndexWithProgress(targetIndex *SearchIndex, onProgress ProgressCallback) (map[uint32]string, error) {
+func (w *Workbench) BuildStructYAMLIndexWithProgress(ctx context.Context, targetIndex *SearchIndex, onProgress ProgressCallback) (map[uint32]string, error) {
 	w.mu.RLock()
 	pool := w.internPool
 	w.mu.RUnlock()
@@ -131,7 +131,7 @@ func (w *Workbench) BuildStructYAMLIndexWithProgress(targetIndex *SearchIndex, o
 	}
 
 	yamlResults, err := worker.ParallelChunkMap(
-		context.Background(),
+		ctx,
 		uniqueBodyStructIDs,
 		func(ctx context.Context, workerIdx int, chunk []uint32, onProcessed func(int)) (map[uint32]string, error) {
 			return serializeStructChunk(pool, chunk, onProcessed), nil
@@ -169,9 +169,9 @@ func (w *Workbench) BuildStructYAMLIndexWithProgress(targetIndex *SearchIndex, o
 }
 
 // BuildTrigramIndexWithProgress constructs the trigram search index from pre-serialized struct YAMLs while streaming progress updates.
-func (w *Workbench) BuildTrigramIndexWithProgress(structYAMLs map[uint32]string, onProgress ProgressCallback) (*cel.TrigramIndex, error) {
+func (w *Workbench) BuildTrigramIndexWithProgress(ctx context.Context, structYAMLs map[uint32]string, onProgress ProgressCallback) (*cel.TrigramIndex, error) {
 	trigramIndex := cel.NewTrigramIndex()
-	err := trigramIndex.BuildFromStructYAMLs(structYAMLs, func(subPct float64, msg string) error {
+	err := trigramIndex.BuildFromStructYAMLs(ctx, structYAMLs, func(subPct float64, msg string) error {
 		return onProgress(apiv1.OpenWorkbenchResponse_STAGE_INDEXING_DATA, subPct*100.0, msg)
 	})
 	if err != nil {
@@ -186,13 +186,13 @@ func (w *Workbench) BuildTrigramIndexWithProgress(structYAMLs map[uint32]string,
 }
 
 // BuildAsyncIndexesWithProgress populates asynchronous search indexes (such as struct YAMLs and trigram indexes) on the target SearchIndex while streaming progress updates.
-func (w *Workbench) BuildAsyncIndexesWithProgress(targetIndex *SearchIndex, onProgress ProgressCallback) error {
+func (w *Workbench) BuildAsyncIndexesWithProgress(ctx context.Context, targetIndex *SearchIndex, onProgress ProgressCallback) error {
 	if targetIndex == nil {
 		return fmt.Errorf("target search index is nil")
 	}
 
 	// Stage 1: Parallel Struct YAML Serialization (0% - 50%)
-	structYAMLs, err := w.BuildStructYAMLIndexWithProgress(targetIndex, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+	structYAMLs, err := w.BuildStructYAMLIndexWithProgress(ctx, targetIndex, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
 		return onProgress(stage, progressPercentage*0.5, message)
 	})
 	if err != nil {
@@ -201,7 +201,7 @@ func (w *Workbench) BuildAsyncIndexesWithProgress(targetIndex *SearchIndex, onPr
 	targetIndex.StructYAMLs = structYAMLs
 
 	// Stage 2: Parallel Trigram Index Construction (50% - 100%)
-	trigramIndex, err := w.BuildTrigramIndexWithProgress(structYAMLs, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+	trigramIndex, err := w.BuildTrigramIndexWithProgress(ctx, structYAMLs, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
 		return onProgress(stage, 50.0+progressPercentage*0.5, message)
 	})
 	if err != nil {

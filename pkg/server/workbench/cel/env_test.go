@@ -193,7 +193,7 @@ user:
 		sRef.ID(): string(yamlBytes),
 	}
 	trigramIndex := NewTrigramIndex()
-	if err := trigramIndex.BuildFromStructYAMLs(structYAMLs, nil); err != nil {
+	if err := trigramIndex.BuildFromStructYAMLs(t.Context(), structYAMLs, nil); err != nil {
 		t.Fatalf("failed to build trigram index: %v", err)
 	}
 	eval.SetTrigramIndex(trigramIndex)

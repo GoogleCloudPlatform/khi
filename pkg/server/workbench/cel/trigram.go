@@ -139,7 +139,7 @@ func mergeTrigramChunk(chunk []string, results []map[string][]uint32, onProcesse
 }
 
 // BuildFromStructYAMLs indexes trigrams from pre-serialized struct YAML strings concurrently using Roaring Bitmaps.
-func (t *TrigramIndex) BuildFromStructYAMLs(structYAMLs map[uint32]string, onProgress TrigramProgressCallback) error {
+func (t *TrigramIndex) BuildFromStructYAMLs(ctx context.Context, structYAMLs map[uint32]string, onProgress TrigramProgressCallback) error {
 	if len(structYAMLs) == 0 {
 		return nil
 	}
@@ -159,7 +159,7 @@ func (t *TrigramIndex) BuildFromStructYAMLs(structYAMLs map[uint32]string, onPro
 
 	// Phase 1: Worker-Local Construction (0 locks)
 	results, err := worker.ParallelChunkMap(
-		context.Background(),
+		ctx,
 		entries,
 		func(ctx context.Context, workerIdx int, chunk []yamlEntry, onProcessed func(int)) (map[string][]uint32, error) {
 			return processYAMLEntryChunk(chunk, onProcessed), nil
@@ -194,7 +194,7 @@ func (t *TrigramIndex) BuildFromStructYAMLs(structYAMLs map[uint32]string, onPro
 
 	// Phase 2: Parallel Partition Merge (0 locks)
 	mergedBitmaps, err := worker.ParallelChunkMap(
-		context.Background(),
+		ctx,
 		uniqueTrigrams,
 		func(ctx context.Context, workerIdx int, chunk []string, onProcessed func(int)) (map[string]*roaring.Bitmap, error) {
 			return mergeTrigramChunk(chunk, results, onProcessed), nil

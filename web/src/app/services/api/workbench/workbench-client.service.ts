@@ -89,6 +89,7 @@ export class WorkbenchClientService implements OnDestroy {
     );
   private readonly indexProgressPercentageSignal = signal<number>(0);
   private readonly indexMessageSignal = signal<string>('');
+  private indexProgressAbortController: AbortController | null = null;
 
   /**
    * The ID of the currently active Workbench session, or null if none is open.
@@ -189,7 +190,14 @@ export class WorkbenchClientService implements OnDestroy {
       this.structYamlCache.clear();
       this.activeWorkbenchIdSignal.set(workbenchId);
       this.startHeartbeat(workbenchId);
-      void this.streamIndexProgress(workbenchId);
+      if (this.indexProgressAbortController) {
+        this.indexProgressAbortController.abort();
+      }
+      this.indexProgressAbortController = new AbortController();
+      void this.streamIndexProgress(
+        workbenchId,
+        this.indexProgressAbortController.signal,
+      );
     }
 
     return workbenchId;
@@ -208,6 +216,10 @@ export class WorkbenchClientService implements OnDestroy {
           { workbenchId },
           { signal: abortSignal },
         );
+
+      if (!responseStream) {
+        return;
+      }
 
       for await (const res of responseStream) {
         this.indexStateSignal.set(res.state);
@@ -245,6 +257,10 @@ export class WorkbenchClientService implements OnDestroy {
    */
   public async closeWorkbench(workbenchId?: string): Promise<void> {
     const id = workbenchId ?? this.activeWorkbenchIdSignal();
+    if (this.indexProgressAbortController) {
+      this.indexProgressAbortController.abort();
+      this.indexProgressAbortController = null;
+    }
     this.stopHeartbeat();
     this.structYamlCache.clear();
     this.activeWorkbenchIdSignal.set(null);

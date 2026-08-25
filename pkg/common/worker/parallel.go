@@ -133,8 +133,11 @@ func ParallelChunkMap[T any, R any](
 		stopReporter = func() {}
 	}
 
-	results := make([]R, numWorkers)
 	chunkSize := (len(items) + numWorkers - 1) / numWorkers
+	if actualWorkers := (len(items) + chunkSize - 1) / chunkSize; actualWorkers < numWorkers {
+		numWorkers = actualWorkers
+	}
+	results := make([]R, numWorkers)
 
 	g, gCtx := errgroup.WithContext(ctx)
 	for w := 0; w < numWorkers; w++ {

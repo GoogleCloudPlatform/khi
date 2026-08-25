@@ -15,9 +15,11 @@
 package workbench
 
 import (
+	"context"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
@@ -400,6 +402,72 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 			}
 			if log2.Severity != tc.wantLog2Severity {
 				t.Errorf("log 2 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog2Severity, log2.Severity))
+			}
+		})
+	}
+}
+
+func TestWorkbench_BuildAsyncIndexesWithProgress(t *testing.T) {
+	setupWBAndIndex := func() (*Workbench, *SearchIndex) {
+		wb := NewWorkbench("wb-test", "insp-test")
+		idGen := khifilev6model.NewIDGenerator()
+		wb.internPool = khifilev6model.NewInternPool(idGen)
+		node, err := structured.FromGoValue(map[string]any{"foo": "bar"}, &structured.AlphabeticalGoMapKeyOrderProvider{})
+		if err != nil {
+			t.Fatalf("FromGoValue() error = %v", err)
+		}
+		sRef, err := khifilev6model.ToInternedStruct(node, wb.internPool)
+		if err != nil {
+			t.Fatalf("ToInternedStruct() error = %v", err)
+		}
+		index := &SearchIndex{
+			Logs: []cel.LogData{
+				{ID: 1, BodyStructID: sRef.ID()},
+			},
+		}
+		return wb, index
+	}
+
+	testCases := []struct {
+		name      string
+		cancelCtx bool
+		wantErr   bool
+	}{
+		{
+			name:      "successfully builds async indexes",
+			cancelCtx: false,
+			wantErr:   false,
+		},
+		{
+			name:      "returns error when context is canceled",
+			cancelCtx: true,
+			wantErr:   true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			wb, index := setupWBAndIndex()
+			ctx, cancel := context.WithCancel(t.Context())
+			if tc.cancelCtx {
+				cancel()
+			} else {
+				defer cancel()
+			}
+
+			err := wb.BuildAsyncIndexesWithProgress(ctx, index, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+				return nil
+			})
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("BuildAsyncIndexesWithProgress() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if !tc.wantErr {
+				if len(index.StructYAMLs) != 1 {
+					t.Errorf("len(index.StructYAMLs) = %d, want 1", len(index.StructYAMLs))
+				}
+				if index.TrigramIndex == nil {
+					t.Errorf("index.TrigramIndex is nil, want non-nil")
+				}
 			}
 		})
 	}

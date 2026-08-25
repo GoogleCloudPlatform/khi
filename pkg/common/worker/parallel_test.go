@@ -65,6 +65,20 @@ func TestParallelChunkMap(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:       "adjusts worker count when chunkSize rounding yields fewer chunks",
+			items:      []int{1, 2, 3, 4, 5},
+			numWorkers: 4,
+			workerFunc: func(ctx context.Context, workerIdx int, chunk []int, onProcessed func(int)) ([]int, error) {
+				return chunk, nil
+			},
+			wantResults: [][]int{
+				{1, 2},
+				{3, 4},
+				{5},
+			},
+			wantErr: false,
+		},
+		{
 			name:       "propagates error from worker function",
 			items:      []int{1, 2, 3, 4},
 			numWorkers: 2,

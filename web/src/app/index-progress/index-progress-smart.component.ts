@@ -55,29 +55,32 @@ export class IndexProgressSmartComponent implements OnDestroy {
   public readonly isReady = this.workbenchClient.isIndexReady;
 
   constructor() {
-    effect(() => {
-      const isBuilding = this.workbenchClient.isIndexBuilding();
-      const isReady = this.workbenchClient.isIndexReady();
+    effect(
+      () => {
+        const isBuilding = this.workbenchClient.isIndexBuilding();
+        const isReady = this.workbenchClient.isIndexReady();
 
-      if (isBuilding) {
-        if (this.dismissTimeout) {
-          clearTimeout(this.dismissTimeout);
-          this.dismissTimeout = null;
-        }
-        this.isVisibleSignal.set(true);
-      } else if (isReady && this.isVisibleSignal()) {
-        if (!this.dismissTimeout) {
-          this.dismissTimeout = setTimeout(() => {
-            this.isVisibleSignal.set(false);
+        if (isBuilding) {
+          if (this.dismissTimeout) {
+            clearTimeout(this.dismissTimeout);
             this.dismissTimeout = null;
-          }, 1500);
+          }
+          this.isVisibleSignal.set(true);
+        } else if (isReady && this.isVisibleSignal()) {
+          if (!this.dismissTimeout) {
+            this.dismissTimeout = setTimeout(() => {
+              this.isVisibleSignal.set(false);
+              this.dismissTimeout = null;
+            }, 1500);
+          }
+        } else {
+          if (!isReady) {
+            this.isVisibleSignal.set(false);
+          }
         }
-      } else {
-        if (!isReady) {
-          this.isVisibleSignal.set(false);
-        }
-      }
-    });
+      },
+      { allowSignalWrites: true },
+    );
   }
 
   /**

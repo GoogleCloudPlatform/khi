@@ -240,7 +240,7 @@ func (w *Workbench) StartAsyncIndexing(parentCtx context.Context) {
 			return
 		}
 
-		err := w.BuildAsyncIndexesWithProgress(targetIndex, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+		err := w.BuildAsyncIndexesWithProgress(ctx, targetIndex, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()

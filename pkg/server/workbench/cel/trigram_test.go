@@ -15,6 +15,7 @@
 package cel
 
 import (
+	"context"
 	"sort"
 	"sync"
 	"testing"
@@ -51,7 +52,7 @@ spec:
 	}
 
 	idx := NewTrigramIndex()
-	if err := idx.BuildFromStructYAMLs(structYAMLs, nil); err != nil {
+	if err := idx.BuildFromStructYAMLs(t.Context(), structYAMLs, nil); err != nil {
 		t.Fatalf("BuildFromStructYAMLs() error = %v", err)
 	}
 
@@ -176,7 +177,7 @@ func TestTrigramIndex_ProgressCallback(t *testing.T) {
 	}
 
 	idx := NewTrigramIndex()
-	if err := idx.BuildFromStructYAMLs(structYAMLs, callback); err != nil {
+	if err := idx.BuildFromStructYAMLs(t.Context(), structYAMLs, callback); err != nil {
 		t.Fatalf("BuildFromStructYAMLs() error = %v", err)
 	}
 
@@ -192,7 +193,7 @@ func TestTrigramIndex_ConcurrentQuery(t *testing.T) {
 	}
 
 	idx := NewTrigramIndex()
-	if err := idx.BuildFromStructYAMLs(structYAMLs, nil); err != nil {
+	if err := idx.BuildFromStructYAMLs(t.Context(), structYAMLs, nil); err != nil {
 		t.Fatalf("BuildFromStructYAMLs() error = %v", err)
 	}
 
@@ -232,6 +233,6 @@ spec:
 	b.ReportAllocs()
 	for b.Loop() {
 		idx := NewTrigramIndex()
-		_ = idx.BuildFromStructYAMLs(structYAMLs, nil)
+		_ = idx.BuildFromStructYAMLs(context.Background(), structYAMLs, nil)
 	}
 }

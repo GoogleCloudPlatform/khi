@@ -364,4 +364,43 @@ describe('WorkbenchClientService', () => {
     expect(service.isIndexReady()).toBeTrue();
     expect(service.isIndexBuilding()).toBeFalse();
   });
+
+  it('should abort active index progress stream on closeWorkbench', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    async function* mockIndexStream() {
+      yield {
+        state: StreamIndexProgressResponse_IndexState.BUILDING,
+        progressPercentage: 50,
+        message: 'Building...',
+      };
+    }
+    (
+      mockConnectClient.workbenchClient.streamIndexProgress as jasmine.Spy
+    ).and.callFake((_req: unknown, opts: { signal?: AbortSignal }) => {
+      capturedSignal = opts?.signal;
+      return mockIndexStream();
+    });
+
+    async function* mockOpenStream() {
+      yield {
+        stage: OpenWorkbenchResponse_Stage.READY,
+        progressPercentage: 100,
+        message: 'Ready',
+        workbenchId: 'wb-1',
+      };
+    }
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenStream());
+    (
+      mockConnectClient.workbenchClient.closeWorkbench as jasmine.Spy
+    ).and.returnValue(Promise.resolve({ closed: true }));
+
+    await service.openWorkbench('session-1', 'insp-1');
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal?.aborted).toBeFalse();
+
+    await service.closeWorkbench('wb-1');
+    expect(capturedSignal?.aborted).toBeTrue();
+  });
 });
