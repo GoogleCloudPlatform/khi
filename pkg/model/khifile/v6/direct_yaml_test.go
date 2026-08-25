@@ -73,6 +73,8 @@ str_empty: ""
 str_brackets: "[item1, item2]"
 str_braces: "{a: 1}"
 str_special_chars: "foo#bar=baz&qux%quux"
+str_japanese: "設定マップの更新"
+str_unicode_symbols: "🚀 container-started (node-1) ⚡"
 `,
 		},
 		{

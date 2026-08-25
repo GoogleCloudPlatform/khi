@@ -16,24 +16,47 @@ package cel
 
 import (
 	"context"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"io"
 	"regexp/syntax"
+	"sort"
 	"sync"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/RoaringBitmap/roaring/v2"
+)
+
+const (
+	// TrigramBinaryMagicBytes defines the 7-byte magic prefix for serialized TrigramIndex binary files.
+	TrigramBinaryMagicBytes = "KHITRIX"
+	// TrigramBinaryVersion defines the version byte of the TrigramIndex binary format.
+	TrigramBinaryVersion = byte(0x02)
+)
+
+var (
+	// ErrInvalidTrigramHeader indicates that the binary stream does not begin with valid magic bytes and version.
+	ErrInvalidTrigramHeader = errors.New("invalid trigram index binary header")
 )
 
 // TrigramProgressCallback receives streaming progress updates during Trigram index building.
 type TrigramProgressCallback = worker.ProgressCallback
 
-// TrigramIndex provides fast regular expression and substring candidate search over interned struct IDs using Roaring Bitmaps.
+// LogTrigramItem represents a minimal log record for Trigram indexing.
+type LogTrigramItem struct {
+	ID              uint32
+	SummaryStringID uint32
+	BodyStructID    uint32
+}
+
+// TrigramIndex provides fast regular expression and substring candidate search over log IDs using Roaring Bitmaps.
 type TrigramIndex struct {
-	// trigramToBitmap maps each lowercase 3-rune string to a Roaring Bitmap of StructIDs containing it.
+	// trigramToBitmap maps each lowercase 3-rune string to a Roaring Bitmap of LogIDs containing it.
 	trigramToBitmap map[string]*roaring.Bitmap
-	// allStructIDs contains all indexed StructIDs.
-	allStructIDs *roaring.Bitmap
 	// mu protects candidateCache.
 	mu sync.RWMutex
 	// candidateCache stores cached candidate query results (*roaring.Bitmap or nil) for concurrent evaluators.
@@ -44,95 +67,311 @@ type TrigramIndex struct {
 func NewTrigramIndex() *TrigramIndex {
 	return &TrigramIndex{
 		trigramToBitmap: make(map[string]*roaring.Bitmap),
-		allStructIDs:    roaring.NewBitmap(),
 		candidateCache:  make(map[string]*roaring.Bitmap),
 	}
 }
 
-type yamlEntry struct {
-	id   uint32
-	yaml string
+var (
+	_ io.WriterTo   = (*TrigramIndex)(nil)
+	_ io.ReaderFrom = (*TrigramIndex)(nil)
+)
+
+// countingWriter wraps an io.Writer and tracks the total number of bytes written.
+type countingWriter struct {
+	w            io.Writer
+	bytesWritten int64
 }
 
-// processYAMLEntryChunk processes a slice of yamlEntry, returning worker-local trigram-to-RoaringBitmap mapping.
-func processYAMLEntryChunk(chunk []yamlEntry, onProcessed func(int)) map[string]*roaring.Bitmap {
-	localTrigrams := make(map[string]*roaring.Bitmap)
-	var buf [12]byte
+func (c *countingWriter) Write(p []byte) (int, error) {
+	n, err := c.w.Write(p)
+	c.bytesWritten += int64(n)
+	return n, err
+}
 
-	for _, entry := range chunk {
-		yamlStr := entry.yaml
-		id := entry.id
-		if len(yamlStr) < 3 {
-			onProcessed(1)
+// countingReader wraps an io.Reader and tracks the total number of bytes read.
+type countingReader struct {
+	r         io.Reader
+	bytesRead int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.bytesRead += int64(n)
+	return n, err
+}
+
+// WriteTo serializes the TrigramIndex into the given io.Writer in compact binary format.
+func (t *TrigramIndex) WriteTo(w io.Writer) (int64, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	cw := &countingWriter{w: w}
+
+	header := make([]byte, 8)
+	copy(header[:7], TrigramBinaryMagicBytes)
+	header[7] = TrigramBinaryVersion
+	if _, err := cw.Write(header); err != nil {
+		return cw.bytesWritten, fmt.Errorf("failed to write header: %w", err)
+	}
+
+	keys := make([]string, 0, len(t.trigramToBitmap))
+	for k := range t.trigramToBitmap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var countBuf [4]byte
+	binary.LittleEndian.PutUint32(countBuf[:], uint32(len(keys)))
+	if _, err := cw.Write(countBuf[:]); err != nil {
+		return cw.bytesWritten, fmt.Errorf("failed to write trigram count: %w", err)
+	}
+
+	var lenBuf [1]byte
+	for _, key := range keys {
+		bm := t.trigramToBitmap[key]
+		keyBytes := []byte(key)
+		if len(keyBytes) > 255 {
+			return cw.bytesWritten, fmt.Errorf("trigram key length %d exceeds uint8 limit", len(keyBytes))
+		}
+		lenBuf[0] = byte(len(keyBytes))
+		if _, err := cw.Write(lenBuf[:]); err != nil {
+			return cw.bytesWritten, fmt.Errorf("failed to write key length: %w", err)
+		}
+		if _, err := cw.Write(keyBytes); err != nil {
+			return cw.bytesWritten, fmt.Errorf("failed to write key bytes: %w", err)
+		}
+		if _, err := bm.WriteTo(cw); err != nil {
+			return cw.bytesWritten, fmt.Errorf("failed to write bitmap for trigram %q: %w", key, err)
+		}
+	}
+
+	return cw.bytesWritten, nil
+}
+
+// ReadFrom restores the TrigramIndex from an io.Reader containing binary serialized TrigramIndex data.
+func (t *TrigramIndex) ReadFrom(r io.Reader) (int64, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	cr := &countingReader{r: r}
+
+	var header [8]byte
+	if _, err := io.ReadFull(cr, header[:]); err != nil {
+		return cr.bytesRead, fmt.Errorf("failed to read header: %w", err)
+	}
+	if string(header[:7]) != TrigramBinaryMagicBytes || header[7] != TrigramBinaryVersion {
+		return cr.bytesRead, ErrInvalidTrigramHeader
+	}
+
+	var countBuf [4]byte
+	if _, err := io.ReadFull(cr, countBuf[:]); err != nil {
+		return cr.bytesRead, fmt.Errorf("failed to read trigram count: %w", err)
+	}
+	numTrigrams := binary.LittleEndian.Uint32(countBuf[:])
+
+	trigramMap := make(map[string]*roaring.Bitmap, numTrigrams)
+	var lenBuf [1]byte
+	keyBuf := make([]byte, 256)
+	for i := uint32(0); i < numTrigrams; i++ {
+		if _, err := io.ReadFull(cr, lenBuf[:]); err != nil {
+			return cr.bytesRead, fmt.Errorf("failed to read key length: %w", err)
+		}
+		keyLen := int(lenBuf[0])
+		if _, err := io.ReadFull(cr, keyBuf[:keyLen]); err != nil {
+			return cr.bytesRead, fmt.Errorf("failed to read key bytes: %w", err)
+		}
+		key := string(keyBuf[:keyLen])
+
+		bm := roaring.NewBitmap()
+		if _, err := bm.ReadFrom(cr); err != nil {
+			return cr.bytesRead, fmt.Errorf("failed to read bitmap for trigram %q: %w", key, err)
+		}
+		trigramMap[key] = bm
+	}
+
+	t.trigramToBitmap = trigramMap
+	t.candidateCache = make(map[string]*roaring.Bitmap)
+	return cr.bytesRead, nil
+}
+
+// extractTrigramsToBitmap extracts lowercase 3-rune trigrams from str and directly adds id to localMap[triKey].
+func extractTrigramsToBitmap(str string, id uint32, localMap map[string]*roaring.Bitmap, buf *[12]byte) {
+	if len(str) < 3 {
+		return
+	}
+	var r0, r1, r2 rune
+	var count int
+
+	for offset := 0; offset < len(str); {
+		r, size := utf8.DecodeRuneInString(str[offset:])
+		offset += size
+		rLower := unicode.ToLower(r)
+
+		if count == 0 {
+			r0 = rLower
+			count = 1
+			continue
+		}
+		if count == 1 {
+			r1 = rLower
+			count = 2
 			continue
 		}
 
-		var r0, r1, r2 rune
-		var count int
+		r2 = rLower
+		n := utf8.EncodeRune(buf[0:], r0)
+		n += utf8.EncodeRune(buf[n:], r1)
+		n += utf8.EncodeRune(buf[n:], r2)
 
-		for offset := 0; offset < len(yamlStr); {
-			r, size := utf8.DecodeRuneInString(yamlStr[offset:])
-			offset += size
-			rLower := unicode.ToLower(r)
-
-			if count == 0 {
-				r0 = rLower
-				count = 1
-				continue
-			}
-			if count == 1 {
-				r1 = rLower
-				count = 2
-				continue
-			}
-
-			r2 = rLower
-			n := utf8.EncodeRune(buf[0:], r0)
-			n += utf8.EncodeRune(buf[n:], r1)
-			n += utf8.EncodeRune(buf[n:], r2)
-
-			triKey := string(buf[:n])
-			bm, exists := localTrigrams[triKey]
-			if !exists {
-				bm = roaring.NewBitmap()
-				localTrigrams[triKey] = bm
-			}
-			bm.Add(id)
-
-			r0 = r1
-			r1 = r2
+		triKey := string(buf[:n])
+		bm, exists := localMap[triKey]
+		if !exists {
+			bm = roaring.NewBitmap()
+			localMap[triKey] = bm
 		}
+		bm.Add(id)
 
-		onProcessed(1)
+		r0 = r1
+		r1 = r2
 	}
-
-	return localTrigrams
 }
 
-// mergeTrigramChunk merges worker-local Roaring Bitmaps for the given slice of trigrams.
-func mergeTrigramChunk(chunk []string, results []map[string]*roaring.Bitmap, onProcessed func(int)) map[string]*roaring.Bitmap {
-	localMerged := make(map[string]*roaring.Bitmap, len(chunk))
-	for _, tri := range chunk {
-		var bms []*roaring.Bitmap
-		for _, res := range results {
-			if bm, ok := res[tri]; ok {
-				bms = append(bms, bm)
+type workerTrigramData struct {
+	localMap map[string]*roaring.Bitmap
+}
+
+// BuildFromLogPool indexes trigrams from an InternPool and a slice of LogTrigramItems in streaming parallel chunks.
+func (t *TrigramIndex) BuildFromLogPool(pool *khifilev6model.InternPool, logs []LogTrigramItem, onProgress TrigramProgressCallback) error {
+	if pool == nil || len(logs) == 0 {
+		return nil
+	}
+
+	// Step 1: Parallel extraction into worker-local Roaring Bitmaps (0% - 90%)
+	workerResults, err := worker.ParallelChunkMap(
+		context.Background(),
+		logs,
+		func(ctx context.Context, workerIdx int, chunk []LogTrigramItem, onProcessed func(int)) (*workerTrigramData, error) {
+			data := &workerTrigramData{
+				localMap: make(map[string]*roaring.Bitmap),
+			}
+			serializer := khifilev6model.NewDirectYAMLSerializer()
+			var buf [12]byte
+
+			for _, l := range chunk {
+				if l.ID == 0 {
+					onProcessed(1)
+					continue
+				}
+
+				if l.BodyStructID != 0 {
+					s := pool.ResolveStructFromID(l.BodyStructID)
+					if s != nil {
+						if yamlStr, err := serializer.SerializeStruct(s, pool); err == nil {
+							extractTrigramsToBitmap(yamlStr, l.ID, data.localMap, &buf)
+						}
+					}
+				}
+
+				if l.SummaryStringID != 0 {
+					sumStr := pool.ResolveStringFromID(l.SummaryStringID)
+					if len(sumStr) >= 3 {
+						extractTrigramsToBitmap(sumStr, l.ID, data.localMap, &buf)
+					}
+				}
+				onProcessed(1)
+			}
+			return data, nil
+		},
+		onProgress,
+		worker.ProgressOptions{
+			MessageFmt:  "Indexing log bodies and summaries (%d/%d)...",
+			MinProgress: 0.0,
+			MaxProgress: 0.90,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	// Collect unique trigram keys across all workers.
+	keySet := make(map[string]struct{})
+	for _, wRes := range workerResults {
+		if wRes != nil {
+			for k := range wRes.localMap {
+				keySet[k] = struct{}{}
 			}
 		}
-
-		if len(bms) == 0 {
-			onProcessed(1)
-			continue
-		}
-
-		if len(bms) == 1 {
-			localMerged[tri] = bms[0]
-		} else {
-			localMerged[tri] = roaring.FastOr(bms...)
-		}
-		onProcessed(1)
 	}
-	return localMerged
+	allKeys := make([]string, 0, len(keySet))
+	for k := range keySet {
+		allKeys = append(allKeys, k)
+	}
+
+	// Step 2: Key-partitioned parallel merge across workers (90% - 100%)
+	shardResults, err := worker.ParallelChunkMap(
+		context.Background(),
+		allKeys,
+		func(ctx context.Context, workerIdx int, chunk []string, onProcessed func(int)) (map[string]*roaring.Bitmap, error) {
+			shardMap := make(map[string]*roaring.Bitmap, len(chunk))
+			for _, key := range chunk {
+				var merged *roaring.Bitmap
+				for _, wRes := range workerResults {
+					if wRes == nil {
+						continue
+					}
+					if bm, ok := wRes.localMap[key]; ok {
+						if merged == nil {
+							merged = bm
+						} else {
+							merged.Or(bm)
+						}
+					}
+				}
+				if merged != nil {
+					merged.RunOptimize()
+				}
+				shardMap[key] = merged
+				onProcessed(1)
+			}
+			return shardMap, nil
+		},
+		onProgress,
+		worker.ProgressOptions{
+			MessageFmt:  "Merging text search index (%d/%d)...",
+			MinProgress: 0.50,
+			MaxProgress: 1.0,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	finalMap := make(map[string]*roaring.Bitmap, len(allKeys))
+	for _, shard := range shardResults {
+		for k, bm := range shard {
+			finalMap[k] = bm
+		}
+	}
+
+	t.trigramToBitmap = finalMap
+	t.candidateCache = make(map[string]*roaring.Bitmap)
+	if onProgress != nil {
+		_ = onProgress(1.0, "Text search index complete.")
+	}
+	return nil
+}
+
+// BuildFromStructPool indexes trigrams from an InternPool and a slice of StructIDs in streaming chunks.
+// It maps each struct ID to itself as a log ID for backward compatibility with struct-level indexing tests.
+func (t *TrigramIndex) BuildFromStructPool(pool *khifilev6model.InternPool, structIDs []uint32, onProgress TrigramProgressCallback) error {
+	logs := make([]LogTrigramItem, 0, len(structIDs))
+	for _, id := range structIDs {
+		logs = append(logs, LogTrigramItem{
+			ID:           id,
+			BodyStructID: id,
+		})
+	}
+	return t.BuildFromLogPool(pool, logs, onProgress)
 }
 
 // BuildFromStructYAMLs indexes trigrams from pre-serialized struct YAML strings concurrently using Roaring Bitmaps.
@@ -141,85 +380,71 @@ func (t *TrigramIndex) BuildFromStructYAMLs(ctx context.Context, structYAMLs map
 		return nil
 	}
 
-	entries := make([]yamlEntry, 0, len(structYAMLs))
+	type structEntry struct {
+		id   uint32
+		yaml string
+	}
+	entries := make([]structEntry, 0, len(structYAMLs))
 	for id, yaml := range structYAMLs {
 		if id == 0 {
 			continue
 		}
-		t.allStructIDs.Add(id)
-		entries = append(entries, yamlEntry{id: id, yaml: yaml})
+		entries = append(entries, structEntry{id: id, yaml: yaml})
 	}
 
 	if len(entries) == 0 {
 		return nil
 	}
 
-	// Phase 1: Worker-Local Construction (0 locks)
-	results, err := worker.ParallelChunkMap(
+	workerResults, err := worker.ParallelChunkMap(
 		ctx,
 		entries,
-		func(ctx context.Context, workerIdx int, chunk []yamlEntry, onProcessed func(int)) (map[string]*roaring.Bitmap, error) {
-			return processYAMLEntryChunk(chunk, onProcessed), nil
+		func(ctx context.Context, workerIdx int, chunk []structEntry, onProcessed func(int)) (map[string]*roaring.Bitmap, error) {
+			localMap := make(map[string]*roaring.Bitmap)
+			var buf [12]byte
+			for _, entry := range chunk {
+				extractTrigramsToBitmap(entry.yaml, entry.id, localMap, &buf)
+				onProcessed(1)
+			}
+			return localMap, nil
 		},
 		onProgress,
 		worker.ProgressOptions{
 			MessageFmt:  "Building text search index (%d/%d)...",
 			MinProgress: 0.0,
-			MaxProgress: 0.70,
+			MaxProgress: 0.80,
 		},
 	)
 	if err != nil {
 		return err
 	}
 
-	// Collect unique trigram keys from all workers
-	uniqueTrigramMap := make(map[string]struct{})
-	for _, res := range results {
-		for tri := range res {
-			uniqueTrigramMap[tri] = struct{}{}
+	trigramMap := make(map[string]*roaring.Bitmap)
+	for _, localMap := range workerResults {
+		for tri, bm := range localMap {
+			if existing, ok := trigramMap[tri]; ok {
+				existing.Or(bm)
+			} else {
+				trigramMap[tri] = bm
+			}
 		}
 	}
-
-	uniqueTrigrams := make([]string, 0, len(uniqueTrigramMap))
-	for tri := range uniqueTrigramMap {
-		uniqueTrigrams = append(uniqueTrigrams, tri)
+	for _, bm := range trigramMap {
+		bm.RunOptimize()
 	}
 
-	if len(uniqueTrigrams) == 0 {
-		return nil
+	t.trigramToBitmap = trigramMap
+	t.candidateCache = make(map[string]*roaring.Bitmap)
+	if onProgress != nil {
+		_ = onProgress(1.0, "Text search index complete.")
 	}
-
-	// Phase 2: Parallel Partition Merge (0 locks)
-	mergedBitmaps, err := worker.ParallelChunkMap(
-		ctx,
-		uniqueTrigrams,
-		func(ctx context.Context, workerIdx int, chunk []string, onProcessed func(int)) (map[string]*roaring.Bitmap, error) {
-			return mergeTrigramChunk(chunk, results, onProcessed), nil
-		},
-		onProgress,
-		worker.ProgressOptions{
-			MessageFmt:  "Finalizing text search index (%d/%d)...",
-			MinProgress: 0.70,
-			MaxProgress: 1.00,
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	for _, localMerged := range mergedBitmaps {
-		for tri, bm := range localMerged {
-			t.trigramToBitmap[tri] = bm
-		}
-	}
-
 	return nil
 }
 
-// FindCandidateStructs returns a Roaring Bitmap containing candidate StructIDs whose serialized YAML could match the regex pattern.
-// If the regex is unconstrained by trigrams (e.g. wildcards or <3 char literals), it returns nil, meaning all structs are candidates.
-// If the pattern cannot match any indexed struct, it returns an empty Roaring Bitmap.
-func (t *TrigramIndex) FindCandidateStructs(pattern string) *roaring.Bitmap {
+// FindCandidateLogs returns a Roaring Bitmap containing candidate LogIDs whose summary or body could match the regex pattern.
+// If the regex is unconstrained by trigrams (e.g. wildcards or <3 char literals), it returns nil, meaning all logs are candidates.
+// If the pattern cannot match any indexed log, it returns an empty Roaring Bitmap.
+func (t *TrigramIndex) FindCandidateLogs(pattern string) *roaring.Bitmap {
 	if t == nil {
 		return roaring.NewBitmap()
 	}
