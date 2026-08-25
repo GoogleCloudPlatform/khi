@@ -346,7 +346,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_cont
 	}
 	i.runner = runner
 
-	runCtx, err := i.withRunContextValues(ctx, i.runner, inspectioncore_contract.TaskModeRun, req.Values)
+	runCtx, err := i.withRunContextValues(context.WithoutCancel(ctx), i.runner, inspectioncore_contract.TaskModeRun, req.Values)
 	if err != nil {
 		return err
 	}

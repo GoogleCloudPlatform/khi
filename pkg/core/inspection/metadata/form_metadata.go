@@ -186,6 +186,15 @@ func (f *FormFieldSetMetadata) SetField(newField ParameterFormField) error {
 	return nil
 }
 
+// Fields returns a copy of the parameter form fields.
+func (f *FormFieldSetMetadata) Fields() []ParameterFormField {
+	f.fieldsLock.RLock()
+	defer f.fieldsLock.RUnlock()
+	result := make([]ParameterFormField, len(f.fields))
+	copy(result, f.fields)
+	return result
+}
+
 // DangerouslyGetField shouldn't be used in non testing code. Because a field shouldn't depend on the other field
 // This is only for testing purpose.
 func (f *FormFieldSetMetadata) DangerouslyGetField(id string) ParameterFormField {
