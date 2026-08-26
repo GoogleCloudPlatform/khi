@@ -218,7 +218,12 @@ func (w *Workbench) BuildAsyncIndexesWithProgress(ctx context.Context, targetInd
 			ch, unsubscribe := w.indexManager.SubscribeIndexProgress(subCtx, w.inspectionID)
 			defer unsubscribe()
 
-			w.indexManager.StartAsyncIndexing(subCtx, w.inspectionID)
+			// Trigger background indexing if it has not been initiated yet (e.g., pre-existing inspection on server start).
+			// If already running, we simply await the existing task via progress channel subscribers.
+			state, _, _, _ := w.indexManager.IndexStatus(w.inspectionID)
+			if state == IndexStateNotStarted {
+				w.indexManager.StartAsyncIndexing(context.Background(), w.inspectionID)
+			}
 
 			for ev := range ch {
 				pct := 50.0 + float64(ev.ProgressPercentage)*0.5

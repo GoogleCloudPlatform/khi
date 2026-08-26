@@ -50,6 +50,9 @@ type WorkbenchManager struct {
 
 // NewWorkbenchManager creates a new WorkbenchManager instance with automatic background sweeping.
 func NewWorkbenchManager(inspectionServer *coreinspection.InspectionTaskServer, indexManager *InspectionIndexManager, ttl time.Duration, sweeperInterval time.Duration) *WorkbenchManager {
+	if indexManager == nil {
+		panic("indexManager is required")
+	}
 	mgr := &WorkbenchManager{
 		workbenches:      make(map[string]*Workbench),
 		leases:           make(map[string]time.Time),
@@ -270,7 +273,5 @@ func (m *WorkbenchManager) Stop() {
 	m.leases = make(map[string]time.Time)
 	m.mu.Unlock()
 
-	if m.indexManager != nil {
-		m.indexManager.Wait()
-	}
+	m.indexManager.Wait()
 }

@@ -217,6 +217,7 @@ func TestApiResponses(t *testing.T) {
 		StaticFolderPath: "dist",
 		ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000, TotalMemory: 2000},
 		ServerBasePath:   "/foo",
+		IndexManager:     &mockInspectionIndexer{},
 	}
 	engine := gin.New()
 	engine = CreateKHIServer(engine, inspectionServer, &serverConfig)
@@ -649,6 +650,7 @@ func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {
 				StaticFolderPath: embeddedStaticFolderPath,
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   tc.serverBasePath,
+				IndexManager:     &mockInspectionIndexer{},
 			}
 			engine := gin.New()
 			engine = CreateKHIServer(engine, inspectionServer, &config)
@@ -698,6 +700,7 @@ func TestKHIServerRedirects(t *testing.T) {
 				StaticFolderPath: "dist",
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   tc.serverBasePath,
+				IndexManager:     &mockInspectionIndexer{},
 			}
 			engine := gin.New()
 			engine = CreateKHIServer(engine, inspectionServer, &config)
@@ -745,6 +748,7 @@ func TestRegisterConnectServiceHandler(t *testing.T) {
 				StaticFolderPath: "dist",
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   tc.basePath,
+				IndexManager:     &mockInspectionIndexer{},
 			}
 			inspectionServer, err := createTestInspectionServer()
 			if err != nil {
@@ -777,14 +781,23 @@ func TestRegisterConnectServiceHandler(t *testing.T) {
 }
 
 type mockInspectionIndexer struct {
-	mu           sync.Mutex
-	indexedCalls []string
+	mu               sync.Mutex
+	indexedCalls     []string
+	invalidatedCalls []string
 }
+
+var _ InspectionIndexer = (*mockInspectionIndexer)(nil)
 
 func (m *mockInspectionIndexer) StartAsyncIndexing(ctx context.Context, inspectionID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.indexedCalls = append(m.indexedCalls, inspectionID)
+}
+
+func (m *mockInspectionIndexer) InvalidateInspectionIndex(inspectionID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.invalidatedCalls = append(m.invalidatedCalls, inspectionID)
 }
 
 func (m *mockInspectionIndexer) IndexedCalls() []string {
@@ -795,93 +808,103 @@ func (m *mockInspectionIndexer) IndexedCalls() []string {
 	return res
 }
 
+func (m *mockInspectionIndexer) InvalidatedCalls() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	res := make([]string, len(m.invalidatedCalls))
+	copy(res, m.invalidatedCalls)
+	return res
+}
+
 func TestKHIServerRoutes_RunTriggersAsyncIndexing(t *testing.T) {
-	testCases := []struct {
-		name             string
-		withIndexManager bool
-		wantIndexedCount int
-	}{
-		{
-			name:             "triggers async indexing when index manager is configured",
-			withIndexManager: true,
-			wantIndexedCount: 1,
-		},
-		{
-			name:             "does not panic or fail when index manager is nil",
-			withIndexManager: false,
-			wantIndexedCount: 0,
-		},
-	}
+	t.Run("triggers cache invalidation and async indexing when inspection completes successfully", func(t *testing.T) {
+		logger.InitGlobalKHILogger()
+		inspectionServer, err := createTestInspectionServer()
+		if err != nil {
+			t.Fatalf("createTestInspectionServer failed: %v", err)
+		}
+		taskID, err := inspectionServer.CreateInspection("foo")
+		if err != nil {
+			t.Fatalf("CreateInspection failed: %v", err)
+		}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			logger.InitGlobalKHILogger()
-			inspectionServer, err := createTestInspectionServer()
-			if err != nil {
-				t.Fatalf("createTestInspectionServer failed: %v", err)
-			}
-			taskID, err := inspectionServer.CreateInspection("foo")
-			if err != nil {
-				t.Fatalf("CreateInspection failed: %v", err)
-			}
+		mockIndexer := &mockInspectionIndexer{}
+		serverConfig := ServerConfig{
+			StaticFolderPath: "dist",
+			ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
+			ServerBasePath:   "",
+			IndexManager:     mockIndexer,
+		}
 
-			mockIndexer := &mockInspectionIndexer{}
-			serverConfig := ServerConfig{
-				StaticFolderPath: "dist",
-				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
-				ServerBasePath:   "",
-			}
-			if tc.withIndexManager {
-				serverConfig.IndexManager = mockIndexer
-			}
+		engine := gin.New()
+		SetupKHIServerRoutes(engine, inspectionServer, &serverConfig)
 
-			engine := gin.New()
-			SetupKHIServerRoutes(engine, inspectionServer, &serverConfig)
+		task := inspectionServer.GetInspection(taskID)
+		if err := task.UpdateFeatureMap(map[string]bool{"feature-foo2#default": true}); err != nil {
+			t.Fatalf("UpdateFeatureMap failed: %v", err)
+		}
 
-			task := inspectionServer.GetInspection(taskID)
-			if err := task.UpdateFeatureMap(map[string]bool{"feature-foo2#default": true}); err != nil {
-				t.Fatalf("UpdateFeatureMap failed: %v", err)
-			}
-
-			bodyBytes, err := json.Marshal(map[string]any{
-				"foo-input": "foo-input-value",
-			})
-			if err != nil {
-				t.Fatalf("json.Marshal failed: %v", err)
-			}
-			recorder := httptest.NewRecorder()
-			req, err := http.NewRequest("POST", fmt.Sprintf("/api/v3/inspection/%s/run", taskID), bytes.NewReader(bodyBytes))
-			if err != nil {
-				t.Fatalf("http.NewRequest failed: %v", err)
-			}
-			req.Header.Set("Content-Type", "application/json")
-			engine.ServeHTTP(recorder, req)
-
-			if recorder.Code != http.StatusAccepted {
-				t.Fatalf("POST /run returned code %d, want %d", recorder.Code, http.StatusAccepted)
-			}
-
-			<-task.Wait()
-
-			if tc.withIndexManager {
-				deadline := time.Now().Add(2 * time.Second)
-				for time.Now().Before(deadline) {
-					if len(mockIndexer.IndexedCalls()) == tc.wantIndexedCount {
-						break
-					}
-					time.Sleep(10 * time.Millisecond)
-				}
-			}
-
-			gotCalls := mockIndexer.IndexedCalls()
-			if diff := cmp.Diff(tc.wantIndexedCount, len(gotCalls)); diff != "" {
-				t.Errorf("indexed call count mismatch (-want +got):\n%s", diff)
-			}
-			if tc.withIndexManager && len(gotCalls) > 0 {
-				if diff := cmp.Diff(taskID, gotCalls[0]); diff != "" {
-					t.Errorf("indexed taskID mismatch (-want +got):\n%s", diff)
-				}
-			}
+		bodyBytes, err := json.Marshal(map[string]any{
+			"foo-input": "foo-input-value",
 		})
-	}
+		if err != nil {
+			t.Fatalf("json.Marshal failed: %v", err)
+		}
+		recorder := httptest.NewRecorder()
+		req, err := http.NewRequest("POST", fmt.Sprintf("/api/v3/inspection/%s/run", taskID), bytes.NewReader(bodyBytes))
+		if err != nil {
+			t.Fatalf("http.NewRequest failed: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		engine.ServeHTTP(recorder, req)
+
+		if recorder.Code != http.StatusAccepted {
+			t.Fatalf("POST /run returned code %d, want %d", recorder.Code, http.StatusAccepted)
+		}
+
+		<-task.Wait()
+
+		deadline := time.Now().Add(2 * time.Second)
+		for time.Now().Before(deadline) {
+			if len(mockIndexer.IndexedCalls()) == 1 && len(mockIndexer.InvalidatedCalls()) == 1 {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		gotCalls := mockIndexer.IndexedCalls()
+		if diff := cmp.Diff(1, len(gotCalls)); diff != "" {
+			t.Errorf("indexed call count mismatch (-want +got):\n%s", diff)
+		}
+		if len(gotCalls) > 0 {
+			if diff := cmp.Diff(taskID, gotCalls[0]); diff != "" {
+				t.Errorf("indexed taskID mismatch (-want +got):\n%s", diff)
+			}
+		}
+
+		gotInvalidated := mockIndexer.InvalidatedCalls()
+		if diff := cmp.Diff(1, len(gotInvalidated)); diff != "" {
+			t.Errorf("invalidated call count mismatch (-want +got):\n%s", diff)
+		}
+		if len(gotInvalidated) > 0 {
+			if diff := cmp.Diff(taskID, gotInvalidated[0]); diff != "" {
+				t.Errorf("invalidated taskID mismatch (-want +got):\n%s", diff)
+			}
+		}
+	})
+
+	t.Run("panics when index manager is nil in ServerConfig", func(t *testing.T) {
+		inspectionServer, err := createTestInspectionServer()
+		if err != nil {
+			t.Fatalf("createTestInspectionServer failed: %v", err)
+		}
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("expected panic when serverConfig.IndexManager is nil, got none")
+			}
+		}()
+		engine := gin.New()
+		SetupKHIServerRoutes(engine, inspectionServer, &ServerConfig{})
+	})
 }

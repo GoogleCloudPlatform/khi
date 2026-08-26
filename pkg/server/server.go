@@ -41,9 +41,10 @@ const embeddedStaticFolderPath = "dist/browser"
 //go:embed dist/browser
 var embeddedStaticFolder embed.FS
 
-// InspectionIndexer defines the contract for asynchronously indexing an inspection.
+// InspectionIndexer defines the contract for asynchronously indexing an inspection and invalidating stale indices.
 type InspectionIndexer interface {
 	StartAsyncIndexing(ctx context.Context, inspectionID string)
+	InvalidateInspectionIndex(inspectionID string)
 }
 
 type ServerConfig struct {
@@ -77,6 +78,9 @@ func coepCoopMiddleware() gin.HandlerFunc {
 // SetupKHIServerRoutes mounts base middlewares, static files, and standard REST routes onto engine.
 // It returns the normalized base path without trailing slash and the created gin.IRouter.
 func SetupKHIServerRoutes(engine *gin.Engine, inspectionServer *coreinspection.InspectionTaskServer, serverConfig *ServerConfig) (string, gin.IRouter) {
+	if serverConfig.IndexManager == nil {
+		panic("serverConfig.IndexManager is required")
+	}
 	engine.Use(coepCoopMiddleware())
 	basePathWithoutTrailingSlash := strings.TrimSuffix(serverConfig.ServerBasePath, "/")
 	engine.Use(redirectMiddleware(basePathWithoutTrailingSlash+"/", basePathWithoutTrailingSlash+"/session/0")) // Request for `/` shouldn't be handled by `static.Serve`, redirect `/session/0` to be handled by patternToString
@@ -291,14 +295,13 @@ func SetupKHIServerRoutes(engine *gin.Engine, inspectionServer *coreinspection.I
 			ctx.String(http.StatusInternalServerError, err.Error())
 			return
 		}
-		if serverConfig.IndexManager != nil {
-			go func() {
-				<-currentTask.Wait()
-				if res, err := currentTask.Result(); err == nil && res != nil {
-					serverConfig.IndexManager.StartAsyncIndexing(context.Background(), inspectionID)
-				}
-			}()
-		}
+		go func() {
+			<-currentTask.Wait()
+			if res, err := currentTask.Result(); err == nil && res != nil {
+				serverConfig.IndexManager.InvalidateInspectionIndex(inspectionID)
+				serverConfig.IndexManager.StartAsyncIndexing(context.Background(), inspectionID)
+			}
+		}()
 		ctx.String(http.StatusAccepted, "ok")
 	})
 

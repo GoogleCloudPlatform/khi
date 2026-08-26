@@ -117,6 +117,7 @@ func (s *ImportInspectionServiceServer) CompleteImportInspection(
 	}
 
 	if s.indexManager != nil {
+		s.indexManager.InvalidateInspectionIndex(finalized.InspectionID)
 		s.indexManager.StartAsyncIndexing(context.Background(), finalized.InspectionID)
 	}
 

@@ -41,6 +41,7 @@ type InspectionIndexManager struct {
 	dataDir          string
 	inspectionServer *coreinspection.InspectionTaskServer
 	buildGroup       singleflight.Group
+	loadGroup        singleflight.Group
 	wg               sync.WaitGroup
 }
 
@@ -64,8 +65,19 @@ func (m *InspectionIndexManager) GetTrigramIndex(inspectionID string) (*cel.Trig
 	}
 	m.mu.RUnlock()
 
-	// Check disk cache
-	if idx, err := m.loadTrigramIndexFromDisk(inspectionID); err == nil && idx != nil {
+	// Use singleflight to deduplicate concurrent disk loads of the same trigram index.
+	val, err, _ := m.loadGroup.Do(inspectionID, func() (any, error) {
+		m.mu.RLock()
+		if idx, ok := m.memoryCache[inspectionID]; ok && idx != nil {
+			m.mu.RUnlock()
+			return idx, nil
+		}
+		m.mu.RUnlock()
+
+		idx, err := m.loadTrigramIndexFromDisk(inspectionID)
+		if err != nil {
+			return nil, err
+		}
 		m.mu.Lock()
 		m.memoryCache[inspectionID] = idx
 		m.latestEvent[inspectionID] = IndexProgressEvent{
@@ -75,9 +87,12 @@ func (m *InspectionIndexManager) GetTrigramIndex(inspectionID string) (*cel.Trig
 			Message:            "Text search index ready.",
 		}
 		m.mu.Unlock()
-		return idx, true
-	}
+		return idx, nil
+	})
 
+	if err == nil && val != nil {
+		return val.(*cel.TrigramIndex), true
+	}
 	return nil, false
 }
 
@@ -222,9 +237,11 @@ func (m *InspectionIndexManager) SubscribeIndexProgress(ctx context.Context, ins
 	default:
 	}
 
+	stopCh := make(chan struct{})
 	var once sync.Once
 	unsubscribe := func() {
 		once.Do(func() {
+			close(stopCh)
 			m.mu.Lock()
 			defer m.mu.Unlock()
 			subs := m.subscribers[inspectionID]
@@ -239,8 +256,11 @@ func (m *InspectionIndexManager) SubscribeIndexProgress(ctx context.Context, ins
 	}
 
 	go func() {
-		<-ctx.Done()
-		unsubscribe()
+		select {
+		case <-ctx.Done():
+			unsubscribe()
+		case <-stopCh:
+		}
 	}()
 
 	return ch, unsubscribe

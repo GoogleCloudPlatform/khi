@@ -106,7 +106,8 @@ func TestWorkbenchManager_GetOrOpen(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mgr := NewWorkbenchManager(inspectionServer, nil, 100*time.Millisecond, 0)
+			indexMgr := NewInspectionIndexManager(inspectionServer, t.TempDir())
+			mgr := NewWorkbenchManager(inspectionServer, indexMgr, 100*time.Millisecond, 0)
 			defer mgr.Stop()
 
 			var progressEvents []apiv1.OpenWorkbenchResponse_Stage
@@ -140,7 +141,7 @@ func TestWorkbenchManager_GetOrOpen(t *testing.T) {
 func TestWorkbenchManager_HeartbeatAndClose(t *testing.T) {
 	inspectionServer, validInspectionID := createTestInspectionServer(t)
 
-	mgr := NewWorkbenchManager(inspectionServer, nil, 50*time.Millisecond, 0)
+	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 50*time.Millisecond, 0)
 	defer mgr.Stop()
 
 	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
@@ -176,7 +177,7 @@ func TestWorkbenchManager_HeartbeatAndClose(t *testing.T) {
 func TestWorkbenchManager_LeasesAndRemove(t *testing.T) {
 	inspectionServer, validInspectionID := createTestInspectionServer(t)
 
-	mgr := NewWorkbenchManager(inspectionServer, nil, 50*time.Millisecond, 0)
+	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 50*time.Millisecond, 0)
 	defer mgr.Stop()
 
 	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
@@ -208,7 +209,7 @@ func TestWorkbenchManager_LeasesAndRemove(t *testing.T) {
 func TestWorkbenchManager_GetAndTouch(t *testing.T) {
 	inspectionServer, validInspectionID := createTestInspectionServer(t)
 
-	mgr := NewWorkbenchManager(inspectionServer, nil, 50*time.Millisecond, 0)
+	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 50*time.Millisecond, 0)
 	defer mgr.Stop()
 
 	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
@@ -268,7 +269,7 @@ func TestWorkbenchManager_ReopenDifferentInspection(t *testing.T) {
 	}
 	<-runner.Wait()
 
-	mgr := NewWorkbenchManager(inspectionServer, nil, 5*time.Second, 0)
+	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 5*time.Second, 0)
 	defer mgr.Stop()
 
 	workbenchID := "user-session-same"
@@ -318,7 +319,7 @@ func TestWorkbenchManager_ReopenDifferentInspection(t *testing.T) {
 func TestWorkbenchManager_ConcurrentGetOrOpen(t *testing.T) {
 	inspectionServer, validInspectionID := createTestInspectionServer(t)
 
-	mgr := NewWorkbenchManager(inspectionServer, nil, 5*time.Second, 0)
+	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 5*time.Second, 0)
 	defer mgr.Stop()
 
 	const numConcurrent = 10
@@ -417,4 +418,15 @@ func TestWorkbenchManager_WithInspectionIndexManager(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewWorkbenchManager_PanicsOnNilIndexManager(t *testing.T) {
+	inspectionServer, _ := createTestInspectionServer(t)
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Errorf("expected panic when indexManager is nil, got none")
+		}
+	}()
+	NewWorkbenchManager(inspectionServer, nil, time.Minute, 0)
 }
