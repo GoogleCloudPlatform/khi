@@ -17,6 +17,7 @@ package defaultinit
 import (
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
+	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	apiv1impl "github.com/GoogleCloudPlatform/khi/pkg/server/api/v1"
 )
 
@@ -39,10 +40,9 @@ var ServerStatusServiceInitializer = &coreinit.Initializer{
 		}
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
-		serverConfig := coreinit.MustGet(ctx, ServerConfigKey)
 
 		serverStatusPath, serverStatusHandler := apiv1connect.NewServerStatusServiceHandler(
-			apiv1impl.NewServerStatusServiceServer(serverConfig.ResourceMonitor),
+			apiv1impl.NewServerStatusServiceServer(server.NewResourceMonitorImpl()),
 		)
 		coreinit.RegisterConnectServiceHandler(router, basePath, serverStatusPath, serverStatusHandler)
 		return nil

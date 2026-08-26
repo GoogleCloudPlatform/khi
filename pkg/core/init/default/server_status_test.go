@@ -22,7 +22,6 @@ import (
 
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	"github.com/gin-gonic/gin"
 )
 
@@ -70,15 +69,7 @@ func TestServerStatusServiceInitializer(t *testing.T) {
 
 			ginEngine := gin.New()
 			var router gin.IRouter = ginEngine.Group(tc.basePath)
-			serverConfig := &server.ServerConfig{
-				ResourceMonitor: &server.ResourceMonitorMock{
-					UsedMemory:  100,
-					TotalMemory: 200,
-					CPUUsage:    10.0,
-				},
-			}
 
-			coreinit.Set(ctx, ServerConfigKey, serverConfig)
 			coreinit.Set(ctx, GinRouterKey, router)
 			coreinit.Set(ctx, BasePathKey, tc.basePath)
 

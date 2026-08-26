@@ -15,6 +15,8 @@
 package defaultinit
 
 import (
+	"strings"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
@@ -25,9 +27,6 @@ import (
 var (
 	// UploadStoreKey stores the UploadFileStore instance.
 	UploadStoreKey = typedmap.NewTypedKey[*upload.UploadFileStore]("khi.google.com/init/upload-store")
-
-	// ServerConfigKey stores the ServerConfig instance.
-	ServerConfigKey = typedmap.NewTypedKey[*server.ServerConfig]("khi.google.com/init/server-config")
 
 	// GinRouterKey stores the base gin.IRouter instance.
 	GinRouterKey = typedmap.NewTypedKey[gin.IRouter]("khi.google.com/init/gin-router")
@@ -44,8 +43,6 @@ var GinServerInitializer = &coreinit.Initializer{
 	ID: InitializerIDGinServer,
 	Dependencies: []coreinit.InitializerID{
 		InitializerIDGinEngine,
-		InitializerIDInspectionTaskServer,
-		InitializerIDInspectionIndexManager,
 	},
 	Before: []coreinit.InitializerID{
 		InitializerIDServerRunner,
@@ -67,19 +64,14 @@ var GinServerInitializer = &coreinit.Initializer{
 		coreinit.Set(ctx, UploadStoreKey, uploadFileStore)
 
 		engine := coreinit.MustGet(ctx, GinEngineKey)
-		serverConfig := &server.ServerConfig{
-			StaticFolderPath: *serverParams.FrontendAssetFolder,
-			ResourceMonitor:  server.NewResourceMonitorImpl(),
-			ServerBasePath:   *serverParams.BasePath,
-			IndexManager:     coreinit.MustGet(ctx, InspectionIndexManagerKey),
-		}
-		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
-
-		basePathWithoutTrailingSlash, router := server.SetupKHIServerRoutes(engine, inspectionServer, serverConfig)
+		basePath := strings.TrimSuffix(*serverParams.BasePath, "/")
+		var router gin.IRouter = engine.Group(basePath)
 
 		coreinit.Set(ctx, GinRouterKey, router)
-		coreinit.Set(ctx, BasePathKey, basePathWithoutTrailingSlash)
-		coreinit.Set(ctx, ServerConfigKey, serverConfig)
+		coreinit.Set(ctx, BasePathKey, basePath)
+
+		server.SetupFrontendMiddleware(engine, basePath, *serverParams.FrontendAssetFolder)
+		server.SetupFrontendRoutes(router, *serverParams.FrontendAssetFolder)
 		return nil
 	},
 }
