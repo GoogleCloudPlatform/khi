@@ -107,7 +107,13 @@ func (f *LogCELFilter) Process(
 		return err
 	}
 
-	candLogBitmap := roaring.FastOr(workerBitmaps...)
+	var activeBitmaps []*roaring.Bitmap
+	for _, bm := range workerBitmaps {
+		if bm != nil {
+			activeBitmaps = append(activeBitmaps, bm)
+		}
+	}
+	candLogBitmap := roaring.FastOr(activeBitmaps...)
 	candidateLogIDs := candLogBitmap.ToArray()
 
 	totalCandidateLogs := uint32(len(candidateLogIDs))

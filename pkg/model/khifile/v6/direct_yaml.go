@@ -42,6 +42,7 @@ type FieldPathSchema struct {
 }
 
 // DirectYAMLSerializer serializes InternedStruct directly to YAML text without constructing intermediate ASTs.
+// It reuses an internal buffer across calls for performance and is not safe for concurrent use by multiple goroutines.
 type DirectYAMLSerializer struct {
 	buf         bytes.Buffer
 	schemaCache sync.Map // map[uint32]*FieldPathSchema
@@ -191,7 +192,11 @@ func (s *DirectYAMLSerializer) emitValue(targetBuf *bytes.Buffer, v *pb.Interned
 	case *pb.InternedValue_DoubleValue:
 		targetBuf.WriteString(strconv.FormatFloat(kind.DoubleValue, 'f', -1, 64))
 	case *pb.InternedValue_TimestampValue:
-		targetBuf.WriteString(kind.TimestampValue.AsTime().Format(time.RFC3339))
+		if kind.TimestampValue == nil {
+			targetBuf.WriteString("null")
+		} else {
+			targetBuf.WriteString(kind.TimestampValue.AsTime().Format(time.RFC3339))
+		}
 	case *pb.InternedValue_ListValue:
 		list := kind.ListValue.GetValues()
 		if len(list) == 0 {
@@ -235,6 +240,11 @@ func (s *DirectYAMLSerializer) emitValue(targetBuf *bytes.Buffer, v *pb.Interned
 // emitListItem writes a single sequence item with proper standard YAML indentation and `- ` prefix.
 func (s *DirectYAMLSerializer) emitListItem(targetBuf *bytes.Buffer, item *pb.InternedValue, pool *InternPool, itemIndentLvl int) {
 	targetBuf.WriteString("\n")
+	if item == nil {
+		targetBuf.WriteString(strings.Repeat("  ", itemIndentLvl-1))
+		targetBuf.WriteString("- null")
+		return
+	}
 
 	var nested *pb.InternedStruct
 	if structID, ok := item.Kind.(*pb.InternedValue_StructId); ok {
@@ -290,10 +300,12 @@ func isSafePlainScalar(str string) bool {
 	}
 
 	// Check against reserved YAML boolean and null keywords.
-	lower := strings.ToLower(str)
-	switch lower {
-	case "true", "false", "yes", "no", "on", "off", "null", "nan", "inf", "y", "n":
-		return false
+	if len(str) <= 5 {
+		lower := strings.ToLower(str)
+		switch lower {
+		case "true", "false", "yes", "no", "on", "off", "null", "nan", "inf", "y", "n":
+			return false
+		}
 	}
 
 	// Must only contain safe identifier characters without any YAML syntax characters.
