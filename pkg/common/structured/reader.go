@@ -174,7 +174,7 @@ func (n *NodeReader) getNode(fieldPath string) (Node, error) {
 	if fieldPath == "" {
 		return n.Node, nil
 	}
-	pathSegments := parseFieldPath(fieldPath)
+	pathSegments := ParseFieldPath(fieldPath)
 	currentNode := n.Node
 	for pathCursor := 0; pathCursor < len(pathSegments); pathCursor++ {
 		found := false
@@ -224,9 +224,9 @@ func ReadReflectK8sRuntimeObject[T runtime.Object](r *NodeReader, fieldPath stri
 	return nil
 }
 
-// parseFieldPath splits a field path string according to specified rules.
+// ParseFieldPath splits a field path string according to specified rules.
 // It uses '.' as a delimiter, but '\.' is treated as an escaped literal dot.
-func parseFieldPath(s string) []string {
+func ParseFieldPath(s string) []string {
 	var result []string
 	var currentSegment strings.Builder
 	isEscaped := false

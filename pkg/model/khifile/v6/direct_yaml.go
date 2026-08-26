@@ -105,7 +105,7 @@ func compileFieldPathSchema(keys []string) *FieldPathSchema {
 		var prefixBuilder strings.Builder
 		for lvl := common; lvl < len(parts)-1; lvl++ {
 			prefixBuilder.WriteString(strings.Repeat("  ", lvl))
-			prefixBuilder.WriteString(formatKeyName(parts[lvl]))
+			prefixBuilder.WriteString(FormatKeyName(parts[lvl]))
 			prefixBuilder.WriteString(":\n")
 		}
 
@@ -113,7 +113,7 @@ func compileFieldPathSchema(keys []string) *FieldPathSchema {
 		ops[i] = FieldOp{
 			PrefixYAML:  prefixBuilder.String(),
 			Indent:      strings.Repeat("  ", leafLvl),
-			KeyName:     formatKeyName(parts[leafLvl]),
+			KeyName:     FormatKeyName(parts[leafLvl]),
 			IndentLevel: leafLvl,
 		}
 
@@ -123,8 +123,8 @@ func compileFieldPathSchema(keys []string) *FieldPathSchema {
 	return &FieldPathSchema{Ops: ops}
 }
 
-// formatKeyName formats a mapping key safely, applying quotes if the key starts with @ or contains control characters.
-func formatKeyName(key string) string {
+// FormatKeyName formats a mapping key safely, applying quotes if the key starts with @ or contains control characters.
+func FormatKeyName(key string) string {
 	if isSafePlainScalar(key) {
 		return key
 	}

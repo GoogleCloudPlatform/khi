@@ -166,7 +166,7 @@ func MatchLogField(
 	// Candidate pre-filtering with TrigramIndex:
 	// If trigram index exists and neither log ID nor struct ID is in candidate bitmap, prune early.
 	if trigramIndex != nil {
-		candidateBitmap := trigramIndex.FindCandidateLogs(combinedPattern)
+		candidateBitmap := trigramIndex.FindCandidateLogsWithField(pathKey, combinedPattern)
 		if candidateBitmap != nil {
 			matchLog := l.ID != 0 && candidateBitmap.Contains(l.ID)
 			matchStruct := l.BodyStructID != 0 && candidateBitmap.Contains(l.BodyStructID)

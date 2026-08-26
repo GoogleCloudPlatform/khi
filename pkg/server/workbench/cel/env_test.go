@@ -434,3 +434,135 @@ user:
 		})
 	}
 }
+
+func TestLogEvaluator_WithTrigramIndex(t *testing.T) {
+	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+
+	node1, err := structured.FromYAML(`verb: create
+user:
+  username: system:admin
+spec:
+  container:
+    name: nginx
+    image: nginx:latest
+`)
+	if err != nil {
+		t.Fatalf("failed to parse yaml node 1: %v", err)
+	}
+	sRef1, err := khifilev6model.ToInternedStruct(node1, pool)
+	if err != nil {
+		t.Fatalf("failed to intern struct 1: %v", err)
+	}
+
+	node2, err := structured.FromYAML(`verb: get
+user:
+  username: anonymous
+spec:
+  container:
+    name: coredns
+    image: coredns:v1.9
+`)
+	if err != nil {
+		t.Fatalf("failed to parse yaml node 2: %v", err)
+	}
+	sRef2, err := khifilev6model.ToInternedStruct(node2, pool)
+	if err != nil {
+		t.Fatalf("failed to intern struct 2: %v", err)
+	}
+
+	log1 := &LogData{
+		ID:           1,
+		LogType:      "k8s-audit",
+		Severity:     3,
+		Summary:      "pod created",
+		BodyStructID: sRef1.ID(),
+	}
+	log2 := &LogData{
+		ID:           2,
+		LogType:      "k8s-audit",
+		Severity:     1,
+		Summary:      "pod inspected",
+		BodyStructID: sRef2.ID(),
+	}
+
+	trigramIdx := NewTrigramIndex()
+	logItems := []LogTrigramItem{
+		{ID: log1.ID, BodyStructID: log1.BodyStructID},
+		{ID: log2.ID, BodyStructID: log2.BodyStructID},
+	}
+	if err := trigramIdx.BuildFromLogPool(pool, logItems, nil); err != nil {
+		t.Fatalf("BuildFromLogPool() failed: %v", err)
+	}
+
+	eval, err := NewLogEvaluator()
+	if err != nil {
+		t.Fatalf("NewLogEvaluator() failed: %v", err)
+	}
+	eval.SetInternPool(pool)
+	eval.SetTrigramIndex(trigramIdx)
+
+	testCases := []struct {
+		name       string
+		expression string
+		log        *LogData
+		want       bool
+	}{
+		{
+			name:       "field search matches log 1",
+			expression: `body("spec.container.image", "nginx")`,
+			log:        log1,
+			want:       true,
+		},
+		{
+			name:       "field search does not match log 2 and is pruned",
+			expression: `body("spec.container.image", "nginx")`,
+			log:        log2,
+			want:       false,
+		},
+		{
+			name:       "user.username matches log 1",
+			expression: `body("user.username", "admin")`,
+			log:        log1,
+			want:       true,
+		},
+		{
+			name:       "user.username does not match log 2",
+			expression: `body("user.username", "admin")`,
+			log:        log2,
+			want:       false,
+		},
+		{
+			name:       "user.username anonymous matches log 2",
+			expression: `body("user.username", "anonymous")`,
+			log:        log2,
+			want:       true,
+		},
+		{
+			name:       "non-existent field is pruned early and returns false",
+			expression: `body("nonexistent.field", "nginx")`,
+			log:        log1,
+			want:       false,
+		},
+		{
+			name:       "unconstrained pattern matches when field exists",
+			expression: `body("spec.container.image", ".*")`,
+			log:        log1,
+			want:       true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := eval.Compile(tc.expression); err != nil {
+				t.Fatalf("Compile() failed: %v", err)
+			}
+			got, err := eval.Evaluate(context.Background(), tc.log)
+			if err != nil {
+				t.Fatalf("Evaluate() unexpected error = %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Evaluate() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

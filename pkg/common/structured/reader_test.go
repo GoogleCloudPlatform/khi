@@ -324,7 +324,7 @@ func TestParseFieldPath(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := parseFieldPath(tc.input)
+			result := ParseFieldPath(tc.input)
 
 			if len(result) != len(tc.expected) {
 				t.Errorf("Expected %d segments, got %d", len(tc.expected), len(result))

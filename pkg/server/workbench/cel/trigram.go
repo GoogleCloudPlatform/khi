@@ -22,10 +22,12 @@ import (
 	"io"
 	"regexp/syntax"
 	"sort"
+	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/RoaringBitmap/roaring/v2"
@@ -441,16 +443,59 @@ func (t *TrigramIndex) BuildFromStructYAMLs(ctx context.Context, structYAMLs map
 	return nil
 }
 
-// FindCandidateLogs returns a Roaring Bitmap containing candidate LogIDs whose summary or body could match the regex pattern.
-// If the regex is unconstrained by trigrams (e.g. wildcards or <3 char literals), it returns nil, meaning all logs are candidates.
-// If the pattern cannot match any indexed log, it returns an empty Roaring Bitmap.
-func (t *TrigramIndex) FindCandidateLogs(pattern string) *roaring.Bitmap {
+// PathToTrigramQuery converts a field path key into a TrigramQuery constraining candidates
+// to logs/structs that contain the path's constituent field segments formatted as YAML keys.
+// If pathKey is empty or "*", or if none of the segments have at least 3 runes with colon, it returns &AllQuery{}.
+func PathToTrigramQuery(pathKey string) TrigramQuery {
+	if pathKey == "" || pathKey == "*" {
+		return &AllQuery{}
+	}
+
+	segments := structured.ParseFieldPath(pathKey)
+	var termQueries []TrigramQuery
+	seenTerms := make(map[string]struct{})
+
+	for _, seg := range segments {
+		if seg == "" {
+			continue
+		}
+		formattedKey := khifilev6model.FormatKeyName(seg) + ":"
+		runes := []rune(strings.ToLower(formattedKey))
+		if len(runes) < 3 {
+			continue
+		}
+		for i := 0; i <= len(runes)-3; i++ {
+			tri := string(runes[i : i+3])
+			if _, seen := seenTerms[tri]; seen {
+				continue
+			}
+			seenTerms[tri] = struct{}{}
+			termQueries = append(termQueries, &TermQuery{Term: tri})
+		}
+	}
+
+	if len(termQueries) == 0 {
+		return &AllQuery{}
+	}
+	if len(termQueries) == 1 {
+		return termQueries[0]
+	}
+	return &AndQuery{Children: termQueries}
+}
+
+// FindCandidateLogsWithField returns a Roaring Bitmap containing candidate LogIDs whose summary or body
+// could match both the field pathKey and the regex pattern.
+// If both the field path and pattern are unconstrained, it returns nil (Universe).
+// If the combination cannot match any indexed log, it returns an empty Roaring Bitmap.
+func (t *TrigramIndex) FindCandidateLogsWithField(pathKey string, pattern string) *roaring.Bitmap {
 	if t == nil {
 		return roaring.NewBitmap()
 	}
 
+	cacheKey := pathKey + "\x00" + pattern
+
 	t.mu.RLock()
-	if cached, ok := t.candidateCache[pattern]; ok {
+	if cached, ok := t.candidateCache[cacheKey]; ok {
 		t.mu.RUnlock()
 		return cached
 	}
@@ -458,22 +503,34 @@ func (t *TrigramIndex) FindCandidateLogs(pattern string) *roaring.Bitmap {
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if cached, ok := t.candidateCache[pattern]; ok {
+	if cached, ok := t.candidateCache[cacheKey]; ok {
 		return cached
 	}
 
-	syn, err := syntax.Parse(pattern, syntax.Perl)
-	if err != nil {
-		empty := roaring.NewBitmap()
-		t.candidateCache[pattern] = empty
-		return empty
+	var patternQuery TrigramQuery = &AllQuery{}
+	if pattern != "" && pattern != ".*" {
+		syn, err := syntax.Parse(pattern, syntax.Perl)
+		if err != nil {
+			empty := roaring.NewBitmap()
+			t.candidateCache[cacheKey] = empty
+			return empty
+		}
+		patternQuery = RegexToTrigramQuery(syn.Simplify()).Simplify()
 	}
 
-	syn = syn.Simplify()
-	query := RegexToTrigramQuery(syn).Simplify()
-	candidateBitmap := evalTrigramQuery(query, t.trigramToBitmap)
-	t.candidateCache[pattern] = candidateBitmap
+	fieldQuery := PathToTrigramQuery(pathKey)
+
+	combinedQuery := (&AndQuery{Children: []TrigramQuery{fieldQuery, patternQuery}}).Simplify()
+	candidateBitmap := evalTrigramQuery(combinedQuery, t.trigramToBitmap)
+	t.candidateCache[cacheKey] = candidateBitmap
 	return candidateBitmap
+}
+
+// FindCandidateLogs returns a Roaring Bitmap containing candidate LogIDs whose summary or body could match the regex pattern.
+// If the regex is unconstrained by trigrams (e.g. wildcards or <3 char literals), it returns nil, meaning all logs are candidates.
+// If the pattern cannot match any indexed log, it returns an empty Roaring Bitmap.
+func (t *TrigramIndex) FindCandidateLogs(pattern string) *roaring.Bitmap {
+	return t.FindCandidateLogsWithField("*", pattern)
 }
 
 // evalTrigramQuery evaluates a TrigramQuery against the index bitmaps to produce a candidate *roaring.Bitmap.
