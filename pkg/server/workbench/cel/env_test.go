@@ -62,7 +62,8 @@ spec:
 		ParentID:     2,
 		Name:         "pod-sample",
 		TimelineType: "Pod",
-		MaxSeverity:  2, // WARNING
+		MaxSeverity:  2,                   // WARNING
+		SeverityMask: (1 << 1) | (1 << 2), // INFO and WARNING
 		Revisions: []RevisionInfo{
 			{
 				ResourceBodyStructID: sRef.ID(),
@@ -136,6 +137,26 @@ spec:
 		{
 			name:       "minSeverity helper higher than max",
 			expression: `minSeverity(ERROR)`,
+			want:       false,
+		},
+		{
+			name:       "hasSeverity with matching single severity",
+			expression: `hasSeverity(INFO)`,
+			want:       true,
+		},
+		{
+			name:       "hasSeverity with non-matching single severity",
+			expression: `hasSeverity(ERROR)`,
+			want:       false,
+		},
+		{
+			name:       "hasSeverity with list matching at least one",
+			expression: `hasSeverity([ERROR, WARNING])`,
+			want:       true,
+		},
+		{
+			name:       "hasSeverity with list matching none",
+			expression: `hasSeverity([ERROR, FATAL])`,
 			want:       false,
 		},
 		{
@@ -290,6 +311,16 @@ func TestValidateTimelineQuery(t *testing.T) {
 		{
 			name:    "valid timeline query",
 			query:   `name == "pod-sample" && minSeverity(WARNING)`,
+			wantErr: false,
+		},
+		{
+			name:    "valid timeline query with hasSeverity int",
+			query:   `hasSeverity(ERROR)`,
+			wantErr: false,
+		},
+		{
+			name:    "valid timeline query with hasSeverity list",
+			query:   `hasSeverity([INFO, WARNING])`,
 			wantErr: false,
 		},
 		{

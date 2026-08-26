@@ -384,6 +384,7 @@ func (w *Workbench) indexTimelinesParallel(
 					var events []cel.EventInfo
 					var revisions []cel.RevisionInfo
 					var maxSeverity uint32
+					var severityMask uint8
 
 					if item, ok := itemsMap[tl.GetTimelineItemsId()]; ok {
 						for _, evt := range item.Events {
@@ -391,6 +392,9 @@ func (w *Workbench) indexTimelinesParallel(
 							sev := getLogSeverity(logID)
 							if sev > maxSeverity {
 								maxSeverity = sev
+							}
+							if sev < 8 {
+								severityMask |= (1 << sev)
 							}
 							events = append(events, cel.EventInfo{
 								LogID:    logID,
@@ -405,6 +409,9 @@ func (w *Workbench) indexTimelinesParallel(
 							sev := getLogSeverity(logID)
 							if sev > maxSeverity {
 								maxSeverity = sev
+							}
+							if sev < 8 {
+								severityMask |= (1 << sev)
 							}
 
 							changedTime := int64(0)
@@ -432,6 +439,7 @@ func (w *Workbench) indexTimelinesParallel(
 						Events:       events,
 						Revisions:    revisions,
 						MaxSeverity:  maxSeverity,
+						SeverityMask: severityMask,
 					}
 
 					localTimelines = append(localTimelines, tData)

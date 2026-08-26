@@ -195,6 +195,9 @@ func TestWorkbench_BuildSearchIndex(t *testing.T) {
 	if path["cluster"] != "my-cluster" {
 		t.Errorf("path[\"cluster\"] = %q, want %q", path["cluster"], "my-cluster")
 	}
+	if tl.SeverityMask != (1 << 1) {
+		t.Errorf("tl.SeverityMask = %d, want %d", tl.SeverityMask, 1<<1)
+	}
 }
 
 func TestBuildBaseSearchIndex(t *testing.T) {
@@ -207,7 +210,9 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 		wantTL2Path      map[string]string
 		wantTL1Children  []uint32
 		wantTL1MaxSev    uint32
+		wantTL1SevMask   uint8
 		wantTL2MaxSev    uint32
+		wantTL2SevMask   uint8
 		wantTL2LogIDs    []uint32
 		wantLog1Severity uint32
 		wantLog2Severity uint32
@@ -330,7 +335,9 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 			},
 			wantTL1Children:  []uint32{2},
 			wantTL1MaxSev:    1,
+			wantTL1SevMask:   1 << 1,
 			wantTL2MaxSev:    3,
+			wantTL2SevMask:   1 << 3,
 			wantTL2LogIDs:    []uint32{2},
 			wantLog1Severity: 1,
 			wantLog2Severity: 3,
@@ -368,6 +375,9 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 			if tl1.MaxSeverity != tc.wantTL1MaxSev {
 				t.Errorf("timeline 1 MaxSeverity mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL1MaxSev, tl1.MaxSeverity))
 			}
+			if tl1.SeverityMask != tc.wantTL1SevMask {
+				t.Errorf("timeline 1 SeverityMask mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL1SevMask, tl1.SeverityMask))
+			}
 
 			tl2 := idx.TimelineMap[2]
 			if tl2 == nil {
@@ -378,6 +388,9 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantTL2MaxSev, tl2.MaxSeverity); diff != "" {
 				t.Errorf("timeline 2 MaxSeverity mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL2MaxSev, tl2.MaxSeverity))
+			}
+			if tl2.SeverityMask != tc.wantTL2SevMask {
+				t.Errorf("timeline 2 SeverityMask mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL2SevMask, tl2.SeverityMask))
 			}
 			var tl2LogIDs []uint32
 			tl2.ForEachLogID(func(id uint32) bool {

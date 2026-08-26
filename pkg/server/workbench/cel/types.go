@@ -53,6 +53,7 @@ type TimelineData struct {
 	Events       []EventInfo
 	Revisions    []RevisionInfo
 	MaxSeverity  uint32
+	SeverityMask uint8
 }
 
 // ForEachLogID iterates over all log IDs associated with this timeline's events and revisions.

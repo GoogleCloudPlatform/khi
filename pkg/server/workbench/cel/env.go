@@ -120,6 +120,37 @@ func NewTimelineEvaluator() (*TimelineEvaluator, error) {
 		return types.Bool(eval.currentTimeline.MaxSeverity >= uint32(minOrder))
 	}
 
+	hasSeveritySingle := func(arg ref.Val) ref.Val {
+		if eval.currentTimeline == nil {
+			return types.False
+		}
+		sev, ok := arg.(types.Int)
+		if !ok || sev < 0 || sev >= 8 {
+			return types.False
+		}
+		return types.Bool((eval.currentTimeline.SeverityMask & (1 << uint8(sev))) != 0)
+	}
+
+	hasSeverityList := func(arg ref.Val) ref.Val {
+		if eval.currentTimeline == nil {
+			return types.False
+		}
+		list, ok := arg.(traits.Lister)
+		if !ok {
+			return types.False
+		}
+		sz := list.Size().(types.Int)
+		var queryMask uint8
+		for i := int64(0); i < int64(sz); i++ {
+			val := list.Get(types.Int(i))
+			sev, ok := val.(types.Int)
+			if ok && sev >= 0 && sev < 8 {
+				queryMask |= (1 << uint8(sev))
+			}
+		}
+		return types.Bool((eval.currentTimeline.SeverityMask & queryMask) != 0)
+	}
+
 	env, err := cel.NewEnv(
 		cel.Variable("t", cel.MapType(cel.StringType, cel.DynType)),
 		cel.Variable("name", cel.StringType),
@@ -194,6 +225,15 @@ func NewTimelineEvaluator() (*TimelineEvaluator, error) {
 		cel.Function("minSeverity",
 			cel.Overload("minSeverity_int", []*cel.Type{cel.IntType}, cel.BoolType,
 				cel.UnaryBinding(minSeverityBinding),
+			),
+		),
+		// hasSeverity functions
+		cel.Function("hasSeverity",
+			cel.Overload("hasSeverity_int", []*cel.Type{cel.IntType}, cel.BoolType,
+				cel.UnaryBinding(hasSeveritySingle),
+			),
+			cel.Overload("hasSeverity_list", []*cel.Type{cel.ListType(cel.IntType)}, cel.BoolType,
+				cel.UnaryBinding(hasSeverityList),
 			),
 		),
 	)
