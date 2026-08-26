@@ -21,6 +21,7 @@ import {
   Subject,
   filter,
   firstValueFrom,
+  fromEvent,
   map,
   shareReplay,
   switchMap,
@@ -76,6 +77,16 @@ import {
   EXTENSION_STORE,
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
+
+/**
+ * Error indicating that an asynchronous operation or delay was cancelled.
+ */
+export class CancellationError extends Error {
+  constructor(message = 'Operation was cancelled') {
+    super(message);
+    this.name = 'CancellationError';
+  }
+}
 
 export interface NewInspectionDialogResult {
   readonly inspectionTaskStarted: boolean;
@@ -357,7 +368,11 @@ export class NewInspectionDialogComponent implements OnDestroy {
     while (!signal.aborted) {
       const sentParams = this.store.currentParameters();
       try {
-        const res = await firstValueFrom(client.dryrunDirect(sentParams));
+        const res = await firstValueFrom(
+          client
+            .dryrunDirect(sentParams)
+            .pipe(takeUntil(fromEvent(signal, 'abort'))),
+        );
         if (signal.aborted) {
           break;
         }
@@ -383,11 +398,17 @@ export class NewInspectionDialogComponent implements OnDestroy {
           }
         }
         // If changedDuringFlight is true, immediately loop without delay to validate the new inputs.
-      } catch {
-        if (signal.aborted) {
+      } catch (err) {
+        if (signal.aborted || err instanceof CancellationError) {
           break;
         }
-        await this.delay(1000, signal);
+        try {
+          await this.delay(1000, signal);
+        } catch {
+          if (signal.aborted) {
+            break;
+          }
+        }
       }
     }
   }
@@ -400,13 +421,16 @@ export class NewInspectionDialogComponent implements OnDestroy {
   }
 
   private delay(ms: number, signal: AbortSignal): Promise<void> {
-    return new Promise((resolve) => {
+    if (signal.aborted) {
+      return Promise.reject(new CancellationError('Delay aborted'));
+    }
+    return new Promise((resolve, reject) => {
       const timer = setTimeout(resolve, ms);
       signal.addEventListener(
         'abort',
         () => {
           clearTimeout(timer);
-          resolve();
+          reject(new CancellationError('Delay aborted'));
         },
         { once: true },
       );

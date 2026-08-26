@@ -38,6 +38,13 @@ describe('DefaultParameterStore', () => {
 
       expect(parameterStore.get('foo')()).toBe('qux');
     });
+
+    it('returns the same signal instance on subsequent calls for the same id', () => {
+      const sig1 = parameterStore.get('foo');
+      const sig2 = parameterStore.get('foo');
+
+      expect(sig1).toBe(sig2);
+    });
   });
 
   describe('set', () => {
@@ -115,6 +122,13 @@ describe('DefaultParameterStore', () => {
       parameterStore.set('foo', ['a', 'b']);
       expect(parameterStore.isDirty('foo')()).toBe(false);
     });
+
+    it('returns the same signal instance on subsequent calls for the same id', () => {
+      const sig1 = parameterStore.isDirty('foo');
+      const sig2 = parameterStore.isDirty('foo');
+
+      expect(sig1).toBe(sig2);
+    });
   });
 
   describe('isValidating', () => {
@@ -134,6 +148,13 @@ describe('DefaultParameterStore', () => {
       parameterStore.setValidatedParameters({ foo: 'bar' });
 
       expect(parameterStore.isValidating('foo')()).toBe(false);
+    });
+
+    it('returns the same signal instance on subsequent calls for the same id', () => {
+      const sig1 = parameterStore.isValidating('foo');
+      const sig2 = parameterStore.isValidating('foo');
+
+      expect(sig1).toBe(sig2);
     });
 
     it('compares array values by content, not reference', () => {

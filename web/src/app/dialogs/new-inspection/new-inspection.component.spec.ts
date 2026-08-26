@@ -18,7 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef } from '@angular/material/dialog';
 import { signal } from '@angular/core';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { of, Subject } from 'rxjs';
+import { Observable, of, Subject } from 'rxjs';
 
 import {
   NewInspectionDialogComponent,
@@ -484,6 +484,32 @@ describe('NewInspectionDialogTest', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(mockDryrunDirect.calls.count()).toBe(initialCalls);
+    });
+
+    it('should unsubscribe from in-flight dryrun request when leaving parameter step', async () => {
+      let unsubscribed = false;
+      const observable = new Observable<InspectionDryRunResponse>(() => {
+        return () => {
+          unsubscribed = true;
+        };
+      });
+      mockDryrunDirect.and.returnValue(observable);
+
+      component.selectedStepChange(
+        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
+      );
+      await fixture.whenStable();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(unsubscribed).toBe(false);
+
+      component.selectedStepChange(
+        NewInspectionDialogComponent.STEP_INDEX_FEATURE_SELECTION,
+      );
+      await fixture.whenStable();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(unsubscribed).toBe(true);
     });
   });
 });

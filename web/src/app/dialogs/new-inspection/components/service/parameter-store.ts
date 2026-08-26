@@ -127,6 +127,12 @@ export class DefaultParameterStore implements ParameterStore {
 
   readonly defaultParameters = signal<{ [id: string]: unknown }>({});
 
+  private readonly getSignals = new Map<string, Signal<unknown>>();
+
+  private readonly validatingSignals = new Map<string, Signal<boolean>>();
+
+  private readonly dirtySignals = new Map<string, Signal<boolean>>();
+
   private readonly dirtyFields = computed(() => {
     const current = this.currentParameters();
     const defaults = this.defaultParameters();
@@ -143,28 +149,43 @@ export class DefaultParameterStore implements ParameterStore {
    * Returns a computed signal of the value for the given parameter ID.
    */
   get<T>(id: string): Signal<T> {
-    return computed(() => this.currentParameters()[id] as T);
+    let sig = this.getSignals.get(id);
+    if (!sig) {
+      sig = computed(() => this.currentParameters()[id]);
+      this.getSignals.set(id, sig);
+    }
+    return sig as Signal<T>;
   }
 
   /**
    * Returns a computed signal indicating if the field's current value differs from the validated value.
    */
   isValidating(id: string): Signal<boolean> {
-    return computed(() => {
-      const current = this.currentParameters();
-      const validated = this.validatedParameters();
-      if (!(id in current)) {
-        return false;
-      }
-      return !areValuesEqual(current[id], validated[id]);
-    });
+    let sig = this.validatingSignals.get(id);
+    if (!sig) {
+      sig = computed(() => {
+        const current = this.currentParameters();
+        const validated = this.validatedParameters();
+        if (!(id in current)) {
+          return false;
+        }
+        return !areValuesEqual(current[id], validated[id]);
+      });
+      this.validatingSignals.set(id, sig);
+    }
+    return sig;
   }
 
   /**
    * Returns a computed signal indicating if the field was modified by the user from its default value.
    */
   isDirty(id: string): Signal<boolean> {
-    return computed(() => this.dirtyFields().has(id));
+    let sig = this.dirtySignals.get(id);
+    if (!sig) {
+      sig = computed(() => this.dirtyFields().has(id));
+      this.dirtySignals.set(id, sig);
+    }
+    return sig;
   }
 
   /**
@@ -207,6 +228,8 @@ export class DefaultParameterStore implements ParameterStore {
    * Unregisters resources when the store is destroyed.
    */
   public destroy(): void {
-    // Signals automatically clean up without requiring manual unsubscription.
+    this.getSignals.clear();
+    this.validatingSignals.clear();
+    this.dirtySignals.clear();
   }
 }
