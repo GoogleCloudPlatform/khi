@@ -32,6 +32,10 @@ const mockClient: Client<typeof PopupService> = {
   submitPopupAnswer: async () => ({
     $typeName: 'api.v1.SubmitPopupAnswerResponse',
   }),
+  pullPopup: async () => ({
+    popup: undefined,
+    $typeName: 'api.v1.PullPopupResponse',
+  }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   watchPopup: (() => {}) as any,
 };

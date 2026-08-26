@@ -157,8 +157,13 @@ func (m *AsyncJobManager[P, R]) Poll(
 	now := time.Now()
 	m.mu.Lock()
 	if jobID == "" {
-		if prev, ok := m.jobs[m.currentJobID]; ok && !prev.isDone {
-			prev.cancel()
+		if prev, ok := m.jobs[m.currentJobID]; ok {
+			prev.mu.RLock()
+			isDone := prev.isDone
+			prev.mu.RUnlock()
+			if !isDone {
+				prev.cancel()
+			}
 		}
 
 		newID := jobIDGenerator.Generate()
