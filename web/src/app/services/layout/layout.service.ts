@@ -268,6 +268,8 @@ export class LayoutService implements OnDestroy {
             ? pool.pop()!
             : this.viewContainerRef.createComponent(config.componentClass);
 
+        componentRef.changeDetectorRef.reattach();
+
         this.activeComponentRefs.set(container, componentRef);
         container.element.appendChild(componentRef.location.nativeElement);
         this.addIconToTab(container, config.tabIcon);
@@ -277,6 +279,7 @@ export class LayoutService implements OnDestroy {
           this.activeComponentRefs.delete(container);
           if (this.isSwitchingLayout) {
             componentRef.location.nativeElement.remove();
+            componentRef.changeDetectorRef.detach();
             let currentPool = this.componentPool.get(config.type);
             if (!currentPool) {
               currentPool = [];

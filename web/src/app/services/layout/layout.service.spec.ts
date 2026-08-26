@@ -92,157 +92,165 @@ describe('LayoutService', () => {
     const hostEl = hostComponent.layoutContainer().nativeElement;
     document.body.appendChild(hostEl);
 
-    let timelineCreatedCount = 0;
-    const originalCreateComponent =
-      hostComponent.viewContainerRef.createComponent.bind(
-        hostComponent.viewContainerRef,
+    try {
+      let timelineCreatedCount = 0;
+      const originalCreateComponent =
+        hostComponent.viewContainerRef.createComponent.bind(
+          hostComponent.viewContainerRef,
+        );
+      spyOn(hostComponent.viewContainerRef, 'createComponent').and.callFake(
+        (componentType: unknown) => {
+          if (componentType === TimelineSmartComponent) {
+            timelineCreatedCount++;
+          }
+          return originalCreateComponent(componentType as Type<unknown>);
+        },
       );
-    spyOn(hostComponent.viewContainerRef, 'createComponent').and.callFake(
-      (componentType: unknown) => {
-        if (componentType === TimelineSmartComponent) {
-          timelineCreatedCount++;
-        }
-        return originalCreateComponent(componentType as Type<unknown>);
-      },
-    );
 
-    layoutService.init(hostEl, hostComponent.viewContainerRef);
-    layoutService.loadDefaultLayout();
+      layoutService.init(hostEl, hostComponent.viewContainerRef);
+      layoutService.loadDefaultLayout();
 
-    expect(timelineCreatedCount).toBe(1);
+      expect(timelineCreatedCount).toBe(1);
 
-    // Switch to State View Layout (contains Timeline and History)
-    layoutService.loadStateAnalysisLayout();
-    expect(timelineCreatedCount).toBe(1);
+      // Switch to State View Layout (contains Timeline and History)
+      layoutService.loadStateAnalysisLayout();
+      expect(timelineCreatedCount).toBe(1);
 
-    // Switch to Topology View Layout (contains Timeline and Graph)
-    layoutService.loadTopologyAnalysisLayout();
-    expect(timelineCreatedCount).toBe(1);
+      // Switch to Topology View Layout (contains Timeline and Graph)
+      layoutService.loadTopologyAnalysisLayout();
+      expect(timelineCreatedCount).toBe(1);
 
-    // Switch back to Default Layout (contains Timeline, Log, History)
-    layoutService.loadDefaultLayout();
-    expect(timelineCreatedCount).toBe(1);
-
-    hostEl.remove();
+      // Switch back to Default Layout (contains Timeline, Log, History)
+      layoutService.loadDefaultLayout();
+      expect(timelineCreatedCount).toBe(1);
+    } finally {
+      hostEl.remove();
+    }
   });
 
   it('should reuse pooled LogSmartComponent when returning to a layout containing logs', () => {
     const hostEl = hostComponent.layoutContainer().nativeElement;
     document.body.appendChild(hostEl);
 
-    let logCreatedCount = 0;
-    const originalCreateComponent =
-      hostComponent.viewContainerRef.createComponent.bind(
-        hostComponent.viewContainerRef,
+    try {
+      let logCreatedCount = 0;
+      const originalCreateComponent =
+        hostComponent.viewContainerRef.createComponent.bind(
+          hostComponent.viewContainerRef,
+        );
+      spyOn(hostComponent.viewContainerRef, 'createComponent').and.callFake(
+        (componentType: unknown) => {
+          if (componentType === LogSmartComponent) {
+            logCreatedCount++;
+          }
+          return originalCreateComponent(componentType as Type<unknown>);
+        },
       );
-    spyOn(hostComponent.viewContainerRef, 'createComponent').and.callFake(
-      (componentType: unknown) => {
-        if (componentType === LogSmartComponent) {
-          logCreatedCount++;
-        }
-        return originalCreateComponent(componentType as Type<unknown>);
-      },
-    );
 
-    layoutService.init(hostEl, hostComponent.viewContainerRef);
-    layoutService.loadDefaultLayout();
+      layoutService.init(hostEl, hostComponent.viewContainerRef);
+      layoutService.loadDefaultLayout();
 
-    expect(logCreatedCount).toBe(1);
+      expect(logCreatedCount).toBe(1);
 
-    // Switch to State View Layout (which does NOT include Log)
-    layoutService.loadStateAnalysisLayout();
+      // Switch to State View Layout (which does NOT include Log)
+      layoutService.loadStateAnalysisLayout();
 
-    // Switch back to Default Layout (which includes Log)
-    layoutService.loadDefaultLayout();
+      // Switch back to Default Layout (which includes Log)
+      layoutService.loadDefaultLayout();
 
-    // Log component should have been preserved in the pool and reused
-    expect(logCreatedCount).toBe(1);
-
-    hostEl.remove();
+      // Log component should have been preserved in the pool and reused
+      expect(logCreatedCount).toBe(1);
+    } finally {
+      hostEl.remove();
+    }
   });
 
   it('should destroy surplus timeline instances when switching layouts with multiple timelines open', () => {
     const hostEl = hostComponent.layoutContainer().nativeElement;
     document.body.appendChild(hostEl);
 
-    const createdRefs: ComponentRef<unknown>[] = [];
-    const originalCreateComponent =
-      hostComponent.viewContainerRef.createComponent.bind(
-        hostComponent.viewContainerRef,
+    try {
+      const createdRefs: ComponentRef<unknown>[] = [];
+      const originalCreateComponent =
+        hostComponent.viewContainerRef.createComponent.bind(
+          hostComponent.viewContainerRef,
+        );
+      spyOn(hostComponent.viewContainerRef, 'createComponent').and.callFake(
+        (componentType: unknown) => {
+          const ref = originalCreateComponent(componentType as Type<unknown>);
+          if (componentType === TimelineSmartComponent) {
+            createdRefs.push(ref);
+            spyOn(ref, 'destroy').and.callThrough();
+          }
+          return ref;
+        },
       );
-    spyOn(hostComponent.viewContainerRef, 'createComponent').and.callFake(
-      (componentType: unknown) => {
-        const ref = originalCreateComponent(componentType as Type<unknown>);
-        if (componentType === TimelineSmartComponent) {
-          createdRefs.push(ref);
-          spyOn(ref, 'destroy').and.callThrough();
-        }
-        return ref;
-      },
-    );
 
-    layoutService.init(hostEl, hostComponent.viewContainerRef);
-    layoutService.loadDefaultLayout();
+      layoutService.init(hostEl, hostComponent.viewContainerRef);
+      layoutService.loadDefaultLayout();
 
-    expect(createdRefs.length).toBe(1);
+      expect(createdRefs.length).toBe(1);
 
-    // Open a second timeline via menu action
-    const viewGroup = menuManager.groups().find((g) => g.id === 'view');
-    const openTimelineItem = viewGroup?.items.find(
-      (item) => item.id === 'open-timeline',
-    );
-    expect(openTimelineItem).toBeDefined();
-    openTimelineItem?.action();
+      // Open a second timeline via menu action
+      const viewGroup = menuManager.groups().find((g) => g.id === 'view');
+      const openTimelineItem = viewGroup?.items.find(
+        (item) => item.id === 'open-timeline',
+      );
+      expect(openTimelineItem).toBeDefined();
+      openTimelineItem?.action();
 
-    expect(createdRefs.length).toBe(2);
-    const [t1, t2] = createdRefs;
+      expect(createdRefs.length).toBe(2);
+      const [t1, t2] = createdRefs;
 
-    // Switch to State View Layout (which only needs 1 timeline)
-    layoutService.loadStateAnalysisLayout();
+      // Switch to State View Layout (which only needs 1 timeline)
+      layoutService.loadStateAnalysisLayout();
 
-    // Exactly one surplus timeline should have been destroyed
-    const destroyedCount =
-      (t1.destroy as jasmine.Spy).calls.count() +
-      (t2.destroy as jasmine.Spy).calls.count();
-    expect(destroyedCount).toBe(1);
-
-    hostEl.remove();
+      // Exactly one surplus timeline should have been destroyed
+      const destroyedCount =
+        (t1.destroy as jasmine.Spy).calls.count() +
+        (t2.destroy as jasmine.Spy).calls.count();
+      expect(destroyedCount).toBe(1);
+    } finally {
+      hostEl.remove();
+    }
   });
 
   it('should destroy all active and pooled components on ngOnDestroy', () => {
     const hostEl = hostComponent.layoutContainer().nativeElement;
     document.body.appendChild(hostEl);
 
-    const createdRefs: ComponentRef<unknown>[] = [];
-    const originalCreateComponent =
-      hostComponent.viewContainerRef.createComponent.bind(
-        hostComponent.viewContainerRef,
+    try {
+      const createdRefs: ComponentRef<unknown>[] = [];
+      const originalCreateComponent =
+        hostComponent.viewContainerRef.createComponent.bind(
+          hostComponent.viewContainerRef,
+        );
+      spyOn(hostComponent.viewContainerRef, 'createComponent').and.callFake(
+        (componentType: unknown) => {
+          const ref = originalCreateComponent(componentType as Type<unknown>);
+          createdRefs.push(ref);
+          spyOn(ref, 'destroy').and.callThrough();
+          return ref;
+        },
       );
-    spyOn(hostComponent.viewContainerRef, 'createComponent').and.callFake(
-      (componentType: unknown) => {
-        const ref = originalCreateComponent(componentType as Type<unknown>);
-        createdRefs.push(ref);
-        spyOn(ref, 'destroy').and.callThrough();
-        return ref;
-      },
-    );
 
-    layoutService.init(hostEl, hostComponent.viewContainerRef);
-    layoutService.loadDefaultLayout();
+      layoutService.init(hostEl, hostComponent.viewContainerRef);
+      layoutService.loadDefaultLayout();
 
-    // Switch to State View Layout so that LogSmartComponent is pooled (inactive)
-    layoutService.loadStateAnalysisLayout();
+      // Switch to State View Layout so that LogSmartComponent is pooled (inactive)
+      layoutService.loadStateAnalysisLayout();
 
-    expect(createdRefs.length).toBeGreaterThan(0);
+      expect(createdRefs.length).toBeGreaterThan(0);
 
-    // Call ngOnDestroy
-    layoutService.ngOnDestroy();
+      // Call ngOnDestroy
+      layoutService.ngOnDestroy();
 
-    // Verify all created component references were destroyed
-    for (const ref of createdRefs) {
-      expect((ref.destroy as jasmine.Spy).calls.count()).toBeGreaterThan(0);
+      // Verify all created component references were destroyed
+      for (const ref of createdRefs) {
+        expect((ref.destroy as jasmine.Spy).calls.count()).toBeGreaterThan(0);
+      }
+    } finally {
+      hostEl.remove();
     }
-
-    hostEl.remove();
   });
 });
