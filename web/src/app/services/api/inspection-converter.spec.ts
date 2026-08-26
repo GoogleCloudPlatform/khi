@@ -371,6 +371,18 @@ describe('inspection-converter', () => {
             incomplete: false,
             pending: true,
           },
+          {
+            id: 'q2',
+            name: 'q2',
+            query: 'resource.type="k8s_container"',
+            estimatedCount: 0n,
+          },
+          {
+            id: 'q3',
+            name: 'q3',
+            query: 'resource.type="k8s_node"',
+            incomplete: true,
+          },
         ],
         plan: { taskGraph: 'graph TD; A-->B;' },
         jobCommand: { command: 'khi run ...' },
@@ -379,11 +391,14 @@ describe('inspection-converter', () => {
       const converted = convertProtoDryRunResponseToFrontend(res);
       expect(converted.metadata.form.length).toBe(1);
       expect(converted.metadata.form[0].id).toBe('f1');
-      expect(converted.metadata.query.length).toBe(1);
+      expect(converted.metadata.query.length).toBe(3);
       expect(converted.metadata.query[0].query).toBe('resource.type="gke"');
       expect(converted.metadata.query[0].estimatedCount).toBe(12345);
       expect(converted.metadata.query[0].incomplete).toBeUndefined();
       expect(converted.metadata.query[0].pending).toBeTrue();
+      expect(converted.metadata.query[1].estimatedCount).toBe(0);
+      expect(converted.metadata.query[2].estimatedCount).toBeUndefined();
+      expect(converted.metadata.query[2].incomplete).toBeTrue();
       expect(converted.metadata.plan.taskGraph).toBe('graph TD; A-->B;');
       expect(converted.metadata.jobCommand?.command).toBe('khi run ...');
     });
