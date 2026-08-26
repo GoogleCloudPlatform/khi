@@ -31,16 +31,6 @@ export interface StringEntryDTO {
 import { allocateBuffer } from 'src/app/store/domain/types';
 
 /**
- * Represents the shared memory structure of the intern pool.
- * This can be transferred to a WebWorker via postMessage.
- */
-export interface InternPoolSharedData {
-  readonly bufferSabs: readonly ArrayBuffer[];
-  readonly metadataSab: ArrayBuffer;
-  readonly capacity: number;
-}
-
-/**
  * Manages the interned strings used in inspection data using ArrayBuffers.
  */
 export class InternPoolStore {
@@ -75,11 +65,6 @@ export class InternPoolStore {
   private metadataSab: ArrayBuffer;
 
   /**
-   * Whether this store is read-only (for worker-side decoding).
-   */
-  private readonly readOnly: boolean;
-
-  /**
    * The index of the buffer currently being written to.
    */
   private currentBufferIndex = -1;
@@ -95,51 +80,20 @@ export class InternPoolStore {
   // Private constructor
   private constructor(
     private readonly maxBufferSize: number,
-    readOnly: boolean,
-    initialCapacityOrSharedData: number | InternPoolSharedData,
+    initialCapacity: number,
   ) {
-    this.readOnly = readOnly;
-    if (typeof initialCapacityOrSharedData === 'number') {
-      const initialCapacity = initialCapacityOrSharedData;
-      this.metadataSab = allocateBuffer(initialCapacity * 10);
-      this.bufferIndices = new Uint16Array(
-        this.metadataSab,
-        0,
-        initialCapacity,
-      );
-      this.offsets = new Uint32Array(
-        this.metadataSab,
-        initialCapacity * 2,
-        initialCapacity,
-      );
-      this.lengths = new Uint32Array(
-        this.metadataSab,
-        initialCapacity * 6,
-        initialCapacity,
-      );
-    } else {
-      const sharedData = initialCapacityOrSharedData;
-      this.bufferSabs = Array.from(sharedData.bufferSabs);
-      this.buffers = this.bufferSabs.map((sab) => new Uint8Array(sab));
-      this.metadataSab = sharedData.metadataSab;
-      this.bufferIndices = new Uint16Array(
-        this.metadataSab,
-        0,
-        sharedData.capacity,
-      );
-      this.offsets = new Uint32Array(
-        this.metadataSab,
-        sharedData.capacity * 2,
-        sharedData.capacity,
-      );
-      this.lengths = new Uint32Array(
-        this.metadataSab,
-        sharedData.capacity * 6,
-        sharedData.capacity,
-      );
-      this.currentBufferIndex = this.buffers.length - 1;
-      this.currentOffset = 0;
-    }
+    this.metadataSab = allocateBuffer(initialCapacity * 10);
+    this.bufferIndices = new Uint16Array(this.metadataSab, 0, initialCapacity);
+    this.offsets = new Uint32Array(
+      this.metadataSab,
+      initialCapacity * 2,
+      initialCapacity,
+    );
+    this.lengths = new Uint32Array(
+      this.metadataSab,
+      initialCapacity * 6,
+      initialCapacity,
+    );
   }
 
   /**
@@ -149,19 +103,7 @@ export class InternPoolStore {
   public static create(
     maxBufferSize: number = 100 * 1024 * 1024,
   ): InternPoolStore {
-    return new InternPoolStore(maxBufferSize, false, 1024);
-  }
-
-  /**
-   * Reconstructs a read-only InternPoolStore instance from shared memory data.
-   * @param sharedData The ArrayBuffers and capacity metadata.
-   * @param maxBufferSize The maximum capacity of each buffer segment in bytes.
-   */
-  public static fromSharedData(
-    sharedData: InternPoolSharedData,
-    maxBufferSize: number = 100 * 1024 * 1024,
-  ): InternPoolStore {
-    return new InternPoolStore(maxBufferSize, true, sharedData);
+    return new InternPoolStore(maxBufferSize, 1024);
   }
 
   /**
@@ -169,9 +111,6 @@ export class InternPoolStore {
    * @param strings An iterable of objects containing id and value.
    */
   public addStrings(strings: Iterable<StringEntryDTO>): void {
-    if (this.readOnly) {
-      throw new Error('Cannot write to a shared read-only InternPoolStore');
-    }
     for (const { id, value } of strings) {
       const encoded = this.encoder.encode(value);
       this.ensureCapacity(id + 1);
@@ -224,26 +163,7 @@ export class InternPoolStore {
     return this.decoder.decode(bytes);
   }
 
-  /**
-   * Transfers shared memory structure of this store.
-   * @returns The ArrayBuffers and metadata.
-   */
-  public getSharedData(): InternPoolSharedData {
-    return {
-      bufferSabs: this.bufferSabs,
-      metadataSab: this.metadataSab,
-      capacity: this.bufferIndices.length,
-    };
-  }
-
-  /**
-   * Ensures the metadata TypedArrays can hold up to the given capacity by reallocating ArrayBuffers.
-   * @param minCapacity The required minimum capacity.
-   */
   private ensureCapacity(minCapacity: number): void {
-    if (this.readOnly) {
-      throw new Error('Cannot resize a shared read-only InternPoolStore');
-    }
     if (minCapacity <= this.bufferIndices.length) {
       return;
     }

@@ -199,40 +199,6 @@ describe('LogStore', () => {
     expect(iteratedLogs[1].id).toBe(2);
   });
 
-  it('should restore from shared memory using fromSharedData and enforce readOnly guard', () => {
-    internPool.addStrings([{ id: 1, value: 'test summary' }]);
-
-    const logs: LogDTO[] = [
-      {
-        id: 1,
-        ts: 1000n,
-        logTypeId: 1,
-        severityTypeId: 1,
-        summaryStringId: 1,
-        bodyStructId: 50,
-      },
-    ];
-
-    store.initialize(logs, 1);
-
-    const sharedData = store.getSharedData();
-    const restoredStore = LogStore.fromSharedData(
-      internPool,
-      styleStore,
-      sharedData,
-    );
-
-    expect(restoredStore.count).toBe(1);
-    const restoredLog = restoredStore.getLog(1);
-    expect(restoredLog.id).toBe(1);
-    expect(restoredLog.timestamp).toBe(1000n);
-    expect(restoredLog.structId).toBe(50);
-
-    expect(() => {
-      restoredStore.initialize(logs, 1);
-    }).toThrowError('Cannot write to a shared read-only LogStore');
-  });
-
   describe('ArrayBuffer allocation', () => {
     it('should allocate ArrayBuffer and perform operations successfully', () => {
       const fallbackStore = LogStore.create(internPool, styleStore);
@@ -250,17 +216,6 @@ describe('LogStore', () => {
       expect(fallbackStore.count).toBe(1);
       const log = fallbackStore.getLog(1);
       expect(log.id).toBe(1);
-
-      const sharedData = fallbackStore.getSharedData();
-      expect(sharedData.metadataSab instanceof ArrayBuffer).toBeTrue();
-
-      const restoredStore = LogStore.fromSharedData(
-        internPool,
-        styleStore,
-        sharedData,
-      );
-      expect(restoredStore.count).toBe(1);
-      expect(restoredStore.getLog(1).id).toBe(1);
     });
   });
 });

@@ -196,19 +196,3 @@ export interface StyleProvider {
    */
   getTimelineType(id: number): ReadonlyDomainElement<TimelineType>;
 }
-
-/**
- * Interface representing shared StyleStore data.
- */
-export interface StyleStoreSharedData {
-  /** List of all severity level configurations. */
-  readonly severities: readonly Severity[];
-  /** List of all log category/source configurations. */
-  readonly logTypes: readonly LogType[];
-  /** List of all action verb configurations. */
-  readonly verbs: readonly Verb[];
-  /** List of all revision status configurations. */
-  readonly revisionStates: readonly RevisionState[];
-  /** List of all timeline presentation styles. */
-  readonly timelineTypes: readonly TimelineType[];
-}

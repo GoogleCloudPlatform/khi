@@ -30,15 +30,6 @@ function align(offset: number, alignment: number): number {
 }
 
 /**
- * Represents the shared memory structure of the log store.
- */
-export interface LogStoreSharedData {
-  readonly metadataSab: ArrayBuffer;
-  readonly count: number;
-  readonly idToIndex: (number | undefined)[];
-}
-
-/**
  * Raw Log object interface from the assembler.
  *
  * This type is used because domain layer stores must not receive proto type
@@ -57,8 +48,6 @@ export interface LogDTO {
  * Store for managing and retrieving logs efficiently.
  */
 export class LogStore {
-  private readonly readOnly: boolean;
-
   private metadataSab!: ArrayBuffer;
   private ids!: Uint32Array;
   private timestamps!: BigUint64Array;
@@ -72,20 +61,9 @@ export class LogStore {
   private constructor(
     private readonly internPool: InternPoolStore,
     private readonly styleStore: StyleProvider,
-    readOnly: boolean,
-    initialData: number | LogStoreSharedData,
+    initialCapacity: number,
   ) {
-    this.readOnly = readOnly;
-
-    if (typeof initialData === 'number') {
-      const initialCapacity = initialData;
-      this.allocateMetadata(initialCapacity);
-    } else {
-      const sharedData = initialData;
-      this.metadataSab = sharedData.metadataSab;
-      this.idToIndex = sharedData.idToIndex;
-      this.mapMetadataViews(sharedData.count);
-    }
+    this.allocateMetadata(initialCapacity);
   }
 
   /**
@@ -95,18 +73,7 @@ export class LogStore {
     internPool: InternPoolStore,
     styleStore: StyleProvider,
   ): LogStore {
-    return new LogStore(internPool, styleStore, false, 1024);
-  }
-
-  /**
-   * Reconstructs a read-only LogStore instance from shared memory data.
-   */
-  public static fromSharedData(
-    internPool: InternPoolStore,
-    styleStore: StyleProvider,
-    sharedData: LogStoreSharedData,
-  ): LogStore {
-    return new LogStore(internPool, styleStore, true, sharedData);
+    return new LogStore(internPool, styleStore, 1024);
   }
 
   private allocateMetadata(capacity: number): void {
@@ -160,54 +127,6 @@ export class LogStore {
     );
   }
 
-  private mapMetadataViews(capacity: number): void {
-    let currentOffset = 0;
-    const idsOffset = currentOffset;
-    currentOffset += capacity * 4;
-
-    const logTypeIdsOffset = currentOffset;
-    currentOffset += capacity * 4;
-
-    const severityIdsOffset = currentOffset;
-    currentOffset += capacity * 4;
-
-    const summaryStringIdsOffset = currentOffset;
-    currentOffset += capacity * 4;
-
-    const bodyStructIdsOffset = currentOffset;
-    currentOffset += capacity * 4;
-
-    const timestampsOffset = align(currentOffset, 8);
-    currentOffset = timestampsOffset + capacity * 8;
-
-    this.ids = new Uint32Array(this.metadataSab, idsOffset, capacity);
-    this.logTypeIds = new Uint32Array(
-      this.metadataSab,
-      logTypeIdsOffset,
-      capacity,
-    );
-    this.severityIds = new Uint32Array(
-      this.metadataSab,
-      severityIdsOffset,
-      capacity,
-    );
-    this.summaryStringIds = new Uint32Array(
-      this.metadataSab,
-      summaryStringIdsOffset,
-      capacity,
-    );
-    this.bodyStructIds = new Uint32Array(
-      this.metadataSab,
-      bodyStructIdsOffset,
-      capacity,
-    );
-    this.timestamps = new BigUint64Array(
-      this.metadataSab,
-      timestampsOffset,
-      capacity,
-    );
-  }
-
   /**
    * Initializes the store with the raw logs.
    * Assumes logs are already sorted by timestamp.
@@ -215,10 +134,6 @@ export class LogStore {
    * @param count The total number of logs.
    */
   public initialize(logs: Iterable<LogDTO>, count: number): void {
-    if (this.readOnly) {
-      throw new Error('Cannot write to a shared read-only LogStore');
-    }
-
     this.allocateMetadata(count);
     this.idToIndex = [];
 
@@ -327,16 +242,5 @@ export class LogStore {
       throw new Error(`Log ID ${id} not found`);
     }
     return index;
-  }
-
-  /**
-   * Returns the shared memory representation of this LogStore.
-   */
-  public getSharedData(): LogStoreSharedData {
-    return {
-      metadataSab: this.metadataSab,
-      count: this.ids.length,
-      idToIndex: this.idToIndex,
-    };
   }
 }

@@ -14,12 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  Severity,
-  RevisionState,
-  TimelineType,
-  Verb,
-} from 'src/app/store/domain/style';
+import { RevisionState, TimelineType, Verb } from 'src/app/store/domain/style';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 
 import { Log } from 'src/app/store/domain/log';
@@ -288,15 +283,6 @@ export class Timeline {
       this._events = this.timelineStore._getEventsForTimeline(this.id);
     }
     return this._events;
-  }
-
-  /**
-   * Checks if this timeline has any logs with any of the specified severities.
-   */
-  public hasSeverity(
-    ...severities: readonly ReadonlyDomainElement<Severity>[]
-  ): boolean {
-    return this.timelineStore._hasSeverities(this.id, severities);
   }
 
   /**

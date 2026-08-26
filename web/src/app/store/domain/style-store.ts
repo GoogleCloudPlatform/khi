@@ -24,7 +24,6 @@ import {
   TimelineType,
   Verb,
   StyleProvider,
-  StyleStoreSharedData,
 } from 'src/app/store/domain/style';
 import { ReadonlyDomainElement } from './types';
 
@@ -288,31 +287,5 @@ export class StyleStore implements StyleStoreLike {
    */
   public getIconAtlas(): IconAtlas | undefined {
     return this.iconAtlas;
-  }
-
-  /**
-   * Returns a shared representation of the style store data.
-   */
-  public getSharedData(): StyleStoreSharedData {
-    return {
-      severities: this.severities,
-      logTypes: this.logTypes,
-      verbs: this.verbs,
-      revisionStates: this.revisionStates,
-      timelineTypes: this.timelineTypes,
-    };
-  }
-
-  /**
-   * Reconstructs StyleStore from shared data.
-   */
-  public static fromSharedData(sharedData: StyleStoreSharedData): StyleStore {
-    const store = new StyleStore();
-    store.addSeverities(sharedData.severities);
-    store.addLogTypes(sharedData.logTypes);
-    store.addVerbs(sharedData.verbs);
-    store.addRevisionStates(sharedData.revisionStates);
-    store.addTimelineTypes(sharedData.timelineTypes);
-    return store;
   }
 }

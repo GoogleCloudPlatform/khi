@@ -60,123 +60,6 @@ describe('InternPoolStore', () => {
     expect(store.getString(2000)).toBe('large-id-string');
   });
 
-  it('should allow reconstructing string values from getSharedData() buffers', () => {
-    store.addStrings([
-      { id: 10, value: 'shared-string-1' },
-      { id: 20, value: 'shared-string-2' },
-    ]);
-
-    const sharedData = store.getSharedData();
-
-    const localIndices = new Uint16Array(
-      sharedData.metadataSab,
-      0,
-      sharedData.capacity,
-    );
-    const localOffsets = new Uint32Array(
-      sharedData.metadataSab,
-      sharedData.capacity * 2,
-      sharedData.capacity,
-    );
-    const localLengths = new Uint32Array(
-      sharedData.metadataSab,
-      sharedData.capacity * 6,
-      sharedData.capacity,
-    );
-
-    const index10 = localIndices[10] - 1;
-    const offset10 = localOffsets[10];
-    const length10 = localLengths[10];
-
-    const buffer10 = new Uint8Array(sharedData.bufferSabs[index10]);
-    const bytes10 = buffer10.subarray(offset10, offset10 + length10);
-    const nonSharedBytes10 = new Uint8Array(length10);
-    nonSharedBytes10.set(bytes10);
-    const decoder = new TextDecoder();
-
-    expect(decoder.decode(nonSharedBytes10)).toBe('shared-string-1');
-
-    const index20 = localIndices[20] - 1;
-    const offset20 = localOffsets[20];
-    const length20 = localLengths[20];
-
-    const buffer20 = new Uint8Array(sharedData.bufferSabs[index20]);
-    const bytes20 = buffer20.subarray(offset20, offset20 + length20);
-    const nonSharedBytes20 = new Uint8Array(length20);
-    nonSharedBytes20.set(bytes20);
-
-    expect(decoder.decode(nonSharedBytes20)).toBe('shared-string-2');
-  });
-
-  it('should be transmissible via postMessage and decodable inside a WebWorker', (done) => {
-    store.addStrings([{ id: 10, value: 'worker-shared-string' }]);
-
-    const sharedData = store.getSharedData();
-
-    const workerCode = `
-      self.onmessage = function(e) {
-        try {
-          const sharedData = e.data;
-          const localIndices = new Uint16Array(sharedData.metadataSab, 0, sharedData.capacity);
-          const localOffsets = new Uint32Array(sharedData.metadataSab, sharedData.capacity * 2, sharedData.capacity);
-          const localLengths = new Uint32Array(sharedData.metadataSab, sharedData.capacity * 6, sharedData.capacity);
-
-          const index = localIndices[10] - 1;
-          const offset = localOffsets[10];
-          const length = localLengths[10];
-
-          const buffer = new Uint8Array(sharedData.bufferSabs[index]);
-          const bytes = buffer.subarray(offset, offset + length);
-          const nonSharedBytes = new Uint8Array(length);
-          nonSharedBytes.set(bytes);
-          const decoded = new TextDecoder().decode(nonSharedBytes);
-
-          self.postMessage({ success: true, decoded });
-        } catch (err) {
-          self.postMessage({ success: false, error: err.toString() });
-        }
-      };
-    `;
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
-    const worker = new Worker(URL.createObjectURL(blob));
-
-    worker.onmessage = (e) => {
-      const result = e.data;
-      if (result.success) {
-        expect(result.decoded).toBe('worker-shared-string');
-      } else {
-        fail('Worker failed with error: ' + result.error);
-      }
-      worker.terminate();
-      done();
-    };
-
-    worker.postMessage(sharedData);
-  });
-
-  it('should initialize successfully from sharedData using fromSharedData()', () => {
-    store.addStrings([
-      { id: 10, value: 'shared-string-1' },
-      { id: 20, value: 'shared-string-2' },
-    ]);
-
-    const sharedData = store.getSharedData();
-    const sharedStore = InternPoolStore.fromSharedData(sharedData);
-
-    expect(sharedStore.getString(10)).toBe('shared-string-1');
-    expect(sharedStore.getString(20)).toBe('shared-string-2');
-  });
-
-  it('should throw an error on write attempts on a read-only instance created from sharedData', () => {
-    store.addStrings([{ id: 10, value: 'shared-string' }]);
-    const sharedData = store.getSharedData();
-    const sharedStore = InternPoolStore.fromSharedData(sharedData);
-
-    expect(() => {
-      sharedStore.addStrings([{ id: 11, value: 'fail' }]);
-    }).toThrowError('Cannot write to a shared read-only InternPoolStore');
-  });
-
   describe('ArrayBuffer allocation', () => {
     it('should allocate ArrayBuffer and perform operations successfully', () => {
       const fallbackStore = InternPoolStore.create();
@@ -187,13 +70,6 @@ describe('InternPoolStore', () => {
 
       expect(fallbackStore.getString(10)).toBe('fallback-string-1');
       expect(fallbackStore.getString(20)).toBe('fallback-string-2');
-
-      const sharedData = fallbackStore.getSharedData();
-      expect(sharedData.metadataSab instanceof ArrayBuffer).toBeTrue();
-      expect(sharedData.bufferSabs[0] instanceof ArrayBuffer).toBeTrue();
-
-      const reconstructedStore = InternPoolStore.fromSharedData(sharedData);
-      expect(reconstructedStore.getString(10)).toBe('fallback-string-1');
     });
   });
 });
