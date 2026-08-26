@@ -131,3 +131,15 @@ func TestProgressUpdator_ParentContextCancellation(t *testing.T) {
 	}
 	mu.Unlock()
 }
+
+func TestProgressUpdator_StartTwice(t *testing.T) {
+	updator := NewProgressUpdator(&inspectionmetadata.TaskProgressMetadata{}, 1*time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {})
+	if err := updator.Start(context.Background()); err != nil {
+		t.Fatalf("Start() returned an error: %v", err)
+	}
+	defer updator.Done()
+
+	if err := updator.Start(context.Background()); err == nil {
+		t.Errorf("start() should return an error if already started")
+	}
+}

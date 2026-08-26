@@ -17,6 +17,7 @@ package progressutil
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -34,6 +35,7 @@ type ProgressUpdator struct {
 	OnTick   ProgressUpdatorOnTickFunc
 	context  context.Context
 	cancel   func()
+	wg       sync.WaitGroup
 }
 
 // NewProgressUpdator creates and initializes a new ProgressUpdator.
@@ -49,18 +51,29 @@ func NewProgressUpdator(progress *inspectionmetadata.TaskProgressMetadata, inter
 // and then continues to call it at the specified interval until Done is called.
 // It returns an error if the updator has already been started.
 func (p *ProgressUpdator) Start(ctx context.Context) error {
+	if p.context != nil {
+		return fmt.Errorf("this updator is already started")
+	}
 	p.OnTick(p.Progress)
 	cancellable, cancel := context.WithCancel(ctx)
 	p.cancel = cancel
 	p.context = cancellable
+	p.wg.Add(1)
 	go func() {
-		for itr := 1; true; itr++ {
+		defer p.wg.Done()
+		ticker := time.NewTicker(p.Interval)
+		defer ticker.Stop()
+		for {
 			select {
 			case <-p.context.Done():
 				return
-			case <-time.After(p.Interval):
+			case <-ticker.C:
+				select {
+				case <-p.context.Done():
+					return
+				default:
+				}
 				p.OnTick(p.Progress)
-				itr++
 			}
 		}
 	}()
@@ -74,5 +87,6 @@ func (p *ProgressUpdator) Done() error {
 		return fmt.Errorf("this updator is not yet started")
 	}
 	p.cancel()
+	p.wg.Wait()
 	return nil
 }
