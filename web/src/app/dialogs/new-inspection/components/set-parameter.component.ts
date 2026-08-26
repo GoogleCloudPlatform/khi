@@ -15,17 +15,8 @@
  */
 
 import { CommonModule } from '@angular/common';
-import {
-  Component,
-  inject,
-  input,
-  OnInit,
-  OnDestroy,
-  computed,
-  signal,
-} from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
 import {
   ParameterHintType,
   SetParameterFormField,
@@ -57,37 +48,24 @@ import { SetInputDescriptionOptionComponent } from './option-item.component';
     SetInputDescriptionOptionComponent,
   ],
 })
-export class SetParameterComponent implements OnInit, OnDestroy {
+export class SetParameterComponent {
   readonly ParameterHintType = ParameterHintType;
   readonly parameter = input.required<SetParameterFormField>();
 
   private readonly store = inject(PARAMETER_STORE);
-  private readonly destroyed = new Subject<void>();
-  readonly stagingInput = signal<string[]>([]);
 
-  choices = computed(() => {
+  readonly choices = computed(() => {
     return this.parameter().options.map((opt): SetInputItem => ({
       id: opt.id,
       value: opt,
     }));
   });
 
-  ngOnInit(): void {
-    this.store
-      .watch<string[]>(this.parameter().id)
-      .pipe(takeUntil(this.destroyed))
-      .subscribe((value) => {
-        this.stagingInput.set(value);
-      });
-  }
-
-  ngOnDestroy(): void {
-    this.destroyed.next();
-    this.destroyed.complete();
-  }
+  readonly stagingInput = computed(() => {
+    return this.store.get<string[]>(this.parameter().id)() ?? [];
+  });
 
   onSelectionChange(selectedItems: string[]): void {
-    this.stagingInput.set(selectedItems);
     this.store.set(this.parameter().id, selectedItems);
   }
 }

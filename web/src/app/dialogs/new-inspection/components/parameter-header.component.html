@@ -17,14 +17,16 @@
 <div class="container">
   <div class="label-row">
     @if (showValidationStatus()) {
-      @if (param.hintType === ParameterHintType.Error) {
+      @if (isValidating()) {
+        <mat-spinner diameter="16" class="validation-spinner"></mat-spinner>
+      } @else if (param.hintType === ParameterHintType.Error) {
         <mat-icon class="error">error</mat-icon>
       } @else {
         <mat-icon class="verified">check_circle</mat-icon>
       }
     }
     <p class="label">{{ param.label }}</p>
-    @if (store.watchDirty(param.id) | async) {
+    @if (isDirty()) {
       <mat-icon class="dirty" [matTooltip]="dirtyIconTooltip">edit</mat-icon>
     }
   </div>

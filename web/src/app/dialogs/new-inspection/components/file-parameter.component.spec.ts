@@ -127,7 +127,11 @@ describe('FileParameterComponent', () => {
     fixture.componentInstance.onClickUploadButton();
     fixture.detectChanges();
     const harnessLoader = TestbedHarnessEnvironment.loader(fixture);
-    const spinner = await harnessLoader.getHarness(MatProgressSpinnerHarness);
+    const spinner = await harnessLoader.getHarness(
+      MatProgressSpinnerHarness.with({
+        selector: '.progress-wrapper mat-progress-spinner',
+      }),
+    );
 
     expect(fixture.componentInstance).toBeTruthy();
     expect(await spinner.getMode()).toBe('determinate');
@@ -150,7 +154,11 @@ describe('FileParameterComponent', () => {
     fixture.componentInstance.onClickUploadButton();
     fixture.detectChanges();
     const harnessLoader = TestbedHarnessEnvironment.loader(fixture);
-    const spinner = await harnessLoader.getHarness(MatProgressSpinnerHarness);
+    const spinner = await harnessLoader.getHarness(
+      MatProgressSpinnerHarness.with({
+        selector: '.progress-wrapper mat-progress-spinner',
+      }),
+    );
 
     expect(fixture.componentInstance).toBeTruthy();
     expect(await spinner.getMode()).toBe('indeterminate');

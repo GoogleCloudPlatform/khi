@@ -14,18 +14,7 @@
  * limitations under the License.
  */
 
-import { InjectionToken } from '@angular/core';
-import {
-  distinctUntilChanged,
-  filter,
-  map,
-  Observable,
-  ReplaySubject,
-  Subject,
-  take,
-  takeUntil,
-  withLatestFrom,
-} from 'rxjs';
+import { computed, InjectionToken, Signal, signal } from '@angular/core';
 
 /**
  * The injection token to get an implementation of ParameterStore.
@@ -39,21 +28,34 @@ export const PARAMETER_STORE = new InjectionToken<ParameterStore>(
  */
 export interface ParameterStore {
   /**
-   * Get the observable to monitor the value of speicifed value.
-   * When the specified id is not available parameter for now, it waits the value to be available.
+   * Signal holding all current parameter values.
    */
-  watch<T>(id: string): Observable<T>;
+  readonly currentParameters: Signal<{ [id: string]: unknown }>;
 
   /**
-   * Get the observable to monitor the dirtiness of the field.
-   * true is emitted after user modified the field.
+   * Signal holding the parameters verified by the last completed dryrun.
    */
-  watchDirty(id: string): Observable<boolean>;
+  readonly validatedParameters: Signal<{ [id: string]: unknown }>;
 
   /**
-   * Watch the all parameters.
+   * Signal holding the default parameters returned by the backend.
    */
-  watchAll(): Observable<{ [id: string]: unknown }>;
+  readonly defaultParameters: Signal<{ [id: string]: unknown }>;
+
+  /**
+   * Returns a computed signal of the value for the given parameter ID.
+   */
+  get<T>(id: string): Signal<T>;
+
+  /**
+   * Returns a computed signal indicating if the field has pending unverified changes.
+   */
+  isValidating(id: string): Signal<boolean>;
+
+  /**
+   * Returns a computed signal indicating if the field was modified by the user.
+   */
+  isDirty(id: string): Signal<boolean>;
 
   /**
    * Set the value for the parameter with the given id.
@@ -64,128 +66,147 @@ export interface ParameterStore {
    * Set the default value of parameters.
    */
   setDefaultValues(defaultValues: { [id: string]: unknown }): void;
+
+  /**
+   * Set the snapshot of parameters that were validated by a completed dryrun.
+   */
+  setValidatedParameters(params: { [id: string]: unknown }): void;
 }
 
-export class DefaultParameterStore implements ParameterStore {
-  readonly destroyed = new Subject();
-
-  readonly currentParameters = new ReplaySubject<{ [id: string]: unknown }>(1);
-
-  readonly currentDefaultParameters = new ReplaySubject<{
-    [id: string]: unknown;
-  }>(1);
-
-  private dirtyFields = this.currentParameters.pipe(
-    takeUntil(this.destroyed),
-    withLatestFrom(this.currentDefaultParameters),
-    map(
-      ([parameters, defaultParameters]) =>
-        new Set(
-          Object.keys(parameters).filter(
-            (key) => parameters[key] !== defaultParameters[key],
-          ),
-        ),
-    ),
-  );
-  constructor() {
-    this.currentParameters.next({});
-    this.currentDefaultParameters.next({});
+/**
+ * Checks if two parameter values are deeply equal (supporting primitives, arrays, and Dates).
+ */
+export function areValuesEqual(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
   }
-  watchAll(): Observable<{ [id: string]: unknown }> {
-    return this.currentParameters.pipe(
-      takeUntil(this.destroyed),
-      distinctUntilChanged((prev, current) => {
-        return this.haveEqualKeyValues(prev, current);
-      }),
-    );
-  }
-
-  watch<T>(id: string): Observable<T> {
-    return this.currentParameters.pipe(
-      takeUntil(this.destroyed),
-      filter((parameters) => id in parameters),
-      map((parameters) => parameters[id] as T),
-      distinctUntilChanged(),
-    );
-  }
-
-  watchDirty(id: string): Observable<boolean> {
-    return this.dirtyFields.pipe(
-      takeUntil(this.destroyed),
-      map((dirtyFields) => dirtyFields.has(id)),
-      distinctUntilChanged(),
-    );
-  }
-
-  set(id: string, value: unknown): void {
-    this.currentParameters
-      .pipe(
-        takeUntil(this.destroyed),
-        filter((parameters) => id in parameters),
-        take(1),
-      )
-      .subscribe((parameters) => {
-        this.currentParameters.next({
-          ...parameters,
-          [id]: value,
-        });
-      });
-  }
-
-  /**
-   * Update the default values for parameters.
-   * If the current value is same as the previous default values, the parameter is updated with the newer default values.
-   * If not, the parameter value is kept because it was updated by the user.
-   */
-  setDefaultValues(defaultValues: { [id: string]: unknown }): void {
-    this.currentParameters
-      .pipe(
-        takeUntil(this.destroyed),
-        take(1),
-        withLatestFrom(this.dirtyFields),
-      )
-      .subscribe(([parameters, dirtyFields]) => {
-        const nextParameter: { [id: string]: unknown } = {};
-        for (const id of Object.keys({ ...parameters, ...defaultValues })) {
-          if (dirtyFields.has(id)) {
-            nextParameter[id] = parameters[id];
-          } else {
-            nextParameter[id] = defaultValues[id];
-          }
-        }
-        this.currentParameters.next(nextParameter);
-      });
-    this.currentDefaultParameters.next(defaultValues);
-  }
-
-  /**
-   * Unregister subscriptions registered in this store.
-   */
-  public destroy(): void {
-    this.destroyed.next(void 0);
-  }
-
-  /**
-   * Check if the given objects are both having same key and its value.
-   * This doesn't compare them recursively, because currently the parameter values are all primitives.
-   */
-  private haveEqualKeyValues(
-    prev: { [id: string]: unknown },
-    current: { [id: string]: unknown },
-  ): boolean {
-    for (const prevFieldKey in prev) {
-      if (
-        !(prevFieldKey in current) ||
-        prev[prevFieldKey] !== current[prevFieldKey]
-      ) {
-        return false;
-      }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) {
+      return false;
     }
-    for (const currentFieldKey in current) {
-      if (!(currentFieldKey in prev)) {
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) {
         return false;
       }
     }
     return true;
+  }
+  if (a instanceof Date && b instanceof Date) {
+    return a.getTime() === b.getTime();
+  }
+  return false;
+}
+
+/**
+ * Checks if two parameter objects have equal keys and values.
+ */
+export function haveEqualKeyValues(
+  prev: { [id: string]: unknown },
+  current: { [id: string]: unknown },
+): boolean {
+  const prevKeys = Object.keys(prev);
+  const currentKeys = Object.keys(current);
+  if (prevKeys.length !== currentKeys.length) {
+    return false;
+  }
+  for (const key of prevKeys) {
+    if (!(key in current) || !areValuesEqual(prev[key], current[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Default implementation of ParameterStore backed by Angular Signals.
+ */
+export class DefaultParameterStore implements ParameterStore {
+  readonly currentParameters = signal<{ [id: string]: unknown }>({});
+
+  readonly validatedParameters = signal<{ [id: string]: unknown }>({});
+
+  readonly defaultParameters = signal<{ [id: string]: unknown }>({});
+
+  private readonly dirtyFields = computed(() => {
+    const current = this.currentParameters();
+    const defaults = this.defaultParameters();
+    const dirty = new Set<string>();
+    for (const key of Object.keys(current)) {
+      if (!areValuesEqual(current[key], defaults[key])) {
+        dirty.add(key);
+      }
+    }
+    return dirty;
+  });
+
+  /**
+   * Returns a computed signal of the value for the given parameter ID.
+   */
+  get<T>(id: string): Signal<T> {
+    return computed(() => this.currentParameters()[id] as T);
+  }
+
+  /**
+   * Returns a computed signal indicating if the field's current value differs from the validated value.
+   */
+  isValidating(id: string): Signal<boolean> {
+    return computed(() => {
+      const current = this.currentParameters();
+      const validated = this.validatedParameters();
+      if (!(id in current)) {
+        return false;
+      }
+      return !areValuesEqual(current[id], validated[id]);
+    });
+  }
+
+  /**
+   * Returns a computed signal indicating if the field was modified by the user from its default value.
+   */
+  isDirty(id: string): Signal<boolean> {
+    return computed(() => this.dirtyFields().has(id));
+  }
+
+  /**
+   * Sets the value for the parameter with the given ID.
+   */
+  set(id: string, value: unknown): void {
+    this.currentParameters.update((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  }
+
+  /**
+   * Updates default values for parameters.
+   * Preserves user-modified (dirty) values while updating untouched fields.
+   */
+  setDefaultValues(defaultValues: { [id: string]: unknown }): void {
+    const current = this.currentParameters();
+    const dirty = this.dirtyFields();
+    const next: { [id: string]: unknown } = {};
+    for (const id of Object.keys({ ...current, ...defaultValues })) {
+      if (dirty.has(id)) {
+        next[id] = current[id];
+      } else {
+        next[id] = defaultValues[id];
+      }
+    }
+    this.currentParameters.set(next);
+    this.defaultParameters.set(defaultValues);
+  }
+
+  /**
+   * Sets the parameters that have been validated by a completed dryrun.
+   */
+  setValidatedParameters(params: { [id: string]: unknown }): void {
+    this.validatedParameters.set({ ...params });
+  }
+
+  /**
+   * Unregisters resources when the store is destroyed.
+   */
+  public destroy(): void {
+    // Signals automatically clean up without requiring manual unsubscription.
   }
 }

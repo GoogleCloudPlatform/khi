@@ -16,18 +16,20 @@
 
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { SetParameterComponent } from './set-parameter.component';
-import { PARAMETER_STORE } from './service/parameter-store';
+import {
+  DefaultParameterStore,
+  PARAMETER_STORE,
+} from './service/parameter-store';
 import {
   ParameterHintType,
   ParameterInputType,
 } from 'src/app/common/schema/form-types';
-import { of } from 'rxjs';
 
-const createParameterStoreMock = (initialValue: string[] = []) => ({
-  watch: () => of(initialValue),
-  watchDirty: () => of(false),
-  set: () => {},
-});
+const createParameterStore = (paramId: string, initialValue: string[] = []) => {
+  const store = new DefaultParameterStore();
+  store.setDefaultValues({ [paramId]: initialValue });
+  return store;
+};
 
 const meta: Meta<SetParameterComponent> = {
   title: 'Dialogs/NewInspection/SetParameter',
@@ -39,7 +41,7 @@ const meta: Meta<SetParameterComponent> = {
       providers: [
         {
           provide: PARAMETER_STORE,
-          useValue: createParameterStoreMock(),
+          useValue: new DefaultParameterStore(),
         },
       ],
     }),
@@ -75,7 +77,7 @@ export const Default: Story = {
       providers: [
         {
           provide: PARAMETER_STORE,
-          useValue: createParameterStoreMock([
+          useValue: createParameterStore('test-set-param', [
             '@managed',
             '-@any',
             '-pods',
@@ -113,7 +115,10 @@ export const WithPreselectedValues: Story = {
       providers: [
         {
           provide: PARAMETER_STORE,
-          useValue: createParameterStoreMock(['Option 2', 'Option 4']),
+          useValue: createParameterStore('test-set-param-preselected', [
+            'Option 2',
+            'Option 4',
+          ]),
         },
       ],
     }),

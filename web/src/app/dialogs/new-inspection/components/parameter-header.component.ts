@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, inject, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { BreaklinePipe } from 'src/app/common/breakline.pipe';
 import {
@@ -24,6 +24,7 @@ import {
 import { PARAMETER_STORE } from './service/parameter-store';
 import { CommonModule } from '@angular/common';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 /**
  * Component of common parameter headers used in new inspection dialog.
@@ -32,7 +33,13 @@ import { MatTooltipModule } from '@angular/material/tooltip';
   selector: 'khi-new-inspection-parameter-header',
   templateUrl: './parameter-header.component.html',
   styleUrls: ['./parameter-header.component.scss'],
-  imports: [CommonModule, BreaklinePipe, MatIconModule, MatTooltipModule],
+  imports: [
+    CommonModule,
+    BreaklinePipe,
+    MatIconModule,
+    MatTooltipModule,
+    MatProgressSpinnerModule,
+  ],
 })
 export class ParameterHeaderComponent {
   readonly ParameterHintType = ParameterHintType;
@@ -42,12 +49,26 @@ export class ParameterHeaderComponent {
   /**
    * The spec of this text type parameter.
    */
-  parameter = input.required<ParameterFormFieldBase>();
+  readonly parameter = input.required<ParameterFormFieldBase>();
 
   /**
    * If the status of validation should show on header or not.
    */
-  showValidationStatus = input(true);
+  readonly showValidationStatus = input(true);
 
-  store = inject(PARAMETER_STORE);
+  private readonly store = inject(PARAMETER_STORE);
+
+  /**
+   * Computed signal indicating if the parameter is currently being validated.
+   */
+  readonly isValidating = computed(() => {
+    return this.store.isValidating(this.parameter().id)();
+  });
+
+  /**
+   * Computed signal indicating if the parameter was modified by the user.
+   */
+  readonly isDirty = computed(() => {
+    return this.store.isDirty(this.parameter().id)();
+  });
 }

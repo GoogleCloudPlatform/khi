@@ -24,7 +24,8 @@
     <input
       class="text-input"
       matInput
-      [value]="value | async"
+      [value]="value()"
+      (focus)="onFocus()"
       (input)="onInput($event)"
       (blur)="onBlur($event)"
       [placeholder]="param.default"

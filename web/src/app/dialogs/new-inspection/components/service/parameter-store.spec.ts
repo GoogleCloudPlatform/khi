@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-import { firstValueFrom, lastValueFrom, take } from 'rxjs';
-import { DefaultParameterStore } from './parameter-store';
+import {
+  areValuesEqual,
+  DefaultParameterStore,
+  haveEqualKeyValues,
+} from './parameter-store';
 
 describe('DefaultParameterStore', () => {
   let parameterStore: DefaultParameterStore;
@@ -28,94 +31,132 @@ describe('DefaultParameterStore', () => {
     parameterStore.destroy();
   });
 
-  describe('watch', () => {
-    it('emits value set before the subscribe', async () => {
+  describe('get', () => {
+    it('returns the value set in the store', () => {
       parameterStore.setDefaultValues({ foo: 'bar' });
       parameterStore.set('foo', 'qux');
 
-      expect(await firstValueFrom(parameterStore.watch('foo'))).toBe('qux');
+      expect(parameterStore.get('foo')()).toBe('qux');
     });
   });
 
   describe('set', () => {
-    it('put the value after the default value being available', async () => {
+    it('puts the value after the default value is available', () => {
       parameterStore.set('foo', 'qux');
       parameterStore.setDefaultValues({ foo: 'bar' });
 
-      expect(
-        await lastValueFrom(parameterStore.watch('foo').pipe(take(1))),
-      ).toBe('qux');
+      expect(parameterStore.get('foo')()).toBe('qux');
     });
 
-    it('put the value after the default value being available and keep the order', async () => {
+    it('puts the value after the default value is available and keeps the latest value', () => {
       parameterStore.set('foo', 'qux');
       parameterStore.set('foo', 'quux');
       parameterStore.setDefaultValues({ foo: 'bar' });
 
-      expect(
-        await lastValueFrom(parameterStore.watch('foo').pipe(take(1))),
-      ).toBe('quux');
+      expect(parameterStore.get('foo')()).toBe('quux');
     });
   });
 
   describe('setDefaultValues', () => {
-    it("doesn't overwrite the value set before", async () => {
+    it("doesn't overwrite the value set before if user modified it", () => {
       parameterStore.setDefaultValues({ foo: 'bar' });
       parameterStore.set('foo', 'qux');
       parameterStore.setDefaultValues({ foo: 'bar', bar: 'qux' });
 
-      expect(
-        await lastValueFrom(parameterStore.watch('foo').pipe(take(1))),
-      ).toBe('qux');
+      expect(parameterStore.get('foo')()).toBe('qux');
     });
 
-    it('update the value if the previous value is same as the default value', async () => {
+    it('updates the value if the previous value is same as the default value', () => {
       parameterStore.setDefaultValues({ foo: 'bar' });
       parameterStore.set('foo', 'bar');
       parameterStore.setDefaultValues({ foo: 'qux' });
 
-      expect(
-        await lastValueFrom(parameterStore.watch('foo').pipe(take(1))),
-      ).toBe('qux');
+      expect(parameterStore.get('foo')()).toBe('qux');
     });
   });
 
-  describe('watchDirty', () => {
-    it("becomes false when the value hasn't set", async () => {
+  describe('isDirty', () => {
+    it("is false when the value hasn't been modified from default", () => {
       parameterStore.setDefaultValues({ foo: 'bar' });
 
-      expect(
-        await lastValueFrom(parameterStore.watchDirty('foo').pipe(take(1))),
-      ).toBe(false);
+      expect(parameterStore.isDirty('foo')()).toBe(false);
     });
 
-    it('becomes false when the value has set', async () => {
+    it('is true when the value has been modified from default', () => {
       parameterStore.setDefaultValues({ foo: 'bar' });
       parameterStore.set('foo', 'qux');
 
-      expect(
-        await lastValueFrom(parameterStore.watchDirty('foo').pipe(take(1))),
-      ).toBe(true);
+      expect(parameterStore.isDirty('foo')()).toBe(true);
     });
 
-    it('becomes false when the previous value returned to the same as the default value', async () => {
+    it('becomes false when the value returns to the same as default value', () => {
       parameterStore.setDefaultValues({ foo: 'bar' });
       parameterStore.set('foo', 'qux');
       parameterStore.set('foo', 'bar');
 
-      expect(
-        await lastValueFrom(parameterStore.watchDirty('foo').pipe(take(1))),
-      ).toBe(false);
+      expect(parameterStore.isDirty('foo')()).toBe(false);
     });
 
-    it('becomes false when the default value was updated and it matched the current value', async () => {
+    it('becomes false when default value is updated and matches the current value', () => {
       parameterStore.setDefaultValues({ foo: 'bar' });
       parameterStore.set('foo', 'qux');
       parameterStore.setDefaultValues({ foo: 'qux' });
 
-      expect(
-        await lastValueFrom(parameterStore.watchDirty('foo').pipe(take(1))),
-      ).toBe(false);
+      expect(parameterStore.isDirty('foo')()).toBe(false);
+    });
+    it('handles array values by content without falsely marking as dirty', () => {
+      parameterStore.setDefaultValues({ foo: ['a', 'b'] });
+
+      expect(parameterStore.isDirty('foo')()).toBe(false);
+
+      parameterStore.set('foo', ['a']);
+      expect(parameterStore.isDirty('foo')()).toBe(true);
+
+      parameterStore.set('foo', ['a', 'b']);
+      expect(parameterStore.isDirty('foo')()).toBe(false);
+    });
+  });
+
+  describe('isValidating', () => {
+    it('is false initially when field is not in store', () => {
+      expect(parameterStore.isValidating('foo')()).toBe(false);
+    });
+
+    it('is true when current value differs from validated value', () => {
+      parameterStore.set('foo', 'bar');
+      parameterStore.setValidatedParameters({ foo: 'old' });
+
+      expect(parameterStore.isValidating('foo')()).toBe(true);
+    });
+
+    it('becomes false when validated value matches current value', () => {
+      parameterStore.set('foo', 'bar');
+      parameterStore.setValidatedParameters({ foo: 'bar' });
+
+      expect(parameterStore.isValidating('foo')()).toBe(false);
+    });
+
+    it('compares array values by content, not reference', () => {
+      parameterStore.set('foo', ['item1', 'item2']);
+      parameterStore.setValidatedParameters({ foo: ['item1', 'item2'] });
+
+      expect(parameterStore.isValidating('foo')()).toBe(false);
+
+      parameterStore.set('foo', ['item1']);
+      expect(parameterStore.isValidating('foo')()).toBe(true);
+    });
+  });
+
+  describe('areValuesEqual and haveEqualKeyValues', () => {
+    it('correctly compares array and primitive equality', () => {
+      expect(areValuesEqual(['a', 'b'], ['a', 'b'])).toBe(true);
+      expect(areValuesEqual(['a', 'b'], ['a', 'c'])).toBe(false);
+      expect(areValuesEqual(['a'], ['a', 'b'])).toBe(false);
+      expect(areValuesEqual('hello', 'hello')).toBe(true);
+      expect(areValuesEqual('hello', 'world')).toBe(false);
+
+      expect(haveEqualKeyValues({ a: ['x'] }, { a: ['x'] })).toBe(true);
+      expect(haveEqualKeyValues({ a: ['x'] }, { a: ['y'] })).toBe(false);
     });
   });
 });

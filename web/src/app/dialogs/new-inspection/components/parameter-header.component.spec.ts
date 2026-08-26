@@ -62,6 +62,7 @@ describe('ParameterHeaderComponent', () => {
     matIconRegistry.setDefaultFontSetClass('material-symbols-outlined');
     fixture = TestBed.createComponent(ParameterHeaderComponent);
     fixture.componentRef.setInput('parameter', {
+      id: 'test-param',
       label: 'test-label',
       description:
         'Lorem ipsum dolor sit amet, consectetur adipiscing elit, \n sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
@@ -88,6 +89,7 @@ describe('ParameterHeaderComponent', () => {
 
   it('should show error icon when hintType = ERROR', async () => {
     fixture.componentRef.setInput('parameter', {
+      id: 'test-param',
       label: 'test-label',
       description:
         'Lorem ipsum dolor sit amet, consectetur adipiscing elit, \n sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
@@ -98,5 +100,22 @@ describe('ParameterHeaderComponent', () => {
 
     expect(matIcon.length).toBe(1);
     expect(await matIcon[0].getName()).toBe('error');
+  });
+
+  it('should show spinner when field is validating', () => {
+    const store = TestBed.inject(PARAMETER_STORE);
+    store.set('test-param', 'new-value');
+    store.setValidatedParameters({ 'test-param': 'old-value' });
+
+    fixture.detectChanges();
+
+    const spinner = fixture.debugElement.query(By.css('.validation-spinner'));
+    expect(spinner).toBeTruthy();
+
+    // Icons should not be shown while validating
+    const icons = fixture.debugElement.queryAll(
+      By.css('mat-icon.verified, mat-icon.error'),
+    );
+    expect(icons.length).toBe(0);
   });
 });

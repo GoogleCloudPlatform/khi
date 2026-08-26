@@ -20,9 +20,8 @@ import {
   BehaviorSubject,
   Subject,
   filter,
-  interval,
+  firstValueFrom,
   map,
-  merge,
   shareReplay,
   switchMap,
   take,
@@ -30,7 +29,7 @@ import {
   withLatestFrom,
 } from 'rxjs';
 import {
-  InspectionDryRunRequest,
+  InspectionMetadataInDryrun,
   InspectionType,
 } from 'src/app/common/schema/api-types';
 import { ReactiveFormsModule } from '@angular/forms';
@@ -57,6 +56,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import {
   DefaultParameterStore,
+  haveEqualKeyValues,
   PARAMETER_STORE,
 } from './components/service/parameter-store';
 import {
@@ -257,39 +257,13 @@ export class NewInspectionDialogComponent implements OnDestroy {
       .subscribe(([featureIds, client]) => {
         client.setFeatures(featureIds);
       });
-    this.dryrunRequest
-      .pipe(takeUntil(this.destroyed), withLatestFrom(this.currentTaskClient))
-      .subscribe(([req, client]) => {
-        client.dryrun(req);
-      });
-
-    // Send dryrun request to server when any of the parameters changed or every seconds to validate parameters.
-    const newValueFromStore = this.store.watchAll();
-    const periodicUpdate = interval(1000).pipe(
-      withLatestFrom(this.store.watchAll()),
-      map(([, values]) => values),
-    );
-    merge(newValueFromStore, periodicUpdate)
-      .pipe(takeUntil(this.destroyed))
-      .subscribe((values) => {
-        this.dryrunRequest.next(values);
-      });
-
-    // Receive the form field parameters and extract default values, then set it to the store.
-    this.currentDryrunMetadata
-      .pipe(takeUntil(this.destroyed))
-      .subscribe((metadata) => {
-        const defaultValues = this.flattenDefaultValues(metadata.form);
-        this.store.setDefaultValues(defaultValues);
-      });
-
     // Event handler reacting to the `Run` button click.
     this.startInspectionSubject
       .pipe(
         takeUntil(this.destroyed),
         take(1),
-        withLatestFrom(this.currentTaskClient, this.store.watchAll()),
-        switchMap(([, client, parameters]) => client.run(parameters)),
+        withLatestFrom(this.currentTaskClient),
+        switchMap(([, client]) => client.run(this.store.currentParameters())),
       )
       .subscribe(() => {
         this.extension.notifyLifecycleOnInspectionStart();
@@ -335,45 +309,18 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   private featureToggleRequest = new Subject<string>();
 
-  private dryrunRequest = new Subject<InspectionDryRunRequest>();
-
   private startInspectionSubject = new Subject<void>();
 
-  private currentDryrunMetadata = this.currentTaskClient.pipe(
-    switchMap((client) => client.dryRunResult),
-    map((result) => result.metadata),
-  );
+  /**
+   * parameterViewModel contains the current ParameterPageViewModel.
+   * Holds null initially until the first dryrun finishes, or when reset.
+   */
+  readonly parameterViewModel = signal<ParameterPageViewModel | null>(null);
 
   /**
-   * parameterViewModelResetSubject emits null when the previous parameterViewModel needs to be refreshed.
+   * Abort controller for cancelling the ongoing dryrun loop.
    */
-  private parameterViewModelResetSubject = new Subject<null>();
-
-  /**
-   * parameterViewModel emits the current ParameterViewModel.
-   * This emits null as its initial value on opening the parameter page.
-   */
-  parameterViewModel = merge(
-    this.currentDryrunMetadata.pipe(
-      map((metadata) => {
-        const errorFieldCount = this.countErrorFields(metadata.form);
-        const fieldCount = this.countAllFields(metadata.form);
-        return {
-          rootGroupForm: {
-            type: ParameterInputType.Group,
-            children: metadata.form,
-          },
-          queries: metadata.query,
-          plan: metadata.plan,
-          job: metadata.jobCommand,
-          errorFieldCount: errorFieldCount,
-          fieldCount: fieldCount,
-          totalEstimatedSummary: computeTotalEstimatedLogs(metadata.query),
-        } as ParameterPageViewModel;
-      }),
-    ),
-    this.parameterViewModelResetSubject,
-  );
+  private loopAbortController: AbortController | null = null;
 
   public setInspectionType(inspectionType: InspectionType) {
     this.currentInspectionType.next(inspectionType);
@@ -385,10 +332,109 @@ export class NewInspectionDialogComponent implements OnDestroy {
   public selectedStepChange(stepIndex: number) {
     if (stepIndex === NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT) {
       // Reset the parameter view model every time entering STEP_INDEX_PARAMETER_INPUT otherwise parameter list can be stale.
-      this.parameterViewModelResetSubject.next(null);
-
-      this.dryrunRequest.next({});
+      this.parameterViewModel.set(null);
+      this.startDryrunLoop();
+    } else {
+      this.stopDryrunLoop();
     }
+  }
+
+  /**
+   * Runs the dryrun loop sequentially. Executes a dryrun request, checks if user input changed during flight,
+   * updates the store and view model if unchanged, or immediately re-runs if inputs changed while in-flight.
+   */
+  private async startDryrunLoop() {
+    this.stopDryrunLoop();
+    const abortController = new AbortController();
+    this.loopAbortController = abortController;
+    const signal = abortController.signal;
+
+    const client = await firstValueFrom(this.currentTaskClient);
+    if (signal.aborted || !client) {
+      return;
+    }
+
+    while (!signal.aborted) {
+      const sentParams = this.store.currentParameters();
+      try {
+        const res = await firstValueFrom(client.dryrunDirect(sentParams));
+        if (signal.aborted) {
+          break;
+        }
+
+        const currentParams = this.store.currentParameters();
+        const changedDuringFlight = !haveEqualKeyValues(
+          sentParams,
+          currentParams,
+        );
+
+        if (!changedDuringFlight) {
+          this.store.setValidatedParameters(sentParams);
+          this.updateParameterViewModel(res.metadata);
+          this.store.setDefaultValues(
+            this.flattenDefaultValues(res.metadata.form),
+          );
+
+          // If setDefaultValues assigned new defaults, currentParameters now differs from sentParams.
+          // In this case, do not delay so the next dryrun validating those defaults executes immediately.
+          const paramsAfterDefaults = this.store.currentParameters();
+          if (haveEqualKeyValues(sentParams, paramsAfterDefaults)) {
+            await this.delay(800, signal);
+          }
+        }
+        // If changedDuringFlight is true, immediately loop without delay to validate the new inputs.
+      } catch {
+        if (signal.aborted) {
+          break;
+        }
+        await this.delay(1000, signal);
+      }
+    }
+  }
+
+  private stopDryrunLoop() {
+    if (this.loopAbortController) {
+      this.loopAbortController.abort();
+      this.loopAbortController = null;
+    }
+  }
+
+  private delay(ms: number, signal: AbortSignal): Promise<void> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(resolve, ms);
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        { once: true },
+      );
+    });
+  }
+
+  private updateParameterViewModel(metadata: InspectionMetadataInDryrun) {
+    const errorFieldCount = this.countErrorFields(metadata.form);
+    const fieldCount = this.countAllFields(metadata.form);
+    this.parameterViewModel.set({
+      rootGroupForm: {
+        id: 'root',
+        label: '',
+        description: '',
+        hint: '',
+        hintType: ParameterHintType.None,
+        type: ParameterInputType.Group,
+        collapsible: false,
+        collapsedByDefault: false,
+        children: metadata.form,
+      },
+      queries: metadata.query,
+      plan: metadata.plan,
+      job: metadata.jobCommand,
+      errorFieldCount: errorFieldCount,
+      fieldCount: fieldCount,
+      totalEstimatedSummary: computeTotalEstimatedLogs(metadata.query),
+    });
   }
 
   public toggleFeature(featureId: string) {
@@ -461,6 +507,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopDryrunLoop();
     if (this.store instanceof DefaultParameterStore) {
       this.store.destroy();
     }

@@ -102,7 +102,7 @@ limitations under the License.
     <!--Step3 : Input parameters-->
     <mat-step>
       <ng-template matStepLabel>Input parameters</ng-template>
-      @if (parameterViewModel | async; as parameterViewModel) {
+      @if (parameterViewModel(); as parameterViewModel) {
         <div class="parameter-view">
           <div class="parameters-form-view allow-vertical-scroll">
             <khi-new-inspection-group-parameter

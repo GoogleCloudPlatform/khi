@@ -31,7 +31,6 @@ import {
   DefaultParameterStore,
   PARAMETER_STORE,
 } from './service/parameter-store';
-import { firstValueFrom } from 'rxjs';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -109,7 +108,7 @@ describe('TextParameterComponent', () => {
     const matInput = await harnessLoader.getHarness(MatInputHarness);
 
     await matInput.setValue('updated value');
-    expect(await firstValueFrom(parameterStore.watchAll())).toEqual({
+    expect(parameterStore.currentParameters()).toEqual({
       'test-parameter-id': 'updated value',
     });
   });
@@ -125,14 +124,34 @@ describe('TextParameterComponent', () => {
     const matInput = await harnessLoader.getHarness(MatInputHarness);
 
     await matInput.setValue('updated value');
-    expect(await firstValueFrom(parameterStore.watchAll())).toEqual({
+    expect(parameterStore.currentParameters()).toEqual({
       'test-parameter-id': 'the default value',
     });
 
     await matInput.blur();
-    expect(await firstValueFrom(parameterStore.watchAll())).toEqual({
+    expect(parameterStore.currentParameters()).toEqual({
       'test-parameter-id': 'updated value',
     });
+  });
+
+  it('should not overwrite input value when store is updated in background while focused', async () => {
+    fixture.componentRef.setInput('parameter', {
+      ...defaultParameter,
+      validationTiming: ParameterFormValidationTiming.Blur,
+    });
+    fixture.detectChanges();
+
+    const matInput = await harnessLoader.getHarness(MatInputHarness);
+    await matInput.focus();
+    await matInput.setValue('typing in progress');
+
+    // Simulate background dryrun updating default values
+    parameterStore.setDefaultValues({
+      'test-parameter-id': 'background updated value',
+    });
+    fixture.detectChanges();
+
+    expect(await matInput.getValue()).toBe('typing in progress');
   });
 
   it('should make its input disabled when parameter.readonly = true', async () => {

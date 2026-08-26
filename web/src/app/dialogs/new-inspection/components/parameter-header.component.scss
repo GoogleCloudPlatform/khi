@@ -40,6 +40,10 @@ $dirty-icon-size: 15px;
     height: $dirty-icon-size;
     font-size: $dirty-icon-size;
   }
+
+  .validation-spinner {
+    margin: 4px;
+  }
 }
 
 .label {

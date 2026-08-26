@@ -28,7 +28,6 @@ import {
   DefaultParameterStore,
   PARAMETER_STORE,
 } from './service/parameter-store';
-import { firstValueFrom } from 'rxjs';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -118,7 +117,7 @@ describe('SetParameterComponent', () => {
     // Simulate selection change
     component.onSelectionChange(['opt1', 'opt2']);
 
-    expect(await firstValueFrom(parameterStore.watchAll())).toEqual({
+    expect(parameterStore.currentParameters()).toEqual({
       'test-parameter-id': ['opt1', 'opt2'],
     });
   });
