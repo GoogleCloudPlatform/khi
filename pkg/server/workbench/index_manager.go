@@ -281,11 +281,10 @@ func (m *InspectionIndexManager) DeleteIndex(inspectionID string) {
 
 func (m *InspectionIndexManager) broadcast(event IndexProgressEvent) {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.latestEvent[event.InspectionID] = event
-	subs := append([]chan IndexProgressEvent(nil), m.subscribers[event.InspectionID]...)
-	m.mu.Unlock()
 
-	for _, ch := range subs {
+	for _, ch := range m.subscribers[event.InspectionID] {
 		select {
 		case ch <- event:
 		default:
