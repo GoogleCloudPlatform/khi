@@ -663,6 +663,27 @@ export declare type InspectionQuery = Message<'api.v1.InspectionQuery'> & {
    * @generated from field: string query = 3;
    */
   query: string;
+
+  /**
+   * Estimated total log volume matching this query if estimation succeeded.
+   *
+   * @generated from field: int64 estimated_count = 4;
+   */
+  estimatedCount: bigint;
+
+  /**
+   * Whether required input parameters to build this query are incomplete.
+   *
+   * @generated from field: bool incomplete = 5;
+   */
+  incomplete: boolean;
+
+  /**
+   * Whether log volume estimation for this query is currently running in the background.
+   *
+   * @generated from field: bool pending = 6;
+   */
+  pending: boolean;
 };
 
 /**

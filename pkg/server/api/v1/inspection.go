@@ -507,11 +507,17 @@ func convertErrorSet(errorSet *inspectionmetadata.ErrorMessageSetMetadata) *apiv
 func convertQueries(queries []*inspectionmetadata.QueryItem) []*apiv1.InspectionQuery {
 	res := make([]*apiv1.InspectionQuery, 0, len(queries))
 	for _, q := range queries {
-		res = append(res, &apiv1.InspectionQuery{
-			Id:    proto.String(q.Id),
-			Name:  proto.String(q.Name),
-			Query: proto.String(q.Query),
-		})
+		item := &apiv1.InspectionQuery{
+			Id:         proto.String(q.Id),
+			Name:       proto.String(q.Name),
+			Query:      proto.String(q.Query),
+			Incomplete: proto.Bool(q.Incomplete),
+			Pending:    proto.Bool(q.Pending),
+		}
+		if q.EstimatedCount != nil {
+			item.EstimatedCount = proto.Int64(*q.EstimatedCount)
+		}
+		res = append(res, item)
 	}
 	return res
 }

@@ -362,7 +362,16 @@ describe('inspection-converter', () => {
             },
           }),
         ],
-        queries: [{ id: 'q1', name: 'q1', query: 'resource.type="gke"' }],
+        queries: [
+          {
+            id: 'q1',
+            name: 'q1',
+            query: 'resource.type="gke"',
+            estimatedCount: 12345n,
+            incomplete: false,
+            pending: true,
+          },
+        ],
         plan: { taskGraph: 'graph TD; A-->B;' },
         jobCommand: { command: 'khi run ...' },
       });
@@ -372,6 +381,9 @@ describe('inspection-converter', () => {
       expect(converted.metadata.form[0].id).toBe('f1');
       expect(converted.metadata.query.length).toBe(1);
       expect(converted.metadata.query[0].query).toBe('resource.type="gke"');
+      expect(converted.metadata.query[0].estimatedCount).toBe(12345);
+      expect(converted.metadata.query[0].incomplete).toBeUndefined();
+      expect(converted.metadata.query[0].pending).toBeTrue();
       expect(converted.metadata.plan.taskGraph).toBe('graph TD; A-->B;');
       expect(converted.metadata.jobCommand?.command).toBe('khi run ...');
     });

@@ -1367,7 +1367,13 @@ type InspectionQuery struct {
 	// Human-readable query title.
 	Name *string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
 	// Full query text (e.g. Cloud Logging filter expression).
-	Query         *string `protobuf:"bytes,3,opt,name=query" json:"query,omitempty"`
+	Query *string `protobuf:"bytes,3,opt,name=query" json:"query,omitempty"`
+	// Estimated total log volume matching this query if estimation succeeded.
+	EstimatedCount *int64 `protobuf:"varint,4,opt,name=estimated_count,json=estimatedCount" json:"estimated_count,omitempty"`
+	// Whether required input parameters to build this query are incomplete.
+	Incomplete *bool `protobuf:"varint,5,opt,name=incomplete" json:"incomplete,omitempty"`
+	// Whether log volume estimation for this query is currently running in the background.
+	Pending       *bool `protobuf:"varint,6,opt,name=pending" json:"pending,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1421,6 +1427,27 @@ func (x *InspectionQuery) GetQuery() string {
 		return *x.Query
 	}
 	return ""
+}
+
+func (x *InspectionQuery) GetEstimatedCount() int64 {
+	if x != nil && x.EstimatedCount != nil {
+		return *x.EstimatedCount
+	}
+	return 0
+}
+
+func (x *InspectionQuery) GetIncomplete() bool {
+	if x != nil && x.Incomplete != nil {
+		return *x.Incomplete
+	}
+	return false
+}
+
+func (x *InspectionQuery) GetPending() bool {
+	if x != nil && x.Pending != nil {
+		return *x.Pending
+	}
+	return false
 }
 
 // InspectionPlan visualizes the resolved execution graph of tasks.
@@ -3145,11 +3172,16 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\x04text\x18\a \x01(\v2\x15.api.v1.TextFormFieldH\x00R\x04text\x12+\n" +
 	"\x04file\x18\b \x01(\v2\x15.api.v1.FileFormFieldH\x00R\x04file\x12(\n" +
 	"\x03set\x18\t \x01(\v2\x14.api.v1.SetFormFieldH\x00R\x03setB\x06\n" +
-	"\x04kind\"K\n" +
+	"\x04kind\"\xae\x01\n" +
 	"\x0fInspectionQuery\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
-	"\x05query\x18\x03 \x01(\tR\x05query\"/\n" +
+	"\x05query\x18\x03 \x01(\tR\x05query\x12'\n" +
+	"\x0festimated_count\x18\x04 \x01(\x03R\x0eestimatedCount\x12\x1e\n" +
+	"\n" +
+	"incomplete\x18\x05 \x01(\bR\n" +
+	"incomplete\x12\x18\n" +
+	"\apending\x18\x06 \x01(\bR\apending\"/\n" +
 	"\x0eInspectionPlan\x12\x1d\n" +
 	"\n" +
 	"task_graph\x18\x01 \x01(\tR\ttaskGraph\"E\n" +

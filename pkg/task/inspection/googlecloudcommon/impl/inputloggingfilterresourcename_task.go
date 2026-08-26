@@ -78,7 +78,7 @@ var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(go
 				}
 			}
 		}
-		queryForms = append(queryForms, &inspectionmetadata.TextParameterFormField{
+		queryForms = append(queryForms, inspectionmetadata.TextParameterFormField{
 			ParameterFormFieldBase: formFieldBase,
 			Default:                defaultValue,
 			Suggestions:            queryInfo.DefaultResourceNames,

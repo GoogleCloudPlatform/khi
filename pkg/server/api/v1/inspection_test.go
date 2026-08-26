@@ -531,12 +531,15 @@ func TestInspectionServiceServer_CancelInspection(t *testing.T) {
 }
 
 func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
+	estCount := int64(5000)
 	testCases := []struct {
-		name       string
-		header     *inspectionmetadata.HeaderMetadata
-		plan       *inspectionmetadata.InspectionPlanMetadata
-		wantHeader *apiv1.InspectionHeader
-		wantPlan   *apiv1.InspectionPlan
+		name        string
+		header      *inspectionmetadata.HeaderMetadata
+		plan        *inspectionmetadata.InspectionPlanMetadata
+		queries     []*inspectionmetadata.QueryItem
+		wantHeader  *apiv1.InspectionHeader
+		wantPlan    *apiv1.InspectionPlan
+		wantQueries []*apiv1.InspectionQuery
 	}{
 		{
 			name: "returns inspection metadata",
@@ -548,6 +551,16 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 			},
 			plan: &inspectionmetadata.InspectionPlanMetadata{
 				TaskGraph: "graph TD; A-->B;",
+			},
+			queries: []*inspectionmetadata.QueryItem{
+				{
+					Id:             "q1",
+					Name:           "Query 1",
+					Query:          "resource.type=k8s",
+					EstimatedCount: &estCount,
+					Incomplete:     false,
+					Pending:        true,
+				},
 			},
 			wantHeader: &apiv1.InspectionHeader{
 				InspectionType:         proto.String("gcp-gke"),
@@ -561,6 +574,16 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 			},
 			wantPlan: &apiv1.InspectionPlan{
 				TaskGraph: proto.String("graph TD; A-->B;"),
+			},
+			wantQueries: []*apiv1.InspectionQuery{
+				{
+					Id:             proto.String("q1"),
+					Name:           proto.String("Query 1"),
+					Query:          proto.String("resource.type=k8s"),
+					EstimatedCount: proto.Int64(5000),
+					Incomplete:     proto.Bool(false),
+					Pending:        proto.Bool(true),
+				},
 			},
 		},
 	}
@@ -576,6 +599,11 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 			metadata := typedmap.NewTypedMap()
 			typedmap.Set(metadata, inspectionmetadata.HeaderMetadataKey, tc.header)
 			typedmap.Set(metadata, inspectionmetadata.InspectionPlanMetadataKey, tc.plan)
+			if tc.queries != nil {
+				queryMD := inspectionmetadata.NewQueryMetadata()
+				queryMD.Queries = tc.queries
+				typedmap.Set(metadata, inspectionmetadata.QueryMetadataKey, queryMD)
+			}
 			server.RegisterImportedInspection("metadata-test-1", store, metadata.AsReadonly())
 
 			res, err := client.GetInspectionMetadata(context.Background(), connect.NewRequest(&apiv1.GetInspectionMetadataRequest{
@@ -590,6 +618,9 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantPlan, res.Msg.GetPlan(), protocmp.Transform()); diff != "" {
 				t.Errorf("plan mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantQueries, res.Msg.GetQueries(), protocmp.Transform()); diff != "" {
+				t.Errorf("queries mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

@@ -347,6 +347,10 @@ export function convertProtoDryRunResponseToFrontend(
         id: q.id,
         name: q.name,
         query: q.query,
+        estimatedCount:
+          q.estimatedCount !== undefined ? Number(q.estimatedCount) : undefined,
+        incomplete: q.incomplete ? true : undefined,
+        pending: q.pending ? true : undefined,
       })),
       plan: {
         taskGraph: res.plan?.taskGraph ?? '',
@@ -382,6 +386,10 @@ export function convertProtoMetadataToInspectionMetadataOfRunResult(
       id: q.id,
       name: q.name,
       query: q.query,
+      estimatedCount:
+        q.estimatedCount !== undefined ? Number(q.estimatedCount) : undefined,
+      incomplete: q.incomplete ? true : undefined,
+      pending: q.pending ? true : undefined,
     })),
     log: (res.logs ?? []).map((l) => ({
       id: l.id,

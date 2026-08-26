@@ -88,7 +88,7 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 					Hint:        "",
 				},
 				Children: []inspectionmetadata.ParameterFormField{
-					&inspectionmetadata.TextParameterFormField{
+					inspectionmetadata.TextParameterFormField{
 						ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 							ID:       "cloud.google.com/common/input-query-resource-names/test",
 							Type:     "text",
@@ -120,7 +120,7 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 					Hint:        "",
 				},
 				Children: []inspectionmetadata.ParameterFormField{
-					&inspectionmetadata.TextParameterFormField{
+					inspectionmetadata.TextParameterFormField{
 						ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 							ID:       "cloud.google.com/common/input-query-resource-names/test",
 							Type:     "text",
@@ -153,7 +153,7 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 					Hint:        "",
 				},
 				Children: []inspectionmetadata.ParameterFormField{
-					&inspectionmetadata.TextParameterFormField{
+					inspectionmetadata.TextParameterFormField{
 						ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 							ID:       "cloud.google.com/common/input-query-resource-names/test",
 							Type:     "text",

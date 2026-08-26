@@ -313,6 +313,15 @@ message InspectionQuery {
 
   // Full query text (e.g. Cloud Logging filter expression).
   string query = 3;
+
+  // Estimated total log volume matching this query if estimation succeeded.
+  int64 estimated_count = 4;
+
+  // Whether required input parameters to build this query are incomplete.
+  bool incomplete = 5;
+
+  // Whether log volume estimation for this query is currently running in the background.
+  bool pending = 6;
 }
 
 // InspectionPlan visualizes the resolved execution graph of tasks.
