@@ -21,7 +21,8 @@ import (
 )
 
 func TestResourceMonitorImpl(t *testing.T) {
-	monitor := &ResourceMonitorImpl{}
+	monitor := NewResourceMonitorImpl()
+	defer monitor.Close()
 
 	t.Run("GetUsedMemory", func(t *testing.T) {
 		got := monitor.GetUsedMemory()
@@ -50,6 +51,16 @@ func TestResourceMonitorImpl(t *testing.T) {
 		if got < 0 || got > 100 {
 			t.Errorf("GetCPUUsage() = %f; want 0 <= got <= 100", got)
 		}
+	})
+
+	t.Run("PanicsWhenDirectlyInitialized", func(t *testing.T) {
+		uninit := &ResourceMonitorImpl{}
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("GetCPUUsage() did not panic on uninitialized struct")
+			}
+		}()
+		uninit.GetCPUUsage()
 	})
 }
 

@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -39,9 +40,57 @@ type ResourceMonitor interface {
 type ResourceMonitorImpl struct {
 	totalMemory uint64
 	once        sync.Once
+
+	cpuMu       sync.RWMutex
+	cpuUsage    float64
+	initialized bool
+	closeChan   chan struct{}
+	closeOnce   sync.Once
 }
 
 var _ ResourceMonitor = (*ResourceMonitorImpl)(nil)
+
+// NewResourceMonitorImpl creates and initializes a ResourceMonitorImpl, starting a background CPU sampling loop.
+func NewResourceMonitorImpl() *ResourceMonitorImpl {
+	r := &ResourceMonitorImpl{
+		initialized: true,
+		closeChan:   make(chan struct{}),
+	}
+	go r.startCPUUsageLoop()
+	return r
+}
+
+func (r *ResourceMonitorImpl) startCPUUsageLoop() {
+	// Prime the CPU counter so the next ticker tick calculates differences.
+	_, _ = cpu.Percent(0, false)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-r.closeChan:
+			return
+		case <-ticker.C:
+			percents, err := cpu.Percent(0, false)
+			if err == nil && len(percents) > 0 {
+				r.cpuMu.Lock()
+				r.cpuUsage = percents[0]
+				r.cpuMu.Unlock()
+			} else if err != nil {
+				slog.Error("failed to get CPU usage", "error", err)
+			}
+		}
+	}
+}
+
+// Close terminates the background CPU monitoring loop.
+func (r *ResourceMonitorImpl) Close() {
+	if !r.initialized {
+		return
+	}
+	r.closeOnce.Do(func() {
+		close(r.closeChan)
+	})
+}
 
 // GetUsedMemory returns the current memory usage using runtime.MemStats (Alloc).
 func (r *ResourceMonitorImpl) GetUsedMemory() uint64 {
@@ -58,22 +107,20 @@ func (r *ResourceMonitorImpl) GetTotalMemory() uint64 {
 		if err == nil {
 			r.totalMemory = v.Total
 		} else {
-			slog.Error("Failed to get total memory", "error", err)
+			slog.Error("failed to get total memory", "error", err)
 		}
 	})
 	return r.totalMemory
 }
 
-// GetCPUUsage returns the current CPU usage percentage using gopsutil.
+// GetCPUUsage returns the latest sampled CPU usage percentage from the background loop.
 func (r *ResourceMonitorImpl) GetCPUUsage() float64 {
-	percents, err := cpu.Percent(0, false)
-	if err != nil || len(percents) == 0 {
-		if err != nil {
-			slog.Error("Failed to get CPU usage", "error", err)
-		}
-		return 0
+	if !r.initialized {
+		panic("ResourceMonitorImpl must be created using NewResourceMonitorImpl")
 	}
-	return percents[0]
+	r.cpuMu.RLock()
+	defer r.cpuMu.RUnlock()
+	return r.cpuUsage
 }
 
 // ResourceMonitorMock is a mock implementation of ResourceMonitor for testing.

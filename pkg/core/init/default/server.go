@@ -68,7 +68,7 @@ var GinServerInitializer = &coreinit.Initializer{
 		engine := coreinit.MustGet(ctx, GinEngineKey)
 		serverConfig := &server.ServerConfig{
 			StaticFolderPath: *serverParams.FrontendAssetFolder,
-			ResourceMonitor:  &server.ResourceMonitorImpl{},
+			ResourceMonitor:  server.NewResourceMonitorImpl(),
 			ServerBasePath:   *serverParams.BasePath,
 		}
 		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
