@@ -70,10 +70,14 @@ var ServerRunnerInitializer = &coreinit.Initializer{
 		serverParams := coreinit.MustGet(ctx, ServerParametersKey)
 		debugParams := coreinit.MustGet(ctx, DebugParametersKey)
 		engine := coreinit.MustGet(ctx, GinEngineKey)
+		protocols := &http.Protocols{}
+		protocols.SetHTTP1(true)
+		protocols.SetUnencryptedHTTP2(true)
 
 		srv := &http.Server{
-			Addr:    fmt.Sprintf("%s:%d", *serverParams.Host, *serverParams.Port),
-			Handler: engine,
+			Addr:      fmt.Sprintf("%s:%d", *serverParams.Host, *serverParams.Port),
+			Handler:   engine,
+			Protocols: protocols,
 		}
 
 		ctx.OnRun(func(runCtx context.Context) error {
