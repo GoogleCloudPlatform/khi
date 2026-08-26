@@ -514,7 +514,7 @@ func TestWorkbenchServiceServer_ProtoJSONClient(t *testing.T) {
 	if err := openStream.Err(); err != nil {
 		t.Fatalf("OpenWorkbench() stream with ProtoJSON error = %v", err)
 	}
-	if lastMsg == nil || lastMsg.GetWorkbenchId() == "" {
+	if lastMsg.GetWorkbenchId() == "" {
 		t.Fatalf("expected last OpenWorkbench message to have workbench_id, got %v", lastMsg)
 	}
 
