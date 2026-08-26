@@ -29,6 +29,8 @@ type ProgressUpdatorOnTickFunc = func(tp *inspectionmetadata.TaskProgressMetadat
 
 // ProgressUpdator periodically updates a TaskProgress object at a specified
 // interval. It uses a callback function to perform the update logic on each tick.
+// A ProgressUpdator instance is intended for a single-use lifecycle and cannot be
+// reused once started.
 type ProgressUpdator struct {
 	Progress *inspectionmetadata.TaskProgressMetadata
 	Interval time.Duration
@@ -49,7 +51,8 @@ func NewProgressUpdator(progress *inspectionmetadata.TaskProgressMetadata, inter
 
 // Start begins the periodic updates. It invokes the OnTick callback immediately
 // and then continues to call it at the specified interval until Done is called.
-// It returns an error if the updator has already been started.
+// It returns an error if the updator has already been started. A ProgressUpdator
+// instance cannot be reused or restarted once started.
 func (p *ProgressUpdator) Start(ctx context.Context) error {
 	if p.context != nil {
 		return fmt.Errorf("this updator is already started")
@@ -65,11 +68,11 @@ func (p *ProgressUpdator) Start(ctx context.Context) error {
 		defer ticker.Stop()
 		for {
 			select {
-			case <-p.context.Done():
+			case <-cancellable.Done():
 				return
 			case <-ticker.C:
 				select {
-				case <-p.context.Done():
+				case <-cancellable.Done():
 					return
 				default:
 				}
@@ -80,8 +83,9 @@ func (p *ProgressUpdator) Start(ctx context.Context) error {
 	return nil
 }
 
-// Done stops the periodic updates.
-// It returns an error if the updator was not started.
+// Done stops the periodic updates and waits for the worker goroutine to complete.
+// It returns an error if the updator was not started. Calling Done multiple times
+// is idempotent.
 func (p *ProgressUpdator) Done() error {
 	if p.context == nil {
 		return fmt.Errorf("this updator is not yet started")

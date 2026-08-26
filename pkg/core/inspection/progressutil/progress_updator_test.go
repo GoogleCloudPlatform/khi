@@ -143,3 +143,19 @@ func TestProgressUpdator_StartTwice(t *testing.T) {
 		t.Errorf("start() should return an error if already started")
 	}
 }
+
+func TestProgressUpdator_DoneIdempotent(t *testing.T) {
+	updator := NewProgressUpdator(&inspectionmetadata.TaskProgressMetadata{}, 1*time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {})
+	if err := updator.Start(context.Background()); err != nil {
+		t.Fatalf("Start() returned an error: %v", err)
+	}
+	if err := updator.Done(); err != nil {
+		t.Fatalf("first Done() returned an error: %v", err)
+	}
+	if err := updator.Done(); err != nil {
+		t.Errorf("subsequent Done() should be idempotent, but returned error: %v", err)
+	}
+	if err := updator.Start(context.Background()); err == nil {
+		t.Errorf("start() after Done() should return an error because updator cannot be reused")
+	}
+}
