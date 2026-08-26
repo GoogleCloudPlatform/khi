@@ -23,8 +23,8 @@ import {
 } from 'src/app/common/schema/form-types';
 import { PARAMETER_STORE } from './service/parameter-store';
 import { CommonModule } from '@angular/common';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 /**
  * Component of common parameter headers used in new inspection dialog.
@@ -63,6 +63,13 @@ export class ParameterHeaderComponent {
    */
   readonly isValidating = computed(() => {
     return this.store.isValidating(this.parameter().id)();
+  });
+
+  /**
+   * Computed signal indicating if the parameter is currently being validated or has a server-side pending task.
+   */
+  readonly isPendingOrValidating = computed(() => {
+    return this.isValidating() || !!this.parameter().pending;
   });
 
   /**

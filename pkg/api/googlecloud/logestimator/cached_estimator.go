@@ -74,12 +74,55 @@ func (e *CachedStructuredLogEstimator) EstimateWithTaskSlot(
 		endTime.UnixNano(),
 	)
 
+	res, pending, err := e.EstimateWithTaskSlotNonBlocking(ctx, taskSlotKey, container, query, startTime, endTime, provider)
+	if !pending {
+		return res, err
+	}
+
+	e.mu.Lock()
+	flight, ok := e.flights[cacheKey]
+	e.mu.Unlock()
+	if !ok {
+		// Finished between non-blocking call and lock
+		e.mu.Lock()
+		res := e.cache[cacheKey]
+		e.mu.Unlock()
+		return res, nil
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-flight.done:
+		return flight.res, flight.err
+	}
+}
+
+// EstimateWithTaskSlotNonBlocking estimates the log volume for the given query asynchronously without blocking the caller.
+// It returns (res, false, nil) if the result is already cached.
+// It returns (nil, true, nil) if the estimation is currently in-flight (pending).
+// It returns (nil, false, err) if an error occurred during estimation.
+func (e *CachedStructuredLogEstimator) EstimateWithTaskSlotNonBlocking(
+	ctx context.Context,
+	taskSlotKey string,
+	container googlecloud.ResourceContainer,
+	query *StructuredLogQuery,
+	startTime, endTime time.Time,
+	provider EstimatorProvider,
+) (*EstimateResult, bool, error) {
+	cacheKey := fmt.Sprintf("%s|%s|%d|%d",
+		container.Identifier(),
+		query.GenerateCloudLoggingQuery(),
+		startTime.UnixNano(),
+		endTime.UnixNano(),
+	)
+
 	e.mu.Lock()
 
 	// 1. Return cached result if present.
 	if res, ok := e.cache[cacheKey]; ok {
 		e.mu.Unlock()
-		return res, nil
+		return res, false, nil
 	}
 
 	// 2. If an in-flight query exists for this task slot with a different query, cancel it.
@@ -101,13 +144,7 @@ func (e *CachedStructuredLogEstimator) EstimateWithTaskSlot(
 			}
 		}
 		e.mu.Unlock()
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-flight.done:
-			return flight.res, flight.err
-		}
+		return nil, true, nil
 	}
 
 	// 4. Start a new in-flight execution.
@@ -155,12 +192,7 @@ func (e *CachedStructuredLogEstimator) EstimateWithTaskSlot(
 		res, err = estimator.Estimate(callCtx, container, query, startTime, endTime)
 	}()
 
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-flight.done:
-		return flight.res, flight.err
-	}
+	return nil, true, nil
 }
 
 // Close cancels all active in-flight requests and clears the estimation cache.

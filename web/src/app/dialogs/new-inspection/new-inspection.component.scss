@@ -30,6 +30,7 @@ $callout-warning-text: #e65100;
 $callout-danger-bg: #ffebee;
 $callout-danger-border: #ffcdd2;
 $callout-danger-text: #c62828;
+$pending-parameters-color: #555;
 
 mat-dialog-content {
   overflow: hidden;
@@ -225,6 +226,18 @@ mat-step {
   .errmsg-parameters-error {
     color: red;
     margin: 0 20px;
+  }
+
+  .pending-parameters {
+    display: grid;
+    grid-template:
+      'spinner text' auto
+      / auto 1fr;
+    align-items: center;
+    gap: 8px;
+    margin: 0 20px;
+    color: $pending-parameters-color;
+    font-size: 0.88em;
   }
 }
 

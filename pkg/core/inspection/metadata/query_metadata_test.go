@@ -64,3 +64,18 @@ func TestQueryMetadata_SetQueryWithEstimate(t *testing.T) {
 		t.Errorf("SetQueryWithEstimate mismatch (-want +got):\n%s", diff)
 	}
 }
+
+func TestQueryMetadata_SetPendingQuery(t *testing.T) {
+	qm := NewQueryMetadata()
+	qm.SetQuery("q1", "Query 1", "resource.type=k8s_container")
+	qm.SetPendingQuery("q2", "Query 2", "resource.type=k8s_node")
+
+	expected := []*QueryItem{
+		{Id: "q1", Name: "Query 1", Query: "resource.type=k8s_container"},
+		{Id: "q2", Name: "Query 2", Query: "resource.type=k8s_node", Pending: true},
+	}
+
+	if diff := cmp.Diff(expected, qm.ToSerializable()); diff != "" {
+		t.Errorf("SetPendingQuery mismatch (-want +got):\n%s", diff)
+	}
+}

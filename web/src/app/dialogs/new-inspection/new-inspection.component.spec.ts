@@ -251,6 +251,22 @@ describe('NewInspectionDialogTest', () => {
         severity: TotalEstimatedLogsSeverity.Normal,
       });
     });
+
+    it('should treat queries with pending = true as estimating', () => {
+      const queries: InspectionMetadataQuery[] = [
+        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 1000 },
+        { id: 'q2', name: 'q2', query: 'query2', pending: true },
+      ];
+      const result = computeTotalEstimatedLogs(queries);
+      expect(result).toEqual({
+        knownCount: 1000,
+        isComplete: false,
+        isEstimating: true,
+        isIncomplete: false,
+        displayText: '>1,000 logs estimated so far',
+        severity: TotalEstimatedLogsSeverity.Normal,
+      });
+    });
   });
 
   describe('dryrunLoop', () => {
@@ -340,6 +356,82 @@ describe('NewInspectionDialogTest', () => {
       expect(store.isValidating('set-param')()).toBe(false);
       expect(store.isDirty('text-param')()).toBe(false);
       expect(store.isDirty('set-param')()).toBe(false);
+    });
+
+    it('should track pendingFieldCount and disable run button when a field is server-pending or validating', async () => {
+      const dryrunResponse: InspectionDryRunResponse = {
+        metadata: {
+          form: [
+            {
+              id: 'text-param',
+              type: ParameterInputType.Text,
+              label: 'Text',
+              description: '',
+              hint: '',
+              hintType: ParameterHintType.None,
+              default: 'default-text',
+              readonly: false,
+              suggestions: [],
+              validationTiming: ParameterFormValidationTiming.Blur,
+              pending: true,
+            },
+          ],
+          query: [],
+          plan: { taskGraph: '' },
+          jobCommand: { command: 'test-cmd' },
+        },
+      };
+      mockDryrunDirect.and.returnValue(of(dryrunResponse));
+
+      component.selectedStepChange(
+        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
+      );
+      await fixture.whenStable();
+
+      expect(component.pendingFieldCount()).toBe(1);
+      expect(component.isRunButtonDisabled()).toBe(true);
+    });
+
+    it('should suppress stale errors when field is validating', async () => {
+      const dryrunResponse: InspectionDryRunResponse = {
+        metadata: {
+          form: [
+            {
+              id: 'text-param',
+              type: ParameterInputType.Text,
+              label: 'Text',
+              description: '',
+              hint: 'Error message',
+              hintType: ParameterHintType.Error,
+              default: 'default-text',
+              readonly: false,
+              suggestions: [],
+              validationTiming: ParameterFormValidationTiming.Blur,
+            },
+          ],
+          query: [],
+          plan: { taskGraph: '' },
+          jobCommand: { command: 'test-cmd' },
+        },
+      };
+      mockDryrunDirect.and.returnValue(of(dryrunResponse));
+
+      component.selectedStepChange(
+        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
+      );
+      await fixture.whenStable();
+
+      expect(component.errorFieldCount()).toBe(1);
+      expect(component.pendingFieldCount()).toBe(0);
+
+      // User changes the value, making it validating on client side
+      store.set('text-param', 'new-text');
+      fixture.detectChanges();
+
+      // Validating field should suppress the stale error and increase pendingFieldCount
+      expect(component.errorFieldCount()).toBe(0);
+      expect(component.pendingFieldCount()).toBe(1);
+      expect(component.isRunButtonDisabled()).toBe(true);
     });
 
     it('should keep fields in validating state after defaults are assigned until the next dryrun completes', async () => {

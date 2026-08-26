@@ -82,6 +82,8 @@ type ParameterFormFieldBase struct {
 	HintType ParameterHintType `json:"hintType"`
 	// Hint is the message shown under the form field. Assign HintType as well when you assign a value to this field.
 	Hint string `json:"hint"`
+	// Pending indicates whether this form field has an asynchronous operation in progress.
+	Pending bool `json:"pending,omitempty"`
 }
 
 // GroupParameterFormField represents Group type parameter specific data.

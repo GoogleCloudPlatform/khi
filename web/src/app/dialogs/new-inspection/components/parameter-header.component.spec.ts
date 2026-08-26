@@ -118,4 +118,23 @@ describe('ParameterHeaderComponent', () => {
     );
     expect(icons.length).toBe(0);
   });
+
+  it('should show spinner when pending = true', () => {
+    fixture.componentRef.setInput('parameter', {
+      id: 'test-param-pending',
+      label: 'test-label',
+      description:
+        'Lorem ipsum dolor sit amet, consectetur adipiscing elit, \n sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+      hintType: ParameterHintType.None,
+      pending: true,
+    });
+    fixture.detectChanges();
+    const spinner = fixture.debugElement.query(By.css('.validation-spinner'));
+    expect(spinner).toBeTruthy();
+
+    const icons = fixture.debugElement.queryAll(
+      By.css('mat-icon.verified, mat-icon.error'),
+    );
+    expect(icons.length).toBe(0);
+  });
 });

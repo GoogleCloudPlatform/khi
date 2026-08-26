@@ -62,6 +62,10 @@ export interface ParameterFormFieldBase {
    * The hint message shown at the bottom of inputs.
    */
   hint: string;
+  /**
+   * Whether this parameter field has an asynchronous operation in progress.
+   */
+  readonly pending?: boolean;
 }
 
 /**

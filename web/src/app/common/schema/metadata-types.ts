@@ -32,6 +32,7 @@ export type InspectionMetadataQuery = {
   readonly query: string;
   readonly estimatedCount?: number;
   readonly incomplete?: boolean;
+  readonly pending?: boolean;
 };
 
 export type InspectionMetadataErrorSet = {

@@ -17,7 +17,7 @@
 <div class="container">
   <div class="label-row">
     @if (showValidationStatus()) {
-      @if (isValidating()) {
+      @if (isPendingOrValidating()) {
         <mat-spinner diameter="16" class="validation-spinner"></mat-spinner>
       } @else if (param.hintType === ParameterHintType.Error) {
         <mat-icon class="error">error</mat-icon>

@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { Component, inject, OnDestroy, signal, ViewChild } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  OnDestroy,
+  signal,
+  ViewChild,
+} from '@angular/core';
 import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import {
   BehaviorSubject,
@@ -124,10 +131,10 @@ export function computeTotalEstimatedLogs(
   }
   const hasIncomplete = queries.some((q) => q.incomplete);
   const hasUnestimated = queries.some(
-    (q) => q.estimatedCount === undefined && !q.incomplete,
+    (q) => (q.estimatedCount === undefined || q.pending) && !q.incomplete,
   );
   const knownCount = queries
-    .filter((q) => q.estimatedCount !== undefined)
+    .filter((q) => q.estimatedCount !== undefined && !q.pending)
     .reduce((sum, q) => sum + (q.estimatedCount ?? 0), 0);
 
   let severity = TotalEstimatedLogsSeverity.Normal;
@@ -196,6 +203,7 @@ export interface ParameterPageViewModel {
   readonly plan: InspectionMetadataPlan;
   readonly job?: InspectionMetadataJobModeCommand;
   readonly errorFieldCount: number;
+  readonly pendingFieldCount: number;
   readonly fieldCount: number;
   readonly totalEstimatedSummary?: TotalEstimatedLogsSummary;
 }
@@ -333,6 +341,41 @@ export class NewInspectionDialogComponent implements OnDestroy {
    */
   private loopAbortController: AbortController | null = null;
 
+  /**
+   * Computed signal of pending field count.
+   * Counts fields that are currently undergoing server pending task or client validation.
+   */
+  readonly pendingFieldCount = computed(() => {
+    const vm = this.parameterViewModel();
+    if (!vm) {
+      return 0;
+    }
+    return this.countPendingFields(vm.rootGroupForm.children);
+  });
+
+  /**
+   * Computed signal of error field count.
+   * Suppresses stale errors for fields that are currently undergoing validation or server pending.
+   */
+  readonly errorFieldCount = computed(() => {
+    const vm = this.parameterViewModel();
+    if (!vm) {
+      return 0;
+    }
+    return this.countErrorFields(vm.rootGroupForm.children);
+  });
+
+  /**
+   * Computed signal indicating if the run button should be disabled.
+   */
+  readonly isRunButtonDisabled = computed(() => {
+    return (
+      this.hadRun() ||
+      this.errorFieldCount() !== 0 ||
+      this.pendingFieldCount() !== 0
+    );
+  });
+
   public setInspectionType(inspectionType: InspectionType) {
     this.currentInspectionType.next(inspectionType);
     setTimeout(() => {
@@ -439,6 +482,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   private updateParameterViewModel(metadata: InspectionMetadataInDryrun) {
     const errorFieldCount = this.countErrorFields(metadata.form);
+    const pendingFieldCount = this.countPendingFields(metadata.form);
     const fieldCount = this.countAllFields(metadata.form);
     this.parameterViewModel.set({
       rootGroupForm: {
@@ -456,6 +500,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
       plan: metadata.plan,
       job: metadata.jobCommand,
       errorFieldCount: errorFieldCount,
+      pendingFieldCount: pendingFieldCount,
       fieldCount: fieldCount,
       totalEstimatedSummary: computeTotalEstimatedLogs(metadata.query),
     });
@@ -500,15 +545,41 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   /**
    * Count error fields.
+   * Suppresses error count when the field is pending or validating.
    * This ignores Group type form because the group itself isn't a field.
    */
-  private countErrorFields(parameters: ParameterFormField[]): number {
+  private countErrorFields(parameters: readonly ParameterFormField[]): number {
     let result = 0;
     for (const parameter of parameters) {
       if (parameter.type === ParameterInputType.Group) {
         result += this.countErrorFields(parameter.children);
-      } else if (parameter.hintType === ParameterHintType.Error) {
-        result++;
+      } else {
+        const isClientValidating = this.store.isValidating(parameter.id)();
+        const isPending = !!parameter.pending || isClientValidating;
+        if (parameter.hintType === ParameterHintType.Error && !isPending) {
+          result++;
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Count pending fields.
+   * This ignores Group type form because the group itself isn't a field.
+   */
+  private countPendingFields(
+    parameters: readonly ParameterFormField[],
+  ): number {
+    let result = 0;
+    for (const parameter of parameters) {
+      if (parameter.type === ParameterInputType.Group) {
+        result += this.countPendingFields(parameter.children);
+      } else {
+        const isClientValidating = this.store.isValidating(parameter.id)();
+        if (parameter.pending || isClientValidating) {
+          result++;
+        }
       }
     }
     return result;

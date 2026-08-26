@@ -135,8 +135,9 @@ func TestSetFormHintsFromUploadResult(t *testing.T) {
 					Type:     inspectionmetadata.File,
 					Label:    "Test File Field",
 					Priority: 0,
-					HintType: inspectionmetadata.Error,
+					HintType: inspectionmetadata.Info,
 					Hint:     "File is being processed. Please wait a moment.",
+					Pending:  true,
 				},
 				Token:  mockToken,
 				Status: upload.UploadStatusWaiting,
@@ -168,9 +169,9 @@ func TestSetFormHintsFromUploadResult(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := setFormHintsFromUploadResult(tc.uploadResult, baseField)
 
-			if result.Hint != tc.expectedField.Hint || result.HintType != tc.expectedField.HintType {
-				t.Errorf("setFormHintsFromUploadResult() unexpected result:\nwant: (hint=%s, hintType=%v)\ngot: (hint=%s, hintType=%v)",
-					tc.expectedField.Hint, tc.expectedField.HintType, result.Hint, result.HintType)
+			if result.Hint != tc.expectedField.Hint || result.HintType != tc.expectedField.HintType || result.Pending != tc.expectedField.Pending {
+				t.Errorf("setFormHintsFromUploadResult() unexpected result:\nwant: (hint=%s, hintType=%v, pending=%v)\ngot: (hint=%s, hintType=%v, pending=%v)",
+					tc.expectedField.Hint, tc.expectedField.HintType, tc.expectedField.Pending, result.Hint, result.HintType, result.Pending)
 			}
 		})
 	}

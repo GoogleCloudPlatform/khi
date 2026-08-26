@@ -340,3 +340,66 @@ func TestCachedStructuredLogEstimator_Close(t *testing.T) {
 		t.Errorf("expected in-flight task to be cancelled on Close()")
 	}
 }
+
+func TestCachedStructuredLogEstimator_EstimateWithTaskSlotNonBlocking(t *testing.T) {
+	cachedEstimator := NewCachedStructuredLogEstimator()
+	defer cachedEstimator.Close()
+
+	started := make(chan struct{})
+	provider := func(ctx context.Context, container googlecloud.ResourceContainer) (*StructuredLogEstimator, error) {
+		close(started)
+		return NewStructuredLogEstimator(&mockMetricLogCountFetcher{
+			delay: 50 * time.Millisecond,
+			count: 350,
+		}, nil, nil), nil
+	}
+
+	query := &StructuredLogQuery{
+		ResourceTypes: []string{"k8s_cluster"},
+	}
+	container := googlecloud.Project("test-project")
+	now := time.Now()
+	startTime := now.Add(-time.Hour)
+	endTime := now
+
+	// Call 1: Initiates non-blocking worker, should return pending immediately
+	res1, pending1, err1 := cachedEstimator.EstimateWithTaskSlotNonBlocking(context.Background(), "task-nb", container, query, startTime, endTime, provider)
+	if err1 != nil {
+		t.Fatalf("first EstimateWithTaskSlotNonBlocking unexpected error: %v", err1)
+	}
+	if !pending1 {
+		t.Errorf("first EstimateWithTaskSlotNonBlocking pending = false, want true")
+	}
+	if res1 != nil {
+		t.Errorf("first EstimateWithTaskSlotNonBlocking res = %v, want nil", res1)
+	}
+
+	<-started
+
+	// Call 2: While in flight, should also return pending immediately
+	res2, pending2, err2 := cachedEstimator.EstimateWithTaskSlotNonBlocking(context.Background(), "task-nb", container, query, startTime, endTime, provider)
+	if err2 != nil {
+		t.Fatalf("second EstimateWithTaskSlotNonBlocking unexpected error: %v", err2)
+	}
+	if !pending2 {
+		t.Errorf("second EstimateWithTaskSlotNonBlocking pending = false, want true")
+	}
+	if res2 != nil {
+		t.Errorf("second EstimateWithTaskSlotNonBlocking res = %v, want nil", res2)
+	}
+
+	// Wait for worker to finish
+	time.Sleep(100 * time.Millisecond)
+
+	// Call 3: After completion, should return cached result and pending = false
+	res3, pending3, err3 := cachedEstimator.EstimateWithTaskSlotNonBlocking(context.Background(), "task-nb", container, query, startTime, endTime, provider)
+	if err3 != nil {
+		t.Fatalf("third EstimateWithTaskSlotNonBlocking unexpected error: %v", err3)
+	}
+	if pending3 {
+		t.Errorf("third EstimateWithTaskSlotNonBlocking pending = true, want false")
+	}
+	if res3 == nil || res3.EstimatedCount != 350 {
+		t.Errorf("third EstimateWithTaskSlotNonBlocking res = %v, want count 350", res3)
+	}
+}

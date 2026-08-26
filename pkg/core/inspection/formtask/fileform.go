@@ -105,7 +105,8 @@ func setFormHintsFromUploadResult(result upload.UploadResult, field inspectionme
 		field.HintType = inspectionmetadata.Error
 	case result.Status != upload.UploadStatusCompleted:
 		field.Hint = "File is being processed. Please wait a moment."
-		field.HintType = inspectionmetadata.Error
+		field.HintType = inspectionmetadata.Info
+		field.Pending = true
 	}
 	return field
 }

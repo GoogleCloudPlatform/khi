@@ -28,6 +28,7 @@ type QueryItem struct {
 	Query          string `json:"query"`
 	EstimatedCount *int64 `json:"estimatedCount,omitempty"`
 	Incomplete     bool   `json:"incomplete,omitempty"`
+	Pending        bool   `json:"pending,omitempty"`
 }
 
 type QueryMetadata struct {
@@ -50,20 +51,25 @@ func (q *QueryMetadata) ToSerializable() interface{} {
 
 // SetQuery sets or updates the query item with no estimated count (nil).
 func (q *QueryMetadata) SetQuery(id string, name string, queryString string) {
-	q.setQueryInternal(id, name, queryString, nil, false)
+	q.setQueryInternal(id, name, queryString, nil, false, false)
 }
 
 // SetIncompleteQuery sets or updates the query item marked as incomplete without an estimated count.
 func (q *QueryMetadata) SetIncompleteQuery(id string, name string, queryString string) {
-	q.setQueryInternal(id, name, queryString, nil, true)
+	q.setQueryInternal(id, name, queryString, nil, true, false)
+}
+
+// SetPendingQuery sets or updates the query item marked as pending without an estimated count.
+func (q *QueryMetadata) SetPendingQuery(id string, name string, queryString string) {
+	q.setQueryInternal(id, name, queryString, nil, false, true)
 }
 
 // SetQueryWithEstimate sets or updates the query item along with its estimated log count.
 func (q *QueryMetadata) SetQueryWithEstimate(id string, name string, queryString string, estimatedCount int64) {
-	q.setQueryInternal(id, name, queryString, &estimatedCount, false)
+	q.setQueryInternal(id, name, queryString, &estimatedCount, false, false)
 }
 
-func (q *QueryMetadata) setQueryInternal(id string, name string, queryString string, estimatedCount *int64, incomplete bool) {
+func (q *QueryMetadata) setQueryInternal(id string, name string, queryString string, estimatedCount *int64, incomplete bool, pending bool) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	for _, qi := range q.Queries {
@@ -72,6 +78,7 @@ func (q *QueryMetadata) setQueryInternal(id string, name string, queryString str
 			qi.Query = queryString
 			qi.EstimatedCount = estimatedCount
 			qi.Incomplete = incomplete
+			qi.Pending = pending
 			return
 		}
 	}
@@ -81,6 +88,7 @@ func (q *QueryMetadata) setQueryInternal(id string, name string, queryString str
 		Query:          queryString,
 		EstimatedCount: estimatedCount,
 		Incomplete:     incomplete,
+		Pending:        pending,
 	})
 }
 

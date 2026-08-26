@@ -143,7 +143,9 @@ limitations under the License.
                           <span class="query-incomplete"
                             >Incomplete parameters</span
                           >
-                        } @else if (query.estimatedCount !== undefined) {
+                        } @else if (
+                          query.estimatedCount !== undefined && !query.pending
+                        ) {
                           <span class="query-estimated-count"
                             >~{{ query.estimatedCount | number }} logs
                             estimated</span
@@ -186,15 +188,24 @@ limitations under the License.
             </mat-card>
           </div>
           <div class="parameters-footer">
-            @if (parameterViewModel.errorFieldCount !== 0) {
+            @if (errorFieldCount() !== 0) {
               <p class="errmsg-parameters-error">
                 Fix the validation errors on the input parameters:
-                {{ parameterViewModel.errorFieldCount }} /
+                {{ errorFieldCount() }} /
                 {{ parameterViewModel.fieldCount }}
               </p>
+            } @else if (pendingFieldCount() !== 0) {
+              <div class="pending-parameters">
+                <mat-spinner diameter="14"></mat-spinner>
+                <span>
+                  Resolving parameters:
+                  {{ pendingFieldCount() }} /
+                  {{ parameterViewModel.fieldCount }}
+                </span>
+              </div>
             }
             <button
-              [disabled]="hadRun() || parameterViewModel.errorFieldCount !== 0"
+              [disabled]="isRunButtonDisabled()"
               mat-raised-button
               color="primary"
               (click)="onRunButtonClick()"
