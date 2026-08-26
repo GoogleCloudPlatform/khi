@@ -35,4 +35,10 @@ export const environment = {
       icon: 'bug_report',
     },
   ],
+  /**
+   * Enables unary polling fallback for Server-Side Streaming RPCs.
+   * Use this in environments where HTTP streaming is unsupported (e.g., App Engine Standard).
+   * Can also be enabled dynamically via the `?pollLegacy=true` URL query parameter.
+   */
+  usePollingLegacy: false,
 };

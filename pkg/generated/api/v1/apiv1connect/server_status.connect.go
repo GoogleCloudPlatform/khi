@@ -47,23 +47,23 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ServerStatusServiceGetServerStatProcedure is the fully-qualified name of the
-	// ServerStatusService's GetServerStat RPC.
-	ServerStatusServiceGetServerStatProcedure = "/api.v1.ServerStatusService/GetServerStat"
 	// ServerStatusServiceWatchServerStatProcedure is the fully-qualified name of the
 	// ServerStatusService's WatchServerStat RPC.
 	ServerStatusServiceWatchServerStatProcedure = "/api.v1.ServerStatusService/WatchServerStat"
+	// ServerStatusServicePullServerStatProcedure is the fully-qualified name of the
+	// ServerStatusService's PullServerStat RPC.
+	ServerStatusServicePullServerStatProcedure = "/api.v1.ServerStatusService/PullServerStat"
 )
 
 // ServerStatusServiceClient is a client for the api.v1.ServerStatusService service.
 type ServerStatusServiceClient interface {
-	// Returns current server resource usage statistics as a one-off snapshot.
-	GetServerStat(context.Context, *connect.Request[v1.GetServerStatRequest]) (*connect.Response[v1.GetServerStatResponse], error)
 	// Streams real-time server resource usage statistics.
 	// The server sends the current state immediately upon connection and pushes updates periodically.
 	// The stream terminates after approximately 30 seconds to support runtimes without long-lived connection support;
 	// clients are expected to automatically reconnect.
 	WatchServerStat(context.Context, *connect.Request[v1.WatchServerStatRequest]) (*connect.ServerStreamForClient[v1.WatchServerStatResponse], error)
+	// Pulls current server resource usage statistics without opening a persistent stream.
+	PullServerStat(context.Context, *connect.Request[v1.PullServerStatRequest]) (*connect.Response[v1.PullServerStatResponse], error)
 }
 
 // NewServerStatusServiceClient constructs a client for the api.v1.ServerStatusService service. By
@@ -77,16 +77,16 @@ func NewServerStatusServiceClient(httpClient connect.HTTPClient, baseURL string,
 	baseURL = strings.TrimRight(baseURL, "/")
 	serverStatusServiceMethods := v1.File_api_v1_server_status_proto.Services().ByName("ServerStatusService").Methods()
 	return &serverStatusServiceClient{
-		getServerStat: connect.NewClient[v1.GetServerStatRequest, v1.GetServerStatResponse](
-			httpClient,
-			baseURL+ServerStatusServiceGetServerStatProcedure,
-			connect.WithSchema(serverStatusServiceMethods.ByName("GetServerStat")),
-			connect.WithClientOptions(opts...),
-		),
 		watchServerStat: connect.NewClient[v1.WatchServerStatRequest, v1.WatchServerStatResponse](
 			httpClient,
 			baseURL+ServerStatusServiceWatchServerStatProcedure,
 			connect.WithSchema(serverStatusServiceMethods.ByName("WatchServerStat")),
+			connect.WithClientOptions(opts...),
+		),
+		pullServerStat: connect.NewClient[v1.PullServerStatRequest, v1.PullServerStatResponse](
+			httpClient,
+			baseURL+ServerStatusServicePullServerStatProcedure,
+			connect.WithSchema(serverStatusServiceMethods.ByName("PullServerStat")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -94,13 +94,8 @@ func NewServerStatusServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // serverStatusServiceClient implements ServerStatusServiceClient.
 type serverStatusServiceClient struct {
-	getServerStat   *connect.Client[v1.GetServerStatRequest, v1.GetServerStatResponse]
 	watchServerStat *connect.Client[v1.WatchServerStatRequest, v1.WatchServerStatResponse]
-}
-
-// GetServerStat calls api.v1.ServerStatusService.GetServerStat.
-func (c *serverStatusServiceClient) GetServerStat(ctx context.Context, req *connect.Request[v1.GetServerStatRequest]) (*connect.Response[v1.GetServerStatResponse], error) {
-	return c.getServerStat.CallUnary(ctx, req)
+	pullServerStat  *connect.Client[v1.PullServerStatRequest, v1.PullServerStatResponse]
 }
 
 // WatchServerStat calls api.v1.ServerStatusService.WatchServerStat.
@@ -108,15 +103,20 @@ func (c *serverStatusServiceClient) WatchServerStat(ctx context.Context, req *co
 	return c.watchServerStat.CallServerStream(ctx, req)
 }
 
+// PullServerStat calls api.v1.ServerStatusService.PullServerStat.
+func (c *serverStatusServiceClient) PullServerStat(ctx context.Context, req *connect.Request[v1.PullServerStatRequest]) (*connect.Response[v1.PullServerStatResponse], error) {
+	return c.pullServerStat.CallUnary(ctx, req)
+}
+
 // ServerStatusServiceHandler is an implementation of the api.v1.ServerStatusService service.
 type ServerStatusServiceHandler interface {
-	// Returns current server resource usage statistics as a one-off snapshot.
-	GetServerStat(context.Context, *connect.Request[v1.GetServerStatRequest]) (*connect.Response[v1.GetServerStatResponse], error)
 	// Streams real-time server resource usage statistics.
 	// The server sends the current state immediately upon connection and pushes updates periodically.
 	// The stream terminates after approximately 30 seconds to support runtimes without long-lived connection support;
 	// clients are expected to automatically reconnect.
 	WatchServerStat(context.Context, *connect.Request[v1.WatchServerStatRequest], *connect.ServerStream[v1.WatchServerStatResponse]) error
+	// Pulls current server resource usage statistics without opening a persistent stream.
+	PullServerStat(context.Context, *connect.Request[v1.PullServerStatRequest]) (*connect.Response[v1.PullServerStatResponse], error)
 }
 
 // NewServerStatusServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -126,24 +126,24 @@ type ServerStatusServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewServerStatusServiceHandler(svc ServerStatusServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	serverStatusServiceMethods := v1.File_api_v1_server_status_proto.Services().ByName("ServerStatusService").Methods()
-	serverStatusServiceGetServerStatHandler := connect.NewUnaryHandler(
-		ServerStatusServiceGetServerStatProcedure,
-		svc.GetServerStat,
-		connect.WithSchema(serverStatusServiceMethods.ByName("GetServerStat")),
-		connect.WithHandlerOptions(opts...),
-	)
 	serverStatusServiceWatchServerStatHandler := connect.NewServerStreamHandler(
 		ServerStatusServiceWatchServerStatProcedure,
 		svc.WatchServerStat,
 		connect.WithSchema(serverStatusServiceMethods.ByName("WatchServerStat")),
 		connect.WithHandlerOptions(opts...),
 	)
+	serverStatusServicePullServerStatHandler := connect.NewUnaryHandler(
+		ServerStatusServicePullServerStatProcedure,
+		svc.PullServerStat,
+		connect.WithSchema(serverStatusServiceMethods.ByName("PullServerStat")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/api.v1.ServerStatusService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case ServerStatusServiceGetServerStatProcedure:
-			serverStatusServiceGetServerStatHandler.ServeHTTP(w, r)
 		case ServerStatusServiceWatchServerStatProcedure:
 			serverStatusServiceWatchServerStatHandler.ServeHTTP(w, r)
+		case ServerStatusServicePullServerStatProcedure:
+			serverStatusServicePullServerStatHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -153,10 +153,10 @@ func NewServerStatusServiceHandler(svc ServerStatusServiceHandler, opts ...conne
 // UnimplementedServerStatusServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedServerStatusServiceHandler struct{}
 
-func (UnimplementedServerStatusServiceHandler) GetServerStat(context.Context, *connect.Request[v1.GetServerStatRequest]) (*connect.Response[v1.GetServerStatResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ServerStatusService.GetServerStat is not implemented"))
-}
-
 func (UnimplementedServerStatusServiceHandler) WatchServerStat(context.Context, *connect.Request[v1.WatchServerStatRequest], *connect.ServerStream[v1.WatchServerStatResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ServerStatusService.WatchServerStat is not implemented"))
+}
+
+func (UnimplementedServerStatusServiceHandler) PullServerStat(context.Context, *connect.Request[v1.PullServerStatRequest]) (*connect.Response[v1.PullServerStatResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ServerStatusService.PullServerStat is not implemented"))
 }

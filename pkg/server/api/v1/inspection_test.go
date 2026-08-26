@@ -305,6 +305,18 @@ func TestInspectionServiceServer_GetAndWatchInspections(t *testing.T) {
 				t.Errorf("inspection ID = %q, want %q", getRes.Msg.GetInspections()[0].GetId(), "imported-1")
 			}
 
+			// Test PullInspections (pull snapshot)
+			pullRes, err := client.PullInspections(context.Background(), connect.NewRequest(&apiv1.PullInspectionsRequest{}))
+			if err != nil {
+				t.Fatalf("PullInspections() unexpected error: %v", err)
+			}
+			if len(pullRes.Msg.GetInspections()) != 1 {
+				t.Fatalf("PullInspections() count = %d, want 1", len(pullRes.Msg.GetInspections()))
+			}
+			if pullRes.Msg.GetInspections()[0].GetId() != "imported-1" {
+				t.Errorf("PullInspections inspection ID = %q, want %q", pullRes.Msg.GetInspections()[0].GetId(), "imported-1")
+			}
+
 			// Test WatchInspections (stream)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()

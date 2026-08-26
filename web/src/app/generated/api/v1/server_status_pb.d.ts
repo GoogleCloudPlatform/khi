@@ -63,41 +63,6 @@ export declare type ServerStat = Message<'api.v1.ServerStat'> & {
 export declare const ServerStatSchema: GenMessage<ServerStat>;
 
 /**
- * Request to retrieve current server resource statistics.
- *
- * @generated from message api.v1.GetServerStatRequest
- */
-export declare type GetServerStatRequest =
-  Message<'api.v1.GetServerStatRequest'> & {};
-
-/**
- * Describes the message api.v1.GetServerStatRequest.
- * Use `create(GetServerStatRequestSchema)` to create a new message.
- */
-export declare const GetServerStatRequestSchema: GenMessage<GetServerStatRequest>;
-
-/**
- * Response containing current server resource statistics.
- *
- * @generated from message api.v1.GetServerStatResponse
- */
-export declare type GetServerStatResponse =
-  Message<'api.v1.GetServerStatResponse'> & {
-    /**
-     * Current resource statistics of the server.
-     *
-     * @generated from field: api.v1.ServerStat server_stat = 1;
-     */
-    serverStat?: ServerStat | undefined;
-  };
-
-/**
- * Describes the message api.v1.GetServerStatResponse.
- * Use `create(GetServerStatResponseSchema)` to create a new message.
- */
-export declare const GetServerStatResponseSchema: GenMessage<GetServerStatResponse>;
-
-/**
  * Request to watch real-time server resource statistics.
  *
  * @generated from message api.v1.WatchServerStatRequest
@@ -133,21 +98,46 @@ export declare type WatchServerStatResponse =
 export declare const WatchServerStatResponseSchema: GenMessage<WatchServerStatResponse>;
 
 /**
+ * Request to pull current server resource statistics without streaming.
+ *
+ * @generated from message api.v1.PullServerStatRequest
+ */
+export declare type PullServerStatRequest =
+  Message<'api.v1.PullServerStatRequest'> & {};
+
+/**
+ * Describes the message api.v1.PullServerStatRequest.
+ * Use `create(PullServerStatRequestSchema)` to create a new message.
+ */
+export declare const PullServerStatRequestSchema: GenMessage<PullServerStatRequest>;
+
+/**
+ * Response containing pulled server resource statistics.
+ *
+ * @generated from message api.v1.PullServerStatResponse
+ */
+export declare type PullServerStatResponse =
+  Message<'api.v1.PullServerStatResponse'> & {
+    /**
+     * Current resource statistics of the server.
+     *
+     * @generated from field: api.v1.ServerStat server_stat = 1;
+     */
+    serverStat?: ServerStat | undefined;
+  };
+
+/**
+ * Describes the message api.v1.PullServerStatResponse.
+ * Use `create(PullServerStatResponseSchema)` to create a new message.
+ */
+export declare const PullServerStatResponseSchema: GenMessage<PullServerStatResponse>;
+
+/**
  * ServerStatusService provides real-time and snapshot metrics of host server resources.
  *
  * @generated from service api.v1.ServerStatusService
  */
 export declare const ServerStatusService: GenService<{
-  /**
-   * Returns current server resource usage statistics as a one-off snapshot.
-   *
-   * @generated from rpc api.v1.ServerStatusService.GetServerStat
-   */
-  getServerStat: {
-    methodKind: 'unary';
-    input: typeof GetServerStatRequestSchema;
-    output: typeof GetServerStatResponseSchema;
-  };
   /**
    * Streams real-time server resource usage statistics.
    * The server sends the current state immediately upon connection and pushes updates periodically.
@@ -160,5 +150,15 @@ export declare const ServerStatusService: GenService<{
     methodKind: 'server_streaming';
     input: typeof WatchServerStatRequestSchema;
     output: typeof WatchServerStatResponseSchema;
+  };
+  /**
+   * Pulls current server resource usage statistics without opening a persistent stream.
+   *
+   * @generated from rpc api.v1.ServerStatusService.PullServerStat
+   */
+  pullServerStat: {
+    methodKind: 'unary';
+    input: typeof PullServerStatRequestSchema;
+    output: typeof PullServerStatResponseSchema;
   };
 }>;

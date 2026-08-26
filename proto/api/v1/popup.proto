@@ -28,10 +28,22 @@ service PopupService {
 
   // Submits the finalized answer for the active popup dialog.
   rpc SubmitPopupAnswer(SubmitPopupAnswerRequest) returns (SubmitPopupAnswerResponse);
+
+  // Retrieves the currently active popup dialog snapshot without opening a persistent stream.
+  rpc PullPopup(PullPopupRequest) returns (PullPopupResponse);
 }
 
 // Request to start watching popup events.
 message WatchPopupRequest {}
+
+// Request to retrieve the currently active popup form snapshot.
+message PullPopupRequest {}
+
+// Response containing the currently active popup form snapshot.
+message PullPopupResponse {
+  // Currently active popup form, or unset if no popup is active.
+  PopupForm popup = 1;
+}
 
 // TextPopupPayload contains configuration specific to text input popups.
 message TextPopupPayload {

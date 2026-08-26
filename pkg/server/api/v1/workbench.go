@@ -77,6 +77,78 @@ func (s *WorkbenchServiceServer) OpenWorkbench(
 	return stream.Send(finalRes)
 }
 
+// OpenWorkbenchSync opens or polls loading progress of a Workbench session without streaming.
+func (s *WorkbenchServiceServer) OpenWorkbenchSync(
+	ctx context.Context,
+	req *connect.Request[apiv1.OpenWorkbenchSyncRequest],
+) (*connect.Response[apiv1.OpenWorkbenchSyncResponse], error) {
+	msg := req.Msg
+	if msg.GetJobId() == "" && (msg.GetUserId() == "" || msg.GetSessionId() == "" || msg.GetInspectionId() == "") {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("user_id, session_id, and inspection_id are required"))
+	}
+
+	workbenchID := fmt.Sprintf("%s-%s", msg.GetUserId(), msg.GetSessionId())
+	runner := func(jobCtx context.Context, onProgress func(*apiv1.OpenWorkbenchSyncResponse) error) (string, error) {
+		wb, err := s.manager.GetOrOpen(jobCtx, workbenchID, msg.GetInspectionId(), func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+			return onProgress(&apiv1.OpenWorkbenchSyncResponse{
+				Stage:              stage.Enum(),
+				ProgressPercentage: proto.Float64(progressPercentage),
+				Message:            proto.String(message),
+			})
+		})
+		if err != nil {
+			return "", err
+		}
+		return wb.ID(), nil
+	}
+
+	status, err := s.manager.OpenJobManager().Poll(ctx, msg.GetJobId(), 50*time.Millisecond, runner)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, connect.NewError(connect.CodeCanceled, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	if status.IsDone {
+		if status.Err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to open workbench: %w", status.Err))
+		}
+		return connect.NewResponse(&apiv1.OpenWorkbenchSyncResponse{
+			JobId:              proto.String(status.JobID),
+			Stage:              apiv1.OpenWorkbenchResponse_STAGE_READY.Enum(),
+			ProgressPercentage: proto.Float64(100.0),
+			Message:            proto.String("Workbench ready."),
+			WorkbenchId:        proto.String(status.Result),
+		}), nil
+	}
+
+	res := &apiv1.OpenWorkbenchSyncResponse{
+		JobId: proto.String(status.JobID),
+	}
+	if status.HasProgress && status.Progress != nil {
+		res.Stage = status.Progress.GetStage().Enum()
+		res.ProgressPercentage = proto.Float64(status.Progress.GetProgressPercentage())
+		res.Message = proto.String(status.Progress.GetMessage())
+	}
+	return connect.NewResponse(res), nil
+}
+
+// CancelOpenWorkbenchSync cancels an in-progress synchronous workbench open task.
+func (s *WorkbenchServiceServer) CancelOpenWorkbenchSync(
+	ctx context.Context,
+	req *connect.Request[apiv1.CancelOpenWorkbenchSyncRequest],
+) (*connect.Response[apiv1.CancelOpenWorkbenchSyncResponse], error) {
+	msg := req.Msg
+	if msg.GetJobId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("job_id is required"))
+	}
+	canceled := s.manager.OpenJobManager().Cancel(msg.GetJobId())
+	return connect.NewResponse(&apiv1.CancelOpenWorkbenchSyncResponse{
+		Canceled: proto.Bool(canceled),
+	}), nil
+}
+
 // WatchIndexProgress streams the search index construction progress and status for an active Workbench session.
 // The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
 func (s *WorkbenchServiceServer) WatchIndexProgress(
@@ -141,6 +213,46 @@ func (s *WorkbenchServiceServer) WatchIndexProgress(
 			}
 		}
 	}
+}
+
+// PullIndexProgress retrieves the current search index construction progress and status snapshot for an active Workbench session.
+func (s *WorkbenchServiceServer) PullIndexProgress(
+	ctx context.Context,
+	req *connect.Request[apiv1.PullIndexProgressRequest],
+) (*connect.Response[apiv1.PullIndexProgressResponse], error) {
+	msg := req.Msg
+	if msg.GetWorkbenchId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
+	}
+
+	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	if err != nil {
+		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	wb.StartAsyncIndexing(context.Background())
+	indexState, pct, statusMsg, _ := wb.IndexStatus()
+
+	var protoState apiv1.WatchIndexProgressResponse_IndexState
+	switch indexState {
+	case workbench.IndexStateBuilding:
+		protoState = apiv1.WatchIndexProgressResponse_INDEX_STATE_BUILDING
+	case workbench.IndexStateReady:
+		protoState = apiv1.WatchIndexProgressResponse_INDEX_STATE_READY
+	case workbench.IndexStateFailed:
+		protoState = apiv1.WatchIndexProgressResponse_INDEX_STATE_FAILED
+	default:
+		protoState = apiv1.WatchIndexProgressResponse_INDEX_STATE_UNSPECIFIED
+	}
+
+	return connect.NewResponse(&apiv1.PullIndexProgressResponse{
+		State:              protoState.Enum(),
+		ProgressPercentage: proto.Float64(pct),
+		Message:            proto.String(statusMsg),
+	}), nil
 }
 
 // HeartbeatWorkbench refreshes the lease expiration time for an active Workbench session.
@@ -250,6 +362,92 @@ func (s *WorkbenchServiceServer) FilterTimeline(
 		},
 	}
 	return stream.Send(finalRes)
+}
+
+// FilterTimelineSync evaluates a timeline and log filtering pipeline synchronously or polls its in-progress status.
+func (s *WorkbenchServiceServer) FilterTimelineSync(
+	ctx context.Context,
+	req *connect.Request[apiv1.FilterTimelineSyncRequest],
+) (*connect.Response[apiv1.FilterTimelineSyncResponse], error) {
+	msg := req.Msg
+	if msg.GetWorkbenchId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
+	}
+
+	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	if err != nil {
+		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	params := workbench.FilterPipelineParams{
+		TimelineQuery:          msg.GetTimelineQuery(),
+		TimelineExclusionQuery: msg.GetTimelineExclusionQuery(),
+		LogQuery:               msg.GetLogQuery(),
+		ExcludeNoLogs:          msg.GetExcludeNoLogs(),
+	}
+
+	runner := func(jobCtx context.Context, onProgress func(*apiv1.FilterProgress) error) (*apiv1.FilterResult, error) {
+		return wb.FilterTimeline(jobCtx, params, onProgress)
+	}
+
+	status, err := wb.FilterJobManager().Poll(ctx, msg.GetJobId(), 50*time.Millisecond, runner)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, connect.NewError(connect.CodeCanceled, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	if status.IsDone {
+		if status.Err != nil {
+			return connect.NewResponse(&apiv1.FilterTimelineSyncResponse{
+				JobId:        proto.String(status.JobID),
+				IsDone:       proto.Bool(true),
+				ErrorMessage: proto.String(status.Err.Error()),
+			}), nil
+		}
+		return connect.NewResponse(&apiv1.FilterTimelineSyncResponse{
+			JobId:  proto.String(status.JobID),
+			IsDone: proto.Bool(true),
+			Result: status.Result,
+		}), nil
+	}
+
+	res := &apiv1.FilterTimelineSyncResponse{
+		JobId:  proto.String(status.JobID),
+		IsDone: proto.Bool(false),
+	}
+	if status.HasProgress && status.Progress != nil {
+		res.Progress = status.Progress
+	}
+	return connect.NewResponse(res), nil
+}
+
+// CancelFilterTimelineSync cancels an in-progress synchronous timeline filtering task.
+func (s *WorkbenchServiceServer) CancelFilterTimelineSync(
+	ctx context.Context,
+	req *connect.Request[apiv1.CancelFilterTimelineSyncRequest],
+) (*connect.Response[apiv1.CancelFilterTimelineSyncResponse], error) {
+	msg := req.Msg
+	if msg.GetWorkbenchId() == "" || msg.GetJobId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id and job_id are required"))
+	}
+
+	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	if err != nil {
+		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	canceled := wb.FilterJobManager().Cancel(msg.GetJobId())
+	return connect.NewResponse(&apiv1.CancelFilterTimelineSyncResponse{
+		Canceled: proto.Bool(canceled),
+	}), nil
 }
 
 // CloseWorkbench explicitly closes and frees the specified Workbench session.

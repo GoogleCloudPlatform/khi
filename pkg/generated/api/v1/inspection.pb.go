@@ -2161,6 +2161,89 @@ func (x *WatchInspectionsResponse) GetInspections() []*InspectionListItem {
 	return nil
 }
 
+// Request to pull inspection status snapshot without streaming.
+type PullInspectionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullInspectionsRequest) Reset() {
+	*x = PullInspectionsRequest{}
+	mi := &file_api_v1_inspection_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullInspectionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullInspectionsRequest) ProtoMessage() {}
+
+func (x *PullInspectionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inspection_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullInspectionsRequest.ProtoReflect.Descriptor instead.
+func (*PullInspectionsRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{29}
+}
+
+// Response containing pulled inspection status snapshot.
+type PullInspectionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Active inspections.
+	Inspections   []*InspectionListItem `protobuf:"bytes,1,rep,name=inspections" json:"inspections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullInspectionsResponse) Reset() {
+	*x = PullInspectionsResponse{}
+	mi := &file_api_v1_inspection_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullInspectionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullInspectionsResponse) ProtoMessage() {}
+
+func (x *PullInspectionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inspection_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullInspectionsResponse.ProtoReflect.Descriptor instead.
+func (*PullInspectionsResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *PullInspectionsResponse) GetInspections() []*InspectionListItem {
+	if x != nil {
+		return x.Inspections
+	}
+	return nil
+}
+
 // Request to create a new inspection runner session.
 type CreateInspectionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2172,7 +2255,7 @@ type CreateInspectionRequest struct {
 
 func (x *CreateInspectionRequest) Reset() {
 	*x = CreateInspectionRequest{}
-	mi := &file_api_v1_inspection_proto_msgTypes[29]
+	mi := &file_api_v1_inspection_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2184,7 +2267,7 @@ func (x *CreateInspectionRequest) String() string {
 func (*CreateInspectionRequest) ProtoMessage() {}
 
 func (x *CreateInspectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[29]
+	mi := &file_api_v1_inspection_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2197,7 +2280,7 @@ func (x *CreateInspectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInspectionRequest.ProtoReflect.Descriptor instead.
 func (*CreateInspectionRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{29}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *CreateInspectionRequest) GetInspectionTypeId() string {
@@ -2218,7 +2301,7 @@ type CreateInspectionResponse struct {
 
 func (x *CreateInspectionResponse) Reset() {
 	*x = CreateInspectionResponse{}
-	mi := &file_api_v1_inspection_proto_msgTypes[30]
+	mi := &file_api_v1_inspection_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2230,7 +2313,7 @@ func (x *CreateInspectionResponse) String() string {
 func (*CreateInspectionResponse) ProtoMessage() {}
 
 func (x *CreateInspectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[30]
+	mi := &file_api_v1_inspection_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2243,7 +2326,7 @@ func (x *CreateInspectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInspectionResponse.ProtoReflect.Descriptor instead.
 func (*CreateInspectionResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{30}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *CreateInspectionResponse) GetInspectionId() string {
@@ -2266,7 +2349,7 @@ type UpdateInspectionRequest struct {
 
 func (x *UpdateInspectionRequest) Reset() {
 	*x = UpdateInspectionRequest{}
-	mi := &file_api_v1_inspection_proto_msgTypes[31]
+	mi := &file_api_v1_inspection_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2278,7 +2361,7 @@ func (x *UpdateInspectionRequest) String() string {
 func (*UpdateInspectionRequest) ProtoMessage() {}
 
 func (x *UpdateInspectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[31]
+	mi := &file_api_v1_inspection_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2291,7 +2374,7 @@ func (x *UpdateInspectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateInspectionRequest.ProtoReflect.Descriptor instead.
 func (*UpdateInspectionRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{31}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *UpdateInspectionRequest) GetInspectionId() string {
@@ -2317,7 +2400,7 @@ type UpdateInspectionResponse struct {
 
 func (x *UpdateInspectionResponse) Reset() {
 	*x = UpdateInspectionResponse{}
-	mi := &file_api_v1_inspection_proto_msgTypes[32]
+	mi := &file_api_v1_inspection_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2329,7 +2412,7 @@ func (x *UpdateInspectionResponse) String() string {
 func (*UpdateInspectionResponse) ProtoMessage() {}
 
 func (x *UpdateInspectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[32]
+	mi := &file_api_v1_inspection_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2342,7 +2425,7 @@ func (x *UpdateInspectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateInspectionResponse.ProtoReflect.Descriptor instead.
 func (*UpdateInspectionResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{32}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{34}
 }
 
 // Request to retrieve available features and their states for an inspection.
@@ -2356,7 +2439,7 @@ type GetInspectionFeaturesRequest struct {
 
 func (x *GetInspectionFeaturesRequest) Reset() {
 	*x = GetInspectionFeaturesRequest{}
-	mi := &file_api_v1_inspection_proto_msgTypes[33]
+	mi := &file_api_v1_inspection_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2368,7 +2451,7 @@ func (x *GetInspectionFeaturesRequest) String() string {
 func (*GetInspectionFeaturesRequest) ProtoMessage() {}
 
 func (x *GetInspectionFeaturesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[33]
+	mi := &file_api_v1_inspection_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2381,7 +2464,7 @@ func (x *GetInspectionFeaturesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInspectionFeaturesRequest.ProtoReflect.Descriptor instead.
 func (*GetInspectionFeaturesRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{33}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *GetInspectionFeaturesRequest) GetInspectionId() string {
@@ -2402,7 +2485,7 @@ type GetInspectionFeaturesResponse struct {
 
 func (x *GetInspectionFeaturesResponse) Reset() {
 	*x = GetInspectionFeaturesResponse{}
-	mi := &file_api_v1_inspection_proto_msgTypes[34]
+	mi := &file_api_v1_inspection_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2414,7 +2497,7 @@ func (x *GetInspectionFeaturesResponse) String() string {
 func (*GetInspectionFeaturesResponse) ProtoMessage() {}
 
 func (x *GetInspectionFeaturesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[34]
+	mi := &file_api_v1_inspection_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2427,7 +2510,7 @@ func (x *GetInspectionFeaturesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInspectionFeaturesResponse.ProtoReflect.Descriptor instead.
 func (*GetInspectionFeaturesResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{34}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetInspectionFeaturesResponse) GetFeatures() []*InspectionFeature {
@@ -2452,7 +2535,7 @@ type UpdateInspectionFeaturesRequest struct {
 
 func (x *UpdateInspectionFeaturesRequest) Reset() {
 	*x = UpdateInspectionFeaturesRequest{}
-	mi := &file_api_v1_inspection_proto_msgTypes[35]
+	mi := &file_api_v1_inspection_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2464,7 +2547,7 @@ func (x *UpdateInspectionFeaturesRequest) String() string {
 func (*UpdateInspectionFeaturesRequest) ProtoMessage() {}
 
 func (x *UpdateInspectionFeaturesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[35]
+	mi := &file_api_v1_inspection_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2477,7 +2560,7 @@ func (x *UpdateInspectionFeaturesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateInspectionFeaturesRequest.ProtoReflect.Descriptor instead.
 func (*UpdateInspectionFeaturesRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{35}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *UpdateInspectionFeaturesRequest) GetInspectionId() string {
@@ -2510,7 +2593,7 @@ type UpdateInspectionFeaturesResponse struct {
 
 func (x *UpdateInspectionFeaturesResponse) Reset() {
 	*x = UpdateInspectionFeaturesResponse{}
-	mi := &file_api_v1_inspection_proto_msgTypes[36]
+	mi := &file_api_v1_inspection_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2522,7 +2605,7 @@ func (x *UpdateInspectionFeaturesResponse) String() string {
 func (*UpdateInspectionFeaturesResponse) ProtoMessage() {}
 
 func (x *UpdateInspectionFeaturesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[36]
+	mi := &file_api_v1_inspection_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2535,7 +2618,7 @@ func (x *UpdateInspectionFeaturesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateInspectionFeaturesResponse.ProtoReflect.Descriptor instead.
 func (*UpdateInspectionFeaturesResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{36}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{38}
 }
 
 // Request to dry-run an inspection task graph and evaluate parameters.
@@ -2551,7 +2634,7 @@ type DryRunInspectionRequest struct {
 
 func (x *DryRunInspectionRequest) Reset() {
 	*x = DryRunInspectionRequest{}
-	mi := &file_api_v1_inspection_proto_msgTypes[37]
+	mi := &file_api_v1_inspection_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2563,7 +2646,7 @@ func (x *DryRunInspectionRequest) String() string {
 func (*DryRunInspectionRequest) ProtoMessage() {}
 
 func (x *DryRunInspectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[37]
+	mi := &file_api_v1_inspection_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2576,7 +2659,7 @@ func (x *DryRunInspectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DryRunInspectionRequest.ProtoReflect.Descriptor instead.
 func (*DryRunInspectionRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{37}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *DryRunInspectionRequest) GetInspectionId() string {
@@ -2610,7 +2693,7 @@ type DryRunInspectionResponse struct {
 
 func (x *DryRunInspectionResponse) Reset() {
 	*x = DryRunInspectionResponse{}
-	mi := &file_api_v1_inspection_proto_msgTypes[38]
+	mi := &file_api_v1_inspection_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2622,7 +2705,7 @@ func (x *DryRunInspectionResponse) String() string {
 func (*DryRunInspectionResponse) ProtoMessage() {}
 
 func (x *DryRunInspectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[38]
+	mi := &file_api_v1_inspection_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2635,7 +2718,7 @@ func (x *DryRunInspectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DryRunInspectionResponse.ProtoReflect.Descriptor instead.
 func (*DryRunInspectionResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{38}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *DryRunInspectionResponse) GetForm() []*FormField {
@@ -2679,7 +2762,7 @@ type RunInspectionRequest struct {
 
 func (x *RunInspectionRequest) Reset() {
 	*x = RunInspectionRequest{}
-	mi := &file_api_v1_inspection_proto_msgTypes[39]
+	mi := &file_api_v1_inspection_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2691,7 +2774,7 @@ func (x *RunInspectionRequest) String() string {
 func (*RunInspectionRequest) ProtoMessage() {}
 
 func (x *RunInspectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[39]
+	mi := &file_api_v1_inspection_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2704,7 +2787,7 @@ func (x *RunInspectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunInspectionRequest.ProtoReflect.Descriptor instead.
 func (*RunInspectionRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{39}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *RunInspectionRequest) GetInspectionId() string {
@@ -2730,7 +2813,7 @@ type RunInspectionResponse struct {
 
 func (x *RunInspectionResponse) Reset() {
 	*x = RunInspectionResponse{}
-	mi := &file_api_v1_inspection_proto_msgTypes[40]
+	mi := &file_api_v1_inspection_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2742,7 +2825,7 @@ func (x *RunInspectionResponse) String() string {
 func (*RunInspectionResponse) ProtoMessage() {}
 
 func (x *RunInspectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[40]
+	mi := &file_api_v1_inspection_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2755,7 +2838,7 @@ func (x *RunInspectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunInspectionResponse.ProtoReflect.Descriptor instead.
 func (*RunInspectionResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{40}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{42}
 }
 
 // Request to cancel an in-progress inspection.
@@ -2769,7 +2852,7 @@ type CancelInspectionRequest struct {
 
 func (x *CancelInspectionRequest) Reset() {
 	*x = CancelInspectionRequest{}
-	mi := &file_api_v1_inspection_proto_msgTypes[41]
+	mi := &file_api_v1_inspection_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2781,7 +2864,7 @@ func (x *CancelInspectionRequest) String() string {
 func (*CancelInspectionRequest) ProtoMessage() {}
 
 func (x *CancelInspectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[41]
+	mi := &file_api_v1_inspection_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2794,7 +2877,7 @@ func (x *CancelInspectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelInspectionRequest.ProtoReflect.Descriptor instead.
 func (*CancelInspectionRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{41}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *CancelInspectionRequest) GetInspectionId() string {
@@ -2813,7 +2896,7 @@ type CancelInspectionResponse struct {
 
 func (x *CancelInspectionResponse) Reset() {
 	*x = CancelInspectionResponse{}
-	mi := &file_api_v1_inspection_proto_msgTypes[42]
+	mi := &file_api_v1_inspection_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2825,7 +2908,7 @@ func (x *CancelInspectionResponse) String() string {
 func (*CancelInspectionResponse) ProtoMessage() {}
 
 func (x *CancelInspectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[42]
+	mi := &file_api_v1_inspection_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2838,7 +2921,7 @@ func (x *CancelInspectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelInspectionResponse.ProtoReflect.Descriptor instead.
 func (*CancelInspectionResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{42}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{44}
 }
 
 // Request to retrieve full metadata of a finished inspection.
@@ -2852,7 +2935,7 @@ type GetInspectionMetadataRequest struct {
 
 func (x *GetInspectionMetadataRequest) Reset() {
 	*x = GetInspectionMetadataRequest{}
-	mi := &file_api_v1_inspection_proto_msgTypes[43]
+	mi := &file_api_v1_inspection_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2864,7 +2947,7 @@ func (x *GetInspectionMetadataRequest) String() string {
 func (*GetInspectionMetadataRequest) ProtoMessage() {}
 
 func (x *GetInspectionMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[43]
+	mi := &file_api_v1_inspection_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2877,7 +2960,7 @@ func (x *GetInspectionMetadataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInspectionMetadataRequest.ProtoReflect.Descriptor instead.
 func (*GetInspectionMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{43}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *GetInspectionMetadataRequest) GetInspectionId() string {
@@ -2906,7 +2989,7 @@ type GetInspectionMetadataResponse struct {
 
 func (x *GetInspectionMetadataResponse) Reset() {
 	*x = GetInspectionMetadataResponse{}
-	mi := &file_api_v1_inspection_proto_msgTypes[44]
+	mi := &file_api_v1_inspection_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2918,7 +3001,7 @@ func (x *GetInspectionMetadataResponse) String() string {
 func (*GetInspectionMetadataResponse) ProtoMessage() {}
 
 func (x *GetInspectionMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[44]
+	mi := &file_api_v1_inspection_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2931,7 +3014,7 @@ func (x *GetInspectionMetadataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInspectionMetadataResponse.ProtoReflect.Descriptor instead.
 func (*GetInspectionMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{44}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *GetInspectionMetadataResponse) GetHeader() *InspectionHeader {
@@ -2984,7 +3067,7 @@ type GetInspectionDataChunkRequest struct {
 
 func (x *GetInspectionDataChunkRequest) Reset() {
 	*x = GetInspectionDataChunkRequest{}
-	mi := &file_api_v1_inspection_proto_msgTypes[45]
+	mi := &file_api_v1_inspection_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2996,7 +3079,7 @@ func (x *GetInspectionDataChunkRequest) String() string {
 func (*GetInspectionDataChunkRequest) ProtoMessage() {}
 
 func (x *GetInspectionDataChunkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[45]
+	mi := &file_api_v1_inspection_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3009,7 +3092,7 @@ func (x *GetInspectionDataChunkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInspectionDataChunkRequest.ProtoReflect.Descriptor instead.
 func (*GetInspectionDataChunkRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{45}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *GetInspectionDataChunkRequest) GetInspectionId() string {
@@ -3046,7 +3129,7 @@ type GetInspectionDataChunkResponse struct {
 
 func (x *GetInspectionDataChunkResponse) Reset() {
 	*x = GetInspectionDataChunkResponse{}
-	mi := &file_api_v1_inspection_proto_msgTypes[46]
+	mi := &file_api_v1_inspection_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3058,7 +3141,7 @@ func (x *GetInspectionDataChunkResponse) String() string {
 func (*GetInspectionDataChunkResponse) ProtoMessage() {}
 
 func (x *GetInspectionDataChunkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_inspection_proto_msgTypes[46]
+	mi := &file_api_v1_inspection_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3071,7 +3154,7 @@ func (x *GetInspectionDataChunkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInspectionDataChunkResponse.ProtoReflect.Descriptor instead.
 func (*GetInspectionDataChunkResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_inspection_proto_rawDescGZIP(), []int{46}
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *GetInspectionDataChunkResponse) GetData() []byte {
@@ -3218,6 +3301,9 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\vinspections\x18\x01 \x03(\v2\x1a.api.v1.InspectionListItemR\vinspections\"\x19\n" +
 	"\x17WatchInspectionsRequest\"X\n" +
 	"\x18WatchInspectionsResponse\x12<\n" +
+	"\vinspections\x18\x01 \x03(\v2\x1a.api.v1.InspectionListItemR\vinspections\"\x18\n" +
+	"\x16PullInspectionsRequest\"W\n" +
+	"\x17PullInspectionsResponse\x12<\n" +
 	"\vinspections\x18\x01 \x03(\v2\x1a.api.v1.InspectionListItemR\vinspections\"G\n" +
 	"\x17CreateInspectionRequest\x12,\n" +
 	"\x12inspection_type_id\x18\x01 \x01(\tR\x10inspectionTypeId\"?\n" +
@@ -3295,11 +3381,12 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\x15UPLOAD_STATUS_WAITING\x10\x01\x12\x1b\n" +
 	"\x17UPLOAD_STATUS_UPLOADING\x10\x02\x12\x1b\n" +
 	"\x17UPLOAD_STATUS_VERIFYING\x10\x03\x12\x16\n" +
-	"\x12UPLOAD_STATUS_DONE\x10\x042\xe8\b\n" +
+	"\x12UPLOAD_STATUS_DONE\x10\x042\xbc\t\n" +
 	"\x11InspectionService\x12[\n" +
 	"\x12GetInspectionTypes\x12!.api.v1.GetInspectionTypesRequest\x1a\".api.v1.GetInspectionTypesResponse\x12O\n" +
 	"\x0eGetInspections\x12\x1d.api.v1.GetInspectionsRequest\x1a\x1e.api.v1.GetInspectionsResponse\x12W\n" +
-	"\x10WatchInspections\x12\x1f.api.v1.WatchInspectionsRequest\x1a .api.v1.WatchInspectionsResponse0\x01\x12U\n" +
+	"\x10WatchInspections\x12\x1f.api.v1.WatchInspectionsRequest\x1a .api.v1.WatchInspectionsResponse0\x01\x12R\n" +
+	"\x0fPullInspections\x12\x1e.api.v1.PullInspectionsRequest\x1a\x1f.api.v1.PullInspectionsResponse\x12U\n" +
 	"\x10CreateInspection\x12\x1f.api.v1.CreateInspectionRequest\x1a .api.v1.CreateInspectionResponse\x12U\n" +
 	"\x10UpdateInspection\x12\x1f.api.v1.UpdateInspectionRequest\x1a .api.v1.UpdateInspectionResponse\x12d\n" +
 	"\x15GetInspectionFeatures\x12$.api.v1.GetInspectionFeaturesRequest\x1a%.api.v1.GetInspectionFeaturesResponse\x12m\n" +
@@ -3323,7 +3410,7 @@ func file_api_v1_inspection_proto_rawDescGZIP() []byte {
 }
 
 var file_api_v1_inspection_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_api_v1_inspection_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
+var file_api_v1_inspection_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
 var file_api_v1_inspection_proto_goTypes = []any{
 	(InspectionPhase)(0),                     // 0: api.v1.InspectionPhase
 	(ParameterHintType)(0),                   // 1: api.v1.ParameterHintType
@@ -3358,29 +3445,31 @@ var file_api_v1_inspection_proto_goTypes = []any{
 	(*GetInspectionsResponse)(nil),           // 30: api.v1.GetInspectionsResponse
 	(*WatchInspectionsRequest)(nil),          // 31: api.v1.WatchInspectionsRequest
 	(*WatchInspectionsResponse)(nil),         // 32: api.v1.WatchInspectionsResponse
-	(*CreateInspectionRequest)(nil),          // 33: api.v1.CreateInspectionRequest
-	(*CreateInspectionResponse)(nil),         // 34: api.v1.CreateInspectionResponse
-	(*UpdateInspectionRequest)(nil),          // 35: api.v1.UpdateInspectionRequest
-	(*UpdateInspectionResponse)(nil),         // 36: api.v1.UpdateInspectionResponse
-	(*GetInspectionFeaturesRequest)(nil),     // 37: api.v1.GetInspectionFeaturesRequest
-	(*GetInspectionFeaturesResponse)(nil),    // 38: api.v1.GetInspectionFeaturesResponse
-	(*UpdateInspectionFeaturesRequest)(nil),  // 39: api.v1.UpdateInspectionFeaturesRequest
-	(*UpdateInspectionFeaturesResponse)(nil), // 40: api.v1.UpdateInspectionFeaturesResponse
-	(*DryRunInspectionRequest)(nil),          // 41: api.v1.DryRunInspectionRequest
-	(*DryRunInspectionResponse)(nil),         // 42: api.v1.DryRunInspectionResponse
-	(*RunInspectionRequest)(nil),             // 43: api.v1.RunInspectionRequest
-	(*RunInspectionResponse)(nil),            // 44: api.v1.RunInspectionResponse
-	(*CancelInspectionRequest)(nil),          // 45: api.v1.CancelInspectionRequest
-	(*CancelInspectionResponse)(nil),         // 46: api.v1.CancelInspectionResponse
-	(*GetInspectionMetadataRequest)(nil),     // 47: api.v1.GetInspectionMetadataRequest
-	(*GetInspectionMetadataResponse)(nil),    // 48: api.v1.GetInspectionMetadataResponse
-	(*GetInspectionDataChunkRequest)(nil),    // 49: api.v1.GetInspectionDataChunkRequest
-	(*GetInspectionDataChunkResponse)(nil),   // 50: api.v1.GetInspectionDataChunkResponse
-	nil,                                      // 51: api.v1.InspectionType.LabelsEntry
-	nil,                                      // 52: api.v1.UpdateInspectionFeaturesRequest.FeatureStatesEntry
+	(*PullInspectionsRequest)(nil),           // 33: api.v1.PullInspectionsRequest
+	(*PullInspectionsResponse)(nil),          // 34: api.v1.PullInspectionsResponse
+	(*CreateInspectionRequest)(nil),          // 35: api.v1.CreateInspectionRequest
+	(*CreateInspectionResponse)(nil),         // 36: api.v1.CreateInspectionResponse
+	(*UpdateInspectionRequest)(nil),          // 37: api.v1.UpdateInspectionRequest
+	(*UpdateInspectionResponse)(nil),         // 38: api.v1.UpdateInspectionResponse
+	(*GetInspectionFeaturesRequest)(nil),     // 39: api.v1.GetInspectionFeaturesRequest
+	(*GetInspectionFeaturesResponse)(nil),    // 40: api.v1.GetInspectionFeaturesResponse
+	(*UpdateInspectionFeaturesRequest)(nil),  // 41: api.v1.UpdateInspectionFeaturesRequest
+	(*UpdateInspectionFeaturesResponse)(nil), // 42: api.v1.UpdateInspectionFeaturesResponse
+	(*DryRunInspectionRequest)(nil),          // 43: api.v1.DryRunInspectionRequest
+	(*DryRunInspectionResponse)(nil),         // 44: api.v1.DryRunInspectionResponse
+	(*RunInspectionRequest)(nil),             // 45: api.v1.RunInspectionRequest
+	(*RunInspectionResponse)(nil),            // 46: api.v1.RunInspectionResponse
+	(*CancelInspectionRequest)(nil),          // 47: api.v1.CancelInspectionRequest
+	(*CancelInspectionResponse)(nil),         // 48: api.v1.CancelInspectionResponse
+	(*GetInspectionMetadataRequest)(nil),     // 49: api.v1.GetInspectionMetadataRequest
+	(*GetInspectionMetadataResponse)(nil),    // 50: api.v1.GetInspectionMetadataResponse
+	(*GetInspectionDataChunkRequest)(nil),    // 51: api.v1.GetInspectionDataChunkRequest
+	(*GetInspectionDataChunkResponse)(nil),   // 52: api.v1.GetInspectionDataChunkResponse
+	nil,                                      // 53: api.v1.InspectionType.LabelsEntry
+	nil,                                      // 54: api.v1.UpdateInspectionFeaturesRequest.FeatureStatesEntry
 }
 var file_api_v1_inspection_proto_depIdxs = []int32{
-	51, // 0: api.v1.InspectionType.labels:type_name -> api.v1.InspectionType.LabelsEntry
+	53, // 0: api.v1.InspectionType.labels:type_name -> api.v1.InspectionType.LabelsEntry
 	0,  // 1: api.v1.InspectionProgress.phase:type_name -> api.v1.InspectionPhase
 	6,  // 2: api.v1.InspectionProgress.total_progress:type_name -> api.v1.TaskProgressElement
 	6,  // 3: api.v1.InspectionProgress.progresses:type_name -> api.v1.TaskProgressElement
@@ -3404,48 +3493,51 @@ var file_api_v1_inspection_proto_depIdxs = []int32{
 	4,  // 21: api.v1.GetInspectionTypesResponse.types:type_name -> api.v1.InspectionType
 	11, // 22: api.v1.GetInspectionsResponse.inspections:type_name -> api.v1.InspectionListItem
 	11, // 23: api.v1.WatchInspectionsResponse.inspections:type_name -> api.v1.InspectionListItem
-	5,  // 24: api.v1.GetInspectionFeaturesResponse.features:type_name -> api.v1.InspectionFeature
-	52, // 25: api.v1.UpdateInspectionFeaturesRequest.feature_states:type_name -> api.v1.UpdateInspectionFeaturesRequest.FeatureStatesEntry
-	26, // 26: api.v1.DryRunInspectionRequest.parameters:type_name -> api.v1.InspectionParameters
-	17, // 27: api.v1.DryRunInspectionResponse.form:type_name -> api.v1.FormField
-	18, // 28: api.v1.DryRunInspectionResponse.queries:type_name -> api.v1.InspectionQuery
-	19, // 29: api.v1.DryRunInspectionResponse.plan:type_name -> api.v1.InspectionPlan
-	21, // 30: api.v1.DryRunInspectionResponse.job_command:type_name -> api.v1.InspectionJobCommand
-	26, // 31: api.v1.RunInspectionRequest.parameters:type_name -> api.v1.InspectionParameters
-	8,  // 32: api.v1.GetInspectionMetadataResponse.header:type_name -> api.v1.InspectionHeader
-	19, // 33: api.v1.GetInspectionMetadataResponse.plan:type_name -> api.v1.InspectionPlan
-	18, // 34: api.v1.GetInspectionMetadataResponse.queries:type_name -> api.v1.InspectionQuery
-	20, // 35: api.v1.GetInspectionMetadataResponse.logs:type_name -> api.v1.InspectionLog
-	10, // 36: api.v1.GetInspectionMetadataResponse.error:type_name -> api.v1.InspectionErrorSet
-	27, // 37: api.v1.InspectionService.GetInspectionTypes:input_type -> api.v1.GetInspectionTypesRequest
-	29, // 38: api.v1.InspectionService.GetInspections:input_type -> api.v1.GetInspectionsRequest
-	31, // 39: api.v1.InspectionService.WatchInspections:input_type -> api.v1.WatchInspectionsRequest
-	33, // 40: api.v1.InspectionService.CreateInspection:input_type -> api.v1.CreateInspectionRequest
-	35, // 41: api.v1.InspectionService.UpdateInspection:input_type -> api.v1.UpdateInspectionRequest
-	37, // 42: api.v1.InspectionService.GetInspectionFeatures:input_type -> api.v1.GetInspectionFeaturesRequest
-	39, // 43: api.v1.InspectionService.UpdateInspectionFeatures:input_type -> api.v1.UpdateInspectionFeaturesRequest
-	41, // 44: api.v1.InspectionService.DryRunInspection:input_type -> api.v1.DryRunInspectionRequest
-	43, // 45: api.v1.InspectionService.RunInspection:input_type -> api.v1.RunInspectionRequest
-	45, // 46: api.v1.InspectionService.CancelInspection:input_type -> api.v1.CancelInspectionRequest
-	47, // 47: api.v1.InspectionService.GetInspectionMetadata:input_type -> api.v1.GetInspectionMetadataRequest
-	49, // 48: api.v1.InspectionService.GetInspectionDataChunk:input_type -> api.v1.GetInspectionDataChunkRequest
-	28, // 49: api.v1.InspectionService.GetInspectionTypes:output_type -> api.v1.GetInspectionTypesResponse
-	30, // 50: api.v1.InspectionService.GetInspections:output_type -> api.v1.GetInspectionsResponse
-	32, // 51: api.v1.InspectionService.WatchInspections:output_type -> api.v1.WatchInspectionsResponse
-	34, // 52: api.v1.InspectionService.CreateInspection:output_type -> api.v1.CreateInspectionResponse
-	36, // 53: api.v1.InspectionService.UpdateInspection:output_type -> api.v1.UpdateInspectionResponse
-	38, // 54: api.v1.InspectionService.GetInspectionFeatures:output_type -> api.v1.GetInspectionFeaturesResponse
-	40, // 55: api.v1.InspectionService.UpdateInspectionFeatures:output_type -> api.v1.UpdateInspectionFeaturesResponse
-	42, // 56: api.v1.InspectionService.DryRunInspection:output_type -> api.v1.DryRunInspectionResponse
-	44, // 57: api.v1.InspectionService.RunInspection:output_type -> api.v1.RunInspectionResponse
-	46, // 58: api.v1.InspectionService.CancelInspection:output_type -> api.v1.CancelInspectionResponse
-	48, // 59: api.v1.InspectionService.GetInspectionMetadata:output_type -> api.v1.GetInspectionMetadataResponse
-	50, // 60: api.v1.InspectionService.GetInspectionDataChunk:output_type -> api.v1.GetInspectionDataChunkResponse
-	49, // [49:61] is the sub-list for method output_type
-	37, // [37:49] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	11, // 24: api.v1.PullInspectionsResponse.inspections:type_name -> api.v1.InspectionListItem
+	5,  // 25: api.v1.GetInspectionFeaturesResponse.features:type_name -> api.v1.InspectionFeature
+	54, // 26: api.v1.UpdateInspectionFeaturesRequest.feature_states:type_name -> api.v1.UpdateInspectionFeaturesRequest.FeatureStatesEntry
+	26, // 27: api.v1.DryRunInspectionRequest.parameters:type_name -> api.v1.InspectionParameters
+	17, // 28: api.v1.DryRunInspectionResponse.form:type_name -> api.v1.FormField
+	18, // 29: api.v1.DryRunInspectionResponse.queries:type_name -> api.v1.InspectionQuery
+	19, // 30: api.v1.DryRunInspectionResponse.plan:type_name -> api.v1.InspectionPlan
+	21, // 31: api.v1.DryRunInspectionResponse.job_command:type_name -> api.v1.InspectionJobCommand
+	26, // 32: api.v1.RunInspectionRequest.parameters:type_name -> api.v1.InspectionParameters
+	8,  // 33: api.v1.GetInspectionMetadataResponse.header:type_name -> api.v1.InspectionHeader
+	19, // 34: api.v1.GetInspectionMetadataResponse.plan:type_name -> api.v1.InspectionPlan
+	18, // 35: api.v1.GetInspectionMetadataResponse.queries:type_name -> api.v1.InspectionQuery
+	20, // 36: api.v1.GetInspectionMetadataResponse.logs:type_name -> api.v1.InspectionLog
+	10, // 37: api.v1.GetInspectionMetadataResponse.error:type_name -> api.v1.InspectionErrorSet
+	27, // 38: api.v1.InspectionService.GetInspectionTypes:input_type -> api.v1.GetInspectionTypesRequest
+	29, // 39: api.v1.InspectionService.GetInspections:input_type -> api.v1.GetInspectionsRequest
+	31, // 40: api.v1.InspectionService.WatchInspections:input_type -> api.v1.WatchInspectionsRequest
+	33, // 41: api.v1.InspectionService.PullInspections:input_type -> api.v1.PullInspectionsRequest
+	35, // 42: api.v1.InspectionService.CreateInspection:input_type -> api.v1.CreateInspectionRequest
+	37, // 43: api.v1.InspectionService.UpdateInspection:input_type -> api.v1.UpdateInspectionRequest
+	39, // 44: api.v1.InspectionService.GetInspectionFeatures:input_type -> api.v1.GetInspectionFeaturesRequest
+	41, // 45: api.v1.InspectionService.UpdateInspectionFeatures:input_type -> api.v1.UpdateInspectionFeaturesRequest
+	43, // 46: api.v1.InspectionService.DryRunInspection:input_type -> api.v1.DryRunInspectionRequest
+	45, // 47: api.v1.InspectionService.RunInspection:input_type -> api.v1.RunInspectionRequest
+	47, // 48: api.v1.InspectionService.CancelInspection:input_type -> api.v1.CancelInspectionRequest
+	49, // 49: api.v1.InspectionService.GetInspectionMetadata:input_type -> api.v1.GetInspectionMetadataRequest
+	51, // 50: api.v1.InspectionService.GetInspectionDataChunk:input_type -> api.v1.GetInspectionDataChunkRequest
+	28, // 51: api.v1.InspectionService.GetInspectionTypes:output_type -> api.v1.GetInspectionTypesResponse
+	30, // 52: api.v1.InspectionService.GetInspections:output_type -> api.v1.GetInspectionsResponse
+	32, // 53: api.v1.InspectionService.WatchInspections:output_type -> api.v1.WatchInspectionsResponse
+	34, // 54: api.v1.InspectionService.PullInspections:output_type -> api.v1.PullInspectionsResponse
+	36, // 55: api.v1.InspectionService.CreateInspection:output_type -> api.v1.CreateInspectionResponse
+	38, // 56: api.v1.InspectionService.UpdateInspection:output_type -> api.v1.UpdateInspectionResponse
+	40, // 57: api.v1.InspectionService.GetInspectionFeatures:output_type -> api.v1.GetInspectionFeaturesResponse
+	42, // 58: api.v1.InspectionService.UpdateInspectionFeatures:output_type -> api.v1.UpdateInspectionFeaturesResponse
+	44, // 59: api.v1.InspectionService.DryRunInspection:output_type -> api.v1.DryRunInspectionResponse
+	46, // 60: api.v1.InspectionService.RunInspection:output_type -> api.v1.RunInspectionResponse
+	48, // 61: api.v1.InspectionService.CancelInspection:output_type -> api.v1.CancelInspectionResponse
+	50, // 62: api.v1.InspectionService.GetInspectionMetadata:output_type -> api.v1.GetInspectionMetadataResponse
+	52, // 63: api.v1.InspectionService.GetInspectionDataChunk:output_type -> api.v1.GetInspectionDataChunkResponse
+	51, // [51:64] is the sub-list for method output_type
+	38, // [38:51] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_inspection_proto_init() }
@@ -3470,7 +3562,7 @@ func file_api_v1_inspection_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_inspection_proto_rawDesc), len(file_api_v1_inspection_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   49,
+			NumMessages:   51,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

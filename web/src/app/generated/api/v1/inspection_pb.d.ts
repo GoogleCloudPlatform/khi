@@ -1018,6 +1018,41 @@ export declare type WatchInspectionsResponse =
 export declare const WatchInspectionsResponseSchema: GenMessage<WatchInspectionsResponse>;
 
 /**
+ * Request to pull inspection status snapshot without streaming.
+ *
+ * @generated from message api.v1.PullInspectionsRequest
+ */
+export declare type PullInspectionsRequest =
+  Message<'api.v1.PullInspectionsRequest'> & {};
+
+/**
+ * Describes the message api.v1.PullInspectionsRequest.
+ * Use `create(PullInspectionsRequestSchema)` to create a new message.
+ */
+export declare const PullInspectionsRequestSchema: GenMessage<PullInspectionsRequest>;
+
+/**
+ * Response containing pulled inspection status snapshot.
+ *
+ * @generated from message api.v1.PullInspectionsResponse
+ */
+export declare type PullInspectionsResponse =
+  Message<'api.v1.PullInspectionsResponse'> & {
+    /**
+     * Active inspections.
+     *
+     * @generated from field: repeated api.v1.InspectionListItem inspections = 1;
+     */
+    inspections: InspectionListItem[];
+  };
+
+/**
+ * Describes the message api.v1.PullInspectionsResponse.
+ * Use `create(PullInspectionsResponseSchema)` to create a new message.
+ */
+export declare const PullInspectionsResponseSchema: GenMessage<PullInspectionsResponse>;
+
+/**
  * Request to create a new inspection runner session.
  *
  * @generated from message api.v1.CreateInspectionRequest
@@ -1684,6 +1719,16 @@ export declare const InspectionService: GenService<{
     methodKind: 'server_streaming';
     input: typeof WatchInspectionsRequestSchema;
     output: typeof WatchInspectionsResponseSchema;
+  };
+  /**
+   * Pulls active inspections and progress snapshot without opening a persistent stream.
+   *
+   * @generated from rpc api.v1.InspectionService.PullInspections
+   */
+  pullInspections: {
+    methodKind: 'unary';
+    input: typeof PullInspectionsRequestSchema;
+    output: typeof PullInspectionsResponseSchema;
   };
   /**
    * Creates a new inspection runner session for a given inspection type.

@@ -99,89 +99,6 @@ func (x *ServerStat) GetCpuUsagePercentage() float64 {
 	return 0
 }
 
-// Request to retrieve current server resource statistics.
-type GetServerStatRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetServerStatRequest) Reset() {
-	*x = GetServerStatRequest{}
-	mi := &file_api_v1_server_status_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetServerStatRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetServerStatRequest) ProtoMessage() {}
-
-func (x *GetServerStatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_server_status_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetServerStatRequest.ProtoReflect.Descriptor instead.
-func (*GetServerStatRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_server_status_proto_rawDescGZIP(), []int{1}
-}
-
-// Response containing current server resource statistics.
-type GetServerStatResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Current resource statistics of the server.
-	ServerStat    *ServerStat `protobuf:"bytes,1,opt,name=server_stat,json=serverStat" json:"server_stat,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetServerStatResponse) Reset() {
-	*x = GetServerStatResponse{}
-	mi := &file_api_v1_server_status_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetServerStatResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetServerStatResponse) ProtoMessage() {}
-
-func (x *GetServerStatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_server_status_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetServerStatResponse.ProtoReflect.Descriptor instead.
-func (*GetServerStatResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_server_status_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *GetServerStatResponse) GetServerStat() *ServerStat {
-	if x != nil {
-		return x.ServerStat
-	}
-	return nil
-}
-
 // Request to watch real-time server resource statistics.
 type WatchServerStatRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -191,7 +108,7 @@ type WatchServerStatRequest struct {
 
 func (x *WatchServerStatRequest) Reset() {
 	*x = WatchServerStatRequest{}
-	mi := &file_api_v1_server_status_proto_msgTypes[3]
+	mi := &file_api_v1_server_status_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -203,7 +120,7 @@ func (x *WatchServerStatRequest) String() string {
 func (*WatchServerStatRequest) ProtoMessage() {}
 
 func (x *WatchServerStatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_server_status_proto_msgTypes[3]
+	mi := &file_api_v1_server_status_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -216,7 +133,7 @@ func (x *WatchServerStatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchServerStatRequest.ProtoReflect.Descriptor instead.
 func (*WatchServerStatRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_server_status_proto_rawDescGZIP(), []int{3}
+	return file_api_v1_server_status_proto_rawDescGZIP(), []int{1}
 }
 
 // Response streamed periodically with real-time server resource statistics.
@@ -230,7 +147,7 @@ type WatchServerStatResponse struct {
 
 func (x *WatchServerStatResponse) Reset() {
 	*x = WatchServerStatResponse{}
-	mi := &file_api_v1_server_status_proto_msgTypes[4]
+	mi := &file_api_v1_server_status_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -242,7 +159,7 @@ func (x *WatchServerStatResponse) String() string {
 func (*WatchServerStatResponse) ProtoMessage() {}
 
 func (x *WatchServerStatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_server_status_proto_msgTypes[4]
+	mi := &file_api_v1_server_status_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -255,10 +172,93 @@ func (x *WatchServerStatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchServerStatResponse.ProtoReflect.Descriptor instead.
 func (*WatchServerStatResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_server_status_proto_rawDescGZIP(), []int{4}
+	return file_api_v1_server_status_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *WatchServerStatResponse) GetServerStat() *ServerStat {
+	if x != nil {
+		return x.ServerStat
+	}
+	return nil
+}
+
+// Request to pull current server resource statistics without streaming.
+type PullServerStatRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullServerStatRequest) Reset() {
+	*x = PullServerStatRequest{}
+	mi := &file_api_v1_server_status_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullServerStatRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullServerStatRequest) ProtoMessage() {}
+
+func (x *PullServerStatRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_server_status_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullServerStatRequest.ProtoReflect.Descriptor instead.
+func (*PullServerStatRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_server_status_proto_rawDescGZIP(), []int{3}
+}
+
+// Response containing pulled server resource statistics.
+type PullServerStatResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current resource statistics of the server.
+	ServerStat    *ServerStat `protobuf:"bytes,1,opt,name=server_stat,json=serverStat" json:"server_stat,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullServerStatResponse) Reset() {
+	*x = PullServerStatResponse{}
+	mi := &file_api_v1_server_status_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullServerStatResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullServerStatResponse) ProtoMessage() {}
+
+func (x *PullServerStatResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_server_status_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullServerStatResponse.ProtoReflect.Descriptor instead.
+func (*PullServerStatResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_server_status_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PullServerStatResponse) GetServerStat() *ServerStat {
 	if x != nil {
 		return x.ServerStat
 	}
@@ -274,18 +274,18 @@ const file_api_v1_server_status_proto_rawDesc = "" +
 	"ServerStat\x120\n" +
 	"\x14current_memory_usage\x18\x01 \x01(\x04R\x12currentMemoryUsage\x12!\n" +
 	"\ftotal_memory\x18\x02 \x01(\x04R\vtotalMemory\x120\n" +
-	"\x14cpu_usage_percentage\x18\x03 \x01(\x01R\x12cpuUsagePercentage\"\x16\n" +
-	"\x14GetServerStatRequest\"L\n" +
-	"\x15GetServerStatResponse\x123\n" +
-	"\vserver_stat\x18\x01 \x01(\v2\x12.api.v1.ServerStatR\n" +
-	"serverStat\"\x18\n" +
+	"\x14cpu_usage_percentage\x18\x03 \x01(\x01R\x12cpuUsagePercentage\"\x18\n" +
 	"\x16WatchServerStatRequest\"N\n" +
 	"\x17WatchServerStatResponse\x123\n" +
 	"\vserver_stat\x18\x01 \x01(\v2\x12.api.v1.ServerStatR\n" +
-	"serverStat2\xb9\x01\n" +
-	"\x13ServerStatusService\x12L\n" +
-	"\rGetServerStat\x12\x1c.api.v1.GetServerStatRequest\x1a\x1d.api.v1.GetServerStatResponse\x12T\n" +
-	"\x0fWatchServerStat\x12\x1e.api.v1.WatchServerStatRequest\x1a\x1f.api.v1.WatchServerStatResponse0\x01B?Z=github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1b\beditionsp\xe8\a"
+	"serverStat\"\x17\n" +
+	"\x15PullServerStatRequest\"M\n" +
+	"\x16PullServerStatResponse\x123\n" +
+	"\vserver_stat\x18\x01 \x01(\v2\x12.api.v1.ServerStatR\n" +
+	"serverStat2\xbc\x01\n" +
+	"\x13ServerStatusService\x12T\n" +
+	"\x0fWatchServerStat\x12\x1e.api.v1.WatchServerStatRequest\x1a\x1f.api.v1.WatchServerStatResponse0\x01\x12O\n" +
+	"\x0ePullServerStat\x12\x1d.api.v1.PullServerStatRequest\x1a\x1e.api.v1.PullServerStatResponseB?Z=github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1b\beditionsp\xe8\a"
 
 var (
 	file_api_v1_server_status_proto_rawDescOnce sync.Once
@@ -302,18 +302,18 @@ func file_api_v1_server_status_proto_rawDescGZIP() []byte {
 var file_api_v1_server_status_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_api_v1_server_status_proto_goTypes = []any{
 	(*ServerStat)(nil),              // 0: api.v1.ServerStat
-	(*GetServerStatRequest)(nil),    // 1: api.v1.GetServerStatRequest
-	(*GetServerStatResponse)(nil),   // 2: api.v1.GetServerStatResponse
-	(*WatchServerStatRequest)(nil),  // 3: api.v1.WatchServerStatRequest
-	(*WatchServerStatResponse)(nil), // 4: api.v1.WatchServerStatResponse
+	(*WatchServerStatRequest)(nil),  // 1: api.v1.WatchServerStatRequest
+	(*WatchServerStatResponse)(nil), // 2: api.v1.WatchServerStatResponse
+	(*PullServerStatRequest)(nil),   // 3: api.v1.PullServerStatRequest
+	(*PullServerStatResponse)(nil),  // 4: api.v1.PullServerStatResponse
 }
 var file_api_v1_server_status_proto_depIdxs = []int32{
-	0, // 0: api.v1.GetServerStatResponse.server_stat:type_name -> api.v1.ServerStat
-	0, // 1: api.v1.WatchServerStatResponse.server_stat:type_name -> api.v1.ServerStat
-	1, // 2: api.v1.ServerStatusService.GetServerStat:input_type -> api.v1.GetServerStatRequest
-	3, // 3: api.v1.ServerStatusService.WatchServerStat:input_type -> api.v1.WatchServerStatRequest
-	2, // 4: api.v1.ServerStatusService.GetServerStat:output_type -> api.v1.GetServerStatResponse
-	4, // 5: api.v1.ServerStatusService.WatchServerStat:output_type -> api.v1.WatchServerStatResponse
+	0, // 0: api.v1.WatchServerStatResponse.server_stat:type_name -> api.v1.ServerStat
+	0, // 1: api.v1.PullServerStatResponse.server_stat:type_name -> api.v1.ServerStat
+	1, // 2: api.v1.ServerStatusService.WatchServerStat:input_type -> api.v1.WatchServerStatRequest
+	3, // 3: api.v1.ServerStatusService.PullServerStat:input_type -> api.v1.PullServerStatRequest
+	2, // 4: api.v1.ServerStatusService.WatchServerStat:output_type -> api.v1.WatchServerStatResponse
+	4, // 5: api.v1.ServerStatusService.PullServerStat:output_type -> api.v1.PullServerStatResponse
 	4, // [4:6] is the sub-list for method output_type
 	2, // [2:4] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

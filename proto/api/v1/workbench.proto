@@ -25,8 +25,17 @@ service WorkbenchService {
   // Opens or attaches to an in-memory Workbench session with real-time loading progress streaming.
   rpc OpenWorkbench(OpenWorkbenchRequest) returns (stream OpenWorkbenchResponse);
 
+  // Opens or polls loading progress of a Workbench session without streaming.
+  rpc OpenWorkbenchSync(OpenWorkbenchSyncRequest) returns (OpenWorkbenchSyncResponse);
+
+  // Cancels an in-progress synchronous workbench open task.
+  rpc CancelOpenWorkbenchSync(CancelOpenWorkbenchSyncRequest) returns (CancelOpenWorkbenchSyncResponse);
+
   // Watches the search index construction progress and status for an inspection dataset. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
   rpc WatchIndexProgress(WatchIndexProgressRequest) returns (stream WatchIndexProgressResponse);
+
+  // Pulls the search index construction progress and status snapshot without opening a persistent stream.
+  rpc PullIndexProgress(PullIndexProgressRequest) returns (PullIndexProgressResponse);
 
   // Sends periodic heartbeat to keep the Workbench session alive in memory.
   rpc HeartbeatWorkbench(HeartbeatWorkbenchRequest) returns (HeartbeatWorkbenchResponse);
@@ -36,6 +45,12 @@ service WorkbenchService {
 
   // Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
   rpc FilterTimeline(FilterTimelineRequest) returns (stream FilterTimelineResponse);
+
+  // Evaluates a timeline and log filtering pipeline synchronously or polls its in-progress status.
+  rpc FilterTimelineSync(FilterTimelineSyncRequest) returns (FilterTimelineSyncResponse);
+
+  // Cancels an in-progress synchronous timeline filtering task.
+  rpc CancelFilterTimelineSync(CancelFilterTimelineSyncRequest) returns (CancelFilterTimelineSyncResponse);
 
   // Explicitly closes and releases an active Workbench session.
   rpc CloseWorkbench(CloseWorkbenchRequest) returns (CloseWorkbenchResponse);
@@ -70,6 +85,48 @@ message OpenWorkbenchResponse {
   string workbench_id = 4;
 }
 
+// Request to open or poll loading progress of a Workbench session without streaming.
+message OpenWorkbenchSyncRequest {
+  // Unique persistent identifier for the user / client browser instance.
+  string user_id = 1;
+  // Session identifier matching the frontend route session ID.
+  string session_id = 2;
+  // The inspection ID to open.
+  string inspection_id = 3;
+  // Job identifier returned from a previous OpenWorkbenchSync call, if polling an ongoing task.
+  string job_id = 4;
+}
+
+// Response containing current loading progress or completion status.
+message OpenWorkbenchSyncResponse {
+  // Unique job identifier tracking this opening task.
+  string job_id = 1;
+  // Execution phase of the dataset loading process.
+  OpenWorkbenchResponse.Stage stage = 2;
+  // Progress percentage (0 - 100).
+  double progress_percentage = 3;
+  // Detailed status description.
+  string message = 4;
+  // The active workbench ID assigned to this session once ready.
+  string workbench_id = 5;
+}
+
+// Request to cancel an ongoing synchronous workbench open task.
+message CancelOpenWorkbenchSyncRequest {
+  // Unique persistent identifier for the user / client browser instance.
+  string user_id = 1;
+  // Session identifier matching the frontend route session ID.
+  string session_id = 2;
+  // Job identifier of the open task to cancel.
+  string job_id = 3;
+}
+
+// Response confirming cancellation of the workbench open task.
+message CancelOpenWorkbenchSyncResponse {
+  // Whether the opening job was found and canceled.
+  bool canceled = 1;
+}
+
 // Request to watch the search index construction progress of an active Workbench session.
 message WatchIndexProgressRequest {
   // The active workbench session identifier to stream search index construction progress for.
@@ -87,6 +144,22 @@ message WatchIndexProgressResponse {
   }
   IndexState state = 1;
   double progress_percentage = 2;
+  string message = 3;
+}
+
+// Request to pull search index construction progress without opening a persistent stream.
+message PullIndexProgressRequest {
+  // The active workbench session identifier.
+  string workbench_id = 1;
+}
+
+// Response containing the search index construction progress snapshot.
+message PullIndexProgressResponse {
+  // Lifecycle state of search index construction.
+  WatchIndexProgressResponse.IndexState state = 1;
+  // Index construction progress percentage (0 - 100).
+  double progress_percentage = 2;
+  // Informational status message.
   string message = 3;
 }
 
@@ -173,6 +246,50 @@ message FilterTimelineResponse {
     FilterProgress progress = 1;
     FilterResult result = 2;
   }
+}
+
+// Request to start or poll a timeline and log filter evaluation task.
+message FilterTimelineSyncRequest {
+  // The active workbench session identifier.
+  string workbench_id = 1;
+  // CEL expression to filter timelines by path, name, or metadata. Empty string matches all timelines.
+  string timeline_query = 2;
+  // CEL expression to exclude timelines and their descendants. Empty string excludes none.
+  string timeline_exclusion_query = 3;
+  // CEL expression to filter log entries within remaining timelines. Empty string matches all logs.
+  string log_query = 4;
+  // When true, excludes timelines that contain no matching log entries.
+  bool exclude_no_logs = 5;
+  // Job identifier returned from a previous call, or empty to start a new filter task.
+  string job_id = 6;
+}
+
+// Response containing current progress or final filter result.
+message FilterTimelineSyncResponse {
+  // Unique job identifier tracking this filter task.
+  string job_id = 1;
+  // Whether the filter task has completed.
+  bool is_done = 2;
+  // Current intermediate progress update.
+  FilterProgress progress = 3;
+  // Final filter result, populated only when is_done is true.
+  FilterResult result = 4;
+  // Error message if the filter task failed.
+  string error_message = 5;
+}
+
+// Request to cancel an ongoing timeline filter task.
+message CancelFilterTimelineSyncRequest {
+  // The active workbench session identifier.
+  string workbench_id = 1;
+  // Job identifier of the filter task to cancel.
+  string job_id = 2;
+}
+
+// Response confirming cancellation of the filter task.
+message CancelFilterTimelineSyncResponse {
+  // Whether the filter job was found and canceled.
+  bool canceled = 1;
 }
 
 // Request to close and release a Workbench session immediately.

@@ -28,7 +28,7 @@ import {
 export const file_api_v1_popup =
   /*@__PURE__*/
   fileDesc(
-    "ChJhcGkvdjEvcG9wdXAucHJvdG8SBmFwaS52MSITChFXYXRjaFBvcHVwUmVxdWVzdCInChBUZXh0UG9wdXBQYXlsb2FkEhMKC3BsYWNlaG9sZGVyGAEgASgJIioKFk9BdXRoTG9naW5Qb3B1cFBheWxvYWQSEAoIYXV0aF91cmwYASABKAkipwEKCVBvcHVwRm9ybRIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIoCgR0ZXh0GAQgASgLMhguYXBpLnYxLlRleHRQb3B1cFBheWxvYWRIABI1CgtvYXV0aF9sb2dpbhgFIAEoCzIeLmFwaS52MS5PQXV0aExvZ2luUG9wdXBQYXlsb2FkSABCCQoHcGF5bG9hZCJWChJXYXRjaFBvcHVwUmVzcG9uc2USIgoFcG9wdXAYASABKAsyES5hcGkudjEuUG9wdXBGb3JtSAASEwoJZGlzbWlzc2VkGAIgASgISABCBwoFZXZlbnQiKwoaVGV4dFBvcHVwVmFsaWRhdGlvblJlcXVlc3QSDQoFdmFsdWUYASABKAkiZwoaVmFsaWRhdGVQb3B1cEFuc3dlclJlcXVlc3QSCgoCaWQYASABKAkSMgoEdGV4dBgCIAEoCzIiLmFwaS52MS5UZXh0UG9wdXBWYWxpZGF0aW9uUmVxdWVzdEgAQgkKB3BheWxvYWQiQwobVmFsaWRhdGVQb3B1cEFuc3dlclJlc3BvbnNlEgoKAmlkGAEgASgJEhgKEHZhbGlkYXRpb25fZXJyb3IYAiABKAkiIAoPVGV4dFBvcHVwQW5zd2VyEg0KBXZhbHVlGAEgASgJIloKGFN1Ym1pdFBvcHVwQW5zd2VyUmVxdWVzdBIKCgJpZBgBIAEoCRInCgR0ZXh0GAIgASgLMhcuYXBpLnYxLlRleHRQb3B1cEFuc3dlckgAQgkKB3BheWxvYWQiGwoZU3VibWl0UG9wdXBBbnN3ZXJSZXNwb25zZTKPAgoMUG9wdXBTZXJ2aWNlEkUKCldhdGNoUG9wdXASGS5hcGkudjEuV2F0Y2hQb3B1cFJlcXVlc3QaGi5hcGkudjEuV2F0Y2hQb3B1cFJlc3BvbnNlMAESXgoTVmFsaWRhdGVQb3B1cEFuc3dlchIiLmFwaS52MS5WYWxpZGF0ZVBvcHVwQW5zd2VyUmVxdWVzdBojLmFwaS52MS5WYWxpZGF0ZVBvcHVwQW5zd2VyUmVzcG9uc2USWAoRU3VibWl0UG9wdXBBbnN3ZXISIC5hcGkudjEuU3VibWl0UG9wdXBBbnN3ZXJSZXF1ZXN0GiEuYXBpLnYxLlN1Ym1pdFBvcHVwQW5zd2VyUmVzcG9uc2VCP1o9Z2l0aHViLmNvbS9Hb29nbGVDbG91ZFBsYXRmb3JtL2toaS9wa2cvZ2VuZXJhdGVkL2FwaS92MTthcGl2MWIIZWRpdGlvbnNw6Ac",
+    "ChJhcGkvdjEvcG9wdXAucHJvdG8SBmFwaS52MSITChFXYXRjaFBvcHVwUmVxdWVzdCISChBQdWxsUG9wdXBSZXF1ZXN0IjUKEVB1bGxQb3B1cFJlc3BvbnNlEiAKBXBvcHVwGAEgASgLMhEuYXBpLnYxLlBvcHVwRm9ybSInChBUZXh0UG9wdXBQYXlsb2FkEhMKC3BsYWNlaG9sZGVyGAEgASgJIioKFk9BdXRoTG9naW5Qb3B1cFBheWxvYWQSEAoIYXV0aF91cmwYASABKAkipwEKCVBvcHVwRm9ybRIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIoCgR0ZXh0GAQgASgLMhguYXBpLnYxLlRleHRQb3B1cFBheWxvYWRIABI1CgtvYXV0aF9sb2dpbhgFIAEoCzIeLmFwaS52MS5PQXV0aExvZ2luUG9wdXBQYXlsb2FkSABCCQoHcGF5bG9hZCJWChJXYXRjaFBvcHVwUmVzcG9uc2USIgoFcG9wdXAYASABKAsyES5hcGkudjEuUG9wdXBGb3JtSAASEwoJZGlzbWlzc2VkGAIgASgISABCBwoFZXZlbnQiKwoaVGV4dFBvcHVwVmFsaWRhdGlvblJlcXVlc3QSDQoFdmFsdWUYASABKAkiZwoaVmFsaWRhdGVQb3B1cEFuc3dlclJlcXVlc3QSCgoCaWQYASABKAkSMgoEdGV4dBgCIAEoCzIiLmFwaS52MS5UZXh0UG9wdXBWYWxpZGF0aW9uUmVxdWVzdEgAQgkKB3BheWxvYWQiQwobVmFsaWRhdGVQb3B1cEFuc3dlclJlc3BvbnNlEgoKAmlkGAEgASgJEhgKEHZhbGlkYXRpb25fZXJyb3IYAiABKAkiIAoPVGV4dFBvcHVwQW5zd2VyEg0KBXZhbHVlGAEgASgJIloKGFN1Ym1pdFBvcHVwQW5zd2VyUmVxdWVzdBIKCgJpZBgBIAEoCRInCgR0ZXh0GAIgASgLMhcuYXBpLnYxLlRleHRQb3B1cEFuc3dlckgAQgkKB3BheWxvYWQiGwoZU3VibWl0UG9wdXBBbnN3ZXJSZXNwb25zZTLRAgoMUG9wdXBTZXJ2aWNlEkUKCldhdGNoUG9wdXASGS5hcGkudjEuV2F0Y2hQb3B1cFJlcXVlc3QaGi5hcGkudjEuV2F0Y2hQb3B1cFJlc3BvbnNlMAESXgoTVmFsaWRhdGVQb3B1cEFuc3dlchIiLmFwaS52MS5WYWxpZGF0ZVBvcHVwQW5zd2VyUmVxdWVzdBojLmFwaS52MS5WYWxpZGF0ZVBvcHVwQW5zd2VyUmVzcG9uc2USWAoRU3VibWl0UG9wdXBBbnN3ZXISIC5hcGkudjEuU3VibWl0UG9wdXBBbnN3ZXJSZXF1ZXN0GiEuYXBpLnYxLlN1Ym1pdFBvcHVwQW5zd2VyUmVzcG9uc2USQAoJUHVsbFBvcHVwEhguYXBpLnYxLlB1bGxQb3B1cFJlcXVlc3QaGS5hcGkudjEuUHVsbFBvcHVwUmVzcG9uc2VCP1o9Z2l0aHViLmNvbS9Hb29nbGVDbG91ZFBsYXRmb3JtL2toaS9wa2cvZ2VuZXJhdGVkL2FwaS92MTthcGl2MWIIZWRpdGlvbnNw6Ac",
   );
 
 /**
@@ -40,12 +40,28 @@ export const WatchPopupRequestSchema =
   messageDesc(file_api_v1_popup, 0);
 
 /**
+ * Describes the message api.v1.PullPopupRequest.
+ * Use `create(PullPopupRequestSchema)` to create a new message.
+ */
+export const PullPopupRequestSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_popup, 1);
+
+/**
+ * Describes the message api.v1.PullPopupResponse.
+ * Use `create(PullPopupResponseSchema)` to create a new message.
+ */
+export const PullPopupResponseSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_popup, 2);
+
+/**
  * Describes the message api.v1.TextPopupPayload.
  * Use `create(TextPopupPayloadSchema)` to create a new message.
  */
 export const TextPopupPayloadSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_popup, 1);
+  messageDesc(file_api_v1_popup, 3);
 
 /**
  * Describes the message api.v1.OAuthLoginPopupPayload.
@@ -53,13 +69,13 @@ export const TextPopupPayloadSchema =
  */
 export const OAuthLoginPopupPayloadSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_popup, 2);
+  messageDesc(file_api_v1_popup, 4);
 
 /**
  * Describes the message api.v1.PopupForm.
  * Use `create(PopupFormSchema)` to create a new message.
  */
-export const PopupFormSchema = /*@__PURE__*/ messageDesc(file_api_v1_popup, 3);
+export const PopupFormSchema = /*@__PURE__*/ messageDesc(file_api_v1_popup, 5);
 
 /**
  * Describes the message api.v1.WatchPopupResponse.
@@ -67,7 +83,7 @@ export const PopupFormSchema = /*@__PURE__*/ messageDesc(file_api_v1_popup, 3);
  */
 export const WatchPopupResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_popup, 4);
+  messageDesc(file_api_v1_popup, 6);
 
 /**
  * Describes the message api.v1.TextPopupValidationRequest.
@@ -75,7 +91,7 @@ export const WatchPopupResponseSchema =
  */
 export const TextPopupValidationRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_popup, 5);
+  messageDesc(file_api_v1_popup, 7);
 
 /**
  * Describes the message api.v1.ValidatePopupAnswerRequest.
@@ -83,7 +99,7 @@ export const TextPopupValidationRequestSchema =
  */
 export const ValidatePopupAnswerRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_popup, 6);
+  messageDesc(file_api_v1_popup, 8);
 
 /**
  * Describes the message api.v1.ValidatePopupAnswerResponse.
@@ -91,7 +107,7 @@ export const ValidatePopupAnswerRequestSchema =
  */
 export const ValidatePopupAnswerResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_popup, 7);
+  messageDesc(file_api_v1_popup, 9);
 
 /**
  * Describes the message api.v1.TextPopupAnswer.
@@ -99,7 +115,7 @@ export const ValidatePopupAnswerResponseSchema =
  */
 export const TextPopupAnswerSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_popup, 8);
+  messageDesc(file_api_v1_popup, 10);
 
 /**
  * Describes the message api.v1.SubmitPopupAnswerRequest.
@@ -107,7 +123,7 @@ export const TextPopupAnswerSchema =
  */
 export const SubmitPopupAnswerRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_popup, 9);
+  messageDesc(file_api_v1_popup, 11);
 
 /**
  * Describes the message api.v1.SubmitPopupAnswerResponse.
@@ -115,7 +131,7 @@ export const SubmitPopupAnswerRequestSchema =
  */
 export const SubmitPopupAnswerResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_popup, 10);
+  messageDesc(file_api_v1_popup, 12);
 
 /**
  * PopupService provides APIs for server-requested user interactions and authentication popups.

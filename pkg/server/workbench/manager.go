@@ -24,6 +24,7 @@ import (
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/streamingutil"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -46,6 +47,7 @@ type WorkbenchManager struct {
 	ttl              time.Duration
 	sweeper          *Sweeper
 	loadGroup        singleflight.Group
+	openJobs         *streamingutil.AsyncJobManager[*apiv1.OpenWorkbenchSyncResponse, string]
 }
 
 // NewWorkbenchManager creates a new WorkbenchManager instance with automatic background sweeping.
@@ -59,6 +61,7 @@ func NewWorkbenchManager(inspectionServer *coreinspection.InspectionTaskServer, 
 		inspectionServer: inspectionServer,
 		indexManager:     indexManager,
 		ttl:              ttl,
+		openJobs:         streamingutil.NewAsyncJobManager[*apiv1.OpenWorkbenchSyncResponse, string](15*time.Second, 1*time.Minute),
 	}
 
 	if sweeperInterval > 0 {
@@ -72,6 +75,11 @@ func NewWorkbenchManager(inspectionServer *coreinspection.InspectionTaskServer, 
 // IndexManager returns the InspectionIndexManager associated with this manager.
 func (m *WorkbenchManager) IndexManager() *InspectionIndexManager {
 	return m.indexManager
+}
+
+// OpenJobManager returns the AsyncJobManager tracking asynchronous workbench open tasks.
+func (m *WorkbenchManager) OpenJobManager() *streamingutil.AsyncJobManager[*apiv1.OpenWorkbenchSyncResponse, string] {
+	return m.openJobs
 }
 
 // GetOrOpen retrieves an existing active Workbench session or loads the dataset into a new one.

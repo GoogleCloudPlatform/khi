@@ -25,6 +25,7 @@ import { ServerStatusService } from 'src/app/generated/api/v1/server_status_pb';
 import { WorkbenchService } from 'src/app/generated/api/v1/workbench_pb';
 import { InspectionService } from 'src/app/generated/api/v1/inspection_pb';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
+import { createLegacyPollingInterceptor } from 'src/app/services/api/legacy-polling.interceptor';
 import { environment } from 'src/environments/environment';
 
 /**
@@ -37,6 +38,7 @@ export class ConnectClientService {
   private readonly transport = createConnectTransport({
     baseUrl: ApiPathUtil.getServerBaseUrl(),
     useBinaryFormat: environment.production,
+    interceptors: [createLegacyPollingInterceptor()],
   });
 
   /**

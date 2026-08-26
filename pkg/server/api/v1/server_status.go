@@ -52,13 +52,13 @@ func NewServerStatusServiceServerWithIntervals(
 	}
 }
 
-// GetServerStat returns current server resource usage statistics as a one-off snapshot.
-func (s *ServerStatusServiceServer) GetServerStat(
+// PullServerStat pulls current server resource usage statistics as a one-off snapshot.
+func (s *ServerStatusServiceServer) PullServerStat(
 	ctx context.Context,
-	req *connect.Request[apiv1.GetServerStatRequest],
-) (*connect.Response[apiv1.GetServerStatResponse], error) {
+	req *connect.Request[apiv1.PullServerStatRequest],
+) (*connect.Response[apiv1.PullServerStatResponse], error) {
 	stat := s.buildServerStat()
-	return connect.NewResponse(&apiv1.GetServerStatResponse{
+	return connect.NewResponse(&apiv1.PullServerStatResponse{
 		ServerStat: stat,
 	}), nil
 }

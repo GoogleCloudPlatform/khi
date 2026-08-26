@@ -135,6 +135,20 @@ func (s *InspectionServiceServer) WatchInspections(
 	}
 }
 
+// PullInspections pulls active inspection runner sessions snapshot without opening a persistent stream.
+func (s *InspectionServiceServer) PullInspections(
+	ctx context.Context,
+	req *connect.Request[apiv1.PullInspectionsRequest],
+) (*connect.Response[apiv1.PullInspectionsResponse], error) {
+	items, err := s.collectInspectionListItems()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&apiv1.PullInspectionsResponse{
+		Inspections: items,
+	}), nil
+}
+
 // CreateInspection instantiates a new inspection runner session for a given inspection type.
 func (s *InspectionServiceServer) CreateInspection(
 	ctx context.Context,

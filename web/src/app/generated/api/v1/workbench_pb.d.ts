@@ -144,6 +144,153 @@ export enum OpenWorkbenchResponse_Stage {
 export declare const OpenWorkbenchResponse_StageSchema: GenEnum<OpenWorkbenchResponse_Stage>;
 
 /**
+ * Request to open or poll loading progress of a Workbench session without streaming.
+ *
+ * @generated from message api.v1.OpenWorkbenchSyncRequest
+ */
+export declare type OpenWorkbenchSyncRequest =
+  Message<'api.v1.OpenWorkbenchSyncRequest'> & {
+    /**
+     * Unique persistent identifier for the user / client browser instance.
+     *
+     * @generated from field: string user_id = 1;
+     */
+    userId: string;
+
+    /**
+     * Session identifier matching the frontend route session ID.
+     *
+     * @generated from field: string session_id = 2;
+     */
+    sessionId: string;
+
+    /**
+     * The inspection ID to open.
+     *
+     * @generated from field: string inspection_id = 3;
+     */
+    inspectionId: string;
+
+    /**
+     * Job identifier returned from a previous OpenWorkbenchSync call, if polling an ongoing task.
+     *
+     * @generated from field: string job_id = 4;
+     */
+    jobId: string;
+  };
+
+/**
+ * Describes the message api.v1.OpenWorkbenchSyncRequest.
+ * Use `create(OpenWorkbenchSyncRequestSchema)` to create a new message.
+ */
+export declare const OpenWorkbenchSyncRequestSchema: GenMessage<OpenWorkbenchSyncRequest>;
+
+/**
+ * Response containing current loading progress or completion status.
+ *
+ * @generated from message api.v1.OpenWorkbenchSyncResponse
+ */
+export declare type OpenWorkbenchSyncResponse =
+  Message<'api.v1.OpenWorkbenchSyncResponse'> & {
+    /**
+     * Unique job identifier tracking this opening task.
+     *
+     * @generated from field: string job_id = 1;
+     */
+    jobId: string;
+
+    /**
+     * Execution phase of the dataset loading process.
+     *
+     * @generated from field: api.v1.OpenWorkbenchResponse.Stage stage = 2;
+     */
+    stage: OpenWorkbenchResponse_Stage;
+
+    /**
+     * Progress percentage (0 - 100).
+     *
+     * @generated from field: double progress_percentage = 3;
+     */
+    progressPercentage: number;
+
+    /**
+     * Detailed status description.
+     *
+     * @generated from field: string message = 4;
+     */
+    message: string;
+
+    /**
+     * The active workbench ID assigned to this session once ready.
+     *
+     * @generated from field: string workbench_id = 5;
+     */
+    workbenchId: string;
+  };
+
+/**
+ * Describes the message api.v1.OpenWorkbenchSyncResponse.
+ * Use `create(OpenWorkbenchSyncResponseSchema)` to create a new message.
+ */
+export declare const OpenWorkbenchSyncResponseSchema: GenMessage<OpenWorkbenchSyncResponse>;
+
+/**
+ * Request to cancel an ongoing synchronous workbench open task.
+ *
+ * @generated from message api.v1.CancelOpenWorkbenchSyncRequest
+ */
+export declare type CancelOpenWorkbenchSyncRequest =
+  Message<'api.v1.CancelOpenWorkbenchSyncRequest'> & {
+    /**
+     * Unique persistent identifier for the user / client browser instance.
+     *
+     * @generated from field: string user_id = 1;
+     */
+    userId: string;
+
+    /**
+     * Session identifier matching the frontend route session ID.
+     *
+     * @generated from field: string session_id = 2;
+     */
+    sessionId: string;
+
+    /**
+     * Job identifier of the open task to cancel.
+     *
+     * @generated from field: string job_id = 3;
+     */
+    jobId: string;
+  };
+
+/**
+ * Describes the message api.v1.CancelOpenWorkbenchSyncRequest.
+ * Use `create(CancelOpenWorkbenchSyncRequestSchema)` to create a new message.
+ */
+export declare const CancelOpenWorkbenchSyncRequestSchema: GenMessage<CancelOpenWorkbenchSyncRequest>;
+
+/**
+ * Response confirming cancellation of the workbench open task.
+ *
+ * @generated from message api.v1.CancelOpenWorkbenchSyncResponse
+ */
+export declare type CancelOpenWorkbenchSyncResponse =
+  Message<'api.v1.CancelOpenWorkbenchSyncResponse'> & {
+    /**
+     * Whether the opening job was found and canceled.
+     *
+     * @generated from field: bool canceled = 1;
+     */
+    canceled: boolean;
+  };
+
+/**
+ * Describes the message api.v1.CancelOpenWorkbenchSyncResponse.
+ * Use `create(CancelOpenWorkbenchSyncResponseSchema)` to create a new message.
+ */
+export declare const CancelOpenWorkbenchSyncResponseSchema: GenMessage<CancelOpenWorkbenchSyncResponse>;
+
+/**
  * Request to watch the search index construction progress of an active Workbench session.
  *
  * @generated from message api.v1.WatchIndexProgressRequest
@@ -224,6 +371,62 @@ export enum WatchIndexProgressResponse_IndexState {
  * Describes the enum api.v1.WatchIndexProgressResponse.IndexState.
  */
 export declare const WatchIndexProgressResponse_IndexStateSchema: GenEnum<WatchIndexProgressResponse_IndexState>;
+
+/**
+ * Request to pull search index construction progress without opening a persistent stream.
+ *
+ * @generated from message api.v1.PullIndexProgressRequest
+ */
+export declare type PullIndexProgressRequest =
+  Message<'api.v1.PullIndexProgressRequest'> & {
+    /**
+     * The active workbench session identifier.
+     *
+     * @generated from field: string workbench_id = 1;
+     */
+    workbenchId: string;
+  };
+
+/**
+ * Describes the message api.v1.PullIndexProgressRequest.
+ * Use `create(PullIndexProgressRequestSchema)` to create a new message.
+ */
+export declare const PullIndexProgressRequestSchema: GenMessage<PullIndexProgressRequest>;
+
+/**
+ * Response containing the search index construction progress snapshot.
+ *
+ * @generated from message api.v1.PullIndexProgressResponse
+ */
+export declare type PullIndexProgressResponse =
+  Message<'api.v1.PullIndexProgressResponse'> & {
+    /**
+     * Lifecycle state of search index construction.
+     *
+     * @generated from field: api.v1.WatchIndexProgressResponse.IndexState state = 1;
+     */
+    state: WatchIndexProgressResponse_IndexState;
+
+    /**
+     * Index construction progress percentage (0 - 100).
+     *
+     * @generated from field: double progress_percentage = 2;
+     */
+    progressPercentage: number;
+
+    /**
+     * Informational status message.
+     *
+     * @generated from field: string message = 3;
+     */
+    message: string;
+  };
+
+/**
+ * Describes the message api.v1.PullIndexProgressResponse.
+ * Use `create(PullIndexProgressResponseSchema)` to create a new message.
+ */
+export declare const PullIndexProgressResponseSchema: GenMessage<PullIndexProgressResponse>;
 
 /**
  * Request to refresh the lease TTL of an active Workbench session.
@@ -505,6 +708,160 @@ export declare type FilterTimelineResponse =
 export declare const FilterTimelineResponseSchema: GenMessage<FilterTimelineResponse>;
 
 /**
+ * Request to start or poll a timeline and log filter evaluation task.
+ *
+ * @generated from message api.v1.FilterTimelineSyncRequest
+ */
+export declare type FilterTimelineSyncRequest =
+  Message<'api.v1.FilterTimelineSyncRequest'> & {
+    /**
+     * The active workbench session identifier.
+     *
+     * @generated from field: string workbench_id = 1;
+     */
+    workbenchId: string;
+
+    /**
+     * CEL expression to filter timelines by path, name, or metadata. Empty string matches all timelines.
+     *
+     * @generated from field: string timeline_query = 2;
+     */
+    timelineQuery: string;
+
+    /**
+     * CEL expression to exclude timelines and their descendants. Empty string excludes none.
+     *
+     * @generated from field: string timeline_exclusion_query = 3;
+     */
+    timelineExclusionQuery: string;
+
+    /**
+     * CEL expression to filter log entries within remaining timelines. Empty string matches all logs.
+     *
+     * @generated from field: string log_query = 4;
+     */
+    logQuery: string;
+
+    /**
+     * When true, excludes timelines that contain no matching log entries.
+     *
+     * @generated from field: bool exclude_no_logs = 5;
+     */
+    excludeNoLogs: boolean;
+
+    /**
+     * Job identifier returned from a previous call, or empty to start a new filter task.
+     *
+     * @generated from field: string job_id = 6;
+     */
+    jobId: string;
+  };
+
+/**
+ * Describes the message api.v1.FilterTimelineSyncRequest.
+ * Use `create(FilterTimelineSyncRequestSchema)` to create a new message.
+ */
+export declare const FilterTimelineSyncRequestSchema: GenMessage<FilterTimelineSyncRequest>;
+
+/**
+ * Response containing current progress or final filter result.
+ *
+ * @generated from message api.v1.FilterTimelineSyncResponse
+ */
+export declare type FilterTimelineSyncResponse =
+  Message<'api.v1.FilterTimelineSyncResponse'> & {
+    /**
+     * Unique job identifier tracking this filter task.
+     *
+     * @generated from field: string job_id = 1;
+     */
+    jobId: string;
+
+    /**
+     * Whether the filter task has completed.
+     *
+     * @generated from field: bool is_done = 2;
+     */
+    isDone: boolean;
+
+    /**
+     * Current intermediate progress update.
+     *
+     * @generated from field: api.v1.FilterProgress progress = 3;
+     */
+    progress?: FilterProgress | undefined;
+
+    /**
+     * Final filter result, populated only when is_done is true.
+     *
+     * @generated from field: api.v1.FilterResult result = 4;
+     */
+    result?: FilterResult | undefined;
+
+    /**
+     * Error message if the filter task failed.
+     *
+     * @generated from field: string error_message = 5;
+     */
+    errorMessage: string;
+  };
+
+/**
+ * Describes the message api.v1.FilterTimelineSyncResponse.
+ * Use `create(FilterTimelineSyncResponseSchema)` to create a new message.
+ */
+export declare const FilterTimelineSyncResponseSchema: GenMessage<FilterTimelineSyncResponse>;
+
+/**
+ * Request to cancel an ongoing timeline filter task.
+ *
+ * @generated from message api.v1.CancelFilterTimelineSyncRequest
+ */
+export declare type CancelFilterTimelineSyncRequest =
+  Message<'api.v1.CancelFilterTimelineSyncRequest'> & {
+    /**
+     * The active workbench session identifier.
+     *
+     * @generated from field: string workbench_id = 1;
+     */
+    workbenchId: string;
+
+    /**
+     * Job identifier of the filter task to cancel.
+     *
+     * @generated from field: string job_id = 2;
+     */
+    jobId: string;
+  };
+
+/**
+ * Describes the message api.v1.CancelFilterTimelineSyncRequest.
+ * Use `create(CancelFilterTimelineSyncRequestSchema)` to create a new message.
+ */
+export declare const CancelFilterTimelineSyncRequestSchema: GenMessage<CancelFilterTimelineSyncRequest>;
+
+/**
+ * Response confirming cancellation of the filter task.
+ *
+ * @generated from message api.v1.CancelFilterTimelineSyncResponse
+ */
+export declare type CancelFilterTimelineSyncResponse =
+  Message<'api.v1.CancelFilterTimelineSyncResponse'> & {
+    /**
+     * Whether the filter job was found and canceled.
+     *
+     * @generated from field: bool canceled = 1;
+     */
+    canceled: boolean;
+  };
+
+/**
+ * Describes the message api.v1.CancelFilterTimelineSyncResponse.
+ * Use `create(CancelFilterTimelineSyncResponseSchema)` to create a new message.
+ */
+export declare const CancelFilterTimelineSyncResponseSchema: GenMessage<CancelFilterTimelineSyncResponse>;
+
+/**
  * Request to close and release a Workbench session immediately.
  *
  * @generated from message api.v1.CloseWorkbenchRequest
@@ -586,6 +943,26 @@ export declare const WorkbenchService: GenService<{
     output: typeof OpenWorkbenchResponseSchema;
   };
   /**
+   * Opens or polls loading progress of a Workbench session without streaming.
+   *
+   * @generated from rpc api.v1.WorkbenchService.OpenWorkbenchSync
+   */
+  openWorkbenchSync: {
+    methodKind: 'unary';
+    input: typeof OpenWorkbenchSyncRequestSchema;
+    output: typeof OpenWorkbenchSyncResponseSchema;
+  };
+  /**
+   * Cancels an in-progress synchronous workbench open task.
+   *
+   * @generated from rpc api.v1.WorkbenchService.CancelOpenWorkbenchSync
+   */
+  cancelOpenWorkbenchSync: {
+    methodKind: 'unary';
+    input: typeof CancelOpenWorkbenchSyncRequestSchema;
+    output: typeof CancelOpenWorkbenchSyncResponseSchema;
+  };
+  /**
    * Watches the search index construction progress and status for an inspection dataset. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
    *
    * @generated from rpc api.v1.WorkbenchService.WatchIndexProgress
@@ -594,6 +971,16 @@ export declare const WorkbenchService: GenService<{
     methodKind: 'server_streaming';
     input: typeof WatchIndexProgressRequestSchema;
     output: typeof WatchIndexProgressResponseSchema;
+  };
+  /**
+   * Pulls the search index construction progress and status snapshot without opening a persistent stream.
+   *
+   * @generated from rpc api.v1.WorkbenchService.PullIndexProgress
+   */
+  pullIndexProgress: {
+    methodKind: 'unary';
+    input: typeof PullIndexProgressRequestSchema;
+    output: typeof PullIndexProgressResponseSchema;
   };
   /**
    * Sends periodic heartbeat to keep the Workbench session alive in memory.
@@ -624,6 +1011,26 @@ export declare const WorkbenchService: GenService<{
     methodKind: 'server_streaming';
     input: typeof FilterTimelineRequestSchema;
     output: typeof FilterTimelineResponseSchema;
+  };
+  /**
+   * Evaluates a timeline and log filtering pipeline synchronously or polls its in-progress status.
+   *
+   * @generated from rpc api.v1.WorkbenchService.FilterTimelineSync
+   */
+  filterTimelineSync: {
+    methodKind: 'unary';
+    input: typeof FilterTimelineSyncRequestSchema;
+    output: typeof FilterTimelineSyncResponseSchema;
+  };
+  /**
+   * Cancels an in-progress synchronous timeline filtering task.
+   *
+   * @generated from rpc api.v1.WorkbenchService.CancelFilterTimelineSync
+   */
+  cancelFilterTimelineSync: {
+    methodKind: 'unary';
+    input: typeof CancelFilterTimelineSyncRequestSchema;
+    output: typeof CancelFilterTimelineSyncResponseSchema;
   };
   /**
    * Explicitly closes and releases an active Workbench session.

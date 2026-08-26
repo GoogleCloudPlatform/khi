@@ -56,6 +56,9 @@ const (
 	// InspectionServiceWatchInspectionsProcedure is the fully-qualified name of the InspectionService's
 	// WatchInspections RPC.
 	InspectionServiceWatchInspectionsProcedure = "/api.v1.InspectionService/WatchInspections"
+	// InspectionServicePullInspectionsProcedure is the fully-qualified name of the InspectionService's
+	// PullInspections RPC.
+	InspectionServicePullInspectionsProcedure = "/api.v1.InspectionService/PullInspections"
 	// InspectionServiceCreateInspectionProcedure is the fully-qualified name of the InspectionService's
 	// CreateInspection RPC.
 	InspectionServiceCreateInspectionProcedure = "/api.v1.InspectionService/CreateInspection"
@@ -96,6 +99,8 @@ type InspectionServiceClient interface {
 	// The stream terminates after approximately 30 seconds to support runtimes without long-lived connection support;
 	// clients are expected to automatically reconnect.
 	WatchInspections(context.Context, *connect.Request[v1.WatchInspectionsRequest]) (*connect.ServerStreamForClient[v1.WatchInspectionsResponse], error)
+	// Pulls active inspections and progress snapshot without opening a persistent stream.
+	PullInspections(context.Context, *connect.Request[v1.PullInspectionsRequest]) (*connect.Response[v1.PullInspectionsResponse], error)
 	// Creates a new inspection runner session for a given inspection type.
 	CreateInspection(context.Context, *connect.Request[v1.CreateInspectionRequest]) (*connect.Response[v1.CreateInspectionResponse], error)
 	// Updates inspection settings such as display title.
@@ -143,6 +148,12 @@ func NewInspectionServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			httpClient,
 			baseURL+InspectionServiceWatchInspectionsProcedure,
 			connect.WithSchema(inspectionServiceMethods.ByName("WatchInspections")),
+			connect.WithClientOptions(opts...),
+		),
+		pullInspections: connect.NewClient[v1.PullInspectionsRequest, v1.PullInspectionsResponse](
+			httpClient,
+			baseURL+InspectionServicePullInspectionsProcedure,
+			connect.WithSchema(inspectionServiceMethods.ByName("PullInspections")),
 			connect.WithClientOptions(opts...),
 		),
 		createInspection: connect.NewClient[v1.CreateInspectionRequest, v1.CreateInspectionResponse](
@@ -207,6 +218,7 @@ type inspectionServiceClient struct {
 	getInspectionTypes       *connect.Client[v1.GetInspectionTypesRequest, v1.GetInspectionTypesResponse]
 	getInspections           *connect.Client[v1.GetInspectionsRequest, v1.GetInspectionsResponse]
 	watchInspections         *connect.Client[v1.WatchInspectionsRequest, v1.WatchInspectionsResponse]
+	pullInspections          *connect.Client[v1.PullInspectionsRequest, v1.PullInspectionsResponse]
 	createInspection         *connect.Client[v1.CreateInspectionRequest, v1.CreateInspectionResponse]
 	updateInspection         *connect.Client[v1.UpdateInspectionRequest, v1.UpdateInspectionResponse]
 	getInspectionFeatures    *connect.Client[v1.GetInspectionFeaturesRequest, v1.GetInspectionFeaturesResponse]
@@ -231,6 +243,11 @@ func (c *inspectionServiceClient) GetInspections(ctx context.Context, req *conne
 // WatchInspections calls api.v1.InspectionService.WatchInspections.
 func (c *inspectionServiceClient) WatchInspections(ctx context.Context, req *connect.Request[v1.WatchInspectionsRequest]) (*connect.ServerStreamForClient[v1.WatchInspectionsResponse], error) {
 	return c.watchInspections.CallServerStream(ctx, req)
+}
+
+// PullInspections calls api.v1.InspectionService.PullInspections.
+func (c *inspectionServiceClient) PullInspections(ctx context.Context, req *connect.Request[v1.PullInspectionsRequest]) (*connect.Response[v1.PullInspectionsResponse], error) {
+	return c.pullInspections.CallUnary(ctx, req)
 }
 
 // CreateInspection calls api.v1.InspectionService.CreateInspection.
@@ -289,6 +306,8 @@ type InspectionServiceHandler interface {
 	// The stream terminates after approximately 30 seconds to support runtimes without long-lived connection support;
 	// clients are expected to automatically reconnect.
 	WatchInspections(context.Context, *connect.Request[v1.WatchInspectionsRequest], *connect.ServerStream[v1.WatchInspectionsResponse]) error
+	// Pulls active inspections and progress snapshot without opening a persistent stream.
+	PullInspections(context.Context, *connect.Request[v1.PullInspectionsRequest]) (*connect.Response[v1.PullInspectionsResponse], error)
 	// Creates a new inspection runner session for a given inspection type.
 	CreateInspection(context.Context, *connect.Request[v1.CreateInspectionRequest]) (*connect.Response[v1.CreateInspectionResponse], error)
 	// Updates inspection settings such as display title.
@@ -332,6 +351,12 @@ func NewInspectionServiceHandler(svc InspectionServiceHandler, opts ...connect.H
 		InspectionServiceWatchInspectionsProcedure,
 		svc.WatchInspections,
 		connect.WithSchema(inspectionServiceMethods.ByName("WatchInspections")),
+		connect.WithHandlerOptions(opts...),
+	)
+	inspectionServicePullInspectionsHandler := connect.NewUnaryHandler(
+		InspectionServicePullInspectionsProcedure,
+		svc.PullInspections,
+		connect.WithSchema(inspectionServiceMethods.ByName("PullInspections")),
 		connect.WithHandlerOptions(opts...),
 	)
 	inspectionServiceCreateInspectionHandler := connect.NewUnaryHandler(
@@ -396,6 +421,8 @@ func NewInspectionServiceHandler(svc InspectionServiceHandler, opts ...connect.H
 			inspectionServiceGetInspectionsHandler.ServeHTTP(w, r)
 		case InspectionServiceWatchInspectionsProcedure:
 			inspectionServiceWatchInspectionsHandler.ServeHTTP(w, r)
+		case InspectionServicePullInspectionsProcedure:
+			inspectionServicePullInspectionsHandler.ServeHTTP(w, r)
 		case InspectionServiceCreateInspectionProcedure:
 			inspectionServiceCreateInspectionHandler.ServeHTTP(w, r)
 		case InspectionServiceUpdateInspectionProcedure:
@@ -433,6 +460,10 @@ func (UnimplementedInspectionServiceHandler) GetInspections(context.Context, *co
 
 func (UnimplementedInspectionServiceHandler) WatchInspections(context.Context, *connect.Request[v1.WatchInspectionsRequest], *connect.ServerStream[v1.WatchInspectionsResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.InspectionService.WatchInspections is not implemented"))
+}
+
+func (UnimplementedInspectionServiceHandler) PullInspections(context.Context, *connect.Request[v1.PullInspectionsRequest]) (*connect.Response[v1.PullInspectionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.InspectionService.PullInspections is not implemented"))
 }
 
 func (UnimplementedInspectionServiceHandler) CreateInspection(context.Context, *connect.Request[v1.CreateInspectionRequest]) (*connect.Response[v1.CreateInspectionResponse], error) {

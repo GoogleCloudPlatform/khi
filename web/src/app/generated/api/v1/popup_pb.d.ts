@@ -43,6 +43,39 @@ export declare type WatchPopupRequest =
 export declare const WatchPopupRequestSchema: GenMessage<WatchPopupRequest>;
 
 /**
+ * Request to retrieve the currently active popup form snapshot.
+ *
+ * @generated from message api.v1.PullPopupRequest
+ */
+export declare type PullPopupRequest = Message<'api.v1.PullPopupRequest'> & {};
+
+/**
+ * Describes the message api.v1.PullPopupRequest.
+ * Use `create(PullPopupRequestSchema)` to create a new message.
+ */
+export declare const PullPopupRequestSchema: GenMessage<PullPopupRequest>;
+
+/**
+ * Response containing the currently active popup form snapshot.
+ *
+ * @generated from message api.v1.PullPopupResponse
+ */
+export declare type PullPopupResponse = Message<'api.v1.PullPopupResponse'> & {
+  /**
+   * Currently active popup form, or unset if no popup is active.
+   *
+   * @generated from field: api.v1.PopupForm popup = 1;
+   */
+  popup?: PopupForm | undefined;
+};
+
+/**
+ * Describes the message api.v1.PullPopupResponse.
+ * Use `create(PullPopupResponseSchema)` to create a new message.
+ */
+export declare const PullPopupResponseSchema: GenMessage<PullPopupResponse>;
+
+/**
  * TextPopupPayload contains configuration specific to text input popups.
  *
  * @generated from message api.v1.TextPopupPayload
@@ -369,5 +402,15 @@ export declare const PopupService: GenService<{
     methodKind: 'unary';
     input: typeof SubmitPopupAnswerRequestSchema;
     output: typeof SubmitPopupAnswerResponseSchema;
+  };
+  /**
+   * Retrieves the currently active popup dialog snapshot without opening a persistent stream.
+   *
+   * @generated from rpc api.v1.PopupService.PullPopup
+   */
+  pullPopup: {
+    methodKind: 'unary';
+    input: typeof PullPopupRequestSchema;
+    output: typeof PullPopupResponseSchema;
   };
 }>;

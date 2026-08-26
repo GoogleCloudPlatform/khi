@@ -195,7 +195,7 @@ func (x WatchIndexProgressResponse_IndexState) Number() protoreflect.EnumNumber 
 
 // Deprecated: Use WatchIndexProgressResponse_IndexState.Descriptor instead.
 func (WatchIndexProgressResponse_IndexState) EnumDescriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{3, 0}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{7, 0}
 }
 
 // Request to open or attach to a Workbench session for a specific inspection dataset.
@@ -332,6 +332,271 @@ func (x *OpenWorkbenchResponse) GetWorkbenchId() string {
 	return ""
 }
 
+// Request to open or poll loading progress of a Workbench session without streaming.
+type OpenWorkbenchSyncRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique persistent identifier for the user / client browser instance.
+	UserId *string `protobuf:"bytes,1,opt,name=user_id,json=userId" json:"user_id,omitempty"`
+	// Session identifier matching the frontend route session ID.
+	SessionId *string `protobuf:"bytes,2,opt,name=session_id,json=sessionId" json:"session_id,omitempty"`
+	// The inspection ID to open.
+	InspectionId *string `protobuf:"bytes,3,opt,name=inspection_id,json=inspectionId" json:"inspection_id,omitempty"`
+	// Job identifier returned from a previous OpenWorkbenchSync call, if polling an ongoing task.
+	JobId         *string `protobuf:"bytes,4,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenWorkbenchSyncRequest) Reset() {
+	*x = OpenWorkbenchSyncRequest{}
+	mi := &file_api_v1_workbench_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenWorkbenchSyncRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenWorkbenchSyncRequest) ProtoMessage() {}
+
+func (x *OpenWorkbenchSyncRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenWorkbenchSyncRequest.ProtoReflect.Descriptor instead.
+func (*OpenWorkbenchSyncRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *OpenWorkbenchSyncRequest) GetUserId() string {
+	if x != nil && x.UserId != nil {
+		return *x.UserId
+	}
+	return ""
+}
+
+func (x *OpenWorkbenchSyncRequest) GetSessionId() string {
+	if x != nil && x.SessionId != nil {
+		return *x.SessionId
+	}
+	return ""
+}
+
+func (x *OpenWorkbenchSyncRequest) GetInspectionId() string {
+	if x != nil && x.InspectionId != nil {
+		return *x.InspectionId
+	}
+	return ""
+}
+
+func (x *OpenWorkbenchSyncRequest) GetJobId() string {
+	if x != nil && x.JobId != nil {
+		return *x.JobId
+	}
+	return ""
+}
+
+// Response containing current loading progress or completion status.
+type OpenWorkbenchSyncResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique job identifier tracking this opening task.
+	JobId *string `protobuf:"bytes,1,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	// Execution phase of the dataset loading process.
+	Stage *OpenWorkbenchResponse_Stage `protobuf:"varint,2,opt,name=stage,enum=api.v1.OpenWorkbenchResponse_Stage" json:"stage,omitempty"`
+	// Progress percentage (0 - 100).
+	ProgressPercentage *float64 `protobuf:"fixed64,3,opt,name=progress_percentage,json=progressPercentage" json:"progress_percentage,omitempty"`
+	// Detailed status description.
+	Message *string `protobuf:"bytes,4,opt,name=message" json:"message,omitempty"`
+	// The active workbench ID assigned to this session once ready.
+	WorkbenchId   *string `protobuf:"bytes,5,opt,name=workbench_id,json=workbenchId" json:"workbench_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenWorkbenchSyncResponse) Reset() {
+	*x = OpenWorkbenchSyncResponse{}
+	mi := &file_api_v1_workbench_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenWorkbenchSyncResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenWorkbenchSyncResponse) ProtoMessage() {}
+
+func (x *OpenWorkbenchSyncResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenWorkbenchSyncResponse.ProtoReflect.Descriptor instead.
+func (*OpenWorkbenchSyncResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *OpenWorkbenchSyncResponse) GetJobId() string {
+	if x != nil && x.JobId != nil {
+		return *x.JobId
+	}
+	return ""
+}
+
+func (x *OpenWorkbenchSyncResponse) GetStage() OpenWorkbenchResponse_Stage {
+	if x != nil && x.Stage != nil {
+		return *x.Stage
+	}
+	return OpenWorkbenchResponse_STAGE_UNSPECIFIED
+}
+
+func (x *OpenWorkbenchSyncResponse) GetProgressPercentage() float64 {
+	if x != nil && x.ProgressPercentage != nil {
+		return *x.ProgressPercentage
+	}
+	return 0
+}
+
+func (x *OpenWorkbenchSyncResponse) GetMessage() string {
+	if x != nil && x.Message != nil {
+		return *x.Message
+	}
+	return ""
+}
+
+func (x *OpenWorkbenchSyncResponse) GetWorkbenchId() string {
+	if x != nil && x.WorkbenchId != nil {
+		return *x.WorkbenchId
+	}
+	return ""
+}
+
+// Request to cancel an ongoing synchronous workbench open task.
+type CancelOpenWorkbenchSyncRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique persistent identifier for the user / client browser instance.
+	UserId *string `protobuf:"bytes,1,opt,name=user_id,json=userId" json:"user_id,omitempty"`
+	// Session identifier matching the frontend route session ID.
+	SessionId *string `protobuf:"bytes,2,opt,name=session_id,json=sessionId" json:"session_id,omitempty"`
+	// Job identifier of the open task to cancel.
+	JobId         *string `protobuf:"bytes,3,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelOpenWorkbenchSyncRequest) Reset() {
+	*x = CancelOpenWorkbenchSyncRequest{}
+	mi := &file_api_v1_workbench_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelOpenWorkbenchSyncRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelOpenWorkbenchSyncRequest) ProtoMessage() {}
+
+func (x *CancelOpenWorkbenchSyncRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelOpenWorkbenchSyncRequest.ProtoReflect.Descriptor instead.
+func (*CancelOpenWorkbenchSyncRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CancelOpenWorkbenchSyncRequest) GetUserId() string {
+	if x != nil && x.UserId != nil {
+		return *x.UserId
+	}
+	return ""
+}
+
+func (x *CancelOpenWorkbenchSyncRequest) GetSessionId() string {
+	if x != nil && x.SessionId != nil {
+		return *x.SessionId
+	}
+	return ""
+}
+
+func (x *CancelOpenWorkbenchSyncRequest) GetJobId() string {
+	if x != nil && x.JobId != nil {
+		return *x.JobId
+	}
+	return ""
+}
+
+// Response confirming cancellation of the workbench open task.
+type CancelOpenWorkbenchSyncResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether the opening job was found and canceled.
+	Canceled      *bool `protobuf:"varint,1,opt,name=canceled" json:"canceled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelOpenWorkbenchSyncResponse) Reset() {
+	*x = CancelOpenWorkbenchSyncResponse{}
+	mi := &file_api_v1_workbench_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelOpenWorkbenchSyncResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelOpenWorkbenchSyncResponse) ProtoMessage() {}
+
+func (x *CancelOpenWorkbenchSyncResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelOpenWorkbenchSyncResponse.ProtoReflect.Descriptor instead.
+func (*CancelOpenWorkbenchSyncResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CancelOpenWorkbenchSyncResponse) GetCanceled() bool {
+	if x != nil && x.Canceled != nil {
+		return *x.Canceled
+	}
+	return false
+}
+
 // Request to watch the search index construction progress of an active Workbench session.
 type WatchIndexProgressRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -343,7 +608,7 @@ type WatchIndexProgressRequest struct {
 
 func (x *WatchIndexProgressRequest) Reset() {
 	*x = WatchIndexProgressRequest{}
-	mi := &file_api_v1_workbench_proto_msgTypes[2]
+	mi := &file_api_v1_workbench_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -355,7 +620,7 @@ func (x *WatchIndexProgressRequest) String() string {
 func (*WatchIndexProgressRequest) ProtoMessage() {}
 
 func (x *WatchIndexProgressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[2]
+	mi := &file_api_v1_workbench_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -368,7 +633,7 @@ func (x *WatchIndexProgressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchIndexProgressRequest.ProtoReflect.Descriptor instead.
 func (*WatchIndexProgressRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{2}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *WatchIndexProgressRequest) GetWorkbenchId() string {
@@ -390,7 +655,7 @@ type WatchIndexProgressResponse struct {
 
 func (x *WatchIndexProgressResponse) Reset() {
 	*x = WatchIndexProgressResponse{}
-	mi := &file_api_v1_workbench_proto_msgTypes[3]
+	mi := &file_api_v1_workbench_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -402,7 +667,7 @@ func (x *WatchIndexProgressResponse) String() string {
 func (*WatchIndexProgressResponse) ProtoMessage() {}
 
 func (x *WatchIndexProgressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[3]
+	mi := &file_api_v1_workbench_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -415,7 +680,7 @@ func (x *WatchIndexProgressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchIndexProgressResponse.ProtoReflect.Descriptor instead.
 func (*WatchIndexProgressResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{3}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *WatchIndexProgressResponse) GetState() WatchIndexProgressResponse_IndexState {
@@ -439,6 +704,116 @@ func (x *WatchIndexProgressResponse) GetMessage() string {
 	return ""
 }
 
+// Request to pull search index construction progress without opening a persistent stream.
+type PullIndexProgressRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The active workbench session identifier.
+	WorkbenchId   *string `protobuf:"bytes,1,opt,name=workbench_id,json=workbenchId" json:"workbench_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullIndexProgressRequest) Reset() {
+	*x = PullIndexProgressRequest{}
+	mi := &file_api_v1_workbench_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullIndexProgressRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullIndexProgressRequest) ProtoMessage() {}
+
+func (x *PullIndexProgressRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullIndexProgressRequest.ProtoReflect.Descriptor instead.
+func (*PullIndexProgressRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *PullIndexProgressRequest) GetWorkbenchId() string {
+	if x != nil && x.WorkbenchId != nil {
+		return *x.WorkbenchId
+	}
+	return ""
+}
+
+// Response containing the search index construction progress snapshot.
+type PullIndexProgressResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Lifecycle state of search index construction.
+	State *WatchIndexProgressResponse_IndexState `protobuf:"varint,1,opt,name=state,enum=api.v1.WatchIndexProgressResponse_IndexState" json:"state,omitempty"`
+	// Index construction progress percentage (0 - 100).
+	ProgressPercentage *float64 `protobuf:"fixed64,2,opt,name=progress_percentage,json=progressPercentage" json:"progress_percentage,omitempty"`
+	// Informational status message.
+	Message       *string `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullIndexProgressResponse) Reset() {
+	*x = PullIndexProgressResponse{}
+	mi := &file_api_v1_workbench_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullIndexProgressResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullIndexProgressResponse) ProtoMessage() {}
+
+func (x *PullIndexProgressResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullIndexProgressResponse.ProtoReflect.Descriptor instead.
+func (*PullIndexProgressResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *PullIndexProgressResponse) GetState() WatchIndexProgressResponse_IndexState {
+	if x != nil && x.State != nil {
+		return *x.State
+	}
+	return WatchIndexProgressResponse_INDEX_STATE_UNSPECIFIED
+}
+
+func (x *PullIndexProgressResponse) GetProgressPercentage() float64 {
+	if x != nil && x.ProgressPercentage != nil {
+		return *x.ProgressPercentage
+	}
+	return 0
+}
+
+func (x *PullIndexProgressResponse) GetMessage() string {
+	if x != nil && x.Message != nil {
+		return *x.Message
+	}
+	return ""
+}
+
 // Request to refresh the lease TTL of an active Workbench session.
 type HeartbeatWorkbenchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -449,7 +824,7 @@ type HeartbeatWorkbenchRequest struct {
 
 func (x *HeartbeatWorkbenchRequest) Reset() {
 	*x = HeartbeatWorkbenchRequest{}
-	mi := &file_api_v1_workbench_proto_msgTypes[4]
+	mi := &file_api_v1_workbench_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -461,7 +836,7 @@ func (x *HeartbeatWorkbenchRequest) String() string {
 func (*HeartbeatWorkbenchRequest) ProtoMessage() {}
 
 func (x *HeartbeatWorkbenchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[4]
+	mi := &file_api_v1_workbench_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -474,7 +849,7 @@ func (x *HeartbeatWorkbenchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatWorkbenchRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatWorkbenchRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{4}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *HeartbeatWorkbenchRequest) GetWorkbenchId() string {
@@ -495,7 +870,7 @@ type HeartbeatWorkbenchResponse struct {
 
 func (x *HeartbeatWorkbenchResponse) Reset() {
 	*x = HeartbeatWorkbenchResponse{}
-	mi := &file_api_v1_workbench_proto_msgTypes[5]
+	mi := &file_api_v1_workbench_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -507,7 +882,7 @@ func (x *HeartbeatWorkbenchResponse) String() string {
 func (*HeartbeatWorkbenchResponse) ProtoMessage() {}
 
 func (x *HeartbeatWorkbenchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[5]
+	mi := &file_api_v1_workbench_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -520,7 +895,7 @@ func (x *HeartbeatWorkbenchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatWorkbenchResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatWorkbenchResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{5}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *HeartbeatWorkbenchResponse) GetActive() bool {
@@ -550,7 +925,7 @@ type ReadStructYAMLRequest struct {
 
 func (x *ReadStructYAMLRequest) Reset() {
 	*x = ReadStructYAMLRequest{}
-	mi := &file_api_v1_workbench_proto_msgTypes[6]
+	mi := &file_api_v1_workbench_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -562,7 +937,7 @@ func (x *ReadStructYAMLRequest) String() string {
 func (*ReadStructYAMLRequest) ProtoMessage() {}
 
 func (x *ReadStructYAMLRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[6]
+	mi := &file_api_v1_workbench_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -575,7 +950,7 @@ func (x *ReadStructYAMLRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadStructYAMLRequest.ProtoReflect.Descriptor instead.
 func (*ReadStructYAMLRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{6}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ReadStructYAMLRequest) GetWorkbenchId() string {
@@ -603,7 +978,7 @@ type ReadStructYAMLResponse struct {
 
 func (x *ReadStructYAMLResponse) Reset() {
 	*x = ReadStructYAMLResponse{}
-	mi := &file_api_v1_workbench_proto_msgTypes[7]
+	mi := &file_api_v1_workbench_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -615,7 +990,7 @@ func (x *ReadStructYAMLResponse) String() string {
 func (*ReadStructYAMLResponse) ProtoMessage() {}
 
 func (x *ReadStructYAMLResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[7]
+	mi := &file_api_v1_workbench_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -628,7 +1003,7 @@ func (x *ReadStructYAMLResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadStructYAMLResponse.ProtoReflect.Descriptor instead.
 func (*ReadStructYAMLResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{7}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ReadStructYAMLResponse) GetYaml() string {
@@ -657,7 +1032,7 @@ type FilterTimelineRequest struct {
 
 func (x *FilterTimelineRequest) Reset() {
 	*x = FilterTimelineRequest{}
-	mi := &file_api_v1_workbench_proto_msgTypes[8]
+	mi := &file_api_v1_workbench_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -669,7 +1044,7 @@ func (x *FilterTimelineRequest) String() string {
 func (*FilterTimelineRequest) ProtoMessage() {}
 
 func (x *FilterTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[8]
+	mi := &file_api_v1_workbench_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -682,7 +1057,7 @@ func (x *FilterTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterTimelineRequest.ProtoReflect.Descriptor instead.
 func (*FilterTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{8}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *FilterTimelineRequest) GetWorkbenchId() string {
@@ -735,7 +1110,7 @@ type FilterProgress struct {
 
 func (x *FilterProgress) Reset() {
 	*x = FilterProgress{}
-	mi := &file_api_v1_workbench_proto_msgTypes[9]
+	mi := &file_api_v1_workbench_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -747,7 +1122,7 @@ func (x *FilterProgress) String() string {
 func (*FilterProgress) ProtoMessage() {}
 
 func (x *FilterProgress) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[9]
+	mi := &file_api_v1_workbench_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -760,7 +1135,7 @@ func (x *FilterProgress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterProgress.ProtoReflect.Descriptor instead.
 func (*FilterProgress) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{9}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *FilterProgress) GetStageName() string {
@@ -797,7 +1172,7 @@ type SparseBitset struct {
 
 func (x *SparseBitset) Reset() {
 	*x = SparseBitset{}
-	mi := &file_api_v1_workbench_proto_msgTypes[10]
+	mi := &file_api_v1_workbench_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -809,7 +1184,7 @@ func (x *SparseBitset) String() string {
 func (*SparseBitset) ProtoMessage() {}
 
 func (x *SparseBitset) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[10]
+	mi := &file_api_v1_workbench_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -822,7 +1197,7 @@ func (x *SparseBitset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SparseBitset.ProtoReflect.Descriptor instead.
 func (*SparseBitset) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{10}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SparseBitset) GetIndices() []uint32 {
@@ -856,7 +1231,7 @@ type FilterResult struct {
 
 func (x *FilterResult) Reset() {
 	*x = FilterResult{}
-	mi := &file_api_v1_workbench_proto_msgTypes[11]
+	mi := &file_api_v1_workbench_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -868,7 +1243,7 @@ func (x *FilterResult) String() string {
 func (*FilterResult) ProtoMessage() {}
 
 func (x *FilterResult) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[11]
+	mi := &file_api_v1_workbench_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -881,7 +1256,7 @@ func (x *FilterResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterResult.ProtoReflect.Descriptor instead.
 func (*FilterResult) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{11}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *FilterResult) GetTimelineMode() FilterResultMode {
@@ -928,7 +1303,7 @@ type FilterTimelineResponse struct {
 
 func (x *FilterTimelineResponse) Reset() {
 	*x = FilterTimelineResponse{}
-	mi := &file_api_v1_workbench_proto_msgTypes[12]
+	mi := &file_api_v1_workbench_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -940,7 +1315,7 @@ func (x *FilterTimelineResponse) String() string {
 func (*FilterTimelineResponse) ProtoMessage() {}
 
 func (x *FilterTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[12]
+	mi := &file_api_v1_workbench_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -953,7 +1328,7 @@ func (x *FilterTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterTimelineResponse.ProtoReflect.Descriptor instead.
 func (*FilterTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{12}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *FilterTimelineResponse) GetPayload() isFilterTimelineResponse_Payload {
@@ -997,6 +1372,280 @@ func (*FilterTimelineResponse_Progress) isFilterTimelineResponse_Payload() {}
 
 func (*FilterTimelineResponse_Result) isFilterTimelineResponse_Payload() {}
 
+// Request to start or poll a timeline and log filter evaluation task.
+type FilterTimelineSyncRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The active workbench session identifier.
+	WorkbenchId *string `protobuf:"bytes,1,opt,name=workbench_id,json=workbenchId" json:"workbench_id,omitempty"`
+	// CEL expression to filter timelines by path, name, or metadata. Empty string matches all timelines.
+	TimelineQuery *string `protobuf:"bytes,2,opt,name=timeline_query,json=timelineQuery" json:"timeline_query,omitempty"`
+	// CEL expression to exclude timelines and their descendants. Empty string excludes none.
+	TimelineExclusionQuery *string `protobuf:"bytes,3,opt,name=timeline_exclusion_query,json=timelineExclusionQuery" json:"timeline_exclusion_query,omitempty"`
+	// CEL expression to filter log entries within remaining timelines. Empty string matches all logs.
+	LogQuery *string `protobuf:"bytes,4,opt,name=log_query,json=logQuery" json:"log_query,omitempty"`
+	// When true, excludes timelines that contain no matching log entries.
+	ExcludeNoLogs *bool `protobuf:"varint,5,opt,name=exclude_no_logs,json=excludeNoLogs" json:"exclude_no_logs,omitempty"`
+	// Job identifier returned from a previous call, or empty to start a new filter task.
+	JobId         *string `protobuf:"bytes,6,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilterTimelineSyncRequest) Reset() {
+	*x = FilterTimelineSyncRequest{}
+	mi := &file_api_v1_workbench_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilterTimelineSyncRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilterTimelineSyncRequest) ProtoMessage() {}
+
+func (x *FilterTimelineSyncRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilterTimelineSyncRequest.ProtoReflect.Descriptor instead.
+func (*FilterTimelineSyncRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *FilterTimelineSyncRequest) GetWorkbenchId() string {
+	if x != nil && x.WorkbenchId != nil {
+		return *x.WorkbenchId
+	}
+	return ""
+}
+
+func (x *FilterTimelineSyncRequest) GetTimelineQuery() string {
+	if x != nil && x.TimelineQuery != nil {
+		return *x.TimelineQuery
+	}
+	return ""
+}
+
+func (x *FilterTimelineSyncRequest) GetTimelineExclusionQuery() string {
+	if x != nil && x.TimelineExclusionQuery != nil {
+		return *x.TimelineExclusionQuery
+	}
+	return ""
+}
+
+func (x *FilterTimelineSyncRequest) GetLogQuery() string {
+	if x != nil && x.LogQuery != nil {
+		return *x.LogQuery
+	}
+	return ""
+}
+
+func (x *FilterTimelineSyncRequest) GetExcludeNoLogs() bool {
+	if x != nil && x.ExcludeNoLogs != nil {
+		return *x.ExcludeNoLogs
+	}
+	return false
+}
+
+func (x *FilterTimelineSyncRequest) GetJobId() string {
+	if x != nil && x.JobId != nil {
+		return *x.JobId
+	}
+	return ""
+}
+
+// Response containing current progress or final filter result.
+type FilterTimelineSyncResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique job identifier tracking this filter task.
+	JobId *string `protobuf:"bytes,1,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	// Whether the filter task has completed.
+	IsDone *bool `protobuf:"varint,2,opt,name=is_done,json=isDone" json:"is_done,omitempty"`
+	// Current intermediate progress update.
+	Progress *FilterProgress `protobuf:"bytes,3,opt,name=progress" json:"progress,omitempty"`
+	// Final filter result, populated only when is_done is true.
+	Result *FilterResult `protobuf:"bytes,4,opt,name=result" json:"result,omitempty"`
+	// Error message if the filter task failed.
+	ErrorMessage  *string `protobuf:"bytes,5,opt,name=error_message,json=errorMessage" json:"error_message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilterTimelineSyncResponse) Reset() {
+	*x = FilterTimelineSyncResponse{}
+	mi := &file_api_v1_workbench_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilterTimelineSyncResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilterTimelineSyncResponse) ProtoMessage() {}
+
+func (x *FilterTimelineSyncResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilterTimelineSyncResponse.ProtoReflect.Descriptor instead.
+func (*FilterTimelineSyncResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *FilterTimelineSyncResponse) GetJobId() string {
+	if x != nil && x.JobId != nil {
+		return *x.JobId
+	}
+	return ""
+}
+
+func (x *FilterTimelineSyncResponse) GetIsDone() bool {
+	if x != nil && x.IsDone != nil {
+		return *x.IsDone
+	}
+	return false
+}
+
+func (x *FilterTimelineSyncResponse) GetProgress() *FilterProgress {
+	if x != nil {
+		return x.Progress
+	}
+	return nil
+}
+
+func (x *FilterTimelineSyncResponse) GetResult() *FilterResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
+func (x *FilterTimelineSyncResponse) GetErrorMessage() string {
+	if x != nil && x.ErrorMessage != nil {
+		return *x.ErrorMessage
+	}
+	return ""
+}
+
+// Request to cancel an ongoing timeline filter task.
+type CancelFilterTimelineSyncRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The active workbench session identifier.
+	WorkbenchId *string `protobuf:"bytes,1,opt,name=workbench_id,json=workbenchId" json:"workbench_id,omitempty"`
+	// Job identifier of the filter task to cancel.
+	JobId         *string `protobuf:"bytes,2,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelFilterTimelineSyncRequest) Reset() {
+	*x = CancelFilterTimelineSyncRequest{}
+	mi := &file_api_v1_workbench_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelFilterTimelineSyncRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelFilterTimelineSyncRequest) ProtoMessage() {}
+
+func (x *CancelFilterTimelineSyncRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelFilterTimelineSyncRequest.ProtoReflect.Descriptor instead.
+func (*CancelFilterTimelineSyncRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CancelFilterTimelineSyncRequest) GetWorkbenchId() string {
+	if x != nil && x.WorkbenchId != nil {
+		return *x.WorkbenchId
+	}
+	return ""
+}
+
+func (x *CancelFilterTimelineSyncRequest) GetJobId() string {
+	if x != nil && x.JobId != nil {
+		return *x.JobId
+	}
+	return ""
+}
+
+// Response confirming cancellation of the filter task.
+type CancelFilterTimelineSyncResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether the filter job was found and canceled.
+	Canceled      *bool `protobuf:"varint,1,opt,name=canceled" json:"canceled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelFilterTimelineSyncResponse) Reset() {
+	*x = CancelFilterTimelineSyncResponse{}
+	mi := &file_api_v1_workbench_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelFilterTimelineSyncResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelFilterTimelineSyncResponse) ProtoMessage() {}
+
+func (x *CancelFilterTimelineSyncResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelFilterTimelineSyncResponse.ProtoReflect.Descriptor instead.
+func (*CancelFilterTimelineSyncResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *CancelFilterTimelineSyncResponse) GetCanceled() bool {
+	if x != nil && x.Canceled != nil {
+		return *x.Canceled
+	}
+	return false
+}
+
 // Request to close and release a Workbench session immediately.
 type CloseWorkbenchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1007,7 +1656,7 @@ type CloseWorkbenchRequest struct {
 
 func (x *CloseWorkbenchRequest) Reset() {
 	*x = CloseWorkbenchRequest{}
-	mi := &file_api_v1_workbench_proto_msgTypes[13]
+	mi := &file_api_v1_workbench_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1019,7 +1668,7 @@ func (x *CloseWorkbenchRequest) String() string {
 func (*CloseWorkbenchRequest) ProtoMessage() {}
 
 func (x *CloseWorkbenchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[13]
+	mi := &file_api_v1_workbench_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1032,7 +1681,7 @@ func (x *CloseWorkbenchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseWorkbenchRequest.ProtoReflect.Descriptor instead.
 func (*CloseWorkbenchRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{13}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CloseWorkbenchRequest) GetWorkbenchId() string {
@@ -1052,7 +1701,7 @@ type CloseWorkbenchResponse struct {
 
 func (x *CloseWorkbenchResponse) Reset() {
 	*x = CloseWorkbenchResponse{}
-	mi := &file_api_v1_workbench_proto_msgTypes[14]
+	mi := &file_api_v1_workbench_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1064,7 +1713,7 @@ func (x *CloseWorkbenchResponse) String() string {
 func (*CloseWorkbenchResponse) ProtoMessage() {}
 
 func (x *CloseWorkbenchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[14]
+	mi := &file_api_v1_workbench_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1077,7 +1726,7 @@ func (x *CloseWorkbenchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseWorkbenchResponse.ProtoReflect.Descriptor instead.
 func (*CloseWorkbenchResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{14}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CloseWorkbenchResponse) GetClosed() bool {
@@ -1108,7 +1757,26 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\x12STAGE_READING_FILE\x10\x02\x12\x18\n" +
 	"\x14STAGE_PARSING_CHUNKS\x10\x03\x12\x17\n" +
 	"\x13STAGE_INDEXING_DATA\x10\x04\x12\x0f\n" +
-	"\vSTAGE_READY\x10\x05\">\n" +
+	"\vSTAGE_READY\x10\x05\"\x8e\x01\n" +
+	"\x18OpenWorkbenchSyncRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12#\n" +
+	"\rinspection_id\x18\x03 \x01(\tR\finspectionId\x12\x15\n" +
+	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xdb\x01\n" +
+	"\x19OpenWorkbenchSyncResponse\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x129\n" +
+	"\x05stage\x18\x02 \x01(\x0e2#.api.v1.OpenWorkbenchResponse.StageR\x05stage\x12/\n" +
+	"\x13progress_percentage\x18\x03 \x01(\x01R\x12progressPercentage\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\x12!\n" +
+	"\fworkbench_id\x18\x05 \x01(\tR\vworkbenchId\"o\n" +
+	"\x1eCancelOpenWorkbenchSyncRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x15\n" +
+	"\x06job_id\x18\x03 \x01(\tR\x05jobId\"=\n" +
+	"\x1fCancelOpenWorkbenchSyncResponse\x12\x1a\n" +
+	"\bcanceled\x18\x01 \x01(\bR\bcanceled\">\n" +
 	"\x19WatchIndexProgressRequest\x12!\n" +
 	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\"\xa0\x02\n" +
 	"\x1aWatchIndexProgressResponse\x12C\n" +
@@ -1120,7 +1788,13 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\x17INDEX_STATE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14INDEX_STATE_BUILDING\x10\x01\x12\x15\n" +
 	"\x11INDEX_STATE_READY\x10\x02\x12\x16\n" +
-	"\x12INDEX_STATE_FAILED\x10\x03\">\n" +
+	"\x12INDEX_STATE_FAILED\x10\x03\"=\n" +
+	"\x18PullIndexProgressRequest\x12!\n" +
+	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\"\xab\x01\n" +
+	"\x19PullIndexProgressResponse\x12C\n" +
+	"\x05state\x18\x01 \x01(\x0e2-.api.v1.WatchIndexProgressResponse.IndexStateR\x05state\x12/\n" +
+	"\x13progress_percentage\x18\x02 \x01(\x01R\x12progressPercentage\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\">\n" +
 	"\x19HeartbeatWorkbenchRequest\x12!\n" +
 	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\"o\n" +
 	"\x1aHeartbeatWorkbenchResponse\x12\x16\n" +
@@ -1155,7 +1829,25 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\x16FilterTimelineResponse\x124\n" +
 	"\bprogress\x18\x01 \x01(\v2\x16.api.v1.FilterProgressH\x00R\bprogress\x12.\n" +
 	"\x06result\x18\x02 \x01(\v2\x14.api.v1.FilterResultH\x00R\x06resultB\t\n" +
-	"\apayload\":\n" +
+	"\apayload\"\xfb\x01\n" +
+	"\x19FilterTimelineSyncRequest\x12!\n" +
+	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\x12%\n" +
+	"\x0etimeline_query\x18\x02 \x01(\tR\rtimelineQuery\x128\n" +
+	"\x18timeline_exclusion_query\x18\x03 \x01(\tR\x16timelineExclusionQuery\x12\x1b\n" +
+	"\tlog_query\x18\x04 \x01(\tR\blogQuery\x12&\n" +
+	"\x0fexclude_no_logs\x18\x05 \x01(\bR\rexcludeNoLogs\x12\x15\n" +
+	"\x06job_id\x18\x06 \x01(\tR\x05jobId\"\xd3\x01\n" +
+	"\x1aFilterTimelineSyncResponse\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x17\n" +
+	"\ais_done\x18\x02 \x01(\bR\x06isDone\x122\n" +
+	"\bprogress\x18\x03 \x01(\v2\x16.api.v1.FilterProgressR\bprogress\x12,\n" +
+	"\x06result\x18\x04 \x01(\v2\x14.api.v1.FilterResultR\x06result\x12#\n" +
+	"\rerror_message\x18\x05 \x01(\tR\ferrorMessage\"[\n" +
+	"\x1fCancelFilterTimelineSyncRequest\x12!\n" +
+	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\x12\x15\n" +
+	"\x06job_id\x18\x02 \x01(\tR\x05jobId\">\n" +
+	" CancelFilterTimelineSyncResponse\x12\x1a\n" +
+	"\bcanceled\x18\x01 \x01(\bR\bcanceled\":\n" +
 	"\x15CloseWorkbenchRequest\x12!\n" +
 	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\"0\n" +
 	"\x16CloseWorkbenchResponse\x12\x16\n" +
@@ -1163,13 +1855,18 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\x10FilterResultMode\x12\"\n" +
 	"\x1eFILTER_RESULT_MODE_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aFILTER_RESULT_MODE_INCLUDE\x10\x01\x12\x1e\n" +
-	"\x1aFILTER_RESULT_MODE_EXCLUDE\x10\x022\x93\x04\n" +
+	"\x1aFILTER_RESULT_MODE_EXCLUDE\x10\x022\xff\a\n" +
 	"\x10WorkbenchService\x12N\n" +
-	"\rOpenWorkbench\x12\x1c.api.v1.OpenWorkbenchRequest\x1a\x1d.api.v1.OpenWorkbenchResponse0\x01\x12]\n" +
-	"\x12WatchIndexProgress\x12!.api.v1.WatchIndexProgressRequest\x1a\".api.v1.WatchIndexProgressResponse0\x01\x12[\n" +
+	"\rOpenWorkbench\x12\x1c.api.v1.OpenWorkbenchRequest\x1a\x1d.api.v1.OpenWorkbenchResponse0\x01\x12X\n" +
+	"\x11OpenWorkbenchSync\x12 .api.v1.OpenWorkbenchSyncRequest\x1a!.api.v1.OpenWorkbenchSyncResponse\x12j\n" +
+	"\x17CancelOpenWorkbenchSync\x12&.api.v1.CancelOpenWorkbenchSyncRequest\x1a'.api.v1.CancelOpenWorkbenchSyncResponse\x12]\n" +
+	"\x12WatchIndexProgress\x12!.api.v1.WatchIndexProgressRequest\x1a\".api.v1.WatchIndexProgressResponse0\x01\x12X\n" +
+	"\x11PullIndexProgress\x12 .api.v1.PullIndexProgressRequest\x1a!.api.v1.PullIndexProgressResponse\x12[\n" +
 	"\x12HeartbeatWorkbench\x12!.api.v1.HeartbeatWorkbenchRequest\x1a\".api.v1.HeartbeatWorkbenchResponse\x12O\n" +
 	"\x0eReadStructYAML\x12\x1d.api.v1.ReadStructYAMLRequest\x1a\x1e.api.v1.ReadStructYAMLResponse\x12Q\n" +
-	"\x0eFilterTimeline\x12\x1d.api.v1.FilterTimelineRequest\x1a\x1e.api.v1.FilterTimelineResponse0\x01\x12O\n" +
+	"\x0eFilterTimeline\x12\x1d.api.v1.FilterTimelineRequest\x1a\x1e.api.v1.FilterTimelineResponse0\x01\x12[\n" +
+	"\x12FilterTimelineSync\x12!.api.v1.FilterTimelineSyncRequest\x1a\".api.v1.FilterTimelineSyncResponse\x12m\n" +
+	"\x18CancelFilterTimelineSync\x12'.api.v1.CancelFilterTimelineSyncRequest\x1a(.api.v1.CancelFilterTimelineSyncResponse\x12O\n" +
 	"\x0eCloseWorkbench\x12\x1d.api.v1.CloseWorkbenchRequest\x1a\x1e.api.v1.CloseWorkbenchResponseB?Z=github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1b\beditionsp\xe8\a"
 
 var (
@@ -1185,55 +1882,79 @@ func file_api_v1_workbench_proto_rawDescGZIP() []byte {
 }
 
 var file_api_v1_workbench_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_api_v1_workbench_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_api_v1_workbench_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_api_v1_workbench_proto_goTypes = []any{
 	(FilterResultMode)(0),                      // 0: api.v1.FilterResultMode
 	(OpenWorkbenchResponse_Stage)(0),           // 1: api.v1.OpenWorkbenchResponse.Stage
 	(WatchIndexProgressResponse_IndexState)(0), // 2: api.v1.WatchIndexProgressResponse.IndexState
 	(*OpenWorkbenchRequest)(nil),               // 3: api.v1.OpenWorkbenchRequest
 	(*OpenWorkbenchResponse)(nil),              // 4: api.v1.OpenWorkbenchResponse
-	(*WatchIndexProgressRequest)(nil),          // 5: api.v1.WatchIndexProgressRequest
-	(*WatchIndexProgressResponse)(nil),         // 6: api.v1.WatchIndexProgressResponse
-	(*HeartbeatWorkbenchRequest)(nil),          // 7: api.v1.HeartbeatWorkbenchRequest
-	(*HeartbeatWorkbenchResponse)(nil),         // 8: api.v1.HeartbeatWorkbenchResponse
-	(*ReadStructYAMLRequest)(nil),              // 9: api.v1.ReadStructYAMLRequest
-	(*ReadStructYAMLResponse)(nil),             // 10: api.v1.ReadStructYAMLResponse
-	(*FilterTimelineRequest)(nil),              // 11: api.v1.FilterTimelineRequest
-	(*FilterProgress)(nil),                     // 12: api.v1.FilterProgress
-	(*SparseBitset)(nil),                       // 13: api.v1.SparseBitset
-	(*FilterResult)(nil),                       // 14: api.v1.FilterResult
-	(*FilterTimelineResponse)(nil),             // 15: api.v1.FilterTimelineResponse
-	(*CloseWorkbenchRequest)(nil),              // 16: api.v1.CloseWorkbenchRequest
-	(*CloseWorkbenchResponse)(nil),             // 17: api.v1.CloseWorkbenchResponse
-	(*timestamppb.Timestamp)(nil),              // 18: google.protobuf.Timestamp
+	(*OpenWorkbenchSyncRequest)(nil),           // 5: api.v1.OpenWorkbenchSyncRequest
+	(*OpenWorkbenchSyncResponse)(nil),          // 6: api.v1.OpenWorkbenchSyncResponse
+	(*CancelOpenWorkbenchSyncRequest)(nil),     // 7: api.v1.CancelOpenWorkbenchSyncRequest
+	(*CancelOpenWorkbenchSyncResponse)(nil),    // 8: api.v1.CancelOpenWorkbenchSyncResponse
+	(*WatchIndexProgressRequest)(nil),          // 9: api.v1.WatchIndexProgressRequest
+	(*WatchIndexProgressResponse)(nil),         // 10: api.v1.WatchIndexProgressResponse
+	(*PullIndexProgressRequest)(nil),           // 11: api.v1.PullIndexProgressRequest
+	(*PullIndexProgressResponse)(nil),          // 12: api.v1.PullIndexProgressResponse
+	(*HeartbeatWorkbenchRequest)(nil),          // 13: api.v1.HeartbeatWorkbenchRequest
+	(*HeartbeatWorkbenchResponse)(nil),         // 14: api.v1.HeartbeatWorkbenchResponse
+	(*ReadStructYAMLRequest)(nil),              // 15: api.v1.ReadStructYAMLRequest
+	(*ReadStructYAMLResponse)(nil),             // 16: api.v1.ReadStructYAMLResponse
+	(*FilterTimelineRequest)(nil),              // 17: api.v1.FilterTimelineRequest
+	(*FilterProgress)(nil),                     // 18: api.v1.FilterProgress
+	(*SparseBitset)(nil),                       // 19: api.v1.SparseBitset
+	(*FilterResult)(nil),                       // 20: api.v1.FilterResult
+	(*FilterTimelineResponse)(nil),             // 21: api.v1.FilterTimelineResponse
+	(*FilterTimelineSyncRequest)(nil),          // 22: api.v1.FilterTimelineSyncRequest
+	(*FilterTimelineSyncResponse)(nil),         // 23: api.v1.FilterTimelineSyncResponse
+	(*CancelFilterTimelineSyncRequest)(nil),    // 24: api.v1.CancelFilterTimelineSyncRequest
+	(*CancelFilterTimelineSyncResponse)(nil),   // 25: api.v1.CancelFilterTimelineSyncResponse
+	(*CloseWorkbenchRequest)(nil),              // 26: api.v1.CloseWorkbenchRequest
+	(*CloseWorkbenchResponse)(nil),             // 27: api.v1.CloseWorkbenchResponse
+	(*timestamppb.Timestamp)(nil),              // 28: google.protobuf.Timestamp
 }
 var file_api_v1_workbench_proto_depIdxs = []int32{
 	1,  // 0: api.v1.OpenWorkbenchResponse.stage:type_name -> api.v1.OpenWorkbenchResponse.Stage
-	2,  // 1: api.v1.WatchIndexProgressResponse.state:type_name -> api.v1.WatchIndexProgressResponse.IndexState
-	18, // 2: api.v1.HeartbeatWorkbenchResponse.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 3: api.v1.FilterResult.timeline_mode:type_name -> api.v1.FilterResultMode
-	13, // 4: api.v1.FilterResult.timeline_bitset:type_name -> api.v1.SparseBitset
-	0,  // 5: api.v1.FilterResult.log_mode:type_name -> api.v1.FilterResultMode
-	13, // 6: api.v1.FilterResult.log_bitset:type_name -> api.v1.SparseBitset
-	12, // 7: api.v1.FilterTimelineResponse.progress:type_name -> api.v1.FilterProgress
-	14, // 8: api.v1.FilterTimelineResponse.result:type_name -> api.v1.FilterResult
-	3,  // 9: api.v1.WorkbenchService.OpenWorkbench:input_type -> api.v1.OpenWorkbenchRequest
-	5,  // 10: api.v1.WorkbenchService.WatchIndexProgress:input_type -> api.v1.WatchIndexProgressRequest
-	7,  // 11: api.v1.WorkbenchService.HeartbeatWorkbench:input_type -> api.v1.HeartbeatWorkbenchRequest
-	9,  // 12: api.v1.WorkbenchService.ReadStructYAML:input_type -> api.v1.ReadStructYAMLRequest
-	11, // 13: api.v1.WorkbenchService.FilterTimeline:input_type -> api.v1.FilterTimelineRequest
-	16, // 14: api.v1.WorkbenchService.CloseWorkbench:input_type -> api.v1.CloseWorkbenchRequest
-	4,  // 15: api.v1.WorkbenchService.OpenWorkbench:output_type -> api.v1.OpenWorkbenchResponse
-	6,  // 16: api.v1.WorkbenchService.WatchIndexProgress:output_type -> api.v1.WatchIndexProgressResponse
-	8,  // 17: api.v1.WorkbenchService.HeartbeatWorkbench:output_type -> api.v1.HeartbeatWorkbenchResponse
-	10, // 18: api.v1.WorkbenchService.ReadStructYAML:output_type -> api.v1.ReadStructYAMLResponse
-	15, // 19: api.v1.WorkbenchService.FilterTimeline:output_type -> api.v1.FilterTimelineResponse
-	17, // 20: api.v1.WorkbenchService.CloseWorkbench:output_type -> api.v1.CloseWorkbenchResponse
-	15, // [15:21] is the sub-list for method output_type
-	9,  // [9:15] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	1,  // 1: api.v1.OpenWorkbenchSyncResponse.stage:type_name -> api.v1.OpenWorkbenchResponse.Stage
+	2,  // 2: api.v1.WatchIndexProgressResponse.state:type_name -> api.v1.WatchIndexProgressResponse.IndexState
+	2,  // 3: api.v1.PullIndexProgressResponse.state:type_name -> api.v1.WatchIndexProgressResponse.IndexState
+	28, // 4: api.v1.HeartbeatWorkbenchResponse.expires_at:type_name -> google.protobuf.Timestamp
+	0,  // 5: api.v1.FilterResult.timeline_mode:type_name -> api.v1.FilterResultMode
+	19, // 6: api.v1.FilterResult.timeline_bitset:type_name -> api.v1.SparseBitset
+	0,  // 7: api.v1.FilterResult.log_mode:type_name -> api.v1.FilterResultMode
+	19, // 8: api.v1.FilterResult.log_bitset:type_name -> api.v1.SparseBitset
+	18, // 9: api.v1.FilterTimelineResponse.progress:type_name -> api.v1.FilterProgress
+	20, // 10: api.v1.FilterTimelineResponse.result:type_name -> api.v1.FilterResult
+	18, // 11: api.v1.FilterTimelineSyncResponse.progress:type_name -> api.v1.FilterProgress
+	20, // 12: api.v1.FilterTimelineSyncResponse.result:type_name -> api.v1.FilterResult
+	3,  // 13: api.v1.WorkbenchService.OpenWorkbench:input_type -> api.v1.OpenWorkbenchRequest
+	5,  // 14: api.v1.WorkbenchService.OpenWorkbenchSync:input_type -> api.v1.OpenWorkbenchSyncRequest
+	7,  // 15: api.v1.WorkbenchService.CancelOpenWorkbenchSync:input_type -> api.v1.CancelOpenWorkbenchSyncRequest
+	9,  // 16: api.v1.WorkbenchService.WatchIndexProgress:input_type -> api.v1.WatchIndexProgressRequest
+	11, // 17: api.v1.WorkbenchService.PullIndexProgress:input_type -> api.v1.PullIndexProgressRequest
+	13, // 18: api.v1.WorkbenchService.HeartbeatWorkbench:input_type -> api.v1.HeartbeatWorkbenchRequest
+	15, // 19: api.v1.WorkbenchService.ReadStructYAML:input_type -> api.v1.ReadStructYAMLRequest
+	17, // 20: api.v1.WorkbenchService.FilterTimeline:input_type -> api.v1.FilterTimelineRequest
+	22, // 21: api.v1.WorkbenchService.FilterTimelineSync:input_type -> api.v1.FilterTimelineSyncRequest
+	24, // 22: api.v1.WorkbenchService.CancelFilterTimelineSync:input_type -> api.v1.CancelFilterTimelineSyncRequest
+	26, // 23: api.v1.WorkbenchService.CloseWorkbench:input_type -> api.v1.CloseWorkbenchRequest
+	4,  // 24: api.v1.WorkbenchService.OpenWorkbench:output_type -> api.v1.OpenWorkbenchResponse
+	6,  // 25: api.v1.WorkbenchService.OpenWorkbenchSync:output_type -> api.v1.OpenWorkbenchSyncResponse
+	8,  // 26: api.v1.WorkbenchService.CancelOpenWorkbenchSync:output_type -> api.v1.CancelOpenWorkbenchSyncResponse
+	10, // 27: api.v1.WorkbenchService.WatchIndexProgress:output_type -> api.v1.WatchIndexProgressResponse
+	12, // 28: api.v1.WorkbenchService.PullIndexProgress:output_type -> api.v1.PullIndexProgressResponse
+	14, // 29: api.v1.WorkbenchService.HeartbeatWorkbench:output_type -> api.v1.HeartbeatWorkbenchResponse
+	16, // 30: api.v1.WorkbenchService.ReadStructYAML:output_type -> api.v1.ReadStructYAMLResponse
+	21, // 31: api.v1.WorkbenchService.FilterTimeline:output_type -> api.v1.FilterTimelineResponse
+	23, // 32: api.v1.WorkbenchService.FilterTimelineSync:output_type -> api.v1.FilterTimelineSyncResponse
+	25, // 33: api.v1.WorkbenchService.CancelFilterTimelineSync:output_type -> api.v1.CancelFilterTimelineSyncResponse
+	27, // 34: api.v1.WorkbenchService.CloseWorkbench:output_type -> api.v1.CloseWorkbenchResponse
+	24, // [24:35] is the sub-list for method output_type
+	13, // [13:24] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_workbench_proto_init() }
@@ -1241,7 +1962,7 @@ func file_api_v1_workbench_proto_init() {
 	if File_api_v1_workbench_proto != nil {
 		return
 	}
-	file_api_v1_workbench_proto_msgTypes[12].OneofWrappers = []any{
+	file_api_v1_workbench_proto_msgTypes[18].OneofWrappers = []any{
 		(*FilterTimelineResponse_Progress)(nil),
 		(*FilterTimelineResponse_Result)(nil),
 	}
@@ -1251,7 +1972,7 @@ func file_api_v1_workbench_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_workbench_proto_rawDesc), len(file_api_v1_workbench_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   15,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

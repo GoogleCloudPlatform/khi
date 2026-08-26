@@ -323,3 +323,52 @@ func TestPopupServer_SubmitPopupAnswer(t *testing.T) {
 		})
 	}
 }
+
+func TestPopupServer_PullPopup(t *testing.T) {
+	testCases := []struct {
+		name      string
+		form      popup.PopupForm
+		wantPopup *v1.PopupForm
+	}{
+		{
+			name: "pull active popup",
+			form: &testForm{title: "Test Popup"},
+			wantPopup: &v1.PopupForm{
+				Title:       proto.String("Test Popup"),
+				Description: proto.String("test desc"),
+				Payload: &v1.PopupForm_Text{
+					Text: &v1.TextPopupPayload{Placeholder: proto.String("test placeholder")},
+				},
+			},
+		},
+		{
+			name:      "pull when no popup active",
+			form:      nil,
+			wantPopup: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pm := popup.NewPopupManager()
+			server := NewPopupServer(pm)
+
+			if tc.form != nil {
+				go func() {
+					_, _ = pm.ShowPopup(tc.form)
+				}()
+				time.Sleep(50 * time.Millisecond)
+			}
+
+			req := connect.NewRequest(&v1.PullPopupRequest{})
+			resp, err := server.PullPopup(context.Background(), req)
+			if err != nil {
+				t.Fatalf("PullPopup failed: %v", err)
+			}
+
+			if diff := cmp.Diff(tc.wantPopup, resp.Msg.Popup, protocmp.Transform(), protocmp.IgnoreFields(&v1.PopupForm{}, "id")); diff != "" {
+				t.Errorf("PullPopup result mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

@@ -46,23 +46,23 @@ func setupTestServerStatusServer(
 	return ts, client
 }
 
-func TestServerStatusServiceServer_GetServerStat(t *testing.T) {
+func TestServerStatusServiceServer_PullServerStat(t *testing.T) {
 	testCases := []struct {
 		name     string
 		mock     *server.ResourceMonitorMock
 		wantStat *apiv1.ServerStat
 	}{
 		{
-			name: "returns resource monitor values",
+			name: "pulls resource monitor snapshot",
 			mock: &server.ResourceMonitorMock{
-				UsedMemory:  1024 * 1024 * 50,
-				TotalMemory: 1024 * 1024 * 1024 * 16,
-				CPUUsage:    42.5,
+				UsedMemory:  1024 * 1024 * 64,
+				TotalMemory: 1024 * 1024 * 1024 * 32,
+				CPUUsage:    75.2,
 			},
 			wantStat: &apiv1.ServerStat{
-				CurrentMemoryUsage: proto.Uint64(1024 * 1024 * 50),
-				TotalMemory:        proto.Uint64(1024 * 1024 * 1024 * 16),
-				CpuUsagePercentage: proto.Float64(42.5),
+				CurrentMemoryUsage: proto.Uint64(1024 * 1024 * 64),
+				TotalMemory:        proto.Uint64(1024 * 1024 * 1024 * 32),
+				CpuUsagePercentage: proto.Float64(75.2),
 			},
 		},
 	}
@@ -72,13 +72,13 @@ func TestServerStatusServiceServer_GetServerStat(t *testing.T) {
 			ts, client := setupTestServerStatusServer(t, tc.mock, 30*time.Second, 1*time.Second)
 			defer ts.Close()
 
-			res, err := client.GetServerStat(context.Background(), connect.NewRequest(&apiv1.GetServerStatRequest{}))
+			res, err := client.PullServerStat(context.Background(), connect.NewRequest(&apiv1.PullServerStatRequest{}))
 			if err != nil {
-				t.Fatalf("GetServerStat() unexpected error: %v", err)
+				t.Fatalf("PullServerStat() unexpected error: %v", err)
 			}
 
 			if diff := cmp.Diff(tc.wantStat, res.Msg.GetServerStat(), protocmp.Transform()); diff != "" {
-				t.Errorf("GetServerStat() mismatch (-want +got):\n%s", diff)
+				t.Errorf("PullServerStat() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

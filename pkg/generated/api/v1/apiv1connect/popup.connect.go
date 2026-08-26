@@ -55,6 +55,8 @@ const (
 	// PopupServiceSubmitPopupAnswerProcedure is the fully-qualified name of the PopupService's
 	// SubmitPopupAnswer RPC.
 	PopupServiceSubmitPopupAnswerProcedure = "/api.v1.PopupService/SubmitPopupAnswer"
+	// PopupServicePullPopupProcedure is the fully-qualified name of the PopupService's PullPopup RPC.
+	PopupServicePullPopupProcedure = "/api.v1.PopupService/PullPopup"
 )
 
 // PopupServiceClient is a client for the api.v1.PopupService service.
@@ -65,6 +67,8 @@ type PopupServiceClient interface {
 	ValidatePopupAnswer(context.Context, *connect.Request[v1.ValidatePopupAnswerRequest]) (*connect.Response[v1.ValidatePopupAnswerResponse], error)
 	// Submits the finalized answer for the active popup dialog.
 	SubmitPopupAnswer(context.Context, *connect.Request[v1.SubmitPopupAnswerRequest]) (*connect.Response[v1.SubmitPopupAnswerResponse], error)
+	// Retrieves the currently active popup dialog snapshot without opening a persistent stream.
+	PullPopup(context.Context, *connect.Request[v1.PullPopupRequest]) (*connect.Response[v1.PullPopupResponse], error)
 }
 
 // NewPopupServiceClient constructs a client for the api.v1.PopupService service. By default, it
@@ -96,6 +100,12 @@ func NewPopupServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(popupServiceMethods.ByName("SubmitPopupAnswer")),
 			connect.WithClientOptions(opts...),
 		),
+		pullPopup: connect.NewClient[v1.PullPopupRequest, v1.PullPopupResponse](
+			httpClient,
+			baseURL+PopupServicePullPopupProcedure,
+			connect.WithSchema(popupServiceMethods.ByName("PullPopup")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -104,6 +114,7 @@ type popupServiceClient struct {
 	watchPopup          *connect.Client[v1.WatchPopupRequest, v1.WatchPopupResponse]
 	validatePopupAnswer *connect.Client[v1.ValidatePopupAnswerRequest, v1.ValidatePopupAnswerResponse]
 	submitPopupAnswer   *connect.Client[v1.SubmitPopupAnswerRequest, v1.SubmitPopupAnswerResponse]
+	pullPopup           *connect.Client[v1.PullPopupRequest, v1.PullPopupResponse]
 }
 
 // WatchPopup calls api.v1.PopupService.WatchPopup.
@@ -121,6 +132,11 @@ func (c *popupServiceClient) SubmitPopupAnswer(ctx context.Context, req *connect
 	return c.submitPopupAnswer.CallUnary(ctx, req)
 }
 
+// PullPopup calls api.v1.PopupService.PullPopup.
+func (c *popupServiceClient) PullPopup(ctx context.Context, req *connect.Request[v1.PullPopupRequest]) (*connect.Response[v1.PullPopupResponse], error) {
+	return c.pullPopup.CallUnary(ctx, req)
+}
+
 // PopupServiceHandler is an implementation of the api.v1.PopupService service.
 type PopupServiceHandler interface {
 	// Watches real-time popup events from the server. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
@@ -129,6 +145,8 @@ type PopupServiceHandler interface {
 	ValidatePopupAnswer(context.Context, *connect.Request[v1.ValidatePopupAnswerRequest]) (*connect.Response[v1.ValidatePopupAnswerResponse], error)
 	// Submits the finalized answer for the active popup dialog.
 	SubmitPopupAnswer(context.Context, *connect.Request[v1.SubmitPopupAnswerRequest]) (*connect.Response[v1.SubmitPopupAnswerResponse], error)
+	// Retrieves the currently active popup dialog snapshot without opening a persistent stream.
+	PullPopup(context.Context, *connect.Request[v1.PullPopupRequest]) (*connect.Response[v1.PullPopupResponse], error)
 }
 
 // NewPopupServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -156,6 +174,12 @@ func NewPopupServiceHandler(svc PopupServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(popupServiceMethods.ByName("SubmitPopupAnswer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	popupServicePullPopupHandler := connect.NewUnaryHandler(
+		PopupServicePullPopupProcedure,
+		svc.PullPopup,
+		connect.WithSchema(popupServiceMethods.ByName("PullPopup")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/api.v1.PopupService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PopupServiceWatchPopupProcedure:
@@ -164,6 +188,8 @@ func NewPopupServiceHandler(svc PopupServiceHandler, opts ...connect.HandlerOpti
 			popupServiceValidatePopupAnswerHandler.ServeHTTP(w, r)
 		case PopupServiceSubmitPopupAnswerProcedure:
 			popupServiceSubmitPopupAnswerHandler.ServeHTTP(w, r)
+		case PopupServicePullPopupProcedure:
+			popupServicePullPopupHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -183,4 +209,8 @@ func (UnimplementedPopupServiceHandler) ValidatePopupAnswer(context.Context, *co
 
 func (UnimplementedPopupServiceHandler) SubmitPopupAnswer(context.Context, *connect.Request[v1.SubmitPopupAnswerRequest]) (*connect.Response[v1.SubmitPopupAnswerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.PopupService.SubmitPopupAnswer is not implemented"))
+}
+
+func (UnimplementedPopupServiceHandler) PullPopup(context.Context, *connect.Request[v1.PullPopupRequest]) (*connect.Response[v1.PullPopupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.PopupService.PullPopup is not implemented"))
 }

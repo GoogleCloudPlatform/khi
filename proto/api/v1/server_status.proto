@@ -30,15 +30,6 @@ message ServerStat {
   double cpu_usage_percentage = 3;
 }
 
-// Request to retrieve current server resource statistics.
-message GetServerStatRequest {}
-
-// Response containing current server resource statistics.
-message GetServerStatResponse {
-  // Current resource statistics of the server.
-  ServerStat server_stat = 1;
-}
-
 // Request to watch real-time server resource statistics.
 message WatchServerStatRequest {}
 
@@ -48,14 +39,23 @@ message WatchServerStatResponse {
   ServerStat server_stat = 1;
 }
 
+// Request to pull current server resource statistics without streaming.
+message PullServerStatRequest {}
+
+// Response containing pulled server resource statistics.
+message PullServerStatResponse {
+  // Current resource statistics of the server.
+  ServerStat server_stat = 1;
+}
+
 // ServerStatusService provides real-time and snapshot metrics of host server resources.
 service ServerStatusService {
-  // Returns current server resource usage statistics as a one-off snapshot.
-  rpc GetServerStat(GetServerStatRequest) returns (GetServerStatResponse);
-
   // Streams real-time server resource usage statistics.
   // The server sends the current state immediately upon connection and pushes updates periodically.
   // The stream terminates after approximately 30 seconds to support runtimes without long-lived connection support;
   // clients are expected to automatically reconnect.
   rpc WatchServerStat(WatchServerStatRequest) returns (stream WatchServerStatResponse);
+
+  // Pulls current server resource usage statistics without opening a persistent stream.
+  rpc PullServerStat(PullServerStatRequest) returns (PullServerStatResponse);
 }

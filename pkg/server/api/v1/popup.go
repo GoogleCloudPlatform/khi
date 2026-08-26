@@ -86,6 +86,17 @@ func (s *PopupServer) WatchPopup(
 	}
 }
 
+// PullPopup returns the currently active popup form snapshot.
+func (s *PopupServer) PullPopup(
+	ctx context.Context,
+	req *connect.Request[v1.PullPopupRequest],
+) (*connect.Response[v1.PullPopupResponse], error) {
+	current := s.manager.GetCurrentPopup()
+	return connect.NewResponse(&v1.PullPopupResponse{
+		Popup: current,
+	}), nil
+}
+
 // ValidatePopupAnswer validates in-progress input against the active popup.
 func (s *PopupServer) ValidatePopupAnswer(
 	ctx context.Context,

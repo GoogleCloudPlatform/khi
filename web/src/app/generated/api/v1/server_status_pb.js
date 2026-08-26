@@ -28,7 +28,7 @@ import {
 export const file_api_v1_server_status =
   /*@__PURE__*/
   fileDesc(
-    "ChphcGkvdjEvc2VydmVyX3N0YXR1cy5wcm90bxIGYXBpLnYxIl4KClNlcnZlclN0YXQSHAoUY3VycmVudF9tZW1vcnlfdXNhZ2UYASABKAQSFAoMdG90YWxfbWVtb3J5GAIgASgEEhwKFGNwdV91c2FnZV9wZXJjZW50YWdlGAMgASgBIhYKFEdldFNlcnZlclN0YXRSZXF1ZXN0IkAKFUdldFNlcnZlclN0YXRSZXNwb25zZRInCgtzZXJ2ZXJfc3RhdBgBIAEoCzISLmFwaS52MS5TZXJ2ZXJTdGF0IhgKFldhdGNoU2VydmVyU3RhdFJlcXVlc3QiQgoXV2F0Y2hTZXJ2ZXJTdGF0UmVzcG9uc2USJwoLc2VydmVyX3N0YXQYASABKAsyEi5hcGkudjEuU2VydmVyU3RhdDK5AQoTU2VydmVyU3RhdHVzU2VydmljZRJMCg1HZXRTZXJ2ZXJTdGF0EhwuYXBpLnYxLkdldFNlcnZlclN0YXRSZXF1ZXN0Gh0uYXBpLnYxLkdldFNlcnZlclN0YXRSZXNwb25zZRJUCg9XYXRjaFNlcnZlclN0YXQSHi5hcGkudjEuV2F0Y2hTZXJ2ZXJTdGF0UmVxdWVzdBofLmFwaS52MS5XYXRjaFNlcnZlclN0YXRSZXNwb25zZTABQj9aPWdpdGh1Yi5jb20vR29vZ2xlQ2xvdWRQbGF0Zm9ybS9raGkvcGtnL2dlbmVyYXRlZC9hcGkvdjE7YXBpdjFiCGVkaXRpb25zcOgH",
+    "ChphcGkvdjEvc2VydmVyX3N0YXR1cy5wcm90bxIGYXBpLnYxIl4KClNlcnZlclN0YXQSHAoUY3VycmVudF9tZW1vcnlfdXNhZ2UYASABKAQSFAoMdG90YWxfbWVtb3J5GAIgASgEEhwKFGNwdV91c2FnZV9wZXJjZW50YWdlGAMgASgBIhgKFldhdGNoU2VydmVyU3RhdFJlcXVlc3QiQgoXV2F0Y2hTZXJ2ZXJTdGF0UmVzcG9uc2USJwoLc2VydmVyX3N0YXQYASABKAsyEi5hcGkudjEuU2VydmVyU3RhdCIXChVQdWxsU2VydmVyU3RhdFJlcXVlc3QiQQoWUHVsbFNlcnZlclN0YXRSZXNwb25zZRInCgtzZXJ2ZXJfc3RhdBgBIAEoCzISLmFwaS52MS5TZXJ2ZXJTdGF0MrwBChNTZXJ2ZXJTdGF0dXNTZXJ2aWNlElQKD1dhdGNoU2VydmVyU3RhdBIeLmFwaS52MS5XYXRjaFNlcnZlclN0YXRSZXF1ZXN0Gh8uYXBpLnYxLldhdGNoU2VydmVyU3RhdFJlc3BvbnNlMAESTwoOUHVsbFNlcnZlclN0YXQSHS5hcGkudjEuUHVsbFNlcnZlclN0YXRSZXF1ZXN0Gh4uYXBpLnYxLlB1bGxTZXJ2ZXJTdGF0UmVzcG9uc2VCP1o9Z2l0aHViLmNvbS9Hb29nbGVDbG91ZFBsYXRmb3JtL2toaS9wa2cvZ2VuZXJhdGVkL2FwaS92MTthcGl2MWIIZWRpdGlvbnNw6Ac",
   );
 
 /**
@@ -40,34 +40,34 @@ export const ServerStatSchema =
   messageDesc(file_api_v1_server_status, 0);
 
 /**
- * Describes the message api.v1.GetServerStatRequest.
- * Use `create(GetServerStatRequestSchema)` to create a new message.
- */
-export const GetServerStatRequestSchema =
-  /*@__PURE__*/
-  messageDesc(file_api_v1_server_status, 1);
-
-/**
- * Describes the message api.v1.GetServerStatResponse.
- * Use `create(GetServerStatResponseSchema)` to create a new message.
- */
-export const GetServerStatResponseSchema =
-  /*@__PURE__*/
-  messageDesc(file_api_v1_server_status, 2);
-
-/**
  * Describes the message api.v1.WatchServerStatRequest.
  * Use `create(WatchServerStatRequestSchema)` to create a new message.
  */
 export const WatchServerStatRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_server_status, 3);
+  messageDesc(file_api_v1_server_status, 1);
 
 /**
  * Describes the message api.v1.WatchServerStatResponse.
  * Use `create(WatchServerStatResponseSchema)` to create a new message.
  */
 export const WatchServerStatResponseSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_server_status, 2);
+
+/**
+ * Describes the message api.v1.PullServerStatRequest.
+ * Use `create(PullServerStatRequestSchema)` to create a new message.
+ */
+export const PullServerStatRequestSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_server_status, 3);
+
+/**
+ * Describes the message api.v1.PullServerStatResponse.
+ * Use `create(PullServerStatResponseSchema)` to create a new message.
+ */
+export const PullServerStatResponseSchema =
   /*@__PURE__*/
   messageDesc(file_api_v1_server_status, 4);
 

@@ -420,6 +420,15 @@ message WatchInspectionsResponse {
   repeated InspectionListItem inspections = 1;
 }
 
+// Request to pull inspection status snapshot without streaming.
+message PullInspectionsRequest {}
+
+// Response containing pulled inspection status snapshot.
+message PullInspectionsResponse {
+  // Active inspections.
+  repeated InspectionListItem inspections = 1;
+}
+
 // Request to create a new inspection runner session.
 message CreateInspectionRequest {
   // ID of the inspection type to initialize (e.g. "gke").
@@ -574,6 +583,9 @@ service InspectionService {
   // The stream terminates after approximately 30 seconds to support runtimes without long-lived connection support;
   // clients are expected to automatically reconnect.
   rpc WatchInspections(WatchInspectionsRequest) returns (stream WatchInspectionsResponse);
+
+  // Pulls active inspections and progress snapshot without opening a persistent stream.
+  rpc PullInspections(PullInspectionsRequest) returns (PullInspectionsResponse);
 
   // Creates a new inspection runner session for a given inspection type.
   rpc CreateInspection(CreateInspectionRequest) returns (CreateInspectionResponse);

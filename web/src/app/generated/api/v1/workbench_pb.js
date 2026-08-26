@@ -31,7 +31,7 @@ import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 export const file_api_v1_workbench =
   /*@__PURE__*/
   fileDesc(
-    "ChZhcGkvdjEvd29ya2JlbmNoLnByb3RvEgZhcGkudjEiUgoUT3BlbldvcmtiZW5jaFJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhUKDWluc3BlY3Rpb25faWQYAyABKAkipAIKFU9wZW5Xb3JrYmVuY2hSZXNwb25zZRIyCgVzdGFnZRgBIAEoDjIjLmFwaS52MS5PcGVuV29ya2JlbmNoUmVzcG9uc2UuU3RhZ2USGwoTcHJvZ3Jlc3NfcGVyY2VudGFnZRgCIAEoARIPCgdtZXNzYWdlGAMgASgJEhQKDHdvcmtiZW5jaF9pZBgEIAEoCSKSAQoFU3RhZ2USFQoRU1RBR0VfVU5TUEVDSUZJRUQQABIWChJTVEFHRV9JTklUSUFMSVpJTkcQARIWChJTVEFHRV9SRUFESU5HX0ZJTEUQAhIYChRTVEFHRV9QQVJTSU5HX0NIVU5LUxADEhcKE1NUQUdFX0lOREVYSU5HX0RBVEEQBBIPCgtTVEFHRV9SRUFEWRAFIjEKGVdhdGNoSW5kZXhQcm9ncmVzc1JlcXVlc3QSFAoMd29ya2JlbmNoX2lkGAEgASgJIvwBChpXYXRjaEluZGV4UHJvZ3Jlc3NSZXNwb25zZRI8CgVzdGF0ZRgBIAEoDjItLmFwaS52MS5XYXRjaEluZGV4UHJvZ3Jlc3NSZXNwb25zZS5JbmRleFN0YXRlEhsKE3Byb2dyZXNzX3BlcmNlbnRhZ2UYAiABKAESDwoHbWVzc2FnZRgDIAEoCSJyCgpJbmRleFN0YXRlEhsKF0lOREVYX1NUQVRFX1VOU1BFQ0lGSUVEEAASGAoUSU5ERVhfU1RBVEVfQlVJTERJTkcQARIVChFJTkRFWF9TVEFURV9SRUFEWRACEhYKEklOREVYX1NUQVRFX0ZBSUxFRBADIjEKGUhlYXJ0YmVhdFdvcmtiZW5jaFJlcXVlc3QSFAoMd29ya2JlbmNoX2lkGAEgASgJIlwKGkhlYXJ0YmVhdFdvcmtiZW5jaFJlc3BvbnNlEg4KBmFjdGl2ZRgBIAEoCBIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJAChVSZWFkU3RydWN0WUFNTFJlcXVlc3QSFAoMd29ya2JlbmNoX2lkGAEgASgJEhEKCXN0cnVjdF9pZBgCIAEoDSImChZSZWFkU3RydWN0WUFNTFJlc3BvbnNlEgwKBHlhbWwYASABKAkikwEKFUZpbHRlclRpbWVsaW5lUmVxdWVzdBIUCgx3b3JrYmVuY2hfaWQYASABKAkSFgoOdGltZWxpbmVfcXVlcnkYAiABKAkSIAoYdGltZWxpbmVfZXhjbHVzaW9uX3F1ZXJ5GAMgASgJEhEKCWxvZ19xdWVyeRgEIAEoCRIXCg9leGNsdWRlX25vX2xvZ3MYBSABKAgiRAoORmlsdGVyUHJvZ3Jlc3MSEgoKc3RhZ2VfbmFtZRgBIAEoCRIPCgdjdXJyZW50GAIgASgNEg0KBXRvdGFsGAMgASgNIi4KDFNwYXJzZUJpdHNldBIPCgdpbmRpY2VzGAEgAygNEg0KBW1hc2tzGAIgAygHIsQBCgxGaWx0ZXJSZXN1bHQSLwoNdGltZWxpbmVfbW9kZRgBIAEoDjIYLmFwaS52MS5GaWx0ZXJSZXN1bHRNb2RlEi0KD3RpbWVsaW5lX2JpdHNldBgCIAEoCzIULmFwaS52MS5TcGFyc2VCaXRzZXQSKgoIbG9nX21vZGUYAyABKA4yGC5hcGkudjEuRmlsdGVyUmVzdWx0TW9kZRIoCgpsb2dfYml0c2V0GAQgASgLMhQuYXBpLnYxLlNwYXJzZUJpdHNldCJ3ChZGaWx0ZXJUaW1lbGluZVJlc3BvbnNlEioKCHByb2dyZXNzGAEgASgLMhYuYXBpLnYxLkZpbHRlclByb2dyZXNzSAASJgoGcmVzdWx0GAIgASgLMhQuYXBpLnYxLkZpbHRlclJlc3VsdEgAQgkKB3BheWxvYWQiLQoVQ2xvc2VXb3JrYmVuY2hSZXF1ZXN0EhQKDHdvcmtiZW5jaF9pZBgBIAEoCSIoChZDbG9zZVdvcmtiZW5jaFJlc3BvbnNlEg4KBmNsb3NlZBgBIAEoCCp2ChBGaWx0ZXJSZXN1bHRNb2RlEiIKHkZJTFRFUl9SRVNVTFRfTU9ERV9VTlNQRUNJRklFRBAAEh4KGkZJTFRFUl9SRVNVTFRfTU9ERV9JTkNMVURFEAESHgoaRklMVEVSX1JFU1VMVF9NT0RFX0VYQ0xVREUQAjKTBAoQV29ya2JlbmNoU2VydmljZRJOCg1PcGVuV29ya2JlbmNoEhwuYXBpLnYxLk9wZW5Xb3JrYmVuY2hSZXF1ZXN0Gh0uYXBpLnYxLk9wZW5Xb3JrYmVuY2hSZXNwb25zZTABEl0KEldhdGNoSW5kZXhQcm9ncmVzcxIhLmFwaS52MS5XYXRjaEluZGV4UHJvZ3Jlc3NSZXF1ZXN0GiIuYXBpLnYxLldhdGNoSW5kZXhQcm9ncmVzc1Jlc3BvbnNlMAESWwoSSGVhcnRiZWF0V29ya2JlbmNoEiEuYXBpLnYxLkhlYXJ0YmVhdFdvcmtiZW5jaFJlcXVlc3QaIi5hcGkudjEuSGVhcnRiZWF0V29ya2JlbmNoUmVzcG9uc2USTwoOUmVhZFN0cnVjdFlBTUwSHS5hcGkudjEuUmVhZFN0cnVjdFlBTUxSZXF1ZXN0Gh4uYXBpLnYxLlJlYWRTdHJ1Y3RZQU1MUmVzcG9uc2USUQoORmlsdGVyVGltZWxpbmUSHS5hcGkudjEuRmlsdGVyVGltZWxpbmVSZXF1ZXN0Gh4uYXBpLnYxLkZpbHRlclRpbWVsaW5lUmVzcG9uc2UwARJPCg5DbG9zZVdvcmtiZW5jaBIdLmFwaS52MS5DbG9zZVdvcmtiZW5jaFJlcXVlc3QaHi5hcGkudjEuQ2xvc2VXb3JrYmVuY2hSZXNwb25zZUI/Wj1naXRodWIuY29tL0dvb2dsZUNsb3VkUGxhdGZvcm0va2hpL3BrZy9nZW5lcmF0ZWQvYXBpL3YxO2FwaXYxYghlZGl0aW9uc3DoBw",
+    "ChZhcGkvdjEvd29ya2JlbmNoLnByb3RvEgZhcGkudjEiUgoUT3BlbldvcmtiZW5jaFJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhUKDWluc3BlY3Rpb25faWQYAyABKAkipAIKFU9wZW5Xb3JrYmVuY2hSZXNwb25zZRIyCgVzdGFnZRgBIAEoDjIjLmFwaS52MS5PcGVuV29ya2JlbmNoUmVzcG9uc2UuU3RhZ2USGwoTcHJvZ3Jlc3NfcGVyY2VudGFnZRgCIAEoARIPCgdtZXNzYWdlGAMgASgJEhQKDHdvcmtiZW5jaF9pZBgEIAEoCSKSAQoFU3RhZ2USFQoRU1RBR0VfVU5TUEVDSUZJRUQQABIWChJTVEFHRV9JTklUSUFMSVpJTkcQARIWChJTVEFHRV9SRUFESU5HX0ZJTEUQAhIYChRTVEFHRV9QQVJTSU5HX0NIVU5LUxADEhcKE1NUQUdFX0lOREVYSU5HX0RBVEEQBBIPCgtTVEFHRV9SRUFEWRAFImYKGE9wZW5Xb3JrYmVuY2hTeW5jUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSFQoNaW5zcGVjdGlvbl9pZBgDIAEoCRIOCgZqb2JfaWQYBCABKAkiowEKGU9wZW5Xb3JrYmVuY2hTeW5jUmVzcG9uc2USDgoGam9iX2lkGAEgASgJEjIKBXN0YWdlGAIgASgOMiMuYXBpLnYxLk9wZW5Xb3JrYmVuY2hSZXNwb25zZS5TdGFnZRIbChNwcm9ncmVzc19wZXJjZW50YWdlGAMgASgBEg8KB21lc3NhZ2UYBCABKAkSFAoMd29ya2JlbmNoX2lkGAUgASgJIlUKHkNhbmNlbE9wZW5Xb3JrYmVuY2hTeW5jUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSDgoGam9iX2lkGAMgASgJIjMKH0NhbmNlbE9wZW5Xb3JrYmVuY2hTeW5jUmVzcG9uc2USEAoIY2FuY2VsZWQYASABKAgiMQoZV2F0Y2hJbmRleFByb2dyZXNzUmVxdWVzdBIUCgx3b3JrYmVuY2hfaWQYASABKAki/AEKGldhdGNoSW5kZXhQcm9ncmVzc1Jlc3BvbnNlEjwKBXN0YXRlGAEgASgOMi0uYXBpLnYxLldhdGNoSW5kZXhQcm9ncmVzc1Jlc3BvbnNlLkluZGV4U3RhdGUSGwoTcHJvZ3Jlc3NfcGVyY2VudGFnZRgCIAEoARIPCgdtZXNzYWdlGAMgASgJInIKCkluZGV4U3RhdGUSGwoXSU5ERVhfU1RBVEVfVU5TUEVDSUZJRUQQABIYChRJTkRFWF9TVEFURV9CVUlMRElORxABEhUKEUlOREVYX1NUQVRFX1JFQURZEAISFgoSSU5ERVhfU1RBVEVfRkFJTEVEEAMiMAoYUHVsbEluZGV4UHJvZ3Jlc3NSZXF1ZXN0EhQKDHdvcmtiZW5jaF9pZBgBIAEoCSKHAQoZUHVsbEluZGV4UHJvZ3Jlc3NSZXNwb25zZRI8CgVzdGF0ZRgBIAEoDjItLmFwaS52MS5XYXRjaEluZGV4UHJvZ3Jlc3NSZXNwb25zZS5JbmRleFN0YXRlEhsKE3Byb2dyZXNzX3BlcmNlbnRhZ2UYAiABKAESDwoHbWVzc2FnZRgDIAEoCSIxChlIZWFydGJlYXRXb3JrYmVuY2hSZXF1ZXN0EhQKDHdvcmtiZW5jaF9pZBgBIAEoCSJcChpIZWFydGJlYXRXb3JrYmVuY2hSZXNwb25zZRIOCgZhY3RpdmUYASABKAgSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiQAoVUmVhZFN0cnVjdFlBTUxSZXF1ZXN0EhQKDHdvcmtiZW5jaF9pZBgBIAEoCRIRCglzdHJ1Y3RfaWQYAiABKA0iJgoWUmVhZFN0cnVjdFlBTUxSZXNwb25zZRIMCgR5YW1sGAEgASgJIpMBChVGaWx0ZXJUaW1lbGluZVJlcXVlc3QSFAoMd29ya2JlbmNoX2lkGAEgASgJEhYKDnRpbWVsaW5lX3F1ZXJ5GAIgASgJEiAKGHRpbWVsaW5lX2V4Y2x1c2lvbl9xdWVyeRgDIAEoCRIRCglsb2dfcXVlcnkYBCABKAkSFwoPZXhjbHVkZV9ub19sb2dzGAUgASgIIkQKDkZpbHRlclByb2dyZXNzEhIKCnN0YWdlX25hbWUYASABKAkSDwoHY3VycmVudBgCIAEoDRINCgV0b3RhbBgDIAEoDSIuCgxTcGFyc2VCaXRzZXQSDwoHaW5kaWNlcxgBIAMoDRINCgVtYXNrcxgCIAMoByLEAQoMRmlsdGVyUmVzdWx0Ei8KDXRpbWVsaW5lX21vZGUYASABKA4yGC5hcGkudjEuRmlsdGVyUmVzdWx0TW9kZRItCg90aW1lbGluZV9iaXRzZXQYAiABKAsyFC5hcGkudjEuU3BhcnNlQml0c2V0EioKCGxvZ19tb2RlGAMgASgOMhguYXBpLnYxLkZpbHRlclJlc3VsdE1vZGUSKAoKbG9nX2JpdHNldBgEIAEoCzIULmFwaS52MS5TcGFyc2VCaXRzZXQidwoWRmlsdGVyVGltZWxpbmVSZXNwb25zZRIqCghwcm9ncmVzcxgBIAEoCzIWLmFwaS52MS5GaWx0ZXJQcm9ncmVzc0gAEiYKBnJlc3VsdBgCIAEoCzIULmFwaS52MS5GaWx0ZXJSZXN1bHRIAEIJCgdwYXlsb2FkIqcBChlGaWx0ZXJUaW1lbGluZVN5bmNSZXF1ZXN0EhQKDHdvcmtiZW5jaF9pZBgBIAEoCRIWCg50aW1lbGluZV9xdWVyeRgCIAEoCRIgChh0aW1lbGluZV9leGNsdXNpb25fcXVlcnkYAyABKAkSEQoJbG9nX3F1ZXJ5GAQgASgJEhcKD2V4Y2x1ZGVfbm9fbG9ncxgFIAEoCBIOCgZqb2JfaWQYBiABKAkipAEKGkZpbHRlclRpbWVsaW5lU3luY1Jlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIPCgdpc19kb25lGAIgASgIEigKCHByb2dyZXNzGAMgASgLMhYuYXBpLnYxLkZpbHRlclByb2dyZXNzEiQKBnJlc3VsdBgEIAEoCzIULmFwaS52MS5GaWx0ZXJSZXN1bHQSFQoNZXJyb3JfbWVzc2FnZRgFIAEoCSJHCh9DYW5jZWxGaWx0ZXJUaW1lbGluZVN5bmNSZXF1ZXN0EhQKDHdvcmtiZW5jaF9pZBgBIAEoCRIOCgZqb2JfaWQYAiABKAkiNAogQ2FuY2VsRmlsdGVyVGltZWxpbmVTeW5jUmVzcG9uc2USEAoIY2FuY2VsZWQYASABKAgiLQoVQ2xvc2VXb3JrYmVuY2hSZXF1ZXN0EhQKDHdvcmtiZW5jaF9pZBgBIAEoCSIoChZDbG9zZVdvcmtiZW5jaFJlc3BvbnNlEg4KBmNsb3NlZBgBIAEoCCp2ChBGaWx0ZXJSZXN1bHRNb2RlEiIKHkZJTFRFUl9SRVNVTFRfTU9ERV9VTlNQRUNJRklFRBAAEh4KGkZJTFRFUl9SRVNVTFRfTU9ERV9JTkNMVURFEAESHgoaRklMVEVSX1JFU1VMVF9NT0RFX0VYQ0xVREUQAjL/BwoQV29ya2JlbmNoU2VydmljZRJOCg1PcGVuV29ya2JlbmNoEhwuYXBpLnYxLk9wZW5Xb3JrYmVuY2hSZXF1ZXN0Gh0uYXBpLnYxLk9wZW5Xb3JrYmVuY2hSZXNwb25zZTABElgKEU9wZW5Xb3JrYmVuY2hTeW5jEiAuYXBpLnYxLk9wZW5Xb3JrYmVuY2hTeW5jUmVxdWVzdBohLmFwaS52MS5PcGVuV29ya2JlbmNoU3luY1Jlc3BvbnNlEmoKF0NhbmNlbE9wZW5Xb3JrYmVuY2hTeW5jEiYuYXBpLnYxLkNhbmNlbE9wZW5Xb3JrYmVuY2hTeW5jUmVxdWVzdBonLmFwaS52MS5DYW5jZWxPcGVuV29ya2JlbmNoU3luY1Jlc3BvbnNlEl0KEldhdGNoSW5kZXhQcm9ncmVzcxIhLmFwaS52MS5XYXRjaEluZGV4UHJvZ3Jlc3NSZXF1ZXN0GiIuYXBpLnYxLldhdGNoSW5kZXhQcm9ncmVzc1Jlc3BvbnNlMAESWAoRUHVsbEluZGV4UHJvZ3Jlc3MSIC5hcGkudjEuUHVsbEluZGV4UHJvZ3Jlc3NSZXF1ZXN0GiEuYXBpLnYxLlB1bGxJbmRleFByb2dyZXNzUmVzcG9uc2USWwoSSGVhcnRiZWF0V29ya2JlbmNoEiEuYXBpLnYxLkhlYXJ0YmVhdFdvcmtiZW5jaFJlcXVlc3QaIi5hcGkudjEuSGVhcnRiZWF0V29ya2JlbmNoUmVzcG9uc2USTwoOUmVhZFN0cnVjdFlBTUwSHS5hcGkudjEuUmVhZFN0cnVjdFlBTUxSZXF1ZXN0Gh4uYXBpLnYxLlJlYWRTdHJ1Y3RZQU1MUmVzcG9uc2USUQoORmlsdGVyVGltZWxpbmUSHS5hcGkudjEuRmlsdGVyVGltZWxpbmVSZXF1ZXN0Gh4uYXBpLnYxLkZpbHRlclRpbWVsaW5lUmVzcG9uc2UwARJbChJGaWx0ZXJUaW1lbGluZVN5bmMSIS5hcGkudjEuRmlsdGVyVGltZWxpbmVTeW5jUmVxdWVzdBoiLmFwaS52MS5GaWx0ZXJUaW1lbGluZVN5bmNSZXNwb25zZRJtChhDYW5jZWxGaWx0ZXJUaW1lbGluZVN5bmMSJy5hcGkudjEuQ2FuY2VsRmlsdGVyVGltZWxpbmVTeW5jUmVxdWVzdBooLmFwaS52MS5DYW5jZWxGaWx0ZXJUaW1lbGluZVN5bmNSZXNwb25zZRJPCg5DbG9zZVdvcmtiZW5jaBIdLmFwaS52MS5DbG9zZVdvcmtiZW5jaFJlcXVlc3QaHi5hcGkudjEuQ2xvc2VXb3JrYmVuY2hSZXNwb25zZUI/Wj1naXRodWIuY29tL0dvb2dsZUNsb3VkUGxhdGZvcm0va2hpL3BrZy9nZW5lcmF0ZWQvYXBpL3YxO2FwaXYxYghlZGl0aW9uc3DoBw",
     [file_google_protobuf_timestamp],
   );
 
@@ -68,12 +68,44 @@ export const OpenWorkbenchResponse_Stage =
   tsEnum(OpenWorkbenchResponse_StageSchema);
 
 /**
+ * Describes the message api.v1.OpenWorkbenchSyncRequest.
+ * Use `create(OpenWorkbenchSyncRequestSchema)` to create a new message.
+ */
+export const OpenWorkbenchSyncRequestSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 2);
+
+/**
+ * Describes the message api.v1.OpenWorkbenchSyncResponse.
+ * Use `create(OpenWorkbenchSyncResponseSchema)` to create a new message.
+ */
+export const OpenWorkbenchSyncResponseSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 3);
+
+/**
+ * Describes the message api.v1.CancelOpenWorkbenchSyncRequest.
+ * Use `create(CancelOpenWorkbenchSyncRequestSchema)` to create a new message.
+ */
+export const CancelOpenWorkbenchSyncRequestSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 4);
+
+/**
+ * Describes the message api.v1.CancelOpenWorkbenchSyncResponse.
+ * Use `create(CancelOpenWorkbenchSyncResponseSchema)` to create a new message.
+ */
+export const CancelOpenWorkbenchSyncResponseSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 5);
+
+/**
  * Describes the message api.v1.WatchIndexProgressRequest.
  * Use `create(WatchIndexProgressRequestSchema)` to create a new message.
  */
 export const WatchIndexProgressRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 2);
+  messageDesc(file_api_v1_workbench, 6);
 
 /**
  * Describes the message api.v1.WatchIndexProgressResponse.
@@ -81,14 +113,14 @@ export const WatchIndexProgressRequestSchema =
  */
 export const WatchIndexProgressResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 3);
+  messageDesc(file_api_v1_workbench, 7);
 
 /**
  * Describes the enum api.v1.WatchIndexProgressResponse.IndexState.
  */
 export const WatchIndexProgressResponse_IndexStateSchema =
   /*@__PURE__*/
-  enumDesc(file_api_v1_workbench, 3, 0);
+  enumDesc(file_api_v1_workbench, 7, 0);
 
 /**
  * Lifecycle state of search index construction.
@@ -100,12 +132,28 @@ export const WatchIndexProgressResponse_IndexState =
   tsEnum(WatchIndexProgressResponse_IndexStateSchema);
 
 /**
+ * Describes the message api.v1.PullIndexProgressRequest.
+ * Use `create(PullIndexProgressRequestSchema)` to create a new message.
+ */
+export const PullIndexProgressRequestSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 8);
+
+/**
+ * Describes the message api.v1.PullIndexProgressResponse.
+ * Use `create(PullIndexProgressResponseSchema)` to create a new message.
+ */
+export const PullIndexProgressResponseSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 9);
+
+/**
  * Describes the message api.v1.HeartbeatWorkbenchRequest.
  * Use `create(HeartbeatWorkbenchRequestSchema)` to create a new message.
  */
 export const HeartbeatWorkbenchRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 4);
+  messageDesc(file_api_v1_workbench, 10);
 
 /**
  * Describes the message api.v1.HeartbeatWorkbenchResponse.
@@ -113,7 +161,7 @@ export const HeartbeatWorkbenchRequestSchema =
  */
 export const HeartbeatWorkbenchResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 5);
+  messageDesc(file_api_v1_workbench, 11);
 
 /**
  * Describes the message api.v1.ReadStructYAMLRequest.
@@ -121,7 +169,7 @@ export const HeartbeatWorkbenchResponseSchema =
  */
 export const ReadStructYAMLRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 6);
+  messageDesc(file_api_v1_workbench, 12);
 
 /**
  * Describes the message api.v1.ReadStructYAMLResponse.
@@ -129,7 +177,7 @@ export const ReadStructYAMLRequestSchema =
  */
 export const ReadStructYAMLResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 7);
+  messageDesc(file_api_v1_workbench, 13);
 
 /**
  * Describes the message api.v1.FilterTimelineRequest.
@@ -137,7 +185,7 @@ export const ReadStructYAMLResponseSchema =
  */
 export const FilterTimelineRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 8);
+  messageDesc(file_api_v1_workbench, 14);
 
 /**
  * Describes the message api.v1.FilterProgress.
@@ -145,7 +193,7 @@ export const FilterTimelineRequestSchema =
  */
 export const FilterProgressSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 9);
+  messageDesc(file_api_v1_workbench, 15);
 
 /**
  * Describes the message api.v1.SparseBitset.
@@ -153,7 +201,7 @@ export const FilterProgressSchema =
  */
 export const SparseBitsetSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 10);
+  messageDesc(file_api_v1_workbench, 16);
 
 /**
  * Describes the message api.v1.FilterResult.
@@ -161,7 +209,7 @@ export const SparseBitsetSchema =
  */
 export const FilterResultSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 11);
+  messageDesc(file_api_v1_workbench, 17);
 
 /**
  * Describes the message api.v1.FilterTimelineResponse.
@@ -169,7 +217,39 @@ export const FilterResultSchema =
  */
 export const FilterTimelineResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 12);
+  messageDesc(file_api_v1_workbench, 18);
+
+/**
+ * Describes the message api.v1.FilterTimelineSyncRequest.
+ * Use `create(FilterTimelineSyncRequestSchema)` to create a new message.
+ */
+export const FilterTimelineSyncRequestSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 19);
+
+/**
+ * Describes the message api.v1.FilterTimelineSyncResponse.
+ * Use `create(FilterTimelineSyncResponseSchema)` to create a new message.
+ */
+export const FilterTimelineSyncResponseSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 20);
+
+/**
+ * Describes the message api.v1.CancelFilterTimelineSyncRequest.
+ * Use `create(CancelFilterTimelineSyncRequestSchema)` to create a new message.
+ */
+export const CancelFilterTimelineSyncRequestSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 21);
+
+/**
+ * Describes the message api.v1.CancelFilterTimelineSyncResponse.
+ * Use `create(CancelFilterTimelineSyncResponseSchema)` to create a new message.
+ */
+export const CancelFilterTimelineSyncResponseSchema =
+  /*@__PURE__*/
+  messageDesc(file_api_v1_workbench, 22);
 
 /**
  * Describes the message api.v1.CloseWorkbenchRequest.
@@ -177,7 +257,7 @@ export const FilterTimelineResponseSchema =
  */
 export const CloseWorkbenchRequestSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 13);
+  messageDesc(file_api_v1_workbench, 23);
 
 /**
  * Describes the message api.v1.CloseWorkbenchResponse.
@@ -185,7 +265,7 @@ export const CloseWorkbenchRequestSchema =
  */
 export const CloseWorkbenchResponseSchema =
   /*@__PURE__*/
-  messageDesc(file_api_v1_workbench, 14);
+  messageDesc(file_api_v1_workbench, 24);
 
 /**
  * Describes the enum api.v1.FilterResultMode.

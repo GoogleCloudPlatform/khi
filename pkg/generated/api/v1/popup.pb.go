@@ -72,6 +72,89 @@ func (*WatchPopupRequest) Descriptor() ([]byte, []int) {
 	return file_api_v1_popup_proto_rawDescGZIP(), []int{0}
 }
 
+// Request to retrieve the currently active popup form snapshot.
+type PullPopupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullPopupRequest) Reset() {
+	*x = PullPopupRequest{}
+	mi := &file_api_v1_popup_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullPopupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullPopupRequest) ProtoMessage() {}
+
+func (x *PullPopupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_popup_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullPopupRequest.ProtoReflect.Descriptor instead.
+func (*PullPopupRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{1}
+}
+
+// Response containing the currently active popup form snapshot.
+type PullPopupResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Currently active popup form, or unset if no popup is active.
+	Popup         *PopupForm `protobuf:"bytes,1,opt,name=popup" json:"popup,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullPopupResponse) Reset() {
+	*x = PullPopupResponse{}
+	mi := &file_api_v1_popup_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullPopupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullPopupResponse) ProtoMessage() {}
+
+func (x *PullPopupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_popup_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullPopupResponse.ProtoReflect.Descriptor instead.
+func (*PullPopupResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PullPopupResponse) GetPopup() *PopupForm {
+	if x != nil {
+		return x.Popup
+	}
+	return nil
+}
+
 // TextPopupPayload contains configuration specific to text input popups.
 type TextPopupPayload struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -83,7 +166,7 @@ type TextPopupPayload struct {
 
 func (x *TextPopupPayload) Reset() {
 	*x = TextPopupPayload{}
-	mi := &file_api_v1_popup_proto_msgTypes[1]
+	mi := &file_api_v1_popup_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -95,7 +178,7 @@ func (x *TextPopupPayload) String() string {
 func (*TextPopupPayload) ProtoMessage() {}
 
 func (x *TextPopupPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_popup_proto_msgTypes[1]
+	mi := &file_api_v1_popup_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -108,7 +191,7 @@ func (x *TextPopupPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TextPopupPayload.ProtoReflect.Descriptor instead.
 func (*TextPopupPayload) Descriptor() ([]byte, []int) {
-	return file_api_v1_popup_proto_rawDescGZIP(), []int{1}
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *TextPopupPayload) GetPlaceholder() string {
@@ -129,7 +212,7 @@ type OAuthLoginPopupPayload struct {
 
 func (x *OAuthLoginPopupPayload) Reset() {
 	*x = OAuthLoginPopupPayload{}
-	mi := &file_api_v1_popup_proto_msgTypes[2]
+	mi := &file_api_v1_popup_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -141,7 +224,7 @@ func (x *OAuthLoginPopupPayload) String() string {
 func (*OAuthLoginPopupPayload) ProtoMessage() {}
 
 func (x *OAuthLoginPopupPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_popup_proto_msgTypes[2]
+	mi := &file_api_v1_popup_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -154,7 +237,7 @@ func (x *OAuthLoginPopupPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OAuthLoginPopupPayload.ProtoReflect.Descriptor instead.
 func (*OAuthLoginPopupPayload) Descriptor() ([]byte, []int) {
-	return file_api_v1_popup_proto_rawDescGZIP(), []int{2}
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *OAuthLoginPopupPayload) GetAuthUrl() string {
@@ -186,7 +269,7 @@ type PopupForm struct {
 
 func (x *PopupForm) Reset() {
 	*x = PopupForm{}
-	mi := &file_api_v1_popup_proto_msgTypes[3]
+	mi := &file_api_v1_popup_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -198,7 +281,7 @@ func (x *PopupForm) String() string {
 func (*PopupForm) ProtoMessage() {}
 
 func (x *PopupForm) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_popup_proto_msgTypes[3]
+	mi := &file_api_v1_popup_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -211,7 +294,7 @@ func (x *PopupForm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PopupForm.ProtoReflect.Descriptor instead.
 func (*PopupForm) Descriptor() ([]byte, []int) {
-	return file_api_v1_popup_proto_rawDescGZIP(), []int{3}
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PopupForm) GetId() string {
@@ -292,7 +375,7 @@ type WatchPopupResponse struct {
 
 func (x *WatchPopupResponse) Reset() {
 	*x = WatchPopupResponse{}
-	mi := &file_api_v1_popup_proto_msgTypes[4]
+	mi := &file_api_v1_popup_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -304,7 +387,7 @@ func (x *WatchPopupResponse) String() string {
 func (*WatchPopupResponse) ProtoMessage() {}
 
 func (x *WatchPopupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_popup_proto_msgTypes[4]
+	mi := &file_api_v1_popup_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -317,7 +400,7 @@ func (x *WatchPopupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchPopupResponse.ProtoReflect.Descriptor instead.
 func (*WatchPopupResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_popup_proto_rawDescGZIP(), []int{4}
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *WatchPopupResponse) GetEvent() isWatchPopupResponse_Event {
@@ -374,7 +457,7 @@ type TextPopupValidationRequest struct {
 
 func (x *TextPopupValidationRequest) Reset() {
 	*x = TextPopupValidationRequest{}
-	mi := &file_api_v1_popup_proto_msgTypes[5]
+	mi := &file_api_v1_popup_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -386,7 +469,7 @@ func (x *TextPopupValidationRequest) String() string {
 func (*TextPopupValidationRequest) ProtoMessage() {}
 
 func (x *TextPopupValidationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_popup_proto_msgTypes[5]
+	mi := &file_api_v1_popup_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -399,7 +482,7 @@ func (x *TextPopupValidationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TextPopupValidationRequest.ProtoReflect.Descriptor instead.
 func (*TextPopupValidationRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_popup_proto_rawDescGZIP(), []int{5}
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *TextPopupValidationRequest) GetValue() string {
@@ -426,7 +509,7 @@ type ValidatePopupAnswerRequest struct {
 
 func (x *ValidatePopupAnswerRequest) Reset() {
 	*x = ValidatePopupAnswerRequest{}
-	mi := &file_api_v1_popup_proto_msgTypes[6]
+	mi := &file_api_v1_popup_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -438,7 +521,7 @@ func (x *ValidatePopupAnswerRequest) String() string {
 func (*ValidatePopupAnswerRequest) ProtoMessage() {}
 
 func (x *ValidatePopupAnswerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_popup_proto_msgTypes[6]
+	mi := &file_api_v1_popup_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -451,7 +534,7 @@ func (x *ValidatePopupAnswerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidatePopupAnswerRequest.ProtoReflect.Descriptor instead.
 func (*ValidatePopupAnswerRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_popup_proto_rawDescGZIP(), []int{6}
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ValidatePopupAnswerRequest) GetId() string {
@@ -500,7 +583,7 @@ type ValidatePopupAnswerResponse struct {
 
 func (x *ValidatePopupAnswerResponse) Reset() {
 	*x = ValidatePopupAnswerResponse{}
-	mi := &file_api_v1_popup_proto_msgTypes[7]
+	mi := &file_api_v1_popup_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -512,7 +595,7 @@ func (x *ValidatePopupAnswerResponse) String() string {
 func (*ValidatePopupAnswerResponse) ProtoMessage() {}
 
 func (x *ValidatePopupAnswerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_popup_proto_msgTypes[7]
+	mi := &file_api_v1_popup_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -525,7 +608,7 @@ func (x *ValidatePopupAnswerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidatePopupAnswerResponse.ProtoReflect.Descriptor instead.
 func (*ValidatePopupAnswerResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_popup_proto_rawDescGZIP(), []int{7}
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ValidatePopupAnswerResponse) GetId() string {
@@ -553,7 +636,7 @@ type TextPopupAnswer struct {
 
 func (x *TextPopupAnswer) Reset() {
 	*x = TextPopupAnswer{}
-	mi := &file_api_v1_popup_proto_msgTypes[8]
+	mi := &file_api_v1_popup_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -565,7 +648,7 @@ func (x *TextPopupAnswer) String() string {
 func (*TextPopupAnswer) ProtoMessage() {}
 
 func (x *TextPopupAnswer) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_popup_proto_msgTypes[8]
+	mi := &file_api_v1_popup_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,7 +661,7 @@ func (x *TextPopupAnswer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TextPopupAnswer.ProtoReflect.Descriptor instead.
 func (*TextPopupAnswer) Descriptor() ([]byte, []int) {
-	return file_api_v1_popup_proto_rawDescGZIP(), []int{8}
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *TextPopupAnswer) GetValue() string {
@@ -605,7 +688,7 @@ type SubmitPopupAnswerRequest struct {
 
 func (x *SubmitPopupAnswerRequest) Reset() {
 	*x = SubmitPopupAnswerRequest{}
-	mi := &file_api_v1_popup_proto_msgTypes[9]
+	mi := &file_api_v1_popup_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -617,7 +700,7 @@ func (x *SubmitPopupAnswerRequest) String() string {
 func (*SubmitPopupAnswerRequest) ProtoMessage() {}
 
 func (x *SubmitPopupAnswerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_popup_proto_msgTypes[9]
+	mi := &file_api_v1_popup_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -630,7 +713,7 @@ func (x *SubmitPopupAnswerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitPopupAnswerRequest.ProtoReflect.Descriptor instead.
 func (*SubmitPopupAnswerRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_popup_proto_rawDescGZIP(), []int{9}
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SubmitPopupAnswerRequest) GetId() string {
@@ -675,7 +758,7 @@ type SubmitPopupAnswerResponse struct {
 
 func (x *SubmitPopupAnswerResponse) Reset() {
 	*x = SubmitPopupAnswerResponse{}
-	mi := &file_api_v1_popup_proto_msgTypes[10]
+	mi := &file_api_v1_popup_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -687,7 +770,7 @@ func (x *SubmitPopupAnswerResponse) String() string {
 func (*SubmitPopupAnswerResponse) ProtoMessage() {}
 
 func (x *SubmitPopupAnswerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_popup_proto_msgTypes[10]
+	mi := &file_api_v1_popup_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -700,7 +783,7 @@ func (x *SubmitPopupAnswerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitPopupAnswerResponse.ProtoReflect.Descriptor instead.
 func (*SubmitPopupAnswerResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_popup_proto_rawDescGZIP(), []int{10}
+	return file_api_v1_popup_proto_rawDescGZIP(), []int{12}
 }
 
 var File_api_v1_popup_proto protoreflect.FileDescriptor
@@ -708,7 +791,10 @@ var File_api_v1_popup_proto protoreflect.FileDescriptor
 const file_api_v1_popup_proto_rawDesc = "" +
 	"\n" +
 	"\x12api/v1/popup.proto\x12\x06api.v1\"\x13\n" +
-	"\x11WatchPopupRequest\"4\n" +
+	"\x11WatchPopupRequest\"\x12\n" +
+	"\x10PullPopupRequest\"<\n" +
+	"\x11PullPopupResponse\x12'\n" +
+	"\x05popup\x18\x01 \x01(\v2\x11.api.v1.PopupFormR\x05popup\"4\n" +
 	"\x10TextPopupPayload\x12 \n" +
 	"\vplaceholder\x18\x01 \x01(\tR\vplaceholder\"3\n" +
 	"\x16OAuthLoginPopupPayload\x12\x19\n" +
@@ -740,12 +826,13 @@ const file_api_v1_popup_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
 	"\x04text\x18\x02 \x01(\v2\x17.api.v1.TextPopupAnswerH\x00R\x04textB\t\n" +
 	"\apayload\"\x1b\n" +
-	"\x19SubmitPopupAnswerResponse2\x8f\x02\n" +
+	"\x19SubmitPopupAnswerResponse2\xd1\x02\n" +
 	"\fPopupService\x12E\n" +
 	"\n" +
 	"WatchPopup\x12\x19.api.v1.WatchPopupRequest\x1a\x1a.api.v1.WatchPopupResponse0\x01\x12^\n" +
 	"\x13ValidatePopupAnswer\x12\".api.v1.ValidatePopupAnswerRequest\x1a#.api.v1.ValidatePopupAnswerResponse\x12X\n" +
-	"\x11SubmitPopupAnswer\x12 .api.v1.SubmitPopupAnswerRequest\x1a!.api.v1.SubmitPopupAnswerResponseB?Z=github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1b\beditionsp\xe8\a"
+	"\x11SubmitPopupAnswer\x12 .api.v1.SubmitPopupAnswerRequest\x1a!.api.v1.SubmitPopupAnswerResponse\x12@\n" +
+	"\tPullPopup\x12\x18.api.v1.PullPopupRequest\x1a\x19.api.v1.PullPopupResponseB?Z=github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1b\beditionsp\xe8\a"
 
 var (
 	file_api_v1_popup_proto_rawDescOnce sync.Once
@@ -759,37 +846,42 @@ func file_api_v1_popup_proto_rawDescGZIP() []byte {
 	return file_api_v1_popup_proto_rawDescData
 }
 
-var file_api_v1_popup_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_api_v1_popup_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_api_v1_popup_proto_goTypes = []any{
 	(*WatchPopupRequest)(nil),           // 0: api.v1.WatchPopupRequest
-	(*TextPopupPayload)(nil),            // 1: api.v1.TextPopupPayload
-	(*OAuthLoginPopupPayload)(nil),      // 2: api.v1.OAuthLoginPopupPayload
-	(*PopupForm)(nil),                   // 3: api.v1.PopupForm
-	(*WatchPopupResponse)(nil),          // 4: api.v1.WatchPopupResponse
-	(*TextPopupValidationRequest)(nil),  // 5: api.v1.TextPopupValidationRequest
-	(*ValidatePopupAnswerRequest)(nil),  // 6: api.v1.ValidatePopupAnswerRequest
-	(*ValidatePopupAnswerResponse)(nil), // 7: api.v1.ValidatePopupAnswerResponse
-	(*TextPopupAnswer)(nil),             // 8: api.v1.TextPopupAnswer
-	(*SubmitPopupAnswerRequest)(nil),    // 9: api.v1.SubmitPopupAnswerRequest
-	(*SubmitPopupAnswerResponse)(nil),   // 10: api.v1.SubmitPopupAnswerResponse
+	(*PullPopupRequest)(nil),            // 1: api.v1.PullPopupRequest
+	(*PullPopupResponse)(nil),           // 2: api.v1.PullPopupResponse
+	(*TextPopupPayload)(nil),            // 3: api.v1.TextPopupPayload
+	(*OAuthLoginPopupPayload)(nil),      // 4: api.v1.OAuthLoginPopupPayload
+	(*PopupForm)(nil),                   // 5: api.v1.PopupForm
+	(*WatchPopupResponse)(nil),          // 6: api.v1.WatchPopupResponse
+	(*TextPopupValidationRequest)(nil),  // 7: api.v1.TextPopupValidationRequest
+	(*ValidatePopupAnswerRequest)(nil),  // 8: api.v1.ValidatePopupAnswerRequest
+	(*ValidatePopupAnswerResponse)(nil), // 9: api.v1.ValidatePopupAnswerResponse
+	(*TextPopupAnswer)(nil),             // 10: api.v1.TextPopupAnswer
+	(*SubmitPopupAnswerRequest)(nil),    // 11: api.v1.SubmitPopupAnswerRequest
+	(*SubmitPopupAnswerResponse)(nil),   // 12: api.v1.SubmitPopupAnswerResponse
 }
 var file_api_v1_popup_proto_depIdxs = []int32{
-	1,  // 0: api.v1.PopupForm.text:type_name -> api.v1.TextPopupPayload
-	2,  // 1: api.v1.PopupForm.oauth_login:type_name -> api.v1.OAuthLoginPopupPayload
-	3,  // 2: api.v1.WatchPopupResponse.popup:type_name -> api.v1.PopupForm
-	5,  // 3: api.v1.ValidatePopupAnswerRequest.text:type_name -> api.v1.TextPopupValidationRequest
-	8,  // 4: api.v1.SubmitPopupAnswerRequest.text:type_name -> api.v1.TextPopupAnswer
-	0,  // 5: api.v1.PopupService.WatchPopup:input_type -> api.v1.WatchPopupRequest
-	6,  // 6: api.v1.PopupService.ValidatePopupAnswer:input_type -> api.v1.ValidatePopupAnswerRequest
-	9,  // 7: api.v1.PopupService.SubmitPopupAnswer:input_type -> api.v1.SubmitPopupAnswerRequest
-	4,  // 8: api.v1.PopupService.WatchPopup:output_type -> api.v1.WatchPopupResponse
-	7,  // 9: api.v1.PopupService.ValidatePopupAnswer:output_type -> api.v1.ValidatePopupAnswerResponse
-	10, // 10: api.v1.PopupService.SubmitPopupAnswer:output_type -> api.v1.SubmitPopupAnswerResponse
-	8,  // [8:11] is the sub-list for method output_type
-	5,  // [5:8] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	5,  // 0: api.v1.PullPopupResponse.popup:type_name -> api.v1.PopupForm
+	3,  // 1: api.v1.PopupForm.text:type_name -> api.v1.TextPopupPayload
+	4,  // 2: api.v1.PopupForm.oauth_login:type_name -> api.v1.OAuthLoginPopupPayload
+	5,  // 3: api.v1.WatchPopupResponse.popup:type_name -> api.v1.PopupForm
+	7,  // 4: api.v1.ValidatePopupAnswerRequest.text:type_name -> api.v1.TextPopupValidationRequest
+	10, // 5: api.v1.SubmitPopupAnswerRequest.text:type_name -> api.v1.TextPopupAnswer
+	0,  // 6: api.v1.PopupService.WatchPopup:input_type -> api.v1.WatchPopupRequest
+	8,  // 7: api.v1.PopupService.ValidatePopupAnswer:input_type -> api.v1.ValidatePopupAnswerRequest
+	11, // 8: api.v1.PopupService.SubmitPopupAnswer:input_type -> api.v1.SubmitPopupAnswerRequest
+	1,  // 9: api.v1.PopupService.PullPopup:input_type -> api.v1.PullPopupRequest
+	6,  // 10: api.v1.PopupService.WatchPopup:output_type -> api.v1.WatchPopupResponse
+	9,  // 11: api.v1.PopupService.ValidatePopupAnswer:output_type -> api.v1.ValidatePopupAnswerResponse
+	12, // 12: api.v1.PopupService.SubmitPopupAnswer:output_type -> api.v1.SubmitPopupAnswerResponse
+	2,  // 13: api.v1.PopupService.PullPopup:output_type -> api.v1.PullPopupResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_popup_proto_init() }
@@ -797,18 +889,18 @@ func file_api_v1_popup_proto_init() {
 	if File_api_v1_popup_proto != nil {
 		return
 	}
-	file_api_v1_popup_proto_msgTypes[3].OneofWrappers = []any{
+	file_api_v1_popup_proto_msgTypes[5].OneofWrappers = []any{
 		(*PopupForm_Text)(nil),
 		(*PopupForm_OauthLogin)(nil),
 	}
-	file_api_v1_popup_proto_msgTypes[4].OneofWrappers = []any{
+	file_api_v1_popup_proto_msgTypes[6].OneofWrappers = []any{
 		(*WatchPopupResponse_Popup)(nil),
 		(*WatchPopupResponse_Dismissed)(nil),
 	}
-	file_api_v1_popup_proto_msgTypes[6].OneofWrappers = []any{
+	file_api_v1_popup_proto_msgTypes[8].OneofWrappers = []any{
 		(*ValidatePopupAnswerRequest_Text)(nil),
 	}
-	file_api_v1_popup_proto_msgTypes[9].OneofWrappers = []any{
+	file_api_v1_popup_proto_msgTypes[11].OneofWrappers = []any{
 		(*SubmitPopupAnswerRequest_Text)(nil),
 	}
 	type x struct{}
@@ -817,7 +909,7 @@ func file_api_v1_popup_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_popup_proto_rawDesc), len(file_api_v1_popup_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

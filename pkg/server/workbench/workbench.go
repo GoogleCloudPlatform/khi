@@ -19,10 +19,12 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/streamingutil"
 )
 
 var (
@@ -77,6 +79,7 @@ type Workbench struct {
 	indexSubscribers []chan IndexProgressEvent
 	cancelIndex      context.CancelFunc
 	indexManager     *InspectionIndexManager
+	filterJobs       *streamingutil.AsyncJobManager[*apiv1.FilterProgress, *apiv1.FilterResult]
 }
 
 // NewWorkbench creates a new Workbench instance.
@@ -85,7 +88,13 @@ func NewWorkbench(id string, inspectionID string) *Workbench {
 		id:           id,
 		inspectionID: inspectionID,
 		internPool:   khifilev6model.NewInternPool(nil),
+		filterJobs:   streamingutil.NewAsyncJobManager[*apiv1.FilterProgress, *apiv1.FilterResult](15*time.Second, 1*time.Minute),
 	}
+}
+
+// FilterJobManager returns the AsyncJobManager tracking timeline filter jobs for this workbench.
+func (w *Workbench) FilterJobManager() *streamingutil.AsyncJobManager[*apiv1.FilterProgress, *apiv1.FilterResult] {
+	return w.filterJobs
 }
 
 // SetIndexManager sets the InspectionIndexManager used to retrieve or wait for background TrigramIndex instances.
@@ -353,4 +362,8 @@ func (w *Workbench) Close() {
 	}
 	w.indexSubscribers = nil
 	w.indexMu.Unlock()
+
+	if w.filterJobs != nil {
+		w.filterJobs.Close()
+	}
 }

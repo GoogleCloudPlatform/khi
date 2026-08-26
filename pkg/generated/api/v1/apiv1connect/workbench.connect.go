@@ -50,9 +50,18 @@ const (
 	// WorkbenchServiceOpenWorkbenchProcedure is the fully-qualified name of the WorkbenchService's
 	// OpenWorkbench RPC.
 	WorkbenchServiceOpenWorkbenchProcedure = "/api.v1.WorkbenchService/OpenWorkbench"
+	// WorkbenchServiceOpenWorkbenchSyncProcedure is the fully-qualified name of the WorkbenchService's
+	// OpenWorkbenchSync RPC.
+	WorkbenchServiceOpenWorkbenchSyncProcedure = "/api.v1.WorkbenchService/OpenWorkbenchSync"
+	// WorkbenchServiceCancelOpenWorkbenchSyncProcedure is the fully-qualified name of the
+	// WorkbenchService's CancelOpenWorkbenchSync RPC.
+	WorkbenchServiceCancelOpenWorkbenchSyncProcedure = "/api.v1.WorkbenchService/CancelOpenWorkbenchSync"
 	// WorkbenchServiceWatchIndexProgressProcedure is the fully-qualified name of the WorkbenchService's
 	// WatchIndexProgress RPC.
 	WorkbenchServiceWatchIndexProgressProcedure = "/api.v1.WorkbenchService/WatchIndexProgress"
+	// WorkbenchServicePullIndexProgressProcedure is the fully-qualified name of the WorkbenchService's
+	// PullIndexProgress RPC.
+	WorkbenchServicePullIndexProgressProcedure = "/api.v1.WorkbenchService/PullIndexProgress"
 	// WorkbenchServiceHeartbeatWorkbenchProcedure is the fully-qualified name of the WorkbenchService's
 	// HeartbeatWorkbench RPC.
 	WorkbenchServiceHeartbeatWorkbenchProcedure = "/api.v1.WorkbenchService/HeartbeatWorkbench"
@@ -62,6 +71,12 @@ const (
 	// WorkbenchServiceFilterTimelineProcedure is the fully-qualified name of the WorkbenchService's
 	// FilterTimeline RPC.
 	WorkbenchServiceFilterTimelineProcedure = "/api.v1.WorkbenchService/FilterTimeline"
+	// WorkbenchServiceFilterTimelineSyncProcedure is the fully-qualified name of the WorkbenchService's
+	// FilterTimelineSync RPC.
+	WorkbenchServiceFilterTimelineSyncProcedure = "/api.v1.WorkbenchService/FilterTimelineSync"
+	// WorkbenchServiceCancelFilterTimelineSyncProcedure is the fully-qualified name of the
+	// WorkbenchService's CancelFilterTimelineSync RPC.
+	WorkbenchServiceCancelFilterTimelineSyncProcedure = "/api.v1.WorkbenchService/CancelFilterTimelineSync"
 	// WorkbenchServiceCloseWorkbenchProcedure is the fully-qualified name of the WorkbenchService's
 	// CloseWorkbench RPC.
 	WorkbenchServiceCloseWorkbenchProcedure = "/api.v1.WorkbenchService/CloseWorkbench"
@@ -71,14 +86,24 @@ const (
 type WorkbenchServiceClient interface {
 	// Opens or attaches to an in-memory Workbench session with real-time loading progress streaming.
 	OpenWorkbench(context.Context, *connect.Request[v1.OpenWorkbenchRequest]) (*connect.ServerStreamForClient[v1.OpenWorkbenchResponse], error)
+	// Opens or polls loading progress of a Workbench session without streaming.
+	OpenWorkbenchSync(context.Context, *connect.Request[v1.OpenWorkbenchSyncRequest]) (*connect.Response[v1.OpenWorkbenchSyncResponse], error)
+	// Cancels an in-progress synchronous workbench open task.
+	CancelOpenWorkbenchSync(context.Context, *connect.Request[v1.CancelOpenWorkbenchSyncRequest]) (*connect.Response[v1.CancelOpenWorkbenchSyncResponse], error)
 	// Watches the search index construction progress and status for an inspection dataset. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
 	WatchIndexProgress(context.Context, *connect.Request[v1.WatchIndexProgressRequest]) (*connect.ServerStreamForClient[v1.WatchIndexProgressResponse], error)
+	// Pulls the search index construction progress and status snapshot without opening a persistent stream.
+	PullIndexProgress(context.Context, *connect.Request[v1.PullIndexProgressRequest]) (*connect.Response[v1.PullIndexProgressResponse], error)
 	// Sends periodic heartbeat to keep the Workbench session alive in memory.
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
 	// Decodes an interned struct by ID and returns its formatted YAML string.
 	ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error)
 	// Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
 	FilterTimeline(context.Context, *connect.Request[v1.FilterTimelineRequest]) (*connect.ServerStreamForClient[v1.FilterTimelineResponse], error)
+	// Evaluates a timeline and log filtering pipeline synchronously or polls its in-progress status.
+	FilterTimelineSync(context.Context, *connect.Request[v1.FilterTimelineSyncRequest]) (*connect.Response[v1.FilterTimelineSyncResponse], error)
+	// Cancels an in-progress synchronous timeline filtering task.
+	CancelFilterTimelineSync(context.Context, *connect.Request[v1.CancelFilterTimelineSyncRequest]) (*connect.Response[v1.CancelFilterTimelineSyncResponse], error)
 	// Explicitly closes and releases an active Workbench session.
 	CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error)
 }
@@ -100,10 +125,28 @@ func NewWorkbenchServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workbenchServiceMethods.ByName("OpenWorkbench")),
 			connect.WithClientOptions(opts...),
 		),
+		openWorkbenchSync: connect.NewClient[v1.OpenWorkbenchSyncRequest, v1.OpenWorkbenchSyncResponse](
+			httpClient,
+			baseURL+WorkbenchServiceOpenWorkbenchSyncProcedure,
+			connect.WithSchema(workbenchServiceMethods.ByName("OpenWorkbenchSync")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelOpenWorkbenchSync: connect.NewClient[v1.CancelOpenWorkbenchSyncRequest, v1.CancelOpenWorkbenchSyncResponse](
+			httpClient,
+			baseURL+WorkbenchServiceCancelOpenWorkbenchSyncProcedure,
+			connect.WithSchema(workbenchServiceMethods.ByName("CancelOpenWorkbenchSync")),
+			connect.WithClientOptions(opts...),
+		),
 		watchIndexProgress: connect.NewClient[v1.WatchIndexProgressRequest, v1.WatchIndexProgressResponse](
 			httpClient,
 			baseURL+WorkbenchServiceWatchIndexProgressProcedure,
 			connect.WithSchema(workbenchServiceMethods.ByName("WatchIndexProgress")),
+			connect.WithClientOptions(opts...),
+		),
+		pullIndexProgress: connect.NewClient[v1.PullIndexProgressRequest, v1.PullIndexProgressResponse](
+			httpClient,
+			baseURL+WorkbenchServicePullIndexProgressProcedure,
+			connect.WithSchema(workbenchServiceMethods.ByName("PullIndexProgress")),
 			connect.WithClientOptions(opts...),
 		),
 		heartbeatWorkbench: connect.NewClient[v1.HeartbeatWorkbenchRequest, v1.HeartbeatWorkbenchResponse](
@@ -124,6 +167,18 @@ func NewWorkbenchServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workbenchServiceMethods.ByName("FilterTimeline")),
 			connect.WithClientOptions(opts...),
 		),
+		filterTimelineSync: connect.NewClient[v1.FilterTimelineSyncRequest, v1.FilterTimelineSyncResponse](
+			httpClient,
+			baseURL+WorkbenchServiceFilterTimelineSyncProcedure,
+			connect.WithSchema(workbenchServiceMethods.ByName("FilterTimelineSync")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelFilterTimelineSync: connect.NewClient[v1.CancelFilterTimelineSyncRequest, v1.CancelFilterTimelineSyncResponse](
+			httpClient,
+			baseURL+WorkbenchServiceCancelFilterTimelineSyncProcedure,
+			connect.WithSchema(workbenchServiceMethods.ByName("CancelFilterTimelineSync")),
+			connect.WithClientOptions(opts...),
+		),
 		closeWorkbench: connect.NewClient[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse](
 			httpClient,
 			baseURL+WorkbenchServiceCloseWorkbenchProcedure,
@@ -135,12 +190,17 @@ func NewWorkbenchServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // workbenchServiceClient implements WorkbenchServiceClient.
 type workbenchServiceClient struct {
-	openWorkbench      *connect.Client[v1.OpenWorkbenchRequest, v1.OpenWorkbenchResponse]
-	watchIndexProgress *connect.Client[v1.WatchIndexProgressRequest, v1.WatchIndexProgressResponse]
-	heartbeatWorkbench *connect.Client[v1.HeartbeatWorkbenchRequest, v1.HeartbeatWorkbenchResponse]
-	readStructYAML     *connect.Client[v1.ReadStructYAMLRequest, v1.ReadStructYAMLResponse]
-	filterTimeline     *connect.Client[v1.FilterTimelineRequest, v1.FilterTimelineResponse]
-	closeWorkbench     *connect.Client[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse]
+	openWorkbench            *connect.Client[v1.OpenWorkbenchRequest, v1.OpenWorkbenchResponse]
+	openWorkbenchSync        *connect.Client[v1.OpenWorkbenchSyncRequest, v1.OpenWorkbenchSyncResponse]
+	cancelOpenWorkbenchSync  *connect.Client[v1.CancelOpenWorkbenchSyncRequest, v1.CancelOpenWorkbenchSyncResponse]
+	watchIndexProgress       *connect.Client[v1.WatchIndexProgressRequest, v1.WatchIndexProgressResponse]
+	pullIndexProgress        *connect.Client[v1.PullIndexProgressRequest, v1.PullIndexProgressResponse]
+	heartbeatWorkbench       *connect.Client[v1.HeartbeatWorkbenchRequest, v1.HeartbeatWorkbenchResponse]
+	readStructYAML           *connect.Client[v1.ReadStructYAMLRequest, v1.ReadStructYAMLResponse]
+	filterTimeline           *connect.Client[v1.FilterTimelineRequest, v1.FilterTimelineResponse]
+	filterTimelineSync       *connect.Client[v1.FilterTimelineSyncRequest, v1.FilterTimelineSyncResponse]
+	cancelFilterTimelineSync *connect.Client[v1.CancelFilterTimelineSyncRequest, v1.CancelFilterTimelineSyncResponse]
+	closeWorkbench           *connect.Client[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse]
 }
 
 // OpenWorkbench calls api.v1.WorkbenchService.OpenWorkbench.
@@ -148,9 +208,24 @@ func (c *workbenchServiceClient) OpenWorkbench(ctx context.Context, req *connect
 	return c.openWorkbench.CallServerStream(ctx, req)
 }
 
+// OpenWorkbenchSync calls api.v1.WorkbenchService.OpenWorkbenchSync.
+func (c *workbenchServiceClient) OpenWorkbenchSync(ctx context.Context, req *connect.Request[v1.OpenWorkbenchSyncRequest]) (*connect.Response[v1.OpenWorkbenchSyncResponse], error) {
+	return c.openWorkbenchSync.CallUnary(ctx, req)
+}
+
+// CancelOpenWorkbenchSync calls api.v1.WorkbenchService.CancelOpenWorkbenchSync.
+func (c *workbenchServiceClient) CancelOpenWorkbenchSync(ctx context.Context, req *connect.Request[v1.CancelOpenWorkbenchSyncRequest]) (*connect.Response[v1.CancelOpenWorkbenchSyncResponse], error) {
+	return c.cancelOpenWorkbenchSync.CallUnary(ctx, req)
+}
+
 // WatchIndexProgress calls api.v1.WorkbenchService.WatchIndexProgress.
 func (c *workbenchServiceClient) WatchIndexProgress(ctx context.Context, req *connect.Request[v1.WatchIndexProgressRequest]) (*connect.ServerStreamForClient[v1.WatchIndexProgressResponse], error) {
 	return c.watchIndexProgress.CallServerStream(ctx, req)
+}
+
+// PullIndexProgress calls api.v1.WorkbenchService.PullIndexProgress.
+func (c *workbenchServiceClient) PullIndexProgress(ctx context.Context, req *connect.Request[v1.PullIndexProgressRequest]) (*connect.Response[v1.PullIndexProgressResponse], error) {
+	return c.pullIndexProgress.CallUnary(ctx, req)
 }
 
 // HeartbeatWorkbench calls api.v1.WorkbenchService.HeartbeatWorkbench.
@@ -168,6 +243,16 @@ func (c *workbenchServiceClient) FilterTimeline(ctx context.Context, req *connec
 	return c.filterTimeline.CallServerStream(ctx, req)
 }
 
+// FilterTimelineSync calls api.v1.WorkbenchService.FilterTimelineSync.
+func (c *workbenchServiceClient) FilterTimelineSync(ctx context.Context, req *connect.Request[v1.FilterTimelineSyncRequest]) (*connect.Response[v1.FilterTimelineSyncResponse], error) {
+	return c.filterTimelineSync.CallUnary(ctx, req)
+}
+
+// CancelFilterTimelineSync calls api.v1.WorkbenchService.CancelFilterTimelineSync.
+func (c *workbenchServiceClient) CancelFilterTimelineSync(ctx context.Context, req *connect.Request[v1.CancelFilterTimelineSyncRequest]) (*connect.Response[v1.CancelFilterTimelineSyncResponse], error) {
+	return c.cancelFilterTimelineSync.CallUnary(ctx, req)
+}
+
 // CloseWorkbench calls api.v1.WorkbenchService.CloseWorkbench.
 func (c *workbenchServiceClient) CloseWorkbench(ctx context.Context, req *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error) {
 	return c.closeWorkbench.CallUnary(ctx, req)
@@ -177,14 +262,24 @@ func (c *workbenchServiceClient) CloseWorkbench(ctx context.Context, req *connec
 type WorkbenchServiceHandler interface {
 	// Opens or attaches to an in-memory Workbench session with real-time loading progress streaming.
 	OpenWorkbench(context.Context, *connect.Request[v1.OpenWorkbenchRequest], *connect.ServerStream[v1.OpenWorkbenchResponse]) error
+	// Opens or polls loading progress of a Workbench session without streaming.
+	OpenWorkbenchSync(context.Context, *connect.Request[v1.OpenWorkbenchSyncRequest]) (*connect.Response[v1.OpenWorkbenchSyncResponse], error)
+	// Cancels an in-progress synchronous workbench open task.
+	CancelOpenWorkbenchSync(context.Context, *connect.Request[v1.CancelOpenWorkbenchSyncRequest]) (*connect.Response[v1.CancelOpenWorkbenchSyncResponse], error)
 	// Watches the search index construction progress and status for an inspection dataset. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
 	WatchIndexProgress(context.Context, *connect.Request[v1.WatchIndexProgressRequest], *connect.ServerStream[v1.WatchIndexProgressResponse]) error
+	// Pulls the search index construction progress and status snapshot without opening a persistent stream.
+	PullIndexProgress(context.Context, *connect.Request[v1.PullIndexProgressRequest]) (*connect.Response[v1.PullIndexProgressResponse], error)
 	// Sends periodic heartbeat to keep the Workbench session alive in memory.
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
 	// Decodes an interned struct by ID and returns its formatted YAML string.
 	ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error)
 	// Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
 	FilterTimeline(context.Context, *connect.Request[v1.FilterTimelineRequest], *connect.ServerStream[v1.FilterTimelineResponse]) error
+	// Evaluates a timeline and log filtering pipeline synchronously or polls its in-progress status.
+	FilterTimelineSync(context.Context, *connect.Request[v1.FilterTimelineSyncRequest]) (*connect.Response[v1.FilterTimelineSyncResponse], error)
+	// Cancels an in-progress synchronous timeline filtering task.
+	CancelFilterTimelineSync(context.Context, *connect.Request[v1.CancelFilterTimelineSyncRequest]) (*connect.Response[v1.CancelFilterTimelineSyncResponse], error)
 	// Explicitly closes and releases an active Workbench session.
 	CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error)
 }
@@ -202,10 +297,28 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 		connect.WithSchema(workbenchServiceMethods.ByName("OpenWorkbench")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workbenchServiceOpenWorkbenchSyncHandler := connect.NewUnaryHandler(
+		WorkbenchServiceOpenWorkbenchSyncProcedure,
+		svc.OpenWorkbenchSync,
+		connect.WithSchema(workbenchServiceMethods.ByName("OpenWorkbenchSync")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workbenchServiceCancelOpenWorkbenchSyncHandler := connect.NewUnaryHandler(
+		WorkbenchServiceCancelOpenWorkbenchSyncProcedure,
+		svc.CancelOpenWorkbenchSync,
+		connect.WithSchema(workbenchServiceMethods.ByName("CancelOpenWorkbenchSync")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workbenchServiceWatchIndexProgressHandler := connect.NewServerStreamHandler(
 		WorkbenchServiceWatchIndexProgressProcedure,
 		svc.WatchIndexProgress,
 		connect.WithSchema(workbenchServiceMethods.ByName("WatchIndexProgress")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workbenchServicePullIndexProgressHandler := connect.NewUnaryHandler(
+		WorkbenchServicePullIndexProgressProcedure,
+		svc.PullIndexProgress,
+		connect.WithSchema(workbenchServiceMethods.ByName("PullIndexProgress")),
 		connect.WithHandlerOptions(opts...),
 	)
 	workbenchServiceHeartbeatWorkbenchHandler := connect.NewUnaryHandler(
@@ -226,6 +339,18 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 		connect.WithSchema(workbenchServiceMethods.ByName("FilterTimeline")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workbenchServiceFilterTimelineSyncHandler := connect.NewUnaryHandler(
+		WorkbenchServiceFilterTimelineSyncProcedure,
+		svc.FilterTimelineSync,
+		connect.WithSchema(workbenchServiceMethods.ByName("FilterTimelineSync")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workbenchServiceCancelFilterTimelineSyncHandler := connect.NewUnaryHandler(
+		WorkbenchServiceCancelFilterTimelineSyncProcedure,
+		svc.CancelFilterTimelineSync,
+		connect.WithSchema(workbenchServiceMethods.ByName("CancelFilterTimelineSync")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workbenchServiceCloseWorkbenchHandler := connect.NewUnaryHandler(
 		WorkbenchServiceCloseWorkbenchProcedure,
 		svc.CloseWorkbench,
@@ -236,14 +361,24 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case WorkbenchServiceOpenWorkbenchProcedure:
 			workbenchServiceOpenWorkbenchHandler.ServeHTTP(w, r)
+		case WorkbenchServiceOpenWorkbenchSyncProcedure:
+			workbenchServiceOpenWorkbenchSyncHandler.ServeHTTP(w, r)
+		case WorkbenchServiceCancelOpenWorkbenchSyncProcedure:
+			workbenchServiceCancelOpenWorkbenchSyncHandler.ServeHTTP(w, r)
 		case WorkbenchServiceWatchIndexProgressProcedure:
 			workbenchServiceWatchIndexProgressHandler.ServeHTTP(w, r)
+		case WorkbenchServicePullIndexProgressProcedure:
+			workbenchServicePullIndexProgressHandler.ServeHTTP(w, r)
 		case WorkbenchServiceHeartbeatWorkbenchProcedure:
 			workbenchServiceHeartbeatWorkbenchHandler.ServeHTTP(w, r)
 		case WorkbenchServiceReadStructYAMLProcedure:
 			workbenchServiceReadStructYAMLHandler.ServeHTTP(w, r)
 		case WorkbenchServiceFilterTimelineProcedure:
 			workbenchServiceFilterTimelineHandler.ServeHTTP(w, r)
+		case WorkbenchServiceFilterTimelineSyncProcedure:
+			workbenchServiceFilterTimelineSyncHandler.ServeHTTP(w, r)
+		case WorkbenchServiceCancelFilterTimelineSyncProcedure:
+			workbenchServiceCancelFilterTimelineSyncHandler.ServeHTTP(w, r)
 		case WorkbenchServiceCloseWorkbenchProcedure:
 			workbenchServiceCloseWorkbenchHandler.ServeHTTP(w, r)
 		default:
@@ -259,8 +394,20 @@ func (UnimplementedWorkbenchServiceHandler) OpenWorkbench(context.Context, *conn
 	return connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.OpenWorkbench is not implemented"))
 }
 
+func (UnimplementedWorkbenchServiceHandler) OpenWorkbenchSync(context.Context, *connect.Request[v1.OpenWorkbenchSyncRequest]) (*connect.Response[v1.OpenWorkbenchSyncResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.OpenWorkbenchSync is not implemented"))
+}
+
+func (UnimplementedWorkbenchServiceHandler) CancelOpenWorkbenchSync(context.Context, *connect.Request[v1.CancelOpenWorkbenchSyncRequest]) (*connect.Response[v1.CancelOpenWorkbenchSyncResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.CancelOpenWorkbenchSync is not implemented"))
+}
+
 func (UnimplementedWorkbenchServiceHandler) WatchIndexProgress(context.Context, *connect.Request[v1.WatchIndexProgressRequest], *connect.ServerStream[v1.WatchIndexProgressResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.WatchIndexProgress is not implemented"))
+}
+
+func (UnimplementedWorkbenchServiceHandler) PullIndexProgress(context.Context, *connect.Request[v1.PullIndexProgressRequest]) (*connect.Response[v1.PullIndexProgressResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.PullIndexProgress is not implemented"))
 }
 
 func (UnimplementedWorkbenchServiceHandler) HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error) {
@@ -273,6 +420,14 @@ func (UnimplementedWorkbenchServiceHandler) ReadStructYAML(context.Context, *con
 
 func (UnimplementedWorkbenchServiceHandler) FilterTimeline(context.Context, *connect.Request[v1.FilterTimelineRequest], *connect.ServerStream[v1.FilterTimelineResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.FilterTimeline is not implemented"))
+}
+
+func (UnimplementedWorkbenchServiceHandler) FilterTimelineSync(context.Context, *connect.Request[v1.FilterTimelineSyncRequest]) (*connect.Response[v1.FilterTimelineSyncResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.FilterTimelineSync is not implemented"))
+}
+
+func (UnimplementedWorkbenchServiceHandler) CancelFilterTimelineSync(context.Context, *connect.Request[v1.CancelFilterTimelineSyncRequest]) (*connect.Response[v1.CancelFilterTimelineSyncResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.CancelFilterTimelineSync is not implemented"))
 }
 
 func (UnimplementedWorkbenchServiceHandler) CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error) {

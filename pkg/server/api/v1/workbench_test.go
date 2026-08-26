@@ -528,3 +528,221 @@ func TestWorkbenchServiceServer_ProtoJSONClient(t *testing.T) {
 		t.Errorf("HeartbeatWorkbench() active = false, want true")
 	}
 }
+
+func TestWorkbenchServiceServer_OpenWorkbenchSync_And_Cancel(t *testing.T) {
+	testCases := []struct {
+		name        string
+		req         *apiv1.OpenWorkbenchSyncRequest
+		wantErrCode connect.Code
+	}{
+		{
+			name: "opens workbench synchronously and completes",
+			req: &apiv1.OpenWorkbenchSyncRequest{
+				UserId:    proto.String("user-sync"),
+				SessionId: proto.String("session-sync"),
+			},
+			wantErrCode: 0,
+		},
+		{
+			name: "fails with invalid argument when parameters missing",
+			req: &apiv1.OpenWorkbenchSyncRequest{
+				UserId: proto.String(""),
+			},
+			wantErrCode: connect.CodeInvalidArgument,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+			defer ts.Close()
+			defer manager.Stop()
+
+			if tc.wantErrCode == 0 {
+				tc.req.InspectionId = proto.String(validInspID)
+			}
+
+			res, err := client.OpenWorkbenchSync(context.Background(), connect.NewRequest(tc.req))
+			if tc.wantErrCode != 0 {
+				if err == nil {
+					t.Fatalf("expected error code %v, got nil", tc.wantErrCode)
+				}
+				if connect.CodeOf(err) != tc.wantErrCode {
+					t.Errorf("error code = %v, want %v", connect.CodeOf(err), tc.wantErrCode)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("OpenWorkbenchSync() unexpected error = %v", err)
+			}
+
+			// If not done yet, poll until done
+			jobID := res.Msg.GetJobId()
+			for res.Msg.GetStage() != apiv1.OpenWorkbenchResponse_STAGE_READY {
+				pollRes, err := client.OpenWorkbenchSync(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchSyncRequest{
+					JobId: proto.String(jobID),
+				}))
+				if err != nil {
+					t.Fatalf("polling OpenWorkbenchSync() error = %v", err)
+				}
+				res = pollRes
+				time.Sleep(10 * time.Millisecond)
+			}
+
+			if res.Msg.GetWorkbenchId() == "" {
+				t.Errorf("expected non-empty workbench ID on completion")
+			}
+		})
+	}
+}
+
+func TestWorkbenchServiceServer_PullIndexProgress(t *testing.T) {
+	testCases := []struct {
+		name        string
+		req         *apiv1.PullIndexProgressRequest
+		wantErrCode connect.Code
+	}{
+		{
+			name: "pulls index progress successfully",
+			req: &apiv1.PullIndexProgressRequest{
+				WorkbenchId: proto.String("user-pull-idx-session-0"),
+			},
+			wantErrCode: 0,
+		},
+		{
+			name: "fails with invalid argument when workbench ID is empty",
+			req: &apiv1.PullIndexProgressRequest{
+				WorkbenchId: proto.String(""),
+			},
+			wantErrCode: connect.CodeInvalidArgument,
+		},
+		{
+			name: "fails with not found for unknown workbench",
+			req: &apiv1.PullIndexProgressRequest{
+				WorkbenchId: proto.String("unknown-wb"),
+			},
+			wantErrCode: connect.CodeNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+			defer ts.Close()
+			defer manager.Stop()
+
+			if tc.wantErrCode == 0 {
+				// Open workbench first
+				openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
+					UserId:       proto.String("user-pull-idx"),
+					SessionId:    proto.String("session-0"),
+					InspectionId: proto.String(validInspID),
+				}))
+				if err != nil {
+					t.Fatalf("OpenWorkbench() error = %v", err)
+				}
+				for openStream.Receive() {
+				}
+				if err := openStream.Err(); err != nil {
+					t.Fatalf("OpenWorkbench() stream error = %v", err)
+				}
+			}
+
+			res, err := client.PullIndexProgress(context.Background(), connect.NewRequest(tc.req))
+			if tc.wantErrCode != 0 {
+				if err == nil {
+					t.Fatalf("expected error code %v, got nil", tc.wantErrCode)
+				}
+				if connect.CodeOf(err) != tc.wantErrCode {
+					t.Errorf("error code = %v, want %v", connect.CodeOf(err), tc.wantErrCode)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("PullIndexProgress() unexpected error = %v", err)
+			}
+			if res.Msg.GetState() == apiv1.WatchIndexProgressResponse_INDEX_STATE_UNSPECIFIED {
+				t.Errorf("unexpected index state: %v", res.Msg.GetState())
+			}
+		})
+	}
+}
+
+func TestWorkbenchServiceServer_FilterTimelineSync_And_Cancel(t *testing.T) {
+	testCases := []struct {
+		name        string
+		req         *apiv1.FilterTimelineSyncRequest
+		wantErrCode connect.Code
+	}{
+		{
+			name: "filters timeline synchronously",
+			req: &apiv1.FilterTimelineSyncRequest{
+				WorkbenchId: proto.String("user-filter-sync-session-0"),
+			},
+			wantErrCode: 0,
+		},
+		{
+			name: "fails with invalid argument when workbench ID is empty",
+			req: &apiv1.FilterTimelineSyncRequest{
+				WorkbenchId: proto.String(""),
+			},
+			wantErrCode: connect.CodeInvalidArgument,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+			defer ts.Close()
+			defer manager.Stop()
+
+			if tc.wantErrCode == 0 {
+				// Open workbench first
+				openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
+					UserId:       proto.String("user-filter-sync"),
+					SessionId:    proto.String("session-0"),
+					InspectionId: proto.String(validInspID),
+				}))
+				if err != nil {
+					t.Fatalf("OpenWorkbench() error = %v", err)
+				}
+				for openStream.Receive() {
+				}
+				if err := openStream.Err(); err != nil {
+					t.Fatalf("OpenWorkbench() stream error = %v", err)
+				}
+			}
+
+			res, err := client.FilterTimelineSync(context.Background(), connect.NewRequest(tc.req))
+			if tc.wantErrCode != 0 {
+				if err == nil {
+					t.Fatalf("expected error code %v, got nil", tc.wantErrCode)
+				}
+				if connect.CodeOf(err) != tc.wantErrCode {
+					t.Errorf("error code = %v, want %v", connect.CodeOf(err), tc.wantErrCode)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("FilterTimelineSync() unexpected error = %v", err)
+			}
+
+			jobID := res.Msg.GetJobId()
+			for !res.Msg.GetIsDone() {
+				pollRes, err := client.FilterTimelineSync(context.Background(), connect.NewRequest(&apiv1.FilterTimelineSyncRequest{
+					WorkbenchId: tc.req.WorkbenchId,
+					JobId:       proto.String(jobID),
+				}))
+				if err != nil {
+					t.Fatalf("polling FilterTimelineSync() error = %v", err)
+				}
+				res = pollRes
+				time.Sleep(10 * time.Millisecond)
+			}
+
+			if res.Msg.GetResult() == nil {
+				t.Errorf("expected non-nil result on filter completion")
+			}
+		})
+	}
+}
