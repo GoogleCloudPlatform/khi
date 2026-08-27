@@ -20,6 +20,7 @@ import (
 	"time"
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/sparsebitset"
 	"github.com/RoaringBitmap/roaring/v2"
 )
 
@@ -102,8 +103,8 @@ func (p *Pipeline) Execute(
 		)
 	}
 
-	tlMode, tlBitset := EncodeFilterResultBitset(len(index.Timelines), filterCtx.TimelineIDs)
-	logMode, logBitset := EncodeFilterResultBitset(len(index.Logs), filterCtx.LogIDs)
+	tlMode, tlBitset := sparsebitset.EncodeFilterResultBitset(len(index.Timelines), filterCtx.TimelineIDs)
+	logMode, logBitset := sparsebitset.EncodeFilterResultBitset(len(index.Logs), filterCtx.LogIDs)
 
 	totalDuration := time.Since(totalStart)
 	slog.DebugContext(ctx, "filter pipeline completed",

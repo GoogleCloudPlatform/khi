@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workbench
+package sparsebitset
 
 import (
 	"testing"
@@ -23,7 +23,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-func TestBuildSparseBitset(t *testing.T) {
+func TestBuild(t *testing.T) {
 	testCases := []struct {
 		name       string
 		ids        []uint32
@@ -57,9 +57,9 @@ func TestBuildSparseBitset(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := BuildSparseBitset(tc.ids)
+			got := Build(tc.ids)
 			if diff := cmp.Diff(tc.wantBitset, got, protocmp.Transform()); diff != "" {
-				t.Errorf("BuildSparseBitset() bitset mismatch (-want +got):\n%s", diff)
+				t.Errorf("Build() bitset mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -104,35 +104,25 @@ func TestEncodeFilterResultBitset(t *testing.T) {
 			},
 		},
 		{
-			name:       "minority matched (<= 50%) selects INCLUDE mode",
-			totalCount: 65,
-			matchedIDs: roaring.BitmapOf(1, 31, 64),
+			name:       "below 50% matched selects INCLUDE mode with matched IDs",
+			totalCount: 10,
+			matchedIDs: roaring.BitmapOf(2, 4),
 			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE,
-			wantBitset: &apiv1.SparseBitset{
-				Indices: []uint32{0, 2},
-				Masks:   []uint32{0x80000002, 0x1},
-			},
+			wantBitset: Build([]uint32{2, 4}),
 		},
 		{
-			name:       "majority matched (> 50%) selects EXCLUDE mode",
-			totalCount: 5,
-			matchedIDs: roaring.BitmapOf(1, 2, 3, 4),
+			name:       "above 50% matched selects EXCLUDE mode with inverted IDs",
+			totalCount: 10,
+			matchedIDs: roaring.BitmapOf(1, 2, 3, 4, 5, 6),
 			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE,
-			// Excluded item is 5 (block 0, bit 5 -> 1 << 5 = 0x20)
-			wantBitset: &apiv1.SparseBitset{
-				Indices: []uint32{0},
-				Masks:   []uint32{1 << 5},
-			},
+			wantBitset: Build([]uint32{7, 8, 9, 10}),
 		},
 		{
-			name:       "boundary spanning multiple blocks",
-			totalCount: 96,
-			matchedIDs: roaring.BitmapOf(32, 63, 96),
+			name:       "exactly 50% matched selects INCLUDE mode",
+			totalCount: 4,
+			matchedIDs: roaring.BitmapOf(1, 3),
 			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE,
-			wantBitset: &apiv1.SparseBitset{
-				Indices: []uint32{1, 3},
-				Masks:   []uint32{0x80000001, 0x1},
-			},
+			wantBitset: Build([]uint32{1, 3}),
 		},
 	}
 
@@ -140,10 +130,61 @@ func TestEncodeFilterResultBitset(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotMode, gotBitset := EncodeFilterResultBitset(tc.totalCount, tc.matchedIDs)
 			if gotMode != tc.wantMode {
-				t.Errorf("EncodeFilterResultBitset mode mismatch (-want +got):\n%s", cmp.Diff(tc.wantMode, gotMode))
+				t.Errorf("EncodeFilterResultBitset() mode mismatch: got %v, want %v", gotMode, tc.wantMode)
 			}
 			if diff := cmp.Diff(tc.wantBitset, gotBitset, protocmp.Transform()); diff != "" {
-				t.Errorf("EncodeFilterResultBitset bitset mismatch (-want +got):\n%s", diff)
+				t.Errorf("EncodeFilterResultBitset() bitset mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestDecode(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    *apiv1.SparseBitset
+		wantBits []uint32
+	}{
+		{
+			name:     "nil bitset returns empty bitmap",
+			input:    nil,
+			wantBits: []uint32{},
+		},
+		{
+			name: "empty bitset returns empty bitmap",
+			input: &apiv1.SparseBitset{
+				Indices: []uint32{},
+				Masks:   []uint32{},
+			},
+			wantBits: []uint32{},
+		},
+		{
+			name: "single block decoded correctly",
+			input: &apiv1.SparseBitset{
+				Indices: []uint32{0},
+				Masks:   []uint32{(1 << 0) | (1 << 5)},
+			},
+			wantBits: []uint32{0, 5},
+		},
+		{
+			name: "multiple sparse blocks decoded correctly",
+			input: &apiv1.SparseBitset{
+				Indices: []uint32{1, 3},
+				Masks:   []uint32{1 << 0, 1 << 31},
+			},
+			wantBits: []uint32{32, 3*32 + 31},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Decode(tc.input)
+			want := roaring.NewBitmap()
+			want.AddMany(tc.wantBits)
+
+			if !got.Equals(want) {
+				diff := cmp.Diff(want.ToArray(), got.ToArray())
+				t.Errorf("Decode() bitmap mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

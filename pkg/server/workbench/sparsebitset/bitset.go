@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workbench
+package sparsebitset
 
 import (
 	"slices"
@@ -21,8 +21,8 @@ import (
 	"github.com/RoaringBitmap/roaring/v2"
 )
 
-// BuildSparseBitset encodes a slice of uint32 IDs into a compact SparseBitset.
-func BuildSparseBitset(ids []uint32) *apiv1.SparseBitset {
+// Build encodes a slice of uint32 IDs into a compact SparseBitset.
+func Build(ids []uint32) *apiv1.SparseBitset {
 	blockMap := make(map[uint32]uint32)
 	for _, id := range ids {
 		blockIdx := id / 32
@@ -56,7 +56,7 @@ func EncodeFilterResultBitset(totalCount int, matchedIDs *roaring.Bitmap) (apiv1
 	matchedCount := int(matchedIDs.GetCardinality())
 
 	if matchedCount <= totalCount/2 {
-		return apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE, BuildSparseBitset(matchedIDs.ToArray())
+		return apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE, Build(matchedIDs.ToArray())
 	}
 
 	excludedCount := totalCount - matchedCount
@@ -69,5 +69,26 @@ func EncodeFilterResultBitset(totalCount int, matchedIDs *roaring.Bitmap) (apiv1
 			targetIDs = append(targetIDs, uint32(id))
 		}
 	}
-	return apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE, BuildSparseBitset(targetIDs)
+	return apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE, Build(targetIDs)
+}
+
+// Decode decodes a SparseBitset into a roaring.Bitmap of IDs.
+func Decode(bitset *apiv1.SparseBitset) *roaring.Bitmap {
+	bm := roaring.NewBitmap()
+	if bitset == nil {
+		return bm
+	}
+	for i, blockIdx := range bitset.Indices {
+		if i >= len(bitset.Masks) {
+			break
+		}
+		mask := bitset.Masks[i]
+		base := blockIdx * 32
+		for bit := uint32(0); bit < 32; bit++ {
+			if (mask & (1 << bit)) != 0 {
+				bm.Add(base + bit)
+			}
+		}
+	}
+	return bm
 }
