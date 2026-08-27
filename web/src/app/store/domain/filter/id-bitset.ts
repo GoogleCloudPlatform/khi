@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
+import { FilterResultMode } from 'src/app/generated/api/v1/workbench_pb';
 import {
-  FilterResultMode,
   SparseBitset,
-} from 'src/app/generated/api/v1/workbench_pb';
+  SparseBitsetSchema,
+} from 'src/app/generated/api/v1/sparse_bitset_pb';
+import { create } from '@bufbuild/protobuf';
 
 /**
  * Calculates the Hamming weight (number of set bits) of a 32-bit integer in constant time.
@@ -286,5 +288,25 @@ export class IdBitset {
       }
     }
     return bitset;
+  }
+
+  /**
+   * Encodes this bitset into a Protobuf SparseBitset payload.
+   *
+   * @returns The encoded SparseBitset message.
+   */
+  public toSparseBitset(): SparseBitset {
+    const indices: number[] = [];
+    const masks: number[] = [];
+    for (let i = 0; i < this.words.length; i++) {
+      if (this.words[i] !== 0) {
+        indices.push(i);
+        masks.push(this.words[i]);
+      }
+    }
+    return create(SparseBitsetSchema, {
+      indices,
+      masks,
+    });
   }
 }

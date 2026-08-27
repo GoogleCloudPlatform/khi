@@ -52,8 +52,8 @@ export class GraphPageDataSourceServer {
 
         try {
           const graphData = await this.graphConverter.getGraphDataAt(
-            timelineView.filteredTimelines(),
             log.timestamp,
+            timelineView.filteredTimelineBitset(),
             controller.signal,
           );
           if (!controller.signal.aborted) {

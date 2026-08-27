@@ -21,9 +21,10 @@ import { UserIdentityService } from 'src/app/services/api/workbench/user-identit
 import {
   FilterResultMode,
   OpenWorkbenchResponse_Stage,
-  SparseBitset,
   WatchIndexProgressResponse_IndexState,
 } from 'src/app/generated/api/v1/workbench_pb';
+import { GetArchitectureGraphResponse } from 'src/app/generated/api/v1/architecture_graph_pb';
+import { SparseBitset } from 'src/app/generated/api/v1/sparse_bitset_pb';
 import { LRUCache } from 'src/app/common/lru-cache';
 
 /**
@@ -526,6 +527,37 @@ export class WorkbenchClientService implements OnDestroy {
       this.handleSessionError(e);
       throw e;
     }
+  }
+
+  /**
+   * Fetches the architecture graph at the specified timestamp from the active Workbench session.
+   *
+   * @param timestampNs The timestamp in nanoseconds.
+   * @param timelineBitset Optional sparse bitset of allowed timeline IDs.
+   * @param deletionThresholdSeconds Optional deletion threshold in seconds.
+   * @param signal Optional AbortSignal to cancel the RPC.
+   * @returns The architecture graph response containing nodes, pods, services, owners, and edges.
+   */
+  public async getArchitectureGraph(
+    timestampNs: bigint,
+    timelineBitset?: SparseBitset,
+    deletionThresholdSeconds?: number,
+    signal?: AbortSignal,
+  ): Promise<GetArchitectureGraphResponse> {
+    const workbenchId = this.activeWorkbenchIdSignal();
+    if (!workbenchId) {
+      throw new Error('No active Workbench session found.');
+    }
+
+    return await this.connectClient.workbenchClient.getArchitectureGraph(
+      {
+        workbenchId,
+        timestampNs,
+        timelineBitset,
+        deletionThresholdSeconds,
+      },
+      { signal },
+    );
   }
 
   private startHeartbeat(workbenchId: string): void {

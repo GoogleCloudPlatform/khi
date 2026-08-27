@@ -18,9 +18,10 @@ import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import {
   FilterResultMode,
   OpenWorkbenchResponse_Stage,
-  SparseBitsetSchema,
   WatchIndexProgressResponse_IndexState,
 } from 'src/app/generated/api/v1/workbench_pb';
+import { GetArchitectureGraphResponseSchema } from 'src/app/generated/api/v1/architecture_graph_pb';
+import { SparseBitsetSchema } from 'src/app/generated/api/v1/sparse_bitset_pb';
 import { create } from '@bufbuild/protobuf';
 import { ConnectError, Code } from '@connectrpc/connect';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
@@ -44,6 +45,7 @@ describe('WorkbenchClientService', () => {
         heartbeatWorkbench: jasmine.createSpy('heartbeatWorkbench'),
         readStructYAML: jasmine.createSpy('readStructYAML'),
         filterTimeline: jasmine.createSpy('filterTimeline'),
+        getArchitectureGraph: jasmine.createSpy('getArchitectureGraph'),
         closeWorkbench: jasmine.createSpy('closeWorkbench'),
       },
     });
@@ -666,6 +668,59 @@ describe('WorkbenchClientService', () => {
       mockConnectClient.workbenchClient.closeWorkbench,
     ).toHaveBeenCalledWith({
       workbenchId: 'wb-orphaned',
+    });
+  });
+
+  describe('getArchitectureGraph', () => {
+    it('should throw error when no active workbench session', async () => {
+      await expectAsync(
+        service.getArchitectureGraph(1000n),
+      ).toBeRejectedWithError('No active Workbench session found.');
+    });
+
+    it('should call getArchitectureGraph RPC on active workbench', async () => {
+      async function* mockOpenStream() {
+        yield {
+          stage: OpenWorkbenchResponse_Stage.READY,
+          progressPercentage: 100,
+          message: 'Ready',
+          workbenchId: 'wb-1',
+        };
+      }
+      (
+        mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+      ).and.returnValue(mockOpenStream());
+      await service.openWorkbench('session-1', 'insp-1');
+
+      const expectedResponse = create(GetArchitectureGraphResponseSchema, {
+        timestampNs: 1000n,
+      });
+      (
+        mockConnectClient.workbenchClient.getArchitectureGraph as jasmine.Spy
+      ).and.returnValue(Promise.resolve(expectedResponse));
+
+      const sparseBitset = create(SparseBitsetSchema, {
+        indices: [0],
+        masks: [1],
+      });
+      const result = await service.getArchitectureGraph(
+        1000n,
+        sparseBitset,
+        180,
+      );
+
+      expect(result).toBe(expectedResponse);
+      expect(
+        mockConnectClient.workbenchClient.getArchitectureGraph,
+      ).toHaveBeenCalledWith(
+        {
+          workbenchId: 'wb-1',
+          timestampNs: 1000n,
+          timelineBitset: sparseBitset,
+          deletionThresholdSeconds: 180,
+        },
+        { signal: undefined },
+      );
     });
   });
 });

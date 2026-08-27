@@ -29,6 +29,7 @@ import { Subscription } from 'rxjs';
 import { CollapseTimelineFilter } from 'src/app/store/domain/filter/collapse-filter';
 import { BackendFilter } from 'src/app/store/domain/filter/backend-filter';
 import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
+import { SparseBitset } from 'src/app/generated/api/v1/sparse_bitset_pb';
 
 /**
  * Holds the progress information of a specific filter step.
@@ -98,6 +99,14 @@ export class TimelineView {
   >(() => {
     const ctx = this.context();
     return this.store.timelines.filter((t) => ctx.timelineIds.has(t.id));
+  });
+
+  /**
+   * Emits the SparseBitset encoding the currently filtered timeline IDs.
+   */
+  public readonly filteredTimelineBitset = computed<SparseBitset>(() => {
+    const ctx = this.context();
+    return ctx.timelineIds.toSparseBitset();
   });
 
   /**

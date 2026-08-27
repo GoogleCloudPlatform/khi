@@ -39,15 +39,17 @@ export class GraphSmartComponent {
   private readonly graphResource = resource({
     params: () => ({
       log: this.selectionManager.selectedLog(),
-      timelineView: this.inspectionDataStore.timelineView(),
+      timelineBitset: this.inspectionDataStore
+        .timelineView()
+        ?.filteredTimelineBitset(),
     }),
-    loader: async ({ params: { log, timelineView }, abortSignal }) => {
-      if (!log || !timelineView) {
+    loader: async ({ params: { log, timelineBitset }, abortSignal }) => {
+      if (!log) {
         return emptyGraphData();
       }
       return this.graphConverter.getGraphDataAt(
-        timelineView.filteredTimelines(),
         log.timestamp,
+        timelineBitset,
         abortSignal,
       );
     },

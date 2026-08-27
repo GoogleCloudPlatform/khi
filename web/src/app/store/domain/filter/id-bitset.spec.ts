@@ -15,10 +15,8 @@
  */
 
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
-import {
-  FilterResultMode,
-  SparseBitsetSchema,
-} from 'src/app/generated/api/v1/workbench_pb';
+import { FilterResultMode } from 'src/app/generated/api/v1/workbench_pb';
+import { SparseBitsetSchema } from 'src/app/generated/api/v1/sparse_bitset_pb';
 import { create } from '@bufbuild/protobuf';
 
 describe('IdBitset', () => {
@@ -177,6 +175,26 @@ describe('IdBitset', () => {
       for (let id = 1; id <= totalCount; id++) {
         expect(bitset.has(id)).toBeTrue();
       }
+    });
+  });
+
+  describe('toSparseBitset', () => {
+    it('should encode empty bitset into empty SparseBitset', () => {
+      const bitset = new IdBitset();
+      const sparse = bitset.toSparseBitset();
+      expect(sparse.indices).toEqual([]);
+      expect(sparse.masks).toEqual([]);
+    });
+
+    it('should encode populated bitset into correct SparseBitset chunks', () => {
+      const bitset = new IdBitset();
+      bitset.add(1);
+      bitset.add(32);
+      bitset.add(65);
+
+      const sparse = bitset.toSparseBitset();
+      expect(sparse.indices).toEqual([0, 1, 2]);
+      expect(sparse.masks).toEqual([1 << 1, 1 << 0, 1 << 1]);
     });
   });
 });
