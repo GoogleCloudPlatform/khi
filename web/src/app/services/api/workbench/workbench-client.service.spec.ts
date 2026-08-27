@@ -43,7 +43,7 @@ describe('WorkbenchClientService', () => {
         openWorkbench: jasmine.createSpy('openWorkbench'),
         watchIndexProgress: jasmine.createSpy('watchIndexProgress'),
         heartbeatWorkbench: jasmine.createSpy('heartbeatWorkbench'),
-        readStructYAML: jasmine.createSpy('readStructYAML'),
+        readStructYAMLs: jasmine.createSpy('readStructYAMLs'),
         filterTimeline: jasmine.createSpy('filterTimeline'),
         getArchitectureGraph: jasmine.createSpy('getArchitectureGraph'),
         closeWorkbench: jasmine.createSpy('closeWorkbench'),
@@ -63,6 +63,17 @@ describe('WorkbenchClientService', () => {
   afterEach(() => {
     service.ngOnDestroy();
   });
+
+  function mockOpenWorkbenchReady(workbenchId = 'usr-1-session-0') {
+    return (async function* () {
+      yield {
+        stage: OpenWorkbenchResponse_Stage.READY,
+        progressPercentage: 100,
+        message: 'Ready',
+        workbenchId,
+      };
+    })();
+  }
 
   it('should be created and have inactive initial state', () => {
     expect(service).toBeTruthy();
@@ -171,92 +182,239 @@ describe('WorkbenchClientService', () => {
     expect(service.isWorkbenchActive()).toBeFalse();
   });
 
-  it('should return empty string without RPC call if structId is 0 or negative', async () => {
-    const yaml = await service.readStructYAML(0);
-    expect(yaml).toBe('');
+  it('should return empty map without RPC call if structIds is empty or contains only non-positive IDs', async () => {
+    const yamls = await service.readStructYAMLs([0, -1]);
+    expect(yamls.size).toBe(0);
     expect(
-      mockConnectClient.workbenchClient.readStructYAML,
+      mockConnectClient.workbenchClient.readStructYAMLs,
     ).not.toHaveBeenCalled();
   });
 
-  it('should throw error on readStructYAML if no workbench session is active', async () => {
-    await expectAsync(service.readStructYAML(42)).toBeRejectedWithError(
+  it('should throw error on readStructYAMLs if no workbench session is active', async () => {
+    await expectAsync(service.readStructYAMLs([42])).toBeRejectedWithError(
       'No active Workbench session found.',
     );
   });
 
-  it('should call readStructYAML on backend client with active workbench ID and return yaml string', async () => {
+  it('should call readStructYAMLs on backend client with active workbench ID and return yamls map', async () => {
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
-    ).and.returnValue(
-      (async function* () {
-        yield {
-          stage: OpenWorkbenchResponse_Stage.READY,
-          progressPercentage: 100,
-          message: 'Ready',
-          workbenchId: 'usr-1-session-0',
-        };
-      })(),
-    );
+    ).and.returnValue(mockOpenWorkbenchReady());
     (
-      mockConnectClient.workbenchClient.readStructYAML as jasmine.Spy
-    ).and.returnValue(Promise.resolve({ yaml: 'message: hello\n' }));
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).and.returnValue(
+      Promise.resolve({
+        structYamls: [
+          { structId: 42, yaml: 'message: hello\n' },
+          { structId: 43, yaml: 'message: world\n' },
+        ],
+      }),
+    );
 
     await service.openWorkbench('session-0', 'inspection-1');
 
-    const yaml = await service.readStructYAML(42);
+    const yamlsByStructId = await service.readStructYAMLs([42, 43]);
 
     expect(
-      mockConnectClient.workbenchClient.readStructYAML,
+      mockConnectClient.workbenchClient.readStructYAMLs,
     ).toHaveBeenCalledWith({
       workbenchId: 'usr-1-session-0',
-      structId: 42,
+      structIds: [42, 43],
     });
-    expect(yaml).toBe('message: hello\n');
+    expect(yamlsByStructId.get(42)).toBe('message: hello\n');
+    expect(yamlsByStructId.get(43)).toBe('message: world\n');
   });
 
-  it('should cache readStructYAML responses and avoid duplicate RPC calls', async () => {
+  it('should cache readStructYAMLs responses and avoid duplicate RPC calls', async () => {
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
-    ).and.returnValue(
-      (async function* () {
-        yield {
-          stage: OpenWorkbenchResponse_Stage.READY,
-          progressPercentage: 100,
-          message: 'Ready',
-          workbenchId: 'usr-1-session-0',
-        };
-      })(),
-    );
+    ).and.returnValue(mockOpenWorkbenchReady());
     (
-      mockConnectClient.workbenchClient.readStructYAML as jasmine.Spy
-    ).and.returnValue(Promise.resolve({ yaml: 'message: cached\n' }));
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).and.returnValue(
+      Promise.resolve({
+        structYamls: [{ structId: 100, yaml: 'message: cached\n' }],
+      }),
+    );
 
     await service.openWorkbench('session-0', 'inspection-1');
 
-    const yaml1 = await service.readStructYAML(100);
-    const yaml2 = await service.readStructYAML(100);
+    const yamls1 = await service.readStructYAMLs([100]);
+    const yamls2 = await service.readStructYAMLs([100]);
 
-    expect(yaml1).toBe('message: cached\n');
-    expect(yaml2).toBe('message: cached\n');
+    expect(yamls1.get(100)).toBe('message: cached\n');
+    expect(yamls2.get(100)).toBe('message: cached\n');
     expect(
-      mockConnectClient.workbenchClient.readStructYAML,
+      mockConnectClient.workbenchClient.readStructYAMLs,
     ).toHaveBeenCalledTimes(1);
+  });
+
+  it('should deduplicate in-flight requests for the same structId', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenWorkbenchReady());
+    (
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).and.returnValue(
+      new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              structYamls: [{ structId: 200, yaml: 'message: inflight\n' }],
+            }),
+          10,
+        ),
+      ),
+    );
+
+    await service.openWorkbench('session-0', 'inspection-1');
+
+    const [res1, res2] = await Promise.all([
+      service.readStructYAMLs([200]),
+      service.readStructYAMLs([200]),
+    ]);
+
+    expect(res1.get(200)).toBe('message: inflight\n');
+    expect(res2.get(200)).toBe('message: inflight\n');
+    expect(
+      mockConnectClient.workbenchClient.readStructYAMLs,
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  it('should chunk requests when structIds exceeds 200 items', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenWorkbenchReady());
+    (
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).and.callFake((req: { structIds: number[] }) => {
+      return Promise.resolve({
+        structYamls: req.structIds.map((id) => ({
+          structId: id,
+          yaml: `id: ${id}\n`,
+        })),
+      });
+    });
+
+    await service.openWorkbench('session-0', 'inspection-1');
+
+    const ids: number[] = [];
+    for (let i = 1; i <= 250; i++) {
+      ids.push(i);
+    }
+    const result = await service.readStructYAMLs(ids);
+
+    expect(
+      mockConnectClient.workbenchClient.readStructYAMLs,
+    ).toHaveBeenCalledTimes(2);
+    expect(result.size).toBe(250);
+    expect(result.get(1)).toBe('id: 1\n');
+    expect(result.get(250)).toBe('id: 250\n');
+  });
+
+  it('should delegate to readStructYAMLs and return yaml string on readStructYAML', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenWorkbenchReady());
+    (
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).and.returnValue(
+      Promise.resolve({
+        structYamls: [{ structId: 77, yaml: 'kind: Pod\n' }],
+      }),
+    );
+
+    await service.openWorkbench('session-0', 'inspection-1');
+    const yaml = await service.readStructYAML(77);
+
+    expect(yaml).toBe('kind: Pod\n');
+    expect(
+      mockConnectClient.workbenchClient.readStructYAMLs,
+    ).toHaveBeenCalledWith({
+      workbenchId: 'usr-1-session-0',
+      structIds: [77],
+    });
+  });
+
+  it('should return empty string on readStructYAML with non-positive structId without RPC', async () => {
+    const yaml = await service.readStructYAML(0);
+    expect(yaml).toBe('');
+    expect(
+      mockConnectClient.workbenchClient.readStructYAMLs,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should prefetch uncached struct IDs in background and populate cache', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenWorkbenchReady());
+    (
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).and.returnValue(
+      Promise.resolve({
+        structYamls: [
+          { structId: 101, yaml: 'kind: Service\n' },
+          { structId: 102, yaml: 'kind: Deployment\n' },
+        ],
+      }),
+    );
+
+    await service.openWorkbench('session-0', 'inspection-1');
+
+    service.prefetchStructYAMLs([101, 102]);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Verify that subsequent read calls are fulfilled from cache without dispatching new RPCs.
+    (
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).calls.reset();
+    const yaml101 = await service.readStructYAML(101);
+    const yaml102 = await service.readStructYAML(102);
+    expect(yaml101).toBe('kind: Service\n');
+    expect(yaml102).toBe('kind: Deployment\n');
+    expect(
+      mockConnectClient.workbenchClient.readStructYAMLs,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should not dispatch RPC in prefetchStructYAMLs if all IDs are already cached or non-positive', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenWorkbenchReady());
+    (
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).and.returnValue(
+      Promise.resolve({
+        structYamls: [{ structId: 200, yaml: 'kind: ConfigMap\n' }],
+      }),
+    );
+
+    await service.openWorkbench('session-0', 'inspection-1');
+    await service.readStructYAML(200);
+    (
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).calls.reset();
+
+    service.prefetchStructYAMLs([200, 0, -5]);
+
+    expect(
+      mockConnectClient.workbenchClient.readStructYAMLs,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should not prefetch if workbench is not active', () => {
+    service.prefetchStructYAMLs([1, 2, 3]);
+    expect(
+      mockConnectClient.workbenchClient.readStructYAMLs,
+    ).not.toHaveBeenCalled();
   });
 
   it('should stream progress and return final result on filterTimeline', async () => {
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
-    ).and.returnValue(
-      (async function* () {
-        yield {
-          stage: OpenWorkbenchResponse_Stage.READY,
-          progressPercentage: 100,
-          message: 'Ready',
-          workbenchId: 'usr-1-session-0',
-        };
-      })(),
-    );
+    ).and.returnValue(mockOpenWorkbenchReady());
 
     async function* mockFilterStream() {
       yield {
@@ -425,17 +583,9 @@ describe('WorkbenchClientService', () => {
       return mockIndexStream();
     });
 
-    async function* mockOpenStream() {
-      yield {
-        stage: OpenWorkbenchResponse_Stage.READY,
-        progressPercentage: 100,
-        message: 'Ready',
-        workbenchId: 'wb-1',
-      };
-    }
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
-    ).and.returnValue(mockOpenStream());
+    ).and.returnValue(mockOpenWorkbenchReady('wb-1'));
     (
       mockConnectClient.workbenchClient.closeWorkbench as jasmine.Spy
     ).and.returnValue(Promise.resolve({ closed: true }));
@@ -471,42 +621,28 @@ describe('WorkbenchClientService', () => {
     expect(service.isWorkbenchExpired()).toBeTrue();
   });
 
-  it('should mark workbench as expired when readStructYAML throws ConnectError Code.NotFound', async () => {
-    async function* mockOpenStream() {
-      yield {
-        stage: OpenWorkbenchResponse_Stage.READY,
-        progressPercentage: 100,
-        message: 'Ready',
-        workbenchId: 'wb-active',
-      };
-    }
+  it('should mark workbench as expired when readStructYAMLs throws ConnectError Code.NotFound', async () => {
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
-    ).and.returnValue(mockOpenStream());
+    ).and.returnValue(mockOpenWorkbenchReady('wb-active'));
     const notFoundErr = new ConnectError('not found', Code.NotFound);
     (
-      mockConnectClient.workbenchClient.readStructYAML as jasmine.Spy
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
     ).and.returnValue(Promise.reject(notFoundErr));
 
     await service.openWorkbench('s-1', 'i-1');
     expect(service.isWorkbenchExpired()).toBeFalse();
 
-    await expectAsync(service.readStructYAML(10)).toBeRejectedWith(notFoundErr);
+    await expectAsync(service.readStructYAMLs([10])).toBeRejectedWith(
+      notFoundErr,
+    );
     expect(service.isWorkbenchExpired()).toBeTrue();
   });
 
   it('should mark workbench as expired when filterTimeline throws ConnectError Code.NotFound', async () => {
-    async function* mockOpenStream() {
-      yield {
-        stage: OpenWorkbenchResponse_Stage.READY,
-        progressPercentage: 100,
-        message: 'Ready',
-        workbenchId: 'wb-active',
-      };
-    }
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
-    ).and.returnValue(mockOpenStream());
+    ).and.returnValue(mockOpenWorkbenchReady('wb-active'));
     const notFoundErr = new ConnectError('not found', Code.NotFound);
     (
       mockConnectClient.workbenchClient.filterTimeline as jasmine.Spy
@@ -526,16 +662,7 @@ describe('WorkbenchClientService', () => {
   it('should reopen workbench using stored session and inspection IDs and reset expired flag', async () => {
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
-    ).and.callFake(() => {
-      return (async function* () {
-        yield {
-          stage: OpenWorkbenchResponse_Stage.READY,
-          progressPercentage: 100,
-          message: 'Ready',
-          workbenchId: 'wb-reopened',
-        };
-      })();
-    });
+    ).and.callFake(() => mockOpenWorkbenchReady('wb-reopened'));
 
     await service.openWorkbench('my-session', 'my-inspection');
     (
@@ -558,14 +685,7 @@ describe('WorkbenchClientService', () => {
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
     ).and.callFake(() => {
       callCount++;
-      return (async function* () {
-        yield {
-          stage: OpenWorkbenchResponse_Stage.READY,
-          progressPercentage: 100,
-          message: 'Ready',
-          workbenchId: 'wb-reopened',
-        };
-      })();
+      return mockOpenWorkbenchReady('wb-reopened');
     });
 
     await service.openWorkbench('my-session', 'my-inspection');
@@ -587,17 +707,9 @@ describe('WorkbenchClientService', () => {
   });
 
   it('should reset session IDs and expiration signals on closeWorkbench', async () => {
-    async function* mockOpenStream() {
-      yield {
-        stage: OpenWorkbenchResponse_Stage.READY,
-        progressPercentage: 100,
-        message: 'Ready',
-        workbenchId: 'wb-1',
-      };
-    }
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
-    ).and.returnValue(mockOpenStream());
+    ).and.returnValue(mockOpenWorkbenchReady('wb-1'));
     (
       mockConnectClient.workbenchClient.closeWorkbench as jasmine.Spy
     ).and.returnValue(Promise.resolve({ closed: true }));

@@ -65,9 +65,9 @@ const (
 	// WorkbenchServiceHeartbeatWorkbenchProcedure is the fully-qualified name of the WorkbenchService's
 	// HeartbeatWorkbench RPC.
 	WorkbenchServiceHeartbeatWorkbenchProcedure = "/api.v1.WorkbenchService/HeartbeatWorkbench"
-	// WorkbenchServiceReadStructYAMLProcedure is the fully-qualified name of the WorkbenchService's
-	// ReadStructYAML RPC.
-	WorkbenchServiceReadStructYAMLProcedure = "/api.v1.WorkbenchService/ReadStructYAML"
+	// WorkbenchServiceReadStructYAMLsProcedure is the fully-qualified name of the WorkbenchService's
+	// ReadStructYAMLs RPC.
+	WorkbenchServiceReadStructYAMLsProcedure = "/api.v1.WorkbenchService/ReadStructYAMLs"
 	// WorkbenchServiceFilterTimelineProcedure is the fully-qualified name of the WorkbenchService's
 	// FilterTimeline RPC.
 	WorkbenchServiceFilterTimelineProcedure = "/api.v1.WorkbenchService/FilterTimeline"
@@ -99,8 +99,8 @@ type WorkbenchServiceClient interface {
 	PullIndexProgress(context.Context, *connect.Request[v1.PullIndexProgressRequest]) (*connect.Response[v1.PullIndexProgressResponse], error)
 	// Sends periodic heartbeat to keep the Workbench session alive in memory.
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
-	// Decodes an interned struct by ID and returns its formatted YAML string.
-	ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error)
+	// Decodes interned structs by IDs and returns their formatted YAML strings.
+	ReadStructYAMLs(context.Context, *connect.Request[v1.ReadStructYAMLsRequest]) (*connect.Response[v1.ReadStructYAMLsResponse], error)
 	// Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
 	FilterTimeline(context.Context, *connect.Request[v1.FilterTimelineRequest]) (*connect.ServerStreamForClient[v1.FilterTimelineResponse], error)
 	// Evaluates a timeline and log filtering pipeline synchronously or polls its in-progress status.
@@ -160,10 +160,10 @@ func NewWorkbenchServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workbenchServiceMethods.ByName("HeartbeatWorkbench")),
 			connect.WithClientOptions(opts...),
 		),
-		readStructYAML: connect.NewClient[v1.ReadStructYAMLRequest, v1.ReadStructYAMLResponse](
+		readStructYAMLs: connect.NewClient[v1.ReadStructYAMLsRequest, v1.ReadStructYAMLsResponse](
 			httpClient,
-			baseURL+WorkbenchServiceReadStructYAMLProcedure,
-			connect.WithSchema(workbenchServiceMethods.ByName("ReadStructYAML")),
+			baseURL+WorkbenchServiceReadStructYAMLsProcedure,
+			connect.WithSchema(workbenchServiceMethods.ByName("ReadStructYAMLs")),
 			connect.WithClientOptions(opts...),
 		),
 		filterTimeline: connect.NewClient[v1.FilterTimelineRequest, v1.FilterTimelineResponse](
@@ -207,7 +207,7 @@ type workbenchServiceClient struct {
 	watchIndexProgress       *connect.Client[v1.WatchIndexProgressRequest, v1.WatchIndexProgressResponse]
 	pullIndexProgress        *connect.Client[v1.PullIndexProgressRequest, v1.PullIndexProgressResponse]
 	heartbeatWorkbench       *connect.Client[v1.HeartbeatWorkbenchRequest, v1.HeartbeatWorkbenchResponse]
-	readStructYAML           *connect.Client[v1.ReadStructYAMLRequest, v1.ReadStructYAMLResponse]
+	readStructYAMLs          *connect.Client[v1.ReadStructYAMLsRequest, v1.ReadStructYAMLsResponse]
 	filterTimeline           *connect.Client[v1.FilterTimelineRequest, v1.FilterTimelineResponse]
 	filterTimelineSync       *connect.Client[v1.FilterTimelineSyncRequest, v1.FilterTimelineSyncResponse]
 	cancelFilterTimelineSync *connect.Client[v1.CancelFilterTimelineSyncRequest, v1.CancelFilterTimelineSyncResponse]
@@ -245,9 +245,9 @@ func (c *workbenchServiceClient) HeartbeatWorkbench(ctx context.Context, req *co
 	return c.heartbeatWorkbench.CallUnary(ctx, req)
 }
 
-// ReadStructYAML calls api.v1.WorkbenchService.ReadStructYAML.
-func (c *workbenchServiceClient) ReadStructYAML(ctx context.Context, req *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error) {
-	return c.readStructYAML.CallUnary(ctx, req)
+// ReadStructYAMLs calls api.v1.WorkbenchService.ReadStructYAMLs.
+func (c *workbenchServiceClient) ReadStructYAMLs(ctx context.Context, req *connect.Request[v1.ReadStructYAMLsRequest]) (*connect.Response[v1.ReadStructYAMLsResponse], error) {
+	return c.readStructYAMLs.CallUnary(ctx, req)
 }
 
 // FilterTimeline calls api.v1.WorkbenchService.FilterTimeline.
@@ -289,8 +289,8 @@ type WorkbenchServiceHandler interface {
 	PullIndexProgress(context.Context, *connect.Request[v1.PullIndexProgressRequest]) (*connect.Response[v1.PullIndexProgressResponse], error)
 	// Sends periodic heartbeat to keep the Workbench session alive in memory.
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
-	// Decodes an interned struct by ID and returns its formatted YAML string.
-	ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error)
+	// Decodes interned structs by IDs and returns their formatted YAML strings.
+	ReadStructYAMLs(context.Context, *connect.Request[v1.ReadStructYAMLsRequest]) (*connect.Response[v1.ReadStructYAMLsResponse], error)
 	// Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
 	FilterTimeline(context.Context, *connect.Request[v1.FilterTimelineRequest], *connect.ServerStream[v1.FilterTimelineResponse]) error
 	// Evaluates a timeline and log filtering pipeline synchronously or polls its in-progress status.
@@ -346,10 +346,10 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 		connect.WithSchema(workbenchServiceMethods.ByName("HeartbeatWorkbench")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workbenchServiceReadStructYAMLHandler := connect.NewUnaryHandler(
-		WorkbenchServiceReadStructYAMLProcedure,
-		svc.ReadStructYAML,
-		connect.WithSchema(workbenchServiceMethods.ByName("ReadStructYAML")),
+	workbenchServiceReadStructYAMLsHandler := connect.NewUnaryHandler(
+		WorkbenchServiceReadStructYAMLsProcedure,
+		svc.ReadStructYAMLs,
+		connect.WithSchema(workbenchServiceMethods.ByName("ReadStructYAMLs")),
 		connect.WithHandlerOptions(opts...),
 	)
 	workbenchServiceFilterTimelineHandler := connect.NewServerStreamHandler(
@@ -396,8 +396,8 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 			workbenchServicePullIndexProgressHandler.ServeHTTP(w, r)
 		case WorkbenchServiceHeartbeatWorkbenchProcedure:
 			workbenchServiceHeartbeatWorkbenchHandler.ServeHTTP(w, r)
-		case WorkbenchServiceReadStructYAMLProcedure:
-			workbenchServiceReadStructYAMLHandler.ServeHTTP(w, r)
+		case WorkbenchServiceReadStructYAMLsProcedure:
+			workbenchServiceReadStructYAMLsHandler.ServeHTTP(w, r)
 		case WorkbenchServiceFilterTimelineProcedure:
 			workbenchServiceFilterTimelineHandler.ServeHTTP(w, r)
 		case WorkbenchServiceFilterTimelineSyncProcedure:
@@ -441,8 +441,8 @@ func (UnimplementedWorkbenchServiceHandler) HeartbeatWorkbench(context.Context, 
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.HeartbeatWorkbench is not implemented"))
 }
 
-func (UnimplementedWorkbenchServiceHandler) ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.ReadStructYAML is not implemented"))
+func (UnimplementedWorkbenchServiceHandler) ReadStructYAMLs(context.Context, *connect.Request[v1.ReadStructYAMLsRequest]) (*connect.Response[v1.ReadStructYAMLsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.ReadStructYAMLs is not implemented"))
 }
 
 func (UnimplementedWorkbenchServiceHandler) FilterTimeline(context.Context, *connect.Request[v1.FilterTimelineRequest], *connect.ServerStream[v1.FilterTimelineResponse]) error {

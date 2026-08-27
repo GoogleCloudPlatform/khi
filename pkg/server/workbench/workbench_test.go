@@ -45,19 +45,23 @@ func TestWorkbench_Lifecycle(t *testing.T) {
 	}
 }
 
-func TestWorkbench_ReadStructYAML(t *testing.T) {
+func TestWorkbench_ReadStructYAMLs(t *testing.T) {
 	str1ID := uint32(1)
 	str1Val := "message"
 	str2ID := uint32(2)
 	str2Val := "hello world"
+	str3ID := uint32(3)
+	str3Val := "second message"
 
 	fs1ID := uint32(1)
 	struct1ID := uint32(1)
+	struct2ID := uint32(2)
 
 	chunk := &khifilev6.InterningPoolChunk{
 		Strings: []*khifilev6.InternString{
 			{Id: &str1ID, Value: &str1Val},
 			{Id: &str2ID, Value: &str2Val},
+			{Id: &str3ID, Value: &str3Val},
 		},
 		FieldPathSets: []*khifilev6.InternFieldPathSet{
 			{Id: &fs1ID, FieldPathStringIds: []uint32{str1ID}},
@@ -70,25 +74,35 @@ func TestWorkbench_ReadStructYAML(t *testing.T) {
 					{Kind: &khifile.InternedValue_StringValue{StringValue: str2ID}},
 				},
 			},
+			{
+				Id:             &struct2ID,
+				FieldPathSetId: &fs1ID,
+				Values: []*khifile.InternedValue{
+					{Kind: &khifile.InternedValue_StringValue{StringValue: str3ID}},
+				},
+			},
 		},
 	}
 
 	testCases := []struct {
 		name      string
 		setupWb   func() *Workbench
-		structID  uint32
+		structIDs []uint32
 		wantErrIs error
-		wantYAML  string
+		wantYAMLs map[uint32]string
 	}{
 		{
-			name: "successfully decodes struct to YAML",
+			name: "successfully decodes multiple structs to YAML",
 			setupWb: func() *Workbench {
 				wb := NewWorkbench("wb-1", "insp-1")
 				wb.internPool.IngestChunk(chunk)
 				return wb
 			},
-			structID: struct1ID,
-			wantYAML: "message: hello world\n",
+			structIDs: []uint32{struct1ID, struct2ID},
+			wantYAMLs: map[uint32]string{
+				struct1ID: "message: hello world\n",
+				struct2ID: "message: second message\n",
+			},
 		},
 		{
 			name: "successfully decodes struct with multi-chunk ingestion",
@@ -102,26 +116,30 @@ func TestWorkbench_ReadStructYAML(t *testing.T) {
 				wb.internPool.IngestChunk(c3)
 				return wb
 			},
-			structID: struct1ID,
-			wantYAML: "message: hello world\n",
+			structIDs: []uint32{struct1ID},
+			wantYAMLs: map[uint32]string{
+				struct1ID: "message: hello world\n",
+			},
 		},
 		{
-			name: "returns ErrStructNotFound when struct ID does not exist",
+			name: "skips non-existent struct ID gracefully",
 			setupWb: func() *Workbench {
 				wb := NewWorkbench("wb-1", "insp-1")
 				wb.internPool.IngestChunk(chunk)
 				return wb
 			},
-			structID:  999,
-			wantErrIs: ErrStructNotFound,
+			structIDs: []uint32{struct1ID, 999, 0},
+			wantYAMLs: map[uint32]string{
+				struct1ID: "message: hello world\n",
+			},
 		},
 		{
-			name: "returns ErrStructNotFound when intern pool is empty",
+			name: "returns empty map when intern pool is empty",
 			setupWb: func() *Workbench {
 				return NewWorkbench("wb-1", "insp-1")
 			},
-			structID:  struct1ID,
-			wantErrIs: ErrStructNotFound,
+			structIDs: []uint32{struct1ID},
+			wantYAMLs: map[uint32]string{},
 		},
 		{
 			name: "returns ErrWorkbenchClosed when workbench is closed",
@@ -131,7 +149,7 @@ func TestWorkbench_ReadStructYAML(t *testing.T) {
 				wb.Close()
 				return wb
 			},
-			structID:  struct1ID,
+			structIDs: []uint32{struct1ID},
 			wantErrIs: ErrWorkbenchClosed,
 		},
 		{
@@ -145,8 +163,10 @@ func TestWorkbench_ReadStructYAML(t *testing.T) {
 				}
 				return wb
 			},
-			structID: struct1ID,
-			wantYAML: "message: cached in index\n",
+			structIDs: []uint32{struct1ID},
+			wantYAMLs: map[uint32]string{
+				struct1ID: "message: cached in index\n",
+			},
 		},
 		{
 			name: "falls back to intern pool when struct ID is not found in SearchIndex.StructYAMLs",
@@ -160,26 +180,36 @@ func TestWorkbench_ReadStructYAML(t *testing.T) {
 				}
 				return wb
 			},
-			structID: struct1ID,
-			wantYAML: "message: hello world\n",
+			structIDs: []uint32{struct1ID},
+			wantYAMLs: map[uint32]string{
+				struct1ID: "message: hello world\n",
+			},
+		},
+		{
+			name: "handles empty structIDs slice",
+			setupWb: func() *Workbench {
+				return NewWorkbench("wb-1", "insp-1")
+			},
+			structIDs: []uint32{},
+			wantYAMLs: map[uint32]string{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := tc.setupWb()
-			gotYAML, err := wb.ReadStructYAML(tc.structID)
+			gotYAMLs, err := wb.ReadStructYAMLs(tc.structIDs)
 			if tc.wantErrIs != nil {
 				if !errors.Is(err, tc.wantErrIs) {
-					t.Fatalf("ReadStructYAML(%d) error = %v, want %v", tc.structID, err, tc.wantErrIs)
+					t.Fatalf("ReadStructYAMLs(%v) error = %v, want %v", tc.structIDs, err, tc.wantErrIs)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("ReadStructYAML(%d) unexpected error = %v", tc.structID, err)
+				t.Fatalf("ReadStructYAMLs(%v) unexpected error = %v", tc.structIDs, err)
 			}
-			if diff := cmp.Diff(tc.wantYAML, gotYAML); diff != "" {
-				t.Errorf("ReadStructYAML(%d) YAML mismatch (-want +got):\n%s", tc.structID, diff)
+			if diff := cmp.Diff(tc.wantYAMLs, gotYAMLs); diff != "" {
+				t.Errorf("ReadStructYAMLs(%v) YAML mismatch (-want +got):\n%s", tc.structIDs, diff)
 			}
 		})
 	}

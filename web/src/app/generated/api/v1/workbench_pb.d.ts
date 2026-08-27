@@ -477,12 +477,39 @@ export declare type HeartbeatWorkbenchResponse =
 export declare const HeartbeatWorkbenchResponseSchema: GenMessage<HeartbeatWorkbenchResponse>;
 
 /**
- * Request to decode an interned struct into its YAML representation.
+ * StructYAML pairs an interned struct ID with its decoded YAML representation.
  *
- * @generated from message api.v1.ReadStructYAMLRequest
+ * @generated from message api.v1.StructYAML
  */
-export declare type ReadStructYAMLRequest =
-  Message<'api.v1.ReadStructYAMLRequest'> & {
+export declare type StructYAML = Message<'api.v1.StructYAML'> & {
+  /**
+   * The unique ID of the interned struct.
+   *
+   * @generated from field: uint32 struct_id = 1;
+   */
+  structId: number;
+
+  /**
+   * The formatted YAML string representation of the requested struct.
+   *
+   * @generated from field: string yaml = 2;
+   */
+  yaml: string;
+};
+
+/**
+ * Describes the message api.v1.StructYAML.
+ * Use `create(StructYAMLSchema)` to create a new message.
+ */
+export declare const StructYAMLSchema: GenMessage<StructYAML>;
+
+/**
+ * Request to decode interned structs into their YAML representations.
+ *
+ * @generated from message api.v1.ReadStructYAMLsRequest
+ */
+export declare type ReadStructYAMLsRequest =
+  Message<'api.v1.ReadStructYAMLsRequest'> & {
     /**
      * The active workbench session identifier.
      *
@@ -491,39 +518,39 @@ export declare type ReadStructYAMLRequest =
     workbenchId: string;
 
     /**
-     * The unique ID of the interned struct to decode.
+     * The unique IDs of the interned structs to decode (up to 200 items).
      *
-     * @generated from field: uint32 struct_id = 2;
+     * @generated from field: repeated uint32 struct_ids = 2;
      */
-    structId: number;
+    structIds: number[];
   };
 
 /**
- * Describes the message api.v1.ReadStructYAMLRequest.
- * Use `create(ReadStructYAMLRequestSchema)` to create a new message.
+ * Describes the message api.v1.ReadStructYAMLsRequest.
+ * Use `create(ReadStructYAMLsRequestSchema)` to create a new message.
  */
-export declare const ReadStructYAMLRequestSchema: GenMessage<ReadStructYAMLRequest>;
+export declare const ReadStructYAMLsRequestSchema: GenMessage<ReadStructYAMLsRequest>;
 
 /**
- * Response containing the decoded YAML representation of the struct.
+ * Response containing the decoded YAML representations of found structs.
  *
- * @generated from message api.v1.ReadStructYAMLResponse
+ * @generated from message api.v1.ReadStructYAMLsResponse
  */
-export declare type ReadStructYAMLResponse =
-  Message<'api.v1.ReadStructYAMLResponse'> & {
+export declare type ReadStructYAMLsResponse =
+  Message<'api.v1.ReadStructYAMLsResponse'> & {
     /**
-     * The formatted YAML string representation of the requested struct.
+     * The decoded YAML representations of the structs found.
      *
-     * @generated from field: string yaml = 1;
+     * @generated from field: repeated api.v1.StructYAML struct_yamls = 1;
      */
-    yaml: string;
+    structYamls: StructYAML[];
   };
 
 /**
- * Describes the message api.v1.ReadStructYAMLResponse.
- * Use `create(ReadStructYAMLResponseSchema)` to create a new message.
+ * Describes the message api.v1.ReadStructYAMLsResponse.
+ * Use `create(ReadStructYAMLsResponseSchema)` to create a new message.
  */
-export declare const ReadStructYAMLResponseSchema: GenMessage<ReadStructYAMLResponse>;
+export declare const ReadStructYAMLsResponseSchema: GenMessage<ReadStructYAMLsResponse>;
 
 /**
  * Request to execute a complete timeline and log filtering pipeline against an active Workbench dataset.
@@ -971,14 +998,14 @@ export declare const WorkbenchService: GenService<{
     output: typeof HeartbeatWorkbenchResponseSchema;
   };
   /**
-   * Decodes an interned struct by ID and returns its formatted YAML string.
+   * Decodes interned structs by IDs and returns their formatted YAML strings.
    *
-   * @generated from rpc api.v1.WorkbenchService.ReadStructYAML
+   * @generated from rpc api.v1.WorkbenchService.ReadStructYAMLs
    */
-  readStructYAML: {
+  readStructYAMLs: {
     methodKind: 'unary';
-    input: typeof ReadStructYAMLRequestSchema;
-    output: typeof ReadStructYAMLResponseSchema;
+    input: typeof ReadStructYAMLsRequestSchema;
+    output: typeof ReadStructYAMLsResponseSchema;
   };
   /**
    * Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.

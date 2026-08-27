@@ -77,6 +77,11 @@ export class WorkbenchClientService implements OnDestroy {
    */
   private static readonly STRUCT_YAML_CACHE_CAPACITY = 2000;
 
+  /**
+   * Maximum number of interned struct IDs per batch request.
+   */
+  private static readonly MAX_STRUCT_IDS_PER_BATCH = 200;
+
   private readonly connectClient = inject(ConnectClientService);
   private readonly userIdService = inject(UserIdentityService);
 
@@ -84,6 +89,7 @@ export class WorkbenchClientService implements OnDestroy {
   private readonly structYamlCache = new LRUCache<number, string>(
     WorkbenchClientService.STRUCT_YAML_CACHE_CAPACITY,
   );
+  private readonly inFlightYamlPromises = new Map<number, Promise<string>>();
 
   private currentSessionId: string | null = null;
   private currentInspectionId: string | null = null;
@@ -256,6 +262,7 @@ export class WorkbenchClientService implements OnDestroy {
         return undefined;
       }
       this.structYamlCache.clear();
+      this.inFlightYamlPromises.clear();
       this.isWorkbenchExpiredSignal.set(false);
       this.activeWorkbenchIdSignal.set(workbenchId);
       this.startHeartbeat(workbenchId);
@@ -414,6 +421,7 @@ export class WorkbenchClientService implements OnDestroy {
     }
     this.stopHeartbeat();
     this.structYamlCache.clear();
+    this.inFlightYamlPromises.clear();
     this.currentSessionId = null;
     this.currentInspectionId = null;
     this.isWorkbenchExpiredSignal.set(false);
@@ -437,19 +445,67 @@ export class WorkbenchClientService implements OnDestroy {
   }
 
   /**
-   * Fetches the decoded YAML representation of an interned struct by ID from the active Workbench session.
+   * Fetches the decoded YAML representation of a single interned struct by ID.
+   *
+   * Delegates to {@link readStructYAMLs} to utilize in-memory caching and in-flight deduplication.
    *
    * @param structId The interned struct ID to decode.
-   * @returns The YAML string representation.
+   * @returns The YAML string representation, or empty string if not found.
    */
   public async readStructYAML(structId: number): Promise<string> {
     if (!structId || structId <= 0) {
       return '';
     }
+    const yamlMap = await this.readStructYAMLs([structId]);
+    return yamlMap.get(structId) ?? '';
+  }
 
-    const cached = this.structYamlCache.get(structId);
-    if (cached !== undefined) {
-      return cached;
+  /**
+   * Prefetches the specified struct IDs in the background into the local LRU cache.
+   *
+   * Filters out non-positive IDs, already-cached IDs, and currently in-flight requests.
+   *
+   * @param structIds The interned struct IDs to prefetch.
+   */
+  public prefetchStructYAMLs(structIds: readonly number[]): void {
+    if (!this.isWorkbenchActive()) {
+      return;
+    }
+    const uncachedIds = structIds.filter(
+      (id) =>
+        id > 0 &&
+        !this.structYamlCache.has(id) &&
+        !this.inFlightYamlPromises.has(id),
+    );
+    if (uncachedIds.length === 0) {
+      return;
+    }
+    void this.readStructYAMLs(uncachedIds).catch((err) => {
+      console.debug('[WorkbenchClient] Background prefetch failed:', err);
+    });
+  }
+
+  /**
+   * Fetches the decoded YAML representations of multiple interned structs by ID from the active Workbench session.
+   *
+   * Checks the in-memory LRU cache and active in-flight requests before dispatching RPC calls.
+   * Requests larger than 200 items are automatically partitioned into batches.
+   *
+   * @param structIds The interned struct IDs to decode.
+   * @returns A map of struct ID to YAML string representation.
+   */
+  public async readStructYAMLs(
+    structIds: readonly number[],
+  ): Promise<Map<number, string>> {
+    const resultMap = new Map<number, string>();
+    const uniqueIds = new Set<number>();
+    for (const id of structIds) {
+      if (id > 0) {
+        uniqueIds.add(id);
+      }
+    }
+    if (uniqueIds.size === 0) {
+      return resultMap;
     }
 
     const workbenchId = this.activeWorkbenchIdSignal();
@@ -457,18 +513,93 @@ export class WorkbenchClientService implements OnDestroy {
       throw new Error('No active Workbench session found.');
     }
 
-    try {
-      const res = await this.connectClient.workbenchClient.readStructYAML({
-        workbenchId,
-        structId,
-      });
-      const yaml = res.yaml ?? '';
-      this.structYamlCache.put(structId, yaml);
-      return yaml;
-    } catch (e) {
-      this.handleSessionError(e);
-      throw e;
+    const idsToFetch: number[] = [];
+    const pendingPromises: Promise<void>[] = [];
+
+    for (const id of uniqueIds) {
+      const cached = this.structYamlCache.get(id);
+      if (cached !== undefined) {
+        resultMap.set(id, cached);
+        continue;
+      }
+      const inFlight = this.inFlightYamlPromises.get(id);
+      if (inFlight !== undefined) {
+        pendingPromises.push(
+          inFlight.then((yaml: string) => {
+            if (yaml) {
+              resultMap.set(id, yaml);
+            }
+          }),
+        );
+        continue;
+      }
+      idsToFetch.push(id);
     }
+
+    if (idsToFetch.length === 0) {
+      await Promise.all(pendingPromises);
+      return resultMap;
+    }
+
+    const resolvers = new Map<number, (yaml: string) => void>();
+    const rejecters = new Map<number, (err: unknown) => void>();
+
+    for (const id of idsToFetch) {
+      const promise = new Promise<string>((resolve, reject) => {
+        resolvers.set(id, resolve);
+        rejecters.set(id, reject);
+      });
+      this.inFlightYamlPromises.set(id, promise);
+    }
+
+    const batchPromises: Promise<void>[] = [];
+    for (
+      let i = 0;
+      i < idsToFetch.length;
+      i += WorkbenchClientService.MAX_STRUCT_IDS_PER_BATCH
+    ) {
+      const batch = idsToFetch.slice(
+        i,
+        i + WorkbenchClientService.MAX_STRUCT_IDS_PER_BATCH,
+      );
+      batchPromises.push(
+        (async () => {
+          try {
+            const res =
+              await this.connectClient.workbenchClient.readStructYAMLs({
+                workbenchId,
+                structIds: batch,
+              });
+            const receivedIds = new Set<number>();
+            for (const structYaml of res.structYamls) {
+              const yaml = structYaml.yaml ?? '';
+              this.structYamlCache.put(structYaml.structId, yaml);
+              resultMap.set(structYaml.structId, yaml);
+              receivedIds.add(structYaml.structId);
+              resolvers.get(structYaml.structId)?.(yaml);
+            }
+            for (const id of batch) {
+              if (!receivedIds.has(id)) {
+                resolvers.get(id)?.('');
+              }
+            }
+          } catch (e) {
+            this.handleSessionError(e);
+            for (const id of batch) {
+              rejecters.get(id)?.(e);
+            }
+            throw e;
+          } finally {
+            for (const id of batch) {
+              this.inFlightYamlPromises.delete(id);
+            }
+          }
+        })(),
+      );
+    }
+
+    await Promise.all([...pendingPromises, ...batchPromises]);
+    return resultMap;
   }
 
   /**

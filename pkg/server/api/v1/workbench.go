@@ -280,17 +280,19 @@ func (s *WorkbenchServiceServer) HeartbeatWorkbench(
 	return connect.NewResponse(res), nil
 }
 
-// ReadStructYAML decodes an interned struct by ID and returns its YAML representation.
-func (s *WorkbenchServiceServer) ReadStructYAML(
+const maxStructIDsPerBatch = 200
+
+// ReadStructYAMLs decodes interned structs by IDs and returns their YAML representations.
+func (s *WorkbenchServiceServer) ReadStructYAMLs(
 	ctx context.Context,
-	req *connect.Request[apiv1.ReadStructYAMLRequest],
-) (*connect.Response[apiv1.ReadStructYAMLResponse], error) {
+	req *connect.Request[apiv1.ReadStructYAMLsRequest],
+) (*connect.Response[apiv1.ReadStructYAMLsResponse], error) {
 	msg := req.Msg
 	if msg.GetWorkbenchId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
 	}
-	if msg.GetStructId() == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("struct_id must be greater than 0"))
+	if len(msg.GetStructIds()) > maxStructIDsPerBatch {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("struct_ids cannot exceed %d items", maxStructIDsPerBatch))
 	}
 
 	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
@@ -301,16 +303,31 @@ func (s *WorkbenchServiceServer) ReadStructYAML(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	yamlStr, err := wb.ReadStructYAML(msg.GetStructId())
+	yamlMap, err := wb.ReadStructYAMLs(msg.GetStructIds())
 	if err != nil {
-		if errors.Is(err, workbench.ErrStructNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
+		if errors.Is(err, workbench.ErrWorkbenchClosed) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to read struct YAML: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to read struct YAMLs: %w", err))
 	}
 
-	res := &apiv1.ReadStructYAMLResponse{
-		Yaml: proto.String(yamlStr),
+	seen := make(map[uint32]bool)
+	structYAMLs := make([]*apiv1.StructYAML, 0, len(yamlMap))
+	for _, structID := range msg.GetStructIds() {
+		if seen[structID] {
+			continue
+		}
+		seen[structID] = true
+		if yamlStr, ok := yamlMap[structID]; ok {
+			structYAMLs = append(structYAMLs, &apiv1.StructYAML{
+				StructId: proto.Uint32(structID),
+				Yaml:     proto.String(yamlStr),
+			})
+		}
+	}
+
+	res := &apiv1.ReadStructYAMLsResponse{
+		StructYamls: structYAMLs,
 	}
 	return connect.NewResponse(res), nil
 }

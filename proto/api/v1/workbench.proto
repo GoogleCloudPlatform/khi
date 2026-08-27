@@ -42,8 +42,8 @@ service WorkbenchService {
   // Sends periodic heartbeat to keep the Workbench session alive in memory.
   rpc HeartbeatWorkbench(HeartbeatWorkbenchRequest) returns (HeartbeatWorkbenchResponse);
 
-  // Decodes an interned struct by ID and returns its formatted YAML string.
-  rpc ReadStructYAML(ReadStructYAMLRequest) returns (ReadStructYAMLResponse);
+  // Decodes interned structs by IDs and returns their formatted YAML strings.
+  rpc ReadStructYAMLs(ReadStructYAMLsRequest) returns (ReadStructYAMLsResponse);
 
   // Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
   rpc FilterTimeline(FilterTimelineRequest) returns (stream FilterTimelineResponse);
@@ -178,18 +178,26 @@ message HeartbeatWorkbenchResponse {
   google.protobuf.Timestamp expires_at = 2;
 }
 
-// Request to decode an interned struct into its YAML representation.
-message ReadStructYAMLRequest {
-  // The active workbench session identifier.
-  string workbench_id = 1;
-  // The unique ID of the interned struct to decode.
-  uint32 struct_id = 2;
+// StructYAML pairs an interned struct ID with its decoded YAML representation.
+message StructYAML {
+  // The unique ID of the interned struct.
+  uint32 struct_id = 1;
+  // The formatted YAML string representation of the requested struct.
+  string yaml = 2;
 }
 
-// Response containing the decoded YAML representation of the struct.
-message ReadStructYAMLResponse {
-  // The formatted YAML string representation of the requested struct.
-  string yaml = 1;
+// Request to decode interned structs into their YAML representations.
+message ReadStructYAMLsRequest {
+  // The active workbench session identifier.
+  string workbench_id = 1;
+  // The unique IDs of the interned structs to decode (up to 200 items).
+  repeated uint32 struct_ids = 2;
+}
+
+// Response containing the decoded YAML representations of found structs.
+message ReadStructYAMLsResponse {
+  // The decoded YAML representations of the structs found.
+  repeated StructYAML struct_yamls = 1;
 }
 
 // Request to execute a complete timeline and log filtering pipeline against an active Workbench dataset.

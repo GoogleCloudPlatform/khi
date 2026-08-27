@@ -42,6 +42,16 @@ import * as yaml from 'js-yaml';
 import { Revision } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
+interface RevisionYamlPair {
+  readonly current: string;
+  readonly previous: string | null;
+}
+
+interface RevisionYamlParams {
+  readonly currentStructId: number | undefined;
+  readonly previousStructId: number | undefined;
+}
+
 interface DiffSmartSelectionMoveCommand {
   direction: 'next' | 'prev';
 }
@@ -67,37 +77,52 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
   private readonly selectionManager = inject(SelectionManager);
   private readonly viewState = inject(ViewStateService);
   private readonly workbenchClientService = inject(WorkbenchClientService);
-  private readonly currentRevisionResource = resource({
-    params: () => this.selectionManager.selectedRevision()?.structId,
-    loader: async ({ params: structId }) => {
-      if (!structId || structId <= 0) {
-        return '';
+  private readonly revisionYamlsResource = resource({
+    params: (): RevisionYamlParams | undefined => {
+      const currentStructId =
+        this.selectionManager.selectedRevision()?.structId;
+      const previousStructId =
+        this.selectionManager.previousOfSelectedRevision()?.structId;
+      if (
+        (!currentStructId || currentStructId <= 0) &&
+        (!previousStructId || previousStructId <= 0)
+      ) {
+        return undefined;
       }
-      try {
-        return await this.workbenchClientService.readStructYAML(structId);
-      } catch (err) {
-        console.warn(
-          `[DiffSmartComponent] Failed to read struct YAML for structId ${structId}:`,
-          err,
-        );
-        return '';
-      }
+      return {
+        currentStructId,
+        previousStructId,
+      };
     },
-  });
-  private readonly previousRevisionResource = resource({
-    params: () => this.selectionManager.previousOfSelectedRevision()?.structId,
-    loader: async ({ params: structId }) => {
-      if (!structId || structId <= 0) {
-        return null;
+    loader: async ({ params }): Promise<RevisionYamlPair> => {
+      const idsToFetch = [
+        params.currentStructId,
+        params.previousStructId,
+      ].filter((id): id is number => typeof id === 'number' && id > 0);
+
+      if (idsToFetch.length === 0) {
+        return { current: '', previous: null };
       }
+
       try {
-        return await this.workbenchClientService.readStructYAML(structId);
+        const yamlMap =
+          await this.workbenchClientService.readStructYAMLs(idsToFetch);
+        const currentYaml = params.currentStructId
+          ? (yamlMap.get(params.currentStructId) ?? '')
+          : '';
+        const previousYaml = params.previousStructId
+          ? yamlMap.get(params.previousStructId) || null
+          : null;
+        return {
+          current: currentYaml,
+          previous: previousYaml,
+        };
       } catch (err) {
         console.warn(
-          `[DiffSmartComponent] Failed to read struct YAML for previous structId ${structId}:`,
+          '[DiffSmartComponent] Failed to read revision struct YAMLs:',
           err,
         );
-        return null;
+        return { current: '', previous: null };
       }
     },
   });
@@ -108,13 +133,9 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Signal indicating whether either current or previous revision YAML is currently being loaded.
+   * Signal indicating whether revision YAMLs are currently being loaded.
    */
-  public readonly isLoading = computed(
-    () =>
-      this.currentRevisionResource.isLoading() ||
-      this.previousRevisionResource.isLoading(),
-  );
+  public readonly isLoading = this.revisionYamlsResource.isLoading;
 
   /** Holds the active search scope. */
   public readonly activeSearchScope = this.viewState.activeSearchScope;
@@ -165,14 +186,14 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
    * Computed raw string of the current revision's content before stripping managed fields.
    */
   protected readonly currentRevisionRawBody = computed(() => {
-    return this.currentRevisionResource.value() ?? '';
+    return this.revisionYamlsResource.value()?.current ?? '';
   });
 
   /**
    * Computed string of the current revision's content, formatted according to managed fields visibility.
    */
   protected readonly currentRevisionContent = computed(() => {
-    const content = this.currentRevisionResource.value() ?? '';
+    const content = this.revisionYamlsResource.value()?.current ?? '';
     return this.showManagedFields()
       ? content
       : this.removeManagedField(content);
@@ -188,7 +209,7 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
    * Computed string of the previous revision's content, formatted according to managed fields visibility.
    */
   protected readonly previousRevisionContent = computed<string | null>(() => {
-    const content = this.previousRevisionResource.value();
+    const content = this.revisionYamlsResource.value()?.previous;
     if (content === undefined || content === null) {
       return null;
     }

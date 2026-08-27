@@ -38,7 +38,7 @@ describe('DiffSmartComponent', () => {
 
   beforeEach(async () => {
     workbenchClientSpy = jasmine.createSpyObj('WorkbenchClientService', [
-      'readStructYAML',
+      'readStructYAMLs',
     ]);
     mockSelectedRevision = signal<ReadonlyDomainElement<Revision> | null>(null);
     mockPreviousOfSelectedRevision =
@@ -95,11 +95,14 @@ describe('DiffSmartComponent', () => {
   });
 
   it('should fetch and set current and previous revision content when revisions are selected', async () => {
-    workbenchClientSpy.readStructYAML.and.callFake(async (structId: number) => {
-      if (structId === 10) return 'metadata:\n  name: pod-v2\n';
-      if (structId === 5) return 'metadata:\n  name: pod-v1\n';
-      return '';
-    });
+    workbenchClientSpy.readStructYAMLs.and.returnValue(
+      Promise.resolve(
+        new Map([
+          [10, 'metadata:\n  name: pod-v2\n'],
+          [5, 'metadata:\n  name: pod-v1\n'],
+        ]),
+      ),
+    );
 
     const mockTimeline = {
       id: 'timeline-1',
@@ -127,8 +130,7 @@ describe('DiffSmartComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(workbenchClientSpy.readStructYAML).toHaveBeenCalledWith(10);
-    expect(workbenchClientSpy.readStructYAML).toHaveBeenCalledWith(5);
+    expect(workbenchClientSpy.readStructYAMLs).toHaveBeenCalledWith([10, 5]);
     expect(component['currentRevisionContent']()).toBe(
       'metadata:\n  name: pod-v2\n',
     );
@@ -139,9 +141,14 @@ describe('DiffSmartComponent', () => {
   });
 
   it('should strip managedFields when showManagedFields is false', async () => {
-    workbenchClientSpy.readStructYAML.and.returnValue(
+    workbenchClientSpy.readStructYAMLs.and.returnValue(
       Promise.resolve(
-        'metadata:\n  name: pod-v1\n  managedFields:\n    - manager: kubectl\n',
+        new Map([
+          [
+            15,
+            'metadata:\n  name: pod-v1\n  managedFields:\n    - manager: kubectl\n',
+          ],
+        ]),
       ),
     );
 
@@ -157,6 +164,7 @@ describe('DiffSmartComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
+    expect(workbenchClientSpy.readStructYAMLs).toHaveBeenCalledWith([15]);
     expect(component['currentRevisionContent']()).not.toContain(
       'managedFields',
     );
@@ -167,8 +175,8 @@ describe('DiffSmartComponent', () => {
     expect(component['currentRevisionContent']()).toContain('managedFields');
   });
 
-  it('should handle readStructYAML rejection gracefully', async () => {
-    workbenchClientSpy.readStructYAML.and.returnValue(
+  it('should handle readStructYAMLs rejection gracefully', async () => {
+    workbenchClientSpy.readStructYAMLs.and.returnValue(
       Promise.reject(new Error('RPC failure')),
     );
 
@@ -184,6 +192,7 @@ describe('DiffSmartComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
+    expect(workbenchClientSpy.readStructYAMLs).toHaveBeenCalledWith([25]);
     expect(component['currentRevisionContent']()).toBe('');
     expect(component['previousRevisionContent']()).toBeNull();
     expect(component.isLoading()).toBeFalse();

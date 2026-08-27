@@ -28,8 +28,6 @@ import (
 )
 
 var (
-	// ErrStructNotFound indicates that the requested struct ID was not found in the intern pool.
-	ErrStructNotFound = errors.New("struct not found")
 	// ErrIndexFailed indicates that search index construction encountered a terminal error.
 	ErrIndexFailed = errors.New("search index construction failed")
 )
@@ -119,38 +117,59 @@ func (w *Workbench) IsClosed() bool {
 	return w.closed
 }
 
-// ReadStructYAML decodes the interned struct matching the given structID and returns its YAML string representation.
+// ReadStructYAMLs decodes the interned structs matching the given structIDs and returns a map of struct ID to YAML string representation.
 // If the struct YAML is available in SearchIndex.StructYAMLs, it is returned directly from the pre-serialized index.
-func (w *Workbench) ReadStructYAML(structID uint32) (string, error) {
+// Missing or invalid struct IDs are skipped (best-effort resolution).
+func (w *Workbench) ReadStructYAMLs(structIDs []uint32) (map[uint32]string, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
 	if w.closed {
-		return "", ErrWorkbenchClosed
+		return nil, ErrWorkbenchClosed
 	}
 
-	if w.searchIndex != nil && w.searchIndex.StructYAMLs != nil {
-		if yamlStr, ok := w.searchIndex.StructYAMLs[structID]; ok {
-			return yamlStr, nil
+	result := make(map[uint32]string)
+	if len(structIDs) == 0 {
+		return result, nil
+	}
+
+	var serializer *khifilev6model.DirectYAMLSerializer
+	for _, structID := range structIDs {
+		if structID == 0 {
+			continue
 		}
+		if _, exists := result[structID]; exists {
+			continue
+		}
+
+		if w.searchIndex != nil && w.searchIndex.StructYAMLs != nil {
+			if yamlStr, ok := w.searchIndex.StructYAMLs[structID]; ok {
+				result[structID] = yamlStr
+				continue
+			}
+		}
+
+		if w.internPool == nil {
+			continue
+		}
+
+		s := w.internPool.ResolveStructFromID(structID)
+		if s == nil {
+			continue
+		}
+
+		if serializer == nil {
+			serializer = khifilev6model.NewDirectYAMLSerializer()
+		}
+		yamlStr, err := serializer.SerializeStruct(s, w.internPool)
+		if err != nil {
+			continue
+		}
+
+		result[structID] = yamlStr
 	}
 
-	if w.internPool == nil {
-		return "", ErrStructNotFound
-	}
-
-	s := w.internPool.ResolveStructFromID(structID)
-	if s == nil {
-		return "", ErrStructNotFound
-	}
-
-	serializer := khifilev6model.NewDirectYAMLSerializer()
-	yamlStr, err := serializer.SerializeStruct(s, w.internPool)
-	if err != nil {
-		return "", fmt.Errorf("failed to serialize struct to YAML: %w", err)
-	}
-
-	return yamlStr, nil
+	return result, nil
 }
 
 // IndexStatus returns the current index construction status snapshot.

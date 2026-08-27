@@ -234,7 +234,7 @@ func TestWorkbenchServiceServer_HeartbeatAndClose(t *testing.T) {
 	}
 }
 
-func TestWorkbenchServiceServer_ReadStructYAML(t *testing.T) {
+func TestWorkbenchServiceServer_ReadStructYAMLs(t *testing.T) {
 	ts, client, manager, validInspID := setupTestWorkbenchServer(t)
 	defer ts.Close()
 	defer manager.Stop()
@@ -256,43 +256,57 @@ func TestWorkbenchServiceServer_ReadStructYAML(t *testing.T) {
 
 	workbenchID := "user-struct-session-0"
 
+	tooManyIDs := make([]uint32, maxStructIDsPerBatch+1)
+	for i := 0; i < len(tooManyIDs); i++ {
+		tooManyIDs[i] = uint32(i + 1)
+	}
+
 	testCases := []struct {
 		name        string
 		workbenchID string
-		structID    uint32
+		structIDs   []uint32
 		wantErrCode connect.Code
+		wantCount   int
 	}{
 		{
 			name:        "fails with invalid argument when workbench_id is empty",
 			workbenchID: "",
-			structID:    1,
+			structIDs:   []uint32{1},
 			wantErrCode: connect.CodeInvalidArgument,
 		},
 		{
-			name:        "fails with invalid argument when struct_id is 0",
+			name:        "fails with invalid argument when struct_ids exceeds 200 items",
 			workbenchID: workbenchID,
-			structID:    0,
+			structIDs:   tooManyIDs,
 			wantErrCode: connect.CodeInvalidArgument,
 		},
 		{
 			name:        "fails with not found for non-existent workbench",
 			workbenchID: "non-existent-workbench",
-			structID:    1,
+			structIDs:   []uint32{1},
 			wantErrCode: connect.CodeNotFound,
 		},
 		{
-			name:        "fails with not found for non-existent struct ID",
+			name:        "succeeds with empty response when struct IDs are not found or invalid",
 			workbenchID: workbenchID,
-			structID:    9999,
-			wantErrCode: connect.CodeNotFound,
+			structIDs:   []uint32{9999, 0},
+			wantErrCode: 0,
+			wantCount:   0,
+		},
+		{
+			name:        "succeeds with empty response when struct_ids is empty",
+			workbenchID: workbenchID,
+			structIDs:   []uint32{},
+			wantErrCode: 0,
+			wantCount:   0,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			res, err := client.ReadStructYAML(context.Background(), connect.NewRequest(&apiv1.ReadStructYAMLRequest{
+			res, err := client.ReadStructYAMLs(context.Background(), connect.NewRequest(&apiv1.ReadStructYAMLsRequest{
 				WorkbenchId: proto.String(tc.workbenchID),
-				StructId:    proto.Uint32(tc.structID),
+				StructIds:   tc.structIDs,
 			}))
 			if tc.wantErrCode != 0 {
 				if err == nil {
@@ -306,8 +320,8 @@ func TestWorkbenchServiceServer_ReadStructYAML(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if res.Msg.GetYaml() == "" {
-				t.Errorf("expected non-empty YAML response")
+			if len(res.Msg.GetStructYamls()) != tc.wantCount {
+				t.Errorf("got %d struct yamls, want %d", len(res.Msg.GetStructYamls()), tc.wantCount)
 			}
 		})
 	}
