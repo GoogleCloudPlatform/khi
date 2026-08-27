@@ -50,7 +50,13 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end" class="dialog-actions">
-  <button mat-button (click)="returnToStartup.emit()">Return to Startup</button>
+  <button
+    mat-button
+    [disabled]="isReconnecting()"
+    (click)="returnToStartup.emit()"
+  >
+    Return to Startup
+  </button>
   <button
     mat-flat-button
     color="primary"

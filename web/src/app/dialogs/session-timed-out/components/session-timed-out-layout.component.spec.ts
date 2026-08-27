@@ -105,7 +105,7 @@ describe('SessionTimedOutLayoutComponent', () => {
     expect(retryEmitted).toBeTrue();
   });
 
-  it('should disable action button when isReconnecting is true', () => {
+  it('should disable both action buttons when isReconnecting is true', () => {
     fixture.componentRef.setInput('isReconnecting', true);
     fixture.detectChanges();
 
@@ -113,6 +113,10 @@ describe('SessionTimedOutLayoutComponent', () => {
     const reconnectBtn = buttons.find((b) =>
       b.nativeElement.textContent.includes('Reconnect'),
     );
+    const startupBtn = buttons.find((b) =>
+      b.nativeElement.textContent.includes('Return to Startup'),
+    );
     expect(reconnectBtn?.nativeElement.disabled).toBeTrue();
+    expect(startupBtn?.nativeElement.disabled).toBeTrue();
   });
 });

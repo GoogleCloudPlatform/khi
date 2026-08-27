@@ -66,9 +66,12 @@ export class SessionTimeoutDialogService {
       return;
     }
 
-    this.activeDialogRef = openSessionTimedOutDialog(this.dialog);
-    this.activeDialogRef.afterClosed().subscribe(() => {
-      this.activeDialogRef = null;
+    const dialogRef = openSessionTimedOutDialog(this.dialog);
+    this.activeDialogRef = dialogRef;
+    dialogRef.afterClosed().subscribe(() => {
+      if (this.activeDialogRef === dialogRef) {
+        this.activeDialogRef = null;
+      }
     });
   }
 }

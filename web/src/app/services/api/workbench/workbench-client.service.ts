@@ -170,7 +170,11 @@ export class WorkbenchClientService implements OnDestroy {
     const id = this.activeWorkbenchIdSignal();
     if (document.visibilityState === 'hidden') {
       this.stopHeartbeat();
-    } else if (document.visibilityState === 'visible' && id) {
+    } else if (
+      document.visibilityState === 'visible' &&
+      id &&
+      !this.isWorkbenchExpiredSignal()
+    ) {
       this.startHeartbeat(id);
       void this.heartbeat(id);
     }
@@ -243,6 +247,13 @@ export class WorkbenchClientService implements OnDestroy {
     }
 
     if (workbenchId) {
+      if (
+        this.currentSessionId !== sessionId ||
+        this.currentInspectionId !== inspectionId
+      ) {
+        void this.closeWorkbench(workbenchId);
+        return undefined;
+      }
       this.structYamlCache.clear();
       this.isWorkbenchExpiredSignal.set(false);
       this.activeWorkbenchIdSignal.set(workbenchId);
@@ -297,6 +308,10 @@ export class WorkbenchClientService implements OnDestroy {
         }
       } catch (e) {
         if (abortSignal?.aborted) {
+          return;
+        }
+        this.handleSessionError(e);
+        if (this.isWorkbenchExpiredSignal()) {
           return;
         }
         console.warn(

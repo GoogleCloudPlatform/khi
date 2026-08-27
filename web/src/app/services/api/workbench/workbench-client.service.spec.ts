@@ -609,4 +609,63 @@ describe('WorkbenchClientService', () => {
     expect(service.isWorkbenchExpired()).toBeFalse();
     expect(service.isReopening()).toBeFalse();
   });
+
+  it('should not restart or trigger heartbeat on visibilitychange when session is expired', async () => {
+    (
+      mockConnectClient.workbenchClient.heartbeatWorkbench as jasmine.Spy
+    ).and.returnValue(Promise.resolve({ active: false }));
+
+    await service.heartbeat('wb-expired');
+    expect(service.isWorkbenchExpired()).toBeTrue();
+
+    const heartbeatSpy = mockConnectClient.workbenchClient
+      .heartbeatWorkbench as jasmine.Spy;
+    heartbeatSpy.calls.reset();
+
+    // Dispatch visibilitychange when document is visible
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    expect(heartbeatSpy).not.toHaveBeenCalled();
+  });
+
+  it('should close new workbench and not activate it if session was closed while openWorkbench was in flight', async () => {
+    let completeStream!: () => void;
+    const streamPromise = new Promise<void>((resolve) => {
+      completeStream = resolve;
+    });
+
+    async function* delayedOpenStream() {
+      await streamPromise;
+      yield {
+        stage: OpenWorkbenchResponse_Stage.READY,
+        progressPercentage: 100,
+        message: 'Ready',
+        workbenchId: 'wb-orphaned',
+      };
+    }
+
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(delayedOpenStream());
+    (
+      mockConnectClient.workbenchClient.closeWorkbench as jasmine.Spy
+    ).and.returnValue(Promise.resolve({ closed: true }));
+
+    const openPromise = service.openWorkbench('s-1', 'i-1');
+
+    // While open is pending, user returns to startup / closes workbench
+    await service.closeWorkbench();
+
+    // Now open response arrives
+    completeStream();
+    const result = await openPromise;
+
+    expect(result).toBeUndefined();
+    expect(service.activeWorkbenchId()).toBeNull();
+    expect(
+      mockConnectClient.workbenchClient.closeWorkbench,
+    ).toHaveBeenCalledWith({
+      workbenchId: 'wb-orphaned',
+    });
+  });
 });
