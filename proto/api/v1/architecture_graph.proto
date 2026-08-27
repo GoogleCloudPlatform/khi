@@ -1,0 +1,236 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package api.v1;
+
+import "api/v1/sparse_bitset.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1";
+
+// Request to generate a Kubernetes architecture graph for a specific point in time.
+message GetArchitectureGraphRequest {
+  // The active workbench session identifier.
+  string workbench_id = 1;
+  // Target point-in-time timestamp in nanoseconds since unix epoch.
+  int64 timestamp_ns = 2;
+  // Filtered timeline IDs to consider for graph construction.
+  SparseBitset timeline_bitset = 3;
+  // Deletion retention threshold in seconds. Resources deleted within this threshold are included.
+  double deletion_threshold_seconds = 4;
+}
+
+// Represents a condition attached to a Kubernetes resource (e.g. Node, Pod).
+message GraphCondition {
+  // Type of condition (e.g. "Ready", "DiskPressure").
+  string type = 1;
+  // Status value of the condition ("True", "False", "Unknown").
+  string status = 2;
+  // Human-readable message detailing the condition transition.
+  string message = 3;
+  // Whether this condition represents a positive/healthy state for the resource.
+  bool is_positive = 4;
+}
+
+// Represents container runtime status within a Pod.
+message GraphContainer {
+  // Name of the container.
+  string name = 1;
+  // Indicates if this container is an initContainer.
+  bool is_init_container = 2;
+  // Indicates whether the container's current status is healthy.
+  bool is_status_healthy = 3;
+  // Container lifecycle status string (e.g. "Running", "Completed", "CrashLoopBackOff").
+  string status = 4;
+  // Termination or waiting reason.
+  string reason = 5;
+  // Container exit code.
+  int32 code = 6;
+  // Whether the container is ready to accept traffic.
+  bool ready = 7;
+  // Indicates whether this status was decoded from an explicit containerStatus in the manifest.
+  bool status_read_from_manifest = 8;
+}
+
+// GraphNode represents a Kubernetes Node resource in the architecture diagram.
+message GraphNode {
+  // Unique composite identifier in "${kind}/${namespace}/${name}" format (e.g. "node/cluster-scope/node-1").
+  string id = 1;
+  // Associated KHI timeline ID.
+  uint32 timeline_id = 2;
+  // Kubernetes metadata.uid.
+  string uid = 3;
+  // Node name.
+  string name = 4;
+  // Kubernetes labels.
+  map<string, string> labels = 5;
+  // Allocated Pod CIDR range.
+  string pod_cidr = 6;
+  // Node internal IP address.
+  string internal_ip = 7;
+  // Node external IP address.
+  string external_ip = 8;
+  // Node taints formatted as "key(effect)".
+  repeated string taints = 9;
+  // Status conditions observed on the node.
+  repeated GraphCondition conditions = 10;
+  // Timestamp in nanoseconds when this resource was updated prior to the query time.
+  int64 updated_at_ns = 11;
+  // Timestamp in nanoseconds when this resource was deleted, or 0 if active.
+  int64 deleted_at_ns = 12;
+}
+
+// GraphPod represents a Kubernetes Pod resource in the architecture diagram.
+message GraphPod {
+  // Unique composite identifier in "${kind}/${namespace}/${name}" format (e.g. "pod/default/nginx-xxx").
+  string id = 1;
+  // Associated KHI timeline ID.
+  uint32 timeline_id = 2;
+  // Kubernetes metadata.uid.
+  string uid = 3;
+  // Pod name.
+  string name = 4;
+  // Pod namespace.
+  string namespace = 5;
+  // Kubernetes labels.
+  map<string, string> labels = 6;
+  // Name of the Node hosting this Pod.
+  string node_name = 7;
+  // Assigned Pod IP address.
+  string pod_ip = 8;
+  // Pod phase string (e.g. "Running", "Pending", "Failed").
+  string phase = 9;
+  // Whether the phase is healthy ("Running" or "Completed").
+  bool is_phase_healthy = 10;
+  // Status conditions observed on the Pod.
+  repeated GraphCondition conditions = 11;
+  // Status of containers and init containers within the Pod.
+  repeated GraphContainer containers = 12;
+  // UIDs of owner controllers (ReplicaSets, DaemonSets, Jobs) from ownerReferences.
+  repeated string owner_uids = 13;
+  // Timestamp in nanoseconds when this resource was updated prior to the query time.
+  int64 updated_at_ns = 14;
+  // Timestamp in nanoseconds when this resource was deleted, or 0 if active.
+  int64 deleted_at_ns = 15;
+}
+
+// GraphService represents a Kubernetes Service resource in the architecture diagram.
+message GraphService {
+  // Unique composite identifier in "${kind}/${namespace}/${name}" format (e.g. "service/default/my-service").
+  string id = 1;
+  // Associated KHI timeline ID.
+  uint32 timeline_id = 2;
+  // Kubernetes metadata.uid.
+  string uid = 3;
+  // Service name.
+  string name = 4;
+  // Service namespace.
+  string namespace = 5;
+  // Kubernetes labels.
+  map<string, string> labels = 6;
+  // Service type (e.g. "ClusterIP", "NodePort", "LoadBalancer").
+  string type = 7;
+  // Allocated cluster IP.
+  string cluster_ip = 8;
+  // Timestamp in nanoseconds when this resource was updated prior to the query time.
+  int64 updated_at_ns = 9;
+  // Timestamp in nanoseconds when this resource was deleted, or 0 if active.
+  int64 deleted_at_ns = 10;
+}
+
+// GraphPodOwner represents mid-level workload controllers (DaemonSet, ReplicaSet, Job) in the architecture diagram.
+message GraphPodOwner {
+  // Unique composite identifier in "${kind}/${namespace}/${name}" format (e.g. "replicaset/default/frontend-abc").
+  string id = 1;
+  // Associated KHI timeline ID.
+  uint32 timeline_id = 2;
+  // Kubernetes metadata.uid.
+  string uid = 3;
+  // Resource name.
+  string name = 4;
+  // Resource namespace.
+  string namespace = 5;
+  // Controller kind (e.g. "daemonset", "replicaset", "job").
+  string kind = 6;
+  // Kubernetes labels.
+  map<string, string> labels = 7;
+  // UIDs of parent controllers (e.g. Deployment UID) from ownerReferences.
+  repeated string owner_uids = 8;
+  // Timestamp in nanoseconds when this resource was updated prior to the query time.
+  int64 updated_at_ns = 9;
+  // Timestamp in nanoseconds when this resource was deleted, or 0 if active.
+  int64 deleted_at_ns = 10;
+}
+
+// GraphPodOwnerOwner represents top-level workload controllers (Deployment, CronJob) in the architecture diagram.
+message GraphPodOwnerOwner {
+  // Unique composite identifier in "${kind}/${namespace}/${name}" format (e.g. "deployment/default/frontend").
+  string id = 1;
+  // Associated KHI timeline ID.
+  uint32 timeline_id = 2;
+  // Kubernetes metadata.uid.
+  string uid = 3;
+  // Resource name.
+  string name = 4;
+  // Resource namespace.
+  string namespace = 5;
+  // Controller kind ("deployment" or "cronjob").
+  string kind = 6;
+  // Kubernetes labels.
+  map<string, string> labels = 7;
+  // Timestamp in nanoseconds when this resource was updated prior to the query time.
+  int64 updated_at_ns = 8;
+  // Timestamp in nanoseconds when this resource was deleted, or 0 if active.
+  int64 deleted_at_ns = 9;
+}
+
+// GraphEdge represents a directional relationship between two resources in the architecture diagram.
+message GraphEdge {
+  // Relationship category between the source and target resources.
+  enum EdgeType {
+    EDGE_TYPE_UNSPECIFIED = 0;
+    // Service to Pod based on label selector match.
+    EDGE_TYPE_SERVICE_TO_POD = 1;
+    // PodOwner (ReplicaSet, DaemonSet, Job) to Pod based on ownerReferences.
+    EDGE_TYPE_POD_OWNER_TO_POD = 2;
+    // PodOwnerOwner (Deployment, CronJob) to PodOwner based on ownerReferences.
+    EDGE_TYPE_POD_OWNER_OWNER_TO_POD_OWNER = 3;
+    // Pod to Node based on spec.nodeName or Pod binding.
+    EDGE_TYPE_POD_TO_NODE = 4;
+  }
+  EdgeType type = 1;
+  // Composite ID of the source resource.
+  string source_id = 2;
+  // Composite ID of the target resource.
+  string target_id = 3;
+}
+
+// Response containing the complete Kubernetes architecture graph at a requested timestamp.
+message GetArchitectureGraphResponse {
+  // Timestamp in nanoseconds matching the query point in time.
+  int64 timestamp_ns = 1;
+  // Discovered Kubernetes Nodes.
+  repeated GraphNode nodes = 2;
+  // Discovered Kubernetes Pods.
+  repeated GraphPod pods = 3;
+  // Discovered Kubernetes Services.
+  repeated GraphService services = 4;
+  // Discovered mid-level workload controllers (DaemonSets, ReplicaSets, Jobs).
+  repeated GraphPodOwner pod_owners = 5;
+  // Discovered top-level workload controllers (Deployments, CronJobs).
+  repeated GraphPodOwnerOwner pod_owner_owners = 6;
+  // Directed relationships interconnecting the resources.
+  repeated GraphEdge edges = 7;
+}

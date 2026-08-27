@@ -24,6 +24,11 @@ import type {
 } from '@bufbuild/protobuf/codegenv2';
 import type { Message } from '@bufbuild/protobuf';
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import type { SparseBitset } from './sparse_bitset_pb';
+import type {
+  GetArchitectureGraphRequestSchema,
+  GetArchitectureGraphResponseSchema,
+} from './architecture_graph_pb';
 
 /**
  * Describes the file api/v1/workbench.proto.
@@ -604,33 +609,6 @@ export declare type FilterProgress = Message<'api.v1.FilterProgress'> & {
 export declare const FilterProgressSchema: GenMessage<FilterProgress>;
 
 /**
- * SparseBitset encodes a sparse set of 32-bit blocks.
- *
- * @generated from message api.v1.SparseBitset
- */
-export declare type SparseBitset = Message<'api.v1.SparseBitset'> & {
-  /**
-   * Block indices (item_id / 32) containing at least one set bit.
-   *
-   * @generated from field: repeated uint32 indices = 1;
-   */
-  indices: number[];
-
-  /**
-   * 32-bit bitmasks corresponding to each block index where the i-th bit represents (item_id % 32).
-   *
-   * @generated from field: repeated fixed32 masks = 2;
-   */
-  masks: number[];
-};
-
-/**
- * Describes the message api.v1.SparseBitset.
- * Use `create(SparseBitsetSchema)` to create a new message.
- */
-export declare const SparseBitsetSchema: GenMessage<SparseBitset>;
-
-/**
  * Final result containing the sparse bitsets of all timelines and logs that passed the filter pipeline.
  *
  * @generated from message api.v1.FilterResult
@@ -1031,6 +1009,16 @@ export declare const WorkbenchService: GenService<{
     methodKind: 'unary';
     input: typeof CancelFilterTimelineSyncRequestSchema;
     output: typeof CancelFilterTimelineSyncResponseSchema;
+  };
+  /**
+   * Computes the Kubernetes architecture graph for a specific timestamp based on the active timeline filter.
+   *
+   * @generated from rpc api.v1.WorkbenchService.GetArchitectureGraph
+   */
+  getArchitectureGraph: {
+    methodKind: 'unary';
+    input: typeof GetArchitectureGraphRequestSchema;
+    output: typeof GetArchitectureGraphResponseSchema;
   };
   /**
    * Explicitly closes and releases an active Workbench session.

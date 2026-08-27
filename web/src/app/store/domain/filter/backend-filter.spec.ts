@@ -19,10 +19,8 @@ import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { LogTimelineFilterContext } from 'src/app/store/domain/filter/types';
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
-import {
-  FilterResultMode,
-  SparseBitsetSchema,
-} from 'src/app/generated/api/v1/workbench_pb';
+import { FilterResultMode } from 'src/app/generated/api/v1/workbench_pb';
+import { SparseBitsetSchema } from 'src/app/generated/api/v1/sparse_bitset_pb';
 import { create } from '@bufbuild/protobuf';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { Log } from 'src/app/store/domain/log';

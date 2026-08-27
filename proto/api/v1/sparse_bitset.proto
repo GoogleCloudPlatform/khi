@@ -1,0 +1,27 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package api.v1;
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1";
+
+// SparseBitset encodes a sparse set of 32-bit blocks.
+message SparseBitset {
+  // Block indices (item_id / 32) containing at least one set bit.
+  repeated uint32 indices = 1;
+  // 32-bit bitmasks corresponding to each block index where the i-th bit represents (item_id % 32).
+  repeated fixed32 masks = 2;
+}

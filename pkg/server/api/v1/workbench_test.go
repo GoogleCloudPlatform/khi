@@ -528,7 +528,6 @@ func TestWorkbenchServiceServer_ProtoJSONClient(t *testing.T) {
 		t.Errorf("HeartbeatWorkbench() active = false, want true")
 	}
 }
-
 func TestWorkbenchServiceServer_OpenWorkbenchSync_And_Cancel(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -742,6 +741,87 @@ func TestWorkbenchServiceServer_FilterTimelineSync_And_Cancel(t *testing.T) {
 
 			if res.Msg.GetResult() == nil {
 				t.Errorf("expected non-nil result on filter completion")
+			}
+		})
+	}
+}
+
+func TestWorkbenchServiceServer_GetArchitectureGraph(t *testing.T) {
+	testCases := []struct {
+		name        string
+		req         func(validWbID string) *apiv1.GetArchitectureGraphRequest
+		wantErrCode connect.Code
+	}{
+		{
+			name: "missing workbench_id returns InvalidArgument",
+			req: func(validWbID string) *apiv1.GetArchitectureGraphRequest {
+				return &apiv1.GetArchitectureGraphRequest{
+					WorkbenchId: proto.String(""),
+				}
+			},
+			wantErrCode: connect.CodeInvalidArgument,
+		},
+		{
+			name: "non-existent workbench_id returns NotFound",
+			req: func(validWbID string) *apiv1.GetArchitectureGraphRequest {
+				return &apiv1.GetArchitectureGraphRequest{
+					WorkbenchId: proto.String("non-existent-wb"),
+				}
+			},
+			wantErrCode: connect.CodeNotFound,
+		},
+		{
+			name: "valid workbench_id returns architecture graph",
+			req: func(validWbID string) *apiv1.GetArchitectureGraphRequest {
+				return &apiv1.GetArchitectureGraphRequest{
+					WorkbenchId: proto.String(validWbID),
+					TimestampNs: proto.Int64(100),
+				}
+			},
+			wantErrCode: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+			defer ts.Close()
+			defer manager.Stop()
+
+			openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
+				UserId:       proto.String("user-graph"),
+				SessionId:    proto.String("session-graph"),
+				InspectionId: proto.String(validInspID),
+			}))
+			if err != nil {
+				t.Fatalf("OpenWorkbench() error = %v", err)
+			}
+			var wbID string
+			for openStream.Receive() {
+				if openStream.Msg().GetWorkbenchId() != "" {
+					wbID = openStream.Msg().GetWorkbenchId()
+				}
+			}
+			if err := openStream.Err(); err != nil {
+				t.Fatalf("OpenWorkbench() stream error = %v", err)
+			}
+
+			req := tc.req(wbID)
+			resp, err := client.GetArchitectureGraph(context.Background(), connect.NewRequest(req))
+			if tc.wantErrCode != 0 {
+				if err == nil {
+					t.Fatalf("expected error with code %v, got nil", tc.wantErrCode)
+				}
+				if connect.CodeOf(err) != tc.wantErrCode {
+					t.Errorf("error code = %v, want %v (err = %v)", connect.CodeOf(err), tc.wantErrCode, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("GetArchitectureGraph() unexpected error = %v", err)
+			}
+			if resp.Msg == nil {
+				t.Fatalf("expected non-nil response message")
 			}
 		})
 	}

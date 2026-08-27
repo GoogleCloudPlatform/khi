@@ -16,6 +16,8 @@ edition = "2023";
 
 package api.v1;
 
+import "api/v1/architecture_graph.proto";
+import "api/v1/sparse_bitset.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1";
@@ -52,6 +54,8 @@ service WorkbenchService {
   // Cancels an in-progress synchronous timeline filtering task.
   rpc CancelFilterTimelineSync(CancelFilterTimelineSyncRequest) returns (CancelFilterTimelineSyncResponse);
 
+  // Computes the Kubernetes architecture graph for a specific timestamp based on the active timeline filter.
+  rpc GetArchitectureGraph(GetArchitectureGraphRequest) returns (GetArchitectureGraphResponse);
   // Explicitly closes and releases an active Workbench session.
   rpc CloseWorkbench(CloseWorkbenchRequest) returns (CloseWorkbenchResponse);
 }
@@ -210,14 +214,6 @@ message FilterProgress {
   uint32 current = 2;
   // Total number of items to process in the current stage.
   uint32 total = 3;
-}
-
-// SparseBitset encodes a sparse set of 32-bit blocks.
-message SparseBitset {
-  // Block indices (item_id / 32) containing at least one set bit.
-  repeated uint32 indices = 1;
-  // 32-bit bitmasks corresponding to each block index where the i-th bit represents (item_id % 32).
-  repeated fixed32 masks = 2;
 }
 
 // Mode specifying whether the associated sparse bitset represents matching or excluded items.

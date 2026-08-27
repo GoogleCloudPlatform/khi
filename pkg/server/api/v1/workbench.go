@@ -469,3 +469,32 @@ func (s *WorkbenchServiceServer) CloseWorkbench(
 	}
 	return connect.NewResponse(res), nil
 }
+
+// GetArchitectureGraph builds and returns the architecture graph for the specified workbench session and timestamp.
+func (s *WorkbenchServiceServer) GetArchitectureGraph(
+	ctx context.Context,
+	req *connect.Request[apiv1.GetArchitectureGraphRequest],
+) (*connect.Response[apiv1.GetArchitectureGraphResponse], error) {
+	msg := req.Msg
+	if msg.GetWorkbenchId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
+	}
+
+	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	if err != nil {
+		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	resp, err := wb.GetArchitectureGraph(ctx, msg)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, connect.NewError(connect.CodeCanceled, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build architecture graph: %w", err))
+	}
+
+	return connect.NewResponse(resp), nil
+}
