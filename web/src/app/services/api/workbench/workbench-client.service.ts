@@ -89,7 +89,10 @@ export class WorkbenchClientService implements OnDestroy {
   private readonly structYamlCache = new LRUCache<number, string>(
     WorkbenchClientService.STRUCT_YAML_CACHE_CAPACITY,
   );
-  private readonly inFlightYamlPromises = new Map<number, Promise<string>>();
+  private readonly inFlightYamlPromises = new Map<
+    number,
+    Promise<string | null>
+  >();
 
   private currentSessionId: string | null = null;
   private currentInspectionId: string | null = null;
@@ -525,8 +528,8 @@ export class WorkbenchClientService implements OnDestroy {
       const inFlight = this.inFlightYamlPromises.get(id);
       if (inFlight !== undefined) {
         pendingPromises.push(
-          inFlight.then((yaml: string) => {
-            if (yaml) {
+          inFlight.then((yaml: string | null) => {
+            if (yaml !== null) {
               resultMap.set(id, yaml);
             }
           }),
@@ -541,11 +544,11 @@ export class WorkbenchClientService implements OnDestroy {
       return resultMap;
     }
 
-    const resolvers = new Map<number, (yaml: string) => void>();
+    const resolvers = new Map<number, (yaml: string | null) => void>();
     const rejecters = new Map<number, (err: unknown) => void>();
 
     for (const id of idsToFetch) {
-      const promise = new Promise<string>((resolve, reject) => {
+      const promise = new Promise<string | null>((resolve, reject) => {
         resolvers.set(id, resolve);
         rejecters.set(id, reject);
       });
@@ -580,7 +583,7 @@ export class WorkbenchClientService implements OnDestroy {
             }
             for (const id of batch) {
               if (!receivedIds.has(id)) {
-                resolvers.get(id)?.('');
+                resolvers.get(id)?.(null);
               }
             }
           } catch (e) {

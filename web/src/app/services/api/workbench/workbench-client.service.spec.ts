@@ -281,6 +281,49 @@ describe('WorkbenchClientService', () => {
     ).toHaveBeenCalledTimes(1);
   });
 
+  it('should correctly populate and cache empty YAML strings for in-flight requests', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenWorkbenchReady());
+    (
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).and.returnValue(
+      new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              structYamls: [{ structId: 200, yaml: '' }],
+            }),
+          10,
+        ),
+      ),
+    );
+
+    await service.openWorkbench('session-0', 'inspection-1');
+
+    const [res1, res2] = await Promise.all([
+      service.readStructYAMLs([200]),
+      service.readStructYAMLs([200]),
+    ]);
+
+    expect(res1.has(200)).toBeTrue();
+    expect(res1.get(200)).toBe('');
+    expect(res2.has(200)).toBeTrue();
+    expect(res2.get(200)).toBe('');
+    expect(
+      mockConnectClient.workbenchClient.readStructYAMLs,
+    ).toHaveBeenCalledTimes(1);
+
+    (
+      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+    ).calls.reset();
+    const cachedRes = await service.readStructYAMLs([200]);
+    expect(cachedRes.get(200)).toBe('');
+    expect(
+      mockConnectClient.workbenchClient.readStructYAMLs,
+    ).not.toHaveBeenCalled();
+  });
+
   it('should chunk requests when structIds exceeds 200 items', async () => {
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
