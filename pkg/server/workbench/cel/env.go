@@ -139,7 +139,11 @@ func NewTimelineEvaluator() (*TimelineEvaluator, error) {
 		if !ok {
 			return types.False
 		}
-		sz := list.Size().(types.Int)
+		szVal := list.Size()
+		sz, ok := szVal.(types.Int)
+		if !ok {
+			return types.False
+		}
 		var queryMask uint8
 		for i := int64(0); i < int64(sz); i++ {
 			val := list.Get(types.Int(i))
