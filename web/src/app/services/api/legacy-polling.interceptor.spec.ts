@@ -363,6 +363,49 @@ describe('LegacyPollingInterceptor', () => {
       expect(canceled).toBeTrue();
     });
 
+    it('adapts OpenWorkbench and yields stages until READY', async () => {
+      let openCalls = 0;
+      const mockTransport = createMockUnaryTransport((methodName) => {
+        if (methodName === 'OpenWorkbenchSync') {
+          openCalls++;
+          if (openCalls === 1) {
+            return create(OpenWorkbenchSyncResponseSchema, {
+              jobId: 'job-wb-ready',
+              stage: OpenWorkbenchResponse_Stage.READING_FILE,
+              progressPercentage: 20.0,
+              message: 'Reading data...',
+            });
+          }
+          return create(OpenWorkbenchSyncResponseSchema, {
+            jobId: 'job-wb-ready',
+            stage: OpenWorkbenchResponse_Stage.READY,
+            progressPercentage: 100.0,
+            message: 'Workbench ready.',
+            workbenchId: 'wb-ready-1',
+          });
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(WorkbenchService, clientTransport);
+      const stages: OpenWorkbenchResponse_Stage[] = [];
+      for await (const res of client.openWorkbench({
+        userId: 'u1',
+        sessionId: 's1',
+        inspectionId: 'i1',
+      })) {
+        stages.push(res.stage);
+      }
+
+      expect(stages).toEqual([
+        OpenWorkbenchResponse_Stage.READING_FILE,
+        OpenWorkbenchResponse_Stage.READY,
+      ]);
+      expect(openCalls).toBe(2);
+    });
+
     it('adapts FilterTimeline and sends cancellation on abort', async () => {
       let filterCalls = 0;
       let canceled = false;

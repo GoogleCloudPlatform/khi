@@ -137,7 +137,7 @@ async function* adaptWatchPopup(
         return;
       }
     }
-    await delay(1000, req.signal);
+    await delay(500, req.signal);
   }
 }
 
@@ -183,7 +183,7 @@ async function* adaptWatchInspections(
         return;
       }
     }
-    await delay(1000, req.signal);
+    await delay(500, req.signal);
   }
 }
 
@@ -257,7 +257,6 @@ async function* adaptOpenWorkbench(
       if (res.stage === OpenWorkbenchResponse_Stage.READY) {
         return;
       }
-      await delay(300, req.signal);
     }
   } finally {
     if (req.signal.aborted && jobId) {
@@ -311,7 +310,6 @@ async function* adaptFilterTimeline(
     }
 
     while (!req.signal.aborted) {
-      await delay(300, req.signal);
       const pollRes = await wbClient.filterTimelineSync(
         {
           workbenchId: input.workbenchId,
