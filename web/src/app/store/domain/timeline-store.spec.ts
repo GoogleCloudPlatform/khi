@@ -33,10 +33,20 @@ describe('TimelineStore', () => {
   const mockColor = { r: 0, g: 0, b: 0, a: 1 };
 
   beforeEach(() => {
-    internPool = InternPoolStore.create();
+    internPool = InternPoolStore.initialize();
     styleStore = new StyleStore();
-    logStore = LogStore.create(internPool, styleStore);
-    store = TimelineStore.create(internPool, styleStore, logStore);
+    logStore = LogStore.initialize(internPool, styleStore, [], 0);
+    store = TimelineStore.initialize(
+      internPool,
+      styleStore,
+      logStore,
+      [],
+      0,
+      [],
+      0,
+      [],
+      0,
+    );
 
     styleStore.addTimelineTypes([
       {
@@ -106,7 +116,7 @@ describe('TimelineStore', () => {
     const logs = [
       { id: 1, ts: 10n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
     ];
-    logStore.initialize(logs, 1);
+    logStore = LogStore.initialize(internPool, styleStore, logs, 1);
 
     const rawTimelines: TimelineDTO[] = [
       {
@@ -138,9 +148,17 @@ describe('TimelineStore', () => {
       },
     ];
 
-    expect(() =>
-      store.initialize(rawTimelines, 1, rawRevisions, 1, rawEvents, 1),
-    ).not.toThrow();
+    store = TimelineStore.initialize(
+      internPool,
+      styleStore,
+      logStore,
+      rawTimelines,
+      1,
+      rawRevisions,
+      1,
+      rawEvents,
+      1,
+    );
 
     const t = store.getTimeline(10);
     expect(t.id).toBe(10);
@@ -180,7 +198,17 @@ describe('TimelineStore', () => {
       },
     ];
 
-    store.initialize(rawTimelines, 2, [], 0, [], 0);
+    store = TimelineStore.initialize(
+      internPool,
+      styleStore,
+      logStore,
+      rawTimelines,
+      2,
+      [],
+      0,
+      [],
+      0,
+    );
 
     const timeline = store.getTimeline(2);
     const computedPath = timeline.path;
@@ -221,7 +249,17 @@ describe('TimelineStore', () => {
       },
     ];
 
-    store.initialize(rawTimelines, 2, [], 0, [], 0);
+    store = TimelineStore.initialize(
+      internPool,
+      styleStore,
+      logStore,
+      rawTimelines,
+      2,
+      [],
+      0,
+      [],
+      0,
+    );
 
     const childIds = store._getChildIdsForTimeline(10);
     expect(childIds.length).toBe(1);
@@ -235,11 +273,6 @@ describe('TimelineStore', () => {
 
   describe('ArrayBuffer allocation', () => {
     it('should allocate ArrayBuffer and perform operations successfully', () => {
-      const fallbackStore = TimelineStore.create(
-        internPool,
-        styleStore,
-        logStore,
-      );
       const timelines: TimelineDTO[] = [
         {
           id: 1,
@@ -250,7 +283,17 @@ describe('TimelineStore', () => {
           eventIds: [],
         },
       ];
-      fallbackStore.initialize(timelines, 1, [], 0, [], 0);
+      const fallbackStore = TimelineStore.initialize(
+        internPool,
+        styleStore,
+        logStore,
+        timelines,
+        1,
+        [],
+        0,
+        [],
+        0,
+      );
 
       expect(fallbackStore.timelines.length).toBe(1);
       const timeline = fallbackStore.getTimeline(1);

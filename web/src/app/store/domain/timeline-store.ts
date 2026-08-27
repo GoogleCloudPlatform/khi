@@ -27,19 +27,13 @@ import {
   Verb,
   StyleProvider,
 } from 'src/app/store/domain/style';
+import { align } from 'src/app/common/memory-util';
 import { LogStore } from 'src/app/store/domain/log-store';
 import {
   DomainFieldAnnotation,
   ReadonlyDomainElement,
   allocateBuffer,
 } from 'src/app/store/domain/types';
-
-/**
- * Align the offset to the specified byte alignment.
- */
-function align(offset: number, alignment: number): number {
-  return Math.ceil(offset / alignment) * alignment;
-}
 
 /**
  * Raw timeline object interface from the assembler.
@@ -106,7 +100,7 @@ interface TimelineStoreLayout {
  * Store for managing and retrieving timelines, revisions, and events efficiently.
  */
 export class TimelineStore {
-  private metadataSab!: ArrayBuffer;
+  private metadataBuffer!: ArrayBuffer;
 
   // Timeline views
   private timelineIds!: Uint32Array;
@@ -142,32 +136,43 @@ export class TimelineStore {
     private readonly internPool: InternPoolStore,
     public readonly styleStore: StyleProvider,
     public readonly logStore: LogStore,
-    initialData: {
-      timelineCount: number;
-      revisionCount: number;
-      eventCount: number;
-    },
-  ) {
-    this.allocateMetadata(
-      initialData.timelineCount,
-      initialData.revisionCount,
-      initialData.eventCount,
-    );
-  }
+  ) {}
 
   /**
-   * Creates a new writable TimelineStore instance.
+   * Initializes a new TimelineStore instance with the raw timelines, revisions, and events.
+   *
+   * @param internPool Intern pool store for string interning.
+   * @param styleStore Style provider for styling information.
+   * @param logStore Log store providing log references.
+   * @param timelines Iterable of raw timelines.
+   * @param timelineCount Total number of timelines.
+   * @param revisions Iterable of raw revisions.
+   * @param revisionCount Total number of revisions.
+   * @param events Iterable of raw events.
+   * @param eventCount Total number of events.
+   * @returns An initialized TimelineStore instance.
    */
-  public static create(
+  public static initialize(
     internPool: InternPoolStore,
     styleStore: StyleProvider,
     logStore: LogStore,
+    timelines: Iterable<TimelineDTO>,
+    timelineCount: number,
+    revisions: Iterable<RevisionDTO>,
+    revisionCount: number,
+    events: Iterable<EventDTO>,
+    eventCount: number,
   ): TimelineStore {
-    return new TimelineStore(internPool, styleStore, logStore, {
-      timelineCount: 128,
-      revisionCount: 1024,
-      eventCount: 1024,
-    });
+    const store = new TimelineStore(internPool, styleStore, logStore);
+    store.load(
+      timelines,
+      timelineCount,
+      revisions,
+      revisionCount,
+      events,
+      eventCount,
+    );
+    return store;
   }
 
   private allocateMetadata(
@@ -180,7 +185,7 @@ export class TimelineStore {
       revisionCapacity,
       eventCapacity,
     );
-    this.metadataSab = allocateBuffer(layout.totalBytes);
+    this.metadataBuffer = allocateBuffer(layout.totalBytes);
     this.applyViews(layout, timelineCapacity, revisionCapacity, eventCapacity);
   }
 
@@ -254,62 +259,60 @@ export class TimelineStore {
     rCap: number,
     eCap: number,
   ): void {
-    const sab = this.metadataSab;
-    this.timelineIds = new Uint32Array(sab, layout.timelineIds, tCap);
-    this.timelineTypeIds = new Uint32Array(sab, layout.timelineTypeIds, tCap);
+    const buffer = this.metadataBuffer;
+    this.timelineIds = new Uint32Array(buffer, layout.timelineIds, tCap);
+    this.timelineTypeIds = new Uint32Array(
+      buffer,
+      layout.timelineTypeIds,
+      tCap,
+    );
     this.timelineNameStringIds = new Uint32Array(
-      sab,
+      buffer,
       layout.timelineNameStringIds,
       tCap,
     );
     this.timelineParentIds = new Uint32Array(
-      sab,
+      buffer,
       layout.timelineParentIds,
       tCap,
     );
 
-    this.revisionIds = new Uint32Array(sab, layout.revisionIds, rCap);
-    this.revisionLogIds = new Uint32Array(sab, layout.revisionLogIds, rCap);
+    this.revisionIds = new Uint32Array(buffer, layout.revisionIds, rCap);
+    this.revisionLogIds = new Uint32Array(buffer, layout.revisionLogIds, rCap);
     this.revisionPrincipalStringIds = new Uint32Array(
-      sab,
+      buffer,
       layout.revisionPrincipalStringIds,
       rCap,
     );
     this.revisionVerbTypeIds = new Uint32Array(
-      sab,
+      buffer,
       layout.revisionVerbTypeIds,
       rCap,
     );
     this.revisionStateTypeIds = new Uint32Array(
-      sab,
+      buffer,
       layout.revisionStateTypeIds,
       rCap,
     );
     this.revisionBodyStructIds = new Uint32Array(
-      sab,
+      buffer,
       layout.revisionBodyStructIds,
       rCap,
     );
     this.revisionChangedTimes = new BigUint64Array(
-      sab,
+      buffer,
       layout.revisionChangedTimes,
       rCap,
     );
 
-    this.eventIds = new Uint32Array(sab, layout.eventIds, eCap);
-    this.eventLogIds = new Uint32Array(sab, layout.eventLogIds, eCap);
+    this.eventIds = new Uint32Array(buffer, layout.eventIds, eCap);
+    this.eventLogIds = new Uint32Array(buffer, layout.eventLogIds, eCap);
   }
 
   /**
-   * Initializes the store with the raw timelines, revisions, and events.
-   * @param timelines Iterable of raw timelines.
-   * @param timelineCount Total number of timelines.
-   * @param revisions Iterable of raw revisions.
-   * @param revisionCount Total number of revisions.
-   * @param events Iterable of raw events.
-   * @param eventCount Total number of events.
+   * Loads the raw timelines, revisions, and events into allocated metadata.
    */
-  public initialize(
+  private load(
     timelines: Iterable<TimelineDTO>,
     timelineCount: number,
     revisions: Iterable<RevisionDTO>,

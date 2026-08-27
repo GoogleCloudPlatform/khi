@@ -33,9 +33,8 @@ function createCacheWithLogs(
   minTimeMs?: number,
   maxTimeMs?: number,
 ): HistogramCache {
-  const internPool = InternPoolStore.create();
+  const internPool = InternPoolStore.initialize();
   const styleStore = new StyleStore();
-  const logStore = LogStore.create(internPool, styleStore);
 
   styleStore.addSeverities([
     {
@@ -64,7 +63,12 @@ function createCacheWithLogs(
     summaryStringId: 0,
   }));
 
-  logStore.initialize(logsDto, logsDto.length);
+  const logStore = LogStore.initialize(
+    internPool,
+    styleStore,
+    logsDto,
+    logsDto.length,
+  );
   const logs = Array.from(logStore.logs());
   return new HistogramCache(
     styleStore.severities,

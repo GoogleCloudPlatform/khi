@@ -26,9 +26,9 @@ describe('LogStore', () => {
   const mockColor = { r: 0, g: 0, b: 0, a: 1 };
 
   beforeEach(() => {
-    internPool = InternPoolStore.create();
+    internPool = InternPoolStore.initialize();
     styleStore = new StyleStore();
-    store = LogStore.create(internPool, styleStore);
+    store = LogStore.initialize(internPool, styleStore, [], 0);
 
     // Avoid errors of missing keys in basic tests
     styleStore.addSeverities([
@@ -106,7 +106,9 @@ describe('LogStore', () => {
       { id: 4, ts: 1010n, logTypeId: 4, severityTypeId: 4, summaryStringId: 4 },
     ];
 
-    expect(() => store.initialize(logs, 4)).not.toThrow();
+    expect(() =>
+      LogStore.initialize(internPool, styleStore, logs, 4),
+    ).not.toThrow();
   });
 
   it('should throw error if logs are out of timestamp order', () => {
@@ -115,9 +117,9 @@ describe('LogStore', () => {
       { id: 2, ts: 999n, logTypeId: 2, severityTypeId: 2, summaryStringId: 2 },
     ];
 
-    expect(() => store.initialize(logs, 2)).toThrowError(
-      /Logs are not sorted by timestamp/,
-    );
+    expect(() =>
+      LogStore.initialize(internPool, styleStore, logs, 2),
+    ).toThrowError(/Logs are not sorted by timestamp/);
   });
 
   it('should fetch log entries and handle incorrect id lookups', () => {
@@ -165,7 +167,7 @@ describe('LogStore', () => {
       },
     ];
 
-    store.initialize(logs, 2);
+    store = LogStore.initialize(internPool, styleStore, logs, 2);
 
     const logObj = store.getLog(55);
     expect(logObj.id).toBe(55);
@@ -189,7 +191,7 @@ describe('LogStore', () => {
       { id: 2, ts: 1005n, logTypeId: 2, severityTypeId: 2, summaryStringId: 2 },
     ];
 
-    store.initialize(logs, 2);
+    store = LogStore.initialize(internPool, styleStore, logs, 2);
 
     expect(store.count).toBe(2);
 
@@ -201,7 +203,6 @@ describe('LogStore', () => {
 
   describe('ArrayBuffer allocation', () => {
     it('should allocate ArrayBuffer and perform operations successfully', () => {
-      const fallbackStore = LogStore.create(internPool, styleStore);
       const logs: LogDTO[] = [
         {
           id: 1,
@@ -211,7 +212,12 @@ describe('LogStore', () => {
           summaryStringId: 1,
         },
       ];
-      fallbackStore.initialize(logs, 1);
+      const fallbackStore = LogStore.initialize(
+        internPool,
+        styleStore,
+        logs,
+        1,
+      );
 
       expect(fallbackStore.count).toBe(1);
       const log = fallbackStore.getLog(1);

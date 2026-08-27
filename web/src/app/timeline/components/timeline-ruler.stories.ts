@@ -150,8 +150,7 @@ function generateMockLogs(
   count: number,
   severityRatio: { [severity in MockSeverity]?: number },
 ): Log[] {
-  const internPool = InternPoolStore.create();
-  const logStore = LogStore.create(internPool, sharedStyleStore);
+  const internPool = InternPoolStore.initialize();
 
   const culmativeRatios: number[] = [];
   const severitiesList = [
@@ -190,7 +189,12 @@ function generateMockLogs(
     });
   }
   logDataList.sort((a, b) => Number(a.ts - b.ts));
-  logStore.initialize(logDataList, count);
+  const logStore = LogStore.initialize(
+    internPool,
+    sharedStyleStore,
+    logDataList,
+    count,
+  );
   return Array.from(logStore.logs()) as Log[];
 }
 

@@ -20,7 +20,7 @@ describe('InternPoolStore', () => {
   let store: InternPoolStore;
 
   beforeEach(() => {
-    store = InternPoolStore.create();
+    store = InternPoolStore.initialize();
   });
 
   it('should add and get strings from the pool', () => {
@@ -40,13 +40,15 @@ describe('InternPoolStore', () => {
   });
 
   it('should split buffer if the string size exceeds maxBufferSize', () => {
-    const smallStore = InternPoolStore.create(10);
-    smallStore.addStrings([
-      { id: 1, value: 'abcdefgh' }, // 8 bytes -> fits in 1st buffer
-      { id: 2, value: 'ijklmnop' }, // 8 bytes -> exceeds remaining 2 bytes, goes to 2nd buffer
-      { id: 3, value: 'qrstuvwxyz12345' }, // 15 bytes -> exceeds 10 bytes maxBufferSize, allocated standalone
-      { id: 4, value: 'abc' }, // 3 bytes -> fits in next buffer
-    ]);
+    const smallStore = InternPoolStore.initialize(
+      [
+        { id: 1, value: 'abcdefgh' }, // 8 bytes -> fits in 1st buffer
+        { id: 2, value: 'ijklmnop' }, // 8 bytes -> exceeds remaining 2 bytes, goes to 2nd buffer
+        { id: 3, value: 'qrstuvwxyz12345' }, // 15 bytes -> exceeds 10 bytes maxBufferSize, allocated standalone
+        { id: 4, value: 'abc' }, // 3 bytes -> fits in next buffer
+      ],
+      10,
+    );
 
     expect(smallStore.getString(1)).toBe('abcdefgh');
     expect(smallStore.getString(2)).toBe('ijklmnop');
@@ -62,7 +64,7 @@ describe('InternPoolStore', () => {
 
   describe('ArrayBuffer allocation', () => {
     it('should allocate ArrayBuffer and perform operations successfully', () => {
-      const fallbackStore = InternPoolStore.create();
+      const fallbackStore = InternPoolStore.initialize();
       fallbackStore.addStrings([
         { id: 10, value: 'fallback-string-1' },
         { id: 20, value: 'fallback-string-2' },

@@ -42,10 +42,7 @@ import {
  * @returns A promise resolving to a populated mock inspection data instance.
  */
 export async function createMockInspectionData(): Promise<InspectionData> {
-  const internPool = InternPoolStore.create();
   const styleStore = new StyleStore();
-  const logStore = LogStore.create(internPool, styleStore);
-  const timelineStore = TimelineStore.create(internPool, styleStore, logStore);
 
   // --- 1. Setup Styles (Ordered as requested & matched with Go enum colors) ---
 
@@ -322,7 +319,7 @@ export async function createMockInspectionData(): Promise<InspectionData> {
     stringsToRegister.push({ id, value: `sub-${i}` });
   }
 
-  internPool.addStrings(stringsToRegister);
+  const internPool = InternPoolStore.initialize(stringsToRegister);
 
   // --- 3. Define Mock Entities ---
   const timestampString = '2026-05-13T09:00:00Z';
@@ -728,9 +725,17 @@ export async function createMockInspectionData(): Promise<InspectionData> {
     eventIdsMap.get(subId)!.push(currentEventId);
   }
 
-  logStore.initialize(mockLogs, mockLogs.length);
+  const logStore = LogStore.initialize(
+    internPool,
+    styleStore,
+    mockLogs,
+    mockLogs.length,
+  );
 
-  timelineStore.initialize(
+  const timelineStore = TimelineStore.initialize(
+    internPool,
+    styleStore,
+    logStore,
     timelines,
     timelines.length,
     mockRevisions,

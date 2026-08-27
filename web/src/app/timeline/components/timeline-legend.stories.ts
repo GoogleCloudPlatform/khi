@@ -37,10 +37,8 @@ export default meta;
 type Story = StoryObj<TimelineLegendComponent>;
 
 function createMockTimeline(isKind: boolean): Timeline {
-  const internPool = InternPoolStore.create();
+  const internPool = InternPoolStore.initialize();
   const styleStore = new StyleStore();
-  const logStore = LogStore.create(internPool, styleStore);
-  const timelineStore = TimelineStore.create(internPool, styleStore, logStore);
 
   internPool.addStrings([
     { id: 1, value: 'core/v1#default' },
@@ -154,7 +152,18 @@ function createMockTimeline(isKind: boolean): Timeline {
         eventIds: [],
       },
     ];
-    timelineStore.initialize(timelineData, 1, [], 0, [], 0);
+    const logStore = LogStore.initialize(internPool, styleStore, [], 0);
+    const timelineStore = TimelineStore.initialize(
+      internPool,
+      styleStore,
+      logStore,
+      timelineData,
+      1,
+      [],
+      0,
+      [],
+      0,
+    );
     return timelineStore.getTimeline(1) as Timeline;
   } else {
     const timelineData = [
@@ -240,9 +249,23 @@ function createMockTimeline(isKind: boolean): Timeline {
         body: undefined,
       },
     ];
-
-    logStore.initialize(logsData, logsData.length);
-    timelineStore.initialize(timelineData, 1, revisionsData, 4, eventsData, 3);
+    const logStore = LogStore.initialize(
+      internPool,
+      styleStore,
+      logsData,
+      logsData.length,
+    );
+    const timelineStore = TimelineStore.initialize(
+      internPool,
+      styleStore,
+      logStore,
+      timelineData,
+      1,
+      revisionsData,
+      4,
+      eventsData,
+      3,
+    );
     return timelineStore.getTimeline(1) as Timeline;
   }
 }

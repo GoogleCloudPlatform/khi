@@ -37,10 +37,8 @@ describe('SelectionManager', () => {
     dataStore = TestBed.inject(InspectionDataStore);
     service = TestBed.inject(SelectionManager);
 
-    const internPool = InternPoolStore.create();
+    const internPool = InternPoolStore.initialize();
     const styleStore = new StyleStore();
-    logStore = LogStore.create(internPool, styleStore);
-    timelineStore = TimelineStore.create(internPool, styleStore, logStore);
 
     styleStore.addSeverities([
       {
@@ -148,7 +146,9 @@ describe('SelectionManager', () => {
       { id: 6, value: 'system:serviceaccount:kube-system:generic' },
     ]);
 
-    logStore.initialize(
+    logStore = LogStore.initialize(
+      internPool,
+      styleStore,
       [
         {
           id: 1,
@@ -161,7 +161,10 @@ describe('SelectionManager', () => {
       1,
     );
 
-    timelineStore.initialize(
+    timelineStore = TimelineStore.initialize(
+      internPool,
+      styleStore,
+      logStore,
       [
         {
           id: 1,

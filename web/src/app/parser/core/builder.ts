@@ -45,15 +45,13 @@ import {
  * Collects components in a version-decoupled form.
  */
 export class InspectionDataBuilder {
-  private readonly internPool = InternPoolStore.create();
   private readonly styleStore = new StyleStore();
-  private readonly logStore: LogStore;
-  private readonly timelineStore: TimelineStore;
   private readonly metadataStore: MetadataStore = {
     header: undefined,
     queries: [],
   };
 
+  private readonly rawStrings: StringEntryDTO[] = [];
   private readonly rawLogs: LogDTO[] = [];
   private readonly rawTimelines: TimelineDTO[] = [];
   private readonly rawRevisions: RevisionDTO[] = [];
@@ -61,20 +59,13 @@ export class InspectionDataBuilder {
 
   private iconAtlasPromise?: Promise<void>;
 
-  constructor() {
-    this.logStore = LogStore.create(this.internPool, this.styleStore);
-    this.timelineStore = TimelineStore.create(
-      this.internPool,
-      this.styleStore,
-      this.logStore,
-    );
-  }
-
   /**
    * Adds interned strings to the pool.
    */
   public addStrings(strings: Iterable<StringEntryDTO>): this {
-    this.internPool.addStrings(strings);
+    for (const s of strings) {
+      this.rawStrings.push(s);
+    }
     return this;
   }
 
@@ -191,18 +182,20 @@ export class InspectionDataBuilder {
   }
 
   /**
-   * Retrieves the InternPoolStore instance managed by this builder.
-   */
-  public getInternPoolStore(): InternPoolStore {
-    return this.internPool;
-  }
-
-  /**
    * Instantiates data store contexts returning root inspection model.
    */
   public async build(): Promise<InspectionData> {
-    this.logStore.initialize(this.rawLogs, this.rawLogs.length);
-    this.timelineStore.initialize(
+    const internPool = InternPoolStore.initialize(this.rawStrings);
+    const logStore = LogStore.initialize(
+      internPool,
+      this.styleStore,
+      this.rawLogs,
+      this.rawLogs.length,
+    );
+    const timelineStore = TimelineStore.initialize(
+      internPool,
+      this.styleStore,
+      logStore,
       this.rawTimelines,
       this.rawTimelines.length,
       this.rawRevisions,
@@ -216,10 +209,10 @@ export class InspectionDataBuilder {
     }
 
     return {
-      internPool: this.internPool,
+      internPool,
       styleStore: this.styleStore,
-      logStore: this.logStore,
-      timelineStore: this.timelineStore,
+      logStore,
+      timelineStore,
       metadata: this.metadataStore,
     };
   }

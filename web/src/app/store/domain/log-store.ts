@@ -17,17 +17,11 @@
 import { Log } from 'src/app/store/domain/log';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { LogType, Severity, StyleProvider } from 'src/app/store/domain/style';
+import { align } from 'src/app/common/memory-util';
 import {
   ReadonlyDomainElement,
   allocateBuffer,
 } from 'src/app/store/domain/types';
-
-/**
- * Align the offset to the specified byte alignment.
- */
-function align(offset: number, alignment: number): number {
-  return Math.ceil(offset / alignment) * alignment;
-}
 
 /**
  * Raw Log object interface from the assembler.
@@ -48,7 +42,7 @@ export interface LogDTO {
  * Store for managing and retrieving logs efficiently.
  */
 export class LogStore {
-  private metadataSab!: ArrayBuffer;
+  private metadataBuffer!: ArrayBuffer;
   private ids!: Uint32Array;
   private timestamps!: BigUint64Array;
   private logTypeIds!: Uint32Array;
@@ -61,19 +55,25 @@ export class LogStore {
   private constructor(
     private readonly internPool: InternPoolStore,
     private readonly styleStore: StyleProvider,
-    initialCapacity: number,
-  ) {
-    this.allocateMetadata(initialCapacity);
-  }
+  ) {}
 
   /**
-   * Creates a new writable LogStore instance.
+   * Initializes a new LogStore instance with the raw logs.
+   * Assumes logs are already sorted by timestamp.
+   * @param internPool The intern pool store.
+   * @param styleStore The style provider.
+   * @param logs The iterable of raw logs.
+   * @param count The total number of logs.
    */
-  public static create(
+  public static initialize(
     internPool: InternPoolStore,
     styleStore: StyleProvider,
+    logs: Iterable<LogDTO>,
+    count: number,
   ): LogStore {
-    return new LogStore(internPool, styleStore, 1024);
+    const store = new LogStore(internPool, styleStore);
+    store.load(logs, count);
+    return store;
   }
 
   private allocateMetadata(capacity: number): void {
@@ -97,31 +97,31 @@ export class LogStore {
     currentOffset = timestampsOffset + capacity * 8;
 
     const totalBytes = currentOffset;
-    this.metadataSab = allocateBuffer(totalBytes);
+    this.metadataBuffer = allocateBuffer(totalBytes);
 
-    this.ids = new Uint32Array(this.metadataSab, idsOffset, capacity);
+    this.ids = new Uint32Array(this.metadataBuffer, idsOffset, capacity);
     this.logTypeIds = new Uint32Array(
-      this.metadataSab,
+      this.metadataBuffer,
       logTypeIdsOffset,
       capacity,
     );
     this.severityIds = new Uint32Array(
-      this.metadataSab,
+      this.metadataBuffer,
       severityIdsOffset,
       capacity,
     );
     this.summaryStringIds = new Uint32Array(
-      this.metadataSab,
+      this.metadataBuffer,
       summaryStringIdsOffset,
       capacity,
     );
     this.bodyStructIds = new Uint32Array(
-      this.metadataSab,
+      this.metadataBuffer,
       bodyStructIdsOffset,
       capacity,
     );
     this.timestamps = new BigUint64Array(
-      this.metadataSab,
+      this.metadataBuffer,
       timestampsOffset,
       capacity,
     );
@@ -133,7 +133,7 @@ export class LogStore {
    * @param logs The iterable of raw logs.
    * @param count The total number of logs.
    */
-  public initialize(logs: Iterable<LogDTO>, count: number): void {
+  private load(logs: Iterable<LogDTO>, count: number): void {
     this.allocateMetadata(count);
     this.idToIndex = [];
 
