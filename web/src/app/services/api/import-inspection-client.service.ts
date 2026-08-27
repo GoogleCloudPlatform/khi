@@ -24,6 +24,7 @@ import {
   DEFAULT_CHUNK_SIZE_BYTES,
   DEFAULT_MAX_CONCURRENCY,
 } from 'src/app/services/api/chunked-uploader';
+import { resolveUploadConfig } from 'src/app/services/api/upload-config-resolver';
 
 /**
  * Callback function type for reporting file upload progress.
@@ -92,16 +93,16 @@ export class ImportInspectionClientService {
     );
 
     const token = startResponse.importToken;
-    const chunkSize =
-      Number(startResponse.suggestedChunkSizeBytes) > 0
-        ? Number(startResponse.suggestedChunkSizeBytes)
-        : ImportInspectionClientService.DEFAULT_CHUNK_SIZE_BYTES;
+    const uploadConfig = resolveUploadConfig({
+      suggestedChunkSizeBytes: Number(startResponse.suggestedChunkSizeBytes),
+      callerMaxConcurrency: options?.maxConcurrency,
+    });
 
     try {
       await executeChunkedUpload({
         file,
-        chunkSize,
-        maxConcurrency: options?.maxConcurrency,
+        chunkSize: uploadConfig.chunkSize,
+        maxConcurrency: uploadConfig.maxConcurrency,
         abortSignal: options?.abortSignal,
         onProgress: options?.onProgress,
         uploadChunk: async (offsetBytes, data, signal) => {

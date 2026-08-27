@@ -14,12 +14,21 @@
  * limitations under the License.
  */
 
+export * from 'src/environments/environment-types';
+import {
+  UploadEnvironmentConfig,
+  DownloadEnvironmentConfig,
+} from 'src/environments/environment-types';
+
 export const environment = {
   production: false,
+  useBinaryFormat: false,
   bugReportUrl: '',
   documentUrl: '',
   pluginModules: [],
   options: {} as Record<string, unknown>,
+  upload: {} as UploadEnvironmentConfig,
+  download: {} as DownloadEnvironmentConfig,
   links: [],
   /**
    * Enables unary polling fallback for Server-Side Streaming RPCs.

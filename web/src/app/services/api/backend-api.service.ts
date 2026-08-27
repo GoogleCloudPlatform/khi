@@ -51,6 +51,7 @@ import { ProgressDialogStatusUpdator } from '../progress/progress-interface';
 import { ProgressUtil } from '../progress/progress-util';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
+import { resolveDownloadConfig } from 'src/app/services/api/download-config-resolver';
 import {
   convertMapToParameterValues,
   convertProtoDryRunResponseToFrontend,
@@ -68,9 +69,6 @@ import {
 export class BackendAPIImpl implements BackendAPI {
   private readonly viewState = inject(ViewStateService);
   private readonly connectClient = inject(ConnectClientService);
-
-  private readonly MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE = 16 * 1024 * 1024;
-  private readonly INSPECTION_DATA_DOWNLOAD_CONCURRENCY = 10;
 
   /**
    * Get the server base path configuration path which is a configuration given as meta tag from backend.
@@ -230,6 +228,7 @@ export class BackendAPIImpl implements BackendAPI {
     inspectionID: string,
     reporter: DownloadProgressReporter,
   ): Observable<{ fileName: string; content: Blob }> {
+    const downloadConfig = resolveDownloadConfig();
     return from(
       this.connectClient.inspectionClient.getInspectionMetadata({
         inspectionId: inspectionID,
@@ -240,15 +239,14 @@ export class BackendAPIImpl implements BackendAPI {
         const fileName = metadata.header?.suggestedFilename || 'inspection.khi';
         const chunks = Math.max(
           1,
-          Math.ceil(totalSize / this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE),
+          Math.ceil(totalSize / downloadConfig.chunkSize),
         );
         const chunkLoaded: number[] = new Array(chunks).fill(0);
         return range(0, chunks).pipe(
           map((index) => {
-            const startInBytes =
-              index * this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE;
+            const startInBytes = index * downloadConfig.chunkSize;
             const maxSizeInBytes = Math.min(
-              this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE,
+              downloadConfig.chunkSize,
               totalSize - startInBytes,
             );
             return { index, startInBytes, maxSizeInBytes };
@@ -269,7 +267,7 @@ export class BackendAPIImpl implements BackendAPI {
                 return { index, blob };
               }),
             );
-          }, this.INSPECTION_DATA_DOWNLOAD_CONCURRENCY),
+          }, downloadConfig.maxConcurrency),
           reduce(
             (acc: Blob[], downloadResult: { index: number; blob: Blob }) => {
               acc[downloadResult.index] = downloadResult.blob;

@@ -16,6 +16,7 @@
 
 import { TestBed } from '@angular/core/testing';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
+import { environment } from 'src/environments/environment';
 
 describe('ConnectClientService', () => {
   let service: ConnectClientService;
@@ -76,5 +77,33 @@ describe('ConnectClientService', () => {
     expect(typeof service.inspectionClient.getInspectionTypes).toBe('function');
     expect(typeof service.inspectionClient.watchInspections).toBe('function');
     expect(typeof service.inspectionClient.createInspection).toBe('function');
+  });
+
+  it('should use proto content-type when useBinaryFormat is true', async () => {
+    const originalEnv = environment.useBinaryFormat;
+    try {
+      (environment as { useBinaryFormat?: boolean }).useBinaryFormat = true;
+      const binaryService = new ConnectClientService();
+      let capturedContentType: string | null = null;
+      spyOn(globalThis, 'fetch').and.callFake((_input, init) => {
+        const headers = new Headers(init?.headers);
+        capturedContentType = headers.get('content-type');
+        return Promise.resolve(
+          new Response(new Uint8Array([]), {
+            status: 200,
+            headers: { 'content-type': 'application/proto' },
+          }),
+        );
+      });
+
+      await binaryService.workbenchClient.heartbeatWorkbench({
+        workbenchId: 'test',
+      });
+
+      expect(capturedContentType).toContain('application/proto');
+    } finally {
+      (environment as { useBinaryFormat?: boolean }).useBinaryFormat =
+        originalEnv;
+    }
   });
 });

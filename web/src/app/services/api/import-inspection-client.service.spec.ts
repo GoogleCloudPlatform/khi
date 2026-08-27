@@ -22,6 +22,7 @@ import {
 import { Client } from '@connectrpc/connect';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { ImportInspectionService } from 'src/app/generated/api/v1/import_inspection_pb';
+import { environment } from 'src/environments/environment';
 
 describe('ImportInspectionClientService', () => {
   let service: ImportInspectionClientService;
@@ -243,5 +244,52 @@ describe('ImportInspectionClientService', () => {
     expect(mockClient.abortImportInspection).toHaveBeenCalledWith({
       importToken: 'token-abort',
     });
+  });
+
+  it('overrides server suggestedChunkSizeBytes when environment.upload is configured', async () => {
+    const originalUpload = environment.upload;
+    try {
+      (environment as { upload: typeof originalUpload }).upload = {
+        chunkSizeBytes: 3,
+        maxConcurrency: 2,
+      };
+
+      mockClient.startImportInspection.and.returnValue(
+        Promise.resolve({
+          importToken: 'test-token-env',
+          suggestedChunkSizeBytes: BigInt(10),
+        } as unknown as Awaited<
+          ReturnType<typeof mockClient.startImportInspection>
+        >),
+      );
+
+      mockClient.uploadInspectionChunk.and.returnValue(
+        Promise.resolve({
+          totalReceivedBytes: BigInt(3),
+        } as unknown as Awaited<
+          ReturnType<typeof mockClient.uploadInspectionChunk>
+        >),
+      );
+
+      mockClient.completeImportInspection.and.returnValue(
+        Promise.resolve({
+          inspectionId: 'inspection-env',
+          inspectionName: 'Env Test',
+          fileSizeBytes: BigInt(9),
+        } as unknown as Awaited<
+          ReturnType<typeof mockClient.completeImportInspection>
+        >),
+      );
+
+      const file = new File([new Uint8Array(9)], 'env.khi');
+      const result = await service.importFile(file);
+
+      // 9 bytes with 3 bytes chunk size => 3 chunks (even though server suggested 10)
+      expect(mockClient.uploadInspectionChunk).toHaveBeenCalledTimes(3);
+      expect(result.inspectionId).toBe('inspection-env');
+    } finally {
+      (environment as { upload: typeof originalUpload }).upload =
+        originalUpload;
+    }
   });
 });

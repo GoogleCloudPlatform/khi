@@ -22,6 +22,7 @@ import {
 import { Client } from '@connectrpc/connect';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { FileParameterUploadService } from 'src/app/generated/api/v1/file_parameter_upload_pb';
+import { environment } from 'src/environments/environment';
 
 describe('FileParameterUploadClientService', () => {
   let service: FileParameterUploadClientService;
@@ -149,5 +150,46 @@ describe('FileParameterUploadClientService', () => {
     expect(mockClient.abortFileUpload).toHaveBeenCalledWith({
       sessionToken: 'session-error',
     });
+  });
+
+  it('overrides server suggestedChunkSizeBytes when environment.upload is configured', async () => {
+    const originalUpload = environment.upload;
+    try {
+      (environment as { upload: typeof originalUpload }).upload = {
+        chunkSizeBytes: 4,
+        maxConcurrency: 2,
+      };
+
+      mockClient.startFileUpload.and.returnValue(
+        Promise.resolve({
+          sessionToken: 'session-env',
+          suggestedChunkSizeBytes: BigInt(20),
+        } as unknown as Awaited<ReturnType<typeof mockClient.startFileUpload>>),
+      );
+
+      mockClient.uploadFileChunk.and.returnValue(
+        Promise.resolve({
+          totalReceivedBytes: BigInt(4),
+        } as unknown as Awaited<ReturnType<typeof mockClient.uploadFileChunk>>),
+      );
+
+      mockClient.completeFileUpload.and.returnValue(
+        Promise.resolve({
+          fileSizeBytes: BigInt(8),
+        } as unknown as Awaited<
+          ReturnType<typeof mockClient.completeFileUpload>
+        >),
+      );
+
+      const file = new File([new Uint8Array(8)], 'env-param.log');
+      const result = await service.uploadFile('token-env', file);
+
+      // 8 bytes with 4 bytes chunk size => 2 chunks (even though server suggested 20)
+      expect(mockClient.uploadFileChunk).toHaveBeenCalledTimes(2);
+      expect(result.fileSizeBytes).toBe(8);
+    } finally {
+      (environment as { upload: typeof originalUpload }).upload =
+        originalUpload;
+    }
   });
 });

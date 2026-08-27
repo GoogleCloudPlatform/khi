@@ -21,8 +21,8 @@ import { ConnectClientService } from 'src/app/services/api/connect-client.servic
 import {
   executeChunkedUpload,
   ChunkUploadProgressCallback,
-  DEFAULT_CHUNK_SIZE_BYTES,
 } from 'src/app/services/api/chunked-uploader';
+import { resolveUploadConfig } from 'src/app/services/api/upload-config-resolver';
 
 /**
  * Options for uploading a file parameter in chunks.
@@ -81,16 +81,16 @@ export class FileParameterUploadClientService {
     );
 
     const sessionToken = startResponse.sessionToken;
-    const chunkSize =
-      Number(startResponse.suggestedChunkSizeBytes) > 0
-        ? Number(startResponse.suggestedChunkSizeBytes)
-        : DEFAULT_CHUNK_SIZE_BYTES;
+    const uploadConfig = resolveUploadConfig({
+      suggestedChunkSizeBytes: Number(startResponse.suggestedChunkSizeBytes),
+      callerMaxConcurrency: options?.maxConcurrency,
+    });
 
     try {
       await executeChunkedUpload({
         file,
-        chunkSize,
-        maxConcurrency: options?.maxConcurrency,
+        chunkSize: uploadConfig.chunkSize,
+        maxConcurrency: uploadConfig.maxConcurrency,
         abortSignal: options?.abortSignal,
         onProgress: options?.onProgress,
         uploadChunk: async (offsetBytes, data, signal) => {

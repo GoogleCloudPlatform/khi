@@ -22,6 +22,10 @@ import {
   BackendAPIUtil,
   InspectionClient,
 } from './backend-api.service';
+import {
+  environment,
+  DownloadEnvironmentConfig,
+} from 'src/environments/environment';
 import { ViewStateService } from '../view-state.service';
 import { ProgressDialogStatusUpdator } from 'src/app/services/progress/progress-interface';
 import {
@@ -284,6 +288,52 @@ describe('BackendAPIImpl testing', () => {
     const reporterSpy = jasmine.createSpy('reporter');
     await firstValueFrom(api.getInspectionData('test', reporterSpy));
     expect(reporterSpy).toHaveBeenCalledWith(100, 100);
+  });
+
+  it('respects environment download chunk size and concurrency in getInspectionData', async () => {
+    const originalDownload = environment.download;
+    try {
+      (environment as { download: DownloadEnvironmentConfig }).download = {
+        chunkSizeBytes: 20,
+        maxConcurrency: 2,
+      };
+
+      const fileSize = 50;
+      mockInspectionClient.getInspectionMetadata.and.returnValue(
+        Promise.resolve(
+          create(GetInspectionMetadataResponseSchema, {
+            header: {
+              inspectionType: 'test',
+              inspectionName: 'test',
+              suggestedFilename: 'test.khi',
+              fileSize: BigInt(fileSize),
+            },
+          }),
+        ),
+      );
+
+      mockInspectionClient.getInspectionDataChunk.and.callFake((req) => {
+        const size = Number(req.maxSizeBytes);
+        return Promise.resolve(
+          create(GetInspectionDataChunkResponseSchema, {
+            data: new Uint8Array(size),
+          }),
+        );
+      });
+
+      const data = await firstValueFrom(
+        api.getInspectionData('test', () => {}),
+      );
+      expect(data.fileName).toEqual('test.khi');
+      expect(data.content.size).toEqual(fileSize);
+      // 50 bytes total with 20 bytes chunks => 3 chunks (20, 20, 10)
+      expect(mockInspectionClient.getInspectionDataChunk).toHaveBeenCalledTimes(
+        3,
+      );
+    } finally {
+      (environment as { download: DownloadEnvironmentConfig }).download =
+        originalDownload;
+    }
   });
 
   it('initializes progress dialog immediately when downloadInspectionDataAsFile is called', async () => {
