@@ -24,10 +24,10 @@ import {
 import { SparseBitsetSchema } from 'src/app/generated/api/v1/sparse_bitset_pb';
 import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 import { ViewStateService } from 'src/app/services/view-state.service';
-import { GraphDataConverterService } from 'src/app/services/graph-converter.service';
+import { GraphConverterService } from 'src/app/services/graph-converter.service';
 
-describe('GraphDataConverterService', () => {
-  let service: GraphDataConverterService;
+describe('GraphConverterService', () => {
+  let service: GraphConverterService;
   let mockWorkbenchClient: jasmine.SpyObj<WorkbenchClientService>;
   let mockViewStateService: { timezoneShift: BehaviorSubject<number> };
 
@@ -41,13 +41,13 @@ describe('GraphDataConverterService', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        GraphDataConverterService,
+        GraphConverterService,
         { provide: WorkbenchClientService, useValue: mockWorkbenchClient },
         { provide: ViewStateService, useValue: mockViewStateService },
       ],
     });
 
-    service = TestBed.inject(GraphDataConverterService);
+    service = TestBed.inject(GraphConverterService);
   });
 
   it('should be created', () => {
@@ -207,7 +207,7 @@ describe('GraphDataConverterService', () => {
       expect(deploy.connectedPodOwners[0].podOwner.name).toBe('frontend-rs');
     });
 
-    it('should synthesize fallback node for pod with unobserved nodeName', () => {
+    it('should ignore pod if nodeName does not match any known node', () => {
       const timestampNs = 5_000_000_000n;
       const protoResponse = create(GetArchitectureGraphResponseSchema, {
         timestampNs,
@@ -224,10 +224,7 @@ describe('GraphDataConverterService', () => {
       });
 
       const result = service.convertToGraphData(protoResponse, timestampNs);
-      expect(result.nodes.length).toBe(1);
-      expect(result.nodes[0].name).toBe('unobserved-node');
-      expect(result.nodes[0].pods.length).toBe(1);
-      expect(result.nodes[0].pods[0].name).toBe('standalone-pod');
+      expect(result.nodes.length).toBe(0);
     });
 
     it('should format deletedAt timestamp for deleted resources', () => {
@@ -265,8 +262,8 @@ describe('GraphDataConverterService', () => {
       const result = await service.getGraphDataAt(
         timestampNs,
         sparseBitset,
-        undefined,
         180,
+        undefined,
       );
 
       expect(mockWorkbenchClient.getArchitectureGraph).toHaveBeenCalledWith(

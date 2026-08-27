@@ -81,7 +81,6 @@ export interface PodGraphData
   conditions: ArchGraphCondition[];
   phase: string;
   isPhaseHealthy: boolean;
-  ownerUids: Set<string>;
 }
 
 export interface ContainerGraphData {
@@ -113,11 +112,10 @@ export interface PodOwnerConnectionGraphData {
 
 export interface GraphPodOwnerBase
   extends NamespacedArchGraphResource, LabeledGraphElement, GraphResourceData {
-  status: { [key: string]: unknown };
+  status?: { [key: string]: unknown };
 }
 
 export interface GraphPodOwner extends GraphPodOwnerBase {
-  ownerUids: Set<string>;
   connectedPods: PodConnectionGraphData[];
 }
 

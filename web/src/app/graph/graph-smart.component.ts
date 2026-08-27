@@ -19,7 +19,7 @@ import { CommonModule } from '@angular/common';
 import { GraphLayoutComponent } from 'src/app/graph/components/graph-layout.component';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { SelectionManager } from 'src/app/services/selection-manager.service';
-import { GraphDataConverterService } from 'src/app/services/graph-converter.service';
+import { GraphConverterService } from 'src/app/services/graph-converter.service';
 import { GraphData, emptyGraphData } from 'src/app/common/schema/graph-schema';
 
 /**
@@ -34,7 +34,7 @@ import { GraphData, emptyGraphData } from 'src/app/common/schema/graph-schema';
 export class GraphSmartComponent {
   private readonly inspectionDataStore = inject(InspectionDataStore);
   private readonly selectionManager = inject(SelectionManager);
-  private readonly graphConverter = inject(GraphDataConverterService);
+  private readonly graphConverter = inject(GraphConverterService);
 
   private readonly graphResource = resource({
     params: () => ({
@@ -50,6 +50,7 @@ export class GraphSmartComponent {
       return this.graphConverter.getGraphDataAt(
         log.timestamp,
         timelineBitset,
+        180,
         abortSignal,
       );
     },

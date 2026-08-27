@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { K8sCondition } from 'src/app/store/k8s-types';
 import {
   GraphData,
   GraphPodOwnerBase,
@@ -46,37 +45,16 @@ interface PodOwnerMetadata {
 type PodOwnerMetadataParser = (data: GraphPodOwnerBase) => PodOwnerMetadata[];
 
 function defaultMetadataParsers(data: GraphPodOwnerBase): PodOwnerMetadata[] {
-  const nonConditions = Object.keys(data.status)
-    .filter((f) => f != 'conditions')
+  if (!data.status) {
+    return [];
+  }
+  return Object.keys(data.status)
+    .filter((f) => f !== 'conditions')
     .map((k) => ({
       label: k,
-      value: data.status[k],
+      value: String(data.status?.[k] ?? ''),
       state: 'normal',
     }));
-  const conditions = [] as PodOwnerMetadata[];
-  if ('conditions' in data.status) {
-    const conditionsData = data.status['conditions'] as K8sCondition[];
-
-    conditions.push({
-      label: '* conditions',
-      value: '',
-      state: 'normal',
-    });
-    for (const condition of conditionsData) {
-      conditions.push({
-        label: condition.type,
-        value: condition.status,
-        state: 'normal',
-      });
-    }
-    conditions.push({
-      label: '* others',
-      value: '',
-      state: 'normal',
-    });
-  }
-
-  return [...conditions, ...nonConditions] as PodOwnerMetadata[];
 }
 
 const POD_OWNER_METADATA_PARSERS: {

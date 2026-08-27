@@ -21,8 +21,8 @@ import (
 	"github.com/RoaringBitmap/roaring/v2"
 )
 
-// Build encodes a slice of uint32 IDs into a compact SparseBitset.
-func Build(ids []uint32) *apiv1.SparseBitset {
+// Encode encodes a slice of uint32 IDs into a compact SparseBitset.
+func Encode(ids []uint32) *apiv1.SparseBitset {
 	blockMap := make(map[uint32]uint32)
 	for _, id := range ids {
 		blockIdx := id / 32
@@ -47,29 +47,29 @@ func Build(ids []uint32) *apiv1.SparseBitset {
 	}
 }
 
-// EncodeFilterResultBitset encodes matched entity IDs against totalCount sequential 1-indexed IDs into a FilterResultMode and SparseBitset.
+// EncodeFilterResult encodes matched entity IDs against totalCount sequential 1-indexed IDs into a FilterResultMode and SparseBitset.
 // It automatically selects either INCLUDE or EXCLUDE mode to minimize payload size.
-func EncodeFilterResultBitset(totalCount int, matchedIDs *roaring.Bitmap) (apiv1.FilterResultMode, *apiv1.SparseBitset) {
+func EncodeFilterResult(totalCount int, matchedIDs *roaring.Bitmap) (apiv1.FilterResultMode, *apiv1.SparseBitset) {
 	if matchedIDs == nil {
 		matchedIDs = roaring.NewBitmap()
 	}
 	matchedCount := int(matchedIDs.GetCardinality())
 
 	if matchedCount <= totalCount/2 {
-		return apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE, Build(matchedIDs.ToArray())
+		return apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE, Encode(matchedIDs.ToArray())
 	}
 
 	excludedCount := totalCount - matchedCount
 	if excludedCount < 0 {
 		excludedCount = 0
 	}
-	targetIDs := make([]uint32, 0, excludedCount)
+	excludedIDs := make([]uint32, 0, excludedCount)
 	for id := 1; id <= totalCount; id++ {
 		if !matchedIDs.Contains(uint32(id)) {
-			targetIDs = append(targetIDs, uint32(id))
+			excludedIDs = append(excludedIDs, uint32(id))
 		}
 	}
-	return apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE, Build(targetIDs)
+	return apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE, Encode(excludedIDs)
 }
 
 // Decode decodes a SparseBitset into a roaring.Bitmap of IDs.

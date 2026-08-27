@@ -300,11 +300,6 @@ func TestBuilder_Build(t *testing.T) {
 						SourceId: proto.String("deployment/default/nginx-deploy"),
 						TargetId: proto.String("replicaset/default/nginx-rs"),
 					},
-					{
-						Type:     apiv1.GraphEdge_EDGE_TYPE_POD_TO_NODE.Enum(),
-						SourceId: proto.String("pod/default/nginx-pod"),
-						TargetId: proto.String("node/cluster-scope/node-1"),
-					},
 				},
 			},
 		},
@@ -376,13 +371,7 @@ func TestBuilder_Build(t *testing.T) {
 				Services:       []*apiv1.GraphService{},
 				PodOwners:      []*apiv1.GraphPodOwner{},
 				PodOwnerOwners: []*apiv1.GraphPodOwnerOwner{},
-				Edges: []*apiv1.GraphEdge{
-					{
-						Type:     apiv1.GraphEdge_EDGE_TYPE_POD_TO_NODE.Enum(),
-						SourceId: proto.String("pod/default/pending-pod"),
-						TargetId: proto.String("node/cluster-scope/node-unobserved"),
-					},
-				},
+				Edges:          []*apiv1.GraphEdge{},
 			},
 		},
 		{
@@ -466,13 +455,7 @@ func TestBuilder_Build(t *testing.T) {
 				Services:       []*apiv1.GraphService{},
 				PodOwners:      []*apiv1.GraphPodOwner{},
 				PodOwnerOwners: []*apiv1.GraphPodOwnerOwner{},
-				Edges: []*apiv1.GraphEdge{
-					{
-						Type:     apiv1.GraphEdge_EDGE_TYPE_POD_TO_NODE.Enum(),
-						SourceId: proto.String("pod/default/bound-pod"),
-						TargetId: proto.String("node/cluster-scope/bound-node"),
-					},
-				},
+				Edges:          []*apiv1.GraphEdge{},
 			},
 		},
 		{
@@ -579,7 +562,7 @@ func TestBuilder_Build(t *testing.T) {
 				}
 
 				builder := NewBuilder(timelines, tlMap, pool)
-				bitset := sparsebitset.Build([]uint32{5})
+				bitset := sparsebitset.Encode([]uint32{5})
 				req := &apiv1.GetArchitectureGraphRequest{
 					TimestampNs:    proto.Int64(200),
 					TimelineBitset: bitset,
@@ -604,6 +587,49 @@ func TestBuilder_Build(t *testing.T) {
 						Labels:         map[string]string{},
 					},
 				},
+				Services:       []*apiv1.GraphService{},
+				PodOwners:      []*apiv1.GraphPodOwner{},
+				PodOwnerOwners: []*apiv1.GraphPodOwnerOwner{},
+				Edges:          []*apiv1.GraphEdge{},
+			},
+		},
+		{
+			name: "empty timeline bitset filters all resources",
+			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
+				pool := khifilev6model.NewInternPool(khifilev6model.NewIDGenerator())
+				pod1StructID := internJSON(t, pool, `{"metadata": {"uid": "pod-1"}}`)
+
+				timelines := []*cel.TimelineData{
+					{ID: 1, Name: "cluster-1"},
+					{ID: 2, ParentID: 1, Name: "v1"},
+					{ID: 3, ParentID: 2, Name: "pod"},
+					{ID: 4, ParentID: 3, Name: "default"},
+					{
+						ID:       5,
+						ParentID: 4,
+						Name:     "pod-included",
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 100, Verb: "Create", ResourceBodyStructID: pod1StructID},
+						},
+					},
+				}
+				tlMap := make(map[uint32]*cel.TimelineData)
+				for _, tl := range timelines {
+					tlMap[tl.ID] = tl
+				}
+
+				builder := NewBuilder(timelines, tlMap, pool)
+				bitset := sparsebitset.Encode([]uint32{})
+				req := &apiv1.GetArchitectureGraphRequest{
+					TimestampNs:    proto.Int64(200),
+					TimelineBitset: bitset,
+				}
+				return builder, req
+			},
+			want: &apiv1.GetArchitectureGraphResponse{
+				TimestampNs:    proto.Int64(200),
+				Nodes:          []*apiv1.GraphNode{},
+				Pods:           []*apiv1.GraphPod{},
 				Services:       []*apiv1.GraphService{},
 				PodOwners:      []*apiv1.GraphPodOwner{},
 				PodOwnerOwners: []*apiv1.GraphPodOwnerOwner{},
@@ -734,13 +760,7 @@ func TestBuilder_Build(t *testing.T) {
 				Services:       []*apiv1.GraphService{},
 				PodOwners:      []*apiv1.GraphPodOwner{},
 				PodOwnerOwners: []*apiv1.GraphPodOwnerOwner{},
-				Edges: []*apiv1.GraphEdge{
-					{
-						Type:     apiv1.GraphEdge_EDGE_TYPE_POD_TO_NODE.Enum(),
-						SourceId: proto.String("pod/default/failing-pod"),
-						TargetId: proto.String("node/cluster-scope/node-2"),
-					},
-				},
+				Edges:          []*apiv1.GraphEdge{},
 			},
 		},
 	}

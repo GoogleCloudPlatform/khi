@@ -16,16 +16,16 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GraphSmartComponent } from 'src/app/graph/graph-smart.component';
-import { GraphDataConverterService } from 'src/app/services/graph-converter.service';
+import { GraphConverterService } from 'src/app/services/graph-converter.service';
 import { emptyGraphData } from 'src/app/common/schema/graph-schema';
 
 describe('GraphSmartComponent', () => {
   let component: GraphSmartComponent;
   let fixture: ComponentFixture<GraphSmartComponent>;
-  let mockGraphConverter: jasmine.SpyObj<GraphDataConverterService>;
+  let mockGraphConverter: jasmine.SpyObj<GraphConverterService>;
 
   beforeEach(async () => {
-    mockGraphConverter = jasmine.createSpyObj('GraphDataConverterService', [
+    mockGraphConverter = jasmine.createSpyObj('GraphConverterService', [
       'getGraphDataAt',
     ]);
     mockGraphConverter.getGraphDataAt.and.resolveTo(emptyGraphData());
@@ -33,7 +33,7 @@ describe('GraphSmartComponent', () => {
     await TestBed.configureTestingModule({
       imports: [GraphSmartComponent],
       providers: [
-        { provide: GraphDataConverterService, useValue: mockGraphConverter },
+        { provide: GraphConverterService, useValue: mockGraphConverter },
       ],
     }).compileComponents();
 

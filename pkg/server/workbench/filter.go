@@ -103,8 +103,8 @@ func (p *Pipeline) Execute(
 		)
 	}
 
-	tlMode, tlBitset := sparsebitset.EncodeFilterResultBitset(len(index.Timelines), filterCtx.TimelineIDs)
-	logMode, logBitset := sparsebitset.EncodeFilterResultBitset(len(index.Logs), filterCtx.LogIDs)
+	tlMode, tlBitset := sparsebitset.EncodeFilterResult(len(index.Timelines), filterCtx.TimelineIDs)
+	logMode, logBitset := sparsebitset.EncodeFilterResult(len(index.Logs), filterCtx.LogIDs)
 
 	totalDuration := time.Since(totalStart)
 	slog.DebugContext(ctx, "filter pipeline completed",

@@ -18,7 +18,7 @@ import {
   GRAPH_PAGE_OPEN,
   UPDATE_GRAPH_DATA,
 } from 'src/app/common/schema/inter-window-messages';
-import { GraphDataConverterService } from 'src/app/services/graph-converter.service';
+import { GraphConverterService } from 'src/app/services/graph-converter.service';
 import { WindowConnectorService } from 'src/app/services/frame-connection/window-connector.service';
 import { Injectable, inject } from '@angular/core';
 import { UpdateGraphMessage } from 'src/app/services/frame-connection/frames/graph-page-datasource.service';
@@ -29,7 +29,7 @@ import { SelectionManager } from 'src/app/services/selection-manager.service';
 
 @Injectable()
 export class GraphPageDataSourceServer {
-  private readonly graphConverter = inject(GraphDataConverterService);
+  private readonly graphConverter = inject(GraphConverterService);
   private readonly connector = inject(WindowConnectorService);
   private readonly store = inject(InspectionDataStore);
   private readonly selectionManager = inject(SelectionManager);
@@ -54,6 +54,7 @@ export class GraphPageDataSourceServer {
           const graphData = await this.graphConverter.getGraphDataAt(
             log.timestamp,
             timelineView.filteredTimelineBitset(),
+            180,
             controller.signal,
           );
           if (!controller.signal.aborted) {

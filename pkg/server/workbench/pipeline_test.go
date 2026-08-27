@@ -20,6 +20,7 @@ import (
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/sparsebitset"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -204,28 +205,17 @@ func decodeSparseBitset(mode apiv1.FilterResultMode, bitset *apiv1.SparseBitset,
 	if bitset == nil {
 		return nil
 	}
-	blockMap := make(map[uint32]uint32)
-	for i, idx := range bitset.Indices {
-		blockMap[idx] = bitset.Masks[i]
-	}
-	isSet := func(id uint32) bool {
-		mask, ok := blockMap[id/32]
-		if !ok {
-			return false
-		}
-		return (mask & (1 << (id % 32))) != 0
-	}
-
+	bm := sparsebitset.Decode(bitset)
 	var result []uint32
 	if mode == apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE {
 		for _, id := range allIDs {
-			if isSet(id) {
+			if bm.Contains(id) {
 				result = append(result, id)
 			}
 		}
 	} else {
 		for _, id := range allIDs {
-			if !isSet(id) {
+			if !bm.Contains(id) {
 				result = append(result, id)
 			}
 		}

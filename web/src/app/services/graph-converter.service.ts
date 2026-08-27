@@ -16,6 +16,7 @@
 
 import { Injectable, inject } from '@angular/core';
 import {
+  ArchGraphCondition,
   ContainerGraphData,
   GraphData,
   GraphNode,
@@ -24,6 +25,7 @@ import {
   GraphResourceData,
   ServiceGraphData,
   GraphPodOwnerOwner,
+  PodConnectionGraphData,
   PodOwnerKinds,
   PodOwnerOwnerKinds,
 } from 'src/app/common/schema/graph-schema';
@@ -38,11 +40,6 @@ import {
   GraphEdge_EdgeType,
 } from 'src/app/generated/api/v1/architecture_graph_pb';
 import { SparseBitset } from 'src/app/generated/api/v1/sparse_bitset_pb';
-
-interface PodConnectionMapping {
-  readonly node: GraphNode;
-  readonly pod: PodGraphData;
-}
 
 interface PodOwnersByKind {
   readonly daemonset: GraphPodOwner[];
@@ -61,7 +58,7 @@ interface PodOwnerOwnersByKind {
 @Injectable({
   providedIn: 'root',
 })
-export class GraphDataConverterService {
+export class GraphConverterService {
   private readonly viewStateService = inject(ViewStateService);
   private readonly workbenchClient = inject(WorkbenchClientService);
 
@@ -74,15 +71,15 @@ export class GraphDataConverterService {
    *
    * @param timestampNs - Target timestamp in nanoseconds.
    * @param timelineBitset - Optional sparse bitset to filter timelines.
-   * @param abortSignal - Optional signal to cancel the generation.
    * @param deletionThresholdSeconds - Optional deletion threshold in seconds (defaults to 180).
+   * @param abortSignal - Optional signal to cancel the generation.
    * @returns A promise resolving to the converted GraphData.
    */
   public async getGraphDataAt(
     timestampNs: bigint,
     timelineBitset?: SparseBitset,
-    abortSignal?: AbortSignal,
     deletionThresholdSeconds = 180,
+    abortSignal?: AbortSignal,
   ): Promise<GraphData> {
     const res = await this.workbenchClient.getArchitectureGraph(
       timestampNs,
@@ -108,11 +105,7 @@ export class GraphDataConverterService {
     const nodeByName = new Map<string, GraphNode>();
 
     for (const n of res.nodes) {
-      const timestamps = this.formatResourceTimestamps(
-        timestampNs,
-        n.updatedAtNs,
-        n.deletedAtNs,
-      );
+      const timestamps = this.formatResourceTimestamps(timestampNs, n);
       const node: GraphNode = {
         name: n.name,
         podCIDR: n.podCidr,
@@ -121,33 +114,18 @@ export class GraphDataConverterService {
         externalIP: n.externalIp,
         labels: n.labels,
         pods: [],
-        conditions: n.conditions.map((c: GraphCondition) => ({
-          type: c.type,
-          message: c.message,
-          status: c.status,
-          is_positive_status: c.isPositive,
-        })),
+        conditions: this.convertConditions(n.conditions),
         ...timestamps,
       };
       nodeByName.set(n.name, node);
     }
 
-    const podMapById = new Map<string, PodConnectionMapping>();
+    const podMapById = new Map<string, PodConnectionGraphData>();
 
     for (const p of res.pods) {
-      let parentNode = nodeByName.get(p.nodeName);
+      const parentNode = nodeByName.get(p.nodeName);
       if (!parentNode) {
-        parentNode = {
-          name: p.nodeName,
-          podCIDR: '-',
-          taints: [],
-          pods: [],
-          labels: {},
-          conditions: [],
-          internalIP: '-',
-          externalIP: '-',
-        };
-        nodeByName.set(p.nodeName, parentNode);
+        continue;
       }
 
       const containers: ContainerGraphData[] = p.containers.map(
@@ -163,11 +141,7 @@ export class GraphDataConverterService {
         }),
       );
 
-      const timestamps = this.formatResourceTimestamps(
-        timestampNs,
-        p.updatedAtNs,
-        p.deletedAtNs,
-      );
+      const timestamps = this.formatResourceTimestamps(timestampNs, p);
       const pod: PodGraphData = {
         uid: p.uid,
         name: p.name,
@@ -177,13 +151,7 @@ export class GraphDataConverterService {
         podIP: p.podIp,
         phase: p.phase,
         isPhaseHealthy: p.isPhaseHealthy,
-        conditions: p.conditions.map((c: GraphCondition) => ({
-          type: c.type,
-          message: c.message,
-          status: c.status,
-          is_positive_status: c.isPositive,
-        })),
-        ownerUids: new Set(p.ownerUids),
+        conditions: this.convertConditions(p.conditions),
         ...timestamps,
       };
 
@@ -200,11 +168,7 @@ export class GraphDataConverterService {
     const services: ServiceGraphData[] = [];
 
     for (const s of res.services) {
-      const timestamps = this.formatResourceTimestamps(
-        timestampNs,
-        s.updatedAtNs,
-        s.deletedAtNs,
-      );
+      const timestamps = this.formatResourceTimestamps(timestampNs, s);
       const svc: ServiceGraphData = {
         uid: s.uid,
         name: s.name,
@@ -227,18 +191,12 @@ export class GraphDataConverterService {
     };
 
     for (const po of res.podOwners) {
-      const timestamps = this.formatResourceTimestamps(
-        timestampNs,
-        po.updatedAtNs,
-        po.deletedAtNs,
-      );
+      const timestamps = this.formatResourceTimestamps(timestampNs, po);
       const owner: GraphPodOwner = {
         uid: po.uid,
         name: po.name,
         namespace: po.namespace,
         labels: po.labels,
-        ownerUids: new Set(po.ownerUids),
-        status: {},
         connectedPods: [],
         ...timestamps,
       };
@@ -255,25 +213,20 @@ export class GraphDataConverterService {
       deployment: [],
     };
 
-    for (const poo of res.podOwnerOwners) {
-      const timestamps = this.formatResourceTimestamps(
-        timestampNs,
-        poo.updatedAtNs,
-        poo.deletedAtNs,
-      );
-      const ownerOwner: GraphPodOwnerOwner = {
-        uid: poo.uid,
-        name: poo.name,
-        namespace: poo.namespace,
-        labels: poo.labels,
-        status: {},
+    for (const ownerOwner of res.podOwnerOwners) {
+      const timestamps = this.formatResourceTimestamps(timestampNs, ownerOwner);
+      const owner: GraphPodOwnerOwner = {
+        uid: ownerOwner.uid,
+        name: ownerOwner.name,
+        namespace: ownerOwner.namespace,
+        labels: ownerOwner.labels,
         connectedPodOwners: [],
         ...timestamps,
       };
-      podOwnerOwnerMapById.set(poo.id, ownerOwner);
-      const kind = poo.kind.toLowerCase() as PodOwnerOwnerKinds;
+      podOwnerOwnerMapById.set(ownerOwner.id, owner);
+      const kind = ownerOwner.kind.toLowerCase() as PodOwnerOwnerKinds;
       if (kind === 'cronjob' || kind === 'deployment') {
-        podOwnerOwners[kind].push(ownerOwner);
+        podOwnerOwners[kind].push(owner);
       }
     }
 
@@ -297,10 +250,10 @@ export class GraphDataConverterService {
           break;
         }
         case GraphEdge_EdgeType.POD_OWNER_OWNER_TO_POD_OWNER: {
-          const poo = podOwnerOwnerMapById.get(edge.sourceId);
+          const topOwner = podOwnerOwnerMapById.get(edge.sourceId);
           const po = podOwnerMapById.get(edge.targetId);
-          if (poo && po) {
-            poo.connectedPodOwners.push({ podOwner: po });
+          if (topOwner && po) {
+            topOwner.connectedPodOwners.push({ podOwner: po });
           }
           break;
         }
@@ -321,21 +274,31 @@ export class GraphDataConverterService {
     };
   }
 
+  private convertConditions(
+    conditions: readonly GraphCondition[],
+  ): ArchGraphCondition[] {
+    return conditions.map((c) => ({
+      type: c.type,
+      message: c.message,
+      status: c.status,
+      is_positive_status: c.isPositive,
+    }));
+  }
+
   private formatResourceTimestamps(
     timestampNs: bigint,
-    updatedAtNs: bigint,
-    deletedAtNs: bigint,
+    resource: { readonly updatedAtNs: bigint; readonly deletedAtNs: bigint },
   ): GraphResourceData {
-    if (deletedAtNs > 0n) {
+    if (resource.deletedAtNs > 0n) {
       const diffSeconds =
-        Number((timestampNs - deletedAtNs) / 1_000_000n) / 1000;
+        Number((timestampNs - resource.deletedAtNs) / 1_000_000n) / 1000;
       return {
         deletedAt: `${diffSeconds.toFixed(2)}s ago`,
       };
     }
-    if (updatedAtNs > 0n) {
+    if (resource.updatedAtNs > 0n) {
       const diffSeconds =
-        Number((timestampNs - updatedAtNs) / 1_000_000n) / 1000;
+        Number((timestampNs - resource.updatedAtNs) / 1_000_000n) / 1000;
       return {
         updatedAt: `${diffSeconds.toFixed(2)}s ago`,
       };

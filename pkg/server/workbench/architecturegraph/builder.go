@@ -83,7 +83,7 @@ func (b *Builder) Build(
 		default:
 		}
 
-		if allowedTimelines != nil && !allowedTimelines.IsEmpty() && !allowedTimelines.Contains(tl.ID) {
+		if allowedTimelines != nil && !allowedTimelines.Contains(tl.ID) {
 			continue
 		}
 
@@ -101,33 +101,33 @@ func (b *Builder) Build(
 			continue
 		}
 
-		updatedAtNs, deletedAtNs, ok := checkDeletionThreshold(timeNs, rev, thresholdSec)
+		updatedAtNs, deletedAtNs, ok := resolveResourceRetention(timeNs, rev, thresholdSec)
 		if !ok {
 			continue
 		}
 
-		nodeReader := b.resolveManifestReader(tl, revIdx)
+		manifestReader := b.resolveManifestReader(tl, revIdx)
 
 		switch kind {
 		case "node":
 			if namespace == "cluster-scope" {
-				node := b.parseNode(tl.ID, name, updatedAtNs, deletedAtNs, nodeReader)
+				node := b.parseNode(tl.ID, name, updatedAtNs, deletedAtNs, manifestReader)
 				nodesMap[node.GetId()] = node
 			}
 		case "pod":
-			pod := b.parsePod(tl, name, namespace, timeNs, updatedAtNs, deletedAtNs, nodeReader)
+			pod := b.parsePod(tl, name, namespace, timeNs, updatedAtNs, deletedAtNs, manifestReader)
 			podsMap[pod.GetId()] = pod
 		case "service":
-			svc, selector := b.parseService(tl.ID, name, namespace, updatedAtNs, deletedAtNs, nodeReader)
+			svc, selector := b.parseService(tl.ID, name, namespace, updatedAtNs, deletedAtNs, manifestReader)
 			servicesMap[svc.GetId()] = svc
 			if len(selector) > 0 {
 				serviceSelectors[svc.GetId()] = selector
 			}
 		case "daemonset", "job", "replicaset":
-			owner := b.parsePodOwner(tl.ID, kind, name, namespace, updatedAtNs, deletedAtNs, nodeReader)
+			owner := b.parsePodOwner(tl.ID, kind, name, namespace, updatedAtNs, deletedAtNs, manifestReader)
 			podOwnersMap[owner.GetId()] = owner
 		case "deployment", "cronjob":
-			ownerOwner := b.parsePodOwnerOwner(tl.ID, kind, name, namespace, updatedAtNs, deletedAtNs, nodeReader)
+			ownerOwner := b.parsePodOwnerOwner(tl.ID, kind, name, namespace, updatedAtNs, deletedAtNs, manifestReader)
 			podOwnerOwnersMap[ownerOwner.GetId()] = ownerOwner
 		}
 	}
@@ -151,35 +151,11 @@ func (b *Builder) Build(
 
 	edges := b.buildEdges(nodesMap, podsMap, servicesMap, serviceSelectors, podOwnersMap, podOwnerOwnersMap)
 
-	nodes := make([]*apiv1.GraphNode, 0, len(nodesMap))
-	for _, n := range nodesMap {
-		nodes = append(nodes, n)
-	}
-	sort.Slice(nodes, func(i, j int) bool { return nodes[i].GetId() < nodes[j].GetId() })
-
-	pods := make([]*apiv1.GraphPod, 0, len(podsMap))
-	for _, p := range podsMap {
-		pods = append(pods, p)
-	}
-	sort.Slice(pods, func(i, j int) bool { return pods[i].GetId() < pods[j].GetId() })
-
-	services := make([]*apiv1.GraphService, 0, len(servicesMap))
-	for _, s := range servicesMap {
-		services = append(services, s)
-	}
-	sort.Slice(services, func(i, j int) bool { return services[i].GetId() < services[j].GetId() })
-
-	podOwners := make([]*apiv1.GraphPodOwner, 0, len(podOwnersMap))
-	for _, o := range podOwnersMap {
-		podOwners = append(podOwners, o)
-	}
-	sort.Slice(podOwners, func(i, j int) bool { return podOwners[i].GetId() < podOwners[j].GetId() })
-
-	podOwnerOwners := make([]*apiv1.GraphPodOwnerOwner, 0, len(podOwnerOwnersMap))
-	for _, oo := range podOwnerOwnersMap {
-		podOwnerOwners = append(podOwnerOwners, oo)
-	}
-	sort.Slice(podOwnerOwners, func(i, j int) bool { return podOwnerOwners[i].GetId() < podOwnerOwners[j].GetId() })
+	nodes := sortedValuesByID(nodesMap)
+	pods := sortedValuesByID(podsMap)
+	services := sortedValuesByID(servicesMap)
+	podOwners := sortedValuesByID(podOwnersMap)
+	podOwnerOwners := sortedValuesByID(podOwnerOwnersMap)
 
 	sort.Slice(edges, func(i, j int) bool {
 		if edges[i].GetType() != edges[j].GetType() {
@@ -202,6 +178,21 @@ func (b *Builder) Build(
 	}, nil
 }
 
+type identifiable interface {
+	GetId() string
+}
+
+func sortedValuesByID[T identifiable](m map[string]T) []T {
+	res := make([]T, 0, len(m))
+	for _, v := range m {
+		res = append(res, v)
+	}
+	sort.Slice(res, func(i, j int) bool {
+		return res[i].GetId() < res[j].GetId()
+	})
+	return res
+}
+
 func (b *Builder) buildEdges(
 	nodesMap map[string]*apiv1.GraphNode,
 	podsMap map[string]*apiv1.GraphPod,
@@ -219,25 +210,14 @@ func (b *Builder) buildEdges(
 		}
 	}
 
-	ownerUIDToPodOwnerOwners := make(map[string][]*apiv1.GraphPodOwnerOwner)
-	for _, poo := range podOwnerOwnersMap {
-		if poo.GetUid() != "" {
-			ownerUIDToPodOwnerOwners[poo.GetUid()] = append(ownerUIDToPodOwnerOwners[poo.GetUid()], poo)
+	ownerUIDToTopLevelOwners := make(map[string][]*apiv1.GraphPodOwnerOwner)
+	for _, ownerOwner := range podOwnerOwnersMap {
+		if ownerOwner.GetUid() != "" {
+			ownerUIDToTopLevelOwners[ownerOwner.GetUid()] = append(ownerUIDToTopLevelOwners[ownerOwner.GetUid()], ownerOwner)
 		}
 	}
 
 	for _, pod := range podsMap {
-		if pod.GetNodeName() != "" {
-			nodeID := fmt.Sprintf("node/cluster-scope/%s", pod.GetNodeName())
-			if _, exists := nodesMap[nodeID]; exists {
-				edges = append(edges, &apiv1.GraphEdge{
-					Type:     apiv1.GraphEdge_EDGE_TYPE_POD_TO_NODE.Enum(),
-					SourceId: proto.String(pod.GetId()),
-					TargetId: proto.String(nodeID),
-				})
-			}
-		}
-
 		for _, ownerUID := range pod.OwnerUids {
 			if owners, exists := ownerUIDToPodOwners[ownerUID]; exists {
 				for _, owner := range owners {
@@ -253,7 +233,7 @@ func (b *Builder) buildEdges(
 
 	for _, po := range podOwnersMap {
 		for _, ownerUID := range po.OwnerUids {
-			if ownerOwners, exists := ownerUIDToPodOwnerOwners[ownerUID]; exists {
+			if ownerOwners, exists := ownerUIDToTopLevelOwners[ownerUID]; exists {
 				for _, oo := range ownerOwners {
 					edges = append(edges, &apiv1.GraphEdge{
 						Type:     apiv1.GraphEdge_EDGE_TYPE_POD_OWNER_OWNER_TO_POD_OWNER.Enum(),
@@ -390,32 +370,23 @@ func (b *Builder) parsePod(
 	}
 
 	containersMap := make(map[string]*apiv1.GraphContainer)
-	if initCReader, err := reader.GetReader("spec.initContainers"); err == nil {
-		for _, cReader := range initCReader.Children() {
-			cName := cReader.ReadStringOrDefault("name", "")
-			if cName != "" {
-				containersMap[cName] = &apiv1.GraphContainer{
-					Name:            proto.String(cName),
-					IsInitContainer: proto.Bool(true),
-					Status:          proto.String("Unknown"),
-					Reason:          proto.String("Unknown"),
+	loadContainers := func(fieldPath string, isInit bool) {
+		if cReader, err := reader.GetReader(fieldPath); err == nil {
+			for _, cr := range cReader.Children() {
+				cName := cr.ReadStringOrDefault("name", "")
+				if cName != "" {
+					containersMap[cName] = &apiv1.GraphContainer{
+						Name:            proto.String(cName),
+						IsInitContainer: proto.Bool(isInit),
+						Status:          proto.String("Unknown"),
+						Reason:          proto.String("Unknown"),
+					}
 				}
 			}
 		}
 	}
-	if cReader, err := reader.GetReader("spec.containers"); err == nil {
-		for _, cr := range cReader.Children() {
-			cName := cr.ReadStringOrDefault("name", "")
-			if cName != "" {
-				containersMap[cName] = &apiv1.GraphContainer{
-					Name:            proto.String(cName),
-					IsInitContainer: proto.Bool(false),
-					Status:          proto.String("Unknown"),
-					Reason:          proto.String("Unknown"),
-				}
-			}
-		}
-	}
+	loadContainers("spec.initContainers", true)
+	loadContainers("spec.containers", false)
 
 	updateContainerStatuses := func(path string) {
 		if csReader, err := reader.GetReader(path); err == nil {
@@ -655,11 +626,11 @@ func (b *Builder) resolveManifestReader(tl *cel.TimelineData, revIdx int) *struc
 	return nil
 }
 
-func checkDeletionThreshold(
+func resolveResourceRetention(
 	timeNs int64,
 	rev *cel.RevisionInfo,
 	thresholdSec float64,
-) (int64, int64, bool) {
+) (updatedAtNs, deletedAtNs int64, retain bool) {
 	diffSec := float64(timeNs-rev.ChangedTime) / 1e9
 	isDelete := rev.Verb == "Delete" || rev.Verb == "DeleteCollection"
 

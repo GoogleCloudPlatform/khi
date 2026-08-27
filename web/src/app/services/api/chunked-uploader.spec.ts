@@ -18,7 +18,7 @@ import {
   executeChunkedUpload,
   ChunkUploadProgressCallback,
 } from 'src/app/services/api/chunked-uploader';
-import { CancellationError } from 'src/app/utils/task-yielder';
+import { CancellationError } from 'src/app/store/domain/filter/types';
 
 describe('executeChunkedUpload', () => {
   it('should split file and upload chunks with progress updates', async () => {

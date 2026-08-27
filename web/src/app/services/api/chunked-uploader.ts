@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { CancellationError } from 'src/app/utils/task-yielder';
+import { CancellationError } from 'src/app/store/domain/filter/types';
 
 /**
  * Progress callback reporting uploaded bytes and total bytes.

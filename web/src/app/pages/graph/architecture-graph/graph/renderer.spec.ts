@@ -51,7 +51,6 @@ function $pod(
     conditions: [],
     phase: 'Running',
     isPhaseHealthy: true,
-    ownerUids: new Set(),
   };
 }
 

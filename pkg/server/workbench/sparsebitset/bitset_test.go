@@ -23,7 +23,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-func TestBuild(t *testing.T) {
+func TestEncode(t *testing.T) {
 	testCases := []struct {
 		name       string
 		ids        []uint32
@@ -57,15 +57,15 @@ func TestBuild(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := Build(tc.ids)
+			got := Encode(tc.ids)
 			if diff := cmp.Diff(tc.wantBitset, got, protocmp.Transform()); diff != "" {
-				t.Errorf("Build() bitset mismatch (-want +got):\n%s", diff)
+				t.Errorf("Encode() bitset mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestEncodeFilterResultBitset(t *testing.T) {
+func TestEncodeFilterResult(t *testing.T) {
 	testCases := []struct {
 		name       string
 		totalCount int
@@ -108,32 +108,32 @@ func TestEncodeFilterResultBitset(t *testing.T) {
 			totalCount: 10,
 			matchedIDs: roaring.BitmapOf(2, 4),
 			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE,
-			wantBitset: Build([]uint32{2, 4}),
+			wantBitset: Encode([]uint32{2, 4}),
 		},
 		{
 			name:       "above 50% matched selects EXCLUDE mode with inverted IDs",
 			totalCount: 10,
 			matchedIDs: roaring.BitmapOf(1, 2, 3, 4, 5, 6),
 			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE,
-			wantBitset: Build([]uint32{7, 8, 9, 10}),
+			wantBitset: Encode([]uint32{7, 8, 9, 10}),
 		},
 		{
 			name:       "exactly 50% matched selects INCLUDE mode",
 			totalCount: 4,
 			matchedIDs: roaring.BitmapOf(1, 3),
 			wantMode:   apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE,
-			wantBitset: Build([]uint32{1, 3}),
+			wantBitset: Encode([]uint32{1, 3}),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotMode, gotBitset := EncodeFilterResultBitset(tc.totalCount, tc.matchedIDs)
+			gotMode, gotBitset := EncodeFilterResult(tc.totalCount, tc.matchedIDs)
 			if gotMode != tc.wantMode {
-				t.Errorf("EncodeFilterResultBitset() mode mismatch: got %v, want %v", gotMode, tc.wantMode)
+				t.Errorf("EncodeFilterResult() mode mismatch: got %v, want %v", gotMode, tc.wantMode)
 			}
 			if diff := cmp.Diff(tc.wantBitset, gotBitset, protocmp.Transform()); diff != "" {
-				t.Errorf("EncodeFilterResultBitset() bitset mismatch (-want +got):\n%s", diff)
+				t.Errorf("EncodeFilterResult() bitset mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
