@@ -173,4 +173,70 @@ describe('Graph renderer', () => {
 
     renderer.updateGraphData(mockData);
   });
+
+  const MOCK_SIMPLE_GRAPH_DATA: GraphData = {
+    nodes: [$node('node-bar')],
+    services: [],
+    graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(0, 0),
+    podOwnerOwners: { cronjob: [], deployment: [] },
+    podOwners: { daemonset: [], job: [], replicaset: [] },
+  };
+
+  rendererIt('should fit graph to view', (renderer) => {
+    renderer.updateGraphData(MOCK_SIMPLE_GRAPH_DATA);
+    spyOn(renderer.root, 'fitBounds').and.callThrough();
+    renderer.fitToView();
+    expect(renderer.root.fitBounds).toHaveBeenCalled();
+  });
+
+  rendererIt('should download as svg with default filename', (renderer) => {
+    renderer.updateGraphData(MOCK_SIMPLE_GRAPH_DATA);
+    const createUrlSpy = spyOn(window.URL, 'createObjectURL').and.returnValue(
+      'blob:mock-url',
+    );
+    const revokeUrlSpy = spyOn(window.URL, 'revokeObjectURL');
+    renderer.downloadSvg();
+    expect(createUrlSpy).toHaveBeenCalled();
+    expect(revokeUrlSpy).toHaveBeenCalledWith('blob:mock-url');
+  });
+
+  rendererIt(
+    'should gracefully no-op in downloadSvg when no element-root exists',
+    (renderer) => {
+      const createUrlSpy = spyOn(window.URL, 'createObjectURL');
+      renderer.downloadSvg();
+      expect(createUrlSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  rendererIt(
+    'should download as png with default filename',
+    async (renderer) => {
+      renderer.updateGraphData(MOCK_SIMPLE_GRAPH_DATA);
+      const createUrlSpy = spyOn(window.URL, 'createObjectURL').and.returnValue(
+        'blob:mock-url',
+      );
+      const revokeUrlSpy = spyOn(window.URL, 'revokeObjectURL');
+
+      await renderer.downloadPng();
+      expect(createUrlSpy).toHaveBeenCalled();
+      expect(revokeUrlSpy).toHaveBeenCalledWith('blob:mock-url');
+    },
+  );
+
+  rendererIt(
+    'should alert error message when downloadPng fails',
+    async (renderer) => {
+      renderer.updateGraphData(MOCK_SIMPLE_GRAPH_DATA);
+      spyOn(window, 'alert');
+      spyOn(HTMLCanvasElement.prototype, 'toBlob').and.callFake((callback) => {
+        callback(null);
+      });
+
+      await renderer.downloadPng();
+      expect(window.alert).toHaveBeenCalledWith(
+        'Failed to generate PNG image from graph. Please download as SVG instead.',
+      );
+    },
+  );
 });

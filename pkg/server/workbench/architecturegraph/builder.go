@@ -17,6 +17,7 @@ package architecturegraph
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -32,6 +33,44 @@ import (
 const (
 	defaultDeletionThresholdSeconds = 180.0
 )
+
+var podPhaseChildRegex = regexp.MustCompile(`^([^/]+)/([^\[]+?)(?:\[([^\]]*)\])?$`)
+
+// podPhaseInfo stores pod placement and phase metadata resolved from a node's child pod-phase timeline.
+type podPhaseInfo struct {
+	timelineID     uint32
+	nodeName       string
+	namespace      string
+	name           string
+	uid            string
+	phase          string
+	isPhaseHealthy bool
+	updatedAtNs    int64
+	deletedAtNs    int64
+}
+
+// isPodPhaseHealthy evaluates whether the given Kubernetes Pod phase indicates a healthy state.
+func isPodPhaseHealthy(phase string) bool {
+	return phase == "Running" || phase == "Succeeded" || phase == "Completed"
+}
+
+// parsePodPhaseState parses a PodPhase timeline revision state string into a Kubernetes Pod phase and health status.
+func parsePodPhaseState(state string) (phase string, isHealthy bool) {
+	lower := strings.ToLower(state)
+	switch {
+	case strings.Contains(lower, "running"):
+		phase = "Running"
+	case strings.Contains(lower, "succeeded"):
+		phase = "Succeeded"
+	case strings.Contains(lower, "pending"), strings.Contains(lower, "scheduled"):
+		phase = "Pending"
+	case strings.Contains(lower, "failed"):
+		phase = "Failed"
+	default:
+		phase = "Unknown"
+	}
+	return phase, isPodPhaseHealthy(phase)
+}
 
 // Builder constructs the Kubernetes architecture graph at a specified timestamp.
 type Builder struct {
@@ -75,6 +114,7 @@ func (b *Builder) Build(
 	serviceSelectors := make(map[string]map[string]string)
 	podOwnersMap := make(map[string]*apiv1.GraphPodOwner)
 	podOwnerOwnersMap := make(map[string]*apiv1.GraphPodOwnerOwner)
+	podPhaseMap := make(map[string]*podPhaseInfo)
 
 	for _, tl := range b.timelines {
 		select {
@@ -83,11 +123,49 @@ func (b *Builder) Build(
 		default:
 		}
 
+		path := b.computeTimelinePath(tl)
+
+		// Collect pod phase information recorded under Node timelines:
+		// [cluster, "core/v1", "node", "cluster-scope", <nodeName>, "<namespace>/<podName>[<uid>]"]
+		if len(path) == 6 && strings.ToLower(path[2]) == "node" && path[3] == "cluster-scope" {
+			match := podPhaseChildRegex.FindStringSubmatch(path[5])
+			if len(match) >= 3 {
+				rev, _ := b.lookupRevisionAtNs(tl, timeNs)
+				if rev != nil {
+					updatedAtNs, deletedAtNs, ok := resolveResourceRetention(timeNs, rev, thresholdSec)
+					if ok {
+						ns := match[1]
+						pName := match[2]
+						uid := ""
+						if len(match) >= 4 {
+							uid = match[3]
+						}
+						podID := fmt.Sprintf("pod/%s/%s", ns, pName)
+						phase, isPhaseHealthy := parsePodPhaseState(rev.State)
+
+						if existing, exists := podPhaseMap[podID]; !exists || existing.updatedAtNs < updatedAtNs {
+							podPhaseMap[podID] = &podPhaseInfo{
+								timelineID:     tl.ID,
+								nodeName:       path[4],
+								namespace:      ns,
+								name:           pName,
+								uid:            uid,
+								phase:          phase,
+								isPhaseHealthy: isPhaseHealthy,
+								updatedAtNs:    updatedAtNs,
+								deletedAtNs:    deletedAtNs,
+							}
+						}
+					}
+				}
+			}
+			continue
+		}
+
 		if allowedTimelines != nil && !allowedTimelines.Contains(tl.ID) {
 			continue
 		}
 
-		path := b.computeTimelinePath(tl)
 		if len(path) != 5 {
 			continue
 		}
@@ -129,6 +207,41 @@ func (b *Builder) Build(
 		case "deployment", "cronjob":
 			ownerOwner := b.parsePodOwnerOwner(tl.ID, kind, name, namespace, updatedAtNs, deletedAtNs, manifestReader)
 			podOwnerOwnersMap[ownerOwner.GetId()] = ownerOwner
+		}
+	}
+
+	for podID, info := range podPhaseMap {
+		pod, exists := podsMap[podID]
+		if !exists {
+			if allowedTimelines != nil && !allowedTimelines.Contains(info.timelineID) {
+				continue
+			}
+			pod = &apiv1.GraphPod{
+				Id:             proto.String(podID),
+				TimelineId:     proto.Uint32(info.timelineID),
+				Name:           proto.String(info.name),
+				Namespace:      proto.String(info.namespace),
+				NodeName:       proto.String(info.nodeName),
+				Uid:            proto.String(info.uid),
+				PodIp:          proto.String("-"),
+				Phase:          proto.String(info.phase),
+				IsPhaseHealthy: proto.Bool(info.isPhaseHealthy),
+				UpdatedAtNs:    proto.Int64(info.updatedAtNs),
+				DeletedAtNs:    proto.Int64(info.deletedAtNs),
+				Labels:         make(map[string]string),
+			}
+			podsMap[podID] = pod
+		} else {
+			if pod.GetNodeName() == "" && info.nodeName != "" {
+				pod.NodeName = proto.String(info.nodeName)
+			}
+			if pod.GetUid() == "" && info.uid != "" {
+				pod.Uid = proto.String(info.uid)
+			}
+			if (pod.GetPhase() == "" || pod.GetPhase() == "Unknown") && info.phase != "Unknown" {
+				pod.Phase = proto.String(info.phase)
+				pod.IsPhaseHealthy = proto.Bool(info.isPhaseHealthy)
+			}
 		}
 	}
 
@@ -338,101 +451,159 @@ func (b *Builder) parsePod(
 	reader *structured.NodeReader,
 ) *apiv1.GraphPod {
 	pod := &apiv1.GraphPod{
-		Id:          proto.String(fmt.Sprintf("pod/%s/%s", namespace, name)),
-		TimelineId:  proto.Uint32(tl.ID),
-		Name:        proto.String(name),
-		Namespace:   proto.String(namespace),
-		PodIp:       proto.String("-"),
-		Phase:       proto.String("Unknown"),
-		UpdatedAtNs: proto.Int64(updatedAtNs),
-		DeletedAtNs: proto.Int64(deletedAtNs),
-		Labels:      make(map[string]string),
-	}
-
-	if reader == nil {
-		return pod
-	}
-
-	pod.Uid = proto.String(reader.ReadStringOrDefault("metadata.uid", ""))
-	pod.Labels = readMap(reader, "metadata.labels")
-	pod.PodIp = proto.String(reader.ReadStringOrDefault("status.podIP", "-"))
-	phase := reader.ReadStringOrDefault("status.phase", "Unknown")
-	pod.Phase = proto.String(phase)
-	pod.IsPhaseHealthy = proto.Bool(phase == "Running" || phase == "Completed")
-	pod.OwnerUids = readOwnerUIDs(reader)
-
-	nodeName := reader.ReadStringOrDefault("spec.nodeName", "")
-	if nodeName == "" {
-		nodeName = b.resolveNodeNameFromBinding(tl, timeNs)
-	}
-	if nodeName != "" {
-		pod.NodeName = proto.String(nodeName)
+		Id:             proto.String(fmt.Sprintf("pod/%s/%s", namespace, name)),
+		TimelineId:     proto.Uint32(tl.ID),
+		Name:           proto.String(name),
+		Namespace:      proto.String(namespace),
+		PodIp:          proto.String("-"),
+		Phase:          proto.String("Unknown"),
+		IsPhaseHealthy: proto.Bool(false),
+		UpdatedAtNs:    proto.Int64(updatedAtNs),
+		DeletedAtNs:    proto.Int64(deletedAtNs),
+		Labels:         make(map[string]string),
 	}
 
 	containersMap := make(map[string]*apiv1.GraphContainer)
-	loadContainers := func(fieldPath string, isInit bool) {
-		if cReader, err := reader.GetReader(fieldPath); err == nil {
-			for _, cr := range cReader.Children() {
-				cName := cr.ReadStringOrDefault("name", "")
-				if cName != "" {
-					containersMap[cName] = &apiv1.GraphContainer{
-						Name:            proto.String(cName),
-						IsInitContainer: proto.Bool(isInit),
-						Status:          proto.String("Unknown"),
-						Reason:          proto.String("Unknown"),
+
+	if reader != nil {
+		pod.Uid = proto.String(reader.ReadStringOrDefault("metadata.uid", ""))
+		pod.Labels = readMap(reader, "metadata.labels")
+		pod.PodIp = proto.String(reader.ReadStringOrDefault("status.podIP", "-"))
+		phase := reader.ReadStringOrDefault("status.phase", "Unknown")
+		pod.Phase = proto.String(phase)
+		pod.IsPhaseHealthy = proto.Bool(isPodPhaseHealthy(phase))
+		pod.OwnerUids = readOwnerUIDs(reader)
+
+		nodeName := reader.ReadStringOrDefault("spec.nodeName", "")
+		if nodeName == "" {
+			nodeName = b.resolveNodeNameFromBinding(tl, timeNs)
+		}
+		if nodeName != "" {
+			pod.NodeName = proto.String(nodeName)
+		}
+
+		loadContainers := func(fieldPath string, isInit bool) {
+			if cReader, err := reader.GetReader(fieldPath); err == nil {
+				for _, cr := range cReader.Children() {
+					cName := cr.ReadStringOrDefault("name", "")
+					if cName != "" {
+						containersMap[cName] = &apiv1.GraphContainer{
+							Name:            proto.String(cName),
+							IsInitContainer: proto.Bool(isInit),
+							Status:          proto.String("Unknown"),
+							Reason:          proto.String("Unknown"),
+						}
 					}
 				}
 			}
 		}
-	}
-	loadContainers("spec.initContainers", true)
-	loadContainers("spec.containers", false)
+		loadContainers("spec.initContainers", true)
+		loadContainers("spec.containers", false)
 
-	updateContainerStatuses := func(path string) {
-		if csReader, err := reader.GetReader(path); err == nil {
-			for _, itemReader := range csReader.Children() {
-				cName := itemReader.ReadStringOrDefault("name", "")
-				c, exists := containersMap[cName]
-				if !exists {
-					c = &apiv1.GraphContainer{
-						Name:   proto.String(cName),
-						Status: proto.String("Unknown"),
-						Reason: proto.String("Unknown"),
+		updateContainerStatuses := func(path string) {
+			if csReader, err := reader.GetReader(path); err == nil {
+				for _, itemReader := range csReader.Children() {
+					cName := itemReader.ReadStringOrDefault("name", "")
+					c, exists := containersMap[cName]
+					if !exists {
+						c = &apiv1.GraphContainer{
+							Name:   proto.String(cName),
+							Status: proto.String("Unknown"),
+							Reason: proto.String("Unknown"),
+						}
+						containersMap[cName] = c
 					}
-					containersMap[cName] = c
-				}
-				c.StatusReadFromManifest = proto.Bool(true)
-				c.Ready = proto.Bool(itemReader.ReadBoolOrDefault("ready", false))
+					c.StatusReadFromManifest = proto.Bool(true)
+					c.Ready = proto.Bool(itemReader.ReadBoolOrDefault("ready", false))
 
-				if _, err := itemReader.GetReader("state.running"); err == nil {
-					c.Status = proto.String("Running")
-					c.IsStatusHealthy = proto.Bool(true)
-				} else if termReader, err := itemReader.GetReader("state.terminated"); err == nil {
-					reason := termReader.ReadStringOrDefault("reason", "")
-					c.Code = proto.Int32(int32(termReader.ReadIntOrDefault("exitCode", 0)))
-					c.Reason = proto.String(reason)
-					if reason != "" {
-						c.Status = proto.String(reason)
-					} else {
+					if _, err := itemReader.GetReader("state.running"); err == nil {
+						c.Status = proto.String("Running")
+						c.IsStatusHealthy = proto.Bool(true)
+					} else if termReader, err := itemReader.GetReader("state.terminated"); err == nil {
+						reason := termReader.ReadStringOrDefault("reason", "")
+						c.Code = proto.Int32(int32(termReader.ReadIntOrDefault("exitCode", 0)))
+						c.Reason = proto.String(reason)
+						if reason != "" {
+							c.Status = proto.String(reason)
+						} else {
+							c.Status = proto.String("Terminated")
+						}
+						c.IsStatusHealthy = proto.Bool(reason == "Completed")
+					} else if waitReader, err := itemReader.GetReader("state.waiting"); err == nil {
+						reason := waitReader.ReadStringOrDefault("reason", "")
+						c.Reason = proto.String(reason)
+						if reason != "" {
+							c.Status = proto.String(reason)
+						} else {
+							c.Status = proto.String("Waiting")
+						}
+						c.IsStatusHealthy = proto.Bool(false)
+					}
+				}
+			}
+		}
+
+		updateContainerStatuses("status.initContainerStatuses")
+		updateContainerStatuses("status.containerStatuses")
+		pod.Conditions = readConditions(reader, true)
+	} else {
+		nodeName := b.resolveNodeNameFromBinding(tl, timeNs)
+		if nodeName != "" {
+			pod.NodeName = proto.String(nodeName)
+		}
+	}
+
+	// Fallback to child timelines if containers or conditions were not parsed from manifest
+	if len(containersMap) == 0 || len(pod.Conditions) == 0 {
+		for _, childID := range tl.ChildrenIDs {
+			child := b.timelineMap[childID]
+			if child == nil {
+				continue
+			}
+			if len(containersMap) == 0 && child.TimelineType == "container" {
+				c := &apiv1.GraphContainer{
+					Name:            proto.String(child.Name),
+					IsInitContainer: proto.Bool(false),
+					Status:          proto.String("Unknown"),
+					Reason:          proto.String("Unknown"),
+				}
+				cRev, _ := b.lookupRevisionAtNs(child, timeNs)
+				if cRev != nil {
+					stateLower := strings.ToLower(cRev.State)
+					switch {
+					case strings.Contains(stateLower, "running"):
+						c.Status = proto.String("Running")
+						c.IsStatusHealthy = proto.Bool(true)
+					case strings.Contains(stateLower, "terminated"), strings.Contains(stateLower, "completed"):
 						c.Status = proto.String("Terminated")
-					}
-					c.IsStatusHealthy = proto.Bool(reason == "Completed")
-				} else if waitReader, err := itemReader.GetReader("state.waiting"); err == nil {
-					reason := waitReader.ReadStringOrDefault("reason", "")
-					c.Reason = proto.String(reason)
-					if reason != "" {
-						c.Status = proto.String(reason)
-					} else {
+						c.IsStatusHealthy = proto.Bool(strings.Contains(stateLower, "completed"))
+					case strings.Contains(stateLower, "waiting"):
 						c.Status = proto.String("Waiting")
+						c.IsStatusHealthy = proto.Bool(false)
 					}
-					c.IsStatusHealthy = proto.Bool(false)
+				}
+				containersMap[child.Name] = c
+			} else if len(pod.Conditions) == 0 && child.TimelineType == "condition" {
+				condRev, _ := b.lookupRevisionAtNs(child, timeNs)
+				if condRev != nil {
+					stateLower := strings.ToLower(condRev.State)
+					status := "Unknown"
+					isPositive := false
+					if strings.Contains(stateLower, "true") {
+						status = "True"
+						isPositive = true
+					} else if strings.Contains(stateLower, "false") {
+						status = "False"
+					}
+					pod.Conditions = append(pod.Conditions, &apiv1.GraphCondition{
+						Type:       proto.String(child.Name),
+						Status:     proto.String(status),
+						IsPositive: proto.Bool(isPositive),
+					})
 				}
 			}
 		}
 	}
-
-	updateContainerStatuses("status.initContainerStatuses")
-	updateContainerStatuses("status.containerStatuses")
 
 	for _, c := range containersMap {
 		pod.Containers = append(pod.Containers, c)
@@ -440,8 +611,6 @@ func (b *Builder) parsePod(
 	sort.Slice(pod.Containers, func(i, j int) bool {
 		return pod.Containers[i].GetName() < pod.Containers[j].GetName()
 	})
-
-	pod.Conditions = readConditions(reader, true)
 
 	return pod
 }

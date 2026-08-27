@@ -17,19 +17,17 @@
 .root {
   height: 100%;
   display: grid;
-  grid-template-areas: 'title' 'graph';
-  grid-template-rows: auto 1fr;
+  grid-template:
+    'title' auto
+    'graph' 1fr
+    / 1fr;
+
+  khi-header-smart {
+    grid-area: title;
+  }
 
   .graph-wrapper {
     grid-area: graph;
     overflow: hidden;
-  }
-
-  graph-title-bar {
-    grid-area: title;
-  }
-
-  graph-graph-seek-tool {
-    position: absolute;
   }
 }

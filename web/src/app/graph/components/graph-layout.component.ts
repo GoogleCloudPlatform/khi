@@ -20,11 +20,17 @@ import {
   ElementRef,
   effect,
   input,
+  model,
   viewChild,
 } from '@angular/core';
-import { GraphData, emptyGraphData } from 'src/app/common/schema/graph-schema';
+import {
+  DEFAULT_DELETION_THRESHOLD_SECONDS,
+  GraphData,
+  emptyGraphData,
+} from 'src/app/common/schema/graph-schema';
 import { GraphRenderer } from 'src/app/pages/graph/architecture-graph/graph/renderer';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { GraphToolbarComponent } from 'src/app/graph/components/graph-toolbar.component';
 
 /**
  * Renders the architecture graph layout based on the provided graph data.
@@ -33,23 +39,30 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
   selector: 'khi-graph-layout',
   templateUrl: './graph-layout.component.html',
   styleUrls: ['./graph-layout.component.scss'],
-  imports: [MatProgressSpinnerModule],
+  imports: [MatProgressSpinnerModule, GraphToolbarComponent],
 })
 export class GraphLayoutComponent implements AfterViewInit {
   /**
-   * Input signal holding the graph data to be rendered.
+   * Holds the graph data to be rendered.
    */
   readonly graphData = input<GraphData>(emptyGraphData());
 
   /**
-   * Input signal indicating whether the graph data is currently loading.
+   * Indicates whether the graph data is currently loading.
    */
   readonly isLoading = input<boolean>(false);
 
   /**
-   * Reference to the container element for the SVG graph.
+   * Holds the deletion retention threshold in seconds for two-way binding.
    */
-  readonly graphContainer =
+  readonly deletionThresholdSeconds = model<number>(
+    DEFAULT_DELETION_THRESHOLD_SECONDS,
+  );
+
+  /**
+   * References the container element for the SVG graph.
+   */
+  private readonly graphContainer =
     viewChild.required<ElementRef<HTMLDivElement>>('graphContainer');
 
   private graphRenderer?: GraphRenderer;
@@ -70,5 +83,26 @@ export class GraphLayoutComponent implements AfterViewInit {
     const container = this.graphContainer().nativeElement;
     this.graphRenderer = new GraphRenderer(container);
     this.graphRenderer.updateGraphData(this.graphData());
+  }
+
+  /**
+   * Fits the graph within the view bounds and centers it in the viewport.
+   */
+  protected fitToView(): void {
+    this.graphRenderer?.fitToView();
+  }
+
+  /**
+   * Downloads the graph as an SVG image file.
+   */
+  protected downloadSvg(): void {
+    this.graphRenderer?.downloadSvg();
+  }
+
+  /**
+   * Downloads the graph as a PNG image file.
+   */
+  protected downloadPng(): void {
+    void this.graphRenderer?.downloadPng();
   }
 }

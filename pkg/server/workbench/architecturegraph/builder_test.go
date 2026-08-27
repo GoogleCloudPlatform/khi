@@ -38,6 +38,14 @@ func internJSON(t *testing.T, pool *khifilev6model.InternPool, jsonStr string) u
 	return ref.ID()
 }
 
+func newTestBuilder(timelines []*cel.TimelineData, pool *khifilev6model.InternPool) *Builder {
+	tlMap := make(map[uint32]*cel.TimelineData, len(timelines))
+	for _, tl := range timelines {
+		tlMap[tl.ID] = tl
+	}
+	return NewBuilder(timelines, tlMap, pool)
+}
+
 func TestBuilder_Build(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -171,12 +179,7 @@ func TestBuilder_Build(t *testing.T) {
 					},
 				}
 
-				tlMap := make(map[uint32]*cel.TimelineData)
-				for _, tl := range timelines {
-					tlMap[tl.ID] = tl
-				}
-
-				builder := NewBuilder(timelines, tlMap, pool)
+				builder := newTestBuilder(timelines, pool)
 				req := &apiv1.GetArchitectureGraphRequest{
 					TimestampNs: proto.Int64(2000),
 				}
@@ -328,12 +331,7 @@ func TestBuilder_Build(t *testing.T) {
 						},
 					},
 				}
-				tlMap := make(map[uint32]*cel.TimelineData)
-				for _, tl := range timelines {
-					tlMap[tl.ID] = tl
-				}
-
-				builder := NewBuilder(timelines, tlMap, pool)
+				builder := newTestBuilder(timelines, pool)
 				req := &apiv1.GetArchitectureGraphRequest{
 					TimestampNs: proto.Int64(600),
 				}
@@ -412,12 +410,7 @@ func TestBuilder_Build(t *testing.T) {
 						},
 					},
 				}
-				tlMap := make(map[uint32]*cel.TimelineData)
-				for _, tl := range timelines {
-					tlMap[tl.ID] = tl
-				}
-
-				builder := NewBuilder(timelines, tlMap, pool)
+				builder := newTestBuilder(timelines, pool)
 				req := &apiv1.GetArchitectureGraphRequest{
 					TimestampNs: proto.Int64(200),
 				}
@@ -490,12 +483,7 @@ func TestBuilder_Build(t *testing.T) {
 						},
 					},
 				}
-				tlMap := make(map[uint32]*cel.TimelineData)
-				for _, tl := range timelines {
-					tlMap[tl.ID] = tl
-				}
-
-				builder := NewBuilder(timelines, tlMap, pool)
+				builder := newTestBuilder(timelines, pool)
 				req := &apiv1.GetArchitectureGraphRequest{
 					TimestampNs:              proto.Int64(200 * 1e9),
 					DeletionThresholdSeconds: proto.Float64(100.0),
@@ -556,12 +544,7 @@ func TestBuilder_Build(t *testing.T) {
 						},
 					},
 				}
-				tlMap := make(map[uint32]*cel.TimelineData)
-				for _, tl := range timelines {
-					tlMap[tl.ID] = tl
-				}
-
-				builder := NewBuilder(timelines, tlMap, pool)
+				builder := newTestBuilder(timelines, pool)
 				bitset := sparsebitset.Encode([]uint32{5})
 				req := &apiv1.GetArchitectureGraphRequest{
 					TimestampNs:    proto.Int64(200),
@@ -613,12 +596,7 @@ func TestBuilder_Build(t *testing.T) {
 						},
 					},
 				}
-				tlMap := make(map[uint32]*cel.TimelineData)
-				for _, tl := range timelines {
-					tlMap[tl.ID] = tl
-				}
-
-				builder := NewBuilder(timelines, tlMap, pool)
+				builder := newTestBuilder(timelines, pool)
 				bitset := sparsebitset.Encode([]uint32{})
 				req := &apiv1.GetArchitectureGraphRequest{
 					TimestampNs:    proto.Int64(200),
@@ -698,12 +676,7 @@ func TestBuilder_Build(t *testing.T) {
 						},
 					},
 				}
-				tlMap := make(map[uint32]*cel.TimelineData)
-				for _, tl := range timelines {
-					tlMap[tl.ID] = tl
-				}
-
-				builder := NewBuilder(timelines, tlMap, pool)
+				builder := newTestBuilder(timelines, pool)
 				req := &apiv1.GetArchitectureGraphRequest{
 					TimestampNs: proto.Int64(200),
 				}
@@ -763,6 +736,367 @@ func TestBuilder_Build(t *testing.T) {
 				Edges:          []*apiv1.GraphEdge{},
 			},
 		},
+		{
+			name: "pod node resolved from node child pod phase timeline when manifest lacks node name",
+			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
+				pool := khifilev6model.NewInternPool(khifilev6model.NewIDGenerator())
+
+				nodeStructID := internJSON(t, pool, `{
+					"metadata": {"uid": "node-uid-1"},
+					"status": {"conditions": []}
+				}`)
+				podStructID := internJSON(t, pool, `{
+					"metadata": {"uid": "pod-uid-1"},
+					"spec": {},
+					"status": {"phase": "Unknown"}
+				}`)
+
+				timelines := []*cel.TimelineData{
+					{ID: 1, Name: "test-cluster"},
+					{ID: 2, Name: "core/v1", ParentID: 1},
+					{ID: 3, Name: "node", ParentID: 2},
+					{ID: 4, Name: "cluster-scope", ParentID: 3},
+					{
+						ID:       5,
+						Name:     "node-1",
+						ParentID: 4,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 100, Verb: "Create", State: "Resource exists", ResourceBodyStructID: nodeStructID},
+						},
+						ChildrenIDs: []uint32{6},
+					},
+					{
+						ID:           6,
+						Name:         "default/nginx-pod[pod-uid-1]",
+						TimelineType: "pod",
+						ParentID:     5,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 110, Verb: "Patch", State: "Pod is running"},
+						},
+					},
+					{ID: 7, Name: "pod", ParentID: 2},
+					{ID: 8, Name: "default", ParentID: 7},
+					{
+						ID:       9,
+						Name:     "nginx-pod",
+						ParentID: 8,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 105, Verb: "Create", State: "Resource exists", ResourceBodyStructID: podStructID},
+						},
+					},
+				}
+				builder := newTestBuilder(timelines, pool)
+				return builder, &apiv1.GetArchitectureGraphRequest{
+					TimestampNs: proto.Int64(150),
+				}
+			},
+			want: &apiv1.GetArchitectureGraphResponse{
+				TimestampNs: proto.Int64(150),
+				Nodes: []*apiv1.GraphNode{
+					{
+						Id:          proto.String("node/cluster-scope/node-1"),
+						TimelineId:  proto.Uint32(5),
+						Uid:         proto.String("node-uid-1"),
+						Name:        proto.String("node-1"),
+						PodCidr:     proto.String("-"),
+						InternalIp:  proto.String("-"),
+						ExternalIp:  proto.String("-"),
+						UpdatedAtNs: proto.Int64(100),
+						DeletedAtNs: proto.Int64(0),
+						Labels:      map[string]string{},
+					},
+				},
+				Pods: []*apiv1.GraphPod{
+					{
+						Id:             proto.String("pod/default/nginx-pod"),
+						TimelineId:     proto.Uint32(9),
+						Uid:            proto.String("pod-uid-1"),
+						Name:           proto.String("nginx-pod"),
+						Namespace:      proto.String("default"),
+						NodeName:       proto.String("node-1"),
+						PodIp:          proto.String("-"),
+						Phase:          proto.String("Running"),
+						IsPhaseHealthy: proto.Bool(true),
+						UpdatedAtNs:    proto.Int64(105),
+						DeletedAtNs:    proto.Int64(0),
+						Labels:         map[string]string{},
+					},
+				},
+				Services:       []*apiv1.GraphService{},
+				PodOwners:      []*apiv1.GraphPodOwner{},
+				PodOwnerOwners: []*apiv1.GraphPodOwnerOwner{},
+				Edges:          []*apiv1.GraphEdge{},
+			},
+		},
+		{
+			name: "pod resolved from pod phase timeline with child container and condition when manifest reader is nil",
+			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
+				pool := khifilev6model.NewInternPool(khifilev6model.NewIDGenerator())
+
+				timelines := []*cel.TimelineData{
+					{ID: 1, Name: "test-cluster"},
+					{ID: 2, Name: "core/v1", ParentID: 1},
+					{ID: 3, Name: "node", ParentID: 2},
+					{ID: 4, Name: "cluster-scope", ParentID: 3},
+					{
+						ID:       5,
+						Name:     "node-1",
+						ParentID: 4,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 100, Verb: "Create", State: "Resource exists", ResourceBodyStructID: 0},
+						},
+						ChildrenIDs: []uint32{6},
+					},
+					{
+						ID:           6,
+						Name:         "default/web-pod[pod-uid-web]",
+						TimelineType: "pod",
+						ParentID:     5,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 110, Verb: "Create", State: "Pod is running"},
+						},
+					},
+					{ID: 7, Name: "pod", ParentID: 2},
+					{ID: 8, Name: "default", ParentID: 7},
+					{
+						ID:       9,
+						Name:     "web-pod",
+						ParentID: 8,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 105, Verb: "Create", State: "Resource exists", ResourceBodyStructID: 0},
+						},
+						ChildrenIDs: []uint32{10, 11},
+					},
+					{
+						ID:           10,
+						Name:         "nginx",
+						TimelineType: "container",
+						ParentID:     9,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 110, Verb: "Patch", State: "Container is running"},
+						},
+					},
+					{
+						ID:           11,
+						Name:         "Ready",
+						TimelineType: "condition",
+						ParentID:     9,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 110, Verb: "Patch", State: "Condition is True"},
+						},
+					},
+				}
+				builder := newTestBuilder(timelines, pool)
+				return builder, &apiv1.GetArchitectureGraphRequest{
+					TimestampNs: proto.Int64(150),
+				}
+			},
+			want: &apiv1.GetArchitectureGraphResponse{
+				TimestampNs: proto.Int64(150),
+				Nodes: []*apiv1.GraphNode{
+					{
+						Id:          proto.String("node/cluster-scope/node-1"),
+						TimelineId:  proto.Uint32(5),
+						Name:        proto.String("node-1"),
+						PodCidr:     proto.String("-"),
+						InternalIp:  proto.String("-"),
+						ExternalIp:  proto.String("-"),
+						UpdatedAtNs: proto.Int64(100),
+						DeletedAtNs: proto.Int64(0),
+						Labels:      map[string]string{},
+					},
+				},
+				Pods: []*apiv1.GraphPod{
+					{
+						Id:             proto.String("pod/default/web-pod"),
+						TimelineId:     proto.Uint32(9),
+						Uid:            proto.String("pod-uid-web"),
+						Name:           proto.String("web-pod"),
+						Namespace:      proto.String("default"),
+						NodeName:       proto.String("node-1"),
+						PodIp:          proto.String("-"),
+						Phase:          proto.String("Running"),
+						IsPhaseHealthy: proto.Bool(true),
+						UpdatedAtNs:    proto.Int64(105),
+						DeletedAtNs:    proto.Int64(0),
+						Labels:         map[string]string{},
+						Containers: []*apiv1.GraphContainer{
+							{
+								Name:            proto.String("nginx"),
+								IsInitContainer: proto.Bool(false),
+								Status:          proto.String("Running"),
+								Reason:          proto.String("Unknown"),
+								IsStatusHealthy: proto.Bool(true),
+							},
+						},
+						Conditions: []*apiv1.GraphCondition{
+							{
+								Type:       proto.String("Ready"),
+								Status:     proto.String("True"),
+								IsPositive: proto.Bool(true),
+							},
+						},
+					},
+				},
+				Services:       []*apiv1.GraphService{},
+				PodOwners:      []*apiv1.GraphPodOwner{},
+				PodOwnerOwners: []*apiv1.GraphPodOwnerOwner{},
+				Edges:          []*apiv1.GraphEdge{},
+			},
+		},
+		{
+			name: "pod synthesized from pod phase timeline without primary pod timeline",
+			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
+				pool := khifilev6model.NewInternPool(khifilev6model.NewIDGenerator())
+
+				timelines := []*cel.TimelineData{
+					{ID: 1, Name: "test-cluster"},
+					{ID: 2, Name: "core/v1", ParentID: 1},
+					{ID: 3, Name: "node", ParentID: 2},
+					{ID: 4, Name: "cluster-scope", ParentID: 3},
+					{
+						ID:       5,
+						Name:     "node-1",
+						ParentID: 4,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 100, Verb: "Create", State: "Resource exists", ResourceBodyStructID: 0},
+						},
+						ChildrenIDs: []uint32{6},
+					},
+					{
+						ID:           6,
+						Name:         "default/orphan-pod[pod-uid-orphan]",
+						TimelineType: "pod",
+						ParentID:     5,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 110, Verb: "Create", State: "Pod is running"},
+						},
+					},
+				}
+				builder := newTestBuilder(timelines, pool)
+				return builder, &apiv1.GetArchitectureGraphRequest{
+					TimestampNs: proto.Int64(150),
+				}
+			},
+			want: &apiv1.GetArchitectureGraphResponse{
+				TimestampNs: proto.Int64(150),
+				Nodes: []*apiv1.GraphNode{
+					{
+						Id:          proto.String("node/cluster-scope/node-1"),
+						TimelineId:  proto.Uint32(5),
+						Name:        proto.String("node-1"),
+						PodCidr:     proto.String("-"),
+						InternalIp:  proto.String("-"),
+						ExternalIp:  proto.String("-"),
+						UpdatedAtNs: proto.Int64(100),
+						DeletedAtNs: proto.Int64(0),
+						Labels:      map[string]string{},
+					},
+				},
+				Pods: []*apiv1.GraphPod{
+					{
+						Id:             proto.String("pod/default/orphan-pod"),
+						TimelineId:     proto.Uint32(6),
+						Uid:            proto.String("pod-uid-orphan"),
+						Name:           proto.String("orphan-pod"),
+						Namespace:      proto.String("default"),
+						NodeName:       proto.String("node-1"),
+						PodIp:          proto.String("-"),
+						Phase:          proto.String("Running"),
+						IsPhaseHealthy: proto.Bool(true),
+						UpdatedAtNs:    proto.Int64(110),
+						DeletedAtNs:    proto.Int64(0),
+						Labels:         map[string]string{},
+					},
+				},
+				Services:       []*apiv1.GraphService{},
+				PodOwners:      []*apiv1.GraphPodOwner{},
+				PodOwnerOwners: []*apiv1.GraphPodOwnerOwner{},
+				Edges:          []*apiv1.GraphEdge{},
+			},
+		},
+		{
+			name: "pod fallback with waiting container and negative condition",
+			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
+				pool := khifilev6model.NewInternPool(khifilev6model.NewIDGenerator())
+
+				timelines := []*cel.TimelineData{
+					{ID: 1, Name: "test-cluster"},
+					{ID: 2, Name: "core/v1", ParentID: 1},
+					{ID: 3, Name: "pod", ParentID: 2},
+					{ID: 4, Name: "default", ParentID: 3},
+					{
+						ID:       5,
+						Name:     "waiting-pod",
+						ParentID: 4,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 105, Verb: "Create", State: "Resource exists", ResourceBodyStructID: 0},
+						},
+						ChildrenIDs: []uint32{6, 7},
+					},
+					{
+						ID:           6,
+						Name:         "sidecar",
+						TimelineType: "container",
+						ParentID:     5,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 110, Verb: "Patch", State: "Container is waiting"},
+						},
+					},
+					{
+						ID:           7,
+						Name:         "Ready",
+						TimelineType: "condition",
+						ParentID:     5,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 110, Verb: "Patch", State: "Condition is False"},
+						},
+					},
+				}
+				builder := newTestBuilder(timelines, pool)
+				return builder, &apiv1.GetArchitectureGraphRequest{
+					TimestampNs: proto.Int64(150),
+				}
+			},
+			want: &apiv1.GetArchitectureGraphResponse{
+				TimestampNs: proto.Int64(150),
+				Nodes:       []*apiv1.GraphNode{},
+				Pods: []*apiv1.GraphPod{
+					{
+						Id:             proto.String("pod/default/waiting-pod"),
+						TimelineId:     proto.Uint32(5),
+						Name:           proto.String("waiting-pod"),
+						Namespace:      proto.String("default"),
+						PodIp:          proto.String("-"),
+						Phase:          proto.String("Unknown"),
+						IsPhaseHealthy: proto.Bool(false),
+						UpdatedAtNs:    proto.Int64(105),
+						DeletedAtNs:    proto.Int64(0),
+						Labels:         map[string]string{},
+						Containers: []*apiv1.GraphContainer{
+							{
+								Name:            proto.String("sidecar"),
+								IsInitContainer: proto.Bool(false),
+								Status:          proto.String("Waiting"),
+								Reason:          proto.String("Unknown"),
+								IsStatusHealthy: proto.Bool(false),
+							},
+						},
+						Conditions: []*apiv1.GraphCondition{
+							{
+								Type:       proto.String("Ready"),
+								Status:     proto.String("False"),
+								IsPositive: proto.Bool(false),
+							},
+						},
+					},
+				},
+				Services:       []*apiv1.GraphService{},
+				PodOwners:      []*apiv1.GraphPodOwner{},
+				PodOwnerOwners: []*apiv1.GraphPodOwnerOwner{},
+				Edges:          []*apiv1.GraphEdge{},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -774,6 +1108,36 @@ func TestBuilder_Build(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("Build() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestParsePodPhaseState(t *testing.T) {
+	testCases := []struct {
+		name        string
+		state       string
+		wantPhase   string
+		wantHealthy bool
+	}{
+		{name: "running state", state: "Pod is running", wantPhase: "Running", wantHealthy: true},
+		{name: "case-insensitive running", state: "POD IS RUNNING", wantPhase: "Running", wantHealthy: true},
+		{name: "succeeded state", state: "Pod has succeeded", wantPhase: "Succeeded", wantHealthy: true},
+		{name: "pending state", state: "Pod is pending", wantPhase: "Pending", wantHealthy: false},
+		{name: "scheduled state", state: "Pod is scheduled", wantPhase: "Pending", wantHealthy: false},
+		{name: "failed state", state: "Pod has failed", wantPhase: "Failed", wantHealthy: false},
+		{name: "unknown state", state: "Pod phase is unknown", wantPhase: "Unknown", wantHealthy: false},
+		{name: "empty string", state: "", wantPhase: "Unknown", wantHealthy: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotPhase, gotHealthy := parsePodPhaseState(tc.state)
+			if gotPhase != tc.wantPhase {
+				t.Errorf("parsePodPhaseState(%q) phase = %q, want %q", tc.state, gotPhase, tc.wantPhase)
+			}
+			if gotHealthy != tc.wantHealthy {
+				t.Errorf("parsePodPhaseState(%q) isHealthy = %v, want %v", tc.state, gotHealthy, tc.wantHealthy)
 			}
 		})
 	}

@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-import { Component, computed, inject, resource } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, computed, inject, resource, signal } from '@angular/core';
 import { GraphLayoutComponent } from 'src/app/graph/components/graph-layout.component';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { SelectionManager } from 'src/app/services/selection-manager.service';
 import { GraphConverterService } from 'src/app/services/graph-converter.service';
-import { GraphData, emptyGraphData } from 'src/app/common/schema/graph-schema';
+import {
+  DEFAULT_DELETION_THRESHOLD_SECONDS,
+  GraphData,
+  emptyGraphData,
+} from 'src/app/common/schema/graph-schema';
 
 /**
  * Acts as a smart container for the graph view, delegating presentation to the layout component.
@@ -29,12 +32,19 @@ import { GraphData, emptyGraphData } from 'src/app/common/schema/graph-schema';
   selector: 'khi-graph-smart',
   templateUrl: './graph-smart.component.html',
   styleUrls: ['./graph-smart.component.scss'],
-  imports: [CommonModule, GraphLayoutComponent],
+  imports: [GraphLayoutComponent],
 })
 export class GraphSmartComponent {
   private readonly inspectionDataStore = inject(InspectionDataStore);
   private readonly selectionManager = inject(SelectionManager);
   private readonly graphConverter = inject(GraphConverterService);
+
+  /**
+   * Holds the deletion retention threshold in seconds.
+   */
+  readonly deletionThresholdSeconds = signal<number>(
+    DEFAULT_DELETION_THRESHOLD_SECONDS,
+  );
 
   private readonly graphResource = resource({
     params: () => ({
@@ -42,29 +52,36 @@ export class GraphSmartComponent {
       timelineBitset: this.inspectionDataStore
         .timelineView()
         ?.filteredTimelineBitset(),
+      deletionThresholdSeconds: this.deletionThresholdSeconds(),
     }),
-    loader: async ({ params: { log, timelineBitset }, abortSignal }) => {
+    loader: async ({
+      params: { log, timelineBitset, deletionThresholdSeconds },
+      abortSignal,
+    }) => {
       if (!log) {
         return emptyGraphData();
       }
       return this.graphConverter.getGraphDataAt(
         log.timestamp,
         timelineBitset,
-        180,
+        deletionThresholdSeconds,
         abortSignal,
       );
     },
   });
 
   /**
-   * Signal holding the graph data derived from the currently selected log.
+   * Computes the graph data derived from the currently selected log.
    */
-  readonly graphData = computed<GraphData>(
-    () => this.graphResource.value() ?? emptyGraphData(),
-  );
+  readonly graphData = computed<GraphData>(() => {
+    if (this.graphResource.error()) {
+      return emptyGraphData();
+    }
+    return this.graphResource.value() ?? emptyGraphData();
+  });
 
   /**
-   * Signal indicating whether the graph resource is currently loading.
+   * Indicates whether the graph resource is currently loading.
    */
   readonly isLoading = this.graphResource.isLoading;
 }

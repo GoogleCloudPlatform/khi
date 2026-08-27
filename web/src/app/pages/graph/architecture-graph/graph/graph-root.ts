@@ -26,8 +26,14 @@ import {
  * Root <svg> element used in the graph
  */
 export class GraphRoot extends GraphObjectWithElementType<SVGSVGElement> {
-  public registerGraphObjectWithId(obj: GraphObject, _id: string) {
-    this._elementDict[_id] = obj;
+  /**
+   * Registers a GraphObject under a specific string identifier.
+   *
+   * @param obj - The graph object to register.
+   * @param id - The unique identifier.
+   */
+  public registerGraphObjectWithId(obj: GraphObject, id: string): void {
+    this._elementDict[id] = obj;
   }
   /**
    * Maximum updateLayout cycle count to reach the convergence of the layout
@@ -100,6 +106,67 @@ export class GraphRoot extends GraphObjectWithElementType<SVGSVGElement> {
       },${this._currentSize.height * this._currentScale}`,
     });
     this.applyAttribute();
+  }
+
+  /**
+   * Fits and centers the specified bounding box within the container viewport.
+   * Scales down to fit large graphs, centers small graphs with a maximum scale of 1.0.
+   *
+   * @param x - Bounding box X origin in graph space.
+   * @param y - Bounding box Y origin in graph space.
+   * @param width - Bounding box width.
+   * @param height - Bounding box height.
+   * @param padding - Optional padding in pixels around the bounding box (default 20).
+   */
+  public fitBounds(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    padding = 20,
+  ): void {
+    let containerWidth = this._currentSize.width;
+    let containerHeight = this._currentSize.height;
+
+    if (containerWidth <= 0 || containerHeight <= 0) {
+      const parent = this.typedElement.parentElement;
+      if (parent) {
+        const bbox = parent.getBoundingClientRect();
+        containerWidth = bbox.width;
+        containerHeight = bbox.height;
+        this._currentSize = { width: bbox.width, height: bbox.height };
+      }
+    }
+
+    if (
+      containerWidth <= 0 ||
+      containerHeight <= 0 ||
+      width <= 0 ||
+      height <= 0
+    ) {
+      return;
+    }
+
+    const requiredWidth = width + padding * 2;
+    const requiredHeight = height + padding * 2;
+
+    const scaleX = requiredWidth / containerWidth;
+    const scaleY = requiredHeight / containerHeight;
+
+    // ViewBox scale factor: targetScale >= 1.0 means zoom level <= 1.0 (no excessive magnification).
+    const targetScale = Math.min(
+      GraphRoot.MAXIMUM_SIZE,
+      Math.max(1.0, Math.max(scaleX, scaleY)),
+    );
+
+    this._currentScale = targetScale;
+    const viewWidth = containerWidth * targetScale;
+    const viewHeight = containerHeight * targetScale;
+
+    this._viewBoxX = x - padding + (requiredWidth - viewWidth) / 2;
+    this._viewBoxY = y - padding + (requiredHeight - viewHeight) / 2;
+
+    this._updateCanvas();
   }
 
   /**

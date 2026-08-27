@@ -23,7 +23,7 @@ import {
 } from '@angular/core';
 import { GraphRenderer } from './graph/renderer';
 import { emptyGraphData } from '../../../common/schema/graph-schema';
-import { DownloadService } from '../services/donwload-service';
+import { GraphDownloadService } from '../services/graph-download.service';
 import { GraphPageDataSource } from 'src/app/services/frame-connection/frames/graph-page-datasource.service';
 @Component({
   selector: 'graph-architecture-graph',
@@ -32,7 +32,7 @@ import { GraphPageDataSource } from 'src/app/services/frame-connection/frames/gr
 })
 export class ArchitectureGraphComponent implements AfterViewInit {
   private dataStore = inject(GraphPageDataSource);
-  private downloadService = inject(DownloadService);
+  private downloadService = inject(GraphDownloadService);
 
   @ViewChild('graphContainer')
   graphContainer!: ElementRef<HTMLDivElement>;

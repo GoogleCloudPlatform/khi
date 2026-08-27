@@ -15,6 +15,15 @@
 -->
 
 <div #graphContainer class="svg-container" [class.hidden]="isLoading()"></div>
+<div class="toolbar-wrapper">
+  <khi-graph-toolbar
+    [(deletionThresholdSeconds)]="deletionThresholdSeconds"
+    [isLoading]="isLoading()"
+    (fitToView)="fitToView()"
+    (downloadSvg)="downloadSvg()"
+    (downloadPng)="downloadPng()"
+  ></khi-graph-toolbar>
+</div>
 @if (isLoading()) {
   <div class="loading-overlay">
     <mat-spinner diameter="40"></mat-spinner>

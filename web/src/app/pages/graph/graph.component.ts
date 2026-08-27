@@ -21,7 +21,7 @@ import {
   MenuManager,
   MenuItemType,
 } from 'src/app/services/menu/menu-manager.service';
-import { DownloadService } from 'src/app/pages/graph/services/donwload-service';
+import { GraphDownloadService } from 'src/app/pages/graph/services/graph-download.service';
 
 /**
  * GraphComponent renders the architecture graph view.
@@ -36,7 +36,7 @@ import { DownloadService } from 'src/app/pages/graph/services/donwload-service';
 })
 export class GraphComponent implements OnInit {
   private readonly menuManager = inject(MenuManager);
-  private readonly downloadService = inject(DownloadService);
+  private readonly downloadService = inject(GraphDownloadService);
 
   /**
    * Initializes the component and registers the download menu.
@@ -48,7 +48,7 @@ export class GraphComponent implements OnInit {
       label: 'Download as PNG',
       type: MenuItemType.Button,
       icon: 'image',
-      action: () => this.downloadService.downloadAsPng(),
+      action: () => this.downloadService.downloadPng(),
       priority: 1,
     });
     this.menuManager.addItem('graph-download', {
@@ -56,7 +56,7 @@ export class GraphComponent implements OnInit {
       label: 'Download as SVG',
       type: MenuItemType.Button,
       icon: 'code',
-      action: () => this.downloadService.downloadAsSvg(),
+      action: () => this.downloadService.downloadSvg(),
       priority: 2,
     });
   }

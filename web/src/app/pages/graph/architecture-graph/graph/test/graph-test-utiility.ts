@@ -29,9 +29,9 @@ export function graphRootIt(
   title: string,
   callback: SvgTestCallback<GraphRoot>,
 ) {
-  it(title, () => {
+  it(title, async () => {
     const gr = generateRoot();
-    callback(gr);
+    await callback(gr);
   });
 }
 
@@ -39,9 +39,9 @@ export function rendererIt(
   title: string,
   callback: SvgTestCallback<GraphRenderer>,
 ) {
-  it(title, () => {
+  it(title, async () => {
     const gr = generateRenderer();
-    callback(gr);
+    await callback(gr);
   });
 }
 

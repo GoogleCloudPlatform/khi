@@ -43,6 +43,12 @@ import {
 import { PathPipe } from './base/path';
 import { generatePodOwnerRow } from './components/pod-owner';
 import { VERSION } from 'src/environments/version';
+import {
+  downloadSvg,
+  downloadPng,
+  generateDefaultGraphFilename,
+  GraphExportFormat,
+} from './svg-export-util';
 
 export class GraphRenderer {
   private static TITLE_DESCRIPTION = `Provided by Kubernetes History Inspector(${VERSION}).`;
@@ -270,7 +276,12 @@ export class GraphRenderer {
     ];
   }
 
-  public getSVGForDownload(): SVGElement | null {
+  /**
+   * Creates an export-ready clone of the root SVG element with bounding dimensions and viewBox set.
+   *
+   * @returns Cloned SVGElement prepared for export, or null if root element is missing.
+   */
+  private getSvgForExport(): SVGElement | null {
     const elementRoot = this.root.find('element-root');
     if (!elementRoot) return null;
     const margin = 20;
@@ -287,7 +298,49 @@ export class GraphRenderer {
     return copiedNode;
   }
 
-  public generateNoDataSelectedMessage(): GraphObject {
+  /**
+   * Fits the entire architecture graph within the viewport and centers it.
+   */
+  public fitToView(): void {
+    const elementRoot = this.root.find('element-root');
+    if (!elementRoot) {
+      return;
+    }
+    const graphSize = elementRoot.transform.contentSize;
+    this.root.fitBounds(0, 0, graphSize.width, graphSize.height, 20);
+  }
+
+  /**
+   * Downloads the current graph as an SVG image file.
+   *
+   * @param filename - The filename for the downloaded SVG file.
+   */
+  public downloadSvg(
+    filename = generateDefaultGraphFilename(GraphExportFormat.Svg),
+  ): void {
+    const rawSvg = this.getSvgForExport();
+    if (!rawSvg) return;
+    downloadSvg(rawSvg, filename);
+  }
+
+  /**
+   * Downloads the current graph as a PNG image file.
+   *
+   * @param filename - The filename for the downloaded PNG file.
+   */
+  public async downloadPng(
+    filename = generateDefaultGraphFilename(GraphExportFormat.Png),
+  ): Promise<void> {
+    const rawSvg = this.getSvgForExport();
+    if (!rawSvg) return;
+    try {
+      await downloadPng(rawSvg, filename);
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }
+
+  private generateNoDataSelectedMessage(): GraphObject {
     const labelStyle = { fill: 'white', 'font-weight': 500, 'font-size': 40 };
     return $rect()
       .withStyle({

@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+/**
+ * Defines the default retention threshold for deleted resources in seconds (3 minutes).
+ */
+export const DEFAULT_DELETION_THRESHOLD_SECONDS = 180;
+
 export function emptyGraphData(): GraphData {
   return {
     graphTime: '-',

@@ -1,0 +1,93 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+@use '../../common.scss' as common;
+
+$toolbar-background-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  50
+);
+$toolbar-border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$toolbar-shadow-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
+$toolbar-label-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
+$toolbar-icon-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500);
+
+:host {
+  display: block;
+}
+
+.toolbar-container {
+  display: grid;
+  grid-template:
+    'slider fit download' 1fr
+    / auto auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background-color: $toolbar-background-color;
+  border: 1px solid $toolbar-border-color;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px $toolbar-shadow-color;
+}
+
+.slider-section {
+  grid-area: slider;
+  display: grid;
+  grid-template:
+    'label' auto
+    'slider' auto
+    / 140px;
+  align-items: center;
+}
+
+.slider-label {
+  grid-area: label;
+  font-size: 11px;
+  font-weight: 500;
+  color: $toolbar-label-color;
+  white-space: nowrap;
+}
+
+.threshold-slider {
+  grid-area: slider;
+  width: 140px;
+  height: 24px;
+}
+
+.toolbar-button {
+  $button-size: 28px;
+
+  @include mat.icon-button-overrides(
+    (
+      state-layer-size: $button-size,
+      touch-target-size: $button-size,
+      icon-color: $toolbar-icon-color,
+    )
+  );
+
+  &.fit-button {
+    grid-area: fit;
+  }
+
+  &.download-button {
+    grid-area: download;
+  }
+
+  mat-icon {
+    @include common.centered-mat-icon(18px);
+  }
+}

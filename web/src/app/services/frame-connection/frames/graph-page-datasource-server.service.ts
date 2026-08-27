@@ -18,6 +18,7 @@ import {
   GRAPH_PAGE_OPEN,
   UPDATE_GRAPH_DATA,
 } from 'src/app/common/schema/inter-window-messages';
+import { DEFAULT_DELETION_THRESHOLD_SECONDS } from 'src/app/common/schema/graph-schema';
 import { GraphConverterService } from 'src/app/services/graph-converter.service';
 import { WindowConnectorService } from 'src/app/services/frame-connection/window-connector.service';
 import { Injectable, inject } from '@angular/core';
@@ -54,7 +55,7 @@ export class GraphPageDataSourceServer {
           const graphData = await this.graphConverter.getGraphDataAt(
             log.timestamp,
             timelineView.filteredTimelineBitset(),
-            180,
+            DEFAULT_DELETION_THRESHOLD_SECONDS,
             controller.signal,
           );
           if (!controller.signal.aborted) {

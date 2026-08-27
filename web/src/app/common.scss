@@ -25,6 +25,14 @@ $font-code: 'Google Sans Code', monospace;
   line-height: $size;
 }
 
+@mixin centered-mat-icon($size) {
+  @include adjust-mat-icon-size($size);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
 @mixin show-vertical-scrollbar-always {
   overflow-y: scroll;
 

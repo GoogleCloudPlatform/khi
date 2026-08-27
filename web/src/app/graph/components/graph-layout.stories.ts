@@ -16,7 +16,10 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { GraphLayoutComponent } from 'src/app/graph/components/graph-layout.component';
-import { emptyGraphData } from 'src/app/common/schema/graph-schema';
+import {
+  DEFAULT_DELETION_THRESHOLD_SECONDS,
+  emptyGraphData,
+} from 'src/app/common/schema/graph-schema';
 
 const meta: Meta<GraphLayoutComponent> = {
   title: 'Graph/GraphLayout',
@@ -25,6 +28,7 @@ const meta: Meta<GraphLayoutComponent> = {
   args: {
     graphData: emptyGraphData(),
     isLoading: false,
+    deletionThresholdSeconds: DEFAULT_DELETION_THRESHOLD_SECONDS,
   },
 };
 
@@ -38,7 +42,11 @@ export const Default: Story = {
     },
     template: `
       <div style="height: 500px; width: 100%;">
-        <khi-graph-layout [graphData]="graphData" [isLoading]="isLoading"></khi-graph-layout>
+        <khi-graph-layout
+          [graphData]="graphData"
+          [isLoading]="isLoading"
+          [deletionThresholdSeconds]="deletionThresholdSeconds"
+        ></khi-graph-layout>
       </div>
     `,
   }),

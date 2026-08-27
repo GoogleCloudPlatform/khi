@@ -18,6 +18,7 @@ import { Injectable, inject } from '@angular/core';
 import {
   ArchGraphCondition,
   ContainerGraphData,
+  DEFAULT_DELETION_THRESHOLD_SECONDS,
   GraphData,
   GraphNode,
   PodGraphData,
@@ -78,7 +79,7 @@ export class GraphConverterService {
   public async getGraphDataAt(
     timestampNs: bigint,
     timelineBitset?: SparseBitset,
-    deletionThresholdSeconds = 180,
+    deletionThresholdSeconds = DEFAULT_DELETION_THRESHOLD_SECONDS,
     abortSignal?: AbortSignal,
   ): Promise<GraphData> {
     const res = await this.workbenchClient.getArchitectureGraph(

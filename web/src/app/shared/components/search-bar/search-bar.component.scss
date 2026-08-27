@@ -55,11 +55,7 @@ $search-input-border-color: mat.m2-get-color-from-palette(
     );
 
     mat-icon {
-      @include common.adjust-mat-icon-size(14px);
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+      @include common.centered-mat-icon(14px);
     }
   }
 }

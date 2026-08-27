@@ -52,6 +52,7 @@ import { ProgressUtil } from '../progress/progress-util';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { resolveDownloadConfig } from 'src/app/services/api/download-config-resolver';
+import { downloadBlob } from 'src/app/utils/download-util';
 import {
   convertMapToParameterValues,
   convertProtoDryRunResponseToFrontend,
@@ -413,13 +414,7 @@ export class BackendAPIUtil {
       })
       .pipe(
         map(({ fileName, content }) => {
-          const link = document.createElement('a');
-          link.download = fileName;
-          link.href = window.URL.createObjectURL(content);
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
+          downloadBlob(content, fileName);
           progress.dismiss();
           return fileName;
         }),

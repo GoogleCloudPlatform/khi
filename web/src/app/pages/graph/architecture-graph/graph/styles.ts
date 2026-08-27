@@ -111,12 +111,6 @@ export const CONTAINER_STYLE: ElementStyle = {
   stroke: GRAPH_COLORS.CONTAINER,
 };
 
-export const FINSIHED_CONTAINER_STYLE: ElementStyle = {
-  fill: '#BABABA',
-  'stroke-width': '2',
-  stroke: GRAPH_COLORS.CONTAINER,
-};
-
 export const TRANSPARENT_BOX: ElementStyle = {
   fill: 'transparent',
   stroke: 'transparent',
