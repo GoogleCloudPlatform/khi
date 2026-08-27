@@ -15,6 +15,7 @@
  */
 
 import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
+import { ConnectError, Code } from '@connectrpc/connect';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { UserIdentityService } from 'src/app/services/api/workbench/user-identity.service';
 import {
@@ -83,6 +84,13 @@ export class WorkbenchClientService implements OnDestroy {
     WorkbenchClientService.STRUCT_YAML_CACHE_CAPACITY,
   );
 
+  private currentSessionId: string | null = null;
+  private currentInspectionId: string | null = null;
+  private inFlightReopenPromise: Promise<string | undefined> | null = null;
+
+  private readonly isWorkbenchExpiredSignal = signal<boolean>(false);
+  private readonly isReopeningSignal = signal<boolean>(false);
+
   private readonly indexStateSignal =
     signal<WatchIndexProgressResponse_IndexState>(
       WatchIndexProgressResponse_IndexState.UNSPECIFIED,
@@ -102,6 +110,17 @@ export class WorkbenchClientService implements OnDestroy {
   public readonly isWorkbenchActive = computed(
     () => this.activeWorkbenchIdSignal() !== null,
   );
+
+  /**
+   * Whether the active Workbench session has expired on the backend.
+   */
+  public readonly isWorkbenchExpired =
+    this.isWorkbenchExpiredSignal.asReadonly();
+
+  /**
+   * Whether a Workbench reopen operation is currently in progress.
+   */
+  public readonly isReopening = this.isReopeningSignal.asReadonly();
 
   /**
    * Current index construction state.
@@ -144,9 +163,36 @@ export class WorkbenchClientService implements OnDestroy {
     }
   };
 
+  private readonly visibilityChangeHandler = () => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const id = this.activeWorkbenchIdSignal();
+    if (document.visibilityState === 'hidden') {
+      this.stopHeartbeat();
+    } else if (document.visibilityState === 'visible' && id) {
+      this.startHeartbeat(id);
+      void this.heartbeat(id);
+    }
+  };
+
+  private readonly focusHandler = () => {
+    const id = this.activeWorkbenchIdSignal();
+    if (id && !this.isWorkbenchExpiredSignal()) {
+      void this.heartbeat(id);
+    }
+  };
+
   constructor() {
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', this.unloadHandler);
+      window.addEventListener('focus', this.focusHandler);
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener(
+        'visibilitychange',
+        this.visibilityChangeHandler,
+      );
     }
   }
 
@@ -156,6 +202,13 @@ export class WorkbenchClientService implements OnDestroy {
   public ngOnDestroy(): void {
     if (typeof window !== 'undefined') {
       window.removeEventListener('beforeunload', this.unloadHandler);
+      window.removeEventListener('focus', this.focusHandler);
+    }
+    if (typeof document !== 'undefined') {
+      document.removeEventListener(
+        'visibilitychange',
+        this.visibilityChangeHandler,
+      );
     }
     this.stopHeartbeat();
   }
@@ -168,6 +221,9 @@ export class WorkbenchClientService implements OnDestroy {
     inspectionId: string,
     onProgress?: WorkbenchOpenProgressCallback,
   ): Promise<string | undefined> {
+    this.currentSessionId = sessionId;
+    this.currentInspectionId = inspectionId;
+
     const userId = this.userIdService.userId;
     const responseStream = this.connectClient.workbenchClient.openWorkbench({
       userId,
@@ -188,6 +244,7 @@ export class WorkbenchClientService implements OnDestroy {
 
     if (workbenchId) {
       this.structYamlCache.clear();
+      this.isWorkbenchExpiredSignal.set(false);
       this.activeWorkbenchIdSignal.set(workbenchId);
       this.startHeartbeat(workbenchId);
       if (this.indexProgressAbortController) {
@@ -253,6 +310,26 @@ export class WorkbenchClientService implements OnDestroy {
   }
 
   /**
+   * Marks the workbench session as expired and stops heartbeat checks.
+   */
+  private markSessionExpired(): void {
+    if (!this.isWorkbenchExpiredSignal()) {
+      this.isWorkbenchExpiredSignal.set(true);
+      this.stopHeartbeat();
+    }
+  }
+
+  /**
+   * Checks if an error indicates that the backend session has expired (Code.NotFound),
+   * and marks the session as expired if so.
+   */
+  private handleSessionError(e: unknown): void {
+    if (e instanceof ConnectError && e.code === Code.NotFound) {
+      this.markSessionExpired();
+    }
+  }
+
+  /**
    * Sends a heartbeat to refresh the TTL lease of the active Workbench.
    */
   public async heartbeat(workbenchId: string): Promise<boolean> {
@@ -260,11 +337,54 @@ export class WorkbenchClientService implements OnDestroy {
       const res = await this.connectClient.workbenchClient.heartbeatWorkbench({
         workbenchId,
       });
-      return res.active;
+      if (!res.active) {
+        this.markSessionExpired();
+        return false;
+      }
+      return true;
     } catch (e) {
       console.warn(`[WorkbenchClient] Heartbeat failed for ${workbenchId}:`, e);
+      this.handleSessionError(e);
       return false;
     }
+  }
+
+  /**
+   * Reopens an expired Workbench session using the stored session and inspection identifiers.
+   * Concurrent invocations are deduplicated to share a single in-flight reopening promise.
+   *
+   * @param onProgress Optional callback for reporting reopening progress stages.
+   * @returns The restored Workbench ID.
+   */
+  public async reopenWorkbench(
+    onProgress?: WorkbenchOpenProgressCallback,
+  ): Promise<string | undefined> {
+    if (!this.currentSessionId || !this.currentInspectionId) {
+      throw new Error(
+        'No active or previous inspection session available to reopen.',
+      );
+    }
+
+    if (this.inFlightReopenPromise) {
+      return await this.inFlightReopenPromise;
+    }
+
+    this.isReopeningSignal.set(true);
+    this.inFlightReopenPromise = (async () => {
+      try {
+        const workbenchId = await this.openWorkbench(
+          this.currentSessionId!,
+          this.currentInspectionId!,
+          onProgress,
+        );
+        return workbenchId;
+      } finally {
+        this.isReopeningSignal.set(false);
+        this.inFlightReopenPromise = null;
+      }
+    })();
+
+    return await this.inFlightReopenPromise;
   }
 
   /**
@@ -278,6 +398,10 @@ export class WorkbenchClientService implements OnDestroy {
     }
     this.stopHeartbeat();
     this.structYamlCache.clear();
+    this.currentSessionId = null;
+    this.currentInspectionId = null;
+    this.isWorkbenchExpiredSignal.set(false);
+    this.isReopeningSignal.set(false);
     this.activeWorkbenchIdSignal.set(null);
     this.indexStateSignal.set(
       WatchIndexProgressResponse_IndexState.UNSPECIFIED,
@@ -316,13 +440,19 @@ export class WorkbenchClientService implements OnDestroy {
     if (!workbenchId) {
       throw new Error('No active Workbench session found.');
     }
-    const res = await this.connectClient.workbenchClient.readStructYAML({
-      workbenchId,
-      structId,
-    });
-    const yaml = res.yaml ?? '';
-    this.structYamlCache.put(structId, yaml);
-    return yaml;
+
+    try {
+      const res = await this.connectClient.workbenchClient.readStructYAML({
+        workbenchId,
+        structId,
+      });
+      const yaml = res.yaml ?? '';
+      this.structYamlCache.put(structId, yaml);
+      return yaml;
+    } catch (e) {
+      this.handleSessionError(e);
+      throw e;
+    }
   }
 
   /**
@@ -343,39 +473,44 @@ export class WorkbenchClientService implements OnDestroy {
       throw new Error('No active Workbench session found.');
     }
 
-    const responseStream = this.connectClient.workbenchClient.filterTimeline(
-      {
-        workbenchId,
-        timelineQuery: params.timelineQuery ?? '',
-        timelineExclusionQuery: params.timelineExclusionQuery ?? '',
-        logQuery: params.logQuery ?? '',
-        excludeNoLogs: params.excludeNoLogs ?? false,
-      },
-      { signal },
-    );
+    try {
+      const responseStream = this.connectClient.workbenchClient.filterTimeline(
+        {
+          workbenchId,
+          timelineQuery: params.timelineQuery ?? '',
+          timelineExclusionQuery: params.timelineExclusionQuery ?? '',
+          logQuery: params.logQuery ?? '',
+          excludeNoLogs: params.excludeNoLogs ?? false,
+        },
+        { signal },
+      );
 
-    let result: FilterTimelineResult = {};
+      let result: FilterTimelineResult = {};
 
-    for await (const res of responseStream) {
-      if (res.payload.case === 'progress' && res.payload.value) {
-        if (onProgress) {
-          onProgress(
-            res.payload.value.stageName ?? '',
-            res.payload.value.current ?? 0,
-            res.payload.value.total ?? 0,
-          );
+      for await (const res of responseStream) {
+        if (res.payload.case === 'progress' && res.payload.value) {
+          if (onProgress) {
+            onProgress(
+              res.payload.value.stageName ?? '',
+              res.payload.value.current ?? 0,
+              res.payload.value.total ?? 0,
+            );
+          }
+        } else if (res.payload.case === 'result' && res.payload.value) {
+          result = {
+            timelineMode: res.payload.value.timelineMode,
+            timelineBitset: res.payload.value.timelineBitset,
+            logMode: res.payload.value.logMode,
+            logBitset: res.payload.value.logBitset,
+          };
         }
-      } else if (res.payload.case === 'result' && res.payload.value) {
-        result = {
-          timelineMode: res.payload.value.timelineMode,
-          timelineBitset: res.payload.value.timelineBitset,
-          logMode: res.payload.value.logMode,
-          logBitset: res.payload.value.logBitset,
-        };
       }
-    }
 
-    return result;
+      return result;
+    } catch (e) {
+      this.handleSessionError(e);
+      throw e;
+    }
   }
 
   private startHeartbeat(workbenchId: string): void {

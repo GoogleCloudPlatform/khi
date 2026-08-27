@@ -1,0 +1,62 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<h2 mat-dialog-title class="dialog-title">
+  @if (errorMessage()) {
+    <mat-icon class="title-icon error-icon">error_outline</mat-icon>
+    <span>Failed to Reconnect</span>
+  } @else {
+    <mat-icon class="title-icon warning-icon">schedule</mat-icon>
+    <span>Session Timed Out</span>
+  }
+</h2>
+
+<mat-dialog-content class="dialog-content">
+  @if (errorMessage()) {
+    <p class="description error-description">
+      An error occurred while reconnecting to the server:
+    </p>
+    <div class="error-box">
+      {{ errorMessage() }}
+    </div>
+    <p class="hint-text">
+      You can retry reconnecting, or return to the startup screen to load
+      another inspection.
+    </p>
+  } @else {
+    <p class="description">Your session timed out due to inactivity.</p>
+    <p class="detail-text">
+      Features such as viewing resource YAML and timeline search require a
+      server connection.
+    </p>
+    <p class="hint-text">
+      Please reconnect to resume your inspection, or return to the startup
+      screen.
+    </p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button mat-button (click)="returnToStartup.emit()">Return to Startup</button>
+  <button
+    mat-flat-button
+    color="primary"
+    [disabled]="isReconnecting()"
+    (click)="reconnect.emit()"
+  >
+    {{ errorMessage() ? "Retry" : "Reconnect" }}
+  </button>
+</mat-dialog-actions>

@@ -22,6 +22,7 @@ import {
   WatchIndexProgressResponse_IndexState,
 } from 'src/app/generated/api/v1/workbench_pb';
 import { create } from '@bufbuild/protobuf';
+import { ConnectError, Code } from '@connectrpc/connect';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { UserIdentityService } from 'src/app/services/api/workbench/user-identity.service';
 import {
@@ -443,5 +444,169 @@ describe('WorkbenchClientService', () => {
 
     await service.closeWorkbench('wb-1');
     expect(capturedSignal?.aborted).toBeTrue();
+  });
+
+  it('should mark workbench as expired when heartbeat returns inactive', async () => {
+    (
+      mockConnectClient.workbenchClient.heartbeatWorkbench as jasmine.Spy
+    ).and.returnValue(Promise.resolve({ active: false }));
+
+    const isActive = await service.heartbeat('wb-1');
+
+    expect(isActive).toBeFalse();
+    expect(service.isWorkbenchExpired()).toBeTrue();
+  });
+
+  it('should mark workbench as expired when heartbeat throws ConnectError Code.NotFound', async () => {
+    const notFoundErr = new ConnectError('session expired', Code.NotFound);
+    (
+      mockConnectClient.workbenchClient.heartbeatWorkbench as jasmine.Spy
+    ).and.returnValue(Promise.reject(notFoundErr));
+
+    const isActive = await service.heartbeat('wb-1');
+
+    expect(isActive).toBeFalse();
+    expect(service.isWorkbenchExpired()).toBeTrue();
+  });
+
+  it('should mark workbench as expired when readStructYAML throws ConnectError Code.NotFound', async () => {
+    async function* mockOpenStream() {
+      yield {
+        stage: OpenWorkbenchResponse_Stage.READY,
+        progressPercentage: 100,
+        message: 'Ready',
+        workbenchId: 'wb-active',
+      };
+    }
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenStream());
+    const notFoundErr = new ConnectError('not found', Code.NotFound);
+    (
+      mockConnectClient.workbenchClient.readStructYAML as jasmine.Spy
+    ).and.returnValue(Promise.reject(notFoundErr));
+
+    await service.openWorkbench('s-1', 'i-1');
+    expect(service.isWorkbenchExpired()).toBeFalse();
+
+    await expectAsync(service.readStructYAML(10)).toBeRejectedWith(notFoundErr);
+    expect(service.isWorkbenchExpired()).toBeTrue();
+  });
+
+  it('should mark workbench as expired when filterTimeline throws ConnectError Code.NotFound', async () => {
+    async function* mockOpenStream() {
+      yield {
+        stage: OpenWorkbenchResponse_Stage.READY,
+        progressPercentage: 100,
+        message: 'Ready',
+        workbenchId: 'wb-active',
+      };
+    }
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenStream());
+    const notFoundErr = new ConnectError('not found', Code.NotFound);
+    (
+      mockConnectClient.workbenchClient.filterTimeline as jasmine.Spy
+    ).and.returnValue(
+      (async function* () {
+        throw notFoundErr;
+      })(),
+    );
+
+    await service.openWorkbench('s-1', 'i-1');
+    expect(service.isWorkbenchExpired()).toBeFalse();
+
+    await expectAsync(service.filterTimeline({})).toBeRejectedWith(notFoundErr);
+    expect(service.isWorkbenchExpired()).toBeTrue();
+  });
+
+  it('should reopen workbench using stored session and inspection IDs and reset expired flag', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.callFake(() => {
+      return (async function* () {
+        yield {
+          stage: OpenWorkbenchResponse_Stage.READY,
+          progressPercentage: 100,
+          message: 'Ready',
+          workbenchId: 'wb-reopened',
+        };
+      })();
+    });
+
+    await service.openWorkbench('my-session', 'my-inspection');
+    (
+      service as unknown as {
+        isWorkbenchExpiredSignal: { set: (v: boolean) => void };
+      }
+    ).isWorkbenchExpiredSignal.set(true);
+    expect(service.isWorkbenchExpired()).toBeTrue();
+
+    const reopenedId = await service.reopenWorkbench();
+
+    expect(reopenedId).toBe('wb-reopened');
+    expect(service.activeWorkbenchId()).toBe('wb-reopened');
+    expect(service.isWorkbenchExpired()).toBeFalse();
+  });
+
+  it('should deduplicate concurrent reopenWorkbench invocations', async () => {
+    let callCount = 0;
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.callFake(() => {
+      callCount++;
+      return (async function* () {
+        yield {
+          stage: OpenWorkbenchResponse_Stage.READY,
+          progressPercentage: 100,
+          message: 'Ready',
+          workbenchId: 'wb-reopened',
+        };
+      })();
+    });
+
+    await service.openWorkbench('my-session', 'my-inspection');
+
+    const [id1, id2] = await Promise.all([
+      service.reopenWorkbench(),
+      service.reopenWorkbench(),
+    ]);
+
+    expect(id1).toBe('wb-reopened');
+    expect(id2).toBe('wb-reopened');
+    expect(callCount).toBe(2); // 1 for initial open, 1 for deduplicated reopen
+  });
+
+  it('should throw error when reopenWorkbench is called without prior openWorkbench', async () => {
+    await expectAsync(service.reopenWorkbench()).toBeRejectedWithError(
+      'No active or previous inspection session available to reopen.',
+    );
+  });
+
+  it('should reset session IDs and expiration signals on closeWorkbench', async () => {
+    async function* mockOpenStream() {
+      yield {
+        stage: OpenWorkbenchResponse_Stage.READY,
+        progressPercentage: 100,
+        message: 'Ready',
+        workbenchId: 'wb-1',
+      };
+    }
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenStream());
+    (
+      mockConnectClient.workbenchClient.closeWorkbench as jasmine.Spy
+    ).and.returnValue(Promise.resolve({ closed: true }));
+
+    await service.openWorkbench('session-1', 'insp-1');
+    await service.closeWorkbench('wb-1');
+
+    await expectAsync(service.reopenWorkbench()).toBeRejectedWithError(
+      'No active or previous inspection session available to reopen.',
+    );
+    expect(service.isWorkbenchExpired()).toBeFalse();
+    expect(service.isReopening()).toBeFalse();
   });
 });

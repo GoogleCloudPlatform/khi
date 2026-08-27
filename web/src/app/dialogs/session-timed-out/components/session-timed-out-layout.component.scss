@@ -1,0 +1,128 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+$dialog-min-width: 480px;
+$dialog-max-width: 560px;
+$title-color: #1f1f1f;
+$warning-icon-color: #f59e0b;
+$error-icon-color: #d93025;
+$text-primary-color: #374151;
+$text-secondary-color: #6b7280;
+$error-box-bg: #fef2f2;
+$error-box-border: #fca5a5;
+$error-box-text: #991b1b;
+$actions-border-color: #e5e7eb;
+
+:host {
+  display: grid;
+  grid-template:
+    'title' auto
+    'content' 1fr
+    'actions' auto
+    / 1fr;
+  min-width: $dialog-min-width;
+  max-width: $dialog-max-width;
+}
+
+.dialog-title {
+  grid-area: title;
+  display: grid;
+  grid-template:
+    'icon heading' auto
+    / auto 1fr;
+  gap: 12px;
+  align-items: center;
+  margin: 0;
+  padding: 20px 24px 12px;
+  color: $title-color;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.title-icon {
+  grid-area: icon;
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+
+  &.warning-icon {
+    color: $warning-icon-color;
+  }
+
+  &.error-icon {
+    color: $error-icon-color;
+  }
+}
+
+.dialog-content {
+  grid-area: content;
+  display: grid;
+  grid-template:
+    'body' 1fr
+    / 1fr;
+  margin: 0;
+  padding: 8px 24px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: $text-primary-color;
+
+  .description {
+    margin: 0 0 12px;
+    font-weight: 500;
+  }
+
+  .detail-text {
+    margin: 0 0 12px;
+    color: $text-secondary-color;
+  }
+
+  .hint-text {
+    margin: 0;
+    color: $text-secondary-color;
+    font-size: 13px;
+  }
+
+  .error-description {
+    color: $error-box-text;
+  }
+
+  .error-box {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    background-color: $error-box-bg;
+    border: 1px solid $error-box-border;
+    border-radius: 4px;
+    color: $error-box-text;
+    font-family: monospace;
+    font-size: 12px;
+    word-break: break-all;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+}
+
+.dialog-actions {
+  grid-area: actions;
+  display: grid;
+  grid-template:
+    'cancel submit' auto
+    / auto auto;
+  justify-content: end;
+  gap: 12px;
+  padding: 12px 24px 20px;
+  margin: 0;
+  border-top: 1px solid $actions-border-color;
+}

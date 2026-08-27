@@ -50,6 +50,7 @@ import {
   SETTINGS_STORAGE,
   SettingsStorage,
 } from 'src/app/services/settings/settings-storage';
+import { SessionTimeoutDialogService } from 'src/app/services/api/workbench/session-timeout-dialog.service';
 import {
   RequestUserActionPopupComponent,
   RequestUserActionPopupRequest,
@@ -118,6 +119,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     inject(NotificationManager);
 
   constructor() {
+    // Eagerly instantiate dialog monitor to observe session expiration.
+    inject(SessionTimeoutDialogService);
+
     let lastDialogRef: MatDialogRef<RequestUserActionPopupComponent> | null =
       null;
     let lastPopupId: string | null = null;
