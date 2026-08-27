@@ -137,7 +137,11 @@ export function parseIntegerQueryParam(
   if (input === null || input === undefined) {
     return undefined;
   }
-  const parsed = parseInt(input.trim(), 10);
+  const trimmed = input.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return undefined;
+  }
+  const parsed = parseInt(trimmed, 10);
   if (isNaN(parsed) || parsed < min) {
     return undefined;
   }

@@ -147,6 +147,9 @@ describe('config-resolver', () => {
       expect(parseIntegerQueryParam(undefined)).toBeUndefined();
       expect(parseIntegerQueryParam('')).toBeUndefined();
       expect(parseIntegerQueryParam('abc')).toBeUndefined();
+      expect(parseIntegerQueryParam('4abc')).toBeUndefined();
+      expect(parseIntegerQueryParam('12.34')).toBeUndefined();
+      expect(parseIntegerQueryParam('1e5')).toBeUndefined();
     });
   });
 
