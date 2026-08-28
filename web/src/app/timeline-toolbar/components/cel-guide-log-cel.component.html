@@ -37,10 +37,8 @@
         <code>body('operation.id', 'operation-123')</code>
       </div>
       <div class="example-card">
-        <span class="example-label"
-          >Filter by summary containing 'error' (case-insensitive)</span
-        >
-        <code>summary.contains('error')</code>
+        <span class="example-label">Filter by log type</span>
+        <code>logType == 'k8s-audit'</code>
       </div>
     </div>
   </div>
@@ -96,21 +94,6 @@
             Severity level (e.g. <code>INFO</code>, <code>WARNING</code>,
             <code>ERROR</code>, <code>FATAL</code>).
           </td>
-        </tr>
-        <tr>
-          <td><code>summary</code></td>
-          <td><code>string</code></td>
-          <td>A brief text summary of the log.</td>
-        </tr>
-        <tr>
-          <td><code>body</code></td>
-          <td><code>map</code></td>
-          <td>The parsed structured JSON body of the log.</td>
-        </tr>
-        <tr>
-          <td><code>bodyYAML</code></td>
-          <td><code>string</code></td>
-          <td>The entire log body represented as YAML.</td>
         </tr>
       </tbody>
     </table>

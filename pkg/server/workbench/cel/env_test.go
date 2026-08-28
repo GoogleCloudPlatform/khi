@@ -251,11 +251,6 @@ user:
 			want:       true,
 		},
 		{
-			name:       "match summary contains",
-			expression: `summary.contains("schedule")`,
-			want:       true,
-		},
-		{
 			name:       "body helper with field path",
 			expression: `body("user.username", "admin")`,
 			want:       true,

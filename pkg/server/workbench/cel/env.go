@@ -160,8 +160,6 @@ func NewTimelineEvaluator() (*TimelineEvaluator, error) {
 		cel.Variable("name", cel.StringType),
 		cel.Variable("timelineType", cel.StringType),
 		cel.Variable("path", cel.MapType(cel.StringType, cel.StringType)),
-		cel.Variable("events", cel.ListType(cel.MapType(cel.StringType, cel.DynType))),
-		cel.Variable("revisions", cel.ListType(cel.MapType(cel.StringType, cel.DynType))),
 		cel.Variable("UNKNOWN", cel.IntType),
 		cel.Variable("INFO", cel.IntType),
 		cel.Variable("WARNING", cel.IntType),
@@ -384,9 +382,6 @@ func NewLogEvaluator() (*LogEvaluator, error) {
 		cel.Variable("l", cel.MapType(cel.StringType, cel.DynType)),
 		cel.Variable("logType", cel.StringType),
 		cel.Variable("severity", cel.IntType),
-		cel.Variable("summary", cel.StringType),
-		cel.Variable("body", cel.MapType(cel.StringType, cel.DynType)),
-		cel.Variable("bodyYAML", cel.StringType),
 		cel.Variable("UNKNOWN", cel.IntType),
 		cel.Variable("INFO", cel.IntType),
 		cel.Variable("WARNING", cel.IntType),
@@ -473,15 +468,9 @@ func (e *LogEvaluator) Evaluate(ctx context.Context, l *LogData) (bool, error) {
 		severity = int64(e.styleResolver.ResolveSeverity(l.SeverityTypeID))
 	}
 
-	summary := ""
-	if l.SummaryStringID != 0 && e.internPool != nil {
-		summary = e.internPool.ResolveStringFromID(l.SummaryStringID)
-	}
-
 	lVars := map[string]any{
 		"logType":  logType,
 		"severity": severity,
-		"summary":  summary,
 		"UNKNOWN":  int64(0),
 		"INFO":     int64(1),
 		"WARNING":  int64(2),
