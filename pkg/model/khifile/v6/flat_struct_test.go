@@ -242,6 +242,27 @@ func TestFlatStructStore_StoreProtoBatch(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "single struct with id 0",
+			inputs: []*pb.InternedStruct{
+				{
+					Id:             proto.Uint32(0),
+					FieldPathSetId: proto.Uint32(1),
+					Values: []*pb.InternedValue{
+						{Kind: &pb.InternedValue_StringValue{StringValue: 50}},
+					},
+				},
+			},
+			wantStructs: map[uint32]*pb.InternedStruct{
+				0: {
+					Id:             proto.Uint32(0),
+					FieldPathSetId: proto.Uint32(1),
+					Values: []*pb.InternedValue{
+						{Kind: &pb.InternedValue_StringValue{StringValue: 50}},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -254,6 +275,67 @@ func TestFlatStructStore_StoreProtoBatch(t *testing.T) {
 				if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 					t.Errorf("ResolveStruct(%d) mismatch (-want +got):\n%s", id, diff)
 				}
+			}
+		})
+	}
+}
+
+func TestFlatStructStore_NestedStructWithID(t *testing.T) {
+	testCases := []struct {
+		name       string
+		input      *pb.InternedStruct
+		wantParent *pb.InternedStruct
+		wantChild  *pb.InternedStruct
+	}{
+		{
+			name: "inline nested struct with ID does not deadlock",
+			input: &pb.InternedStruct{
+				Id:             proto.Uint32(1),
+				FieldPathSetId: proto.Uint32(10),
+				Values: []*pb.InternedValue{
+					{
+						Kind: &pb.InternedValue_StructValue{
+							StructValue: &pb.InternedStruct{
+								Id:             proto.Uint32(2),
+								FieldPathSetId: proto.Uint32(20),
+								Values: []*pb.InternedValue{
+									{Kind: &pb.InternedValue_Int64Value{Int64Value: 999}},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantParent: &pb.InternedStruct{
+				Id:             proto.Uint32(1),
+				FieldPathSetId: proto.Uint32(10),
+				Values: []*pb.InternedValue{
+					{Kind: &pb.InternedValue_StructId{StructId: 2}},
+				},
+			},
+			wantChild: &pb.InternedStruct{
+				Id:             proto.Uint32(2),
+				FieldPathSetId: proto.Uint32(20),
+				Values: []*pb.InternedValue{
+					{Kind: &pb.InternedValue_Int64Value{Int64Value: 999}},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := NewFlatStructStore()
+			store.StoreProto(tc.input)
+
+			gotParent := store.ResolveStruct(*tc.wantParent.Id)
+			if diff := cmp.Diff(tc.wantParent, gotParent, protocmp.Transform()); diff != "" {
+				t.Errorf("ResolveStruct(%d) parent mismatch (-want +got):\n%s", *tc.wantParent.Id, diff)
+			}
+
+			gotChild := store.ResolveStruct(*tc.wantChild.Id)
+			if diff := cmp.Diff(tc.wantChild, gotChild, protocmp.Transform()); diff != "" {
+				t.Errorf("ResolveStruct(%d) child mismatch (-want +got):\n%s", *tc.wantChild.Id, diff)
 			}
 		})
 	}

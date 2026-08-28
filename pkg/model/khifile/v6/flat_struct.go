@@ -131,7 +131,10 @@ func (s *FlatStructStore) reserveSlots(count uint32) uint32 {
 func (s *FlatStructStore) Store(id uint32, fieldPathSetID uint32, values []*pb.InternedValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.storeLocked(id, fieldPathSetID, values)
+}
 
+func (s *FlatStructStore) storeLocked(id uint32, fieldPathSetID uint32, values []*pb.InternedValue) {
 	s.ensureStructCapacity(id)
 	if !s.structPresent[id] {
 		s.structPresent[id] = true
@@ -159,6 +162,12 @@ func (s *FlatStructStore) Store(id uint32, fieldPathSetID uint32, values []*pb.I
 
 // StoreProto extracts metadata from a pb.InternedStruct message and stores it flatly.
 func (s *FlatStructStore) StoreProto(structObj *pb.InternedStruct) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.storeProtoLocked(structObj)
+}
+
+func (s *FlatStructStore) storeProtoLocked(structObj *pb.InternedStruct) {
 	if structObj == nil || structObj.Id == nil {
 		return
 	}
@@ -166,7 +175,7 @@ func (s *FlatStructStore) StoreProto(structObj *pb.InternedStruct) {
 	if structObj.FieldPathSetId != nil {
 		fieldSetID = *structObj.FieldPathSetId
 	}
-	s.Store(*structObj.Id, fieldSetID, structObj.Values)
+	s.storeLocked(*structObj.Id, fieldSetID, structObj.Values)
 }
 
 // StoreProtoBatch extracts metadata from a slice of pb.InternedStruct messages and stores them in a single batch.
@@ -181,12 +190,16 @@ func (s *FlatStructStore) StoreProtoBatch(structObjs []*pb.InternedStruct) {
 	defer s.mu.Unlock()
 
 	var maxID uint32
+	var hasStructs bool
 	for _, obj := range structObjs {
-		if obj != nil && obj.Id != nil && *obj.Id > maxID {
-			maxID = *obj.Id
+		if obj != nil && obj.Id != nil {
+			if *obj.Id > maxID {
+				maxID = *obj.Id
+			}
+			hasStructs = true
 		}
 	}
-	if maxID > 0 {
+	if hasStructs {
 		s.ensureStructCapacity(maxID)
 	}
 
@@ -293,7 +306,7 @@ func (s *FlatStructStore) encodeValueAt(slot uint32, v *pb.InternedValue) {
 	case *pb.InternedValue_StructValue:
 		if k.StructValue != nil {
 			if k.StructValue.Id != nil {
-				s.StoreProto(k.StructValue)
+				s.storeProtoLocked(k.StructValue)
 				s.valueKinds[slot] = uint8(FlatValueKindStructID)
 				s.valueData[slot] = uint64(*k.StructValue.Id)
 				s.valueAux[slot] = 0

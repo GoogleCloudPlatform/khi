@@ -293,7 +293,7 @@ func (p *InternPool) InternStruct(fieldPathSetID uint32, values []*pb.InternedVa
 
 	actual, loaded := p.structToID.LoadOrStore(key, id)
 	if loaded {
-		p.idToStruct.Delete(id)
+		p.idToStruct.Store(id, (*pb.InternedStruct)(nil))
 		return &InternStructRef{pool: p, id: actual.(uint32)}
 	}
 
@@ -375,8 +375,8 @@ func (p *InternPool) FieldSetRefs() iter.Seq[*FieldPathSetRef] {
 // StructRefs returns an iterator that yields InternStructRefs in the pool, sorted by their ID.
 func (p *InternPool) StructRefs() iter.Seq[*InternStructRef] {
 	var ids []uint32
-	p.idToStruct.Range(func(key, value any) bool {
-		ids = append(ids, key.(uint32))
+	p.structToID.Range(func(key, value any) bool {
+		ids = append(ids, value.(uint32))
 		return true
 	})
 	sort.Slice(ids, func(i, j int) bool {
