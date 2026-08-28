@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -127,24 +128,69 @@ type RawChunk struct {
 	Data []byte // Compressed gzip data
 }
 
-// Decompress decompresses the gzip payload and returns a Chunk with uncompressed protobuf data.
-func (rc *RawChunk) Decompress() (*Chunk, error) {
-	gr, err := gzip.NewReader(bytes.NewReader(rc.Data))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
+var (
+	gzipReaderPool = sync.Pool{
+		New: func() any {
+			return new(gzip.Reader)
+		},
 	}
-	defer gr.Close()
+	gzipBufferPool = sync.Pool{
+		New: func() any {
+			return new(bytes.Buffer)
+		},
+	}
+)
+
+// DecompressWith decompresses the gzip payload using pooled resources and passes the uncompressed byte slice
+// to the callback. The buffer is recycled once the callback returns.
+func (rc *RawChunk) DecompressWith(fn func(data []byte) error) error {
+	gr := gzipReaderPool.Get().(*gzip.Reader)
+	if err := gr.Reset(bytes.NewReader(rc.Data)); err != nil {
+		// If reset fails on uninitialized reader, create a fresh reader
+		fresh, newErr := gzip.NewReader(bytes.NewReader(rc.Data))
+		if newErr != nil {
+			return fmt.Errorf("failed to create gzip reader: %w", newErr)
+		}
+		gr = fresh
+	}
+	defer func() {
+		_ = gr.Close()
+		gzipReaderPool.Put(gr)
+	}()
+
+	buf := gzipBufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer func() {
+		// Only retain buffers up to 32MB in the pool to prevent memory pinning
+		if buf.Cap() <= 32*1024*1024 {
+			gzipBufferPool.Put(buf)
+		}
+	}()
 
 	const maxUncompressedSize = 64 * 1024 * 1024 // 64MB limit to match Protobuf parser limits
-	uncompressed, err := io.ReadAll(io.LimitReader(gr, maxUncompressedSize))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decompress payload: %w", err)
+	if _, err := io.Copy(buf, io.LimitReader(gr, maxUncompressedSize)); err != nil {
+		return fmt.Errorf("failed to decompress payload: %w", err)
 	}
 
-	return &Chunk{
-		Type: rc.Type,
-		Data: uncompressed,
-	}, nil
+	return fn(buf.Bytes())
+}
+
+// Decompress decompresses the gzip payload and returns a Chunk with uncompressed protobuf data.
+func (rc *RawChunk) Decompress() (*Chunk, error) {
+	var chunk *Chunk
+	err := rc.DecompressWith(func(data []byte) error {
+		uncompressed := make([]byte, len(data))
+		copy(uncompressed, data)
+		chunk = &Chunk{
+			Type: rc.Type,
+			Data: uncompressed,
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return chunk, nil
 }
 
 // Chunk represents a parsed chunk from a KHI v6 file.

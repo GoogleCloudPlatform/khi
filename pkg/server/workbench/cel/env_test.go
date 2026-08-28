@@ -219,13 +219,19 @@ user:
 	}
 	eval.SetTrigramIndex(trigramIndex)
 	eval.SetStructYAMLs(structYAMLs)
+	eval.SetStyleResolver(&SimpleStyleResolver{
+		LogTypes:   map[uint32]string{1: "k8s-audit"},
+		Severities: map[uint32]uint32{3: 3},
+	})
+
+	sumRef := pool.InternString("failed to schedule pod")
 
 	testLog := &LogData{
-		ID:           10,
-		LogType:      "k8s-audit",
-		Severity:     3, // ERROR
-		Summary:      "failed to schedule pod",
-		BodyStructID: sRef.ID(),
+		ID:              10,
+		LogTypeID:       1,
+		SeverityTypeID:  3, // ERROR
+		SummaryStringID: sumRef.ID(),
+		BodyStructID:    sRef.ID(),
 	}
 
 	testCases := []struct {
@@ -402,14 +408,20 @@ user:
 		t.Fatalf("failed to create LogEvaluator: %v", err)
 	}
 	eval.SetInternPool(pool)
+	eval.SetStyleResolver(&SimpleStyleResolver{
+		LogTypes:   map[uint32]string{1: "k8s-audit"},
+		Severities: map[uint32]uint32{3: 3},
+	})
 	// Trigram index is NOT set (fallback to full scan)
 
+	sumRef := pool.InternString("failed to schedule pod")
+
 	testLog := &LogData{
-		ID:           10,
-		LogType:      "k8s-audit",
-		Severity:     3,
-		Summary:      "failed to schedule pod",
-		BodyStructID: sRef.ID(),
+		ID:              10,
+		LogTypeID:       1,
+		SeverityTypeID:  3,
+		SummaryStringID: sumRef.ID(),
+		BodyStructID:    sRef.ID(),
 	}
 
 	testCases := []struct {
@@ -501,19 +513,22 @@ spec:
 		t.Fatalf("failed to intern struct 2: %v", err)
 	}
 
+	sumRef1 := pool.InternString("pod created")
+	sumRef2 := pool.InternString("pod inspected")
+
 	log1 := &LogData{
-		ID:           1,
-		LogType:      "k8s-audit",
-		Severity:     3,
-		Summary:      "pod created",
-		BodyStructID: sRef1.ID(),
+		ID:              1,
+		LogTypeID:       1,
+		SeverityTypeID:  3,
+		SummaryStringID: sumRef1.ID(),
+		BodyStructID:    sRef1.ID(),
 	}
 	log2 := &LogData{
-		ID:           2,
-		LogType:      "k8s-audit",
-		Severity:     1,
-		Summary:      "pod inspected",
-		BodyStructID: sRef2.ID(),
+		ID:              2,
+		LogTypeID:       1,
+		SeverityTypeID:  1,
+		SummaryStringID: sumRef2.ID(),
+		BodyStructID:    sRef2.ID(),
 	}
 
 	trigramIdx := NewTrigramIndex()
@@ -521,7 +536,7 @@ spec:
 		{ID: log1.ID, BodyStructID: log1.BodyStructID},
 		{ID: log2.ID, BodyStructID: log2.BodyStructID},
 	}
-	if err := trigramIdx.BuildFromLogPool(pool, logItems, nil); err != nil {
+	if err := trigramIdx.BuildFromLogPool(toReadonlyPool(pool), logItems, nil); err != nil {
 		t.Fatalf("BuildFromLogPool() failed: %v", err)
 	}
 
@@ -531,6 +546,13 @@ spec:
 	}
 	eval.SetInternPool(pool)
 	eval.SetTrigramIndex(trigramIdx)
+	eval.SetStyleResolver(&SimpleStyleResolver{
+		LogTypes: map[uint32]string{1: "k8s-audit"},
+		Severities: map[uint32]uint32{
+			1: 1,
+			3: 3,
+		},
+	})
 
 	testCases := []struct {
 		name       string

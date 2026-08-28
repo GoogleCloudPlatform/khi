@@ -185,7 +185,7 @@ func mapToInternedValue(node structured.Node, pool *InternPool) (*pb.InternedVal
 }
 
 // FromInternedStruct converts an InternedStruct back to a structured.Node.
-func FromInternedStruct(s *pb.InternedStruct, pool *InternPool) (structured.Node, error) {
+func FromInternedStruct(s *pb.InternedStruct, pool ReadonlyPool) (structured.Node, error) {
 	if s == nil {
 		return nil, fmt.Errorf("InternedStruct is nil")
 	}
@@ -193,8 +193,11 @@ func FromInternedStruct(s *pb.InternedStruct, pool *InternPool) (structured.Node
 		return nil, fmt.Errorf("FieldPathSetId is nil")
 	}
 
-	fieldSetRef := &FieldPathSetRef{pool: pool, id: *s.FieldPathSetId}
-	keys := fieldSetRef.Resolve()
+	fieldSetIDs := pool.ResolveFieldSetFromID(*s.FieldPathSetId)
+	keys := make([]string, len(fieldSetIDs))
+	for i, id := range fieldSetIDs {
+		keys[i] = pool.ResolveStringFromID(id)
+	}
 
 	if len(keys) != len(s.Values) {
 		return nil, fmt.Errorf("length mismatch: keys=%d, values=%d", len(keys), len(s.Values))
@@ -279,7 +282,7 @@ func unflattenNodes(keys []string, values []structured.Node) (structured.Node, e
 }
 
 // FromInternedValue converts an InternedValue back to a structured.Node.
-func FromInternedValue(v *pb.InternedValue, pool *InternPool) (structured.Node, error) {
+func FromInternedValue(v *pb.InternedValue, pool ReadonlyPool) (structured.Node, error) {
 	if v == nil {
 		return nil, fmt.Errorf("InternedValue is nil")
 	}
@@ -289,7 +292,7 @@ func FromInternedValue(v *pb.InternedValue, pool *InternPool) (structured.Node, 
 	case *pb.InternedValue_BoolValue:
 		return structured.NewStandardScalarNode(kind.BoolValue), nil
 	case *pb.InternedValue_StringValue:
-		return structured.NewStandardScalarNode(pool.resolveStringFromID(kind.StringValue)), nil
+		return structured.NewStandardScalarNode(pool.ResolveStringFromID(kind.StringValue)), nil
 	case *pb.InternedValue_Int64Value:
 		return structured.NewStandardScalarNode(int(kind.Int64Value)), nil
 	case *pb.InternedValue_DoubleValue:
@@ -307,7 +310,7 @@ func FromInternedValue(v *pb.InternedValue, pool *InternPool) (structured.Node, 
 		}
 		return structured.NewStandardSequenceNode(elements), nil
 	case *pb.InternedValue_StructId:
-		resolved := pool.resolveStructFromID(kind.StructId)
+		resolved := pool.ResolveStructFromID(kind.StructId)
 		if resolved == nil {
 			return nil, fmt.Errorf("struct id %d not found in pool", kind.StructId)
 		}

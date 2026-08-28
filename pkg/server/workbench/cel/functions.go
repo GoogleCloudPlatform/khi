@@ -50,7 +50,7 @@ func combinePatterns(patterns []string) string {
 }
 
 // resolveStructYAML resolves the YAML string representation for a given struct ID, using the cache if available or serializing on-demand from the intern pool.
-func resolveStructYAML(structID uint32, pool *khifilev6model.InternPool, structYAMLs map[uint32]string) (string, bool) {
+func resolveStructYAML(structID uint32, pool khifilev6model.ReadonlyPool, structYAMLs map[uint32]string) (string, bool) {
 	if structYAMLs != nil {
 		if yaml, ok := structYAMLs[structID]; ok {
 			return yaml, true
@@ -75,7 +75,7 @@ func resolveStructYAML(structID uint32, pool *khifilev6model.InternPool, structY
 }
 
 // resolveStructNode resolves the structured.Node from an interned struct ID.
-func resolveStructNode(structID uint32, pool *khifilev6model.InternPool) (structured.Node, bool) {
+func resolveStructNode(structID uint32, pool khifilev6model.ReadonlyPool) (structured.Node, bool) {
 	if pool == nil {
 		return nil, false
 	}
@@ -126,7 +126,7 @@ func MatchTimelinePath(t *TimelineData, key string, patterns []string, tlMap map
 }
 
 // MatchTimelineRevisionBodyField checks if any revision in timeline matches the pathKey and pattern(s).
-func MatchTimelineRevisionBodyField(t *TimelineData, pathKey string, patterns []string, pool *khifilev6model.InternPool) bool {
+func MatchTimelineRevisionBodyField(t *TimelineData, pathKey string, patterns []string, pool khifilev6model.ReadonlyPool) bool {
 	if t == nil || len(patterns) == 0 || pool == nil {
 		return false
 	}
@@ -153,7 +153,7 @@ func MatchLogField(
 	l *LogData,
 	pathKey string,
 	patterns []string,
-	pool *khifilev6model.InternPool,
+	pool khifilev6model.ReadonlyPool,
 	trigramIndex *TrigramIndex,
 	structYAMLs map[uint32]string,
 ) (bool, error) {

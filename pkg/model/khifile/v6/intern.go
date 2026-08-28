@@ -40,6 +40,11 @@ func (r *InternStringRef) Resolve() string {
 	return r.pool.resolveStringFromID(r.id)
 }
 
+// ID returns the interned string ID.
+func (r *InternStringRef) ID() uint32 {
+	return r.id
+}
+
 // ToProto converts InternStringRef to its proto representation.
 func (r *InternStringRef) ToProto() *pbv6.InternString {
 	id := r.id
@@ -115,6 +120,8 @@ type InternPool struct {
 	structToID sync.Map // map[string]uint32
 	idToStruct sync.Map // map[uint32]*pb.InternedStruct
 }
+
+var _ ReadonlyPool = (*InternPool)(nil)
 
 // NewInternPool creates a new InternPool with the given IDGenerator.
 func NewInternPool(idGen *IDGenerator) *InternPool {
@@ -253,6 +260,12 @@ func (p *InternPool) InternFieldSet(fieldNames []string) *FieldPathSetRef {
 	return &FieldPathSetRef{pool: p, id: id}
 }
 
+// ResolveFieldSetFromID returns the field path set corresponding to the given ID.
+// It returns nil if the ID is not found.
+func (p *InternPool) ResolveFieldSetFromID(id uint32) []uint32 {
+	return p.resolveFieldSetFromID(id)
+}
+
 // resolveFieldSetFromID returns the field path set corresponding to the given ID.
 // It returns nil if the ID is not found.
 func (p *InternPool) resolveFieldSetFromID(id uint32) []uint32 {
@@ -271,16 +284,16 @@ func (p *InternPool) InternStruct(fieldPathSetID uint32, values []*pb.InternedVa
 	}
 
 	id := p.idGen.New(IDStruct)
-	pbStruct := &pb.InternedStruct{
+	s := &pb.InternedStruct{
 		Id:             &id,
 		FieldPathSetId: &fieldPathSetID,
 		Values:         values,
 	}
+	p.idToStruct.Store(id, s)
 
-	p.idToStruct.Store(id, pbStruct)
 	actual, loaded := p.structToID.LoadOrStore(key, id)
 	if loaded {
-		p.idToStruct.Store(id, (*pb.InternedStruct)(nil))
+		p.idToStruct.Delete(id)
 		return &InternStructRef{pool: p, id: actual.(uint32)}
 	}
 
@@ -296,8 +309,8 @@ func (p *InternPool) ResolveStructFromID(id uint32) *pb.InternedStruct {
 // resolveStructFromID returns the InternedStruct corresponding to the given ID.
 // It returns nil if the ID is not found.
 func (p *InternPool) resolveStructFromID(id uint32) *pb.InternedStruct {
-	if value, ok := p.idToStruct.Load(id); ok {
-		return value.(*pb.InternedStruct)
+	if val, ok := p.idToStruct.Load(id); ok {
+		return val.(*pb.InternedStruct)
 	}
 	return nil
 }
@@ -361,26 +374,18 @@ func (p *InternPool) FieldSetRefs() iter.Seq[*FieldPathSetRef] {
 
 // StructRefs returns an iterator that yields InternStructRefs in the pool, sorted by their ID.
 func (p *InternPool) StructRefs() iter.Seq[*InternStructRef] {
-	type entry struct {
-		id uint32
-	}
-	var entries []entry
-
-	p.structToID.Range(func(key, value any) bool {
-		entries = append(entries, entry{
-			id: value.(uint32),
-		})
+	var ids []uint32
+	p.idToStruct.Range(func(key, value any) bool {
+		ids = append(ids, key.(uint32))
 		return true
 	})
-
-	// Sort by ID.
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].id < entries[j].id
+	sort.Slice(ids, func(i, j int) bool {
+		return ids[i] < ids[j]
 	})
 
 	return func(yield func(*InternStructRef) bool) {
-		for _, e := range entries {
-			if !yield(&InternStructRef{pool: p, id: e.id}) {
+		for _, id := range ids {
+			if !yield(&InternStructRef{pool: p, id: id}) {
 				return
 			}
 		}

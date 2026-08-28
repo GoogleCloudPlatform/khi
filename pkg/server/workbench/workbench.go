@@ -25,6 +25,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/streamingutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
 var (
@@ -62,12 +63,17 @@ type Workbench struct {
 	mu           sync.RWMutex
 	closed       bool
 
-	metadataChunks []*khifilev6.MetadataChunk
-	internPool     *khifilev6model.InternPool
-	styleChunk     *khifilev6.TimelineStyleChunk
-	logChunks      []*khifilev6.LogChunk
-	timelineChunks []*khifilev6.TimelineChunk
-	searchIndex    *SearchIndex
+	metadataChunks    []*khifilev6.MetadataChunk
+	internPool        *khifilev6model.ReadonlyInternPool
+	styleChunk        *khifilev6.TimelineStyleChunk
+	styles            *styleMaps
+	indexedLogBatches [][]cel.LogData
+	maxLogID          uint32
+	logChunks         []*khifilev6.LogChunk
+	timelineChunks    []*khifilev6.TimelineChunk
+	rawTimelines      []rawTimeline
+	rawTimelineItems  map[uint32]*rawTimelineItems
+	searchIndex       *SearchIndex
 
 	indexMu          sync.RWMutex
 	indexState       IndexState
@@ -80,12 +86,43 @@ type Workbench struct {
 	filterJobs       *streamingutil.AsyncJobManager[*apiv1.FilterProgress, *apiv1.FilterResult]
 }
 
+// rawTimeline stores intermediate flat timeline attributes to avoid holding protobuf messages in memory.
+type rawTimeline struct {
+	id              uint32
+	parentID        uint32
+	nameStringID    uint32
+	timelineType    uint32
+	timelineItemsID uint32
+}
+
+// rawEvent stores an intermediate timeline event referencing a log ID.
+type rawEvent struct {
+	logID uint32
+}
+
+// rawRevision stores an intermediate timeline revision before CEL evaluation.
+type rawRevision struct {
+	logID                uint32
+	verbType             uint32
+	stateType            uint32
+	changedTime          int64
+	principalStringID    uint32
+	resourceBodyStructID uint32
+}
+
+// rawTimelineItems groups intermediate events and revisions for a timeline items ID.
+type rawTimelineItems struct {
+	id        uint32
+	events    []rawEvent
+	revisions []rawRevision
+}
+
 // NewWorkbench creates a new Workbench instance.
 func NewWorkbench(id string, inspectionID string) *Workbench {
 	return &Workbench{
 		id:           id,
 		inspectionID: inspectionID,
-		internPool:   khifilev6model.NewInternPool(nil),
+		internPool:   khifilev6model.NewReadonlyInternPool(),
 		filterJobs:   streamingutil.NewAsyncJobManager[*apiv1.FilterProgress, *apiv1.FilterResult](15*time.Second, 1*time.Minute),
 	}
 }
@@ -153,15 +190,10 @@ func (w *Workbench) ReadStructYAMLs(structIDs []uint32) (map[uint32]string, erro
 			continue
 		}
 
-		s := w.internPool.ResolveStructFromID(structID)
-		if s == nil {
-			continue
-		}
-
 		if serializer == nil {
 			serializer = khifilev6model.NewDirectYAMLSerializer()
 		}
-		yamlStr, err := serializer.SerializeStruct(s, w.internPool)
+		yamlStr, err := serializer.SerializeFlatStruct(structID, w.internPool)
 		if err != nil {
 			continue
 		}

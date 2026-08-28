@@ -323,7 +323,7 @@ func (m *InspectionIndexManager) buildTrigramIndexFromReader(reader io.Reader, o
 		return nil, fmt.Errorf("failed to create KHI file reader: %w", err)
 	}
 
-	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	pool := khifilev6model.NewReadonlyInternPool()
 	var logs []cel.LogTrigramItem
 
 	for {
@@ -377,10 +377,7 @@ func (m *InspectionIndexManager) buildTrigramIndexFromReader(reader io.Reader, o
 		return idx, nil
 	}
 
-	var structIDs []uint32
-	for sRef := range pool.StructRefs() {
-		structIDs = append(structIDs, sRef.ID())
-	}
+	structIDs := pool.AllStructIDs()
 	if err := idx.BuildFromStructPool(pool, structIDs, onProgress); err != nil {
 		return nil, fmt.Errorf("failed to build trigram index: %w", err)
 	}

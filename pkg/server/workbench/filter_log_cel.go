@@ -155,6 +155,7 @@ func (f *LogCELFilter) Process(
 			logEval.SetInternPool(index.InternPool)
 			logEval.SetTrigramIndex(index.TrigramIndex)
 			logEval.SetStructYAMLs(index.StructYAMLs)
+			logEval.SetStyleResolver(index.StyleResolver)
 			if err := logEval.Compile(f.query); err != nil {
 				return fmt.Errorf("invalid log query: %w", err)
 			}

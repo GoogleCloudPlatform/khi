@@ -25,6 +25,7 @@ import (
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
@@ -65,15 +66,16 @@ type rawChunkTask struct {
 }
 
 type parsedChunkResult struct {
-	seq            int
-	compressedSize int64
-	chunkType      khifilev6model.ChunkType
-	metadata       *khifilev6.MetadataChunk
-	internPool     *khifilev6.InterningPoolChunk
-	style          *khifilev6.TimelineStyleChunk
-	log            *khifilev6.LogChunk
-	timeline       *khifilev6.TimelineChunk
-	err            error
+	seq              int
+	compressedSize   int64
+	chunkType        khifilev6model.ChunkType
+	metadata         *khifilev6.MetadataChunk
+	style            *khifilev6.TimelineStyleChunk
+	logBatch         []cel.LogData
+	maxLogID         uint32
+	rawTimelines     []rawTimeline
+	rawTimelineItems []*rawTimelineItems
+	err              error
 }
 
 // NewFromReader creates and initializes a Workbench instance by parsing chunks from the given reader in parallel.
@@ -104,8 +106,8 @@ func NewFromReader(
 		numWorkers = 1
 	}
 
-	tasks := make(chan rawChunkTask, numWorkers*2)
-	results := make(chan parsedChunkResult, numWorkers*2)
+	tasks := make(chan rawChunkTask, numWorkers)
+	results := make(chan parsedChunkResult, numWorkers)
 
 	g, gCtx := errgroup.WithContext(ctx)
 
@@ -151,52 +153,117 @@ func NewFromReader(
 				default:
 				}
 
-				decompressed, err := task.chunk.Decompress()
-				if err != nil {
+				res := parsedChunkResult{seq: task.seq, compressedSize: task.compressedSize, chunkType: task.chunk.Type}
+				decompressErr := task.chunk.DecompressWith(func(uncompressed []byte) error {
+					switch task.chunk.Type {
+					case khifilev6model.ChunkTypeMetadata:
+						var meta khifilev6.MetadataChunk
+						if err := proto.Unmarshal(uncompressed, &meta); err != nil {
+							res.err = fmt.Errorf("failed to unmarshal metadata chunk #%d: %w", task.seq, err)
+						} else {
+							res.metadata = &meta
+						}
+					case khifilev6model.ChunkTypeInternPool, khifilev6model.ChunkTypeServerInternPool:
+						var pool khifilev6.InterningPoolChunk
+						if err := proto.Unmarshal(uncompressed, &pool); err != nil {
+							res.err = fmt.Errorf("failed to unmarshal intern pool chunk #%d: %w", task.seq, err)
+						} else {
+							wb.internPool.IngestChunk(&pool)
+						}
+					case khifilev6model.ChunkTypeTimelineStyle:
+						// TimelineStyleChunk contains raw bytes in IconAtlas, so make a copy to prevent aliasing with recycled pool buffer.
+						styleBytes := make([]byte, len(uncompressed))
+						copy(styleBytes, uncompressed)
+						var style khifilev6.TimelineStyleChunk
+						if err := proto.Unmarshal(styleBytes, &style); err != nil {
+							res.err = fmt.Errorf("failed to unmarshal timeline style chunk #%d: %w", task.seq, err)
+						} else {
+							res.style = &style
+						}
+					case khifilev6model.ChunkTypeLog:
+						var logChunk khifilev6.LogChunk
+						if err := proto.Unmarshal(uncompressed, &logChunk); err != nil {
+							res.err = fmt.Errorf("failed to unmarshal log chunk #%d: %w", task.seq, err)
+						} else if len(logChunk.Logs) > 0 {
+							batch := make([]cel.LogData, len(logChunk.Logs))
+							var maxID uint32
+							for i, log := range logChunk.Logs {
+								id := log.GetId()
+								if id > maxID {
+									maxID = id
+								}
+								batch[i] = cel.LogData{
+									ID:              id,
+									LogTypeID:       log.GetLogTypeId(),
+									SeverityTypeID:  log.GetSeverityTypeId(),
+									SummaryStringID: log.GetSummaryStringId(),
+									BodyStructID:    log.GetBodyStructId(),
+								}
+							}
+							res.logBatch = batch
+							res.maxLogID = maxID
+						}
+					case khifilev6model.ChunkTypeTimeline:
+						var timelineChunk khifilev6.TimelineChunk
+						if err := proto.Unmarshal(uncompressed, &timelineChunk); err != nil {
+							res.err = fmt.Errorf("failed to unmarshal timeline chunk #%d: %w", task.seq, err)
+						} else {
+							if len(timelineChunk.Timelines) > 0 {
+								res.rawTimelines = make([]rawTimeline, len(timelineChunk.Timelines))
+								for i, tl := range timelineChunk.Timelines {
+									res.rawTimelines[i] = rawTimeline{
+										id:              tl.GetId(),
+										parentID:        tl.GetParentTimelineId(),
+										nameStringID:    tl.GetNameStringId(),
+										timelineType:    tl.GetTimelineType(),
+										timelineItemsID: tl.GetTimelineItemsId(),
+									}
+								}
+							}
+							if len(timelineChunk.TimelineItems) > 0 {
+								res.rawTimelineItems = make([]*rawTimelineItems, len(timelineChunk.TimelineItems))
+								for i, item := range timelineChunk.TimelineItems {
+									rawItem := &rawTimelineItems{
+										id: item.GetId(),
+									}
+									if len(item.Events) > 0 {
+										rawItem.events = make([]rawEvent, len(item.Events))
+										for j, evt := range item.Events {
+											rawItem.events[j] = rawEvent{
+												logID: evt.GetLogId(),
+											}
+										}
+									}
+									if len(item.Revisions) > 0 {
+										rawItem.revisions = make([]rawRevision, len(item.Revisions))
+										for j, rev := range item.Revisions {
+											var changedTime int64
+											if rev.ChangedTime != nil {
+												changedTime = rev.ChangedTime.AsTime().UnixNano()
+											}
+											rawItem.revisions[j] = rawRevision{
+												logID:                rev.GetLogId(),
+												verbType:             rev.GetVerbType(),
+												stateType:            rev.GetStateType(),
+												changedTime:          changedTime,
+												principalStringID:    rev.GetPrincipalStringId(),
+												resourceBodyStructID: rev.GetResourceBodyStructId(),
+											}
+										}
+									}
+									res.rawTimelineItems[i] = rawItem
+								}
+							}
+						}
+					}
+					return nil
+				})
+				if decompressErr != nil {
 					select {
-					case results <- parsedChunkResult{seq: task.seq, err: fmt.Errorf("failed to decompress chunk #%d: %w", task.seq, err)}:
+					case results <- parsedChunkResult{seq: task.seq, err: fmt.Errorf("failed to decompress chunk #%d: %w", task.seq, decompressErr)}:
 					case <-gCtx.Done():
 					}
 					return
-				}
-
-				res := parsedChunkResult{seq: task.seq, compressedSize: task.compressedSize, chunkType: decompressed.Type}
-				switch decompressed.Type {
-				case khifilev6model.ChunkTypeMetadata:
-					var meta khifilev6.MetadataChunk
-					if err := proto.Unmarshal(decompressed.Data, &meta); err != nil {
-						res.err = fmt.Errorf("failed to unmarshal metadata chunk #%d: %w", task.seq, err)
-					} else {
-						res.metadata = &meta
-					}
-				case khifilev6model.ChunkTypeInternPool, khifilev6model.ChunkTypeServerInternPool:
-					var pool khifilev6.InterningPoolChunk
-					if err := proto.Unmarshal(decompressed.Data, &pool); err != nil {
-						res.err = fmt.Errorf("failed to unmarshal intern pool chunk #%d: %w", task.seq, err)
-					} else {
-						res.internPool = &pool
-					}
-				case khifilev6model.ChunkTypeTimelineStyle:
-					var style khifilev6.TimelineStyleChunk
-					if err := proto.Unmarshal(decompressed.Data, &style); err != nil {
-						res.err = fmt.Errorf("failed to unmarshal timeline style chunk #%d: %w", task.seq, err)
-					} else {
-						res.style = &style
-					}
-				case khifilev6model.ChunkTypeLog:
-					var logChunk khifilev6.LogChunk
-					if err := proto.Unmarshal(decompressed.Data, &logChunk); err != nil {
-						res.err = fmt.Errorf("failed to unmarshal log chunk #%d: %w", task.seq, err)
-					} else {
-						res.log = &logChunk
-					}
-				case khifilev6model.ChunkTypeTimeline:
-					var timelineChunk khifilev6.TimelineChunk
-					if err := proto.Unmarshal(decompressed.Data, &timelineChunk); err != nil {
-						res.err = fmt.Errorf("failed to unmarshal timeline chunk #%d: %w", task.seq, err)
-					} else {
-						res.timeline = &timelineChunk
-					}
 				}
 
 				select {
@@ -282,21 +349,82 @@ func (w *Workbench) ingestParsedChunk(res *parsedChunkResult) error {
 			w.metadataChunks = append(w.metadataChunks, res.metadata)
 		}
 	case khifilev6model.ChunkTypeInternPool, khifilev6model.ChunkTypeServerInternPool:
-		if res.internPool != nil {
-			w.internPool.IngestChunk(res.internPool)
-		}
+		// InterningPoolChunks are directly ingested into w.internPool inside parallel worker goroutines.
 	case khifilev6model.ChunkTypeTimelineStyle:
 		if res.style != nil {
 			w.styleChunk = res.style
 		}
 	case khifilev6model.ChunkTypeLog:
-		if res.log != nil {
-			w.logChunks = append(w.logChunks, res.log)
+		if len(res.logBatch) > 0 {
+			w.indexedLogBatches = append(w.indexedLogBatches, res.logBatch)
+			if res.maxLogID > w.maxLogID {
+				w.maxLogID = res.maxLogID
+			}
 		}
 	case khifilev6model.ChunkTypeTimeline:
-		if res.timeline != nil {
-			w.timelineChunks = append(w.timelineChunks, res.timeline)
+		if len(res.rawTimelines) > 0 {
+			w.rawTimelines = append(w.rawTimelines, res.rawTimelines...)
+		}
+		if len(res.rawTimelineItems) > 0 {
+			if w.rawTimelineItems == nil {
+				w.rawTimelineItems = make(map[uint32]*rawTimelineItems)
+			}
+			for _, item := range res.rawTimelineItems {
+				w.rawTimelineItems[item.id] = item
+			}
 		}
 	}
 	return nil
+}
+
+// ingestTimelineChunk extracts intermediate flat timeline data and items from TimelineChunk,
+// immediately decoupling them from heavy Protobuf messages so they can be garbage collected.
+func (w *Workbench) ingestTimelineChunk(chunk *khifilev6.TimelineChunk) {
+	if len(chunk.Timelines) > 0 {
+		for _, tl := range chunk.Timelines {
+			w.rawTimelines = append(w.rawTimelines, rawTimeline{
+				id:              tl.GetId(),
+				parentID:        tl.GetParentTimelineId(),
+				nameStringID:    tl.GetNameStringId(),
+				timelineType:    tl.GetTimelineType(),
+				timelineItemsID: tl.GetTimelineItemsId(),
+			})
+		}
+	}
+	if len(chunk.TimelineItems) > 0 {
+		if w.rawTimelineItems == nil {
+			w.rawTimelineItems = make(map[uint32]*rawTimelineItems)
+		}
+		for _, item := range chunk.TimelineItems {
+			rawItem := &rawTimelineItems{
+				id: item.GetId(),
+			}
+			if len(item.Events) > 0 {
+				rawItem.events = make([]rawEvent, len(item.Events))
+				for i, evt := range item.Events {
+					rawItem.events[i] = rawEvent{
+						logID: evt.GetLogId(),
+					}
+				}
+			}
+			if len(item.Revisions) > 0 {
+				rawItem.revisions = make([]rawRevision, len(item.Revisions))
+				for i, rev := range item.Revisions {
+					var changedTime int64
+					if rev.ChangedTime != nil {
+						changedTime = rev.ChangedTime.AsTime().UnixNano()
+					}
+					rawItem.revisions[i] = rawRevision{
+						logID:                rev.GetLogId(),
+						verbType:             rev.GetVerbType(),
+						stateType:            rev.GetStateType(),
+						changedTime:          changedTime,
+						principalStringID:    rev.GetPrincipalStringId(),
+						resourceBodyStructID: rev.GetResourceBodyStructId(),
+					}
+				}
+			}
+			w.rawTimelineItems[rawItem.id] = rawItem
+		}
+	}
 }

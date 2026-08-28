@@ -100,13 +100,43 @@ func (t *TimelineData) ComputePath(tlMap map[uint32]*TimelineData) map[string]st
 	return path
 }
 
+// StyleResolver resolves style attributes (e.g. log type label, severity order) from their IDs.
+type StyleResolver interface {
+	ResolveLogType(id uint32) string
+	ResolveSeverity(id uint32) uint32
+}
+
+// SimpleStyleResolver provides a map-based StyleResolver implementation for evaluation and testing.
+type SimpleStyleResolver struct {
+	LogTypes   map[uint32]string
+	Severities map[uint32]uint32
+}
+
+// ResolveLogType returns the log type label corresponding to the given ID.
+func (s *SimpleStyleResolver) ResolveLogType(id uint32) string {
+	if s != nil && s.LogTypes != nil {
+		return s.LogTypes[id]
+	}
+	return ""
+}
+
+// ResolveSeverity returns the severity order value corresponding to the given ID.
+func (s *SimpleStyleResolver) ResolveSeverity(id uint32) uint32 {
+	if s != nil && s.Severities != nil {
+		return s.Severities[id]
+	}
+	return 0
+}
+
+var _ StyleResolver = (*SimpleStyleResolver)(nil)
+
 // LogData encapsulates the indexed log attributes and struct ID required for CEL evaluation.
+// It holds primitive IDs to ensure zero pointers and minimal memory footprint.
 type LogData struct {
 	ID              uint32
-	LogType         string
-	Severity        uint32
+	LogTypeID       uint32
+	SeverityTypeID  uint32
 	SummaryStringID uint32
-	Summary         string
 	BodyStructID    uint32
 }
 

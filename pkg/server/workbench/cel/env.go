@@ -47,12 +47,12 @@ type TimelineEvaluator struct {
 	env             *cel.Env
 	program         cel.Program
 	currentTimeline *TimelineData
-	internPool      *khifilev6model.InternPool
+	internPool      khifilev6model.ReadonlyPool
 	timelineMap     map[uint32]*TimelineData
 }
 
-// SetInternPool binds the InternPool for on-demand struct resolution.
-func (e *TimelineEvaluator) SetInternPool(pool *khifilev6model.InternPool) {
+// SetInternPool binds the ReadonlyPool for on-demand struct resolution.
+func (e *TimelineEvaluator) SetInternPool(pool khifilev6model.ReadonlyPool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.internPool = pool
@@ -310,17 +310,25 @@ func (e *TimelineEvaluator) Evaluate(ctx context.Context, t *TimelineData) (bool
 
 // LogEvaluator compiles and executes CEL expressions on LogData.
 type LogEvaluator struct {
-	mu           sync.Mutex
-	env          *cel.Env
-	program      cel.Program
-	currentLog   *LogData
-	internPool   *khifilev6model.InternPool
-	trigramIndex *TrigramIndex
-	structYAMLs  map[uint32]string
+	mu            sync.Mutex
+	env           *cel.Env
+	program       cel.Program
+	currentLog    *LogData
+	internPool    khifilev6model.ReadonlyPool
+	trigramIndex  *TrigramIndex
+	structYAMLs   map[uint32]string
+	styleResolver StyleResolver
 }
 
-// SetInternPool binds the InternPool for on-demand struct/string resolution.
-func (e *LogEvaluator) SetInternPool(pool *khifilev6model.InternPool) {
+// SetStyleResolver binds the StyleResolver for on-demand log type and severity resolution.
+func (e *LogEvaluator) SetStyleResolver(resolver StyleResolver) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.styleResolver = resolver
+}
+
+// SetInternPool binds the ReadonlyPool for on-demand struct/string resolution.
+func (e *LogEvaluator) SetInternPool(pool khifilev6model.ReadonlyPool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.internPool = pool
@@ -456,14 +464,23 @@ func (e *LogEvaluator) Evaluate(ctx context.Context, l *LogData) (bool, error) {
 	e.currentLog = l
 	defer func() { e.currentLog = nil }()
 
-	summary := l.Summary
-	if summary == "" && l.SummaryStringID != 0 && e.internPool != nil {
+	logType := ""
+	if e.styleResolver != nil {
+		logType = e.styleResolver.ResolveLogType(l.LogTypeID)
+	}
+	severity := int64(0)
+	if e.styleResolver != nil {
+		severity = int64(e.styleResolver.ResolveSeverity(l.SeverityTypeID))
+	}
+
+	summary := ""
+	if l.SummaryStringID != 0 && e.internPool != nil {
 		summary = e.internPool.ResolveStringFromID(l.SummaryStringID)
 	}
 
 	lVars := map[string]any{
-		"logType":  l.LogType,
-		"severity": int64(l.Severity),
+		"logType":  logType,
+		"severity": severity,
 		"summary":  summary,
 		"UNKNOWN":  int64(0),
 		"INFO":     int64(1),

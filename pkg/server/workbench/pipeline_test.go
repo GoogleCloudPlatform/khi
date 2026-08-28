@@ -34,24 +34,28 @@ func createSampleWorkbench() *Workbench {
 	// Log 1: Pod-A event, severity INFO (1)
 	// Log 2: Pod-A event, severity ERROR (3)
 	// Log 3: Pod-B event, severity INFO (1)
+	wb.searchIndex.StyleResolver = &cel.SimpleStyleResolver{
+		LogTypes: map[uint32]string{1: "k8s-event"},
+		Severities: map[uint32]uint32{
+			1: 1,
+			3: 3,
+		},
+	}
 	wb.searchIndex.Logs = []cel.LogData{
 		{
-			ID:       1,
-			LogType:  "k8s-event",
-			Severity: 1, // INFO
-			Summary:  "Pod A started",
+			ID:             1,
+			LogTypeID:      1,
+			SeverityTypeID: 1, // INFO
 		},
 		{
-			ID:       2,
-			LogType:  "k8s-event",
-			Severity: 3, // ERROR
-			Summary:  "Pod A crashed",
+			ID:             2,
+			LogTypeID:      1,
+			SeverityTypeID: 3, // ERROR
 		},
 		{
-			ID:       3,
-			LogType:  "k8s-event",
-			Severity: 1, // INFO
-			Summary:  "Pod B started",
+			ID:             3,
+			LogTypeID:      1,
+			SeverityTypeID: 1, // INFO
 		},
 	}
 

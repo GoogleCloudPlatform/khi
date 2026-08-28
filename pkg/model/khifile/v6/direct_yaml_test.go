@@ -20,6 +20,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
+	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/google/go-cmp/cmp"
 	"gopkg.in/yaml.v3"
 )
@@ -252,6 +254,33 @@ protoPayload:
 			directYAML, err := directSerializer.SerializeStruct(internedRef.ToProto(), pool)
 			if err != nil {
 				t.Fatalf("directSerializer.SerializeStruct() error = %v", err)
+			}
+
+			readonlyPool := NewReadonlyInternPool()
+			var stringsList []*pbv6.InternString
+			for sRef := range pool.SortedStringRefs() {
+				stringsList = append(stringsList, sRef.ToProto())
+			}
+			var fsList []*pbv6.InternFieldPathSet
+			for fsRef := range pool.FieldSetRefs() {
+				fsList = append(fsList, fsRef.ToProto())
+			}
+			var structsList []*pb.InternedStruct
+			for sRef := range pool.StructRefs() {
+				structsList = append(structsList, sRef.ToProto())
+			}
+			readonlyPool.IngestChunk(&pbv6.InterningPoolChunk{
+				Strings:       stringsList,
+				FieldPathSets: fsList,
+				Structs:       structsList,
+			})
+
+			flatYAML, err := directSerializer.SerializeFlatStruct(internedRef.ID(), readonlyPool)
+			if err != nil {
+				t.Fatalf("directSerializer.SerializeFlatStruct() error = %v", err)
+			}
+			if diff := cmp.Diff(directYAML, flatYAML); diff != "" {
+				t.Errorf("SerializeFlatStruct() mismatch with SerializeStruct() (-struct +flat):\n%s", diff)
 			}
 
 			// 3. Verify semantic equivalence by unmarshaling both to map/any

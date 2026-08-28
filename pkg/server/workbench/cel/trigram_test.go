@@ -23,10 +23,34 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
+	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+func toReadonlyPool(pool *khifilev6model.InternPool) *khifilev6model.ReadonlyInternPool {
+	readonlyPool := khifilev6model.NewReadonlyInternPool()
+	var strList []*pbv6.InternString
+	for sRef := range pool.SortedStringRefs() {
+		strList = append(strList, sRef.ToProto())
+	}
+	var fsList []*pbv6.InternFieldPathSet
+	for fsRef := range pool.FieldSetRefs() {
+		fsList = append(fsList, fsRef.ToProto())
+	}
+	var structList []*pb.InternedStruct
+	for sRef := range pool.StructRefs() {
+		structList = append(structList, sRef.ToProto())
+	}
+	readonlyPool.IngestChunk(&pbv6.InterningPoolChunk{
+		Strings:       strList,
+		FieldPathSets: fsList,
+		Structs:       structList,
+	})
+	return readonlyPool
+}
 
 func TestTrigramIndex(t *testing.T) {
 	const (
@@ -482,7 +506,7 @@ func TestTrigramIndex_BuildFromStructPool(t *testing.T) {
 			}
 
 			idxFromPool := NewTrigramIndex()
-			if err := idxFromPool.BuildFromStructPool(pool, structIDs, nil); err != nil {
+			if err := idxFromPool.BuildFromStructPool(toReadonlyPool(pool), structIDs, nil); err != nil {
 				t.Fatalf("BuildFromStructPool() failed: %v", err)
 			}
 
@@ -572,7 +596,7 @@ func TestTrigramIndex_BuildFromLogPool(t *testing.T) {
 			}
 
 			idx := NewTrigramIndex()
-			if err := idx.BuildFromLogPool(pool, logs, nil); err != nil {
+			if err := idx.BuildFromLogPool(toReadonlyPool(pool), logs, nil); err != nil {
 				t.Fatalf("BuildFromLogPool() failed: %v", err)
 			}
 

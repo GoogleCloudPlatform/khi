@@ -20,12 +20,33 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 )
+
+func ingestTestPool(wb *Workbench, pool *khifilev6model.InternPool) {
+	var strList []*khifilev6.InternString
+	for sRef := range pool.SortedStringRefs() {
+		strList = append(strList, sRef.ToProto())
+	}
+	var fsList []*khifilev6.InternFieldPathSet
+	for fsRef := range pool.FieldSetRefs() {
+		fsList = append(fsList, fsRef.ToProto())
+	}
+	var structList []*pb.InternedStruct
+	for sRef := range pool.StructRefs() {
+		structList = append(structList, sRef.ToProto())
+	}
+	wb.internPool.IngestChunk(&khifilev6.InterningPoolChunk{
+		Strings:       strList,
+		FieldPathSets: fsList,
+		Structs:       structList,
+	})
+}
 
 func TestTimelineData_ComputePath(t *testing.T) {
 	testCases := []struct {
@@ -224,7 +245,6 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 				wb := NewWorkbench("test-wb", "test-inspection")
 				idGen := &khifilev6model.IDGenerator{}
 				pool := khifilev6model.NewInternPool(idGen)
-				wb.internPool = pool
 
 				// Style Chunk
 				wb.styleChunk = &khifilev6.TimelineStyleChunk{
@@ -256,6 +276,7 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 
 				node, _ := structured.FromYAML("kind: Pod\nmetadata:\n  name: pod-sample\n")
 				sRef, _ := khifilev6model.ToInternedStruct(node, pool)
+				ingestTestPool(wb, pool)
 
 				// Log Chunks (split into 2 chunks to test parallel indexing)
 				wb.logChunks = []*khifilev6.LogChunk{
@@ -405,16 +426,18 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 			if log1 == nil {
 				t.Fatal("log 1 not found in index")
 			}
-			if log1.Severity != tc.wantLog1Severity {
-				t.Errorf("log 1 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog1Severity, log1.Severity))
+			sev1 := idx.StyleResolver.ResolveSeverity(log1.SeverityTypeID)
+			if sev1 != tc.wantLog1Severity {
+				t.Errorf("log 1 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog1Severity, sev1))
 			}
 
 			log2 := idx.GetLog(2)
 			if log2 == nil {
 				t.Fatal("log 2 not found in index")
 			}
-			if log2.Severity != tc.wantLog2Severity {
-				t.Errorf("log 2 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog2Severity, log2.Severity))
+			sev2 := idx.StyleResolver.ResolveSeverity(log2.SeverityTypeID)
+			if sev2 != tc.wantLog2Severity {
+				t.Errorf("log 2 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog2Severity, sev2))
 			}
 		})
 	}
@@ -424,15 +447,16 @@ func TestWorkbench_BuildAsyncIndexesWithProgress(t *testing.T) {
 	setupWBAndIndex := func() (*Workbench, *SearchIndex) {
 		wb := NewWorkbench("wb-test", "insp-test")
 		idGen := khifilev6model.NewIDGenerator()
-		wb.internPool = khifilev6model.NewInternPool(idGen)
+		pool := khifilev6model.NewInternPool(idGen)
 		node, err := structured.FromGoValue(map[string]any{"foo": "bar"}, &structured.AlphabeticalGoMapKeyOrderProvider{})
 		if err != nil {
 			t.Fatalf("FromGoValue() error = %v", err)
 		}
-		sRef, err := khifilev6model.ToInternedStruct(node, wb.internPool)
+		sRef, err := khifilev6model.ToInternedStruct(node, pool)
 		if err != nil {
 			t.Fatalf("ToInternedStruct() error = %v", err)
 		}
+		ingestTestPool(wb, pool)
 		index := &SearchIndex{
 			Logs: []cel.LogData{
 				{ID: 1, BodyStructID: sRef.ID()},

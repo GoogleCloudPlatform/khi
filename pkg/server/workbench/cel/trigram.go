@@ -243,7 +243,7 @@ type workerTrigramData struct {
 }
 
 // BuildFromLogPool indexes trigrams from an InternPool and a slice of LogTrigramItems in streaming parallel chunks.
-func (t *TrigramIndex) BuildFromLogPool(pool *khifilev6model.InternPool, logs []LogTrigramItem, onProgress TrigramProgressCallback) error {
+func (t *TrigramIndex) BuildFromLogPool(pool *khifilev6model.ReadonlyInternPool, logs []LogTrigramItem, onProgress TrigramProgressCallback) error {
 	if pool == nil || len(logs) == 0 {
 		return nil
 	}
@@ -266,11 +266,8 @@ func (t *TrigramIndex) BuildFromLogPool(pool *khifilev6model.InternPool, logs []
 				}
 
 				if l.BodyStructID != 0 {
-					s := pool.ResolveStructFromID(l.BodyStructID)
-					if s != nil {
-						if yamlStr, err := serializer.SerializeStruct(s, pool); err == nil {
-							extractTrigramsToBitmap(yamlStr, l.ID, data.localMap, &buf)
-						}
+					if yamlStr, err := serializer.SerializeFlatStruct(l.BodyStructID, pool); err == nil {
+						extractTrigramsToBitmap(yamlStr, l.ID, data.localMap, &buf)
 					}
 				}
 
@@ -363,9 +360,9 @@ func (t *TrigramIndex) BuildFromLogPool(pool *khifilev6model.InternPool, logs []
 	return nil
 }
 
-// BuildFromStructPool indexes trigrams from an InternPool and a slice of StructIDs in streaming chunks.
+// BuildFromStructPool indexes trigrams from a ReadonlyInternPool and a slice of StructIDs in streaming chunks.
 // It maps each struct ID to itself as a log ID for backward compatibility with struct-level indexing tests.
-func (t *TrigramIndex) BuildFromStructPool(pool *khifilev6model.InternPool, structIDs []uint32, onProgress TrigramProgressCallback) error {
+func (t *TrigramIndex) BuildFromStructPool(pool *khifilev6model.ReadonlyInternPool, structIDs []uint32, onProgress TrigramProgressCallback) error {
 	logs := make([]LogTrigramItem, 0, len(structIDs))
 	for _, id := range structIDs {
 		logs = append(logs, LogTrigramItem{

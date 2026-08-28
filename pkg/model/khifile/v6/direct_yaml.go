@@ -17,6 +17,7 @@ package khifilev6
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -70,16 +71,47 @@ func (s *DirectYAMLSerializer) SerializeStruct(structObj *pb.InternedStruct, poo
 	return s.buf.String(), nil
 }
 
+// StringAndFieldSetResolver provides lookup of strings and field path sets by ID.
+type StringAndFieldSetResolver interface {
+	ResolveStringFromID(id uint32) string
+	ResolveFieldSetFromID(id uint32) []uint32
+}
+
+// SerializeFlatStruct converts an interned struct identified by structID into its YAML string representation
+// directly from FlatStructStore without allocating intermediate Protobuf messages.
+func (s *DirectYAMLSerializer) SerializeFlatStruct(structID uint32, pool *ReadonlyInternPool) (string, error) {
+	s.buf.Reset()
+	if pool == nil || pool.flatStructs == nil {
+		return "", fmt.Errorf("readonly intern pool or flat structs store is nil")
+	}
+
+	fieldPathSetID, offset, count, ok := pool.flatStructs.GetValueSpan(structID)
+	if !ok {
+		return "", fmt.Errorf("struct ID %d not found", structID)
+	}
+	if count == 0 {
+		return "{}\n", nil
+	}
+
+	schema := s.getSchema(fieldPathSetID, pool)
+	if len(schema.Ops) == 0 {
+		return "{}\n", nil
+	}
+
+	s.serializeFlatStructWithIndent(&s.buf, pool, schema, offset, count, 0)
+	return s.buf.String(), nil
+}
+
 // getSchema retrieves the compiled schema from cache or compiles it on first access.
-func (s *DirectYAMLSerializer) getSchema(fieldPathSetID uint32, pool *InternPool) *FieldPathSchema {
+func (s *DirectYAMLSerializer) getSchema(fieldPathSetID uint32, resolver StringAndFieldSetResolver) *FieldPathSchema {
 	if cached, ok := s.schemaCache.Load(fieldPathSetID); ok {
 		return cached.(*FieldPathSchema)
 	}
 
-	ids := pool.resolveFieldSetFromID(fieldPathSetID)
+	ids := resolver.ResolveFieldSetFromID(fieldPathSetID)
 	keys := make([]string, len(ids))
 	for i, id := range ids {
-		keys[i] = pool.resolveStringFromID(id)
+		keys[i] = resolver.ResolveStringFromID(id)
 	}
 
 	schema := compileFieldPathSchema(keys)
@@ -356,5 +388,207 @@ func (s *DirectYAMLSerializer) emitString(targetBuf *bytes.Buffer, str string) {
 		targetBuf.WriteString(str)
 	} else {
 		emitQuotedString(targetBuf, str)
+	}
+}
+
+// serializeFlatStructWithIndent writes formatted fields from FlatStructStore into target buffer.
+func (s *DirectYAMLSerializer) serializeFlatStructWithIndent(
+	targetBuf *bytes.Buffer,
+	pool *ReadonlyInternPool,
+	schema *FieldPathSchema,
+	startOffset uint32,
+	valCount uint32,
+	baseIndentLvl int,
+) {
+	baseIndent := strings.Repeat("  ", baseIndentLvl)
+
+	for i, op := range schema.Ops {
+		if uint32(i) >= valCount {
+			break
+		}
+
+		if op.PrefixYAML != "" {
+			if baseIndentLvl > 0 {
+				lines := strings.Split(strings.TrimSuffix(op.PrefixYAML, "\n"), "\n")
+				for _, line := range lines {
+					targetBuf.WriteString(baseIndent)
+					targetBuf.WriteString(line)
+					targetBuf.WriteString("\n")
+				}
+			} else {
+				targetBuf.WriteString(op.PrefixYAML)
+			}
+		}
+
+		targetBuf.WriteString(baseIndent)
+		targetBuf.WriteString(op.Indent)
+		targetBuf.WriteString(op.KeyName)
+		targetBuf.WriteString(": ")
+
+		slot := startOffset + uint32(i)
+		s.emitFlatValue(targetBuf, slot, pool, baseIndentLvl+op.IndentLevel)
+		targetBuf.WriteString("\n")
+	}
+}
+
+// emitFlatValue writes a packed value from FlatStructStore with proper YAML formatting and quoting.
+func (s *DirectYAMLSerializer) emitFlatValue(targetBuf *bytes.Buffer, slot uint32, pool *ReadonlyInternPool, indentLvl int) {
+	kind, data, aux := pool.flatStructs.GetRawValueAt(slot)
+	switch kind {
+	case FlatValueKindNull:
+		targetBuf.WriteString("null")
+	case FlatValueKindBool:
+		if data != 0 {
+			targetBuf.WriteString("true")
+		} else {
+			targetBuf.WriteString("false")
+		}
+	case FlatValueKindInt64:
+		targetBuf.WriteString(strconv.FormatInt(int64(data), 10))
+	case FlatValueKindDouble:
+		targetBuf.WriteString(strconv.FormatFloat(math.Float64frombits(data), 'f', -1, 64))
+	case FlatValueKindStringID:
+		str := pool.ResolveStringFromID(uint32(data))
+		s.emitString(targetBuf, str)
+	case FlatValueKindStructID:
+		nestedID := uint32(data)
+		fieldPathSetID, offset, count, ok := pool.flatStructs.GetValueSpan(nestedID)
+		if !ok || count == 0 {
+			targetBuf.WriteString("{}")
+			return
+		}
+		nestedSchema := s.getSchema(fieldPathSetID, pool)
+		if len(nestedSchema.Ops) == 0 {
+			targetBuf.WriteString("{}")
+			return
+		}
+		targetBuf.WriteString("\n")
+		s.serializeFlatStructWithIndent(targetBuf, pool, nestedSchema, offset, count, indentLvl+1)
+	case FlatValueKindTimestamp:
+		t := time.Unix(int64(data), int64(aux)).UTC()
+		targetBuf.WriteString(t.Format(time.RFC3339))
+	case FlatValueKindList:
+		listOffset := uint32(data)
+		listCount := aux
+		if listCount == 0 {
+			targetBuf.WriteString("[]")
+			return
+		}
+		for j := uint32(0); j < listCount; j++ {
+			s.emitFlatListItem(targetBuf, listOffset+j, pool, indentLvl+1)
+		}
+	case FlatValueKindStructValue:
+		fieldSetID := aux
+		nestedCount := uint32(data >> 32)
+		nestedOffset := uint32(data & 0xFFFFFFFF)
+		if nestedCount == 0 {
+			targetBuf.WriteString("{}")
+			return
+		}
+		nestedSchema := s.getSchema(fieldSetID, pool)
+		if len(nestedSchema.Ops) == 0 {
+			targetBuf.WriteString("{}")
+			return
+		}
+		targetBuf.WriteString("\n")
+		s.serializeFlatStructWithIndent(targetBuf, pool, nestedSchema, nestedOffset, nestedCount, indentLvl+1)
+	default:
+		targetBuf.WriteString("null")
+	}
+}
+
+// emitFlatListItem writes a single packed sequence item with proper YAML `- ` prefix.
+func (s *DirectYAMLSerializer) emitFlatListItem(targetBuf *bytes.Buffer, slot uint32, pool *ReadonlyInternPool, itemIndentLvl int) {
+	targetBuf.WriteString("\n")
+
+	kind, data, aux := pool.flatStructs.GetRawValueAt(slot)
+
+	var nestedFieldPathSetID uint32
+	var nestedOffset uint32
+	var nestedCount uint32
+	var isStruct bool
+
+	switch kind {
+	case FlatValueKindStructID:
+		nestedID := uint32(data)
+		fsID, off, cnt, ok := pool.flatStructs.GetValueSpan(nestedID)
+		if ok && cnt > 0 {
+			nestedFieldPathSetID = fsID
+			nestedOffset = off
+			nestedCount = cnt
+			isStruct = true
+		}
+	case FlatValueKindStructValue:
+		fsID := aux
+		cnt := uint32(data >> 32)
+		off := uint32(data & 0xFFFFFFFF)
+		if cnt > 0 {
+			nestedFieldPathSetID = fsID
+			nestedOffset = off
+			nestedCount = cnt
+			isStruct = true
+		}
+	}
+
+	if isStruct {
+		nestedSchema := s.getSchema(nestedFieldPathSetID, pool)
+		if len(nestedSchema.Ops) > 0 {
+			var subBuf bytes.Buffer
+			s.serializeFlatStructWithIndent(&subBuf, pool, nestedSchema, nestedOffset, nestedCount, 0)
+			subYAML := strings.TrimRight(subBuf.String(), "\n")
+			lines := strings.Split(subYAML, "\n")
+
+			itemPrefix := strings.Repeat("  ", itemIndentLvl-1) + "- "
+			subsequentPrefix := strings.Repeat("  ", itemIndentLvl)
+
+			if len(lines) > 0 {
+				targetBuf.WriteString(itemPrefix)
+				targetBuf.WriteString(lines[0])
+				for _, line := range lines[1:] {
+					targetBuf.WriteString("\n")
+					targetBuf.WriteString(subsequentPrefix)
+					targetBuf.WriteString(line)
+				}
+			}
+			return
+		}
+	}
+
+	targetBuf.WriteString(strings.Repeat("  ", itemIndentLvl-1))
+	targetBuf.WriteString("- ")
+
+	switch kind {
+	case FlatValueKindNull:
+		targetBuf.WriteString("null")
+	case FlatValueKindBool:
+		if data != 0 {
+			targetBuf.WriteString("true")
+		} else {
+			targetBuf.WriteString("false")
+		}
+	case FlatValueKindInt64:
+		targetBuf.WriteString(strconv.FormatInt(int64(data), 10))
+	case FlatValueKindDouble:
+		targetBuf.WriteString(strconv.FormatFloat(math.Float64frombits(data), 'f', -1, 64))
+	case FlatValueKindStringID:
+		str := pool.ResolveStringFromID(uint32(data))
+		s.emitString(targetBuf, str)
+	case FlatValueKindStructID, FlatValueKindStructValue:
+		targetBuf.WriteString("{}")
+	case FlatValueKindTimestamp:
+		t := time.Unix(int64(data), int64(aux)).UTC()
+		targetBuf.WriteString(t.Format(time.RFC3339))
+	case FlatValueKindList:
+		listOffset := uint32(data)
+		listCount := aux
+		if listCount == 0 {
+			targetBuf.WriteString("[]")
+			return
+		}
+		for j := uint32(0); j < listCount; j++ {
+			s.emitFlatListItem(targetBuf, listOffset+j, pool, itemIndentLvl+1)
+		}
+	default:
+		targetBuf.WriteString("null")
 	}
 }
