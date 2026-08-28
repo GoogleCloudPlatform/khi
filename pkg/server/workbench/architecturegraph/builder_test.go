@@ -1032,7 +1032,7 @@ func TestBuilder_Build(t *testing.T) {
 						Revisions: []cel.RevisionInfo{
 							{ChangedTime: 105, Verb: "Create", State: "Resource exists", ResourceBodyStructID: 0},
 						},
-						ChildrenIDs: []uint32{6, 7},
+						ChildrenIDs: []uint32{6, 7, 8, 9},
 					},
 					{
 						ID:           6,
@@ -1045,11 +1045,29 @@ func TestBuilder_Build(t *testing.T) {
 					},
 					{
 						ID:           7,
+						Name:         "app",
+						TimelineType: "container",
+						ParentID:     5,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 110, Verb: "Patch", State: "Container is running"},
+						},
+					},
+					{
+						ID:           8,
 						Name:         "Ready",
 						TimelineType: "condition",
 						ParentID:     5,
 						Revisions: []cel.RevisionInfo{
 							{ChangedTime: 110, Verb: "Patch", State: "Condition is False"},
+						},
+					},
+					{
+						ID:           9,
+						Name:         "PodScheduled",
+						TimelineType: "condition",
+						ParentID:     5,
+						Revisions: []cel.RevisionInfo{
+							{ChangedTime: 110, Verb: "Patch", State: "Condition is True"},
 						},
 					},
 				}
@@ -1075,6 +1093,13 @@ func TestBuilder_Build(t *testing.T) {
 						Labels:         map[string]string{},
 						Containers: []*apiv1.GraphContainer{
 							{
+								Name:            proto.String("app"),
+								IsInitContainer: proto.Bool(false),
+								Status:          proto.String("Running"),
+								Reason:          proto.String("Unknown"),
+								IsStatusHealthy: proto.Bool(true),
+							},
+							{
 								Name:            proto.String("sidecar"),
 								IsInitContainer: proto.Bool(false),
 								Status:          proto.String("Waiting"),
@@ -1087,6 +1112,11 @@ func TestBuilder_Build(t *testing.T) {
 								Type:       proto.String("Ready"),
 								Status:     proto.String("False"),
 								IsPositive: proto.Bool(false),
+							},
+							{
+								Type:       proto.String("PodScheduled"),
+								Status:     proto.String("True"),
+								IsPositive: proto.Bool(true),
 							},
 						},
 					},

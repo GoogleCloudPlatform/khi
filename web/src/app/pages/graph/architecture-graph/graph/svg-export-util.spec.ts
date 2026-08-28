@@ -85,7 +85,8 @@ describe('svg-export-util', () => {
       );
     });
 
-    it('should reject when image loading fails', async () => {
+    it('should reject when image loading fails and revoke object URL', async () => {
+      const revokeSpy = spyOn(window.URL, 'revokeObjectURL').and.callThrough();
       spyOnProperty(Image.prototype, 'src', 'set').and.callFake(function (
         this: HTMLImageElement,
       ) {
@@ -97,6 +98,7 @@ describe('svg-export-util', () => {
       await expectAsync(exportSvgToPngBlob(mockSvg)).toBeRejectedWithError(
         /Failed to render SVG graph onto canvas for PNG export/,
       );
+      expect(revokeSpy).toHaveBeenCalled();
     });
 
     it('should handle non-ASCII Unicode characters without error', async () => {
@@ -111,30 +113,51 @@ describe('svg-export-util', () => {
       expect(blob).toBeTruthy();
       expect(blob.type).toBe('image/png');
     });
+
+    it('should revoke object URL after successful rendering', async () => {
+      const revokeSpy = spyOn(window.URL, 'revokeObjectURL').and.callThrough();
+      await exportSvgToPngBlob(mockSvg);
+      expect(revokeSpy).toHaveBeenCalled();
+    });
   });
 
   describe('downloadSvg', () => {
-    it('should call URL.createObjectURL and revoke it on download', () => {
-      const createSpy = spyOn(window.URL, 'createObjectURL').and.returnValue(
-        'blob:mock-url',
+    it('should serialize SVG to blob and trigger download', () => {
+      let appendedAnchor: HTMLAnchorElement | null = null;
+      spyOn(document.body, 'appendChild').and.callFake(
+        <T extends Node>(node: T): T => {
+          if (node instanceof HTMLAnchorElement) {
+            appendedAnchor = node;
+          }
+          return node;
+        },
       );
-      const revokeSpy = spyOn(window.URL, 'revokeObjectURL');
+      spyOn(HTMLAnchorElement.prototype, 'click').and.callFake(() => {});
+
       downloadSvg(mockSvg, 'diagram.svg');
-      expect(createSpy).toHaveBeenCalled();
-      expect(revokeSpy).toHaveBeenCalledWith('blob:mock-url');
+      const anchor = appendedAnchor as HTMLAnchorElement | null;
+      expect(anchor?.download).toBe('diagram.svg');
+      expect(anchor?.href).toContain('blob:');
     });
   });
 
   describe('downloadPng', () => {
-    it('should rasterize to PNG blob and download', async () => {
-      const createSpy = spyOn(window.URL, 'createObjectURL').and.returnValue(
-        'blob:mock-url',
+    it('should rasterize to PNG blob and trigger download', async () => {
+      let appendedAnchor: HTMLAnchorElement | null = null;
+      spyOn(document.body, 'appendChild').and.callFake(
+        <T extends Node>(node: T): T => {
+          if (node instanceof HTMLAnchorElement) {
+            appendedAnchor = node;
+          }
+          return node;
+        },
       );
-      const revokeSpy = spyOn(window.URL, 'revokeObjectURL');
+      spyOn(HTMLAnchorElement.prototype, 'click').and.callFake(() => {});
 
       await downloadPng(mockSvg, 'diagram.png');
-      expect(createSpy).toHaveBeenCalled();
-      expect(revokeSpy).toHaveBeenCalledWith('blob:mock-url');
+      const anchor = appendedAnchor as HTMLAnchorElement | null;
+      expect(anchor?.download).toBe('diagram.png');
+      expect(anchor?.href).toContain('blob:');
     });
   });
 });

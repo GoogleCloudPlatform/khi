@@ -85,7 +85,11 @@ export function exportSvgToPngBlob(
     const ctx = canvas.getContext('2d');
     const image = new Image();
 
+    const blob = exportSvgToBlob(svgElement);
+    const url = URL.createObjectURL(blob);
+
     image.onload = () => {
+      URL.revokeObjectURL(url);
       try {
         ctx?.drawImage(image, 0, 0);
         canvas.toBlob((blob) => {
@@ -105,6 +109,7 @@ export function exportSvgToPngBlob(
     };
 
     image.onerror = () => {
+      URL.revokeObjectURL(url);
       reject(
         new Error(
           'Failed to render SVG graph onto canvas for PNG export. Please download as SVG instead.',
@@ -112,9 +117,7 @@ export function exportSvgToPngBlob(
       );
     };
 
-    const serializer = new XMLSerializer();
-    const svgXml = serializer.serializeToString(svgElement);
-    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgXml)}`;
+    image.src = url;
   });
 }
 

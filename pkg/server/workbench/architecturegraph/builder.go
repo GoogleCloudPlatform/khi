@@ -210,6 +210,10 @@ func (b *Builder) Build(
 		}
 	}
 
+	// Merge podPhaseMap into podsMap.
+	// Node child timelines (core/v1/node/cluster-scope/<node>/<namespace>/<pod>[<uid>]) serve two purposes:
+	// 1. As evidence to resolve node placement, phase, and UID for an existing pod (even if the child timeline itself was filtered out).
+	// 2. To synthesize a pod when no primary pod timeline exists, in which case the child timeline must be allowed by allowedTimelines.
 	for podID, info := range podPhaseMap {
 		pod, exists := podsMap[podID]
 		if !exists {
@@ -553,14 +557,16 @@ func (b *Builder) parsePod(
 		}
 	}
 
-	// Fallback to child timelines if containers or conditions were not parsed from manifest
-	if len(containersMap) == 0 || len(pod.Conditions) == 0 {
+	// Fallback to child timelines if containers or conditions were not parsed from manifest.
+	fallbackContainers := len(containersMap) == 0
+	fallbackConditions := len(pod.Conditions) == 0
+	if fallbackContainers || fallbackConditions {
 		for _, childID := range tl.ChildrenIDs {
 			child := b.timelineMap[childID]
 			if child == nil {
 				continue
 			}
-			if len(containersMap) == 0 && child.TimelineType == "container" {
+			if fallbackContainers && child.TimelineType == "container" {
 				c := &apiv1.GraphContainer{
 					Name:            proto.String(child.Name),
 					IsInitContainer: proto.Bool(false),
@@ -583,7 +589,7 @@ func (b *Builder) parsePod(
 					}
 				}
 				containersMap[child.Name] = c
-			} else if len(pod.Conditions) == 0 && child.TimelineType == "condition" {
+			} else if fallbackConditions && child.TimelineType == "condition" {
 				condRev, _ := b.lookupRevisionAtNs(child, timeNs)
 				if condRev != nil {
 					stateLower := strings.ToLower(condRev.State)
