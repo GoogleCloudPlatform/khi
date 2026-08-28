@@ -34,6 +34,7 @@ import {
   catchError,
   concat,
   debounceTime,
+  defer,
   exhaustMap,
   from,
   map,
@@ -41,8 +42,10 @@ import {
   of,
   range,
   reduce,
+  retry,
   shareReplay,
   switchMap,
+  timer,
   withLatestFrom,
 } from 'rxjs';
 import { ViewStateService } from '../view-state.service';
@@ -52,6 +55,11 @@ import { ProgressUtil } from '../progress/progress-util';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { resolveDownloadConfig } from 'src/app/services/api/download-config-resolver';
+import {
+  calculateBackoffDelayMs,
+  DEFAULT_CHUNK_MAX_RETRIES,
+  isRetryableError,
+} from 'src/app/services/api/retry-util';
 import { downloadBlob } from 'src/app/utils/download-util';
 import {
   convertMapToParameterValues,
@@ -253,13 +261,24 @@ export class BackendAPIImpl implements BackendAPI {
             return { index, startInBytes, maxSizeInBytes };
           }),
           mergeMap(({ index, startInBytes, maxSizeInBytes }) => {
-            return from(
-              this.connectClient.inspectionClient.getInspectionDataChunk({
-                inspectionId: inspectionID,
-                offsetBytes: BigInt(startInBytes),
-                maxSizeBytes: BigInt(maxSizeInBytes),
-              }),
+            return defer(() =>
+              from(
+                this.connectClient.inspectionClient.getInspectionDataChunk({
+                  inspectionId: inspectionID,
+                  offsetBytes: BigInt(startInBytes),
+                  maxSizeBytes: BigInt(maxSizeInBytes),
+                }),
+              ),
             ).pipe(
+              retry({
+                count: DEFAULT_CHUNK_MAX_RETRIES,
+                delay: (error, retryCount) => {
+                  if (!isRetryableError(error)) {
+                    throw error;
+                  }
+                  return timer(calculateBackoffDelayMs(retryCount));
+                },
+              }),
               map((chunk) => {
                 const blob = new Blob([chunk.data as BlobPart]);
                 chunkLoaded[index] = blob.size;

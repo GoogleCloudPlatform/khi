@@ -106,4 +106,31 @@ describe('ConnectClientService', () => {
         originalEnv;
     }
   });
+
+  it('retries unary RPC when encountering 502 Bad Gateway', async () => {
+    let callCount = 0;
+    spyOn(globalThis, 'fetch').and.callFake(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve(
+          new Response('Bad Gateway', {
+            status: 502,
+            headers: { 'content-type': 'text/plain' },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ active: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+
+    const res = await service.workbenchClient.heartbeatWorkbench({
+      workbenchId: 'test-retry',
+    });
+    expect(res.active).toBeTrue();
+    expect(callCount).toBe(2);
+  });
 });

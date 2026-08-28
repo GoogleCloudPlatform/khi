@@ -23,6 +23,8 @@ import {
   MessageInitShape,
 } from '@bufbuild/protobuf';
 import {
+  Code,
+  ConnectError,
   ContextValues,
   createClient,
   createContextValues,
@@ -492,6 +494,197 @@ describe('LegacyPollingInterceptor', () => {
       }
 
       expect(modes).toEqual([FilterResultMode.INCLUDE]);
+    });
+
+    it('survives transient 502 error during OpenWorkbench polling', async () => {
+      let openCalls = 0;
+      const mockTransport = createMockUnaryTransport((methodName) => {
+        if (methodName === 'OpenWorkbenchSync') {
+          openCalls++;
+          if (openCalls === 1) {
+            throw new ConnectError('502 Bad Gateway', Code.Unavailable);
+          }
+          return create(OpenWorkbenchSyncResponseSchema, {
+            jobId: 'job-wb-retry',
+            stage: OpenWorkbenchResponse_Stage.READY,
+            progressPercentage: 100.0,
+            message: 'Workbench ready.',
+            workbenchId: 'wb-retry-1',
+          });
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(WorkbenchService, clientTransport);
+      const stages: OpenWorkbenchResponse_Stage[] = [];
+      for await (const res of client.openWorkbench({
+        userId: 'u1',
+        sessionId: 's1',
+        inspectionId: 'i1',
+      })) {
+        stages.push(res.stage);
+      }
+
+      expect(stages).toEqual([OpenWorkbenchResponse_Stage.READY]);
+      expect(openCalls).toBe(2);
+    });
+
+    it('survives transient 503 error during FilterTimeline polling', async () => {
+      let filterCalls = 0;
+      const mockTransport = createMockUnaryTransport((methodName) => {
+        if (methodName === 'FilterTimelineSync') {
+          filterCalls++;
+          if (filterCalls === 1) {
+            throw new ConnectError('503 Service Unavailable', Code.Unavailable);
+          }
+          return create(FilterTimelineSyncResponseSchema, {
+            jobId: 'job-filter-retry',
+            isDone: true,
+            result: create(FilterResultSchema, {
+              timelineMode: FilterResultMode.INCLUDE,
+              logMode: FilterResultMode.INCLUDE,
+            }),
+          });
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(WorkbenchService, clientTransport);
+      const modes: FilterResultMode[] = [];
+      for await (const res of client.filterTimeline({
+        workbenchId: 'wb-1',
+      })) {
+        if (res.payload.case === 'result') {
+          modes.push(res.payload.value.timelineMode);
+        }
+      }
+
+      expect(modes).toEqual([FilterResultMode.INCLUDE]);
+      expect(filterCalls).toBe(2);
+    });
+
+    it('aborts OpenWorkbench when consecutive errors exceed limit', async () => {
+      const mockTransport = createMockUnaryTransport((methodName) => {
+        if (methodName === 'OpenWorkbenchSync') {
+          throw new ConnectError('502 Bad Gateway', Code.Unavailable);
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(WorkbenchService, clientTransport);
+
+      await expectAsync(
+        (async () => {
+          for await (const res of client.openWorkbench({
+            userId: 'u1',
+            sessionId: 's1',
+            inspectionId: 'i1',
+          })) {
+            expect(res).toBeDefined();
+          }
+        })(),
+      ).toBeRejectedWithError(ConnectError);
+    });
+
+    it('fails immediately on non-retryable error during OpenWorkbench polling', async () => {
+      let openCalls = 0;
+      const mockTransport = createMockUnaryTransport((methodName) => {
+        if (methodName === 'OpenWorkbenchSync') {
+          openCalls++;
+          throw new ConnectError('Invalid argument', Code.InvalidArgument);
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(WorkbenchService, clientTransport);
+
+      await expectAsync(
+        (async () => {
+          for await (const res of client.openWorkbench({
+            userId: 'u1',
+            sessionId: 's1',
+            inspectionId: 'i1',
+          })) {
+            expect(res).toBeDefined();
+          }
+        })(),
+      ).toBeRejectedWithError(ConnectError);
+
+      expect(openCalls).toBe(1);
+    });
+
+    it('resets consecutive error counter on success after transient failure', async () => {
+      let openCalls = 0;
+      const mockTransport = createMockUnaryTransport((methodName) => {
+        if (methodName === 'OpenWorkbenchSync') {
+          openCalls++;
+          if (openCalls === 1) {
+            throw new ConnectError('503 Service Unavailable', Code.Unavailable);
+          }
+          if (openCalls === 2) {
+            return create(OpenWorkbenchSyncResponseSchema, {
+              stage: OpenWorkbenchResponse_Stage.INITIALIZING,
+            });
+          }
+          if (openCalls === 3) {
+            throw new ConnectError('503 Service Unavailable', Code.Unavailable);
+          }
+          return create(OpenWorkbenchSyncResponseSchema, {
+            stage: OpenWorkbenchResponse_Stage.READY,
+          });
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(WorkbenchService, clientTransport);
+      const stages: OpenWorkbenchResponse_Stage[] = [];
+
+      for await (const res of client.openWorkbench({
+        userId: 'u1',
+        sessionId: 's1',
+        inspectionId: 'i1',
+      })) {
+        stages.push(res.stage);
+      }
+
+      expect(stages).toEqual([
+        OpenWorkbenchResponse_Stage.INITIALIZING,
+        OpenWorkbenchResponse_Stage.READY,
+      ]);
+      expect(openCalls).toBe(4);
+    });
+
+    it('aborts FilterTimeline when consecutive errors exceed limit', async () => {
+      const mockTransport = createMockUnaryTransport((methodName) => {
+        if (methodName === 'FilterTimelineSync') {
+          throw new ConnectError('503 Service Unavailable', Code.Unavailable);
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(WorkbenchService, clientTransport);
+
+      await expectAsync(
+        (async () => {
+          for await (const res of client.filterTimeline({
+            workbenchId: 'wb-1',
+          })) {
+            expect(res).toBeDefined();
+          }
+        })(),
+      ).toBeRejectedWithError(ConnectError);
     });
   });
 });

@@ -53,7 +53,17 @@ import {
   WorkbenchService,
 } from 'src/app/generated/api/v1/workbench_pb';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
+import { createRetryInterceptor } from 'src/app/services/api/retry.interceptor';
+import {
+  delayWithSignal,
+  isRetryableError,
+} from 'src/app/services/api/retry-util';
 import { environment } from 'src/environments/environment';
+
+/**
+ * Maximum number of consecutive transient errors tolerated during polling before aborting.
+ */
+export const MAX_CONSECUTIVE_POLL_ERRORS = 5;
 
 /**
  * Checks whether legacy polling mode is enabled via URL query parameter or environment configuration.
@@ -89,27 +99,6 @@ async function getFirstMessage<T>(iterable: AsyncIterable<T>): Promise<T> {
 }
 
 /**
- * Delays execution for the specified milliseconds, resolving early if the signal is aborted.
- */
-function delay(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve();
-      return;
-    }
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort);
-      resolve();
-    }, ms);
-    const onAbort = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-    signal?.addEventListener('abort', onAbort, { once: true });
-  });
-}
-
-/**
  * Adapts WatchPopup streaming RPC to unary PullPopup calls.
  */
 async function* adaptWatchPopup(
@@ -137,7 +126,7 @@ async function* adaptWatchPopup(
         return;
       }
     }
-    await delay(500, req.signal);
+    await delayWithSignal(500, req.signal);
   }
 }
 
@@ -160,7 +149,7 @@ async function* adaptWatchServerStat(
         return;
       }
     }
-    await delay(1000, req.signal);
+    await delayWithSignal(1000, req.signal);
   }
 }
 
@@ -183,7 +172,7 @@ async function* adaptWatchInspections(
         return;
       }
     }
-    await delay(500, req.signal);
+    await delayWithSignal(500, req.signal);
   }
 }
 
@@ -222,7 +211,7 @@ async function* adaptWatchIndexProgress(
         return;
       }
     }
-    await delay(500, req.signal);
+    await delayWithSignal(500, req.signal);
   }
 }
 
@@ -236,27 +225,47 @@ async function* adaptOpenWorkbench(
   const wbClient = createClient(WorkbenchService, transport);
   const input = (await getFirstMessage(req.message)) as OpenWorkbenchRequest;
   let jobId = '';
+  let consecutiveErrors = 0;
   try {
     while (!req.signal.aborted) {
-      const res = await wbClient.openWorkbenchSync(
-        {
-          userId: input.userId,
-          sessionId: input.sessionId,
-          inspectionId: input.inspectionId,
-          jobId,
-        },
-        { signal: req.signal },
-      );
-      jobId = res.jobId;
-      yield create(OpenWorkbenchResponseSchema, {
-        stage: res.stage,
-        progressPercentage: res.progressPercentage,
-        message: res.message,
-        workbenchId: res.workbenchId,
-      });
-      if (res.stage === OpenWorkbenchResponse_Stage.READY) {
-        return;
+      try {
+        const res = await wbClient.openWorkbenchSync(
+          {
+            userId: input.userId,
+            sessionId: input.sessionId,
+            inspectionId: input.inspectionId,
+            jobId,
+          },
+          { signal: req.signal },
+        );
+        consecutiveErrors = 0;
+        jobId = res.jobId;
+        yield create(OpenWorkbenchResponseSchema, {
+          stage: res.stage,
+          progressPercentage: res.progressPercentage,
+          message: res.message,
+          workbenchId: res.workbenchId,
+        });
+        if (res.stage === OpenWorkbenchResponse_Stage.READY) {
+          return;
+        }
+      } catch (err) {
+        if (req.signal.aborted) {
+          return;
+        }
+        consecutiveErrors++;
+        if (
+          consecutiveErrors > MAX_CONSECUTIVE_POLL_ERRORS ||
+          !isRetryableError(err)
+        ) {
+          throw err;
+        }
+        console.warn(
+          `[LegacyPolling] OpenWorkbenchSync transient error (${consecutiveErrors}/${MAX_CONSECUTIVE_POLL_ERRORS}):`,
+          err,
+        );
       }
+      await delayWithSignal(300, req.signal);
     }
   } finally {
     if (req.signal.aborted && jobId) {
@@ -279,60 +288,56 @@ async function* adaptFilterTimeline(
   const wbClient = createClient(WorkbenchService, transport);
   const input = (await getFirstMessage(req.message)) as FilterTimelineRequest;
   let jobId = '';
+  let consecutiveErrors = 0;
   try {
-    const initialRes = await wbClient.filterTimelineSync(
-      {
-        workbenchId: input.workbenchId,
-        timelineQuery: input.timelineQuery,
-        timelineExclusionQuery: input.timelineExclusionQuery,
-        logQuery: input.logQuery,
-        excludeNoLogs: input.excludeNoLogs,
-        jobId: '',
-      },
-      { signal: req.signal },
-    );
-    jobId = initialRes.jobId;
-    if (initialRes.progress) {
-      yield create(FilterTimelineResponseSchema, {
-        payload: { case: 'progress', value: initialRes.progress },
-      });
-    }
-    if (initialRes.isDone) {
-      if (initialRes.errorMessage) {
-        throw new Error(initialRes.errorMessage);
-      }
-      if (initialRes.result) {
-        yield create(FilterTimelineResponseSchema, {
-          payload: { case: 'result', value: initialRes.result },
-        });
-      }
-      return;
-    }
-
     while (!req.signal.aborted) {
-      const pollRes = await wbClient.filterTimelineSync(
-        {
-          workbenchId: input.workbenchId,
-          jobId,
-        },
-        { signal: req.signal },
-      );
-      if (pollRes.progress) {
-        yield create(FilterTimelineResponseSchema, {
-          payload: { case: 'progress', value: pollRes.progress },
-        });
-      }
-      if (pollRes.isDone) {
-        if (pollRes.errorMessage) {
-          throw new Error(pollRes.errorMessage);
-        }
-        if (pollRes.result) {
+      try {
+        const pollRes = await wbClient.filterTimelineSync(
+          {
+            workbenchId: input.workbenchId,
+            timelineQuery: jobId ? '' : input.timelineQuery,
+            timelineExclusionQuery: jobId ? '' : input.timelineExclusionQuery,
+            logQuery: jobId ? '' : input.logQuery,
+            excludeNoLogs: jobId ? false : input.excludeNoLogs,
+            jobId,
+          },
+          { signal: req.signal },
+        );
+        consecutiveErrors = 0;
+        jobId = pollRes.jobId;
+        if (pollRes.progress) {
           yield create(FilterTimelineResponseSchema, {
-            payload: { case: 'result', value: pollRes.result },
+            payload: { case: 'progress', value: pollRes.progress },
           });
         }
-        return;
+        if (pollRes.isDone) {
+          if (pollRes.errorMessage) {
+            throw new Error(pollRes.errorMessage);
+          }
+          if (pollRes.result) {
+            yield create(FilterTimelineResponseSchema, {
+              payload: { case: 'result', value: pollRes.result },
+            });
+          }
+          return;
+        }
+      } catch (err) {
+        if (req.signal.aborted) {
+          return;
+        }
+        consecutiveErrors++;
+        if (
+          consecutiveErrors > MAX_CONSECUTIVE_POLL_ERRORS ||
+          !isRetryableError(err)
+        ) {
+          throw err;
+        }
+        console.warn(
+          `[LegacyPolling] FilterTimelineSync transient error (${consecutiveErrors}/${MAX_CONSECUTIVE_POLL_ERRORS}):`,
+          err,
+        );
       }
+      await delayWithSignal(300, req.signal);
     }
   } finally {
     if (req.signal.aborted && jobId) {
@@ -368,6 +373,7 @@ export function createLegacyPollingInterceptor(
     createConnectTransport({
       baseUrl: ApiPathUtil.getServerBaseUrl(),
       useBinaryFormat: environment.production,
+      interceptors: [createRetryInterceptor()],
     });
 
   return (next) => async (req) => {

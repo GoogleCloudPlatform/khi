@@ -15,6 +15,12 @@
  */
 
 import { CancellationError } from 'src/app/store/domain/filter/types';
+import {
+  calculateBackoffDelayMs,
+  DEFAULT_CHUNK_MAX_RETRIES,
+  delayWithSignal,
+  isRetryableError,
+} from 'src/app/services/api/retry-util';
 
 /**
  * Progress callback reporting uploaded bytes and total bytes.
@@ -41,6 +47,9 @@ export interface ChunkUploadExecutorOptions {
 
   /** Optional progress callback invoked as chunks complete. */
   readonly onProgress?: ChunkUploadProgressCallback;
+
+  /** Maximum number of retry attempts per failed chunk upload. Defaults to 10. */
+  readonly maxRetriesPerChunk?: number;
 
   /** Function that uploads a single binary chunk to the remote service. */
   readonly uploadChunk: (
@@ -110,6 +119,9 @@ export async function executeChunkedUpload(
   let uploadedBytes = 0;
   let firstError: unknown = null;
 
+  const maxRetriesPerChunk =
+    options.maxRetriesPerChunk ?? DEFAULT_CHUNK_MAX_RETRIES;
+
   const workerCount = Math.min(maxConcurrency, chunks.length);
   const workers = Array.from({ length: workerCount }, async () => {
     while (true) {
@@ -123,30 +135,52 @@ export async function executeChunkedUpload(
       }
 
       const chunk = chunks[index];
-      try {
-        const sliceBlob = options.file.slice(
-          chunk.offset,
-          chunk.offset + chunk.length,
-        );
-        const buffer = await sliceBlob.arrayBuffer();
-        const data = new Uint8Array(buffer);
-
+      let chunkRetryCount = 0;
+      while (true) {
         if (abortController.signal.aborted || firstError !== null) {
           break;
         }
 
-        await options.uploadChunk(chunk.offset, data, abortController.signal);
+        try {
+          const sliceBlob = options.file.slice(
+            chunk.offset,
+            chunk.offset + chunk.length,
+          );
+          const buffer = await sliceBlob.arrayBuffer();
+          const data = new Uint8Array(buffer);
 
-        uploadedBytes += chunk.length;
-        if (options.onProgress) {
-          options.onProgress(uploadedBytes, totalSize);
+          if (abortController.signal.aborted || firstError !== null) {
+            break;
+          }
+
+          await options.uploadChunk(chunk.offset, data, abortController.signal);
+
+          uploadedBytes += chunk.length;
+          if (options.onProgress) {
+            options.onProgress(uploadedBytes, totalSize);
+          }
+          break;
+        } catch (err) {
+          chunkRetryCount++;
+          if (
+            chunkRetryCount <= maxRetriesPerChunk &&
+            isRetryableError(err) &&
+            !abortController.signal.aborted &&
+            firstError === null
+          ) {
+            const delayMs = calculateBackoffDelayMs(chunkRetryCount);
+            await delayWithSignal(delayMs, abortController.signal);
+            if (!abortController.signal.aborted && firstError === null) {
+              continue;
+            }
+          }
+
+          if (firstError === null) {
+            firstError = err;
+            abortController.abort();
+          }
+          break;
         }
-      } catch (err) {
-        if (firstError === null) {
-          firstError = err;
-          abortController.abort();
-        }
-        break;
       }
     }
   });

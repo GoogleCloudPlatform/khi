@@ -290,6 +290,40 @@ describe('BackendAPIImpl testing', () => {
     expect(reporterSpy).toHaveBeenCalledWith(100, 100);
   });
 
+  it('retries chunk download when getInspectionDataChunk encounters 502 error', async () => {
+    const fileSize = 10;
+    mockInspectionClient.getInspectionMetadata.and.returnValue(
+      Promise.resolve(
+        create(GetInspectionMetadataResponseSchema, {
+          header: {
+            inspectionType: 'test',
+            inspectionName: 'test',
+            suggestedFilename: 'retry-test.khi',
+            fileSize: BigInt(fileSize),
+          },
+        }),
+      ),
+    );
+
+    let callCount = 0;
+    mockInspectionClient.getInspectionDataChunk.and.callFake(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.reject(new Error('502 Bad Gateway'));
+      }
+      return Promise.resolve(
+        create(GetInspectionDataChunkResponseSchema, {
+          data: new Uint8Array(fileSize),
+        }),
+      );
+    });
+
+    const data = await firstValueFrom(api.getInspectionData('test', () => {}));
+    expect(data.fileName).toEqual('retry-test.khi');
+    expect(data.content.size).toEqual(fileSize);
+    expect(callCount).toBe(2);
+  });
+
   it('respects environment download chunk size and concurrency in getInspectionData', async () => {
     const originalDownload = environment.download;
     try {

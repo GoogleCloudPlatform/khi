@@ -26,6 +26,7 @@ import { WorkbenchService } from 'src/app/generated/api/v1/workbench_pb';
 import { InspectionService } from 'src/app/generated/api/v1/inspection_pb';
 import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 import { createLegacyPollingInterceptor } from 'src/app/services/api/legacy-polling.interceptor';
+import { createRetryInterceptor } from 'src/app/services/api/retry.interceptor';
 import { resolveUseBinaryFormat } from 'src/app/services/api/transport-config-resolver';
 
 /**
@@ -38,7 +39,7 @@ export class ConnectClientService {
   private readonly transport = createConnectTransport({
     baseUrl: ApiPathUtil.getServerBaseUrl(),
     useBinaryFormat: resolveUseBinaryFormat(),
-    interceptors: [createLegacyPollingInterceptor()],
+    interceptors: [createRetryInterceptor(), createLegacyPollingInterceptor()],
   });
 
   /**

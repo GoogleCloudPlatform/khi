@@ -87,6 +87,76 @@ describe('executeChunkedUpload', () => {
     ).toBeRejectedWithError('chunk upload failed');
   });
 
+  it('should retry chunk on transient error and complete successfully', async () => {
+    const fileContent = '1234567890abcdef'; // 16 bytes, 4 chunks of 4 bytes
+    const file = new File([fileContent], 'test.txt', { type: 'text/plain' });
+    let failedOnce = false;
+    let offset4Calls = 0;
+
+    await executeChunkedUpload({
+      file,
+      chunkSize: 4,
+      maxRetriesPerChunk: 2,
+      uploadChunk: async (offset) => {
+        if (offset === 4) {
+          offset4Calls++;
+          if (!failedOnce) {
+            failedOnce = true;
+            throw new Error('503 Service Unavailable');
+          }
+        }
+      },
+    });
+
+    expect(failedOnce).toBeTrue();
+    expect(offset4Calls).toBe(2);
+  });
+
+  it('should fail when chunk retries are exhausted', async () => {
+    const fileContent = '1234567890abcdef';
+    const file = new File([fileContent], 'test.txt', { type: 'text/plain' });
+    let callCount = 0;
+
+    await expectAsync(
+      executeChunkedUpload({
+        file,
+        chunkSize: 4,
+        maxRetriesPerChunk: 2,
+        uploadChunk: async (offset) => {
+          if (offset === 0) {
+            callCount++;
+            throw new Error('502 Bad Gateway');
+          }
+        },
+      }),
+    ).toBeRejectedWithError('502 Bad Gateway');
+
+    // 1 initial attempt + 2 retries = 3 calls
+    expect(callCount).toBe(3);
+  });
+
+  it('should fail immediately on non-retryable error without retrying', async () => {
+    const fileContent = '1234567890abcdef';
+    const file = new File([fileContent], 'test.txt', { type: 'text/plain' });
+    let callCount = 0;
+
+    await expectAsync(
+      executeChunkedUpload({
+        file,
+        chunkSize: 4,
+        maxRetriesPerChunk: 3,
+        uploadChunk: async (offset) => {
+          if (offset === 0) {
+            callCount++;
+            throw new Error('400 Bad Request');
+          }
+        },
+      }),
+    ).toBeRejectedWithError('400 Bad Request');
+
+    expect(callCount).toBe(1);
+  });
+
   it('should abort upload when abortSignal is triggered', async () => {
     const fileContent = '1234567890abcdef';
     const file = new File([fileContent], 'test.txt', { type: 'text/plain' });
