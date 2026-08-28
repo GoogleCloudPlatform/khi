@@ -27,7 +27,10 @@ import {
   Verb,
   StyleProvider,
 } from 'src/app/store/domain/style';
-import { align } from 'src/app/common/memory-util';
+import {
+  BufferLayoutBuilder,
+  nextCapacity,
+} from 'src/app/store/domain/buffer-util';
 import { LogStore } from 'src/app/store/domain/log-store';
 import {
   DomainFieldAnnotation,
@@ -47,14 +50,16 @@ export interface TimelineDTO {
   readonly eventIds: readonly number[];
 }
 
+export interface MutatingWebhookAnnotationDTO {
+  readonly configurationStringId: number;
+  readonly webhookStringId: number;
+  readonly round: number;
+  readonly index: number;
+}
+
 export interface FieldAnnotationDTO {
   readonly fieldPathStringId: number;
-  readonly mutatingWebhook?: {
-    readonly configurationStringId: number;
-    readonly webhookStringId: number;
-    readonly round: number;
-    readonly index: number;
-  };
+  readonly mutatingWebhook?: MutatingWebhookAnnotationDTO;
 }
 
 /**
@@ -80,20 +85,18 @@ export interface EventDTO {
 }
 
 interface TimelineStoreLayout {
-  timelineIds: number;
-  timelineTypeIds: number;
-  timelineNameStringIds: number;
-  timelineParentIds: number;
-  revisionIds: number;
-  revisionLogIds: number;
-  revisionChangedTimes: number;
-  revisionPrincipalStringIds: number;
-  revisionVerbTypeIds: number;
-  revisionStateTypeIds: number;
-  revisionBodyStructIds: number;
-  eventIds: number;
-  eventLogIds: number;
-  totalBytes: number;
+  readonly timelineIdsOffset: number;
+  readonly timelineTypeIdsOffset: number;
+  readonly timelineNameStringIdsOffset: number;
+  readonly timelineParentIdsOffset: number;
+  readonly revisionLogIdsOffset: number;
+  readonly revisionPrincipalStringIdsOffset: number;
+  readonly revisionVerbTypeIdsOffset: number;
+  readonly revisionStateTypeIdsOffset: number;
+  readonly revisionBodyStructIdsOffset: number;
+  readonly revisionChangedTimesOffset: number;
+  readonly eventLogIdsOffset: number;
+  readonly totalBytes: number;
 }
 
 /**
@@ -101,6 +104,14 @@ interface TimelineStoreLayout {
  */
 export class TimelineStore {
   private metadataBuffer!: ArrayBuffer;
+  private timelineCapacity = 0;
+  private revisionCapacity = 0;
+  private eventCapacity = 0;
+
+  private timelineCount = 0;
+  private _revisionCount = 0;
+  private _eventCount = 0;
+  private relationshipsDirty = true;
 
   // Timeline views
   private timelineIds!: Uint32Array;
@@ -112,25 +123,23 @@ export class TimelineStore {
   private readonly timelineEventIds: Uint32Array[] = [];
   private readonly timelineChildrenIds: number[][] = [];
   private readonly timelinesList: ReadonlyDomainElement<Timeline>[] = [];
-  private timelineIdToIndex: { [tid: number]: number } = {};
+  private timelineIdToIndex: (number | undefined)[] = [];
 
   // Revision views
-  private revisionIds!: Uint32Array;
   private revisionLogIds!: Uint32Array;
   private revisionChangedTimes!: BigUint64Array;
   private revisionPrincipalStringIds!: Uint32Array;
   private revisionVerbTypeIds!: Uint32Array;
   private revisionStateTypeIds!: Uint32Array;
   private revisionBodyStructIds!: Uint32Array;
-  private revisionFieldAnnotations: (
+  private readonly revisionFieldAnnotations: (
     readonly FieldAnnotationDTO[] | undefined
   )[] = [];
-  private revisionIdToIndex: { [rid: number]: number } = {};
+  private revisionIdToIndex: (number | undefined)[] = [];
 
   // Event views
-  private eventIds!: Uint32Array;
   private eventLogIds!: Uint32Array;
-  private eventIdToIndex: { [eid: number]: number } = {};
+  private eventIdToIndex: (number | undefined)[] = [];
 
   private constructor(
     private readonly internPool: InternPoolStore,
@@ -139,247 +148,410 @@ export class TimelineStore {
   ) {}
 
   /**
-   * Initializes a new TimelineStore instance with the raw timelines, revisions, and events.
+   * Creates an empty TimelineStore instance with initial capacities.
    *
    * @param internPool Intern pool store for string interning.
    * @param styleStore Style provider for styling information.
    * @param logStore Log store providing log references.
-   * @param timelines Iterable of raw timelines.
-   * @param timelineCount Total number of timelines.
-   * @param revisions Iterable of raw revisions.
-   * @param revisionCount Total number of revisions.
-   * @param events Iterable of raw events.
-   * @param eventCount Total number of events.
-   * @returns An initialized TimelineStore instance.
+   * @param initialTimelineCapacity Initial capacity for timelines.
+   * @param initialRevisionCapacity Initial capacity for revisions.
+   * @param initialEventCapacity Initial capacity for events.
+   * @returns A new empty TimelineStore instance.
    */
-  public static initialize(
+  public static create(
     internPool: InternPoolStore,
     styleStore: StyleProvider,
     logStore: LogStore,
-    timelines: Iterable<TimelineDTO>,
-    timelineCount: number,
-    revisions: Iterable<RevisionDTO>,
-    revisionCount: number,
-    events: Iterable<EventDTO>,
-    eventCount: number,
+    initialTimelineCapacity = 1024,
+    initialRevisionCapacity = 1024,
+    initialEventCapacity = 1024,
   ): TimelineStore {
     const store = new TimelineStore(internPool, styleStore, logStore);
-    store.load(
-      timelines,
-      timelineCount,
-      revisions,
-      revisionCount,
-      events,
-      eventCount,
+    store.ensureCapacity(
+      Math.max(initialTimelineCapacity, 1),
+      Math.max(initialRevisionCapacity, 1),
+      Math.max(initialEventCapacity, 1),
     );
     return store;
   }
 
-  private allocateMetadata(
-    timelineCapacity: number,
-    revisionCapacity: number,
-    eventCapacity: number,
-  ): void {
-    const layout = this.calculateOffsets(
-      timelineCapacity,
-      revisionCapacity,
-      eventCapacity,
+  /**
+   * Gets the total number of timelines.
+   */
+  public get count(): number {
+    return this.timelineCount;
+  }
+
+  /**
+   * Gets the total number of revisions.
+   */
+  public get revisionCount(): number {
+    return this._revisionCount;
+  }
+
+  /**
+   * Gets the total number of events.
+   */
+  public get eventCount(): number {
+    return this._eventCount;
+  }
+
+  /**
+   * Ensures timeline metadata has at least minCapacity slots.
+   */
+  private ensureTimelineCapacity(minCapacity: number): void {
+    this.ensureCapacity(minCapacity, this.revisionCapacity, this.eventCapacity);
+  }
+
+  /**
+   * Ensures revision metadata has at least minCapacity slots.
+   */
+  private ensureRevisionCapacity(minCapacity: number): void {
+    this.ensureCapacity(this.timelineCapacity, minCapacity, this.eventCapacity);
+  }
+
+  /**
+   * Ensures event metadata has at least minCapacity slots.
+   */
+  private ensureEventCapacity(minCapacity: number): void {
+    this.ensureCapacity(
+      this.timelineCapacity,
+      this.revisionCapacity,
+      minCapacity,
     );
-    this.metadataBuffer = allocateBuffer(layout.totalBytes);
-    this.applyViews(layout, timelineCapacity, revisionCapacity, eventCapacity);
   }
 
   private calculateOffsets(
-    tCap: number,
-    rCap: number,
-    eCap: number,
+    timelineCapacity: number,
+    revisionCapacity: number,
+    eventCapacity: number,
   ): TimelineStoreLayout {
-    let offset = 0;
-
-    const timelineIds = offset;
-    offset += tCap * 4;
-
-    const timelineTypeIds = offset;
-    offset += tCap * 4;
-
-    const timelineNameStringIds = offset;
-    offset += tCap * 4;
-
-    const timelineParentIds = offset;
-    offset += tCap * 4;
-
-    const revisionIds = align(offset, 4);
-    offset = revisionIds + rCap * 4;
-
-    const revisionLogIds = offset;
-    offset += rCap * 4;
-
-    const revisionPrincipalStringIds = offset;
-    offset += rCap * 4;
-
-    const revisionVerbTypeIds = offset;
-    offset += rCap * 4;
-
-    const revisionStateTypeIds = offset;
-    offset += rCap * 4;
-
-    const revisionBodyStructIds = offset;
-    offset += rCap * 4;
-
-    const revisionChangedTimes = align(offset, 8);
-    offset = revisionChangedTimes + rCap * 8;
-
-    const eventIds = align(offset, 4);
-    offset = eventIds + eCap * 4;
-
-    const eventLogIds = offset;
-    offset += eCap * 4;
-
+    const builder = new BufferLayoutBuilder();
     return {
-      timelineIds,
-      timelineTypeIds,
-      timelineNameStringIds,
-      timelineParentIds,
-      revisionIds,
-      revisionLogIds,
-      revisionPrincipalStringIds,
-      revisionVerbTypeIds,
-      revisionStateTypeIds,
-      revisionBodyStructIds,
-      revisionChangedTimes,
-      eventIds,
-      eventLogIds,
-      totalBytes: offset,
+      timelineIdsOffset: builder.addField(timelineCapacity, 4),
+      timelineTypeIdsOffset: builder.addField(timelineCapacity, 4),
+      timelineNameStringIdsOffset: builder.addField(timelineCapacity, 4),
+      timelineParentIdsOffset: builder.addField(timelineCapacity, 4),
+      revisionLogIdsOffset: builder.addField(revisionCapacity, 4, 4),
+      revisionPrincipalStringIdsOffset: builder.addField(revisionCapacity, 4),
+      revisionVerbTypeIdsOffset: builder.addField(revisionCapacity, 4),
+      revisionStateTypeIdsOffset: builder.addField(revisionCapacity, 4),
+      revisionBodyStructIdsOffset: builder.addField(revisionCapacity, 4),
+      revisionChangedTimesOffset: builder.addField(revisionCapacity, 8, 8),
+      eventLogIdsOffset: builder.addField(eventCapacity, 4, 4),
+      totalBytes: builder.totalBytes,
     };
   }
 
   private applyViews(
     layout: TimelineStoreLayout,
-    tCap: number,
-    rCap: number,
-    eCap: number,
+    timelineCapacity: number,
+    revisionCapacity: number,
+    eventCapacity: number,
   ): void {
     const buffer = this.metadataBuffer;
-    this.timelineIds = new Uint32Array(buffer, layout.timelineIds, tCap);
+    this.timelineIds = new Uint32Array(
+      buffer,
+      layout.timelineIdsOffset,
+      timelineCapacity,
+    );
     this.timelineTypeIds = new Uint32Array(
       buffer,
-      layout.timelineTypeIds,
-      tCap,
+      layout.timelineTypeIdsOffset,
+      timelineCapacity,
     );
     this.timelineNameStringIds = new Uint32Array(
       buffer,
-      layout.timelineNameStringIds,
-      tCap,
+      layout.timelineNameStringIdsOffset,
+      timelineCapacity,
     );
     this.timelineParentIds = new Uint32Array(
       buffer,
-      layout.timelineParentIds,
-      tCap,
+      layout.timelineParentIdsOffset,
+      timelineCapacity,
     );
 
-    this.revisionIds = new Uint32Array(buffer, layout.revisionIds, rCap);
-    this.revisionLogIds = new Uint32Array(buffer, layout.revisionLogIds, rCap);
+    this.revisionLogIds = new Uint32Array(
+      buffer,
+      layout.revisionLogIdsOffset,
+      revisionCapacity,
+    );
     this.revisionPrincipalStringIds = new Uint32Array(
       buffer,
-      layout.revisionPrincipalStringIds,
-      rCap,
+      layout.revisionPrincipalStringIdsOffset,
+      revisionCapacity,
     );
     this.revisionVerbTypeIds = new Uint32Array(
       buffer,
-      layout.revisionVerbTypeIds,
-      rCap,
+      layout.revisionVerbTypeIdsOffset,
+      revisionCapacity,
     );
     this.revisionStateTypeIds = new Uint32Array(
       buffer,
-      layout.revisionStateTypeIds,
-      rCap,
+      layout.revisionStateTypeIdsOffset,
+      revisionCapacity,
     );
     this.revisionBodyStructIds = new Uint32Array(
       buffer,
-      layout.revisionBodyStructIds,
-      rCap,
+      layout.revisionBodyStructIdsOffset,
+      revisionCapacity,
     );
     this.revisionChangedTimes = new BigUint64Array(
       buffer,
-      layout.revisionChangedTimes,
-      rCap,
+      layout.revisionChangedTimesOffset,
+      revisionCapacity,
     );
 
-    this.eventIds = new Uint32Array(buffer, layout.eventIds, eCap);
-    this.eventLogIds = new Uint32Array(buffer, layout.eventLogIds, eCap);
+    this.eventLogIds = new Uint32Array(
+      buffer,
+      layout.eventLogIdsOffset,
+      eventCapacity,
+    );
+  }
+
+  private reallocate(
+    newTimelineCapacity: number,
+    newRevisionCapacity: number,
+    newEventCapacity: number,
+  ): void {
+    const layout = this.calculateOffsets(
+      newTimelineCapacity,
+      newRevisionCapacity,
+      newEventCapacity,
+    );
+    const newBuffer = allocateBuffer(layout.totalBytes);
+
+    const prevTimelineIds = this.timelineIds;
+    const prevTimelineTypeIds = this.timelineTypeIds;
+    const prevTimelineNameStringIds = this.timelineNameStringIds;
+    const prevTimelineParentIds = this.timelineParentIds;
+
+    const prevRevisionLogIds = this.revisionLogIds;
+    const prevRevisionPrincipalStringIds = this.revisionPrincipalStringIds;
+    const prevRevisionVerbTypeIds = this.revisionVerbTypeIds;
+    const prevRevisionStateTypeIds = this.revisionStateTypeIds;
+    const prevRevisionBodyStructIds = this.revisionBodyStructIds;
+    const prevRevisionChangedTimes = this.revisionChangedTimes;
+
+    const prevEventLogIds = this.eventLogIds;
+
+    this.metadataBuffer = newBuffer;
+    this.timelineCapacity = newTimelineCapacity;
+    this.revisionCapacity = newRevisionCapacity;
+    this.eventCapacity = newEventCapacity;
+    this.applyViews(
+      layout,
+      newTimelineCapacity,
+      newRevisionCapacity,
+      newEventCapacity,
+    );
+
+    if (this.timelineCount > 0 && prevTimelineIds) {
+      this.timelineIds.set(prevTimelineIds.subarray(0, this.timelineCount));
+      this.timelineTypeIds.set(
+        prevTimelineTypeIds.subarray(0, this.timelineCount),
+      );
+      this.timelineNameStringIds.set(
+        prevTimelineNameStringIds.subarray(0, this.timelineCount),
+      );
+      this.timelineParentIds.set(
+        prevTimelineParentIds.subarray(0, this.timelineCount),
+      );
+    }
+
+    if (this._revisionCount > 0 && prevRevisionLogIds) {
+      this.revisionLogIds.set(
+        prevRevisionLogIds.subarray(0, this._revisionCount),
+      );
+      this.revisionPrincipalStringIds.set(
+        prevRevisionPrincipalStringIds.subarray(0, this._revisionCount),
+      );
+      this.revisionVerbTypeIds.set(
+        prevRevisionVerbTypeIds.subarray(0, this._revisionCount),
+      );
+      this.revisionStateTypeIds.set(
+        prevRevisionStateTypeIds.subarray(0, this._revisionCount),
+      );
+      this.revisionBodyStructIds.set(
+        prevRevisionBodyStructIds.subarray(0, this._revisionCount),
+      );
+      this.revisionChangedTimes.set(
+        prevRevisionChangedTimes.subarray(0, this._revisionCount),
+      );
+    }
+
+    if (this._eventCount > 0 && prevEventLogIds) {
+      this.eventLogIds.set(prevEventLogIds.subarray(0, this._eventCount));
+    }
   }
 
   /**
-   * Loads the raw timelines, revisions, and events into allocated metadata.
+   * Ensures metadata buffer has at least the specified capacities for all views.
    */
-  private load(
-    timelines: Iterable<TimelineDTO>,
-    timelineCount: number,
-    revisions: Iterable<RevisionDTO>,
-    revisionCount: number,
-    events: Iterable<EventDTO>,
-    eventCount: number,
+  private ensureCapacity(
+    minTimelineCapacity: number,
+    minRevisionCapacity: number,
+    minEventCapacity: number,
   ): void {
-    this.allocateMetadata(timelineCount, revisionCount, eventCount);
-
-    this.timelineRevisionIds.length = 0;
-    this.timelineEventIds.length = 0;
-    this.timelinesList.length = 0;
-    this.timelineChildrenIds.length = 0;
-    this.revisionFieldAnnotations.length = revisionCount;
-    this.timelineIdToIndex = {};
-    this.revisionIdToIndex = {};
-    this.eventIdToIndex = {};
-
-    // Load timelines
-    let tIndex = 0;
-    for (const t of timelines) {
-      this.timelineIds[tIndex] = t.id;
-      this.timelineTypeIds[tIndex] = t.timelineTypeId;
-      this.timelineNameStringIds[tIndex] = t.nameStringId;
-      this.timelineParentIds[tIndex] = t.parentTimelineId;
-
-      this.timelineRevisionIds[tIndex] = new Uint32Array(t.revisionIds);
-      this.timelineEventIds[tIndex] = new Uint32Array(t.eventIds);
-      this.timelineChildrenIds[tIndex] = [];
-
-      this.timelineIdToIndex[t.id] = tIndex;
-      this.timelinesList.push(new Timeline(t.id, this));
-      tIndex++;
+    if (
+      minTimelineCapacity <= this.timelineCapacity &&
+      minRevisionCapacity <= this.revisionCapacity &&
+      minEventCapacity <= this.eventCapacity
+    ) {
+      return;
     }
 
-    // Build child timeline relationships
-    for (const t of timelines) {
-      if (t.parentTimelineId !== 0) {
-        const pIndex = this.getTimelineIndex(t.parentTimelineId);
-        this.timelineChildrenIds[pIndex].push(t.id);
+    const newTCap =
+      minTimelineCapacity > this.timelineCapacity
+        ? nextCapacity(this.timelineCapacity, minTimelineCapacity)
+        : this.timelineCapacity;
+    const newRCap =
+      minRevisionCapacity > this.revisionCapacity
+        ? nextCapacity(this.revisionCapacity, minRevisionCapacity)
+        : this.revisionCapacity;
+    const newECap =
+      minEventCapacity > this.eventCapacity
+        ? nextCapacity(this.eventCapacity, minEventCapacity)
+        : this.eventCapacity;
+
+    this.reallocate(newTCap, newRCap, newECap);
+  }
+
+  /**
+   * Shrinks the metadataBuffer to fit exact counts of timelines, revisions, and events.
+   */
+  public shrinkToFit(): void {
+    this.rebuildRelationships();
+    if (
+      this.timelineCount === this.timelineCapacity &&
+      this._revisionCount === this.revisionCapacity &&
+      this._eventCount === this.eventCapacity
+    ) {
+      return;
+    }
+
+    this.reallocate(this.timelineCount, this._revisionCount, this._eventCount);
+  }
+
+  /**
+   * Appends a single timeline to the store.
+   *
+   * @param timeline The raw TimelineDTO to add.
+   */
+  public addTimeline(timeline: TimelineDTO): void {
+    this.ensureTimelineCapacity(this.timelineCount + 1);
+    const tIndex = this.timelineCount;
+    this.timelineIds[tIndex] = timeline.id;
+    this.timelineTypeIds[tIndex] = timeline.timelineTypeId;
+    this.timelineNameStringIds[tIndex] = timeline.nameStringId;
+    this.timelineParentIds[tIndex] = timeline.parentTimelineId;
+
+    this.timelineRevisionIds[tIndex] = new Uint32Array(timeline.revisionIds);
+    this.timelineEventIds[tIndex] = new Uint32Array(timeline.eventIds);
+    this.timelineChildrenIds[tIndex] = [];
+
+    this.timelineIdToIndex[timeline.id] = tIndex;
+    this.timelinesList.push(new Timeline(timeline.id, this));
+    this.timelineCount++;
+    this.relationshipsDirty = true;
+  }
+
+  /**
+   * Appends multiple timelines to the store.
+   *
+   * @param timelines An iterable of raw TimelineDTOs to add.
+   */
+  public addTimelines(timelines: Iterable<TimelineDTO>): void {
+    if (Array.isArray(timelines)) {
+      this.ensureTimelineCapacity(this.timelineCount + timelines.length);
+    }
+    for (const timeline of timelines) {
+      this.addTimeline(timeline);
+    }
+  }
+
+  /**
+   * Appends a single revision to the store.
+   *
+   * @param revision The raw RevisionDTO to add.
+   */
+  public addRevision(revision: RevisionDTO): void {
+    this.ensureRevisionCapacity(this._revisionCount + 1);
+    const rIndex = this._revisionCount;
+    this.revisionLogIds[rIndex] = revision.logId;
+    this.revisionChangedTimes[rIndex] = revision.changedTime;
+    this.revisionPrincipalStringIds[rIndex] = revision.principalStringId;
+    this.revisionVerbTypeIds[rIndex] = revision.verbTypeId;
+    this.revisionStateTypeIds[rIndex] = revision.stateTypeId;
+    this.revisionBodyStructIds[rIndex] = revision.resourceBodyStructId ?? 0;
+    this.revisionFieldAnnotations[rIndex] = revision.fieldAnnotations;
+
+    this.revisionIdToIndex[revision.id] = rIndex;
+    this._revisionCount++;
+  }
+
+  /**
+   * Appends multiple revisions to the store.
+   *
+   * @param revisions An iterable of raw RevisionDTOs to add.
+   */
+  public addRevisions(revisions: Iterable<RevisionDTO>): void {
+    if (Array.isArray(revisions)) {
+      this.ensureRevisionCapacity(this._revisionCount + revisions.length);
+    }
+    for (const revision of revisions) {
+      this.addRevision(revision);
+    }
+  }
+
+  /**
+   * Appends a single event to the store.
+   *
+   * @param event The raw EventDTO to add.
+   */
+  public addEvent(event: EventDTO): void {
+    this.ensureEventCapacity(this._eventCount + 1);
+    const eIndex = this._eventCount;
+    this.eventLogIds[eIndex] = event.logId;
+
+    this.eventIdToIndex[event.id] = eIndex;
+    this._eventCount++;
+  }
+
+  /**
+   * Appends multiple events to the store.
+   *
+   * @param events An iterable of raw EventDTOs to add.
+   */
+  public addEvents(events: Iterable<EventDTO>): void {
+    if (Array.isArray(events)) {
+      this.ensureEventCapacity(this._eventCount + events.length);
+    }
+    for (const event of events) {
+      this.addEvent(event);
+    }
+  }
+
+  /**
+   * Rebuilds child timeline relationships based on parentTimelineId.
+   */
+  private rebuildRelationships(): void {
+    if (!this.relationshipsDirty) {
+      return;
+    }
+    for (let i = 0; i < this.timelineCount; i++) {
+      this.timelineChildrenIds[i] = [];
+    }
+    for (let i = 0; i < this.timelineCount; i++) {
+      const parentId = this.timelineParentIds[i];
+      if (parentId !== 0) {
+        const pIndex = this.timelineIdToIndex[parentId];
+        if (pIndex !== undefined) {
+          this.timelineChildrenIds[pIndex].push(this.timelineIds[i]);
+        }
       }
     }
-
-    // Load revisions
-    let rIndex = 0;
-    for (const r of revisions) {
-      this.revisionIds[rIndex] = r.id;
-      this.revisionLogIds[rIndex] = r.logId;
-      this.revisionChangedTimes[rIndex] = r.changedTime;
-      this.revisionPrincipalStringIds[rIndex] = r.principalStringId;
-      this.revisionVerbTypeIds[rIndex] = r.verbTypeId;
-      this.revisionStateTypeIds[rIndex] = r.stateTypeId;
-      this.revisionBodyStructIds[rIndex] = r.resourceBodyStructId ?? 0;
-      this.revisionFieldAnnotations[rIndex] = r.fieldAnnotations;
-
-      this.revisionIdToIndex[r.id] = rIndex;
-      rIndex++;
-    }
-
-    // Load events
-    let eIndex = 0;
-    for (const e of events) {
-      this.eventIds[eIndex] = e.id;
-      this.eventLogIds[eIndex] = e.logId;
-      this.eventIdToIndex[e.id] = eIndex;
-      eIndex++;
-    }
+    this.relationshipsDirty = false;
   }
 
   // --- Timeline Accessors ---
@@ -494,6 +666,9 @@ export class TimelineStore {
    * @note Intended solely for internal retrieval inside the {@link Timeline} domain adapter.
    */
   public _getChildIdsForTimeline(id: number): readonly number[] {
+    if (this.relationshipsDirty) {
+      this.rebuildRelationships();
+    }
     return this.timelineChildrenIds[this.getTimelineIndex(id)] ?? [];
   }
 
@@ -555,8 +730,9 @@ export class TimelineStore {
 
   /**
    * Gets the interned struct ID of a revision body, or 0 if not stored as a struct.
+   * @note Intended solely for internal retrieval inside the {@link Revision} domain adapter.
    */
-  public getRevisionBodyStructId(id: number): number {
+  public _getRevisionBodyStructId(id: number): number {
     const index = this.getRevisionIndex(id);
     return this.revisionBodyStructIds[index] ?? 0;
   }

@@ -67,11 +67,26 @@ describe('V6_BLUEPRINT', () => {
     expect(V6_BLUEPRINT.get(V6ChunkType.Log)!.priority).toBe(100);
     expect(V6_BLUEPRINT.get(V6ChunkType.Timeline)!.priority).toBe(100);
   });
+
+  it('should create assemblers bound to builder', () => {
+    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
+      'InspectionDataBuilder',
+      ['addLog'],
+    );
+    for (const def of V6_BLUEPRINT.values()) {
+      const assembler = def.createAssembler(builder);
+      expect(assembler).toBeDefined();
+    }
+  });
 });
 
 describe('V6InternPoolAssembler', () => {
-  it('should ingest strings and assemble them into builder', () => {
-    const assembler = new V6InternPoolAssembler();
+  it('should ingest strings, field path sets, and structs directly into builder', () => {
+    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
+      'InspectionDataBuilder',
+      ['addString', 'addFieldPathSet', 'addStruct'],
+    );
+    const assembler = new V6InternPoolAssembler(builder);
     const mockChunk = create(InterningPoolChunkSchema, {
       strings: [
         create(InternStringSchema, { id: 1, value: 'foo' }),
@@ -94,22 +109,27 @@ describe('V6InternPoolAssembler', () => {
 
     assembler.ingest(mockChunk);
 
-    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
-      'InspectionDataBuilder',
-      ['addStrings'],
-    );
-    assembler.assembleInto(builder);
-
-    expect(builder.addStrings).toHaveBeenCalledWith([
-      { id: 1, value: 'foo' },
-      { id: 2, value: 'bar' },
-    ]);
+    expect(builder.addString).toHaveBeenCalledWith({ id: 1, value: 'foo' });
+    expect(builder.addString).toHaveBeenCalledWith({ id: 2, value: 'bar' });
+    expect(builder.addFieldPathSet).toHaveBeenCalledWith({
+      id: 10,
+      fieldPathStringIds: [1, 2],
+    });
+    expect(builder.addStruct).toHaveBeenCalledWith({
+      id: 100,
+      fieldPathSetId: 10,
+      values: [],
+    });
   });
 });
 
 describe('V6LogAssembler', () => {
-  it('should ingest logs and assemble them into builder', () => {
-    const assembler = new V6LogAssembler();
+  it('should ingest logs directly into builder', () => {
+    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
+      'InspectionDataBuilder',
+      ['addLog'],
+    );
+    const assembler = new V6LogAssembler(builder);
     const mockChunk = create(LogChunkSchema, {
       logs: [
         create(LogSchema, {
@@ -125,28 +145,30 @@ describe('V6LogAssembler', () => {
 
     assembler.ingest(mockChunk);
 
-    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
-      'InspectionDataBuilder',
-      ['addLogs'],
-    );
-    assembler.assembleInto(builder);
-
-    expect(builder.addLogs).toHaveBeenCalledWith([
-      {
-        id: 100,
-        ts: 123000000456n,
-        logTypeId: 10,
-        severityTypeId: 20,
-        summaryStringId: 30,
-        bodyStructId: 5,
-      },
-    ]);
+    expect(builder.addLog).toHaveBeenCalledWith({
+      id: 100,
+      ts: 123000000456n,
+      logTypeId: 10,
+      severityTypeId: 20,
+      summaryStringId: 30,
+      bodyStructId: 5,
+    });
   });
 });
 
 describe('V6StyleAssembler', () => {
-  it('should ingest timeline styles and assemble them into builder', () => {
-    const assembler = new V6StyleAssembler();
+  it('should ingest timeline styles directly into builder', () => {
+    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
+      'InspectionDataBuilder',
+      [
+        'addSeverities',
+        'addVerbs',
+        'addLogTypes',
+        'addRevisionStates',
+        'addTimelineTypes',
+      ],
+    );
+    const assembler = new V6StyleAssembler(builder);
     const mockChunk = create(TimelineStyleChunkSchema, {
       severities: [
         create(SeveritySchema, {
@@ -166,18 +188,6 @@ describe('V6StyleAssembler', () => {
 
     assembler.ingest(mockChunk);
 
-    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
-      'InspectionDataBuilder',
-      [
-        'addSeverities',
-        'addVerbs',
-        'addLogTypes',
-        'addRevisionStates',
-        'addTimelineTypes',
-      ],
-    );
-    assembler.assembleInto(builder);
-
     expect(builder.addSeverities).toHaveBeenCalledWith([
       {
         id: 1,
@@ -191,7 +201,18 @@ describe('V6StyleAssembler', () => {
   });
 
   it('should correctly extract ArrayBuffer slices for iconAtlas with subarray views', () => {
-    const assembler = new V6StyleAssembler();
+    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
+      'InspectionDataBuilder',
+      [
+        'addSeverities',
+        'addVerbs',
+        'addLogTypes',
+        'addRevisionStates',
+        'addTimelineTypes',
+        'setIconAtlas',
+      ],
+    );
+    const assembler = new V6StyleAssembler(builder);
 
     // Create Uint8Array views with non-zero byteOffset inside a shared ArrayBuffer
     const fullBuffer = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).buffer;
@@ -213,19 +234,6 @@ describe('V6StyleAssembler', () => {
 
     assembler.ingest(mockChunk);
 
-    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
-      'InspectionDataBuilder',
-      [
-        'addSeverities',
-        'addVerbs',
-        'addLogTypes',
-        'addRevisionStates',
-        'addTimelineTypes',
-        'setIconAtlas',
-      ],
-    );
-    assembler.assembleInto(builder);
-
     expect(builder.setIconAtlas).toHaveBeenCalledTimes(1);
     const passedAtlas = builder.setIconAtlas.calls.mostRecent().args[0];
 
@@ -241,8 +249,12 @@ describe('V6StyleAssembler', () => {
 });
 
 describe('V6TimelineAssembler', () => {
-  it('should ingest timelines and timeline items and assemble them into builder', () => {
-    const assembler = new V6TimelineAssembler();
+  it('should ingest timeline items and link timelines on finalize', () => {
+    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
+      'InspectionDataBuilder',
+      ['addRevision', 'addEvent', 'addTimeline'],
+    );
+    const assembler = new V6TimelineAssembler(builder);
     const mockChunk = create(TimelineChunkSchema, {
       timelineItems: [
         create(TimelineItemsSchema, {
@@ -278,46 +290,41 @@ describe('V6TimelineAssembler', () => {
 
     assembler.ingest(mockChunk);
 
-    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
-      'InspectionDataBuilder',
-      ['addRevisions', 'addEvents', 'addTimelines'],
-    );
-    assembler.assembleInto(builder);
+    expect(builder.addRevision).toHaveBeenCalledWith({
+      id: 1,
+      logId: 10,
+      changedTime: 1000000000n,
+      principalStringId: 5,
+      verbTypeId: 2,
+      stateTypeId: 3,
+      resourceBodyStructId: 99,
+      fieldAnnotations: [],
+    });
+    expect(builder.addEvent).toHaveBeenCalledWith({
+      id: 1,
+      logId: 20,
+    });
 
-    expect(builder.addRevisions).toHaveBeenCalledWith([
-      {
-        id: 1,
-        logId: 10,
-        changedTime: 1000000000n,
-        principalStringId: 5,
-        verbTypeId: 2,
-        stateTypeId: 3,
-        resourceBodyStructId: 99,
-        fieldAnnotations: [],
-      },
-    ]);
-    expect(builder.addEvents).toHaveBeenCalledWith([
-      {
-        id: 1,
-        logId: 20,
-      },
-    ]);
-    expect(builder.addTimelines).toHaveBeenCalledWith([
-      {
-        id: 1,
-        timelineTypeId: 10,
-        nameStringId: 20,
-        parentTimelineId: 0,
-        revisionIds: [1],
-        eventIds: [1],
-      },
-    ]);
+    assembler.finalize();
+
+    expect(builder.addTimeline).toHaveBeenCalledWith({
+      id: 1,
+      timelineTypeId: 10,
+      nameStringId: 20,
+      parentTimelineId: 0,
+      revisionIds: [1],
+      eventIds: [1],
+    });
   });
 });
 
 describe('V6MetadataAssembler', () => {
-  it('should ingest metadata chunk and decode oneof items into builder', () => {
-    const assembler = new V6MetadataAssembler();
+  it('should ingest metadata chunk and decode oneof items directly into builder', () => {
+    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
+      'InspectionDataBuilder',
+      ['setMetadataHeader', 'addMetadataQueries'],
+    );
+    const assembler = new V6MetadataAssembler(builder);
 
     const headerPayload = {
       inspectionType: 'type-a',
@@ -356,12 +363,6 @@ describe('V6MetadataAssembler', () => {
     });
 
     assembler.ingest(mockChunk);
-
-    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
-      'InspectionDataBuilder',
-      ['setMetadataHeader', 'addMetadataQueries'],
-    );
-    assembler.assembleInto(builder);
 
     expect(builder.setMetadataHeader).toHaveBeenCalledWith({
       inspectionType: 'type-a',

@@ -37,7 +37,7 @@ export default meta;
 type Story = StoryObj<TimelineLegendComponent>;
 
 function createMockTimeline(isKind: boolean): Timeline {
-  const internPool = InternPoolStore.initialize();
+  const internPool = InternPoolStore.create();
   const styleStore = new StyleStore();
 
   internPool.addStrings([
@@ -152,18 +152,17 @@ function createMockTimeline(isKind: boolean): Timeline {
         eventIds: [],
       },
     ];
-    const logStore = LogStore.initialize(internPool, styleStore, [], 0);
-    const timelineStore = TimelineStore.initialize(
+    const logStore = LogStore.create(internPool, styleStore, 0);
+    const timelineStore = TimelineStore.create(
       internPool,
       styleStore,
       logStore,
-      timelineData,
       1,
-      [],
-      0,
-      [],
-      0,
+      1,
+      1,
     );
+    timelineStore.addTimelines(timelineData);
+    timelineStore.shrinkToFit();
     return timelineStore.getTimeline(1) as Timeline;
   } else {
     const timelineData = [
@@ -249,23 +248,21 @@ function createMockTimeline(isKind: boolean): Timeline {
         body: undefined,
       },
     ];
-    const logStore = LogStore.initialize(
-      internPool,
-      styleStore,
-      logsData,
-      logsData.length,
-    );
-    const timelineStore = TimelineStore.initialize(
+    const logStore = LogStore.create(internPool, styleStore, logsData.length);
+    logStore.addLogs(logsData);
+    logStore.shrinkToFit();
+    const timelineStore = TimelineStore.create(
       internPool,
       styleStore,
       logStore,
-      timelineData,
-      1,
-      revisionsData,
-      4,
-      eventsData,
-      3,
+      timelineData.length,
+      revisionsData.length,
+      eventsData.length,
     );
+    timelineStore.addRevisions(revisionsData);
+    timelineStore.addEvents(eventsData);
+    timelineStore.addTimelines(timelineData);
+    timelineStore.shrinkToFit();
     return timelineStore.getTimeline(1) as Timeline;
   }
 }

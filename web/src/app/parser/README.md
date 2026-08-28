@@ -105,16 +105,16 @@ The data lifecycle is divided into two distinct phases: **Phase 1 (Parsing)** wh
    - The parser identifies the chunk type and looks up how to handle it in the version-specific registry.
 
 2. **`ParserBlueprint` and `ChunkDefinition`**
-   - Each file version (e.g., v6) defines a blueprint that maps chunk IDs to their corresponding Protobuf decoding logic and `IDataAssembler`.
+   - Each file version (e.g., v6) defines a blueprint that maps chunk IDs to their corresponding Protobuf decoding logic and `DataAssembler`.
 
-3. **`IDataAssembler`**
-   - Receives decoded Protobuf objects (`ingest`) as the file streams.
-   - Extracts necessary information, cross-references data, and constructs Domain Models.
-   - Assemblers are executed in a strict **Priority Order** during the assembly phase. For example, the `InterningPoolAssembler` runs first so that resolved strings are available when the `LogAssembler` runs.
+3. **`DataAssembler`**
+   - Injected with `InspectionDataBuilder` upon creation.
+   - Streams decoded Protobuf objects directly into domain stores during `ingest()`, avoiding intermediate in-memory array buffering.
+   - Provides an optional `finalize()` hook executed in priority order for any post-streaming data linking (e.g. associating timeline items to timelines).
 
 4. **`InspectionDataBuilder`**
    - Acts as the temporary mutable context during the parsing phase.
-   - Assemblers push their constructed Domain Models into this builder.
+   - Houses the domain stores and applies compaction (`shrinkToFit`) upon `build()`.
 
 5. **Optimized Domain Stores (`/domain`)**
    - Stores pre-sort Domain Models by timestamp and provide high-performance query methods (like binary search) to ensure the UI remains fast and responsive even when exploring massive datasets.
@@ -127,13 +127,15 @@ To maintain the Three-Tier Data Model, this directory is organized as follows:
 web/src/app/
  ├── store/            # Application Model (Domain Stores and Models)
  │    └── domain/      # Highly optimized domain stores built by assemblers
- │         ├── string-pool-store.ts
+ │         ├── intern-pool-store.ts
  │         ├── log-store.ts
- │         └── timeline-store.ts
+ │         ├── timeline-store.ts
+ │         ├── struct-store.ts
+ │         └── buffer-util.ts
  │
  └── parser/           # Core logic for KHI file parsing
       ├── core/        # Version-agnostic orchestrator and interfaces
-      │    ├── interfaces.ts       # IDataAssembler, ParserBlueprint, ChunkDefinition
+      │    ├── interfaces.ts       # DataAssembler, ParserBlueprint, ChunkDefinition
       │    ├── binary-reader.ts    # Utility to read chunks from ArrayBuffer
       │    ├── file-parser.ts      # KHIFileParser (Main orchestrator)
       │    └── builder.ts          # InspectionDataBuilder
@@ -141,13 +143,7 @@ web/src/app/
       ├── errors/      # Custom error definitions for the parsing phase
       │    └── parser-errors.ts    # KHIInvalidFileError, KHIDataAssemblyError, etc.
       │
-      ├── blueprints/  # Version-specific blueprints and the main registry
-      │    ├── registry.ts         # VERSION_REGISTRY
-      │    └── v6-blueprint.ts     # Blueprint mapping chunk IDs to v6 assemblers
-      │
-      └── assemblers/  # Version-specific chunk assemblers
-           └── v6/
-                ├── interning-pool-assembler.ts
-                ├── log-assembler.ts
-                └── ...
+      └── v6/          # Version 6 specific blueprint and assemblers
+           ├── blueprint.ts        # V6_BLUEPRINT and V6 chunk assemblers
+           └── blueprint.spec.ts   # Blueprint and assembler unit tests
 ```

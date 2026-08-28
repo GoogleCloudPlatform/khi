@@ -17,7 +17,10 @@
 import { Log } from 'src/app/store/domain/log';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { LogType, Severity, StyleProvider } from 'src/app/store/domain/style';
-import { align } from 'src/app/common/memory-util';
+import {
+  BufferLayoutBuilder,
+  nextCapacity,
+} from 'src/app/store/domain/buffer-util';
 import {
   ReadonlyDomainElement,
   allocateBuffer,
@@ -38,11 +41,20 @@ export interface LogDTO {
   readonly bodyStructId?: number;
 }
 
+interface LogStoreLayout {
+  readonly idsOffset: number;
+  readonly logTypeIdsOffset: number;
+  readonly severityIdsOffset: number;
+  readonly summaryStringIdsOffset: number;
+  readonly bodyStructIdsOffset: number;
+  readonly timestampsOffset: number;
+  readonly totalBytes: number;
+}
+
 /**
  * Store for managing and retrieving logs efficiently.
  */
 export class LogStore {
-  private metadataBuffer!: ArrayBuffer;
   private ids!: Uint32Array;
   private timestamps!: BigUint64Array;
   private logTypeIds!: Uint32Array;
@@ -52,111 +64,158 @@ export class LogStore {
 
   private idToIndex: (number | undefined)[] = [];
 
+  private logCount = 0;
+  private previousTimestamp = 0n;
+
   private constructor(
     private readonly internPool: InternPoolStore,
     private readonly styleStore: StyleProvider,
   ) {}
 
   /**
-   * Initializes a new LogStore instance with the raw logs.
-   * Assumes logs are already sorted by timestamp.
+   * Creates an empty LogStore instance.
+   *
    * @param internPool The intern pool store.
    * @param styleStore The style provider.
-   * @param logs The iterable of raw logs.
-   * @param count The total number of logs.
+   * @param initialCapacity The initial capacity for log metadata.
+   * @returns A new empty LogStore instance.
    */
-  public static initialize(
+  public static create(
     internPool: InternPoolStore,
     styleStore: StyleProvider,
-    logs: Iterable<LogDTO>,
-    count: number,
+    initialCapacity = 1024,
   ): LogStore {
     const store = new LogStore(internPool, styleStore);
-    store.load(logs, count);
+    if (initialCapacity > 0) {
+      store.ensureCapacity(initialCapacity);
+    }
     return store;
   }
 
-  private allocateMetadata(capacity: number): void {
-    let currentOffset = 0;
-    const idsOffset = currentOffset;
-    currentOffset += capacity * 4;
+  /**
+   * Appends multiple logs to the store.
+   * Logs must be in non-decreasing timestamp order.
+   *
+   * @param logs An iterable of LogDTO objects.
+   */
+  public addLogs(logs: Iterable<LogDTO>): void {
+    if (Array.isArray(logs)) {
+      this.ensureCapacity(this.logCount + logs.length);
+    }
+    for (const log of logs) {
+      this.addLog(log);
+    }
+  }
 
-    const logTypeIdsOffset = currentOffset;
-    currentOffset += capacity * 4;
+  private calculateOffsets(capacity: number): LogStoreLayout {
+    const builder = new BufferLayoutBuilder();
+    return {
+      idsOffset: builder.addField(capacity, 4),
+      logTypeIdsOffset: builder.addField(capacity, 4),
+      severityIdsOffset: builder.addField(capacity, 4),
+      summaryStringIdsOffset: builder.addField(capacity, 4),
+      bodyStructIdsOffset: builder.addField(capacity, 4),
+      timestampsOffset: builder.addField(capacity, 8, 8),
+      totalBytes: builder.totalBytes,
+    };
+  }
 
-    const severityIdsOffset = currentOffset;
-    currentOffset += capacity * 4;
+  private reallocate(newCap: number): void {
+    const layout = this.calculateOffsets(newCap);
+    const newMetadataBuffer = allocateBuffer(layout.totalBytes);
 
-    const summaryStringIdsOffset = currentOffset;
-    currentOffset += capacity * 4;
-
-    const bodyStructIdsOffset = currentOffset;
-    currentOffset += capacity * 4;
-
-    const timestampsOffset = align(currentOffset, 8);
-    currentOffset = timestampsOffset + capacity * 8;
-
-    const totalBytes = currentOffset;
-    this.metadataBuffer = allocateBuffer(totalBytes);
-
-    this.ids = new Uint32Array(this.metadataBuffer, idsOffset, capacity);
-    this.logTypeIds = new Uint32Array(
-      this.metadataBuffer,
-      logTypeIdsOffset,
-      capacity,
+    const newIds = new Uint32Array(newMetadataBuffer, layout.idsOffset, newCap);
+    const newLogTypeIds = new Uint32Array(
+      newMetadataBuffer,
+      layout.logTypeIdsOffset,
+      newCap,
     );
-    this.severityIds = new Uint32Array(
-      this.metadataBuffer,
-      severityIdsOffset,
-      capacity,
+    const newSeverityIds = new Uint32Array(
+      newMetadataBuffer,
+      layout.severityIdsOffset,
+      newCap,
     );
-    this.summaryStringIds = new Uint32Array(
-      this.metadataBuffer,
-      summaryStringIdsOffset,
-      capacity,
+    const newSummaryStringIds = new Uint32Array(
+      newMetadataBuffer,
+      layout.summaryStringIdsOffset,
+      newCap,
     );
-    this.bodyStructIds = new Uint32Array(
-      this.metadataBuffer,
-      bodyStructIdsOffset,
-      capacity,
+    const newBodyStructIds = new Uint32Array(
+      newMetadataBuffer,
+      layout.bodyStructIdsOffset,
+      newCap,
     );
-    this.timestamps = new BigUint64Array(
-      this.metadataBuffer,
-      timestampsOffset,
-      capacity,
+    const newTimestamps = new BigUint64Array(
+      newMetadataBuffer,
+      layout.timestampsOffset,
+      newCap,
     );
+
+    if (this.logCount > 0 && this.ids) {
+      newIds.set(this.ids.subarray(0, this.logCount));
+      newLogTypeIds.set(this.logTypeIds.subarray(0, this.logCount));
+      newSeverityIds.set(this.severityIds.subarray(0, this.logCount));
+      newSummaryStringIds.set(this.summaryStringIds.subarray(0, this.logCount));
+      newBodyStructIds.set(this.bodyStructIds.subarray(0, this.logCount));
+      newTimestamps.set(this.timestamps.subarray(0, this.logCount));
+    }
+
+    this.ids = newIds;
+    this.logTypeIds = newLogTypeIds;
+    this.severityIds = newSeverityIds;
+    this.summaryStringIds = newSummaryStringIds;
+    this.bodyStructIds = newBodyStructIds;
+    this.timestamps = newTimestamps;
   }
 
   /**
-   * Initializes the store with the raw logs.
-   * Assumes logs are already sorted by timestamp.
-   * @param logs The iterable of raw logs.
-   * @param count The total number of logs.
+   * Ensures the metadata buffer has at least minCapacity slots.
+   *
+   * @param minCapacity The required minimum capacity.
    */
-  private load(logs: Iterable<LogDTO>, count: number): void {
-    this.allocateMetadata(count);
-    this.idToIndex = [];
-
-    let index = 0;
-    let prevTs = 0n;
-    for (const log of logs) {
-      if (index > 0 && log.ts < prevTs) {
-        throw new Error(
-          `Logs are not sorted by timestamp at index ${index}: timestamp ${log.ts} < ${prevTs}`,
-        );
-      }
-      prevTs = log.ts;
-
-      this.ids[index] = log.id;
-      this.timestamps[index] = log.ts;
-      this.logTypeIds[index] = log.logTypeId;
-      this.severityIds[index] = log.severityTypeId;
-      this.summaryStringIds[index] = log.summaryStringId;
-      this.bodyStructIds[index] = log.bodyStructId ?? 0;
-
-      this.idToIndex[log.id] = index;
-      index++;
+  private ensureCapacity(minCapacity: number): void {
+    const currentCap = this.ids ? this.ids.length : 0;
+    if (minCapacity > currentCap) {
+      this.reallocate(nextCapacity(currentCap, minCapacity));
     }
+  }
+
+  /**
+   * Shrinks metadataBuffer to the minimal required size based on the current log count.
+   */
+  public shrinkToFit(): void {
+    const currentCap = this.ids ? this.ids.length : 0;
+    if (this.logCount < currentCap) {
+      this.reallocate(this.logCount);
+    }
+  }
+
+  /**
+   * Appends a single log to the store.
+   * Logs must be added in non-decreasing timestamp order.
+   *
+   * @param log The raw LogDTO to add.
+   */
+  public addLog(log: LogDTO): void {
+    if (this.logCount > 0 && log.ts < this.previousTimestamp) {
+      throw new Error(
+        `Logs are not sorted by timestamp at index ${this.logCount}: timestamp ${log.ts} < ${this.previousTimestamp}`,
+      );
+    }
+    this.previousTimestamp = log.ts;
+
+    this.ensureCapacity(this.logCount + 1);
+
+    const index = this.logCount;
+    this.ids[index] = log.id;
+    this.timestamps[index] = log.ts;
+    this.logTypeIds[index] = log.logTypeId;
+    this.severityIds[index] = log.severityTypeId;
+    this.summaryStringIds[index] = log.summaryStringId;
+    this.bodyStructIds[index] = log.bodyStructId ?? 0;
+
+    this.idToIndex[log.id] = index;
+    this.logCount++;
   }
 
   /**
@@ -177,14 +236,14 @@ export class LogStore {
    * Gets the total number of logs.
    */
   public get count(): number {
-    return this.ids.length;
+    return this.logCount;
   }
 
   /**
    * Returns an iterator for all logs in the store.
    */
   public *logs(): IterableIterator<ReadonlyDomainElement<Log>> {
-    for (let i = 0; i < this.ids.length; i++) {
+    for (let i = 0; i < this.logCount; i++) {
       yield new Log(this.ids[i], this);
     }
   }
@@ -225,8 +284,9 @@ export class LogStore {
 
   /**
    * Gets the interned struct ID of a log body, or 0 if not stored as a struct.
+   * @note Intended solely for internal retrieval inside the {@link Log} domain adapter.
    */
-  public getBodyStructId(id: number): number {
+  public _getBodyStructId(id: number): number {
     const index = this.getIndex(id);
     return this.bodyStructIds[index] ?? 0;
   }

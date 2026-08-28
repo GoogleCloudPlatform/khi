@@ -22,6 +22,7 @@ import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { LogStore } from 'src/app/store/domain/log-store';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
+import { StructStore } from 'src/app/store/domain/struct-store';
 
 describe('SelectionManager', () => {
   let service: SelectionManager;
@@ -37,7 +38,7 @@ describe('SelectionManager', () => {
     dataStore = TestBed.inject(InspectionDataStore);
     service = TestBed.inject(SelectionManager);
 
-    const internPool = InternPoolStore.initialize();
+    const internPool = InternPoolStore.create();
     const styleStore = new StyleStore();
 
     styleStore.addSeverities([
@@ -146,93 +147,92 @@ describe('SelectionManager', () => {
       { id: 6, value: 'system:serviceaccount:kube-system:generic' },
     ]);
 
-    logStore = LogStore.initialize(
-      internPool,
-      styleStore,
-      [
-        {
-          id: 1,
-          ts: 1700000000000000000n,
-          logTypeId: 2,
-          severityTypeId: 1,
-          summaryStringId: 5,
-        },
-      ],
-      1,
-    );
+    logStore = LogStore.create(internPool, styleStore, 1);
+    logStore.addLogs([
+      {
+        id: 1,
+        ts: 1700000000000000000n,
+        logTypeId: 2,
+        severityTypeId: 1,
+        summaryStringId: 5,
+      },
+    ]);
+    logStore.shrinkToFit();
 
-    timelineStore = TimelineStore.initialize(
+    timelineStore = TimelineStore.create(
       internPool,
       styleStore,
       logStore,
-      [
-        {
-          id: 1,
-          timelineTypeId: 1,
-          nameStringId: 1,
-          parentTimelineId: 0,
-          revisionIds: [],
-          eventIds: [],
-        },
-        {
-          id: 2,
-          timelineTypeId: 2,
-          nameStringId: 2,
-          parentTimelineId: 1,
-          revisionIds: [],
-          eventIds: [],
-        },
-        {
-          id: 3,
-          timelineTypeId: 3,
-          nameStringId: 3,
-          parentTimelineId: 2,
-          revisionIds: [],
-          eventIds: [],
-        },
-        {
-          id: 4,
-          timelineTypeId: 4,
-          nameStringId: 4,
-          parentTimelineId: 3,
-          revisionIds: [1],
-          eventIds: [1],
-        },
-        {
-          id: 5,
-          timelineTypeId: 1,
-          nameStringId: 1,
-          parentTimelineId: 0,
-          revisionIds: [],
-          eventIds: [],
-        },
-      ],
       5,
-      [
-        {
-          id: 1,
-          logId: 1,
-          changedTime: 1700000000000000000n,
-          principalStringId: 6,
-          verbTypeId: 1,
-          stateTypeId: 1,
-        },
-      ],
       1,
-      [
-        {
-          id: 1,
-          logId: 1,
-        },
-      ],
       1,
     );
+    timelineStore.addRevisions([
+      {
+        id: 1,
+        logId: 1,
+        changedTime: 1700000000000000000n,
+        principalStringId: 6,
+        verbTypeId: 1,
+        stateTypeId: 1,
+      },
+    ]);
+    timelineStore.addEvents([
+      {
+        id: 1,
+        logId: 1,
+      },
+    ]);
+    timelineStore.addTimelines([
+      {
+        id: 1,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [],
+        eventIds: [],
+      },
+      {
+        id: 2,
+        timelineTypeId: 2,
+        nameStringId: 2,
+        parentTimelineId: 1,
+        revisionIds: [],
+        eventIds: [],
+      },
+      {
+        id: 3,
+        timelineTypeId: 3,
+        nameStringId: 3,
+        parentTimelineId: 2,
+        revisionIds: [],
+        eventIds: [],
+      },
+      {
+        id: 4,
+        timelineTypeId: 4,
+        nameStringId: 4,
+        parentTimelineId: 3,
+        revisionIds: [1],
+        eventIds: [1],
+      },
+      {
+        id: 5,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [],
+        eventIds: [],
+      },
+    ]);
+    timelineStore.shrinkToFit();
 
     const mockData: InspectionData = {
       internPool,
       styleStore,
       logStore,
       timelineStore,
+      structStore: StructStore.create(internPool),
     };
     dataStore.setNewInspectionData(mockData);
   });

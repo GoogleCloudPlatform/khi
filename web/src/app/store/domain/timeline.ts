@@ -141,7 +141,7 @@ export class Revision {
    * Gets the interned struct ID of the revision body, or 0 if not stored as an interned struct.
    */
   get structId(): number {
-    return this.timelineStore.getRevisionBodyStructId(this.id);
+    return this.timelineStore._getRevisionBodyStructId(this.id);
   }
 
   /**

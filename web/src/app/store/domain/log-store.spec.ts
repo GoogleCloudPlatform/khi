@@ -26,9 +26,9 @@ describe('LogStore', () => {
   const mockColor = { r: 0, g: 0, b: 0, a: 1 };
 
   beforeEach(() => {
-    internPool = InternPoolStore.initialize();
+    internPool = InternPoolStore.create();
     styleStore = new StyleStore();
-    store = LogStore.initialize(internPool, styleStore, [], 0);
+    store = LogStore.create(internPool, styleStore, 0);
 
     // Avoid errors of missing keys in basic tests
     styleStore.addSeverities([
@@ -106,9 +106,11 @@ describe('LogStore', () => {
       { id: 4, ts: 1010n, logTypeId: 4, severityTypeId: 4, summaryStringId: 4 },
     ];
 
-    expect(() =>
-      LogStore.initialize(internPool, styleStore, logs, 4),
-    ).not.toThrow();
+    expect(() => {
+      const s = LogStore.create(internPool, styleStore, 4);
+      s.addLogs(logs);
+      s.shrinkToFit();
+    }).not.toThrow();
   });
 
   it('should throw error if logs are out of timestamp order', () => {
@@ -117,9 +119,10 @@ describe('LogStore', () => {
       { id: 2, ts: 999n, logTypeId: 2, severityTypeId: 2, summaryStringId: 2 },
     ];
 
-    expect(() =>
-      LogStore.initialize(internPool, styleStore, logs, 2),
-    ).toThrowError(/Logs are not sorted by timestamp/);
+    expect(() => {
+      const s = LogStore.create(internPool, styleStore, 2);
+      s.addLogs(logs);
+    }).toThrowError(/Logs are not sorted by timestamp/);
   });
 
   it('should fetch log entries and handle incorrect id lookups', () => {
@@ -167,7 +170,9 @@ describe('LogStore', () => {
       },
     ];
 
-    store = LogStore.initialize(internPool, styleStore, logs, 2);
+    store = LogStore.create(internPool, styleStore, 2);
+    store.addLogs(logs);
+    store.shrinkToFit();
 
     const logObj = store.getLog(55);
     expect(logObj.id).toBe(55);
@@ -191,7 +196,9 @@ describe('LogStore', () => {
       { id: 2, ts: 1005n, logTypeId: 2, severityTypeId: 2, summaryStringId: 2 },
     ];
 
-    store = LogStore.initialize(internPool, styleStore, logs, 2);
+    store = LogStore.create(internPool, styleStore, 2);
+    store.addLogs(logs);
+    store.shrinkToFit();
 
     expect(store.count).toBe(2);
 
@@ -201,27 +208,105 @@ describe('LogStore', () => {
     expect(iteratedLogs[1].id).toBe(2);
   });
 
-  describe('ArrayBuffer allocation', () => {
-    it('should allocate ArrayBuffer and perform operations successfully', () => {
-      const logs: LogDTO[] = [
-        {
-          id: 1,
-          ts: 1000n,
+  describe('create and dynamic methods', () => {
+    it('should create an empty store and add logs dynamically', () => {
+      const dynamicStore = LogStore.create(internPool, styleStore, 1);
+      expect(dynamicStore.count).toBe(0);
+
+      dynamicStore.addLog({
+        id: 10,
+        ts: 100n,
+        logTypeId: 100,
+        severityTypeId: 10,
+        summaryStringId: 1,
+      });
+      dynamicStore.addLog({
+        id: 20,
+        ts: 200n,
+        logTypeId: 100,
+        severityTypeId: 10,
+        summaryStringId: 2,
+        bodyStructId: 42,
+      });
+
+      expect(dynamicStore.count).toBe(2);
+      expect(dynamicStore.getLog(10).timestamp).toBe(100n);
+      expect(dynamicStore.getLog(20).timestamp).toBe(200n);
+      expect(dynamicStore.getLog(20).structId).toBe(42);
+
+      dynamicStore.shrinkToFit();
+      expect(dynamicStore.count).toBe(2);
+      expect(dynamicStore.getLog(10).timestamp).toBe(100n);
+      expect(dynamicStore.getLog(20).timestamp).toBe(200n);
+    });
+
+    it('should handle multiple buffer expansions starting from capacity 1 and preserve all fields', () => {
+      for (let i = 1; i <= 20; i++) {
+        internPool.addString({ id: i, value: `summary_${i}` });
+      }
+
+      const dynamicStore = LogStore.create(internPool, styleStore, 1);
+      for (let i = 1; i <= 20; i++) {
+        dynamicStore.addLog({
+          id: i,
+          ts: BigInt(i * 10),
+          logTypeId: ((i - 1) % 4) + 1,
+          severityTypeId: ((i - 1) % 4) + 1,
+          summaryStringId: i,
+          bodyStructId: i * 100,
+        });
+      }
+
+      expect(dynamicStore.count).toBe(20);
+      for (let i = 1; i <= 20; i++) {
+        const log = dynamicStore.getLog(i);
+        expect(log.id).toBe(i);
+        expect(log.timestamp).toBe(BigInt(i * 10));
+        expect(log.summary).toBe(`summary_${i}`);
+        expect(log.logType.label).toBe(`L${((i - 1) % 4) + 1}`);
+        expect(log.severity.label).toBe(`S${((i - 1) % 4) + 1}`);
+        expect(log.structId).toBe(i * 100);
+      }
+
+      dynamicStore.shrinkToFit();
+      // Should be idempotent on multiple calls
+      dynamicStore.shrinkToFit();
+      expect(dynamicStore.count).toBe(20);
+      for (let i = 1; i <= 20; i++) {
+        const log = dynamicStore.getLog(i);
+        expect(log.id).toBe(i);
+        expect(log.timestamp).toBe(BigInt(i * 10));
+        expect(log.summary).toBe(`summary_${i}`);
+        expect(log.structId).toBe(i * 100);
+      }
+    });
+
+    it('should handle shrinkToFit on an empty store with capacity 0', () => {
+      const emptyStore = LogStore.create(internPool, styleStore, 0);
+      emptyStore.shrinkToFit();
+      expect(emptyStore.count).toBe(0);
+      expect(() => emptyStore.getLog(1)).toThrowError(/Log ID 1 not found/);
+    });
+
+    it('should throw error when adding unsorted logs', () => {
+      const dynamicStore = LogStore.create(internPool, styleStore);
+      dynamicStore.addLog({
+        id: 1,
+        ts: 200n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 1,
+      });
+
+      expect(() =>
+        dynamicStore.addLog({
+          id: 2,
+          ts: 100n,
           logTypeId: 1,
           severityTypeId: 1,
           summaryStringId: 1,
-        },
-      ];
-      const fallbackStore = LogStore.initialize(
-        internPool,
-        styleStore,
-        logs,
-        1,
-      );
-
-      expect(fallbackStore.count).toBe(1);
-      const log = fallbackStore.getLog(1);
-      expect(log.id).toBe(1);
+        }),
+      ).toThrowError(/Logs are not sorted by timestamp/);
     });
   });
 });

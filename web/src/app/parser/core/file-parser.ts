@@ -21,10 +21,7 @@ import {
   KHIChunkDecodeError,
   KHIDataAssemblyError,
 } from 'src/app/parser/errors/parser-errors';
-import {
-  IDataAssembler,
-  ParserBlueprint,
-} from 'src/app/parser/core/interfaces';
+import { DataAssembler, ParserBlueprint } from 'src/app/parser/core/interfaces';
 import { BinaryReader } from 'src/app/parser/core/binary-reader';
 import { InspectionDataBuilder } from 'src/app/parser/core/builder';
 import { ProgressReporter } from 'src/app/services/progress/progress-interface';
@@ -85,9 +82,10 @@ export class KHIFileParser {
       );
     }
 
-    const activeAssemblers = new Map<number, IDataAssembler<unknown>>();
+    const builder = new InspectionDataBuilder();
+    const activeAssemblers = new Map<number, DataAssembler<unknown>>();
     for (const [typeId, definition] of blueprint.entries()) {
-      activeAssemblers.set(typeId, definition.createAssembler());
+      activeAssemblers.set(typeId, definition.createAssembler(builder));
     }
 
     let chunkIndex = 0;
@@ -143,15 +141,14 @@ export class KHIFileParser {
       chunkIndex++;
     }
 
-    // 4. Priority-Based Assembly Phase
+    // 4. Priority-Based Finalization Phase
     progressReporter?.reportProgress(KHIFileParser.PROGRESS_ASSEMBLY_START);
-    progressReporter?.reportMessage('Preparing data assembly...');
+    progressReporter?.reportMessage('Preparing data finalization...');
     const executedDefinitions = Array.from(executedTypeIds).map((typeId) =>
       blueprint.get(typeId)!,
     );
     executedDefinitions.sort((a, b) => a.priority - b.priority);
 
-    const builder = new InspectionDataBuilder();
     let defIndex = 0;
     for (const def of executedDefinitions) {
       const assembler = activeAssemblers.get(def.typeId)!;
@@ -163,9 +160,9 @@ export class KHIFileParser {
             executedDefinitions.length,
       );
       progressReporter?.reportProgress(assemblyPercent);
-      progressReporter?.reportMessage(`Assembling ${def.label}...`);
+      progressReporter?.reportMessage(`Finalizing ${def.label}...`);
       try {
-        assembler.assembleInto(builder);
+        assembler.finalize?.();
       } catch (error) {
         throw new KHIDataAssemblyError({
           version,

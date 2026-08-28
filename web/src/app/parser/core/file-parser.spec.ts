@@ -15,11 +15,14 @@
  */
 
 import { KHIFileParser } from 'src/app/parser/core/file-parser';
-import { KHIChunkDecodeError } from 'src/app/parser/errors/parser-errors';
+import {
+  KHIChunkDecodeError,
+  KHIInvalidFileError,
+} from 'src/app/parser/errors/parser-errors';
 import {
   ParserBlueprint,
   ChunkDefinition,
-  IDataAssembler,
+  DataAssembler,
 } from 'src/app/parser/core/interfaces';
 import { ProgressReporter } from 'src/app/services/progress/progress-interface';
 
@@ -41,18 +44,18 @@ describe('KHIFileParser', () => {
     return new Uint8Array(compressedBuffer);
   }
 
-  let mockAssembler1: jasmine.SpyObj<IDataAssembler<string>>;
-  let mockAssembler2: jasmine.SpyObj<IDataAssembler<number>>;
+  let mockAssembler1: jasmine.SpyObj<Required<DataAssembler<string>>>;
+  let mockAssembler2: jasmine.SpyObj<Required<DataAssembler<number>>>;
   let registry: Record<number, ParserBlueprint>;
 
   beforeEach(() => {
-    mockAssembler1 = jasmine.createSpyObj('IDataAssembler', [
+    mockAssembler1 = jasmine.createSpyObj('DataAssembler', [
       'ingest',
-      'assembleInto',
+      'finalize',
     ]);
-    mockAssembler2 = jasmine.createSpyObj('IDataAssembler', [
+    mockAssembler2 = jasmine.createSpyObj('DataAssembler', [
       'ingest',
-      'assembleInto',
+      'finalize',
     ]);
 
     const blueprint: ParserBlueprint = new Map<
@@ -140,15 +143,15 @@ describe('KHIFileParser', () => {
     expect(mockAssembler1.ingest).toHaveBeenCalledWith('hello');
     expect(mockAssembler2.ingest).toHaveBeenCalledWith(42);
 
-    expect(mockAssembler1.assembleInto).toHaveBeenCalled();
-    expect(mockAssembler2.assembleInto).toHaveBeenCalled();
-    expect(mockAssembler2.assembleInto).toHaveBeenCalledBefore(
-      mockAssembler1.assembleInto,
+    expect(mockAssembler1.finalize).toHaveBeenCalled();
+    expect(mockAssembler2.finalize).toHaveBeenCalled();
+    expect(mockAssembler2.finalize).toHaveBeenCalledBefore(
+      mockAssembler1.finalize,
     );
   });
 
   it('should throw KHIDataAssemblyError if assembler fails during assembly', async () => {
-    mockAssembler1.assembleInto.and.throwError('Assembly failed');
+    mockAssembler1.finalize.and.throwError('Assembly failed');
     const parser = new KHIFileParser(registry);
 
     const data1 = new TextEncoder().encode('hello');
@@ -258,8 +261,8 @@ describe('KHIFileParser', () => {
     expect(result).toBeDefined();
     expect(mockAssembler1.ingest).toHaveBeenCalledWith('hello');
     expect(mockAssembler2.ingest).toHaveBeenCalledWith(42);
-    expect(mockAssembler1.assembleInto).toHaveBeenCalled();
-    expect(mockAssembler2.assembleInto).toHaveBeenCalled();
+    expect(mockAssembler1.finalize).toHaveBeenCalled();
+    expect(mockAssembler2.finalize).toHaveBeenCalled();
   });
 
   it('should accurately report chunkIndex in decode error when unhandled chunks are skipped', async () => {
@@ -295,5 +298,61 @@ describe('KHIFileParser', () => {
       KHIChunkDecodeError,
       /Failed to decode chunk \(typeId: 2, index: 1, offset: \d+\) in version 6\./,
     );
+  });
+
+  it('should throw KHIInvalidFileError for empty buffer', async () => {
+    const parser = new KHIFileParser(registry);
+    const emptyBuffer = new ArrayBuffer(0);
+
+    await expectAsync(parser.parse(emptyBuffer)).toBeRejectedWithError(
+      KHIInvalidFileError,
+      /Empty KHI file buffer was given/,
+    );
+  });
+
+  it('should throw Error for truncated buffer smaller than header', async () => {
+    const parser = new KHIFileParser(registry);
+    const truncatedBuffer = new ArrayBuffer(2);
+
+    await expectAsync(parser.parse(truncatedBuffer)).toBeRejectedWithError(
+      Error,
+      /Buffer too small to contain header/,
+    );
+  });
+
+  it('should stream multiple chunks of the same type to the same assembler instance', async () => {
+    const parser = new KHIFileParser(registry);
+
+    const chunkA = new TextEncoder().encode('first');
+    const compressedA = await compressData(chunkA);
+
+    const chunkB = new TextEncoder().encode('second');
+    const compressedB = await compressData(chunkB);
+
+    const bufferSize = 4 + 8 + compressedA.length + 8 + compressedB.length;
+    const buffer = new ArrayBuffer(bufferSize);
+    const dv = new DataView(buffer);
+    const uint8View = new Uint8Array(buffer);
+
+    uint8View.set([75, 72, 73, 6], 0);
+
+    // Chunk 0: Type 1
+    dv.setUint32(4, compressedA.length, true);
+    dv.setUint32(8, 1, true);
+    uint8View.set(compressedA, 12);
+
+    // Chunk 1: Type 1 again
+    const offset1 = 12 + compressedA.length;
+    dv.setUint32(offset1, compressedB.length, true);
+    dv.setUint32(offset1 + 4, 1, true);
+    uint8View.set(compressedB, offset1 + 8);
+
+    await parser.parse(buffer);
+
+    expect(mockAssembler1.ingest).toHaveBeenCalledTimes(2);
+    expect(mockAssembler1.ingest).toHaveBeenCalledWith('first');
+    expect(mockAssembler1.ingest).toHaveBeenCalledWith('second');
+    // finalize should still be called only once
+    expect(mockAssembler1.finalize).toHaveBeenCalledTimes(1);
   });
 });

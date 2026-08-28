@@ -20,7 +20,7 @@ describe('InternPoolStore', () => {
   let store: InternPoolStore;
 
   beforeEach(() => {
-    store = InternPoolStore.initialize();
+    store = InternPoolStore.create();
   });
 
   it('should add and get strings from the pool', () => {
@@ -40,15 +40,14 @@ describe('InternPoolStore', () => {
   });
 
   it('should split buffer if the string size exceeds maxBufferSize', () => {
-    const smallStore = InternPoolStore.initialize(
-      [
-        { id: 1, value: 'abcdefgh' }, // 8 bytes -> fits in 1st buffer
-        { id: 2, value: 'ijklmnop' }, // 8 bytes -> exceeds remaining 2 bytes, goes to 2nd buffer
-        { id: 3, value: 'qrstuvwxyz12345' }, // 15 bytes -> exceeds 10 bytes maxBufferSize, allocated standalone
-        { id: 4, value: 'abc' }, // 3 bytes -> fits in next buffer
-      ],
-      10,
-    );
+    const smallStore = InternPoolStore.create(4, 10);
+    smallStore.addStrings([
+      { id: 1, value: 'abcdefgh' }, // 8 bytes -> fits in 1st buffer
+      { id: 2, value: 'ijklmnop' }, // 8 bytes -> exceeds remaining 2 bytes, goes to 2nd buffer
+      { id: 3, value: 'qrstuvwxyz12345' }, // 15 bytes -> exceeds 10 bytes maxBufferSize, allocated standalone
+      { id: 4, value: 'abc' }, // 3 bytes -> fits in next buffer
+    ]);
+    smallStore.shrinkToFit();
 
     expect(smallStore.getString(1)).toBe('abcdefgh');
     expect(smallStore.getString(2)).toBe('ijklmnop');
@@ -62,16 +61,67 @@ describe('InternPoolStore', () => {
     expect(store.getString(2000)).toBe('large-id-string');
   });
 
-  describe('ArrayBuffer allocation', () => {
-    it('should allocate ArrayBuffer and perform operations successfully', () => {
-      const fallbackStore = InternPoolStore.initialize();
-      fallbackStore.addStrings([
-        { id: 10, value: 'fallback-string-1' },
-        { id: 20, value: 'fallback-string-2' },
-      ]);
+  it('should correctly encode and decode multi-byte UTF-8 strings including emojis', () => {
+    store.addStrings([
+      { id: 1, value: 'こんにちは世界' },
+      { id: 2, value: 'Kubernetes 🚀 クラスタ' },
+      { id: 3, value: '' },
+    ]);
 
-      expect(fallbackStore.getString(10)).toBe('fallback-string-1');
-      expect(fallbackStore.getString(20)).toBe('fallback-string-2');
+    expect(store.getString(1)).toBe('こんにちは世界');
+    expect(store.getString(2)).toBe('Kubernetes 🚀 クラスタ');
+    expect(store.getString(3)).toBe('');
+  });
+
+  describe('create and dynamic methods', () => {
+    it('should create an empty store and allow adding strings with addString', () => {
+      const emptyStore = InternPoolStore.create();
+      expect(emptyStore.count).toBe(0);
+      expect(emptyStore.maxStringId).toBe(0);
+
+      emptyStore.addString({ id: 1, value: 'hello' });
+      emptyStore.addString({ id: 5, value: 'world' });
+
+      expect(emptyStore.count).toBe(2);
+      expect(emptyStore.maxStringId).toBe(5);
+      expect(emptyStore.getString(1)).toBe('hello');
+      expect(emptyStore.getString(5)).toBe('world');
+    });
+
+    it('should handle multiple buffer expansions starting from capacity 1', () => {
+      const dynamicStore = InternPoolStore.create(1);
+      for (let i = 1; i <= 50; i++) {
+        dynamicStore.addString({ id: i, value: `str-${i}` });
+      }
+
+      expect(dynamicStore.count).toBe(50);
+      expect(dynamicStore.maxStringId).toBe(50);
+      for (let i = 1; i <= 50; i++) {
+        expect(dynamicStore.getString(i)).toBe(`str-${i}`);
+      }
+    });
+
+    it('should not double-count duplicate additions for the same string ID', () => {
+      const dynamicStore = InternPoolStore.create();
+      dynamicStore.addString({ id: 1, value: 'v1' });
+      dynamicStore.addString({ id: 1, value: 'v2' });
+
+      expect(dynamicStore.count).toBe(1);
+      expect(dynamicStore.getString(1)).toBe('v2');
+    });
+
+    it('should shrink metadataBuffer to fit string count', () => {
+      const emptyStore = InternPoolStore.create(2048);
+      emptyStore.addString({ id: 10, value: 'test' });
+      expect(emptyStore.count).toBe(1);
+      expect(emptyStore.maxStringId).toBe(10);
+
+      emptyStore.shrinkToFit();
+
+      expect(emptyStore.getString(10)).toBe('test');
+      expect(() => emptyStore.getString(11)).toThrowError(
+        'String ID 11 not found in pool',
+      );
     });
   });
 });

@@ -24,6 +24,40 @@ import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { LogStore, LogDTO } from 'src/app/store/domain/log-store';
 
+function createTimelineStore(
+  internPool: InternPoolStore,
+  styleStore: StyleStore,
+  logStore: LogStore,
+  timelines: TimelineDTO[] = [],
+  revisions: RevisionDTO[] = [],
+  events: EventDTO[] = [],
+): TimelineStore {
+  const store = TimelineStore.create(
+    internPool,
+    styleStore,
+    logStore,
+    timelines.length,
+    revisions.length,
+    events.length,
+  );
+  store.addRevisions(revisions);
+  store.addEvents(events);
+  store.addTimelines(timelines);
+  store.shrinkToFit();
+  return store;
+}
+
+function createLogStore(
+  internPool: InternPoolStore,
+  styleStore: StyleStore,
+  logs: LogDTO[] = [],
+): LogStore {
+  const store = LogStore.create(internPool, styleStore, logs.length);
+  store.addLogs(logs);
+  store.shrinkToFit();
+  return store;
+}
+
 describe('Timeline', () => {
   let internPool: InternPoolStore;
   let styleStore: StyleStore;
@@ -33,20 +67,10 @@ describe('Timeline', () => {
   const mockColor = { r: 0, g: 0, b: 0, a: 1 };
 
   beforeEach(() => {
-    internPool = InternPoolStore.initialize();
+    internPool = InternPoolStore.create();
     styleStore = new StyleStore();
-    logStore = LogStore.initialize(internPool, styleStore, [], 0);
-    timelineStore = TimelineStore.initialize(
-      internPool,
-      styleStore,
-      logStore,
-      [],
-      0,
-      [],
-      0,
-      [],
-      0,
-    );
+    logStore = createLogStore(internPool, styleStore);
+    timelineStore = createTimelineStore(internPool, styleStore, logStore);
 
     styleStore.addTimelineTypes([
       {
@@ -120,16 +144,11 @@ describe('Timeline', () => {
           eventIds: [],
         },
       ];
-      timelineStore = TimelineStore.initialize(
+      timelineStore = createTimelineStore(
         internPool,
         styleStore,
         logStore,
         rawTimelines,
-        1,
-        [],
-        0,
-        [],
-        0,
       );
       const timeline = timelineStore.getTimeline(10);
       expect(timeline.id).toBe(10);
@@ -149,16 +168,11 @@ describe('Timeline', () => {
           eventIds: [],
         },
       ];
-      timelineStore = TimelineStore.initialize(
+      timelineStore = createTimelineStore(
         internPool,
         styleStore,
         logStore,
         rawTimelines,
-        1,
-        [],
-        0,
-        [],
-        0,
       );
       const timeline = timelineStore.getTimeline(10);
       expect(timeline.name).toBe('timeline-label');
@@ -205,17 +219,13 @@ describe('Timeline', () => {
         },
       ];
 
-      logStore = LogStore.initialize(internPool, styleStore, rawLogs, 1);
-      timelineStore = TimelineStore.initialize(
+      logStore = createLogStore(internPool, styleStore, rawLogs);
+      timelineStore = createTimelineStore(
         internPool,
         styleStore,
         logStore,
         rawTimelines,
-        1,
         rawRevisions,
-        1,
-        [],
-        0,
       );
 
       const timeline = timelineStore.getTimeline(10);
@@ -266,17 +276,14 @@ describe('Timeline', () => {
         },
       ];
 
-      logStore = LogStore.initialize(internPool, styleStore, rawLogs, 1);
-      timelineStore = TimelineStore.initialize(
+      logStore = createLogStore(internPool, styleStore, rawLogs);
+      timelineStore = createTimelineStore(
         internPool,
         styleStore,
         logStore,
         rawTimelines,
-        1,
         [],
-        0,
         rawEvents,
-        1,
       );
 
       const timeline = timelineStore.getTimeline(10);
@@ -324,16 +331,11 @@ describe('Timeline', () => {
         },
       ];
 
-      timelineStore = TimelineStore.initialize(
+      timelineStore = createTimelineStore(
         internPool,
         styleStore,
         logStore,
         rawTimelines,
-        3,
-        [],
-        0,
-        [],
-        0,
       );
 
       const parent = timelineStore.getTimeline(10);
@@ -426,17 +428,14 @@ describe('Timeline', () => {
         },
       ];
 
-      logStore = LogStore.initialize(internPool, styleStore, rawLogs, 4);
-      timelineStore = TimelineStore.initialize(
+      logStore = createLogStore(internPool, styleStore, rawLogs);
+      timelineStore = createTimelineStore(
         internPool,
         styleStore,
         logStore,
         rawTimelines,
-        1,
         rawRevisions,
-        2,
         rawEvents,
-        2,
       );
 
       const timeline = timelineStore.getTimeline(10);
@@ -527,17 +526,13 @@ describe('Timeline', () => {
         },
       ];
 
-      logStore = LogStore.initialize(internPool, styleStore, rawLogs, 2);
-      timelineStore = TimelineStore.initialize(
+      logStore = createLogStore(internPool, styleStore, rawLogs);
+      timelineStore = createTimelineStore(
         internPool,
         styleStore,
         logStore,
         rawTimelines,
-        2,
         rawRevisions,
-        2,
-        [],
-        0,
       );
 
       const timeline = timelineStore.getTimeline(10);
@@ -585,16 +580,11 @@ describe('Timeline', () => {
         },
       ];
 
-      timelineStore = TimelineStore.initialize(
+      timelineStore = createTimelineStore(
         internPool,
         styleStore,
         logStore,
         rawTimelines,
-        1,
-        [],
-        0,
-        [],
-        0,
       );
 
       const parent = timelineStore.getTimeline(10);
@@ -628,16 +618,11 @@ describe('Timeline', () => {
         },
       ];
 
-      timelineStore = TimelineStore.initialize(
+      timelineStore = createTimelineStore(
         internPool,
         styleStore,
         logStore,
         rawTimelines,
-        2,
-        [],
-        0,
-        [],
-        0,
       );
 
       const child = timelineStore.getTimeline(20);
@@ -702,17 +687,13 @@ describe('Timeline', () => {
           },
         ];
 
-        logStore = LogStore.initialize(internPool, styleStore, rawLogs, 2);
-        timelineStore = TimelineStore.initialize(
+        logStore = createLogStore(internPool, styleStore, rawLogs);
+        timelineStore = createTimelineStore(
           internPool,
           styleStore,
           logStore,
           rawTimelines,
-          1,
           rawRevisions,
-          2,
-          [],
-          0,
         );
 
         const timeline = timelineStore.getTimeline(10);
@@ -778,17 +759,13 @@ describe('Timeline', () => {
           },
         ];
 
-        logStore = LogStore.initialize(internPool, styleStore, rawLogs, 2);
-        timelineStore = TimelineStore.initialize(
+        logStore = createLogStore(internPool, styleStore, rawLogs);
+        timelineStore = createTimelineStore(
           internPool,
           styleStore,
           logStore,
           rawTimelines,
-          1,
           rawRevisions,
-          2,
-          [],
-          0,
         );
 
         const timeline = timelineStore.getTimeline(10);
@@ -854,17 +831,14 @@ describe('Timeline', () => {
           },
         ];
 
-        logStore = LogStore.initialize(internPool, styleStore, rawLogs, 1);
-        timelineStore = TimelineStore.initialize(
+        logStore = createLogStore(internPool, styleStore, rawLogs);
+        timelineStore = createTimelineStore(
           internPool,
           styleStore,
           logStore,
           rawTimelines,
-          1,
           [],
-          0,
           rawEvents,
-          1,
         );
 
         const timeline = timelineStore.getTimeline(10);
@@ -939,17 +913,14 @@ describe('Timeline', () => {
         },
       ];
 
-      logStore = LogStore.initialize(internPool, styleStore, rawLogs, 3);
-      timelineStore = TimelineStore.initialize(
+      logStore = createLogStore(internPool, styleStore, rawLogs);
+      timelineStore = createTimelineStore(
         internPool,
         styleStore,
         logStore,
         rawTimelines,
-        1,
         rawRevisions,
-        1,
         rawEvents,
-        1,
       );
 
       const timeline = timelineStore.getTimeline(10);

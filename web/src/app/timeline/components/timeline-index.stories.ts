@@ -66,7 +66,7 @@ export default meta;
 type Story = StoryObj<TimelineIndexComponent>;
 
 function createTimelines(): Timeline[] {
-  const internPool = InternPoolStore.initialize();
+  const internPool = InternPoolStore.create();
   const styleStore = new StyleStore();
   styleStore.addTimelineTypes([
     {
@@ -215,18 +215,17 @@ function createTimelines(): Timeline[] {
     },
   ];
 
-  const logStore = LogStore.initialize(internPool, styleStore, [], 0);
-  const timelineStore = TimelineStore.initialize(
+  const logStore = LogStore.create(internPool, styleStore, 0);
+  const timelineStore = TimelineStore.create(
     internPool,
     styleStore,
     logStore,
-    timelinesData,
     timelinesData.length,
-    [],
-    0,
-    [],
-    0,
+    1,
+    1,
   );
+  timelineStore.addTimelines(timelinesData);
+  timelineStore.shrinkToFit();
 
   return timelineStore.timelines as Timeline[];
 }

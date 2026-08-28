@@ -17,6 +17,7 @@
 import { InspectionData } from 'src/app/store/domain/inspection-data';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
+import { StructStore } from 'src/app/store/domain/struct-store';
 import { LogStore } from 'src/app/store/domain/log-store';
 import {
   TimelineStore,
@@ -319,7 +320,9 @@ export async function createMockInspectionData(): Promise<InspectionData> {
     stringsToRegister.push({ id, value: `sub-${i}` });
   }
 
-  const internPool = InternPoolStore.initialize(stringsToRegister);
+  const internPool = InternPoolStore.create(stringsToRegister.length);
+  internPool.addStrings(stringsToRegister);
+  internPool.shrinkToFit();
 
   // --- 3. Define Mock Entities ---
   const timestampString = '2026-05-13T09:00:00Z';
@@ -725,24 +728,22 @@ export async function createMockInspectionData(): Promise<InspectionData> {
     eventIdsMap.get(subId)!.push(currentEventId);
   }
 
-  const logStore = LogStore.initialize(
-    internPool,
-    styleStore,
-    mockLogs,
-    mockLogs.length,
-  );
+  const logStore = LogStore.create(internPool, styleStore, mockLogs.length);
+  logStore.addLogs(mockLogs);
+  logStore.shrinkToFit();
 
-  const timelineStore = TimelineStore.initialize(
+  const timelineStore = TimelineStore.create(
     internPool,
     styleStore,
     logStore,
-    timelines,
     timelines.length,
-    mockRevisions,
     mockRevisions.length,
-    mockEvents,
     mockEvents.length,
   );
+  timelineStore.addRevisions(mockRevisions);
+  timelineStore.addEvents(mockEvents);
+  timelineStore.addTimelines(timelines);
+  timelineStore.shrinkToFit();
 
   // --- 4. Define Header Metadata ---
   const metadata: MetadataStore = {
@@ -758,11 +759,14 @@ export async function createMockInspectionData(): Promise<InspectionData> {
     queries: [],
   };
 
+  const structStore = StructStore.create(internPool);
+
   return {
     internPool,
     styleStore,
     logStore,
     timelineStore,
+    structStore,
     metadata,
   };
 }

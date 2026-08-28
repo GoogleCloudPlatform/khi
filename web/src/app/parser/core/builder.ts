@@ -28,6 +28,11 @@ import {
   EventDTO,
 } from 'src/app/store/domain/timeline-store';
 import {
+  FieldPathSetDTO,
+  StructDTO,
+  StructStore,
+} from 'src/app/store/domain/struct-store';
+import {
   LogType,
   RevisionState,
   Severity,
@@ -42,70 +47,88 @@ import {
 
 /**
  * Core InspectionDataBuilder for compiling raw store inputs.
- * Collects components in a version-decoupled form.
+ * Directly populates domain stores incrementally during file ingestion.
  */
 export class InspectionDataBuilder {
+  private readonly internPool = InternPoolStore.create();
   private readonly styleStore = new StyleStore();
+  private readonly logStore: LogStore;
+  private readonly timelineStore: TimelineStore;
+  private readonly structStore: StructStore;
+
   private readonly metadataStore: MetadataStore = {
     header: undefined,
     queries: [],
   };
 
-  private readonly rawStrings: StringEntryDTO[] = [];
-  private readonly rawLogs: LogDTO[] = [];
-  private readonly rawTimelines: TimelineDTO[] = [];
-  private readonly rawRevisions: RevisionDTO[] = [];
-  private readonly rawEvents: EventDTO[] = [];
-
   private iconAtlasPromise?: Promise<void>;
 
   /**
-   * Adds interned strings to the pool.
+   * Initializes the InspectionDataBuilder with linked domain stores.
    */
-  public addStrings(strings: Iterable<StringEntryDTO>): this {
-    for (const s of strings) {
-      this.rawStrings.push(s);
-    }
+  constructor() {
+    this.logStore = LogStore.create(this.internPool, this.styleStore);
+    this.timelineStore = TimelineStore.create(
+      this.internPool,
+      this.styleStore,
+      this.logStore,
+    );
+    this.structStore = StructStore.create(this.internPool);
+  }
+
+  /**
+   * Adds an interned string entry to the pool.
+   */
+  public addString(entry: StringEntryDTO): this {
+    this.internPool.addString(entry);
     return this;
   }
 
   /**
-   * Adds domain raw logs.
+   * Adds a single domain log entry.
    */
-  public addLogs(logs: Iterable<LogDTO>): this {
-    for (const log of logs) {
-      this.rawLogs.push(log);
-    }
+  public addLog(log: LogDTO): this {
+    this.logStore.addLog(log);
     return this;
   }
 
   /**
-   * Adds domain raw timelines.
+   * Adds a single timeline definition.
    */
-  public addTimelines(timelines: Iterable<TimelineDTO>): this {
-    for (const timeline of timelines) {
-      this.rawTimelines.push(timeline);
-    }
+  public addTimeline(timeline: TimelineDTO): this {
+    this.timelineStore.addTimeline(timeline);
     return this;
   }
 
   /**
-   * Adds domain raw revisions.
+   * Adds a single revision.
    */
-  public addRevisions(revisions: Iterable<RevisionDTO>): this {
-    for (const revision of revisions) {
-      this.rawRevisions.push(revision);
-    }
+  public addRevision(revision: RevisionDTO): this {
+    this.timelineStore.addRevision(revision);
     return this;
   }
 
   /**
-   * Adds domain raw events.
+   * Adds a single event.
    */
-  public addEvents(events: Iterable<EventDTO>): this {
-    for (const event of events) {
-      this.rawEvents.push(event);
-    }
+  public addEvent(event: EventDTO): this {
+    this.timelineStore.addEvent(event);
+    return this;
+  }
+
+  /**
+   * Adds a FieldPathSet to the struct store.
+   */
+  public addFieldPathSet(set: FieldPathSetDTO): this {
+    this.structStore.addFieldPathSet(set);
+    return this;
+  }
+
+  /**
+   * Adds an InternedStruct to the struct store.
+   */
+  public addStruct(struct: StructDTO): this {
+    this.structStore.addStruct(struct);
     return this;
   }
 
@@ -154,65 +177,47 @@ export class InspectionDataBuilder {
    */
   public setIconAtlas(dto: IconAtlasDTO): this {
     this.iconAtlasPromise = this.styleStore.setIconAtlas(dto);
-    this.iconAtlasPromise.catch(() => {}); // Prevents the unhandled rejection. Error will be thrown in the build method to actually await the promise.
+    this.iconAtlasPromise.catch(() => {}); // Prevents unhandled rejection.
     return this;
   }
 
   /**
    * Sets the primary inspection metadata header.
    */
-  public setMetadataHeader(header: InspectionHeader): void {
+  public setMetadataHeader(header: InspectionHeader): this {
     this.metadataStore.header = header;
+    return this;
   }
 
   /**
    * Adds saved inspection queries to the collection.
    */
-  public addMetadataQueries(queries: Iterable<InspectionQuery>): void {
+  public addMetadataQueries(queries: Iterable<InspectionQuery>): this {
     for (const q of queries) {
       this.metadataStore.queries.push(q);
     }
+    return this;
   }
 
   /**
-   * Retrieves the StyleStore instance managed by this builder.
-   */
-  public getStyleStore(): StyleStore {
-    return this.styleStore;
-  }
-
-  /**
-   * Instantiates data store contexts returning root inspection model.
+   * Compacts all domain stores and returns the completed InspectionData.
    */
   public async build(): Promise<InspectionData> {
-    const internPool = InternPoolStore.initialize(this.rawStrings);
-    const logStore = LogStore.initialize(
-      internPool,
-      this.styleStore,
-      this.rawLogs,
-      this.rawLogs.length,
-    );
-    const timelineStore = TimelineStore.initialize(
-      internPool,
-      this.styleStore,
-      logStore,
-      this.rawTimelines,
-      this.rawTimelines.length,
-      this.rawRevisions,
-      this.rawRevisions.length,
-      this.rawEvents,
-      this.rawEvents.length,
-    );
+    this.internPool.shrinkToFit();
+    this.logStore.shrinkToFit();
+    this.timelineStore.shrinkToFit();
+    this.structStore.shrinkToFit();
 
     if (this.iconAtlasPromise) {
       await this.iconAtlasPromise;
     }
 
     return {
-      internPool,
+      internPool: this.internPool,
       styleStore: this.styleStore,
-      logStore,
-      timelineStore,
+      logStore: this.logStore,
+      timelineStore: this.timelineStore,
+      structStore: this.structStore,
       metadata: this.metadataStore,
     };
   }

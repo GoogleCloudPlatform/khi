@@ -17,7 +17,7 @@
 import { fromBinary } from '@bufbuild/protobuf';
 import {
   ChunkDefinition,
-  IDataAssembler,
+  DataAssembler,
   ParserBlueprint,
 } from 'src/app/parser/core/interfaces';
 import { InspectionDataBuilder } from 'src/app/parser/core/builder';
@@ -38,90 +38,113 @@ import {
 } from 'src/app/generated/khifile/v6/style_pb';
 import {
   HDRColor4 as DomainHDRColor4,
-  LogType as DomainLogType,
-  RevisionState as DomainRevisionState,
   RevisionStateStyle as DomainRevisionStateStyle,
-  Severity as DomainSeverity,
-  TimelineType as DomainTimelineType,
-  Verb as DomainVerb,
 } from 'src/app/store/domain/style';
 import {
   Timeline,
   TimelineChunk,
   TimelineChunkSchema,
 } from 'src/app/generated/khifile/v6/timeline_pb';
-import { StringEntryDTO } from 'src/app/store/domain/intern-pool-store';
-import { LogDTO } from 'src/app/store/domain/log-store';
+import { TimelineDTO } from 'src/app/store/domain/timeline-store';
 import {
-  EventDTO,
-  RevisionDTO,
-  TimelineDTO,
-} from 'src/app/store/domain/timeline-store';
-import { IconAtlasDTO } from 'src/app/store/domain/style-store';
+  StructValueDTO,
+  StructValueKind,
+} from 'src/app/store/domain/struct-store';
+import { InternedValue } from 'src/app/generated/khifile/shared_pb';
 
 /**
  * Assembler for the file metadata chunk.
  */
-export class V6MetadataAssembler implements IDataAssembler<MetadataChunk> {
-  private readonly chunks: MetadataChunk[] = [];
+export class V6MetadataAssembler implements DataAssembler<MetadataChunk> {
+  constructor(private readonly builder: InspectionDataBuilder) {}
 
   /**
-   * Ingests a decoded metadata chunk.
+   * Ingests a decoded metadata chunk directly into the inspection data builder.
    */
   ingest(proto: MetadataChunk): void {
-    this.chunks.push(proto);
-  }
-
-  /**
-   * Integrates metadata into the final builder.
-   */
-  assembleInto(builder: InspectionDataBuilder): void {
-    for (const chunk of this.chunks) {
-      for (const item of chunk.metadata) {
-        if (item.payload.case === 'header') {
-          const h = item.payload.value;
-          builder.setMetadataHeader({
-            inspectionType: h.inspectionType,
-            inspectionName: h.inspectionName,
-            inspectTimeUnixSeconds: Number(h.inspectTimeUnixSeconds),
-            startTimeUnixSeconds: Number(h.startTimeUnixSeconds),
-            endTimeUnixSeconds: Number(h.endTimeUnixSeconds),
-            suggestedFilename: h.suggestedFilename,
-            fileSize: Number(h.fileSize),
-          });
-        } else if (item.payload.case === 'query') {
-          const queries = item.payload.value.queries.map((q) => ({
-            id: q.id,
-            name: q.name,
-            query: q.query,
-          }));
-          builder.addMetadataQueries(queries);
-        }
+    for (const item of proto.metadata) {
+      if (item.payload.case === 'header') {
+        const h = item.payload.value;
+        this.builder.setMetadataHeader({
+          inspectionType: h.inspectionType,
+          inspectionName: h.inspectionName,
+          inspectTimeUnixSeconds: Number(h.inspectTimeUnixSeconds),
+          startTimeUnixSeconds: Number(h.startTimeUnixSeconds),
+          endTimeUnixSeconds: Number(h.endTimeUnixSeconds),
+          suggestedFilename: h.suggestedFilename,
+          fileSize: Number(h.fileSize),
+        });
+      } else if (item.payload.case === 'query') {
+        const queries = item.payload.value.queries.map((q) => ({
+          id: q.id,
+          name: q.name,
+          query: q.query,
+        }));
+        this.builder.addMetadataQueries(queries);
       }
     }
+  }
+}
+
+function mapStructValue(iv: InternedValue): StructValueDTO {
+  switch (iv.kind.case) {
+    case 'nullValue':
+      return { kind: StructValueKind.Null };
+    case 'boolValue':
+      return { kind: StructValueKind.Bool, value: iv.kind.value };
+    case 'int64Value':
+      return { kind: StructValueKind.Int64, value: iv.kind.value };
+    case 'doubleValue':
+      return { kind: StructValueKind.Double, value: iv.kind.value };
+    case 'stringValue':
+      return { kind: StructValueKind.String, stringId: iv.kind.value };
+    case 'structId':
+      return { kind: StructValueKind.StructId, structId: iv.kind.value };
+    case 'structValue':
+      return { kind: StructValueKind.StructId, structId: iv.kind.value.id };
+    case 'listValue':
+      return {
+        kind: StructValueKind.List,
+        values: iv.kind.value.values.map(mapStructValue),
+      };
+    case 'timestampValue':
+      return {
+        kind: StructValueKind.Timestamp,
+        timestampNs:
+          BigInt(iv.kind.value.seconds) * 1_000_000_000n +
+          BigInt(iv.kind.value.nanos),
+      };
+    default:
+      return { kind: StructValueKind.Null };
   }
 }
 
 /**
  * Assembler for the interning pool chunk.
  */
-export class V6InternPoolAssembler implements IDataAssembler<InterningPoolChunk> {
-  private readonly strings: StringEntryDTO[] = [];
+export class V6InternPoolAssembler implements DataAssembler<InterningPoolChunk> {
+  constructor(private readonly builder: InspectionDataBuilder) {}
 
   /**
-   * Ingests a decoded interning pool chunk.
+   * Ingests a decoded interning pool chunk directly into the inspection data builder.
    */
   ingest(proto: InterningPoolChunk): void {
     for (const s of proto.strings) {
-      this.strings.push({ id: s.id, value: s.value });
+      this.builder.addString({ id: s.id, value: s.value });
     }
-  }
-
-  /**
-   * Integrates pooled strings into the final builder.
-   */
-  assembleInto(builder: InspectionDataBuilder): void {
-    builder.addStrings(this.strings);
+    for (const fps of proto.fieldPathSets) {
+      this.builder.addFieldPathSet({
+        id: fps.id,
+        fieldPathStringIds: fps.fieldPathStringIds,
+      });
+    }
+    for (const st of proto.structs) {
+      this.builder.addStruct({
+        id: st.id,
+        fieldPathSetId: st.fieldPathSetId,
+        values: st.values.map(mapStructValue),
+      });
+    }
   }
 }
 
@@ -149,70 +172,75 @@ function mapRevisionStyle(
 /**
  * Assembler for the timeline style chunk.
  */
-export class V6StyleAssembler implements IDataAssembler<TimelineStyleChunk> {
-  private readonly severities: DomainSeverity[] = [];
-  private readonly verbs: DomainVerb[] = [];
-  private readonly logTypes: DomainLogType[] = [];
-  private readonly revisionStates: DomainRevisionState[] = [];
-  private readonly timelineTypes: DomainTimelineType[] = [];
-  private iconAtlas?: IconAtlasDTO;
+export class V6StyleAssembler implements DataAssembler<TimelineStyleChunk> {
+  constructor(private readonly builder: InspectionDataBuilder) {}
 
   /**
-   * Ingests a decoded timeline style chunk.
+   * Ingests a decoded timeline style chunk directly into the inspection data builder.
    */
   ingest(proto: TimelineStyleChunk): void {
-    for (const s of proto.severities) {
-      this.severities.push({
-        id: s.id,
-        label: s.label,
-        shortLabel: s.shortLabel,
-        backgroundColor: mapColor(s.backgroundColor),
-        foregroundColor: mapColor(s.foregroundColor),
-        order: s.order,
-      });
+    if (proto.severities.length > 0) {
+      this.builder.addSeverities(
+        proto.severities.map((s) => ({
+          id: s.id,
+          label: s.label,
+          shortLabel: s.shortLabel,
+          backgroundColor: mapColor(s.backgroundColor),
+          foregroundColor: mapColor(s.foregroundColor),
+          order: s.order,
+        })),
+      );
     }
-    for (const v of proto.verbs) {
-      this.verbs.push({
-        id: v.id,
-        label: v.label,
-        backgroundColor: mapColor(v.backgroundColor),
-        foregroundColor: mapColor(v.foregroundColor),
-        visible: v.visible,
-      });
+    if (proto.verbs.length > 0) {
+      this.builder.addVerbs(
+        proto.verbs.map((v) => ({
+          id: v.id,
+          label: v.label,
+          backgroundColor: mapColor(v.backgroundColor),
+          foregroundColor: mapColor(v.foregroundColor),
+          visible: v.visible,
+        })),
+      );
     }
-    for (const lt of proto.logTypes) {
-      this.logTypes.push({
-        id: lt.id,
-        label: lt.label,
-        description: lt.description,
-        backgroundColor: mapColor(lt.backgroundColor),
-        foregroundColor: mapColor(lt.foregroundColor),
-      });
+    if (proto.logTypes.length > 0) {
+      this.builder.addLogTypes(
+        proto.logTypes.map((lt) => ({
+          id: lt.id,
+          label: lt.label,
+          description: lt.description,
+          backgroundColor: mapColor(lt.backgroundColor),
+          foregroundColor: mapColor(lt.foregroundColor),
+        })),
+      );
     }
-    for (const rs of proto.revisionStates) {
-      this.revisionStates.push({
-        id: rs.id,
-        label: rs.label,
-        icon: rs.icon,
-        description: rs.description,
-        backgroundColor: mapColor(rs.backgroundColor),
-        style: mapRevisionStyle(rs.style),
-      });
+    if (proto.revisionStates.length > 0) {
+      this.builder.addRevisionStates(
+        proto.revisionStates.map((rs) => ({
+          id: rs.id,
+          label: rs.label,
+          icon: rs.icon,
+          description: rs.description,
+          backgroundColor: mapColor(rs.backgroundColor),
+          style: mapRevisionStyle(rs.style),
+        })),
+      );
     }
-    for (const tt of proto.timelineTypes) {
-      this.timelineTypes.push({
-        id: tt.id,
-        label: tt.label,
-        description: tt.description,
-        icon: tt.icon,
-        backgroundColor: mapColor(tt.backgroundColor),
-        foregroundColor: mapColor(tt.foregroundColor),
-        typeChipBackgroundColor: mapColor(tt.typeChipBackgroundColor),
-        typeChipForegroundColor: mapColor(tt.typeChipForegroundColor),
-        visible: tt.visible,
-        sortPriority: tt.sortPriority,
-        height: tt.height,
-      });
+    if (proto.timelineTypes.length > 0) {
+      this.builder.addTimelineTypes(
+        proto.timelineTypes.map((tt) => ({
+          id: tt.id,
+          label: tt.label,
+          description: tt.description,
+          icon: tt.icon,
+          backgroundColor: mapColor(tt.backgroundColor),
+          foregroundColor: mapColor(tt.foregroundColor),
+          typeChipBackgroundColor: mapColor(tt.typeChipBackgroundColor),
+          typeChipForegroundColor: mapColor(tt.typeChipForegroundColor),
+          visible: tt.visible,
+          sortPriority: tt.sortPriority,
+          height: tt.height,
+        })),
+      );
     }
     if (proto.iconAtlas) {
       const msdfIconImage = proto.iconAtlas.msdfIconImage.map((u) =>
@@ -226,25 +254,11 @@ export class V6StyleAssembler implements IDataAssembler<TimelineStyleChunk> {
       const nameToCodepoints = new Map<string, string>(
         Object.entries(proto.iconAtlas.nameToCodepoints),
       );
-      this.iconAtlas = {
+      this.builder.setIconAtlas({
         msdfIconImage,
         bmfontJson,
         nameToCodepoints,
-      };
-    }
-  }
-
-  /**
-   * Integrates timeline styles into the final builder.
-   */
-  assembleInto(builder: InspectionDataBuilder): void {
-    builder.addSeverities(this.severities);
-    builder.addVerbs(this.verbs);
-    builder.addLogTypes(this.logTypes);
-    builder.addRevisionStates(this.revisionStates);
-    builder.addTimelineTypes(this.timelineTypes);
-    if (this.iconAtlas) {
-      builder.setIconAtlas(this.iconAtlas);
+      });
     }
   }
 }
@@ -252,18 +266,18 @@ export class V6StyleAssembler implements IDataAssembler<TimelineStyleChunk> {
 /**
  * Assembler for the log chunk.
  */
-export class V6LogAssembler implements IDataAssembler<LogChunk> {
-  private readonly logs: LogDTO[] = [];
+export class V6LogAssembler implements DataAssembler<LogChunk> {
+  constructor(private readonly builder: InspectionDataBuilder) {}
 
   /**
-   * Ingests a decoded log chunk.
+   * Ingests a decoded log chunk directly into the inspection data builder.
    */
   ingest(proto: LogChunk): void {
     for (const log of proto.logs) {
       const ts = log.ts
         ? BigInt(log.ts.seconds) * 1_000_000_000n + BigInt(log.ts.nanos)
         : 0n;
-      this.logs.push({
+      this.builder.addLog({
         id: log.id,
         ts,
         logTypeId: log.logTypeId,
@@ -273,22 +287,13 @@ export class V6LogAssembler implements IDataAssembler<LogChunk> {
       });
     }
   }
-
-  /**
-   * Integrates logs into the final builder.
-   */
-  assembleInto(builder: InspectionDataBuilder): void {
-    builder.addLogs(this.logs);
-  }
 }
 
 /**
  * Assembler for the timeline chunk.
  */
-export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
+export class V6TimelineAssembler implements DataAssembler<TimelineChunk> {
   private readonly rawTimelines: Timeline[] = [];
-  private readonly revisions: RevisionDTO[] = [];
-  private readonly events: EventDTO[] = [];
   private readonly itemsMap = new Map<
     number,
     { revisionIds: number[]; eventIds: number[] }
@@ -297,11 +302,13 @@ export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
   private nextRevisionId = 1;
   private nextEventId = 1;
 
+  constructor(private readonly builder: InspectionDataBuilder) {}
+
   /**
-   * Ingests a decoded timeline chunk.
+   * Ingests a decoded timeline chunk directly into the inspection data builder.
    */
   ingest(proto: TimelineChunk): void {
-    // 1. Process timelineItems
+    // 1. Process timelineItems: stream revisions and events directly to builder
     for (const items of proto.timelineItems) {
       if (this.itemsMap.has(items.id)) {
         throw new Error(`Duplicate timelineItems id: ${items.id}`);
@@ -313,7 +320,7 @@ export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
           ? BigInt(r.changedTime.seconds) * 1_000_000_000n +
             BigInt(r.changedTime.nanos)
           : 0n;
-        this.revisions.push({
+        this.builder.addRevision({
           id,
           logId: r.logId,
           changedTime,
@@ -345,7 +352,7 @@ export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
       const eventIds: number[] = [];
       for (const e of items.events) {
         const id = this.nextEventId++;
-        this.events.push({
+        this.builder.addEvent({
           id,
           logId: e.logId,
         });
@@ -362,13 +369,9 @@ export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
   }
 
   /**
-   * Integrates timelines into the final builder.
+   * Links timeline items to timelines and flattens into the inspection data builder.
    */
-  assembleInto(builder: InspectionDataBuilder): void {
-    builder.addRevisions(this.revisions);
-    builder.addEvents(this.events);
-
-    // 1. Build flat TimelineDTO list with items linked
+  finalize(): void {
     const linkedTimelines: TimelineDTO[] = [];
     for (const t of this.rawTimelines) {
       const items = this.itemsMap.get(t.timelineItemsId) ?? {
@@ -385,7 +388,9 @@ export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
       });
     }
 
-    builder.addTimelines(linkedTimelines);
+    for (const timeline of linkedTimelines) {
+      this.builder.addTimeline(timeline);
+    }
   }
 }
 
@@ -427,7 +432,7 @@ export const V6_BLUEPRINT: ParserBlueprint = new Map<
     {
       typeId: V6ChunkType.Metadata,
       decode: (bytes) => fromBinary(MetadataChunkSchema, bytes),
-      createAssembler: () => new V6MetadataAssembler(),
+      createAssembler: (builder) => new V6MetadataAssembler(builder),
       priority: 5,
       label: 'metadata',
     },
@@ -437,7 +442,7 @@ export const V6_BLUEPRINT: ParserBlueprint = new Map<
     {
       typeId: V6ChunkType.InterningPool,
       decode: (bytes) => fromBinary(InterningPoolChunkSchema, bytes),
-      createAssembler: () => new V6InternPoolAssembler(),
+      createAssembler: (builder) => new V6InternPoolAssembler(builder),
       priority: 10,
       label: 'interningPool',
     },
@@ -447,7 +452,7 @@ export const V6_BLUEPRINT: ParserBlueprint = new Map<
     {
       typeId: V6ChunkType.TimelineStyle,
       decode: (bytes) => fromBinary(TimelineStyleChunkSchema, bytes),
-      createAssembler: () => new V6StyleAssembler(),
+      createAssembler: (builder) => new V6StyleAssembler(builder),
       priority: 20,
       label: 'timelineStyle',
     },
@@ -457,7 +462,7 @@ export const V6_BLUEPRINT: ParserBlueprint = new Map<
     {
       typeId: V6ChunkType.Log,
       decode: (bytes) => fromBinary(LogChunkSchema, bytes),
-      createAssembler: () => new V6LogAssembler(),
+      createAssembler: (builder) => new V6LogAssembler(builder),
       priority: 100,
       label: 'log',
     },
@@ -467,7 +472,7 @@ export const V6_BLUEPRINT: ParserBlueprint = new Map<
     {
       typeId: V6ChunkType.Timeline,
       decode: (bytes) => fromBinary(TimelineChunkSchema, bytes),
-      createAssembler: () => new V6TimelineAssembler(),
+      createAssembler: (builder) => new V6TimelineAssembler(builder),
       priority: 100,
       label: 'timeline',
     },

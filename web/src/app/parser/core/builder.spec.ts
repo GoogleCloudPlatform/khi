@@ -29,6 +29,7 @@ import {
   TimelineType,
   RevisionStateStyle,
 } from 'src/app/store/domain/style';
+import { StructValueKind } from 'src/app/store/domain/struct-store';
 
 describe('InspectionDataBuilder (Core)', () => {
   let builder: InspectionDataBuilder;
@@ -128,11 +129,11 @@ describe('InspectionDataBuilder (Core)', () => {
     };
 
     const result = await builder
-      .addStrings([{ id: 1, value: 'summary_value' }])
-      .addLogs(rawLogs)
-      .addTimelines(rawTimelines)
-      .addRevisions(rawRevisions)
-      .addEvents(rawEvents)
+      .addString({ id: 1, value: 'summary_value' })
+      .addLog(rawLogs[0])
+      .addTimeline(rawTimelines[0])
+      .addRevision(rawRevisions[0])
+      .addEvent(rawEvents[0])
       .addSeverities([rawSeverity])
       .addLogTypes([rawLogType])
       .addVerbs([rawVerb])
@@ -146,5 +147,78 @@ describe('InspectionDataBuilder (Core)', () => {
     const l = result.logStore.getLog(100);
     expect(l.id).toBe(100);
     expect(l.timestamp).toBe(1234n);
+  });
+
+  it('should stream single elements and handle structStore', async () => {
+    builder
+      .addString({ id: 1, value: 'meta\0key' })
+      .addString({ id: 2, value: 'val' })
+      .addFieldPathSet({ id: 1, fieldPathStringIds: [1] })
+      .addStruct({
+        id: 10,
+        fieldPathSetId: 1,
+        values: [{ kind: StructValueKind.String, stringId: 2 }],
+      })
+      .addLog({
+        id: 1,
+        ts: 100n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 2,
+        bodyStructId: 10,
+      })
+      .addRevision({
+        id: 50,
+        logId: 1,
+        changedTime: 100n,
+        principalStringId: 1,
+        verbTypeId: 1,
+        stateTypeId: 1,
+        resourceBodyStructId: 10,
+      })
+      .addEvent({
+        id: 60,
+        logId: 1,
+      })
+      .addTimeline({
+        id: 5,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [50],
+        eventIds: [60],
+      });
+
+    const result = await builder.build();
+    expect(result.structStore.count).toBe(1);
+    expect(result.structStore.getStruct(10)).toEqual({
+      meta: {
+        key: 'val',
+      },
+    });
+    expect(result.logStore.count).toBe(1);
+    expect(result.timelineStore.count).toBe(1);
+  });
+
+  it('should handle build() when no elements are added', async () => {
+    const result = await builder.build();
+    expect(result.internPool.count).toBe(0);
+    expect(result.structStore.count).toBe(0);
+    expect(result.logStore.count).toBe(0);
+    expect(result.timelineStore.count).toBe(0);
+  });
+
+  it('should support single addition of FieldPathSet and Struct', async () => {
+    builder.addString({ id: 1, value: 'prop' });
+    builder.addFieldPathSet({ id: 1, fieldPathStringIds: [1] });
+    builder.addStruct({
+      id: 10,
+      fieldPathSetId: 1,
+      values: [{ kind: StructValueKind.Int64, value: 42n }],
+    });
+
+    const result = await builder.build();
+    expect(result.structStore.count).toBe(1);
+    expect(result.structStore.getStruct(10)).toEqual({ prop: 42 });
   });
 });

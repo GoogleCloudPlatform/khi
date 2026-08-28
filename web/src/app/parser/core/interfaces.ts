@@ -17,18 +17,18 @@
 import { InspectionDataBuilder } from 'src/app/parser/core/builder';
 
 /**
- * Stateful assembler that collects decoded Protobufs and mutates the final model.
+ * Stateful assembler that processes decoded Protobufs and streams data into stores.
  */
-export interface IDataAssembler<TProto = unknown> {
+export interface DataAssembler<TProto = unknown> {
   /**
    * Ingests a decoded Protobuf chunk. Called multiple times if chunks are split.
    */
   ingest(proto: TProto): void;
 
   /**
-   * Integrates the ingested data into the final InspectionData model.
+   * Optional finalization hook called after all chunks have been ingested.
    */
-  assembleInto(builder: InspectionDataBuilder): void;
+  finalize?(): void;
 }
 
 /**
@@ -45,9 +45,11 @@ export interface ChunkDefinition<TProto = unknown> {
    */
   readonly decode: (bytes: Uint8Array) => TProto;
   /**
-   * Factory method for the stateful assembler.
+   * Factory method for the stateful assembler, binding it to the session's builder.
    */
-  readonly createAssembler: () => IDataAssembler<TProto>;
+  readonly createAssembler: (
+    builder: InspectionDataBuilder,
+  ) => DataAssembler<TProto>;
   /**
    * Execution priority for dependency resolution (Lower number = executed first).
    */

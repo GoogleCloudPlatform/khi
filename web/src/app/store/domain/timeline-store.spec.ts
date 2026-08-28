@@ -33,20 +33,10 @@ describe('TimelineStore', () => {
   const mockColor = { r: 0, g: 0, b: 0, a: 1 };
 
   beforeEach(() => {
-    internPool = InternPoolStore.initialize();
+    internPool = InternPoolStore.create();
     styleStore = new StyleStore();
-    logStore = LogStore.initialize(internPool, styleStore, [], 0);
-    store = TimelineStore.initialize(
-      internPool,
-      styleStore,
-      logStore,
-      [],
-      0,
-      [],
-      0,
-      [],
-      0,
-    );
+    logStore = LogStore.create(internPool, styleStore, 0);
+    store = TimelineStore.create(internPool, styleStore, logStore);
 
     styleStore.addTimelineTypes([
       {
@@ -116,7 +106,9 @@ describe('TimelineStore', () => {
     const logs = [
       { id: 1, ts: 10n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
     ];
-    logStore = LogStore.initialize(internPool, styleStore, logs, 1);
+    logStore = LogStore.create(internPool, styleStore, 1);
+    logStore.addLogs(logs);
+    logStore.shrinkToFit();
 
     const rawTimelines: TimelineDTO[] = [
       {
@@ -148,17 +140,11 @@ describe('TimelineStore', () => {
       },
     ];
 
-    store = TimelineStore.initialize(
-      internPool,
-      styleStore,
-      logStore,
-      rawTimelines,
-      1,
-      rawRevisions,
-      1,
-      rawEvents,
-      1,
-    );
+    store = TimelineStore.create(internPool, styleStore, logStore, 1, 1, 1);
+    store.addRevisions(rawRevisions);
+    store.addEvents(rawEvents);
+    store.addTimelines(rawTimelines);
+    store.shrinkToFit();
 
     const t = store.getTimeline(10);
     expect(t.id).toBe(10);
@@ -198,17 +184,9 @@ describe('TimelineStore', () => {
       },
     ];
 
-    store = TimelineStore.initialize(
-      internPool,
-      styleStore,
-      logStore,
-      rawTimelines,
-      2,
-      [],
-      0,
-      [],
-      0,
-    );
+    store = TimelineStore.create(internPool, styleStore, logStore, 2);
+    store.addTimelines(rawTimelines);
+    store.shrinkToFit();
 
     const timeline = store.getTimeline(2);
     const computedPath = timeline.path;
@@ -249,17 +227,9 @@ describe('TimelineStore', () => {
       },
     ];
 
-    store = TimelineStore.initialize(
-      internPool,
-      styleStore,
-      logStore,
-      rawTimelines,
-      2,
-      [],
-      0,
-      [],
-      0,
-    );
+    store = TimelineStore.create(internPool, styleStore, logStore, 2);
+    store.addTimelines(rawTimelines);
+    store.shrinkToFit();
 
     const childIds = store._getChildIdsForTimeline(10);
     expect(childIds.length).toBe(1);
@@ -271,33 +241,152 @@ describe('TimelineStore', () => {
     );
   });
 
-  describe('ArrayBuffer allocation', () => {
-    it('should allocate ArrayBuffer and perform operations successfully', () => {
-      const timelines: TimelineDTO[] = [
-        {
-          id: 1,
-          timelineTypeId: 1,
-          nameStringId: 1,
-          parentTimelineId: 0,
-          revisionIds: [],
-          eventIds: [],
-        },
-      ];
-      const fallbackStore = TimelineStore.initialize(
+  describe('create and dynamic methods', () => {
+    it('should dynamically add revisions, events, and timelines and shrink to fit', () => {
+      const dynamicStore = TimelineStore.create(
         internPool,
         styleStore,
         logStore,
-        timelines,
         1,
-        [],
+        1,
+        1,
+      );
+      expect(dynamicStore.count).toBe(0);
+      expect(dynamicStore.revisionCount).toBe(0);
+      expect(dynamicStore.eventCount).toBe(0);
+
+      dynamicStore.addRevision({
+        id: 101,
+        logId: 1,
+        changedTime: 500n,
+        principalStringId: 1,
+        verbTypeId: 1,
+        stateTypeId: 1,
+        resourceBodyStructId: 10,
+        fieldAnnotations: [],
+      });
+
+      dynamicStore.addEvent({
+        id: 201,
+        logId: 2,
+      });
+
+      dynamicStore.addTimeline({
+        id: 1,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [101],
+        eventIds: [201],
+      });
+
+      dynamicStore.addTimeline({
+        id: 2,
+        timelineTypeId: 1,
+        nameStringId: 2,
+        parentTimelineId: 1,
+        revisionIds: [],
+        eventIds: [],
+      });
+
+      expect(dynamicStore.count).toBe(2);
+      expect(dynamicStore.revisionCount).toBe(1);
+      expect(dynamicStore.eventCount).toBe(1);
+
+      // Verify lazy relationship rebuild even without calling shrinkToFit
+      const childIdsBeforeShrink = dynamicStore._getChildIdsForTimeline(1);
+      expect(childIdsBeforeShrink).toEqual([2]);
+
+      dynamicStore.shrinkToFit();
+
+      expect(dynamicStore.count).toBe(2);
+      expect(dynamicStore.revisionCount).toBe(1);
+      expect(dynamicStore.eventCount).toBe(1);
+
+      const t1 = dynamicStore.getTimeline(1);
+      expect(t1.id).toBe(1);
+      const t2 = dynamicStore.getTimeline(2);
+      expect(t2.id).toBe(2);
+
+      const childIds = dynamicStore._getChildIdsForTimeline(1);
+      expect(childIds).toEqual([2]);
+    });
+
+    it('should handle shrinkToFit on an empty store with capacity 0', () => {
+      const emptyStore = TimelineStore.create(
+        internPool,
+        styleStore,
+        logStore,
         0,
-        [],
+        0,
         0,
       );
+      emptyStore.shrinkToFit();
+      expect(emptyStore.count).toBe(0);
+      expect(emptyStore.revisionCount).toBe(0);
+      expect(emptyStore.eventCount).toBe(0);
+    });
 
-      expect(fallbackStore.timelines.length).toBe(1);
-      const timeline = fallbackStore.getTimeline(1);
-      expect(timeline.id).toBe(1);
+    it('should handle multiple buffer expansions across all views from capacity 1 and preserve domain relationships', () => {
+      const localLogStore = LogStore.create(internPool, styleStore, 15);
+      for (let i = 1; i <= 15; i++) {
+        localLogStore.addLog({
+          id: i,
+          ts: BigInt(i * 100),
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 1,
+        });
+      }
+
+      const store = TimelineStore.create(
+        internPool,
+        styleStore,
+        localLogStore,
+        1,
+        1,
+        1,
+      );
+      for (let i = 1; i <= 15; i++) {
+        store.addRevision({
+          id: i,
+          logId: i,
+          changedTime: BigInt(i * 100),
+          principalStringId: 1,
+          verbTypeId: 1,
+          stateTypeId: 1,
+          resourceBodyStructId: i * 10,
+        });
+        store.addEvent({ id: i, logId: i });
+        store.addTimeline({
+          id: i,
+          timelineTypeId: 1,
+          nameStringId: 1,
+          parentTimelineId: i > 1 ? 1 : 0,
+          revisionIds: [i],
+          eventIds: [i],
+        });
+      }
+
+      expect(store.count).toBe(15);
+      expect(store.revisionCount).toBe(15);
+      expect(store.eventCount).toBe(15);
+
+      store.shrinkToFit();
+
+      for (let i = 1; i <= 15; i++) {
+        const t = store.getTimeline(i);
+        expect(t.id).toBe(i);
+        expect(t.revisions.length).toBe(1);
+        expect(t.revisions[0].id).toBe(i);
+        expect(t.revisions[0].structId).toBe(i * 10);
+        expect(t.revisions[0].log.timestamp).toBe(BigInt(i * 100));
+        expect(t.events.length).toBe(1);
+        expect(t.events[0].id).toBe(i);
+      }
+
+      const rootChildren = store._getChildIdsForTimeline(1);
+      expect(rootChildren.length).toBe(14);
     });
   });
 });
