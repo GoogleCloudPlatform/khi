@@ -330,4 +330,47 @@ describe('StructStore', () => {
       nestedList: [['emptyList']],
     });
   });
+
+  it('safely ignores field paths attempting prototype pollution or containing empty segments', () => {
+    internPool.addStrings([
+      { id: 1, value: '__proto__\0polluted' },
+      { id: 2, value: 'constructor\0prototype\0polluted' },
+      { id: 3, value: 'safe\0prototype\0polluted' },
+      { id: 4, value: 'valid\0key' },
+      { id: 5, value: 'valid\0' }, // trailing empty segment
+      { id: 6, value: '\0empty_leading' }, // leading empty segment
+      { id: 10, value: 'attack_value' },
+      { id: 11, value: 'legit_value' },
+    ]);
+
+    structStore.addFieldPathSet({
+      id: 1,
+      fieldPathStringIds: [1, 2, 3, 4, 5, 6],
+    });
+
+    structStore.addStruct({
+      id: 1,
+      fieldPathSetId: 1,
+      values: [
+        { kind: StructValueKind.String, stringId: 10 },
+        { kind: StructValueKind.String, stringId: 10 },
+        { kind: StructValueKind.String, stringId: 10 },
+        { kind: StructValueKind.String, stringId: 11 },
+        { kind: StructValueKind.String, stringId: 10 },
+        { kind: StructValueKind.String, stringId: 10 },
+      ],
+    });
+
+    const result = structStore.getStruct(1);
+    expect(result).toEqual({
+      valid: {
+        key: 'legit_value',
+      },
+    });
+
+    // Ensure global Object.prototype was not polluted
+    expect(
+      (Object.prototype as Record<string, unknown>)['polluted'],
+    ).toBeUndefined();
+  });
 });

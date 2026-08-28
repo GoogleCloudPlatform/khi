@@ -22,6 +22,9 @@ import {
 } from 'src/app/store/domain/buffer-util';
 import { allocateBuffer } from 'src/app/store/domain/types';
 
+const MIN_SAFE_INTEGER_BI = BigInt(Number.MIN_SAFE_INTEGER);
+const MAX_SAFE_INTEGER_BI = BigInt(Number.MAX_SAFE_INTEGER);
+
 /**
  * Separator used when flattening nested object keys in InternedStruct.
  */
@@ -368,7 +371,7 @@ export class StructStore {
     const fieldOffset = this.fieldPathSetOffsets[fieldPathSetId] ?? 0;
 
     let currentPos = startOffset;
-    const root: Record<string, unknown> = {};
+    const root: Record<string, unknown> = Object.create(null);
 
     for (let i = 0; i < fieldCount; i++) {
       const stringId = this.fieldPathsBuffer[fieldOffset + i];
@@ -398,8 +401,7 @@ export class StructStore {
         );
         const numVal = Number(bigVal);
         const isSafe =
-          bigVal >= BigInt(Number.MIN_SAFE_INTEGER) &&
-          bigVal <= BigInt(Number.MAX_SAFE_INTEGER);
+          bigVal >= MIN_SAFE_INTEGER_BI && bigVal <= MAX_SAFE_INTEGER_BI;
         return [isSafe ? numVal : bigVal, pos + 8];
       }
       case ValueTag.Double: {
@@ -457,15 +459,27 @@ export class StructStore {
     value: unknown,
   ): void {
     const parts = fullPath.split(FIELD_PATH_SEPARATOR);
+
+    for (const part of parts) {
+      if (
+        part.length === 0 ||
+        part === '__proto__' ||
+        part === 'constructor' ||
+        part === 'prototype'
+      ) {
+        return;
+      }
+    }
+
     let current = target;
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i];
       if (
-        !(part in current) ||
+        !Object.hasOwn(current, part) ||
         typeof current[part] !== 'object' ||
         current[part] === null
       ) {
-        current[part] = {};
+        current[part] = Object.create(null);
       }
       current = current[part] as Record<string, unknown>;
     }

@@ -38,6 +38,8 @@ import {
   allocateBuffer,
 } from 'src/app/store/domain/types';
 
+const EMPTY_UINT32_ARRAY = new Uint32Array(0);
+
 /**
  * Raw timeline object interface from the assembler.
  */
@@ -446,8 +448,14 @@ export class TimelineStore {
     this.timelineNameStringIds[tIndex] = timeline.nameStringId;
     this.timelineParentIds[tIndex] = timeline.parentTimelineId;
 
-    this.timelineRevisionIds[tIndex] = new Uint32Array(timeline.revisionIds);
-    this.timelineEventIds[tIndex] = new Uint32Array(timeline.eventIds);
+    this.timelineRevisionIds[tIndex] =
+      timeline.revisionIds.length > 0
+        ? new Uint32Array(timeline.revisionIds)
+        : EMPTY_UINT32_ARRAY;
+    this.timelineEventIds[tIndex] =
+      timeline.eventIds.length > 0
+        ? new Uint32Array(timeline.eventIds)
+        : EMPTY_UINT32_ARRAY;
     this.timelineChildrenIds[tIndex] = [];
 
     this.timelineIdToIndex[timeline.id] = tIndex;
