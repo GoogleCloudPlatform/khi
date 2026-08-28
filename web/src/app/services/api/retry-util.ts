@@ -136,7 +136,7 @@ export function calculateBackoffDelayMs(
     return exponentialDelay;
   }
   const jitterMs = Math.random() * (baseDelayMs * 0.5);
-  return Math.min(maxDelayMs + baseDelayMs * 0.5, exponentialDelay + jitterMs);
+  return Math.min(maxDelayMs, exponentialDelay + jitterMs);
 }
 
 /**

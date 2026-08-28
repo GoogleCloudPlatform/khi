@@ -33,6 +33,7 @@ import {
   createRetryInterceptor,
   DEFAULT_RETRYABLE_METHODS,
 } from 'src/app/services/api/retry.interceptor';
+import { CancellationError } from 'src/app/store/domain/filter/types';
 
 describe('retry.interceptor', () => {
   function createMockUnaryRequest(
@@ -234,7 +235,9 @@ describe('retry.interceptor', () => {
     // Abort shortly after entering delayWithSignal
     setTimeout(() => controller.abort(), 20);
 
-    await expectAsync(interceptorPromise).toBeRejectedWithError(ConnectError);
+    await expectAsync(interceptorPromise).toBeRejectedWith(
+      jasmine.any(CancellationError),
+    );
     expect(callCount).toBe(1);
   });
 
@@ -254,7 +257,9 @@ describe('retry.interceptor', () => {
       throw new ConnectError('502 Bad Gateway', Code.Unavailable);
     };
 
-    await expectAsync(interceptor(next)(req)).toBeRejected();
+    await expectAsync(interceptor(next)(req)).toBeRejectedWith(
+      jasmine.any(CancellationError),
+    );
     expect(callCount).toBe(1);
   });
 

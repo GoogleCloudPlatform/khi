@@ -124,6 +124,13 @@ describe('retry-util', () => {
       expect(delay).toBeGreaterThanOrEqual(500);
       expect(delay).toBeLessThanOrEqual(500 + 250);
     });
+
+    it('never exceeds maxDelayMs when jitter is added', () => {
+      for (let i = 0; i < 20; i++) {
+        const delay = calculateBackoffDelayMs(10, 500, 3000, true);
+        expect(delay).toBeLessThanOrEqual(3000);
+      }
+    });
   });
 
   describe('delayWithSignal', () => {

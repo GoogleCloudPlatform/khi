@@ -23,6 +23,7 @@ import {
   delayWithSignal,
   isRetryableError,
 } from 'src/app/services/api/retry-util';
+import { CancellationError } from 'src/app/store/domain/filter/types';
 
 /**
  * Set of unary RPC method names that are idempotent and safe to retry automatically upon transient errors.
@@ -102,12 +103,12 @@ export function createRetryInterceptor(
       try {
         return await next(req);
       } catch (err) {
+        if (req.signal?.aborted) {
+          throw new CancellationError('The operation was aborted.');
+        }
+
         retryCount++;
-        if (
-          retryCount > maxRetries ||
-          !isRetryableError(err) ||
-          req.signal?.aborted
-        ) {
+        if (retryCount > maxRetries || !isRetryableError(err)) {
           throw err;
         }
 
@@ -119,7 +120,7 @@ export function createRetryInterceptor(
         await delayWithSignal(delayMs, req.signal);
 
         if (req.signal?.aborted) {
-          throw err;
+          throw new CancellationError('The operation was aborted.');
         }
       }
     }
