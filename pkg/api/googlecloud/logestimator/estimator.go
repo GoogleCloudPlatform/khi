@@ -153,6 +153,16 @@ func NewStructuredLogEstimatorFromClients(loggingClient *logging.Client, metricC
 // Cloud Monitoring queries for all resource types are executed concurrently.
 // If custom filters require sampling, a time-window bounded sampling probe is executed.
 func (e *StructuredLogEstimator) Estimate(ctx context.Context, container googlecloud.ResourceContainer, query *StructuredLogQuery, startTime, endTime time.Time) (*EstimateResult, error) {
+	if query.Preset != EstimatedCountPresetNone {
+		return &EstimateResult{
+			MetricCount:       0,
+			EstimatedCount:    0,
+			CustomFilterRatio: 1.0,
+			IsExact:           false,
+			Preset:            query.Preset,
+		}, nil
+	}
+
 	if e.CallOptionInjector != nil {
 		ctx = e.CallOptionInjector.InjectToCallContext(ctx, container)
 	}

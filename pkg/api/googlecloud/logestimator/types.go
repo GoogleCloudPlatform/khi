@@ -22,6 +22,27 @@ import (
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 )
 
+// EstimatedCountPreset represents a predefined rough estimation tier.
+type EstimatedCountPreset int
+
+const (
+	// EstimatedCountPresetNone indicates that standard numeric estimation should be performed.
+	EstimatedCountPresetNone EstimatedCountPreset = iota
+
+	// EstimatedCountPresetFew indicates that the query matches only a small number of logs.
+	EstimatedCountPresetFew
+)
+
+// String returns the string representation of the preset.
+func (p EstimatedCountPreset) String() string {
+	switch p {
+	case EstimatedCountPresetFew:
+		return "few"
+	default:
+		return ""
+	}
+}
+
 // StructuredLogQuery represents a decomposed Cloud Logging and Cloud Monitoring query.
 type StructuredLogQuery struct {
 	// ResourceTypes specifies the resource.type strings (e.g. ["k8s_container"] or ["gke_cluster", "gke_nodepool"]).
@@ -37,6 +58,10 @@ type StructuredLogQuery struct {
 	// Incomplete indicates that the query is missing required parameters (e.g. ProjectID or ClusterName)
 	// and should not trigger log volume estimation.
 	Incomplete bool
+
+	// Preset specifies a predefined rough estimation tier (e.g. EstimatedCountPresetFew)
+	// that bypasses Cloud Monitoring and probe queries.
+	Preset EstimatedCountPreset
 }
 
 // GenerateCloudLoggingQuery generates the Cloud Logging filter string.
@@ -174,4 +199,7 @@ type EstimateResult struct {
 
 	// IsExact is true if no custom filter ratio estimation was required.
 	IsExact bool `json:"isExact"`
+
+	// Preset indicates a rough estimation tier if defined on the query.
+	Preset EstimatedCountPreset `json:"preset,omitempty"`
 }

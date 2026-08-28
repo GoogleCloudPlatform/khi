@@ -303,6 +303,15 @@ message FormField {
   }
 }
 
+// EstimatedCountPreset defines predefined rough estimation categories when exact count estimation is unfeasible.
+enum EstimatedCountPreset {
+  // Default unspecified preset (meaning numeric estimated_count should be used).
+  ESTIMATED_COUNT_PRESET_UNSPECIFIED = 0;
+
+  // Few logs matching this query (e.g. sporadic audit events or configuration changes).
+  ESTIMATED_COUNT_PRESET_FEW = 1;
+}
+
 // InspectionQuery contains a generated query string associated with the inspection.
 message InspectionQuery {
   // Identifier of the query.
@@ -322,6 +331,9 @@ message InspectionQuery {
 
   // Whether log volume estimation for this query is currently running in the background.
   bool pending = 6;
+
+  // Predefined estimation preset category if exact count estimation is unfeasible.
+  EstimatedCountPreset estimated_count_preset = 7;
 }
 
 // InspectionPlan visualizes the resolved execution graph of tasks.

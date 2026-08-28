@@ -105,6 +105,16 @@ func (e *CachedStructuredLogEstimator) estimateWithTaskSlotInternal(
 	startTime, endTime time.Time,
 	provider EstimatorProvider,
 ) (*EstimateResult, *flightCall, bool, error) {
+	if query.Preset != EstimatedCountPresetNone {
+		return &EstimateResult{
+			MetricCount:       0,
+			EstimatedCount:    0,
+			CustomFilterRatio: 1.0,
+			IsExact:           false,
+			Preset:            query.Preset,
+		}, nil, false, nil
+	}
+
 	cacheKey := fmt.Sprintf("%s|%s|%d|%d",
 		container.Identifier(),
 		query.GenerateCloudLoggingQuery(),

@@ -953,3 +953,39 @@ func TestStructuredLogEstimator_CallOptionInjector(t *testing.T) {
 		})
 	}
 }
+
+func TestStructuredLogEstimator_Preset(t *testing.T) {
+	testCases := []struct {
+		name       string
+		query      *StructuredLogQuery
+		wantResult *EstimateResult
+	}{
+		{
+			name: "preset few returns preset without querying metrics or probes",
+			query: &StructuredLogQuery{
+				ResourceTypes: []string{"gce_instance"},
+				Preset:        EstimatedCountPresetFew,
+			},
+			wantResult: &EstimateResult{
+				MetricCount:       0,
+				EstimatedCount:    0,
+				CustomFilterRatio: 1.0,
+				IsExact:           false,
+				Preset:            EstimatedCountPresetFew,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			estimator := NewStructuredLogEstimator(nil, nil, nil)
+			got, err := estimator.Estimate(context.Background(), googlecloud.Project("test-project"), tc.query, time.Now().Add(-time.Hour), time.Now())
+			if err != nil {
+				t.Fatalf("Estimate() unexpected error = %v", err)
+			}
+			if diff := cmp.Diff(tc.wantResult, got); diff != "" {
+				t.Errorf("Estimate() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

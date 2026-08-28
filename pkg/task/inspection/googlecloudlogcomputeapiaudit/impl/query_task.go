@@ -42,6 +42,7 @@ func GenerateComputeAPIStructuredQuery(taskMode inspectioncore_contract.Inspecti
 					logestimator.CustomFilter(`-protoPayload.methodName:("list" OR "get" OR "watch")`),
 					logestimator.Comment("instance name filters to be determined after node name discovery"),
 				},
+				Preset: logestimator.EstimatedCountPresetFew,
 			},
 		}
 	}

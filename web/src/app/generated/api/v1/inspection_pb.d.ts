@@ -684,6 +684,13 @@ export declare type InspectionQuery = Message<'api.v1.InspectionQuery'> & {
    * @generated from field: bool pending = 6;
    */
   pending: boolean;
+
+  /**
+   * Predefined estimation preset category if exact count estimation is unfeasible.
+   *
+   * @generated from field: api.v1.EstimatedCountPreset estimated_count_preset = 7;
+   */
+  estimatedCountPreset: EstimatedCountPreset;
 };
 
 /**
@@ -1680,6 +1687,32 @@ export enum UploadStatus {
  * Describes the enum api.v1.UploadStatus.
  */
 export declare const UploadStatusSchema: GenEnum<UploadStatus>;
+
+/**
+ * EstimatedCountPreset defines predefined rough estimation categories when exact count estimation is unfeasible.
+ *
+ * @generated from enum api.v1.EstimatedCountPreset
+ */
+export enum EstimatedCountPreset {
+  /**
+   * Default unspecified preset (meaning numeric estimated_count should be used).
+   *
+   * @generated from enum value: ESTIMATED_COUNT_PRESET_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Few logs matching this query (e.g. sporadic audit events or configuration changes).
+   *
+   * @generated from enum value: ESTIMATED_COUNT_PRESET_FEW = 1;
+   */
+  FEW = 1,
+}
+
+/**
+ * Describes the enum api.v1.EstimatedCountPreset.
+ */
+export declare const EstimatedCountPresetSchema: GenEnum<EstimatedCountPreset>;
 
 /**
  * InspectionService provides APIs for managing inspection lifecycles, configuration, and data retrieval.

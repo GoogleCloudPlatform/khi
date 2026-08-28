@@ -206,6 +206,7 @@ func estimateAndRecordQueries(
 
 		var totalEstimatedCount int64
 		var estimated *int64
+		preset := q.Preset
 		anyPending := false
 		for _, group := range groups {
 			taskSlotKey := fmt.Sprintf("%s/%s/%d", taskID, group.container.Identifier(), queryIndex)
@@ -231,12 +232,16 @@ func estimateAndRecordQueries(
 			case estErr != nil:
 				slog.WarnContext(ctx, fmt.Sprintf("log estimation failed for query %s in %s: %v", queryName, group.container.Identifier(), estErr))
 			case res != nil:
-				totalEstimatedCount += res.EstimatedCount
-				estimated = &totalEstimatedCount
+				if res.Preset != logestimator.EstimatedCountPresetNone {
+					preset = res.Preset
+				} else {
+					totalEstimatedCount += res.EstimatedCount
+					estimated = &totalEstimatedCount
+				}
 			}
 		}
 		filterString := q.GenerateCloudLoggingQuery()
-		if err := setStructuredQueryInfoWithPending(ctx, taskID, filterString, queryIndex, len(queries), startTime, endTime, queryName, estimated, false, anyPending); err != nil {
+		if err := setStructuredQueryInfoWithPendingAndPreset(ctx, taskID, filterString, queryIndex, len(queries), startTime, endTime, queryName, estimated, false, anyPending, preset); err != nil {
 			return err
 		}
 	}
@@ -298,11 +303,11 @@ func fetchLogsForStructuredQueries(
 
 // setStructuredQueryInfo records the generated Cloud Logging query details and estimated count into the inspection run metadata.
 func setStructuredQueryInfo(ctx context.Context, taskID, baseLogFilter string, logFilterIndex, totalLogFilterCount int, startTime, endTime time.Time, queryName string, estimatedCount *int64, incomplete bool) error {
-	return setStructuredQueryInfoWithPending(ctx, taskID, baseLogFilter, logFilterIndex, totalLogFilterCount, startTime, endTime, queryName, estimatedCount, incomplete, false)
+	return setStructuredQueryInfoWithPendingAndPreset(ctx, taskID, baseLogFilter, logFilterIndex, totalLogFilterCount, startTime, endTime, queryName, estimatedCount, incomplete, false, logestimator.EstimatedCountPresetNone)
 }
 
-// setStructuredQueryInfoWithPending records the generated Cloud Logging query details, estimated count, and pending status into the inspection run metadata.
-func setStructuredQueryInfoWithPending(ctx context.Context, taskID, baseLogFilter string, logFilterIndex, totalLogFilterCount int, startTime, endTime time.Time, queryName string, estimatedCount *int64, incomplete bool, pending bool) error {
+// setStructuredQueryInfoWithPendingAndPreset records the generated Cloud Logging query details, estimated count, pending status, and preset into the inspection run metadata.
+func setStructuredQueryInfoWithPendingAndPreset(ctx context.Context, taskID, baseLogFilter string, logFilterIndex, totalLogFilterCount int, startTime, endTime time.Time, queryName string, estimatedCount *int64, incomplete bool, pending bool, preset logestimator.EstimatedCountPreset) error {
 	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 	queryInfo, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
@@ -322,6 +327,8 @@ func setStructuredQueryInfoWithPending(ctx context.Context, taskID, baseLogFilte
 		queryInfo.SetIncompleteQuery(taskID, logFilterName, finalFilter)
 	case pending:
 		queryInfo.SetPendingQuery(taskID, logFilterName, finalFilter)
+	case preset != logestimator.EstimatedCountPresetNone:
+		queryInfo.SetQueryWithPreset(taskID, logFilterName, finalFilter, preset)
 	case estimatedCount != nil:
 		queryInfo.SetQueryWithEstimate(taskID, logFilterName, finalFilter, *estimatedCount)
 	default:

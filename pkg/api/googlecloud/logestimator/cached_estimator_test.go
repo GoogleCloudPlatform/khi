@@ -403,3 +403,56 @@ func TestCachedStructuredLogEstimator_EstimateWithTaskSlotNonBlocking(t *testing
 		t.Errorf("third EstimateWithTaskSlotNonBlocking res = %v, want count 350", res3)
 	}
 }
+
+func TestCachedStructuredLogEstimator_Preset(t *testing.T) {
+	testCases := []struct {
+		name       string
+		query      *StructuredLogQuery
+		wantResult *EstimateResult
+	}{
+		{
+			name: "preset few returns preset immediately without invoking provider",
+			query: &StructuredLogQuery{
+				ResourceTypes: []string{"gce_instance"},
+				Preset:        EstimatedCountPresetFew,
+			},
+			wantResult: &EstimateResult{
+				MetricCount:       0,
+				EstimatedCount:    0,
+				CustomFilterRatio: 1.0,
+				IsExact:           false,
+				Preset:            EstimatedCountPresetFew,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cachedEstimator := NewCachedStructuredLogEstimator()
+			defer cachedEstimator.Close()
+
+			providerCalled := false
+			provider := func(ctx context.Context, container googlecloud.ResourceContainer) (*StructuredLogEstimator, error) {
+				providerCalled = true
+				return nil, errors.New("provider should not be called for preset queries")
+			}
+
+			container := googlecloud.Project("test-project")
+			now := time.Now()
+
+			res, pending, err := cachedEstimator.EstimateWithTaskSlotNonBlocking(context.Background(), "task-preset", container, tc.query, now.Add(-time.Hour), now, provider)
+			if err != nil {
+				t.Fatalf("EstimateWithTaskSlotNonBlocking unexpected error = %v", err)
+			}
+			if pending {
+				t.Errorf("EstimateWithTaskSlotNonBlocking pending = true, want false")
+			}
+			if providerCalled {
+				t.Errorf("provider was called unexpectedly for preset query")
+			}
+			if diff := cmp.Diff(tc.wantResult, res); diff != "" {
+				t.Errorf("EstimateWithTaskSlotNonBlocking mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

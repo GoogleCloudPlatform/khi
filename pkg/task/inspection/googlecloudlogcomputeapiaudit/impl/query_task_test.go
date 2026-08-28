@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -208,5 +209,8 @@ timestamp <= "2025-01-01T01:01:00+0000"`
 	}
 	if serialized[0].Name != "Compute API Audit log" {
 		t.Errorf("query name mismatch: got %q, want %q", serialized[0].Name, "Compute API Audit log")
+	}
+	if serialized[0].Preset != logestimator.EstimatedCountPresetFew {
+		t.Errorf("query preset mismatch: got %v, want %v", serialized[0].Preset, logestimator.EstimatedCountPresetFew)
 	}
 }

@@ -79,6 +79,7 @@ import {
   InspectionMetadataPlan,
   InspectionMetadataQuery,
   InspectionMetadataJobModeCommand,
+  EstimatedCountPreset,
 } from 'src/app/common/schema/metadata-types';
 import {
   EXTENSION_STORE,
@@ -131,7 +132,13 @@ export function computeTotalEstimatedLogs(
   }
   const hasIncomplete = queries.some((q) => q.incomplete);
   const hasUnestimated = queries.some(
-    (q) => (q.estimatedCount === undefined || q.pending) && !q.incomplete,
+    (q) =>
+      (q.estimatedCount === undefined || q.pending) &&
+      !q.incomplete &&
+      q.estimatedCountPreset !== EstimatedCountPreset.Few,
+  );
+  const hasPresetFew = queries.some(
+    (q) => q.estimatedCountPreset === EstimatedCountPreset.Few,
   );
   const knownCount = queries
     .filter((q) => q.estimatedCount !== undefined && !q.pending)
@@ -184,6 +191,17 @@ export function computeTotalEstimatedLogs(
       isIncomplete: false,
       displayText: 'Estimating total logs...',
       severity: TotalEstimatedLogsSeverity.Normal,
+    };
+  }
+
+  if (knownCount === 0 && hasPresetFew) {
+    return {
+      knownCount: 0,
+      isComplete: true,
+      isEstimating: false,
+      isIncomplete: false,
+      displayText: 'Few total logs estimated',
+      severity,
     };
   }
 
@@ -244,6 +262,8 @@ export function openNewInspectionDialog(dialog: MatDialog) {
   ],
 })
 export class NewInspectionDialogComponent implements OnDestroy {
+  protected readonly EstimatedCountPreset = EstimatedCountPreset;
+
   private readonly dialogRef =
     inject<MatDialogRef<object, NewInspectionDialogResult>>(MatDialogRef);
   private readonly backendSync = inject<BackendSyncService>(BACKEND_SYNC);
