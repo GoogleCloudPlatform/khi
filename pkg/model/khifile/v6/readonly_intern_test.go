@@ -67,6 +67,21 @@ func TestReadonlyInternPool_IngestAndResolve(t *testing.T) {
 			},
 		},
 		{
+			name: "server-only string resolution with base offset",
+			chunk: &pbv6.InterningPoolChunk{
+				Strings: []*pbv6.InternString{
+					{Id: proto.Uint32(ServerStringIDBase + 1), Value: proto.String("server-str-1")},
+					{Id: proto.Uint32(ServerStringIDBase + 5), Value: proto.String("server-str-5")},
+				},
+			},
+			queryStrID:   ServerStringIDBase + 5,
+			wantStr:      "server-str-5",
+			queryFsID:    999,
+			wantFieldSet: nil,
+			queryStruct:  999,
+			wantStruct:   nil,
+		},
+		{
 			name:         "querying non-existent IDs returns empty/nil",
 			chunk:        &pbv6.InterningPoolChunk{},
 			queryStrID:   999,

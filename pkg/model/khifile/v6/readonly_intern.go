@@ -32,10 +32,11 @@ type ReadonlyPool interface {
 // It stores strings and field sets directly in compact slice arrays indexed by ID, eliminating map hashing and
 // pointer indirection, and delegates struct storage to a pointer-free FlatStructStore.
 type ReadonlyInternPool struct {
-	mu          sync.RWMutex
-	strings     []string
-	fieldSets   [][]uint32
-	flatStructs *FlatStructStore
+	mu            sync.RWMutex
+	clientStrings []string
+	serverStrings []string
+	fieldSets     [][]uint32
+	flatStructs   *FlatStructStore
 }
 
 var _ ReadonlyPool = (*ReadonlyInternPool)(nil)
@@ -48,8 +49,8 @@ func NewReadonlyInternPool() *ReadonlyInternPool {
 }
 
 // IngestChunk adds strings, field path sets, and structs from an InterningPoolChunk into the pool.
-// It acquires a write lock to expand slice capacities based on the maximum IDs in the chunk,
-// completely omitting reverse lookup maps to minimize memory footprint.
+// Client strings (< ServerStringIDBase) and server strings (>= ServerStringIDBase) are stored
+// in separate slices to avoid multi-gigabyte sparse allocations from the 0x80000000 offset.
 func (p *ReadonlyInternPool) IngestChunk(chunk *pbv6.InterningPoolChunk) {
 	if chunk == nil {
 		return
@@ -59,67 +60,62 @@ func (p *ReadonlyInternPool) IngestChunk(chunk *pbv6.InterningPoolChunk) {
 	defer p.mu.Unlock()
 
 	// 1. Strings
-	var maxStrID uint32
-	hasStrings := false
 	for _, str := range chunk.Strings {
-		if str != nil && str.Id != nil && str.Value != nil {
-			if *str.Id > maxStrID {
-				maxStrID = *str.Id
-			}
-			hasStrings = true
+		if str == nil || str.Id == nil || str.Value == nil {
+			continue
 		}
-	}
-	if hasStrings && int(maxStrID) >= len(p.strings) {
-		newCap := int(maxStrID) + 1
-		if newCap < len(p.strings)*2 {
-			newCap = len(p.strings) * 2
-		}
-		newStrings := make([]string, newCap)
-		copy(newStrings, p.strings)
-		p.strings = newStrings
-	}
-	for _, str := range chunk.Strings {
-		if str != nil && str.Id != nil && str.Value != nil {
-			p.strings[*str.Id] = *str.Value
+		id := *str.Id
+		if id >= ServerStringIDBase {
+			sIdx := id - ServerStringIDBase
+			p.serverStrings = ensureCapacity(p.serverStrings, sIdx)
+			p.serverStrings[sIdx] = *str.Value
+		} else {
+			p.clientStrings = ensureCapacity(p.clientStrings, id)
+			p.clientStrings[id] = *str.Value
 		}
 	}
 
 	// 2. FieldPathSets
-	var maxFsID uint32
-	hasFieldSets := false
 	for _, fs := range chunk.FieldPathSets {
-		if fs != nil && fs.Id != nil {
-			if *fs.Id > maxFsID {
-				maxFsID = *fs.Id
-			}
-			hasFieldSets = true
+		if fs == nil || fs.Id == nil {
+			continue
 		}
-	}
-	if hasFieldSets && int(maxFsID) >= len(p.fieldSets) {
-		newCap := int(maxFsID) + 1
-		if newCap < len(p.fieldSets)*2 {
-			newCap = len(p.fieldSets) * 2
-		}
-		newSets := make([][]uint32, newCap)
-		copy(newSets, p.fieldSets)
-		p.fieldSets = newSets
-	}
-	for _, fs := range chunk.FieldPathSets {
-		if fs != nil && fs.Id != nil {
-			p.fieldSets[*fs.Id] = fs.FieldPathStringIds
-		}
+		p.fieldSets = ensureCapacity(p.fieldSets, *fs.Id)
+		p.fieldSets[*fs.Id] = fs.FieldPathStringIds
 	}
 
 	// 3. Structs
 	p.flatStructs.StoreProtoBatch(chunk.Structs)
 }
 
+// ensureCapacity expands the slice if needed so that maxIndex is a valid index.
+func ensureCapacity[T any](slice []T, maxIndex uint32) []T {
+	required := int(maxIndex) + 1
+	if required <= len(slice) {
+		return slice
+	}
+	newCap := len(slice) * 2
+	if newCap < required {
+		newCap = required
+	}
+	newSlice := make([]T, newCap)
+	copy(newSlice, slice)
+	return newSlice
+}
+
 // ResolveStringFromID returns the string corresponding to the given string ID, or empty string if not found.
 func (p *ReadonlyInternPool) ResolveStringFromID(id uint32) string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	if int(id) < len(p.strings) {
-		return p.strings[id]
+	if id >= ServerStringIDBase {
+		sIdx := id - ServerStringIDBase
+		if int(sIdx) < len(p.serverStrings) {
+			return p.serverStrings[sIdx]
+		}
+		return ""
+	}
+	if int(id) < len(p.clientStrings) {
+		return p.clientStrings[id]
 	}
 	return ""
 }
