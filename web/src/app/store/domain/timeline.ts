@@ -138,6 +138,13 @@ export class Revision {
   }
 
   /**
+   * Gets the ID of the underlying log without instantiating a Log adapter.
+   */
+  get logId(): number {
+    return this.timelineStore._getRevisionLogId(this.id);
+  }
+
+  /**
    * Gets the interned struct ID of the revision body, or 0 if not stored as an interned struct.
    */
   get structId(): number {
@@ -176,6 +183,13 @@ export class Event {
    */
   get timeline(): ReadonlyDomainElement<Timeline> {
     return this.timelineStore.getTimeline(this.timelineId);
+  }
+
+  /**
+   * Gets the ID of the underlying log without instantiating a Log adapter.
+   */
+  get logId(): number {
+    return this.timelineStore._getEventLogId(this.id);
   }
 
   /**

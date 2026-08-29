@@ -115,14 +115,14 @@ export class TimelineView {
   public readonly filteredLogs = computed<ReadonlyDomainElement<Log>[]>(() => {
     const ctx = this.context();
     const logs: ReadonlyDomainElement<Log>[] = [];
-    for (const id of ctx.logIds.values()) {
-      logs.push(this.store.logStore.getLog(id));
+    const logStore = this.store.logStore;
+    const count = logStore.count;
+    for (let i = 0; i < count; i++) {
+      const id = logStore.getLogIdByIndex(i);
+      if (ctx.logIds.has(id)) {
+        logs.push(logStore.getLog(id));
+      }
     }
-    logs.sort((a, b) => {
-      const tsA = a.timestamp ?? 0n;
-      const tsB = b.timestamp ?? 0n;
-      return tsA < tsB ? -1 : tsA > tsB ? 1 : 0;
-    });
     return logs;
   });
 

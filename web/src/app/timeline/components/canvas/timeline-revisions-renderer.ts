@@ -30,6 +30,7 @@ import {
 } from 'src/app/timeline/components/style-model';
 import { RendererConvertUtil } from './convertutil';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
  * Renders timeline revisions (horizontal bars representing resource states) using WebGL.
@@ -166,19 +167,17 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
    *
    * @param gl The WebGL rendering context.
    * @param logElementHighlights Map of log indices to their highlight state.
-   * @param activeLogsIndices Set of log indices that are currently active (not filtered out).
+   * @param activeLogIds Bitset of log IDs that are currently active (not filtered out).
    */
   updateDynamicBuffer(
     gl: WebGLRenderingContext,
     logElementHighlights: TimelineChartItemHighlight,
-    activeLogsIndices: Set<number>,
+    activeLogIds: IdBitset,
   ) {
     for (let i = 0; i < this.timeline.revisions.length; i++) {
       const selectionStatus =
         logElementHighlights[this.timeline.revisions[i].logIndex] ?? 0;
-      const filterStatus = activeLogsIndices.has(
-        this.timeline.revisions[i].logIndex,
-      )
+      const filterStatus = activeLogIds.has(this.timeline.revisions[i].logId)
         ? 1
         : 0;
       this.intDynamicMetaVBOSource[i * 4 + 0] = selectionStatus;

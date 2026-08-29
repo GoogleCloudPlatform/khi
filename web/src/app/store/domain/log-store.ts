@@ -248,6 +248,21 @@ export class LogStore {
     }
   }
 
+  /**
+   * Gets the log ID at the specified chronological index.
+   *
+   * @param index The 0-based chronological index.
+   * @returns The log ID.
+   */
+  public getLogIdByIndex(index: number): number {
+    if (index < 0 || index >= this.logCount) {
+      throw new Error(
+        `Log index ${index} out of bounds (count: ${this.logCount})`,
+      );
+    }
+    return this.ids[index];
+  }
+
   // --- Internal getters for Log adapter ---
 
   /**

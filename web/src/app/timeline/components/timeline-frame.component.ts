@@ -51,6 +51,7 @@ import { CommonModule } from '@angular/common';
 import { TimelineLegendComponent } from './timeline-legend.component';
 import { Log } from 'src/app/store/domain/log';
 import { HistogramCache } from './misc/histogram-cache';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import {
   TimelineHoverOverlay,
   TimelineHoverOverlayComponent,
@@ -203,17 +204,10 @@ export class TimelineFrameComponent implements AfterViewInit {
   readonly filteredLogs = input<ReadonlyDomainElement<Log>[]>([]);
 
   /**
-   * The set of indices of non-filtered active logs.
+   * The bitset of filtered active log IDs.
    * Used for showing filtering state on the timeline.
    */
-  readonly activeLogsIndices = computed(() => {
-    const filteredLogs = this.filteredLogs();
-    const set = new Set<number>();
-    for (const log of filteredLogs) {
-      set.add(log.logIndex);
-    }
-    return set;
-  });
+  readonly filteredLogIds = input<IdBitset>(IdBitset.createEmpty());
 
   /**
    * The minimum time span for a single histogram bucket.

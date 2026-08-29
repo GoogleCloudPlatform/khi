@@ -48,6 +48,7 @@ import {
   TimelineChartStyle,
 } from 'src/app/timeline/components/style-model';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
  * Represents a mouse event that occurred on the timeline chart, including hit test results.
@@ -126,10 +127,10 @@ export class TimelineChartComponent implements AfterViewInit {
   readonly pixelsPerMs = input<number>(1);
 
   /**
-   * A set of log indices that are currently active (e.g., matching a filter).
+   * A bitset of log IDs that are currently active (e.g., matching a filter).
    * Inactive logs may be rendered differently (e.g., dimmed).
    */
-  readonly activeLogsIndices = input<Set<number>>(new Set());
+  readonly activeLogIds = input<IdBitset>(IdBitset.createEmpty());
 
   /**
    * Highlights for specific items (logs/events) within the timeline.
@@ -288,7 +289,7 @@ export class TimelineChartComponent implements AfterViewInit {
     const chartStyle = this.chartStyle();
     const timelineHighlights = this.timelineHighlights();
     const logElementHighlights = this.timelineChartItemHighlights();
-    const activeLogsIndices = this.activeLogsIndices();
+    const activeLogIds = this.activeLogIds();
     this.invalidate.set(true);
     if (
       rulerViewModel === undefined ||
@@ -310,7 +311,7 @@ export class TimelineChartComponent implements AfterViewInit {
       chartViewModel,
       chartStyle,
       logElementHighlights,
-      activeLogsIndices,
+      activeLogIds,
     );
   }
 }

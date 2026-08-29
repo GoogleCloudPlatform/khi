@@ -38,6 +38,7 @@ import {
   BASE_ROW_HEIGHT,
 } from 'src/app/timeline/components/style-model';
 import { SharedTmpBuffer } from './glutil';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
  * Interface for renderers that can be disposed.
@@ -139,9 +140,9 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
 
   /**
    * Current filter state of log elements.
-   * When activeLogsIndices not includes a log index, then the log must be shown as disabled.
+   * When activeLogIds does not include a log ID, then the log must be shown as disabled.
    */
-  private activeLogsIndices: Set<number> = new Set();
+  private activeLogIds: IdBitset = IdBitset.createEmpty();
 
   private highlightUpdated = false;
 
@@ -210,18 +211,10 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
     );
     if (this.highlightUpdated) {
       this.iterateRevisionRenderers(gl, (r) =>
-        r.updateDynamicBuffer(
-          gl,
-          this.logElementHighlights,
-          this.activeLogsIndices,
-        ),
+        r.updateDynamicBuffer(gl, this.logElementHighlights, this.activeLogIds),
       );
       this.iterateEventRenderers(gl, (r) =>
-        r.updateDynamicBuffer(
-          gl,
-          this.logElementHighlights,
-          this.activeLogsIndices,
-        ),
+        r.updateDynamicBuffer(gl, this.logElementHighlights, this.activeLogIds),
       );
       this.highlightUpdated = false;
     }
@@ -231,7 +224,6 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
     if (this.hitTestRequests.length > 0) {
       this.processHitTestRequest(gl);
     }
-    gl.finish();
   }
 
   /**
@@ -254,12 +246,13 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    * @param chartViewModel The new view model to render.
    * @param chartStyle The visual style configuration.
    * @param logElementHighlights The set of highlighted log elements.
+   * @param activeLogIds The bitset of active log IDs.
    */
   update(
     chartViewModel: TimelineChartViewModel,
     chartStyle: TimelineChartStyle,
     logElementHighlights: TimelineChartItemHighlight,
-    activeLogsIndices: Set<number>,
+    activeLogIds: IdBitset,
   ) {
     this.chartViewModel = chartViewModel;
     this.chartStyle = chartStyle;
@@ -267,7 +260,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
     this.eventSharedResource.updateChartStyle(chartStyle);
     this.logElementHighlights = logElementHighlights;
     this.highlightUpdated = true;
-    this.activeLogsIndices = activeLogsIndices;
+    this.activeLogIds = activeLogIds;
   }
 
   /**
@@ -303,15 +296,57 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    * @param gl The WebGL2 rendering context.
    */
   private processHitTestRequest(gl: WebGL2RenderingContext) {
-    if (!this.chartViewModel || !this.chartStyle) return;
-    this.hittestSharedResource.beforeRender(gl);
-    this.iterateRevisionRenderers(gl, (r, rect) => {
-      rect.dpr = 1.0; // hit test buffer is rendered in without considering dpr
-      r.renderHittest(gl, rect);
+    if (
+      !this.chartViewModel ||
+      !this.chartStyle ||
+      this.hitTestRequests.length === 0
+    ) {
+      return;
+    }
+    const minX = Math.max(
+      0,
+      Math.floor(Math.min(...this.hitTestRequests.map((r) => r.x))),
+    );
+    const maxX = Math.min(
+      this.width - 1,
+      Math.ceil(Math.max(...this.hitTestRequests.map((r) => r.x))),
+    );
+    const minY = Math.max(
+      0,
+      Math.floor(Math.min(...this.hitTestRequests.map((r) => r.y))),
+    );
+    const maxY = Math.min(
+      this.height - 1,
+      Math.ceil(Math.max(...this.hitTestRequests.map((r) => r.y))),
+    );
+
+    const scissorX = minX;
+    const scissorY = Math.max(0, Math.floor(this.height - maxY - 1));
+    const scissorW = Math.min(
+      this.width - scissorX,
+      Math.max(1, maxX - minX + 1),
+    );
+    const scissorH = Math.min(
+      this.height - scissorY,
+      Math.max(1, maxY - minY + 1),
+    );
+
+    this.hittestSharedResource.beforeRender(gl, {
+      x: scissorX,
+      y: scissorY,
+      width: scissorW,
+      height: scissorH,
     });
-    this.iterateEventRenderers(gl, (r, rect) => {
-      rect.dpr = 1.0; // hit test buffer is rendered in without considering dpr
-      r.renderHittest(gl, rect);
+    this.renderIntersectingItems(minY, maxY, (t, rect) => {
+      rect.dpr = 1.0; // hit test buffer is rendered without considering dpr
+      if (t.revisions.length > 0) {
+        const revisionRenderer = this.ensureRevisionRenderer(gl, t);
+        revisionRenderer.renderHittest(gl, rect);
+      }
+      if (t.events.length > 0) {
+        const eventRenderer = this.ensureEventRenderer(gl, t);
+        eventRenderer.renderHittest(gl, rect);
+      }
     });
     this.hittestSharedResource.afterRender(gl);
     for (const request of this.hitTestRequests) {
@@ -345,6 +380,39 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       }
     }
     this.hitTestRequests = [];
+  }
+
+  /**
+   * Iterates through visible timelines whose vertical span intersects [minDomY, maxDomY] and executes a callback.
+   *
+   * @param minDomY The minimum DOM Y coordinate.
+   * @param maxDomY The maximum DOM Y coordinate.
+   * @param onRender Callback to execute for each intersecting timeline.
+   */
+  private renderIntersectingItems(
+    minDomY: number,
+    maxDomY: number,
+    onRender: (t: ReadonlyDomainElement<Timeline>, rect: TimelineRect) => void,
+  ) {
+    if (!this.chartViewModel || !this.chartStyle) return;
+    const drawRect: TimelineRect = {
+      dpr: this.dpr,
+      offsetY: this.height,
+      width: this.width,
+      height: 0,
+    };
+    let domOffsetY = 0;
+    for (const t of this.chartViewModel.timelinesInDrawArea) {
+      const tType =
+        this.chartViewModel.styleStore?.getTimelineType(t.type.id) ?? t.type;
+      const rowHeight = tType.height * BASE_ROW_HEIGHT;
+      drawRect.height = rowHeight;
+      drawRect.offsetY -= rowHeight;
+      if (domOffsetY + rowHeight >= minDomY && domOffsetY <= maxDomY) {
+        onRender(t, drawRect);
+      }
+      domOffsetY += rowHeight;
+    }
   }
 
   /**

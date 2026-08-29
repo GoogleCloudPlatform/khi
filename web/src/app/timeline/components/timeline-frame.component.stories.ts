@@ -34,6 +34,7 @@ import {
   generateDefaultRulerStyle,
 } from 'src/app/timeline/components/style-model';
 import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 function msToNs(ms: number): bigint {
   return BigInt(Math.floor(ms)) * 1000000n;
@@ -72,6 +73,7 @@ function filterTimelineHighlight(
         [timezoneShiftHours]="9"
         [allLogsWithoutFilter]="viewModel().logs"
         [filteredLogs]="viewModel().filteredLogs"
+        [filteredLogIds]="viewModel().filteredLogIds"
         [timelineHoverOverlayRequest]="timelineHoverRequest()"
         [chartStyle]="viewModel().chartStyle!"
         [rulerStyle]="viewModel().rulerStyle!"
@@ -116,6 +118,7 @@ class TimelineFrameStoriesComponent {
         timelines: [],
         logs: [],
         filteredLogs: [],
+        filteredLogIds: IdBitset.createEmpty(),
         minLogTime: 0,
         maxLogTime: 0,
         chartStyle: undefined,
@@ -135,6 +138,7 @@ class TimelineFrameStoriesComponent {
       timelines: data.timelineStore.timelines,
       logs,
       filteredLogs: logs,
+      filteredLogIds: IdBitset.fromAll(logs.map((log) => log.id)),
       minLogTime: minTimeMs,
       maxLogTime: maxTimeMs,
       chartStyle: generateDefaultChartStyle(),

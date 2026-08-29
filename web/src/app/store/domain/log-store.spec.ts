@@ -308,5 +308,41 @@ describe('LogStore', () => {
         }),
       ).toThrowError(/Logs are not sorted by timestamp/);
     });
+
+    it('should retrieve log ID by chronological index', () => {
+      const testStore = LogStore.create(internPool, styleStore);
+      // Log IDs (5, 2, 10) are not in chronological order, but timestamps (100n, 200n, 300n) are
+      testStore.addLog({
+        id: 5,
+        ts: 100n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 1,
+      });
+      testStore.addLog({
+        id: 2,
+        ts: 200n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 1,
+      });
+      testStore.addLog({
+        id: 10,
+        ts: 300n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 1,
+      });
+
+      expect(testStore.getLogIdByIndex(0)).toBe(5);
+      expect(testStore.getLogIdByIndex(1)).toBe(2);
+      expect(testStore.getLogIdByIndex(2)).toBe(10);
+      expect(() => testStore.getLogIdByIndex(3)).toThrowError(
+        /Log index 3 out of bounds/,
+      );
+      expect(() => testStore.getLogIdByIndex(-1)).toThrowError(
+        /Log index -1 out of bounds/,
+      );
+    });
   });
 });

@@ -352,4 +352,55 @@ describe('TimelineView', () => {
 
     expect(consoleSpy).not.toHaveBeenCalled();
   });
+
+  it('should return filteredLogs in chronological order regardless of log ID order', async () => {
+    const mockLogs = [
+      { id: 10, logIndex: 0, timestamp: 100n },
+      { id: 2, logIndex: 1, timestamp: 200n },
+      { id: 5, logIndex: 2, timestamp: 300n },
+    ];
+    const logStoreSpy = jasmine.createSpyObj<LogStore>('LogStore', [
+      'getLog',
+      'getLogIdByIndex',
+    ]);
+    Object.defineProperty(logStoreSpy, 'count', { get: () => 3 });
+    logStoreSpy.getLogIdByIndex.and.callFake((index) => mockLogs[index].id);
+    logStoreSpy.getLog.and.callFake((id) => {
+      const found = mockLogs.find((l) => l.id === id);
+      return found as unknown as ReturnType<LogStore['getLog']>;
+    });
+
+    const timelineStoreSpy = jasmine.createSpyObj<TimelineStore>(
+      'TimelineStore',
+      ['getTimeline'],
+    );
+    Object.defineProperty(timelineStoreSpy, 'logStore', {
+      get: () => logStoreSpy,
+    });
+    Object.defineProperty(timelineStoreSpy, 'timelines', {
+      get: () => [],
+    });
+
+    const view = new TimelineView(timelineStoreSpy);
+    const filter = jasmine.createSpyObj<LogTimelineFilter>('Filter', [
+      'priority',
+      'process',
+    ]);
+    Object.defineProperty(filter, 'priority', { get: () => 10 });
+    // Filter matches IDs 5 and 10 (chronologically index 0 and 2)
+    filter.process.and.callFake((ctx) =>
+      Promise.resolve({
+        ...ctx,
+        logIds: IdBitset.fromAll([5, 10]),
+      }),
+    );
+
+    view.addFilter(filter);
+    await waitForFiltering(view);
+
+    const filtered = view.filteredLogs();
+    expect(filtered.length).toBe(2);
+    expect(filtered[0].id).toBe(10);
+    expect(filtered[1].id).toBe(5);
+  });
 });

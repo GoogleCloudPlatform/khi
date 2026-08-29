@@ -27,6 +27,7 @@ import {
 } from 'src/app/timeline/components/style-model';
 import { RendererConvertUtil } from './convertutil';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
  * Renders timeline events (points in time) using WebGL.
@@ -152,19 +153,17 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
    *
    * @param gl The WebGL rendering context.
    * @param logElementHighlights Map of log indices to their highlight state.
-   * @param activeLogsIndices Set of log indices that are currently active (not filtered out).
+   * @param activeLogIds Bitset of log IDs that are currently active (not filtered out).
    */
   updateDynamicBuffer(
     gl: WebGLRenderingContext,
     logElementHighlights: TimelineChartItemHighlight,
-    activeLogsIndices: Set<number>,
+    activeLogIds: IdBitset,
   ) {
     for (let i = 0; i < this.timeline.events.length; i++) {
       const selectionStatus =
         logElementHighlights[this.timeline.events[i].logIndex] ?? 0;
-      const filterStatus = activeLogsIndices.has(
-        this.timeline.events[i].logIndex,
-      )
+      const filterStatus = activeLogIds.has(this.timeline.events[i].logId)
         ? 1
         : 0;
       this.intDynamicMetaVBOSource[i * 4 + 0] = selectionStatus;

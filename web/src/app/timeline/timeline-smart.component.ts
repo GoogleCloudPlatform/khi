@@ -43,6 +43,7 @@ import {
 } from 'src/app/timeline/components/style-model';
 import { TimelineChartMouseEvent } from 'src/app/timeline/components/timeline-chart.component';
 import { bisectLeft } from 'src/app/common/misc-util';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
 
@@ -179,6 +180,17 @@ export class TimelineSmartComponent {
    */
   protected readonly filteredLogs = computed(() => {
     return this.inspectionDataStore.timelineView()?.filteredLogs() ?? [];
+  });
+
+  /**
+   * Bitset of log IDs matching the current filter criteria.
+   * Used for passing directly to timeline frame WebGL rendering.
+   */
+  protected readonly filteredLogIds = computed(() => {
+    return (
+      this.inspectionDataStore.timelineView()?.filteredLogIds() ??
+      IdBitset.createEmpty()
+    );
   });
 
   /**

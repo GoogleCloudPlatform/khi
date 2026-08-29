@@ -67,7 +67,7 @@
         [rulerStyle]="rulerStyle()"
         [timelineHighlights]="timelineHighlights()"
         [timelineChartItemHighlights]="timelineChartItemHighlights()"
-        [activeLogsIndices]="activeLogsIndices()"
+        [activeLogIds]="filteredLogIds()"
         (mouseMoveOnTimelineItem)="
           handleTimelineChartItemEvent($event, hoverOnTimelineItem)
         "
@@ -144,7 +144,7 @@
           [rulerStyle]="rulerStyle()"
           [timelineHighlights]="timelineHighlights()"
           [timelineChartItemHighlights]="timelineChartItemHighlights()"
-          [activeLogsIndices]="activeLogsIndices()"
+          [activeLogIds]="filteredLogIds()"
           (mouseMoveOnTimelineItem)="
             handleTimelineChartItemEvent($event, hoverOnTimelineItem)
           "

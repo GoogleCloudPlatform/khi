@@ -40,6 +40,7 @@ import { createMockInspectionData } from 'src/app/store/mock/inspection-data.moc
 import { HistogramCache } from 'src/app/timeline/components/misc/histogram-cache';
 import { getMinTimeSpanForHistogram } from 'src/app/timeline/components/calculator/human-friendly-tick';
 import { RulerViewModelBuilder } from './timeline-ruler.viewmodel';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 @Component({
   selector: 'khi-rendering-loop-starter',
@@ -63,7 +64,7 @@ class RenderingLoopStarter implements OnInit {
         <khi-timeline-chart
           [chartViewModel]="viewModel().chartViewModel"
           [rulerViewModel]="viewModel().rulerViewModel"
-          [activeLogsIndices]="viewModel().activeLogsIndices"
+          [activeLogIds]="viewModel().activeLogIds"
           [leftEdgeTime]="viewModel().leftEdgeTime"
           [pixelsPerMs]="viewModel().pixelsPerMs"
           [rulerStyle]="viewModel().rulerStyle"
@@ -91,7 +92,7 @@ class TimelineChartStoriesComponent {
         ready: false,
         chartViewModel: undefined,
         rulerViewModel: undefined,
-        activeLogsIndices: undefined,
+        activeLogIds: IdBitset.createEmpty(),
         leftEdgeTime: 0,
         pixelsPerMs: 1,
         rulerStyle: undefined,
@@ -138,16 +139,13 @@ class TimelineChartStoriesComponent {
       filteredLogsCache,
     );
 
-    const activeLogsIndices = new Set<number>();
-    for (const log of logsList) {
-      activeLogsIndices.add(log.logIndex);
-    }
+    const activeLogIds = IdBitset.fromAll(logsList.map((log) => log.id));
 
     return {
       ready: true,
       chartViewModel,
       rulerViewModel,
-      activeLogsIndices,
+      activeLogIds,
       leftEdgeTime: startTimeMs - 5000,
       pixelsPerMs: window.innerWidth / (durationMs + 10000),
       rulerStyle: generateDefaultRulerStyle(mockData.styleStore),
