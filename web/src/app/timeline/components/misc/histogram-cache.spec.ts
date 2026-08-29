@@ -17,6 +17,7 @@
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { LogStore } from 'src/app/store/domain/log-store';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { HistogramCache } from './histogram-cache';
 
 enum Severity {
@@ -32,6 +33,7 @@ function createCacheWithLogs(
   minBucketTime: number,
   minTimeMs?: number,
   maxTimeMs?: number,
+  filterLogIds?: IdBitset,
 ): HistogramCache {
   const internPool = InternPoolStore.create();
   const styleStore = new StyleStore();
@@ -67,9 +69,11 @@ function createCacheWithLogs(
   logStore.addLogs(logsDto);
   logStore.shrinkToFit();
   const logs = Array.from(logStore.logs());
+  const logIds = filterLogIds ?? IdBitset.fromSequential(logs.length);
   return new HistogramCache(
     styleStore.severities,
     logs,
+    logIds,
     minBucketTime,
     minTimeMs,
     maxTimeMs,
@@ -197,5 +201,31 @@ describe('HistogramCache', () => {
     // Window 0 (0-1000): 1 log. Total 1. Ratio 1.0.
     expect(result.logRatios[Severity.SeverityError][0]).toBeCloseTo(1.0);
     expect(result.bucketCount).toBe(1);
+  });
+
+  it('should only include logs present in the logIds bitset', () => {
+    // 3 logs with IDs 1, 2, 3
+    const cache = createCacheWithLogs(
+      [
+        { severity: Severity.SeverityError, timeMs: 500 }, // ID 1
+        { severity: Severity.SeverityError, timeMs: 1500 }, // ID 2
+        { severity: Severity.SeverityInfo, timeMs: 2500 }, // ID 3
+      ],
+      1000,
+      undefined,
+      undefined,
+      IdBitset.fromAll([1, 3]), // Include only ID 1 and ID 3
+    );
+
+    const result = cache.getHistogramData(0, 3000, 1000);
+
+    // Total filtered logs: 2 (ID 1 Error, ID 3 Info)
+    expect(result.totalLogCount).toBe(2);
+    // Window 0: 1 Error -> 1/2
+    expect(result.logRatios[Severity.SeverityError][0]).toBeCloseTo(0.5);
+    // Window 1 (ID 2 omitted): 0 -> 0
+    expect(result.logRatios[Severity.SeverityError][1]).toBeCloseTo(0);
+    // Window 2: 1 Info -> 1/2
+    expect(result.logRatios[Severity.SeverityInfo][2]).toBeCloseTo(0.5);
   });
 });

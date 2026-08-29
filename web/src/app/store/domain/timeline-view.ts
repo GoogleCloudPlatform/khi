@@ -15,7 +15,6 @@
  */
 
 import { signal, computed } from '@angular/core';
-import { Log } from 'src/app/store/domain/log';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
@@ -107,23 +106,6 @@ export class TimelineView {
   public readonly filteredTimelineBitset = computed<SparseBitset>(() => {
     const ctx = this.context();
     return ctx.timelineIds.toSparseBitset();
-  });
-
-  /**
-   * Emits the final list of logs that successfully passed the pipeline evaluation.
-   */
-  public readonly filteredLogs = computed<ReadonlyDomainElement<Log>[]>(() => {
-    const ctx = this.context();
-    const logs: ReadonlyDomainElement<Log>[] = [];
-    const logStore = this.store.logStore;
-    const count = logStore.count;
-    for (let i = 0; i < count; i++) {
-      const id = logStore.getLogIdByIndex(i);
-      if (ctx.logIds.has(id)) {
-        logs.push(logStore.getLog(id));
-      }
-    }
-    return logs;
   });
 
   /**

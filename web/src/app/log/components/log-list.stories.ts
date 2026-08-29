@@ -17,6 +17,9 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { LogListComponent } from './log-list.component';
 import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
+import { Log } from 'src/app/store/domain/log';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 const meta: Meta<LogListComponent> = {
   title: 'Log/LogList',
@@ -42,17 +45,22 @@ export const Default: Story = {
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const filteredLogs = Array.from(mockData.logStore.logs());
+    const allLogs = Array.from(
+      mockData.logStore.logs(),
+    ) as ReadonlyDomainElement<Log>[];
+    const filteredLogIds = IdBitset.fromAll(allLogs.map((l) => l.id));
     return {
       props: {
         ...args,
-        filteredLogs,
+        allLogs,
+        filteredLogIds,
       },
       template: `
         <div style="height: 500px; border: 1px solid #ccc; position: relative;">
           <khi-log-list
             [allLogsCount]="allLogsCount"
-            [filteredLogs]="filteredLogs"
+            [allLogs]="allLogs"
+            [filteredLogIds]="filteredLogIds"
             [selectedLogIndex]="selectedLogIndex"
             [highlightLogIndices]="highlightLogIndices"
             [selectedTimelinesWithChildren]="selectedTimelinesWithChildren"

@@ -36,6 +36,7 @@ import {
   ViewStateService,
 } from 'src/app/services/view-state.service';
 import { StyleOverrideService } from 'src/app/services/style-override.service';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
  * `LogSmartComponent` is the main container for the log viewing interface.
@@ -99,10 +100,24 @@ export class LogSmartComponent {
   public readonly selectedLog = this.selectionManager.selectedLog;
 
   /**
-   * The list of logs that match the current filter criteria.
+   * The list of all logs in the inspection data.
    */
-  public readonly filteredLogs = computed<ReadonlyDomainElement<Log>[]>(() => {
-    return this.inspectionDataStore.timelineView()?.filteredLogs() ?? [];
+  public readonly allLogs = computed<ReadonlyDomainElement<Log>[]>(() => {
+    const logStore = this.inspectionDataStore.inspectionData()?.logStore;
+    if (!logStore) {
+      return [];
+    }
+    return Array.from(logStore.logs());
+  });
+
+  /**
+   * The bitset of log IDs that match the current filter criteria.
+   */
+  public readonly filteredLogIds = computed<IdBitset>(() => {
+    return (
+      this.inspectionDataStore.timelineView()?.filteredLogIds() ??
+      IdBitset.createEmpty()
+    );
   });
 
   /**

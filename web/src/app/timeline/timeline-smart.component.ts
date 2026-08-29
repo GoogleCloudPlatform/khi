@@ -175,14 +175,6 @@ export class TimelineSmartComponent {
   });
 
   /**
-   * List of logs matching the current filter criteria.
-   * Used for the histogram and log distribution views.
-   */
-  protected readonly filteredLogs = computed(() => {
-    return this.inspectionDataStore.timelineView()?.filteredLogs() ?? [];
-  });
-
-  /**
    * Bitset of log IDs matching the current filter criteria.
    * Used for passing directly to timeline frame WebGL rendering.
    */
@@ -202,7 +194,7 @@ export class TimelineSmartComponent {
     if (header) {
       return header.startTimeUnixSeconds * 1000;
     }
-    const logs = this.filteredLogs();
+    const logs = this.allLogs();
     if (logs.length === 0) {
       return Date.now() - 60 * 60 * 1000;
     }
@@ -218,7 +210,7 @@ export class TimelineSmartComponent {
     if (header) {
       return header.endTimeUnixSeconds * 1000;
     }
-    const logs = this.filteredLogs();
+    const logs = this.allLogs();
     if (logs.length === 0) {
       return Date.now();
     }

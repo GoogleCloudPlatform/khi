@@ -165,7 +165,7 @@ export class TimelineFrameComponent implements AfterViewInit {
   /**
    * The list of timelines to display.
    */
-  readonly timelines = input<ReadonlyDomainElement<Timeline>[]>([]);
+  readonly timelines = input<readonly ReadonlyDomainElement<Timeline>[]>([]);
 
   /**
    * Current set of collapsed timeline IDs.
@@ -198,16 +198,17 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   readonly allLogsWithoutFilter = input<ReadonlyDomainElement<Log>[]>([]);
   /**
-   * The list of filtered logs.
-   * Used for displaying logs on the timeline.
-   */
-  readonly filteredLogs = input<ReadonlyDomainElement<Log>[]>([]);
-
-  /**
    * The bitset of filtered active log IDs.
    * Used for showing filtering state on the timeline.
    */
   readonly filteredLogIds = input<IdBitset>(IdBitset.createEmpty());
+
+  /**
+   * The bitset of all log IDs.
+   */
+  protected readonly allLogIds = computed(() => {
+    return IdBitset.fromSequential(this.allLogsWithoutFilter().length);
+  });
 
   /**
    * The minimum time span for a single histogram bucket.
@@ -229,9 +230,11 @@ export class TimelineFrameComponent implements AfterViewInit {
   protected readonly allLogsWithoutFilterHistogramCache = computed(() => {
     const minTimeSpanForHistogram = this.minTimeSpanForHistogram();
     const allLogsWithoutFilter = this.allLogsWithoutFilter();
+    const allLogIds = this.allLogIds();
     return new HistogramCache(
       this.styleStore().severities,
       allLogsWithoutFilter,
+      allLogIds,
       minTimeSpanForHistogram,
     );
   });
@@ -243,10 +246,12 @@ export class TimelineFrameComponent implements AfterViewInit {
   protected readonly filteredLogsHistogramCache = computed(() => {
     const minTimeSpanForHistogram = this.minTimeSpanForHistogram();
     const allLogsHistogramCache = this.allLogsWithoutFilterHistogramCache();
-    const filteredLogs = this.filteredLogs();
+    const allLogsWithoutFilter = this.allLogsWithoutFilter();
+    const filteredLogIds = this.filteredLogIds();
     return new HistogramCache(
       this.styleStore().severities,
-      filteredLogs,
+      allLogsWithoutFilter,
+      filteredLogIds,
       minTimeSpanForHistogram,
       allLogsHistogramCache.logMinTimeMS,
       allLogsHistogramCache.logMaxTimeMS,

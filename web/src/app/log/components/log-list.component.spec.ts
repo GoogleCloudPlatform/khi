@@ -21,6 +21,7 @@ import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 describe('LogListComponent', () => {
   let component: LogListComponent;
@@ -42,7 +43,11 @@ describe('LogListComponent', () => {
 
     // Set required inputs
     fixture.componentRef.setInput('allLogsCount', mockLogs.length);
-    fixture.componentRef.setInput('filteredLogs', mockLogs);
+    fixture.componentRef.setInput('allLogs', mockLogs);
+    fixture.componentRef.setInput(
+      'filteredLogIds',
+      IdBitset.fromAll(mockLogs.map((l) => l.id)),
+    );
     fixture.componentRef.setInput('selectedLogIndex', -1);
     fixture.componentRef.setInput('highlightLogIndices', new Set<number>());
     fixture.componentRef.setInput('selectedTimelinesWithChildren', []);

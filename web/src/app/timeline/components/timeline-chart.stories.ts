@@ -35,12 +35,36 @@ import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import {
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
+  TimelineChartStyle,
+  TimelineRulerStyle,
 } from 'src/app/timeline/components/style-model';
 import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 import { HistogramCache } from 'src/app/timeline/components/misc/histogram-cache';
 import { getMinTimeSpanForHistogram } from 'src/app/timeline/components/calculator/human-friendly-tick';
-import { RulerViewModelBuilder } from './timeline-ruler.viewmodel';
+import {
+  RulerViewModelBuilder,
+  TimelineRulerViewModel,
+} from './timeline-ruler.viewmodel';
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
+import { TimelineChartViewModel } from './timeline-chart.viewmodel';
+
+interface TimelineChartStoryViewModelNotReady {
+  readonly ready: false;
+}
+
+interface TimelineChartStoryViewModelReady {
+  readonly ready: true;
+  readonly chartViewModel: TimelineChartViewModel;
+  readonly rulerViewModel: TimelineRulerViewModel;
+  readonly activeLogIds: IdBitset;
+  readonly leftEdgeTime: number;
+  readonly pixelsPerMs: number;
+  readonly rulerStyle: TimelineRulerStyle;
+  readonly chartStyle: TimelineChartStyle;
+}
+
+type TimelineChartStoryViewModel =
+  TimelineChartStoryViewModelNotReady | TimelineChartStoryViewModelReady;
 
 @Component({
   selector: 'khi-rendering-loop-starter',
@@ -59,16 +83,17 @@ class RenderingLoopStarter implements OnInit {
 
 @Component({
   template: `
-    @if (viewModel().ready) {
+    @let vm = viewModel();
+    @if (vm.ready) {
       <div style="height: 100vh; width: 100vw; display: grid;">
         <khi-timeline-chart
-          [chartViewModel]="viewModel().chartViewModel"
-          [rulerViewModel]="viewModel().rulerViewModel"
-          [activeLogIds]="viewModel().activeLogIds"
-          [leftEdgeTime]="viewModel().leftEdgeTime"
-          [pixelsPerMs]="viewModel().pixelsPerMs"
-          [rulerStyle]="viewModel().rulerStyle"
-          [chartStyle]="viewModel().chartStyle"
+          [chartViewModel]="vm.chartViewModel"
+          [rulerViewModel]="vm.rulerViewModel"
+          [activeLogIds]="vm.activeLogIds"
+          [leftEdgeTime]="vm.leftEdgeTime"
+          [pixelsPerMs]="vm.pixelsPerMs"
+          [rulerStyle]="vm.rulerStyle"
+          [chartStyle]="vm.chartStyle"
           [forceNotReadyToRender]="forceNotReadyToRender()"
         ></khi-timeline-chart>
       </div>
@@ -85,18 +110,11 @@ class TimelineChartStoriesComponent {
     },
   });
 
-  viewModel = computed(() => {
+  viewModel = computed<TimelineChartStoryViewModel>(() => {
     const mockData = this.khiInspectionData.value();
     if (!mockData) {
       return {
         ready: false,
-        chartViewModel: undefined,
-        rulerViewModel: undefined,
-        activeLogIds: IdBitset.createEmpty(),
-        leftEdgeTime: 0,
-        pixelsPerMs: 1,
-        rulerStyle: undefined,
-        chartStyle: undefined,
       };
     }
     const startTimeMs = mockData.metadata!.header!.startTimeUnixSeconds * 1000;
@@ -114,9 +132,11 @@ class TimelineChartStoriesComponent {
       styleStore: mockData.styleStore,
     };
 
+    const allLogIds = IdBitset.fromAll(logsList.map((log) => log.id));
     const allLogsCache = new HistogramCache(
       mockData.styleStore.severities,
       logsList,
+      allLogIds,
       getMinTimeSpanForHistogram(10000, startTimeMs, endTimeMs),
       startTimeMs,
       endTimeMs,
@@ -124,6 +144,7 @@ class TimelineChartStoriesComponent {
     const filteredLogsCache = new HistogramCache(
       mockData.styleStore.severities,
       logsList,
+      allLogIds,
       getMinTimeSpanForHistogram(10000, startTimeMs, endTimeMs),
       startTimeMs,
       endTimeMs,
