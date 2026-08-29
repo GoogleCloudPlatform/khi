@@ -189,6 +189,7 @@ func TestJobTestHarness_Profiling(t *testing.T) {
 
 	harness := NewJobTestHarness(t, tc.server, cfg)
 	defer os.RemoveAll(harness.fixtureDir)
+	defer os.RemoveAll("pprof")
 
 	// Step 1: Record fixture
 	if _, err := harness.Record(t.Context()); err != nil {
@@ -196,8 +197,8 @@ func TestJobTestHarness_Profiling(t *testing.T) {
 	}
 
 	// Step 2: Enable CPU & Mem profile paths explicitly for testing profiling flow
-	harness.cpuProfilePath = filepath.Join(harness.fixtureDir, "cpu.pprof")
-	harness.memProfilePath = filepath.Join(harness.fixtureDir, "mem.pprof")
+	harness.cpuProfilePath = filepath.Join("pprof", sanitizeTestName(t.Name()), "cpu.pprof")
+	harness.memProfilePath = filepath.Join("pprof", sanitizeTestName(t.Name()), "mem.pprof")
 
 	if _, err := harness.Replay(t.Context()); err != nil {
 		t.Fatalf("harness.Replay() failed: %v", err)

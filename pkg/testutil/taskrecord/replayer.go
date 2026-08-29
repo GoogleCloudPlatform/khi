@@ -169,6 +169,7 @@ func newReplayInspectionInterceptor(
 
 				runningMu.Lock()
 				targetExecuting = false
+				runningCond.Broadcast()
 				runningMu.Unlock()
 
 				return res, err

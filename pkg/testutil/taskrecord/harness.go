@@ -91,6 +91,8 @@ type JobTestHarness struct {
 	isRecordMode   bool
 	isCPUProfile   bool
 	isMemProfile   bool
+	stubsInitOnce  sync.Once
+	stubsInitErr   error
 }
 
 // sanitizeTestName replaces slashes and special characters in test names to create safe directory paths.
@@ -131,10 +133,10 @@ func NewJobTestHarness(t testing.TB, server *coreinspection.InspectionTaskServer
 
 	var cpuPath, memPath string
 	if isCPU {
-		cpuPath = filepath.Join(fixtureDir, "cpu.pprof")
+		cpuPath = filepath.Join("pprof", sanitizeTestName(t.Name()), "cpu.pprof")
 	}
 	if isMem {
-		memPath = filepath.Join(fixtureDir, "mem.pprof")
+		memPath = filepath.Join("pprof", sanitizeTestName(t.Name()), "mem.pprof")
 	}
 
 	return &JobTestHarness{
@@ -233,17 +235,24 @@ func (h *JobTestHarness) Record(ctx context.Context) (*JobTestResult, error) {
 
 // Replay injects recorded stub tasks and executes the inspection in isolated Replay mode.
 func (h *JobTestHarness) Replay(ctx context.Context) (*JobTestResult, error) {
-	// Register stub tasks for each recorded task
-	for _, ref := range h.cfg.RecordedTasks {
-		targetType := GetTaskType(ref)
-		val, err := loadRecordedTaskResultForType(h.fixtureDir, ref, targetType)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load fixture for %s: %w", ref.ReferenceIDString(), err)
+	// Register stub tasks for each recorded task once
+	h.stubsInitOnce.Do(func() {
+		for _, ref := range h.cfg.RecordedTasks {
+			targetType := GetTaskType(ref)
+			val, err := loadRecordedTaskResultForType(h.fixtureDir, ref, targetType)
+			if err != nil {
+				h.stubsInitErr = fmt.Errorf("failed to load fixture for %s: %w", ref.ReferenceIDString(), err)
+				return
+			}
+			stubTask := newReplayStubTask(ref, val)
+			if err := h.server.AddTask(stubTask); err != nil {
+				h.stubsInitErr = fmt.Errorf("failed to add stub task for %s: %w", ref.ReferenceIDString(), err)
+				return
+			}
 		}
-		stubTask := newReplayStubTask(ref, val)
-		if err := h.server.AddTask(stubTask); err != nil {
-			return nil, fmt.Errorf("failed to add stub task for %s: %w", ref.ReferenceIDString(), err)
-		}
+	})
+	if h.stubsInitErr != nil {
+		return nil, h.stubsInitErr
 	}
 
 	inspectionID, err := h.server.CreateInspection(h.cfg.InspectionType)
