@@ -39,10 +39,7 @@ import { HitTestResult } from './canvas/hittest-shared-resource';
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import { TimelineRulerViewModel } from './timeline-ruler.viewmodel';
 import { TimelineChartViewModel } from './timeline-chart.viewmodel';
-import {
-  TimelineChartItemHighlight,
-  TimelineHighlight,
-} from './interaction-model';
+import { TimelineHighlight } from './interaction-model';
 import {
   TimelineRulerStyle,
   TimelineChartStyle,
@@ -127,15 +124,20 @@ export class TimelineChartComponent implements AfterViewInit {
   readonly pixelsPerMs = input<number>(1);
 
   /**
+   * The index of the selected log, or 0xFFFFFFFF if none.
+   */
+  readonly selectedLogIndex = input<number>(0xffffffff);
+
+  /**
+   * Bitset of highlighted log indices.
+   */
+  readonly highlightedLogIndexBitset = input<IdBitset>(IdBitset.createEmpty());
+
+  /**
    * A bitset of log IDs that are currently active (e.g., matching a filter).
    * Inactive logs may be rendered differently (e.g., dimmed).
    */
   readonly activeLogIds = input<IdBitset>(IdBitset.createEmpty());
-
-  /**
-   * Highlights for specific items (logs/events) within the timeline.
-   */
-  readonly timelineChartItemHighlights = input<TimelineChartItemHighlight>({});
 
   /**
    * Emitted when the mouse moves over a timeline item.
@@ -288,7 +290,8 @@ export class TimelineChartComponent implements AfterViewInit {
     const chartViewModel = this.chartViewModel();
     const chartStyle = this.chartStyle();
     const timelineHighlights = this.timelineHighlights();
-    const logElementHighlights = this.timelineChartItemHighlights();
+    const selectedLogIndex = this.selectedLogIndex();
+    const highlightedLogIndexBitset = this.highlightedLogIndexBitset();
     const activeLogIds = this.activeLogIds();
     this.invalidate.set(true);
     if (
@@ -310,7 +313,8 @@ export class TimelineChartComponent implements AfterViewInit {
     this.timelineRenderer.update(
       chartViewModel,
       chartStyle,
-      logElementHighlights,
+      selectedLogIndex,
+      highlightedLogIndexBitset,
       activeLogIds,
     );
   }

@@ -267,8 +267,18 @@ export class TimelineSmartComponent {
     return this.selectionManager.selectedLogIndex();
   });
 
+  protected readonly selectedLogIndexForRenderer = computed(() => {
+    return this.selectionManager.selectedLogIndex() ?? 0xffffffff;
+  });
+
   private readonly highlightedLogIndices = computed(() => {
     return this.selectionManager.highlightLogIndices();
+  });
+
+  protected readonly highlightedLogIndexBitset = computed(() => {
+    return IdBitset.fromSet(
+      this.selectionManager.highlightLogIndices() ?? new Set<number>(),
+    );
   });
 
   /**

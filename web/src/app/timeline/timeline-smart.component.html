@@ -34,6 +34,8 @@
   (viewportLeftTimeMSChange)="onViewportLeftTimeMsChange($event)"
   [timelineHighlights]="timelineHighlights()"
   [timelineChartItemHighlights]="timelineChartItemHighlights()"
+  [selectedLogIndex]="selectedLogIndexForRenderer()"
+  [highlightedLogIndexBitset]="highlightedLogIndexBitset()"
   (hoverOnTimeline)="hoverOnTimeline($event)"
   (clickOnTimeline)="clickOnTimeline($event)"
   (toggleCollapseTimeline)="onToggleCollapseTimeline($event)"

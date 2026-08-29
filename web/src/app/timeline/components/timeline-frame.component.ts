@@ -288,19 +288,14 @@ export class TimelineFrameComponent implements AfterViewInit {
   readonly timelineChartItemHighlights = input<TimelineChartItemHighlight>({});
 
   /**
-   * The index of the log that is currently selected.
+   * The index of the log that is currently selected, or 0xFFFFFFFF if none.
    */
-  readonly selectedLogIndex = computed(() => {
-    const highlights = this.timelineChartItemHighlights();
-    const findResult = Object.entries(highlights).find(([, value]) => {
-      return value === TimelineChartItemHighlightType.Selected;
-    });
-    if (findResult === undefined) {
-      return null;
-    }
-    const [highlightedLogIndex] = findResult;
-    return highlightedLogIndex;
-  });
+  readonly selectedLogIndex = input<number>(0xffffffff);
+
+  /**
+   * Bitset of highlighted log indices.
+   */
+  readonly highlightedLogIndexBitset = input<IdBitset>(IdBitset.createEmpty());
 
   /**
    * Request to show a hover overlay.
@@ -399,11 +394,17 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Returns the actual timeline that contains the currently selected log.
    */
   protected readonly selectedLogTimeline = computed(() => {
-    const logIndexStr = this.selectedLogIndex();
-    if (logIndexStr === null) {
-      return null;
+    let logIndex = this.selectedLogIndex();
+    if (logIndex === 0xffffffff || logIndex === undefined || logIndex < 0) {
+      const highlights = this.timelineChartItemHighlights();
+      const findResult = Object.entries(highlights).find(([, value]) => {
+        return value === TimelineChartItemHighlightType.Selected;
+      });
+      if (findResult === undefined) {
+        return null;
+      }
+      logIndex = Number(findResult[0]);
     }
-    const logIndex = Number(logIndexStr);
     const allLogs = this.allLogsWithoutFilter();
     const log = allLogs[logIndex];
     if (!log) {

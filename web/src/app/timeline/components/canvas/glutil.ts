@@ -177,8 +177,21 @@ export class WebGLUtil {
     return shader;
   }
 
-  private static async getShaderString(path: string): Promise<string> {
-    const result = await fetch(path);
+  /**
+   * Fetches the shader source text from the specified path.
+   *
+   * @param path The URL path to the shader source file.
+   * @returns A promise resolving to the shader source code string.
+   */
+  public static async getShaderString(path: string): Promise<string> {
+    const url =
+      path.startsWith('/') || path.startsWith('http') ? path : `/${path}`;
+    const result = await fetch(url);
+    if (!result.ok) {
+      throw new Error(
+        `Failed to load shader file at ${path} (resolved URL: ${url}): HTTP ${result.status} ${result.statusText}`,
+      );
+    }
     return result.text();
   }
 }

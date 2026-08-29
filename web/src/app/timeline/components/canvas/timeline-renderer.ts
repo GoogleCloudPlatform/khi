@@ -32,7 +32,6 @@ import {
   TimelineEventsSharedResources,
 } from './timeline-events-renderer';
 import { TimelineChartViewModel } from '../timeline-chart.viewmodel';
-import { TimelineChartItemHighlight } from '../interaction-model';
 import {
   TimelineChartStyle,
   BASE_ROW_HEIGHT,
@@ -134,9 +133,14 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
   private hitTestRequests: HitTestRequest[] = [];
 
   /**
-   * Current highlight state of log elements (e.g. selected, hovered).
+   * Index of the currently selected log, or 0xFFFFFFFF if none.
    */
-  private logElementHighlights: TimelineChartItemHighlight = {};
+  private selectedLogIndex = 0xffffffff;
+
+  /**
+   * Bitset of highlighted log indices.
+   */
+  private highlightedLogIndices: IdBitset = IdBitset.createEmpty();
 
   /**
    * Current filter state of log elements.
@@ -144,7 +148,8 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    */
   private activeLogIds: IdBitset = IdBitset.createEmpty();
 
-  private highlightUpdated = false;
+  private filterBitsetUpdated = true;
+  private highlightBitsetUpdated = true;
 
   /**
    * Sets up the WebGL resources for the renderer.
@@ -189,6 +194,17 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.cachedInspectionDataUniqueID =
         this.chartViewModel.inspectionDataUniqueID;
     }
+    if (this.filterBitsetUpdated) {
+      this.timelineSharedResource.updateFilterBitset(gl, this.activeLogIds);
+      this.filterBitsetUpdated = false;
+    }
+    if (this.highlightBitsetUpdated) {
+      this.timelineSharedResource.updateHighlightBitset(
+        gl,
+        this.highlightedLogIndices,
+      );
+      this.highlightBitsetUpdated = false;
+    }
     gl.viewport(0, 0, this.width, this.height);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -198,6 +214,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       devicePixelRatio: this.dpr,
       pixelsPerMs: args.pixelsPerMs,
       leftEdgeTime: args.leftEdgeTime,
+      selectedLogIndex: this.selectedLogIndex,
     });
     this.revisionSharedResource.beforeRender(
       gl,
@@ -209,15 +226,6 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.tmpBuffer,
       this.chartViewModel.styleStore,
     );
-    if (this.highlightUpdated) {
-      this.iterateRevisionRenderers(gl, (r) =>
-        r.updateDynamicBuffer(gl, this.logElementHighlights, this.activeLogIds),
-      );
-      this.iterateEventRenderers(gl, (r) =>
-        r.updateDynamicBuffer(gl, this.logElementHighlights, this.activeLogIds),
-      );
-      this.highlightUpdated = false;
-    }
     this.iterateRevisionRenderers(gl, (r, rect) => r.renderColor(gl, rect));
     this.iterateEventRenderers(gl, (r, rect) => r.renderColor(gl, rect));
 
@@ -245,22 +253,30 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    *
    * @param chartViewModel The new view model to render.
    * @param chartStyle The visual style configuration.
-   * @param logElementHighlights The set of highlighted log elements.
+   * @param selectedLogIndex The index of the selected log, or 0xFFFFFFFF if none.
+   * @param highlightedLogIndices The bitset of highlighted log indices.
    * @param activeLogIds The bitset of active log IDs.
    */
   update(
     chartViewModel: TimelineChartViewModel,
     chartStyle: TimelineChartStyle,
-    logElementHighlights: TimelineChartItemHighlight,
+    selectedLogIndex: number,
+    highlightedLogIndices: IdBitset,
     activeLogIds: IdBitset,
   ) {
     this.chartViewModel = chartViewModel;
     this.chartStyle = chartStyle;
     this.revisionSharedResource.updateChartStyle(chartStyle);
     this.eventSharedResource.updateChartStyle(chartStyle);
-    this.logElementHighlights = logElementHighlights;
-    this.highlightUpdated = true;
-    this.activeLogIds = activeLogIds;
+    this.selectedLogIndex = selectedLogIndex;
+    if (this.highlightedLogIndices !== highlightedLogIndices) {
+      this.highlightedLogIndices = highlightedLogIndices;
+      this.highlightBitsetUpdated = true;
+    }
+    if (this.activeLogIds !== activeLogIds) {
+      this.activeLogIds = activeLogIds;
+      this.filterBitsetUpdated = true;
+    }
   }
 
   /**
