@@ -19,17 +19,16 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/google/go-cmp/cmp"
 )
 
-func TestGCPAuditLogFieldSetReader(t *testing.T) {
-	reader := &GCPOperationAuditLogFieldSetReader{}
+func TestExtractGCPAuditLog(t *testing.T) {
 	tests := []struct {
 		name  string
 		input map[string]any
-		want  *GCPAuditLogFieldSet
+		want  GCPAuditLogFieldSet
 	}{
 		{
 			name: "full audit log",
@@ -61,7 +60,7 @@ func TestGCPAuditLogFieldSetReader(t *testing.T) {
 					},
 				},
 			},
-			want: &GCPAuditLogFieldSet{
+			want: GCPAuditLogFieldSet{
 				ProjectID:      "p1",
 				OperationID:    "op-1",
 				OperationFirst: true,
@@ -94,7 +93,7 @@ func TestGCPAuditLogFieldSetReader(t *testing.T) {
 					"status": map[string]any{},
 				},
 			},
-			want: &GCPAuditLogFieldSet{
+			want: GCPAuditLogFieldSet{
 				ProjectID:      "p1",
 				OperationID:    "op-2",
 				OperationFirst: true,
@@ -114,25 +113,42 @@ func TestGCPAuditLogFieldSetReader(t *testing.T) {
 				t.Fatalf("failed to create node: %v", err)
 			}
 			nodeReader := structured.NewNodeReader(node)
-			got, err := reader.Read(nodeReader)
+			got, err := ExtractGCPAuditLog(nodeReader)
 			if err != nil {
-				t.Fatalf("Read() error = %v", err)
+				t.Fatalf("ExtractGCPAuditLog() error = %v", err)
 			}
-			gotAudit := got.(*GCPAuditLogFieldSet)
 
 			// Compare fields except NodeReaders
-			if gotAudit.ProjectID != tc.want.ProjectID ||
-				gotAudit.OperationID != tc.want.OperationID ||
-				gotAudit.OperationFirst != tc.want.OperationFirst ||
-				gotAudit.OperationLast != tc.want.OperationLast ||
-				gotAudit.MethodName != tc.want.MethodName ||
-				gotAudit.ResourceName != tc.want.ResourceName ||
-				gotAudit.PrincipalEmail != tc.want.PrincipalEmail ||
-				gotAudit.Status != tc.want.Status {
-				t.Errorf("Read() mismatch.\ngot:  %+v\nwant: %+v", gotAudit, tc.want)
+			gotComparable := GCPAuditLogFieldSet{
+				ProjectID:      got.ProjectID,
+				OperationID:    got.OperationID,
+				OperationFirst: got.OperationFirst,
+				OperationLast:  got.OperationLast,
+				MethodName:     got.MethodName,
+				ResourceName:   got.ResourceName,
+				PrincipalEmail: got.PrincipalEmail,
+				Status:         got.Status,
+			}
+			if diff := cmp.Diff(tc.want, gotComparable); diff != "" {
+				t.Errorf("ExtractGCPAuditLog() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("mock node returns mock values", func(t *testing.T) {
+		mockFS := GCPAuditLogFieldSet{
+			ProjectID:   "mock-project",
+			OperationID: "mock-op",
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(mockFS))
+		got, err := ExtractGCPAuditLog(reader)
+		if err != nil {
+			t.Fatalf("ExtractGCPAuditLog() error = %v", err)
+		}
+		if diff := cmp.Diff(mockFS, got); diff != "" {
+			t.Errorf("ExtractGCPAuditLog() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }
 
 func TestGCPAuditLogFieldSet_GuessRevisionVerb(t *testing.T) {
@@ -158,28 +174,23 @@ func TestGCPAuditLogFieldSet_GuessRevisionVerb(t *testing.T) {
 	}
 }
 
-func TestGCPDefaultSeverityFieldSetReader(t *testing.T) {
-	reader := &GCPDefaultSeverityFieldSetReader{}
+func TestExtractGCPSeverity(t *testing.T) {
 	tests := []struct {
 		name  string
 		input map[string]any
-		want  *inspectioncore_contract.DefaultSeverityFieldSet
+		want  *pb.Severity
 	}{
 		{
 			name: "severity info",
 			input: map[string]any{
 				"severity": "INFO",
 			},
-			want: &inspectioncore_contract.DefaultSeverityFieldSet{
-				Severity: inspectioncore_contract.SeverityInfo,
-			},
+			want: inspectioncore_contract.SeverityInfo,
 		},
 		{
 			name:  "severity absent defaults to empty string which is Unknown",
 			input: map[string]any{},
-			want: &inspectioncore_contract.DefaultSeverityFieldSet{
-				Severity: inspectioncore_contract.SeverityUnknown,
-			},
+			want:  inspectioncore_contract.SeverityUnknown,
 		},
 	}
 
@@ -190,19 +201,31 @@ func TestGCPDefaultSeverityFieldSetReader(t *testing.T) {
 				t.Fatalf("failed to create node: %v", err)
 			}
 			nodeReader := structured.NewNodeReader(node)
-			gotFS, err := reader.Read(nodeReader)
+			got, err := ExtractGCPSeverity(nodeReader)
 			if err != nil {
-				t.Fatalf("Read() error = %v", err)
+				t.Fatalf("ExtractGCPSeverity() error = %v", err)
 			}
-			got := gotFS.(*inspectioncore_contract.DefaultSeverityFieldSet)
-			if got.Severity != tc.want.Severity {
-				t.Errorf("Read() severity = %v, want %v", got.Severity, tc.want.Severity)
+			if got != tc.want {
+				t.Errorf("ExtractGCPSeverity() = %v, want %v", got, tc.want)
 			}
 		})
 	}
+
+	t.Run("mock node returns mock severity", func(t *testing.T) {
+		reader := structured.NewNodeReader(structured.NewMockNode(inspectioncore_contract.DefaultSeverityFieldSet{
+			Severity: inspectioncore_contract.SeverityError,
+		}))
+		got, err := ExtractGCPSeverity(reader)
+		if err != nil {
+			t.Fatalf("ExtractGCPSeverity() error = %v", err)
+		}
+		if got != inspectioncore_contract.SeverityError {
+			t.Errorf("ExtractGCPSeverity() = %v, want %v", got, inspectioncore_contract.SeverityError)
+		}
+	})
 }
 
-func TestGCPMainMessageFieldSet(t *testing.T) {
+func TestExtractGCPMainMessage(t *testing.T) {
 	testCase := []struct {
 		Name                string
 		ExpectedMainMessage string
@@ -282,19 +305,31 @@ labels:
 	}
 	for _, tc := range testCase {
 		t.Run(tc.Name, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.InputYAML)
+			node, err := structured.FromYAML(tc.InputYAML)
 			if err != nil {
-				t.Fatalf("failed to parse log from yaml: %v", err)
+				t.Fatalf("failed to parse yaml: %v", err)
 			}
-			l.SetFieldSetReader(&GCPMainMessageFieldSetReader{})
-			gcpMainMessageField, err := log.GetFieldSet(l, &GCPMainMessageFieldSet{})
+			nodeReader := structured.NewNodeReader(node)
+			got, err := ExtractGCPMainMessage(nodeReader)
 			if err != nil {
-				t.Fatalf("failed to extract gcp main message field: %v", err)
+				t.Fatalf("ExtractGCPMainMessage() error = %v", err)
 			}
-			if gcpMainMessageField.MainMessage != tc.ExpectedMainMessage {
-				t.Errorf("expected main message: %v, got: %v", tc.ExpectedMainMessage, gcpMainMessageField.MainMessage)
+			if got != tc.ExpectedMainMessage {
+				t.Errorf("ExtractGCPMainMessage() = %v, want %v", got, tc.ExpectedMainMessage)
 			}
 		})
 	}
 
+	t.Run("mock node returns mock main message", func(t *testing.T) {
+		reader := structured.NewNodeReader(structured.NewMockNode(GCPMainMessageFieldSet{
+			MainMessage: "hello world",
+		}))
+		got, err := ExtractGCPMainMessage(reader)
+		if err != nil {
+			t.Fatalf("ExtractGCPMainMessage() error = %v", err)
+		}
+		if got != "hello world" {
+			t.Errorf("ExtractGCPMainMessage() = %v, want %v", got, "hello world")
+		}
+	})
 }

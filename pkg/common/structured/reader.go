@@ -199,6 +199,9 @@ func (p FieldPath) IsEmpty() bool {
 
 // GetNodeByPath obtains the Node at the given pre-compiled FieldPath.
 func (n *NodeReader) GetNodeByPath(path FieldPath) (Node, error) {
+	if n == nil || n.Node == nil {
+		return nil, ErrFieldNotFound
+	}
 	if len(path.segments) == 0 {
 		return n.Node, nil
 	}
@@ -238,6 +241,21 @@ func (n *NodeReader) GetReaderByPath(path FieldPath) (*NodeReader, error) {
 		return nil, err
 	}
 	return &NodeReader{node}, nil
+}
+
+// HasByPath checks if a field exists at the pre-compiled FieldPath.
+func (n *NodeReader) HasByPath(path FieldPath) bool {
+	_, err := n.GetNodeByPath(path)
+	return err == nil
+}
+
+// ReadStringByPath retrieves a string value from the pre-compiled FieldPath.
+func (n *NodeReader) ReadStringByPath(path FieldPath) (string, error) {
+	node, err := n.GetNodeByPath(path)
+	if err != nil {
+		return "", err
+	}
+	return getScalarAs[string](node)
 }
 
 // ReadStringOrDefaultByPath retrieves a string value from the pre-compiled FieldPath.

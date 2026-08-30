@@ -17,15 +17,15 @@ package googlecloudloggkeapiaudit_contract
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestGKEAuditLogResourceFieldSetReader(t *testing.T) {
+func TestExtractGKEAuditLogResource(t *testing.T) {
 	testCases := []struct {
 		desc  string
 		input string
-		want  *GKEAuditLogResourceFieldSet
+		want  GKEAuditLogResourceFieldSet
 	}{
 		{
 			desc: "basic input",
@@ -35,7 +35,7 @@ resource:
     cluster_name: "test-cluster"
     nodepool_name: "test-nodepool"
 `,
-			want: &GKEAuditLogResourceFieldSet{
+			want: GKEAuditLogResourceFieldSet{
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
@@ -43,15 +43,15 @@ resource:
 		{
 			desc: "nodepool name from update field",
 			input: `
-  resource:
-    labels:
-      cluster_name: "test-cluster"
-  protoPayload:
-    request:
-      update:
-        desiredNodePoolId: "test-nodepool"
+resource:
+  labels:
+    cluster_name: "test-cluster"
+protoPayload:
+  request:
+    update:
+      desiredNodePoolId: "test-nodepool"
 `,
-			want: &GKEAuditLogResourceFieldSet{
+			want: GKEAuditLogResourceFieldSet{
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
@@ -59,7 +59,7 @@ resource:
 		{
 			desc:  "default input",
 			input: "{}",
-			want: &GKEAuditLogResourceFieldSet{
+			want: GKEAuditLogResourceFieldSet{
 				ClusterName:  "unknown",
 				NodepoolName: "",
 			},
@@ -67,18 +67,33 @@ resource:
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
+			node, err := structured.FromYAML(tc.input)
 			if err != nil {
-				t.Fatalf("failed to parse YAML test input to log: %v", err)
+				t.Fatalf("failed to parse YAML test input: %v", err)
 			}
-			err = l.SetFieldSetReader(&GKEAuditLogResourceFieldSetReader{})
+			reader := structured.NewNodeReader(node)
+			got, err := ExtractGKEAuditLogResource(reader)
 			if err != nil {
-				t.Errorf("failed to run GKEAuditLogResourceFieldSetReader.Read(): %v", err)
+				t.Fatalf("ExtractGKEAuditLogResource() error = %v", err)
 			}
-			got := log.MustGetFieldSet(l, &GKEAuditLogResourceFieldSet{})
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("GKEAuditLogResourceFieldSet mismatch (-want +got):\n%s", diff)
+				t.Errorf("ExtractGKEAuditLogResource() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("mock node returns mock values", func(t *testing.T) {
+		mockFS := GKEAuditLogResourceFieldSet{
+			ClusterName:  "mock-cluster",
+			NodepoolName: "mock-nodepool",
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(mockFS))
+		got, err := ExtractGKEAuditLogResource(reader)
+		if err != nil {
+			t.Fatalf("ExtractGKEAuditLogResource() error = %v", err)
+		}
+		if diff := cmp.Diff(mockFS, got); diff != "" {
+			t.Errorf("ExtractGKEAuditLogResource() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }

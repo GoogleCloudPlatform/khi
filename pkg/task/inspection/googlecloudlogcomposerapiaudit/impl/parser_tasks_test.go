@@ -28,6 +28,7 @@ import (
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -316,7 +317,7 @@ config:
 			tracker := googlecloudcommon_contract.NewGCPOperationTracker()
 			tc.setupTracker(tracker, envTimeline)
 
-			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.inputAudit, &tc.inputResource)
+			l := testlog.NewMockLog(testCommonFieldSet, tc.inputAudit, tc.inputResource)
 
 			cs, _, err := mapperSetting.ProcessLogByGroup(ctx, l, tracker)
 			if err != nil {
@@ -338,7 +339,7 @@ config:
 func TestComposerAuditLogIngester(t *testing.T) {
 	testTime := time.Date(2026, time.August, 10, 0, 23, 12, 0, time.UTC)
 	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(
-		googlecloudlogcomposerapiaudit_contract.FieldSetReaderTaskID.Ref(),
+		googlecloudlogcomposerapiaudit_contract.ListLogEntriesTaskID.Ref(),
 		googlecloudlogcomposerapiaudit_contract.LogTypeManagedAirflowAPI,
 	)
 
@@ -350,16 +351,16 @@ func TestComposerAuditLogIngester(t *testing.T) {
 	}{
 		{
 			desc: "operation start log",
-			inputLog: log.NewLogWithFieldSetsForTest(
+			inputLog: testlog.NewMockLog(
 				&log.CommonFieldSet{Timestamp: testTime},
-				&inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityInfo},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityInfo},
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
 					OperationFirst: true,
 					OperationLast:  false,
 					Status:         -1,
 				},
-				&googlecloudlogcomposerapiaudit_contract.ComposerAuditLogResourceFieldSet{
+				googlecloudlogcomposerapiaudit_contract.ComposerAuditLogResourceFieldSet{
 					EnvironmentName: "test-environment",
 				},
 			),
@@ -367,16 +368,16 @@ func TestComposerAuditLogIngester(t *testing.T) {
 		},
 		{
 			desc: "operation succeeded log",
-			inputLog: log.NewLogWithFieldSetsForTest(
+			inputLog: testlog.NewMockLog(
 				&log.CommonFieldSet{Timestamp: testTime},
-				&inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityInfo},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityInfo},
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
 					OperationFirst: false,
 					OperationLast:  true,
 					Status:         -1,
 				},
-				&googlecloudlogcomposerapiaudit_contract.ComposerAuditLogResourceFieldSet{
+				googlecloudlogcomposerapiaudit_contract.ComposerAuditLogResourceFieldSet{
 					EnvironmentName: "test-environment",
 				},
 			),
@@ -384,17 +385,17 @@ func TestComposerAuditLogIngester(t *testing.T) {
 		},
 		{
 			desc: "operation failed log",
-			inputLog: log.NewLogWithFieldSetsForTest(
+			inputLog: testlog.NewMockLog(
 				&log.CommonFieldSet{Timestamp: testTime},
-				&inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityError},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityError},
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
 					OperationFirst: false,
 					OperationLast:  true,
 					Status:         3,
 					StatusMessage:  "INVALID_ARGUMENT: invalid location",
 				},
-				&googlecloudlogcomposerapiaudit_contract.ComposerAuditLogResourceFieldSet{
+				googlecloudlogcomposerapiaudit_contract.ComposerAuditLogResourceFieldSet{
 					EnvironmentName: "test-environment",
 				},
 			),

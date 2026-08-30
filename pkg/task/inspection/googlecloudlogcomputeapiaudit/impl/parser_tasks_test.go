@@ -29,6 +29,7 @@ import (
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 )
@@ -42,14 +43,14 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 	}{
 		{
 			name: "ingest compute API audit log - start",
-			input: log.NewLogWithFieldSetsForTest(
+			input: testlog.NewMockLog(
 				&log.CommonFieldSet{
 					Timestamp: testTime,
 				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.insert",
 					OperationFirst: true,
 					OperationLast:  false,
@@ -64,14 +65,14 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "ingest compute API audit log - finish succeeded",
-			input: log.NewLogWithFieldSetsForTest(
+			input: testlog.NewMockLog(
 				&log.CommonFieldSet{
 					Timestamp: testTime,
 				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.insert",
 					OperationFirst: false,
 					OperationLast:  true,
@@ -87,14 +88,14 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "ingest compute API audit log - finish failed",
-			input: log.NewLogWithFieldSetsForTest(
+			input: testlog.NewMockLog(
 				&log.CommonFieldSet{
 					Timestamp: testTime,
 				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityError,
 				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.insert",
 					OperationFirst: false,
 					OperationLast:  true,
@@ -111,14 +112,14 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "ingest compute API audit log - immediate failed",
-			input: log.NewLogWithFieldSetsForTest(
+			input: testlog.NewMockLog(
 				&log.CommonFieldSet{
 					Timestamp: testTime,
 				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityError,
 				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.delete",
 					OperationFirst: true,
 					OperationLast:  true,
@@ -135,14 +136,14 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "ingest compute API audit log - immediate succeeded",
-			input: log.NewLogWithFieldSetsForTest(
+			input: testlog.NewMockLog(
 				&log.CommonFieldSet{
 					Timestamp: testTime,
 				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.delete",
 					OperationFirst: true,
 					OperationLast:  true,
@@ -158,7 +159,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogcomputeapiaudit_contract.FieldSetReaderTaskID.Ref(), googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi)
+	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogcomputeapiaudit_contract.ListLogEntriesTaskID.Ref(), googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
@@ -219,7 +220,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}{
 		{
 			name: "operation started",
-			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-1",
 				OperationFirst: true,
 				OperationLast:  false,
@@ -239,7 +240,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "operation finished with prior start log found",
-			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-1",
 				OperationFirst: false,
 				OperationLast:  true,
@@ -249,7 +250,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			}),
 			state: func() *googlecloudcommon_contract.GCPOperationTracker {
 				tr := googlecloudcommon_contract.NewGCPOperationTracker()
-				dummyLog := log.NewLogWithFieldSetsForTest(&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				dummyLog := testlog.NewMockLog(googlecloudcommon_contract.GCPAuditLogFieldSet{
 					OperationID:    "op-1",
 					OperationFirst: true,
 				})
@@ -272,7 +273,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "immediate operation",
-			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-2",
 				OperationFirst: true,
 				OperationLast:  true,
@@ -287,7 +288,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "deletion operation started",
-			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-3",
 				OperationFirst: true,
 				OperationLast:  false,
@@ -307,7 +308,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "deletion operation finished without prior start log",
-			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-3",
 				OperationFirst: false,
 				OperationLast:  true,
@@ -333,7 +334,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "deletion operation failed without prior start log",
-			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-4",
 				OperationFirst: false,
 				OperationLast:  true,

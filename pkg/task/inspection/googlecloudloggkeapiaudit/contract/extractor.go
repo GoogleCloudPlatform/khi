@@ -19,6 +19,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+var (
+	pathClusterName       = structured.CompileFieldPath("resource.labels.cluster_name")
+	pathNodepoolName      = structured.CompileFieldPath("resource.labels.nodepool_name")
+	pathDesiredNodePoolID = structured.CompileFieldPath("protoPayload.request.update.desiredNodePoolId")
+)
+
 // GKEAuditLogResourceFieldSet represents the resource-related fields extracted from a GKE audit log entry.
 type GKEAuditLogResourceFieldSet struct {
 	ClusterName  string
@@ -36,15 +42,29 @@ func (g *GKEAuditLogResourceFieldSet) IsNodepool() bool {
 }
 
 // Kind implements log.FieldSet.
-// It returns the kind of the field set, which is "gke_audit".
 func (g *GKEAuditLogResourceFieldSet) Kind() string {
 	return "gke_audit"
 }
 
 var _ log.FieldSet = (*GKEAuditLogResourceFieldSet)(nil)
 
-type GKEAuditLogResourceFieldSetReader struct {
+// ExtractGKEAuditLogResource extracts GKE Audit Log resource fields from a NodeReader.
+func ExtractGKEAuditLogResource(reader *structured.NodeReader) (GKEAuditLogResourceFieldSet, error) {
+	if mock, ok := structured.GetMock[GKEAuditLogResourceFieldSet](reader); ok {
+		return mock, nil
+	}
+	var result GKEAuditLogResourceFieldSet
+	result.ClusterName = reader.ReadStringOrDefaultByPath(pathClusterName, "unknown")
+	result.NodepoolName = reader.ReadStringOrDefaultByPath(pathNodepoolName, "")
+	if result.NodepoolName == "" {
+		// UpdateCluster operation for Nodepool may associate with cluster resource type, but actually for nodepool.
+		result.NodepoolName = reader.ReadStringOrDefaultByPath(pathDesiredNodePoolID, "")
+	}
+	return result, nil
 }
+
+// GKEAuditLogResourceFieldSetReader reads GKEAuditLogResourceFieldSet from logs.
+type GKEAuditLogResourceFieldSetReader struct{}
 
 // FieldSetKind implements log.FieldSetReader.
 func (g *GKEAuditLogResourceFieldSetReader) FieldSetKind() string {
@@ -52,15 +72,10 @@ func (g *GKEAuditLogResourceFieldSetReader) FieldSetKind() string {
 }
 
 // Read implements log.FieldSetReader.
-// It reads the "resource.labels.cluster_name" and "resource.labels.nodepool_name" fields
-// from the provided NodeReader and populates a GKEAuditLogResourceFieldSet.
 func (g *GKEAuditLogResourceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	var result GKEAuditLogResourceFieldSet
-	result.ClusterName = reader.ReadStringOrDefault("resource.labels.cluster_name", "unknown")
-	result.NodepoolName = reader.ReadStringOrDefault("resource.labels.nodepool_name", "")
-	if result.NodepoolName == "" {
-		// UpdateCluster operation for Nodepool may associates with cluster resource type, but actually for nodepool.
-		result.NodepoolName = reader.ReadStringOrDefault("protoPayload.request.update.desiredNodePoolId", "")
+	result, err := ExtractGKEAuditLogResource(reader)
+	if err != nil {
+		return nil, err
 	}
 	return &result, nil
 }

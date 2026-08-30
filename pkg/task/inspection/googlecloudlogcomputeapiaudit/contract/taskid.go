@@ -31,9 +31,6 @@ var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scomm
 // ListLogEntriesTaskID is the task id for the task that queries compute API logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComputeAPIAuditLogTaskIDPrefix + "query")
 
-// FieldSetReaderTaskID is the task id to read the common fieldset for processing the log in the later task.
-var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComputeAPIAuditLogTaskIDPrefix + "fieldset-reader")
-
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
 var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComputeAPIAuditLogTaskIDPrefix + "log-ingester")
 

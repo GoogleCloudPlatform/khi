@@ -27,6 +27,7 @@ import (
 	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -365,8 +366,7 @@ name: test-nodepool`).Node,
 	mapper := &multicloudAuditLogLogToTimelineMapperSetting{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.inputAudit, &tc.inputResource)
-			l.NodeReader = testReaderFromYAML(t, "protoPayload:\n  resourceName: projects/123456/locations/asia-southeast1/awsClusters/test-cluster/awsNodePools/test-nodepool")
+			l := testlog.NewMockLog(testCommonFieldSet, tc.inputAudit, tc.inputResource)
 
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, tc.inputTracker)

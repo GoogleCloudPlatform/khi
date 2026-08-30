@@ -17,15 +17,16 @@ package googlecloudlogonpremapiaudit_contract
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestOnPremAPIAuditResourceFieldSetReader(t *testing.T) {
+func TestExtractOnPremAPIAuditResource(t *testing.T) {
 	testCases := []struct {
-		desc  string
-		input string
-		want  *OnPremAPIAuditResourceFieldSet
+		desc    string
+		input   string
+		want    OnPremAPIAuditResourceFieldSet
+		wantErr bool
 	}{
 		{
 			desc: "with all parameters",
@@ -34,7 +35,7 @@ func TestOnPremAPIAuditResourceFieldSetReader(t *testing.T) {
     project_id: "123456"
 protoPayload:
   resourceName: projects/123456/locations/asia-southeast1/baremetalAdminClusters/cluster-foo/baremetalAdminNodepools/nodepool-bar`,
-			want: &OnPremAPIAuditResourceFieldSet{
+			want: OnPremAPIAuditResourceFieldSet{
 				Project:      "123456",
 				ClusterName:  "cluster-foo",
 				NodepoolName: "nodepool-bar",
@@ -48,7 +49,7 @@ protoPayload:
     project_id: "123456"
 protoPayload: 
   resourceName: projects/123456/locations/asia-southeast1/baremetalStandaloneClusters/cluster-foo`,
-			want: &OnPremAPIAuditResourceFieldSet{
+			want: OnPremAPIAuditResourceFieldSet{
 				Project:      "123456",
 				ClusterName:  "cluster-foo",
 				NodepoolName: "",
@@ -62,7 +63,7 @@ protoPayload:
     project_id: "123456"
 protoPayload: 
   resourceName: projects/123456/locations/asia-southeast1`,
-			want: &OnPremAPIAuditResourceFieldSet{
+			want: OnPremAPIAuditResourceFieldSet{
 				Project:      "123456",
 				ClusterName:  "unknown",
 				NodepoolName: "",
@@ -76,7 +77,7 @@ protoPayload:
     project_id: "my-project-from-labels"
 protoPayload:
   resourceName: projects/123456/locations/asia-southeast1/baremetalAdminClusters/cluster-foo/baremetalAdminNodepools/nodepool-bar`,
-			want: &OnPremAPIAuditResourceFieldSet{
+			want: OnPremAPIAuditResourceFieldSet{
 				Project:      "my-project-from-labels",
 				ClusterName:  "cluster-foo",
 				NodepoolName: "nodepool-bar",
@@ -87,19 +88,35 @@ protoPayload:
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(testCase.input)
+			node, err := structured.FromYAML(testCase.input)
 			if err != nil {
-				t.Errorf("failed to parse test YAML data: %v", err)
+				t.Fatalf("failed to parse test YAML data: %v", err)
 			}
-
-			err = l.SetFieldSetReader(&OnPremAPIAuditResourceFieldSetReader{})
-			if err != nil {
-				t.Fatalf("OnPremAPIAuditResourceFieldSetReader returned an unexpected error:%v", err)
+			nodeReader := structured.NewNodeReader(node)
+			got, err := ExtractOnPremAPIAuditResource(nodeReader)
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("ExtractOnPremAPIAuditResource() error = %v, wantErr %v", err, testCase.wantErr)
 			}
-			fieldSet := log.MustGetFieldSet(l, &OnPremAPIAuditResourceFieldSet{})
-			if diff := cmp.Diff(testCase.want, fieldSet); diff != "" {
-				t.Errorf("OnPremAPIAuditResourceFieldSetReader mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(testCase.want, got); diff != "" {
+				t.Errorf("ExtractOnPremAPIAuditResource mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("mock node returns mock values", func(t *testing.T) {
+		mockFS := OnPremAPIAuditResourceFieldSet{
+			Project:      "mock-project",
+			ClusterName:  "mock-cluster",
+			NodepoolName: "mock-nodepool",
+			ClusterType:  ClusterTypeBaremetalAdmin,
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(mockFS))
+		got, err := ExtractOnPremAPIAuditResource(reader)
+		if err != nil {
+			t.Fatalf("ExtractOnPremAPIAuditResource() error = %v", err)
+		}
+		if diff := cmp.Diff(mockFS, got); diff != "" {
+			t.Errorf("ExtractOnPremAPIAuditResource mismatch (-want +got):\n%s", diff)
+		}
+	})
 }

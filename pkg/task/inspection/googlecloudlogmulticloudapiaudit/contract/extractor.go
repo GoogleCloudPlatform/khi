@@ -21,6 +21,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+var pathResourceName = structured.CompileFieldPath("protoPayload.resourceName")
+
+// MultiCloudClusterType represents the type of multicloud cluster.
 type MultiCloudClusterType = string
 
 const (
@@ -29,6 +32,7 @@ const (
 	ClusterTypeUnknown MultiCloudClusterType = "unknown"
 )
 
+// MulticloudAPIAuditResourceFieldSet represents the parsed resource fields of a multicloud audit log.
 type MulticloudAPIAuditResourceFieldSet struct {
 	ClusterType  MultiCloudClusterType
 	ClusterName  string
@@ -52,25 +56,20 @@ func (g *MulticloudAPIAuditResourceFieldSet) IsNodepool() bool {
 
 var _ log.FieldSet = (*MulticloudAPIAuditResourceFieldSet)(nil)
 
-type MulticloudAPIAuditResourceFieldSetReader struct {
-}
-
-// FieldSetKind implements log.FieldSetReader.
-func (m *MulticloudAPIAuditResourceFieldSetReader) FieldSetKind() string {
-	return (&MulticloudAPIAuditResourceFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (m *MulticloudAPIAuditResourceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	result := &MulticloudAPIAuditResourceFieldSet{
+// ExtractMulticloudAPIAuditResource extracts Multicloud resource information from a NodeReader.
+func ExtractMulticloudAPIAuditResource(reader *structured.NodeReader) (MulticloudAPIAuditResourceFieldSet, error) {
+	if mock, ok := structured.GetMock[MulticloudAPIAuditResourceFieldSet](reader); ok {
+		return mock, nil
+	}
+	result := MulticloudAPIAuditResourceFieldSet{
 		ClusterType:  ClusterTypeUnknown,
 		NodepoolName: "",
 		ClusterName:  "unknown",
 	}
 
-	resourceName, err := reader.ReadString("protoPayload.resourceName")
+	resourceName, err := reader.ReadStringByPath(pathResourceName)
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 
 	// resourceName should be in the format of
@@ -87,6 +86,23 @@ func (m *MulticloudAPIAuditResourceFieldSetReader) Read(reader *structured.NodeR
 	}
 
 	return result, nil
+}
+
+// MulticloudAPIAuditResourceFieldSetReader reads MulticloudAPIAuditResourceFieldSet from a log entry.
+type MulticloudAPIAuditResourceFieldSetReader struct{}
+
+// FieldSetKind implements log.FieldSetReader.
+func (m *MulticloudAPIAuditResourceFieldSetReader) FieldSetKind() string {
+	return (&MulticloudAPIAuditResourceFieldSet{}).Kind()
+}
+
+// Read implements log.FieldSetReader.
+func (m *MulticloudAPIAuditResourceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	result, err := ExtractMulticloudAPIAuditResource(reader)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 var _ log.FieldSetReader = (*MulticloudAPIAuditResourceFieldSetReader)(nil)

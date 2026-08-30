@@ -21,12 +21,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestComposerAuditLogResourceFieldSetReader(t *testing.T) {
-	reader := &ComposerAuditLogResourceFieldSetReader{}
+func TestExtractComposerAuditLogResource(t *testing.T) {
 	testCases := []struct {
 		name    string
 		input   map[string]any
-		want    *ComposerAuditLogResourceFieldSet
+		want    ComposerAuditLogResourceFieldSet
 		wantErr bool
 	}{
 		{
@@ -41,7 +40,7 @@ func TestComposerAuditLogResourceFieldSetReader(t *testing.T) {
 					},
 				},
 			},
-			want: &ComposerAuditLogResourceFieldSet{
+			want: ComposerAuditLogResourceFieldSet{
 				EnvironmentName: "cluster-8rlk9",
 				Location:        "us-central1",
 				ProjectID:       "test-project",
@@ -56,7 +55,7 @@ func TestComposerAuditLogResourceFieldSetReader(t *testing.T) {
 					"labels": map[string]any{},
 				},
 			},
-			want: &ComposerAuditLogResourceFieldSet{
+			want: ComposerAuditLogResourceFieldSet{
 				EnvironmentName: "unknown",
 				Location:        "unknown",
 				ProjectID:       "unknown",
@@ -72,17 +71,29 @@ func TestComposerAuditLogResourceFieldSetReader(t *testing.T) {
 				t.Fatalf("failed to create structured node: %v", err)
 			}
 			nodeReader := structured.NewNodeReader(node)
-			gotFS, err := reader.Read(nodeReader)
+			got, err := ExtractComposerAuditLogResource(nodeReader)
 			if (err != nil) != tc.wantErr {
-				t.Fatalf("Read() error = %v, wantErr %v", err, tc.wantErr)
-			}
-			got, ok := gotFS.(*ComposerAuditLogResourceFieldSet)
-			if !ok {
-				t.Fatalf("Read() did not return *ComposerAuditLogResourceFieldSet, got %T", gotFS)
+				t.Fatalf("ExtractComposerAuditLogResource() error = %v, wantErr %v", err, tc.wantErr)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("ComposerAuditLogResourceFieldSet mismatch (-want +got):\n%s", diff)
+				t.Errorf("ExtractComposerAuditLogResource() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("mock node returns mock values", func(t *testing.T) {
+		mockFS := ComposerAuditLogResourceFieldSet{
+			EnvironmentName: "mock-env",
+			Location:        "mock-loc",
+			ProjectID:       "mock-proj",
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(mockFS))
+		got, err := ExtractComposerAuditLogResource(reader)
+		if err != nil {
+			t.Fatalf("ExtractComposerAuditLogResource() error = %v", err)
+		}
+		if diff := cmp.Diff(mockFS, got); diff != "" {
+			t.Errorf("ExtractComposerAuditLogResource() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }

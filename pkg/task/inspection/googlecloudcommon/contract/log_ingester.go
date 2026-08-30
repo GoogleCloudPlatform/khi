@@ -64,15 +64,15 @@ func (i *GCPOperationLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*
 	}
 	cs.SetTimestamp(commonSet.Timestamp)
 
-	if severitySet, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-		cs.SetSeverity(severitySet.Severity)
+	if severity, err := ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
+		cs.SetSeverity(severity)
 	} else {
 		cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
 	}
 
 	cs.SetLogType(i.logType)
 
-	audit, err := log.GetFieldSet(l, &GCPAuditLogFieldSet{})
+	audit, err := ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, err
 	}

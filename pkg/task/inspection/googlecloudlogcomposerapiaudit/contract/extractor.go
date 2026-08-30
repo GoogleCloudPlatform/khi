@@ -19,6 +19,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+var (
+	pathEnvironmentName = structured.CompileFieldPath("resource.labels.environment_name")
+	pathLocation        = structured.CompileFieldPath("resource.labels.location")
+	pathProjectID       = structured.CompileFieldPath("resource.labels.project_id")
+)
+
 // ComposerAuditLogResourceFieldSet represents resource identifiers extracted from a Cloud Composer audit log entry.
 type ComposerAuditLogResourceFieldSet struct {
 	EnvironmentName string
@@ -33,6 +39,18 @@ func (c *ComposerAuditLogResourceFieldSet) Kind() string {
 
 var _ log.FieldSet = (*ComposerAuditLogResourceFieldSet)(nil)
 
+// ExtractComposerAuditLogResource extracts Composer resource fields from a NodeReader.
+func ExtractComposerAuditLogResource(reader *structured.NodeReader) (ComposerAuditLogResourceFieldSet, error) {
+	if mock, ok := structured.GetMock[ComposerAuditLogResourceFieldSet](reader); ok {
+		return mock, nil
+	}
+	var result ComposerAuditLogResourceFieldSet
+	result.EnvironmentName = reader.ReadStringOrDefaultByPath(pathEnvironmentName, "unknown")
+	result.Location = reader.ReadStringOrDefaultByPath(pathLocation, "unknown")
+	result.ProjectID = reader.ReadStringOrDefaultByPath(pathProjectID, "unknown")
+	return result, nil
+}
+
 // ComposerAuditLogResourceFieldSetReader parses resource identification fields from Cloud Composer audit logs.
 type ComposerAuditLogResourceFieldSetReader struct{}
 
@@ -43,10 +61,10 @@ func (r *ComposerAuditLogResourceFieldSetReader) FieldSetKind() string {
 
 // Read extracts Composer resource labels from the provided log node reader.
 func (r *ComposerAuditLogResourceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	var result ComposerAuditLogResourceFieldSet
-	result.EnvironmentName = reader.ReadStringOrDefault("resource.labels.environment_name", "unknown")
-	result.Location = reader.ReadStringOrDefault("resource.labels.location", "unknown")
-	result.ProjectID = reader.ReadStringOrDefault("resource.labels.project_id", "unknown")
+	result, err := ExtractComposerAuditLogResource(reader)
+	if err != nil {
+		return nil, err
+	}
 	return &result, nil
 }
 

@@ -30,6 +30,7 @@ import (
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -71,9 +72,9 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogcsm_contract.CSMTrafficDirectorFieldSetReaderTaskID.Ref(), googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(
+			l := testlog.NewMockLog(
 				&log.CommonFieldSet{Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)},
-				tc.inputAudit,
+				*tc.inputAudit,
 			)
 			cs, err := ingester.ProcessLog(t.Context(), l)
 			if err != nil {

@@ -27,6 +27,7 @@ import (
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -322,7 +323,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.inputAudit, &tc.inputResource)
+			l := testlog.NewMockLog(testCommonFieldSet, tc.inputAudit, tc.inputResource)
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			cs, _, err := mapperSetting.ProcessLogByGroup(ctx, l, tc.inputTracker)
