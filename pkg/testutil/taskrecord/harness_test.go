@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -29,6 +30,8 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 )
+
+var pathHarnessTestTextPayload = structured.CompileFieldPath("textPayload")
 
 var (
 	upstreamTaskID   = taskid.NewDefaultImplementationID[[]*log.Log]("test/upstream")
@@ -85,7 +88,7 @@ func setupTestServer(t *testing.T) *harnessTestContext {
 			logs := coretask.GetTaskResult(ctx, upstreamTaskID.Ref())
 			var msgs []string
 			for _, l := range logs {
-				msgs = append(msgs, l.ReadStringOrDefault("textPayload", ""))
+				msgs = append(msgs, l.ReadStringOrDefault(pathHarnessTestTextPayload, ""))
 			}
 			return msgs, nil
 		},

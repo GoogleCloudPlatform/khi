@@ -49,6 +49,19 @@ type endpointResourceLogToTimelineMapperState struct {
 	lastStates map[string]*pb.RevisionState
 }
 
+var (
+	pathEndpointOwnerReferences       = structured.CompileFieldPath("metadata.ownerReferences")
+	pathEndpointOwnerKind             = structured.CompileFieldPath("kind")
+	pathEndpointOwnerName             = structured.CompileFieldPath("name")
+	pathEndpoints                     = structured.CompileFieldPath("endpoints")
+	pathEndpointTargetRefKind         = structured.CompileFieldPath("targetRef.kind")
+	pathEndpointTargetRefName         = structured.CompileFieldPath("targetRef.name")
+	pathEndpointTargetRefNamespace    = structured.CompileFieldPath("targetRef.namespace")
+	pathEndpointTargetRefUID          = structured.CompileFieldPath("targetRef.uid")
+	pathEndpointConditionsTerminating = structured.CompileFieldPath("conditions.terminating")
+	pathEndpointConditionsReady       = structured.CompileFieldPath("conditions.ready")
+)
+
 // EndpointResourceLogToTimelineMapperTask is the task to generate endpoint resource history.
 var EndpointResourceLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState](&endpointResourceLogToTimelineMapperTaskSetting{})
 
@@ -112,15 +125,15 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) PreProcessLog(ctx conte
 		return state, nil
 	}
 
-	ownerReferences, err := bodyReader.GetReader("metadata.ownerReferences")
+	ownerReferences, err := bodyReader.GetReader(pathEndpointOwnerReferences)
 	if err == nil {
 		// Scan all owner references to collect service names.
 		for _, ownerReference := range ownerReferences.Children() {
-			kind, err := ownerReference.ReadString("kind")
+			kind, err := ownerReference.ReadString(pathEndpointOwnerKind)
 			if err != nil {
 				continue
 			}
-			name, err := ownerReference.ReadString("name")
+			name, err := ownerReference.ReadString(pathEndpointOwnerName)
 			if err != nil {
 				continue
 			}
@@ -131,22 +144,22 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) PreProcessLog(ctx conte
 	}
 
 	// Scan all endpoints to collect pod names.
-	endpoints, err := bodyReader.GetReader("endpoints")
+	endpoints, err := bodyReader.GetReader(pathEndpoints)
 	if err == nil {
 		for _, endpoint := range endpoints.Children() {
-			kind, err := endpoint.ReadString("targetRef.kind")
+			kind, err := endpoint.ReadString(pathEndpointTargetRefKind)
 			if err != nil {
 				continue
 			}
-			name, err := endpoint.ReadString("targetRef.name")
+			name, err := endpoint.ReadString(pathEndpointTargetRefName)
 			if err != nil {
 				continue
 			}
-			namespace, err := endpoint.ReadString("targetRef.namespace")
+			namespace, err := endpoint.ReadString(pathEndpointTargetRefNamespace)
 			if err != nil {
 				continue
 			}
-			uid, err := endpoint.ReadString("targetRef.uid")
+			uid, err := endpoint.ReadString(pathEndpointTargetRefUID)
 			if err != nil {
 				continue
 			}
@@ -174,8 +187,8 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
-	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
+	eventTime := event.Log.Timestamp
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return cs, state, nil
 	}
@@ -224,21 +237,21 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 	removedEndpoints := []string{}
 
 	if bodyReader != nil {
-		endpoints, err := bodyReader.GetReader("endpoints")
+		endpoints, err := bodyReader.GetReader(pathEndpoints)
 		if err == nil {
 			endpointCount = endpoints.Len()
 			for _, endpoint := range endpoints.Children() {
-				terminating, err := endpoint.ReadBool("conditions.terminating")
+				terminating, err := endpoint.ReadBool(pathEndpointConditionsTerminating)
 				if err == nil && terminating {
 					terminatingEndpointCount++
 				}
-				ready, err := endpoint.ReadBool("conditions.ready")
+				ready, err := endpoint.ReadBool(pathEndpointConditionsReady)
 				if err == nil && ready {
 					readyEndpointCount++
 				}
 
 				currentState := endpointConditionToPodEndpointState(ready, terminating)
-				uid, err := endpoint.ReadString("targetRef.uid")
+				uid, err := endpoint.ReadString(pathEndpointTargetRefUID)
 				if err == nil {
 					foundUIDs[uid] = struct{}{}
 					if podIdentity, found := state.foundPods[uid]; found {
@@ -251,7 +264,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 								VerbType:     k8sFieldSet.Verb,
 								ResourceBody: endpointBody,
 								Principal:    k8sFieldSet.Principal,
-								ChangedTime:  commonLogFieldSet.Timestamp,
+								ChangedTime:  eventTime,
 								StateType:    currentState,
 							})
 
@@ -260,7 +273,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 								VerbType:     k8sFieldSet.Verb,
 								ResourceBody: endpointBody,
 								Principal:    k8sFieldSet.Principal,
-								ChangedTime:  commonLogFieldSet.Timestamp,
+								ChangedTime:  eventTime,
 								StateType:    currentState,
 							})
 							state.lastStates[uid] = currentState
@@ -277,7 +290,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 							VerbType:     k8sFieldSet.Verb,
 							ResourceBody: nil,
 							Principal:    k8sFieldSet.Principal,
-							ChangedTime:  commonLogFieldSet.Timestamp,
+							ChangedTime:  eventTime,
 							StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 						})
 
@@ -286,7 +299,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 							VerbType:     k8sFieldSet.Verb,
 							ResourceBody: nil,
 							Principal:    k8sFieldSet.Principal,
-							ChangedTime:  commonLogFieldSet.Timestamp,
+							ChangedTime:  eventTime,
 							StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 						})
 						removedEndpoints = append(removedEndpoints, touchedUID)
@@ -312,7 +325,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 					VerbType:     k8sFieldSet.Verb,
 					ResourceBody: bodyNode,
 					Principal:    k8sFieldSet.Principal,
-					ChangedTime:  commonLogFieldSet.Timestamp,
+					ChangedTime:  eventTime,
 					StateType:    serviceState,
 				})
 			}
@@ -327,7 +340,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 					VerbType:     k8sFieldSet.Verb,
 					ResourceBody: nil,
 					Principal:    k8sFieldSet.Principal,
-					ChangedTime:  commonLogFieldSet.Timestamp,
+					ChangedTime:  eventTime,
 					StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 				})
 
@@ -336,7 +349,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 					VerbType:     k8sFieldSet.Verb,
 					ResourceBody: nil,
 					Principal:    k8sFieldSet.Principal,
-					ChangedTime:  commonLogFieldSet.Timestamp,
+					ChangedTime:  eventTime,
 					StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 				})
 				removedEndpoints = append(removedEndpoints, touchedUID)
@@ -348,7 +361,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 				VerbType:     k8sFieldSet.Verb,
 				ResourceBody: nil,
 				Principal:    k8sFieldSet.Principal,
-				ChangedTime:  commonLogFieldSet.Timestamp,
+				ChangedTime:  eventTime,
 				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 			})
 		}

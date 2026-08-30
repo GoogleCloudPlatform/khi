@@ -31,6 +31,7 @@ import (
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -70,7 +71,7 @@ func TestProcessPodSandboxIDDiscoveryForLog(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(tc.inputComponentFieldSet)
+			l := testlog.NewMockLog(*tc.inputComponentFieldSet)
 			finder := patternfinder.NewNaivePatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]()
 			processPodSandboxIDDiscoveryForLog(t.Context(), l, finder)
 
@@ -166,7 +167,7 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(tc.inputComponentFieldSet)
+			l := testlog.NewMockLog(*tc.inputComponentFieldSet)
 			receiver := make(chan *commonlogk8saudit_contract.ContainerIdentity, 1)
 			processContainerIDDiscoveryForLog(t.Context(), l, receiver)
 
@@ -263,8 +264,8 @@ func TestContainerdIDDiscoveryTask(t *testing.T) {
 			logfmtParser := logutil.NewLogfmtTextParser()
 			for _, msg := range tc.messages {
 				input := logfmtParser.TryParse(msg)
-				logs = append(logs, log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				logs = append(logs, testlog.NewMockLog(
+					googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 						Message: input,
 					},
 				))
@@ -462,9 +463,9 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			message := logfmtParser.TryParse(tc.inputMessage)
 			tc.inputNodeLogFieldSet.Message = message
 
-			l := log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: testTime},
-				tc.inputNodeLogFieldSet,
+			l := testlog.NewMockLog(
+				testTime,
+				*tc.inputNodeLogFieldSet,
 			)
 
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})

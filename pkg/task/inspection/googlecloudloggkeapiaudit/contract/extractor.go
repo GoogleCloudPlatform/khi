@@ -16,7 +16,6 @@ package googlecloudloggkeapiaudit_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 var (
@@ -41,43 +40,17 @@ func (g *GKEAuditLogResourceFieldSet) IsNodepool() bool {
 	return g.NodepoolName != ""
 }
 
-// Kind implements log.FieldSet.
-func (g *GKEAuditLogResourceFieldSet) Kind() string {
-	return "gke_audit"
-}
-
-var _ log.FieldSet = (*GKEAuditLogResourceFieldSet)(nil)
-
 // ExtractGKEAuditLogResource extracts GKE Audit Log resource fields from a NodeReader.
 func ExtractGKEAuditLogResource(reader *structured.NodeReader) (GKEAuditLogResourceFieldSet, error) {
 	if mock, ok := structured.GetMock[GKEAuditLogResourceFieldSet](reader); ok {
 		return mock, nil
 	}
 	var result GKEAuditLogResourceFieldSet
-	result.ClusterName = reader.ReadStringOrDefaultByPath(pathClusterName, "unknown")
-	result.NodepoolName = reader.ReadStringOrDefaultByPath(pathNodepoolName, "")
+	result.ClusterName = reader.ReadStringOrDefault(pathClusterName, "unknown")
+	result.NodepoolName = reader.ReadStringOrDefault(pathNodepoolName, "")
 	if result.NodepoolName == "" {
 		// UpdateCluster operation for Nodepool may associate with cluster resource type, but actually for nodepool.
-		result.NodepoolName = reader.ReadStringOrDefaultByPath(pathDesiredNodePoolID, "")
+		result.NodepoolName = reader.ReadStringOrDefault(pathDesiredNodePoolID, "")
 	}
 	return result, nil
 }
-
-// GKEAuditLogResourceFieldSetReader reads GKEAuditLogResourceFieldSet from logs.
-type GKEAuditLogResourceFieldSetReader struct{}
-
-// FieldSetKind implements log.FieldSetReader.
-func (g *GKEAuditLogResourceFieldSetReader) FieldSetKind() string {
-	return (&GKEAuditLogResourceFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (g *GKEAuditLogResourceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	result, err := ExtractGKEAuditLogResource(reader)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-var _ log.FieldSetReader = (*GKEAuditLogResourceFieldSetReader)(nil)

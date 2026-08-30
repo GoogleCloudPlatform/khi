@@ -16,7 +16,6 @@ package googlecloudlogcomposerapiaudit_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 var (
@@ -32,40 +31,14 @@ type ComposerAuditLogResourceFieldSet struct {
 	ProjectID       string
 }
 
-// Kind returns the field set kind identifier.
-func (c *ComposerAuditLogResourceFieldSet) Kind() string {
-	return "composer_audit"
-}
-
-var _ log.FieldSet = (*ComposerAuditLogResourceFieldSet)(nil)
-
 // ExtractComposerAuditLogResource extracts Composer resource fields from a NodeReader.
 func ExtractComposerAuditLogResource(reader *structured.NodeReader) (ComposerAuditLogResourceFieldSet, error) {
 	if mock, ok := structured.GetMock[ComposerAuditLogResourceFieldSet](reader); ok {
 		return mock, nil
 	}
 	var result ComposerAuditLogResourceFieldSet
-	result.EnvironmentName = reader.ReadStringOrDefaultByPath(pathEnvironmentName, "unknown")
-	result.Location = reader.ReadStringOrDefaultByPath(pathLocation, "unknown")
-	result.ProjectID = reader.ReadStringOrDefaultByPath(pathProjectID, "unknown")
+	result.EnvironmentName = reader.ReadStringOrDefault(pathEnvironmentName, "unknown")
+	result.Location = reader.ReadStringOrDefault(pathLocation, "unknown")
+	result.ProjectID = reader.ReadStringOrDefault(pathProjectID, "unknown")
 	return result, nil
 }
-
-// ComposerAuditLogResourceFieldSetReader parses resource identification fields from Cloud Composer audit logs.
-type ComposerAuditLogResourceFieldSetReader struct{}
-
-// FieldSetKind returns the kind identifier of the field set read by this reader.
-func (r *ComposerAuditLogResourceFieldSetReader) FieldSetKind() string {
-	return (&ComposerAuditLogResourceFieldSet{}).Kind()
-}
-
-// Read extracts Composer resource labels from the provided log node reader.
-func (r *ComposerAuditLogResourceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	result, err := ExtractComposerAuditLogResource(reader)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-var _ log.FieldSetReader = (*ComposerAuditLogResourceFieldSetReader)(nil)

@@ -26,14 +26,12 @@ import (
     direction LR
     InputCSMResponseFlagsTask(Input CSM Response Flags)
     ListLogEntriesTask(List Log Entries)
-    FieldSetReaderTask(Field Set Reader)
     LogIngesterTask(Log Serializer)
     LogGrouperTask(Log Grouper)
     LogToTimelineMapperTask(TimelineMapper)
 
-    ListLogEntriesTask --> FieldSetReaderTask
+    ListLogEntriesTask --> LogGrouperTask
     ListLogEntriesTask --> LogIngesterTask
-    FieldSetReaderTask --> LogGrouperTask
     LogGrouperTask --> LogToTimelineMapperTask
     LogIngesterTask --> LogToTimelineMapperTask
     InputCSMResponseFlagsTask --> ListLogEntriesTask
@@ -67,12 +65,10 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		InputFleetProjectIDTask,
 		CSMClusterIdentifierTask,
 		ListCSMTrafficDirectorLogEntriesTask,
-		FieldSetReaderTask,
 		LogIngesterTask,
 		LogGrouperTask,
 		LogToTimelineMapperTask,
 
-		CSMTrafficDirectorFieldSetReaderTask,
 		CSMTrafficDirectorLogIngesterTask,
 		CSMTrafficDirectorLogGrouperTask,
 		CSMTrafficDirectorLogToTimelineMapperTask,

@@ -25,6 +25,8 @@ const TaskIDPrefix = "cloud.google.com/log/k8s-audit/"
 
 var GCPK8sAuditLogListLogEntriesTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogProviderRef, "gcp")
 
+var GCPK8sAuditLogExtractorTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogExtractorRef, "gcp")
+
 var GCPK8sAuditLogParserTailTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogParserTailRef, "gcp")
 
 // NEGToBackendServiceDiscoveryTaskID is the task ID for the discovery task that extracts NEG to BackendService mappings from Kubernetes Audit logs.

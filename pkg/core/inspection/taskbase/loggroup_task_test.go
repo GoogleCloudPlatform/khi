@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -25,6 +26,8 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 )
+
+var pathGroupTestID = structured.CompileFieldPath("id")
 
 func TestNwewLogGrouperTask(t *testing.T) {
 	sourceLogs := []string{
@@ -45,7 +48,7 @@ func TestNwewLogGrouperTask(t *testing.T) {
 			taskMode: inspectioncore_contract.TaskModeRun,
 			logYamls: []string{},
 			logGrouper: func(ctx context.Context, l *log.Log) string {
-				return l.ReadStringOrDefault("id", "unknown")[:1]
+				return l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
 			},
 			resultLogIDs: map[string][]string{},
 		},
@@ -54,7 +57,7 @@ func TestNwewLogGrouperTask(t *testing.T) {
 			taskMode: inspectioncore_contract.TaskModeRun,
 			logYamls: sourceLogs,
 			logGrouper: func(ctx context.Context, l *log.Log) string {
-				return l.ReadStringOrDefault("id", "unknown")[:1]
+				return l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
 			},
 			resultLogIDs: map[string][]string{
 				"f": {"foo"},
@@ -67,7 +70,7 @@ func TestNwewLogGrouperTask(t *testing.T) {
 			taskMode: inspectioncore_contract.TaskModeDryRun,
 			logYamls: sourceLogs,
 			logGrouper: func(ctx context.Context, l *log.Log) string {
-				return l.ReadStringOrDefault("id", "unknown")[:1]
+				return l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
 			},
 			resultLogIDs: map[string][]string{},
 		},
@@ -105,7 +108,7 @@ func TestNwewLogGrouperTask(t *testing.T) {
 				}
 				gotLogIDs := []string{}
 				for _, l := range gotLogGroup.Logs {
-					gotLogIDs = append(gotLogIDs, l.ReadStringOrDefault("id", "unknown"))
+					gotLogIDs = append(gotLogIDs, l.ReadStringOrDefault(pathGroupTestID, "unknown"))
 				}
 				if diff := cmp.Diff(wantLogIDs, gotLogIDs); diff != "" {
 					t.Errorf("log IDs for group %q mismatch (-want +got):\n%s", key, diff)

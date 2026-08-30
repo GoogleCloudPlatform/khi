@@ -61,7 +61,7 @@ func (e *nonSuccessLogLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.T
 
 // ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (e *nonSuccessLogLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(l.NodeReader)
+	fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.NodeReader)
 
 	subresource := fieldSet.SubresourceName
 	if _, ok := e.subresourceMapToWriteToParent[subresource]; subresource != "" && ok {

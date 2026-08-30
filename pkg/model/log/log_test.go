@@ -16,63 +16,69 @@ package log
 
 import (
 	"testing"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/google/go-cmp/cmp"
 )
 
-type TestFieldSet struct {
-	TestField string
-}
-
-// FieldSetKind implements FieldReader.
-func (t *TestFieldSet) Kind() string {
-	return "test"
-}
-
-var _ FieldSet = (*TestFieldSet)(nil)
-
-type TestFieldSetReader struct {
-}
-
-var _ FieldSetReader = (*TestFieldSetReader)(nil)
-
-func (t *TestFieldSetReader) FieldSetKind() string {
-	return (&TestFieldSet{}).Kind()
-}
-
-func (t *TestFieldSetReader) Read(reader *structured.NodeReader) (FieldSet, error) {
-	testField, err := reader.ReadString("test_field")
+func TestNewLog(t *testing.T) {
+	node, err := structured.FromYAML("foo: bar")
 	if err != nil {
-		return nil, err
+		t.Fatalf("failed to parse yaml: %v", err)
 	}
-	return &TestFieldSet{
-		TestField: testField,
-	}, nil
+	reader := structured.NewNodeReader(node)
+	l := NewLog(reader)
+
+	if l.NodeReader != reader {
+		t.Errorf("NewLog() NodeReader mismatch (-want +got):\n%s", cmp.Diff(reader, l.NodeReader))
+	}
+	if l.ID == "" {
+		t.Errorf("NewLog() expected non-empty ID, got empty")
+	}
 }
 
-func TestGetField(t *testing.T) {
-	yamlNode, err := structured.FromYAML(`test_field: foo`)
+func TestNewLogWithTimestamp(t *testing.T) {
+	node, err := structured.FromYAML("foo: bar")
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatalf("failed to parse yaml: %v", err)
 	}
-	nodeReader := structured.NewNodeReader(yamlNode)
+	reader := structured.NewNodeReader(node)
+	testTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	l := NewLogWithTimestamp(reader, testTime)
 
-	l := NewLog(nodeReader)
-	l.SetFieldSetReader(&TestFieldSetReader{})
+	if !l.Timestamp.Equal(testTime) {
+		t.Errorf("NewLogWithTimestamp() Timestamp mismatch (-want +got):\n%s", cmp.Diff(testTime, l.Timestamp))
+	}
+}
 
-	f, err := GetFieldSet(l, &TestFieldSet{})
-	if err != nil {
-		t.Errorf("GetField() error = %v", err)
-	}
-	if f.TestField != "foo" {
-		t.Errorf("GetField() = %v, want %v", f.TestField, "foo")
+func TestNewLogFromYAMLString(t *testing.T) {
+	testCases := []struct {
+		name    string
+		yaml    string
+		wantErr bool
+	}{
+		{
+			name:    "valid yaml",
+			yaml:    "foo: bar",
+			wantErr: false,
+		},
+		{
+			name:    "invalid yaml",
+			yaml:    ":\ninvalid",
+			wantErr: true,
+		},
 	}
 
-	f2, err := GetFieldSet(l, &TestFieldSet{})
-	if err != nil {
-		t.Errorf("GetField() error = %v", err)
-	}
-	if f != f2 {
-		t.Errorf("GetField() must return same references on multiple calls, but returned different references")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := NewLogFromYAMLString(tc.yaml)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("NewLogFromYAMLString() error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if !tc.wantErr && got == nil {
+				t.Errorf("NewLogFromYAMLString() returned nil log on valid yaml")
+			}
+		})
 	}
 }

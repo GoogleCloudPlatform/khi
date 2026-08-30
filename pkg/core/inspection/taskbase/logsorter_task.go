@@ -34,9 +34,7 @@ func NewLogSorterByTimeTask(taskID taskid.TaskImplementationID[[]*log.Log], logS
 		logs := coretask.GetTaskResult(ctx, logSource)
 		logs = slices.Clone(logs)
 		slices.SortFunc(logs, func(a, b *log.Log) int {
-			aFieldSet := log.MustGetFieldSet(a, &log.CommonFieldSet{})
-			bFieldSet := log.MustGetFieldSet(b, &log.CommonFieldSet{})
-			return aFieldSet.Timestamp.Compare(bFieldSet.Timestamp)
+			return a.Timestamp.Compare(b.Timestamp)
 		})
 		return logs, nil
 	})

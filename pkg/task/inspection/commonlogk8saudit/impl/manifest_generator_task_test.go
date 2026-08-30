@@ -381,7 +381,7 @@ metadata:
 					continue
 				}
 
-				yamlFromReader, err := rl.ResourceBodyReader.Serialize("", &structured.YAMLNodeSerializer{})
+				yamlFromReader, err := rl.ResourceBodyReader.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 				if err != nil {
 					t.Errorf("failed to serialize resource body to yaml\n%s", err.Error())
 				}
@@ -524,17 +524,17 @@ status:
 				return
 			}
 
-			if got := gotReader.ReadStringOrDefault("apiVersion", ""); got != tc.wantAPIVer {
+			if got := gotReader.ReadStringOrDefault(pathAPIVersion, ""); got != tc.wantAPIVer {
 				t.Errorf("apiVersion mismatch (-want +got):\n%s", cmp.Diff(tc.wantAPIVer, got))
 			}
-			if got := gotReader.ReadStringOrDefault("kind", ""); got != tc.wantKind {
+			if got := gotReader.ReadStringOrDefault(pathKind, ""); got != tc.wantKind {
 				t.Errorf("kind mismatch (-want +got):\n%s", cmp.Diff(tc.wantKind, got))
 			}
-			if got := gotReader.ReadStringOrDefault("metadata.name", ""); got != tc.wantMetaName {
+			if got := gotReader.ReadStringOrDefault(pathMetadataName, ""); got != tc.wantMetaName {
 				t.Errorf("metadata.name mismatch (-want +got):\n%s", cmp.Diff(tc.wantMetaName, got))
 			}
 
-			yamlBytes, err := gotReader.Serialize("", &structured.YAMLNodeSerializer{})
+			yamlBytes, err := gotReader.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 			if err != nil {
 				t.Fatalf("Serialize() failed: %v", err)
 			}

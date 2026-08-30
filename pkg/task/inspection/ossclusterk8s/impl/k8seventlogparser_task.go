@@ -27,22 +27,12 @@ import (
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
-// OSSK8sEventFieldSetReadTask reads event field sets in parallel.
-var OSSK8sEventFieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
-	ossclusterk8s_contract.OSSK8sEventFieldSetReadTaskID,
-	ossclusterk8s_contract.EventAuditLogFilterTaskID.Ref(),
-	[]log.FieldSetReader{
-		&ossclusterk8s_contract.OSSK8sEventFieldSetReader{},
-		&ossclusterk8s_contract.OSSK8sAuditLogCommonFieldSetReader{},
-	},
-)
-
 // OSSK8sEventLogIngester handles event log metadata ingestion.
 type OSSK8sEventLogIngester struct{}
 
 // RawLogTask returns the task reference providing raw event logs.
 func (i *OSSK8sEventLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return ossclusterk8s_contract.OSSK8sEventFieldSetReadTaskID.Ref()
+	return ossclusterk8s_contract.EventAuditLogFilterTaskID.Ref()
 }
 
 // Dependencies returns additional dependencies of the ingester.
@@ -57,12 +47,9 @@ func (i *OSSK8sEventLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*k
 		return nil, err
 	}
 	cs.SetLogType(commonlogk8saudit_contract.LogTypeEvent)
+	cs.SetTimestamp(l.Timestamp)
 
-	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonFS.Timestamp)
-	}
-
-	eventFS, err := log.GetFieldSet(l, &ossclusterk8s_contract.OSSK8sEventFieldSet{})
+	eventFS, err := ossclusterk8s_contract.ExtractOSSK8sEvent(l.NodeReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OSS k8s event fieldset: %w", err)
 	}
@@ -83,9 +70,9 @@ var OSSK8sEventLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 // OSSK8sEventLogGrouperTask groups event logs by their resource path.
 var OSSK8sEventLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	ossclusterk8s_contract.OSSK8sEventLogGrouperTaskID,
-	ossclusterk8s_contract.OSSK8sEventFieldSetReadTaskID.Ref(),
+	ossclusterk8s_contract.EventAuditLogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		event, err := log.GetFieldSet(l, &ossclusterk8s_contract.OSSK8sEventFieldSet{})
+		event, err := ossclusterk8s_contract.ExtractOSSK8sEvent(l.NodeReader)
 		if err != nil {
 			return "unknown"
 		}
@@ -115,7 +102,7 @@ func (m *OSSK8sEventTimelineMapper) GroupedLogTask() taskid.TaskReference[inspec
 
 // ProcessLogByGroup maps a single event log to its resource timeline.
 func (m *OSSK8sEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	event, err := log.GetFieldSet(l, &ossclusterk8s_contract.OSSK8sEventFieldSet{})
+	event, err := ossclusterk8s_contract.ExtractOSSK8sEvent(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, fmt.Errorf("failed to get OSS k8s event fieldset: %w", err)
 	}

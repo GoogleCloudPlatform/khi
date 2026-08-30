@@ -19,7 +19,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 var irregularPluralToSingularSuffixMap = map[string]string{
@@ -135,11 +134,6 @@ type K8sAuditLogFieldSet struct {
 	MutatingWebhookResults []*MutatingWebhookResult
 }
 
-// Kind implements log.FieldSet.
-func (k *K8sAuditLogFieldSet) Kind() string {
-	return "k8s_audit_log"
-}
-
 // LongRunning returns true if the log is a long-running operation.
 func (k *K8sAuditLogFieldSet) LongRunning() bool {
 	return (k.IsFirst && !k.IsLast) || (!k.IsFirst && k.IsLast)
@@ -152,5 +146,3 @@ func (k *K8sAuditLogFieldSet) VerbString() string {
 	}
 	return k.Verb.GetLabel()
 }
-
-var _ log.FieldSet = (*K8sAuditLogFieldSet)(nil)

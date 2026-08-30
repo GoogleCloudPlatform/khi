@@ -28,19 +28,12 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReaderTask is a task that reads CSM traffic logs field sets.
-var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogcsm_contract.FieldSetReaderTaskID, googlecloudlogcsm_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
-	&googlecloudcommon_contract.GCPAccessLogFieldSetReader{},
-	&googlecloudlogcsm_contract.IstioAccessLogFieldSetReader{},
-	&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
-})
-
 // CSMTrafficLogLogIngester ingests CSM traffic logs.
 type CSMTrafficLogLogIngester struct{}
 
 // RawLogTask returns the task reference that provides raw logs.
 func (i *CSMTrafficLogLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogcsm_contract.FieldSetReaderTaskID.Ref()
+	return googlecloudlogcsm_contract.ListLogEntriesTaskID.Ref()
 }
 
 // Dependencies returns the task dependencies.
@@ -55,17 +48,13 @@ func (i *CSMTrafficLogLogIngester) ProcessLog(ctx context.Context, l *log.Log) (
 		return nil, err
 	}
 
-	commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err != nil {
-		return nil, err
-	}
-	cs.SetTimestamp(commonFS.Timestamp)
+	cs.SetTimestamp(l.Timestamp)
 
-	gcpCommonAccessLog, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAccessLogFieldSet{})
+	gcpCommonAccessLog, err := googlecloudcommon_contract.ExtractGCPAccessLog(l.NodeReader)
 	if err != nil {
 		return nil, err
 	}
-	istioAccessLog, err := log.GetFieldSet(l, &googlecloudlogcsm_contract.IstioAccessLogFieldSet{})
+	istioAccessLog, err := googlecloudlogcsm_contract.ExtractIstioAccessLog(l.NodeReader)
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +63,8 @@ func (i *CSMTrafficLogLogIngester) ProcessLog(ctx context.Context, l *log.Log) (
 	cs.SetSummary(summary)
 	cs.SetLogType(googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
 
-	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-		cs.SetSeverity(severityFS.Severity)
+	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
+		cs.SetSeverity(severity)
 	}
 
 	return cs, nil
@@ -90,9 +79,12 @@ var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 )
 
 // LogGrouperTask groups CSM traffic logs by their reporter pod.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcsm_contract.LogGrouperTaskID, googlecloudlogcsm_contract.FieldSetReaderTaskID.Ref(),
+var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcsm_contract.LogGrouperTaskID, googlecloudlogcsm_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		istioAccessLogFieldSet := log.MustGetFieldSet(l, &googlecloudlogcsm_contract.IstioAccessLogFieldSet{})
+		istioAccessLogFieldSet, err := googlecloudlogcsm_contract.ExtractIstioAccessLog(l.NodeReader)
+		if err != nil {
+			return "unknown"
+		}
 		return fmt.Sprintf("%s-%s", istioAccessLogFieldSet.ReporterPodNamespace, istioAccessLogFieldSet.ReporterPodName)
 	},
 )
@@ -121,7 +113,7 @@ func (m *CSMTrafficLogLogToTimelineMapper) GroupedLogTask() taskid.TaskReference
 
 // ProcessLogByGroup maps each log inside a group to one or more timeline events.
 func (m *CSMTrafficLogLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	istioAccessLog, err := log.GetFieldSet(l, &googlecloudlogcsm_contract.IstioAccessLogFieldSet{})
+	istioAccessLog, err := googlecloudlogcsm_contract.ExtractIstioAccessLog(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
 	}

@@ -49,9 +49,7 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "operation starting log",
 			inputLog: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
-				},
+				time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.gkeonprem.v1.GkeOnPrem.CreateBaremetalAdminCluster",
 					OperationFirst: true,
@@ -63,9 +61,7 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "operation ending log",
 			inputLog: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
-				},
+				time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.gkeonprem.v1.GkeOnPrem.CreateBaremetalAdminCluster",
 					OperationFirst: false,
@@ -93,9 +89,6 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 
 func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
-	testCommonFieldSet := &log.CommonFieldSet{
-		Timestamp: testTime,
-	}
 
 	// 1. Initialize the Builder.
 	builder := khifilev6.NewBuilder()
@@ -513,7 +506,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	mapper := &OnPremAPIAuditTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := testlog.NewMockLog(testCommonFieldSet, tc.inputAudit, tc.inputResource)
+			l := testlog.NewMockLog(testTime, tc.inputAudit, tc.inputResource)
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, tc.inputTracker)
 			if err != nil {

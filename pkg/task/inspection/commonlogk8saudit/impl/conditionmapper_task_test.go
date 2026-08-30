@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -42,9 +41,6 @@ func TestConditionWalker(t *testing.T) {
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	baseTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	commonFieldSet := &log.CommonFieldSet{
-		Timestamp: baseTime,
-	}
 	k8sFieldSet := commonlogk8saudit_contract.K8sAuditLogFieldSet{
 		Verb:      commonlogk8saudit_contract.VerbUpdate,
 		Principal: "user-1",
@@ -54,8 +50,8 @@ func TestConditionWalker(t *testing.T) {
 		if a == nil || b == nil {
 			return a == b
 		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize("", &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize("", &structured.YAMLNodeSerializer{})
+		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 		if errA != nil || errB != nil {
 			return false
 		}
@@ -232,9 +228,9 @@ func TestConditionWalker(t *testing.T) {
 			walker := newConditionWalker(conditionPath, "Ready")
 			for _, tt := range scenario.steps {
 				t.Run(tt.name, func(t *testing.T) {
-					l := log.NewLogWithFieldSetsForTest()
+					l := testlog.NewMockLog(baseTime)
 					cs := khifilev6.NewTimelineChangeSet(l)
-					walker.CheckAndRecord(ctx, commonFieldSet, k8sFieldSet, tt.condition, cs)
+					walker.CheckAndRecord(ctx, baseTime, k8sFieldSet, tt.condition, cs)
 
 					if tt.want == nil {
 						testchangeset.AssertTimeline(t, cs).HasNoRevision(conditionPath)
@@ -256,8 +252,8 @@ func TestConditionLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 		if a == nil || b == nil {
 			return a == b
 		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize("", &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize("", &structured.YAMLNodeSerializer{})
+		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 		if errA != nil || errB != nil {
 			return false
 		}
@@ -286,11 +282,8 @@ func TestConditionLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 
 		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-		commonFieldSet := &log.CommonFieldSet{
-			Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		}
 		logObj := testlog.NewMockLog(
-			commonFieldSet,
+			time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				Verb:        commonlogk8saudit_contract.VerbUpdate,
 				Principal:   "user-1",
@@ -383,11 +376,8 @@ status:
 
 		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-		commonFieldSet := &log.CommonFieldSet{
-			Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		}
 		logObj := testlog.NewMockLog(
-			commonFieldSet,
+			time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				Verb:        commonlogk8saudit_contract.VerbCreate,
 				Principal:   "user-1",
@@ -469,7 +459,7 @@ status:
 
 		// Log 1: update event at t=10s, contains UID and creationTimestamp
 		logObj1 := testlog.NewMockLog(
-			&log.CommonFieldSet{Timestamp: time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC)},
+			time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC),
 			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s"},
 		)
 		bodyYAML1 := `
@@ -486,7 +476,7 @@ status:
 
 		// Log 2: patch event at t=5s (first event), lacks UID and creationTimestamp in body
 		logObj2 := testlog.NewMockLog(
-			&log.CommonFieldSet{Timestamp: time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC)},
+			time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC),
 			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbPatch, Principal: "user-1", ClusterName: "k8s"},
 		)
 		bodyYAML2 := `
@@ -575,11 +565,8 @@ status:
 
 		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-		commonFieldSet := &log.CommonFieldSet{
-			Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		}
 		logObj := testlog.NewMockLog(
-			commonFieldSet,
+			time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				Verb:        commonlogk8saudit_contract.VerbDelete,
 				Principal:   "user-1",
@@ -653,11 +640,8 @@ status:
 
 		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-		commonFieldSet := &log.CommonFieldSet{
-			Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		}
 		logObj := testlog.NewMockLog(
-			commonFieldSet,
+			time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				Verb:        commonlogk8saudit_contract.VerbUpdate,
 				Principal:   "user-1",

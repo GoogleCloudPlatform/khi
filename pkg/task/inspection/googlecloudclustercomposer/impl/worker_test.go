@@ -30,6 +30,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -43,13 +44,13 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 	}{
 		{
 			name: "Worker basic identification and TaskInstance extraction",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: timestamp},
-				&googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Executing task"},
-				&googlecloudclustercomposer_contract.ComposerFieldSet{
+			input: testlog.NewMockLog(
+				timestamp,
+				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Executing task"},
+				googlecloudclustercomposer_contract.ComposerFieldSet{
 					WorkerID: "airflow-worker-abc",
 				},
-				&googlecloudclustercomposer_contract.ComposerWorkerTaskInstanceFieldSet{
+				googlecloudclustercomposer_contract.ComposerWorkerTaskInstanceFieldSet{
 					TaskInstance: googlecloudclustercomposer_contract.NewAirflowTaskInstance(
 						"my_dag", "task_id_1", "2023-01-01T00:00:00Z", "1", "airflow-worker-abc", googlecloudclustercomposer_contract.TASKINSTANCE_RUNNING,
 					),
@@ -81,10 +82,10 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "Worker log without TaskInstance",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: timestamp},
-				&googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Worker Heartbeat"},
-				&googlecloudclustercomposer_contract.ComposerFieldSet{
+			input: testlog.NewMockLog(
+				timestamp,
+				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Worker Heartbeat"},
+				googlecloudclustercomposer_contract.ComposerFieldSet{
 					WorkerID: "airflow-worker-abc",
 				},
 			),
@@ -98,13 +99,13 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "Worker TaskInstance with none status generates event",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: timestamp},
-				&googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Any user task log"},
-				&googlecloudclustercomposer_contract.ComposerFieldSet{
+			input: testlog.NewMockLog(
+				timestamp,
+				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Any user task log"},
+				googlecloudclustercomposer_contract.ComposerFieldSet{
 					WorkerID: "airflow-worker-abc",
 				},
-				&googlecloudclustercomposer_contract.ComposerWorkerTaskInstanceFieldSet{
+				googlecloudclustercomposer_contract.ComposerWorkerTaskInstanceFieldSet{
 					TaskInstance: googlecloudclustercomposer_contract.NewAirflowTaskInstance(
 						"my_dag", "task_id_1", "2023-01-01T00:00:00Z", "-1", "airflow-worker-abc", googlecloudclustercomposer_contract.TASKINSTANCE_NONE,
 					),

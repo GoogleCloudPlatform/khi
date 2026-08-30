@@ -33,19 +33,12 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReaderTask reads fields in parallel.
-var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8scontainer_contract.FieldSetReaderTaskID, googlecloudlogk8scontainer_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
-	&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSetReader{},
-	&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
-	&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSetReader{},
-})
-
 // containerLogIngester implements inspectiontaskbase.LogIngester.
 type containerLogIngester struct{}
 
 // RawLogTask returns the task reference that provides the raw logs to ingest.
 func (i *containerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8scontainer_contract.FieldSetReaderTaskID.Ref()
+	return googlecloudlogk8scontainer_contract.ListLogEntriesTaskID.Ref()
 }
 
 // Dependencies returns additional task dependencies of the ingester.
@@ -61,16 +54,13 @@ func (i *containerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
 	}
 
 	cs.SetLogType(googlecloudlogk8scontainer_contract.LogTypeContainer)
+	cs.SetTimestamp(l.Timestamp)
 
-	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonFS.Timestamp)
+	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil {
+		cs.SetSeverity(severity)
 	}
 
-	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-		cs.SetSeverity(severityFS.Severity)
-	}
-
-	if containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{}); err == nil {
+	if containerFields, err := googlecloudlogk8scontainer_contract.ExtractK8sContainerLog(l.NodeReader, nil); err == nil {
 		summary := containerFields.Message
 		if containerFields.ParsedMessage != nil {
 			if sev, err := containerFields.ParsedMessage.Severity(); err == nil {
@@ -95,9 +85,9 @@ var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 )
 
 // LogGrouperTask groups logs by associated Pod path.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogk8scontainer_contract.LogGrouperTaskID, googlecloudlogk8scontainer_contract.FieldSetReaderTaskID.Ref(),
+var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogk8scontainer_contract.LogGrouperTaskID, googlecloudlogk8scontainer_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{})
+		containerFields, err := googlecloudlogk8scontainer_contract.ExtractK8sContainerLog(l.NodeReader, nil)
 		if err != nil {
 			return "unknown"
 		}
@@ -128,7 +118,7 @@ func (m *containerLogLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[
 
 // ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
 func (m *containerLogLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{})
+	containerFields, err := googlecloudlogk8scontainer_contract.ExtractK8sContainerLog(l.NodeReader, nil)
 	if err != nil {
 		return nil, struct{}{}, nil
 	}
@@ -194,12 +184,12 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 		return nil, state, nil
 	}
 
-	nodeFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{})
+	nodeFields, err := googlecloudlogk8scontainer_contract.ExtractGCPContainerLogNodeNameLabel(l.NodeReader)
 	if err != nil || nodeFields.NodeName == "" {
 		return nil, state, nil
 	}
 
-	containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{})
+	containerFields, err := googlecloudlogk8scontainer_contract.ExtractK8sContainerLog(l.NodeReader, nil)
 	if err != nil {
 		return nil, state, nil
 	}

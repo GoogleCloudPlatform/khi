@@ -24,13 +24,14 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 // GrouperTaskTestCase is a test case for log grouper task.
 type GrouperTaskTestCase struct {
 	Description string
 	Log         *log.Log
-	LogFields   []log.FieldSet
+	LogFields   []any
 	WantGroup   string
 }
 
@@ -41,7 +42,7 @@ func AssertGrouperTask(t *testing.T, task coretask.Task[inspectiontaskbase.LogGr
 		t.Run(tc.Description, func(t *testing.T) {
 			l := tc.Log
 			if l == nil {
-				l = log.NewLogWithFieldSetsForTest(tc.LogFields...)
+				l = testlog.NewMockLog(tc.LogFields...)
 			}
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 

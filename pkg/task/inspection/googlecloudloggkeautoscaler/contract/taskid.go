@@ -26,9 +26,6 @@ const gkeAutoscalerTaskIDPrefix = "cloud.google.com/gke/log/autoscaler/"
 // ListLogEntriesTaskID is the task id for the task that queries GKE autoscaler logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "query")
 
-// FieldSetReaderTaskID is the task id for the task that reads the common field set from GKE autoscaler logs.
-var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "fieldset-reader")
-
 // LogGrouperTaskID is the task id for the task that groups GKE autoscaler logs.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](gkeAutoscalerTaskIDPrefix + "log-grouper")
 

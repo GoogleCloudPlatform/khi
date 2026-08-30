@@ -11,7 +11,7 @@ This guide outlines how to write, record, replay, benchmark, and profile tasks i
 
 ## 1. Overview & Workflow
 
-KHI inspection jobs run as a DAG (Directed Acyclic Graph) of concurrent tasks. To optimize or benchmark a specific task (such as a FieldSet Reader, Log Ingester, or Timeline Mapper), you should isolate it from external network dependencies (e.g. Cloud Logging API calls) and background task concurrency noise.
+KHI inspection jobs run as a DAG (Directed Acyclic Graph) of concurrent tasks. To optimize or benchmark a specific task (such as a Log Ingester, Log Grouper, or Timeline Mapper), you should isolate it from external network dependencies (e.g. Cloud Logging API calls) and background task concurrency noise.
 
 The `taskrecord` framework provides a **Record & Replay** mechanism tailored for Go microbenchmarks:
 
@@ -123,15 +123,15 @@ func BenchmarkMyTask(b *testing.B) {
 
 ## 3. Practical Task Recipes
 
-### Recipe A: Benchmarking a FieldSet Reader / Log Parser Task
+### Recipe A: Benchmarking a Log Ingester or Log Grouper Task
 
-When measuring the performance of a FieldSet reading task (parsing raw log fields in parallel):
+When measuring the performance of a log ingester or grouper task:
 
 1. Set `RecordedTasks` to the upstream log query task (e.g. `GCPK8sAuditLogListLogEntriesTaskID.Ref()`).
-2. Set `TargetTask` to the `FieldSetReadTaskID.Ref()`.
+2. Set `TargetTask` to the `LogIngesterTaskID.Ref()` or `LogGrouperTaskID.Ref()`.
 
 ```go
-func getAuditLogReaderConfig() *taskrecord.JobTestConfig {
+func getAuditLogIngesterConfig() *taskrecord.JobTestConfig {
  return &taskrecord.JobTestConfig{
   InspectionType: googlecloudclustergke_contract.InspectionTypeID,
   InspectionFeatures: []string{
@@ -150,19 +150,19 @@ func getAuditLogReaderConfig() *taskrecord.JobTestConfig {
   RecordedTasks: []taskid.UntypedTaskReference{
    googlecloudlogk8saudit_contract.GCPK8sAuditLogListLogEntriesTaskID.Ref(),
   },
-  TargetTask: googlecloudlogk8saudit_contract.GCPK8sAuditLogCommonFieldSetReaderTaskID.Ref(),
+  TargetTask: commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref(),
  }
 }
 ```
 
 ---
 
-### Recipe B: Benchmarking a Log Ingester or Timeline Mapper Task
+### Recipe B: Benchmarking a Timeline Mapper Task
 
-To benchmark an ingester or timeline mapper:
+To benchmark a timeline mapper:
 
-1. Put the upstream log query or fieldset reading task in `RecordedTasks`.
-2. Set `TargetTask` to your ingester or mapper task reference.
+1. Put the upstream log query or ingester task in `RecordedTasks`.
+2. Set `TargetTask` to your mapper task reference.
 
 ```go
 func getTimelineMapperConfig() *taskrecord.JobTestConfig {
@@ -175,7 +175,7 @@ func getTimelineMapperConfig() *taskrecord.JobTestConfig {
    // ...
   },
   RecordedTasks: []taskid.UntypedTaskReference{
-   googlecloudlogk8saudit_contract.GCPK8sAuditLogCommonFieldSetReaderTaskID.Ref(),
+   googlecloudlogk8saudit_contract.GCPK8sAuditLogListLogEntriesTaskID.Ref(),
   },
   TargetTask: commonlogk8saudit_contract.PodTimelineMapperTaskID.Ref(),
  }

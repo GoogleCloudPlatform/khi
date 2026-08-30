@@ -16,20 +16,20 @@ package ossclusterk8s_contract
 
 import (
 	"testing"
-	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-func TestOSSK8sAuditLogFieldSetReader(t *testing.T) {
+func TestExtractOSSK8sAuditLog(t *testing.T) {
 	testCases := []struct {
 		desc  string
 		input string
-		want  *commonlogk8saudit_contract.K8sAuditLogFieldSet
+		want  commonlogk8saudit_contract.K8sAuditLogFieldSet
 	}{
 		{
 			desc: "standard operation",
@@ -49,7 +49,7 @@ objectRef:
   name: "test-pod"
 requestURI: "/api/v1/namespaces/default/pods/test-pod"
 `,
-			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				OperationID:     "test-audit-id",
 				IsFirst:         true,
 				IsLast:          true,
@@ -83,7 +83,7 @@ responseObject:
 responseStatus:
   code: 201
 `,
-			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				OperationID:     "test-audit-id-2",
 				IsFirst:         true,
 				IsLast:          true,
@@ -113,7 +113,7 @@ objectRef:
   resource: "pods"
   name: "missing-pod"
 `,
-			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				OperationID:     "error-audit-id",
 				IsFirst:         true,
 				IsLast:          true,
@@ -135,15 +135,11 @@ objectRef:
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
+			l := testlog.MustLogFromYAML(tc.input)
+			got, err := ExtractOSSK8sAuditLog(l.NodeReader)
 			if err != nil {
-				t.Fatalf("failed to parse YAML test input to log: %v", err)
+				t.Fatalf("ExtractOSSK8sAuditLog() returned unexpected error: %v", err)
 			}
-			err = l.SetFieldSetReader(&OSSK8sAuditLogFieldSetReader{})
-			if err != nil {
-				t.Errorf("failed to run OSSK8sAuditLogFieldSetReader.Read(): %v", err)
-			}
-			got := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
 
 			// Ignore Request and Response fields for now as they are NodeReaders and hard to compare directly with cmp.Diff without custom options
 			opts := []cmp.Option{
@@ -152,53 +148,38 @@ objectRef:
 			}
 
 			if diff := cmp.Diff(tc.want, got, opts...); diff != "" {
-				t.Errorf("OSSK8sAuditLogFieldSet mismatch (-want +got):\n%s", diff)
+				t.Errorf("ExtractOSSK8sAuditLog() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("MockNode returns mock data directly", func(t *testing.T) {
+		want := commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			ResourceName: "mock-pod",
+			Namespace:    "mock-ns",
+			PluralKind:   "pods",
+			APIVersion:   "core/v1",
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(want))
+		got, err := ExtractOSSK8sAuditLog(reader)
+		if err != nil {
+			t.Fatalf("ExtractOSSK8sAuditLog() returned error: %v", err)
+		}
+		opts := []cmp.Option{
+			cmpopts.IgnoreFields(commonlogk8saudit_contract.K8sAuditLogFieldSet{}, "Request", "Response"),
+			protocmp.Transform(),
+		}
+		if diff := cmp.Diff(want, got, opts...); diff != "" {
+			t.Errorf("ExtractOSSK8sAuditLog() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }
 
-func TestOSSK8sAuditLogCommonFieldSetReader(t *testing.T) {
+func TestExtractOSSK8sEvent(t *testing.T) {
 	testCases := []struct {
 		desc  string
 		input string
-		want  *log.CommonFieldSet
-	}{
-		{
-			desc: "basic fields",
-			input: `
-auditID: "test-audit-id"
-stageTimestamp: "2023-10-26T10:00:00Z"
-`,
-			want: &log.CommonFieldSet{
-				Timestamp: time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
-			if err != nil {
-				t.Fatalf("failed to parse YAML test input to log: %v", err)
-			}
-			err = l.SetFieldSetReader(&OSSK8sAuditLogCommonFieldSetReader{})
-			if err != nil {
-				t.Errorf("failed to run OSSK8sAuditLogCommonFieldSetReader.Read(): %v", err)
-			}
-			got := log.MustGetFieldSet(l, &log.CommonFieldSet{})
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("CommonFieldSet mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestOSSK8sEventFieldSetReader(t *testing.T) {
-	testCases := []struct {
-		desc  string
-		input string
-		want  *OSSK8sEventFieldSet
+		want  OSSK8sEventFieldSet
 	}{
 		{
 			desc: "standard event log",
@@ -213,7 +194,7 @@ responseObject:
   reason: "ScalingReplicaSet"
   message: "Scaled up replica set test-deployment-123 to 3"
 `,
-			want: &OSSK8sEventFieldSet{
+			want: OSSK8sEventFieldSet{
 				APIVersion:   "apps/v1",
 				ResourceKind: "deployment",
 				Namespace:    "default",
@@ -235,7 +216,7 @@ responseObject:
   reason: "Scheduled"
   message: "Successfully assigned default/test-pod to node-1"
 `,
-			want: &OSSK8sEventFieldSet{
+			want: OSSK8sEventFieldSet{
 				APIVersion:   "core/v1",
 				ResourceKind: "pod",
 				Namespace:    "default",
@@ -249,18 +230,32 @@ responseObject:
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
+			l := testlog.MustLogFromYAML(tc.input)
+			got, err := ExtractOSSK8sEvent(l.NodeReader)
 			if err != nil {
-				t.Fatalf("failed to parse YAML test input to log: %v", err)
+				t.Fatalf("ExtractOSSK8sEvent() returned error: %v", err)
 			}
-			err = l.SetFieldSetReader(&OSSK8sEventFieldSetReader{})
-			if err != nil {
-				t.Errorf("failed to run OSSK8sEventFieldSetReader.Read(): %v", err)
-			}
-			got := log.MustGetFieldSet(l, &OSSK8sEventFieldSet{})
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("OSSK8sEventFieldSet mismatch (-want +got):\n%s", diff)
+				t.Errorf("ExtractOSSK8sEvent() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("MockNode returns mock data directly", func(t *testing.T) {
+		want := OSSK8sEventFieldSet{
+			APIVersion:   "core/v1",
+			ResourceKind: "pod",
+			Namespace:    "default",
+			Resource:     "test-pod",
+			Reason:       "Scheduled",
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(want))
+		got, err := ExtractOSSK8sEvent(reader)
+		if err != nil {
+			t.Fatalf("ExtractOSSK8sEvent() returned error: %v", err)
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("ExtractOSSK8sEvent() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }

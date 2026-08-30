@@ -29,6 +29,9 @@ var TaskIDPrefix = "khi.google.com/k8s-common-auditlog/"
 // The actual implementation for this reference must provide log array with the K8sAuditLogFieldSet.
 var K8sAuditLogProviderRef = taskid.NewTaskReference[[]*log.Log](TaskIDPrefix + "k8s-auditlog-provider")
 
+// K8sAuditLogExtractorRef is the task reference for the task providing K8sAuditLogExtractor.
+var K8sAuditLogExtractorRef = taskid.NewTaskReference[K8sAuditLogExtractor](TaskIDPrefix + "k8s-auditlog-extractor")
+
 // K8sAuditLogParserTailRef is the task reference for the task to depend all enabled k8s audit log parsing sub tasks.
 var K8sAuditLogParserTailRef = taskid.NewTaskReference[struct{}](TaskIDPrefix + "k8s-auditlog-parser-tail")
 

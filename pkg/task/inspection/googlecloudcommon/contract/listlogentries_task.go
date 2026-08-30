@@ -123,7 +123,11 @@ func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *lo
 					slog.WarnContext(ctx, fmt.Sprintf("failed to convert loggingpb.LogEntry (insertId: %s, timestamp: %v) to structured.Node %v", l.InsertId, l.Timestamp, err))
 					continue
 				}
-				khiLog := log.NewLog(structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)))
+				ts := time.Time{}
+				if l.Timestamp != nil {
+					ts = l.Timestamp.AsTime()
+				}
+				khiLog := log.NewLogWithTimestamp(structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)), ts)
 				*dest = append(*dest, khiLog)
 			}
 		}
@@ -201,11 +205,6 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 						return nil, err
 					}
 				}
-			}
-
-			// GCPCommonFieldSet is always required for any logs retrieved from Cloud Logging.
-			for _, l := range allLogs {
-				l.SetFieldSetReader(&gcpqueryutil.GCPCommonFieldSetReader{})
 			}
 
 			tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)

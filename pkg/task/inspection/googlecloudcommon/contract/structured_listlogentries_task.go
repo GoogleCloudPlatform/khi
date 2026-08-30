@@ -282,10 +282,6 @@ func fetchLogsForStructuredQueries(
 		}
 	}
 
-	for _, l := range allLogs {
-		l.SetFieldSetReader(&gcpqueryutil.GCPCommonFieldSetReader{})
-	}
-
 	tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
 	if tracingActive {
 		trace.SpanFromContext(ctx).SetAttributes(

@@ -35,17 +35,11 @@ var InputControlPlaneComponentNameFilterTaskID = taskid.NewDefaultImplementation
 // ListLogEntriesTaskID is the task id for the task that queries controlplane logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "query")
 
-// CommonFieldSetReaderTaskID is the task id to read the common fieldset of controlplane logs for processing the log in the later task.
-var CommonFieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "fieldset-reader-common")
-
 // LogIngesterTaskID is the task ID to finalize the logs to be included in the final output.
 var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "log-ingester")
 
 // SchedulerLogFilterTaskID is the task ID for filtering scheduler logs.
 var SchedulerLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "scheduler-log-filter")
-
-// SchedulerLogFieldSetReaderTaskID is the task ID for reading field sets specific to scheduler logs.
-var SchedulerLogFieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "fieldset-reader-scheduler")
 
 // SchedulerLogGrouperTaskID is the task ID for grouping scheduler logs.
 var SchedulerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](K8sControlPlaneLogTaskIDPrefix + "grouper-scheduler")
@@ -56,9 +50,6 @@ var SchedulerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspe
 // ControllerManagerLogFilterTaskID is the task ID for filtering controller manager logs.
 var ControllerManagerLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "controller-manager-log-filter")
 
-// ControllerManagerLogFieldSetReaderTaskID is the task ID for reading field sets specific to controller manager logs.
-var ControllerManagerLogFieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "fieldset-reader-controller-manager")
-
 // ControllerManagerLogGrouperTaskID is the task ID for grouping controller manager logs.
 var ControllerManagerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](K8sControlPlaneLogTaskIDPrefix + "grouper-controller-manager")
 
@@ -67,9 +58,6 @@ var ControllerManagerLogToTimelineMapperTaskID = taskid.NewDefaultImplementation
 
 // OtherLogFilterTaskID is the task ID for filtering logs from other control plane components.
 var OtherLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "other-log-filter")
-
-// OtherLogFieldSetReaderTaskID is the task ID for reading field sets specific to other control plane component logs.
-var OtherLogFieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "fieldset-reader-other")
 
 // OtherLogGrouperTaskID is the task ID for grouping logs from other control plane components.
 var OtherLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](K8sControlPlaneLogTaskIDPrefix + "grouper-other")

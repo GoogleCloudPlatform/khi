@@ -37,11 +37,36 @@ func kindToKLogFieldPair(apiVersion string, kind string, klogField string, isNam
 	}
 }
 
+var defaultControllerManagerExtractor = &googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentExtractor{
+	WellKnownSourceLocationToControllerMap: map[string]string{
+		"namespace_controller.go":      "namespace-controller",
+		"resource_quota_controller.go": "resourcequota-controller",
+		"requestheader_controller.go":  "requestheader-controller",
+		"pv_protection_controller.go":  "persistentvolume-protection-controller",
+	},
+	WellKnownKindToKLogFieldPairs: []*googlecloudlogk8scontrolplane_contract.KindToKLogFieldPairData{
+		kindToKLogFieldPair("apps/v1", "deployment", "deployment", true),
+		kindToKLogFieldPair("apps/v1", "replicaset", "replicaSet", true),
+		kindToKLogFieldPair("apps/v1", "statefulset", "statefulSet", true),
+		kindToKLogFieldPair("apps/v1", "daemonset", "daemonSet", true),
+		kindToKLogFieldPair("batch/v1", "cronjob", "cronjob", true),
+		kindToKLogFieldPair("batch/v1", "job", "job", true),
+		kindToKLogFieldPair("policy/v1", "poddisruptionbudget", "podDisruptionBudget", true),
+		kindToKLogFieldPair("certificates.k8s.io/v1", "certificatesigningrequest", "csr", false),
+		kindToKLogFieldPair("core/v1", "persistentvolumeclaim", "PVC", true),
+		kindToKLogFieldPair("core/v1", "persistentvolume", "volumeName", false),
+		kindToKLogFieldPair("core/v1", "service", "service", true),
+		kindToKLogFieldPair("core/v1", "node", "node", false),
+		kindToKLogFieldPair("core/v1", "pod", "pod", true),
+		kindToKLogFieldPair("core/v1", "namespace", "namespace", false),
+	},
+}
+
 var ControllerManagerFilterTask = inspectiontaskbase.NewLogFilterTask(
 	googlecloudlogk8scontrolplane_contract.ControllerManagerLogFilterTaskID,
-	googlecloudlogk8scontrolplane_contract.CommonFieldSetReaderTaskID.Ref(),
+	googlecloudlogk8scontrolplane_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
-		componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
+		componentFieldSet, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneComponent(l.NodeReader)
 		if err != nil {
 			return false
 		}
@@ -49,40 +74,9 @@ var ControllerManagerFilterTask = inspectiontaskbase.NewLogFilterTask(
 	},
 )
 
-var ControllerManagerLogFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8scontrolplane_contract.ControllerManagerLogFieldSetReaderTaskID,
-	googlecloudlogk8scontrolplane_contract.ControllerManagerLogFilterTaskID.Ref(),
-	[]log.FieldSetReader{
-		&googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSetReader{},
-		&googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentFieldSetReader{
-			WellKnownSourceLocationToControllerMap: map[string]string{
-				"namespace_controller.go":      "namespace-controller",
-				"resource_quota_controller.go": "resourcequota-controller",
-				"requestheader_controller.go":  "requestheader-controller",
-				"pv_protection_controller.go":  "persistentvolume-protection-controller",
-			},
-			WellKnownKindToKLogFieldPairs: []*googlecloudlogk8scontrolplane_contract.KindToKLogFieldPairData{
-				kindToKLogFieldPair("apps/v1", "deployment", "deployment", true),
-				kindToKLogFieldPair("apps/v1", "replicaset", "replicaSet", true),
-				kindToKLogFieldPair("apps/v1", "statefulset", "statefulSet", true),
-				kindToKLogFieldPair("apps/v1", "daemonset", "daemonSet", true),
-				kindToKLogFieldPair("batch/v1", "cronjob", "cronjob", true),
-				kindToKLogFieldPair("batch/v1", "job", "job", true),
-				kindToKLogFieldPair("policy/v1", "poddisruptionbudget", "podDisruptionBudget", true),
-				kindToKLogFieldPair("certificates.k8s.io/v1", "certificatesigningrequest", "csr", false),
-				kindToKLogFieldPair("core/v1", "persistentvolumeclaim", "PVC", true),
-				kindToKLogFieldPair("core/v1", "persistentvolume", "volumeName", false),
-				kindToKLogFieldPair("core/v1", "service", "service", true),
-				kindToKLogFieldPair("core/v1", "node", "node", false),
-				kindToKLogFieldPair("core/v1", "pod", "pod", true),
-				kindToKLogFieldPair("core/v1", "namespace", "namespace", false),
-			},
-		},
-	},
-)
-
 var ControllerManagerGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudlogk8scontrolplane_contract.ControllerManagerLogGrouperTaskID,
-	googlecloudlogk8scontrolplane_contract.ControllerManagerLogFieldSetReaderTaskID.Ref(),
+	googlecloudlogk8scontrolplane_contract.ControllerManagerLogFilterTaskID.Ref(),
 	func(ctx context.Context, log *log.Log) string {
 		return "" // No grouping needed
 	},
@@ -116,21 +110,21 @@ func (o *ControllerManagerTimelineMapper) LogIngesterTask() taskid.TaskReference
 // ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
-	componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
+	componentFieldSet, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneComponent(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
 	}
-	commonMainMessage, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSet{})
+	commonMainMessage, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneCommonMessage(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
 	}
-	controllerManagerFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentFieldSet{})
+	controllerManagerFieldSet, err := defaultControllerManagerExtractor.Extract(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
-	resources := patternfinder.FindAllWithStarterRunes(commonMainMessage.Message, finder, false, o.uidPrefixTokenCandidates...)
+	resources := patternfinder.FindAllWithStarterRunes(commonMainMessage, finder, false, o.uidPrefixTokenCandidates...)
 	writtenResourcePaths := map[uint32]struct{}{}
 
 	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, componentFieldSet.ProjectID)

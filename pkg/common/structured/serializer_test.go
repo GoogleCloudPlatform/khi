@@ -109,7 +109,7 @@ bar:
 	for _, tc := range testCase {
 		t.Run(tc.Name, func(t *testing.T) {
 			reader := NewNodeReader(tc.Input)
-			serialized, err := reader.Serialize("", &YAMLNodeSerializer{})
+			serialized, err := reader.Serialize(EmptyFieldPath, &YAMLNodeSerializer{})
 			if err != nil {
 				t.Errorf("failed to serialize the given node structure: %s", err.Error())
 			}
@@ -198,7 +198,7 @@ func TestJSONNodeSerializer(t *testing.T) {
 	for _, tc := range testCase {
 		t.Run(tc.Name, func(t *testing.T) {
 			reader := NewNodeReader(tc.Input)
-			serialized, err := reader.Serialize("", &JSONNodeSerializer{})
+			serialized, err := reader.Serialize(EmptyFieldPath, &JSONNodeSerializer{})
 			if err != nil {
 				t.Errorf("failed to serialize the given node structure: %s", err.Error())
 			}

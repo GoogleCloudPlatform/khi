@@ -82,10 +82,6 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 	if tracker == nil {
 		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
 	}
-	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err != nil {
-		return nil, tracker, err
-	}
 	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
@@ -111,7 +107,7 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 	shortMethodName := methodNameParts[len(methodNameParts)-1]
 
 	operationTimeline := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetTimeline, shortMethodName, auditFieldSet.OperationID)
-	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, &auditFieldSet, commonFieldSet, shortMethodName, resourceFieldSet.IsCluster())
+	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, &auditFieldSet, l.Timestamp, shortMethodName, resourceFieldSet.IsCluster())
 
 	return cs, tracker, nil
 }

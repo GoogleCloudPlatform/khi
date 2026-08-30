@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -39,8 +38,8 @@ func TestEndpointLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 		if a == nil || b == nil {
 			return a == b
 		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize("", &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize("", &structured.YAMLNodeSerializer{})
+		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 		if errA != nil || errB != nil {
 			return false
 		}
@@ -599,9 +598,7 @@ endpoints:
 			}
 
 			l := testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: timestamp,
-				},
+				timestamp,
 				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					Verb:        tc.verb,
 					Principal:   "user-1",

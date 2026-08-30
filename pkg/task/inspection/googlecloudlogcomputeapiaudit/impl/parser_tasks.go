@@ -81,10 +81,6 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 	if tracker == nil {
 		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
 	}
-	commonLogFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err != nil {
-		return nil, tracker, err
-	}
 	audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
@@ -106,7 +102,7 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
-	tracker.ProcessOperationLog(ctx, cs, targetPath, &audit, commonLogFieldSet.Timestamp)
+	tracker.ProcessOperationLog(ctx, cs, targetPath, &audit, l.Timestamp)
 
 	return cs, tracker, nil
 }

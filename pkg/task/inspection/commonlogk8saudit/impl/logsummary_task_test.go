@@ -37,7 +37,7 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "successful info log ingestion",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{Timestamp: testTime},
+				testTime,
 				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					APIVersion:   "core/v1",
 					PluralKind:   "pods",
@@ -59,7 +59,7 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "error log ingestion",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{Timestamp: testTime},
+				testTime,
 				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					APIVersion:    "core/v1",
 					PluralKind:    "pods",
@@ -83,7 +83,7 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "dry run info log ingestion",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{Timestamp: testTime},
+				testTime,
 				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					APIVersion:   "core/v1",
 					PluralKind:   "pods",
@@ -106,7 +106,7 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "dry run error log ingestion",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{Timestamp: testTime},
+				testTime,
 				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					APIVersion:    "core/v1",
 					PluralKind:    "pods",

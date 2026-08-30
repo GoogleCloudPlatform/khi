@@ -23,6 +23,7 @@ import (
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestK8sControlPlaneLogIngester_ProcessLog(t *testing.T) {
@@ -35,14 +36,12 @@ func TestK8sControlPlaneLogIngester_ProcessLog(t *testing.T) {
 	}{
 		{
 			name: "successful control plane log ingestion with all fields",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSet{
+				googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSet{
 					Message: "scheduler starting",
 				},
 			),
@@ -56,10 +55,8 @@ func TestK8sControlPlaneLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "successful control plane log ingestion with missing optional message and severity",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+			input: testlog.NewMockLog(
+				testTime,
 			),
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).

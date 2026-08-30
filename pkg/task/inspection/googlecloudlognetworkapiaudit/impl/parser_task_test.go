@@ -68,9 +68,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "successful audit log ingestion starting",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
@@ -91,9 +89,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "successful audit log ingestion ending",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
@@ -143,9 +139,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name: "operation started revision is correctly created",
 			inputLog: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
@@ -192,9 +186,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name: "operation finished revision is correctly created",
 			inputLog: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",

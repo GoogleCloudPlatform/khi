@@ -26,9 +26,20 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+// GCPK8sAuditLogExtractorTask provides K8sAuditLogExtractor for GCP audit logs.
+var GCPK8sAuditLogExtractorTask = coretask.NewTask(
+	googlecloudlogk8saudit_contract.GCPK8sAuditLogExtractorTaskID,
+	[]taskid.UntypedTaskReference{},
+	func(ctx context.Context) (commonlogk8saudit_contract.K8sAuditLogExtractor, error) {
+		return googlecloudlogk8saudit_contract.ExtractGCPK8sAuditLog, nil
+	},
+	coretask.NewTaskResultRetentionLabel(true),
+)
+
 var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudlogk8saudit_contract.GCPK8sAuditLogParserTailTaskID,
 	[]taskid.UntypedTaskReference{
+		commonlogk8saudit_contract.K8sAuditLogExtractorRef,
 		commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),

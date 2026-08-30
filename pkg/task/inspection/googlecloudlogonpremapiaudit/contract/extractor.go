@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 var (
@@ -46,11 +45,6 @@ type OnPremAPIAuditResourceFieldSet struct {
 	NodepoolName string
 }
 
-// Kind implements log.FieldSet.
-func (m *OnPremAPIAuditResourceFieldSet) Kind() string {
-	return "onprem_audit"
-}
-
 // IsCluster returns true if the log entry is related to a cluster operation (i.e., no nodepool name is present).
 func (g *OnPremAPIAuditResourceFieldSet) IsCluster() bool {
 	return g.NodepoolName == ""
@@ -60,8 +54,6 @@ func (g *OnPremAPIAuditResourceFieldSet) IsCluster() bool {
 func (g *OnPremAPIAuditResourceFieldSet) IsNodepool() bool {
 	return g.NodepoolName != ""
 }
-
-var _ log.FieldSet = (*OnPremAPIAuditResourceFieldSet)(nil)
 
 // ExtractOnPremAPIAuditResource extracts OnPrem resource fields from a NodeReader.
 func ExtractOnPremAPIAuditResource(reader *structured.NodeReader) (OnPremAPIAuditResourceFieldSet, error) {
@@ -75,11 +67,11 @@ func ExtractOnPremAPIAuditResource(reader *structured.NodeReader) (OnPremAPIAudi
 		ClusterName:  "unknown",
 	}
 
-	if projectID, err := reader.ReadStringByPath(pathProjectID); err == nil && projectID != "" {
+	if projectID, err := reader.ReadString(pathProjectID); err == nil && projectID != "" {
 		result.Project = projectID
 	}
 
-	resourceName, err := reader.ReadStringByPath(pathResourceName)
+	resourceName, err := reader.ReadString(pathResourceName)
 	if err != nil {
 		return result, err
 	}
@@ -99,22 +91,3 @@ func ExtractOnPremAPIAuditResource(reader *structured.NodeReader) (OnPremAPIAudi
 
 	return result, nil
 }
-
-// OnPremAPIAuditResourceFieldSetReader reads OnPremAPIAuditResourceFieldSet from a log entry.
-type OnPremAPIAuditResourceFieldSetReader struct{}
-
-// FieldSetKind implements log.FieldSetReader.
-func (m *OnPremAPIAuditResourceFieldSetReader) FieldSetKind() string {
-	return (&OnPremAPIAuditResourceFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (m *OnPremAPIAuditResourceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	result, err := ExtractOnPremAPIAuditResource(reader)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-var _ log.FieldSetReader = (*OnPremAPIAuditResourceFieldSetReader)(nil)

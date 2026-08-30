@@ -32,16 +32,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// FieldSetReaderTask reads autoscaler fields from the raw logs.
-var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudloggkeautoscaler_contract.FieldSetReaderTaskID, googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
-	&googlecloudloggkeautoscaler_contract.AutoscalerLogFieldSetReader{},
-})
-
 type autoscalerLogIngester struct{}
 
 // RawLogTask returns the task that provides raw logs for ingestion.
 func (i *autoscalerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudloggkeautoscaler_contract.FieldSetReaderTaskID.Ref()
+	return googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID.Ref()
 }
 
 // Dependencies returns additional dependencies of the ingester.
@@ -57,12 +52,9 @@ func (i *autoscalerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*kh
 	}
 
 	cs.SetLogType(googlecloudloggkeautoscaler_contract.LogTypeAutoscaler)
+	cs.SetTimestamp(l.Timestamp)
 
-	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonFS.Timestamp)
-	}
-
-	autoscalerFieldSet, err := log.GetFieldSet(l, &googlecloudloggkeautoscaler_contract.AutoscalerLogFieldSet{})
+	autoscalerFieldSet, err := googlecloudloggkeautoscaler_contract.ExtractAutoscalerLog(l.NodeReader)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +83,7 @@ var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 )
 
 // LogGrouperTask groups logs (no grouping needed for autoscaler logs).
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeautoscaler_contract.LogGrouperTaskID, googlecloudloggkeautoscaler_contract.FieldSetReaderTaskID.Ref(),
+var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeautoscaler_contract.LogGrouperTaskID, googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
 		return "" // No grouping
 	},
@@ -118,7 +110,7 @@ func (m *autoscalerTimelineMapper) GroupedLogTask() taskid.TaskReference[inspect
 
 // ProcessLogByGroup processes a single log and registers its timeline event/revision mutations.
 func (m *autoscalerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	autoscalerFieldSet, err := log.GetFieldSet(l, &googlecloudloggkeautoscaler_contract.AutoscalerLogFieldSet{})
+	autoscalerFieldSet, err := googlecloudloggkeautoscaler_contract.ExtractAutoscalerLog(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
 	}
@@ -334,10 +326,6 @@ func mapNoDecision(ctx context.Context, clusterName string, clusterTimeline *khi
 }
 
 func mapResultInfo(ctx context.Context, clusterTimeline *khifilev6.TimelinePath, resultInfo *googlecloudloggkeautoscaler_contract.ResultInfoLog, cs *khifilev6.TimelineChangeSet) error {
-	commonFieldSet, err := log.GetFieldSet(cs.Log, &log.CommonFieldSet{})
-	if err != nil {
-		return err
-	}
 	revisionState := googlecloudloggkeautoscaler_contract.RevisionAutoscalerNoError
 	if resultInfoHasErrors(resultInfo) {
 		revisionState = googlecloudloggkeautoscaler_contract.RevisionAutoscalerHasErrors
@@ -355,7 +343,7 @@ func mapResultInfo(ctx context.Context, clusterTimeline *khifilev6.TimelinePath,
 
 	autoscalerPath := googlecloudloggkeautoscaler_contract.MustAutoscalerTimeline(ctx, clusterTimeline)
 	cs.AddRevision(autoscalerPath, &khifilev6.StagingRevision{
-		ChangedTime:  commonFieldSet.Timestamp,
+		ChangedTime:  cs.Log.Timestamp,
 		StateType:    revisionState,
 		Principal:    "cluster-autoscaler",
 		ResourceBody: bodyNode,

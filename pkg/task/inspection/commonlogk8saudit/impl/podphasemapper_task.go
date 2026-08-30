@@ -154,12 +154,11 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Conte
 		prevGroupData = newPodPhaseTaskState()
 	}
 
-	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return prevGroupData, nil
 	}
-	eventTime := commonLogFieldSet.Timestamp
+	eventTime := event.Log.Timestamp
 
 	switch passIndex {
 	// The first pass to collect UIDs & creationTimestamps from Pods.
@@ -229,12 +228,11 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Conte
 func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *podPhaseTaskState) (*khifilev6.TimelineChangeSet, *podPhaseTaskState, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
-	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return cs, prevGroupData, nil
 	}
-	eventTime := commonLogFieldSet.Timestamp
+	eventTime := event.Log.Timestamp
 
 	var targetBodyReader *structured.NodeReader
 	if reader, ok := event.GetLastBodyReader("pod"); ok {
@@ -293,7 +291,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context,
 				bodyNode = targetBodyReader.Node
 			}
 			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-				ChangedTime:  commonLogFieldSet.Timestamp,
+				ChangedTime:  eventTime,
 				ResourceBody: bodyNode,
 				Principal:    k8sFieldSet.Principal,
 				VerbType:     k8sFieldSet.Verb,
@@ -314,7 +312,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context,
 				bodyNode = targetBodyReader.Node
 			}
 			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-				ChangedTime:  commonLogFieldSet.Timestamp,
+				ChangedTime:  eventTime,
 				ResourceBody: bodyNode,
 				Principal:    k8sFieldSet.Principal,
 				VerbType:     k8sFieldSet.Verb,

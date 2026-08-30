@@ -31,63 +31,45 @@ func TestLogSorterByTimeTask(t *testing.T) {
 	testCases := []struct {
 		name string
 		mode inspectioncore_contract.InspectionTaskModeType
-		logs []*log.CommonFieldSet
-		want []*log.CommonFieldSet
+		logs []time.Time
+		want []time.Time
 	}{
 		{
 			name: "should return an empty list for empty log input on task run mode",
 			mode: inspectioncore_contract.TaskModeRun,
-			logs: []*log.CommonFieldSet{},
-			want: make([]*log.CommonFieldSet, 0),
+			logs: []time.Time{},
+			want: make([]time.Time, 0),
 		},
 		{
 			name: "should return an empty list for empty log input on task dry run mode",
 			mode: inspectioncore_contract.TaskModeDryRun,
-			logs: []*log.CommonFieldSet{
-				{
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
-				},
-				{
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
-				},
-				{
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
-				},
+			logs: []time.Time{
+				time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
+				time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
+				time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
 			},
-			want: make([]*log.CommonFieldSet, 0),
+			want: make([]time.Time, 0),
 		},
 		{
 			name: "should return sorted logs on task run mode",
 			mode: inspectioncore_contract.TaskModeRun,
-			logs: []*log.CommonFieldSet{
-				{
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
-				},
-				{
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
-				},
-				{
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
-				},
+			logs: []time.Time{
+				time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
+				time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
+				time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
 			},
-			want: []*log.CommonFieldSet{
-				{
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
-				},
-				{
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
-				},
-				{
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
-				},
+			want: []time.Time{
+				time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
+				time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
+				time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
 			},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			logs := []*log.Log{}
-			for _, commonFieldSet := range tc.logs {
-				l := log.NewLogWithFieldSetsForTest(commonFieldSet)
+			for _, ts := range tc.logs {
+				l := log.NewLogWithTimestamp(nil, ts)
 				logs = append(logs, l)
 			}
 
@@ -101,10 +83,9 @@ func TestLogSorterByTimeTask(t *testing.T) {
 				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
 			}
 
-			got := []*log.CommonFieldSet{}
+			got := []time.Time{}
 			for _, l := range sortedLogs {
-				fieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
-				got = append(got, fieldSet)
+				got = append(got, l.Timestamp)
 			}
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {

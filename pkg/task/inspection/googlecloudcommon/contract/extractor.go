@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -83,11 +82,6 @@ type GCPAuditLogFieldSet struct {
 	Response       *structured.NodeReader
 }
 
-// Kind implements log.FieldSet.
-func (g *GCPAuditLogFieldSet) Kind() string {
-	return "gcp_operation"
-}
-
 // Starting returns true when the operation is long running operation and the log entry is for the starting timing.
 func (g *GCPAuditLogFieldSet) Starting() bool {
 	return g.OperationFirst && !g.OperationLast
@@ -127,7 +121,7 @@ func (g *GCPAuditLogFieldSet) GuessRevisionVerb() *pb.Verb {
 // RequestString returns the request body as a YAML string.
 func (g *GCPAuditLogFieldSet) RequestString() (string, error) {
 	if g.Request != nil {
-		requestBodyRaw, err := g.Request.Serialize("", &structured.YAMLNodeSerializer{})
+		requestBodyRaw, err := g.Request.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 		if err != nil {
 			return "", err
 		}
@@ -139,7 +133,7 @@ func (g *GCPAuditLogFieldSet) RequestString() (string, error) {
 // ResponseString returns the response body as a YAML string.
 func (g *GCPAuditLogFieldSet) ResponseString() (string, error) {
 	if g.Response != nil {
-		responseBodyRaw, err := g.Response.Serialize("", &structured.YAMLNodeSerializer{})
+		responseBodyRaw, err := g.Response.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 		if err != nil {
 			return "", err
 		}
@@ -148,49 +142,28 @@ func (g *GCPAuditLogFieldSet) ResponseString() (string, error) {
 	return "", fmt.Errorf("protoPayload.response field is absent: %w", khierrors.ErrNotFound)
 }
 
-var _ log.FieldSet = (*GCPAuditLogFieldSet)(nil)
-
 // ExtractGCPAuditLog extracts GCP Audit Log fields from a NodeReader.
 func ExtractGCPAuditLog(reader *structured.NodeReader) (GCPAuditLogFieldSet, error) {
 	if mock, ok := structured.GetMock[GCPAuditLogFieldSet](reader); ok {
 		return mock, nil
 	}
 	var result GCPAuditLogFieldSet
-	result.ProjectID = reader.ReadStringOrDefaultByPath(pathProjectID, "unknown")
-	result.OperationID = reader.ReadStringOrDefaultByPath(pathOperationID, "")
-	result.OperationFirst = reader.ReadBoolOrDefaultByPath(pathOperationFirst, false)
-	result.OperationLast = reader.ReadBoolOrDefaultByPath(pathOperationLast, false)
-	result.MethodName = reader.ReadStringOrDefaultByPath(pathMethodName, "unknown")
-	result.ResourceName = reader.ReadStringOrDefaultByPath(pathResourceName, "unknown")
-	result.PrincipalEmail = reader.ReadStringOrDefaultByPath(pathPrincipalEmail, "")
+	result.ProjectID = reader.ReadStringOrDefault(pathProjectID, "unknown")
+	result.OperationID = reader.ReadStringOrDefault(pathOperationID, "")
+	result.OperationFirst = reader.ReadBoolOrDefault(pathOperationFirst, false)
+	result.OperationLast = reader.ReadBoolOrDefault(pathOperationLast, false)
+	result.MethodName = reader.ReadStringOrDefault(pathMethodName, "unknown")
+	result.ResourceName = reader.ReadStringOrDefault(pathResourceName, "unknown")
+	result.PrincipalEmail = reader.ReadStringOrDefault(pathPrincipalEmail, "")
 	if result.PrincipalEmail == "" {
-		result.PrincipalEmail = reader.ReadStringOrDefaultByPath(pathPrincipalSubject, "unknown")
+		result.PrincipalEmail = reader.ReadStringOrDefault(pathPrincipalSubject, "unknown")
 	}
-	result.Status = reader.ReadIntOrDefaultByPath(pathStatusCode, -1)
-	result.StatusMessage = reader.ReadStringOrDefaultByPath(pathStatusMessage, "")
-	result.Request, _ = reader.GetReaderByPath(pathRequest)
-	result.Response, _ = reader.GetReaderByPath(pathResponse)
+	result.Status = reader.ReadIntOrDefault(pathStatusCode, -1)
+	result.StatusMessage = reader.ReadStringOrDefault(pathStatusMessage, "")
+	result.Request, _ = reader.GetReader(pathRequest)
+	result.Response, _ = reader.GetReader(pathResponse)
 	return result, nil
 }
-
-// GCPOperationAuditLogFieldSetReader parses GCPAuditLogFieldSet from logs.
-type GCPOperationAuditLogFieldSetReader struct{}
-
-// FieldSetKind implements log.FieldSetReader.
-func (g *GCPOperationAuditLogFieldSetReader) FieldSetKind() string {
-	return (&GCPAuditLogFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (g *GCPOperationAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	result, err := ExtractGCPAuditLog(reader)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-var _ log.FieldSetReader = (*GCPOperationAuditLogFieldSetReader)(nil)
 
 // GCPAccessLogFieldSet represents HTTP access log fields from Cloud Logging.
 type GCPAccessLogFieldSet struct {
@@ -207,31 +180,24 @@ type GCPAccessLogFieldSet struct {
 	Protocol     string
 }
 
-// Kind implements log.FieldSet.
-func (g *GCPAccessLogFieldSet) Kind() string {
-	return "gcp_accesslog"
-}
-
-var _ log.FieldSet = (*GCPAccessLogFieldSet)(nil)
-
 // ExtractGCPAccessLog extracts GCP Access Log fields from a NodeReader.
 func ExtractGCPAccessLog(reader *structured.NodeReader) (GCPAccessLogFieldSet, error) {
 	if mock, ok := structured.GetMock[GCPAccessLogFieldSet](reader); ok {
 		return mock, nil
 	}
 	var result GCPAccessLogFieldSet
-	result.Method = reader.ReadStringOrDefaultByPath(pathRequestMethod, "")
-	result.RequestURL = reader.ReadStringOrDefaultByPath(pathRequestURL, "")
-	result.Status = reader.ReadIntOrDefaultByPath(pathRequestStatus, 0)
-	result.UserAgent = reader.ReadStringOrDefaultByPath(pathRequestUserAgent, "")
-	result.RemoteIP = reader.ReadStringOrDefaultByPath(pathRequestRemoteIP, "")
-	result.ServerIP = reader.ReadStringOrDefaultByPath(pathRequestServerIP, "")
-	result.Referer = reader.ReadStringOrDefaultByPath(pathRequestReferer, "")
-	result.Latency = reader.ReadStringOrDefaultByPath(pathRequestLatency, "")
-	result.Protocol = reader.ReadStringOrDefaultByPath(pathRequestProtocol, "")
+	result.Method = reader.ReadStringOrDefault(pathRequestMethod, "")
+	result.RequestURL = reader.ReadStringOrDefault(pathRequestURL, "")
+	result.Status = reader.ReadIntOrDefault(pathRequestStatus, 0)
+	result.UserAgent = reader.ReadStringOrDefault(pathRequestUserAgent, "")
+	result.RemoteIP = reader.ReadStringOrDefault(pathRequestRemoteIP, "")
+	result.ServerIP = reader.ReadStringOrDefault(pathRequestServerIP, "")
+	result.Referer = reader.ReadStringOrDefault(pathRequestReferer, "")
+	result.Latency = reader.ReadStringOrDefault(pathRequestLatency, "")
+	result.Protocol = reader.ReadStringOrDefault(pathRequestProtocol, "")
 
-	requestSizeStr := reader.ReadStringOrDefaultByPath(pathRequestSize, "")
-	responseSizeStr := reader.ReadStringOrDefaultByPath(pathResponseSize, "")
+	requestSizeStr := reader.ReadStringOrDefault(pathRequestSize, "")
+	responseSizeStr := reader.ReadStringOrDefault(pathResponseSize, "")
 	if requestSizeStr != "" {
 		if size, err := strconv.ParseInt(requestSizeStr, 10, 64); err == nil {
 			result.RequestSize = size
@@ -246,25 +212,6 @@ func ExtractGCPAccessLog(reader *structured.NodeReader) (GCPAccessLogFieldSet, e
 	return result, nil
 }
 
-// GCPAccessLogFieldSetReader parses GCPAccessLogFieldSet from logs.
-type GCPAccessLogFieldSetReader struct{}
-
-// FieldSetKind implements log.FieldSetReader.
-func (g *GCPAccessLogFieldSetReader) FieldSetKind() string {
-	return (&GCPAccessLogFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (g *GCPAccessLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	result, err := ExtractGCPAccessLog(reader)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-var _ log.FieldSetReader = (*GCPAccessLogFieldSetReader)(nil)
-
 // ExtractGCPSeverity extracts severity from a GCP Cloud Logging entry.
 func ExtractGCPSeverity(reader *structured.NodeReader) (*pb.Severity, error) {
 	if mock, ok := structured.GetMock[inspectioncore_contract.DefaultSeverityFieldSet](reader); ok {
@@ -273,42 +220,14 @@ func ExtractGCPSeverity(reader *structured.NodeReader) (*pb.Severity, error) {
 	if mock, ok := structured.GetMock[*pb.Severity](reader); ok {
 		return mock, nil
 	}
-	severityStr := reader.ReadStringOrDefaultByPath(pathSeverity, "")
+	severityStr := reader.ReadStringOrDefault(pathSeverity, "")
 	return ParseGCPSeverity(severityStr), nil
 }
-
-// GCPDefaultSeverityFieldSetReader reads and parses the severity field from a GCP Cloud Logging entry.
-type GCPDefaultSeverityFieldSetReader struct{}
-
-// FieldSetKind implements log.FieldSetReader.
-func (g *GCPDefaultSeverityFieldSetReader) FieldSetKind() string {
-	return (&inspectioncore_contract.DefaultSeverityFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (g *GCPDefaultSeverityFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	severity, err := ExtractGCPSeverity(reader)
-	if err != nil {
-		return nil, err
-	}
-	return &inspectioncore_contract.DefaultSeverityFieldSet{
-		Severity: severity,
-	}, nil
-}
-
-var _ log.FieldSetReader = (*GCPDefaultSeverityFieldSetReader)(nil)
 
 // GCPMainMessageFieldSet represents the main message parsed from a GCP log.
 type GCPMainMessageFieldSet struct {
 	MainMessage string
 }
-
-// Kind implements log.FieldSet.
-func (d *GCPMainMessageFieldSet) Kind() string {
-	return "main_message"
-}
-
-var _ log.FieldSet = (*GCPMainMessageFieldSet)(nil)
 
 // ExtractGCPMainMessage reads main message from the content of log stored on Cloud Logging.
 // It treats fields as its main message in order: protoPayload > textPayload > jsonPayload.**** > jsonPayload > labels.
@@ -316,27 +235,27 @@ func ExtractGCPMainMessage(reader *structured.NodeReader) (string, error) {
 	if mock, ok := structured.GetMock[GCPMainMessageFieldSet](reader); ok {
 		return mock.MainMessage, nil
 	}
-	if reader.HasByPath(pathProtoPayload) {
+	if reader.Has(pathProtoPayload) {
 		return "", nil
 	}
-	if reader.HasByPath(pathTextPayload) {
-		return reader.ReadStringOrDefaultByPath(pathTextPayload, ""), nil
+	if reader.Has(pathTextPayload) {
+		return reader.ReadStringOrDefault(pathTextPayload, ""), nil
 	}
-	if reader.HasByPath(pathJSONPayload) {
+	if reader.Has(pathJSONPayload) {
 		for _, pathMsg := range pathJSONPayloadMessageFieldPaths {
-			jsonPayloadMessage, err := reader.ReadStringByPath(pathMsg)
+			jsonPayloadMessage, err := reader.ReadString(pathMsg)
 			if err == nil {
 				return jsonPayloadMessage, nil
 			}
 		}
-		serialized, err := reader.Serialize("jsonPayload", &structured.JSONNodeSerializer{})
+		serialized, err := reader.Serialize(pathJSONPayload, &structured.JSONNodeSerializer{})
 		if err != nil {
 			return "", err
 		}
 		return string(serialized), nil
 	}
-	if reader.HasByPath(pathLabels) {
-		serialized, err := reader.Serialize("labels", &structured.JSONNodeSerializer{})
+	if reader.Has(pathLabels) {
+		serialized, err := reader.Serialize(pathLabels, &structured.JSONNodeSerializer{})
 		if err != nil {
 			return "", err
 		}
@@ -344,22 +263,3 @@ func ExtractGCPMainMessage(reader *structured.NodeReader) (string, error) {
 	}
 	return "", nil
 }
-
-// GCPMainMessageFieldSetReader reads main message from the content of log stored on Cloud Logging.
-type GCPMainMessageFieldSetReader struct{}
-
-// FieldSetKind implements log.FieldSetReader.
-func (g *GCPMainMessageFieldSetReader) FieldSetKind() string {
-	return (&GCPMainMessageFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (g *GCPMainMessageFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	msg, err := ExtractGCPMainMessage(reader)
-	if err != nil {
-		return nil, err
-	}
-	return &GCPMainMessageFieldSet{MainMessage: msg}, nil
-}
-
-var _ log.FieldSetReader = (*GCPMainMessageFieldSetReader)(nil)

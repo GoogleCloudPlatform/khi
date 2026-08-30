@@ -83,6 +83,8 @@ func (s *composerAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.Ta
 	return googlecloudlogcomposerapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
+var pathEnvironment = structured.CompileFieldPath("environment")
+
 // ProcessLogByGroup maps a single Composer audit log entry to timeline events and revisions.
 func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 	ctx context.Context,
@@ -91,10 +93,6 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 ) (*khifilev6.TimelineChangeSet, *googlecloudcommon_contract.GCPOperationTracker, error) {
 	if tracker == nil {
 		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
-	}
-	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err != nil {
-		return nil, tracker, err
 	}
 	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
@@ -129,7 +127,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 	case "CreateEnvironment":
 		var bodyNode structured.Node
 		if auditFieldSet.Request != nil {
-			if subReader, err := auditFieldSet.Request.GetReader("environment"); err == nil {
+			if subReader, err := auditFieldSet.Request.GetReader(pathEnvironment); err == nil {
 				bodyNode = subReader.Node
 			} else {
 				bodyNode = auditFieldSet.Request.Node
@@ -158,7 +156,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 			VerbType:     commonlogk8saudit_contract.VerbCreate,
 			StateType:    state,
 			Principal:    auditFieldSet.PrincipalEmail,
-			ChangedTime:  commonFieldSet.Timestamp,
+			ChangedTime:  l.Timestamp,
 			ResourceBody: bodyNode,
 		})
 		tracker.MarkResourceRevision(envTimeline)
@@ -197,13 +195,13 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 			VerbType:     commonlogk8saudit_contract.VerbDelete,
 			StateType:    state,
 			Principal:    auditFieldSet.PrincipalEmail,
-			ChangedTime:  commonFieldSet.Timestamp,
+			ChangedTime:  l.Timestamp,
 			ResourceBody: nil,
 		})
 		tracker.MarkResourceRevision(envTimeline)
 	}
 
-	tracker.ProcessOperationLog(ctx, cs, operationTimeline, &auditFieldSet, commonFieldSet.Timestamp)
+	tracker.ProcessOperationLog(ctx, cs, operationTimeline, &auditFieldSet, l.Timestamp)
 
 	return cs, tracker, nil
 }

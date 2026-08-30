@@ -29,22 +29,12 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReaderTask is the task to read the fieldsets required for GKE Event Log parsing.
-var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudlogk8sevent_contract.FieldSetReaderTaskID,
-	googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref(),
-	[]log.FieldSetReader{
-		&googlecloudlogk8sevent_contract.GCPKubernetesEventFieldSetReader{},
-		&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
-	},
-)
-
 // KubernetesEventLogIngester handles log ingestion into the KHI v6 builder format.
 type KubernetesEventLogIngester struct{}
 
 // RawLogTask returns the task providing the raw logs to ingest.
 func (i *KubernetesEventLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8sevent_contract.FieldSetReaderTaskID.Ref()
+	return googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref()
 }
 
 // Dependencies returns additional task dependencies of the ingester.
@@ -59,18 +49,15 @@ func (i *KubernetesEventLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 		return nil, err
 	}
 	cs.SetLogType(commonlogk8saudit_contract.LogTypeEvent)
+	cs.SetTimestamp(l.Timestamp)
 
-	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonFS.Timestamp)
+	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
+		cs.SetSeverity(severity)
 	}
 
-	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-		cs.SetSeverity(severityFS.Severity)
-	}
-
-	eventFS, err := log.GetFieldSet(l, &googlecloudlogk8sevent_contract.KubernetesEventFieldSet{})
+	eventFS, err := googlecloudlogk8sevent_contract.ExtractKubernetesEvent(l.NodeReader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get kubernetes event fieldset: %w", err)
+		return nil, fmt.Errorf("failed to extract kubernetes event: %w", err)
 	}
 	cs.SetSummary(fmt.Sprintf("【%s】%s", eventFS.Reason, eventFS.Message))
 
@@ -88,9 +75,9 @@ var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 // LogGrouperTask groups logs by the event's resource path so they can be mapped to timelines.
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudlogk8sevent_contract.LogGrouperTaskID,
-	googlecloudlogk8sevent_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		event, err := log.GetFieldSet(l, &googlecloudlogk8sevent_contract.KubernetesEventFieldSet{})
+		event, err := googlecloudlogk8sevent_contract.ExtractKubernetesEvent(l.NodeReader)
 		if err != nil {
 			return "unknown"
 		}
@@ -122,12 +109,12 @@ func (m *KubernetesEventTimelineMapper) GroupedLogTask() taskid.TaskReference[in
 
 // ProcessLogByGroup maps a single GKE Event Log to its resource timeline path.
 func (m *KubernetesEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	event, err := log.GetFieldSet(l, &googlecloudlogk8sevent_contract.KubernetesEventFieldSet{})
+	event, err := googlecloudlogk8sevent_contract.ExtractKubernetesEvent(l.NodeReader)
 	if err != nil {
-		return nil, struct{}{}, fmt.Errorf("failed to get kubernetes event fieldset: %w", err)
+		return nil, struct{}{}, fmt.Errorf("failed to extract kubernetes event: %w", err)
 	}
 
-	targetPath := MustResolveK8sResourceTimelinePath(ctx, event)
+	targetPath := MustResolveK8sResourceTimelinePath(ctx, &event)
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 	cs.AddEvent(targetPath)

@@ -18,7 +18,14 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+)
+
+var (
+	pathProjectID        = structured.CompileFieldPath("resource.labels.project_id")
+	pathClusterName      = structured.CompileFieldPath("resource.labels.cluster_name")
+	pathDecision         = structured.CompileFieldPath("jsonPayload.decision")
+	pathNoDecisionStatus = structured.CompileFieldPath("jsonPayload.noDecisionStatus")
+	pathResultInfo       = structured.CompileFieldPath("jsonPayload.resultInfo")
 )
 
 type AutoscalerLogFieldSet struct {
@@ -29,47 +36,33 @@ type AutoscalerLogFieldSet struct {
 	ResultInfoLog *ResultInfoLog
 }
 
-// Kind implements log.FieldSet.
-func (a *AutoscalerLogFieldSet) Kind() string {
-	return "cluster_autoscaler"
-}
-
-var _ log.FieldSet = (*AutoscalerLogFieldSet)(nil)
-
-type AutoscalerLogFieldSetReader struct{}
-
-// FieldSetKind implements log.FieldSetReader.
-func (a *AutoscalerLogFieldSetReader) FieldSetKind() string {
-	return (&AutoscalerLogFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (a *AutoscalerLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+// ExtractAutoscalerLog extracts GKE autoscaler log fields from a NodeReader.
+func ExtractAutoscalerLog(reader *structured.NodeReader) (AutoscalerLogFieldSet, error) {
+	if mock, ok := structured.GetMock[AutoscalerLogFieldSet](reader); ok {
+		return mock, nil
+	}
 	var result AutoscalerLogFieldSet
-	result.ProjectID = reader.ReadStringOrDefault("resource.labels.project_id", "unknown")
-	result.ClusterName = reader.ReadStringOrDefault("resource.labels.cluster_name", "")
+	result.ProjectID = reader.ReadStringOrDefault(pathProjectID, "unknown")
+	result.ClusterName = reader.ReadStringOrDefault(pathClusterName, "")
 	switch {
-	case reader.Has("jsonPayload.decision"):
+	case reader.Has(pathDecision):
 		decisionLog, err := parseDecisionFromReader(reader)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse decision log: %w", err)
+			return result, fmt.Errorf("failed to parse decision log: %w", err)
 		}
 		result.DecisionLog = decisionLog
-	case reader.Has("jsonPayload.noDecisionStatus"):
+	case reader.Has(pathNoDecisionStatus):
 		noDecisionLog, err := parseNoDecisionFromReader(reader)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse noDecisionStatus log: %w", err)
+			return result, fmt.Errorf("failed to parse noDecisionStatus log: %w", err)
 		}
 		result.NoDecisionLog = noDecisionLog
-	case reader.Has("jsonPayload.resultInfo"):
+	case reader.Has(pathResultInfo):
 		resultInfoLog, err := parseResultInfoFromReader(reader)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse resultInfo log: %w", err)
+			return result, fmt.Errorf("failed to parse resultInfo log: %w", err)
 		}
 		result.ResultInfoLog = resultInfoLog
 	}
-	return &result, nil
-
+	return result, nil
 }
-
-var _ log.FieldSetReader = (*AutoscalerLogFieldSetReader)(nil)

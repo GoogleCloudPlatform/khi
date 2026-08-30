@@ -17,20 +17,20 @@ package googlecloudlogk8scontainer_contract
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestK8sContainerLogFieldSetReader_ResourceLabels(t *testing.T) {
+func TestExtractK8sContainerLog_ResourceLabels(t *testing.T) {
 	testCase := []struct {
 		desc  string
-		want  *K8sContainerLogFieldSet
+		want  K8sContainerLogFieldSet
 		input string
 	}{
 		{
 			desc: "from resource labels",
-			want: &K8sContainerLogFieldSet{
+			want: K8sContainerLogFieldSet{
 				ClusterName:   "test-cluster",
 				Namespace:     "test-namespace",
 				PodName:       "test-pod",
@@ -45,7 +45,7 @@ func TestK8sContainerLogFieldSetReader_ResourceLabels(t *testing.T) {
 		},
 		{
 			desc: "missing resource labels",
-			want: &K8sContainerLogFieldSet{
+			want: K8sContainerLogFieldSet{
 				ClusterName:   "unknown",
 				Namespace:     "unknown",
 				PodName:       "unknown",
@@ -58,23 +58,23 @@ func TestK8sContainerLogFieldSetReader_ResourceLabels(t *testing.T) {
 	}
 	for _, tc := range testCase {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
+			node, err := structured.FromYAML(tc.input)
 			if err != nil {
-				t.Fatalf("failed to parse log from yaml: %v", err)
+				t.Fatalf("failed to parse yaml: %v", err)
 			}
-			l.SetFieldSetReader(&K8sContainerLogFieldSetReader{})
-			containerFieldSet, err := log.GetFieldSet(l, &K8sContainerLogFieldSet{})
+			reader := structured.NewNodeReader(node)
+			containerFieldSet, err := ExtractK8sContainerLog(reader, nil)
 			if err != nil {
 				t.Fatalf("failed to extract message field: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, containerFieldSet, cmpopts.IgnoreFields(K8sContainerLogFieldSet{}, "Message", "ParsedMessage")); diff != "" {
-				t.Errorf("K8sContainerLogFieldSetReader mismatch (-want +got):\n%s", diff)
+				t.Errorf("ExtractK8sContainerLog mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestK8sContainerLogFieldSetReader_MainMessage(t *testing.T) {
+func TestExtractK8sContainerLog_MainMessage(t *testing.T) {
 	testCase := []struct {
 		desc  string
 		want  string
@@ -154,12 +154,12 @@ labels:
 	}
 	for _, tc := range testCase {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
+			node, err := structured.FromYAML(tc.input)
 			if err != nil {
-				t.Fatalf("failed to parse log from yaml: %v", err)
+				t.Fatalf("failed to parse yaml: %v", err)
 			}
-			l.SetFieldSetReader(&K8sContainerLogFieldSetReader{})
-			k8sContainerLogFieldSet, err := log.GetFieldSet(l, &K8sContainerLogFieldSet{})
+			reader := structured.NewNodeReader(node)
+			k8sContainerLogFieldSet, err := ExtractK8sContainerLog(reader, nil)
 			if err != nil {
 				t.Fatalf("failed to extract message field: %v", err)
 			}
@@ -168,10 +168,9 @@ labels:
 			}
 		})
 	}
-
 }
 
-func TestK8sContainerLogFieldSetReader_IstioProxyParsedMessage(t *testing.T) {
+func TestExtractK8sContainerLog_IstioProxyParsedMessage(t *testing.T) {
 	inputYAML := `resource:
   labels:
     cluster_name: test-cluster
@@ -180,12 +179,12 @@ func TestK8sContainerLogFieldSetReader_IstioProxyParsedMessage(t *testing.T) {
     container_name: istio-proxy
 textPayload: '[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - "-" 0 0 6 5 "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "123.45.167.189" "123.45.167.189:80" PassthroughCluster 10.4.1.8:33606 123.45.167.189:80 10.4.1.8:59778 - allow_any'`
 
-	l, err := log.NewLogFromYAMLString(inputYAML)
+	node, err := structured.FromYAML(inputYAML)
 	if err != nil {
-		t.Fatalf("failed to parse log from yaml: %v", err)
+		t.Fatalf("failed to parse yaml: %v", err)
 	}
-	l.SetFieldSetReader(&K8sContainerLogFieldSetReader{})
-	containerFieldSet, err := log.GetFieldSet(l, &K8sContainerLogFieldSet{})
+	reader := structured.NewNodeReader(node)
+	containerFieldSet, err := ExtractK8sContainerLog(reader, nil)
 	if err != nil {
 		t.Fatalf("failed to extract container field set: %v", err)
 	}
@@ -202,7 +201,7 @@ textPayload: '[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - 
 	}
 }
 
-func TestK8sContainerLogFieldSetReader_IstioProxyNonAccessLog(t *testing.T) {
+func TestExtractK8sContainerLog_IstioProxyNonAccessLog(t *testing.T) {
 	inputYAML := `insertId: d041l2rc48z6lx5t
 logName: projects/tse-kakeru/logs/stdout
 labels:
@@ -228,12 +227,12 @@ severity: INFO
 receiveTimestamp: '2026-08-20T04:46:34.341075649Z'
 timestamp: '2026-08-20T04:46:31.353884563Z'`
 
-	l, err := log.NewLogFromYAMLString(inputYAML)
+	node, err := structured.FromYAML(inputYAML)
 	if err != nil {
-		t.Fatalf("failed to parse log from yaml: %v", err)
+		t.Fatalf("failed to parse yaml: %v", err)
 	}
-	l.SetFieldSetReader(&K8sContainerLogFieldSetReader{})
-	containerFieldSet, err := log.GetFieldSet(l, &K8sContainerLogFieldSet{})
+	reader := structured.NewNodeReader(node)
+	containerFieldSet, err := ExtractK8sContainerLog(reader, nil)
 	if err != nil {
 		t.Fatalf("failed to extract container field set: %v", err)
 	}
@@ -265,15 +264,15 @@ func TestK8sContainerLogFieldSet_GroupKey(t *testing.T) {
 	}
 }
 
-func TestGCPContainerLogNodeNameLabelFieldSetReader(t *testing.T) {
+func TestExtractGCPContainerLogNodeNameLabel(t *testing.T) {
 	testCase := []struct {
 		desc  string
-		want  *GCPContainerLogNodeNameLabelFieldSet
+		want  GCPContainerLogNodeNameLabelFieldSet
 		input string
 	}{
 		{
 			desc: "from labels",
-			want: &GCPContainerLogNodeNameLabelFieldSet{
+			want: GCPContainerLogNodeNameLabelFieldSet{
 				NodeName:  "test-node",
 				PodLabels: map[string]string{},
 			},
@@ -282,7 +281,7 @@ func TestGCPContainerLogNodeNameLabelFieldSetReader(t *testing.T) {
 		},
 		{
 			desc: "missing labels",
-			want: &GCPContainerLogNodeNameLabelFieldSet{
+			want: GCPContainerLogNodeNameLabelFieldSet{
 				NodeName:  "",
 				PodLabels: map[string]string{},
 			},
@@ -291,7 +290,7 @@ func TestGCPContainerLogNodeNameLabelFieldSetReader(t *testing.T) {
 		},
 		{
 			desc: "with k8s-pod labels",
-			want: &GCPContainerLogNodeNameLabelFieldSet{
+			want: GCPContainerLogNodeNameLabelFieldSet{
 				NodeName: "test-node",
 				PodLabels: map[string]string{
 					"app":               "my-app",
@@ -307,18 +306,33 @@ func TestGCPContainerLogNodeNameLabelFieldSetReader(t *testing.T) {
 	}
 	for _, tc := range testCase {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
+			node, err := structured.FromYAML(tc.input)
 			if err != nil {
-				t.Fatalf("failed to parse log from yaml: %v", err)
+				t.Fatalf("failed to parse yaml: %v", err)
 			}
-			l.SetFieldSetReader(&GCPContainerLogNodeNameLabelFieldSetReader{})
-			nodeFieldSet, err := log.GetFieldSet(l, &GCPContainerLogNodeNameLabelFieldSet{})
+			reader := structured.NewNodeReader(node)
+			nodeFieldSet, err := ExtractGCPContainerLogNodeNameLabel(reader)
 			if err != nil {
 				t.Fatalf("failed to extract node field: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, nodeFieldSet); diff != "" {
-				t.Errorf("GCPContainerLogNodeNameLabelFieldSetReader mismatch (-want +got):\n%s", diff)
+				t.Errorf("ExtractGCPContainerLogNodeNameLabel mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("mock node returns mock values", func(t *testing.T) {
+		mockFS := GCPContainerLogNodeNameLabelFieldSet{
+			NodeName:  "mock-node",
+			PodLabels: map[string]string{"foo": "bar"},
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(mockFS))
+		got, err := ExtractGCPContainerLogNodeNameLabel(reader)
+		if err != nil {
+			t.Fatalf("ExtractGCPContainerLogNodeNameLabel() error = %v", err)
+		}
+		if diff := cmp.Diff(mockFS, got); diff != "" {
+			t.Errorf("ExtractGCPContainerLogNodeNameLabel mismatch (-want +got):\n%s", diff)
+		}
+	})
 }

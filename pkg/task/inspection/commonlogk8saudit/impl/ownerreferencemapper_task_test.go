@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -256,9 +255,7 @@ metadata:
 			nodeReader := parseYAML(tc.yaml)
 
 			logObj := testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-				},
+				time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					Principal:    "user-1",
 					APIVersion:   "core/v1",

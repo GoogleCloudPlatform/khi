@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -49,8 +48,8 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 		if a == nil || b == nil {
 			return a == b
 		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize("", &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize("", &structured.YAMLNodeSerializer{})
+		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 		if errA != nil || errB != nil {
 			return false
 		}
@@ -575,9 +574,7 @@ uid: "test-uid"`,
 
 			// Setup the Log and Mock Group Context dynamically for each test case.
 			logObj := testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					Principal:    "admin",
 					APIVersion:   "core/v1",
@@ -889,9 +886,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 			var events []commonlogk8saudit_contract.MultiGroupLogEvent
 			for _, el := range tc.eventLogs {
 				logObj := testlog.NewMockLog(
-					&log.CommonFieldSet{
-						Timestamp: el.time,
-					},
+					el.time,
 					commonlogk8saudit_contract.K8sAuditLogFieldSet{
 						Principal:    "admin",
 						APIVersion:   "core/v1",

@@ -25,7 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // AirflowSchedulerLogGrouperTask groups Airflow scheduler logs.
@@ -56,17 +55,14 @@ func (i *schedulerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
 		return nil, err
 	}
 	cs.SetLogType(googlecloudclustercomposer_contract.LogTypeManagedAirflowEnvironment)
+	cs.SetTimestamp(l.Timestamp)
 
-	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonFS.Timestamp)
+	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil {
+		cs.SetSeverity(severity)
 	}
 
-	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-		cs.SetSeverity(severityFS.Severity)
-	}
-
-	if messageFS, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPMainMessageFieldSet{}); err == nil {
-		cs.SetSummary(messageFS.MainMessage)
+	if message, err := googlecloudcommon_contract.ExtractGCPMainMessage(l.NodeReader); err == nil {
+		cs.SetSummary(message)
 	}
 
 	return cs, nil
@@ -106,7 +102,7 @@ func (m *schedulerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
 	envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, environmentName)
 
-	schedulerField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
+	schedulerField, err := googlecloudclustercomposer_contract.ExtractComposer(l.NodeReader)
 	cs := khifilev6.NewTimelineChangeSet(l)
 
 	if err == nil {
@@ -116,8 +112,7 @@ func (m *schedulerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 		}
 	}
 
-	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
-	tiField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{})
+	tiField, err := googlecloudclustercomposer_contract.ExtractComposerTaskInstance(l.NodeReader)
 	if err != nil || tiField.TaskInstance == nil {
 		return cs, struct{}{}, nil // Not an Airflow TaskInstance log
 	}
@@ -136,7 +131,7 @@ func (m *schedulerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	}
 
 	cs.AddRevision(timelinePath, &khifilev6.StagingRevision{
-		ChangedTime:  commonField.Timestamp,
+		ChangedTime:  l.Timestamp,
 		ResourceBody: node,
 		Principal:    "airflow-scheduler",
 		VerbType:     verb,

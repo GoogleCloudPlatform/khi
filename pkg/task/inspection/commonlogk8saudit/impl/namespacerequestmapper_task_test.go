@@ -21,7 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -62,9 +61,7 @@ func TestNamespaceRequestLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			logObj := testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					Principal:    "admin",
 					APIVersion:   "core/v1",

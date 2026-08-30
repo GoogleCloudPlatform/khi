@@ -65,7 +65,7 @@ func isPod(apiVersion string, pluralKind string) bool {
 
 // DetectLifetimeLogEvent detects if the log is the timing to create or delete the timeline resource and update the log field.
 func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context, l *commonlogk8saudit_contract.ResourceManifestLog, prevGroupData *lifeTimeTrackerGroupState) (*lifeTimeTrackerGroupState, error) {
-	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(l.Log.NodeReader)
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return prevGroupData, nil
 	}
@@ -218,7 +218,7 @@ var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspec
 					groupData, err = setting.DetectLifetimeLogEvent(ctx, l, groupData)
 					if err != nil {
 						var yaml string
-						yamlBytes, err2 := l.Log.Serialize("", &structured.YAMLNodeSerializer{})
+						yamlBytes, err2 := l.Log.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 						if err2 != nil {
 							yaml = "ERROR!! failed to dump in yaml"
 						} else {

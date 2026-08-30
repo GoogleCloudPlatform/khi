@@ -17,17 +17,17 @@ package googlecloudlogserialport_contract
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestFieldSet(t *testing.T) {
+func TestExtractGCESerialPortLog(t *testing.T) {
 	testCases := []struct {
 		desc         string
 		log          string
-		wantFieldSet *GCESerialPortLogFieldSet
+		wantFieldSet GCESerialPortLogFieldSet
 	}{
 		{
 			desc: "all fields present",
@@ -35,7 +35,7 @@ func TestFieldSet(t *testing.T) {
 textPayload: bar
 labels:
   compute.googleapis.com/resource_name: node-name-qux`,
-			wantFieldSet: &GCESerialPortLogFieldSet{
+			wantFieldSet: GCESerialPortLogFieldSet{
 				Message:  "bar",
 				Port:     "serial_port_1_output",
 				NodeName: "node-name-qux",
@@ -45,7 +45,7 @@ labels:
 			desc: "missing node namelabel",
 			log: `logName: projects/project-foo/logs/serialconsole.googleapis.com%2Fserial_port_1_output
 textPayload: bar`,
-			wantFieldSet: &GCESerialPortLogFieldSet{
+			wantFieldSet: GCESerialPortLogFieldSet{
 				Message:  "bar",
 				Port:     "serial_port_1_output",
 				NodeName: "unknown",
@@ -55,14 +55,33 @@ textPayload: bar`,
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := testlog.MustLogFromYAML(tc.log, &GCESerialPortLogFieldSetReader{})
-			gotFieldSet := log.MustGetFieldSet(l, &GCESerialPortLogFieldSet{})
+			l := testlog.MustLogFromYAML(tc.log)
+			gotFieldSet, err := ExtractGCESerialPortLog(l.NodeReader)
+			if err != nil {
+				t.Fatalf("ExtractGCESerialPortLog() returned unexpected error: %v", err)
+			}
 
 			if diff := cmp.Diff(tc.wantFieldSet, gotFieldSet); diff != "" {
-				t.Errorf("MustGetFieldSet() got diff (-want +got):\n%s", diff)
+				t.Errorf("ExtractGCESerialPortLog() got diff (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("MockNode returns mock data directly", func(t *testing.T) {
+		want := GCESerialPortLogFieldSet{
+			Message:  "mock-message",
+			Port:     "serial_port_1_output",
+			NodeName: "mock-node",
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(want))
+		got, err := ExtractGCESerialPortLog(reader)
+		if err != nil {
+			t.Fatalf("ExtractGCESerialPortLog() returned error: %v", err)
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("ExtractGCESerialPortLog() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }
 
 func TestSerialPortSpecialSequenceConverter(t *testing.T) {

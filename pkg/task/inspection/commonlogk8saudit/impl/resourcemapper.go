@@ -173,13 +173,11 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 		if !found || targetGroup == nil {
 			return nil
 		}
-		k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
+		k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 		if k8sFieldSet.IsDryRun {
 			return nil
 		}
 		targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, targetGroup.Resource)
-
-		commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 
 		var bodyNode structured.Node
 		if bodyReader, ok := event.GetLastBodyReader("target"); ok && bodyReader != nil {
@@ -187,7 +185,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 		}
 
 		cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-			ChangedTime:  commonLogFieldSet.Timestamp,
+			ChangedTime:  event.Log.Timestamp,
 			ResourceBody: bodyNode,
 			Principal:    k8sFieldSet.Principal,
 			VerbType:     commonlogk8saudit_contract.VerbDelete,
@@ -206,8 +204,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 
 // handleTargetChange handles the target change.
 func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet, prevGroupData *resourceRevisionLogToTimelineMapperState) (*resourceRevisionLogToTimelineMapperState, error) {
-	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	if prevGroupData == nil {
@@ -382,7 +379,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx 
 	}
 
 	cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-		ChangedTime:      commonFieldSet.Timestamp,
+		ChangedTime:      event.Log.Timestamp,
 		ResourceBody:     bodyNode,
 		Principal:        k8sFieldSet.Principal,
 		VerbType:         k8sFieldSet.Verb,

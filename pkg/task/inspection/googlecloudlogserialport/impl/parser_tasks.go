@@ -29,23 +29,17 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReadTask is the task to run GCESerialPortLogFieldSetReader on logs to parse serial port logs.
-var FieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudlogserialport_contract.FieldSetReadTaskID,
-	googlecloudlogserialport_contract.LogQueryTaskID.Ref(),
-	[]log.FieldSetReader{
-		&googlecloudlogserialport_contract.GCESerialPortLogFieldSetReader{},
-		&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
-	},
-)
-
 // LogFilterTask removes logs with empty message.
 // This message is mostly just contained escape sequences and stripped by ANSIEscapeSequenceStripper.
 var LogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	googlecloudlogserialport_contract.LogFilterTaskID,
-	googlecloudlogserialport_contract.FieldSetReadTaskID.Ref(),
+	googlecloudlogserialport_contract.LogQueryTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
-		return log.MustGetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{}).Message != ""
+		serialFS, err := googlecloudlogserialport_contract.ExtractGCESerialPortLog(l.NodeReader)
+		if err != nil {
+			return false
+		}
+		return serialFS.Message != ""
 	},
 )
 
@@ -70,16 +64,13 @@ func (i *serialPortLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*kh
 	}
 
 	cs.SetLogType(googlecloudlogserialport_contract.LogTypeSerialPort)
+	cs.SetTimestamp(l.Timestamp)
 
-	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonFS.Timestamp)
+	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil {
+		cs.SetSeverity(severity)
 	}
 
-	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-		cs.SetSeverity(severityFS.Severity)
-	}
-
-	if serialFS, err := log.GetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{}); err == nil {
+	if serialFS, err := googlecloudlogserialport_contract.ExtractGCESerialPortLog(l.NodeReader); err == nil {
 		cs.SetSummary(serialFS.Message)
 	}
 
@@ -100,7 +91,10 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudlogserialport_contract.LogGrouperTaskID,
 	googlecloudlogserialport_contract.LogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		serialFS := log.MustGetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{})
+		serialFS, err := googlecloudlogserialport_contract.ExtractGCESerialPortLog(l.NodeReader)
+		if err != nil {
+			return ""
+		}
 		return fmt.Sprintf("%s#%s", serialFS.NodeName, serialFS.Port)
 	},
 )
@@ -129,7 +123,7 @@ func (s *serialportLogToTimelineMapper) Dependencies() []taskid.UntypedTaskRefer
 
 // ProcessLogByGroup processes each log inside the group and stages the event on the timeline.
 func (s *serialportLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	serialportFieldSet, err := log.GetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{})
+	serialportFieldSet, err := googlecloudlogserialport_contract.ExtractGCESerialPortLog(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
 	}

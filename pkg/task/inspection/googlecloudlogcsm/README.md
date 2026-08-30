@@ -23,7 +23,6 @@ These tasks are used to discover associations that are not directly present in t
 
 - **`InputCSMResponseFlagsTask`**: Form input for filtering logs by Envoy response flags.
 - **`ListLogEntriesTask`**: Fetches CSM traffic logs from Cloud Logging.
-- **`FieldSetReaderTask`**: Parses raw logs into `CSMFieldSet` to extract structured fields.
 - **`LogIngesterTask`**: Ingests the logs into the final KHI history.
 - **`LogGrouperTask`**: Groups logs by the reporter pod.
 - **`LogToTimelineMapperTask`**: Maps CSM traffic log events to resource timelines, utilizing the NEG inventory for accurate service association.
@@ -40,11 +39,11 @@ graph TD
     classDef external fill:#f5f5f5,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5;
 
     %% External Tasks
-    EventFieldSet[Event FieldSet Reader]:::external
+    EventLogs[Event Log Provider]:::external
     ManifestGen[Manifest Generator]:::external
 
     %% Inventory
-    EventFieldSet --> EventDiscovery[EventLogNEGDiscoveryTask]:::inventory
+    EventLogs --> EventDiscovery[EventLogNEGDiscoveryTask]:::inventory
     ManifestGen --> AuditDiscovery[AuditLogNEGDiscoveryTask]:::inventory
     EventDiscovery --> Inventory[NEGToBackendServiceInventoryTask]:::inventory
     AuditDiscovery --> Inventory
@@ -52,9 +51,8 @@ graph TD
     %% CSM Traffic Log Pipeline
     FlagsInput[InputCSMResponseFlagsTask]:::input
     FlagsInput --> ListLogs[ListLogEntriesTask]:::query
-    ListLogs --> FieldSetRead[FieldSetReaderTask]:::query
     ListLogs --> Ingester[LogIngesterTask]:::pipeline
-    FieldSetRead --> Grouper[LogGrouperTask]:::pipeline
+    ListLogs --> Grouper[LogGrouperTask]:::pipeline
     Grouper --> Mapper[LogToTimelineMapperTask]:::pipeline
     Ingester --> Mapper
     Inventory --> Mapper

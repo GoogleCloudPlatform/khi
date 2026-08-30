@@ -21,8 +21,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+)
+
+var (
+	pathNodePool = structured.CompileFieldPath("nodePool")
+	pathCluster  = structured.CompileFieldPath("cluster")
 )
 
 // GCPOperationTracker tracks operation start/finish logs within a group and generates revisions.
@@ -62,7 +66,7 @@ func (t *GCPOperationTracker) MarkResourceRevision(path *khifilev6.TimelinePath)
 	t.hasResourceRevision[path.ID] = struct{}{}
 }
 
-// ProcessGCPClusterNodepoolOperationLog processes a GCP operation log for a cluster or node pool resource timeline.
+// // ProcessGCPClusterNodepoolOperationLog processes a GCP operation log for a cluster or node pool resource timeline.
 // It generates resource creation/deletion/enrollment/unenrollment revisions, handles missing start logs by prepending
 // appropriate LogNotFound revisions at Unix time 0, and updates operation tracking.
 func ProcessGCPClusterNodepoolOperationLog(
@@ -72,7 +76,7 @@ func ProcessGCPClusterNodepoolOperationLog(
 	targetTimeline *khifilev6.TimelinePath,
 	operationTimeline *khifilev6.TimelinePath,
 	audit *GCPAuditLogFieldSet,
-	common *log.CommonFieldSet,
+	logTimestamp time.Time,
 	shortMethodName string,
 	isCluster bool,
 ) {
@@ -81,9 +85,9 @@ func ProcessGCPClusterNodepoolOperationLog(
 		return
 	}
 
-	resourceBodyField := "nodePool"
+	resourceBodyField := pathNodePool
 	if isCluster {
-		resourceBodyField = "cluster"
+		resourceBodyField = pathCluster
 	}
 
 	switch shortMethodName {
@@ -126,12 +130,11 @@ func ProcessGCPClusterNodepoolOperationLog(
 				state = commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioning
 			}
 		}
-
 		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
 			VerbType:     commonlogk8saudit_contract.VerbCreate,
 			StateType:    state,
 			Principal:    audit.PrincipalEmail,
-			ChangedTime:  common.Timestamp,
+			ChangedTime:  logTimestamp,
 			ResourceBody: bodyNode,
 		})
 		tracker.MarkResourceRevision(targetTimeline)
@@ -189,13 +192,13 @@ func ProcessGCPClusterNodepoolOperationLog(
 			VerbType:     commonlogk8saudit_contract.VerbDelete,
 			StateType:    state,
 			Principal:    audit.PrincipalEmail,
-			ChangedTime:  common.Timestamp,
+			ChangedTime:  logTimestamp,
 			ResourceBody: nil,
 		})
 		tracker.MarkResourceRevision(targetTimeline)
 	}
 
-	tracker.ProcessOperationLog(ctx, cs, operationTimeline, audit, common.Timestamp)
+	tracker.ProcessOperationLog(ctx, cs, operationTimeline, audit, logTimestamp)
 }
 
 // TrackAndGetManifest tracks the latest resource manifest from an audit log and returns it if updated.

@@ -18,14 +18,17 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestGCPKubernetesEventFieldSetReader(t *testing.T) {
+func TestExtractKubernetesEvent(t *testing.T) {
 	testCases := []struct {
-		desc  string
-		input string
-		want  *KubernetesEventFieldSet
+		desc    string
+		input   string
+		mock    *KubernetesEventFieldSet
+		want    KubernetesEventFieldSet
+		wantErr bool
 	}{
 		{
 			desc: "with all parameters",
@@ -41,7 +44,7 @@ jsonPayload:
     name: test-pod
   reason: Scheduled
   message: Successfully assigned default/test-pod to node-1`,
-			want: &KubernetesEventFieldSet{
+			want: KubernetesEventFieldSet{
 				ProjectID:    "unknown",
 				ClusterName:  "test-cluster",
 				APIVersion:   "core/v1",
@@ -65,7 +68,7 @@ jsonPayload:
     name: test-deployment
   reason: ScalingReplicaSet
   message: Scaled up replica set test-deployment-xyz to 3`,
-			want: &KubernetesEventFieldSet{
+			want: KubernetesEventFieldSet{
 				ProjectID:    "unknown",
 				ClusterName:  "test-cluster",
 				APIVersion:   "apps/v1",
@@ -89,7 +92,7 @@ jsonPayload:
     name: test-deployment
   reason: ScalingReplicaSet
   action: Scaled up replica set test-deployment-xyz to 3`,
-			want: &KubernetesEventFieldSet{
+			want: KubernetesEventFieldSet{
 				ProjectID:    "unknown",
 				ClusterName:  "test-cluster",
 				APIVersion:   "apps/v1",
@@ -106,7 +109,7 @@ jsonPayload:
   labels:
     cluster_name: test-cluster
 textPayload: Event exporter started watching. Some events may have been lost up to this point.`,
-			want: &KubernetesEventFieldSet{
+			want: KubernetesEventFieldSet{
 				ProjectID:    "unknown",
 				ClusterName:  "test-cluster",
 				APIVersion:   "",
@@ -117,22 +120,62 @@ textPayload: Event exporter started watching. Some events may have been lost up 
 				Message:      "Event exporter started watching. Some events may have been lost up to this point.",
 			},
 		},
+		{
+			desc: "unknown kind returns error",
+			input: `resource:
+  labels:
+    cluster_name: test-cluster
+jsonPayload:
+  kind: NotEvent`,
+			wantErr: true,
+		},
+		{
+			desc: "from mock",
+			mock: &KubernetesEventFieldSet{
+				ProjectID:    "mock-proj",
+				ClusterName:  "mock-cluster",
+				APIVersion:   "core/v1",
+				ResourceKind: "pod",
+				Namespace:    "mock-ns",
+				Resource:     "mock-pod",
+				Reason:       "MockReason",
+				Message:      "MockMessage",
+			},
+			want: KubernetesEventFieldSet{
+				ProjectID:    "mock-proj",
+				ClusterName:  "mock-cluster",
+				APIVersion:   "core/v1",
+				ResourceKind: "pod",
+				Namespace:    "mock-ns",
+				Resource:     "mock-pod",
+				Reason:       "MockReason",
+				Message:      "MockMessage",
+			},
+		},
 	}
+
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
-			if err != nil {
-				t.Fatalf("failed to parse test YAML data: %v", err)
+			var l *log.Log
+			var err error
+			if tc.mock != nil {
+				l = testlog.NewMockLog(*tc.mock)
+			} else {
+				l, err = log.NewLogFromYAMLString(tc.input)
+				if err != nil {
+					t.Fatalf("failed to parse test YAML data: %v", err)
+				}
 			}
 
-			err = l.SetFieldSetReader(&GCPKubernetesEventFieldSetReader{})
-			if err != nil {
-				t.Fatalf("l.SetFieldSetReader failed: %v", err)
+			got, err := ExtractKubernetesEvent(l.NodeReader)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ExtractKubernetesEvent() error = %v, wantErr %v", err, tc.wantErr)
 			}
-
-			fieldSet := log.MustGetFieldSet(l, &KubernetesEventFieldSet{})
-			if diff := cmp.Diff(tc.want, fieldSet); diff != "" {
-				t.Errorf("GCPKubernetesEventFieldSetReader mismatch (-want +got):\n%s", diff)
+			if tc.wantErr {
+				return
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractKubernetesEvent() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

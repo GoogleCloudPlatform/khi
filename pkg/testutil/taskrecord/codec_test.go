@@ -18,8 +18,14 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
+)
+
+var (
+	pathTextPayload            = structured.CompileFieldPath("textPayload")
+	pathProtoPayloadMethodName = structured.CompileFieldPath("protoPayload.methodName")
 )
 
 type testCustomStruct struct {
@@ -122,16 +128,16 @@ func TestLogListCodec(t *testing.T) {
 
 			for i, origLog := range logs {
 				deserializedLog := deserializedLogs[i]
-				if origLog.Has("textPayload") {
-					want := origLog.ReadStringOrDefault("textPayload", "")
-					got := deserializedLog.ReadStringOrDefault("textPayload", "")
+				if origLog.Has(pathTextPayload) {
+					want := origLog.ReadStringOrDefault(pathTextPayload, "")
+					got := deserializedLog.ReadStringOrDefault(pathTextPayload, "")
 					if diff := cmp.Diff(want, got); diff != "" {
 						t.Errorf("textPayload[%d] mismatch (-want +got):\n%s", i, diff)
 					}
 				}
-				if origLog.Has("protoPayload.methodName") {
-					want := origLog.ReadStringOrDefault("protoPayload.methodName", "")
-					got := deserializedLog.ReadStringOrDefault("protoPayload.methodName", "")
+				if origLog.Has(pathProtoPayloadMethodName) {
+					want := origLog.ReadStringOrDefault(pathProtoPayloadMethodName, "")
+					got := deserializedLog.ReadStringOrDefault(pathProtoPayloadMethodName, "")
 					if diff := cmp.Diff(want, got); diff != "" {
 						t.Errorf("protoPayload.methodName[%d] mismatch (-want +got):\n%s", i, diff)
 					}

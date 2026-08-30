@@ -17,16 +17,17 @@ package googlecloudlogcsm_contract
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestIstioAccessLogFieldSetReader(t *testing.T) {
+func TestExtractIstioAccessLog(t *testing.T) {
 	testCases := []struct {
-		desc  string
-		input string
-		want  *IstioAccessLogFieldSet
+		desc    string
+		input   string
+		want    IstioAccessLogFieldSet
+		wantErr bool
 	}{
 		{
 			desc: "server access log",
@@ -45,7 +46,7 @@ resource:
     namespace_name: "default"
     container_name: "istio-proxy"
 `,
-			want: &IstioAccessLogFieldSet{
+			want: IstioAccessLogFieldSet{
 				Type:                        AccessLogTypeServer,
 				ResponseFlags:               logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoHealthyUpstream},
 				SourceNamespace:             "default",
@@ -75,7 +76,7 @@ resource:
     pod_name: "productpage-v1"
     namespace_name: "default"
 `,
-			want: &IstioAccessLogFieldSet{
+			want: IstioAccessLogFieldSet{
 				Type:                        AccessLogTypeClient,
 				ResponseFlags:               logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoError},
 				SourceNamespace:             "default",
@@ -106,7 +107,7 @@ resource:
     namespace_name: "default"
     container_name: "istio-proxy"
 `,
-			want: &IstioAccessLogFieldSet{
+			want: IstioAccessLogFieldSet{
 				Type:                        AccessLogTypeServer,
 				ResponseFlags:               logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoHealthyUpstream, logutil.EnvoyResponseFlagUpstreamRetryLimitExceeded},
 				SourceNamespace:             "default",
@@ -128,7 +129,7 @@ resource:
     pod_name: "productpage-v1"
     namespace_name: "default"
 `,
-			want: &IstioAccessLogFieldSet{
+			want: IstioAccessLogFieldSet{
 				Type:                   AccessLogTypeClient,
 				ResponseFlags:          logutil.EnvoyResponseFlags{},
 				SourceNamespace:        "",
@@ -144,18 +145,34 @@ resource:
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
+			node, err := structured.FromYAML(tc.input)
 			if err != nil {
-				t.Fatalf("failed to parse YAML test input to log: %v", err)
+				t.Fatalf("failed to parse YAML test input: %v", err)
 			}
-			err = l.SetFieldSetReader(&IstioAccessLogFieldSetReader{})
-			if err != nil {
-				t.Errorf("failed to run IstioAccessLogLabelsFieldSetReader.Read(): %v", err)
+			reader := structured.NewNodeReader(node)
+			got, err := ExtractIstioAccessLog(reader)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ExtractIstioAccessLog() error = %v, wantErr %v", err, tc.wantErr)
 			}
-			got := log.MustGetFieldSet(l, &IstioAccessLogFieldSet{})
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("IstioAccessLogLabelsFieldSet mismatch (-want +got):\n%s", diff)
+				t.Errorf("ExtractIstioAccessLog mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("mock node returns mock values", func(t *testing.T) {
+		mockFS := IstioAccessLogFieldSet{
+			Type:            AccessLogTypeServer,
+			SourceNamespace: "mock-ns",
+			SourceName:      "mock-pod",
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(mockFS))
+		got, err := ExtractIstioAccessLog(reader)
+		if err != nil {
+			t.Fatalf("ExtractIstioAccessLog() error = %v", err)
+		}
+		if diff := cmp.Diff(mockFS, got); diff != "" {
+			t.Errorf("ExtractIstioAccessLog mismatch (-want +got):\n%s", diff)
+		}
+	})
 }

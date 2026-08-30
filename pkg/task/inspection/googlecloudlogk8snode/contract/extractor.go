@@ -19,23 +19,36 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+var (
+	pathUpperMESSAGE     = structured.CompileFieldPath("jsonPayload.MESSAGE")
+	pathLowerMessage     = structured.CompileFieldPath("jsonPayload.message")
+	pathSyslogIdentifier = structured.CompileFieldPath("jsonPayload.SYSLOG_IDENTIFIER")
+	pathLogName          = structured.CompileFieldPath("logName")
+	pathNodeName         = structured.CompileFieldPath("resource.labels.node_name")
+)
+
+// K8sNodeParserType defines the parser category for node logs.
 type K8sNodeParserType string
 
 var (
+	// Containerd identifies containerd logs.
 	Containerd K8sNodeParserType = "containerd"
-	Kubelet    K8sNodeParserType = "kubelet"
-	Other      K8sNodeParserType = "other"
+	// Kubelet identifies kubelet logs.
+	Kubelet K8sNodeParserType = "kubelet"
+	// Other identifies other node component logs.
+	Other K8sNodeParserType = "other"
 )
 
+// K8sNodeLogCommonFieldSet contains the common parsed metadata from a Kubernetes node log.
 type K8sNodeLogCommonFieldSet struct {
 	Message   *logutil.ParseStructuredLogResult
 	Component string
 	NodeName  string
 }
 
+// ParserType returns the K8sNodeParserType corresponding to the component.
 func (k *K8sNodeLogCommonFieldSet) ParserType() K8sNodeParserType {
 	switch k.Component {
 	case "containerd":
@@ -47,42 +60,28 @@ func (k *K8sNodeLogCommonFieldSet) ParserType() K8sNodeParserType {
 	}
 }
 
-// Kind implements log.FieldSet.
-func (k *K8sNodeLogCommonFieldSet) Kind() string {
-	return "k8s_node_common"
-}
-
-var _ log.FieldSet = (*K8sNodeLogCommonFieldSet)(nil)
-
-type K8sNodeLogCommonFieldSetReader struct {
-	StructuredLogParser *logutil.SelectorLogParser[NodeLogContext]
-}
-
-// FieldSetKind implements log.FieldSetReader.
-func (k *K8sNodeLogCommonFieldSetReader) FieldSetKind() string {
-	return (&K8sNodeLogCommonFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (k *K8sNodeLogCommonFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+// ExtractK8sNodeLogCommon extracts K8sNodeLogCommonFieldSet from a NodeReader.
+func ExtractK8sNodeLogCommon(reader *structured.NodeReader, parser *logutil.SelectorLogParser[NodeLogContext]) (K8sNodeLogCommonFieldSet, error) {
+	if mock, ok := structured.GetMock[K8sNodeLogCommonFieldSet](reader); ok {
+		return mock, nil
+	}
 	var result K8sNodeLogCommonFieldSet
-	message := reader.ReadStringOrDefault("jsonPayload.MESSAGE", "")
+	message := reader.ReadStringOrDefault(pathUpperMESSAGE, "")
 	if message == "" {
-		message = reader.ReadStringOrDefault("jsonPayload.message", "")
+		message = reader.ReadStringOrDefault(pathLowerMessage, "")
 	}
 
-	result.Component = reader.ReadStringOrDefault("jsonPayload.SYSLOG_IDENTIFIER", "")
+	result.Component = reader.ReadStringOrDefault(pathSyslogIdentifier, "")
 	if result.Component == "" { // static pod log doesn't have SYSLOG_IDENTIFIER, use the name included in logName in the case.
-		logName := reader.ReadStringOrDefault("logName", "")
+		logName := reader.ReadStringOrDefault(pathLogName, "")
 		lastSlash := strings.LastIndex(logName, "/")
 		if lastSlash != -1 {
 			result.Component = logName[lastSlash+1:]
 		}
 	}
 	result.Component = strings.Trim(result.Component, "()") // Some component can have () around SYSLOG_IDENTIFIER. Remove them for consistency.
-	result.NodeName = reader.ReadStringOrDefault("resource.labels.node_name", "")
+	result.NodeName = reader.ReadStringOrDefault(pathNodeName, "")
 
-	parser := k.StructuredLogParser
 	if parser == nil {
 		parser = DefaultNodeLogParser
 	}
@@ -93,7 +92,5 @@ func (k *K8sNodeLogCommonFieldSetReader) Read(reader *structured.NodeReader) (lo
 	}
 	result.Message = parser.TryParse(ctx, message)
 
-	return &result, nil
+	return result, nil
 }
-
-var _ log.FieldSetReader = (*K8sNodeLogCommonFieldSetReader)(nil)

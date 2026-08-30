@@ -21,11 +21,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestAutoscalerLogFieldSetReader(t *testing.T) {
+func TestExtractAutoscalerLog(t *testing.T) {
 	testCases := []struct {
-		desc  string
-		input string
-		want  *AutoscalerLogFieldSet
+		desc    string
+		input   string
+		want    AutoscalerLogFieldSet
+		wantErr bool
 	}{
 		{
 			desc: "decision log",
@@ -62,7 +63,7 @@ resource:
 receiveTimestamp: "2025-11-09T02:15:28.437679991Z"
 timestamp: "2025-11-09T02:15:27.768533131Z"
 `,
-			want: &AutoscalerLogFieldSet{
+			want: AutoscalerLogFieldSet{
 				ProjectID:   "test-project",
 				ClusterName: "ca-cluster",
 				DecisionLog: &DecisionLog{
@@ -131,7 +132,7 @@ resource:
 receiveTimestamp: "2025-11-09T02:15:28.437679991Z"
 timestamp: "2025-11-09T02:15:27.768533131Z"
 `,
-			want: &AutoscalerLogFieldSet{
+			want: AutoscalerLogFieldSet{
 				ProjectID:   "test-project",
 				ClusterName: "ca-cluster",
 				NoDecisionLog: &NoDecisionStatusLog{
@@ -178,7 +179,7 @@ resource:
 receiveTimestamp: "2025-11-09T02:16:43.703446262Z"
 timestamp: "2025-11-09T02:16:43.237461906Z"
 `,
-			want: &AutoscalerLogFieldSet{
+			want: AutoscalerLogFieldSet{
 				ProjectID:   "test-project",
 				ClusterName: "ca-cluster",
 				ResultInfoLog: &ResultInfoLog{
@@ -199,22 +200,29 @@ timestamp: "2025-11-09T02:16:43.237461906Z"
 				t.Fatalf("failed to create node: %v", err)
 			}
 
-			fieldSetReader := &AutoscalerLogFieldSetReader{}
-			got, err := fieldSetReader.Read(structured.NewNodeReader(node))
-			if err != nil {
-				t.Errorf("Read() error = %v", err)
-				return
+			got, err := ExtractAutoscalerLog(structured.NewNodeReader(node))
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ExtractAutoscalerLog() error = %v, wantErr %v", err, tc.wantErr)
 			}
 
-			autoscalerFieldSet, ok := got.(*AutoscalerLogFieldSet)
-			if !ok {
-				t.Fatalf("expected *AutoscalerLogFieldSet, got %T", got)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractAutoscalerLog() mismatch (-want +got):\n%s", diff)
 			}
-
-			if diff := cmp.Diff(tc.want, autoscalerFieldSet); diff != "" {
-				t.Errorf("Read() mismatch (-want +got):\n%s", diff)
-			}
-
 		})
 	}
+
+	t.Run("mock node returns mock values", func(t *testing.T) {
+		mockFS := AutoscalerLogFieldSet{
+			ProjectID:   "mock-proj",
+			ClusterName: "mock-cluster",
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(mockFS))
+		got, err := ExtractAutoscalerLog(reader)
+		if err != nil {
+			t.Fatalf("ExtractAutoscalerLog() error = %v", err)
+		}
+		if diff := cmp.Diff(mockFS, got); diff != "" {
+			t.Errorf("ExtractAutoscalerLog() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }

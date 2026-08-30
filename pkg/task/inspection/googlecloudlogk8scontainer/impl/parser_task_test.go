@@ -31,6 +31,7 @@ import (
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -43,14 +44,12 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 	}{
 		{
 			name: "successful container log ingestion",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "test-namespace",
 					PodName:       "test-pod",
 					ContainerName: "test-container",
@@ -67,14 +66,12 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "container log with structured klog error",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "kube-system",
 					PodName:       "kube-apiserver-pod",
 					ContainerName: "kube-apiserver",
@@ -91,14 +88,12 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "container log with structured jsonl warning",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "app-namespace",
 					PodName:       "app-pod",
 					ContainerName: "app-container",
@@ -115,14 +110,12 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "container log with istio envoy access log with error response flag",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 8, 10, 8, 50, 55, 0, time.UTC),
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				time.Date(2026, 8, 10, 8, 50, 55, 0, time.UTC),
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "default",
 					PodName:       "frontend-pod",
 					ContainerName: "istio-proxy",
@@ -139,14 +132,12 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "istio-proxy non-access-log control plane log",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 8, 20, 4, 46, 31, 353884563, time.UTC),
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				time.Date(2026, 8, 20, 4, 46, 31, 353884563, time.UTC),
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "default",
 					PodName:       "nginx-server-8646bbcd65-6d969",
 					ContainerName: "istio-proxy",
@@ -196,8 +187,8 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}{
 		{
 			name: "simple container log mapping",
-			inputLog: log.NewLogWithFieldSetsForTest(
-				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+			inputLog: testlog.NewMockLog(
+				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "test-namespace",
 					PodName:       "test-pod",
 					ContainerName: "test-container",
@@ -214,8 +205,8 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "container log with empty message",
-			inputLog: log.NewLogWithFieldSetsForTest(
-				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+			inputLog: testlog.NewMockLog(
+				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "test-namespace",
 					PodName:       "test-pod",
 					ContainerName: "test-container",
@@ -333,18 +324,16 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name: "skipped because NodeName is empty",
 			inputLogs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				testlog.NewMockLog(
+					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
 						PodName:       "test-pod",
 						ContainerName: "test-container",
 					},
-					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
 						NodeName: "",
 					},
-					&log.CommonFieldSet{
-						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-					},
+					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
 			},
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
@@ -359,18 +348,16 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name: "mapped successfully (no audit log)",
 			inputLogs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				testlog.NewMockLog(
+					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
 						PodName:       "test-pod",
 						ContainerName: "test-container",
 					},
-					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
 						NodeName: "test-node",
 					},
-					&log.CommonFieldSet{
-						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-					},
+					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
 			},
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
@@ -404,18 +391,16 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name: "skipped because audit log has Pod resource timeline",
 			inputLogs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				testlog.NewMockLog(
+					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
 						PodName:       "test-pod",
 						ContainerName: "test-container",
 					},
-					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
 						NodeName: "test-node",
 					},
-					&log.CommonFieldSet{
-						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-					},
+					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
 			},
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
@@ -435,18 +420,16 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name: "skipped because audit log has Pod binding timeline",
 			inputLogs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				testlog.NewMockLog(
+					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
 						PodName:       "test-pod",
 						ContainerName: "test-container",
 					},
-					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
 						NodeName: "test-node",
 					},
-					&log.CommonFieldSet{
-						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-					},
+					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
 			},
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
@@ -466,31 +449,27 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name: "mapped once and skipped for subsequent logs with same node",
 			inputLogs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				testlog.NewMockLog(
+					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
 						PodName:       "test-pod",
 						ContainerName: "test-container",
 					},
-					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
 						NodeName: "test-node",
 					},
-					&log.CommonFieldSet{
-						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-					},
+					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
-				log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				testlog.NewMockLog(
+					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
 						PodName:       "test-pod",
 						ContainerName: "test-container",
 					},
-					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
 						NodeName: "test-node",
 					},
-					&log.CommonFieldSet{
-						Timestamp: time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
-					},
+					time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
 				),
 			},
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
@@ -530,37 +509,33 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name: "regenerate Pod when labels change",
 			inputLogs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				testlog.NewMockLog(
+					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
 						PodName:       "test-pod",
 						ContainerName: "test-container",
 					},
-					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
 						NodeName: "test-node",
 						PodLabels: map[string]string{
 							"a": "1",
 						},
 					},
-					&log.CommonFieldSet{
-						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-					},
+					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
-				log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				testlog.NewMockLog(
+					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
 						PodName:       "test-pod",
 						ContainerName: "test-container",
 					},
-					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
 						NodeName: "test-node",
 						PodLabels: map[string]string{
 							"a": "2",
 						},
 					},
-					&log.CommonFieldSet{
-						Timestamp: time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
-					},
+					time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
 				),
 			},
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
@@ -617,31 +592,27 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name: "regenerate all when node changes",
 			inputLogs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				testlog.NewMockLog(
+					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
 						PodName:       "test-pod",
 						ContainerName: "test-container",
 					},
-					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
 						NodeName: "test-node-1",
 					},
-					&log.CommonFieldSet{
-						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-					},
+					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
-				log.NewLogWithFieldSetsForTest(
-					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				testlog.NewMockLog(
+					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
 						PodName:       "test-pod",
 						ContainerName: "test-container",
 					},
-					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
 						NodeName: "test-node-2",
 					},
-					&log.CommonFieldSet{
-						Timestamp: time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
-					},
+					time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
 				),
 			},
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{

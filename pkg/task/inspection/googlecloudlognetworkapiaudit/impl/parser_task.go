@@ -93,10 +93,6 @@ func (m *networkAPITimelineMapper) GroupedLogTask() taskid.TaskReference[inspect
 
 // ProcessLogByGroup maps the NEG audit log to resource timelines as state revisions.
 func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *perNEGHistoryModificationStatus) (*khifilev6.TimelineChangeSet, *perNEGHistoryModificationStatus, error) {
-	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err != nil {
-		return nil, prevGroupData, err
-	}
 	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, prevGroupData, err
@@ -131,7 +127,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	if auditFieldSet.ImmediateOperation() {
 		cs.AddEvent(negOperationPath)
 	} else {
-		prevGroupData.OperationTracker.ProcessOperationLog(ctx, cs, negOperationPath, &auditFieldSet, commonFieldSet.Timestamp)
+		prevGroupData.OperationTracker.ProcessOperationLog(ctx, cs, negOperationPath, &auditFieldSet, l.Timestamp)
 	}
 
 	ipLeases := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref())
@@ -172,7 +168,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	if negRequest != nil {
 		negToBS := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref())
 		for _, endpoint := range negRequest.NetworkEndpoints {
-			lease, err := ipLeases.GetResourceLeaseHolderAt(endpoint.IpAddress, commonFieldSet.Timestamp)
+			lease, err := ipLeases.GetResourceLeaseHolderAt(endpoint.IpAddress, l.Timestamp)
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to identify the holder of the IP %s.\n This might be because the IP holder resource wasn't updated during the log period ", endpoint.IpAddress))
 				continue
@@ -187,7 +183,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 
 				negSubresourcePath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, podPath, negName)
 				cs.AddRevision(negSubresourcePath, &khifilev6.StagingRevision{
-					ChangedTime: commonFieldSet.Timestamp,
+					ChangedTime: l.Timestamp,
 					VerbType:    verb,
 					StateType:   state,
 					Principal:   auditFieldSet.PrincipalEmail,
@@ -198,7 +194,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 					bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, clusterIdentity.ProjectID, "backendServices", bsName)
 					negSubresourcePath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, holder.Name)
 					cs.AddRevision(negSubresourcePath, &khifilev6.StagingRevision{
-						ChangedTime: commonFieldSet.Timestamp,
+						ChangedTime: l.Timestamp,
 						VerbType:    verb,
 						StateType:   state,
 						Principal:   auditFieldSet.PrincipalEmail,

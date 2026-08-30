@@ -19,7 +19,7 @@ The parser package must reside under `pkg/task/inspection/` and adhere to the fo
 pkg/task/inspection/<log_type_name>/
 ├── contract/
 │   ├── taskid.go          // Defines all TaskIDs and TaskReferences.
-│   ├── fieldset.go        // (Optional) Defines the strongly-typed FieldSets and their Readers.
+│   ├── extractor.go       // (Optional) Defines field extraction functions and strongly-typed data structs.
 │   ├── timeline_type.go   // (Optional) Defines timeline types and verb types.
 │   ├── timeline_path.go   // (Optional) Helper functions to build hierarchical paths.
 │   └── log_type.go        // (Optional) Defines log-specific types or constants.
@@ -35,23 +35,22 @@ pkg/task/inspection/<log_type_name>/
 
 > [!IMPORTANT]
 >
-> - **Contract Package (`contract/`)**: MUST NOT import the `impl` package. External packages can freely import the `contract` package to depend on parser task IDs, FieldSet types, or TimelineType constants.
+> - **Contract Package (`contract/`)**: MUST NOT import the `impl` package. External packages can freely import the `contract` package to depend on parser task IDs, Extractor functions, or TimelineType constants.
 > - **Implementation Package (`impl/`)**: Implements the actual tasks. It imports the `contract` package. **External packages MUST NOT import the `impl` package.**
 > - **Registration**: Tasks inside the `impl` package are registered through `impl/registration.go`. There is no root-level `registration.go` file in this directory.
 
 ---
 
-## 2. The Five Log Parsing Steps
+## 2. The Log Parsing Steps
 
-A complete log parser in KHI generally consists of 5 sequential steps, represented as distinct DAG tasks:
+A complete log parser in KHI generally consists of distinct DAG tasks:
 
 ```mermaid
 flowchart TD
     FormTask[1. Form Task] -->|Provides Parameters| QueryTask[2. Log Query Task]
-    QueryTask -->|Provides Raw Logs| FieldSetTask[3. FieldSet Reading Task]
-    FieldSetTask -->|Provides Parsed FieldSets| IngesterTask[4. Log Ingest Task]
-    FieldSetTask -->|Provides Parsed FieldSets| GrouperTask[Log Grouper Task]
-    IngesterTask -->|Provides Ingested Logs| MapperTask[5. Timeline Mapper Task]
+    QueryTask -->|Provides Raw Logs| IngesterTask[3. Log Ingest Task]
+    QueryTask -->|Provides Raw Logs| GrouperTask[Log Grouper Task]
+    IngesterTask -->|Provides Ingested Logs| MapperTask[4. Timeline Mapper Task]
     GrouperTask -->|Provides Grouped Map| MapperTask
 ```
 
@@ -68,23 +67,18 @@ Queries logs from the data source (e.g., Google Cloud Logging or local files) us
 - **Utility:** `googlecloudcommon_contract.NewListLogEntriesTask` (for any logs on Cloud Logging) or `inspection_task.NewInspectionTask`.
 - **Google Cloud API Calling:** When calling Google Cloud APIs directly or through fetchers, refer to [googlecloud-api](skill://googlecloud-api) for mandatory `CallOptionInjector` usage and client configuration.
 
-### Step 3: FieldSet Reading Tasks
+### Step 3: Log Ingestion Tasks
 
-Reads structured log fields in parallel and attaches strongly-typed structs called **FieldSets** to log objects so subsequent tasks can access them efficiently.
-
-- **Utility:** `inspectiontaskbase.NewFieldSetReadTask` with custom `log.FieldSetReader`s.
-
-### Step 4: Log Ingestion Tasks
-
-Information linked to the log is parsed here into a writable format, receiving information from the FieldSets (e.g. Timestamp, Severity, and Summary are initialized and stage mutations).
+Extracts information directly from the log's `NodeReader` using Extractor functions, populating basic log metadata on `LogChangeSet` (such as `Timestamp` from `l.Timestamp`, `Severity`, `LogType`, and `Summary`).
 
 - **Utility:** `inspectiontaskbase.NewLogIngesterTask`.
 
-### Step 5: Timeline Mapping Tasks
+### Step 4: Log Grouping & Timeline Mapping Tasks
 
-Maps the ingested logs to resource timelines as events or state revisions.
-
-- **Utility:** `inspectiontaskbase.NewLogToTimelineMapperTask`.
+- **Log Grouper Task:** Groups logs by a key (e.g., entity name, correlation ID) by calling Extractor functions on raw logs.
+  - **Utility:** `inspectiontaskbase.NewLogGrouperTask`.
+- **Timeline Mapping Task:** Maps the grouped logs to resource timelines as events or state revisions.
+  - **Utility:** `inspectiontaskbase.NewLogToTimelineMapperTask`.
 
 ---
 
@@ -96,7 +90,7 @@ Let's look at a concrete example of supporting a custom log type called `customa
 
 #### `taskid.go`
 
-Defines the TaskIDs and TaskReferences for all 5 steps.
+Defines the TaskIDs and TaskReferences for the pipeline steps.
 
 ```go
 package customapp_contract
@@ -115,27 +109,29 @@ var InputFilterKeywordTaskID = taskid.NewDefaultImplementationID[string](TaskIDP
 // 2. Log Query Task ID
 var LogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
 
-// 3. FieldSet Reading Task ID
-var FieldSetReadTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "fieldset-read")
-
-// 4. Log Ingestion Task ID
+// 3. Log Ingestion Task ID
 var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-ingester")
 
-// 5. Log Grouper & Timeline Mapper Task IDs
+// 4. Log Grouper & Timeline Mapper Task IDs
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-grouper")
 var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](TaskIDPrefix + "timeline-mapper")
 ```
 
-#### `fieldset.go`
+#### `extractor.go`
 
-Defines the strongly-typed FieldSet and its reader.
+Defines the strongly-typed data structures and extraction functions.
 
 ```go
 package customapp_contract
 
 import (
  "github.com/GoogleCloudPlatform/khi/pkg/common/structured"
- "github.com/GoogleCloudPlatform/khi/pkg/model/log"
+)
+
+var (
+ pathAppName   = structured.CompileFieldPath("app_name")
+ pathRequestID = structured.CompileFieldPath("request_id")
+ pathPayload   = structured.CompileFieldPath("payload")
 )
 
 // CustomAppFieldSet holds structured log data extracted from the log entry.
@@ -145,29 +141,14 @@ type CustomAppFieldSet struct {
  Payload   string
 }
 
-// Kind returns the unique identifier of this FieldSet.
-func (fs *CustomAppFieldSet) Kind() string {
- return "customapp.khi.google.com/FieldSet"
-}
-
-// CustomAppFieldSetReader extracts CustomAppFieldSet from a raw log node reader.
-type CustomAppFieldSetReader struct{}
-
-// FieldSetKind returns the Kind string of CustomAppFieldSet.
-func (r *CustomAppFieldSetReader) FieldSetKind() string {
- return "customapp.khi.google.com/FieldSet"
-}
-
-// Read parses fields from structured log data.
-func (r *CustomAppFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
- return &CustomAppFieldSet{
-  AppName:   reader.ReadStringOrDefault("app_name", "unknown-app"),
-  RequestID: reader.ReadStringOrDefault("request_id", ""),
-  Payload:   reader.ReadStringOrDefault("payload", ""),
+// ExtractCustomApp extracts CustomAppFieldSet from a raw log node reader.
+func ExtractCustomApp(reader *structured.NodeReader) (CustomAppFieldSet, error) {
+ return CustomAppFieldSet{
+  AppName:   reader.ReadStringOrDefaultByPath(pathAppName, "unknown-app"),
+  RequestID: reader.ReadStringOrDefaultByPath(pathRequestID, ""),
+  Payload:   reader.ReadStringOrDefaultByPath(pathPayload, ""),
  }, nil
 }
-
-var _ log.FieldSetReader = (*CustomAppFieldSetReader)(nil)
 ```
 
 #### `timeline_type.go`
@@ -368,9 +349,9 @@ func (s *customAppLogQueryTaskSetting) TimePartitionCount(ctx context.Context) (
 var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*customAppLogQueryTaskSetting)(nil)
 ```
 
-#### `parser_tasks.go` (Steps 3, 4, 5)
+#### `parser_tasks.go` (Steps 3, 4)
 
-Defines FieldSet reading, log ingestion, log grouping, and timeline mapping.
+Defines log ingestion, log grouping, and timeline mapping.
 
 ```go
 package customapp_impl
@@ -390,21 +371,11 @@ import (
  inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReadTask reads fields in parallel (Step 3).
-var FieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
- customapp_contract.FieldSetReadTaskID,
- customapp_contract.LogQueryTaskID.Ref(),
- []log.FieldSetReader{
-  &customapp_contract.CustomAppFieldSetReader{},
-  &googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
- },
-)
-
-// CustomAppLogIngester V2 LogIngester (Step 4).
+// CustomAppLogIngester V2 LogIngester (Step 3).
 type CustomAppLogIngester struct{}
 
 func (i *CustomAppLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
- return customapp_contract.FieldSetReadTaskID.Ref()
+ return customapp_contract.LogQueryTaskID.Ref()
 }
 
 func (i *CustomAppLogIngester) Dependencies() []taskid.UntypedTaskReference {
@@ -416,22 +387,13 @@ func (i *CustomAppLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
  if err != nil {
   return nil, err
  }
-  // Log related parsing logic. LogType, Timestamp, Severity and Summary must be set.
 
- cs.SetLogType(foocontract.LogTypeFoo)
- // Explicitly retrieve and ingest Timestamp from CommonFieldSet.
- if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-  cs.SetTimestamp(commonFS.Timestamp)
-  // Do not use commonFS.Severity because it's deprecated.
- }
+ cs.SetLogType(customapp_contract.LogTypeCustomApp)
+ // Timestamp is already populated on l.Timestamp during ingestion.
+ cs.SetTimestamp(l.Timestamp)
 
- // Retrieve and ingest Severity from DefaultSeverityFieldSet.
- if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-  cs.SetSeverity(severityFS.Severity)
- }
-
- // Retrieve custom fields to generate summary.
- if customFS, err := log.GetFieldSet(l, &customapp_contract.CustomAppFieldSet{}); err == nil {
+ // Extract custom fields to generate summary.
+ if customFS, err := customapp_contract.ExtractCustomApp(l.NodeReader); err == nil {
   cs.SetSummary(fmt.Sprintf("[%s] %s", customFS.AppName, customFS.Payload))
  }
 
@@ -443,19 +405,19 @@ var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
  &CustomAppLogIngester{},
 )
 
-// LogGrouperTask groups logs byAppName (helper for Step 5).
+// LogGrouperTask groups logs by AppName (helper for Step 4).
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
  customapp_contract.LogGrouperTaskID,
- customapp_contract.FieldSetReadTaskID.Ref(),
+ customapp_contract.LogQueryTaskID.Ref(),
  func(ctx context.Context, l *log.Log) string {
-  if customFS, err := log.GetFieldSet(l, &customapp_contract.CustomAppFieldSet{}); err == nil {
+  if customFS, err := customapp_contract.ExtractCustomApp(l.NodeReader); err == nil {
    return customFS.AppName
   }
   return "unknown-app"
  },
 )
 
-// CustomAppTimelineMapper maps logs to timeline (Step 5).
+// CustomAppTimelineMapper maps logs to timeline (Step 4).
 type CustomAppTimelineMapper struct {
  inspectiontaskbase.StatelessMapperBase // Embed stateless helper.
 }
@@ -473,11 +435,7 @@ func (m *CustomAppTimelineMapper) GroupedLogTask() taskid.TaskReference[inspecti
 }
 
 func (m *CustomAppTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
- commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{})
- if err != nil {
-  return nil, struct{}{}, err
- }
- customFS, err := log.GetFieldSet(l, &customapp_contract.CustomAppFieldSet{})
+ customFS, err := customapp_contract.ExtractCustomApp(l.NodeReader)
  if err != nil {
   return nil, struct{}{}, err
  }
@@ -492,7 +450,7 @@ func (m *CustomAppTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.
 
  // Record a revision on timeline for state change.
  cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-  ChangedTime:  commonFS.Timestamp,
+  ChangedTime:  l.Timestamp,
   ResourceBody: customFS.Payload,
   VerbType:     customapp_contract.VerbCustomAppProcess,
  })
@@ -629,7 +587,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
   registry,
   InputFilterKeywordTask,
   LogQueryTask,
-  FieldSetReadTask,
   LogIngesterTask,
   LogGrouperTask,
   LogToTimelineMapperTask,
@@ -662,8 +619,8 @@ func TestGetLastBody(t *testing.T) {
  nodeA1, _ := structured.FromGoValue(map[string]any{"value": "A1"}, &structured.AlphabeticalGoMapKeyOrderProvider{})
  nodeB1, _ := structured.FromGoValue(map[string]any{"value": "B1"}, &structured.AlphabeticalGoMapKeyOrderProvider{})
 
- logA1 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t1})
- logB1 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t2})
+ logA1 := testlog.NewMockLog(t1)
+ logB1 := testlog.NewMockLog(t2)
 
  groupSet := RelatedGroupSet{
   Roles: map[string]*ResourceManifestLogGroup{
@@ -773,9 +730,7 @@ func TestMyManifestMapper_ProcessLog(t *testing.T) {
   {
    name: "parent pod deletion propagates delete revision to subresource binding",
    event: MultiGroupLogEvent{
-    Log: log.NewLogWithFieldSetsForTest(
-     &log.CommonFieldSet{Timestamp: time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)},
-    ),
+    Log: testlog.NewMockLog(time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)),
     GroupRole: "source", // Parent resource
     EventType: ChangeEventTypeDeletion,
     GroupSet: RelatedGroupSet{

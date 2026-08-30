@@ -44,9 +44,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "ingest compute API audit log - start",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
@@ -66,9 +64,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "ingest compute API audit log - finish succeeded",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
@@ -89,9 +85,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "ingest compute API audit log - finish failed",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityError,
 				},
@@ -113,9 +107,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "ingest compute API audit log - immediate failed",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityError,
 				},
@@ -137,9 +129,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "ingest compute API audit log - immediate succeeded",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
@@ -208,9 +198,6 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	})
 
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
-	testCommonFieldSet := &log.CommonFieldSet{
-		Timestamp: testTime,
-	}
 
 	testCases := []struct {
 		name     string
@@ -220,7 +207,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}{
 		{
 			name: "operation started",
-			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testTime, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-1",
 				OperationFirst: true,
 				OperationLast:  false,
@@ -240,7 +227,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "operation finished with prior start log found",
-			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testTime, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-1",
 				OperationFirst: false,
 				OperationLast:  true,
@@ -273,7 +260,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "immediate operation",
-			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testTime, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-2",
 				OperationFirst: true,
 				OperationLast:  true,
@@ -288,7 +275,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "deletion operation started",
-			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testTime, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-3",
 				OperationFirst: true,
 				OperationLast:  false,
@@ -308,7 +295,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "deletion operation finished without prior start log",
-			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testTime, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-3",
 				OperationFirst: false,
 				OperationLast:  true,
@@ -334,7 +321,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "deletion operation failed without prior start log",
-			inputLog: testlog.NewMockLog(testCommonFieldSet, googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(testTime, googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-4",
 				OperationFirst: false,
 				OperationLast:  true,

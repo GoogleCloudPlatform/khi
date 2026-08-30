@@ -24,12 +24,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
@@ -200,9 +200,9 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			message := klogParser.TryParse(tc.inputMessage)
 			tc.inputNodeLogFieldSet.Message = message
 
-			l := log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: testTime},
-				tc.inputNodeLogFieldSet,
+			l := testlog.NewMockLog(
+				testTime,
+				*tc.inputNodeLogFieldSet,
 			)
 
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})

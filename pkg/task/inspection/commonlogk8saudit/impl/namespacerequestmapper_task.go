@@ -69,7 +69,7 @@ func (n *namespaceRequestLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets
 func (n *namespaceRequestLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
-	k8sFieldSet, err := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
+	k8sFieldSet, err := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
 	}

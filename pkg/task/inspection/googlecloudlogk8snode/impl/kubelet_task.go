@@ -31,7 +31,7 @@ import (
 )
 
 // KubeletLogFilterTask filters only kubelet component logs.
-var KubeletLogFilterTask = newParserTypeFilterTask(googlecloudlogk8snode_contract.KubeletLogFilterTaskID, googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID.Ref(), googlecloudlogk8snode_contract.Kubelet)
+var KubeletLogFilterTask = newParserTypeFilterTask(googlecloudlogk8snode_contract.KubeletLogFilterTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref(), googlecloudlogk8snode_contract.Kubelet)
 
 // KubeletLogGroupTask groups kubelet logs by node and component.
 var KubeletLogGroupTask = newNodeAndComponentNameGrouperTask(googlecloudlogk8snode_contract.KubeletLogGroupTaskID, googlecloudlogk8snode_contract.KubeletLogFilterTaskID.Ref())
@@ -64,7 +64,10 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.Task
 func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref())
 	clusterName := clusterIdentity.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster)
-	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+	componentFieldSet, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
+	if err != nil {
+		return nil, struct{}{}, err
+	}
 	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref())
 	podIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
 	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())

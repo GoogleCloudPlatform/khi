@@ -58,11 +58,7 @@ func (i *GCPOperationLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*
 		return nil, err
 	}
 
-	commonSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err != nil {
-		return nil, err
-	}
-	cs.SetTimestamp(commonSet.Timestamp)
+	cs.SetTimestamp(l.Timestamp)
 
 	if severity, err := ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
 		cs.SetSeverity(severity)

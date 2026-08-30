@@ -27,6 +27,7 @@ import (
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestLogToTimelineMapperTask(t *testing.T) {
@@ -112,7 +113,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(&tc.input)
+			l := testlog.NewMockLog(tc.input)
 
 			// Set up context with the same Builder reference.
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
@@ -136,14 +137,12 @@ func TestKubernetesEventLogIngester_ProcessLog(t *testing.T) {
 	}{
 		{
 			name: "successful event log ingestion",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC),
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC),
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudlogk8sevent_contract.KubernetesEventFieldSet{
+				googlecloudlogk8sevent_contract.KubernetesEventFieldSet{
 					Reason:  "Scheduled",
 					Message: "Successfully assigned default/test-pod to node-1",
 				},

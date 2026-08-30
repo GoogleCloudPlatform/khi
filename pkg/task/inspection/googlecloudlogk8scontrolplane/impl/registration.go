@@ -24,15 +24,13 @@ import (
 // Register registers all googlecloudlogk8scontrolplane inspection tasks to the registry.
 /*
 flowchart TD
-    ListLogEntriesTask --> CommonFieldSetReadTask
     ListLogEntriesTask --> LogIngesterTask
-    CommonFieldSetReadTask --> SchedulerLogFilterTask -->SchedulerFieldSetReaderTask --> SchedulerGroupterTask --> SchedulerLogToTimelineMapperTask --> TailTask
-    CommonFieldSetReadTask --> ControllerManagerLogFilterTask --> ControllerManagerFieldSetReaderTask --> ControllerManagerGrouperTask --> ControllerManagerLogToTimelineMapperTask --> TailTask
-    CommonFieldSetReadTask --> OtherLogFilterTask --> OtherFieldSetReaderTask --> OtherGrouperTask --> OtherLogToTimelineMapperTask --> TailTask
+    ListLogEntriesTask --> SchedulerLogFilterTask --> SchedulerGrouperTask --> SchedulerLogToTimelineMapperTask --> TailTask
+    ListLogEntriesTask --> ControllerManagerLogFilterTask --> ControllerManagerGrouperTask --> ControllerManagerLogToTimelineMapperTask --> TailTask
+    ListLogEntriesTask --> OtherLogFilterTask --> OtherGrouperTask --> OtherLogToTimelineMapperTask --> TailTask
     LogIngesterTask --> SchedulerLogToTimelineMapperTask
     LogIngesterTask --> ControllerManagerLogToTimelineMapperTask
     LogIngesterTask --> OtherLogToTimelineMapperTask
-```
 */
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	scopedWithLogSource := coreinspection.NewScopedRegistry(
@@ -61,17 +59,13 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 
 		InputControlPlaneComponentNameFilterTask,
 		LogIngesterTask,
-		CommonFieldSetReaderTask,
 		SchedulerLogFilterTask,
-		SchedulerLogFieldSetReaderTask,
 		SchedulerGrouperTask,
 		SchedulerLogToTimelineMapperTask,
 		ControllerManagerFilterTask,
-		ControllerManagerLogFieldSetReaderTask,
 		ControllerManagerGrouperTask,
 		ControllerManagerLogToTimelineMapperTask,
 		OtherLogFilterTask,
-		OtherLogFieldSetReaderTask,
 		OtherGrouperTask,
 		OtherLogToTimelineMapperTask,
 		TailTask,

@@ -30,29 +30,19 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// CSMTrafficDirectorFieldSetReaderTask is a task that reads and parses field sets from CSM Traffic Director logs.
-var CSMTrafficDirectorFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudlogcsm_contract.CSMTrafficDirectorFieldSetReaderTaskID,
-	googlecloudlogcsm_contract.ListCSMTrafficDirectorLogEntriesTaskID.Ref(),
-	[]log.FieldSetReader{
-		&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
-		&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
-	},
-)
-
 // CSMTrafficDirectorLogIngesterTask is a task that ingests CSM Traffic Director logs.
 var CSMTrafficDirectorLogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudlogcsm_contract.CSMTrafficDirectorLogIngesterTaskID,
-	googlecloudlogcsm_contract.CSMTrafficDirectorFieldSetReaderTaskID.Ref(),
+	googlecloudlogcsm_contract.ListCSMTrafficDirectorLogEntriesTaskID.Ref(),
 	googlecloudlogcsm_contract.LogTypeCSMTrafficLog,
 )
 
 // CSMTrafficDirectorLogGrouperTask is a task that groups CSM Traffic Director logs by their resource name.
 var CSMTrafficDirectorLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudlogcsm_contract.CSMTrafficDirectorLogGrouperTaskID,
-	googlecloudlogcsm_contract.CSMTrafficDirectorFieldSetReaderTaskID.Ref(),
+	googlecloudlogcsm_contract.ListCSMTrafficDirectorLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		audit, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
+		audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 		if err != nil {
 			return "unknown"
 		}
@@ -87,11 +77,7 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 	if tracker == nil {
 		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
 	}
-	commonLogFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err != nil {
-		return nil, tracker, err
-	}
-	audit, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
+	audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -109,10 +95,10 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 		methodNameParts := strings.Split(audit.MethodName, ".")
 		shortMethodName := methodNameParts[len(methodNameParts)-1]
 		operationTimelinePath := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, resourceTimelinePath, shortMethodName, audit.OperationID)
-		tracker.ProcessOperationLog(ctx, cs, operationTimelinePath, audit, commonLogFieldSet.Timestamp)
+		tracker.ProcessOperationLog(ctx, cs, operationTimelinePath, &audit, l.Timestamp)
 	}
 
-	manifest, shouldUpdate := tracker.TrackAndGetManifest(audit)
+	manifest, shouldUpdate := tracker.TrackAndGetManifest(&audit)
 	if shouldUpdate {
 		switch {
 		case verb == commonlogk8saudit_contract.VerbDelete:
@@ -120,7 +106,7 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 				VerbType:    commonlogk8saudit_contract.VerbDelete,
 				StateType:   commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 				Principal:   audit.PrincipalEmail,
-				ChangedTime: commonLogFieldSet.Timestamp,
+				ChangedTime: l.Timestamp,
 			})
 		case audit.ImmediateOperation():
 			cs.AddEvent(resourceTimelinePath)
@@ -130,7 +116,7 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 				VerbType:     verb,
 				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
 				Principal:    audit.PrincipalEmail,
-				ChangedTime:  commonLogFieldSet.Timestamp,
+				ChangedTime:  l.Timestamp,
 			})
 		}
 	}

@@ -89,7 +89,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		AirflowDagProcessorManagerLogIngesterTask,
 		AirflowDagProcessorManagerLogToTimelineMapperTask,
 
-		ComposerLogsFieldSetReadTask,
 		ComposerLogsTailTask,
 	)
 }

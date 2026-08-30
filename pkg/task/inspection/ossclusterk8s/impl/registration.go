@@ -37,15 +37,14 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	)
 
 	return coretask.RegisterTasks(scoped,
+		OSSK8sAuditLogExtractorTask,
 		InputAuditLogFilesTask,
 		AuditLogFileReaderTask,
 		EventAuditLogFilterTask,
 		NonEventAuditLogFilterTask,
-		OSSK8sEventFieldSetReadTask,
 		OSSK8sEventLogIngesterTask,
 		OSSK8sEventLogGrouperTask,
 		OSSK8sEventLogToTimelineMapperTask,
-		OSSK8sAuditLogFieldExtractorTask,
 		OSSK8sAuditLogParserTailTask,
 	)
 }

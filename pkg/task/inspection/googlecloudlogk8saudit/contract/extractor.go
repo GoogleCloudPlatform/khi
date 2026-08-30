@@ -40,10 +40,6 @@ var (
 	pathLabels              = structured.CompileFieldPath("labels")
 )
 
-func init() {
-	commonlogk8saudit_contract.SetDefaultK8sAuditLogExtractor(ExtractGCPK8sAuditLog)
-}
-
 // ExtractGCPK8sAuditLog extracts Kubernetes audit log data from a GCP Cloud Logging NodeReader.
 func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
 	if mock, ok := structured.GetMock[commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
@@ -54,14 +50,14 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_con
 		return result, nil
 	}
 
-	result.OperationID = reader.ReadStringOrDefaultByPath(pathOperationID, "")
-	result.IsFirst = reader.ReadBoolOrDefaultByPath(pathOperationFirst, false)
-	result.IsLast = reader.ReadBoolOrDefaultByPath(pathOperationLast, false)
-	resourceName := reader.ReadStringOrDefaultByPath(pathProtoResourceName, "")
-	methodName := reader.ReadStringOrDefaultByPath(pathProtoMethodName, "")
-	result.ClusterName = reader.ReadStringOrDefaultByPath(pathResourceClusterName, "unknown")
+	result.OperationID = reader.ReadStringOrDefault(pathOperationID, "")
+	result.IsFirst = reader.ReadBoolOrDefault(pathOperationFirst, false)
+	result.IsLast = reader.ReadBoolOrDefault(pathOperationLast, false)
+	resourceName := reader.ReadStringOrDefault(pathProtoResourceName, "")
+	methodName := reader.ReadStringOrDefault(pathProtoMethodName, "")
+	result.ClusterName = reader.ReadStringOrDefault(pathResourceClusterName, "unknown")
 	result.RequestURI = resourceName
-	result.IsDryRun = reader.ReadStringOrDefaultByPath(pathLabelsDryRun, "") != ""
+	result.IsDryRun = reader.ReadStringOrDefault(pathLabelsDryRun, "") != ""
 
 	apiVersion, pluralKind, namespace, name, subResourceName, verb := parseKubernetesOperation(resourceName, methodName)
 	result.APIVersion = apiVersion
@@ -71,12 +67,12 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_con
 	result.SubresourceName = subResourceName
 	result.Verb = verb
 
-	result.Principal = reader.ReadStringOrDefaultByPath(pathProtoPrincipal, "")
-	result.StatusCode = reader.ReadIntOrDefaultByPath(pathProtoStatusCode, 0)
-	result.StatusMessage = reader.ReadStringOrDefaultByPath(pathProtoStatusMessage, "")
+	result.Principal = reader.ReadStringOrDefault(pathProtoPrincipal, "")
+	result.StatusCode = reader.ReadIntOrDefault(pathProtoStatusCode, 0)
+	result.StatusMessage = reader.ReadStringOrDefault(pathProtoStatusMessage, "")
 	result.IsError = result.StatusCode != 0
-	result.Request, _ = reader.GetReaderByPath(pathProtoRequest)
-	result.Response, _ = reader.GetReaderByPath(pathProtoResponse)
+	result.Request, _ = reader.GetReader(pathProtoRequest)
+	result.Response, _ = reader.GetReader(pathProtoResponse)
 
 	type roundIndex struct{ round, index int }
 	webhookResults := make(map[roundIndex]*commonlogk8saudit_contract.MutatingWebhookResult)
@@ -94,7 +90,7 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_con
 		return res
 	}
 
-	labelsReader, _ := reader.GetReaderByPath(pathLabels)
+	labelsReader, _ := reader.GetReader(pathLabels)
 	if labelsReader != nil {
 		labelsReader.Children()(func(key structured.NodeChildrenKey, value structured.NodeReader) bool {
 			keyStr := key.Key
@@ -116,7 +112,7 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_con
 					index, err2 := strconv.Atoi(parts[1])
 					if err1 == nil && err2 == nil {
 						res := getOrCreateResult(round, index)
-						valStr, err := value.ReadString("")
+						valStr, err := value.ReadString(structured.EmptyFieldPath)
 						if err == nil {
 							switch prefix {
 							case commonlogk8saudit_contract.MutatingWebhookMutationPrefix:

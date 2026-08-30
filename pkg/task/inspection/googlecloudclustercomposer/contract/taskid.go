@@ -53,9 +53,6 @@ var InputComposerComponentsTaskID taskid.TaskImplementationID[[]string] = taskid
 // ComposerLogsQueryTaskID is the task id for the task that queries Logs from Cloud Logging.
 var ComposerLogsQueryTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "query-composer-logs")
 
-// ComposerLogsFieldSetReadTaskID is the task id for the task that reads fieldsets from composer logs.
-var ComposerLogsFieldSetReadTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "fieldsetread")
-
 // AirflowWorkerLogFilterTaskID is the task id for filtering Airflow worker logs.
 var AirflowWorkerLogFilterTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "filter-worker")
 

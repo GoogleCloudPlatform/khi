@@ -20,6 +20,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
+var (
+	pathAutoscalerDecision         = structured.CompileFieldPath("jsonPayload.decision")
+	pathAutoscalerNoDecisionStatus = structured.CompileFieldPath("jsonPayload.noDecisionStatus")
+	pathAutoscalerResultInfo       = structured.CompileFieldPath("jsonPayload.resultInfo")
+)
+
 type DecisionLog struct {
 	DecideTime      string               `json:"decideTime" yaml:"decideTime"`
 	EventID         string               `json:"eventId" yaml:"eventId"`
@@ -165,7 +171,7 @@ func (m MIGItem) Id() string {
 
 func parseDecisionFromReader(rootReader *structured.NodeReader) (*DecisionLog, error) {
 	var result DecisionLog
-	err := structured.ReadReflect(rootReader, "jsonPayload.decision", &result)
+	err := structured.ReadReflect(rootReader, pathAutoscalerDecision, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +180,7 @@ func parseDecisionFromReader(rootReader *structured.NodeReader) (*DecisionLog, e
 
 func parseNoDecisionFromReader(rootReader *structured.NodeReader) (*NoDecisionStatusLog, error) {
 	var result NoDecisionStatusLog
-	err := structured.ReadReflect(rootReader, "jsonPayload.noDecisionStatus", &result)
+	err := structured.ReadReflect(rootReader, pathAutoscalerNoDecisionStatus, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +189,7 @@ func parseNoDecisionFromReader(rootReader *structured.NodeReader) (*NoDecisionSt
 
 func parseResultInfoFromReader(rootReader *structured.NodeReader) (*ResultInfoLog, error) {
 	var result ResultInfoLog
-	err := structured.ReadReflect(rootReader, "jsonPayload.resultInfo", &result)
+	err := structured.ReadReflect(rootReader, pathAutoscalerResultInfo, &result)
 	if err != nil {
 		return nil, err
 	}

@@ -20,7 +20,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -71,7 +70,7 @@ func TestNonSuccessLogLogToTimelineMapperTaskSetting_ProcessLogByGroup(t *testin
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			logObj := testlog.NewMockLog(
-				&log.CommonFieldSet{Timestamp: time.Now()},
+				time.Now(),
 				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					APIVersion:      "core/v1",
 					PluralKind:      "pods",

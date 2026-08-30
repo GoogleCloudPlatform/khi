@@ -32,9 +32,6 @@ var LogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix 
 // LogFilterTaskID is the task id for filtering empty messages included in the serial port logs.
 var LogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "filter")
 
-// FieldSetReadTaskID is the task id for reading serial port node specific fields(GCESerialPortLogFieldSet).
-var FieldSetReadTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "field-set-read")
-
 // LogIngesterTaskID is the task id to serialize logs to history.
 var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-ingester")
 

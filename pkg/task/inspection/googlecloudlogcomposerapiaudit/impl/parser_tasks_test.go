@@ -55,9 +55,6 @@ var compareNodeOption = cmp.Transformer("StructuredNodeToYAML", func(n structure
 
 func TestComposerAuditLogToTimelineMapper(t *testing.T) {
 	testTime := time.Date(2026, time.August, 10, 0, 23, 12, 0, time.UTC)
-	testCommonFieldSet := &log.CommonFieldSet{
-		Timestamp: testTime,
-	}
 
 	testCases := []struct {
 		desc          string
@@ -317,7 +314,7 @@ config:
 			tracker := googlecloudcommon_contract.NewGCPOperationTracker()
 			tc.setupTracker(tracker, envTimeline)
 
-			l := testlog.NewMockLog(testCommonFieldSet, tc.inputAudit, tc.inputResource)
+			l := testlog.NewMockLog(testTime, tc.inputAudit, tc.inputResource)
 
 			cs, _, err := mapperSetting.ProcessLogByGroup(ctx, l, tracker)
 			if err != nil {
@@ -352,7 +349,7 @@ func TestComposerAuditLogIngester(t *testing.T) {
 		{
 			desc: "operation start log",
 			inputLog: testlog.NewMockLog(
-				&log.CommonFieldSet{Timestamp: testTime},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityInfo},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
@@ -369,7 +366,7 @@ func TestComposerAuditLogIngester(t *testing.T) {
 		{
 			desc: "operation succeeded log",
 			inputLog: testlog.NewMockLog(
-				&log.CommonFieldSet{Timestamp: testTime},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityInfo},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
@@ -386,7 +383,7 @@ func TestComposerAuditLogIngester(t *testing.T) {
 		{
 			desc: "operation failed log",
 			inputLog: testlog.NewMockLog(
-				&log.CommonFieldSet{Timestamp: testTime},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityError},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",

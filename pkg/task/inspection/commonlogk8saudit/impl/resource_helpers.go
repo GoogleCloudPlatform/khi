@@ -21,6 +21,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
+var (
+	pathMetadataDeletionGracePeriodSeconds = structured.CompileFieldPath("metadata.deletionGracePeriodSeconds")
+	pathMetadataDeletionTimestamp          = structured.CompileFieldPath("metadata.deletionTimestamp")
+	pathMetadataFinalizers                 = structured.CompileFieldPath("metadata.finalizers")
+	pathSpecFinalizers                     = structured.CompileFieldPath("spec.finalizers")
+	pathStatusPhase                        = structured.CompileFieldPath("status.phase")
+	pathMetadataUID                        = structured.CompileFieldPath("metadata.uid")
+	pathSpecNodeName                       = structured.CompileFieldPath("spec.nodeName")
+	pathTargetName                         = structured.CompileFieldPath("target.name")
+	pathMetadataCreationTimestamp          = structured.CompileFieldPath("metadata.creationTimestamp")
+)
+
 // GetDeletionGracePeriodSeconds returns the value of metadata.deletionGracePeriodSeconds.
 // It returns the value and true if the field exists and is an integer.
 // Otherwise, it returns 0 and false.
@@ -28,7 +40,7 @@ func GetDeletionGracePeriodSeconds(reader *structured.NodeReader) (int, bool) {
 	if reader == nil {
 		return 0, false
 	}
-	val, err := reader.ReadInt("metadata.deletionGracePeriodSeconds")
+	val, err := reader.ReadInt(pathMetadataDeletionGracePeriodSeconds)
 	if err != nil {
 		return 0, false
 	}
@@ -42,7 +54,7 @@ func GetDeletionTimestamp(reader *structured.NodeReader) (string, bool) {
 	if reader == nil {
 		return "", false
 	}
-	val, err := reader.ReadString("metadata.deletionTimestamp")
+	val, err := reader.ReadString(pathMetadataDeletionTimestamp)
 	if err != nil {
 		return "", false
 	}
@@ -58,7 +70,7 @@ func GetFinalizers(reader *structured.NodeReader) ([]string, bool) {
 		return nil, false
 	}
 
-	readFinalizers := func(path string) ([]string, bool) {
+	readFinalizers := func(path structured.FieldPath) ([]string, bool) {
 		r, err := reader.GetReader(path)
 		if err != nil {
 			return nil, false
@@ -81,10 +93,10 @@ func GetFinalizers(reader *structured.NodeReader) ([]string, bool) {
 		return result, true
 	}
 
-	if list, ok := readFinalizers("metadata.finalizers"); ok {
+	if list, ok := readFinalizers(pathMetadataFinalizers); ok {
 		return list, true
 	}
-	if list, ok := readFinalizers("spec.finalizers"); ok {
+	if list, ok := readFinalizers(pathSpecFinalizers); ok {
 		return list, true
 	}
 	return nil, false
@@ -97,7 +109,7 @@ func GetPodPhase(reader *structured.NodeReader) (string, bool) {
 	if reader == nil {
 		return "", false
 	}
-	val, err := reader.ReadString("status.phase")
+	val, err := reader.ReadString(pathStatusPhase)
 	if err != nil {
 		return "", false
 	}
@@ -111,7 +123,7 @@ func GetUID(reader *structured.NodeReader) (string, bool) {
 	if reader == nil {
 		return "", false
 	}
-	val, err := reader.ReadString("metadata.uid")
+	val, err := reader.ReadString(pathMetadataUID)
 	if err != nil {
 		return "", false
 	}
@@ -125,7 +137,7 @@ func GetNodeNameOfPod(reader *structured.NodeReader) (string, bool) {
 	if reader == nil {
 		return "", false
 	}
-	val, err := reader.ReadString("spec.nodeName")
+	val, err := reader.ReadString(pathSpecNodeName)
 	if err != nil {
 		return "", false
 	}
@@ -139,7 +151,7 @@ func GetNodeNameOfBinding(reader *structured.NodeReader) (string, bool) {
 	if reader == nil {
 		return "", false
 	}
-	val, err := reader.ReadString("target.name")
+	val, err := reader.ReadString(pathTargetName)
 	if err != nil {
 		return "", false
 	}
@@ -153,7 +165,7 @@ func GetCreationTimestamp(reader *structured.NodeReader) (time.Time, bool) {
 	if reader == nil {
 		return time.Time{}, false
 	}
-	val, err := reader.ReadString("metadata.creationTimestamp")
+	val, err := reader.ReadString(pathMetadataCreationTimestamp)
 	if err != nil {
 		return time.Time{}, false
 	}

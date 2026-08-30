@@ -39,7 +39,7 @@ var EventAuditLogFilterTask = inspectiontaskbase.NewProgressReportableInspection
 		var eventLogs []*log.Log
 
 		for _, l := range logs {
-			if l.ReadStringOrDefault("kind", "") == "Event" && l.ReadStringOrDefault("responseObject.kind", "") == "Event" {
+			if l.ReadStringOrDefault(pathAuditKind, "") == "Event" && l.ReadStringOrDefault(pathAuditResponseObjectKind, "") == "Event" {
 				eventLogs = append(eventLogs, l)
 			}
 		}

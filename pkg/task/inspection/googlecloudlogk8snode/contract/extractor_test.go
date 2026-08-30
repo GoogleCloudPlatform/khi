@@ -19,14 +19,16 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestK8sNodeLogCommonFieldSetReader(t *testing.T) {
+func TestExtractK8sNodeLogCommon(t *testing.T) {
 	testCases := []struct {
 		desc  string
 		input string
-		want  *K8sNodeLogCommonFieldSet
+		mock  *K8sNodeLogCommonFieldSet
+		want  K8sNodeLogCommonFieldSet
 	}{
 		{
 			desc: "with all parameters",
@@ -36,7 +38,7 @@ func TestK8sNodeLogCommonFieldSetReader(t *testing.T) {
 resource:
   labels:
     node_name: node-foo`,
-			want: &K8sNodeLogCommonFieldSet{
+			want: K8sNodeLogCommonFieldSet{
 				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
 					logutil.OriginalMessageFieldKey:       "test message",
 					logutil.MainMessageStructuredFieldKey: "test message",
@@ -53,7 +55,7 @@ resource:
 resource:
   labels:
     node_name: node-foo`,
-			want: &K8sNodeLogCommonFieldSet{
+			want: K8sNodeLogCommonFieldSet{
 				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
 					logutil.OriginalMessageFieldKey:       "test message",
 					logutil.MainMessageStructuredFieldKey: "test message",
@@ -69,7 +71,7 @@ logName: projects/test-project/logs/kube-proxy
 resource:
   labels:
     node_name: node-foo`,
-			want: &K8sNodeLogCommonFieldSet{
+			want: K8sNodeLogCommonFieldSet{
 				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
 					logutil.OriginalMessageFieldKey:       "test message",
 					logutil.MainMessageStructuredFieldKey: "test message",
@@ -80,29 +82,51 @@ resource:
 		{
 			desc:  "without jsonPayload",
 			input: `{}`,
-			want: &K8sNodeLogCommonFieldSet{
+			want: K8sNodeLogCommonFieldSet{
 				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
 					logutil.OriginalMessageFieldKey:       "",
 					logutil.MainMessageStructuredFieldKey: "",
 				}}, Component: "",
 			},
 		},
+		{
+			desc: "from mock",
+			mock: &K8sNodeLogCommonFieldSet{
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey: "mock-message",
+				}},
+				Component: "mock-comp",
+				NodeName:  "mock-node",
+			},
+			want: K8sNodeLogCommonFieldSet{
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey: "mock-message",
+				}},
+				Component: "mock-comp",
+				NodeName:  "mock-node",
+			},
+		},
 	}
 
-	for _, testCase := range testCases {
-		t.Run(testCase.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(testCase.input)
-			if err != nil {
-				t.Errorf("failed to parse test YAML data: %v", err)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			var l *log.Log
+			var err error
+			if tc.mock != nil {
+				l = testlog.NewMockLog(*tc.mock)
+			} else {
+				l, err = log.NewLogFromYAMLString(tc.input)
+				if err != nil {
+					t.Fatalf("failed to parse test YAML data: %v", err)
+				}
 			}
 
-			err = l.SetFieldSetReader(&K8sNodeLogCommonFieldSetReader{})
+			got, err := ExtractK8sNodeLogCommon(l.NodeReader, nil)
 			if err != nil {
-				t.Fatalf("K8sNodeLogCommonFieldSetReader returned an unexpected error:%v", err)
+				t.Fatalf("ExtractK8sNodeLogCommon() returned unexpected error: %v", err)
 			}
-			fieldSet := log.MustGetFieldSet(l, &K8sNodeLogCommonFieldSet{})
-			if diff := cmp.Diff(testCase.want, fieldSet); diff != "" {
-				t.Errorf("K8sNodeLogCommonFieldSetReader mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractK8sNodeLogCommon() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -111,26 +135,26 @@ resource:
 func TestK8sNodeLogCommonFieldSet_ParserType(t *testing.T) {
 	testCases := []struct {
 		desc     string
-		fieldSet *K8sNodeLogCommonFieldSet
+		fieldSet K8sNodeLogCommonFieldSet
 		want     K8sNodeParserType
 	}{
 		{
 			desc: "containerd parser type",
-			fieldSet: &K8sNodeLogCommonFieldSet{
+			fieldSet: K8sNodeLogCommonFieldSet{
 				Component: "containerd",
 			},
 			want: Containerd,
 		},
 		{
 			desc: "kubelet parser type",
-			fieldSet: &K8sNodeLogCommonFieldSet{
+			fieldSet: K8sNodeLogCommonFieldSet{
 				Component: "kubelet",
 			},
 			want: Kubelet,
 		},
 		{
 			desc: "other parser type",
-			fieldSet: &K8sNodeLogCommonFieldSet{
+			fieldSet: K8sNodeLogCommonFieldSet{
 				Component: "other-component",
 			},
 			want: Other,

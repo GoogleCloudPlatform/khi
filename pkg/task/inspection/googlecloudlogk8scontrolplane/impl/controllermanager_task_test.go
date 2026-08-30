@@ -22,12 +22,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
@@ -140,7 +140,7 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 			finder := patternfinder.NewTriePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
 
-			l := log.NewLogWithFieldSetsForTest(&tc.inputComponentField, &tc.inputControllerManagerFieldSet, &tc.inputMessageField)
+			l := testlog.NewMockLog(tc.inputComponentField, tc.inputControllerManagerFieldSet, tc.inputMessageField)
 			mapper := &ControllerManagerTimelineMapper{}
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
 			if err != nil {

@@ -21,9 +21,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -186,9 +186,7 @@ endpoints:
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{
-				Timestamp: testTime,
-			})
+			l := testlog.NewMockLog(testTime)
 			yamlNode, err := structured.FromYAML(test.inputManifest)
 			if err != nil {
 				t.Fatal(err)

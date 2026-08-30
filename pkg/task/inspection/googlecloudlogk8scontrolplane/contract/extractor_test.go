@@ -21,25 +21,27 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestK8sControlplaneComponentFieldSetReader(t *testing.T) {
+func TestExtractK8sControlplaneComponent(t *testing.T) {
 	testCases := []struct {
-		desc  string
-		input string
-		want  *K8sControlplaneComponentFieldSet
+		desc      string
+		inputYAML string
+		mock      *K8sControlplaneComponentFieldSet
+		want      K8sControlplaneComponentFieldSet
 	}{
 		{
 			desc: "simple log entry",
-			input: `
+			inputYAML: `
 resource:
   labels:
     cluster_name: test-cluster
     component_name: "kube-apiserver"
 `,
-			want: &K8sControlplaneComponentFieldSet{
+			want: K8sControlplaneComponentFieldSet{
 				ProjectID:     "unknown",
 				ClusterName:   "test-cluster",
 				ComponentName: "kube-apiserver",
@@ -47,129 +49,173 @@ resource:
 		},
 		{
 			desc: "without component name",
-			input: `
+			inputYAML: `
 resource:
   labels:
     foo: bar
 `,
-			want: &K8sControlplaneComponentFieldSet{
+			want: K8sControlplaneComponentFieldSet{
 				ProjectID:     "unknown",
 				ClusterName:   "unknown",
 				ComponentName: "",
 			},
 		},
+		{
+			desc: "from mock",
+			mock: &K8sControlplaneComponentFieldSet{
+				ProjectID:     "mock-project",
+				ClusterName:   "mock-cluster",
+				ComponentName: "mock-component",
+			},
+			want: K8sControlplaneComponentFieldSet{
+				ProjectID:     "mock-project",
+				ClusterName:   "mock-cluster",
+				ComponentName: "mock-component",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
-			if err != nil {
-				t.Fatalf("failed to parse test input YAML: %v", err)
-			}
-			err = l.SetFieldSetReader(&K8sControlplaneComponentFieldSetReader{})
-			if err != nil {
-				t.Errorf("failed to set fieldset reader: %v", err)
+			var l *log.Log
+			var err error
+			if tc.mock != nil {
+				l = testlog.NewMockLog(*tc.mock)
+			} else {
+				l, err = log.NewLogFromYAMLString(tc.inputYAML)
+				if err != nil {
+					t.Fatalf("failed to parse test input YAML: %v", err)
+				}
 			}
 
-			gotFieldSet := log.MustGetFieldSet(l, &K8sControlplaneComponentFieldSet{})
-			if diff := cmp.Diff(tc.want, gotFieldSet); diff != "" {
-				t.Errorf("K8sControlplaneComponentFieldSet mismatch (-want +got):\n%s", diff)
+			got, err := ExtractK8sControlplaneComponent(l.NodeReader)
+			if err != nil {
+				t.Fatalf("ExtractK8sControlplaneComponent() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractK8sControlplaneComponent() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestK8sControlplaneCommonMessageFieldSetReader(t *testing.T) {
+func TestExtractK8sControlplaneCommonMessage(t *testing.T) {
 	testCases := []struct {
-		desc  string
-		input string
-		want  *K8sControlplaneCommonMessageFieldSet
+		desc      string
+		inputYAML string
+		mock      *K8sControlplaneCommonMessageFieldSet
+		want      string
 	}{
 		{
 			desc: "simple log entry",
-			input: `
+			inputYAML: `
 jsonPayload:
   message: "test message"
 `,
-			want: &K8sControlplaneCommonMessageFieldSet{
-				Message: "test message",
-			},
+			want: "test message",
 		},
 		{
-			desc:  "without message",
-			input: `{}`,
-			want: &K8sControlplaneCommonMessageFieldSet{
-				Message: "",
+			desc:      "without message",
+			inputYAML: `{}`,
+			want:      "",
+		},
+		{
+			desc: "from mock",
+			mock: &K8sControlplaneCommonMessageFieldSet{
+				Message: "mock message",
 			},
+			want: "mock message",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
-			if err != nil {
-				t.Fatalf("failed to parse test input YAML: %v", err)
-			}
-			err = l.SetFieldSetReader(&K8sControlplaneCommonMessageFieldSetReader{})
-			if err != nil {
-				t.Errorf("failed to set fieldset reader: %v", err)
+			var l *log.Log
+			var err error
+			if tc.mock != nil {
+				l = testlog.NewMockLog(*tc.mock)
+			} else {
+				l, err = log.NewLogFromYAMLString(tc.inputYAML)
+				if err != nil {
+					t.Fatalf("failed to parse test input YAML: %v", err)
+				}
 			}
 
-			gotFieldSet := log.MustGetFieldSet(l, &K8sControlplaneCommonMessageFieldSet{})
-			if diff := cmp.Diff(tc.want, gotFieldSet); diff != "" {
-				t.Errorf("K8sControlplaneCommonMessageFieldSet mismatch (-want +got):\n%s", diff)
+			got, err := ExtractK8sControlplaneCommonMessage(l.NodeReader)
+			if err != nil {
+				t.Fatalf("ExtractK8sControlplaneCommonMessage() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractK8sControlplaneCommonMessage() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestK8sSchedulerComponentFieldSetReader(t *testing.T) {
+func TestExtractK8sSchedulerComponent(t *testing.T) {
 	testCases := []struct {
-		desc  string
-		input string
-		want  *K8sSchedulerComponentFieldSet
+		desc      string
+		inputYAML string
+		mock      *K8sSchedulerComponentFieldSet
+		want      K8sSchedulerComponentFieldSet
 	}{
 		{
 			desc: "simple scheduler entry",
-			input: `
+			inputYAML: `
 jsonPayload:
   message: '"Attempting to schedule pod" pod="foo/bar"'
 `,
-			want: &K8sSchedulerComponentFieldSet{
+			want: K8sSchedulerComponentFieldSet{
 				PodName:      "bar",
 				PodNamespace: "foo",
 			},
 		},
 		{
-			desc:  "without message",
-			input: `{}`,
-			want: &K8sSchedulerComponentFieldSet{
+			desc:      "without message",
+			inputYAML: `{}`,
+			want: K8sSchedulerComponentFieldSet{
 				PodName:      "",
 				PodNamespace: "",
+			},
+		},
+		{
+			desc: "from mock",
+			mock: &K8sSchedulerComponentFieldSet{
+				PodName:      "mock-pod",
+				PodNamespace: "mock-ns",
+			},
+			want: K8sSchedulerComponentFieldSet{
+				PodName:      "mock-pod",
+				PodNamespace: "mock-ns",
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
-			if err != nil {
-				t.Fatalf("failed to parse test input YAML: %v", err)
-			}
-			err = l.SetFieldSetReader(&K8sSchedulerComponentFieldSetReader{})
-			if err != nil {
-				t.Errorf("failed to set fieldset reader: %v", err)
+			var l *log.Log
+			var err error
+			if tc.mock != nil {
+				l = testlog.NewMockLog(*tc.mock)
+			} else {
+				l, err = log.NewLogFromYAMLString(tc.inputYAML)
+				if err != nil {
+					t.Fatalf("failed to parse test input YAML: %v", err)
+				}
 			}
 
-			gotFieldSet := log.MustGetFieldSet(l, &K8sSchedulerComponentFieldSet{})
-			if diff := cmp.Diff(tc.want, gotFieldSet); diff != "" {
-				t.Errorf("K8sSchedulerComponentFieldSet mismatch (-want +got):\n%s", diff)
+			got, err := ExtractK8sSchedulerComponent(l.NodeReader, nil)
+			if err != nil {
+				t.Fatalf("ExtractK8sSchedulerComponent() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractK8sSchedulerComponent() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestK8sControllerManagerComponentFieldSetReader_ReadController(t *testing.T) {
+func TestK8sControllerManagerComponentExtractor_ReadController(t *testing.T) {
 	testCases := []struct {
 		desc        string
 		input       string
@@ -204,25 +250,24 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadController(t *testing.T
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			reader := &K8sControllerManagerComponentFieldSetReader{
+			extractor := &K8sControllerManagerComponentExtractor{
 				WellKnownSourceLocationToControllerMap: map[string]string{
 					"namespace_controller.go": "namespace-controller",
 				},
 			}
 			klogParser := logutil.NewKLogTextParser(false)
-			controller, err := reader.readController(klogParser.TryParse(tc.input), tc.inputSource)
+			controller, err := extractor.ReadController(klogParser.TryParse(tc.input), tc.inputSource)
 			if err != nil {
-				t.Errorf("readController() returned an unexpected error: %v", err)
+				t.Errorf("ReadController() returned an unexpected error: %v", err)
 			}
 			if controller != tc.want {
-				t.Errorf("readController() got = %q, want %q", controller, tc.want)
+				t.Errorf("ReadController() got = %q, want %q", controller, tc.want)
 			}
 		})
 	}
-
 }
 
-func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFromKindField(t *testing.T) {
+func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromKindField(t *testing.T) {
 	testCases := []struct {
 		desc  string
 		input string
@@ -270,8 +315,7 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-
-			reader := &K8sControllerManagerComponentFieldSetReader{
+			extractor := &K8sControllerManagerComponentExtractor{
 				WellKnownKindToKLogFieldPairs: []*KindToKLogFieldPairData{
 					{
 						APIVersion:   "core/v1",
@@ -288,15 +332,15 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 				},
 			}
 			klogParser := logutil.NewKLogTextParser(false)
-			paths := reader.readResourceAssociationFromKindField(klogParser.TryParse(tc.input))
+			paths := extractor.ReadResourceAssociationFromKindField(klogParser.TryParse(tc.input))
 			if diff := cmp.Diff(tc.want, paths); diff != "" {
-				t.Errorf("readResourceAssociationFromKindField() mismatch (-want +got):\n%s", diff)
+				t.Errorf("ReadResourceAssociationFromKindField() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFromControllerSpecificField(t *testing.T) {
+func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromControllerSpecificField(t *testing.T) {
 	testCases := []struct {
 		desc  string
 		input string
@@ -358,7 +402,7 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			reader := &K8sControllerManagerComponentFieldSetReader{
+			extractor := &K8sControllerManagerComponentExtractor{
 				WellKnownKindToKLogFieldPairs: []*KindToKLogFieldPairData{
 					{
 						APIVersion:   "core/v1",
@@ -382,17 +426,17 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 			}
 
 			klogParser := logutil.NewKLogTextParser(false)
-			paths := reader.readResourceAssociationFromControllerSpecificField(klogParser.TryParse(tc.input))
+			paths := extractor.ReadResourceAssociationFromControllerSpecificField(klogParser.TryParse(tc.input))
 			if diff := cmp.Diff(tc.want, paths, cmpopts.SortSlices(func(a, b *commonlogk8saudit_contract.ResourceIdentity) int {
 				return strings.Compare(a.String(), b.String())
 			})); diff != "" {
-				t.Errorf("readResourceAssociationFromControllerSpecificField() mismatch (-want +got):\n%s", diff)
+				t.Errorf("ReadResourceAssociationFromControllerSpecificField() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFromItems(t *testing.T) {
+func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromItems(t *testing.T) {
 	testCases := []struct {
 		desc  string
 		input string
@@ -446,13 +490,36 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			reader := &K8sControllerManagerComponentFieldSetReader{}
+			extractor := &K8sControllerManagerComponentExtractor{}
 			klogParser := logutil.NewKLogTextParser(false)
-			path := reader.readResourceAssociationFromItems(klogParser.TryParse(tc.input))
+			path := extractor.ReadResourceAssociationFromItems(klogParser.TryParse(tc.input))
 
 			if diff := cmp.Diff(tc.want, path); diff != "" {
-				t.Errorf("readResourceAssociationFromItems() mismatch (-want +got):\n%s", diff)
+				t.Errorf("ReadResourceAssociationFromItems() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestExtractK8sControllerManagerComponent_FromMock(t *testing.T) {
+	mock := K8sControllerManagerComponentFieldSet{
+		Controller: "mock-controller",
+		AssociatedResources: []*commonlogk8saudit_contract.ResourceIdentity{
+			{
+				APIVersion: "core/v1",
+				Kind:       "pod",
+				Namespace:  "default",
+				Name:       "pod-1",
+			},
+		},
+	}
+	l := testlog.NewMockLog(mock)
+	extractor := &K8sControllerManagerComponentExtractor{}
+	got, err := extractor.Extract(l.NodeReader)
+	if err != nil {
+		t.Fatalf("Extract() unexpected error: %v", err)
+	}
+	if diff := cmp.Diff(mock, got); diff != "" {
+		t.Errorf("Extract() mismatch (-want +got):\n%s", diff)
 	}
 }

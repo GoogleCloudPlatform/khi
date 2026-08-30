@@ -43,7 +43,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		},
 	))
 	return coretask.RegisterTasks(scoped,
-		FieldSetReaderTask,
 		LogIngesterTask,
 		LogGrouperTask,
 		LogToTimelineMapperTask,

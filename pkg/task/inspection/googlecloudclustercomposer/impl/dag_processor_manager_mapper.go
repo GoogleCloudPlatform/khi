@@ -42,7 +42,7 @@ var AirflowDagProcessorManagerLogGrouperTask = inspectiontaskbase.NewLogGrouperT
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogGrouperTaskID,
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogSorterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		fs, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
+		fs, err := googlecloudclustercomposer_contract.ExtractComposer(l.NodeReader)
 		if err != nil {
 			return ""
 		}
@@ -95,21 +95,17 @@ func (i *dagProcessorManagerLogIngester) ProcessLogByGroup(ctx context.Context, 
 		return nil, prevGroupData, err
 	}
 	cs.SetLogType(googlecloudclustercomposer_contract.LogTypeManagedAirflowEnvironment)
-
-	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonFS.Timestamp)
-	}
+	cs.SetTimestamp(l.Timestamp)
 
 	// Default severity is Unknown and summary is empty
 	cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
 	cs.SetSummary("")
 
-	mainMessage, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPMainMessageFieldSet{})
-	if err != nil {
+	rawLog, err := googlecloudcommon_contract.ExtractGCPMainMessage(l.NodeReader)
+	if err != nil || rawLog == "" {
 		return cs, prevGroupData, nil
 	}
 
-	rawLog := mainMessage.MainMessage
 	rawLog = strings.TrimPrefix(rawLog, "DAG_PROCESSOR_MANAGER_LOG:")
 	rawLog = strings.TrimSpace(rawLog)
 
@@ -180,12 +176,11 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
 	envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, environmentName)
 
-	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
-	mainMessage, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPMainMessageFieldSet{})
-	if err != nil {
+	rawLog, err := googlecloudcommon_contract.ExtractGCPMainMessage(l.NodeReader)
+	if err != nil || rawLog == "" {
 		return nil, prevGroupData, nil
 	}
-	dpmField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
+	dpmField, err := googlecloudclustercomposer_contract.ExtractComposer(l.NodeReader)
 	cs := khifilev6.NewTimelineChangeSet(l)
 	parserID := "unknown-parser"
 	if err == nil {
@@ -198,7 +193,6 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 		}
 	}
 
-	rawLog := mainMessage.MainMessage
 	rawLog = strings.TrimPrefix(rawLog, "DAG_PROCESSOR_MANAGER_LOG:")
 	rawLog = strings.TrimSpace(rawLog)
 
@@ -228,7 +222,7 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 	timelinePath := googlecloudclustercomposer_contract.MustAirflowDAGProcessorManagerInstanceTimeline(ctx, envPath, res.Values[dagProcessorManagerColumnFilePath], parserID)
 
 	cs.AddRevision(timelinePath, &khifilev6.StagingRevision{
-		ChangedTime: commonField.Timestamp,
+		ChangedTime: l.Timestamp,
 		Principal:   "dag-processor-manager",
 		VerbType:    googlecloudclustercomposer_contract.VerbComposerTaskInstanceStats,
 		StateType:   condition,

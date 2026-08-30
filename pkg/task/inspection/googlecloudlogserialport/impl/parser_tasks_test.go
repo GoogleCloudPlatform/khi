@@ -27,6 +27,7 @@ import (
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
@@ -38,14 +39,12 @@ func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
 	}{
 		{
 			name: "successful log ingestion",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityError,
 				},
-				&googlecloudlogserialport_contract.GCESerialPortLogFieldSet{
+				googlecloudlogserialport_contract.GCESerialPortLogFieldSet{
 					Message:  "foo payload",
 					NodeName: "node-name-bar",
 					Port:     "serial_port_output_qux",
@@ -86,8 +85,8 @@ func TestSerialPortLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}{
 		{
 			name: "create timeline event",
-			inputLog: log.NewLogWithFieldSetsForTest(
-				&googlecloudlogserialport_contract.GCESerialPortLogFieldSet{
+			inputLog: testlog.NewMockLog(
+				googlecloudlogserialport_contract.GCESerialPortLogFieldSet{
 					Message:  "foo payload",
 					NodeName: "node-name-bar",
 					Port:     "serial_port_output_qux",

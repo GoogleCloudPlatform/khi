@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 var pathResourceName = structured.CompileFieldPath("protoPayload.resourceName")
@@ -39,11 +38,6 @@ type MulticloudAPIAuditResourceFieldSet struct {
 	NodepoolName string
 }
 
-// Kind implements log.FieldSet.
-func (m *MulticloudAPIAuditResourceFieldSet) Kind() string {
-	return "multicloud_audit"
-}
-
 // IsCluster returns true if the log entry is related to a cluster operation (i.e., no nodepool name is present).
 func (g *MulticloudAPIAuditResourceFieldSet) IsCluster() bool {
 	return g.NodepoolName == ""
@@ -53,8 +47,6 @@ func (g *MulticloudAPIAuditResourceFieldSet) IsCluster() bool {
 func (g *MulticloudAPIAuditResourceFieldSet) IsNodepool() bool {
 	return g.NodepoolName != ""
 }
-
-var _ log.FieldSet = (*MulticloudAPIAuditResourceFieldSet)(nil)
 
 // ExtractMulticloudAPIAuditResource extracts Multicloud resource information from a NodeReader.
 func ExtractMulticloudAPIAuditResource(reader *structured.NodeReader) (MulticloudAPIAuditResourceFieldSet, error) {
@@ -67,7 +59,7 @@ func ExtractMulticloudAPIAuditResource(reader *structured.NodeReader) (Multiclou
 		ClusterName:  "unknown",
 	}
 
-	resourceName, err := reader.ReadStringByPath(pathResourceName)
+	resourceName, err := reader.ReadString(pathResourceName)
 	if err != nil {
 		return result, err
 	}
@@ -87,22 +79,3 @@ func ExtractMulticloudAPIAuditResource(reader *structured.NodeReader) (Multiclou
 
 	return result, nil
 }
-
-// MulticloudAPIAuditResourceFieldSetReader reads MulticloudAPIAuditResourceFieldSet from a log entry.
-type MulticloudAPIAuditResourceFieldSetReader struct{}
-
-// FieldSetKind implements log.FieldSetReader.
-func (m *MulticloudAPIAuditResourceFieldSetReader) FieldSetKind() string {
-	return (&MulticloudAPIAuditResourceFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (m *MulticloudAPIAuditResourceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	result, err := ExtractMulticloudAPIAuditResource(reader)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-var _ log.FieldSetReader = (*MulticloudAPIAuditResourceFieldSetReader)(nil)

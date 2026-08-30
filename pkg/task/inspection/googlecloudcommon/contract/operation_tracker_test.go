@@ -181,11 +181,8 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 			OperationID:    "op-1",
 			OperationFirst: true,
 		}
-		common := &log.CommonFieldSet{
-			Timestamp: testTime,
-		}
 
-		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, common, "CreateCluster", true)
+		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, testTime, "CreateCluster", true)
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
@@ -203,11 +200,8 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 			OperationID:   "op-1",
 			OperationLast: true,
 		}
-		common := &log.CommonFieldSet{
-			Timestamp: testTime,
-		}
 
-		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, common, "CreateCluster", true)
+		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, testTime, "CreateCluster", true)
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
@@ -230,11 +224,8 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 			OperationID:    "op-2",
 			OperationFirst: true,
 		}
-		common := &log.CommonFieldSet{
-			Timestamp: testTime,
-		}
 
-		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, common, "DeleteCluster", true)
+		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, testTime, "DeleteCluster", true)
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
@@ -257,11 +248,8 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 			OperationID:   "op-2",
 			OperationLast: true,
 		}
-		common := &log.CommonFieldSet{
-			Timestamp: testTime,
-		}
 
-		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, common, "DeleteCluster", true)
+		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, testTime, "DeleteCluster", true)
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
@@ -284,11 +272,8 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 			OperationID:   "op-1",
 			OperationLast: true,
 		}
-		common := &log.CommonFieldSet{
-			Timestamp: testTime,
-		}
 
-		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, common, "CreateNodePool", false)
+		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, testTime, "CreateNodePool", false)
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
@@ -311,11 +296,8 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 			OperationID:   "op-2",
 			OperationLast: true,
 		}
-		common := &log.CommonFieldSet{
-			Timestamp: testTime,
-		}
 
-		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, common, "DeleteNodePool", false)
+		ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, audit, testTime, "DeleteNodePool", false)
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{

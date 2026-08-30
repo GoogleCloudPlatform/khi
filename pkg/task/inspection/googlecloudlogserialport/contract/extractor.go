@@ -19,7 +19,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 var serialportSequenceConverters = []logutil.SpecialSequenceConverter{
@@ -35,45 +34,39 @@ var serialportSequenceConverters = []logutil.SpecialSequenceConverter{
 	logutil.MustNewRegexSequenceConverter(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[\+\-]\d{4}\s.\S+\s`, ""),
 }
 
+// GCESerialPortLogFieldSet contains fields extracted from GCE serial port logs.
 type GCESerialPortLogFieldSet struct {
 	Message  string
 	NodeName string
 	Port     string
 }
 
-// Kind implements log.FieldSet.
-func (g *GCESerialPortLogFieldSet) Kind() string {
-	return "gce-serialport"
-}
+var (
+	pathTextPayload  = structured.CompileFieldPath("textPayload")
+	pathResourceName = structured.CompileFieldPath("labels.compute\\.googleapis\\.com/resource_name")
+	pathLogName      = structured.CompileFieldPath("logName")
+)
 
-var _ log.FieldSet = (*GCESerialPortLogFieldSet)(nil)
+// ExtractGCESerialPortLog extracts GCESerialPortLogFieldSet from the structured node reader.
+func ExtractGCESerialPortLog(reader *structured.NodeReader) (GCESerialPortLogFieldSet, error) {
+	if mock, ok := structured.GetMock[GCESerialPortLogFieldSet](reader); ok {
+		return mock, nil
+	}
 
-type GCESerialPortLogFieldSetReader struct {
-}
-
-// FieldSetKind implements log.FieldSetReader.
-func (g *GCESerialPortLogFieldSetReader) FieldSetKind() string {
-	return (&GCESerialPortLogFieldSet{}).Kind()
-}
-
-// Read implements log.FieldSetReader.
-func (g *GCESerialPortLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	textPayload := reader.ReadStringOrDefault("textPayload", "")
+	textPayload := reader.ReadStringOrDefault(pathTextPayload, "")
 	escapedTextPayload := logutil.ConvertSpecialSequences(textPayload, serialportSequenceConverters...)
 
-	nodeName := reader.ReadStringOrDefault("labels.compute\\.googleapis\\.com/resource_name", "unknown")
+	nodeName := reader.ReadStringOrDefault(pathResourceName, "unknown")
 
-	logName := reader.ReadStringOrDefault("logName", "")
+	logName := reader.ReadStringOrDefault(pathLogName, "")
 	port := "unknown_port"
 	if slashIndex := strings.LastIndex(logName, "%2F"); slashIndex != -1 {
 		port = logName[slashIndex+len("%2F"):]
 	}
 
-	return &GCESerialPortLogFieldSet{
+	return GCESerialPortLogFieldSet{
 		Message:  escapedTextPayload,
 		Port:     port,
 		NodeName: nodeName,
 	}, nil
 }
-
-var _ log.FieldSetReader = (*GCESerialPortLogFieldSetReader)(nil)

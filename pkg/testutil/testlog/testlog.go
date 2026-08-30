@@ -54,29 +54,28 @@ func (b *TestLog) BuildReader() (*structured.NodeReader, error) {
 	return structured.NewNodeReader(node), nil
 }
 
+var pathTimestamp = structured.CompileFieldPath("timestamp")
+
 func (b *TestLog) MustBuildYamlString() string {
 	reader, err := b.BuildReader()
 	if err != nil {
 		panic(err)
 	}
-	serializedRaw, err := reader.Serialize("", &structured.YAMLNodeSerializer{})
+	serializedRaw, err := reader.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 	if err != nil {
 		panic(err)
 	}
 	return string(serializedRaw)
 }
 
-func (b *TestLog) MustBuildLogEntity(fieldSetReaders ...log.FieldSetReader) *log.Log {
+func (b *TestLog) MustBuildLogEntity() *log.Log {
 	reader, err := b.BuildReader()
 	if err != nil {
 		panic(err.Error())
 	}
 	l := log.NewLog(reader)
-	for _, fieldSetReader := range fieldSetReaders {
-		err := l.SetFieldSetReader(fieldSetReader)
-		if err != nil {
-			panic(err.Error())
-		}
+	if ts, err := reader.ReadTimestamp(pathTimestamp); err == nil {
+		l.Timestamp = ts
 	}
 	return l
 }

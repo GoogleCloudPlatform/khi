@@ -40,9 +40,7 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "operation starting log",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
@@ -64,9 +62,7 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "operation ending succeeded log",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
@@ -87,9 +83,7 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "operation ending failed log",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityError,
 				},
@@ -111,9 +105,7 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "immediate operation succeeded log",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
@@ -134,9 +126,7 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "immediate operation failed log",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityError,
 				},
@@ -158,9 +148,7 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		{
 			name: "default log (neither starting nor ending)",
 			input: testlog.NewMockLog(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
+				testTime,
 				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},

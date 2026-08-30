@@ -39,6 +39,13 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var (
+	pathAPIVersion   = structured.CompileFieldPath("apiVersion")
+	pathKind         = structured.CompileFieldPath("kind")
+	pathItems        = structured.CompileFieldPath("items")
+	pathMetadataName = structured.CompileFieldPath("metadata.name")
+)
+
 // ManifestGeneratorTask is the task to generate manifest from k8s audit logs.
 var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTask(commonlogk8saudit_contract.ManifestGeneratorTaskID, []taskid.UntypedTaskReference{
 	commonlogk8saudit_contract.ChangeTargetGrouperTaskID.Ref(),
@@ -121,7 +128,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 	if g.prevRevisionReader == nil {
 		g.prevRevisionReader = structured.NewNodeReader(structured.NewEmptyMapNode())
 	}
-	fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(l.NodeReader)
+	fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.NodeReader)
 	if fieldSet.IsDryRun {
 		return &commonlogk8saudit_contract.ResourceManifestLog{
 			Log:                l,
@@ -134,8 +141,8 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 		currentBodyReader = fieldSet.Request
 		partial = true
 	} else {
-		apiVersion := currentBodyReader.ReadStringOrDefault("apiVersion", "")
-		kind := currentBodyReader.ReadStringOrDefault("kind", "")
+		apiVersion := currentBodyReader.ReadStringOrDefault(pathAPIVersion, "")
+		kind := currentBodyReader.ReadStringOrDefault(pathKind, "")
 		if apiVersion == "v1" && kind == "Status" {
 			currentBodyReader = fieldSet.Request
 			partial = true
@@ -153,7 +160,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 	}
 
 	if fieldSet.Verb == commonlogk8saudit_contract.VerbDeleteCollection {
-		items, err := currentBodyReader.GetReader("items")
+		items, err := currentBodyReader.GetReader(pathItems)
 		if err != nil {
 			return &commonlogk8saudit_contract.ResourceManifestLog{
 				Log:                l,
@@ -161,8 +168,8 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 			}, nil
 		}
 		found := false
-		for _, item := range items.Children() {
-			name := item.ReadStringOrDefault("metadata.name", "")
+		items.Children()(func(key structured.NodeChildrenKey, item structured.NodeReader) bool {
+			name := item.ReadStringOrDefault(pathMetadataName, "")
 			if name == g.resourceName {
 				found = true
 				bodyReader, err := constructResourceBodyFromListItem(&item, g.prevRevisionReader)
@@ -171,9 +178,10 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 				} else {
 					currentBodyReader = bodyReader
 				}
-				break
+				return false
 			}
-		}
+			return true
+		})
 		if !found {
 			return &commonlogk8saudit_contract.ResourceManifestLog{
 				Log:                l,
@@ -210,8 +218,8 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 			}, nil
 		}
 	} else {
-		apiVersion := currentBodyReader.ReadStringOrDefault("apiVersion", "")
-		kind := currentBodyReader.ReadStringOrDefault("kind", "")
+		apiVersion := currentBodyReader.ReadStringOrDefault(pathAPIVersion, "")
+		kind := currentBodyReader.ReadStringOrDefault(pathKind, "")
 		if apiVersion == "meta.k8s.io/__internal" && kind == "DeleteOptions" {
 			return &commonlogk8saudit_contract.ResourceManifestLog{
 				Log:                l,
@@ -235,11 +243,11 @@ func constructResourceBodyFromListItem(item *structured.NodeReader, prevRevision
 
 	var prevAPIVersion, prevKind string
 	if prevRevision != nil {
-		prevAPIVersion = prevRevision.ReadStringOrDefault("apiVersion", "")
-		prevKind = prevRevision.ReadStringOrDefault("kind", "")
+		prevAPIVersion = prevRevision.ReadStringOrDefault(pathAPIVersion, "")
+		prevKind = prevRevision.ReadStringOrDefault(pathKind, "")
 	}
 
-	rawJSON, err := item.Serialize("", &structured.JSONNodeSerializer{})
+	rawJSON, err := item.Serialize(structured.EmptyFieldPath, &structured.JSONNodeSerializer{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize resource body to json: %w", err)
 	}

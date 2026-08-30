@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -36,13 +37,13 @@ func TestNodeNameDiscoveryTask(t *testing.T) {
 		{
 			name: "valid node logs with node names",
 			logs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				testlog.NewMockLog(googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 					NodeName: "gke-test-cluster-default-pool-node-1",
 				}),
-				log.NewLogWithFieldSetsForTest(&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				testlog.NewMockLog(googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 					NodeName: "gke-test-cluster-default-pool-node-2",
 				}),
-				log.NewLogWithFieldSetsForTest(&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				testlog.NewMockLog(googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 					NodeName: "gke-test-cluster-default-pool-node-1",
 				}),
 			},
@@ -55,10 +56,10 @@ func TestNodeNameDiscoveryTask(t *testing.T) {
 		{
 			name: "empty node name field is ignored",
 			logs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				testlog.NewMockLog(googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 					NodeName: "",
 				}),
-				log.NewLogWithFieldSetsForTest(&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				testlog.NewMockLog(googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 					NodeName: "gke-test-cluster-default-pool-node-1",
 				}),
 			},
@@ -70,7 +71,7 @@ func TestNodeNameDiscoveryTask(t *testing.T) {
 		{
 			name: "dry run returns nil",
 			logs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				testlog.NewMockLog(googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 					NodeName: "gke-test-cluster-default-pool-node-1",
 				}),
 			},
@@ -83,7 +84,7 @@ func TestNodeNameDiscoveryTask(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			result, _, err := inspectiontest.RunInspectionTask(ctx, NodeNameDiscoveryTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID.Ref(), tc.logs),
+				tasktest.NewTaskDependencyValuePair(googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref(), tc.logs),
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

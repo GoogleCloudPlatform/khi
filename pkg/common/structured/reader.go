@@ -31,6 +31,9 @@ import (
 // ErrFieldNotFound is returned when a requested field is not found in the node structure.
 var ErrFieldNotFound = errors.New("field not found")
 
+// EmptyFieldPath represents an empty field path pointing to the root node itself.
+var EmptyFieldPath = FieldPath{}
+
 // NodeReaderChildrenIterator is a type that represents an iterator function for navigating
 type NodeReaderChildrenIterator = func(func(key NodeChildrenKey, value NodeReader) bool)
 
@@ -43,31 +46,6 @@ type NodeReader struct {
 // NewNodeReader creates a new NodeReader instance from a given Node.
 func NewNodeReader(node Node) *NodeReader {
 	return &NodeReader{node}
-}
-
-// Has checks if a field exists at the specified path in the node structure.
-// Returns true if the field exists, false otherwise.
-func (n *NodeReader) Has(fieldPath string) bool {
-	_, err := n.getNode(fieldPath)
-	return err == nil
-}
-
-// GetReader obtains the NodeReader from the specified field path.
-func (n *NodeReader) GetReader(fieldPath string) (*NodeReader, error) {
-	node, err := n.getNode(fieldPath)
-	if err != nil {
-		return nil, err
-	}
-	return &NodeReader{node}, nil
-}
-
-// Serialize serializes the structured data with the given NodeSerializer.
-func (n *NodeReader) Serialize(fieldPath string, serializer NodeSerializer) ([]byte, error) {
-	node, err := n.getNode(fieldPath)
-	if err != nil {
-		return nil, err
-	}
-	return serializer.Serialize(node)
 }
 
 // Children returns an iterator for navigating through readers of the children of this node.
@@ -86,89 +64,6 @@ func (n *NodeReader) WithKeyOrder(priorityKeys ...string) *NodeReader {
 	return &NodeReader{
 		Node: WithKeyOrder(n.Node, priorityKeys...),
 	}
-}
-
-// ReadBool retrieves a boolean value from the specified field path.
-// Returns an error if the field doesn't exist or cannot be cast to a boolean.
-func (n *NodeReader) ReadBool(fieldPath string) (bool, error) {
-	return getScalarValueAt[bool](fieldPath, n)
-}
-
-// ReadString retrieves a string value from the specified field path.
-// Returns an error if the field doesn't exist or cannot be cast to a string.
-func (n *NodeReader) ReadString(fieldPath string) (string, error) {
-	return getScalarValueAt[string](fieldPath, n)
-}
-
-// ReadInt retrieves an integer value from the specified field path.
-// Returns an error if the field doesn't exist or cannot be cast to an integer.
-func (n *NodeReader) ReadInt(fieldPath string) (int, error) {
-	return getScalarValueAt[int](fieldPath, n)
-}
-
-// ReadFloat retrieves a floating-point value from the specified field path.
-// Returns an error if the field doesn't exist or cannot be cast to a float64.
-func (n *NodeReader) ReadFloat(fieldPath string) (float64, error) {
-	return getScalarValueAt[float64](fieldPath, n)
-}
-
-// ReadTimestamp retrieves a timestamp value from the specified field path.
-// Returns an error if the field doesn't exist or cannot be cast to a time.Time.
-func (n *NodeReader) ReadTimestamp(fieldPath string) (time.Time, error) {
-	var t time.Time
-	var err error
-	t, err = getScalarValueAt[time.Time](fieldPath, n)
-	if err != nil {
-		tStr, err := getScalarValueAt[string](fieldPath, n)
-		if err != nil {
-			return time.Time{}, err
-		}
-		return common.ParseTime(tStr)
-	}
-	return t, err
-}
-
-// ReadStringOrDefault retrieves a string value from the specified field path.
-// Returns the provided default value if the field doesn't exist or an error occurs.
-func (n *NodeReader) ReadStringOrDefault(fieldPath string, defaultValue string) string {
-	return getScalarValueOrDefaultAt(fieldPath, defaultValue, n)
-}
-
-// ReadIntOrDefault retrieves an integer value from the specified field path.
-// Returns the provided default value if the field doesn't exist or an error occurs.
-func (n *NodeReader) ReadIntOrDefault(fieldPath string, defaultValue int) int {
-	return getScalarValueOrDefaultAt(fieldPath, defaultValue, n)
-}
-
-// ReadFloatOrDefault retrieves a floating-point value from the specified field path.
-// Returns the provided default value if the field doesn't exist or an error occurs.
-func (n *NodeReader) ReadFloatOrDefault(fieldPath string, defaultValue float64) float64 {
-	return getScalarValueOrDefaultAt(fieldPath, defaultValue, n)
-}
-
-// ReadTimestampOrDefault retrieves a timestamp value from the specified field path.
-// Returns the provided default value if the field doesn't exist or an error occurs.
-func (n *NodeReader) ReadTimestampOrDefault(fieldPath string, defaultValue time.Time) time.Time {
-	var t time.Time
-	var err error
-	t, err = getScalarValueAt[time.Time](fieldPath, n)
-	if err != nil {
-		tStr, err := getScalarValueAt[string](fieldPath, n)
-		if err != nil {
-			return defaultValue
-		}
-		t, err = common.ParseTime(tStr)
-		if err != nil {
-			return defaultValue
-		}
-	}
-	return t
-}
-
-// ReadBoolOrDefault retrieves a boolean value from the specified field path.
-// Returns the provided default value if the field doesn't exist or an error occurs.
-func (n *NodeReader) ReadBoolOrDefault(fieldPath string, defaultValue bool) bool {
-	return getScalarValueOrDefaultAt(fieldPath, defaultValue, n)
 }
 
 // FieldPath represents a pre-parsed and interned field path for fast traversal on StandardMapNode.
@@ -197,8 +92,14 @@ func (p FieldPath) IsEmpty() bool {
 	return len(p.segments) == 0
 }
 
-// GetNodeByPath obtains the Node at the given pre-compiled FieldPath.
-func (n *NodeReader) GetNodeByPath(path FieldPath) (Node, error) {
+// Has checks if a field exists at the pre-compiled FieldPath.
+func (n *NodeReader) Has(path FieldPath) bool {
+	_, err := n.GetNode(path)
+	return err == nil
+}
+
+// GetNode obtains the Node at the given pre-compiled FieldPath.
+func (n *NodeReader) GetNode(path FieldPath) (Node, error) {
 	if n == nil || n.Node == nil {
 		return nil, ErrFieldNotFound
 	}
@@ -234,59 +135,37 @@ func (n *NodeReader) GetNodeByPath(path FieldPath) (Node, error) {
 	return currentNode, nil
 }
 
-// GetReaderByPath obtains a NodeReader at the given pre-compiled FieldPath.
-func (n *NodeReader) GetReaderByPath(path FieldPath) (*NodeReader, error) {
-	node, err := n.GetNodeByPath(path)
+// GetReader obtains a NodeReader at the given pre-compiled FieldPath.
+func (n *NodeReader) GetReader(path FieldPath) (*NodeReader, error) {
+	node, err := n.GetNode(path)
 	if err != nil {
 		return nil, err
 	}
 	return &NodeReader{node}, nil
 }
 
-// HasByPath checks if a field exists at the pre-compiled FieldPath.
-func (n *NodeReader) HasByPath(path FieldPath) bool {
-	_, err := n.GetNodeByPath(path)
-	return err == nil
+// Serialize serializes the structured data at the given pre-compiled FieldPath with the given NodeSerializer.
+func (n *NodeReader) Serialize(path FieldPath, serializer NodeSerializer) ([]byte, error) {
+	node, err := n.GetNode(path)
+	if err != nil {
+		return nil, err
+	}
+	return serializer.Serialize(node)
 }
 
-// ReadStringByPath retrieves a string value from the pre-compiled FieldPath.
-func (n *NodeReader) ReadStringByPath(path FieldPath) (string, error) {
-	node, err := n.GetNodeByPath(path)
+// ReadBool retrieves a boolean value from the pre-compiled FieldPath.
+// Returns an error if the field doesn't exist or cannot be cast to a boolean.
+func (n *NodeReader) ReadBool(path FieldPath) (bool, error) {
+	node, err := n.GetNode(path)
 	if err != nil {
-		return "", err
+		return false, err
 	}
-	return getScalarAs[string](node)
+	return getScalarAs[bool](node)
 }
 
-// ReadStringOrDefaultByPath retrieves a string value from the pre-compiled FieldPath.
-func (n *NodeReader) ReadStringOrDefaultByPath(path FieldPath, defaultValue string) string {
-	node, err := n.GetNodeByPath(path)
-	if err != nil {
-		return defaultValue
-	}
-	val, err := getScalarAs[string](node)
-	if err != nil {
-		return defaultValue
-	}
-	return val
-}
-
-// ReadIntOrDefaultByPath retrieves an integer value from the pre-compiled FieldPath.
-func (n *NodeReader) ReadIntOrDefaultByPath(path FieldPath, defaultValue int) int {
-	node, err := n.GetNodeByPath(path)
-	if err != nil {
-		return defaultValue
-	}
-	val, err := getScalarAs[int](node)
-	if err != nil {
-		return defaultValue
-	}
-	return val
-}
-
-// ReadBoolOrDefaultByPath retrieves a boolean value from the pre-compiled FieldPath.
-func (n *NodeReader) ReadBoolOrDefaultByPath(path FieldPath, defaultValue bool) bool {
-	node, err := n.GetNodeByPath(path)
+// ReadBoolOrDefault retrieves a boolean value from the pre-compiled FieldPath.
+func (n *NodeReader) ReadBoolOrDefault(path FieldPath, defaultValue bool) bool {
+	node, err := n.GetNode(path)
 	if err != nil {
 		return defaultValue
 	}
@@ -297,9 +176,96 @@ func (n *NodeReader) ReadBoolOrDefaultByPath(path FieldPath, defaultValue bool) 
 	return val
 }
 
-// ReadTimestampOrDefaultByPath retrieves a timestamp value from the pre-compiled FieldPath.
-func (n *NodeReader) ReadTimestampOrDefaultByPath(path FieldPath, defaultValue time.Time) time.Time {
-	node, err := n.GetNodeByPath(path)
+// ReadString retrieves a string value from the pre-compiled FieldPath.
+// Returns an error if the field doesn't exist or cannot be cast to a string.
+func (n *NodeReader) ReadString(path FieldPath) (string, error) {
+	node, err := n.GetNode(path)
+	if err != nil {
+		return "", err
+	}
+	return getScalarAs[string](node)
+}
+
+// ReadStringOrDefault retrieves a string value from the pre-compiled FieldPath.
+func (n *NodeReader) ReadStringOrDefault(path FieldPath, defaultValue string) string {
+	node, err := n.GetNode(path)
+	if err != nil {
+		return defaultValue
+	}
+	val, err := getScalarAs[string](node)
+	if err != nil {
+		return defaultValue
+	}
+	return val
+}
+
+// ReadInt retrieves an integer value from the pre-compiled FieldPath.
+// Returns an error if the field doesn't exist or cannot be cast to an integer.
+func (n *NodeReader) ReadInt(path FieldPath) (int, error) {
+	node, err := n.GetNode(path)
+	if err != nil {
+		return 0, err
+	}
+	return getScalarAs[int](node)
+}
+
+// ReadIntOrDefault retrieves an integer value from the pre-compiled FieldPath.
+func (n *NodeReader) ReadIntOrDefault(path FieldPath, defaultValue int) int {
+	node, err := n.GetNode(path)
+	if err != nil {
+		return defaultValue
+	}
+	val, err := getScalarAs[int](node)
+	if err != nil {
+		return defaultValue
+	}
+	return val
+}
+
+// ReadFloat retrieves a floating-point value from the pre-compiled FieldPath.
+// Returns an error if the field doesn't exist or cannot be cast to a float64.
+func (n *NodeReader) ReadFloat(path FieldPath) (float64, error) {
+	node, err := n.GetNode(path)
+	if err != nil {
+		return 0, err
+	}
+	return getScalarAs[float64](node)
+}
+
+// ReadFloatOrDefault retrieves a floating-point value from the pre-compiled FieldPath.
+func (n *NodeReader) ReadFloatOrDefault(path FieldPath, defaultValue float64) float64 {
+	node, err := n.GetNode(path)
+	if err != nil {
+		return defaultValue
+	}
+	val, err := getScalarAs[float64](node)
+	if err != nil {
+		return defaultValue
+	}
+	return val
+}
+
+// ReadTimestamp retrieves a timestamp value from the pre-compiled FieldPath.
+// Returns an error if the field doesn't exist or cannot be cast to a time.Time.
+func (n *NodeReader) ReadTimestamp(path FieldPath) (time.Time, error) {
+	node, err := n.GetNode(path)
+	if err != nil {
+		return time.Time{}, err
+	}
+	t, err := getScalarAs[time.Time](node)
+	if err != nil {
+		tStr, err := getScalarAs[string](node)
+		if err != nil {
+			return time.Time{}, err
+		}
+		return common.ParseTime(tStr)
+	}
+	return t, nil
+}
+
+// ReadTimestampOrDefault retrieves a timestamp value from the pre-compiled FieldPath.
+func (n *NodeReader) ReadTimestampOrDefault(path FieldPath, defaultValue time.Time) time.Time {
+	node, err := n.GetNode(path)
 	if err != nil {
 		return defaultValue
 	}
@@ -317,19 +283,12 @@ func (n *NodeReader) ReadTimestampOrDefaultByPath(path FieldPath, defaultValue t
 	return t
 }
 
-func (n *NodeReader) getNode(fieldPath string) (Node, error) {
-	if fieldPath == "" {
-		return n.Node, nil
-	}
-	return n.GetNodeByPath(CompileFieldPath(fieldPath))
-}
-
-// ReadReflect unmarshals the structured data into a given type after the given fieldPath.
-// TODO: ReadReflect currently marshals and unmarshals the strtucred data into the target.
+// ReadReflect unmarshals the structured data into a given type after the given FieldPath.
+// TODO: ReadReflect currently marshals and unmarshals the structured data into the target.
 //
 //	There should be room to improve this behavior regarding the performance.
-func ReadReflect[T any](r *NodeReader, fieldPath string, target T) error {
-	rawJSON, err := r.Serialize(fieldPath, &JSONNodeSerializer{})
+func ReadReflect[T any](r *NodeReader, path FieldPath, target T) error {
+	rawJSON, err := r.Serialize(path, &JSONNodeSerializer{})
 	if err != nil {
 		return err
 	}
@@ -340,9 +299,9 @@ func ReadReflect[T any](r *NodeReader, fieldPath string, target T) error {
 	return nil
 }
 
-// ReadReflectK8sRuntimeObject unmarshal the structured data into a type implementing runtime.Object.
-func ReadReflectK8sRuntimeObject[T runtime.Object](r *NodeReader, fieldPath string, target T) error {
-	rawJSON, err := r.Serialize(fieldPath, &JSONNodeSerializer{})
+// ReadReflectK8sRuntimeObject unmarshals the structured data into a type implementing runtime.Object.
+func ReadReflectK8sRuntimeObject[T runtime.Object](r *NodeReader, path FieldPath, target T) error {
+	rawJSON, err := r.Serialize(path, &JSONNodeSerializer{})
 	if err != nil {
 		return err
 	}
@@ -393,23 +352,6 @@ func ParseFieldPath(s string) []string {
 	result = append(result, currentSegment.String())
 
 	return result
-}
-
-func getScalarValueOrDefaultAt[T any](fieldPath string, defaultValue T, nodeReader *NodeReader) T {
-	value, err := getScalarValueAt[T](fieldPath, nodeReader)
-	if err != nil {
-		return defaultValue
-	}
-	return value
-
-}
-
-func getScalarValueAt[T any](fieldPath string, nodeReader *NodeReader) (T, error) {
-	holderNode, err := nodeReader.getNode(fieldPath)
-	if err != nil {
-		return *new(T), err
-	}
-	return getScalarAs[T](holderNode)
 }
 
 func getScalarAs[T any](scalarNode Node) (T, error) {

@@ -43,7 +43,7 @@ const ContainerdStartingMsg = "starting containerd"
 const ContainerdTerminationMsg = "Stop CRI service"
 
 // ContainerdLogFilterTask filters only containerd logs.
-var ContainerdLogFilterTask = newParserTypeFilterTask(googlecloudlogk8snode_contract.ContainerdLogFilterTaskID, googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID.Ref(), googlecloudlogk8snode_contract.Containerd)
+var ContainerdLogFilterTask = newParserTypeFilterTask(googlecloudlogk8snode_contract.ContainerdLogFilterTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref(), googlecloudlogk8snode_contract.Containerd)
 
 // ContainerdLogGroupTask groups containerd logs by node and component.
 var ContainerdLogGroupTask = newNodeAndComponentNameGrouperTask(googlecloudlogk8snode_contract.ContainerdLogGroupTaskID, googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref())
@@ -177,7 +177,10 @@ var PodSandboxIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspecti
 )
 
 func processPodSandboxIDDiscoveryForLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]) {
-	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+	componentFieldSet, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
+	if err != nil || componentFieldSet.Message == nil {
+		return
+	}
 	index, err := findPodSandboxIDInfo(componentFieldSet.Message)
 	if err != nil {
 		return
@@ -212,7 +215,10 @@ func findPodSandboxIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) 
 }
 
 func processContainerIDDiscoveryForLog(ctx context.Context, l *log.Log, exportTarget chan *commonlogk8saudit_contract.ContainerIdentity) {
-	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+	componentFieldSet, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
+	if err != nil || componentFieldSet.Message == nil {
+		return
+	}
 	container, err := findContainerIDInfo(componentFieldSet.Message)
 	if err != nil {
 		return
@@ -281,7 +287,10 @@ func (c *containerdNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx cont
 	clusterName := clusterIdentity.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster)
 	podSandboxIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
 	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref())
-	nodeLogFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+	nodeLogFieldSet, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
+	if err != nil {
+		return nil, struct{}{}, err
+	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
