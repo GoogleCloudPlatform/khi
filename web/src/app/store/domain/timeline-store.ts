@@ -143,6 +143,9 @@ export class TimelineStore {
   private eventLogIds!: Uint32Array;
   private eventIdToIndex: (number | undefined)[] = [];
 
+  // Reverse log indexes
+  private readonly logIdToTimelineIds = new Map<number, number[]>();
+
   private constructor(
     private readonly internPool: InternPoolStore,
     public readonly styleStore: StyleProvider,
@@ -541,7 +544,7 @@ export class TimelineStore {
   }
 
   /**
-   * Rebuilds child timeline relationships based on parentTimelineId.
+   * Rebuilds child timeline relationships and reverse log indexes.
    */
   private rebuildRelationships(): void {
     if (!this.relationshipsDirty) {
@@ -559,7 +562,81 @@ export class TimelineStore {
         }
       }
     }
+
+    this.logIdToTimelineIds.clear();
+
+    for (let tIndex = 0; tIndex < this.timelineCount; tIndex++) {
+      const timelineId = this.timelineIds[tIndex];
+      const revIds = this.timelineRevisionIds[tIndex];
+      if (revIds) {
+        for (let i = 0; i < revIds.length; i++) {
+          const revId = revIds[i];
+          const rIndex = this.revisionIdToIndex[revId];
+          if (rIndex !== undefined) {
+            const logId = this.revisionLogIds[rIndex];
+            if (logId !== 0) {
+              let timelineIds = this.logIdToTimelineIds.get(logId);
+              if (!timelineIds) {
+                timelineIds = [];
+                this.logIdToTimelineIds.set(logId, timelineIds);
+              }
+              if (!timelineIds.includes(timelineId)) {
+                timelineIds.push(timelineId);
+              }
+            }
+          }
+        }
+      }
+
+      const evtIds = this.timelineEventIds[tIndex];
+      if (evtIds) {
+        for (let i = 0; i < evtIds.length; i++) {
+          const evtId = evtIds[i];
+          const eIndex = this.eventIdToIndex[evtId];
+          if (eIndex !== undefined) {
+            const logId = this.eventLogIds[eIndex];
+            if (logId !== 0) {
+              let timelineIds = this.logIdToTimelineIds.get(logId);
+              if (!timelineIds) {
+                timelineIds = [];
+                this.logIdToTimelineIds.set(logId, timelineIds);
+              }
+              if (!timelineIds.includes(timelineId)) {
+                timelineIds.push(timelineId);
+              }
+            }
+          }
+        }
+      }
+    }
+
     this.relationshipsDirty = false;
+  }
+
+  /**
+   * Retrieves timeline IDs associated with a log ID.
+   *
+   * @param logId The ID of the log.
+   * @returns An array of timeline IDs that contain the log.
+   */
+  public getTimelineIdsForLogId(logId: number): readonly number[] {
+    if (this.relationshipsDirty) {
+      this.rebuildRelationships();
+    }
+    return this.logIdToTimelineIds.get(logId) ?? [];
+  }
+
+  /**
+   * Retrieves timeline domain adapters associated with a log ID.
+   *
+   * @param logId The ID of the log.
+   * @returns An array of timeline domain adapters that contain the log.
+   */
+  public getTimelinesForLogId(
+    logId: number,
+  ): readonly ReadonlyDomainElement<Timeline>[] {
+    const ids = this.getTimelineIdsForLogId(logId);
+    return ids.map((id) => this.getTimeline(id));
   }
 
   // --- Timeline Accessors ---
