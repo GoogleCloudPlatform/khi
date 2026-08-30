@@ -36,8 +36,15 @@ func MustLogFromYAML(text string, fieldReaders ...log.FieldSetReader) *log.Log {
 	return l
 }
 
+// NewEmptyLogWithID creates a new empty Log with the given ID.
 func NewEmptyLogWithID(id string) *log.Log {
 	l := log.NewLog(structured.NewNodeReader(structured.NewEmptyMapNode()))
 	l.ID = id
 	return l
+}
+
+// NewMockLog returns a *log.Log populated with the provided typed mock data structures.
+func NewMockLog(mockValues ...any) *log.Log {
+	mockNode := structured.NewMockNode(mockValues...)
+	return log.NewLog(structured.NewNodeReader(mockNode))
 }

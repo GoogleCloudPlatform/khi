@@ -339,3 +339,40 @@ func TestParseFieldPath(t *testing.T) {
 		})
 	}
 }
+
+func TestFieldPath(t *testing.T) {
+	yamlData := `
+string_value: "test string"
+nested:
+  inner_value: "nested value"
+  inner_int: 123
+  inner_bool: true
+`
+	node, err := FromYAML(yamlData)
+	if err != nil {
+		t.Fatalf("failed to parse YAML: %v", err)
+	}
+	reader := NewNodeReader(node)
+
+	pathString := CompileFieldPath("string_value")
+	pathNestedStr := CompileFieldPath("nested.inner_value")
+	pathNestedInt := CompileFieldPath("nested.inner_int")
+	pathNestedBool := CompileFieldPath("nested.inner_bool")
+	pathNonExistent := CompileFieldPath("nested.non_existent")
+
+	if got := reader.ReadStringOrDefaultByPath(pathString, ""); got != "test string" {
+		t.Errorf("ReadStringOrDefaultByPath() mismatch: want %q, got %q", "test string", got)
+	}
+	if got := reader.ReadStringOrDefaultByPath(pathNestedStr, ""); got != "nested value" {
+		t.Errorf("ReadStringOrDefaultByPath() mismatch: want %q, got %q", "nested value", got)
+	}
+	if got := reader.ReadIntOrDefaultByPath(pathNestedInt, 0); got != 123 {
+		t.Errorf("ReadIntOrDefaultByPath() mismatch: want %d, got %d", 123, got)
+	}
+	if got := reader.ReadBoolOrDefaultByPath(pathNestedBool, false); !got {
+		t.Errorf("ReadBoolOrDefaultByPath() mismatch: want true, got %v", got)
+	}
+	if got := reader.ReadStringOrDefaultByPath(pathNonExistent, "default"); got != "default" {
+		t.Errorf("ReadStringOrDefaultByPath() fallback mismatch: want %q, got %q", "default", got)
+	}
+}

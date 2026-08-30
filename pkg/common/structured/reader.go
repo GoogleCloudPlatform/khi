@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unique"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -170,16 +171,54 @@ func (n *NodeReader) ReadBoolOrDefault(fieldPath string, defaultValue bool) bool
 	return getScalarValueOrDefaultAt(fieldPath, defaultValue, n)
 }
 
-func (n *NodeReader) getNode(fieldPath string) (Node, error) {
-	if fieldPath == "" {
+// FieldPath represents a pre-parsed and interned field path for fast traversal on StandardMapNode.
+type FieldPath struct {
+	segments []string
+	handles  []unique.Handle[string]
+}
+
+// CompileFieldPath parses and interns a field path string (e.g., "resource.labels.node_name").
+func CompileFieldPath(s string) FieldPath {
+	segments := ParseFieldPath(s)
+	handles := make([]unique.Handle[string], len(segments))
+	for i, seg := range segments {
+		handles[i] = unique.Make(seg)
+	}
+	return FieldPath{segments: segments, handles: handles}
+}
+
+// Segments returns the underlying path segments.
+func (p FieldPath) Segments() []string {
+	return p.segments
+}
+
+// IsEmpty returns true if the field path is empty.
+func (p FieldPath) IsEmpty() bool {
+	return len(p.segments) == 0
+}
+
+// GetNodeByPath obtains the Node at the given pre-compiled FieldPath.
+func (n *NodeReader) GetNodeByPath(path FieldPath) (Node, error) {
+	if len(path.segments) == 0 {
 		return n.Node, nil
 	}
-	pathSegments := ParseFieldPath(fieldPath)
 	currentNode := n.Node
-	for pathCursor := 0; pathCursor < len(pathSegments); pathCursor++ {
+	for i := 0; i < len(path.segments); i++ {
+		// Fast-path: direct handle lookup on StandardMapNode without allocating closures.
+		if mapNode, ok := currentNode.(*StandardMapNode); ok {
+			child, found := mapNode.GetChildByHandle(path.handles[i])
+			if !found {
+				return nil, ErrFieldNotFound
+			}
+			currentNode = child
+			continue
+		}
+
+		// Fallback for custom Node implementations.
 		found := false
+		seg := path.segments[i]
 		for key, value := range currentNode.Children() {
-			if key.Key == pathSegments[pathCursor] {
+			if key.Key == seg {
 				currentNode = value
 				found = true
 				break
@@ -190,6 +229,81 @@ func (n *NodeReader) getNode(fieldPath string) (Node, error) {
 		}
 	}
 	return currentNode, nil
+}
+
+// GetReaderByPath obtains a NodeReader at the given pre-compiled FieldPath.
+func (n *NodeReader) GetReaderByPath(path FieldPath) (*NodeReader, error) {
+	node, err := n.GetNodeByPath(path)
+	if err != nil {
+		return nil, err
+	}
+	return &NodeReader{node}, nil
+}
+
+// ReadStringOrDefaultByPath retrieves a string value from the pre-compiled FieldPath.
+func (n *NodeReader) ReadStringOrDefaultByPath(path FieldPath, defaultValue string) string {
+	node, err := n.GetNodeByPath(path)
+	if err != nil {
+		return defaultValue
+	}
+	val, err := getScalarAs[string](node)
+	if err != nil {
+		return defaultValue
+	}
+	return val
+}
+
+// ReadIntOrDefaultByPath retrieves an integer value from the pre-compiled FieldPath.
+func (n *NodeReader) ReadIntOrDefaultByPath(path FieldPath, defaultValue int) int {
+	node, err := n.GetNodeByPath(path)
+	if err != nil {
+		return defaultValue
+	}
+	val, err := getScalarAs[int](node)
+	if err != nil {
+		return defaultValue
+	}
+	return val
+}
+
+// ReadBoolOrDefaultByPath retrieves a boolean value from the pre-compiled FieldPath.
+func (n *NodeReader) ReadBoolOrDefaultByPath(path FieldPath, defaultValue bool) bool {
+	node, err := n.GetNodeByPath(path)
+	if err != nil {
+		return defaultValue
+	}
+	val, err := getScalarAs[bool](node)
+	if err != nil {
+		return defaultValue
+	}
+	return val
+}
+
+// ReadTimestampOrDefaultByPath retrieves a timestamp value from the pre-compiled FieldPath.
+func (n *NodeReader) ReadTimestampOrDefaultByPath(path FieldPath, defaultValue time.Time) time.Time {
+	node, err := n.GetNodeByPath(path)
+	if err != nil {
+		return defaultValue
+	}
+	t, err := getScalarAs[time.Time](node)
+	if err != nil {
+		tStr, err := getScalarAs[string](node)
+		if err != nil {
+			return defaultValue
+		}
+		t, err = common.ParseTime(tStr)
+		if err != nil {
+			return defaultValue
+		}
+	}
+	return t
+}
+
+func (n *NodeReader) getNode(fieldPath string) (Node, error) {
+	if fieldPath == "" {
+		return n.Node, nil
+	}
+	return n.GetNodeByPath(CompileFieldPath(fieldPath))
 }
 
 // ReadReflect unmarshals the structured data into a given type after the given fieldPath.
