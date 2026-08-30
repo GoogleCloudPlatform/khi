@@ -109,6 +109,13 @@ export class TimelineView {
   });
 
   /**
+   * Emits the bitset of timeline IDs that successfully passed the pipeline evaluation.
+   */
+  public readonly filteredTimelineIds = computed<IdBitset>(() => {
+    return this.context().timelineIds;
+  });
+
+  /**
    * Emits the bitset of log IDs that successfully passed the pipeline evaluation.
    */
   public readonly filteredLogIds = computed<IdBitset>(() => {
