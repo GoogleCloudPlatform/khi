@@ -182,10 +182,18 @@ export class LogSmartComponent {
         return null;
       }
 
-      const timelines =
-        this.inspectionDataStore.timelineView()?.filteredTimelines() ?? [];
+      const data = this.inspectionDataStore.inspectionData();
+      const filteredTimelineIds = this.inspectionDataStore
+        .timelineView()
+        ?.filteredTimelineIds();
+      const logTimelines =
+        data?.timelineStore.getTimelinesForLogId(log.id) ?? [];
+
       const resourceRefs: ResourceRefAnnotationViewModel[] = [];
-      for (const timeline of timelines) {
+      for (const timeline of logTimelines) {
+        if (filteredTimelineIds && !filteredTimelineIds.has(timeline.id)) {
+          continue;
+        }
         if (
           timeline.lookupEventFromLog(log) !== null ||
           timeline.lookupRevisionFromLog(log) !== null

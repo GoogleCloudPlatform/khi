@@ -249,8 +249,9 @@ export class SelectionManager {
 
     // When no timeline is selected or the log is not found in the currently selected timelines,
     // automatically select the first visible timeline containing the log.
-    const filteredTimelineIds =
-      this.inspectionDataStore.timelineView()?.filteredTimelineIds();
+    const filteredTimelineIds = this.inspectionDataStore
+      .timelineView()
+      ?.filteredTimelineIds();
 
     for (const timeline of logTimelines) {
       if (!filteredTimelineIds || filteredTimelineIds.has(timeline.id)) {

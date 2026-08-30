@@ -89,36 +89,42 @@ export class LogListComponent {
   private readonly viewPort = viewChild(CdkVirtualScrollViewport);
 
   protected readonly shownLogs = computed(() => {
-    const allLogs = this.allLogs();
-    const filterLogIds = this.filteredLogIds();
     const filterByTimeline = this.filterByTimeline();
-    const timelines = this.selectedTimelinesWithChildren();
+    const filterLogIds = this.filteredLogIds();
 
-    const timelineFilterActive =
-      filterByTimeline && timelines && timelines.length > 0;
+    if (filterByTimeline) {
+      const timelines = this.selectedTimelinesWithChildren();
+      if (timelines && timelines.length > 0) {
+        const seenLogIds = new Set<number>();
+        const matchedLogs: ReadonlyDomainElement<Log>[] = [];
 
-    let timelineLogIndices: Set<number> | null = null;
-    if (timelineFilterActive) {
-      timelineLogIndices = new Set<number>();
-      for (const timeline of timelines) {
-        for (const revision of timeline.revisions) {
-          timelineLogIndices.add(revision.logIndex);
+        for (const timeline of timelines) {
+          for (const revision of timeline.revisions) {
+            const log = revision.log;
+            if (!seenLogIds.has(log.id) && filterLogIds.has(log.id)) {
+              seenLogIds.add(log.id);
+              matchedLogs.push(log);
+            }
+          }
+          for (const event of timeline.events) {
+            const log = event.log;
+            if (!seenLogIds.has(log.id) && filterLogIds.has(log.id)) {
+              seenLogIds.add(log.id);
+              matchedLogs.push(log);
+            }
+          }
         }
-        for (const event of timeline.events) {
-          timelineLogIndices.add(event.logIndex);
-        }
+        matchedLogs.sort((a, b) => a.logIndex - b.logIndex);
+        return matchedLogs;
       }
     }
 
+    const allLogs = this.allLogs();
     const result: ReadonlyDomainElement<Log>[] = [];
     for (const log of allLogs) {
-      if (!filterLogIds.has(log.id)) {
-        continue;
+      if (filterLogIds.has(log.id)) {
+        result.push(log);
       }
-      if (timelineLogIndices && !timelineLogIndices.has(log.logIndex)) {
-        continue;
-      }
-      result.push(log);
     }
     return result;
   });

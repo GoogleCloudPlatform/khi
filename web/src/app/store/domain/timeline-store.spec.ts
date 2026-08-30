@@ -397,9 +397,27 @@ describe('TimelineStore', () => {
       ]);
 
       logStore.addLogs([
-        { id: 1, ts: 100n, logTypeId: 1, severityTypeId: 1, summaryStringId: 3 },
-        { id: 2, ts: 200n, logTypeId: 1, severityTypeId: 1, summaryStringId: 3 },
-        { id: 3, ts: 300n, logTypeId: 1, severityTypeId: 1, summaryStringId: 3 },
+        {
+          id: 1,
+          ts: 100n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+        {
+          id: 2,
+          ts: 200n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+        {
+          id: 3,
+          ts: 300n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
       ]);
 
       store.addRevision({

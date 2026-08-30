@@ -380,21 +380,25 @@ export class TimelineSmartComponent {
       return { timeline: currentSelected, targetTimeNs };
     }
 
+    const timelineStore =
+      this.inspectionDataStore.inspectionData()?.timelineStore;
+    const logTimelines = timelineStore
+      ? timelineStore.getTimelinesForLogId(targetLog.id)
+      : [];
+
     if (currentSelected) {
       const descendants = new Set(currentSelected.descendants());
-      const allTimelines = this.filteredTimelines();
-      const descendantMatch = allTimelines.find(
-        (t: ReadonlyDomainElement<Timeline>) =>
-          descendants.has(t) && t.hasLog(targetLog),
-      );
+      const descendantMatch = logTimelines.find((t) => descendants.has(t));
       if (descendantMatch) {
         return { timeline: descendantMatch, targetTimeNs };
       }
     }
 
-    const allTimelines = this.filteredTimelines();
-    const globalMatch = allTimelines.find(
-      (t: ReadonlyDomainElement<Timeline>) => t.hasLog(targetLog),
+    const filteredTimelineIds = this.inspectionDataStore
+      .timelineView()
+      ?.filteredTimelineIds();
+    const globalMatch = logTimelines.find(
+      (t) => !filteredTimelineIds || filteredTimelineIds.has(t.id),
     );
     return globalMatch ? { timeline: globalMatch, targetTimeNs } : null;
   }
