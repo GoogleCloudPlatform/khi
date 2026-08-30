@@ -19,13 +19,13 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
-func newTestK8sAuditLogFieldSet(verb *pb.Verb, apiVersion string, pluralKind string) *commonlogk8saudit_contract.K8sAuditLogFieldSet {
-	return &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+func newTestK8sAuditLogFieldSet(verb *pb.Verb, apiVersion string, pluralKind string) commonlogk8saudit_contract.K8sAuditLogFieldSet {
+	return commonlogk8saudit_contract.K8sAuditLogFieldSet{
 		Verb:         verb,
 		APIVersion:   apiVersion,
 		PluralKind:   pluralKind,
@@ -38,7 +38,7 @@ func TestLifeTimeTrackerTask(t *testing.T) {
 	testCases := []struct {
 		desc                     string
 		resourceBodyYAML         string
-		inputK8sAuditLogFieldSet *commonlogk8saudit_contract.K8sAuditLogFieldSet
+		inputK8sAuditLogFieldSet commonlogk8saudit_contract.K8sAuditLogFieldSet
 		prevState                *lifeTimeTrackerGroupState
 		wantState                *lifeTimeTrackerGroupState
 		wantResourceCreated      bool
@@ -116,7 +116,7 @@ status:
 		},
 		{
 			desc: "dry run create should not mark resource created",
-			inputK8sAuditLogFieldSet: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			inputK8sAuditLogFieldSet: commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				Verb:         commonlogk8saudit_contract.VerbCreate,
 				APIVersion:   "core/v1",
 				PluralKind:   "pods",
@@ -174,7 +174,7 @@ metadata:
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(tc.inputK8sAuditLogFieldSet)
+			l := testlog.NewMockLog(tc.inputK8sAuditLogFieldSet)
 			var reader *structured.NodeReader
 			if tc.resourceBodyYAML != "" {
 				node, err := structured.FromYAML(tc.resourceBodyYAML)
@@ -482,7 +482,7 @@ metadata:
 			var state *lifeTimeTrackerGroupState
 			for i, s := range tc.steps {
 				fs := newTestK8sAuditLogFieldSet(s.verb, tc.apiVersion, tc.pluralKind)
-				logObj := log.NewLogWithFieldSetsForTest(fs)
+				logObj := testlog.NewMockLog(fs)
 				var reader *structured.NodeReader
 				if s.resourceBodyYAML != "" {
 					node, err := structured.FromYAML(s.resourceBodyYAML)

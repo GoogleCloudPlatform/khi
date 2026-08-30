@@ -21,28 +21,47 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
-type GCPK8sAuditLogFieldSetReader struct{}
+var (
+	pathOperationID         = structured.CompileFieldPath("operation.id")
+	pathOperationFirst      = structured.CompileFieldPath("operation.first")
+	pathOperationLast       = structured.CompileFieldPath("operation.last")
+	pathProtoResourceName   = structured.CompileFieldPath("protoPayload.resourceName")
+	pathProtoMethodName     = structured.CompileFieldPath("protoPayload.methodName")
+	pathResourceClusterName = structured.CompileFieldPath("resource.labels.cluster_name")
+	pathLabelsDryRun        = structured.CompileFieldPath("labels.command\\.gke\\.io/dryRun")
+	pathProtoPrincipal      = structured.CompileFieldPath("protoPayload.authenticationInfo.principalEmail")
+	pathProtoStatusCode     = structured.CompileFieldPath("protoPayload.status.code")
+	pathProtoStatusMessage  = structured.CompileFieldPath("protoPayload.status.message")
+	pathProtoRequest        = structured.CompileFieldPath("protoPayload.request")
+	pathProtoResponse       = structured.CompileFieldPath("protoPayload.response")
+	pathLabels              = structured.CompileFieldPath("labels")
+)
 
-// FieldSetKind implements log.FieldSetReader.
-func (g *GCPK8sAuditLogFieldSetReader) FieldSetKind() string {
-	return (&commonlogk8saudit_contract.K8sAuditLogFieldSet{}).Kind()
+func init() {
+	commonlogk8saudit_contract.SetDefaultK8sAuditLogExtractor(ExtractGCPK8sAuditLog)
 }
 
-// Read implements log.FieldSetReader.
-func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+// ExtractGCPK8sAuditLog extracts Kubernetes audit log data from a GCP Cloud Logging NodeReader.
+func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
+	if mock, ok := structured.GetMock[commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
+		return mock, nil
+	}
 	var result commonlogk8saudit_contract.K8sAuditLogFieldSet
-	result.OperationID = reader.ReadStringOrDefault("operation.id", "")
-	result.IsFirst = reader.ReadBoolOrDefault("operation.first", false)
-	result.IsLast = reader.ReadBoolOrDefault("operation.last", false)
-	resourceName := reader.ReadStringOrDefault("protoPayload.resourceName", "")
-	methodName := reader.ReadStringOrDefault("protoPayload.methodName", "")
-	result.ClusterName = reader.ReadStringOrDefault("resource.labels.cluster_name", "unknown")
+	if reader == nil {
+		return result, nil
+	}
+
+	result.OperationID = reader.ReadStringOrDefaultByPath(pathOperationID, "")
+	result.IsFirst = reader.ReadBoolOrDefaultByPath(pathOperationFirst, false)
+	result.IsLast = reader.ReadBoolOrDefaultByPath(pathOperationLast, false)
+	resourceName := reader.ReadStringOrDefaultByPath(pathProtoResourceName, "")
+	methodName := reader.ReadStringOrDefaultByPath(pathProtoMethodName, "")
+	result.ClusterName = reader.ReadStringOrDefaultByPath(pathResourceClusterName, "unknown")
 	result.RequestURI = resourceName
-	result.IsDryRun = reader.ReadStringOrDefault("labels.command\\.gke\\.io/dryRun", "") != ""
+	result.IsDryRun = reader.ReadStringOrDefaultByPath(pathLabelsDryRun, "") != ""
 
 	apiVersion, pluralKind, namespace, name, subResourceName, verb := parseKubernetesOperation(resourceName, methodName)
 	result.APIVersion = apiVersion
@@ -52,12 +71,12 @@ func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 	result.SubresourceName = subResourceName
 	result.Verb = verb
 
-	result.Principal = reader.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "")
-	result.StatusCode = reader.ReadIntOrDefault("protoPayload.status.code", 0)
-	result.StatusMessage = reader.ReadStringOrDefault("protoPayload.status.message", "")
+	result.Principal = reader.ReadStringOrDefaultByPath(pathProtoPrincipal, "")
+	result.StatusCode = reader.ReadIntOrDefaultByPath(pathProtoStatusCode, 0)
+	result.StatusMessage = reader.ReadStringOrDefaultByPath(pathProtoStatusMessage, "")
 	result.IsError = result.StatusCode != 0
-	result.Request, _ = reader.GetReader("protoPayload.request")
-	result.Response, _ = reader.GetReader("protoPayload.response")
+	result.Request, _ = reader.GetReaderByPath(pathProtoRequest)
+	result.Response, _ = reader.GetReaderByPath(pathProtoResponse)
 
 	type roundIndex struct{ round, index int }
 	webhookResults := make(map[roundIndex]*commonlogk8saudit_contract.MutatingWebhookResult)
@@ -75,7 +94,7 @@ func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 		return res
 	}
 
-	labelsReader, _ := reader.GetReader("labels")
+	labelsReader, _ := reader.GetReaderByPath(pathLabels)
 	if labelsReader != nil {
 		labelsReader.Children()(func(key structured.NodeChildrenKey, value structured.NodeReader) bool {
 			keyStr := key.Key
@@ -136,10 +155,8 @@ func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 		result.MutatingWebhookResults = append(result.MutatingWebhookResults, res)
 	}
 
-	return &result, nil
+	return result, nil
 }
-
-var _ log.FieldSetReader = (*GCPK8sAuditLogFieldSetReader)(nil)
 
 // parseKubernetesOperation parses the resourceName and methodName from a GCP audit log
 // to determine the details of a Kubernetes API operation, returning split fields.
@@ -161,13 +178,7 @@ func parseKubernetesOperation(resourceName string, methodName string) (apiVersio
 	default:
 		verb = commonlogk8saudit_contract.VerbUnknown
 	}
-	// Example methodName field formats:
-	// namespaced resource: core/v1/namespaces/kube-system/pods/event-exporter-gke-787cd5d885-dqf4b
-	// namespaced resource with subresource: core/v1/namespaces/kube-system/pods/event-exporter-gke-787cd5d885-dqf4b/status
-	// cluster scoped resource:  core/v1/nodes/gke-p0-gke-basic-1-default-8a2ac49b-19tq
-	// cluster scoped resource with subresource: core/v1/nodes/gke-p0-gke-basic-1-default-8a2ac49b-19tq/status
-	// namespace resource: core/v1/namespaces/kube-system
-	// namespace resource with subresource: core/v1/namespaces/kube-system/finalize
+
 	switch {
 	case len(methodNameFragments) > 4 && methodNameFragments[4] == "namespaces": // This log is to modify "Namespace" resource itself
 		namespace = "cluster-scope"

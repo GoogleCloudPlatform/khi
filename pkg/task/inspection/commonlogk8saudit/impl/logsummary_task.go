@@ -58,7 +58,7 @@ func (i *k8sAuditLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khif
 	cs.SetTimestamp(commonFs.Timestamp)
 	cs.SetLogType(commonlogk8saudit_contract.LogTypeAudit)
 
-	k8sFieldSet, err := log.GetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, err := commonlogk8saudit_contract.ExtractK8sAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, err
 	}

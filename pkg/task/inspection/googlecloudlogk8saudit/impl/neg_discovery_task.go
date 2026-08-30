@@ -28,6 +28,11 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+var (
+	pathStatusConditions = structured.CompileFieldPath("status.conditions")
+	pathMessage          = structured.CompileFieldPath("message")
+)
+
 // AuditLogNEGDiscoveryTask is the discovery task that extracts NEG to BackendService mappings from Kubernetes Audit logs.
 var AuditLogNEGDiscoveryTask = googlecloudk8scommon_contract.NEGToBackendServiceInventoryBuilder.DiscoveryTask(
 	googlecloudlogk8saudit_contract.NEGToBackendServiceDiscoveryTaskID,

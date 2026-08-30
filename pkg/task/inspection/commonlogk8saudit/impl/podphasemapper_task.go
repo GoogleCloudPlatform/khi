@@ -155,7 +155,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Conte
 	}
 
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return prevGroupData, nil
 	}
@@ -230,7 +230,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context,
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return cs, prevGroupData, nil
 	}

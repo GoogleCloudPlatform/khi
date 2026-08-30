@@ -151,7 +151,7 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 	if event.GroupRole != "pod" {
 		return cs, state, nil
 	}
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return cs, state, nil
 	}
@@ -176,7 +176,6 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 	}
 
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sAuditLogFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
 
 	for _, identity := range state.containerIdentities {
 		if _, found := state.containerStateWalkers[identity.containerName]; !found {
@@ -187,14 +186,14 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 			}
 		}
 		walker := state.containerStateWalkers[identity.containerName]
-		walker.CheckAndRecord(ctx, currentStateReaders[identity.containerName], cs, commonLogFieldSet, k8sAuditLogFieldSet)
+		walker.CheckAndRecord(ctx, currentStateReaders[identity.containerName], cs, commonLogFieldSet, k8sFieldSet)
 
 		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
-			containerPath := MustResolveContainerTimelinePath(ctx, k8sAuditLogFieldSet.ClusterName, event.ResourceIdentity.Namespace, event.ResourceIdentity.Name, identity.containerName)
+			containerPath := MustResolveContainerTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity.Namespace, event.ResourceIdentity.Name, identity.containerName)
 			cs.AddRevision(containerPath, &khifilev6.StagingRevision{
-				VerbType:     k8sAuditLogFieldSet.Verb,
+				VerbType:     k8sFieldSet.Verb,
 				ResourceBody: nil,
-				Principal:    k8sAuditLogFieldSet.Principal,
+				Principal:    k8sFieldSet.Principal,
 				ChangedTime:  commonLogFieldSet.Timestamp,
 				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 			})
@@ -222,7 +221,7 @@ type containerStateWalker struct {
 }
 
 // CheckAndRecord compares the current container state with the previous state and records a revision if there is a significant change.
-func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *structured.NodeReader, cs *khifilev6.TimelineChangeSet, commonLog *log.CommonFieldSet, k8sAuditLog *commonlogk8saudit_contract.K8sAuditLogFieldSet) {
+func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *structured.NodeReader, cs *khifilev6.TimelineChangeSet, commonLog *log.CommonFieldSet, k8sAuditLog commonlogk8saudit_contract.K8sAuditLogFieldSet) {
 	containerPath := MustResolveContainerTimelinePath(ctx, k8sAuditLog.ClusterName, w.podNamespace, w.podName, w.containerIdentity.containerName)
 	if stateReader == nil {
 		if w.lastState != "no state" {

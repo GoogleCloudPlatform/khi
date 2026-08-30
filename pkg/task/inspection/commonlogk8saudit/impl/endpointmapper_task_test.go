@@ -26,6 +26,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 )
@@ -597,11 +598,11 @@ endpoints:
 				reader = structured.NewNodeReader(node)
 			}
 
-			l := log.NewLogWithFieldSetsForTest(
+			l := testlog.NewMockLog(
 				&log.CommonFieldSet{
 					Timestamp: timestamp,
 				},
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					Verb:        tc.verb,
 					Principal:   "user-1",
 					ClusterName: "k8s",

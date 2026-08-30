@@ -173,7 +173,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 		if !found || targetGroup == nil {
 			return nil
 		}
-		k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+		k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
 		if k8sFieldSet.IsDryRun {
 			return nil
 		}
@@ -207,7 +207,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 // handleTargetChange handles the target change.
 func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet, prevGroupData *resourceRevisionLogToTimelineMapperState) (*resourceRevisionLogToTimelineMapperState, error) {
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
 	targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	if prevGroupData == nil {

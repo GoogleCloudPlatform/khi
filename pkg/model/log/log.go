@@ -75,6 +75,11 @@ func NewLogWithFieldSetsForTest(fieldSets ...FieldSet) *Log {
 	return log
 }
 
+// SetFieldSet sets the given FieldSet on the log directly.
+func (l *Log) SetFieldSet(fieldSet FieldSet) {
+	typedmap.Set(l.fields, typedmap.NewTypedKey[FieldSet](fieldSet.Kind()), fieldSet)
+}
+
 // SetFieldSetReader reads set of fields with the FieldSetReader and keep it in the log.
 func (l *Log) SetFieldSetReader(reader FieldSetReader) error {
 	fieldSet, err := reader.Read(l.NodeReader)

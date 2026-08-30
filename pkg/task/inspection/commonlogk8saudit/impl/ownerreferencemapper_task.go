@@ -89,7 +89,7 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 	if err != nil {
 		return cs, struct{}{}, nil
 	}
-	k8sFieldSet, err := log.GetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, err := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
 	if err != nil {
 		return cs, struct{}{}, err
 	}

@@ -27,7 +27,8 @@ var SuccessLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	commonlogk8saudit_contract.SuccessLogFilterTaskID,
 	commonlogk8saudit_contract.K8sAuditLogProviderRef,
 	func(ctx context.Context, l *log.Log) bool {
-		return !log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{}).IsError
+		data, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(l.NodeReader)
+		return !data.IsError
 	},
 )
 
@@ -36,6 +37,7 @@ var NonSuccessLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	commonlogk8saudit_contract.NonSuccessLogFilterTaskID,
 	commonlogk8saudit_contract.K8sAuditLogProviderRef,
 	func(ctx context.Context, l *log.Log) bool {
-		return log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{}).IsError
+		data, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(l.NodeReader)
+		return data.IsError
 	},
 )

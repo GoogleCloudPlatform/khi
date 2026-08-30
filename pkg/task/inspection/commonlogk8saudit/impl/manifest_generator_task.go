@@ -121,7 +121,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 	if g.prevRevisionReader == nil {
 		g.prevRevisionReader = structured.NewNodeReader(structured.NewEmptyMapNode())
 	}
-	fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(l.NodeReader)
 	if fieldSet.IsDryRun {
 		return &commonlogk8saudit_contract.ResourceManifestLog{
 			Log:                l,

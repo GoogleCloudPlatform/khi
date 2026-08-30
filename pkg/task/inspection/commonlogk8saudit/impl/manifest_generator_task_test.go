@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -352,7 +353,7 @@ metadata:
 					response = structured.NewNodeReader(node)
 				}
 				verb := input.verb
-				logs = append(logs, log.NewLogWithFieldSetsForTest(&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				logs = append(logs, testlog.NewMockLog(commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					ClusterName: "k8s",
 					Verb:        verb,
 					Request:     request,

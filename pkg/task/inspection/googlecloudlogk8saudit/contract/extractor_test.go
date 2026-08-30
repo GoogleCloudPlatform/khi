@@ -108,11 +108,11 @@ func TestParseKubernetesOperation(t *testing.T) {
 	}
 }
 
-func TestGCPK8sAuditLogFieldSetReader_Read(t *testing.T) {
+func TestExtractGCPK8sAuditLog(t *testing.T) {
 	testCases := []struct {
 		name  string
 		input string
-		want  *commonlogk8saudit_contract.K8sAuditLogFieldSet
+		want  commonlogk8saudit_contract.K8sAuditLogFieldSet
 	}{
 		{
 			name: "basic fields",
@@ -129,104 +129,153 @@ func TestGCPK8sAuditLogFieldSetReader_Read(t *testing.T) {
 						"principalEmail": "admin@example.com"
 					},
 					"status": {
-						"code": 0
+						"code": 0,
+						"message": "OK"
+					}
+				},
+				"resource": {
+					"labels": {
+						"cluster_name": "test-cluster"
 					}
 				}
 			}`,
-			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				OperationID:  "test-op-1",
-				IsFirst:      true,
-				IsLast:       false,
-				RequestURI:   "core/v1/namespaces/default/pods/nginx",
-				APIVersion:   "core/v1",
-				PluralKind:   "pods",
-				Namespace:    "default",
-				ResourceName: "nginx",
-				ClusterName:  "unknown",
-				Verb:         commonlogk8saudit_contract.VerbCreate,
-				Principal:    "admin@example.com",
-				StatusCode:   0,
-				IsError:      false,
+			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				OperationID:     "test-op-1",
+				IsFirst:         true,
+				IsLast:          false,
+				APIVersion:      "core/v1",
+				PluralKind:      "pods",
+				Namespace:       "default",
+				ResourceName:    "nginx",
+				SubresourceName: "",
+				ClusterName:     "test-cluster",
+				Verb:            commonlogk8saudit_contract.VerbCreate,
+				RequestURI:      "core/v1/namespaces/default/pods/nginx",
+				Principal:       "admin@example.com",
+				StatusCode:      0,
+				StatusMessage:   "OK",
+				IsError:         false,
 			},
 		},
 		{
-			name: "with mutating webhook annotations",
+			name: "error status",
 			input: `{
-				"labels": {
-					"mutation.webhook.admission.k8s.io/round_0_index_0": "{\"configuration\":\"my-config\",\"webhook\":\"my-webhook\",\"mutated\":true}",
-					"patch.webhook.admission.k8s.io/round_0_index_0": "{\"configuration\":\"my-config\",\"webhook\":\"my-webhook\",\"patch\":[{\"op\":\"add\",\"path\":\"/metadata/annotations/my-annotation\",\"value\":\"foo\"}],\"patchType\":\"JSONPatch\"}",
-					"mutation.webhook.admission.k8s.io/round_1_index_0": "{\"configuration\":\"my-config-2\",\"webhook\":\"my-webhook-2\",\"mutated\":false}",
-					"failed-open.mutation.webhook.admission.k8s.io/round_2_index_0": "my-webhook-3"
+				"operation": {
+					"id": "test-op-2",
+					"first": false,
+					"last": true
+				},
+				"protoPayload": {
+					"resourceName": "core/v1/namespaces/default/pods/nginx",
+					"methodName": "io.k8s.core.v1.pods.delete",
+					"authenticationInfo": {
+						"principalEmail": "admin@example.com"
+					},
+					"status": {
+						"code": 7,
+						"message": "Permission denied"
+					}
+				},
+				"resource": {
+					"labels": {
+						"cluster_name": "test-cluster"
+					}
+				}
+			}`,
+			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				OperationID:     "test-op-2",
+				IsFirst:         false,
+				IsLast:          true,
+				APIVersion:      "core/v1",
+				PluralKind:      "pods",
+				Namespace:       "default",
+				ResourceName:    "nginx",
+				SubresourceName: "",
+				ClusterName:     "test-cluster",
+				Verb:            commonlogk8saudit_contract.VerbDelete,
+				RequestURI:      "core/v1/namespaces/default/pods/nginx",
+				Principal:       "admin@example.com",
+				StatusCode:      7,
+				StatusMessage:   "Permission denied",
+				IsError:         true,
+			},
+		},
+		{
+			name: "with mutating webhooks",
+			input: `{
+				"operation": {
+					"id": "test-op-3"
 				},
 				"protoPayload": {
 					"resourceName": "core/v1/namespaces/default/pods/nginx",
 					"methodName": "io.k8s.core.v1.pods.create"
+				},
+				"labels": {
+					"mutation.webhook.admission.k8s.io/round_1_index_0": "{\"configuration\":\"mutating-webhook-config\",\"webhook\":\"test-webhook\",\"mutated\":true}",
+					"patch.webhook.admission.k8s.io/round_1_index_0": "{\"configuration\":\"mutating-webhook-config\",\"webhook\":\"test-webhook\",\"patch\":[{\"op\":\"add\",\"path\":\"/spec/containers/0/env\",\"value\":{\"name\":\"ENV_VAR\",\"value\":\"val\"}}]}",
+					"failed-open.mutation.webhook.admission.k8s.io/round_2_index_1": "test-failed-webhook"
 				}
 			}`,
-			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				RequestURI:   "core/v1/namespaces/default/pods/nginx",
-				APIVersion:   "core/v1",
-				PluralKind:   "pods",
-				Namespace:    "default",
-				ResourceName: "nginx",
-				ClusterName:  "unknown",
-				Verb:         commonlogk8saudit_contract.VerbCreate,
+			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				OperationID:     "test-op-3",
+				APIVersion:      "core/v1",
+				PluralKind:      "pods",
+				Namespace:       "default",
+				ResourceName:    "nginx",
+				SubresourceName: "",
+				ClusterName:     "unknown",
+				Verb:            commonlogk8saudit_contract.VerbCreate,
+				RequestURI:      "core/v1/namespaces/default/pods/nginx",
 				MutatingWebhookResults: []*commonlogk8saudit_contract.MutatingWebhookResult{
-					{
-						Round:         0,
-						Index:         0,
-						Configuration: "my-config",
-						Webhook:       "my-webhook",
-						Mutated:       true,
-						Patch: []commonlogk8saudit_contract.MutatingWebhookPatch{
-							{
-								Op:    "add",
-								Path:  "/metadata/annotations/my-annotation",
-								Value: "foo",
-							},
-						},
-						FailedOpen: false,
-					},
 					{
 						Round:         1,
 						Index:         0,
-						Configuration: "my-config-2",
-						Webhook:       "my-webhook-2",
-						Mutated:       false,
-						Patch:         nil,
-						FailedOpen:    false,
+						Configuration: "mutating-webhook-config",
+						Webhook:       "test-webhook",
+						Mutated:       true,
+						Patch: []commonlogk8saudit_contract.MutatingWebhookPatch{
+							{
+								Op:   "add",
+								Path: "/spec/containers/0/env",
+								Value: map[string]any{
+									"name":  "ENV_VAR",
+									"value": "val",
+								},
+							},
+						},
 					},
 					{
-						Round:         2,
-						Index:         0,
-						Configuration: "",
-						Webhook:       "my-webhook-3",
-						Mutated:       false,
-						Patch:         nil,
-						FailedOpen:    true,
+						Round:      2,
+						Index:      1,
+						Webhook:    "test-failed-webhook",
+						FailedOpen: true,
 					},
 				},
 			},
 		},
 		{
-			name: "with dry run label",
+			name: "dry run",
 			input: `{
-				"labels": {
-					"command.gke.io/dryRun": "All"
+				"operation": {
+					"id": "test-op-4"
 				},
 				"protoPayload": {
 					"resourceName": "core/v1/namespaces/default/pods/nginx",
 					"methodName": "io.k8s.core.v1.pods.create"
+				},
+				"labels": {
+					"command.gke.io/dryRun": "true"
 				}
 			}`,
-			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				RequestURI:   "core/v1/namespaces/default/pods/nginx",
+			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				OperationID:  "test-op-4",
 				APIVersion:   "core/v1",
 				PluralKind:   "pods",
 				Namespace:    "default",
 				ResourceName: "nginx",
 				ClusterName:  "unknown",
 				Verb:         commonlogk8saudit_contract.VerbCreate,
+				RequestURI:   "core/v1/namespaces/default/pods/nginx",
 				IsDryRun:     true,
 			},
 		},
@@ -238,28 +287,22 @@ func TestGCPK8sAuditLogFieldSetReader_Read(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse test input: %v", err)
 			}
-			reader := &GCPK8sAuditLogFieldSetReader{}
-			got, err := reader.Read(structured.NewNodeReader(node))
+			got, err := ExtractGCPK8sAuditLog(structured.NewNodeReader(node))
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			gotFieldSet, ok := got.(*commonlogk8saudit_contract.K8sAuditLogFieldSet)
-			if !ok {
-				t.Fatalf("returned field set is not *K8sAuditLogFieldSet")
-			}
-
 			// Clear uncomparable fields
-			gotFieldSet.Request = nil
-			gotFieldSet.Response = nil
+			got.Request = nil
+			got.Response = nil
 
-			if diff := cmp.Diff(tc.want, gotFieldSet, cmpopts.SortSlices(func(a, b *commonlogk8saudit_contract.MutatingWebhookResult) bool {
+			if diff := cmp.Diff(tc.want, got, cmpopts.SortSlices(func(a, b *commonlogk8saudit_contract.MutatingWebhookResult) bool {
 				if a.Round != b.Round {
 					return a.Round < b.Round
 				}
 				return a.Index < b.Index
 			}), protocmp.Transform()); diff != "" {
-				t.Errorf("Read() mismatch (-want +got):\n%s", diff)
+				t.Errorf("ExtractGCPK8sAuditLog() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

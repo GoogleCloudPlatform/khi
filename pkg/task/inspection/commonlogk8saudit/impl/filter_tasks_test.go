@@ -18,28 +18,24 @@ import (
 	"testing"
 
 	inspectiontaskbasetest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbasetest"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestSuccessLogFilterTask(t *testing.T) {
 	inspectiontaskbasetest.AssertFilterTask(t, SuccessLogFilterTask, commonlogk8saudit_contract.K8sAuditLogProviderRef, []inspectiontaskbasetest.FilterTaskTestCase{
 		{
 			Description: "success log",
-			LogFields: []log.FieldSet{
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
-					IsError: false,
-				},
-			},
+			Log: testlog.NewMockLog(commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				IsError: false,
+			}),
 			WantIncluded: true,
 		},
 		{
 			Description: "non-success log",
-			LogFields: []log.FieldSet{
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
-					IsError: true,
-				},
-			},
+			Log: testlog.NewMockLog(commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				IsError: true,
+			}),
 			WantIncluded: false,
 		},
 	})
@@ -49,20 +45,16 @@ func TestNonSuccessLogFilterTask(t *testing.T) {
 	inspectiontaskbasetest.AssertFilterTask(t, NonSuccessLogFilterTask, commonlogk8saudit_contract.K8sAuditLogProviderRef, []inspectiontaskbasetest.FilterTaskTestCase{
 		{
 			Description: "success log",
-			LogFields: []log.FieldSet{
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
-					IsError: false,
-				},
-			},
+			Log: testlog.NewMockLog(commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				IsError: false,
+			}),
 			WantIncluded: false,
 		},
 		{
 			Description: "non-success log",
-			LogFields: []log.FieldSet{
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
-					IsError: true,
-				},
-			},
+			Log: testlog.NewMockLog(commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				IsError: true,
+			}),
 			WantIncluded: true,
 		},
 	})

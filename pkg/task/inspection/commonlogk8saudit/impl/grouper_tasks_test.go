@@ -21,6 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -316,7 +317,7 @@ kind: Binding`,
 					}
 					response = structured.NewNodeReader(node)
 				}
-				logs = append(logs, log.NewLogWithFieldSetsForTest(&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				logs = append(logs, testlog.NewMockLog(commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					APIVersion:      input.op.APIVersion,
 					PluralKind:      input.op.PluralKind,
 					Namespace:       input.op.Namespace,

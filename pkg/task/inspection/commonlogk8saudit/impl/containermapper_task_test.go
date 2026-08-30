@@ -26,6 +26,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -361,7 +362,7 @@ state:
 				commonFieldSet := &log.CommonFieldSet{
 					Timestamp: step.timestamp,
 				}
-				k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				k8sFieldSet := commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					Verb:        step.verb,
 					Principal:   "user-1",
 					ClusterName: "k8s",
@@ -643,22 +644,21 @@ status:
 				reader = structured.NewNodeReader(node)
 			}
 
-			l := log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{},
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{},
-			)
-			commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
-			commonFieldSet.Timestamp = testTime
-			k8sFieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
-
 			verb := tc.verb
 			if verb == nil {
 				verb = commonlogk8saudit_contract.VerbUpdate
 			}
-			k8sFieldSet.Verb = verb
-			k8sFieldSet.Principal = "user-1"
-			k8sFieldSet.ClusterName = "k8s"
-			k8sFieldSet.IsDryRun = tc.isDryRun
+			l := testlog.NewMockLog(
+				&log.CommonFieldSet{
+					Timestamp: testTime,
+				},
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					Verb:        verb,
+					Principal:   "user-1",
+					ClusterName: "k8s",
+					IsDryRun:    tc.isDryRun,
+				},
+			)
 
 			resIdentity := &commonlogk8saudit_contract.ResourceIdentity{
 				APIVersion: "core/v1",

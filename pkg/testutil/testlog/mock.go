@@ -46,5 +46,11 @@ func NewEmptyLogWithID(id string) *log.Log {
 // NewMockLog returns a *log.Log populated with the provided typed mock data structures.
 func NewMockLog(mockValues ...any) *log.Log {
 	mockNode := structured.NewMockNode(mockValues...)
-	return log.NewLog(structured.NewNodeReader(mockNode))
+	l := log.NewLog(structured.NewNodeReader(mockNode))
+	for _, v := range mockValues {
+		if fs, ok := v.(log.FieldSet); ok {
+			l.SetFieldSet(fs)
+		}
+	}
+	return l
 }

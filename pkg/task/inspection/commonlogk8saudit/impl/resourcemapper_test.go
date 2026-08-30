@@ -26,6 +26,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -573,20 +574,21 @@ uid: "test-uid"`,
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			// Setup the Log and Mock Group Context dynamically for each test case.
-			k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				Principal:    "admin",
-				APIVersion:   "core/v1",
-				PluralKind:   "pods",
-				ResourceName: "test",
-				Namespace:    "default",
-				ClusterName:  "k8s",
-				Verb:         tc.verb,
-				IsDryRun:     tc.isDryRun,
-			}
-			commonFs := &log.CommonFieldSet{
-				Timestamp: testTime,
-			}
-			logObj := log.NewLogWithFieldSetsForTest(k8sFieldSet, commonFs)
+			logObj := testlog.NewMockLog(
+				&log.CommonFieldSet{
+					Timestamp: testTime,
+				},
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					Principal:    "admin",
+					APIVersion:   "core/v1",
+					PluralKind:   "pods",
+					ResourceName: "test",
+					Namespace:    "default",
+					ClusterName:  "k8s",
+					Verb:         tc.verb,
+					IsDryRun:     tc.isDryRun,
+				},
+			)
 
 			node := parseYAML(tc.bodyYAML)
 			var nodeReader *structured.NodeReader
@@ -886,19 +888,20 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 
 			var events []commonlogk8saudit_contract.MultiGroupLogEvent
 			for _, el := range tc.eventLogs {
-				k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-					Principal:    "admin",
-					APIVersion:   "core/v1",
-					PluralKind:   "pods",
-					ResourceName: "test",
-					Namespace:    "default",
-					ClusterName:  "k8s",
-					Verb:         el.verb,
-				}
-				commonFs := &log.CommonFieldSet{
-					Timestamp: el.time,
-				}
-				logObj := log.NewLogWithFieldSetsForTest(k8sFieldSet, commonFs)
+				logObj := testlog.NewMockLog(
+					&log.CommonFieldSet{
+						Timestamp: el.time,
+					},
+					commonlogk8saudit_contract.K8sAuditLogFieldSet{
+						Principal:    "admin",
+						APIVersion:   "core/v1",
+						PluralKind:   "pods",
+						ResourceName: "test",
+						Namespace:    "default",
+						ClusterName:  "k8s",
+						Verb:         el.verb,
+					},
+				)
 				node, err := structured.FromYAML(el.bodyYAML)
 				if err != nil {
 					t.Fatalf("failed to parse test YAML: %v", err)

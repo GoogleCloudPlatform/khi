@@ -35,7 +35,7 @@ var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	commonlogk8saudit_contract.NonSuccessLogGrouperTaskID,
 	commonlogk8saudit_contract.NonSuccessLogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+		fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(l.NodeReader)
 		return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s,name=%s, subresource=%s", fieldSet.APIVersion, fieldSet.PluralKind, fieldSet.Namespace, fieldSet.ResourceName, fieldSet.SubresourceName)
 	},
 )
@@ -118,7 +118,7 @@ func (s *targetResourceScanner) scanTargetResource(l *log.Log) []*model.Kubernet
 }
 
 func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.KubernetesObjectOperation {
-	fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(l.NodeReader)
 	op := &model.KubernetesObjectOperation{
 		APIVersion:      fieldSet.APIVersion,
 		PluralKind:      fieldSet.PluralKind,

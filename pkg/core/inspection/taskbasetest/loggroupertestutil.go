@@ -29,6 +29,7 @@ import (
 // GrouperTaskTestCase is a test case for log grouper task.
 type GrouperTaskTestCase struct {
 	Description string
+	Log         *log.Log
 	LogFields   []log.FieldSet
 	WantGroup   string
 }
@@ -38,7 +39,10 @@ func AssertGrouperTask(t *testing.T, task coretask.Task[inspectiontaskbase.LogGr
 	t.Helper()
 	for _, tc := range testCases {
 		t.Run(tc.Description, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(tc.LogFields...)
+			l := tc.Log
+			if l == nil {
+				l = log.NewLogWithFieldSetsForTest(tc.LogFields...)
+			}
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
 			result, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(sourceRef, []*log.Log{l}))

@@ -24,6 +24,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestNonSuccessLogLogToTimelineMapperTaskSetting_ProcessLogByGroup(t *testing.T) {
@@ -69,15 +70,17 @@ func TestNonSuccessLogLogToTimelineMapperTaskSetting_ProcessLogByGroup(t *testin
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			fs := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				APIVersion:      "core/v1",
-				PluralKind:      "pods",
-				Namespace:       "default",
-				ResourceName:    "test-pod",
-				SubresourceName: tc.subresourceName,
-				ClusterName:     "k8s",
-			}
-			logObj := log.NewLogWithFieldSetsForTest(fs, &log.CommonFieldSet{Timestamp: time.Now()})
+			logObj := testlog.NewMockLog(
+				&log.CommonFieldSet{Timestamp: time.Now()},
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					APIVersion:      "core/v1",
+					PluralKind:      "pods",
+					Namespace:       "default",
+					ResourceName:    "test-pod",
+					SubresourceName: tc.subresourceName,
+					ClusterName:     "k8s",
+				},
+			)
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			cs, _, err := mapperSetting.ProcessLogByGroup(ctx, logObj, struct{}{})

@@ -113,7 +113,6 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 	}
 
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
 
 	bodyReader, hasBody := event.GetLastBodyReader("target")
 
@@ -148,6 +147,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 		return state, nil
 	}
 
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
 	ownerPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	for _, child := range conditionsReader.Children() {
@@ -164,7 +164,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 			if err := structured.ReadReflect(&child, "", &condition); err != nil {
 				continue
 			}
-			walker.checkLastTransitionTimes(commonFieldSet, k8sFieldSet, &condition)
+			walker.checkLastTransitionTimes(commonFieldSet, &condition)
 		}
 	}
 
@@ -185,7 +185,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return cs, state, nil
 	}
@@ -337,7 +337,7 @@ func newConditionWalker(conditionPath *khifilev6.TimelinePath, conditionType str
 }
 
 // checkLastTransitionTimes memorizes the last transition time of the condition. This value is used for complementing values for logs without the full status information.
-func (c *conditionWalker) checkLastTransitionTimes(commonLog *log.CommonFieldSet, k8sAuditLog *commonlogk8saudit_contract.K8sAuditLogFieldSet, condition *model.K8sResourceStatusCondition) {
+func (c *conditionWalker) checkLastTransitionTimes(commonLog *log.CommonFieldSet, condition *model.K8sResourceStatusCondition) {
 	if condition != nil && condition.Status != "" && condition.LastTransitionTime != "" {
 		c.lastTransitionStates[condition.LastTransitionTime] = condition
 	}
@@ -345,7 +345,7 @@ func (c *conditionWalker) checkLastTransitionTimes(commonLog *log.CommonFieldSet
 
 // CheckAndRecord compares the current condition with the previous state and records a revision if there is a significant change.
 // It tracks changes in Status, LastTransitionTime, and LastHeartbeatTime (ProbeLikeTime).
-func (c *conditionWalker) CheckAndRecord(ctx context.Context, commonLog *log.CommonFieldSet, k8sAuditLog *commonlogk8saudit_contract.K8sAuditLogFieldSet, condition *model.K8sResourceStatusCondition, cs *khifilev6.TimelineChangeSet) {
+func (c *conditionWalker) CheckAndRecord(ctx context.Context, commonLog *log.CommonFieldSet, k8sAuditLog commonlogk8saudit_contract.K8sAuditLogFieldSet, condition *model.K8sResourceStatusCondition, cs *khifilev6.TimelineChangeSet) {
 	if condition == nil {
 		if c.lastStatus != "n/a" {
 			cs.AddRevision(c.conditionPath, &khifilev6.StagingRevision{

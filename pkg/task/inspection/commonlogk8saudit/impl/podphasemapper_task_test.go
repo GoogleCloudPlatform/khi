@@ -27,6 +27,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -516,20 +517,21 @@ status:
 			var stepInfos []stepLogInfo
 
 			for _, step := range tc.steps {
-				k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-					Principal:    "admin",
-					APIVersion:   "core/v1",
-					PluralKind:   "pods",
-					ResourceName: tc.podName,
-					Namespace:    tc.namespace,
-					ClusterName:  tc.clusterName,
-					Verb:         step.verb,
-					IsDryRun:     step.isDryRun,
-				}
-				commonFs := &log.CommonFieldSet{
-					Timestamp: step.time,
-				}
-				logObj := log.NewLogWithFieldSetsForTest(k8sFieldSet, commonFs)
+				logObj := testlog.NewMockLog(
+					&log.CommonFieldSet{
+						Timestamp: step.time,
+					},
+					commonlogk8saudit_contract.K8sAuditLogFieldSet{
+						Principal:    "admin",
+						APIVersion:   "core/v1",
+						PluralKind:   "pods",
+						ResourceName: tc.podName,
+						Namespace:    tc.namespace,
+						ClusterName:  tc.clusterName,
+						Verb:         step.verb,
+						IsDryRun:     step.isDryRun,
+					},
+				)
 				node, err := structured.FromYAML(step.yaml)
 				if err != nil {
 					t.Fatalf("failed to parse test YAML: %v", err)

@@ -71,11 +71,11 @@ func getAuditLogJobTestConfig() *taskrecord.JobTestConfig {
 		RecordedTasks: []taskid.UntypedTaskReference{
 			googlecloudlogk8saudit_contract.GCPK8sAuditLogListLogEntriesTaskID.Ref(),
 		},
-		TargetTask: googlecloudlogk8saudit_contract.GCPK8sAuditLogCommonFieldSetReaderTaskID.Ref(),
+		TargetTask: googlecloudlogk8saudit_contract.GCPK8sAuditLogListLogEntriesTaskID.Ref(),
 	}
 }
 
-func BenchmarkGCPK8sAuditLogCommonFieldSetReaderTask(b *testing.B) {
+func BenchmarkGCPK8sAuditLogListLogEntriesTask(b *testing.B) {
 	server := setupAuditLogInspectionServer(b)
 	cfg := getAuditLogJobTestConfig()
 

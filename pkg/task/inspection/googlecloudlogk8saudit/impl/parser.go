@@ -20,19 +20,10 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
-)
-
-var GCPK8sAuditLogCommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudlogk8saudit_contract.GCPK8sAuditLogCommonFieldSetReaderTaskID,
-	googlecloudlogk8saudit_contract.GCPK8sAuditLogListLogEntriesTaskID.Ref(),
-	[]log.FieldSetReader{
-		&googlecloudlogk8saudit_contract.GCPK8sAuditLogFieldSetReader{},
-	},
 )
 
 var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(

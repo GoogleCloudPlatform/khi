@@ -26,6 +26,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -44,7 +45,7 @@ func TestConditionWalker(t *testing.T) {
 	commonFieldSet := &log.CommonFieldSet{
 		Timestamp: baseTime,
 	}
-	k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+	k8sFieldSet := commonlogk8saudit_contract.K8sAuditLogFieldSet{
 		Verb:      commonlogk8saudit_contract.VerbUpdate,
 		Principal: "user-1",
 	}
@@ -288,12 +289,14 @@ func TestConditionLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 		commonFieldSet := &log.CommonFieldSet{
 			Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		}
-		k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-			Verb:        commonlogk8saudit_contract.VerbUpdate,
-			Principal:   "user-1",
-			ClusterName: "k8s",
-		}
-		logObj := log.NewLogWithFieldSetsForTest(commonFieldSet, k8sFieldSet)
+		logObj := testlog.NewMockLog(
+			commonFieldSet,
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				Verb:        commonlogk8saudit_contract.VerbUpdate,
+				Principal:   "user-1",
+				ClusterName: "k8s",
+			},
+		)
 
 		bodyYAML := `
 status:
@@ -383,12 +386,14 @@ status:
 		commonFieldSet := &log.CommonFieldSet{
 			Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		}
-		k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-			Verb:        commonlogk8saudit_contract.VerbCreate,
-			Principal:   "user-1",
-			ClusterName: "k8s",
-		}
-		logObj := log.NewLogWithFieldSetsForTest(commonFieldSet, k8sFieldSet)
+		logObj := testlog.NewMockLog(
+			commonFieldSet,
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				Verb:        commonlogk8saudit_contract.VerbCreate,
+				Principal:   "user-1",
+				ClusterName: "k8s",
+			},
+		)
 
 		bodyYAML := `
 metadata:
@@ -463,9 +468,9 @@ status:
 		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 		// Log 1: update event at t=10s, contains UID and creationTimestamp
-		logObj1 := log.NewLogWithFieldSetsForTest(
+		logObj1 := testlog.NewMockLog(
 			&log.CommonFieldSet{Timestamp: time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC)},
-			&commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s"},
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s"},
 		)
 		bodyYAML1 := `
 metadata:
@@ -480,9 +485,9 @@ status:
 		bodyReader1 := structured.NewNodeReader(parseYAML(bodyYAML1))
 
 		// Log 2: patch event at t=5s (first event), lacks UID and creationTimestamp in body
-		logObj2 := log.NewLogWithFieldSetsForTest(
+		logObj2 := testlog.NewMockLog(
 			&log.CommonFieldSet{Timestamp: time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC)},
-			&commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbPatch, Principal: "user-1", ClusterName: "k8s"},
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbPatch, Principal: "user-1", ClusterName: "k8s"},
 		)
 		bodyYAML2 := `
 status:
@@ -573,12 +578,14 @@ status:
 		commonFieldSet := &log.CommonFieldSet{
 			Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		}
-		k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-			Verb:        commonlogk8saudit_contract.VerbDelete,
-			Principal:   "user-1",
-			ClusterName: "k8s",
-		}
-		logObj := log.NewLogWithFieldSetsForTest(commonFieldSet, k8sFieldSet)
+		logObj := testlog.NewMockLog(
+			commonFieldSet,
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				Verb:        commonlogk8saudit_contract.VerbDelete,
+				Principal:   "user-1",
+				ClusterName: "k8s",
+			},
+		)
 
 		bodyYAML := `
 status:
@@ -649,13 +656,15 @@ status:
 		commonFieldSet := &log.CommonFieldSet{
 			Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		}
-		k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-			Verb:        commonlogk8saudit_contract.VerbUpdate,
-			Principal:   "user-1",
-			ClusterName: "k8s",
-			IsDryRun:    true,
-		}
-		logObj := log.NewLogWithFieldSetsForTest(commonFieldSet, k8sFieldSet)
+		logObj := testlog.NewMockLog(
+			commonFieldSet,
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				Verb:        commonlogk8saudit_contract.VerbUpdate,
+				Principal:   "user-1",
+				ClusterName: "k8s",
+				IsDryRun:    true,
+			},
+		)
 
 		bodyYAML := `
 status:
