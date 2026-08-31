@@ -226,33 +226,52 @@ export class SelectionManager {
       return;
     }
 
-    const currentTimelines = this.selectedTimelinesWithChildren();
-
-    // When a timeline is already selected, prioritize searching within that timeline and its children.
-    if (currentTimelines.length > 0) {
-      const currentTimelineIds = new Set(currentTimelines.map((t) => t.id));
-      for (const timeline of logTimelines) {
-        if (currentTimelineIds.has(timeline.id)) {
-          const revision = timeline.lookupRevisionFromLog(log);
-          if (revision) {
-            this.selectedRevision.set(revision);
-            return;
-          }
-          const event = timeline.lookupEventFromLog(log);
-          if (event) {
-            this.selectedRevision.set(null);
-            return;
-          }
-        }
-      }
-    }
-
-    // When no timeline is selected or the log is not found in the currently selected timelines,
-    // automatically select the first visible timeline containing the log.
     const filteredTimelineIds = this.inspectionDataStore
       .timelineView()
       ?.filteredTimelineIds();
 
+    const selectedTimeline = this.selectedTimeline();
+    const currentTimelines = this.selectedTimelinesWithChildren();
+
+    // Priority 1: Check the main selected timeline first if it is visible.
+    if (
+      selectedTimeline &&
+      (!filteredTimelineIds || filteredTimelineIds.has(selectedTimeline.id))
+    ) {
+      const revision = selectedTimeline.lookupRevisionFromLog(log);
+      if (revision) {
+        this.selectedRevision.set(revision);
+        return;
+      }
+      const event = selectedTimeline.lookupEventFromLog(log);
+      if (event) {
+        this.selectedRevision.set(null);
+        return;
+      }
+    }
+
+    // Priority 2: Check descendant timelines of the selected timeline (if visible).
+    if (currentTimelines.length > 1) {
+      for (const timeline of currentTimelines) {
+        if (timeline === selectedTimeline) continue;
+        if (filteredTimelineIds && !filteredTimelineIds.has(timeline.id)) {
+          continue;
+        }
+        const revision = timeline.lookupRevisionFromLog(log);
+        if (revision) {
+          this.selectedRevision.set(revision);
+          return;
+        }
+        const event = timeline.lookupEventFromLog(log);
+        if (event) {
+          this.selectedRevision.set(null);
+          return;
+        }
+      }
+    }
+
+    // Priority 3: When no timeline is selected or the log is not found in the currently selected timelines,
+    // automatically select the first visible timeline containing the log.
     for (const timeline of logTimelines) {
       if (!filteredTimelineIds || filteredTimelineIds.has(timeline.id)) {
         this.selectedTimeline.set(timeline);
@@ -303,20 +322,15 @@ export class SelectionManager {
     const validTimelines = this.selectedTimelinesWithChildren();
     const validTimelineIds = new Set(validTimelines.map((t) => t.id));
 
-    const timelineStore =
-      this.inspectionDataStore.inspectionData()?.timelineStore;
-
-    const isLogValid =
-      !log ||
-      (timelineStore
-        ? timelineStore
-            .getTimelineIdsForLogId(log.id)
-            .some((id) => validTimelineIds.has(id))
-        : validTimelines.some(
-            (t) => t.lookupRevisionFromLog(log) || t.lookupEventFromLog(log),
-          ));
-    const isRevisionValid =
-      !revision || validTimelineIds.has(revision.timelineId);
+    const isLogValid = this.isSelectedLogValid(
+      log,
+      validTimelineIds,
+      validTimelines,
+    );
+    const isRevisionValid = this.isSelectedRevisionValid(
+      revision,
+      validTimelineIds,
+    );
 
     if (!isLogValid) {
       this.selectedLogId.set(null);
@@ -324,5 +338,37 @@ export class SelectionManager {
     } else if (!isRevisionValid) {
       this.selectedRevision.set(null);
     }
+  }
+
+  /**
+   * Checks whether the currently selected log is still valid within the active timeline selection.
+   */
+  private isSelectedLogValid(
+    log: ReadonlyDomainElement<Log> | null,
+    validTimelineIds: Set<number>,
+    validTimelines: ReadonlyDomainElement<Timeline>[],
+  ): boolean {
+    if (!log) return true;
+    const timelineStore =
+      this.inspectionDataStore.inspectionData()?.timelineStore;
+    if (timelineStore) {
+      return timelineStore
+        .getTimelineIdsForLogId(log.id)
+        .some((id) => validTimelineIds.has(id));
+    }
+    return validTimelines.some(
+      (t) => t.lookupRevisionFromLog(log) || t.lookupEventFromLog(log),
+    );
+  }
+
+  /**
+   * Checks whether the currently selected revision is still valid within the active timeline selection.
+   */
+  private isSelectedRevisionValid(
+    revision: ReadonlyDomainElement<Revision> | null,
+    validTimelineIds: Set<number>,
+  ): boolean {
+    if (!revision) return true;
+    return validTimelineIds.has(revision.timelineId);
   }
 }

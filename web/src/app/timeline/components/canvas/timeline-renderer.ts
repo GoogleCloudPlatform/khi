@@ -25,8 +25,9 @@ import { LRUCache } from 'src/app/common/lru-cache';
 import { TimelineRendererSharedResource } from './timeline-shared-resource';
 import {
   HitTestResult,
+  ScissorRect,
   TimelineHitTestSharedResource,
-} from './hittest-shared-resource';
+} from 'src/app/timeline/components/canvas/hittest-shared-resource';
 import {
   TimelineEventsRenderer,
   TimelineEventsSharedResources,
@@ -336,23 +337,9 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       Math.ceil(Math.max(...this.hitTestRequests.map((r) => r.y))),
     );
 
-    const scissorX = minX;
-    const scissorY = Math.max(0, Math.floor(this.height - maxY - 1));
-    const scissorW = Math.min(
-      this.width - scissorX,
-      Math.max(1, maxX - minX + 1),
-    );
-    const scissorH = Math.min(
-      this.height - scissorY,
-      Math.max(1, maxY - minY + 1),
-    );
+    const scissor = this.calculateHitTestScissorRect(minX, maxX, minY, maxY);
 
-    this.hittestSharedResource.beforeRender(gl, {
-      x: scissorX,
-      y: scissorY,
-      width: scissorW,
-      height: scissorH,
-    });
+    this.hittestSharedResource.beforeRender(gl, scissor);
     this.renderIntersectingItems(minY, maxY, (t, rect) => {
       rect.dpr = 1.0; // hit test buffer is rendered without considering dpr
       if (t.revisions.length > 0) {
@@ -542,5 +529,32 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
     renderer.setup(gl, this.tmpBuffer);
     this.eventRenderers.put(t.id.toString(), renderer);
     return renderer;
+  }
+
+  /**
+   * Calculates the scissor rectangle for hit testing from bounding coordinates.
+   */
+  private calculateHitTestScissorRect(
+    minX: number,
+    maxX: number,
+    minY: number,
+    maxY: number,
+  ): ScissorRect {
+    const scissorX = minX;
+    const scissorY = Math.max(0, Math.floor(this.height - maxY - 1));
+    const scissorW = Math.min(
+      this.width - scissorX,
+      Math.max(1, maxX - minX + 1),
+    );
+    const scissorH = Math.min(
+      this.height - scissorY,
+      Math.max(1, maxY - minY + 1),
+    );
+    return {
+      x: scissorX,
+      y: scissorY,
+      width: scissorW,
+      height: scissorH,
+    };
   }
 }

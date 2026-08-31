@@ -61,7 +61,7 @@ void main(){
   uint logIndex = intStaticMeta.z;
   uint logId = intStaticMeta.w;
 
-  bool isSelected = (vs.selectedLogIndex != 0xFFFFFFFFu && logIndex == vs.selectedLogIndex);
+  bool isSelected = (vs.selectedLogIndex != NO_LOG_INDEX_SELECTED && logIndex == vs.selectedLogIndex);
   bool isHovered = (!isSelected && checkBitset(u_highlightBitset, logIndex));
   uint selectionStatus = isSelected ? 2u : (isHovered ? 1u : 0u);
   uint filterStatus = checkBitset(u_filterBitset, logId) ? 1u : 0u;

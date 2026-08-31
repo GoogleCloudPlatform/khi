@@ -44,9 +44,9 @@ import { getMinTimeSpanForHistogram } from 'src/app/timeline/components/calculat
 import {
   RulerViewModelBuilder,
   TimelineRulerViewModel,
-} from './timeline-ruler.viewmodel';
+} from 'src/app/timeline/components/timeline-ruler.viewmodel';
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
-import { TimelineChartViewModel } from './timeline-chart.viewmodel';
+import { TimelineChartViewModel } from 'src/app/timeline/components/timeline-chart.viewmodel';
 
 interface TimelineChartStoryViewModelNotReady {
   readonly ready: false;

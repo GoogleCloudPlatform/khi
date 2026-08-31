@@ -76,6 +76,6 @@ export class Log {
    * Gets the interned struct ID of the log body, or 0 if not stored as an interned struct.
    */
   get structId(): number {
-    return this.store._getBodyStructId(this.id);
+    return this.store.getBodyStructId(this.id);
   }
 }

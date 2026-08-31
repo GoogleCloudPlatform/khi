@@ -100,17 +100,17 @@ export class LogListComponent {
 
         for (const timeline of timelines) {
           for (const revision of timeline.revisions) {
-            const log = revision.log;
-            if (!seenLogIds.has(log.id) && filterLogIds.has(log.id)) {
-              seenLogIds.add(log.id);
-              matchedLogs.push(log);
+            const logId = revision.logId;
+            if (!seenLogIds.has(logId) && filterLogIds.has(logId)) {
+              seenLogIds.add(logId);
+              matchedLogs.push(revision.log);
             }
           }
           for (const event of timeline.events) {
-            const log = event.log;
-            if (!seenLogIds.has(log.id) && filterLogIds.has(log.id)) {
-              seenLogIds.add(log.id);
-              matchedLogs.push(log);
+            const logId = event.logId;
+            if (!seenLogIds.has(logId) && filterLogIds.has(logId)) {
+              seenLogIds.add(logId);
+              matchedLogs.push(event.log);
             }
           }
         }

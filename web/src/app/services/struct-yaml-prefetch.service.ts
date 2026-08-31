@@ -32,7 +32,7 @@ interface TimelineItemWithStructId {
 
 interface SurroundingCandidate {
   readonly logIndex: number;
-  readonly structId: number;
+  readonly structIds: readonly number[];
 }
 
 /**
@@ -260,7 +260,7 @@ export class StructYamlPrefetchService {
           timeline.revisions,
           targetLogIndex,
           filteredLogIds,
-          (rev) => [rev.structId, rev.log?.structId ?? 0],
+          (rev) => [rev.structId, logStore.getBodyStructId(rev.logId)],
           backwardCandidates,
           forwardCandidates,
         );
@@ -268,7 +268,7 @@ export class StructYamlPrefetchService {
           timeline.events,
           targetLogIndex,
           filteredLogIds,
-          (evt) => [evt.log?.structId ?? 0],
+          (evt) => [logStore.getBodyStructId(evt.logId)],
           backwardCandidates,
           forwardCandidates,
         );
@@ -317,7 +317,7 @@ export class StructYamlPrefetchService {
       const id = logStore.getLogIdByIndex(i);
       if (filteredLogIds.has(id)) {
         backwardCount++;
-        const structId = logStore._getBodyStructId(id);
+        const structId = logStore.getBodyStructId(id);
         if (structId > 0) {
           structIds.add(structId);
         }
@@ -333,7 +333,7 @@ export class StructYamlPrefetchService {
       const id = logStore.getLogIdByIndex(i);
       if (filteredLogIds.has(id)) {
         forwardCount++;
-        const structId = logStore._getBodyStructId(id);
+        const structId = logStore.getBodyStructId(id);
         if (structId > 0) {
           structIds.add(structId);
         }
@@ -376,10 +376,12 @@ export class StructYamlPrefetchService {
     for (let i = idx - 1; i >= startBackward; i--) {
       const item = items[i];
       if (filteredLogIds.has(item.logId)) {
-        for (const structId of getStructIds(item)) {
-          if (structId > 0) {
-            backwardCandidates.push({ logIndex: item.logIndex, structId });
-          }
+        const candidateStructIds = getStructIds(item).filter((id) => id > 0);
+        if (candidateStructIds.length > 0) {
+          backwardCandidates.push({
+            logIndex: item.logIndex,
+            structIds: candidateStructIds,
+          });
         }
       }
     }
@@ -389,10 +391,12 @@ export class StructYamlPrefetchService {
     for (let i = idx; i < endForward; i++) {
       const item = items[i];
       if (filteredLogIds.has(item.logId)) {
-        for (const structId of getStructIds(item)) {
-          if (structId > 0) {
-            forwardCandidates.push({ logIndex: item.logIndex, structId });
-          }
+        const candidateStructIds = getStructIds(item).filter((id) => id > 0);
+        if (candidateStructIds.length > 0) {
+          forwardCandidates.push({
+            logIndex: item.logIndex,
+            structIds: candidateStructIds,
+          });
         }
       }
     }
@@ -415,7 +419,9 @@ export class StructYamlPrefetchService {
     candidates.sort(compareFn);
     const top = candidates.slice(0, limit);
     for (const item of top) {
-      structIds.add(item.structId);
+      for (const id of item.structIds) {
+        structIds.add(id);
+      }
     }
   }
 }

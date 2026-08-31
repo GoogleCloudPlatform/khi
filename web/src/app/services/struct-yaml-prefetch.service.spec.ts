@@ -38,7 +38,7 @@ describe('StructYamlPrefetchService', () => {
   let mockLogStore: {
     count: number;
     getLogIdByIndex: (idx: number) => number;
-    _getBodyStructId: (id: number) => number;
+    getBodyStructId: (id: number) => number;
   };
 
   function createMockLog(
@@ -115,7 +115,7 @@ describe('StructYamlPrefetchService', () => {
     mockLogStore = {
       count: 0,
       getLogIdByIndex: (idx: number) => idx + 1,
-      _getBodyStructId: (id: number) => 200 + (id - 1),
+      getBodyStructId: (id: number) => 200 + (id - 1),
     };
 
     TestBed.configureTestingModule({
@@ -383,7 +383,7 @@ describe('StructYamlPrefetchService', () => {
       const log = createMockLog(1, 0, 100n, 888);
       mockLogStore.count = 1;
       mockLogStore.getLogIdByIndex = () => 1;
-      mockLogStore._getBodyStructId = () => 888;
+      mockLogStore.getBodyStructId = () => 888;
       mockFilteredLogIds.set(IdBitset.fromAll([log.id]));
 
       mockSelectedLog.set(log);

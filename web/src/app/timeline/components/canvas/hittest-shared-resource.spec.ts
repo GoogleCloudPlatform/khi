@@ -17,7 +17,7 @@
 import {
   TimelineHitTestSharedResource,
   ScissorRect,
-} from './hittest-shared-resource';
+} from 'src/app/timeline/components/canvas/hittest-shared-resource';
 import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 
 describe('TimelineHitTestSharedResource', () => {
