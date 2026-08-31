@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudlogk8saudit_impl
+package googlecloudlogk8saudit_impl_test
 
 import (
 	"context"
@@ -21,11 +21,8 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	commonlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl"
+	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	googlecloudclustergke_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/contract"
-	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
-	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
-	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/taskrecord"
@@ -42,20 +39,8 @@ func setupAuditLogInspectionServer(t testing.TB) *coreinspection.InspectionTaskS
 	if err != nil {
 		t.Fatalf("failed to create server: %v", err)
 	}
-	if err := googlecloudclustergke_impl.Register(server); err != nil {
-		t.Fatalf("failed to register googlecloudclustergke: %v", err)
-	}
-	if err := googlecloudcommon_impl.Register(server); err != nil {
-		t.Fatalf("failed to register googlecloudcommon: %v", err)
-	}
-	if err := googlecloudk8scommon_impl.Register(server); err != nil {
-		t.Fatalf("failed to register googlecloudk8scommon: %v", err)
-	}
-	if err := commonlogk8saudit_impl.Register(server); err != nil {
-		t.Fatalf("failed to register commonlogk8saudit: %v", err)
-	}
-	if err := Register(server); err != nil {
-		t.Fatalf("failed to register googlecloudlogk8saudit: %v", err)
+	if err := generated.RegisterAllInspectionTasks(server); err != nil {
+		t.Fatalf("failed to register all inspection tasks: %v", err)
 	}
 	return server
 }

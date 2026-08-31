@@ -93,6 +93,9 @@ type JobTestHarness struct {
 	isMemProfile   bool
 	stubsInitOnce  sync.Once
 	stubsInitErr   error
+
+	cpuProfileOnce sync.Once
+	memProfileOnce sync.Once
 }
 
 // sanitizeTestName replaces slashes and special characters in test names to create safe directory paths.
@@ -238,7 +241,10 @@ func (h *JobTestHarness) Replay(ctx context.Context) (*JobTestResult, error) {
 	// Register stub tasks for each recorded task once
 	h.stubsInitOnce.Do(func() {
 		for _, ref := range h.cfg.RecordedTasks {
-			targetType := GetTaskType(ref)
+			targetType, ok := ResolveTaskTypeFromTaskSet(h.server.RootTaskSet, ref)
+			if !ok {
+				targetType = GetTaskType(ref)
+			}
 			val, err := loadRecordedTaskResultForType(h.fixtureDir, ref, targetType)
 			if err != nil {
 				h.stubsInitErr = fmt.Errorf("failed to load fixture for %s: %w", ref.ReferenceIDString(), err)
@@ -277,9 +283,7 @@ func (h *JobTestHarness) Replay(ctx context.Context) (*JobTestResult, error) {
 	capturedResults := make(map[string]any)
 
 	replayInterceptor := newReplayInspectionInterceptor(
-		h.cfg.TargetTask,
-		h.cpuProfilePath,
-		h.memProfilePath,
+		h,
 		func() {
 			_ = runner.Cancel()
 		},

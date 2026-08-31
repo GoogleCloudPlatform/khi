@@ -83,6 +83,39 @@ func loadRecordedTaskResultForType(fixtureDir string, taskRef taskid.UntypedTask
 	return DefaultCodecRegistry.DeserializeForType(data, t)
 }
 
+// ResolveTaskTypeFromTask returns the Go return type T of a Task[T] by inspecting its Run method.
+func ResolveTaskTypeFromTask(task coretask.UntypedTask) (reflect.Type, bool) {
+	if task == nil {
+		return nil, false
+	}
+	taskType := reflect.TypeOf(task)
+	method, ok := taskType.MethodByName("Run")
+	if !ok || method.Type.NumOut() != 2 {
+		return nil, false
+	}
+	errType := reflect.TypeOf((*error)(nil)).Elem()
+	if !method.Type.Out(1).Implements(errType) {
+		return nil, false
+	}
+	return method.Type.Out(0), true
+}
+
+// ResolveTaskTypeFromTaskSet finds the task in the TaskSet matching the given reference and returns its return type.
+func ResolveTaskTypeFromTaskSet(taskSet *coretask.TaskSet, taskRef taskid.UntypedTaskReference) (reflect.Type, bool) {
+	if taskSet == nil || taskRef == nil {
+		return nil, false
+	}
+	targetRefID := taskRef.ReferenceIDString()
+	for _, task := range taskSet.GetAll() {
+		if task.UntypedID().ReferenceIDString() == targetRefID {
+			if t, ok := ResolveTaskTypeFromTask(task); ok {
+				return t, true
+			}
+		}
+	}
+	return nil, false
+}
+
 // newReplayStubTask creates a stub task with highest selection priority and no upstream dependencies.
 func newReplayStubTask(taskRef taskid.UntypedTaskReference, val any) coretask.UntypedTask {
 	typedRef := taskid.NewTaskReference[any](taskRef.ReferenceIDString())
@@ -99,15 +132,13 @@ func newReplayStubTask(taskRef taskid.UntypedTaskReference, val any) coretask.Un
 
 // newReplayInspectionInterceptor creates an InspectionInterceptor managing isolated execution and profiling.
 func newReplayInspectionInterceptor(
-	targetTask taskid.UntypedTaskReference,
-	cpuProfilePath string,
-	memProfilePath string,
+	h *JobTestHarness,
 	cancelFunc func(),
 	onTargetComplete func(any),
 ) coreinspection.InspectionInterceptor {
 	var targetRefID string
-	if targetTask != nil {
-		targetRefID = targetTask.ReferenceIDString()
+	if h.cfg.TargetTask != nil {
+		targetRefID = h.cfg.TargetTask.ReferenceIDString()
 	}
 
 	var runningMu sync.Mutex
@@ -123,7 +154,7 @@ func newReplayInspectionInterceptor(
 			isTarget := targetRefID != "" && currentRefID == targetRefID
 
 			if isTarget {
-				// Wait for all other running tasks to finish
+				// Wait for all other running tasks to finish.
 				runningMu.Lock()
 				for runningCount > 0 {
 					runningCond.Wait()
@@ -131,33 +162,43 @@ func newReplayInspectionInterceptor(
 				targetExecuting = true
 				runningMu.Unlock()
 
-				var cpuFile *os.File
-				if cpuProfilePath != "" {
-					if err := os.MkdirAll(filepath.Dir(cpuProfilePath), 0755); err == nil {
-						f, err := os.Create(cpuProfilePath)
-						if err == nil {
-							cpuFile = f
-							_ = pprof.StartCPUProfile(cpuFile)
+				defer func() {
+					runningMu.Lock()
+					targetExecuting = false
+					runningCond.Broadcast()
+					runningMu.Unlock()
+				}()
+
+				h.cpuProfileOnce.Do(func() {
+					if h.cpuProfilePath != "" {
+						if err := os.MkdirAll(filepath.Dir(h.cpuProfilePath), 0755); err == nil {
+							f, err := os.Create(h.cpuProfilePath)
+							if err == nil {
+								_ = pprof.StartCPUProfile(f)
+								h.t.Cleanup(func() {
+									pprof.StopCPUProfile()
+									_ = f.Close()
+								})
+							}
 						}
 					}
-				}
+				})
+
+				h.memProfileOnce.Do(func() {
+					if h.memProfilePath != "" {
+						h.t.Cleanup(func() {
+							runtime.GC()
+							if err := os.MkdirAll(filepath.Dir(h.memProfilePath), 0755); err == nil {
+								if f, err := os.Create(h.memProfilePath); err == nil {
+									_ = pprof.WriteHeapProfile(f)
+									_ = f.Close()
+								}
+							}
+						})
+					}
+				})
 
 				res, err := taskNext(taskCtx)
-
-				if cpuFile != nil {
-					pprof.StopCPUProfile()
-					_ = cpuFile.Close()
-				}
-
-				if memProfilePath != "" {
-					runtime.GC()
-					if err := os.MkdirAll(filepath.Dir(memProfilePath), 0755); err == nil {
-						if f, err := os.Create(memProfilePath); err == nil {
-							_ = pprof.WriteHeapProfile(f)
-							_ = f.Close()
-						}
-					}
-				}
 
 				if onTargetComplete != nil && err == nil {
 					onTargetComplete(res)
@@ -167,15 +208,10 @@ func newReplayInspectionInterceptor(
 					cancelFunc()
 				}
 
-				runningMu.Lock()
-				targetExecuting = false
-				runningCond.Broadcast()
-				runningMu.Unlock()
-
 				return res, err
 			}
 
-			// Preceding or other tasks
+			// Preceding or other tasks.
 			runningMu.Lock()
 			for targetExecuting {
 				runningCond.Wait()
@@ -183,14 +219,14 @@ func newReplayInspectionInterceptor(
 			runningCount++
 			runningMu.Unlock()
 
-			res, err := taskNext(taskCtx)
+			defer func() {
+				runningMu.Lock()
+				runningCount--
+				runningCond.Broadcast()
+				runningMu.Unlock()
+			}()
 
-			runningMu.Lock()
-			runningCount--
-			runningCond.Broadcast()
-			runningMu.Unlock()
-
-			return res, err
+			return taskNext(taskCtx)
 		})
 
 		return next(ctx)

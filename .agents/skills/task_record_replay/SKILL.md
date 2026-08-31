@@ -45,10 +45,11 @@ import (
  coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
  "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
  "github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+ "github.com/GoogleCloudPlatform/khi/pkg/generated"
  inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
  "github.com/GoogleCloudPlatform/khi/pkg/testutil/taskrecord"
 
- // Import task contracts and implementations required by your pipeline
+ // Import task contracts required by your pipeline
  mycontract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/mypackage/contract"
 )
 
@@ -65,8 +66,8 @@ func setupInspectionServer(t testing.TB) *coreinspection.InspectionTaskServer {
   t.Fatalf("failed to create server: %v", err)
  }
 
- // Register all required dependent packages and your package tasks
- if err := Register(server); err != nil {
+ // Register all inspection tasks into the server
+ if err := generated.RegisterAllInspectionTasks(server); err != nil {
   t.Fatalf("failed to register tasks: %v", err)
  }
  return server
@@ -183,17 +184,19 @@ func getTimelineMapperConfig() *taskrecord.JobTestConfig {
 
 ---
 
-### Recipe C: Handling Custom / Non-Log Task Return Types
+### Recipe C: Handling Custom / Non-Log Task Return Types & Custom Codecs
 
-By default, `taskrecord` assumes recorded tasks return `[]*log.Log`. If an upstream recorded task returns a custom Go struct or slice (e.g. `[]string`, `map[string]any`, custom struct):
+`taskrecord` automatically resolves the return type `T` of any recorded task directly from the task definitions registered in `server.RootTaskSet` (such as via `generated.RegisterAllInspectionTasks(server)`). Standard Go types (e.g. `[]*log.Log`, `[]string`, `map[string]any`, or custom structs) require no manual type registration.
 
-1. Call `taskrecord.RegisterTaskType[MyType](myTaskRef)` during test setup.
-2. If custom serialization is needed, implement `taskrecord.TaskResultCodec` and call `taskrecord.RegisterCodec[MyType](myCodec)`.
+If a task result requires specialized serialization logic (instead of standard JSON marshalling):
+
+1. Implement the `taskrecord.TaskResultCodec` interface.
+2. Register the codec via `taskrecord.RegisterCodec[MyCustomData](myCodec)`.
 
 ```go
 func init() {
- // Register return type so Replayer knows how to deserialize JSON fixture
- taskrecord.RegisterTaskType[MyCustomData](myCustomTaskID.Ref())
+ // Optional: register custom codec for specialized serialization
+ taskrecord.RegisterCodec[MyCustomData](&MyCustomCodec{})
 }
 ```
 

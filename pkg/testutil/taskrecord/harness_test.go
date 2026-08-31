@@ -187,28 +187,141 @@ func TestJobTestHarness_Profiling(t *testing.T) {
 		TargetTask: downstreamTaskID.Ref(),
 	}
 
-	harness := NewJobTestHarness(t, tc.server, cfg)
-	defer os.RemoveAll(harness.fixtureDir)
 	defer os.RemoveAll("pprof")
 
-	// Step 1: Record fixture
-	if _, err := harness.Record(t.Context()); err != nil {
-		t.Fatalf("harness.Record() failed: %v", err)
+	t.Run("profiling generates cpu and mem profiles", func(subT *testing.T) {
+		harness := NewJobTestHarness(subT, tc.server, cfg)
+		defer os.RemoveAll(harness.fixtureDir)
+
+		// Step 1: Record fixture
+		if _, err := harness.Record(subT.Context()); err != nil {
+			subT.Fatalf("harness.Record() failed: %v", err)
+		}
+
+		// Step 2: Enable CPU & Mem profile paths explicitly for testing profiling flow
+		harness.cpuProfilePath = filepath.Join("pprof", sanitizeTestName(subT.Name()), "cpu.pprof")
+		harness.memProfilePath = filepath.Join("pprof", sanitizeTestName(subT.Name()), "mem.pprof")
+
+		if _, err := harness.Replay(subT.Context()); err != nil {
+			subT.Fatalf("harness.Replay() failed: %v", err)
+		}
+	})
+
+	cpuPath := filepath.Join("pprof", sanitizeTestName(t.Name()+"/profiling_generates_cpu_and_mem_profiles"), "cpu.pprof")
+	memPath := filepath.Join("pprof", sanitizeTestName(t.Name()+"/profiling_generates_cpu_and_mem_profiles"), "mem.pprof")
+
+	if _, err := os.Stat(cpuPath); os.IsNotExist(err) {
+		t.Errorf("expected CPU profile %s to exist", cpuPath)
 	}
 
-	// Step 2: Enable CPU & Mem profile paths explicitly for testing profiling flow
-	harness.cpuProfilePath = filepath.Join("pprof", sanitizeTestName(t.Name()), "cpu.pprof")
-	harness.memProfilePath = filepath.Join("pprof", sanitizeTestName(t.Name()), "mem.pprof")
+	if _, err := os.Stat(memPath); os.IsNotExist(err) {
+		t.Errorf("expected Mem profile %s to exist", memPath)
+	}
+}
 
-	if _, err := harness.Replay(t.Context()); err != nil {
-		t.Fatalf("harness.Replay() failed: %v", err)
+func TestResolveTaskTypeFromTask(t *testing.T) {
+	testCases := []struct {
+		name     string
+		task     coretask.UntypedTask
+		wantType string
+		wantOk   bool
+	}{
+		{
+			name:     "nil task returns false",
+			task:     nil,
+			wantType: "",
+			wantOk:   false,
+		},
+		{
+			name: "task returning []*log.Log",
+			task: coretask.NewTask[[]*log.Log](
+				upstreamTaskID,
+				nil,
+				func(ctx context.Context) ([]*log.Log, error) { return nil, nil },
+			),
+			wantType: "[]*log.Log",
+			wantOk:   true,
+		},
+		{
+			name: "task returning []string",
+			task: coretask.NewTask[[]string](
+				downstreamTaskID,
+				nil,
+				func(ctx context.Context) ([]string, error) { return nil, nil },
+			),
+			wantType: "[]string",
+			wantOk:   true,
+		},
 	}
 
-	if _, err := os.Stat(harness.cpuProfilePath); os.IsNotExist(err) {
-		t.Errorf("expected CPU profile %s to exist", harness.cpuProfilePath)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotType, gotOk := ResolveTaskTypeFromTask(tc.task)
+			if diff := cmp.Diff(tc.wantOk, gotOk); diff != "" {
+				t.Errorf("ResolveTaskTypeFromTask() ok mismatch (-want +got):\n%s", diff)
+			}
+			if tc.wantOk {
+				if diff := cmp.Diff(tc.wantType, gotType.String()); diff != "" {
+					t.Errorf("ResolveTaskTypeFromTask() type string mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestResolveTaskTypeFromTaskSet(t *testing.T) {
+	task1 := coretask.NewTask[[]*log.Log](
+		upstreamTaskID,
+		nil,
+		func(ctx context.Context) ([]*log.Log, error) { return nil, nil },
+	)
+	task2 := coretask.NewTask[[]string](
+		downstreamTaskID,
+		nil,
+		func(ctx context.Context) ([]string, error) { return nil, nil },
+	)
+	taskSet, err := coretask.NewTaskSet([]coretask.UntypedTask{task1, task2})
+	if err != nil {
+		t.Fatalf("failed to create task set: %v", err)
 	}
 
-	if _, err := os.Stat(harness.memProfilePath); os.IsNotExist(err) {
-		t.Errorf("expected Mem profile %s to exist", harness.memProfilePath)
+	testCases := []struct {
+		name     string
+		taskRef  taskid.UntypedTaskReference
+		wantType string
+		wantOk   bool
+	}{
+		{
+			name:     "finds log slice task type",
+			taskRef:  upstreamTaskID.Ref(),
+			wantType: "[]*log.Log",
+			wantOk:   true,
+		},
+		{
+			name:     "finds string slice task type",
+			taskRef:  downstreamTaskID.Ref(),
+			wantType: "[]string",
+			wantOk:   true,
+		},
+		{
+			name:     "unknown task reference returns false",
+			taskRef:  taskid.NewTaskReference[int]("test/unknown"),
+			wantType: "",
+			wantOk:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotType, gotOk := ResolveTaskTypeFromTaskSet(taskSet, tc.taskRef)
+			if diff := cmp.Diff(tc.wantOk, gotOk); diff != "" {
+				t.Errorf("ResolveTaskTypeFromTaskSet() ok mismatch (-want +got):\n%s", diff)
+			}
+			if tc.wantOk {
+				if diff := cmp.Diff(tc.wantType, gotType.String()); diff != "" {
+					t.Errorf("ResolveTaskTypeFromTaskSet() type string mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
 	}
 }
