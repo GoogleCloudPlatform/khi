@@ -15,7 +15,10 @@
  */
 
 import { BMFontConfig } from 'src/app/store/domain/style';
-import { SharedTmpBuffer, WebGLUtil } from './glutil';
+import {
+  SharedTmpBuffer,
+  WebGLUtil,
+} from 'src/app/timeline/components/canvas/glutil';
 
 describe('glutil', () => {
   describe('WebGLUtil', () => {
