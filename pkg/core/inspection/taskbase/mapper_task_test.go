@@ -38,7 +38,7 @@ var (
 )
 
 var mockLogToTimelineMapperPrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-timeline-mapper-prev")
-var mockLogSerializerPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-timeline-mapper-prev-log-serializer")
+var mockLogSerializerPrevTaskID = taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper-prev-log-serializer")
 
 type mockLogToTimelineMapperGroupData struct {
 	ProcessedLogs int
@@ -53,7 +53,7 @@ func (m *mockLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[LogGroup
 	return mockLogToTimelineMapperPrevTaskID.Ref()
 }
 
-func (m *mockLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *mockLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return mockLogSerializerPrevTaskID.Ref()
 }
 

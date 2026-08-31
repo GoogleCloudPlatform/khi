@@ -93,4 +93,9 @@ func (o *orderedMapNode) Children() NodeChildrenIterator {
 	}
 }
 
+// Unwrap returns the inner wrapped Node.
+func (o *orderedMapNode) Unwrap() Node {
+	return o.inner
+}
+
 var _ Node = (*orderedMapNode)(nil)

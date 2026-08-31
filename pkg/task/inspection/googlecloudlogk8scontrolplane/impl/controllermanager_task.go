@@ -103,7 +103,7 @@ func (o *ControllerManagerTimelineMapper) GroupedLogTask() taskid.TaskReference[
 }
 
 // LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *ControllerManagerTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (o *ControllerManagerTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogk8scontrolplane_contract.LogIngesterTaskID.Ref()
 }
 

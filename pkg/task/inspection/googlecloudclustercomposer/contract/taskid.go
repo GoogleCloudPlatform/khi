@@ -72,7 +72,7 @@ var ComposerLogsTailTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleC
 var AirflowSchedulerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GoogleCloudComposerTaskIDPrefix + "grouper-scheduler")
 
 // AirflowSchedulerLogIngesterTaskID is the task id for the task that ingests Airflow scheduler logs.
-var AirflowSchedulerLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "ingester-scheduler")
+var AirflowSchedulerLogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "ingester-scheduler")
 
 // AirflowSchedulerLogToTimelineMapperTaskID is the task id for the task that maps Airflow scheduler logs to timeline events.
 var AirflowSchedulerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](GoogleCloudComposerTaskIDPrefix + "mapper-scheduler")
@@ -84,7 +84,7 @@ var AirflowDagProcessorManagerLogSorterTaskID = taskid.NewDefaultImplementationI
 var AirflowDagProcessorManagerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GoogleCloudComposerTaskIDPrefix + "grouper-dag-processor-manager")
 
 // AirflowDagProcessorManagerLogIngesterTaskID is the task id for the task that ingests Airflow DAG processor manager logs.
-var AirflowDagProcessorManagerLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "ingester-dag-processor-manager")
+var AirflowDagProcessorManagerLogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "ingester-dag-processor-manager")
 
 // AirflowDagProcessorManagerLogToTimelineMapperTaskID is the task id for the task that maps Airflow DAG processor manager logs to timeline events.
 var AirflowDagProcessorManagerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](GoogleCloudComposerTaskIDPrefix + "mapper-dag-processor-manager")
@@ -93,7 +93,7 @@ var AirflowDagProcessorManagerLogToTimelineMapperTaskID = taskid.NewDefaultImple
 var AirflowWorkerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GoogleCloudComposerTaskIDPrefix + "grouper-worker")
 
 // AirflowWorkerLogIngesterTaskID is the task id for the task that ingests Airflow worker logs.
-var AirflowWorkerLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "ingester-worker")
+var AirflowWorkerLogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "ingester-worker")
 
 // AirflowWorkerLogToTimelineMapperTaskID is the task id for the task that maps Airflow worker logs to timeline events.
 var AirflowWorkerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](GoogleCloudComposerTaskIDPrefix + "mapper-worker")
@@ -102,7 +102,7 @@ var AirflowWorkerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[i
 var AirflowOtherLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GoogleCloudComposerTaskIDPrefix + "grouper-other")
 
 // AirflowOtherLogIngesterTaskID is the task id for the task that ingests other Airflow logs.
-var AirflowOtherLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "ingester-other")
+var AirflowOtherLogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "ingester-other")
 
 // AirflowOtherLogToTimelineMapperTaskID is the task id for the task that maps other Airflow logs to timeline events.
 var AirflowOtherLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](GoogleCloudComposerTaskIDPrefix + "mapper-other")

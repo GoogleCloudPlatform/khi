@@ -55,7 +55,7 @@ func (e *nonSuccessLogLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.Ta
 }
 
 // LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (e *nonSuccessLogLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 

@@ -114,7 +114,7 @@ type ManifestLogToTimelineMapper[T any] interface {
 	// TaskID returns the task ID.
 	TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult]
 	// LogIngesterTask returns the task reference for the log ingester task.
-	LogIngesterTask() taskid.TaskReference[[]*log.Log]
+	LogIngesterTask() taskid.TaskReference[struct{}]
 	// GroupedLogTask returns the task reference for the grouped log task.
 	GroupedLogTask() taskid.TaskReference[ResourceManifestLogGroupMap]
 	// Dependencies returns additional task dependencies of the mapper.

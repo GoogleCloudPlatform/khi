@@ -43,6 +43,8 @@ func TestDebugParameters(t *testing.T) {
 				NoColor:           testutil.P(false),
 				CloudTrace:        testutil.P(false),
 				CloudTraceProject: testutil.P(""),
+				MemProfile:        testutil.P(""),
+				CPUProfile:        testutil.P(""),
 			},
 		},
 		{
@@ -59,6 +61,8 @@ func TestDebugParameters(t *testing.T) {
 				NoColor:           testutil.P(false),
 				CloudTrace:        testutil.P(true),
 				CloudTraceProject: testutil.P("my-project"),
+				MemProfile:        testutil.P(""),
+				CPUProfile:        testutil.P(""),
 			},
 		},
 	}

@@ -36,7 +36,7 @@ var InputControlPlaneComponentNameFilterTaskID = taskid.NewDefaultImplementation
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "query")
 
 // LogIngesterTaskID is the task ID to finalize the logs to be included in the final output.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "log-ingester")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](K8sControlPlaneLogTaskIDPrefix + "log-ingester")
 
 // SchedulerLogFilterTaskID is the task ID for filtering scheduler logs.
 var SchedulerLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "scheduler-log-filter")

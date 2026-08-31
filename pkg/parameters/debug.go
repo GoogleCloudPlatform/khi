@@ -45,6 +45,11 @@ type DebugParameters struct {
 	// CloudTraceProject
 	// The GCP project ID where the trace sends the data to.
 	CloudTraceProject *string
+
+	// MemProfile is the destination file path of memory pprof profile written on exit.
+	MemProfile *string
+	// CPUProfile is the destination file path of CPU pprof profile written on exit.
+	CPUProfile *string
 }
 
 // PostProcess implements ParameterStore.
@@ -67,6 +72,8 @@ func (d *DebugParameters) Prepare() error {
 	d.NoColor = flag.Bool("no-color", false, "If this flag is set, KHI prints logs without color.", "")
 	d.CloudTrace = flag.Bool("cloud-trace", false, "If this flag is set, KHI sends traces to Cloud Trace.", "")
 	d.CloudTraceProject = flag.String("cloud-trace-project-id", "", "The GCP project ID where the trace sends the data to.", "")
+	d.MemProfile = flag.String("memprofile", "", "The destination file path of memory pprof profile written on exit.", "")
+	d.CPUProfile = flag.String("cpuprofile", "", "The destination file path of CPU pprof profile written on exit.", "")
 	return nil
 }
 

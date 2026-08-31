@@ -69,15 +69,14 @@ func (SinglePassGroupedIngesterBase[T]) PreProcessLogByGroup(ctx context.Context
 }
 
 // NewGroupedLogIngesterTask returns a task that ingests log metadata into the KHI v6 builder using group-sequential processing.
-func NewGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[[]*log.Log], ingester GroupedLogIngester[T], labels ...coretask.LabelOpt) coretask.Task[[]*log.Log] {
+func NewGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[struct{}], ingester GroupedLogIngester[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
 	rawLogTaskID := ingester.RawLogTask()
 	groupedLogTaskID := ingester.GroupedLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{rawLogTaskID, groupedLogTaskID}, ingester.Dependencies()...)
-	return NewProgressReportableInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
+	return NewProgressReportableInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
-			return []*log.Log{}, nil
+			return struct{}{}, nil
 		}
-		logs := coretask.GetTaskResult(ctx, rawLogTaskID)
 		groupedLogs := coretask.GetTaskResult(ctx, groupedLogTaskID)
 		builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 
@@ -181,10 +180,10 @@ func NewGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[[]*log.
 		progressUpdator.Done()
 
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return struct{}{}, ctx.Err()
 		}
 		if sharedErr != nil {
-			return nil, sharedErr
+			return struct{}{}, sharedErr
 		}
 
 		slog.DebugContext(ctx, fmt.Sprintf("GroupedLogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), totalLogCount, skippedLogCount.Load()))
@@ -195,7 +194,7 @@ func NewGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[[]*log.
 				attribute.String("log_count", fmt.Sprintf("%d", totalLogCount)),
 			)
 		}
-		return logs, nil
+		return struct{}{}, nil
 	}, append([]coretask.LabelOpt{
 		// Tasks modifying history must be dependent from SerializerTask.
 		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())}, labels...)...)

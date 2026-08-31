@@ -324,3 +324,51 @@ nested:
 		t.Errorf("ReadStringOrDefault() fallback mismatch: want %q, got %q", "default", got)
 	}
 }
+
+func TestNodeReader_WithOrderedMapNode(t *testing.T) {
+	yamlData := `
+zebra: "last_alphabetical"
+alpha: "first_alphabetical"
+nested:
+  beta: "inner_beta"
+`
+	node, err := FromYAML(yamlData)
+	if err != nil {
+		t.Fatalf("failed to parse YAML: %v", err)
+	}
+
+	// Wrap root node with WithKeyOrder
+	ordered := WithKeyOrder(node, "zebra", "alpha")
+	reader := NewNodeReader(ordered)
+
+	testCases := []struct {
+		name string
+		path FieldPath
+		want string
+	}{
+		{
+			name: "read zebra field from ordered node",
+			path: CompileFieldPath("zebra"),
+			want: "last_alphabetical",
+		},
+		{
+			name: "read alpha field from ordered node",
+			path: CompileFieldPath("alpha"),
+			want: "first_alphabetical",
+		},
+		{
+			name: "read nested field from ordered node",
+			path: CompileFieldPath("nested.beta"),
+			want: "inner_beta",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := reader.ReadStringOrDefault(tc.path, "")
+			if got != tc.want {
+				t.Errorf("ReadStringOrDefault() mismatch (-want %q, +got %q)", tc.want, got)
+			}
+		})
+	}
+}

@@ -91,7 +91,7 @@ type KubernetesEventTimelineMapper struct {
 }
 
 // LogIngesterTask returns the prerequisite log ingester task.
-func (m *KubernetesEventTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *KubernetesEventTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogk8sevent_contract.LogIngesterTaskID.Ref()
 }
 

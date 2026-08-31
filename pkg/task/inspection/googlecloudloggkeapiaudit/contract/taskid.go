@@ -30,7 +30,7 @@ var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scomm
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEAPIAuditLogTaskIDPrefix + "query")
 
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEAPIAuditLogTaskIDPrefix + "log-ingester")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](GKEAPIAuditLogTaskIDPrefix + "log-ingester")
 
 // LogGrouperTaskID is the task id to group logs by target instance to process logs in LogToTimelineMapper in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GKEAPIAuditLogTaskIDPrefix + "grouper")

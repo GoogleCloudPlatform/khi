@@ -72,7 +72,7 @@ type networkAPITimelineMapper struct {
 }
 
 // LogIngesterTask is the task reference that provides the ingested logs.
-func (m *networkAPITimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *networkAPITimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlognetworkapiaudit_contract.LogIngesterTaskID.Ref()
 }
 

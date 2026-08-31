@@ -138,7 +138,7 @@ func TestLogIngesterTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			tid := taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester")
+			tid := taskid.NewDefaultImplementationID[struct{}]("mock-log-ingester")
 
 			ctx := context.Background()
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
@@ -146,6 +146,7 @@ func TestLogIngesterTask(t *testing.T) {
 			var cancel context.CancelFunc
 			if tc.cancelContext || tc.cancelMidWay {
 				ctx, cancel = context.WithCancel(ctx)
+				defer cancel()
 			}
 			if tc.cancelContext {
 				cancel()

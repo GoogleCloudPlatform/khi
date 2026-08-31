@@ -105,7 +105,7 @@ type serialportLogToTimelineMapper struct {
 }
 
 // LogIngesterTask implements the LogToTimelineMapper interface.
-func (s *serialportLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (s *serialportLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogserialport_contract.LogIngesterTaskID.Ref()
 }
 

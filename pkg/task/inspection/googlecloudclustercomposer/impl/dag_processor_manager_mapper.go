@@ -155,7 +155,7 @@ type dagProcessorManagerTimelineMapper struct {
 }
 
 // LogIngesterTask returns a reference to the ingester task.
-func (m *dagProcessorManagerTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *dagProcessorManagerTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogIngesterTaskID.Ref()
 }
 

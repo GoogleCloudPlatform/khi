@@ -79,7 +79,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.Tas
 }
 
 // LogIngesterTask returns a reference to the log ingester task.
-func (s *composerAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (s *composerAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogcomposerapiaudit_contract.LogIngesterTaskID.Ref()
 }
 

@@ -37,7 +37,7 @@ var InputContainerQueryPodNamesTaskID = taskid.NewDefaultImplementationID[*gcpqu
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
 
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-ingester")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-ingester")
 
 // LogGrouperTaskID is the task id to group logs by target instance to process logs in LogToTimelineMapper in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")

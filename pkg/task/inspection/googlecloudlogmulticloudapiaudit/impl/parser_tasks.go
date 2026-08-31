@@ -67,7 +67,7 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.T
 }
 
 // LogIngesterTask implements LogToTimelineMapper.
-func (m *multicloudAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *multicloudAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogmulticloudapiaudit_contract.LogIngesterTaskID.Ref()
 }
 

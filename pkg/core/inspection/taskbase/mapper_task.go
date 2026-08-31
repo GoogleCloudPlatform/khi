@@ -71,7 +71,7 @@ func (r *TimelineMapperResult) Merge(other TimelineMapperResult) {
 // LogToTimelineMapper defines the interface for mapping logs to timeline elements (events or revisions) in KHI file v6 format.
 type LogToTimelineMapper[T any] interface {
 	// LogIngesterTask is one of prerequisite task of LogToTimelineMapper ingesting logs before processing with this mapper.
-	LogIngesterTask() taskid.TaskReference[[]*log.Log]
+	LogIngesterTask() taskid.TaskReference[struct{}]
 	// Dependencies are the additional references used in timeline mapper.
 	Dependencies() []taskid.UntypedTaskReference
 	// GroupedLogTask returns a reference to the task that provides the grouped logs.

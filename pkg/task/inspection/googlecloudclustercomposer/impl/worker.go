@@ -81,7 +81,7 @@ type workerLogToTimelineMapper struct {
 }
 
 // LogIngesterTask returns a reference to the ingester task.
-func (m *workerLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *workerLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudclustercomposer_contract.AirflowWorkerLogIngesterTaskID.Ref()
 }
 

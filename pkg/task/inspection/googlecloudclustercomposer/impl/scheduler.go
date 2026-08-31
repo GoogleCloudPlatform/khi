@@ -81,7 +81,7 @@ type schedulerLogToTimelineMapper struct {
 }
 
 // LogIngesterTask returns a reference to the ingester task.
-func (m *schedulerLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *schedulerLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudclustercomposer_contract.AirflowSchedulerLogIngesterTaskID.Ref()
 }
 
