@@ -59,6 +59,7 @@ func GenerateSerialPortStructuredQuery(taskMode inspectioncore_contract.Inspecti
 		return []*logestimator.StructuredLogQuery{
 			{
 				Filters: filters,
+				Preset:  logestimator.EstimatedCountPresetFew,
 			},
 		}
 	}
