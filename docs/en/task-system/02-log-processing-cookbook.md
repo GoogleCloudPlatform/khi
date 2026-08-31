@@ -203,26 +203,18 @@ func (m *MyMapper) Dependencies() []taskid.UntypedTaskReference {
 ### 6.2 Creating and Using Timeline Path Helper Utilities
 
 In current KHI implementations, mappers do not construct raw string paths directly. Instead, they use **`*khifilev6.TimelinePath`**, which clearly expresses resource hierarchies (tree structures) with types, to add and resolve events.
-Furthermore, KHI uses a common implementation pattern where you create a **timeline path helper utility** that encapsulates joining child segments to parent paths using the accumulator from context.
+Furthermore, KHI uses a common implementation pattern where you create **timeline path helper utilities** (`MustXXXTimeline`) that compose parent timeline helper functions rather than rebuilding parent hierarchies with `TimelineAccumulator.GetPath` from scratch.
 
-#### 1. Example of Creating a Timeline Path Helper (defined in `contract` package, etc.)
+#### 1. Example of Creating a Timeline Path Helper (defined in `contract` or `impl` package)
 
 ```go
-// Example of a standard TimelinePath helper function in KHI
+// Example of a composite TimelinePath helper function in KHI composing parent helpers
 func MustK8sPodTimeline(ctx context.Context, clusterName string, namespace string, podName string) *khifilev6.TimelinePath {
-    builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-    clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
-        Name: clusterName,
-        Type: inspectioncore_contract.TimelineTypeK8sCluster,
-    })
-    nsPath := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{
-        Name: namespace,
-        Type: inspectioncore_contract.TimelineTypeNamespace,
-    })
-    return builder.TimelineAccumulator.GetPath(nsPath, khifilev6.PathSegment{
-        Name: podName,
-        Type: inspectioncore_contract.TimelineTypeResource,
-    })
+    clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
+    apiVersionPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+    kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
+    namespacePath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, namespace)
+    return commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespacePath, podName)
 }
 ```
 

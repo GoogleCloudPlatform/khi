@@ -121,6 +121,16 @@ var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontask
 
 Defines the strongly-typed data structures and extraction functions.
 
+> [!IMPORTANT]
+>
+> - **Package-level FieldPath declarations**: Pre-compiled `structured.FieldPath` values created by `structured.CompileFieldPath` are constant across log entries and MUST be declared as package-level variables in a `var (...)` block immediately below the `import` block. Never compile `FieldPath` inside functions or hot parsing loops.
+> - **Non-pointer Return Values**: Extraction methods (`ExtractXXX`) MUST return value types (`FieldSet`), not pointers (`*FieldSet`). Returning values eliminates heap allocation overhead when extractors are called millions of times across high-volume log streams.
+> - **Mock Support**: Extraction functions MUST check `structured.GetMock[FieldSetType](reader)` at the top of the function to allow unit tests to override extraction via `testlog.NewMockLog` / `structured.NewMockNode`.
+
+##### Pattern 1: Direct Extractor Pattern (Single Log Source)
+
+Used when the log format is fixed to a single ingest format (e.g., GKE Autoscaler, serial port, K8s control plane).
+
 ```go
 package customapp_contract
 
@@ -143,11 +153,45 @@ type CustomAppFieldSet struct {
 
 // ExtractCustomApp extracts CustomAppFieldSet from a raw log node reader.
 func ExtractCustomApp(reader *structured.NodeReader) (CustomAppFieldSet, error) {
+ if mock, ok := structured.GetMock[CustomAppFieldSet](reader); ok {
+  return mock, nil
+ }
  return CustomAppFieldSet{
-  AppName:   reader.ReadStringOrDefaultByPath(pathAppName, "unknown-app"),
-  RequestID: reader.ReadStringOrDefaultByPath(pathRequestID, ""),
-  Payload:   reader.ReadStringOrDefaultByPath(pathPayload, ""),
+  AppName:   reader.ReadStringOrDefault(pathAppName, "unknown-app"),
+  RequestID: reader.ReadStringOrDefault(pathRequestID, ""),
+  Payload:   reader.ReadStringOrDefault(pathPayload, ""),
  }, nil
+}
+```
+
+##### Pattern 2: Injected Extractor Pattern (Multi-source Ingestion)
+
+Used when the same log entity can originate from different sources with distinct field layouts (for example, K8s audit logs ingested from GCP Cloud Logging vs. OSS Kubernetes JSONL files).
+
+The common contract defines an extractor function type and a wrapper function that retrieves the task-injected extractor from context:
+
+```go
+package commonlogk8saudit_contract
+
+import (
+ "context"
+
+ "github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+ coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+)
+
+// K8sAuditLogExtractor is a function type for extracting K8sAuditLogFieldSet from a NodeReader.
+type K8sAuditLogExtractor func(reader *structured.NodeReader) (K8sAuditLogFieldSet, error)
+
+// ExtractK8sAuditLog extracts K8s audit log data using the injected extractor from the task context.
+func ExtractK8sAuditLog(ctx context.Context, reader *structured.NodeReader) (K8sAuditLogFieldSet, error) {
+ if mock, ok := structured.GetMock[K8sAuditLogFieldSet](reader); ok {
+  return mock, nil
+ }
+ if extractor, found := coretask.GetTaskResultOptional(ctx, K8sAuditLogExtractorRef); found && extractor != nil {
+  return extractor(reader)
+ }
+ return K8sAuditLogFieldSet{}, nil
 }
 ```
 
@@ -389,7 +433,8 @@ func (i *CustomAppLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
  }
 
  cs.SetLogType(customapp_contract.LogTypeCustomApp)
- // Timestamp is already populated on l.Timestamp during ingestion.
+ // Usually l.Timestamp from ingestion is used. However, if the log contains its own
+ // custom payload field with a more precise timestamp, extract and set that instead.
  cs.SetTimestamp(l.Timestamp)
 
  // Extract custom fields to generate summary.

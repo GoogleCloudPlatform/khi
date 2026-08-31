@@ -203,26 +203,18 @@ func (m *MyMapper) Dependencies() []taskid.UntypedTaskReference {
 ### 6.2 タイムラインパス生成ユーティリティの作成と利用
 
 現在の KHI 実装では、マッパー内で生の文字列からパスを直接構築するのではなく、リソースの階層関係（ツリー構造）を明確に型で表現する **`*khifilev6.TimelinePath`** を用いてイベントを追加・解決します。
-さらに、同一の親パスから子セグメントへ結合する処理をカプセル化した**タイムラインパス生成ユーティリティ（ヘルパー関数）**を作成し、コンテキスト内のアキュムレータを通じてオブジェクト生成を行う一般的な実装パターンを採用しています。
+さらに、親階層を `TimelineAccumulator.GetPath` でゼロから再構築するのではなく、既存の親タイムラインヘルパー関数（`MustXXXTimeline`）を合成して子リソースのパスを生成する**タイムラインパス生成ユーティリティ**を作成する実装パターンを採用しています。
 
-#### 1. タイムラインパス生成ヘルパーの作成例 (`contract` パッケージ等に定義)
+#### 1. タイムラインパス生成ヘルパーの作成例 (`contract` または `impl` パッケージに定義)
 
 ```go
-// KHI における標準的な TimelinePath ヘルパー関数の作成例
+// 親タイムラインヘルパー関数を合成する複合 TimelinePath ヘルパー関数の作成例
 func MustK8sPodTimeline(ctx context.Context, clusterName string, namespace string, podName string) *khifilev6.TimelinePath {
-    builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-    clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
-        Name: clusterName,
-        Type: inspectioncore_contract.TimelineTypeK8sCluster,
-    })
-    nsPath := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{
-        Name: namespace,
-        Type: inspectioncore_contract.TimelineTypeNamespace,
-    })
-    return builder.TimelineAccumulator.GetPath(nsPath, khifilev6.PathSegment{
-        Name: podName,
-        Type: inspectioncore_contract.TimelineTypeResource,
-    })
+    clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
+    apiVersionPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+    kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
+    namespacePath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, namespace)
+    return commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespacePath, podName)
 }
 ```
 

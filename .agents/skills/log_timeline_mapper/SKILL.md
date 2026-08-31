@@ -258,7 +258,7 @@ KHI provides a dedicated test utility `github.com/GoogleCloudPlatform/khi/pkg/te
 
 #### LogIngester Table-Driven Assertion Example
 
-To isolate ingester parsing logic, instantiate logs using `testlog.NewMockLog` and define chainable assertions inside test cases:
+To isolate ingester parsing logic, instantiate logs using `testlog.NewMockLog` with typed field sets (which can receive multiple fieldsets and an optional `time.Time`):
 
 ```go
 func TestMyLogIngester_ProcessLog(t *testing.T) {
@@ -271,8 +271,8 @@ func TestMyLogIngester_ProcessLog(t *testing.T) {
    name: "successful info log ingestion",
    input: testlog.NewMockLog(
     time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
-    map[string]any{
-     "message": "server started",
+    MyLogFieldSet{
+     Message: "server started",
     },
    ),
    assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
