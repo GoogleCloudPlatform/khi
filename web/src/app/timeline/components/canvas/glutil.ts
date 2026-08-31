@@ -117,15 +117,45 @@ export class WebGLUtil {
     return texture;
   }
 
+  private static readonly bmFontConfigCache = new Map<
+    string,
+    Promise<BMFontConfig>
+  >();
+  private static readonly imageCache = new Map<
+    string,
+    Promise<HTMLImageElement>
+  >();
+  private static readonly shaderCache = new Map<string, Promise<string>>();
+
   /**
    * Loads a BMFont configuration JSON file.
+   * Caches results so multiple requests for the same path reuse the in-flight or completed fetch.
    *
    * @param path Path to the BMFont JSON file.
    * @returns A promise that resolves to the BMFontConfig.
    */
   public static async loadBMFontConfig(path: string): Promise<BMFontConfig> {
-    const result = await fetch(path);
-    return result.json();
+    const cached = this.bmFontConfigCache.get(path);
+    if (cached) {
+      return cached;
+    }
+    const fetchPromise = (async () => {
+      const result = await fetch(path);
+      if (!result.ok) {
+        throw new Error(
+          `Failed to load BMFont config at ${path}: HTTP ${result.status} ${result.statusText}`,
+        );
+      }
+      return (await result.json()) as BMFontConfig;
+    })();
+
+    this.bmFontConfigCache.set(path, fetchPromise);
+    try {
+      return await fetchPromise;
+    } catch (err) {
+      this.bmFontConfigCache.delete(path);
+      throw err;
+    }
   }
 
   /**
@@ -154,10 +184,24 @@ export class WebGLUtil {
   }
 
   private static async loadImage(imagePath: string): Promise<HTMLImageElement> {
-    const image = new Image();
-    image.src = imagePath;
-    await image.decode();
-    return image;
+    const cached = this.imageCache.get(imagePath);
+    if (cached) {
+      return cached;
+    }
+    const loadPromise = (async () => {
+      const image = new Image();
+      image.src = imagePath;
+      await image.decode();
+      return image;
+    })();
+
+    this.imageCache.set(imagePath, loadPromise);
+    try {
+      return await loadPromise;
+    } catch (err) {
+      this.imageCache.delete(imagePath);
+      throw err;
+    }
   }
 
   private static createAndCompileShader(
@@ -179,20 +223,42 @@ export class WebGLUtil {
 
   /**
    * Fetches the shader source text from the specified path.
+   * Caches results so multiple requests for the same path reuse the in-flight or completed fetch.
    *
    * @param path The URL path to the shader source file.
    * @returns A promise resolving to the shader source code string.
    */
   public static async getShaderString(path: string): Promise<string> {
-    const url =
-      path.startsWith('/') || path.startsWith('http') ? path : `/${path}`;
-    const result = await fetch(url);
-    if (!result.ok) {
-      throw new Error(
-        `Failed to load shader file at ${path} (resolved URL: ${url}): HTTP ${result.status} ${result.statusText}`,
-      );
+    const cached = this.shaderCache.get(path);
+    if (cached) {
+      return cached;
     }
-    return result.text();
+    const fetchPromise = (async () => {
+      const result = await fetch(path);
+      if (!result.ok) {
+        throw new Error(
+          `Failed to load shader file at ${path}: HTTP ${result.status} ${result.statusText}`,
+        );
+      }
+      return result.text();
+    })();
+
+    this.shaderCache.set(path, fetchPromise);
+    try {
+      return await fetchPromise;
+    } catch (err) {
+      this.shaderCache.delete(path);
+      throw err;
+    }
+  }
+
+  /**
+   * Clears all asset caches (shaders, BMFont configs, and images).
+   */
+  public static clearCache(): void {
+    this.shaderCache.clear();
+    this.bmFontConfigCache.clear();
+    this.imageCache.clear();
   }
 }
 
