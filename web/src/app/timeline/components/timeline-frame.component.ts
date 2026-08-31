@@ -196,9 +196,9 @@ export class TimelineFrameComponent implements AfterViewInit {
    * The list of all logs without filtering.
    * Used for calculating the background histogram.
    */
-  readonly allLogsWithoutFilter = input<ReadonlyDomainElement<Log>[]>([]);
+  readonly allLogs = input<ReadonlyDomainElement<Log>[]>([]);
   /**
-   * The bitset of filtered active log IDs.
+   * The bitset of filtered log IDs.
    * Used for showing filtering state on the timeline.
    */
   readonly filteredLogIds = input<IdBitset>(IdBitset.createEmpty());
@@ -207,7 +207,7 @@ export class TimelineFrameComponent implements AfterViewInit {
    * The bitset of all log IDs.
    */
   protected readonly allLogIds = computed(() => {
-    return IdBitset.fromSequential(this.allLogsWithoutFilter().length);
+    return IdBitset.fromSequential(this.allLogs().length);
   });
 
   /**
@@ -227,13 +227,13 @@ export class TimelineFrameComponent implements AfterViewInit {
   /**
    * Cache for the histogram of all logs.
    */
-  protected readonly allLogsWithoutFilterHistogramCache = computed(() => {
+  protected readonly allLogsHistogramCache = computed(() => {
     const minTimeSpanForHistogram = this.minTimeSpanForHistogram();
-    const allLogsWithoutFilter = this.allLogsWithoutFilter();
+    const allLogs = this.allLogs();
     const allLogIds = this.allLogIds();
     return new HistogramCache(
       this.styleStore().severities,
-      allLogsWithoutFilter,
+      allLogs,
       allLogIds,
       minTimeSpanForHistogram,
     );
@@ -241,16 +241,16 @@ export class TimelineFrameComponent implements AfterViewInit {
 
   /**
    * Cache for the histogram of filtered logs.
-   * It shares the same time range and bucket size as the allLogsWithoutFilterHistogramCache.
+   * It shares the same time range and bucket size as the allLogsHistogramCache.
    */
   protected readonly filteredLogsHistogramCache = computed(() => {
     const minTimeSpanForHistogram = this.minTimeSpanForHistogram();
-    const allLogsHistogramCache = this.allLogsWithoutFilterHistogramCache();
-    const allLogsWithoutFilter = this.allLogsWithoutFilter();
+    const allLogsHistogramCache = this.allLogsHistogramCache();
+    const allLogs = this.allLogs();
     const filteredLogIds = this.filteredLogIds();
     return new HistogramCache(
       this.styleStore().severities,
-      allLogsWithoutFilter,
+      allLogs,
       filteredLogIds,
       minTimeSpanForHistogram,
       allLogsHistogramCache.logMinTimeMS,
@@ -405,7 +405,7 @@ export class TimelineFrameComponent implements AfterViewInit {
       }
       logIndex = Number(findResult[0]);
     }
-    const allLogs = this.allLogsWithoutFilter();
+    const allLogs = this.allLogs();
     const log = allLogs[logIndex];
     if (!log) {
       return null;
@@ -577,7 +577,7 @@ export class TimelineFrameComponent implements AfterViewInit {
       this.pixelsPerMs(),
       this.viewportWidth(),
       this.timezoneShiftHours(),
-      this.allLogsWithoutFilterHistogramCache(),
+      this.allLogsHistogramCache(),
       this.filteredLogsHistogramCache(),
     );
   });

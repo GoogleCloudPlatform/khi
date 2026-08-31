@@ -156,7 +156,7 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
    * Signal containing the set of highlighted log indices.
    */
   protected readonly highlightedLogIndices =
-    this.selectionManager.highlightLogIndices;
+    this.selectionManager.highlightedLogIndices;
 
   /**
    * Signal containing the timeline of the currently selected revision/log, or the selected timeline if none is selected.

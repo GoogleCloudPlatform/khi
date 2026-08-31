@@ -68,7 +68,7 @@
         [timelineHighlights]="timelineHighlights()"
         [selectedLogIndex]="selectedLogIndex()"
         [highlightedLogIndexBitset]="highlightedLogIndexBitset()"
-        [activeLogIds]="filteredLogIds()"
+        [filteredLogIds]="filteredLogIds()"
         (mouseMoveOnTimelineItem)="
           handleTimelineChartItemEvent($event, hoverOnTimelineItem)
         "
@@ -146,7 +146,7 @@
           [timelineHighlights]="timelineHighlights()"
           [selectedLogIndex]="selectedLogIndex()"
           [highlightedLogIndexBitset]="highlightedLogIndexBitset()"
-          [activeLogIds]="filteredLogIds()"
+          [filteredLogIds]="filteredLogIds()"
           (mouseMoveOnTimelineItem)="
             handleTimelineChartItemEvent($event, hoverOnTimelineItem)
           "

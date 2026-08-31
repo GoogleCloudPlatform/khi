@@ -66,12 +66,12 @@ export class LogListComponent {
   public readonly allLogsCount = input.required<number>();
   /** The list of all log entries in chronological order. */
   public readonly allLogs = input.required<ReadonlyDomainElement<Log>[]>();
-  /** The bitset of filtered active log IDs. */
+  /** The bitset of filtered log IDs. */
   public readonly filteredLogIds = input.required<IdBitset>();
   /** The index of the currently selected log. */
   public readonly selectedLogIndex = input.required<number>();
   /** The set of indices of highlighted logs. */
-  public readonly highlightLogIndices = input.required<Set<number>>();
+  public readonly highlightedLogIndices = input.required<Set<number>>();
   /** The list of selected timelines including their children. */
   public readonly selectedTimelinesWithChildren =
     input.required<ReadonlyDomainElement<Timeline>[]>();

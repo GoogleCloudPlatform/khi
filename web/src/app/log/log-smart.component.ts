@@ -129,8 +129,8 @@ export class LogSmartComponent {
   /**
    * A set of indices representing logs that are currently highlighted (e.g., on hover).
    */
-  public readonly highlightLogIndices =
-    this.selectionManager.highlightLogIndices;
+  public readonly highlightedLogIndices =
+    this.selectionManager.highlightedLogIndices;
 
   /**
    * The list of currently selected resource timelines, including their children if the

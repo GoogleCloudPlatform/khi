@@ -134,10 +134,10 @@ export class TimelineChartComponent implements AfterViewInit {
   readonly highlightedLogIndexBitset = input<IdBitset>(IdBitset.createEmpty());
 
   /**
-   * A bitset of log IDs that are currently active (e.g., matching a filter).
-   * Inactive logs may be rendered differently (e.g., dimmed).
+   * A bitset of log IDs that are filtered (e.g., matching a filter).
+   * Filtered-out logs may be rendered differently (e.g., dimmed).
    */
-  readonly activeLogIds = input<IdBitset>(IdBitset.createEmpty());
+  readonly filteredLogIds = input<IdBitset>(IdBitset.createEmpty());
 
   /**
    * Emitted when the mouse moves over a timeline item.
@@ -292,7 +292,7 @@ export class TimelineChartComponent implements AfterViewInit {
     const timelineHighlights = this.timelineHighlights();
     const selectedLogIndex = this.selectedLogIndex();
     const highlightedLogIndexBitset = this.highlightedLogIndexBitset();
-    const activeLogIds = this.activeLogIds();
+    const filteredLogIds = this.filteredLogIds();
     this.invalidate.set(true);
     if (
       rulerViewModel === undefined ||
@@ -315,7 +315,7 @@ export class TimelineChartComponent implements AfterViewInit {
       chartStyle,
       selectedLogIndex,
       highlightedLogIndexBitset,
-      activeLogIds,
+      filteredLogIds,
     );
   }
 }

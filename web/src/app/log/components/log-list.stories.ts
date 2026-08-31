@@ -28,7 +28,7 @@ const meta: Meta<LogListComponent> = {
   args: {
     allLogsCount: 100,
     selectedLogIndex: 1,
-    highlightLogIndices: new Set([0]),
+    highlightedLogIndices: new Set([0]),
     selectedTimelinesWithChildren: [],
     filterByTimeline: true,
     includeTimelineChildren: false,
@@ -62,7 +62,7 @@ export const Default: Story = {
             [allLogs]="allLogs"
             [filteredLogIds]="filteredLogIds"
             [selectedLogIndex]="selectedLogIndex"
-            [highlightLogIndices]="highlightLogIndices"
+            [highlightedLogIndices]="highlightedLogIndices"
             [selectedTimelinesWithChildren]="selectedTimelinesWithChildren"
             [filterByTimeline]="filterByTimeline"
             (filterByTimelineChange)="filterByTimelineChange($event)"

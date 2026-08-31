@@ -106,7 +106,7 @@ export class SelectionManager {
   /**
    * Computes a set of indices of the currently highlighted logs.
    */
-  public readonly highlightLogIndices = computed<Set<number>>(() => {
+  public readonly highlightedLogIndices = computed<Set<number>>(() => {
     const data = this.inspectionDataStore.inspectionData();
     if (!data) return new Set();
     const ids = this.highlightedLogIds();
@@ -128,7 +128,7 @@ export class SelectionManager {
     ReadonlyDomainElement<Revision>[]
   >(() => {
     const timeline = this.highlightedTimeline();
-    const logIndices = this.highlightLogIndices();
+    const logIndices = this.highlightedLogIndices();
     const result: ReadonlyDomainElement<Revision>[] = [];
     if (timeline === null) return result;
     for (const revision of timeline.revisions) {

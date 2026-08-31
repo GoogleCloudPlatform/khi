@@ -42,7 +42,7 @@
           <khi-log-view-log-line
             [log]="log"
             [selected]="selectedLogIndex() === log.logIndex"
-            [highlighted]="highlightLogIndices().has(log.logIndex)"
+            [highlighted]="highlightedLogIndices().has(log.logIndex)"
             (lineClick)="selectLog($event)"
             (lineHover)="onLogHover($event)"
           ></khi-log-view-log-line>

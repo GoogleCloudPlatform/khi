@@ -49,7 +49,7 @@ describe('LogListComponent', () => {
       IdBitset.fromAll(mockLogs.map((l) => l.id)),
     );
     fixture.componentRef.setInput('selectedLogIndex', -1);
-    fixture.componentRef.setInput('highlightLogIndices', new Set<number>());
+    fixture.componentRef.setInput('highlightedLogIndices', new Set<number>());
     fixture.componentRef.setInput('selectedTimelinesWithChildren', []);
 
     fixture.detectChanges();

@@ -301,7 +301,7 @@ export class StructYamlPrefetchService {
    *
    * @param logStore The domain log store.
    * @param targetLogIndex The chronological log index of the selected log.
-   * @param filteredLogIds The bitset of filtered active log IDs.
+   * @param filteredLogIds The bitset of filtered log IDs.
    * @param radius The maximum number of items to scan backwards and forwards.
    * @param structIds Output set of collected struct IDs.
    */
@@ -346,7 +346,7 @@ export class StructYamlPrefetchService {
    *
    * @param items The chronologically ordered array of timeline items.
    * @param targetLogIndex The logIndex of the currently selected log.
-   * @param filteredLogIds The bitset of filtered active log IDs.
+   * @param filteredLogIds The bitset of filtered log IDs.
    * @param getStructIds A function returning an array of candidate struct IDs for an item.
    * @param backwardCandidates Output array for items before targetLogIndex.
    * @param forwardCandidates Output array for items at or after targetLogIndex.

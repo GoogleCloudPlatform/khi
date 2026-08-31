@@ -56,7 +56,7 @@ interface TimelineChartStoryViewModelReady {
   readonly ready: true;
   readonly chartViewModel: TimelineChartViewModel;
   readonly rulerViewModel: TimelineRulerViewModel;
-  readonly activeLogIds: IdBitset;
+  readonly filteredLogIds: IdBitset;
   readonly leftEdgeTime: number;
   readonly pixelsPerMs: number;
   readonly rulerStyle: TimelineRulerStyle;
@@ -89,7 +89,7 @@ class RenderingLoopStarter implements OnInit {
         <khi-timeline-chart
           [chartViewModel]="vm.chartViewModel"
           [rulerViewModel]="vm.rulerViewModel"
-          [activeLogIds]="vm.activeLogIds"
+          [filteredLogIds]="vm.filteredLogIds"
           [leftEdgeTime]="vm.leftEdgeTime"
           [pixelsPerMs]="vm.pixelsPerMs"
           [rulerStyle]="vm.rulerStyle"
@@ -160,13 +160,13 @@ class TimelineChartStoriesComponent {
       filteredLogsCache,
     );
 
-    const activeLogIds = IdBitset.fromAll(logsList.map((log) => log.id));
+    const filteredLogIds = IdBitset.fromAll(logsList.map((log) => log.id));
 
     return {
       ready: true,
       chartViewModel,
       rulerViewModel,
-      activeLogIds,
+      filteredLogIds,
       leftEdgeTime: startTimeMs - 5000,
       pixelsPerMs: window.innerWidth / (durationMs + 10000),
       rulerStyle: generateDefaultRulerStyle(mockData.styleStore),

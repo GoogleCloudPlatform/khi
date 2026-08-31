@@ -145,9 +145,9 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
 
   /**
    * Current filter state of log elements.
-   * When activeLogIds does not include a log ID, then the log must be shown as disabled.
+   * When filteredLogIds does not include a log ID, then the log must be shown as disabled.
    */
-  private activeLogIds: IdBitset = IdBitset.createEmpty();
+  private filteredLogIds: IdBitset = IdBitset.createEmpty();
 
   private filterBitsetUpdated = true;
   private highlightBitsetUpdated = true;
@@ -196,7 +196,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
         this.chartViewModel.inspectionDataUniqueID;
     }
     if (this.filterBitsetUpdated) {
-      this.timelineSharedResource.updateFilterBitset(gl, this.activeLogIds);
+      this.timelineSharedResource.updateFilterBitset(gl, this.filteredLogIds);
       this.filterBitsetUpdated = false;
     }
     if (this.highlightBitsetUpdated) {
@@ -256,14 +256,14 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    * @param chartStyle The visual style configuration.
    * @param selectedLogIndex The index of the selected log, or 0xFFFFFFFF if none.
    * @param highlightedLogIndices The bitset of highlighted log indices.
-   * @param activeLogIds The bitset of active log IDs.
+   * @param filteredLogIds The bitset of filtered log IDs.
    */
   update(
     chartViewModel: TimelineChartViewModel,
     chartStyle: TimelineChartStyle,
     selectedLogIndex: number,
     highlightedLogIndices: IdBitset,
-    activeLogIds: IdBitset,
+    filteredLogIds: IdBitset,
   ) {
     this.chartViewModel = chartViewModel;
     this.chartStyle = chartStyle;
@@ -274,8 +274,8 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.highlightedLogIndices = highlightedLogIndices;
       this.highlightBitsetUpdated = true;
     }
-    if (this.activeLogIds !== activeLogIds) {
-      this.activeLogIds = activeLogIds;
+    if (this.filteredLogIds !== filteredLogIds) {
+      this.filteredLogIds = filteredLogIds;
       this.filterBitsetUpdated = true;
     }
   }

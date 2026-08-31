@@ -61,7 +61,7 @@ describe('LogSmartComponent', () => {
             selectedLogIndex: signal(-1),
             selectedTimeline: mockSelectedTimeline,
             selectedTimelinesWithChildren: signal([]),
-            highlightLogIndices: signal(new Set<number>()),
+            highlightedLogIndices: signal(new Set<number>()),
             timelineSelectionShouldIncludeChildren: signal(true),
             onSelectLog: (log: ReadonlyDomainElement<Log> | null) =>
               mockSelectedLog.set(log),

@@ -272,12 +272,12 @@ export class TimelineSmartComponent {
   });
 
   private readonly highlightedLogIndices = computed(() => {
-    return this.selectionManager.highlightLogIndices();
+    return this.selectionManager.highlightedLogIndices();
   });
 
   protected readonly highlightedLogIndexBitset = computed(() => {
     return IdBitset.fromSet(
-      this.selectionManager.highlightLogIndices() ?? new Set<number>(),
+      this.selectionManager.highlightedLogIndices() ?? new Set<number>(),
     );
   });
 
