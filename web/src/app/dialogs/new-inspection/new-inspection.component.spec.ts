@@ -332,6 +332,26 @@ describe('NewInspectionDialogTest', () => {
         severity: TotalEstimatedLogsSeverity.Normal,
       });
     });
+
+    it('should treat query with EstimatedCountPreset.None as unestimated when count is undefined', () => {
+      const queries: InspectionMetadataQuery[] = [
+        {
+          id: 'q1',
+          name: 'q1',
+          query: 'query1',
+          estimatedCountPreset: EstimatedCountPreset.None,
+        },
+      ];
+      const result = computeTotalEstimatedLogs(queries);
+      expect(result).toEqual({
+        knownCount: 0,
+        isComplete: false,
+        isEstimating: true,
+        isIncomplete: false,
+        displayText: 'Estimating total logs...',
+        severity: TotalEstimatedLogsSeverity.Normal,
+      });
+    });
   });
 
   describe('dryrunLoop', () => {

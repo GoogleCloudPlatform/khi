@@ -135,10 +135,13 @@ export function computeTotalEstimatedLogs(
     (q) =>
       (q.estimatedCount === undefined || q.pending) &&
       !q.incomplete &&
-      q.estimatedCountPreset !== EstimatedCountPreset.Few,
+      (!q.estimatedCountPreset ||
+        q.estimatedCountPreset === EstimatedCountPreset.None),
   );
-  const hasPresetFew = queries.some(
-    (q) => q.estimatedCountPreset === EstimatedCountPreset.Few,
+  const hasPreset = queries.some(
+    (q) =>
+      q.estimatedCountPreset &&
+      q.estimatedCountPreset !== EstimatedCountPreset.None,
   );
   const knownCount = queries
     .filter((q) => q.estimatedCount !== undefined && !q.pending)
@@ -194,7 +197,7 @@ export function computeTotalEstimatedLogs(
     };
   }
 
-  if (knownCount === 0 && hasPresetFew) {
+  if (knownCount === 0 && hasPreset) {
     return {
       knownCount: 0,
       isComplete: true,

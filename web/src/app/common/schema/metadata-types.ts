@@ -30,8 +30,8 @@ export type InspectionMetadataPlan = {
  * Defines predefined rough estimation categories when exact count estimation is unfeasible.
  */
 export enum EstimatedCountPreset {
-  Unspecified = 0,
-  Few = 1,
+  None = 'none',
+  Few = 'few',
 }
 
 export type InspectionMetadataQuery = {

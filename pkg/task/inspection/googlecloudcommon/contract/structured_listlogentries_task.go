@@ -204,6 +204,14 @@ func estimateAndRecordQueries(
 			continue
 		}
 
+		if q.Preset != logestimator.EstimatedCountPresetNone {
+			filterString := q.GenerateCloudLoggingQuery()
+			if err := setStructuredQueryInfoWithPendingAndPreset(ctx, taskID, filterString, queryIndex, len(queries), startTime, endTime, queryName, nil, false, false, q.Preset); err != nil {
+				return err
+			}
+			continue
+		}
+
 		var totalEstimatedCount int64
 		var estimated *int64
 		preset := q.Preset

@@ -65,7 +65,7 @@ export function mapProtoEstimatedCountPreset(
       return EstimatedCountPreset.Few;
     case ProtoEstimatedCountPreset.UNSPECIFIED:
     default:
-      return EstimatedCountPreset.Unspecified;
+      return EstimatedCountPreset.None;
   }
 }
 

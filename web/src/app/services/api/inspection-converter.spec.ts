@@ -105,9 +105,9 @@ describe('inspection-converter', () => {
       );
       expect(
         mapProtoEstimatedCountPreset(ProtoEstimatedCountPreset.UNSPECIFIED),
-      ).toBe(EstimatedCountPreset.Unspecified);
+      ).toBe(EstimatedCountPreset.None);
       expect(mapProtoEstimatedCountPreset(undefined)).toBe(
-        EstimatedCountPreset.Unspecified,
+        EstimatedCountPreset.None,
       );
     });
   });
