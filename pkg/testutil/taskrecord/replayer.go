@@ -28,31 +28,8 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
-
-var (
-	taskTypeRegistryMu sync.RWMutex
-	taskTypeRegistry   = make(map[string]reflect.Type)
-)
-
-// RegisterTaskType associates a task reference with its expected Go return type.
-func RegisterTaskType[T any](taskRef taskid.UntypedTaskReference) {
-	taskTypeRegistryMu.Lock()
-	defer taskTypeRegistryMu.Unlock()
-	taskTypeRegistry[taskRef.ReferenceIDString()] = reflect.TypeOf((*T)(nil)).Elem()
-}
-
-// GetTaskType returns the registered Go return type for a task reference, defaulting to []*log.Log.
-func GetTaskType(taskRef taskid.UntypedTaskReference) reflect.Type {
-	taskTypeRegistryMu.RLock()
-	defer taskTypeRegistryMu.RUnlock()
-	if t, ok := taskTypeRegistry[taskRef.ReferenceIDString()]; ok {
-		return t
-	}
-	return reflect.TypeOf([]*log.Log{})
-}
 
 // LoadRecordedTaskResult loads the recorded fixture for a specific task reference and type T.
 func LoadRecordedTaskResult[T any](fixtureDir string, taskRef taskid.UntypedTaskReference) (T, error) {

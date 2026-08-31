@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -28,6 +29,7 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -243,7 +245,7 @@ func (h *JobTestHarness) Replay(ctx context.Context) (*JobTestResult, error) {
 		for _, ref := range h.cfg.RecordedTasks {
 			targetType, ok := ResolveTaskTypeFromTaskSet(h.server.RootTaskSet, ref)
 			if !ok {
-				targetType = GetTaskType(ref)
+				targetType = reflect.TypeOf([]*log.Log{})
 			}
 			val, err := loadRecordedTaskResultForType(h.fixtureDir, ref, targetType)
 			if err != nil {
