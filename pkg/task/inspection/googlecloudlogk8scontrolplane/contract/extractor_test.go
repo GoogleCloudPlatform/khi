@@ -523,3 +523,285 @@ func TestExtractK8sControllerManagerComponent_FromMock(t *testing.T) {
 		t.Errorf("Extract() mismatch (-want +got):\n%s", diff)
 	}
 }
+
+func TestExtractK8sHPAControllerComponent(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		inputYAML string
+		mock      *K8sHPAControllerFieldSet
+		want      K8sHPAControllerFieldSet
+	}{
+		{
+			desc: "atomic recommendation log entry",
+			inputYAML: `
+jsonPayload:
+  atomicRecommendation:
+    hpa: gke-managed-cim/kube-state-metrics
+    metric:
+      newestSampleAgeSeconds: -34.480346499
+      newestSampleTime: "2026-08-26T01:07:26.771Z"
+      spec:
+        name: memory
+        target:
+          averageValue: "400Mi"
+      status:
+        averageUtilization: 27
+        averageValue: "36745216"
+        value: "36745216"
+      type: Resource
+    podCount:
+      ready: 1
+      total: 1
+    startTime: "2026-08-26T01:08:01.251346499Z"
+    summary:
+      dampening: none
+      override: none
+      replicas: 1
+`,
+			want: K8sHPAControllerFieldSet{
+				AtomicRecommendation: &HPAAtomicRecommendation{
+					HPA:                    "gke-managed-cim/kube-state-metrics",
+					HPANamespace:           "gke-managed-cim",
+					HPAName:                "kube-state-metrics",
+					StartTime:              "2026-08-26T01:08:01.251346499Z",
+					MetricType:             "Resource",
+					MetricName:             "memory",
+					SpecTargetAvgValue:     "400Mi",
+					SpecTargetAvgUtil:      -1,
+					StatusAvgValue:         "36745216",
+					StatusAvgUtil:          27,
+					StatusValue:            "36745216",
+					NewestSampleAgeSeconds: -34.480346499,
+					NewestSampleTime:       "2026-08-26T01:07:26.771Z",
+					PodCount: HPAPodCount{
+						Ready: 1,
+						Total: 1,
+					},
+					Dampening: "none",
+					Override:  "none",
+					Replicas:  1,
+				},
+			},
+		},
+		{
+			desc: "final recommendation log entry",
+			inputYAML: `
+jsonPayload:
+  finalRecommendation:
+    actuationLatencySeconds: 0.000970647
+    actuationTime: "2026-08-25T00:24:25.753642670Z"
+    configuredSize: 1
+    hpa: gke-managed-cim/kube-state-metrics
+    leadingMetricIndex: 0
+    replicas: 1
+    startTime: "2026-08-25T00:24:25.752672023Z"
+    targetRef:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      name: kube-state-metrics
+    topLevelLimit: none
+    topLevelOverride: none
+`,
+			want: K8sHPAControllerFieldSet{
+				FinalRecommendation: &HPAFinalRecommendation{
+					HPA:                     "gke-managed-cim/kube-state-metrics",
+					HPANamespace:            "gke-managed-cim",
+					HPAName:                 "kube-state-metrics",
+					StartTime:               "2026-08-25T00:24:25.752672023Z",
+					ActuationTime:           "2026-08-25T00:24:25.753642670Z",
+					ActuationLatencySeconds: 0.000970647,
+					ConfiguredSize:          1,
+					Replicas:                1,
+					LeadingMetricIndex:      0,
+					TargetRef: HPATargetRef{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "kube-state-metrics",
+					},
+					TopLevelLimit:    "none",
+					TopLevelOverride: "none",
+				},
+			},
+		},
+		{
+			desc: "fallback message entry",
+			inputYAML: `
+jsonPayload:
+  message: "hpa controller leader elected"
+`,
+			want: K8sHPAControllerFieldSet{
+				Message: "hpa controller leader elected",
+			},
+		},
+		{
+			desc: "from mock",
+			mock: &K8sHPAControllerFieldSet{
+				Message: "mock-message",
+			},
+			want: K8sHPAControllerFieldSet{
+				Message: "mock-message",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			var l *log.Log
+			var err error
+			if tc.mock != nil {
+				l = testlog.NewMockLog(*tc.mock)
+			} else {
+				l, err = log.NewLogFromYAMLString(tc.inputYAML)
+				if err != nil {
+					t.Fatalf("failed to parse test input YAML: %v", err)
+				}
+			}
+
+			got, err := ExtractK8sHPAControllerComponent(l.NodeReader)
+			if err != nil {
+				t.Fatalf("ExtractK8sHPAControllerComponent() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractK8sHPAControllerComponent() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestK8sHPAControllerFieldSet_Summary(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		field K8sHPAControllerFieldSet
+		want  string
+	}{
+		{
+			desc: "final recommendation scaling workload",
+			field: K8sHPAControllerFieldSet{
+				FinalRecommendation: &HPAFinalRecommendation{
+					HPA:            "default/web",
+					ConfiguredSize: 1,
+					Replicas:       3,
+					TargetRef: HPATargetRef{
+						Kind: "Deployment",
+						Name: "web",
+					},
+				},
+			},
+			want: "[HPA Final] default/web: Deployment/web 1 -> 3 replicas",
+		},
+		{
+			desc: "final recommendation maintaining workload",
+			field: K8sHPAControllerFieldSet{
+				FinalRecommendation: &HPAFinalRecommendation{
+					HPA:            "gke-managed-cim/kube-state-metrics",
+					ConfiguredSize: 1,
+					Replicas:       1,
+					TargetRef: HPATargetRef{
+						Kind: "StatefulSet",
+						Name: "kube-state-metrics",
+					},
+				},
+			},
+			want: "[HPA Final] gke-managed-cim/kube-state-metrics: StatefulSet/kube-state-metrics = 1 replicas",
+		},
+		{
+			desc: "final recommendation with limit and override",
+			field: K8sHPAControllerFieldSet{
+				FinalRecommendation: &HPAFinalRecommendation{
+					HPA:              "default/web",
+					ConfiguredSize:   2,
+					Replicas:         5,
+					TopLevelLimit:    "maxReplicas",
+					TopLevelOverride: "scaleUpStabilization",
+					TargetRef: HPATargetRef{
+						Kind: "Deployment",
+						Name: "web",
+					},
+				},
+			},
+			want: "[HPA Final] default/web: Deployment/web 2 -> 5 replicas (limit: maxReplicas, override: scaleUpStabilization)",
+		},
+		{
+			desc: "final recommendation without targetRef",
+			field: K8sHPAControllerFieldSet{
+				FinalRecommendation: &HPAFinalRecommendation{
+					HPA:            "default/web",
+					ConfiguredSize: 2,
+					Replicas:       4,
+				},
+			},
+			want: "[HPA Final] default/web: 2 -> 4 replicas",
+		},
+		{
+			desc: "atomic recommendation with metric name, status util, and target value",
+			field: K8sHPAControllerFieldSet{
+				AtomicRecommendation: &HPAAtomicRecommendation{
+					HPA:                "gke-managed-cim/kube-state-metrics",
+					MetricName:         "memory",
+					StatusAvgUtil:      27,
+					SpecTargetAvgUtil:  -1,
+					SpecTargetAvgValue: "400Mi",
+					Replicas:           1,
+				},
+			},
+			want: "[HPA Metric] gke-managed-cim/kube-state-metrics: memory (27% / target 400Mi) -> 1 replicas",
+		},
+		{
+			desc: "atomic recommendation with 0% utilization",
+			field: K8sHPAControllerFieldSet{
+				AtomicRecommendation: &HPAAtomicRecommendation{
+					HPA:               "default/web",
+					MetricName:        "cpu",
+					StatusAvgUtil:     0,
+					SpecTargetAvgUtil: 50,
+					Replicas:          1,
+				},
+			},
+			want: "[HPA Metric] default/web: cpu (0% / target 50%) -> 1 replicas",
+		},
+		{
+			desc: "atomic recommendation with dampening and override",
+			field: K8sHPAControllerFieldSet{
+				AtomicRecommendation: &HPAAtomicRecommendation{
+					HPA:               "default/web",
+					MetricName:        "cpu",
+					StatusAvgUtil:     85,
+					SpecTargetAvgUtil: 80,
+					Dampening:         "up",
+					Override:          "tolerance",
+					Replicas:          3,
+				},
+			},
+			want: "[HPA Metric] default/web: cpu (85% / target 80%) -> 3 replicas (dampened: up, override: tolerance)",
+		},
+		{
+			desc: "atomic recommendation minimal",
+			field: K8sHPAControllerFieldSet{
+				AtomicRecommendation: &HPAAtomicRecommendation{
+					HPA:               "default/web",
+					MetricType:        "Resource",
+					SpecTargetAvgUtil: -1,
+					StatusAvgUtil:     -1,
+					Replicas:          2,
+				},
+			},
+			want: "[HPA Metric] default/web: Resource -> 2 replicas",
+		},
+		{
+			desc: "fallback message",
+			field: K8sHPAControllerFieldSet{
+				Message: "custom message",
+			},
+			want: "custom message",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := tc.field.Summary()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Summary() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
