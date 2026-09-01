@@ -64,7 +64,7 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (*InternStructRef,
 // Note: This function assumes that there are no circular references in the node tree.
 // Circular references are not expected as structured.Node represents parsed tree data.
 func flattenNode(node structured.Node, prefix string, isRoot bool, keys *[]string, values *[]structured.Node) error {
-	var keyBuf []byte
+	keyBuf := make([]byte, 0, len(prefix)+64)
 	if prefix != "" {
 		keyBuf = append(keyBuf, prefix...)
 	}

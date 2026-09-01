@@ -517,6 +517,13 @@ func TestLazyJSONNode_GetChildByKey(t *testing.T) {
 			targetKey: "protoPayload",
 			wantFound: true,
 		},
+		{
+			name:      "escaped key",
+			json:      `{"key \"with\" quotes":"escapedVal"}`,
+			targetKey: `key "with" quotes`,
+			wantFound: true,
+			wantVal:   "escapedVal",
+		},
 	}
 
 	for _, tc := range testCases {
