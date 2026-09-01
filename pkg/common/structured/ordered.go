@@ -55,6 +55,11 @@ func (o *orderedMapNode) Len() int {
 	return o.inner.Len()
 }
 
+// GetChildByKey implements Node.
+func (o *orderedMapNode) GetChildByKey(key string) (Node, bool) {
+	return o.inner.GetChildByKey(key)
+}
+
 // Children implements Node.
 func (o *orderedMapNode) Children() NodeChildrenIterator {
 	return func(callback func(key NodeChildrenKey, value Node) bool) {
