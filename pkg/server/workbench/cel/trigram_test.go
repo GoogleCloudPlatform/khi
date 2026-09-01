@@ -389,6 +389,69 @@ spec:
 	}
 }
 
+func TestTrigramKey(t *testing.T) {
+	testCases := []struct {
+		name       string
+		r0, r1, r2 rune
+		str        string
+		wantValid  bool
+	}{
+		{
+			name:      "ascii trigram",
+			r0:        'p',
+			r1:        'o',
+			r2:        'd',
+			str:       "pod",
+			wantValid: true,
+		},
+		{
+			name:      "japanese hiragana",
+			r0:        'あ',
+			r1:        'い',
+			r2:        'う',
+			str:       "あいう",
+			wantValid: true,
+		},
+		{
+			name:      "japanese kanji",
+			r0:        '設',
+			r1:        '定',
+			r2:        '値',
+			str:       "設定値",
+			wantValid: true,
+		},
+		{
+			name:      "unicode emoji",
+			r0:        '🚀',
+			r1:        '✨',
+			r2:        '🔥',
+			str:       "🚀✨🔥",
+			wantValid: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			key := MakeTrigramKey(tc.r0, tc.r1, tc.r2)
+			gotR0, gotR1, gotR2 := key.Unpack()
+			if gotR0 != tc.r0 || gotR1 != tc.r1 || gotR2 != tc.r2 {
+				t.Errorf("Unpack() got (%c, %c, %c), want (%c, %c, %c)", gotR0, gotR1, gotR2, tc.r0, tc.r1, tc.r2)
+			}
+			if key.String() != tc.str {
+				t.Errorf("String() = %q, want %q", key.String(), tc.str)
+			}
+
+			parsedKey, ok := TrigramKeyFromString(tc.str)
+			if ok != tc.wantValid {
+				t.Fatalf("TrigramKeyFromString(%q) ok = %v, want %v", tc.str, ok, tc.wantValid)
+			}
+			if parsedKey != key {
+				t.Errorf("TrigramKeyFromString(%q) = %d, want %d", tc.str, parsedKey, key)
+			}
+		})
+	}
+}
+
 func TestTrigramIndex_WriteToAndReadFrom(t *testing.T) {
 	testCases := []struct {
 		name        string
