@@ -68,6 +68,14 @@ var ContainerIDPatternFinderTask = inspectiontaskbase.NewProgressReportableInspe
 	},
 )
 
+var (
+	pathContainerStatuses          = structured.CompileFieldPath("status.containerStatuses")
+	pathInitContainerStatuses      = structured.CompileFieldPath("status.initContainerStatuses")
+	pathEphemeralContainerStatuses = structured.CompileFieldPath("status.ephemeralContainerStatuses")
+	pathContainerID                = structured.CompileFieldPath("containerID")
+	pathContainerName              = structured.CompileFieldPath("name")
+)
+
 var ContainerIDDiscoveryTask = commonlogk8saudit_contract.ContainerIDInventoryBuilder.DiscoveryTask(
 	commonlogk8saudit_contract.ContainerIDDiscoveryTaskID,
 	[]taskid.UntypedTaskReference{
@@ -92,27 +100,27 @@ var ContainerIDDiscoveryTask = commonlogk8saudit_contract.ContainerIDInventoryBu
 				if log.ResourceBodyReader == nil {
 					continue
 				}
-				extractContainerIDs(log.ResourceBodyReader, "status.containerStatuses", result)
-				extractContainerIDs(log.ResourceBodyReader, "status.initContainerStatuses", result)
-				extractContainerIDs(log.ResourceBodyReader, "status.ephemeralContainerStatuses", result)
+				extractContainerIDs(log.ResourceBodyReader, pathContainerStatuses, result)
+				extractContainerIDs(log.ResourceBodyReader, pathInitContainerStatuses, result)
+				extractContainerIDs(log.ResourceBodyReader, pathEphemeralContainerStatuses, result)
 			}
 		}
 		return result, nil
 	},
 )
 
-func extractContainerIDs(reader *structured.NodeReader, fieldPath string, result commonlogk8saudit_contract.ContainerIDToContainerIdentity) {
+func extractContainerIDs(reader *structured.NodeReader, fieldPath structured.FieldPath, result commonlogk8saudit_contract.ContainerIDToContainerIdentity) {
 	statusesReader, err := reader.GetReader(fieldPath)
 	if err != nil {
 		return
 	}
 	statusesReader.Children()(func(key structured.NodeChildrenKey, value structured.NodeReader) bool {
-		containerID, err := value.ReadString("containerID")
+		containerID, err := value.ReadString(pathContainerID)
 		if err != nil || containerID == "" {
 			return true
 		}
 		containerID = strings.TrimPrefix(containerID, "containerd://")
-		name, _ := value.ReadString("name")
+		name, _ := value.ReadString(pathContainerName)
 		result[containerID] = &commonlogk8saudit_contract.ContainerIdentity{
 			ContainerID:   containerID,
 			ContainerName: name,

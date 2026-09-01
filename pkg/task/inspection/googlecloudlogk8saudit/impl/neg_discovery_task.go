@@ -28,6 +28,11 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+var (
+	pathStatusConditions = structured.CompileFieldPath("status.conditions")
+	pathMessage          = structured.CompileFieldPath("message")
+)
+
 // AuditLogNEGDiscoveryTask is the discovery task that extracts NEG to BackendService mappings from Kubernetes Audit logs.
 var AuditLogNEGDiscoveryTask = googlecloudk8scommon_contract.NEGToBackendServiceInventoryBuilder.DiscoveryTask(
 	googlecloudlogk8saudit_contract.NEGToBackendServiceDiscoveryTaskID,
@@ -48,10 +53,10 @@ var AuditLogNEGDiscoveryTask = googlecloudk8scommon_contract.NEGToBackendService
 				if mLog.ResourceBodyReader == nil {
 					continue
 				}
-				conditionsReader, err := mLog.ResourceBodyReader.GetReader("status.conditions")
+				conditionsReader, err := mLog.ResourceBodyReader.GetReader(pathStatusConditions)
 				if err == nil {
 					conditionsReader.Children()(func(_ structured.NodeChildrenKey, conditionReader structured.NodeReader) bool {
-						message := conditionReader.ReadStringOrDefault("message", "")
+						message := conditionReader.ReadStringOrDefault(pathMessage, "")
 						neg, bs := googlecloudk8scommon_contract.ExtractNEGToBackendService(message)
 						if neg != "" && bs != "" {
 							result[neg] = bs

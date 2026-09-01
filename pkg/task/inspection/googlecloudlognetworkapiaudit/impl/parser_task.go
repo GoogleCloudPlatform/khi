@@ -34,23 +34,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// FieldSetReaderTask is a task that reads fieldsets needed for GCE network API logs.
-var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID, googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
-	&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
-	&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
-})
-
 // LogIngesterTask is the task id to finalize the logs to be included in the final output.
 var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudlognetworkapiaudit_contract.LogIngesterTaskID,
-	googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI,
 )
 
 // LogGrouperTask groups logs by the NEG resource name.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlognetworkapiaudit_contract.LogGrouperTaskID, googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID.Ref(),
+var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlognetworkapiaudit_contract.LogGrouperTaskID, googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		audit, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
+		audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 		if err != nil {
 			return "unknown"
 		}
@@ -78,7 +72,7 @@ type networkAPITimelineMapper struct {
 }
 
 // LogIngesterTask is the task reference that provides the ingested logs.
-func (m *networkAPITimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *networkAPITimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlognetworkapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
@@ -99,8 +93,10 @@ func (m *networkAPITimelineMapper) GroupedLogTask() taskid.TaskReference[inspect
 
 // ProcessLogByGroup maps the NEG audit log to resource timelines as state revisions.
 func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *perNEGHistoryModificationStatus) (*khifilev6.TimelineChangeSet, *perNEGHistoryModificationStatus, error) {
-	commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
-	auditFieldSet := log.MustGetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
+	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+	if err != nil {
+		return nil, prevGroupData, err
+	}
 	if prevGroupData == nil {
 		prevGroupData = &perNEGHistoryModificationStatus{
 			OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
@@ -131,7 +127,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	if auditFieldSet.ImmediateOperation() {
 		cs.AddEvent(negOperationPath)
 	} else {
-		prevGroupData.OperationTracker.ProcessOperationLog(ctx, cs, negOperationPath, auditFieldSet, commonFieldSet.Timestamp)
+		prevGroupData.OperationTracker.ProcessOperationLog(ctx, cs, negOperationPath, &auditFieldSet, l.Timestamp)
 	}
 
 	ipLeases := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref())
@@ -145,7 +141,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 		if auditFieldSet.Starting() {
 			// Operation starting log only contain its request(IP data), but it should be marked as ready when the last log coming.
 			var err error
-			request, err := parseNEGAttachOrDetachRequest(l)
+			request, err := parseNEGAttachOrDetachRequest(&auditFieldSet)
 			if err != nil {
 				return nil, prevGroupData, err
 			}
@@ -161,7 +157,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 			break
 		}
 		var err error
-		negRequest, err = parseNEGAttachOrDetachRequest(l)
+		negRequest, err = parseNEGAttachOrDetachRequest(&auditFieldSet)
 		if err != nil {
 			return nil, prevGroupData, err
 		}
@@ -172,7 +168,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	if negRequest != nil {
 		negToBS := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref())
 		for _, endpoint := range negRequest.NetworkEndpoints {
-			lease, err := ipLeases.GetResourceLeaseHolderAt(endpoint.IpAddress, commonFieldSet.Timestamp)
+			lease, err := ipLeases.GetResourceLeaseHolderAt(endpoint.IpAddress, l.Timestamp)
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to identify the holder of the IP %s.\n This might be because the IP holder resource wasn't updated during the log period ", endpoint.IpAddress))
 				continue
@@ -187,7 +183,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 
 				negSubresourcePath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, podPath, negName)
 				cs.AddRevision(negSubresourcePath, &khifilev6.StagingRevision{
-					ChangedTime: commonFieldSet.Timestamp,
+					ChangedTime: l.Timestamp,
 					VerbType:    verb,
 					StateType:   state,
 					Principal:   auditFieldSet.PrincipalEmail,
@@ -198,7 +194,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 					bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, clusterIdentity.ProjectID, "backendServices", bsName)
 					negSubresourcePath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, holder.Name)
 					cs.AddRevision(negSubresourcePath, &khifilev6.StagingRevision{
-						ChangedTime: commonFieldSet.Timestamp,
+						ChangedTime: l.Timestamp,
 						VerbType:    verb,
 						StateType:   state,
 						Principal:   auditFieldSet.PrincipalEmail,
@@ -238,8 +234,7 @@ func getShortMethodNameFromMethodName(methodName string) string {
 	return methodName[lastDotIndex+1:]
 }
 
-func parseNEGAttachOrDetachRequest(l *log.Log) (*negAttachOrDetachRequest, error) {
-	auditFieldSet := log.MustGetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
+func parseNEGAttachOrDetachRequest(auditFieldSet *googlecloudcommon_contract.GCPAuditLogFieldSet) (*negAttachOrDetachRequest, error) {
 	requestBody, err := auditFieldSet.RequestString()
 	if err != nil {
 		return nil, err

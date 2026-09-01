@@ -23,13 +23,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -68,12 +68,12 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogcsm_contract.CSMTrafficDirectorFieldSetReaderTaskID.Ref(), googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
+	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogcsm_contract.ListCSMTrafficDirectorLogEntriesTaskID.Ref(), googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)},
-				tc.inputAudit,
+			l := testlog.NewMockLog(
+				time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+				*tc.inputAudit,
 			)
 			cs, err := ingester.ProcessLog(t.Context(), l)
 			if err != nil {
@@ -218,9 +218,9 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 			for i, auditFieldSet := range tc.auditFieldSets {
 				logTime := now.Add(time.Duration(i) * time.Second)
-				l := log.NewLogWithFieldSetsForTest(
-					&log.CommonFieldSet{Timestamp: logTime},
-					auditFieldSet,
+				l := testlog.NewMockLog(
+					logTime,
+					*auditFieldSet,
 				)
 
 				cs, _, err := mapper.ProcessLogByGroup(ctx, l, tracker)

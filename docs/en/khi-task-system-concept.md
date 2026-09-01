@@ -25,7 +25,7 @@ flowchart LR
 1. **[Task System Syntax and Execution Modes](./task-system/01-syntax-and-modes.md)**
    - Covers DAG basics, task type (`Task[T]`) declarations, reading values from dependencies (`GetTaskResult`), structured logging (`slog`), package structures and naming conventions (`_contract`/`_impl`), **inspection execution modes (`Run` and `DryRun`)**, and **unit testing (`tasktest`)**.
 2. **[Log Processing Task Implementation Patterns (Cookbook)](./task-system/02-log-processing-cookbook.md)**
-   - Covers the overall log processing pipeline, practical recipes for the **5 major task creation utilities (`FieldSetReadTask`, `LogGrouperTask`, `LogFilterTask`, `LogIngesterTask`, `LogToTimelineMapperTask`)**, and timeline mapping using modern `*khifilev6.TimelinePath` and `testchangeset.AssertTimeline` objects.
+   - Covers the overall log processing pipeline, practical recipes for the **4 major task creation utilities (`LogFilterTask`, `LogGrouperTask`, `LogIngesterTask`, `LogToTimelineMapperTask`)**, and timeline mapping using modern `*khifilev6.TimelinePath` and `testchangeset.AssertTimeline` objects.
 3. **[Advanced Task Patterns and Utilities](./task-system/03-advanced-and-form-tasks.md)**
    - Covers automatic inspection server registration (`Register`), label selectors (`LabelSelector`, `FeatureTask`), the **`Inventory`-`Discovery` task pattern (`InventoryTaskBuilder` and merge strategies)** for resolving names across multiple log sources, **form tasks (`formtask` / autocomplete)** for rich UI input fields, and **progress reporting / cache control (`NewGlobalCachedTask`, `NewInspectionCachedTask`)**.
 

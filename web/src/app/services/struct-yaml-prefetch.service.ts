@@ -20,12 +20,19 @@ import { InspectionDataStore } from 'src/app/services/inspection-data-store.serv
 import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 import { Timeline, Revision } from 'src/app/store/domain/timeline';
 import { Log } from 'src/app/store/domain/log';
+import { LogStore } from 'src/app/store/domain/log-store';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { bisectLeft } from 'src/app/common/misc-util';
 
 interface TimelineItemWithStructId {
   readonly timestamp: bigint;
   readonly structId: number;
+}
+
+interface SurroundingCandidate {
+  readonly logIndex: number;
+  readonly structIds: readonly number[];
 }
 
 /**
@@ -208,50 +215,213 @@ export class StructYamlPrefetchService {
   }
 
   /**
-   * Prefetches the struct IDs of logs surrounding the selected log in the filtered logs list.
+   * Prefetches the struct IDs of logs surrounding the selected log.
    *
    * @param log The currently selected log.
    */
   public prefetchSurroundingLogs(log: ReadonlyDomainElement<Log>): void {
-    const filteredLogs =
-      this.inspectionDataStore.timelineView()?.filteredLogs() ?? [];
-    if (filteredLogs.length === 0) {
+    const data = this.inspectionDataStore.inspectionData();
+    const timelineView = this.inspectionDataStore.timelineView();
+    if (!data || !timelineView) {
       return;
     }
 
+    const logStore = data.logStore;
+    const filteredLogIds = timelineView.filteredLogIds();
+    const selectedTimelines =
+      this.selectionManager.selectedTimelinesWithChildren();
     const targetLogIndex = log.logIndex;
-    const arrayIndex = bisectLeft(
-      filteredLogs,
-      targetLogIndex,
-      (item, target) => item.logIndex - target,
-    );
+    const structIds = new Set<number>();
 
-    const matchIndex =
-      arrayIndex < filteredLogs.length &&
-      filteredLogs[arrayIndex].logIndex === targetLogIndex
-        ? arrayIndex
-        : -1;
-
-    if (matchIndex === -1) {
-      return;
+    // Include the selected log's struct ID if available
+    if (log.structId > 0) {
+      structIds.add(log.structId);
     }
 
-    const [startIndex, endIndex] = this.getSurroundingRange(
-      matchIndex,
-      StructYamlPrefetchService.PREFETCH_SURROUNDING_LOGS_RADIUS,
-      filteredLogs.length,
-    );
+    const radius = StructYamlPrefetchService.PREFETCH_SURROUNDING_LOGS_RADIUS;
 
-    const structIds = new Set<number>();
-    for (let i = startIndex; i < endIndex; i++) {
-      const structId = filteredLogs[i].structId;
-      if (structId > 0) {
-        structIds.add(structId);
+    if (selectedTimelines.length === 0) {
+      // Pass 1: Timeline filter is OFF. Search directly within LogStore around targetLogIndex.
+      this.collectSurroundingLogStoreStructIds(
+        logStore,
+        targetLogIndex,
+        filteredLogIds,
+        radius,
+        structIds,
+      );
+    } else {
+      // Pass 2: Timeline filter is ON.
+      // Collect surrounding items from revisions and events for all selected timelines.
+      const backwardCandidates: SurroundingCandidate[] = [];
+      const forwardCandidates: SurroundingCandidate[] = [];
+
+      for (const timeline of selectedTimelines) {
+        this.collectSurroundingTimelineItemCandidates(
+          timeline.revisions,
+          targetLogIndex,
+          filteredLogIds,
+          (rev) => [rev.structId, logStore.getBodyStructId(rev.logId)],
+          backwardCandidates,
+          forwardCandidates,
+        );
+        this.collectSurroundingTimelineItemCandidates(
+          timeline.events,
+          targetLogIndex,
+          filteredLogIds,
+          (evt) => [logStore.getBodyStructId(evt.logId)],
+          backwardCandidates,
+          forwardCandidates,
+        );
       }
+
+      // Add nearest backward candidates (descending logIndex order)
+      this.addTopCandidates(
+        backwardCandidates,
+        (a, b) => b.logIndex - a.logIndex,
+        radius,
+        structIds,
+      );
+
+      // Add nearest forward candidates (ascending logIndex order)
+      this.addTopCandidates(
+        forwardCandidates,
+        (a, b) => a.logIndex - b.logIndex,
+        radius,
+        structIds,
+      );
     }
 
     if (structIds.size > 0) {
       this.workbenchClient.prefetchStructYAMLs(Array.from(structIds));
+    }
+  }
+
+  /**
+   * Scans logStore directly to collect surrounding struct IDs when timeline filter is inactive.
+   *
+   * @param logStore The domain log store.
+   * @param targetLogIndex The chronological log index of the selected log.
+   * @param filteredLogIds The bitset of filtered log IDs.
+   * @param radius The maximum number of items to scan backwards and forwards.
+   * @param structIds Output set of collected struct IDs.
+   */
+  private collectSurroundingLogStoreStructIds(
+    logStore: LogStore,
+    targetLogIndex: number,
+    filteredLogIds: IdBitset,
+    radius: number,
+    structIds: Set<number>,
+  ): void {
+    let backwardCount = 0;
+    for (let i = targetLogIndex - 1; i >= 0 && backwardCount < radius; i--) {
+      const id = logStore.getLogIdByIndex(i);
+      if (filteredLogIds.has(id)) {
+        backwardCount++;
+        const structId = logStore.getBodyStructId(id);
+        if (structId > 0) {
+          structIds.add(structId);
+        }
+      }
+    }
+
+    let forwardCount = 0;
+    for (
+      let i = targetLogIndex + 1;
+      i < logStore.count && forwardCount < radius;
+      i++
+    ) {
+      const id = logStore.getLogIdByIndex(i);
+      if (filteredLogIds.has(id)) {
+        forwardCount++;
+        const structId = logStore.getBodyStructId(id);
+        if (structId > 0) {
+          structIds.add(structId);
+        }
+      }
+    }
+  }
+
+  /**
+   * Collects surrounding candidate struct IDs from an ordered array of timeline items (revisions or events).
+   *
+   * @param items The chronologically ordered array of timeline items.
+   * @param targetLogIndex The logIndex of the currently selected log.
+   * @param filteredLogIds The bitset of filtered log IDs.
+   * @param getStructIds A function returning an array of candidate struct IDs for an item.
+   * @param backwardCandidates Output array for items before targetLogIndex.
+   * @param forwardCandidates Output array for items at or after targetLogIndex.
+   */
+  private collectSurroundingTimelineItemCandidates<
+    T extends { readonly logIndex: number; readonly logId: number },
+  >(
+    items: readonly T[],
+    targetLogIndex: number,
+    filteredLogIds: IdBitset,
+    getStructIds: (item: T) => number[],
+    backwardCandidates: SurroundingCandidate[],
+    forwardCandidates: SurroundingCandidate[],
+  ): void {
+    if (items.length === 0) {
+      return;
+    }
+    const idx = bisectLeft(
+      items,
+      targetLogIndex,
+      (item, target) => item.logIndex - target,
+    );
+    const radius = StructYamlPrefetchService.PREFETCH_SURROUNDING_LOGS_RADIUS;
+
+    // Backward items before targetLogIndex
+    const startBackward = Math.max(0, idx - radius);
+    for (let i = idx - 1; i >= startBackward; i--) {
+      const item = items[i];
+      if (filteredLogIds.has(item.logId)) {
+        const candidateStructIds = getStructIds(item).filter((id) => id > 0);
+        if (candidateStructIds.length > 0) {
+          backwardCandidates.push({
+            logIndex: item.logIndex,
+            structIds: candidateStructIds,
+          });
+        }
+      }
+    }
+
+    // Forward items at or after targetLogIndex
+    const endForward = Math.min(items.length, idx + radius);
+    for (let i = idx; i < endForward; i++) {
+      const item = items[i];
+      if (filteredLogIds.has(item.logId)) {
+        const candidateStructIds = getStructIds(item).filter((id) => id > 0);
+        if (candidateStructIds.length > 0) {
+          forwardCandidates.push({
+            logIndex: item.logIndex,
+            structIds: candidateStructIds,
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Sorts candidate items, selects up to the limit, and adds their struct IDs to the output set.
+   *
+   * @param candidates The list of collected candidates.
+   * @param compareFn Comparison function for ordering.
+   * @param limit Maximum number of items to select.
+   * @param structIds Output set of struct IDs.
+   */
+  private addTopCandidates(
+    candidates: SurroundingCandidate[],
+    compareFn: (a: SurroundingCandidate, b: SurroundingCandidate) => number,
+    limit: number,
+    structIds: Set<number>,
+  ): void {
+    candidates.sort(compareFn);
+    const top = candidates.slice(0, limit);
+    for (const item of top) {
+      for (const id of item.structIds) {
+        structIds.add(id);
+      }
     }
   }
 }

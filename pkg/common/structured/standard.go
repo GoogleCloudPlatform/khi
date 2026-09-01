@@ -219,6 +219,26 @@ func (n *StandardMapNode) Children() NodeChildrenIterator {
 	}
 }
 
+// GetChildByHandle returns the child node matching the unique handle without allocating iterator closures.
+func (n *StandardMapNode) GetChildByHandle(h unique.Handle[string]) (Node, bool) {
+	for i, k := range n.keys {
+		if k == h {
+			return n.values[i], true
+		}
+	}
+	return nil, false
+}
+
+// GetChildByKey returns the child node matching the string key without allocating iterator closures.
+func (n *StandardMapNode) GetChildByKey(key string) (Node, bool) {
+	for i, k := range n.keys {
+		if k.Value() == key {
+			return n.values[i], true
+		}
+	}
+	return nil, false
+}
+
 func (n *StandardMapNode) Len() int {
 	return len(n.keys)
 }

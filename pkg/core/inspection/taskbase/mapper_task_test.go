@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -31,8 +32,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+var (
+	pathMockError = structured.CompileFieldPath("error")
+	pathMockSkip  = structured.CompileFieldPath("skip")
+)
+
 var mockLogToTimelineMapperPrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-timeline-mapper-prev")
-var mockLogSerializerPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-timeline-mapper-prev-log-serializer")
+var mockLogSerializerPrevTaskID = taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper-prev-log-serializer")
 
 type mockLogToTimelineMapperGroupData struct {
 	ProcessedLogs int
@@ -47,7 +53,7 @@ func (m *mockLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[LogGroup
 	return mockLogToTimelineMapperPrevTaskID.Ref()
 }
 
-func (m *mockLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *mockLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return mockLogSerializerPrevTaskID.Ref()
 }
 
@@ -66,11 +72,11 @@ func (m *mockLogToTimelineMapper) PreProcessLogByGroup(ctx context.Context, pass
 }
 
 func (m *mockLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (*khifilev6.TimelineChangeSet, mockLogToTimelineMapperGroupData, error) {
-	shouldErr := l.ReadBoolOrDefault("error", false)
+	shouldErr := l.ReadBoolOrDefault(pathMockError, false)
 	if shouldErr {
 		return nil, prevGroupData, fmt.Errorf("test error")
 	}
-	shouldSkip := l.ReadBoolOrDefault("skip", false)
+	shouldSkip := l.ReadBoolOrDefault(pathMockSkip, false)
 	if shouldSkip {
 		return nil, mockLogToTimelineMapperGroupData{
 			ProcessedLogs: prevGroupData.ProcessedLogs + 1,

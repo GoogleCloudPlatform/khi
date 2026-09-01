@@ -40,7 +40,7 @@ function popcount(v: number): number {
  * and eliminate JavaScript object allocation overhead during timeline and log filtering.
  */
 export class IdBitset {
-  private words: Uint32Array;
+  private _words: Uint32Array;
   private count = 0;
 
   /**
@@ -50,7 +50,14 @@ export class IdBitset {
    */
   constructor(maxId = 1024) {
     const wordCount = Math.ceil((Math.max(0, maxId) + 1) / 32);
-    this.words = new Uint32Array(wordCount);
+    this._words = new Uint32Array(wordCount);
+  }
+
+  /**
+   * Gets the underlying 32-bit word typed array of the bitset.
+   */
+  public get words(): Uint32Array {
+    return this._words;
   }
 
   /**
@@ -62,8 +69,8 @@ export class IdBitset {
   public has(id: number): boolean {
     if (id < 0) return false;
     const wordIdx = id >>> 5;
-    if (wordIdx >= this.words.length) return false;
-    return (this.words[wordIdx] & (1 << (id & 31))) !== 0;
+    if (wordIdx >= this._words.length) return false;
+    return (this._words[wordIdx] & (1 << (id & 31))) !== 0;
   }
 
   /**
@@ -74,12 +81,12 @@ export class IdBitset {
   public add(id: number): void {
     if (id < 0) return;
     const wordIdx = id >>> 5;
-    if (wordIdx >= this.words.length) {
+    if (wordIdx >= this._words.length) {
       this.grow(id);
     }
     const mask = 1 << (id & 31);
-    if ((this.words[wordIdx] & mask) === 0) {
-      this.words[wordIdx] |= mask;
+    if ((this._words[wordIdx] & mask) === 0) {
+      this._words[wordIdx] |= mask;
       this.count++;
     }
   }
@@ -93,10 +100,10 @@ export class IdBitset {
   public delete(id: number): boolean {
     if (id < 0) return false;
     const wordIdx = id >>> 5;
-    if (wordIdx >= this.words.length) return false;
+    if (wordIdx >= this._words.length) return false;
     const mask = 1 << (id & 31);
-    if ((this.words[wordIdx] & mask) !== 0) {
-      this.words[wordIdx] &= ~mask;
+    if ((this._words[wordIdx] & mask) !== 0) {
+      this._words[wordIdx] &= ~mask;
       this.count--;
       return true;
     }
@@ -107,7 +114,7 @@ export class IdBitset {
    * Clears all set bits in the bitset.
    */
   public clear(): void {
-    this.words.fill(0);
+    this._words.fill(0);
     this.count = 0;
   }
 
@@ -125,7 +132,7 @@ export class IdBitset {
    */
   public clone(): IdBitset {
     const cloned = new IdBitset(0);
-    cloned.words = new Uint32Array(this.words);
+    cloned._words = new Uint32Array(this._words);
     cloned.count = this.count;
     return cloned;
   }
@@ -136,8 +143,8 @@ export class IdBitset {
    * @returns An iterator yielding each set ID.
    */
   public *values(): IterableIterator<number> {
-    for (let w = 0; w < this.words.length; w++) {
-      const word = this.words[w];
+    for (let w = 0; w < this._words.length; w++) {
+      const word = this._words[w];
       if (word === 0) continue;
       const base = w * 32;
       for (let b = 0; b < 32; b++) {
@@ -157,10 +164,10 @@ export class IdBitset {
 
   private grow(targetId: number): void {
     const requiredWords = Math.ceil((targetId + 1) / 32);
-    const newWordsCount = Math.max(requiredWords, this.words.length * 2);
+    const newWordsCount = Math.max(requiredWords, this._words.length * 2);
     const newWords = new Uint32Array(newWordsCount);
-    newWords.set(this.words);
-    this.words = newWords;
+    newWords.set(this._words);
+    this._words = newWords;
   }
 
   /**
@@ -195,6 +202,17 @@ export class IdBitset {
   }
 
   /**
+   * Creates an IdBitset containing all IDs from a set.
+   *
+   * @param set - Set of numeric IDs to include in the bitset.
+   * @param maxId - Optional maximum ID to preallocate storage for.
+   * @returns An IdBitset with all specified IDs set.
+   */
+  public static fromSet(set: ReadonlySet<number>, maxId?: number): IdBitset {
+    return IdBitset.fromAll(set, maxId);
+  }
+
+  /**
    * Creates an IdBitset containing all sequential 1-indexed IDs from 1 to totalCount.
    *
    * @param totalCount - The total number of sequential entity IDs (1 to totalCount).
@@ -206,7 +224,7 @@ export class IdBitset {
       return new IdBitset(0);
     }
     const bitset = new IdBitset(count);
-    const words = bitset.words;
+    const words = bitset._words;
     const lastWordIdx = count >>> 5;
 
     if (lastWordIdx === 0) {
@@ -254,12 +272,12 @@ export class IdBitset {
       for (let i = 0; i < len; i++) {
         const wordIdx = indices[i];
         const mask = masks[i];
-        if (wordIdx < bitset.words.length) {
-          const oldWord = bitset.words[wordIdx];
+        if (wordIdx < bitset._words.length) {
+          const oldWord = bitset._words[wordIdx];
           const newWord = oldWord & ~mask;
           if (oldWord !== newWord) {
             bitset.count -= popcount(oldWord ^ newWord);
-            bitset.words[wordIdx] = newWord;
+            bitset._words[wordIdx] = newWord;
           }
         }
       }
@@ -277,14 +295,14 @@ export class IdBitset {
     for (let i = 0; i < len; i++) {
       const wordIdx = indices[i];
       const mask = masks[i];
-      if (wordIdx >= bitset.words.length) {
+      if (wordIdx >= bitset._words.length) {
         bitset.grow((wordIdx + 1) * 32);
       }
-      const oldWord = bitset.words[wordIdx];
+      const oldWord = bitset._words[wordIdx];
       const newWord = oldWord | mask;
       if (oldWord !== newWord) {
         bitset.count += popcount(oldWord ^ newWord);
-        bitset.words[wordIdx] = newWord;
+        bitset._words[wordIdx] = newWord;
       }
     }
     return bitset;
@@ -298,10 +316,10 @@ export class IdBitset {
   public toSparseBitset(): SparseBitset {
     const indices: number[] = [];
     const masks: number[] = [];
-    for (let i = 0; i < this.words.length; i++) {
-      if (this.words[i] !== 0) {
+    for (let i = 0; i < this._words.length; i++) {
+      if (this._words[i] !== 0) {
         indices.push(i);
-        masks.push(this.words[i]);
+        masks.push(this._words[i]);
       }
     }
     return create(SparseBitsetSchema, {

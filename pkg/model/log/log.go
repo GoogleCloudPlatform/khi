@@ -15,37 +15,21 @@
 package log
 
 import (
-	"fmt"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
 var logInstanceID = atomic.Int32{}
 
-// FieldSet represents set of log fields read from a log.
-// FieldSet implementations defines how to read these actual fields from a log for parsers to read without using explicit path of field.
-type FieldSet interface {
-	// FieldSetKind identifies the set of fields. It must be same if the result type has same fields.
-	Kind() string
-}
-
-type FieldSetReader interface {
-	// Read attempts to read the log fields into its field.
-	Read(reader *structured.NodeReader) (FieldSet, error)
-
-	// FieldSetKind identifies the set of fields. It must be same if the result type has same fields.
-	FieldSetKind() string
-}
-
 // Log represents a log handled in KHI.
-// It provides direct access to its fields and abstracted cached access via FieldSet interface.
+// It provides direct access to its fields and basic metadata such as timestamp and instance ID.
 type Log struct {
 	*structured.NodeReader
-	fields *typedmap.TypedMap
-	ID     string
+	Timestamp time.Time
+	ID        string
 }
 
 // NewLog returns a log instance from NodeReader instance.
@@ -53,7 +37,15 @@ func NewLog(reader *structured.NodeReader) *Log {
 	return &Log{
 		ID:         strconv.Itoa(int(logInstanceID.Add(1))),
 		NodeReader: reader,
-		fields:     typedmap.NewTypedMap(),
+	}
+}
+
+// NewLogWithTimestamp returns a log instance with the given NodeReader and timestamp.
+func NewLogWithTimestamp(reader *structured.NodeReader, timestamp time.Time) *Log {
+	return &Log{
+		ID:         strconv.Itoa(int(logInstanceID.Add(1))),
+		NodeReader: reader,
+		Timestamp:  timestamp,
 	}
 }
 
@@ -64,43 +56,4 @@ func NewLogFromYAMLString(yaml string) (*Log, error) {
 		return nil, err
 	}
 	return NewLog(structured.NewNodeReader(node)), nil
-}
-
-// NewLogWithFieldSetsForTest generates an empty Log with given FieldSet. This is for testing purposes to instantiate a log already parsed.
-func NewLogWithFieldSetsForTest(fieldSets ...FieldSet) *Log {
-	log := NewLog(&structured.NodeReader{})
-	for _, fieldSet := range fieldSets {
-		typedmap.Set(log.fields, typedmap.NewTypedKey[FieldSet](fieldSet.Kind()), fieldSet)
-	}
-	return log
-}
-
-// SetFieldSetReader reads set of fields with the FieldSetReader and keep it in the log.
-func (l *Log) SetFieldSetReader(reader FieldSetReader) error {
-	fieldSet, err := reader.Read(l.NodeReader)
-	if err != nil {
-		return err
-	}
-	typedmap.Set(l.fields, typedmap.NewTypedKey[FieldSet](reader.FieldSetKind()), fieldSet)
-	return nil
-}
-
-// GetFieldSet returns the read FieldSet associated with the log.
-// It returns an error when the FieldSet wasn't found on the log.
-func GetFieldSet[T FieldSet](l *Log, fieldSet T) (T, error) {
-	field, found := typedmap.Get(l.fields, typedmap.NewTypedKey[T](fieldSet.Kind()))
-	if !found {
-		return *new(T), fmt.Errorf("no fieldset loaded for key %s on this log. available keys are %q", fieldSet.Kind(), l.fields.Keys())
-	}
-	return field, nil
-}
-
-// MustGetFieldSet returns the read FieldSet associated with the log.
-// It will go panic when the FieldSet was not found on the log.
-func MustGetFieldSet[T FieldSet](l *Log, fieldSet T) T {
-	field, err := GetFieldSet(l, fieldSet)
-	if err != nil {
-		panic(err)
-	}
-	return field
 }

@@ -34,6 +34,7 @@ import { LogStore } from 'src/app/store/domain/log-store';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { generateDefaultRulerStyle } from 'src/app/timeline/components/style-model';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 @Component({
   selector: 'khi-rendering-loop-starter',
@@ -197,19 +198,22 @@ function generateMockLogs(
 
 function generateViewModel(
   logs: Log[],
-  filteredLogs: Log[] = logs,
+  filterLogIds: IdBitset = IdBitset.fromAll(logs.map((l) => l.id)),
 ): TimelineRulerViewModel {
   const calculator = new RulerViewModelBuilder();
+  const allLogIds = IdBitset.fromAll(logs.map((l) => l.id));
   const allLogsCache = new HistogramCache(
     sharedStyleStore.severities,
     logs,
+    allLogIds,
     1000,
     START_TIME,
     START_TIME + DURATION,
   ); // 1s bucket
   const filteredLogsCache = new HistogramCache(
     sharedStyleStore.severities,
-    filteredLogs,
+    logs,
+    filterLogIds,
     1000,
     START_TIME,
     START_TIME + DURATION,
@@ -230,13 +234,15 @@ function filterLogs(
   rate: number,
 ): {
   allLogs: Log[];
-  filteredLogs: Log[];
+  filteredLogIds: IdBitset;
 } {
   const allLogs = logs;
-  const filteredLogs = logs.filter(() => {
-    return Math.random() < rate;
-  });
-  return { allLogs, filteredLogs };
+  const filteredIds = logs
+    .filter(() => {
+      return Math.random() < rate;
+    })
+    .map((l) => l.id);
+  return { allLogs, filteredLogIds: IdBitset.fromAll(filteredIds) };
 }
 
 export const Default: Story = {
@@ -291,7 +297,7 @@ const filtered = filterLogs(
 );
 export const Filtered: Story = {
   args: {
-    viewModel: generateViewModel(filtered.allLogs, filtered.filteredLogs),
+    viewModel: generateViewModel(filtered.allLogs, filtered.filteredLogIds),
     leftEdgeTime: START_TIME,
     pixelsPerMs: VIEWPORT_WIDTH / DURATION,
   },

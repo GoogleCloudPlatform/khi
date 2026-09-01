@@ -158,7 +158,7 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 				processFn: processFn,
 			}
 
-			tid := taskid.NewDefaultImplementationID[[]*log.Log]("test-grouped-ingester")
+			tid := taskid.NewDefaultImplementationID[struct{}]("test-grouped-ingester")
 			task := NewGroupedLogIngesterTask(tid, ingester)
 
 			ctx := context.Background()
@@ -172,7 +172,7 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 				cancel()
 			}
 
-			result, _, err := inspectiontest.RunInspectionTask(
+			_, _, err := inspectiontest.RunInspectionTask(
 				ctx,
 				task,
 				inspectioncore_contract.TaskModeRun,
@@ -189,10 +189,6 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 					t.Fatalf("unexpected error message: got %q, want %q", err.Error(), tc.wantErrMsg)
 				}
 				return
-			}
-
-			if len(result) != len(tc.rawLogs) {
-				t.Fatalf("unexpected result count: got %d, want %d", len(result), len(tc.rawLogs))
 			}
 
 			// Verify ingestion.
@@ -235,7 +231,7 @@ func TestNewGroupedLogIngesterTask_ErrorHandling(t *testing.T) {
 		},
 	}
 
-	tid := taskid.NewDefaultImplementationID[[]*log.Log]("test-grouped-ingester-error")
+	tid := taskid.NewDefaultImplementationID[struct{}]("test-grouped-ingester-error")
 	task := NewGroupedLogIngesterTask(tid, ingester)
 
 	builder := khifilev6.NewBuilder()

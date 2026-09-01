@@ -33,20 +33,25 @@
         [disabled]="filterByTimeline() === false"
       ></khi-icon-toggle-button>
     </div>
-    <p class="spacer">{{ shownLogsCount() }}/{{ allLogsCount() }} logs</p>
+    <p class="spacer">{{ visibleLogsCount() }}/{{ allLogsCount() }} logs</p>
   </div>
   <div class="log-list-container" tabindex="0" (keydown)="onKeyDown($event)">
     <cdk-virtual-scroll-viewport class="virtual-viewport">
       <div class="log-list">
-        <ng-container *cdkVirtualFor="let log of shownLogs()">
-          <khi-log-view-log-line
-            [log]="log"
-            [selected]="selectedLogIndex() === log.logIndex"
-            [highlighted]="highlightLogIndices().has(log.logIndex)"
-            (lineClick)="selectLog($event)"
-            (lineHover)="onLogHover($event)"
-          ></khi-log-view-log-line>
-        </ng-container>
+        @let store = logStore();
+        @if (store) {
+          <ng-container *cdkVirtualFor="let logId of visibleLogIds()">
+            @let logIndex = store.getIndex(logId);
+            <khi-log-view-log-line
+              [logId]="logId"
+              [logStore]="store"
+              [selected]="selectedLogIndex() === logIndex"
+              [highlighted]="highlightedLogIndices().has(logIndex)"
+              (lineClick)="selectLog($event)"
+              (lineHover)="onLogHover($event)"
+            ></khi-log-view-log-line>
+          </ng-container>
+        }
       </div>
     </cdk-virtual-scroll-viewport>
   </div>

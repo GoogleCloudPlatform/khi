@@ -30,11 +30,8 @@ var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scomm
 // ListLogEntriesTaskID is the task ID for the task that queries Composer API audit logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComposerAPIAuditLogTaskIDPrefix + "query")
 
-// FieldSetReaderTaskID is the task ID to read field sets for processing Composer audit logs in later tasks.
-var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComposerAPIAuditLogTaskIDPrefix + "fieldset-reader")
-
 // LogIngesterTaskID is the task ID to finalize Composer audit logs to be included in the final output.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComposerAPIAuditLogTaskIDPrefix + "log-ingester")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](ComposerAPIAuditLogTaskIDPrefix + "log-ingester")
 
 // LogGrouperTaskID is the task ID to group Composer audit logs by environment name.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](ComposerAPIAuditLogTaskIDPrefix + "grouper")

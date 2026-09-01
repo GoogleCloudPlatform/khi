@@ -29,22 +29,17 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReaderTask parses GCPOperationAuditLogFieldSet from raw Compute API logs.
-var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogcomputeapiaudit_contract.FieldSetReaderTaskID, googlecloudlogcomputeapiaudit_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
-	&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
-})
-
 // LogIngesterTask is a task that ingests log metadata (timestamp, severity, summary, log type) into KHI v6 format.
 var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudlogcomputeapiaudit_contract.LogIngesterTaskID,
-	googlecloudlogcomputeapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlogcomputeapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi,
 )
 
 // LogGrouperTask groups GCE API audit logs by node resource name for parallel mapper processing.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcomputeapiaudit_contract.LogGrouperTaskID, googlecloudlogcomputeapiaudit_contract.FieldSetReaderTaskID.Ref(),
+var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcomputeapiaudit_contract.LogGrouperTaskID, googlecloudlogcomputeapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		audit, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
+		audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 		if err != nil {
 			return "unknown"
 		}
@@ -65,7 +60,7 @@ type gcpComputeAuditLogLogToTimelineMapperSetting struct {
 }
 
 // LogIngesterTask returns a reference to the log ingester task.
-func (g *gcpComputeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (g *gcpComputeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogcomputeapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
@@ -86,11 +81,7 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 	if tracker == nil {
 		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
 	}
-	commonLogFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err != nil {
-		return nil, tracker, err
-	}
-	audit, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
+	audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -111,7 +102,7 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
-	tracker.ProcessOperationLog(ctx, cs, targetPath, audit, commonLogFieldSet.Timestamp)
+	tracker.ProcessOperationLog(ctx, cs, targetPath, &audit, l.Timestamp)
 
 	return cs, tracker, nil
 }

@@ -17,6 +17,7 @@ package inspectionmetadata
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -77,5 +78,20 @@ func TestQueryMetadata_SetPendingQuery(t *testing.T) {
 
 	if diff := cmp.Diff(expected, qm.ToSerializable()); diff != "" {
 		t.Errorf("SetPendingQuery mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestQueryMetadata_SetQueryWithPreset(t *testing.T) {
+	qm := NewQueryMetadata()
+	qm.SetQuery("q1", "Query 1", "resource.type=k8s_container")
+	qm.SetQueryWithPreset("q2", "Query 2", "resource.type=gce_instance", logestimator.EstimatedCountPresetFew)
+
+	expected := []*QueryItem{
+		{Id: "q1", Name: "Query 1", Query: "resource.type=k8s_container"},
+		{Id: "q2", Name: "Query 2", Query: "resource.type=gce_instance", Preset: logestimator.EstimatedCountPresetFew},
+	}
+
+	if diff := cmp.Diff(expected, qm.ToSerializable()); diff != "" {
+		t.Errorf("SetQueryWithPreset mismatch (-want +got):\n%s", diff)
 	}
 }

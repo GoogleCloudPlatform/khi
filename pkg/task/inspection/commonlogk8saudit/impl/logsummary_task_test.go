@@ -23,6 +23,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
@@ -35,9 +36,9 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 	}{
 		{
 			name: "successful info log ingestion",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: testTime},
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					APIVersion:   "core/v1",
 					PluralKind:   "pods",
 					Namespace:    "default",
@@ -57,9 +58,9 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "error log ingestion",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: testTime},
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					APIVersion:    "core/v1",
 					PluralKind:    "pods",
 					Namespace:     "default",
@@ -81,9 +82,9 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "dry run info log ingestion",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: testTime},
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					APIVersion:   "core/v1",
 					PluralKind:   "pods",
 					Namespace:    "default",
@@ -104,9 +105,9 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "dry run error log ingestion",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: testTime},
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					APIVersion:    "core/v1",
 					PluralKind:    "pods",
 					Namespace:     "default",
@@ -129,12 +130,12 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := &k8sAuditLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ingester := &k8sAuditLogIngester{}
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
 			if err != nil {
-				t.Fatalf("ProcessLog() failed: %v", err)
+				t.Fatalf("unexpected error: %v", err)
 			}
 			tc.assert(t, cs)
 		})

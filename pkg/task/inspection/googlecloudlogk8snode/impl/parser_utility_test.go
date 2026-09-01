@@ -22,11 +22,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -227,9 +227,9 @@ func TestCheckStartingAndTerminationLog(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: testTime},
-				&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+			l := testlog.NewMockLog(
+				testTime,
+				googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 					Message: &logutil.ParseStructuredLogResult{
 						Fields: map[string]any{
 							logutil.MainMessageStructuredFieldKey: tc.logMessage,

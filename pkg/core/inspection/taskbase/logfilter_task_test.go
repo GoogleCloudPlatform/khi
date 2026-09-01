@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -25,6 +26,8 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 )
+
+var pathFilterTestID = structured.CompileFieldPath("id")
 
 func TestNewLogFilterTask(t *testing.T) {
 	sourceLogs := []string{
@@ -50,7 +53,7 @@ func TestNewLogFilterTask(t *testing.T) {
 			taskMode: inspectioncore_contract.TaskModeRun,
 			logYAMLs: sourceLogs,
 			logFilter: func(ctx context.Context, l *log.Log) bool {
-				id := l.ReadStringOrDefault("id", "unknown")
+				id := l.ReadStringOrDefault(pathFilterTestID, "unknown")
 				return id == "foo" || id == "qux"
 			},
 			resultLogIDs: []string{"foo", "qux"},
@@ -88,7 +91,7 @@ func TestNewLogFilterTask(t *testing.T) {
 
 			logIDs := []string{}
 			for _, resultLog := range result {
-				logIDs = append(logIDs, resultLog.ReadStringOrDefault("id", "unknown"))
+				logIDs = append(logIDs, resultLog.ReadStringOrDefault(pathFilterTestID, "unknown"))
 			}
 
 			if diff := cmp.Diff(tc.resultLogIDs, logIDs); diff != "" {

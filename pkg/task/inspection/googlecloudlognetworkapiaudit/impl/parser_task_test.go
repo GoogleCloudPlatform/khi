@@ -33,6 +33,7 @@ import (
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -66,14 +67,12 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 	}{
 		{
 			name: "successful audit log ingestion starting",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					OperationID:    "op-1",
 					OperationFirst: true,
@@ -89,14 +88,12 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "successful audit log ingestion ending",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					OperationID:    "op-1",
 					OperationFirst: false,
@@ -112,7 +109,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID.Ref(), googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI)
+	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref(), googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
@@ -141,11 +138,9 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}{
 		{
 			name: "operation started revision is correctly created",
-			inputLog: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-1",
@@ -190,11 +185,9 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "operation finished revision is correctly created",
-			inputLog: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-1",

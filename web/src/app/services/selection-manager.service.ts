@@ -30,12 +30,6 @@ export class SelectionManager {
   // Writable signals representing internal state.
   private readonly selectedLogId = signal<number | null>(null);
   private readonly highlightedLogIds = signal<Set<number>>(new Set<number>());
-  /**
-   * Computes all timelines available in the current inspection data.
-   */
-  private readonly filteredTimelines = computed<
-    ReadonlyDomainElement<Timeline[]>
-  >(() => this.inspectionDataStore.timelineView()?.filteredTimelines() ?? []);
 
   /**
    * Holds the currently selected timeline.
@@ -112,7 +106,7 @@ export class SelectionManager {
   /**
    * Computes a set of indices of the currently highlighted logs.
    */
-  public readonly highlightLogIndices = computed<Set<number>>(() => {
+  public readonly highlightedLogIndices = computed<Set<number>>(() => {
     const data = this.inspectionDataStore.inspectionData();
     if (!data) return new Set();
     const ids = this.highlightedLogIds();
@@ -134,7 +128,7 @@ export class SelectionManager {
     ReadonlyDomainElement<Revision>[]
   >(() => {
     const timeline = this.highlightedTimeline();
-    const logIndices = this.highlightLogIndices();
+    const logIndices = this.highlightedLogIndices();
     const result: ReadonlyDomainElement<Revision>[] = [];
     if (timeline === null) return result;
     for (const revision of timeline.revisions) {
@@ -152,9 +146,7 @@ export class SelectionManager {
     computed<ReadonlyDomainElement<Revision> | null>(() => {
       const revision = this.selectedRevision();
       if (revision === null) return null;
-      const timeline = revision.timeline;
-      const revisionIndex = timeline.revisions.indexOf(revision);
-      return revisionIndex > 0 ? timeline.revisions[revisionIndex - 1] : null;
+      return revision.prev;
     });
 
   /**
@@ -178,14 +170,8 @@ export class SelectionManager {
   >(() => {
     const selectedTimeline = this.selectedTimeline();
     const includeChildren = this.timelineSelectionShouldIncludeChildren();
-    const allTimelines = this.filteredTimelines();
     if (!includeChildren || selectedTimeline === null) return new Set();
-    for (const timeline of allTimelines) {
-      if (timeline === selectedTimeline) {
-        return new Set(timeline.descendants());
-      }
-    }
-    return new Set();
+    return new Set(selectedTimeline.descendants());
   });
 
   /**
@@ -225,40 +211,72 @@ export class SelectionManager {
       return;
     }
 
+    this.selectedLogId.set(log.id);
+
+    const timelineStore =
+      this.inspectionDataStore.inspectionData()?.timelineStore;
+    if (!timelineStore) {
+      this.selectedRevision.set(null);
+      return;
+    }
+
+    const logTimelines = timelineStore.getTimelinesForLogId(log.id);
+    if (logTimelines.length === 0) {
+      this.selectedRevision.set(null);
+      return;
+    }
+
+    const filteredTimelineIds = this.inspectionDataStore
+      .timelineView()
+      ?.filteredTimelineIds();
+
+    const selectedTimeline = this.selectedTimeline();
     const currentTimelines = this.selectedTimelinesWithChildren();
 
-    // When a timeline is already selected, prioritize searching within that timeline and its children.
-    if (currentTimelines.length > 0) {
+    // Priority 1: Check the main selected timeline first if it is visible.
+    if (
+      selectedTimeline &&
+      (!filteredTimelineIds || filteredTimelineIds.has(selectedTimeline.id))
+    ) {
+      const revision = selectedTimeline.lookupRevisionFromLog(log);
+      if (revision) {
+        this.selectedRevision.set(revision);
+        return;
+      }
+      const event = selectedTimeline.lookupEventFromLog(log);
+      if (event) {
+        this.selectedRevision.set(null);
+        return;
+      }
+    }
+
+    // Priority 2: Check descendant timelines of the selected timeline (if visible).
+    if (currentTimelines.length > 1) {
       for (const timeline of currentTimelines) {
+        if (timeline === selectedTimeline) continue;
+        if (filteredTimelineIds && !filteredTimelineIds.has(timeline.id)) {
+          continue;
+        }
         const revision = timeline.lookupRevisionFromLog(log);
         if (revision) {
-          this.selectedLogId.set(log.id);
           this.selectedRevision.set(revision);
           return;
         }
         const event = timeline.lookupEventFromLog(log);
         if (event) {
-          this.selectedLogId.set(log.id);
           this.selectedRevision.set(null);
           return;
         }
       }
     }
 
-    // When no timeline is selected or the log is not found in the currently selected timelines,
-    // automatically select the first timeline containing the log.
-    this.selectedLogId.set(log.id);
-    for (const timeline of this.filteredTimelines()) {
-      const revision = timeline.lookupRevisionFromLog(log);
-      if (revision) {
+    // Priority 3: When no timeline is selected or the log is not found in the currently selected timelines,
+    // automatically select the first visible timeline containing the log.
+    for (const timeline of logTimelines) {
+      if (!filteredTimelineIds || filteredTimelineIds.has(timeline.id)) {
         this.selectedTimeline.set(timeline);
+        const revision = timeline.lookupRevisionFromLog(log);
         this.selectedRevision.set(revision);
-        return;
-      }
-      const event = timeline.lookupEventFromLog(log);
-      if (event) {
-        this.selectedTimeline.set(timeline);
-        this.selectedRevision.set(null);
         return;
       }
     }
@@ -302,15 +320,17 @@ export class SelectionManager {
     const log = this.selectedLog();
     const revision = this.selectedRevision();
     const validTimelines = this.selectedTimelinesWithChildren();
+    const validTimelineIds = new Set(validTimelines.map((t) => t.id));
 
-    const isLogValid =
-      !log ||
-      validTimelines.some(
-        (t) => t.lookupRevisionFromLog(log) || t.lookupEventFromLog(log),
-      );
-    const isRevisionValid =
-      !revision ||
-      validTimelines.some((t) => t.lookupRevisionFromLog(revision.log));
+    const isLogValid = this.isSelectedLogValid(
+      log,
+      validTimelineIds,
+      validTimelines,
+    );
+    const isRevisionValid = this.isSelectedRevisionValid(
+      revision,
+      validTimelineIds,
+    );
 
     if (!isLogValid) {
       this.selectedLogId.set(null);
@@ -318,5 +338,37 @@ export class SelectionManager {
     } else if (!isRevisionValid) {
       this.selectedRevision.set(null);
     }
+  }
+
+  /**
+   * Checks whether the currently selected log is still valid within the active timeline selection.
+   */
+  private isSelectedLogValid(
+    log: ReadonlyDomainElement<Log> | null,
+    validTimelineIds: Set<number>,
+    validTimelines: ReadonlyDomainElement<Timeline>[],
+  ): boolean {
+    if (!log) return true;
+    const timelineStore =
+      this.inspectionDataStore.inspectionData()?.timelineStore;
+    if (timelineStore) {
+      return timelineStore
+        .getTimelineIdsForLogId(log.id)
+        .some((id) => validTimelineIds.has(id));
+    }
+    return validTimelines.some(
+      (t) => t.lookupRevisionFromLog(log) || t.lookupEventFromLog(log),
+    );
+  }
+
+  /**
+   * Checks whether the currently selected revision is still valid within the active timeline selection.
+   */
+  private isSelectedRevisionValid(
+    revision: ReadonlyDomainElement<Revision> | null,
+    validTimelineIds: Set<number>,
+  ): boolean {
+    if (!revision) return true;
+    return validTimelineIds.has(revision.timelineId);
   }
 }

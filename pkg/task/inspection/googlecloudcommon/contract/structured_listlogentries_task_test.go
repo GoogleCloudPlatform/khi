@@ -255,15 +255,11 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 
 			gotLogsString := []string{}
 			for _, l := range gotLogs {
-				yaml, err := l.Serialize("", &structured.YAMLNodeSerializer{})
+				yaml, err := l.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 				if err != nil {
 					t.Fatalf("failed to serialize to yaml: %v", err)
 				}
 				gotLogsString = append(gotLogsString, string(yaml))
-				_, err = log.GetFieldSet(l, &log.CommonFieldSet{})
-				if err != nil {
-					t.Errorf("CommonFieldSet not found on log: %v", err)
-				}
 			}
 
 			if diff := cmp.Diff(tc.wantLogsString, gotLogsString); diff != "" {

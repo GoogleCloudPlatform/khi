@@ -20,7 +20,6 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -30,7 +29,7 @@ import (
 var NodeNameDiscoveryTask = commonlogk8saudit_contract.NodeNameInventoryBuilder.DiscoveryTask(
 	googlecloudlogk8snode_contract.NodeNameDiscoveryTaskID,
 	[]taskid.UntypedTaskReference{
-		googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID.Ref(),
+		googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]string, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
@@ -38,9 +37,9 @@ var NodeNameDiscoveryTask = commonlogk8saudit_contract.NodeNameInventoryBuilder.
 		}
 
 		foundNodeNames := map[string]struct{}{}
-		logs := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID.Ref())
+		logs := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref())
 		for _, l := range logs {
-			fs, err := log.GetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+			fs, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 			if err == nil && fs.NodeName != "" {
 				foundNodeNames[fs.NodeName] = struct{}{}
 			}

@@ -23,6 +23,7 @@ import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench
 import { Timeline, Revision, Event } from 'src/app/store/domain/timeline';
 import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 describe('StructYamlPrefetchService', () => {
   let service: StructYamlPrefetchService;
@@ -30,7 +31,15 @@ describe('StructYamlPrefetchService', () => {
   let mockSelectedTimeline: WritableSignal<ReadonlyDomainElement<Timeline> | null>;
   let mockSelectedRevision: WritableSignal<ReadonlyDomainElement<Revision> | null>;
   let mockSelectedLog: WritableSignal<ReadonlyDomainElement<Log> | null>;
-  let mockFilteredLogs: WritableSignal<ReadonlyDomainElement<Log>[]>;
+  let mockSelectedTimelinesWithChildren: WritableSignal<
+    ReadonlyDomainElement<Timeline>[]
+  >;
+  let mockFilteredLogIds: WritableSignal<IdBitset>;
+  let mockLogStore: {
+    count: number;
+    getLogIdByIndex: (idx: number) => number;
+    getBodyStructId: (id: number) => number;
+  };
 
   function createMockLog(
     id: number,
@@ -59,6 +68,8 @@ describe('StructYamlPrefetchService', () => {
       index,
       changedTime,
       structId,
+      logId: log.id,
+      logIndex: log.logIndex,
       log,
       timeline,
     } as unknown as ReadonlyDomainElement<Revision>;
@@ -72,6 +83,8 @@ describe('StructYamlPrefetchService', () => {
     return {
       id,
       timestamp,
+      logId: log.id,
+      logIndex: log.logIndex,
       log,
     } as unknown as ReadonlyDomainElement<Event>;
   }
@@ -95,7 +108,15 @@ describe('StructYamlPrefetchService', () => {
     mockSelectedTimeline = signal<ReadonlyDomainElement<Timeline> | null>(null);
     mockSelectedRevision = signal<ReadonlyDomainElement<Revision> | null>(null);
     mockSelectedLog = signal<ReadonlyDomainElement<Log> | null>(null);
-    mockFilteredLogs = signal<ReadonlyDomainElement<Log>[]>([]);
+    mockSelectedTimelinesWithChildren = signal<
+      ReadonlyDomainElement<Timeline>[]
+    >([]);
+    mockFilteredLogIds = signal<IdBitset>(IdBitset.createEmpty());
+    mockLogStore = {
+      count: 0,
+      getLogIdByIndex: (idx: number) => idx + 1,
+      getBodyStructId: (id: number) => 200 + (id - 1),
+    };
 
     TestBed.configureTestingModule({
       providers: [
@@ -110,13 +131,17 @@ describe('StructYamlPrefetchService', () => {
             selectedTimeline: mockSelectedTimeline,
             selectedRevision: mockSelectedRevision,
             selectedLog: mockSelectedLog,
+            selectedTimelinesWithChildren: mockSelectedTimelinesWithChildren,
           },
         },
         {
           provide: InspectionDataStore,
           useValue: {
+            inspectionData: signal({
+              logStore: mockLogStore,
+            }),
             timelineView: signal({
-              filteredLogs: mockFilteredLogs,
+              filteredLogIds: mockFilteredLogIds,
             }),
           },
         },
@@ -264,15 +289,12 @@ describe('StructYamlPrefetchService', () => {
   });
 
   describe('prefetchSurroundingLogs', () => {
-    it('should prefetch logs surrounding the selected log in filteredLogs', () => {
-      const logs: ReadonlyDomainElement<Log>[] = [];
-      for (let i = 0; i < 50; i++) {
-        logs.push(createMockLog(i + 1, i, BigInt(i * 10), 200 + i));
-      }
-      mockFilteredLogs.set(logs);
+    it('should prefetch surrounding logs in LogStore when no timeline is selected', () => {
+      mockLogStore.count = 50;
+      mockFilteredLogIds.set(IdBitset.fromSequential(50));
 
-      // Select log at index 25
-      const selectedLog = logs[25];
+      // Select log at index 25 (id: 26, structId: 225)
+      const selectedLog = createMockLog(26, 25, 250n, 225);
       service.prefetchSurroundingLogs(selectedLog);
 
       expect(mockWorkbenchClient.prefetchStructYAMLs).toHaveBeenCalledTimes(1);
@@ -288,14 +310,39 @@ describe('StructYamlPrefetchService', () => {
       expect(callArgs).not.toContain(246);
     });
 
-    it('should do nothing if selected log is not in filteredLogs', () => {
-      const logs = [createMockLog(1, 0, 100n, 10)];
-      mockFilteredLogs.set(logs);
+    it('should prefetch surrounding items on selected timeline when timeline is selected', () => {
+      const mockTimeline = { id: 1 } as ReadonlyDomainElement<Timeline>;
+      const revisions: ReadonlyDomainElement<Revision>[] = [];
+      for (let i = 0; i < 30; i++) {
+        const log = createMockLog(i + 1, i, BigInt(i * 10), 0);
+        revisions.push(
+          createMockRevision(
+            i + 1,
+            i,
+            BigInt(i * 10),
+            300 + i,
+            log,
+            mockTimeline,
+          ),
+        );
+      }
+      const timeline = createMockTimeline(1, revisions);
+      mockSelectedTimelinesWithChildren.set([timeline]);
+      mockFilteredLogIds.set(IdBitset.fromSequential(30));
 
-      const unlistedLog = createMockLog(99, 99, 9900n, 990);
-      service.prefetchSurroundingLogs(unlistedLog);
+      // Select log at index 15
+      const selectedLog = createMockLog(16, 15, 150n, 0);
+      service.prefetchSurroundingLogs(selectedLog);
 
-      expect(mockWorkbenchClient.prefetchStructYAMLs).not.toHaveBeenCalled();
+      expect(mockWorkbenchClient.prefetchStructYAMLs).toHaveBeenCalledTimes(1);
+      const callArgs =
+        mockWorkbenchClient.prefetchStructYAMLs.calls.mostRecent()
+          .args[0] as number[];
+
+      // Surrounding revisions around index 15 (radius 20): from index 0 to 29 (structIds 300 to 329)
+      expect(callArgs).toContain(300);
+      expect(callArgs).toContain(315);
+      expect(callArgs).toContain(329);
     });
   });
 
@@ -334,7 +381,10 @@ describe('StructYamlPrefetchService', () => {
 
     it('should trigger prefetchSurroundingLogs when selectedLog signal updates', async () => {
       const log = createMockLog(1, 0, 100n, 888);
-      mockFilteredLogs.set([log]);
+      mockLogStore.count = 1;
+      mockLogStore.getLogIdByIndex = () => 1;
+      mockLogStore.getBodyStructId = () => 888;
+      mockFilteredLogIds.set(IdBitset.fromAll([log.id]));
 
       mockSelectedLog.set(log);
       TestBed.flushEffects();

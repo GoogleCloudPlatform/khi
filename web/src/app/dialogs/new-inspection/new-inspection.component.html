@@ -144,6 +144,18 @@ limitations under the License.
                             >Incomplete parameters</span
                           >
                         } @else if (
+                          query.estimatedCountPreset &&
+                          query.estimatedCountPreset !==
+                            EstimatedCountPreset.None
+                        ) {
+                          @switch (query.estimatedCountPreset) {
+                            @case (EstimatedCountPreset.Few) {
+                              <span class="query-estimated-count"
+                                >Few logs estimated</span
+                              >
+                            }
+                          }
+                        } @else if (
                           query.estimatedCount !== undefined && !query.pending
                         ) {
                           <span class="query-estimated-count"

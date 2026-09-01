@@ -22,7 +22,6 @@ import (
 
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
@@ -103,9 +102,8 @@ func TestAuditLogFileReaderTask(t *testing.T) {
 			var gotStages []string
 			var gotTimes []time.Time
 			for _, l := range gotLogs {
-				gotStages = append(gotStages, l.ReadStringOrDefault("stage", ""))
-				commonField := log.MustGetFieldSet(l, &log.CommonFieldSet{})
-				gotTimes = append(gotTimes, commonField.Timestamp)
+				gotStages = append(gotStages, l.ReadStringOrDefault(pathAuditFileReaderStage, ""))
+				gotTimes = append(gotTimes, l.Timestamp)
 			}
 
 			if diff := cmp.Diff(tc.wantStages, gotStages); diff != "" {

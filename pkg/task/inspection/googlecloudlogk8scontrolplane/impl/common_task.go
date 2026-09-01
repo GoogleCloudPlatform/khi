@@ -21,6 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -47,7 +48,7 @@ type K8sControlPlaneLogIngester struct{}
 
 // RawLogTask implements inspectiontaskbase.LogIngester.
 func (i *K8sControlPlaneLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8scontrolplane_contract.CommonFieldSetReaderTaskID.Ref()
+	return googlecloudlogk8scontrolplane_contract.ListLogEntriesTaskID.Ref()
 }
 
 // Dependencies implements inspectiontaskbase.LogIngester.
@@ -62,17 +63,14 @@ func (i *K8sControlPlaneLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 		return nil, err
 	}
 	cs.SetLogType(googlecloudlogk8scontrolplane_contract.LogTypeControlPlaneComponent)
+	cs.SetTimestamp(l.Timestamp)
 
-	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonFS.Timestamp)
+	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
+		cs.SetSeverity(severity)
 	}
 
-	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-		cs.SetSeverity(severityFS.Severity)
-	}
-
-	if msgFS, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSet{}); err == nil {
-		cs.SetSummary(msgFS.Message)
+	if msg, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneCommonMessage(l.NodeReader); err == nil && msg != "" {
+		cs.SetSummary(msg)
 	}
 
 	return cs, nil

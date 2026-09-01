@@ -29,7 +29,7 @@ func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source 
 		taskID,
 		source,
 		func(ctx context.Context, l *log.Log) bool {
-			fs, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
+			fs, err := googlecloudclustercomposer_contract.ExtractComposer(l.NodeReader)
 			if err != nil {
 				return false
 			}
@@ -38,15 +38,15 @@ func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source 
 	)
 }
 
-var AirflowWorkerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowWorkerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsFieldSetReadTaskID.Ref(), "airflow-worker")
-var AirflowSchedulerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowSchedulerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsFieldSetReadTaskID.Ref(), "airflow-scheduler")
-var AirflowDagProcessorManagerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsFieldSetReadTaskID.Ref(), "dag-processor-manager")
+var AirflowWorkerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowWorkerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsQueryTaskID.Ref(), "airflow-worker")
+var AirflowSchedulerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowSchedulerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsQueryTaskID.Ref(), "airflow-scheduler")
+var AirflowDagProcessorManagerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsQueryTaskID.Ref(), "dag-processor-manager")
 
 var AirflowOtherLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	googlecloudclustercomposer_contract.AirflowOtherLogFilterTaskID,
-	googlecloudclustercomposer_contract.ComposerLogsFieldSetReadTaskID.Ref(),
+	googlecloudclustercomposer_contract.ComposerLogsQueryTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
-		fs, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
+		fs, err := googlecloudclustercomposer_contract.ExtractComposer(l.NodeReader)
 		if err != nil {
 			return false
 		}

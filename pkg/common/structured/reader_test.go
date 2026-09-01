@@ -48,8 +48,22 @@ complex:
 
 	reader := &NodeReader{Node: node}
 
+	pathStringValue := CompileFieldPath("string_value")
+	pathBoolValue := CompileFieldPath("bool_value")
+	pathIntValue := CompileFieldPath("int_value")
+	pathFloatValue := CompileFieldPath("float_value")
+	pathTimestampValue := CompileFieldPath("timestamp_value")
+	pathNonexistent := CompileFieldPath("nonexistent")
+	pathNestedInnerBool := CompileFieldPath("nested.inner_bool")
+	pathNestedInnerValue := CompileFieldPath("nested.inner_value")
+	pathNested := CompileFieldPath("nested")
+	pathArray := CompileFieldPath("array")
+	pathComplexObjects := CompileFieldPath("complex.objects")
+	pathName := CompileFieldPath("name")
+	pathValue := CompileFieldPath("value")
+
 	t.Run("ReadString", func(t *testing.T) {
-		value, err := reader.ReadString("string_value")
+		value, err := reader.ReadString(pathStringValue)
 		if err != nil {
 			t.Errorf("ReadString failed: %v", err)
 		}
@@ -57,14 +71,14 @@ complex:
 			t.Errorf("Expected 'test string', got %q", value)
 		}
 
-		_, err = reader.ReadString("nonexistent")
+		_, err = reader.ReadString(pathNonexistent)
 		if err != ErrFieldNotFound {
 			t.Errorf("Expected ErrFieldNotFound, got %v", err)
 		}
 	})
 
 	t.Run("ReadBool", func(t *testing.T) {
-		value, err := reader.ReadBool("bool_value")
+		value, err := reader.ReadBool(pathBoolValue)
 		if err != nil {
 			t.Errorf("ReadBool failed: %v", err)
 		}
@@ -72,7 +86,7 @@ complex:
 			t.Errorf("Expected true, got %v", value)
 		}
 
-		value, err = reader.ReadBool("nested.inner_bool")
+		value, err = reader.ReadBool(pathNestedInnerBool)
 		if err != nil {
 			t.Errorf("ReadBool for nested field failed: %v", err)
 		}
@@ -82,7 +96,7 @@ complex:
 	})
 
 	t.Run("ReadInt", func(t *testing.T) {
-		value, err := reader.ReadInt("int_value")
+		value, err := reader.ReadInt(pathIntValue)
 		if err != nil {
 			t.Errorf("ReadInt failed: %v", err)
 		}
@@ -92,7 +106,7 @@ complex:
 	})
 
 	t.Run("ReadFloat", func(t *testing.T) {
-		value, err := reader.ReadFloat("float_value")
+		value, err := reader.ReadFloat(pathFloatValue)
 		if err != nil {
 			t.Errorf("ReadFloat failed: %v", err)
 		}
@@ -102,7 +116,7 @@ complex:
 	})
 
 	t.Run("ReadTimestamp", func(t *testing.T) {
-		value, err := reader.ReadTimestamp("timestamp_value")
+		value, err := reader.ReadTimestamp(pathTimestampValue)
 		if err != nil {
 			t.Errorf("ReadTimestamp failed: %v", err)
 		}
@@ -114,52 +128,52 @@ complex:
 
 	t.Run("ReadDefaultValues", func(t *testing.T) {
 		// String with existing field
-		value := reader.ReadStringOrDefault("string_value", "default")
+		value := reader.ReadStringOrDefault(pathStringValue, "default")
 		if value != "test string" {
 			t.Errorf("Expected 'test string', got %q", value)
 		}
 
 		// String with non-existent field
-		value = reader.ReadStringOrDefault("nonexistent", "default")
+		value = reader.ReadStringOrDefault(pathNonexistent, "default")
 		if value != "default" {
 			t.Errorf("Expected 'default', got %q", value)
 		}
 
 		// Bool
-		boolValue := reader.ReadBoolOrDefault("nonexistent", true)
+		boolValue := reader.ReadBoolOrDefault(pathNonexistent, true)
 		if !boolValue {
 			t.Errorf("Expected true, got %v", boolValue)
 		}
 
 		// Int
-		intValue := reader.ReadIntOrDefault("nonexistent", 100)
+		intValue := reader.ReadIntOrDefault(pathNonexistent, 100)
 		if intValue != 100 {
 			t.Errorf("Expected 100, got %d", intValue)
 		}
 
 		// Float
-		floatValue := reader.ReadFloatOrDefault("nonexistent", 2.71)
+		floatValue := reader.ReadFloatOrDefault(pathNonexistent, 2.71)
 		if floatValue != 2.71 {
 			t.Errorf("Expected 2.71, got %f", floatValue)
 		}
 	})
 
 	t.Run("Has", func(t *testing.T) {
-		if !reader.Has("string_value") {
+		if !reader.Has(pathStringValue) {
 			t.Error("Has returned false for existing field")
 		}
 
-		if reader.Has("nonexistent") {
+		if reader.Has(pathNonexistent) {
 			t.Error("Has returned true for non-existing field")
 		}
 
-		if !reader.Has("nested.inner_value") {
+		if !reader.Has(pathNestedInnerValue) {
 			t.Error("Has returned false for existing nested field")
 		}
 	})
 
 	t.Run("NestedFields", func(t *testing.T) {
-		value, err := reader.ReadString("nested.inner_value")
+		value, err := reader.ReadString(pathNestedInnerValue)
 		if err != nil {
 			t.Errorf("ReadString for nested field failed: %v", err)
 		}
@@ -183,12 +197,12 @@ complex:
 	})
 
 	t.Run("GetReader", func(t *testing.T) {
-		nestedReader, err := reader.GetReader("nested")
+		nestedReader, err := reader.GetReader(pathNested)
 		if err != nil {
 			t.Errorf("GetReader failed: %v", err)
 		}
 
-		value, err := nestedReader.ReadString("inner_value")
+		value, err := nestedReader.ReadString(CompileFieldPath("inner_value"))
 		if err != nil {
 			t.Errorf("ReadString on nested reader failed: %v", err)
 		}
@@ -196,14 +210,14 @@ complex:
 			t.Errorf("Expected 'nested value', got %q", value)
 		}
 
-		_, err = reader.GetReader("nonexistent")
+		_, err = reader.GetReader(pathNonexistent)
 		if err != ErrFieldNotFound {
 			t.Errorf("Expected ErrFieldNotFound, got %v", err)
 		}
 	})
 
 	t.Run("ArrayChildren", func(t *testing.T) {
-		arrayReader, err := reader.GetReader("array")
+		arrayReader, err := reader.GetReader(pathArray)
 		if err != nil {
 			t.Errorf("GetReader for array failed: %v", err)
 		}
@@ -215,7 +229,7 @@ complex:
 				t.Errorf("Expected index %d, got %d", itemCount, key.Index)
 			}
 
-			value, err := childReader.ReadString("")
+			value, err := childReader.ReadString(EmptyFieldPath)
 			if err != nil {
 				t.Errorf("ReadString failed: %v", err)
 			}
@@ -233,7 +247,7 @@ complex:
 	})
 
 	t.Run("ComplexArrayChildren", func(t *testing.T) {
-		objectsReader, err := reader.GetReader("complex.objects")
+		objectsReader, err := reader.GetReader(pathComplexObjects)
 		if err != nil {
 			t.Errorf("GetReader for complex.objects failed: %v", err)
 		}
@@ -248,7 +262,7 @@ complex:
 		}
 
 		objectsReader.Children()(func(key NodeChildrenKey, objReader NodeReader) bool {
-			nameValue, err := objReader.ReadString("name")
+			nameValue, err := objReader.ReadString(pathName)
 			if err != nil {
 				t.Errorf("ReadString for name failed: %v", err)
 			}
@@ -256,7 +270,7 @@ complex:
 				t.Errorf("Expected name %q, got %q", expectedObjects[objectCount].name, nameValue)
 			}
 
-			intValue, err := objReader.ReadInt("value")
+			intValue, err := objReader.ReadInt(pathValue)
 			if err != nil {
 				t.Errorf("ReadInt for value failed: %v", err)
 			}
@@ -274,67 +288,117 @@ complex:
 	})
 }
 
-func TestParseFieldPath(t *testing.T) {
+func TestFieldPath(t *testing.T) {
+	yamlData := `
+string_value: "test string"
+nested:
+  inner_value: "nested value"
+  inner_int: 123
+  inner_bool: true
+`
+	node, err := FromYAML(yamlData)
+	if err != nil {
+		t.Fatalf("failed to parse YAML: %v", err)
+	}
+	reader := NewNodeReader(node)
+
+	pathString := CompileFieldPath("string_value")
+	pathNestedStr := CompileFieldPath("nested.inner_value")
+	pathNestedInt := CompileFieldPath("nested.inner_int")
+	pathNestedBool := CompileFieldPath("nested.inner_bool")
+	pathNonExistent := CompileFieldPath("nested.non_existent")
+
+	if got := reader.ReadStringOrDefault(pathString, ""); got != "test string" {
+		t.Errorf("ReadStringOrDefault() mismatch: want %q, got %q", "test string", got)
+	}
+	if got := reader.ReadStringOrDefault(pathNestedStr, ""); got != "nested value" {
+		t.Errorf("ReadStringOrDefault() mismatch: want %q, got %q", "nested value", got)
+	}
+	if got := reader.ReadIntOrDefault(pathNestedInt, 0); got != 123 {
+		t.Errorf("ReadIntOrDefault() mismatch: want %d, got %d", 123, got)
+	}
+	if got := reader.ReadBoolOrDefault(pathNestedBool, false); !got {
+		t.Errorf("ReadBoolOrDefault() mismatch: want true, got %v", got)
+	}
+	if got := reader.ReadStringOrDefault(pathNonExistent, "default"); got != "default" {
+		t.Errorf("ReadStringOrDefault() fallback mismatch: want %q, got %q", "default", got)
+	}
+}
+
+func TestNodeReader_WithOrderedMapNode(t *testing.T) {
+	yamlData := `
+zebra: "last_alphabetical"
+alpha: "first_alphabetical"
+nested:
+  beta: "inner_beta"
+`
+	node, err := FromYAML(yamlData)
+	if err != nil {
+		t.Fatalf("failed to parse YAML: %v", err)
+	}
+
+	// Wrap root node with WithKeyOrder
+	ordered := WithKeyOrder(node, "zebra", "alpha")
+	reader := NewNodeReader(ordered)
+
 	testCases := []struct {
-		name     string
-		input    string
-		expected []string
+		name string
+		path FieldPath
+		want string
 	}{
 		{
-			name:     "simple path",
-			input:    "a.b.c",
-			expected: []string{"a", "b", "c"},
+			name: "read zebra field from ordered node",
+			path: CompileFieldPath("zebra"),
+			want: "last_alphabetical",
 		},
 		{
-			name:     "empty path",
-			input:    "",
-			expected: []string{""},
+			name: "read alpha field from ordered node",
+			path: CompileFieldPath("alpha"),
+			want: "first_alphabetical",
 		},
 		{
-			name:     "path with single segment",
-			input:    "single",
-			expected: []string{"single"},
-		},
-		{
-			name:     "escaped dots",
-			input:    "a\\.b.c",
-			expected: []string{"a.b", "c"},
-		},
-		{
-			name:     "backslash following non dot char",
-			input:    "a\\_b.c",
-			expected: []string{"a\\_b", "c"},
-		},
-		{
-			name:     "multiple escaped dots",
-			input:    "a\\.b\\.c.d",
-			expected: []string{"a.b.c", "d"},
-		},
-		{
-			name:     "trailing escape character",
-			input:    "a.b\\",
-			expected: []string{"a", "b\\"},
-		},
-		{
-			name:     "trailing escaped dot",
-			input:    "a.b\\.",
-			expected: []string{"a", "b."},
+			name: "read nested field from ordered node",
+			path: CompileFieldPath("nested.beta"),
+			want: "inner_beta",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := ParseFieldPath(tc.input)
-
-			if len(result) != len(tc.expected) {
-				t.Errorf("Expected %d segments, got %d", len(tc.expected), len(result))
-				return
+			got := reader.ReadStringOrDefault(tc.path, "")
+			if got != tc.want {
+				t.Errorf("ReadStringOrDefault() mismatch (-want %q, +got %q)", tc.want, got)
 			}
+		})
+	}
+}
 
-			for i, segment := range result {
-				if segment != tc.expected[i] {
-					t.Errorf("Segment %d: expected %q, got %q", i, tc.expected[i], segment)
-				}
+func TestNodeReader_NilChildHandling(t *testing.T) {
+	testCases := []struct {
+		name    string
+		reader  *NodeReader
+		path    FieldPath
+		wantErr error
+	}{
+		{
+			name:    "nil reader node returns ErrFieldNotFound",
+			reader:  NewNodeReader(nil),
+			path:    CompileFieldPath("a.b.c"),
+			wantErr: ErrFieldNotFound,
+		},
+		{
+			name:    "map containing nil child returns ErrFieldNotFound on subpath",
+			reader:  NewNodeReader(NewStandardMap([]string{"a"}, []Node{nil})),
+			path:    CompileFieldPath("a.b"),
+			wantErr: ErrFieldNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := tc.reader.GetNode(tc.path)
+			if err != tc.wantErr {
+				t.Errorf("GetNode() error mismatch (-want %v, +got %v)", tc.wantErr, err)
 			}
 		})
 	}

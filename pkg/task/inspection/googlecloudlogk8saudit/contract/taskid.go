@@ -16,7 +16,6 @@ package googlecloudlogk8saudit_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
@@ -24,9 +23,9 @@ import (
 // TaskIDPrefix is the prefix for all task IDs in the googlecloudlogk8saudit package.
 const TaskIDPrefix = "cloud.google.com/log/k8s-audit/"
 
-var GCPK8sAuditLogListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "audit-list-log-entries")
+var GCPK8sAuditLogListLogEntriesTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogProviderRef, "gcp")
 
-var GCPK8sAuditLogCommonFieldSetReaderTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogProviderRef, "gcp")
+var GCPK8sAuditLogExtractorTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogExtractorRef, "gcp")
 
 var GCPK8sAuditLogParserTailTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogParserTailRef, "gcp")
 

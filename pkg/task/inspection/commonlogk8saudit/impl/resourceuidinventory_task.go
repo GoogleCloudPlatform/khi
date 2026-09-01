@@ -60,8 +60,8 @@ var ResourceUIDDiscoveryTask = commonlogk8saudit_contract.ResourceUIDInventoryBu
 				if log.ResourceBodyReader == nil {
 					continue
 				}
-				uid, err := log.ResourceBodyReader.ReadString("metadata.uid")
-				if err != nil {
+				uid, found := GetUID(log.ResourceBodyReader)
+				if !found {
 					continue
 				}
 				result[uid] = group.Resource

@@ -18,10 +18,10 @@
   <as-split direction="vertical">
     <as-split-area size="50">
       <khi-log-list
-        [allLogsCount]="allLogsCount()"
-        [filteredLogs]="filteredLogs()"
+        [logStore]="logStore()"
+        [filteredLogIds]="filteredLogIds()"
         [selectedLogIndex]="selectedLogIndex()"
-        [highlightLogIndices]="highlightLogIndices()"
+        [highlightedLogIndices]="highlightedLogIndices()"
         [selectedTimelinesWithChildren]="selectedTimelinesWithChildren()"
         [(filterByTimeline)]="filterByTimeline"
         [includeTimelineChildren]="includeTimelineChildren()"

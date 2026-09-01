@@ -22,10 +22,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -39,8 +39,8 @@ func TestContainerStateWalker(t *testing.T) {
 		if a == nil || b == nil {
 			return a == b
 		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize("", &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize("", &structured.YAMLNodeSerializer{})
+		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 		if errA != nil || errB != nil {
 			return false
 		}
@@ -354,14 +354,11 @@ state:
 				podName:      podName,
 			}
 
-			l := log.NewLogWithFieldSetsForTest()
+			l := testlog.NewMockLog()
 			cs := khifilev6.NewTimelineChangeSet(l)
 
 			for _, step := range tt.steps {
-				commonFieldSet := &log.CommonFieldSet{
-					Timestamp: step.timestamp,
-				}
-				k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				k8sFieldSet := commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					Verb:        step.verb,
 					Principal:   "user-1",
 					ClusterName: "k8s",
@@ -376,7 +373,7 @@ state:
 					stateReader = structured.NewNodeReader(node)
 				}
 
-				walker.CheckAndRecord(ctx, stateReader, cs, commonFieldSet, k8sFieldSet)
+				walker.CheckAndRecord(ctx, stateReader, cs, step.timestamp, k8sFieldSet)
 			}
 
 			if len(tt.wantRevisions) == 0 {
@@ -400,8 +397,8 @@ func TestContainerLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 		if a == nil || b == nil {
 			return a == b
 		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize("", &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize("", &structured.YAMLNodeSerializer{})
+		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 		if errA != nil || errB != nil {
 			return false
 		}
@@ -643,22 +640,19 @@ status:
 				reader = structured.NewNodeReader(node)
 			}
 
-			l := log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{},
-				&commonlogk8saudit_contract.K8sAuditLogFieldSet{},
-			)
-			commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
-			commonFieldSet.Timestamp = testTime
-			k8sFieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
-
 			verb := tc.verb
 			if verb == nil {
 				verb = commonlogk8saudit_contract.VerbUpdate
 			}
-			k8sFieldSet.Verb = verb
-			k8sFieldSet.Principal = "user-1"
-			k8sFieldSet.ClusterName = "k8s"
-			k8sFieldSet.IsDryRun = tc.isDryRun
+			l := testlog.NewMockLog(
+				testTime,
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					Verb:        verb,
+					Principal:   "user-1",
+					ClusterName: "k8s",
+					IsDryRun:    tc.isDryRun,
+				},
+			)
 
 			resIdentity := &commonlogk8saudit_contract.ResourceIdentity{
 				APIVersion: "core/v1",

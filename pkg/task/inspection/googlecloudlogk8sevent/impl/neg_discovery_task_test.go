@@ -26,6 +26,7 @@ import (
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestEventLogNEGDiscoveryTask(t *testing.T) {
@@ -38,10 +39,10 @@ func TestEventLogNEGDiscoveryTask(t *testing.T) {
 		{
 			name: "valid event log",
 			logs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: time.Now()}, &googlecloudlogk8sevent_contract.KubernetesEventFieldSet{
+				testlog.NewMockLog(time.Now(), googlecloudlogk8sevent_contract.KubernetesEventFieldSet{
 					Message: `Pod has become Healthy in NEG "Key{\"k8s1-event\", zone: \"asia-northeast1-b\"}" attached to BackendService "Key{\"bs-event\"}". Marking condition "cloud.google.com/load-balancer-neg-ready" to True.`,
 				}),
-				log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: time.Now()}), // no fieldset
+				testlog.NewMockLog(time.Now()), // no fieldset
 			},
 			taskMode: inspectioncore_contract.TaskModeRun,
 			want: googlecloudk8scommon_contract.NEGToBackendServiceMap{
@@ -51,7 +52,7 @@ func TestEventLogNEGDiscoveryTask(t *testing.T) {
 		{
 			name: "dry run mode",
 			logs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: time.Now()}, &googlecloudlogk8sevent_contract.KubernetesEventFieldSet{
+				testlog.NewMockLog(time.Now(), googlecloudlogk8sevent_contract.KubernetesEventFieldSet{
 					Message: `Pod has become Healthy in NEG "Key{\"k8s1-event\", zone: \"asia-northeast1-b\"}" attached to BackendService "Key{\"bs-event\"}". Marking condition "cloud.google.com/load-balancer-neg-ready" to True.`,
 				}),
 			},
@@ -64,7 +65,7 @@ func TestEventLogNEGDiscoveryTask(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			result, _, err := inspectiontest.RunInspectionTask(ctx, EventLogNEGDiscoveryTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(googlecloudlogk8sevent_contract.FieldSetReaderTaskID.Ref(), tc.logs),
+				tasktest.NewTaskDependencyValuePair(googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref(), tc.logs),
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

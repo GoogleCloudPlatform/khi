@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -29,13 +30,20 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+var (
+	pathGrouperItems        = structured.CompileFieldPath("items")
+	pathGrouperMetadataName = structured.CompileFieldPath("metadata.name")
+	pathGrouperAPIVersion   = structured.CompileFieldPath("apiVersion")
+	pathGrouperKind         = structured.CompileFieldPath("kind")
+)
+
 // NonSuccessLogGrouperTask groups logs by resource path.
 // K8s audit error logs are simply associated with timelines as events. They don't require any special grouping, so they use the resource associated with the original resource name modified by the request.
 var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	commonlogk8saudit_contract.NonSuccessLogGrouperTaskID,
 	commonlogk8saudit_contract.NonSuccessLogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+		fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.NodeReader)
 		return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s,name=%s, subresource=%s", fieldSet.APIVersion, fieldSet.PluralKind, fieldSet.Namespace, fieldSet.ResourceName, fieldSet.SubresourceName)
 	},
 )
@@ -57,6 +65,7 @@ var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspection
 		logs := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.LogSorterTaskID.Ref())
 		result := commonlogk8saudit_contract.ResourceLogGroupMap{}
 		scanner := targetResourceScanner{
+			ctx:                                 ctx,
 			resourcesByNamespaceKindAPIVersions: map[string]map[string]struct{}{},
 			subresourceDefaultBehaviorOverrides: defaultSubresourceDefaultBehaviorOverrides,
 		}
@@ -96,6 +105,7 @@ var defaultSubresourceDefaultBehaviorOverrides = map[string]subresourceDefaultBe
 }
 
 type targetResourceScanner struct {
+	ctx                                 context.Context
 	resourcesByNamespaceKindAPIVersions map[string]map[string]struct{}
 	subresourceDefaultBehaviorOverrides map[string]subresourceDefaultBehavior
 }
@@ -118,7 +128,7 @@ func (s *targetResourceScanner) scanTargetResource(l *log.Log) []*model.Kubernet
 }
 
 func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.KubernetesObjectOperation {
-	fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(s.ctx, l.NodeReader)
 	op := &model.KubernetesObjectOperation{
 		APIVersion:      fieldSet.APIVersion,
 		PluralKind:      fieldSet.PluralKind,
@@ -127,15 +137,16 @@ func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.
 		SubResourceName: fieldSet.SubresourceName,
 		Verb:            fieldSet.Verb,
 	}
+
 	if fieldSet.Verb == commonlogk8saudit_contract.VerbDeleteCollection {
 		removedResourceNames := []*model.KubernetesObjectOperation{}
 		foundItemSource := false
 		if fieldSet.Response != nil {
-			reader, err := fieldSet.Response.GetReader("items")
+			reader, err := fieldSet.Response.GetReader(pathGrouperItems)
 			if err == nil {
 				foundItemSource = true
 				for _, resource := range reader.Children() {
-					name, err := resource.ReadString("metadata.name")
+					name, err := resource.ReadString(pathGrouperMetadataName)
 					if err == nil {
 						itemOperation := op.Clone()
 						itemOperation.Name = name
@@ -165,9 +176,9 @@ func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.
 			// Response to a subresource may contain its parent resource, so we need to check the response kind.
 			opForSubresource := op.Clone()
 			if fieldSet.Response != nil {
-				apiVersion, err := fieldSet.Response.ReadString("apiVersion")
+				apiVersion, err := fieldSet.Response.ReadString(pathGrouperAPIVersion)
 				if err == nil {
-					kind, err := fieldSet.Response.ReadString("kind")
+					kind, err := fieldSet.Response.ReadString(pathGrouperKind)
 					if err == nil {
 						// If the response object is v1/Status, then use the request as group name source instead.
 						if apiVersion != "v1" || kind != "Status" {

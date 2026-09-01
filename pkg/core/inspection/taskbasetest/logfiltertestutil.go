@@ -23,13 +23,15 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 // FilterTaskTestCase is a test case for testing a filter task.
-// It contains the log fields to be filtered and the expected result.
+// It contains the log or log fields to be filtered and the expected result.
 type FilterTaskTestCase struct {
 	Description  string
-	LogFields    []log.FieldSet
+	Log          *log.Log
+	LogFields    []any
 	WantIncluded bool
 }
 
@@ -39,7 +41,10 @@ func AssertFilterTask(t *testing.T, task coretask.Task[[]*log.Log], sourceRef ta
 	t.Helper()
 	for _, tc := range testCases {
 		t.Run(tc.Description, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(tc.LogFields...)
+			l := tc.Log
+			if l == nil {
+				l = testlog.NewMockLog(tc.LogFields...)
+			}
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
 			result, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(sourceRef, []*log.Log{l}))

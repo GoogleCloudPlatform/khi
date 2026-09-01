@@ -27,9 +27,9 @@ import (
 
 var OtherLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	googlecloudlogk8scontrolplane_contract.OtherLogFilterTaskID,
-	googlecloudlogk8scontrolplane_contract.CommonFieldSetReaderTaskID.Ref(),
+	googlecloudlogk8scontrolplane_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
-		componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
+		componentFieldSet, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneComponent(l.NodeReader)
 		if err != nil {
 			return false
 		}
@@ -37,18 +37,11 @@ var OtherLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	},
 )
 
-var OtherLogFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8scontrolplane_contract.OtherLogFieldSetReaderTaskID,
-	googlecloudlogk8scontrolplane_contract.OtherLogFilterTaskID.Ref(),
-	[]log.FieldSetReader{
-		&googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSetReader{},
-	},
-)
-
 var OtherGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudlogk8scontrolplane_contract.OtherLogGrouperTaskID,
-	googlecloudlogk8scontrolplane_contract.OtherLogFieldSetReaderTaskID.Ref(),
+	googlecloudlogk8scontrolplane_contract.OtherLogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
+		componentFieldSet, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneComponent(l.NodeReader)
 		if err != nil {
 			return ""
 		}
@@ -72,13 +65,13 @@ func (o *OtherTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectionta
 }
 
 // LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *OtherTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (o *OtherTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogk8scontrolplane_contract.LogIngesterTaskID.Ref()
 }
 
 // ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (o *OtherTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
+	componentFieldSet, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneComponent(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
 	}

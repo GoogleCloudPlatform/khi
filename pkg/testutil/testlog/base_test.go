@@ -52,7 +52,7 @@ func TestBaseYamlTestLogOpt(t *testing.T) {
 					t.Errorf("Expecting an error but no error returned.")
 				}
 			} else {
-				yamlStr, err := reader.Serialize("", &structured.YAMLNodeSerializer{})
+				yamlStr, err := reader.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 				if err != nil {
 					t.Errorf("Unexpected error: %v", err)
 				}

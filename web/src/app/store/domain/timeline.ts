@@ -138,6 +138,13 @@ export class Revision {
   }
 
   /**
+   * Gets the ID of the underlying log without instantiating a Log adapter.
+   */
+  get logId(): number {
+    return this.timelineStore._getRevisionLogId(this.id);
+  }
+
+  /**
    * Gets the interned struct ID of the revision body, or 0 if not stored as an interned struct.
    */
   get structId(): number {
@@ -176,6 +183,13 @@ export class Event {
    */
   get timeline(): ReadonlyDomainElement<Timeline> {
     return this.timelineStore.getTimeline(this.timelineId);
+  }
+
+  /**
+   * Gets the ID of the underlying log without instantiating a Log adapter.
+   */
+  get logId(): number {
+    return this.timelineStore._getEventLogId(this.id);
   }
 
   /**
@@ -432,35 +446,17 @@ export class Timeline {
   }
 
   /**
-   * Checks if this timeline contains the specified log within its events using binary search.
-   */
-  public hasLogInEvents(log: ReadonlyDomainElement<Log>): boolean {
-    const events = this.events;
-    const eIdx = bisectLeft(
-      events,
-      log.logIndex,
-      (item, target) => item.logIndex - target,
-    );
-    return eIdx < events.length && events[eIdx].logIndex === log.logIndex;
-  }
-
-  /**
-   * Checks if this timeline contains the specified log within its revisions using binary search.
-   */
-  public hasLogInRevisions(log: ReadonlyDomainElement<Log>): boolean {
-    const revisions = this.revisions;
-    const rIdx = bisectLeft(
-      revisions,
-      log.logIndex,
-      (item, target) => item.logIndex - target,
-    );
-    return rIdx < revisions.length && revisions[rIdx].logIndex === log.logIndex;
-  }
-
-  /**
-   * Checks if this timeline contains the specified log using binary search.
+   * Checks if this timeline contains the specified log.
    */
   public hasLog(log: ReadonlyDomainElement<Log>): boolean {
-    return this.hasLogInEvents(log) || this.hasLogInRevisions(log);
+    if (this.timelineStore) {
+      return this.timelineStore
+        .getTimelineIdsForLogId(log.id)
+        .includes(this.id);
+    }
+    return (
+      this.events.some((e) => e.logIndex === log.logIndex) ||
+      this.revisions.some((r) => r.logIndex === log.logIndex)
+    );
   }
 }

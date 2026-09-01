@@ -15,29 +15,42 @@
 package testlog
 
 import (
+	"time"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 // MustLogFromYAML returns a log.Log instance from given YAML string.
 // This method is for testing only.
-func MustLogFromYAML(text string, fieldReaders ...log.FieldSetReader) *log.Log {
+func MustLogFromYAML(text string) *log.Log {
 	yamlNode, err := structured.FromYAML(text)
 	if err != nil {
 		panic(err.Error())
 	}
-	l := log.NewLog(structured.NewNodeReader(yamlNode))
-	for _, fieldReader := range fieldReaders {
-		err := l.SetFieldSetReader(fieldReader)
-		if err != nil {
-			panic(err.Error())
-		}
+	reader := structured.NewNodeReader(yamlNode)
+	l := log.NewLog(reader)
+	if ts, err := reader.ReadTimestamp(pathTimestamp); err == nil {
+		l.Timestamp = ts
 	}
 	return l
 }
 
+// NewEmptyLogWithID creates a new empty Log with the given ID.
 func NewEmptyLogWithID(id string) *log.Log {
 	l := log.NewLog(structured.NewNodeReader(structured.NewEmptyMapNode()))
 	l.ID = id
+	return l
+}
+
+// NewMockLog returns a *log.Log populated with the provided typed mock data structures.
+func NewMockLog(mockValues ...any) *log.Log {
+	mockNode := structured.NewMockNode(mockValues...)
+	l := log.NewLog(structured.NewNodeReader(mockNode))
+	for _, v := range mockValues {
+		if t, ok := v.(time.Time); ok {
+			l.Timestamp = t
+		}
+	}
 	return l
 }

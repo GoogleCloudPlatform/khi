@@ -29,7 +29,7 @@ type LogIngester interface {
 ### Key Implementation Guide
 
 > [!IMPORTANT]
-> **ChangeSet Metadata Ingestion:** `LogChangeSet` does NOT automatically fill metadata defaults. You MUST explicitly read fields from `CommonFieldSet` (or custom field sets) and set them manually on the `LogChangeSet` in your `ProcessLog` implementation.
+> **ChangeSet Metadata Ingestion:** `LogChangeSet` does NOT automatically fill metadata defaults. You MUST explicitly populate metadata on `LogChangeSet` (such as setting timestamp from `l.Timestamp`, severity, summary, and log type) in your `ProcessLog` implementation.
 >
 > **Skipping Logs:** If `ProcessLog` returns `(nil, nil)`, KHI will treat this log as skipped (ignored) without producing any errors.
 
@@ -54,12 +54,10 @@ func (i *MyLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.
   return nil, err
  }
 
- // 2. Manually extract fields from CommonFieldSet.
- if commonSet, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-  cs.SetTimestamp(commonSet.Timestamp)
- }
+ // 2. Set timestamp directly from l.Timestamp.
+ cs.SetTimestamp(l.Timestamp)
 
- // 3. Set severity, summary, etc. manually using pre-registered styles.
+ // 3. Set severity, summary, etc. using extractor or pre-registered styles.
  cs.SetSeverity(mySeverityStyle)
  cs.SetSummary(mySummaryString)
 
@@ -113,8 +111,8 @@ func (m *ComplexMapper) PreProcessLogByGroup(ctx context.Context, passIndex int,
 }
 
 func (m *ComplexMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData MyState) (*khifilev6.TimelineChangeSet, MyState, error) {
- // 1. Retrieve field data using log.GetFieldSet.
- customSet, err := log.GetFieldSet(l, &MyCustomFieldSet{})
+ // 1. Retrieve field data using extractor function.
+ customSet, err := mycontract.ExtractCustom(l.NodeReader)
  if err != nil {
   return nil, prevGroupData, err
  }
@@ -133,7 +131,7 @@ func (m *ComplexMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevG
  // Add a revision or event conditionally using the pre-collected state and customSet fields.
  if prevGroupData.ShouldRegisterRevision(l) {
   cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-   ChangedTime:  customSet.Timestamp,
+   ChangedTime:  l.Timestamp,
    ResourceBody: customSet.Body,
    Principal:    customSet.Principal,
    VerbType:     mycontract.VerbCreate,
@@ -161,8 +159,8 @@ type StateTrackingMapper struct {
 }
 
 func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData MyState) (*khifilev6.TimelineChangeSet, MyState, error) {
- // 1. Retrieve field data using log.GetFieldSet.
- customSet, err := log.GetFieldSet(l, &MyCustomFieldSet{})
+ // 1. Retrieve field data using extractor function.
+ customSet, err := mycontract.ExtractCustom(l.NodeReader)
  if err != nil {
   return nil, prevGroupData, err
  }
@@ -183,7 +181,7 @@ func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 
  // Append resource revision history sequentially to the timeline.
  cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-  ChangedTime:  customSet.Timestamp,
+  ChangedTime:  l.Timestamp,
   ResourceBody: customSet.Body,
   Principal:    customSet.Principal,
   VerbType:     mycontract.VerbUpdate,
@@ -260,7 +258,7 @@ KHI provides a dedicated test utility `github.com/GoogleCloudPlatform/khi/pkg/te
 
 #### LogIngester Table-Driven Assertion Example
 
-To isolate ingester parsing logic, instantiate logs using `log.NewLogWithFieldSetsForTest` and define chainable assertions inside test cases:
+To isolate ingester parsing logic, instantiate logs using `testlog.NewMockLog` with typed field sets (which can receive multiple fieldsets and an optional `time.Time`):
 
 ```go
 func TestMyLogIngester_ProcessLog(t *testing.T) {
@@ -271,13 +269,10 @@ func TestMyLogIngester_ProcessLog(t *testing.T) {
  }{
   {
    name: "successful info log ingestion",
-   input: log.NewLogWithFieldSetsForTest(
-    &log.CommonFieldSet{
-     Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
-     Severity:  "INFO",
-    },
-    &googlecloudcommon_contract.GCPMainMessageFieldSet{
-     MainMessage: "server started",
+   input: testlog.NewMockLog(
+    time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+    MyLogFieldSet{
+     Message: "server started",
     },
    ),
    assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
@@ -307,7 +302,7 @@ func TestMyLogIngester_ProcessLog(t *testing.T) {
 
 #### TimelineMapper Table-Driven Assertion Example
 
-Mappers translate structured log `FieldSet` data into timeline changes. Isolate mapper tests using `log.NewLogWithFieldSetsForTest` and execute assertions using the fluent `changeset` asserter.
+Mappers translate structured logs into timeline changes. Isolate mapper tests using `testlog.NewMockLog` and execute assertions using the fluent `changeset` asserter.
 
 > [!IMPORTANT]
 > **Shared Builder Reference:** When unit testing mappers that dynamically construct timeline paths via context builder, you MUST initialize a single `khifilev6.Builder` and resolve all comparison `TimelinePath` instances using this builder. Crucially, the same builder instance must be injected into the execution context using `khictx.WithValue` to ensure pointer equality during assertions.
@@ -332,10 +327,13 @@ func TestMyTimelineMapper_ProcessLogByGroup(t *testing.T) {
  }{
   {
    name: "create resource revision",
-   inputLog: log.NewLogWithFieldSetsForTest(&MyCustomFieldSet{
-    Verb: "create",
-   }),
-   prevState:      MyState{},
+   inputLog: testlog.NewMockLog(
+    time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+    map[string]any{
+     "verb": "create",
+    },
+   ),
+   prevState: MyState{},
    assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
     testchangeset.AssertTimeline(t, cs).
      HasEvent(resourceTimelinePath).
@@ -346,10 +344,13 @@ func TestMyTimelineMapper_ProcessLogByGroup(t *testing.T) {
   },
   {
    name: "skip timeline revision on delete verb",
-   inputLog: log.NewLogWithFieldSetsForTest(&MyCustomFieldSet{
-    Verb: "delete",
-   }),
-   prevState:      MyState{},
+   inputLog: testlog.NewMockLog(
+    time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+    map[string]any{
+     "verb": "delete",
+    },
+   ),
+   prevState: MyState{},
    assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
     testchangeset.AssertTimeline(t, cs).
      HasNoEvent(resourceTimelinePath).

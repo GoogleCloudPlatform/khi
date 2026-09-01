@@ -89,7 +89,7 @@ func TestNodeReaderWithKeyOrder(t *testing.T) {
 	reader := NewNodeReader(node)
 
 	orderedReader := reader.WithKeyOrder("insertId", "logName")
-	yamlBytes, err := orderedReader.Serialize("", &YAMLNodeSerializer{})
+	yamlBytes, err := orderedReader.Serialize(EmptyFieldPath, &YAMLNodeSerializer{})
 	if err != nil {
 		t.Fatalf("Serialize failed: %v", err)
 	}

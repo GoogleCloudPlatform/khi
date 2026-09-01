@@ -22,10 +22,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -48,8 +48,8 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 		if a == nil || b == nil {
 			return a == b
 		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize("", &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize("", &structured.YAMLNodeSerializer{})
+		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 		if errA != nil || errB != nil {
 			return false
 		}
@@ -573,20 +573,19 @@ uid: "test-uid"`,
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			// Setup the Log and Mock Group Context dynamically for each test case.
-			k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				Principal:    "admin",
-				APIVersion:   "core/v1",
-				PluralKind:   "pods",
-				ResourceName: "test",
-				Namespace:    "default",
-				ClusterName:  "k8s",
-				Verb:         tc.verb,
-				IsDryRun:     tc.isDryRun,
-			}
-			commonFs := &log.CommonFieldSet{
-				Timestamp: testTime,
-			}
-			logObj := log.NewLogWithFieldSetsForTest(k8sFieldSet, commonFs)
+			logObj := testlog.NewMockLog(
+				testTime,
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					Principal:    "admin",
+					APIVersion:   "core/v1",
+					PluralKind:   "pods",
+					ResourceName: "test",
+					Namespace:    "default",
+					ClusterName:  "k8s",
+					Verb:         tc.verb,
+					IsDryRun:     tc.isDryRun,
+				},
+			)
 
 			node := parseYAML(tc.bodyYAML)
 			var nodeReader *structured.NodeReader
@@ -886,19 +885,18 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 
 			var events []commonlogk8saudit_contract.MultiGroupLogEvent
 			for _, el := range tc.eventLogs {
-				k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-					Principal:    "admin",
-					APIVersion:   "core/v1",
-					PluralKind:   "pods",
-					ResourceName: "test",
-					Namespace:    "default",
-					ClusterName:  "k8s",
-					Verb:         el.verb,
-				}
-				commonFs := &log.CommonFieldSet{
-					Timestamp: el.time,
-				}
-				logObj := log.NewLogWithFieldSetsForTest(k8sFieldSet, commonFs)
+				logObj := testlog.NewMockLog(
+					el.time,
+					commonlogk8saudit_contract.K8sAuditLogFieldSet{
+						Principal:    "admin",
+						APIVersion:   "core/v1",
+						PluralKind:   "pods",
+						ResourceName: "test",
+						Namespace:    "default",
+						ClusterName:  "k8s",
+						Verb:         el.verb,
+					},
+				)
 				node, err := structured.FromYAML(el.bodyYAML)
 				if err != nil {
 					t.Fatalf("failed to parse test YAML: %v", err)

@@ -39,8 +39,9 @@ describe('LogViewLogLineComponent', () => {
     fixture = TestBed.createComponent(LogViewLogLineComponent);
     component = fixture.componentInstance;
 
-    // Set required input
-    fixture.componentRef.setInput('log', mockLog);
+    // Set required inputs
+    fixture.componentRef.setInput('logId', mockLog.id);
+    fixture.componentRef.setInput('logStore', mockData.logStore);
 
     fixture.detectChanges();
   });
@@ -58,14 +59,14 @@ describe('LogViewLogLineComponent', () => {
     spyOn(component.lineClick, 'emit');
     const rowEl = fixture.debugElement.query(By.css('.log-row'));
     rowEl.nativeElement.click();
-    expect(component.lineClick.emit).toHaveBeenCalledWith(mockLog);
+    expect(component.lineClick.emit).toHaveBeenCalledWith(mockLog.id);
   });
 
   it('should emit lineHover event on mouseover', () => {
     spyOn(component.lineHover, 'emit');
     const rowEl = fixture.debugElement.query(By.css('.log-row'));
     rowEl.nativeElement.dispatchEvent(new Event('mouseover'));
-    expect(component.lineHover.emit).toHaveBeenCalledWith(mockLog);
+    expect(component.lineHover.emit).toHaveBeenCalledWith(mockLog.id);
   });
 
   it('should apply highlight class when highlighted input is true', () => {

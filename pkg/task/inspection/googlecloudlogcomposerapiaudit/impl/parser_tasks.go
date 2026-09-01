@@ -32,30 +32,19 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReaderTask reads and parses field sets from Cloud Composer audit logs.
-var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudlogcomposerapiaudit_contract.FieldSetReaderTaskID,
-	googlecloudlogcomposerapiaudit_contract.ListLogEntriesTaskID.Ref(),
-	[]log.FieldSetReader{
-		&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
-		&googlecloudlogcomposerapiaudit_contract.ComposerAuditLogResourceFieldSetReader{},
-		&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
-	},
-)
-
 // LogIngesterTask ingests Cloud Composer audit logs into KHI v6 format.
 var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudlogcomposerapiaudit_contract.LogIngesterTaskID,
-	googlecloudlogcomposerapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlogcomposerapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudlogcomposerapiaudit_contract.LogTypeManagedAirflowAPI,
 )
 
 // LogGrouperTask groups Cloud Composer audit logs by environment name.
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudlogcomposerapiaudit_contract.LogGrouperTaskID,
-	googlecloudlogcomposerapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlogcomposerapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		resourceFieldSet, err := log.GetFieldSet(l, &googlecloudlogcomposerapiaudit_contract.ComposerAuditLogResourceFieldSet{})
+		resourceFieldSet, err := googlecloudlogcomposerapiaudit_contract.ExtractComposerAuditLogResource(l.NodeReader)
 		if err != nil {
 			return "unknown"
 		}
@@ -90,9 +79,11 @@ func (s *composerAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.Tas
 }
 
 // LogIngesterTask returns a reference to the log ingester task.
-func (s *composerAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (s *composerAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogcomposerapiaudit_contract.LogIngesterTaskID.Ref()
 }
+
+var pathEnvironment = structured.CompileFieldPath("environment")
 
 // ProcessLogByGroup maps a single Composer audit log entry to timeline events and revisions.
 func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
@@ -103,15 +94,11 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 	if tracker == nil {
 		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
 	}
-	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
-	auditFieldSet, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
-	if err != nil {
-		return nil, tracker, err
-	}
-	resourceFieldSet, err := log.GetFieldSet(l, &googlecloudlogcomposerapiaudit_contract.ComposerAuditLogResourceFieldSet{})
+	resourceFieldSet, err := googlecloudlogcomposerapiaudit_contract.ExtractComposerAuditLogResource(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -140,7 +127,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 	case "CreateEnvironment":
 		var bodyNode structured.Node
 		if auditFieldSet.Request != nil {
-			if subReader, err := auditFieldSet.Request.GetReader("environment"); err == nil {
+			if subReader, err := auditFieldSet.Request.GetReader(pathEnvironment); err == nil {
 				bodyNode = subReader.Node
 			} else {
 				bodyNode = auditFieldSet.Request.Node
@@ -169,7 +156,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 			VerbType:     commonlogk8saudit_contract.VerbCreate,
 			StateType:    state,
 			Principal:    auditFieldSet.PrincipalEmail,
-			ChangedTime:  commonFieldSet.Timestamp,
+			ChangedTime:  l.Timestamp,
 			ResourceBody: bodyNode,
 		})
 		tracker.MarkResourceRevision(envTimeline)
@@ -208,13 +195,13 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 			VerbType:     commonlogk8saudit_contract.VerbDelete,
 			StateType:    state,
 			Principal:    auditFieldSet.PrincipalEmail,
-			ChangedTime:  commonFieldSet.Timestamp,
+			ChangedTime:  l.Timestamp,
 			ResourceBody: nil,
 		})
 		tracker.MarkResourceRevision(envTimeline)
 	}
 
-	tracker.ProcessOperationLog(ctx, cs, operationTimeline, auditFieldSet, commonFieldSet.Timestamp)
+	tracker.ProcessOperationLog(ctx, cs, operationTimeline, &auditFieldSet, l.Timestamp)
 
 	return cs, tracker, nil
 }

@@ -129,7 +129,7 @@ qux:
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			yamlStr, err := NewNodeReader(node).Serialize("", &YAMLNodeSerializer{})
+			yamlStr, err := NewNodeReader(node).Serialize(EmptyFieldPath, &YAMLNodeSerializer{})
 			if err != nil {
 				t.Fatal(err.Error())
 			}

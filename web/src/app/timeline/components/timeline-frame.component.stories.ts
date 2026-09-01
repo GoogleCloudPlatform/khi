@@ -32,8 +32,14 @@ import {
 import {
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
+  TimelineChartStyle,
+  TimelineRulerStyle,
 } from 'src/app/timeline/components/style-model';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
+import { Log } from 'src/app/store/domain/log';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 function msToNs(ms: number): bigint {
   return BigInt(Math.floor(ms)) * 1000000n;
@@ -57,25 +63,45 @@ function filterTimelineHighlight(
   );
 }
 
+interface TimelineFrameStoryViewModelNotReady {
+  readonly ready: false;
+}
+
+interface TimelineFrameStoryViewModelReady {
+  readonly ready: true;
+  readonly timelines: readonly ReadonlyDomainElement<Timeline>[];
+  readonly logs: ReadonlyDomainElement<Log>[];
+  readonly filteredLogIds: IdBitset;
+  readonly minLogTime: number;
+  readonly maxLogTime: number;
+  readonly chartStyle: TimelineChartStyle;
+  readonly rulerStyle: TimelineRulerStyle;
+  readonly styleStore: StyleStoreLike;
+}
+
+type TimelineFrameStoryViewModel =
+  TimelineFrameStoryViewModelNotReady | TimelineFrameStoryViewModelReady;
+
 @Component({
   template: `
-    @if (viewModel().ready) {
+    @let vm = viewModel();
+    @if (vm.ready) {
       <khi-timeline-frame
-        [timelines]="viewModel().timelines"
-        [minQueryLogTimeMS]="viewModel().minLogTime"
-        [maxQueryLogTimeMS]="viewModel().maxLogTime"
+        [timelines]="vm.timelines"
+        [minQueryLogTimeMS]="vm.minLogTime"
+        [maxQueryLogTimeMS]="vm.maxLogTime"
         [viewportLeftTimeMS]="viewportLeftTimeMS()"
         [pixelsPerMs]="pixelsPerMs()"
         [timelineHighlights]="timelineHighlights()"
         [timelineChartItemHighlights]="timelineChartItemHighlights()"
         [cursorTimeMS]="timeCursorMS()"
         [timezoneShiftHours]="9"
-        [allLogsWithoutFilter]="viewModel().logs"
-        [filteredLogs]="viewModel().filteredLogs"
+        [allLogs]="vm.logs"
+        [filteredLogIds]="vm.filteredLogIds"
         [timelineHoverOverlayRequest]="timelineHoverRequest()"
-        [chartStyle]="viewModel().chartStyle!"
-        [rulerStyle]="viewModel().rulerStyle!"
-        [styleStore]="viewModel().styleStore!"
+        [chartStyle]="vm.chartStyle"
+        [rulerStyle]="vm.rulerStyle"
+        [styleStore]="vm.styleStore"
         (hoverOnTimeline)="hoverOnTimeline($event)"
         (clickOnTimeline)="clickOnTimeline($event)"
         (hoverOnTimelineItem)="hoverOnTimelineChartItem($event)"
@@ -108,19 +134,11 @@ class TimelineFrameStoriesComponent {
     });
   }
 
-  viewModel = computed(() => {
+  viewModel = computed<TimelineFrameStoryViewModel>(() => {
     const data = this.khiInspectionData.value();
     if (!data) {
       return {
         ready: false,
-        timelines: [],
-        logs: [],
-        filteredLogs: [],
-        minLogTime: 0,
-        maxLogTime: 0,
-        chartStyle: undefined,
-        rulerStyle: undefined,
-        styleStore: undefined,
       };
     }
     const minTimeMs = data.metadata?.header
@@ -134,7 +152,7 @@ class TimelineFrameStoriesComponent {
       ready: true,
       timelines: data.timelineStore.timelines,
       logs,
-      filteredLogs: logs,
+      filteredLogIds: IdBitset.fromAll(logs.map((log) => log.id)),
       minLogTime: minTimeMs,
       maxLogTime: maxTimeMs,
       chartStyle: generateDefaultChartStyle(),

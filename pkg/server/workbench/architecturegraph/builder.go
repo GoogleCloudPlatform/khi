@@ -36,6 +36,43 @@ const (
 
 var podPhaseChildRegex = regexp.MustCompile(`^([^/]+)/([^\[]+?)(?:\[([^\]]*)\])?$`)
 
+var (
+	pathMetadataUID                 = structured.CompileFieldPath("metadata.uid")
+	pathMetadataLabels              = structured.CompileFieldPath("metadata.labels")
+	pathMetadataOwnerReferences     = structured.CompileFieldPath("metadata.ownerReferences")
+	pathSpecPodCIDR                 = structured.CompileFieldPath("spec.podCIDR")
+	pathSpecTaints                  = structured.CompileFieldPath("spec.taints")
+	pathKey                         = structured.CompileFieldPath("key")
+	pathEffect                      = structured.CompileFieldPath("effect")
+	pathStatusAddresses             = structured.CompileFieldPath("status.addresses")
+	pathType                        = structured.CompileFieldPath("type")
+	pathAddress                     = structured.CompileFieldPath("address")
+	pathStatusPodIP                 = structured.CompileFieldPath("status.podIP")
+	pathStatusPhase                 = structured.CompileFieldPath("status.phase")
+	pathSpecNodeName                = structured.CompileFieldPath("spec.nodeName")
+	pathSpecInitContainers          = structured.CompileFieldPath("spec.initContainers")
+	pathSpecContainers              = structured.CompileFieldPath("spec.containers")
+	pathName                        = structured.CompileFieldPath("name")
+	pathReady                       = structured.CompileFieldPath("ready")
+	pathStateRunning                = structured.CompileFieldPath("state.running")
+	pathStateTerminated             = structured.CompileFieldPath("state.terminated")
+	pathStateWaiting                = structured.CompileFieldPath("state.waiting")
+	pathReason                      = structured.CompileFieldPath("reason")
+	pathExitCode                    = structured.CompileFieldPath("exitCode")
+	pathStatusInitContainerStatuses = structured.CompileFieldPath("status.initContainerStatuses")
+	pathStatusContainerStatuses     = structured.CompileFieldPath("status.containerStatuses")
+	pathTargetName                  = structured.CompileFieldPath("target.name")
+	pathSpecTargetName              = structured.CompileFieldPath("spec.target.name")
+	pathSpecType                    = structured.CompileFieldPath("spec.type")
+	pathStatusClusterIP             = structured.CompileFieldPath("status.clusterIp")
+	pathSpecClusterIP               = structured.CompileFieldPath("spec.clusterIP")
+	pathSpecSelector                = structured.CompileFieldPath("spec.selector")
+	pathUID                         = structured.CompileFieldPath("uid")
+	pathStatusConditions            = structured.CompileFieldPath("status.conditions")
+	pathStatus                      = structured.CompileFieldPath("status")
+	pathMessage                     = structured.CompileFieldPath("message")
+)
+
 // podPhaseInfo stores pod placement and phase metadata resolved from a node's child pod-phase timeline.
 type podPhaseInfo struct {
 	timelineID     uint32
@@ -414,24 +451,24 @@ func (b *Builder) parseNode(
 		return node
 	}
 
-	node.Uid = proto.String(reader.ReadStringOrDefault("metadata.uid", ""))
-	node.Labels = readMap(reader, "metadata.labels")
-	node.PodCidr = proto.String(reader.ReadStringOrDefault("spec.podCIDR", "-"))
+	node.Uid = proto.String(reader.ReadStringOrDefault(pathMetadataUID, ""))
+	node.Labels = readMap(reader, pathMetadataLabels)
+	node.PodCidr = proto.String(reader.ReadStringOrDefault(pathSpecPodCIDR, "-"))
 
-	if taintsReader, err := reader.GetReader("spec.taints"); err == nil {
+	if taintsReader, err := reader.GetReader(pathSpecTaints); err == nil {
 		for _, tReader := range taintsReader.Children() {
-			key := tReader.ReadStringOrDefault("key", "")
-			effect := tReader.ReadStringOrDefault("effect", "")
+			key := tReader.ReadStringOrDefault(pathKey, "")
+			effect := tReader.ReadStringOrDefault(pathEffect, "")
 			if key != "" {
 				node.Taints = append(node.Taints, fmt.Sprintf("%s(%s)", key, effect))
 			}
 		}
 	}
 
-	if addrsReader, err := reader.GetReader("status.addresses"); err == nil {
+	if addrsReader, err := reader.GetReader(pathStatusAddresses); err == nil {
 		for _, aReader := range addrsReader.Children() {
-			addrType := aReader.ReadStringOrDefault("type", "")
-			addr := aReader.ReadStringOrDefault("address", "")
+			addrType := aReader.ReadStringOrDefault(pathType, "")
+			addr := aReader.ReadStringOrDefault(pathAddress, "")
 			if addrType == "InternalIP" && addr != "" {
 				node.InternalIp = proto.String(addr)
 			} else if addrType == "ExternalIP" && addr != "" {
@@ -470,15 +507,15 @@ func (b *Builder) parsePod(
 	containersMap := make(map[string]*apiv1.GraphContainer)
 
 	if reader != nil {
-		pod.Uid = proto.String(reader.ReadStringOrDefault("metadata.uid", ""))
-		pod.Labels = readMap(reader, "metadata.labels")
-		pod.PodIp = proto.String(reader.ReadStringOrDefault("status.podIP", "-"))
-		phase := reader.ReadStringOrDefault("status.phase", "Unknown")
+		pod.Uid = proto.String(reader.ReadStringOrDefault(pathMetadataUID, ""))
+		pod.Labels = readMap(reader, pathMetadataLabels)
+		pod.PodIp = proto.String(reader.ReadStringOrDefault(pathStatusPodIP, "-"))
+		phase := reader.ReadStringOrDefault(pathStatusPhase, "Unknown")
 		pod.Phase = proto.String(phase)
 		pod.IsPhaseHealthy = proto.Bool(isPodPhaseHealthy(phase))
 		pod.OwnerUids = readOwnerUIDs(reader)
 
-		nodeName := reader.ReadStringOrDefault("spec.nodeName", "")
+		nodeName := reader.ReadStringOrDefault(pathSpecNodeName, "")
 		if nodeName == "" {
 			nodeName = b.resolveNodeNameFromBinding(tl, timeNs)
 		}
@@ -486,10 +523,10 @@ func (b *Builder) parsePod(
 			pod.NodeName = proto.String(nodeName)
 		}
 
-		loadContainers := func(fieldPath string, isInit bool) {
+		loadContainers := func(fieldPath structured.FieldPath, isInit bool) {
 			if cReader, err := reader.GetReader(fieldPath); err == nil {
 				for _, cr := range cReader.Children() {
-					cName := cr.ReadStringOrDefault("name", "")
+					cName := cr.ReadStringOrDefault(pathName, "")
 					if cName != "" {
 						containersMap[cName] = &apiv1.GraphContainer{
 							Name:            proto.String(cName),
@@ -501,13 +538,13 @@ func (b *Builder) parsePod(
 				}
 			}
 		}
-		loadContainers("spec.initContainers", true)
-		loadContainers("spec.containers", false)
+		loadContainers(pathSpecInitContainers, true)
+		loadContainers(pathSpecContainers, false)
 
-		updateContainerStatuses := func(path string) {
+		updateContainerStatuses := func(path structured.FieldPath) {
 			if csReader, err := reader.GetReader(path); err == nil {
 				for _, itemReader := range csReader.Children() {
-					cName := itemReader.ReadStringOrDefault("name", "")
+					cName := itemReader.ReadStringOrDefault(pathName, "")
 					c, exists := containersMap[cName]
 					if !exists {
 						c = &apiv1.GraphContainer{
@@ -518,14 +555,14 @@ func (b *Builder) parsePod(
 						containersMap[cName] = c
 					}
 					c.StatusReadFromManifest = proto.Bool(true)
-					c.Ready = proto.Bool(itemReader.ReadBoolOrDefault("ready", false))
+					c.Ready = proto.Bool(itemReader.ReadBoolOrDefault(pathReady, false))
 
-					if _, err := itemReader.GetReader("state.running"); err == nil {
+					if _, err := itemReader.GetReader(pathStateRunning); err == nil {
 						c.Status = proto.String("Running")
 						c.IsStatusHealthy = proto.Bool(true)
-					} else if termReader, err := itemReader.GetReader("state.terminated"); err == nil {
-						reason := termReader.ReadStringOrDefault("reason", "")
-						c.Code = proto.Int32(int32(termReader.ReadIntOrDefault("exitCode", 0)))
+					} else if termReader, err := itemReader.GetReader(pathStateTerminated); err == nil {
+						reason := termReader.ReadStringOrDefault(pathReason, "")
+						c.Code = proto.Int32(int32(termReader.ReadIntOrDefault(pathExitCode, 0)))
 						c.Reason = proto.String(reason)
 						if reason != "" {
 							c.Status = proto.String(reason)
@@ -533,8 +570,8 @@ func (b *Builder) parsePod(
 							c.Status = proto.String("Terminated")
 						}
 						c.IsStatusHealthy = proto.Bool(reason == "Completed")
-					} else if waitReader, err := itemReader.GetReader("state.waiting"); err == nil {
-						reason := waitReader.ReadStringOrDefault("reason", "")
+					} else if waitReader, err := itemReader.GetReader(pathStateWaiting); err == nil {
+						reason := waitReader.ReadStringOrDefault(pathReason, "")
 						c.Reason = proto.String(reason)
 						if reason != "" {
 							c.Status = proto.String(reason)
@@ -547,8 +584,8 @@ func (b *Builder) parsePod(
 			}
 		}
 
-		updateContainerStatuses("status.initContainerStatuses")
-		updateContainerStatuses("status.containerStatuses")
+		updateContainerStatuses(pathStatusInitContainerStatuses)
+		updateContainerStatuses(pathStatusContainerStatuses)
 		pod.Conditions = readConditions(reader, true)
 	} else {
 		nodeName := b.resolveNodeNameFromBinding(tl, timeNs)
@@ -629,9 +666,9 @@ func (b *Builder) resolveNodeNameFromBinding(tl *cel.TimelineData, timeNs int64)
 			if bRev != nil {
 				bReader := b.resolveManifestReader(child, bRevIdx)
 				if bReader != nil {
-					targetName := bReader.ReadStringOrDefault("target.name", "")
+					targetName := bReader.ReadStringOrDefault(pathTargetName, "")
 					if targetName == "" {
-						targetName = bReader.ReadStringOrDefault("spec.target.name", "")
+						targetName = bReader.ReadStringOrDefault(pathSpecTargetName, "")
 					}
 					if targetName != "" {
 						return targetName
@@ -667,17 +704,17 @@ func (b *Builder) parseService(
 		return svc, nil
 	}
 
-	svc.Uid = proto.String(reader.ReadStringOrDefault("metadata.uid", ""))
-	svc.Labels = readMap(reader, "metadata.labels")
-	svc.Type = proto.String(reader.ReadStringOrDefault("spec.type", "Unknown"))
+	svc.Uid = proto.String(reader.ReadStringOrDefault(pathMetadataUID, ""))
+	svc.Labels = readMap(reader, pathMetadataLabels)
+	svc.Type = proto.String(reader.ReadStringOrDefault(pathSpecType, "Unknown"))
 
-	clusterIP := reader.ReadStringOrDefault("status.clusterIp", "")
+	clusterIP := reader.ReadStringOrDefault(pathStatusClusterIP, "")
 	if clusterIP == "" {
-		clusterIP = reader.ReadStringOrDefault("spec.clusterIP", "-")
+		clusterIP = reader.ReadStringOrDefault(pathSpecClusterIP, "-")
 	}
 	svc.ClusterIp = proto.String(clusterIP)
 
-	selector := readMap(reader, "spec.selector")
+	selector := readMap(reader, pathSpecSelector)
 
 	return svc, selector
 }
@@ -706,8 +743,8 @@ func (b *Builder) parsePodOwner(
 		return owner
 	}
 
-	owner.Uid = proto.String(reader.ReadStringOrDefault("metadata.uid", ""))
-	owner.Labels = readMap(reader, "metadata.labels")
+	owner.Uid = proto.String(reader.ReadStringOrDefault(pathMetadataUID, ""))
+	owner.Labels = readMap(reader, pathMetadataLabels)
 	owner.OwnerUids = readOwnerUIDs(reader)
 
 	return owner
@@ -737,8 +774,8 @@ func (b *Builder) parsePodOwnerOwner(
 		return ownerOwner
 	}
 
-	ownerOwner.Uid = proto.String(reader.ReadStringOrDefault("metadata.uid", ""))
-	ownerOwner.Labels = readMap(reader, "metadata.labels")
+	ownerOwner.Uid = proto.String(reader.ReadStringOrDefault(pathMetadataUID, ""))
+	ownerOwner.Labels = readMap(reader, pathMetadataLabels)
 
 	return ownerOwner
 }
@@ -818,7 +855,7 @@ func resolveResourceRetention(
 	return rev.ChangedTime, 0, true
 }
 
-func readMap(reader *structured.NodeReader, fieldPath string) map[string]string {
+func readMap(reader *structured.NodeReader, fieldPath structured.FieldPath) map[string]string {
 	result := make(map[string]string)
 	if reader == nil {
 		return result
@@ -841,12 +878,12 @@ func readOwnerUIDs(reader *structured.NodeReader) []string {
 	if reader == nil {
 		return uids
 	}
-	ownersReader, err := reader.GetReader("metadata.ownerReferences")
+	ownersReader, err := reader.GetReader(pathMetadataOwnerReferences)
 	if err != nil {
 		return uids
 	}
 	for _, oReader := range ownersReader.Children() {
-		uid := oReader.ReadStringOrDefault("uid", "")
+		uid := oReader.ReadStringOrDefault(pathUID, "")
 		if uid != "" {
 			uids = append(uids, uid)
 		}
@@ -859,14 +896,14 @@ func readConditions(reader *structured.NodeReader, isPod bool) []*apiv1.GraphCon
 	if reader == nil {
 		return conditions
 	}
-	condsReader, err := reader.GetReader("status.conditions")
+	condsReader, err := reader.GetReader(pathStatusConditions)
 	if err != nil {
 		return conditions
 	}
 	for _, cReader := range condsReader.Children() {
-		cType := cReader.ReadStringOrDefault("type", "")
-		status := cReader.ReadStringOrDefault("status", "")
-		message := cReader.ReadStringOrDefault("message", "")
+		cType := cReader.ReadStringOrDefault(pathType, "")
+		status := cReader.ReadStringOrDefault(pathStatus, "")
+		message := cReader.ReadStringOrDefault(pathMessage, "")
 
 		var isPositive bool
 		if isPod {

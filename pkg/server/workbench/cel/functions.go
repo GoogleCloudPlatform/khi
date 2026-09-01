@@ -216,7 +216,7 @@ func matchNodeField(node structured.Node, pathKey string, pattern string) bool {
 	}
 
 	reader := structured.NewNodeReader(node)
-	targetReader, err := reader.GetReader(pathKey)
+	targetReader, err := reader.GetReader(structured.CompileFieldPath(pathKey))
 	if err != nil {
 		return false
 	}

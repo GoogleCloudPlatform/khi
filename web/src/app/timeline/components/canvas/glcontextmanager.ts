@@ -105,7 +105,9 @@ export class GLContextManager<RenderArgs> {
    * Should be called once after construction.
    */
   async setup() {
-    const gl = this.canvas.getContext('webgl2');
+    const gl = this.canvas.getContext('webgl2', {
+      antialias: false,
+    });
     if (!gl) {
       alert(
         'Failed to obtain the WebGL2 context. Please try reload this page or restart your computer.',

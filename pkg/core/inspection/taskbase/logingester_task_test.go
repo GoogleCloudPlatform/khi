@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -44,18 +45,24 @@ func (m *mockLogIngester) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
+var (
+	pathCancel = structured.CompileFieldPath("cancel")
+	pathError  = structured.CompileFieldPath("error")
+	pathSkip   = structured.CompileFieldPath("skip")
+)
+
 func (m *mockLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-	shouldCancel := l.ReadBoolOrDefault("cancel", false)
+	shouldCancel := l.ReadBoolOrDefault(pathCancel, false)
 	if shouldCancel && m.cancel != nil {
 		m.cancel()
 		time.Sleep(50 * time.Millisecond)
 		return nil, ctx.Err()
 	}
-	shouldErr := l.ReadBoolOrDefault("error", false)
+	shouldErr := l.ReadBoolOrDefault(pathError, false)
 	if shouldErr {
 		return nil, fmt.Errorf("test error")
 	}
-	shouldSkip := l.ReadBoolOrDefault("skip", false)
+	shouldSkip := l.ReadBoolOrDefault(pathSkip, false)
 	if shouldSkip {
 		return nil, nil // Return nil changeset (skip)
 	}
@@ -131,7 +138,7 @@ func TestLogIngesterTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			tid := taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester")
+			tid := taskid.NewDefaultImplementationID[struct{}]("mock-log-ingester")
 
 			ctx := context.Background()
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
@@ -139,6 +146,7 @@ func TestLogIngesterTask(t *testing.T) {
 			var cancel context.CancelFunc
 			if tc.cancelContext || tc.cancelMidWay {
 				ctx, cancel = context.WithCancel(ctx)
+				defer cancel()
 			}
 			if tc.cancelContext {
 				cancel()

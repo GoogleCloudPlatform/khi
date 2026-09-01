@@ -21,12 +21,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -44,9 +44,6 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
-	testCommonFieldSet := &log.CommonFieldSet{
-		Timestamp: testTime,
-	}
 
 	// Custom comparer for structured.Node interface.
 	nodeComparer := cmp.Comparer(func(x, y structured.Node) bool {
@@ -365,8 +362,7 @@ name: test-nodepool`).Node,
 	mapper := &multicloudAuditLogLogToTimelineMapperSetting{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.inputAudit, &tc.inputResource)
-			l.NodeReader = testReaderFromYAML(t, "protoPayload:\n  resourceName: projects/123456/locations/asia-southeast1/awsClusters/test-cluster/awsNodePools/test-nodepool")
+			l := testlog.NewMockLog(testTime, tc.inputAudit, tc.inputResource)
 
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, tc.inputTracker)

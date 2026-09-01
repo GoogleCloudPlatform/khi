@@ -18,6 +18,7 @@ import { Component, computed, inject, resource, signal } from '@angular/core';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { SelectionManager } from 'src/app/services/selection-manager.service';
 import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
+import { LogStore } from 'src/app/store/domain/log-store';
 import { Log } from 'src/app/store/domain/log';
 import { TimelinePathNode } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
@@ -36,6 +37,7 @@ import {
   ViewStateService,
 } from 'src/app/services/view-state.service';
 import { StyleOverrideService } from 'src/app/services/style-override.service';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
  * `LogSmartComponent` is the main container for the log viewing interface.
@@ -99,10 +101,20 @@ export class LogSmartComponent {
   public readonly selectedLog = this.selectionManager.selectedLog;
 
   /**
-   * The list of logs that match the current filter criteria.
+   * The store containing all logs in the inspection data.
    */
-  public readonly filteredLogs = computed<ReadonlyDomainElement<Log>[]>(() => {
-    return this.inspectionDataStore.timelineView()?.filteredLogs() ?? [];
+  public readonly logStore = computed<LogStore | undefined>(() => {
+    return this.inspectionDataStore.inspectionData()?.logStore;
+  });
+
+  /**
+   * The bitset of log IDs that match the current filter criteria.
+   */
+  public readonly filteredLogIds = computed<IdBitset>(() => {
+    return (
+      this.inspectionDataStore.timelineView()?.filteredLogIds() ??
+      IdBitset.createEmpty()
+    );
   });
 
   /**
@@ -114,8 +126,8 @@ export class LogSmartComponent {
   /**
    * A set of indices representing logs that are currently highlighted (e.g., on hover).
    */
-  public readonly highlightLogIndices =
-    this.selectionManager.highlightLogIndices;
+  public readonly highlightedLogIndices =
+    this.selectionManager.highlightedLogIndices;
 
   /**
    * The list of currently selected resource timelines, including their children if the
@@ -150,13 +162,6 @@ export class LogSmartComponent {
     this.selectionManager.timelineSelectionShouldIncludeChildren;
 
   /**
-   * The total number of logs available, prior to any filtering.
-   */
-  public readonly allLogsCount = computed(() => {
-    return this.inspectionDataStore.inspectionData()?.logStore.count ?? 0;
-  });
-
-  /**
    * Aggregates the selected log entry, its body, and its resource paths into a view model.
    */
   public readonly logContentViewModel = computed<LogContentViewModel | null>(
@@ -167,10 +172,18 @@ export class LogSmartComponent {
         return null;
       }
 
-      const timelines =
-        this.inspectionDataStore.timelineView()?.filteredTimelines() ?? [];
+      const data = this.inspectionDataStore.inspectionData();
+      const filteredTimelineIds = this.inspectionDataStore
+        .timelineView()
+        ?.filteredTimelineIds();
+      const logTimelines =
+        data?.timelineStore.getTimelinesForLogId(log.id) ?? [];
+
       const resourceRefs: ResourceRefAnnotationViewModel[] = [];
-      for (const timeline of timelines) {
+      for (const timeline of logTimelines) {
+        if (filteredTimelineIds && !filteredTimelineIds.has(timeline.id)) {
+          continue;
+        }
         if (
           timeline.lookupEventFromLog(log) !== null ||
           timeline.lookupRevisionFromLog(log) !== null

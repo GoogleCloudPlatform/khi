@@ -18,24 +18,29 @@ import (
 	"context"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
 // SuccessLogFilterTask filters out non-success logs.
-var SuccessLogFilterTask = inspectiontaskbase.NewLogFilterTask(
+var SuccessLogFilterTask = inspectiontaskbase.NewLogFilterTaskWithDependencies(
 	commonlogk8saudit_contract.SuccessLogFilterTaskID,
 	commonlogk8saudit_contract.K8sAuditLogProviderRef,
+	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.K8sAuditLogExtractorRef},
 	func(ctx context.Context, l *log.Log) bool {
-		return !log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{}).IsError
+		data, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.NodeReader)
+		return !data.IsError
 	},
 )
 
 // NonSuccessLogFilterTask filters out success logs.
-var NonSuccessLogFilterTask = inspectiontaskbase.NewLogFilterTask(
+var NonSuccessLogFilterTask = inspectiontaskbase.NewLogFilterTaskWithDependencies(
 	commonlogk8saudit_contract.NonSuccessLogFilterTaskID,
 	commonlogk8saudit_contract.K8sAuditLogProviderRef,
+	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.K8sAuditLogExtractorRef},
 	func(ctx context.Context, l *log.Log) bool {
-		return log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{}).IsError
+		data, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.NodeReader)
+		return data.IsError
 	},
 )

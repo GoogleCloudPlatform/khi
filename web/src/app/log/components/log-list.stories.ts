@@ -17,15 +17,15 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { LogListComponent } from './log-list.component';
 import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 const meta: Meta<LogListComponent> = {
   title: 'Log/LogList',
   component: LogListComponent,
   tags: ['autodocs'],
   args: {
-    allLogsCount: 100,
     selectedLogIndex: 1,
-    highlightLogIndices: new Set([0]),
+    highlightedLogIndices: new Set([0]),
     selectedTimelinesWithChildren: [],
     filterByTimeline: true,
     includeTimelineChildren: false,
@@ -42,19 +42,21 @@ export const Default: Story = {
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const filteredLogs = Array.from(mockData.logStore.logs());
+    const logStore = mockData.logStore;
+    const filteredLogIds = IdBitset.fromSequential(logStore.count);
     return {
       props: {
         ...args,
-        filteredLogs,
+        logStore,
+        filteredLogIds,
       },
       template: `
         <div style="height: 500px; border: 1px solid #ccc; position: relative;">
           <khi-log-list
-            [allLogsCount]="allLogsCount"
-            [filteredLogs]="filteredLogs"
+            [logStore]="logStore"
+            [filteredLogIds]="filteredLogIds"
             [selectedLogIndex]="selectedLogIndex"
-            [highlightLogIndices]="highlightLogIndices"
+            [highlightedLogIndices]="highlightedLogIndices"
             [selectedTimelinesWithChildren]="selectedTimelinesWithChildren"
             [filterByTimeline]="filterByTimeline"
             (filterByTimelineChange)="filterByTimelineChange($event)"

@@ -19,9 +19,11 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
+
+var pathManifestMapperValue = structured.CompileFieldPath("value")
 
 func TestIterateMultiGroupLog(t *testing.T) {
 	t1 := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
@@ -29,10 +31,10 @@ func TestIterateMultiGroupLog(t *testing.T) {
 	t3 := t1.Add(2 * time.Minute)
 	t4 := t1.Add(3 * time.Minute)
 
-	logA1 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t1})
-	logB1 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t2})
-	logA2 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t3})
-	logC1 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t4})
+	logA1 := testlog.NewMockLog(t1)
+	logB1 := testlog.NewMockLog(t2)
+	logA2 := testlog.NewMockLog(t3)
+	logC1 := testlog.NewMockLog(t4)
 
 	groupSet := RelatedGroupSet{
 		Roles: map[string]*ResourceManifestLogGroup{
@@ -61,13 +63,12 @@ func TestIterateMultiGroupLog(t *testing.T) {
 	}
 
 	for event := range iterateMultiGroupLog(groupSet) {
-		commonSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 		gotEvents = append(gotEvents, struct {
 			Role string
 			Time time.Time
 		}{
 			Role: event.GroupRole,
-			Time: commonSet.Timestamp,
+			Time: event.Log.Timestamp,
 		})
 	}
 
@@ -95,9 +96,9 @@ func TestGetLastBody(t *testing.T) {
 	nodeB1, _ := structured.FromGoValue(map[string]any{"value": "B1"}, &structured.AlphabeticalGoMapKeyOrderProvider{})
 	nodeA2, _ := structured.FromGoValue(map[string]any{"value": "A2"}, &structured.AlphabeticalGoMapKeyOrderProvider{})
 
-	logA1 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t1})
-	logB1 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t2})
-	logA2 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t3})
+	logA1 := testlog.NewMockLog(t1)
+	logB1 := testlog.NewMockLog(t2)
+	logA2 := testlog.NewMockLog(t3)
 
 	groupSet := RelatedGroupSet{
 		Roles: map[string]*ResourceManifestLogGroup{
@@ -197,7 +198,7 @@ func TestGetLastBody(t *testing.T) {
 				if !ok || reader == nil {
 					t.Errorf("GetLastBodyReader(%q) failed, want success", tc.roleToCheck)
 				} else if tc.wantValue != "" {
-					val, err := reader.ReadString("value")
+					val, err := reader.ReadString(pathManifestMapperValue)
 					if err != nil {
 						t.Errorf("failed to read string \"value\" from NodeReader: %v", err)
 					} else if val != tc.wantValue {

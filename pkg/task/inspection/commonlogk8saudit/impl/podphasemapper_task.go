@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -91,7 +90,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskRef
 }
 
 // LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (c *podPhaseLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (c *podPhaseLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
@@ -154,12 +153,11 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Conte
 		prevGroupData = newPodPhaseTaskState()
 	}
 
-	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return prevGroupData, nil
 	}
-	eventTime := commonLogFieldSet.Timestamp
+	eventTime := event.Log.Timestamp
 
 	switch passIndex {
 	// The first pass to collect UIDs & creationTimestamps from Pods.
@@ -229,12 +227,11 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Conte
 func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *podPhaseTaskState) (*khifilev6.TimelineChangeSet, *podPhaseTaskState, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
-	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return cs, prevGroupData, nil
 	}
-	eventTime := commonLogFieldSet.Timestamp
+	eventTime := event.Log.Timestamp
 
 	var targetBodyReader *structured.NodeReader
 	if reader, ok := event.GetLastBodyReader("pod"); ok {
@@ -293,7 +290,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context,
 				bodyNode = targetBodyReader.Node
 			}
 			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-				ChangedTime:  commonLogFieldSet.Timestamp,
+				ChangedTime:  eventTime,
 				ResourceBody: bodyNode,
 				Principal:    k8sFieldSet.Principal,
 				VerbType:     k8sFieldSet.Verb,
@@ -314,7 +311,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context,
 				bodyNode = targetBodyReader.Node
 			}
 			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-				ChangedTime:  commonLogFieldSet.Timestamp,
+				ChangedTime:  eventTime,
 				ResourceBody: bodyNode,
 				Principal:    k8sFieldSet.Principal,
 				VerbType:     k8sFieldSet.Verb,

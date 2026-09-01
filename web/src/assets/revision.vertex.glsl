@@ -10,8 +10,10 @@ precision highp int;
 
 // Input attributes from the vertex buffer.
 layout(location = 0) in uvec4 time; // x: start time(s), y: start time(ns), z: end time(s), w: end time(ns)
-layout(location = 1) in uvec4 intStaticMeta; // x: revisionIndex, y: revisionState, z: logIndex. Static metadata.
-layout(location = 2) in uvec4 intDynamicMeta; // x: selectionState, y: filterStatus. Dynamic metadata.
+layout(location = 1) in uvec4 intStaticMeta; // x: revisionState, y: 0, z: logIndex, w: logId. Static metadata.
+
+uniform highp usampler2D u_filterBitset;
+uniform highp usampler2D u_highlightBitset;
 
 // Outputs to the fragment shader.
 out vec2 uv;                // UV coordinates for the quad (0.0 to 1.0).
@@ -30,17 +32,26 @@ vec4 genQuadPosition(){
 void main(){
   vec4 pos = genQuadPosition();
   
+  // Compute dynamic selection and filter states
+  uint logIndex = intStaticMeta.z;
+  uint logId = intStaticMeta.w;
+
+  bool isSelected = (vs.selectedLogIndex != NO_LOG_INDEX_SELECTED && logIndex == vs.selectedLogIndex);
+  bool isHovered = (!isSelected && checkBitset(u_highlightBitset, logIndex));
+  uint selectionStatus = isSelected ? 2u : (isHovered ? 1u : 0u);
+  uint filterStatus = checkBitset(u_filterBitset, logId) ? 1u : 0u;
+
   // Populate the RevisionModel to pass data to the fragment shader.
-  revisionModel.baseColor = rs.baseColors[intStaticMeta.y];
-  revisionModel.iconUVSize = rs.iconUVSize[intStaticMeta.y];
-  revisionModel.alphaTransparency = rs.revisionStyles[intStaticMeta.y].x;
-  revisionModel.borderStripePatten = rs.revisionStyles[intStaticMeta.y].y;
-  revisionModel.bodyStripePattern = rs.revisionStyles[intStaticMeta.y].z;
-  revisionModel.revisionIndex = intStaticMeta.x;
-  revisionModel.revisionState = intStaticMeta.y;
+  revisionModel.baseColor = rs.baseColors[intStaticMeta.x];
+  revisionModel.iconUVSize = rs.iconUVSize[intStaticMeta.x];
+  revisionModel.alphaTransparency = rs.revisionStyles[intStaticMeta.x].x;
+  revisionModel.borderStripePatten = rs.revisionStyles[intStaticMeta.x].y;
+  revisionModel.bodyStripePattern = rs.revisionStyles[intStaticMeta.x].z;
+  revisionModel.revisionIndex = uint(gl_InstanceID);
+  revisionModel.revisionState = intStaticMeta.x;
   revisionModel.logIndex = intStaticMeta.z;
-  revisionModel.selectionStatus = intDynamicMeta.x;
-  revisionModel.filterStatus = intDynamicMeta.y;
+  revisionModel.selectionStatus = selectionStatus;
+  revisionModel.filterStatus = filterStatus;
 
   uv = pos.xy * 0.5 + 0.5;
 

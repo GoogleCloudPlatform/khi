@@ -31,7 +31,6 @@ graph TD
 
 	subgraph Common Processing
 	    LogSerializer
-	    CommonFieldSetReader
 	end
 
 	subgraph Containerd Pipeline
@@ -64,10 +63,9 @@ graph TD
 
 	%% Common Processing Dependencies
 	ListLogEntries --> LogSerializer
-	ListLogEntries --> CommonFieldSetReader
 
 	%% Containerd Pipeline Dependencies
-	CommonFieldSetReader --> ContainerdLogFilter
+	ListLogEntries --> ContainerdLogFilter
 	ContainerdLogFilter --> ContainerdLogGroup
 	ContainerdLogFilter --> ContainerdIDDiscovery
 	ContainerdIDDiscovery --> ContainerdLogToTimelineMapper
@@ -75,14 +73,14 @@ graph TD
 	LogSerializer --> ContainerdLogToTimelineMapper
 
 	%% Kubelet Pipeline Dependencies
-	CommonFieldSetReader --> KubeletLogFilter
+	ListLogEntries --> KubeletLogFilter
 	KubeletLogFilter --> KubeletLogGroup
 	ContainerdIDDiscovery --> KubeletLogToTimelineMapper
 	KubeletLogGroup --> KubeletLogToTimelineMapper
 	LogSerializer --> KubeletLogToTimelineMapper
 
 	%% Other Pipeline Dependencies
-	CommonFieldSetReader --> OtherLogFilter
+	ListLogEntries --> OtherLogFilter
 	OtherLogFilter --> OtherLogGroup
 	OtherLogGroup --> OtherLogToTimelineMapper
 	LogSerializer --> OtherLogToTimelineMapper
@@ -125,7 +123,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		ClusterIdentityAliasTask,
 
 		LogIngesterTask,
-		CommonFieldSetReaderTask,
 		ContainerdLogFilterTask,
 		ContainerdLogGroupTask,
 		PodSandboxIDDiscoveryTask,

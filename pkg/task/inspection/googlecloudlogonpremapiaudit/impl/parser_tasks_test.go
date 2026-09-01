@@ -27,6 +27,7 @@ import (
 	googlecloudlogonpremapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -47,11 +48,9 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 	}{
 		{
 			name: "operation starting log",
-			inputLog: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
-				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(
+				time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.gkeonprem.v1.GkeOnPrem.CreateBaremetalAdminCluster",
 					OperationFirst: true,
 					OperationLast:  false,
@@ -61,11 +60,9 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "operation ending log",
-			inputLog: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
-				},
-				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputLog: testlog.NewMockLog(
+				time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.gkeonprem.v1.GkeOnPrem.CreateBaremetalAdminCluster",
 					OperationFirst: false,
 					OperationLast:  true,
@@ -75,7 +72,7 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogonpremapiaudit_contract.FieldSetReaderTaskID.Ref(), googlecloudlogonpremapiaudit_contract.LogTypeOnPremAPI)
+	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogonpremapiaudit_contract.ListLogEntriesTaskID.Ref(), googlecloudlogonpremapiaudit_contract.LogTypeOnPremAPI)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.inputLog)
@@ -92,9 +89,6 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 
 func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
-	testCommonFieldSet := &log.CommonFieldSet{
-		Timestamp: testTime,
-	}
 
 	// 1. Initialize the Builder.
 	builder := khifilev6.NewBuilder()
@@ -512,7 +506,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	mapper := &OnPremAPIAuditTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.inputAudit, &tc.inputResource)
+			l := testlog.NewMockLog(testTime, tc.inputAudit, tc.inputResource)
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, tc.inputTracker)
 			if err != nil {

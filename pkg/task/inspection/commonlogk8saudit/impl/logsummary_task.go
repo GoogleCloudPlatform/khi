@@ -41,7 +41,9 @@ func (i *k8sAuditLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 
 // Dependencies implements inspectiontaskbase.LogIngester.
 func (i *k8sAuditLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+	return []taskid.UntypedTaskReference{
+		commonlogk8saudit_contract.K8sAuditLogExtractorRef,
+	}
 }
 
 // ProcessLog parses raw log entry and populates the LogChangeSet.
@@ -51,14 +53,10 @@ func (i *k8sAuditLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khif
 		return nil, err
 	}
 
-	commonFs, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err != nil {
-		return nil, err
-	}
-	cs.SetTimestamp(commonFs.Timestamp)
+	cs.SetTimestamp(l.Timestamp)
 	cs.SetLogType(commonlogk8saudit_contract.LogTypeAudit)
 
-	k8sFieldSet, err := log.GetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, err := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.NodeReader)
 	if err != nil {
 		return nil, err
 	}

@@ -65,7 +65,7 @@ describe('DiffSmartComponent', () => {
             selectedTimelinesWithChildren: signal([]),
             selectedLog: signal(null),
             selectedLogIndex: signal(-1),
-            highlightLogIndices: signal([]),
+            highlightedLogIndices: signal([]),
             highlightedLogIndicesOnSelectedTimeline: signal([]),
             onSelectRevision: (rev: ReadonlyDomainElement<Revision> | null) => {
               mockSelectedRevision.set(rev);

@@ -34,6 +34,11 @@ import (
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
+var (
+	pathAuditFileReaderStage          = structured.CompileFieldPath("stage")
+	pathAuditFileReaderStageTimestamp = structured.CompileFieldPath("stageTimestamp")
+)
+
 var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionTask(
 	ossclusterk8s_contract.AuditLogFileReaderTaskID,
 	[]taskid.UntypedTaskReference{
@@ -66,36 +71,28 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 			}
 
 			node := structured.NewLazyJSONNodeFromBytes(unsafe.Slice(unsafe.StringData(trimmed), len(trimmed)))
-			l := log.NewLog(structured.NewNodeReader(node))
-
-			err := l.SetFieldSetReader(&ossclusterk8s_contract.OSSK8sAuditLogCommonFieldSetReader{})
-			if err != nil {
-				return err
-			}
+			reader := structured.NewNodeReader(node)
 
 			// TODO: we may need to consider processing logs not with ResponseComplete stage. All logs not on the ResponseComplete stage will be ignored for now.
-			if l.ReadStringOrDefault("stage", "") != "ResponseComplete" {
+			if reader.ReadStringOrDefault(pathAuditFileReaderStage, "") != "ResponseComplete" {
 				return nil
 			}
 
+			ts, _ := reader.ReadTimestamp(pathAuditFileReaderStageTimestamp)
+			l := log.NewLogWithTimestamp(reader, ts)
 			logs = append(logs, l)
 			return nil
 		})
 
 		slices.SortFunc(logs, func(a, b *log.Log) int {
-			logACommonField := log.MustGetFieldSet(a, &log.CommonFieldSet{})
-			logBCommonField := log.MustGetFieldSet(b, &log.CommonFieldSet{})
-			return int(logACommonField.Timestamp.UnixNano() - logBCommonField.Timestamp.UnixNano())
+			return a.Timestamp.Compare(b.Timestamp)
 		})
 		metadataSet := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 		header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
 
 		if len(logs) > 0 {
-			startLogCommonField := log.MustGetFieldSet(logs[0], &log.CommonFieldSet{})
-			lastLogCommonField := log.MustGetFieldSet(logs[len(logs)-1], &log.CommonFieldSet{})
-
-			header.StartTimeUnixSeconds = startLogCommonField.Timestamp.Unix()
-			header.EndTimeUnixSeconds = lastLogCommonField.Timestamp.Unix()
+			header.StartTimeUnixSeconds = logs[0].Timestamp.Unix()
+			header.EndTimeUnixSeconds = logs[len(logs)-1].Timestamp.Unix()
 		}
 
 		return logs, nil

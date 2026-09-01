@@ -31,7 +31,10 @@ import {
   InspectionType,
   InspectionDryRunResponse,
 } from 'src/app/common/schema/api-types';
-import { InspectionMetadataQuery } from 'src/app/common/schema/metadata-types';
+import {
+  InspectionMetadataQuery,
+  EstimatedCountPreset,
+} from 'src/app/common/schema/metadata-types';
 import {
   ParameterHintType,
   ParameterInputType,
@@ -264,6 +267,88 @@ describe('NewInspectionDialogTest', () => {
         isEstimating: true,
         isIncomplete: false,
         displayText: '>1,000 logs estimated so far',
+        severity: TotalEstimatedLogsSeverity.Normal,
+      });
+    });
+
+    it('should display Few total logs estimated when only Few preset queries exist with 0 known count', () => {
+      const queries: InspectionMetadataQuery[] = [
+        {
+          id: 'q1',
+          name: 'q1',
+          query: 'query1',
+          estimatedCountPreset: EstimatedCountPreset.Few,
+        },
+      ];
+      const result = computeTotalEstimatedLogs(queries);
+      expect(result).toEqual({
+        knownCount: 0,
+        isComplete: true,
+        isEstimating: false,
+        isIncomplete: false,
+        displayText: 'Few total logs estimated',
+        severity: TotalEstimatedLogsSeverity.Normal,
+      });
+    });
+
+    it('should include Few preset query as resolved alongside numeric estimated queries', () => {
+      const queries: InspectionMetadataQuery[] = [
+        {
+          id: 'q1',
+          name: 'q1',
+          query: 'query1',
+          estimatedCountPreset: EstimatedCountPreset.Few,
+        },
+        { id: 'q2', name: 'q2', query: 'query2', estimatedCount: 500 },
+      ];
+      const result = computeTotalEstimatedLogs(queries);
+      expect(result).toEqual({
+        knownCount: 500,
+        isComplete: true,
+        isEstimating: false,
+        isIncomplete: false,
+        displayText: '~500 total logs estimated',
+        severity: TotalEstimatedLogsSeverity.Normal,
+      });
+    });
+
+    it('should show isEstimating = true when a Few preset query is present with an unestimated query', () => {
+      const queries: InspectionMetadataQuery[] = [
+        {
+          id: 'q1',
+          name: 'q1',
+          query: 'query1',
+          estimatedCountPreset: EstimatedCountPreset.Few,
+        },
+        { id: 'q2', name: 'q2', query: 'query2' },
+      ];
+      const result = computeTotalEstimatedLogs(queries);
+      expect(result).toEqual({
+        knownCount: 0,
+        isComplete: false,
+        isEstimating: true,
+        isIncomplete: false,
+        displayText: 'Estimating total logs...',
+        severity: TotalEstimatedLogsSeverity.Normal,
+      });
+    });
+
+    it('should treat query with EstimatedCountPreset.None as unestimated when count is undefined', () => {
+      const queries: InspectionMetadataQuery[] = [
+        {
+          id: 'q1',
+          name: 'q1',
+          query: 'query1',
+          estimatedCountPreset: EstimatedCountPreset.None,
+        },
+      ];
+      const result = computeTotalEstimatedLogs(queries);
+      expect(result).toEqual({
+        knownCount: 0,
+        isComplete: false,
+        isEstimating: true,
+        isIncomplete: false,
+        displayText: 'Estimating total logs...',
         severity: TotalEstimatedLogsSeverity.Normal,
       });
     });

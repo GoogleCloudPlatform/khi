@@ -20,21 +20,25 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
-var OSSK8sAuditLogFieldExtractorTask = inspectiontaskbase.NewFieldSetReadTask(
-	ossclusterk8s_contract.OSSK8sAuditLogProviderTaskID,
-	ossclusterk8s_contract.NonEventAuditLogFilterTaskID.Ref(),
-	[]log.FieldSetReader{(&ossclusterk8s_contract.OSSK8sAuditLogFieldSetReader{})},
+// OSSK8sAuditLogExtractorTask provides K8sAuditLogExtractor for OSS audit logs.
+var OSSK8sAuditLogExtractorTask = coretask.NewTask(
+	ossclusterk8s_contract.OSSK8sAuditLogExtractorTaskID,
+	[]taskid.UntypedTaskReference{},
+	func(ctx context.Context) (commonlogk8saudit_contract.K8sAuditLogExtractor, error) {
+		return ossclusterk8s_contract.ExtractOSSK8sAuditLog, nil
+	},
+	coretask.NewTaskResultRetentionLabel(true),
 )
 
 var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 	ossclusterk8s_contract.OSSK8sAuditLogParserTailTaskID,
 	[]taskid.UntypedTaskReference{
+		commonlogk8saudit_contract.K8sAuditLogExtractorRef,
 		commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),

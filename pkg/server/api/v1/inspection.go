@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -518,15 +519,25 @@ func convertErrorSet(errorSet *inspectionmetadata.ErrorMessageSetMetadata) *apiv
 	return res
 }
 
+func convertPreset(preset logestimator.EstimatedCountPreset) apiv1.EstimatedCountPreset {
+	switch preset {
+	case logestimator.EstimatedCountPresetFew:
+		return apiv1.EstimatedCountPreset_ESTIMATED_COUNT_PRESET_FEW
+	default:
+		return apiv1.EstimatedCountPreset_ESTIMATED_COUNT_PRESET_UNSPECIFIED
+	}
+}
+
 func convertQueries(queries []*inspectionmetadata.QueryItem) []*apiv1.InspectionQuery {
 	res := make([]*apiv1.InspectionQuery, 0, len(queries))
 	for _, q := range queries {
 		item := &apiv1.InspectionQuery{
-			Id:         proto.String(q.Id),
-			Name:       proto.String(q.Name),
-			Query:      proto.String(q.Query),
-			Incomplete: proto.Bool(q.Incomplete),
-			Pending:    proto.Bool(q.Pending),
+			Id:                   proto.String(q.Id),
+			Name:                 proto.String(q.Name),
+			Query:                proto.String(q.Query),
+			Incomplete:           proto.Bool(q.Incomplete),
+			Pending:              proto.Bool(q.Pending),
+			EstimatedCountPreset: convertPreset(q.Preset).Enum(),
 		}
 		if q.EstimatedCount != nil {
 			item.EstimatedCount = proto.Int64(*q.EstimatedCount)

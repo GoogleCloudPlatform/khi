@@ -28,23 +28,10 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReaderTask is a task that reads and parses field sets from MulticloudAPI audit logs.
-// It uses GCPOperationAuditLogFieldSetReader, OnPremAPIAuditResourceFieldSetReader, and GCPDefaultSeverityFieldSetReader
-// to extract common GCP audit log fields, multicloud api-specific resource fields, and severity.
-var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudlogonpremapiaudit_contract.FieldSetReaderTaskID,
-	googlecloudlogonpremapiaudit_contract.ListLogEntriesTaskID.Ref(),
-	[]log.FieldSetReader{
-		&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
-		&googlecloudlogonpremapiaudit_contract.OnPremAPIAuditResourceFieldSetReader{},
-		&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
-	},
-)
-
 // LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
 var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudlogonpremapiaudit_contract.LogIngesterTaskID,
-	googlecloudlogonpremapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlogonpremapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudlogonpremapiaudit_contract.LogTypeOnPremAPI,
 )
 
@@ -52,9 +39,9 @@ var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 // This grouping allows for parallel processing of logs related to the same resource.
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudlogonpremapiaudit_contract.LogGrouperTaskID,
-	googlecloudlogonpremapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlogonpremapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		resourceFieldSet, err := log.GetFieldSet(l, &googlecloudlogonpremapiaudit_contract.OnPremAPIAuditResourceFieldSet{})
+		resourceFieldSet, err := googlecloudlogonpremapiaudit_contract.ExtractOnPremAPIAuditResource(l.NodeReader)
 		if err != nil {
 			return ""
 		}
@@ -68,7 +55,7 @@ type OnPremAPIAuditTimelineMapper struct {
 }
 
 // LogIngesterTask returns the task reference providing the ingested logs.
-func (m *OnPremAPIAuditTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *OnPremAPIAuditTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogonpremapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
@@ -87,15 +74,11 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	if tracker == nil {
 		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
 	}
-	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
-	auditFieldSet, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
-	if err != nil {
-		return nil, tracker, err
-	}
-	resourceFieldSet, err := log.GetFieldSet(l, &googlecloudlogonpremapiaudit_contract.OnPremAPIAuditResourceFieldSet{})
+	resourceFieldSet, err := googlecloudlogonpremapiaudit_contract.ExtractOnPremAPIAuditResource(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -125,7 +108,7 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	normalizedShortMethodName := strings.ReplaceAll(shortMethodName, clusterTypeToFragmentInMethodNameMapping[resourceFieldSet.ClusterType], "")
 
 	operationPath := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetPath, shortMethodName, auditFieldSet.OperationID)
-	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetPath, operationPath, auditFieldSet, commonFieldSet, normalizedShortMethodName, resourceFieldSet.IsCluster())
+	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetPath, operationPath, &auditFieldSet, l.Timestamp, normalizedShortMethodName, resourceFieldSet.IsCluster())
 
 	return cs, tracker, nil
 }

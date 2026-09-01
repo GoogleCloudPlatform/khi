@@ -26,6 +26,7 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestOSSK8sEventLogIngester_ProcessLog(t *testing.T) {
@@ -36,11 +37,9 @@ func TestOSSK8sEventLogIngester_ProcessLog(t *testing.T) {
 	}{
 		{
 			name: "successful event log ingestion",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC),
-				},
-				&ossclusterk8s_contract.OSSK8sEventFieldSet{
+			input: testlog.NewMockLog(
+				time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC),
+				ossclusterk8s_contract.OSSK8sEventFieldSet{
 					Reason:  "Scheduled",
 					Message: "Successfully assigned default/test-pod to node-1",
 				},
@@ -148,7 +147,7 @@ func TestOSSK8sEventTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(&tc.input)
+			l := testlog.NewMockLog(tc.input)
 
 			// Set up context with the same Builder reference.
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)

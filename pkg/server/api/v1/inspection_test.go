@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
@@ -573,6 +574,14 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 					Incomplete:     false,
 					Pending:        true,
 				},
+				{
+					Id:         "q2",
+					Name:       "Query 2",
+					Query:      "resource.type=gce_instance",
+					Preset:     logestimator.EstimatedCountPresetFew,
+					Incomplete: false,
+					Pending:    false,
+				},
 			},
 			wantHeader: &apiv1.InspectionHeader{
 				InspectionType:         proto.String("gcp-gke"),
@@ -589,12 +598,21 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 			},
 			wantQueries: []*apiv1.InspectionQuery{
 				{
-					Id:             proto.String("q1"),
-					Name:           proto.String("Query 1"),
-					Query:          proto.String("resource.type=k8s"),
-					EstimatedCount: proto.Int64(5000),
-					Incomplete:     proto.Bool(false),
-					Pending:        proto.Bool(true),
+					Id:                   proto.String("q1"),
+					Name:                 proto.String("Query 1"),
+					Query:                proto.String("resource.type=k8s"),
+					EstimatedCount:       proto.Int64(5000),
+					Incomplete:           proto.Bool(false),
+					Pending:              proto.Bool(true),
+					EstimatedCountPreset: apiv1.EstimatedCountPreset_ESTIMATED_COUNT_PRESET_UNSPECIFIED.Enum(),
+				},
+				{
+					Id:                   proto.String("q2"),
+					Name:                 proto.String("Query 2"),
+					Query:                proto.String("resource.type=gce_instance"),
+					Incomplete:           proto.Bool(false),
+					Pending:              proto.Bool(false),
+					EstimatedCountPreset: apiv1.EstimatedCountPreset_ESTIMATED_COUNT_PRESET_FEW.Enum(),
 				},
 			},
 		},

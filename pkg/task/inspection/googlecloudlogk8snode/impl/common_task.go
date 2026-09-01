@@ -35,7 +35,7 @@ type K8sNodeLogIngester struct{}
 
 // RawLogTask returns the raw log provider task.
 func (i *K8sNodeLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID.Ref()
+	return googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref()
 }
 
 // Dependencies returns the dependencies of the log ingester.
@@ -55,12 +55,9 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 	}
 
 	cs.SetLogType(googlecloudlogk8snode_contract.LogTypeNode)
+	cs.SetTimestamp(l.Timestamp)
 
-	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonFS.Timestamp)
-	}
-
-	nodeLogFS, err := log.GetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+	nodeLogFS, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil || nodeLogFS.Message == nil {
 		return nil, err
 	}
@@ -170,11 +167,6 @@ var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	&K8sNodeLogIngester{},
 )
 
-// CommonFieldSetReaderTask parses the common fieldset used by GKE Node component logs.
-var CommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
-	&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSetReader{},
-})
-
 // TailTask is a nop task that depends on all node component mappers and other child tasks to group them.
 var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8snode_contract.TailTaskID,
 	[]taskid.UntypedTaskReference{
@@ -202,7 +194,10 @@ func newParserTypeFilterTask(taskid taskid.TaskImplementationID[[]*log.Log], log
 		taskid,
 		logSource,
 		func(ctx context.Context, l *log.Log) bool {
-			componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+			componentFieldSet, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
+			if err != nil {
+				return false
+			}
 			return componentFieldSet.ParserType() == parserType
 		},
 	)
@@ -211,7 +206,10 @@ func newParserTypeFilterTask(taskid taskid.TaskImplementationID[[]*log.Log], log
 // newNodeAndComponentNameGrouperTask creates a new grouper task with grouping by node name and component name.
 func newNodeAndComponentNameGrouperTask(taskid taskid.TaskImplementationID[inspectiontaskbase.LogGroupMap], logSource taskid.TaskReference[[]*log.Log]) coretask.Task[inspectiontaskbase.LogGroupMap] {
 	return inspectiontaskbase.NewLogGrouperTask(taskid, logSource, func(ctx context.Context, l *log.Log) string {
-		componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+		componentFieldSet, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
+		if err != nil {
+			return ""
+		}
 		return fmt.Sprintf("%s-%s", componentFieldSet.NodeName, componentFieldSet.Component)
 	})
 }

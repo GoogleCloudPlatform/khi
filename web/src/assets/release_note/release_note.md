@@ -1,5 +1,25 @@
 These release notes only include featured changes. For other minor changes and bug fixes, please see the [GitHub Releases](https://github.com/GoogleCloudPlatform/khi/releases) page.
 
+# v0.58.0 (August 31 2026)
+
+## Log Volume Estimation Before Inspection
+
+When setting up a new inspection, KHI now estimates the matching log volume in real time based on your selected parameters, namespaces, and log types. You can quickly see the estimated total logs and individual query volumes before starting the inspection, making it easy to fine-tune query ranges and avoid unexpectedly large queries.
+
+<img src="assets/release_note/log-volume-estimation.png" alt="Real-time log volume estimation in the new inspection dialog" width="512px">
+
+## Backend-Powered Processing Architecture
+
+Heavy computation workloads—such as log filtering, CEL expression evaluation, architecture graph generation, and structured manifest handling—have been migrated from the browser frontend to the backend server. Powered by Connect-RPC streaming and services, this backend-driven architecture allows KHI to process and manage large datasets much more efficiently.
+
+## Blazing-Fast Search with Full-Text Indexing
+
+KHI now builds a high-performance full-text search index on the backend during data ingestion (using Trigram indexing backed by Roaring Bitmaps). This enables near-instant text and regular expression searches across millions of log entries, significantly speeding up timeline exploration and troubleshooting.
+
+## Drastically Reduced Frontend Memory and Improved Responsiveness
+
+With heavy processing and full dataset storage offloaded to the backend, structured data and manifests are now loaded on demand. This substantially reduces browser memory consumption, prevents UI freezing, and ensures a smooth, lightweight experience even when exploring massive log files.
+
 # v0.57.0 (July 9 2026)
 
 ## Enhanced Diff View Tooltips

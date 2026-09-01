@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
@@ -52,7 +52,7 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) GroupedLogTask() taski
 }
 
 // LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (r *resourceOwnerReferenceTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
@@ -77,6 +77,13 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ResolveRelatedGroupSet
 	return result, nil
 }
 
+var (
+	pathOwnerReferences = structured.CompileFieldPath("metadata.ownerReferences")
+	pathOwnerKind       = structured.CompileFieldPath("kind")
+	pathOwnerAPIVersion = structured.CompileFieldPath("apiVersion")
+	pathOwnerName       = structured.CompileFieldPath("name")
+)
+
 // ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
 func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
@@ -85,11 +92,11 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 	if !ok || bodyReader == nil {
 		return cs, struct{}{}, nil
 	}
-	ownerReferencesReaders, err := bodyReader.GetReader("metadata.ownerReferences")
+	ownerReferencesReaders, err := bodyReader.GetReader(pathOwnerReferences)
 	if err != nil {
 		return cs, struct{}{}, nil
 	}
-	k8sFieldSet, err := log.GetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, err := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	if err != nil {
 		return cs, struct{}{}, err
 	}
@@ -100,16 +107,16 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 	aliasPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	for _, ownerReferenceReader := range ownerReferencesReaders.Children() {
-		kind, err := ownerReferenceReader.ReadString("kind")
+		kind, err := ownerReferenceReader.ReadString(pathOwnerKind)
 		if err != nil {
 			continue
 		}
 		kind = strings.ToLower(kind)
-		apiVersion, err := ownerReferenceReader.ReadString("apiVersion")
+		apiVersion, err := ownerReferenceReader.ReadString(pathOwnerAPIVersion)
 		if err != nil {
 			continue
 		}
-		name, err := ownerReferenceReader.ReadString("name")
+		name, err := ownerReferenceReader.ReadString(pathOwnerName)
 		if err != nil {
 			continue
 		}

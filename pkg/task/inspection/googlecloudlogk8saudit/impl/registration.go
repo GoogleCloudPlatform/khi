@@ -43,7 +43,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	)
 
 	return coretask.RegisterTasks(scoped,
-		GCPK8sAuditLogCommonFieldSetReaderTask,
+		GCPK8sAuditLogExtractorTask,
 		GCPK8sAuditLogParserTailTask,
 		AuditLogNEGDiscoveryTask,
 	)

@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
@@ -38,14 +39,12 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 	}{
 		{
 			name: "operation starting log",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&GCPAuditLogFieldSet{
+				GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.insert",
 					OperationFirst: true,
 					OperationLast:  false,
@@ -62,14 +61,12 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "operation ending succeeded log",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&GCPAuditLogFieldSet{
+				GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.insert",
 					OperationFirst: false,
 					OperationLast:  true,
@@ -85,14 +82,12 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "operation ending failed log",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityError,
 				},
-				&GCPAuditLogFieldSet{
+				GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.insert",
 					OperationFirst: false,
 					OperationLast:  true,
@@ -109,14 +104,12 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "immediate operation succeeded log",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&GCPAuditLogFieldSet{
+				GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.get",
 					OperationFirst: true,
 					OperationLast:  true,
@@ -132,14 +125,12 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "immediate operation failed log",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityError,
 				},
-				&GCPAuditLogFieldSet{
+				GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.delete",
 					OperationFirst: true,
 					OperationLast:  true,
@@ -156,14 +147,12 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name: "default log (neither starting nor ending)",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{
-					Timestamp: testTime,
-				},
-				&inspectioncore_contract.DefaultSeverityFieldSet{
+			input: testlog.NewMockLog(
+				testTime,
+				inspectioncore_contract.DefaultSeverityFieldSet{
 					Severity: inspectioncore_contract.SeverityInfo,
 				},
-				&GCPAuditLogFieldSet{
+				GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.list",
 					OperationFirst: false,
 					OperationLast:  false,

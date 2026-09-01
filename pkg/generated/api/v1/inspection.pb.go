@@ -21,11 +21,12 @@
 package apiv1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -269,6 +270,55 @@ func (x UploadStatus) Number() protoreflect.EnumNumber {
 // Deprecated: Use UploadStatus.Descriptor instead.
 func (UploadStatus) EnumDescriptor() ([]byte, []int) {
 	return file_api_v1_inspection_proto_rawDescGZIP(), []int{3}
+}
+
+// EstimatedCountPreset defines predefined rough estimation categories when exact count estimation is unfeasible.
+type EstimatedCountPreset int32
+
+const (
+	// Default unspecified preset (meaning numeric estimated_count should be used).
+	EstimatedCountPreset_ESTIMATED_COUNT_PRESET_UNSPECIFIED EstimatedCountPreset = 0
+	// Few logs matching this query (e.g. sporadic audit events or configuration changes).
+	EstimatedCountPreset_ESTIMATED_COUNT_PRESET_FEW EstimatedCountPreset = 1
+)
+
+// Enum value maps for EstimatedCountPreset.
+var (
+	EstimatedCountPreset_name = map[int32]string{
+		0: "ESTIMATED_COUNT_PRESET_UNSPECIFIED",
+		1: "ESTIMATED_COUNT_PRESET_FEW",
+	}
+	EstimatedCountPreset_value = map[string]int32{
+		"ESTIMATED_COUNT_PRESET_UNSPECIFIED": 0,
+		"ESTIMATED_COUNT_PRESET_FEW":         1,
+	}
+)
+
+func (x EstimatedCountPreset) Enum() *EstimatedCountPreset {
+	p := new(EstimatedCountPreset)
+	*p = x
+	return p
+}
+
+func (x EstimatedCountPreset) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EstimatedCountPreset) Descriptor() protoreflect.EnumDescriptor {
+	return file_api_v1_inspection_proto_enumTypes[4].Descriptor()
+}
+
+func (EstimatedCountPreset) Type() protoreflect.EnumType {
+	return &file_api_v1_inspection_proto_enumTypes[4]
+}
+
+func (x EstimatedCountPreset) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EstimatedCountPreset.Descriptor instead.
+func (EstimatedCountPreset) EnumDescriptor() ([]byte, []int) {
+	return file_api_v1_inspection_proto_rawDescGZIP(), []int{4}
 }
 
 // InspectionType represents a supported cluster or log platform type (e.g. GKE, Cloud Composer).
@@ -1373,9 +1423,11 @@ type InspectionQuery struct {
 	// Whether required input parameters to build this query are incomplete.
 	Incomplete *bool `protobuf:"varint,5,opt,name=incomplete" json:"incomplete,omitempty"`
 	// Whether log volume estimation for this query is currently running in the background.
-	Pending       *bool `protobuf:"varint,6,opt,name=pending" json:"pending,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Pending *bool `protobuf:"varint,6,opt,name=pending" json:"pending,omitempty"`
+	// Predefined estimation preset category if exact count estimation is unfeasible.
+	EstimatedCountPreset *EstimatedCountPreset `protobuf:"varint,7,opt,name=estimated_count_preset,json=estimatedCountPreset,enum=api.v1.EstimatedCountPreset" json:"estimated_count_preset,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *InspectionQuery) Reset() {
@@ -1448,6 +1500,13 @@ func (x *InspectionQuery) GetPending() bool {
 		return *x.Pending
 	}
 	return false
+}
+
+func (x *InspectionQuery) GetEstimatedCountPreset() EstimatedCountPreset {
+	if x != nil && x.EstimatedCountPreset != nil {
+		return *x.EstimatedCountPreset
+	}
+	return EstimatedCountPreset_ESTIMATED_COUNT_PRESET_UNSPECIFIED
 }
 
 // InspectionPlan visualizes the resolved execution graph of tasks.
@@ -3255,7 +3314,7 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\x04text\x18\a \x01(\v2\x15.api.v1.TextFormFieldH\x00R\x04text\x12+\n" +
 	"\x04file\x18\b \x01(\v2\x15.api.v1.FileFormFieldH\x00R\x04file\x12(\n" +
 	"\x03set\x18\t \x01(\v2\x14.api.v1.SetFormFieldH\x00R\x03setB\x06\n" +
-	"\x04kind\"\xae\x01\n" +
+	"\x04kind\"\x82\x02\n" +
 	"\x0fInspectionQuery\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
@@ -3264,7 +3323,8 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\n" +
 	"incomplete\x18\x05 \x01(\bR\n" +
 	"incomplete\x12\x18\n" +
-	"\apending\x18\x06 \x01(\bR\apending\"/\n" +
+	"\apending\x18\x06 \x01(\bR\apending\x12R\n" +
+	"\x16estimated_count_preset\x18\a \x01(\x0e2\x1c.api.v1.EstimatedCountPresetR\x14estimatedCountPreset\"/\n" +
 	"\x0eInspectionPlan\x12\x1d\n" +
 	"\n" +
 	"task_graph\x18\x01 \x01(\tR\ttaskGraph\"E\n" +
@@ -3381,7 +3441,10 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\x15UPLOAD_STATUS_WAITING\x10\x01\x12\x1b\n" +
 	"\x17UPLOAD_STATUS_UPLOADING\x10\x02\x12\x1b\n" +
 	"\x17UPLOAD_STATUS_VERIFYING\x10\x03\x12\x16\n" +
-	"\x12UPLOAD_STATUS_DONE\x10\x042\xbc\t\n" +
+	"\x12UPLOAD_STATUS_DONE\x10\x04*^\n" +
+	"\x14EstimatedCountPreset\x12&\n" +
+	"\"ESTIMATED_COUNT_PRESET_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aESTIMATED_COUNT_PRESET_FEW\x10\x012\xbc\t\n" +
 	"\x11InspectionService\x12[\n" +
 	"\x12GetInspectionTypes\x12!.api.v1.GetInspectionTypesRequest\x1a\".api.v1.GetInspectionTypesResponse\x12O\n" +
 	"\x0eGetInspections\x12\x1d.api.v1.GetInspectionsRequest\x1a\x1e.api.v1.GetInspectionsResponse\x12W\n" +
@@ -3409,135 +3472,137 @@ func file_api_v1_inspection_proto_rawDescGZIP() []byte {
 	return file_api_v1_inspection_proto_rawDescData
 }
 
-var file_api_v1_inspection_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_api_v1_inspection_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
 var file_api_v1_inspection_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
 var file_api_v1_inspection_proto_goTypes = []any{
 	(InspectionPhase)(0),                     // 0: api.v1.InspectionPhase
 	(ParameterHintType)(0),                   // 1: api.v1.ParameterHintType
 	(ValidationTiming)(0),                    // 2: api.v1.ValidationTiming
 	(UploadStatus)(0),                        // 3: api.v1.UploadStatus
-	(*InspectionType)(nil),                   // 4: api.v1.InspectionType
-	(*InspectionFeature)(nil),                // 5: api.v1.InspectionFeature
-	(*TaskProgressElement)(nil),              // 6: api.v1.TaskProgressElement
-	(*InspectionProgress)(nil),               // 7: api.v1.InspectionProgress
-	(*InspectionHeader)(nil),                 // 8: api.v1.InspectionHeader
-	(*InspectionError)(nil),                  // 9: api.v1.InspectionError
-	(*InspectionErrorSet)(nil),               // 10: api.v1.InspectionErrorSet
-	(*InspectionListItem)(nil),               // 11: api.v1.InspectionListItem
-	(*GroupFormField)(nil),                   // 12: api.v1.GroupFormField
-	(*TextFormField)(nil),                    // 13: api.v1.TextFormField
-	(*FileFormField)(nil),                    // 14: api.v1.FileFormField
-	(*SetOption)(nil),                        // 15: api.v1.SetOption
-	(*SetFormField)(nil),                     // 16: api.v1.SetFormField
-	(*FormField)(nil),                        // 17: api.v1.FormField
-	(*InspectionQuery)(nil),                  // 18: api.v1.InspectionQuery
-	(*InspectionPlan)(nil),                   // 19: api.v1.InspectionPlan
-	(*InspectionLog)(nil),                    // 20: api.v1.InspectionLog
-	(*InspectionJobCommand)(nil),             // 21: api.v1.InspectionJobCommand
-	(*TextParameterValue)(nil),               // 22: api.v1.TextParameterValue
-	(*SetParameterValue)(nil),                // 23: api.v1.SetParameterValue
-	(*FileParameterValue)(nil),               // 24: api.v1.FileParameterValue
-	(*ParameterValue)(nil),                   // 25: api.v1.ParameterValue
-	(*InspectionParameters)(nil),             // 26: api.v1.InspectionParameters
-	(*GetInspectionTypesRequest)(nil),        // 27: api.v1.GetInspectionTypesRequest
-	(*GetInspectionTypesResponse)(nil),       // 28: api.v1.GetInspectionTypesResponse
-	(*GetInspectionsRequest)(nil),            // 29: api.v1.GetInspectionsRequest
-	(*GetInspectionsResponse)(nil),           // 30: api.v1.GetInspectionsResponse
-	(*WatchInspectionsRequest)(nil),          // 31: api.v1.WatchInspectionsRequest
-	(*WatchInspectionsResponse)(nil),         // 32: api.v1.WatchInspectionsResponse
-	(*PullInspectionsRequest)(nil),           // 33: api.v1.PullInspectionsRequest
-	(*PullInspectionsResponse)(nil),          // 34: api.v1.PullInspectionsResponse
-	(*CreateInspectionRequest)(nil),          // 35: api.v1.CreateInspectionRequest
-	(*CreateInspectionResponse)(nil),         // 36: api.v1.CreateInspectionResponse
-	(*UpdateInspectionRequest)(nil),          // 37: api.v1.UpdateInspectionRequest
-	(*UpdateInspectionResponse)(nil),         // 38: api.v1.UpdateInspectionResponse
-	(*GetInspectionFeaturesRequest)(nil),     // 39: api.v1.GetInspectionFeaturesRequest
-	(*GetInspectionFeaturesResponse)(nil),    // 40: api.v1.GetInspectionFeaturesResponse
-	(*UpdateInspectionFeaturesRequest)(nil),  // 41: api.v1.UpdateInspectionFeaturesRequest
-	(*UpdateInspectionFeaturesResponse)(nil), // 42: api.v1.UpdateInspectionFeaturesResponse
-	(*DryRunInspectionRequest)(nil),          // 43: api.v1.DryRunInspectionRequest
-	(*DryRunInspectionResponse)(nil),         // 44: api.v1.DryRunInspectionResponse
-	(*RunInspectionRequest)(nil),             // 45: api.v1.RunInspectionRequest
-	(*RunInspectionResponse)(nil),            // 46: api.v1.RunInspectionResponse
-	(*CancelInspectionRequest)(nil),          // 47: api.v1.CancelInspectionRequest
-	(*CancelInspectionResponse)(nil),         // 48: api.v1.CancelInspectionResponse
-	(*GetInspectionMetadataRequest)(nil),     // 49: api.v1.GetInspectionMetadataRequest
-	(*GetInspectionMetadataResponse)(nil),    // 50: api.v1.GetInspectionMetadataResponse
-	(*GetInspectionDataChunkRequest)(nil),    // 51: api.v1.GetInspectionDataChunkRequest
-	(*GetInspectionDataChunkResponse)(nil),   // 52: api.v1.GetInspectionDataChunkResponse
-	nil,                                      // 53: api.v1.InspectionType.LabelsEntry
-	nil,                                      // 54: api.v1.UpdateInspectionFeaturesRequest.FeatureStatesEntry
+	(EstimatedCountPreset)(0),                // 4: api.v1.EstimatedCountPreset
+	(*InspectionType)(nil),                   // 5: api.v1.InspectionType
+	(*InspectionFeature)(nil),                // 6: api.v1.InspectionFeature
+	(*TaskProgressElement)(nil),              // 7: api.v1.TaskProgressElement
+	(*InspectionProgress)(nil),               // 8: api.v1.InspectionProgress
+	(*InspectionHeader)(nil),                 // 9: api.v1.InspectionHeader
+	(*InspectionError)(nil),                  // 10: api.v1.InspectionError
+	(*InspectionErrorSet)(nil),               // 11: api.v1.InspectionErrorSet
+	(*InspectionListItem)(nil),               // 12: api.v1.InspectionListItem
+	(*GroupFormField)(nil),                   // 13: api.v1.GroupFormField
+	(*TextFormField)(nil),                    // 14: api.v1.TextFormField
+	(*FileFormField)(nil),                    // 15: api.v1.FileFormField
+	(*SetOption)(nil),                        // 16: api.v1.SetOption
+	(*SetFormField)(nil),                     // 17: api.v1.SetFormField
+	(*FormField)(nil),                        // 18: api.v1.FormField
+	(*InspectionQuery)(nil),                  // 19: api.v1.InspectionQuery
+	(*InspectionPlan)(nil),                   // 20: api.v1.InspectionPlan
+	(*InspectionLog)(nil),                    // 21: api.v1.InspectionLog
+	(*InspectionJobCommand)(nil),             // 22: api.v1.InspectionJobCommand
+	(*TextParameterValue)(nil),               // 23: api.v1.TextParameterValue
+	(*SetParameterValue)(nil),                // 24: api.v1.SetParameterValue
+	(*FileParameterValue)(nil),               // 25: api.v1.FileParameterValue
+	(*ParameterValue)(nil),                   // 26: api.v1.ParameterValue
+	(*InspectionParameters)(nil),             // 27: api.v1.InspectionParameters
+	(*GetInspectionTypesRequest)(nil),        // 28: api.v1.GetInspectionTypesRequest
+	(*GetInspectionTypesResponse)(nil),       // 29: api.v1.GetInspectionTypesResponse
+	(*GetInspectionsRequest)(nil),            // 30: api.v1.GetInspectionsRequest
+	(*GetInspectionsResponse)(nil),           // 31: api.v1.GetInspectionsResponse
+	(*WatchInspectionsRequest)(nil),          // 32: api.v1.WatchInspectionsRequest
+	(*WatchInspectionsResponse)(nil),         // 33: api.v1.WatchInspectionsResponse
+	(*PullInspectionsRequest)(nil),           // 34: api.v1.PullInspectionsRequest
+	(*PullInspectionsResponse)(nil),          // 35: api.v1.PullInspectionsResponse
+	(*CreateInspectionRequest)(nil),          // 36: api.v1.CreateInspectionRequest
+	(*CreateInspectionResponse)(nil),         // 37: api.v1.CreateInspectionResponse
+	(*UpdateInspectionRequest)(nil),          // 38: api.v1.UpdateInspectionRequest
+	(*UpdateInspectionResponse)(nil),         // 39: api.v1.UpdateInspectionResponse
+	(*GetInspectionFeaturesRequest)(nil),     // 40: api.v1.GetInspectionFeaturesRequest
+	(*GetInspectionFeaturesResponse)(nil),    // 41: api.v1.GetInspectionFeaturesResponse
+	(*UpdateInspectionFeaturesRequest)(nil),  // 42: api.v1.UpdateInspectionFeaturesRequest
+	(*UpdateInspectionFeaturesResponse)(nil), // 43: api.v1.UpdateInspectionFeaturesResponse
+	(*DryRunInspectionRequest)(nil),          // 44: api.v1.DryRunInspectionRequest
+	(*DryRunInspectionResponse)(nil),         // 45: api.v1.DryRunInspectionResponse
+	(*RunInspectionRequest)(nil),             // 46: api.v1.RunInspectionRequest
+	(*RunInspectionResponse)(nil),            // 47: api.v1.RunInspectionResponse
+	(*CancelInspectionRequest)(nil),          // 48: api.v1.CancelInspectionRequest
+	(*CancelInspectionResponse)(nil),         // 49: api.v1.CancelInspectionResponse
+	(*GetInspectionMetadataRequest)(nil),     // 50: api.v1.GetInspectionMetadataRequest
+	(*GetInspectionMetadataResponse)(nil),    // 51: api.v1.GetInspectionMetadataResponse
+	(*GetInspectionDataChunkRequest)(nil),    // 52: api.v1.GetInspectionDataChunkRequest
+	(*GetInspectionDataChunkResponse)(nil),   // 53: api.v1.GetInspectionDataChunkResponse
+	nil,                                      // 54: api.v1.InspectionType.LabelsEntry
+	nil,                                      // 55: api.v1.UpdateInspectionFeaturesRequest.FeatureStatesEntry
 }
 var file_api_v1_inspection_proto_depIdxs = []int32{
-	53, // 0: api.v1.InspectionType.labels:type_name -> api.v1.InspectionType.LabelsEntry
+	54, // 0: api.v1.InspectionType.labels:type_name -> api.v1.InspectionType.LabelsEntry
 	0,  // 1: api.v1.InspectionProgress.phase:type_name -> api.v1.InspectionPhase
-	6,  // 2: api.v1.InspectionProgress.total_progress:type_name -> api.v1.TaskProgressElement
-	6,  // 3: api.v1.InspectionProgress.progresses:type_name -> api.v1.TaskProgressElement
-	9,  // 4: api.v1.InspectionErrorSet.error_messages:type_name -> api.v1.InspectionError
-	8,  // 5: api.v1.InspectionListItem.header:type_name -> api.v1.InspectionHeader
-	7,  // 6: api.v1.InspectionListItem.progress:type_name -> api.v1.InspectionProgress
-	10, // 7: api.v1.InspectionListItem.error:type_name -> api.v1.InspectionErrorSet
-	17, // 8: api.v1.GroupFormField.children:type_name -> api.v1.FormField
+	7,  // 2: api.v1.InspectionProgress.total_progress:type_name -> api.v1.TaskProgressElement
+	7,  // 3: api.v1.InspectionProgress.progresses:type_name -> api.v1.TaskProgressElement
+	10, // 4: api.v1.InspectionErrorSet.error_messages:type_name -> api.v1.InspectionError
+	9,  // 5: api.v1.InspectionListItem.header:type_name -> api.v1.InspectionHeader
+	8,  // 6: api.v1.InspectionListItem.progress:type_name -> api.v1.InspectionProgress
+	11, // 7: api.v1.InspectionListItem.error:type_name -> api.v1.InspectionErrorSet
+	18, // 8: api.v1.GroupFormField.children:type_name -> api.v1.FormField
 	2,  // 9: api.v1.TextFormField.validation_timing:type_name -> api.v1.ValidationTiming
 	3,  // 10: api.v1.FileFormField.status:type_name -> api.v1.UploadStatus
-	15, // 11: api.v1.SetFormField.options:type_name -> api.v1.SetOption
+	16, // 11: api.v1.SetFormField.options:type_name -> api.v1.SetOption
 	1,  // 12: api.v1.FormField.hint_type:type_name -> api.v1.ParameterHintType
-	12, // 13: api.v1.FormField.group:type_name -> api.v1.GroupFormField
-	13, // 14: api.v1.FormField.text:type_name -> api.v1.TextFormField
-	14, // 15: api.v1.FormField.file:type_name -> api.v1.FileFormField
-	16, // 16: api.v1.FormField.set:type_name -> api.v1.SetFormField
-	22, // 17: api.v1.ParameterValue.text_value:type_name -> api.v1.TextParameterValue
-	23, // 18: api.v1.ParameterValue.set_value:type_name -> api.v1.SetParameterValue
-	24, // 19: api.v1.ParameterValue.file_value:type_name -> api.v1.FileParameterValue
-	25, // 20: api.v1.InspectionParameters.parameters:type_name -> api.v1.ParameterValue
-	4,  // 21: api.v1.GetInspectionTypesResponse.types:type_name -> api.v1.InspectionType
-	11, // 22: api.v1.GetInspectionsResponse.inspections:type_name -> api.v1.InspectionListItem
-	11, // 23: api.v1.WatchInspectionsResponse.inspections:type_name -> api.v1.InspectionListItem
-	11, // 24: api.v1.PullInspectionsResponse.inspections:type_name -> api.v1.InspectionListItem
-	5,  // 25: api.v1.GetInspectionFeaturesResponse.features:type_name -> api.v1.InspectionFeature
-	54, // 26: api.v1.UpdateInspectionFeaturesRequest.feature_states:type_name -> api.v1.UpdateInspectionFeaturesRequest.FeatureStatesEntry
-	26, // 27: api.v1.DryRunInspectionRequest.parameters:type_name -> api.v1.InspectionParameters
-	17, // 28: api.v1.DryRunInspectionResponse.form:type_name -> api.v1.FormField
-	18, // 29: api.v1.DryRunInspectionResponse.queries:type_name -> api.v1.InspectionQuery
-	19, // 30: api.v1.DryRunInspectionResponse.plan:type_name -> api.v1.InspectionPlan
-	21, // 31: api.v1.DryRunInspectionResponse.job_command:type_name -> api.v1.InspectionJobCommand
-	26, // 32: api.v1.RunInspectionRequest.parameters:type_name -> api.v1.InspectionParameters
-	8,  // 33: api.v1.GetInspectionMetadataResponse.header:type_name -> api.v1.InspectionHeader
-	19, // 34: api.v1.GetInspectionMetadataResponse.plan:type_name -> api.v1.InspectionPlan
-	18, // 35: api.v1.GetInspectionMetadataResponse.queries:type_name -> api.v1.InspectionQuery
-	20, // 36: api.v1.GetInspectionMetadataResponse.logs:type_name -> api.v1.InspectionLog
-	10, // 37: api.v1.GetInspectionMetadataResponse.error:type_name -> api.v1.InspectionErrorSet
-	27, // 38: api.v1.InspectionService.GetInspectionTypes:input_type -> api.v1.GetInspectionTypesRequest
-	29, // 39: api.v1.InspectionService.GetInspections:input_type -> api.v1.GetInspectionsRequest
-	31, // 40: api.v1.InspectionService.WatchInspections:input_type -> api.v1.WatchInspectionsRequest
-	33, // 41: api.v1.InspectionService.PullInspections:input_type -> api.v1.PullInspectionsRequest
-	35, // 42: api.v1.InspectionService.CreateInspection:input_type -> api.v1.CreateInspectionRequest
-	37, // 43: api.v1.InspectionService.UpdateInspection:input_type -> api.v1.UpdateInspectionRequest
-	39, // 44: api.v1.InspectionService.GetInspectionFeatures:input_type -> api.v1.GetInspectionFeaturesRequest
-	41, // 45: api.v1.InspectionService.UpdateInspectionFeatures:input_type -> api.v1.UpdateInspectionFeaturesRequest
-	43, // 46: api.v1.InspectionService.DryRunInspection:input_type -> api.v1.DryRunInspectionRequest
-	45, // 47: api.v1.InspectionService.RunInspection:input_type -> api.v1.RunInspectionRequest
-	47, // 48: api.v1.InspectionService.CancelInspection:input_type -> api.v1.CancelInspectionRequest
-	49, // 49: api.v1.InspectionService.GetInspectionMetadata:input_type -> api.v1.GetInspectionMetadataRequest
-	51, // 50: api.v1.InspectionService.GetInspectionDataChunk:input_type -> api.v1.GetInspectionDataChunkRequest
-	28, // 51: api.v1.InspectionService.GetInspectionTypes:output_type -> api.v1.GetInspectionTypesResponse
-	30, // 52: api.v1.InspectionService.GetInspections:output_type -> api.v1.GetInspectionsResponse
-	32, // 53: api.v1.InspectionService.WatchInspections:output_type -> api.v1.WatchInspectionsResponse
-	34, // 54: api.v1.InspectionService.PullInspections:output_type -> api.v1.PullInspectionsResponse
-	36, // 55: api.v1.InspectionService.CreateInspection:output_type -> api.v1.CreateInspectionResponse
-	38, // 56: api.v1.InspectionService.UpdateInspection:output_type -> api.v1.UpdateInspectionResponse
-	40, // 57: api.v1.InspectionService.GetInspectionFeatures:output_type -> api.v1.GetInspectionFeaturesResponse
-	42, // 58: api.v1.InspectionService.UpdateInspectionFeatures:output_type -> api.v1.UpdateInspectionFeaturesResponse
-	44, // 59: api.v1.InspectionService.DryRunInspection:output_type -> api.v1.DryRunInspectionResponse
-	46, // 60: api.v1.InspectionService.RunInspection:output_type -> api.v1.RunInspectionResponse
-	48, // 61: api.v1.InspectionService.CancelInspection:output_type -> api.v1.CancelInspectionResponse
-	50, // 62: api.v1.InspectionService.GetInspectionMetadata:output_type -> api.v1.GetInspectionMetadataResponse
-	52, // 63: api.v1.InspectionService.GetInspectionDataChunk:output_type -> api.v1.GetInspectionDataChunkResponse
-	51, // [51:64] is the sub-list for method output_type
-	38, // [38:51] is the sub-list for method input_type
-	38, // [38:38] is the sub-list for extension type_name
-	38, // [38:38] is the sub-list for extension extendee
-	0,  // [0:38] is the sub-list for field type_name
+	13, // 13: api.v1.FormField.group:type_name -> api.v1.GroupFormField
+	14, // 14: api.v1.FormField.text:type_name -> api.v1.TextFormField
+	15, // 15: api.v1.FormField.file:type_name -> api.v1.FileFormField
+	17, // 16: api.v1.FormField.set:type_name -> api.v1.SetFormField
+	4,  // 17: api.v1.InspectionQuery.estimated_count_preset:type_name -> api.v1.EstimatedCountPreset
+	23, // 18: api.v1.ParameterValue.text_value:type_name -> api.v1.TextParameterValue
+	24, // 19: api.v1.ParameterValue.set_value:type_name -> api.v1.SetParameterValue
+	25, // 20: api.v1.ParameterValue.file_value:type_name -> api.v1.FileParameterValue
+	26, // 21: api.v1.InspectionParameters.parameters:type_name -> api.v1.ParameterValue
+	5,  // 22: api.v1.GetInspectionTypesResponse.types:type_name -> api.v1.InspectionType
+	12, // 23: api.v1.GetInspectionsResponse.inspections:type_name -> api.v1.InspectionListItem
+	12, // 24: api.v1.WatchInspectionsResponse.inspections:type_name -> api.v1.InspectionListItem
+	12, // 25: api.v1.PullInspectionsResponse.inspections:type_name -> api.v1.InspectionListItem
+	6,  // 26: api.v1.GetInspectionFeaturesResponse.features:type_name -> api.v1.InspectionFeature
+	55, // 27: api.v1.UpdateInspectionFeaturesRequest.feature_states:type_name -> api.v1.UpdateInspectionFeaturesRequest.FeatureStatesEntry
+	27, // 28: api.v1.DryRunInspectionRequest.parameters:type_name -> api.v1.InspectionParameters
+	18, // 29: api.v1.DryRunInspectionResponse.form:type_name -> api.v1.FormField
+	19, // 30: api.v1.DryRunInspectionResponse.queries:type_name -> api.v1.InspectionQuery
+	20, // 31: api.v1.DryRunInspectionResponse.plan:type_name -> api.v1.InspectionPlan
+	22, // 32: api.v1.DryRunInspectionResponse.job_command:type_name -> api.v1.InspectionJobCommand
+	27, // 33: api.v1.RunInspectionRequest.parameters:type_name -> api.v1.InspectionParameters
+	9,  // 34: api.v1.GetInspectionMetadataResponse.header:type_name -> api.v1.InspectionHeader
+	20, // 35: api.v1.GetInspectionMetadataResponse.plan:type_name -> api.v1.InspectionPlan
+	19, // 36: api.v1.GetInspectionMetadataResponse.queries:type_name -> api.v1.InspectionQuery
+	21, // 37: api.v1.GetInspectionMetadataResponse.logs:type_name -> api.v1.InspectionLog
+	11, // 38: api.v1.GetInspectionMetadataResponse.error:type_name -> api.v1.InspectionErrorSet
+	28, // 39: api.v1.InspectionService.GetInspectionTypes:input_type -> api.v1.GetInspectionTypesRequest
+	30, // 40: api.v1.InspectionService.GetInspections:input_type -> api.v1.GetInspectionsRequest
+	32, // 41: api.v1.InspectionService.WatchInspections:input_type -> api.v1.WatchInspectionsRequest
+	34, // 42: api.v1.InspectionService.PullInspections:input_type -> api.v1.PullInspectionsRequest
+	36, // 43: api.v1.InspectionService.CreateInspection:input_type -> api.v1.CreateInspectionRequest
+	38, // 44: api.v1.InspectionService.UpdateInspection:input_type -> api.v1.UpdateInspectionRequest
+	40, // 45: api.v1.InspectionService.GetInspectionFeatures:input_type -> api.v1.GetInspectionFeaturesRequest
+	42, // 46: api.v1.InspectionService.UpdateInspectionFeatures:input_type -> api.v1.UpdateInspectionFeaturesRequest
+	44, // 47: api.v1.InspectionService.DryRunInspection:input_type -> api.v1.DryRunInspectionRequest
+	46, // 48: api.v1.InspectionService.RunInspection:input_type -> api.v1.RunInspectionRequest
+	48, // 49: api.v1.InspectionService.CancelInspection:input_type -> api.v1.CancelInspectionRequest
+	50, // 50: api.v1.InspectionService.GetInspectionMetadata:input_type -> api.v1.GetInspectionMetadataRequest
+	52, // 51: api.v1.InspectionService.GetInspectionDataChunk:input_type -> api.v1.GetInspectionDataChunkRequest
+	29, // 52: api.v1.InspectionService.GetInspectionTypes:output_type -> api.v1.GetInspectionTypesResponse
+	31, // 53: api.v1.InspectionService.GetInspections:output_type -> api.v1.GetInspectionsResponse
+	33, // 54: api.v1.InspectionService.WatchInspections:output_type -> api.v1.WatchInspectionsResponse
+	35, // 55: api.v1.InspectionService.PullInspections:output_type -> api.v1.PullInspectionsResponse
+	37, // 56: api.v1.InspectionService.CreateInspection:output_type -> api.v1.CreateInspectionResponse
+	39, // 57: api.v1.InspectionService.UpdateInspection:output_type -> api.v1.UpdateInspectionResponse
+	41, // 58: api.v1.InspectionService.GetInspectionFeatures:output_type -> api.v1.GetInspectionFeaturesResponse
+	43, // 59: api.v1.InspectionService.UpdateInspectionFeatures:output_type -> api.v1.UpdateInspectionFeaturesResponse
+	45, // 60: api.v1.InspectionService.DryRunInspection:output_type -> api.v1.DryRunInspectionResponse
+	47, // 61: api.v1.InspectionService.RunInspection:output_type -> api.v1.RunInspectionResponse
+	49, // 62: api.v1.InspectionService.CancelInspection:output_type -> api.v1.CancelInspectionResponse
+	51, // 63: api.v1.InspectionService.GetInspectionMetadata:output_type -> api.v1.GetInspectionMetadataResponse
+	53, // 64: api.v1.InspectionService.GetInspectionDataChunk:output_type -> api.v1.GetInspectionDataChunkResponse
+	52, // [52:65] is the sub-list for method output_type
+	39, // [39:52] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_inspection_proto_init() }
@@ -3561,7 +3626,7 @@ func file_api_v1_inspection_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_inspection_proto_rawDesc), len(file_api_v1_inspection_proto_rawDesc)),
-			NumEnums:      4,
+			NumEnums:      5,
 			NumMessages:   51,
 			NumExtensions: 0,
 			NumServices:   1,

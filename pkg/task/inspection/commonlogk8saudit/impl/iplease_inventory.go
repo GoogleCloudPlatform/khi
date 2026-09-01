@@ -19,14 +19,27 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+)
+
+var (
+	pathIPLeaseStatusPhase  = structured.CompileFieldPath("status.phase")
+	pathIPLeaseStatusPodIPs = structured.CompileFieldPath("status.podIPs")
+	pathIPLeaseIP           = structured.CompileFieldPath("ip")
+	pathIPLeaseStatusPodIP  = structured.CompileFieldPath("status.podIP")
+	pathIPLeaseEndpoints    = structured.CompileFieldPath("endpoints")
+	pathIPLeaseAddresses    = structured.CompileFieldPath("addresses")
+	pathIPLeaseTargetRef    = structured.CompileFieldPath("targetRef")
+	pathIPLeaseKind         = structured.CompileFieldPath("kind")
+	pathIPLeaseName         = structured.CompileFieldPath("name")
+	pathIPLeaseNamespace    = structured.CompileFieldPath("namespace")
 )
 
 var IPLeaseHistoryInventoryTask = commonlogk8saudit_contract.IPLeaseHistoryInventoryBuilder.InventoryTask(&ipLeaseHistoryInventoryMergeStrategy{})
@@ -69,27 +82,26 @@ func processPodResource(group *commonlogk8saudit_contract.ResourceManifestLogGro
 		if l.ResourceBodyReader == nil {
 			continue
 		}
-		commonFieldSet := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
-		if l.ResourceBodyReader.ReadStringOrDefault("status.phase", "") != "Running" {
+		if l.ResourceBodyReader.ReadStringOrDefault(pathIPLeaseStatusPhase, "") != "Running" {
 			continue
 		}
 		ips := map[string]struct{}{}
-		podIPsReader, err := l.ResourceBodyReader.GetReader("status.podIPs")
+		podIPsReader, err := l.ResourceBodyReader.GetReader(pathIPLeaseStatusPodIPs)
 		if err == nil {
 			for _, podIPReader := range podIPsReader.Children() {
-				ip, err := podIPReader.ReadString("ip")
+				ip, err := podIPReader.ReadString(pathIPLeaseIP)
 				if err != nil {
 					continue
 				}
 				ips[ip] = struct{}{}
 			}
 		}
-		podMainIP, err := l.ResourceBodyReader.ReadString("status.podIP")
+		podMainIP, err := l.ResourceBodyReader.ReadString(pathIPLeaseStatusPodIP)
 		if err == nil {
 			ips[podMainIP] = struct{}{}
 		}
 		for ip := range ips {
-			leaseHistory.TouchResourceLease(ip, commonFieldSet.Timestamp, group.Resource)
+			leaseHistory.TouchResourceLease(ip, l.Log.Timestamp, group.Resource)
 		}
 	}
 }
@@ -99,19 +111,18 @@ func processEndpointSliceResource(ctx context.Context, group *commonlogk8saudit_
 		if l.ResourceBodyReader == nil {
 			continue
 		}
-		commonFieldSet := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
-		endpointsReader, err := l.ResourceBodyReader.GetReader("endpoints")
+		endpointsReader, err := l.ResourceBodyReader.GetReader(pathIPLeaseEndpoints)
 		if err != nil {
 			continue
 		}
 		for _, endpointReader := range endpointsReader.Children() {
 			ips := []string{}
-			addressesReader, err := endpointReader.GetReader("addresses")
+			addressesReader, err := endpointReader.GetReader(pathIPLeaseAddresses)
 			if err != nil {
 				continue
 			}
 			for _, addressValue := range addressesReader.Children() {
-				ip, err := addressValue.ReadString("")
+				ip, err := addressValue.ReadString(structured.EmptyFieldPath)
 				if err != nil {
 					continue
 				}
@@ -121,27 +132,27 @@ func processEndpointSliceResource(ctx context.Context, group *commonlogk8saudit_
 			// The apiVersion field in targetRef seems to be missing in endpoint manifest for most of the cases.
 			// Current implementation infers the apiVersion from its kind.
 
-			targetRefReader, err := endpointReader.GetReader("targetRef")
+			targetRefReader, err := endpointReader.GetReader(pathIPLeaseTargetRef)
 			if err != nil {
 				continue
 			}
-			kind, err := targetRefReader.ReadString("kind")
+			kind, err := targetRefReader.ReadString(pathIPLeaseKind)
 			if err != nil {
 				continue
 			}
 			kind = strings.ToLower(kind)
-			name, err := targetRefReader.ReadString("name")
+			name, err := targetRefReader.ReadString(pathIPLeaseName)
 			if err != nil {
 				continue
 			}
-			namespace, err := targetRefReader.ReadString("namespace")
+			namespace, err := targetRefReader.ReadString(pathIPLeaseNamespace)
 			if err != nil {
 				continue
 			}
 			for _, ip := range ips {
 				switch kind {
 				case "pod":
-					leaseHistory.TouchResourceLease(ip, commonFieldSet.Timestamp, &commonlogk8saudit_contract.ResourceIdentity{
+					leaseHistory.TouchResourceLease(ip, l.Log.Timestamp, &commonlogk8saudit_contract.ResourceIdentity{
 						APIVersion: "core/v1",
 						Kind:       "pod",
 						Name:       name,

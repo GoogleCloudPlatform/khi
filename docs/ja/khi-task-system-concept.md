@@ -25,7 +25,7 @@ flowchart LR
 1. **[タスクシステムの基本文法と実行モード](./task-system/01-syntax-and-modes.md)**
    - DAG の基本形式、タスクの型 (`Task[T]`) の宣言、依存関係からの値の取得 (`GetTaskResult`)、構造化ログ (`slog`)、パッケージ構成と命名規約 (`_contract`/`_impl`)、**インスペクション実行モード (`Run` と `DryRun`)**、**単体テスト (`tasktest`)** を収録しています。
 2. **[ログ解析のためのタスク実装パターン (実践ガイド)](./task-system/02-log-processing-cookbook.md)**
-   - ログ解析パイプラインの全体像と、**5 種類の主要タスク作成ユーティリティ (`FieldSetReadTask`, `LogGrouperTask`, `LogFilterTask`, `LogIngesterTask`, `LogToTimelineMapperTask`)** の実践レシピ、および最新の `*khifilev6.TimelinePath` と `testchangeset.AssertTimeline` を用いたタイムライン変換を収録しています。
+   - ログ解析パイプラインの全体像と、**4 種類の主要タスク作成ユーティリティ (`LogFilterTask`, `LogGrouperTask`, `LogIngesterTask`, `LogToTimelineMapperTask`)** の実践レシピ、および最新の `*khifilev6.TimelinePath` と `testchangeset.AssertTimeline` を用いたタイムライン変換を収録しています。
 3. **[高度なタスクパターンとユーティリティ](./task-system/03-advanced-and-form-tasks.md)**
    - インスペクションサーバーへの自動登録 (`Register`)、ラベルセレクタ (`LabelSelector`, `FeatureTask`)、複数ログソースから名前解決を行う **`Inventory` - `Discovery` タスクパターン (`InventoryTaskBuilder` と戦略)**、UI にリッチな入力欄を提示する **フォームタスク (`formtask` / オートコンプリート)**、および **進捗報告 / キャッシュ制御 (`NewGlobalCachedTask`, `NewInspectionCachedTask`)** を収録しています。
 

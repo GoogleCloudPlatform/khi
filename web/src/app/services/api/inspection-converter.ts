@@ -25,6 +25,7 @@ import {
   ValidationTiming as ProtoValidationTiming,
   UploadStatus as ProtoUploadStatus,
   InspectionPhase as ProtoInspectionPhase,
+  EstimatedCountPreset as ProtoEstimatedCountPreset,
   ParameterValue,
   ParameterValueSchema,
   InspectionListItem,
@@ -48,7 +49,25 @@ import {
   InspectionMetadataOfRunResult,
   InspectionDryRunResponse,
 } from 'src/app/common/schema/api-types';
-import { InspectionMetadataProgressPhase } from 'src/app/common/schema/metadata-types';
+import {
+  InspectionMetadataProgressPhase,
+  EstimatedCountPreset,
+} from 'src/app/common/schema/metadata-types';
+
+/**
+ * Maps proto EstimatedCountPreset to frontend EstimatedCountPreset enum.
+ */
+export function mapProtoEstimatedCountPreset(
+  preset?: ProtoEstimatedCountPreset,
+): EstimatedCountPreset {
+  switch (preset) {
+    case ProtoEstimatedCountPreset.FEW:
+      return EstimatedCountPreset.Few;
+    case ProtoEstimatedCountPreset.UNSPECIFIED:
+    default:
+      return EstimatedCountPreset.None;
+  }
+}
 
 /**
  * Maps proto ParameterHintType to frontend ParameterHintType enum.
@@ -356,6 +375,12 @@ export function convertProtoDryRunResponseToFrontend(
           : undefined,
         incomplete: q.incomplete ? true : undefined,
         pending: q.pending ? true : undefined,
+        estimatedCountPreset: isFieldSet(
+          q,
+          InspectionQuerySchema.field.estimatedCountPreset,
+        )
+          ? mapProtoEstimatedCountPreset(q.estimatedCountPreset)
+          : undefined,
       })),
       plan: {
         taskGraph: res.plan?.taskGraph ?? '',
@@ -396,6 +421,12 @@ export function convertProtoMetadataToInspectionMetadataOfRunResult(
         : undefined,
       incomplete: q.incomplete ? true : undefined,
       pending: q.pending ? true : undefined,
+      estimatedCountPreset: isFieldSet(
+        q,
+        InspectionQuerySchema.field.estimatedCountPreset,
+      )
+        ? mapProtoEstimatedCountPreset(q.estimatedCountPreset)
+        : undefined,
     })),
     log: (res.logs ?? []).map((l) => ({
       id: l.id,

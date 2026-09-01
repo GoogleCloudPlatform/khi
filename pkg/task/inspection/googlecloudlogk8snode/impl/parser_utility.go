@@ -64,11 +64,7 @@ func readNextQuotedString(msg string) string {
 
 // checkStartingAndTerminationLog checks if the log message matches a predefined starting or termination log for a component and adds a corresponding revision to the TimelineChangeSet.
 func checkStartingAndTerminationLog(ctx context.Context, cs *khifilev6.TimelineChangeSet, l *log.Log, startingLog string, terminationLog string, targetPath *khifilev6.TimelinePath) {
-	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err != nil {
-		return
-	}
-	nodeLogFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+	nodeLogFieldSet, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil || nodeLogFieldSet.Message == nil {
 		return
 	}
@@ -80,7 +76,7 @@ func checkStartingAndTerminationLog(ctx context.Context, cs *khifilev6.TimelineC
 				VerbType:    commonlogk8saudit_contract.VerbCreate,
 				StateType:   googlecloudlogk8snode_contract.RevisionStateComponentRunning,
 				Principal:   nodeLogFieldSet.Component,
-				ChangedTime: commonFieldSet.Timestamp,
+				ChangedTime: l.Timestamp,
 			})
 		}
 	case terminationLog:
@@ -89,7 +85,7 @@ func checkStartingAndTerminationLog(ctx context.Context, cs *khifilev6.TimelineC
 				VerbType:    commonlogk8saudit_contract.VerbDelete,
 				StateType:   googlecloudlogk8snode_contract.RevisionStateComponentTerminated,
 				Principal:   nodeLogFieldSet.Component,
-				ChangedTime: commonFieldSet.Timestamp,
+				ChangedTime: l.Timestamp,
 			})
 		}
 	}

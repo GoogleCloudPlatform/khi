@@ -244,7 +244,7 @@ func TestLazyJSONNode_NodeReader(t *testing.T) {
 	node := NewLazyJSONNodeFromBytes([]byte(jsonStr))
 	reader := NewNodeReader(node)
 
-	name, err := reader.ReadString("name")
+	name, err := reader.ReadString(CompileFieldPath("name"))
 	if err != nil {
 		t.Fatalf("ReadString(name) failed: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestLazyJSONNode_NodeReader(t *testing.T) {
 		t.Errorf("ReadString(name) mismatch (-want +got):\n%s", diff)
 	}
 
-	count, err := reader.ReadInt("count")
+	count, err := reader.ReadInt(CompileFieldPath("count"))
 	if err != nil {
 		t.Fatalf("ReadInt(count) failed: %v", err)
 	}
@@ -260,7 +260,7 @@ func TestLazyJSONNode_NodeReader(t *testing.T) {
 		t.Errorf("ReadInt(count) mismatch (-want +got):\n%s", diff)
 	}
 
-	ratio, err := reader.ReadFloat("ratio")
+	ratio, err := reader.ReadFloat(CompileFieldPath("ratio"))
 	if err != nil {
 		t.Fatalf("ReadFloat(ratio) failed: %v", err)
 	}
@@ -268,7 +268,7 @@ func TestLazyJSONNode_NodeReader(t *testing.T) {
 		t.Errorf("ReadFloat(ratio) mismatch (-want +got):\n%s", diff)
 	}
 
-	enabled, err := reader.ReadBool("enabled")
+	enabled, err := reader.ReadBool(CompileFieldPath("enabled"))
 	if err != nil {
 		t.Fatalf("ReadBool(enabled) failed: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestLazyJSONNode_NodeReader(t *testing.T) {
 		t.Errorf("ReadBool(enabled) mismatch (-want +got):\n%s", diff)
 	}
 
-	ts, err := reader.ReadTimestamp("timestamp")
+	ts, err := reader.ReadTimestamp(CompileFieldPath("timestamp"))
 	if err != nil {
 		t.Fatalf("ReadTimestamp(timestamp) failed: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestLazyJSONNode_NodeReader(t *testing.T) {
 		t.Errorf("ReadTimestamp(timestamp) got %v, want %v", ts, expectedTime)
 	}
 
-	app, err := reader.ReadString("labels.app")
+	app, err := reader.ReadString(CompileFieldPath("labels.app"))
 	if err != nil {
 		t.Fatalf("ReadString(labels.app) failed: %v", err)
 	}
@@ -293,10 +293,10 @@ func TestLazyJSONNode_NodeReader(t *testing.T) {
 		t.Errorf("ReadString(labels.app) mismatch (-want +got):\n%s", diff)
 	}
 
-	if !reader.Has("labels.tier") {
+	if !reader.Has(CompileFieldPath("labels.tier")) {
 		t.Errorf("Has(labels.tier) expected true, got false")
 	}
-	if reader.Has("labels.nonexistent") {
+	if reader.Has(CompileFieldPath("labels.nonexistent")) {
 		t.Errorf("Has(labels.nonexistent) expected false, got true")
 	}
 }
@@ -316,7 +316,7 @@ func TestNewLazyJSONNode(t *testing.T) {
 	}
 
 	reader := NewNodeReader(lazyNode)
-	fooStr, err := reader.ReadString("foo")
+	fooStr, err := reader.ReadString(CompileFieldPath("foo"))
 	if err != nil {
 		t.Fatalf("ReadString(foo) failed: %v", err)
 	}
@@ -324,7 +324,7 @@ func TestNewLazyJSONNode(t *testing.T) {
 		t.Errorf("ReadString(foo) mismatch (-want +got):\n%s", diff)
 	}
 
-	barInt, err := reader.ReadInt("bar")
+	barInt, err := reader.ReadInt(CompileFieldPath("bar"))
 	if err != nil {
 		t.Fatalf("ReadInt(bar) failed: %v", err)
 	}
@@ -343,12 +343,14 @@ func TestLazyJSONNode_Concurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			reader := NewNodeReader(node)
+			pathFoo := CompileFieldPath("foo")
+			pathNestedNum := CompileFieldPath("nested.num")
 			for j := 0; j < 100; j++ {
-				str, err := reader.ReadString("foo")
+				str, err := reader.ReadString(pathFoo)
 				if err != nil || str != "bar" {
 					t.Errorf("concurrent ReadString failed: %v, got %s", err, str)
 				}
-				num, err := reader.ReadInt("nested.num")
+				num, err := reader.ReadInt(pathNestedNum)
 				if err != nil || num != 42 {
 					t.Errorf("concurrent ReadInt failed: %v, got %d", err, num)
 				}
@@ -427,7 +429,7 @@ func TestLazyJSONNode_ReadReflectWithEscapes(t *testing.T) {
 	reader := NewNodeReader(node)
 
 	var target SampleStruct
-	err := ReadReflect(reader, "", &target)
+	err := ReadReflect(reader, EmptyFieldPath, &target)
 	if err != nil {
 		t.Fatalf("ReadReflect failed: %v", err)
 	}
@@ -456,19 +458,19 @@ func TestLazyJSONNode_MergeNode(t *testing.T) {
 	}
 
 	reader := NewNodeReader(merged)
-	name, err := reader.ReadString("name")
+	name, err := reader.ReadString(CompileFieldPath("name"))
 	if err != nil || name != "test" {
 		t.Errorf("merged name mismatch: %v, %s", err, name)
 	}
-	count, err := reader.ReadInt("count")
+	count, err := reader.ReadInt(CompileFieldPath("count"))
 	if err != nil || count != 2 {
 		t.Errorf("merged count mismatch: %v, %d", err, count)
 	}
-	env, err := reader.ReadString("labels.env")
+	env, err := reader.ReadString(CompileFieldPath("labels.env"))
 	if err != nil || env != "prod" {
 		t.Errorf("merged labels.env mismatch: %v, %s", err, env)
 	}
-	tier, err := reader.ReadString("labels.tier")
+	tier, err := reader.ReadString(CompileFieldPath("labels.tier"))
 	if err != nil || tier != "frontend" {
 		t.Errorf("merged labels.tier mismatch: %v, %s", err, tier)
 	}
@@ -481,12 +483,13 @@ func BenchmarkLazyJSONNodeVsStandardMap(b *testing.B) {
 		b.Fatal(err)
 	}
 	lazyNode := NewLazyJSONNodeFromBytes([]byte(rawJSON))
+	pathZone := CompileFieldPath("resource.labels.zone")
 
 	b.Run("StandardMap_ReadString", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			r := NewNodeReader(nodeFromJSON)
-			_, _ = r.ReadString("resource.labels.zone")
+			_, _ = r.ReadString(pathZone)
 		}
 	})
 
@@ -494,7 +497,7 @@ func BenchmarkLazyJSONNodeVsStandardMap(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			r := NewNodeReader(lazyNode)
-			_, _ = r.ReadString("resource.labels.zone")
+			_, _ = r.ReadString(pathZone)
 		}
 	})
 }

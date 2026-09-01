@@ -19,7 +19,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 var irregularPluralToSingularSuffixMap = map[string]string{
@@ -127,19 +126,14 @@ type K8sAuditLogFieldSet struct {
 	StatusMessage string
 	// IsError is true if the response is an error.
 	IsError bool
-	// Truncated is true if the log payload may omit part of the request or response.
-	Truncated bool
+	// IsTruncated is true if the audit log entry was truncated by kube-apiserver (audit.k8s.io/truncated: "true").
+	IsTruncated bool
 	// Request is the request body.
 	Request *structured.NodeReader
 	// Response is the response body.
 	Response *structured.NodeReader
 	// MutatingWebhookResults are the assembled webhook results from audit annotations.
 	MutatingWebhookResults []*MutatingWebhookResult
-}
-
-// Kind implements log.FieldSet.
-func (k *K8sAuditLogFieldSet) Kind() string {
-	return "k8s_audit_log"
 }
 
 // LongRunning returns true if the log is a long-running operation.
@@ -154,5 +148,3 @@ func (k *K8sAuditLogFieldSet) VerbString() string {
 	}
 	return k.Verb.GetLabel()
 }
-
-var _ log.FieldSet = (*K8sAuditLogFieldSet)(nil)

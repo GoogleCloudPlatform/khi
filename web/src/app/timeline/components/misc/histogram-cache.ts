@@ -17,6 +17,7 @@
 import { Severity } from 'src/app/store/domain/style';
 import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
  * Result of the histogram calculation.
@@ -84,6 +85,7 @@ export class HistogramCache {
    *
    * @param severities - The list of severities.
    * @param logs - The list of logs to be indexed.
+   * @param logIds - The bitset of active log IDs to include in the histogram.
    * @param minBucketTime - The resolution of the cache in milliseconds.
    * @param logMinTimeMS - The minimum time of the logs. It will be recalculated from given logs, but this allows user to extend the range.
    * @param logMaxTimeMS - The maximum time of the logs. It will be recalculated from given logs, but this allows user to extend the range.
@@ -91,11 +93,12 @@ export class HistogramCache {
   constructor(
     public readonly severities: readonly ReadonlyDomainElement<Severity>[],
     logs: readonly ReadonlyDomainElement<Log>[],
+    logIds: IdBitset,
     private readonly minBucketTime: number,
     public logMinTimeMS: number = Infinity,
     public logMaxTimeMS: number = -Infinity,
   ) {
-    if (logs.length === 0) {
+    if (logs.length === 0 || logIds.size === 0) {
       this.alignedMinTimeMS = 0;
       this.cumulativeSums = {} as { [severityId: number]: Int32Array };
       this.resultCache = {} as { [severityId: number]: Float32Array };
@@ -107,6 +110,9 @@ export class HistogramCache {
     }
 
     for (const log of logs) {
+      if (!logIds.has(log.id)) {
+        continue;
+      }
       this.logMinTimeMS = Math.min(this.logMinTimeMS, log.legacyTimestampMs);
       this.logMaxTimeMS = Math.max(this.logMaxTimeMS, log.legacyTimestampMs);
     }
@@ -126,6 +132,9 @@ export class HistogramCache {
       this.resultCache[severity.id] = new Float32Array(windowCount);
     }
     for (const log of logs) {
+      if (!logIds.has(log.id)) {
+        continue;
+      }
       const windowIndex =
         (Math.floor(log.legacyTimestampMs / minBucketTime) * minBucketTime -
           this.alignedMinTimeMS) /

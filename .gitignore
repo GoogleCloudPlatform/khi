@@ -39,3 +39,8 @@ scripts/make/*.done
 
 # Go embedded assets for icons
 pkg/model/khifile/v6/style/assets/
+
+# Benchmark test fixtures (stored in GCS gs://khi-fixtures) and local profiling outputs
+**/testdata/fixtures/**/*.json
+pprof/
+*.pprof

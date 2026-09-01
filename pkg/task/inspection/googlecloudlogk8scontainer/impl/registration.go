@@ -44,7 +44,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 
 		InputContainerQueryNamespaceFilterTask,
 		InputContainerQueryPodNamesFilterMask,
-		FieldSetReaderTask,
 		LogGrouperTask,
 		LogIngesterTask,
 		LogToTimelineMapperTask,

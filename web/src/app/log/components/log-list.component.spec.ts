@@ -17,19 +17,23 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { LogListComponent } from 'src/app/log/components/log-list.component';
 import { Log } from 'src/app/store/domain/log';
+import { LogStore } from 'src/app/store/domain/log-store';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 describe('LogListComponent', () => {
   let component: LogListComponent;
   let fixture: ComponentFixture<LogListComponent>;
+  let mockLogStore: LogStore;
   let mockLogs: ReadonlyDomainElement<Log>[];
   let mockTimelines: readonly ReadonlyDomainElement<Timeline>[];
 
   beforeEach(async () => {
     const mockData = await createMockInspectionData();
+    mockLogStore = mockData.logStore;
     mockLogs = Array.from(mockData.logStore.logs());
     mockTimelines = mockData.timelineStore.timelines;
 
@@ -41,10 +45,13 @@ describe('LogListComponent', () => {
     component = fixture.componentInstance;
 
     // Set required inputs
-    fixture.componentRef.setInput('allLogsCount', mockLogs.length);
-    fixture.componentRef.setInput('filteredLogs', mockLogs);
+    fixture.componentRef.setInput('logStore', mockLogStore);
+    fixture.componentRef.setInput(
+      'filteredLogIds',
+      IdBitset.fromAll(mockLogs.map((l) => l.id)),
+    );
     fixture.componentRef.setInput('selectedLogIndex', -1);
-    fixture.componentRef.setInput('highlightLogIndices', new Set<number>());
+    fixture.componentRef.setInput('highlightedLogIndices', new Set<number>());
     fixture.componentRef.setInput('selectedTimelinesWithChildren', []);
 
     fixture.detectChanges();
@@ -57,7 +64,7 @@ describe('LogListComponent', () => {
   it('should show all logs when filterByTimeline is false', () => {
     fixture.componentRef.setInput('filterByTimeline', false);
     fixture.detectChanges();
-    expect(component['shownLogs']()).toEqual(mockLogs);
+    expect(component['visibleLogIds']()).toEqual(mockLogs.map((l) => l.id));
   });
 
   it('should filter logs by timeline when filterByTimeline is true', () => {
@@ -75,20 +82,22 @@ describe('LogListComponent', () => {
     for (const event of timeline.events) {
       logIndices.add(event.logIndex);
     }
-    const expectedLogs = mockLogs.filter((log) => logIndices.has(log.logIndex));
+    const expectedLogIds = mockLogs
+      .filter((log) => logIndices.has(log.logIndex))
+      .map((l) => l.id);
 
-    expect(component['shownLogs']()).toEqual(expectedLogs);
+    expect(component['visibleLogIds']()).toEqual(expectedLogIds);
   });
 
   it('should emit logSelected event', () => {
     spyOn(component.logSelected, 'emit');
-    component['selectLog'](mockLogs[0]);
+    component['selectLog'](mockLogs[0].id);
     expect(component.logSelected.emit).toHaveBeenCalledWith(mockLogs[0]);
   });
 
   it('should emit logHovered event', () => {
     spyOn(component.logHovered, 'emit');
-    component['onLogHover'](mockLogs[0]);
+    component['onLogHover'](mockLogs[0].id);
     expect(component.logHovered.emit).toHaveBeenCalledWith(mockLogs[0]);
   });
 

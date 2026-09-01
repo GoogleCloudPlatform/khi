@@ -26,13 +26,11 @@ import (
 flowchart TD
     LogQueryTask
     LogFilterTask
-    FieldSetReadTask
     LogIngesterTask
     LogGrouperTask
     LogToTimelineMapperTask
 
-    LogQueryTask --> FieldSetReadTask
-    FieldSetReadTask --> LogFilterTask
+    LogQueryTask --> LogFilterTask
     LogFilterTask --> LogIngesterTask
     LogFilterTask --> LogGrouperTask
     LogGrouperTask --> LogToTimelineMapperTask
@@ -61,7 +59,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(scoped,
 		ClusterIdentityAliasTask,
 
-		FieldSetReadTask,
 		LogIngesterTask,
 		LogGrouperTask,
 		LogFilterTask,

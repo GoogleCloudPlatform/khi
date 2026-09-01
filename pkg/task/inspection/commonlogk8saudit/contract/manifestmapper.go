@@ -86,13 +86,11 @@ func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestL
 		return nil, false
 	}
 
-	commonSet := log.MustGetFieldSet(e.Log, &log.CommonFieldSet{})
-	eventTime := commonSet.Timestamp
+	eventTime := e.Log.Timestamp
 
 	// Use binary search to quickly find the first log that is in the future relative to eventTime.
 	idx := sort.Search(len(group.Logs), func(i int) bool {
-		entryCommon := log.MustGetFieldSet(group.Logs[i].Log, &log.CommonFieldSet{})
-		return entryCommon.Timestamp.After(eventTime)
+		return group.Logs[i].Log.Timestamp.After(eventTime)
 	})
 
 	// Scan backwards from the match to find the latest log entry with a valid resource body.
@@ -116,7 +114,7 @@ type ManifestLogToTimelineMapper[T any] interface {
 	// TaskID returns the task ID.
 	TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult]
 	// LogIngesterTask returns the task reference for the log ingester task.
-	LogIngesterTask() taskid.TaskReference[[]*log.Log]
+	LogIngesterTask() taskid.TaskReference[struct{}]
 	// GroupedLogTask returns the task reference for the grouped log task.
 	GroupedLogTask() taskid.TaskReference[ResourceManifestLogGroupMap]
 	// Dependencies returns additional task dependencies of the mapper.
@@ -314,14 +312,9 @@ func iterateMultiGroupLog(groupSet RelatedGroupSet) func(func(MultiGroupLogEvent
 				}
 
 				logEntry := group.Logs[idx]
-				commonSet, err := log.GetFieldSet(logEntry.Log, &log.CommonFieldSet{})
-				if err != nil {
-					continue
-				}
-
-				if !hasAny || commonSet.Timestamp.Before(nextTimestamp) {
+				if !hasAny || logEntry.Log.Timestamp.Before(nextTimestamp) {
 					nextRole = role
-					nextTimestamp = commonSet.Timestamp
+					nextTimestamp = logEntry.Log.Timestamp
 					hasAny = true
 				}
 			}

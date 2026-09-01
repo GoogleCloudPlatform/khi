@@ -16,6 +16,9 @@ package defaultinit
 
 import (
 	"log/slog"
+	"os"
+	"runtime"
+	"runtime/pprof"
 
 	"cloud.google.com/go/profiler"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/constants"
@@ -68,6 +71,38 @@ var DebugFeaturesInitializer = &coreinit.Initializer{
 			)
 			otel.SetTracerProvider(tp)
 			slog.Info("Cloud Trace is enabled")
+		}
+		if *debugParams.CPUProfile != "" {
+			f, err := os.Create(*debugParams.CPUProfile)
+			if err != nil {
+				return err
+			}
+			if err := pprof.StartCPUProfile(f); err != nil {
+				f.Close()
+				return err
+			}
+			slog.Info("CPU profiling is enabled", "file", *debugParams.CPUProfile)
+			ctx.OnTerminate(func() error {
+				pprof.StopCPUProfile()
+				return f.Close()
+			})
+		}
+		if *debugParams.MemProfile != "" {
+			memProfilePath := *debugParams.MemProfile
+			slog.Info("Memory profiling is enabled", "file", memProfilePath)
+			ctx.OnTerminate(func() error {
+				f, err := os.Create(memProfilePath)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				runtime.GC()
+				if err := pprof.WriteHeapProfile(f); err != nil {
+					return err
+				}
+				slog.Info("Memory profile written", "file", memProfilePath)
+				return nil
+			})
 		}
 		return nil
 	},

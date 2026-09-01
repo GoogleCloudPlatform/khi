@@ -25,19 +25,20 @@ import { LRUCache } from 'src/app/common/lru-cache';
 import { TimelineRendererSharedResource } from './timeline-shared-resource';
 import {
   HitTestResult,
+  ScissorRect,
   TimelineHitTestSharedResource,
-} from './hittest-shared-resource';
+} from 'src/app/timeline/components/canvas/hittest-shared-resource';
 import {
   TimelineEventsRenderer,
   TimelineEventsSharedResources,
 } from './timeline-events-renderer';
 import { TimelineChartViewModel } from '../timeline-chart.viewmodel';
-import { TimelineChartItemHighlight } from '../interaction-model';
 import {
   TimelineChartStyle,
   BASE_ROW_HEIGHT,
 } from 'src/app/timeline/components/style-model';
 import { SharedTmpBuffer } from './glutil';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
  * Interface for renderers that can be disposed.
@@ -133,17 +134,23 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
   private hitTestRequests: HitTestRequest[] = [];
 
   /**
-   * Current highlight state of log elements (e.g. selected, hovered).
+   * Index of the currently selected log, or 0xFFFFFFFF if none.
    */
-  private logElementHighlights: TimelineChartItemHighlight = {};
+  private selectedLogIndex = 0xffffffff;
+
+  /**
+   * Bitset of highlighted log indices.
+   */
+  private highlightedLogIndices: IdBitset = IdBitset.createEmpty();
 
   /**
    * Current filter state of log elements.
-   * When activeLogsIndices not includes a log index, then the log must be shown as disabled.
+   * When filteredLogIds does not include a log ID, then the log must be shown as disabled.
    */
-  private activeLogsIndices: Set<number> = new Set();
+  private filteredLogIds: IdBitset = IdBitset.createEmpty();
 
-  private highlightUpdated = false;
+  private filterBitsetUpdated = true;
+  private highlightBitsetUpdated = true;
 
   /**
    * Sets up the WebGL resources for the renderer.
@@ -188,6 +195,17 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.cachedInspectionDataUniqueID =
         this.chartViewModel.inspectionDataUniqueID;
     }
+    if (this.filterBitsetUpdated) {
+      this.timelineSharedResource.updateFilterBitset(gl, this.filteredLogIds);
+      this.filterBitsetUpdated = false;
+    }
+    if (this.highlightBitsetUpdated) {
+      this.timelineSharedResource.updateHighlightBitset(
+        gl,
+        this.highlightedLogIndices,
+      );
+      this.highlightBitsetUpdated = false;
+    }
     gl.viewport(0, 0, this.width, this.height);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -197,6 +215,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       devicePixelRatio: this.dpr,
       pixelsPerMs: args.pixelsPerMs,
       leftEdgeTime: args.leftEdgeTime,
+      selectedLogIndex: this.selectedLogIndex,
     });
     this.revisionSharedResource.beforeRender(
       gl,
@@ -208,30 +227,12 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.tmpBuffer,
       this.chartViewModel.styleStore,
     );
-    if (this.highlightUpdated) {
-      this.iterateRevisionRenderers(gl, (r) =>
-        r.updateDynamicBuffer(
-          gl,
-          this.logElementHighlights,
-          this.activeLogsIndices,
-        ),
-      );
-      this.iterateEventRenderers(gl, (r) =>
-        r.updateDynamicBuffer(
-          gl,
-          this.logElementHighlights,
-          this.activeLogsIndices,
-        ),
-      );
-      this.highlightUpdated = false;
-    }
     this.iterateRevisionRenderers(gl, (r, rect) => r.renderColor(gl, rect));
     this.iterateEventRenderers(gl, (r, rect) => r.renderColor(gl, rect));
 
     if (this.hitTestRequests.length > 0) {
       this.processHitTestRequest(gl);
     }
-    gl.finish();
   }
 
   /**
@@ -253,21 +254,30 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    *
    * @param chartViewModel The new view model to render.
    * @param chartStyle The visual style configuration.
-   * @param logElementHighlights The set of highlighted log elements.
+   * @param selectedLogIndex The index of the selected log, or 0xFFFFFFFF if none.
+   * @param highlightedLogIndices The bitset of highlighted log indices.
+   * @param filteredLogIds The bitset of filtered log IDs.
    */
   update(
     chartViewModel: TimelineChartViewModel,
     chartStyle: TimelineChartStyle,
-    logElementHighlights: TimelineChartItemHighlight,
-    activeLogsIndices: Set<number>,
+    selectedLogIndex: number,
+    highlightedLogIndices: IdBitset,
+    filteredLogIds: IdBitset,
   ) {
     this.chartViewModel = chartViewModel;
     this.chartStyle = chartStyle;
     this.revisionSharedResource.updateChartStyle(chartStyle);
     this.eventSharedResource.updateChartStyle(chartStyle);
-    this.logElementHighlights = logElementHighlights;
-    this.highlightUpdated = true;
-    this.activeLogsIndices = activeLogsIndices;
+    this.selectedLogIndex = selectedLogIndex;
+    if (this.highlightedLogIndices !== highlightedLogIndices) {
+      this.highlightedLogIndices = highlightedLogIndices;
+      this.highlightBitsetUpdated = true;
+    }
+    if (this.filteredLogIds !== filteredLogIds) {
+      this.filteredLogIds = filteredLogIds;
+      this.filterBitsetUpdated = true;
+    }
   }
 
   /**
@@ -303,15 +313,43 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    * @param gl The WebGL2 rendering context.
    */
   private processHitTestRequest(gl: WebGL2RenderingContext) {
-    if (!this.chartViewModel || !this.chartStyle) return;
-    this.hittestSharedResource.beforeRender(gl);
-    this.iterateRevisionRenderers(gl, (r, rect) => {
-      rect.dpr = 1.0; // hit test buffer is rendered in without considering dpr
-      r.renderHittest(gl, rect);
-    });
-    this.iterateEventRenderers(gl, (r, rect) => {
-      rect.dpr = 1.0; // hit test buffer is rendered in without considering dpr
-      r.renderHittest(gl, rect);
+    if (
+      !this.chartViewModel ||
+      !this.chartStyle ||
+      this.hitTestRequests.length === 0
+    ) {
+      return;
+    }
+    const minX = Math.max(
+      0,
+      Math.floor(Math.min(...this.hitTestRequests.map((r) => r.x))),
+    );
+    const maxX = Math.min(
+      this.width - 1,
+      Math.ceil(Math.max(...this.hitTestRequests.map((r) => r.x))),
+    );
+    const minY = Math.max(
+      0,
+      Math.floor(Math.min(...this.hitTestRequests.map((r) => r.y))),
+    );
+    const maxY = Math.min(
+      this.height - 1,
+      Math.ceil(Math.max(...this.hitTestRequests.map((r) => r.y))),
+    );
+
+    const scissor = this.calculateHitTestScissorRect(minX, maxX, minY, maxY);
+
+    this.hittestSharedResource.beforeRender(gl, scissor);
+    this.renderIntersectingItems(minY, maxY, (t, rect) => {
+      rect.dpr = 1.0; // hit test buffer is rendered without considering dpr
+      if (t.revisions.length > 0) {
+        const revisionRenderer = this.ensureRevisionRenderer(gl, t);
+        revisionRenderer.renderHittest(gl, rect);
+      }
+      if (t.events.length > 0) {
+        const eventRenderer = this.ensureEventRenderer(gl, t);
+        eventRenderer.renderHittest(gl, rect);
+      }
     });
     this.hittestSharedResource.afterRender(gl);
     for (const request of this.hitTestRequests) {
@@ -345,6 +383,39 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       }
     }
     this.hitTestRequests = [];
+  }
+
+  /**
+   * Iterates through visible timelines whose vertical span intersects [minDomY, maxDomY] and executes a callback.
+   *
+   * @param minDomY The minimum DOM Y coordinate.
+   * @param maxDomY The maximum DOM Y coordinate.
+   * @param onRender Callback to execute for each intersecting timeline.
+   */
+  private renderIntersectingItems(
+    minDomY: number,
+    maxDomY: number,
+    onRender: (t: ReadonlyDomainElement<Timeline>, rect: TimelineRect) => void,
+  ) {
+    if (!this.chartViewModel || !this.chartStyle) return;
+    const drawRect: TimelineRect = {
+      dpr: this.dpr,
+      offsetY: this.height,
+      width: this.width,
+      height: 0,
+    };
+    let domOffsetY = 0;
+    for (const t of this.chartViewModel.timelinesInDrawArea) {
+      const tType =
+        this.chartViewModel.styleStore?.getTimelineType(t.type.id) ?? t.type;
+      const rowHeight = tType.height * BASE_ROW_HEIGHT;
+      drawRect.height = rowHeight;
+      drawRect.offsetY -= rowHeight;
+      if (domOffsetY + rowHeight >= minDomY && domOffsetY <= maxDomY) {
+        onRender(t, drawRect);
+      }
+      domOffsetY += rowHeight;
+    }
   }
 
   /**
@@ -458,5 +529,32 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
     renderer.setup(gl, this.tmpBuffer);
     this.eventRenderers.put(t.id.toString(), renderer);
     return renderer;
+  }
+
+  /**
+   * Calculates the scissor rectangle for hit testing from bounding coordinates.
+   */
+  private calculateHitTestScissorRect(
+    minX: number,
+    maxX: number,
+    minY: number,
+    maxY: number,
+  ): ScissorRect {
+    const scissorX = minX;
+    const scissorY = Math.max(0, Math.floor(this.height - maxY - 1));
+    const scissorW = Math.min(
+      this.width - scissorX,
+      Math.max(1, maxX - minX + 1),
+    );
+    const scissorH = Math.min(
+      this.height - scissorY,
+      Math.max(1, maxY - minY + 1),
+    );
+    return {
+      x: scissorX,
+      y: scissorY,
+      width: scissorW,
+      height: scissorH,
+    };
   }
 }

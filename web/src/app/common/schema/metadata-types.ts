@@ -26,6 +26,14 @@ export type InspectionMetadataPlan = {
   taskGraph: string;
 };
 
+/**
+ * Defines predefined rough estimation categories when exact count estimation is unfeasible.
+ */
+export enum EstimatedCountPreset {
+  None = 'none',
+  Few = 'few',
+}
+
 export type InspectionMetadataQuery = {
   readonly id: string;
   readonly name: string;
@@ -33,6 +41,7 @@ export type InspectionMetadataQuery = {
   readonly estimatedCount?: number;
   readonly incomplete?: boolean;
   readonly pending?: boolean;
+  readonly estimatedCountPreset?: EstimatedCountPreset;
 };
 
 export type InspectionMetadataErrorSet = {

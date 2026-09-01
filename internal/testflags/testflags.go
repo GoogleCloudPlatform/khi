@@ -16,5 +16,14 @@ package testflags
 
 import "flag"
 
-// SkipCloudLogging is a flag of program arguments on testing.  Unit tests using Cloud Logging APIs are skipped with this flag.
+// SkipCloudLogging is a flag of program arguments on testing. Unit tests using Cloud Logging APIs are skipped with this flag.
 var SkipCloudLogging = flag.Bool("skip-cloud-logging", false, "skip tests that require cloud logging")
+
+// RecordTaskResults is a flag to record intermediate task results to fixtures.
+var RecordTaskResults = flag.Bool("record-task-results", false, "record intermediate task results to fixture directory")
+
+// TaskCPUProfile is a flag to record CPU pprof profile for the target task.
+var TaskCPUProfile = flag.Bool("task-cpuprofile", false, "record CPU pprof profile for the target task")
+
+// TaskMemProfile is a flag to record Memory/Heap pprof profile for the target task.
+var TaskMemProfile = flag.Bool("task-memprofile", false, "record Memory/Heap pprof profile for the target task")

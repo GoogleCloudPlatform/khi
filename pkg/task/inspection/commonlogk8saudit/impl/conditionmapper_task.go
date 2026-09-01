@@ -28,9 +28,13 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+)
+
+var (
+	pathConditionStatusConditions = structured.CompileFieldPath("status.conditions")
+	pathConditionType             = structured.CompileFieldPath("type")
 )
 
 // ConditionLogToTimelineMapperTask is a ManifestLogToTimelineMapper task that tracks and records the history of Kubernetes resource conditions.
@@ -82,7 +86,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskRe
 }
 
 // LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (c *conditionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (c *conditionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
@@ -112,9 +116,6 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 		state = newConditionLogToTimelineMapperTaskState()
 	}
 
-	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
-
 	bodyReader, hasBody := event.GetLastBodyReader("target")
 
 	if event.GroupRole == "target" {
@@ -126,11 +127,11 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 		}
 
 		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
-			ts.Set(commonFieldSet.Timestamp, "")
+			ts.Set(event.Log.Timestamp, "")
 		} else if hasBody && bodyReader != nil {
 			uid, _ := GetUID(bodyReader)
 			if uid != "" {
-				ts.Set(commonFieldSet.Timestamp, uid)
+				ts.Set(event.Log.Timestamp, uid)
 				creationTime, found := GetCreationTimestamp(bodyReader)
 				if found {
 					state.uidToCreationTimestampMap[uid] = creationTime
@@ -143,15 +144,16 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 		return state, nil
 	}
 
-	conditionsReader, err := bodyReader.GetReader("status.conditions")
+	conditionsReader, err := bodyReader.GetReader(pathConditionStatusConditions)
 	if err != nil {
 		return state, nil
 	}
 
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	ownerPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	for _, child := range conditionsReader.Children() {
-		conditionType, err := child.ReadString("type")
+		conditionType, err := child.ReadString(pathConditionType)
 		if err == nil {
 			state.AvailableTypes[conditionType] = struct{}{}
 			walker := state.ConditionWalkers[conditionType]
@@ -161,10 +163,10 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 				state.ConditionWalkers[conditionType] = walker
 			}
 			var condition model.K8sResourceStatusCondition
-			if err := structured.ReadReflect(&child, "", &condition); err != nil {
+			if err := structured.ReadReflect(&child, structured.EmptyFieldPath, &condition); err != nil {
 				continue
 			}
-			walker.checkLastTransitionTimes(commonFieldSet, k8sFieldSet, &condition)
+			walker.checkLastTransitionTimes(&condition)
 		}
 	}
 
@@ -184,8 +186,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) resolveUID(ts *common.TimeSeri
 func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state *conditionLogToTimelineMapperTaskState) (*khifilev6.TimelineChangeSet, *conditionLogToTimelineMapperTaskState, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
-	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return cs, state, nil
 	}
@@ -195,7 +196,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 
 	var resourceContainingStatus model.K8sResourceContainingStatus
 	if hasBody && bodyReader != nil {
-		err := structured.ReadReflect(bodyReader, "", &resourceContainingStatus)
+		err := structured.ReadReflect(bodyReader, structured.EmptyFieldPath, &resourceContainingStatus)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -222,7 +223,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 	if !found || uid == "" {
 		path := event.ResourceIdentity.String()
 		if ts, foundMap := state.parentPathToUIDMap[path]; foundMap {
-			uid = c.resolveUID(ts, commonFieldSet.Timestamp)
+			uid = c.resolveUID(ts, event.Log.Timestamp)
 		}
 	}
 
@@ -260,7 +261,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 			walker = newConditionWalker(conditionPath, key)
 			state.ConditionWalkers[key] = walker
 		}
-		walker.CheckAndRecord(ctx, commonFieldSet, k8sFieldSet, currentConditions[key], cs)
+		walker.CheckAndRecord(ctx, event.Log.Timestamp, k8sFieldSet, currentConditions[key], cs)
 	}
 
 	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
@@ -271,12 +272,12 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 				walker = newConditionWalker(conditionPath, key)
 				state.ConditionWalkers[key] = walker
 			}
-			walker.RecordDeletion(commonFieldSet.Timestamp.Add(time.Nanosecond))
+			walker.RecordDeletion(event.Log.Timestamp.Add(time.Nanosecond))
 			cs.AddRevision(walker.conditionPath, &khifilev6.StagingRevision{
 				VerbType:     k8sFieldSet.Verb,
 				ResourceBody: nil,
 				Principal:    k8sFieldSet.Principal,
-				ChangedTime:  commonFieldSet.Timestamp,
+				ChangedTime:  event.Log.Timestamp,
 				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 			})
 		}
@@ -337,7 +338,7 @@ func newConditionWalker(conditionPath *khifilev6.TimelinePath, conditionType str
 }
 
 // checkLastTransitionTimes memorizes the last transition time of the condition. This value is used for complementing values for logs without the full status information.
-func (c *conditionWalker) checkLastTransitionTimes(commonLog *log.CommonFieldSet, k8sAuditLog *commonlogk8saudit_contract.K8sAuditLogFieldSet, condition *model.K8sResourceStatusCondition) {
+func (c *conditionWalker) checkLastTransitionTimes(condition *model.K8sResourceStatusCondition) {
 	if condition != nil && condition.Status != "" && condition.LastTransitionTime != "" {
 		c.lastTransitionStates[condition.LastTransitionTime] = condition
 	}
@@ -345,17 +346,17 @@ func (c *conditionWalker) checkLastTransitionTimes(commonLog *log.CommonFieldSet
 
 // CheckAndRecord compares the current condition with the previous state and records a revision if there is a significant change.
 // It tracks changes in Status, LastTransitionTime, and LastHeartbeatTime (ProbeLikeTime).
-func (c *conditionWalker) CheckAndRecord(ctx context.Context, commonLog *log.CommonFieldSet, k8sAuditLog *commonlogk8saudit_contract.K8sAuditLogFieldSet, condition *model.K8sResourceStatusCondition, cs *khifilev6.TimelineChangeSet) {
+func (c *conditionWalker) CheckAndRecord(ctx context.Context, changedTime time.Time, k8sAuditLog commonlogk8saudit_contract.K8sAuditLogFieldSet, condition *model.K8sResourceStatusCondition, cs *khifilev6.TimelineChangeSet) {
 	if condition == nil {
 		if c.lastStatus != "n/a" {
 			cs.AddRevision(c.conditionPath, &khifilev6.StagingRevision{
 				VerbType:     k8sAuditLog.Verb,
 				ResourceBody: nil,
 				Principal:    k8sAuditLog.Principal,
-				ChangedTime:  commonLog.Timestamp,
+				ChangedTime:  changedTime,
 				StateType:    commonlogk8saudit_contract.RevisionStateConditionNotGiven,
 			})
-			c.minChangeTime = &commonLog.Timestamp
+			c.minChangeTime = &changedTime
 			c.lastStatus = "n/a"
 		}
 	} else {

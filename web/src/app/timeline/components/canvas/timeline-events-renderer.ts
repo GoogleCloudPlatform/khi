@@ -19,7 +19,6 @@ import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { TimelineRendererSharedResource } from './timeline-shared-resource';
 import { IDisposableRenderer, TimelineRect } from './timeline-renderer';
-import { TimelineChartItemHighlight } from '../interaction-model';
 import {
   TimelineChartStyle,
   BASE_ROW_HEIGHT,
@@ -37,8 +36,6 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
 
   private timeVBO!: WebGLBuffer;
   private intStaticMetaVBO!: WebGLBuffer;
-  private intDynamicMetaVBO!: WebGLBuffer;
-  private intDynamicMetaVBOSource!: Uint32Array;
 
   constructor(
     private timeline: ReadonlyDomainElement<Timeline>,
@@ -48,7 +45,7 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
 
   /**
    * Sets up the WebGL resources (VAO, VBOs) for rendering events.
-   * Calculates and buffers static data (time, type, severity) to the GPU.
+   * Calculates and buffers static data (time, type, severity, logIndex, logId) to the GPU.
    *
    * @param gl The WebGL2 rendering context.
    * @param tmpBuffer Shared temporary buffer for allocations.
@@ -74,25 +71,14 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
     );
     for (let i = 0; i < this.timeline.events.length; i++) {
       const event = this.timeline.events[i];
-      intStaticMetaVBOSource[i * 4] = i;
-      intStaticMetaVBOSource[i * 4 + 1] = event.log.logType.id;
-      intStaticMetaVBOSource[i * 4 + 2] = event.log.severity.id;
-      intStaticMetaVBOSource[i * 4 + 3] = 0;
+      intStaticMetaVBOSource[i * 4] = event.log.logType.id;
+      intStaticMetaVBOSource[i * 4 + 1] = event.log.severity.id;
+      intStaticMetaVBOSource[i * 4 + 2] = event.logIndex;
+      intStaticMetaVBOSource[i * 4 + 3] = event.logId;
     }
     this.intStaticMetaVBO = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.intStaticMetaVBO);
     gl.bufferData(gl.ARRAY_BUFFER, intStaticMetaVBOSource, gl.STATIC_DRAW);
-
-    this.intDynamicMetaVBOSource = new Uint32Array(
-      this.timeline.events.length * 4,
-    );
-    this.intDynamicMetaVBO = gl.createBuffer()!;
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.intDynamicMetaVBO);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      this.intDynamicMetaVBOSource,
-      gl.DYNAMIC_DRAW,
-    );
 
     this.eventsVAO = gl.createVertexArray()!;
     gl.bindVertexArray(this.eventsVAO);
@@ -127,55 +113,7 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
     gl.enableVertexAttribArray(
       TimelineEventsSharedResources.VBO_LAYOUT_LOCATION_INT_STATIC_META,
     );
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.intDynamicMetaVBO);
-    gl.vertexAttribIPointer(
-      TimelineEventsSharedResources.VBO_LAYOUT_LOCATION_INT_DYNAMIC_META,
-      4,
-      gl.UNSIGNED_INT,
-      0,
-      0,
-    );
-    gl.vertexAttribDivisor(
-      TimelineEventsSharedResources.VBO_LAYOUT_LOCATION_INT_DYNAMIC_META,
-      1,
-    );
-    gl.enableVertexAttribArray(
-      TimelineEventsSharedResources.VBO_LAYOUT_LOCATION_INT_DYNAMIC_META,
-    );
     gl.bindVertexArray(null);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  }
-
-  /**
-   * Updates the dynamic buffer with highlight/selection status for each event.
-   * This is called when the user interacts with the timeline.
-   *
-   * @param gl The WebGL rendering context.
-   * @param logElementHighlights Map of log indices to their highlight state.
-   * @param activeLogsIndices Set of log indices that are currently active (not filtered out).
-   */
-  updateDynamicBuffer(
-    gl: WebGLRenderingContext,
-    logElementHighlights: TimelineChartItemHighlight,
-    activeLogsIndices: Set<number>,
-  ) {
-    for (let i = 0; i < this.timeline.events.length; i++) {
-      const selectionStatus =
-        logElementHighlights[this.timeline.events[i].logIndex] ?? 0;
-      const filterStatus = activeLogsIndices.has(
-        this.timeline.events[i].logIndex,
-      )
-        ? 1
-        : 0;
-      this.intDynamicMetaVBOSource[i * 4 + 0] = selectionStatus;
-      this.intDynamicMetaVBOSource[i * 4 + 1] = filterStatus;
-    }
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.intDynamicMetaVBO);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      this.intDynamicMetaVBOSource,
-      gl.DYNAMIC_DRAW,
-    );
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
   }
 
@@ -254,6 +192,20 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
       layerStyleUBO,
     );
 
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(
+      gl.TEXTURE_2D,
+      this.timelineSharedResources.filterBitsetTexture,
+    );
+    gl.bindSampler(2, null);
+
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(
+      gl.TEXTURE_2D,
+      this.timelineSharedResources.highlightBitsetTexture,
+    );
+    gl.bindSampler(3, null);
+
     gl.drawArraysInstanced(
       gl.TRIANGLE_STRIP,
       0,
@@ -274,7 +226,6 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
     gl.deleteVertexArray(this.eventsVAO);
     gl.deleteBuffer(this.timeVBO);
     gl.deleteBuffer(this.intStaticMetaVBO);
-    gl.deleteBuffer(this.intDynamicMetaVBO);
   }
 }
 
@@ -292,7 +243,6 @@ export class TimelineEventsSharedResources {
 
   public static readonly VBO_LAYOUT_LOCATION_TIME = 0;
   public static readonly VBO_LAYOUT_LOCATION_INT_STATIC_META = 1;
-  public static readonly VBO_LAYOUT_LOCATION_INT_DYNAMIC_META = 2;
 
   public eventsColorProgram!: WebGLProgram;
   public eventsHittestProgram!: WebGLProgram;
@@ -303,7 +253,6 @@ export class TimelineEventsSharedResources {
 
   private styleUpdated = false;
 
-  /**
   /**
    * Initializes shaders and buffers for event rendering.
    *
@@ -337,6 +286,15 @@ export class TimelineEventsSharedResources {
       'EventLayerStyles',
       TimelineEventsSharedResources.UBO_BINDING_EVENT_LAYER_STYLES,
     );
+    gl.useProgram(this.eventsColorProgram);
+    gl.uniform1i(
+      gl.getUniformLocation(this.eventsColorProgram, 'u_filterBitset'),
+      2,
+    );
+    gl.uniform1i(
+      gl.getUniformLocation(this.eventsColorProgram, 'u_highlightBitset'),
+      3,
+    );
 
     this.eventsHittestProgram = await WebGLUtil.compileAndLinkShaders(
       gl,
@@ -365,6 +323,16 @@ export class TimelineEventsSharedResources {
       'EventLayerStyles',
       TimelineEventsSharedResources.UBO_BINDING_EVENT_LAYER_STYLES,
     );
+    gl.useProgram(this.eventsHittestProgram);
+    gl.uniform1i(
+      gl.getUniformLocation(this.eventsHittestProgram, 'u_filterBitset'),
+      2,
+    );
+    gl.uniform1i(
+      gl.getUniformLocation(this.eventsHittestProgram, 'u_highlightBitset'),
+      3,
+    );
+    gl.useProgram(null);
 
     this.eventStylesUBO = gl.createBuffer()!;
     this.layerStyleUBOs.clear();

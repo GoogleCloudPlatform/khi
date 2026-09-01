@@ -19,10 +19,7 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { SharedTmpBuffer, WebGLUtil } from './glutil';
 import { TimelineRendererSharedResource } from './timeline-shared-resource';
 import { IDisposableRenderer, TimelineRect } from './timeline-renderer';
-import {
-  TimelineChartItemHighlight,
-  TimelineChartItemHighlightType,
-} from '../interaction-model';
+import { TimelineChartItemHighlightType } from '../interaction-model';
 import {
   TimelineChartStyle,
   BASE_ROW_HEIGHT,
@@ -40,8 +37,6 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
 
   private timeVBO!: WebGLBuffer;
   private intStaticMetaVBO!: WebGLBuffer;
-  private intDynamicMetaVBO!: WebGLBuffer;
-  private intDynamicMetaVBOSource!: Uint32Array;
 
   constructor(
     private timeline: ReadonlyDomainElement<Timeline>,
@@ -51,7 +46,7 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
 
   /**
    * Sets up the WebGL resources (VAO, VBOs) for rendering revisions.
-   * Calculates and buffers static data (time, state metadata) to the GPU.
+   * Calculates and buffers static data (time, state metadata, logIndex, logId) to the GPU.
    *
    * @param gl The WebGL2 rendering context.
    * @param tmpBuffer Shared temporary buffer for allocations.
@@ -88,25 +83,14 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
     );
     for (let i = 0; i < this.timeline.revisions.length; i++) {
       const revision = this.timeline.revisions[i];
-      intStaticMetaVBOSource[i * 4] = i;
-      intStaticMetaVBOSource[i * 4 + 1] = revision.state.id;
+      intStaticMetaVBOSource[i * 4] = revision.state.id;
+      intStaticMetaVBOSource[i * 4 + 1] = 0;
       intStaticMetaVBOSource[i * 4 + 2] = revision.logIndex;
-      intStaticMetaVBOSource[i * 4 + 3] = this.timeline.type.id;
+      intStaticMetaVBOSource[i * 4 + 3] = revision.logId;
     }
     this.intStaticMetaVBO = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.intStaticMetaVBO);
     gl.bufferData(gl.ARRAY_BUFFER, intStaticMetaVBOSource, gl.STATIC_DRAW);
-
-    this.intDynamicMetaVBOSource = new Uint32Array(
-      this.timeline.revisions.length * 4,
-    );
-    this.intDynamicMetaVBO = gl.createBuffer()!;
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.intDynamicMetaVBO);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      this.intDynamicMetaVBOSource,
-      gl.DYNAMIC_DRAW,
-    );
 
     this.revisionsVAO = gl.createVertexArray()!;
     gl.bindVertexArray(this.revisionsVAO);
@@ -141,55 +125,7 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
     gl.enableVertexAttribArray(
       TimelineRevisionsSharedResources.VBO_LAYOUT_LOCATION_INT_STATIC_META,
     );
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.intDynamicMetaVBO);
-    gl.vertexAttribIPointer(
-      TimelineRevisionsSharedResources.VBO_LAYOUT_LOCATION_INT_DYNAMIC_META,
-      4,
-      gl.UNSIGNED_INT,
-      0,
-      0,
-    );
-    gl.vertexAttribDivisor(
-      TimelineRevisionsSharedResources.VBO_LAYOUT_LOCATION_INT_DYNAMIC_META,
-      1,
-    );
-    gl.enableVertexAttribArray(
-      TimelineRevisionsSharedResources.VBO_LAYOUT_LOCATION_INT_DYNAMIC_META,
-    );
     gl.bindVertexArray(null);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  }
-
-  /**
-   * Updates the dynamic buffer with highlight/selection status for each revision.
-   * This is called when the user interacts with the timeline (hover, select).
-   *
-   * @param gl The WebGL rendering context.
-   * @param logElementHighlights Map of log indices to their highlight state.
-   * @param activeLogsIndices Set of log indices that are currently active (not filtered out).
-   */
-  updateDynamicBuffer(
-    gl: WebGLRenderingContext,
-    logElementHighlights: TimelineChartItemHighlight,
-    activeLogsIndices: Set<number>,
-  ) {
-    for (let i = 0; i < this.timeline.revisions.length; i++) {
-      const selectionStatus =
-        logElementHighlights[this.timeline.revisions[i].logIndex] ?? 0;
-      const filterStatus = activeLogsIndices.has(
-        this.timeline.revisions[i].logIndex,
-      )
-        ? 1
-        : 0;
-      this.intDynamicMetaVBOSource[i * 4 + 0] = selectionStatus;
-      this.intDynamicMetaVBOSource[i * 4 + 1] = filterStatus;
-    }
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.intDynamicMetaVBO);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      this.intDynamicMetaVBOSource,
-      gl.DYNAMIC_DRAW,
-    );
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
   }
 
@@ -279,7 +215,6 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
       this.timelineSharedResources.numberMSDFTexture,
     );
     gl.bindSampler(0, this.timelineSharedResources.msdfSampler);
-    gl.uniform1i(gl.getUniformLocation(program, 'numbersMSDFTexture'), 0);
 
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(
@@ -287,7 +222,20 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
       this.timelineSharedResources.iconsMSDFTexture,
     );
     gl.bindSampler(1, this.timelineSharedResources.msdfSampler);
-    gl.uniform1i(gl.getUniformLocation(program, 'iconsMSDFTexture'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(
+      gl.TEXTURE_2D,
+      this.timelineSharedResources.filterBitsetTexture,
+    );
+    gl.bindSampler(2, null);
+
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(
+      gl.TEXTURE_2D,
+      this.timelineSharedResources.highlightBitsetTexture,
+    );
+    gl.bindSampler(3, null);
 
     gl.drawArraysInstanced(
       gl.TRIANGLE_STRIP,
@@ -309,7 +257,6 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
     gl.deleteVertexArray(this.revisionsVAO);
     gl.deleteBuffer(this.timeVBO);
     gl.deleteBuffer(this.intStaticMetaVBO);
-    gl.deleteBuffer(this.intDynamicMetaVBO);
   }
 }
 
@@ -327,7 +274,6 @@ export class TimelineRevisionsSharedResources {
 
   public static readonly VBO_LAYOUT_LOCATION_TIME = 0;
   public static readonly VBO_LAYOUT_LOCATION_INT_STATIC_META = 1;
-  public static readonly VBO_LAYOUT_LOCATION_INT_DYNAMIC_META = 2;
 
   public revisionsColorProgram!: WebGLProgram;
   public revisionsHittestProgram!: WebGLProgram;
@@ -389,6 +335,23 @@ export class TimelineRevisionsSharedResources {
       'RevisionLayerStyles',
       TimelineRevisionsSharedResources.UBO_BINDING_REVISION_LAYER_STYLES,
     );
+    gl.useProgram(this.revisionsColorProgram);
+    gl.uniform1i(
+      gl.getUniformLocation(this.revisionsColorProgram, 'numbersMSDFTexture'),
+      0,
+    );
+    gl.uniform1i(
+      gl.getUniformLocation(this.revisionsColorProgram, 'iconsMSDFTexture'),
+      1,
+    );
+    gl.uniform1i(
+      gl.getUniformLocation(this.revisionsColorProgram, 'u_filterBitset'),
+      2,
+    );
+    gl.uniform1i(
+      gl.getUniformLocation(this.revisionsColorProgram, 'u_highlightBitset'),
+      3,
+    );
 
     this.revisionsHittestProgram = await WebGLUtil.compileAndLinkShaders(
       gl,
@@ -423,6 +386,25 @@ export class TimelineRevisionsSharedResources {
       'RevisionLayerStyles',
       TimelineRevisionsSharedResources.UBO_BINDING_REVISION_LAYER_STYLES,
     );
+    gl.useProgram(this.revisionsHittestProgram);
+    gl.uniform1i(
+      gl.getUniformLocation(this.revisionsHittestProgram, 'numbersMSDFTexture'),
+      0,
+    );
+    gl.uniform1i(
+      gl.getUniformLocation(this.revisionsHittestProgram, 'iconsMSDFTexture'),
+      1,
+    );
+    gl.uniform1i(
+      gl.getUniformLocation(this.revisionsHittestProgram, 'u_filterBitset'),
+      2,
+    );
+    gl.uniform1i(
+      gl.getUniformLocation(this.revisionsHittestProgram, 'u_highlightBitset'),
+      3,
+    );
+    gl.useProgram(null);
+
     this.revisionStylesUBO = gl.createBuffer()!;
     this.layerStyleUBOs.clear();
   }

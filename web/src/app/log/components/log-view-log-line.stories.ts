@@ -53,7 +53,8 @@ export const Warning: Story = {
     return {
       props: {
         ...args,
-        log,
+        logId: log.id,
+        logStore: data.logStore,
       },
     };
   },
@@ -74,7 +75,8 @@ export const ErrorLog: Story = {
     return {
       props: {
         ...args,
-        log,
+        logId: log.id,
+        logStore: data.logStore,
       },
     };
   },
@@ -92,7 +94,8 @@ export const Highlighted: Story = {
     return {
       props: {
         ...args,
-        log,
+        logId: log.id,
+        logStore: data.logStore,
         highlighted: true,
       },
     };
@@ -111,7 +114,8 @@ export const Selected: Story = {
     return {
       props: {
         ...args,
-        log,
+        logId: log.id,
+        logStore: data.logStore,
         selected: true,
       },
     };

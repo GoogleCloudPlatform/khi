@@ -66,8 +66,9 @@
         [chartStyle]="chartStyle()"
         [rulerStyle]="rulerStyle()"
         [timelineHighlights]="timelineHighlights()"
-        [timelineChartItemHighlights]="timelineChartItemHighlights()"
-        [activeLogsIndices]="activeLogsIndices()"
+        [selectedLogIndex]="selectedLogIndex()"
+        [highlightedLogIndexBitset]="highlightedLogIndexBitset()"
+        [filteredLogIds]="filteredLogIds()"
         (mouseMoveOnTimelineItem)="
           handleTimelineChartItemEvent($event, hoverOnTimelineItem)
         "
@@ -143,8 +144,9 @@
           [chartStyle]="chartStyle()"
           [rulerStyle]="rulerStyle()"
           [timelineHighlights]="timelineHighlights()"
-          [timelineChartItemHighlights]="timelineChartItemHighlights()"
-          [activeLogsIndices]="activeLogsIndices()"
+          [selectedLogIndex]="selectedLogIndex()"
+          [highlightedLogIndexBitset]="highlightedLogIndexBitset()"
+          [filteredLogIds]="filteredLogIds()"
           (mouseMoveOnTimelineItem)="
             handleTimelineChartItemEvent($event, hoverOnTimelineItem)
           "

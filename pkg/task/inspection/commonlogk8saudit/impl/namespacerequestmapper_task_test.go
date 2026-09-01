@@ -21,10 +21,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 // TestNamespaceRequestLogToTimelineMapperTaskSetting_ProcessLog tests that namespace-wide request logs
@@ -60,19 +60,18 @@ func TestNamespaceRequestLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				Principal:    "admin",
-				APIVersion:   "core/v1",
-				PluralKind:   "pods",
-				ResourceName: "",
-				Namespace:    "default",
-				ClusterName:  "k8s",
-				Verb:         tc.verb,
-			}
-			commonFs := &log.CommonFieldSet{
-				Timestamp: testTime,
-			}
-			logObj := log.NewLogWithFieldSetsForTest(k8sFieldSet, commonFs)
+			logObj := testlog.NewMockLog(
+				testTime,
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					Principal:    "admin",
+					APIVersion:   "core/v1",
+					PluralKind:   "pods",
+					ResourceName: "",
+					Namespace:    "default",
+					ClusterName:  "k8s",
+					Verb:         tc.verb,
+				},
+			)
 
 			targetResource := &commonlogk8saudit_contract.ResourceIdentity{
 				APIVersion: "core/v1",

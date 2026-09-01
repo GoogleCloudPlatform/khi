@@ -149,15 +149,12 @@ describe('TimelineView', () => {
     await waitForFiltering(view);
 
     const timelinesSignal = view.filteredTimelines;
-    const logsSignal = view.filteredLogs;
     const logIdsSignal = view.filteredLogIds;
 
     expect(typeof timelinesSignal).toBe('function');
-    expect(typeof logsSignal).toBe('function');
     expect(typeof logIdsSignal).toBe('function');
 
     expect(timelinesSignal()).toEqual([]);
-    expect(logsSignal()).toEqual([]);
     expect(logIdsSignal().size).toBe(0);
   });
 
@@ -351,5 +348,52 @@ describe('TimelineView', () => {
     await waitForFiltering(view);
 
     expect(consoleSpy).not.toHaveBeenCalled();
+  });
+
+  it('should return filteredLogIds from filter evaluation', async () => {
+    const mockLogs = [
+      { id: 10, logIndex: 0, timestamp: 100n },
+      { id: 2, logIndex: 1, timestamp: 200n },
+      { id: 5, logIndex: 2, timestamp: 300n },
+    ];
+    const logStoreSpy = jasmine.createSpyObj<LogStore>('LogStore', [
+      'getLog',
+      'getLogIdByIndex',
+    ]);
+    Object.defineProperty(logStoreSpy, 'count', { get: () => 3 });
+    logStoreSpy.getLogIdByIndex.and.callFake((index) => mockLogs[index].id);
+
+    const timelineStoreSpy = jasmine.createSpyObj<TimelineStore>(
+      'TimelineStore',
+      ['getTimeline'],
+    );
+    Object.defineProperty(timelineStoreSpy, 'logStore', {
+      get: () => logStoreSpy,
+    });
+    Object.defineProperty(timelineStoreSpy, 'timelines', {
+      get: () => [],
+    });
+
+    const view = new TimelineView(timelineStoreSpy);
+    const filter = jasmine.createSpyObj<LogTimelineFilter>('Filter', [
+      'priority',
+      'process',
+    ]);
+    Object.defineProperty(filter, 'priority', { get: () => 10 });
+    filter.process.and.callFake((ctx) =>
+      Promise.resolve({
+        ...ctx,
+        logIds: IdBitset.fromAll([5, 10]),
+      }),
+    );
+
+    view.addFilter(filter);
+    await waitForFiltering(view);
+
+    const filteredIds = view.filteredLogIds();
+    expect(filteredIds.size).toBe(2);
+    expect(filteredIds.has(10)).toBeTrue();
+    expect(filteredIds.has(5)).toBeTrue();
+    expect(filteredIds.has(2)).toBeFalse();
   });
 });

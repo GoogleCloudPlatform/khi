@@ -22,11 +22,10 @@ The Composer inspection pipeline can be divided into four main phases:
 ### 2. Log Fetching
 
 - **`ComposerLogsQueryTask`**: Generates the Cloud Logging query based on input properties and fetches the raw logs.
-- **`ComposerLogsFieldSetReadTask`**: Parses the raw logs into `ComposerFieldSet` structs to extract component names and IDs.
 
 ### 3. Parsing & Mapping Pipelines
 
-Based on the `ComposerFieldSet`, logs are filtered into specific component streams. Each stream typically follows the pattern of:
+Logs are filtered into specific component streams using extractors. Each stream typically follows the pattern of:
 `Filter` -> `[Sorter]` -> `Grouper` -> `Ingester` -> `Mapper`
 
 - **Scheduler Pipeline**: Handles `airflow-scheduler` component logs.
@@ -103,26 +102,24 @@ graph TD
     EnvInput --> LogQuery
     CompInput --> LogQuery
 
-    LogQuery --> FieldSetRead[ComposerLogsFieldSetReadTask]:::query
-
     %% Pipelines
-    FieldSetRead --> SchedFilter[AirflowSchedulerLogFilterTask]:::pipeline
+    LogQuery --> SchedFilter[AirflowSchedulerLogFilterTask]:::pipeline
     SchedFilter --> SchedGrouper[AirflowSchedulerLogGrouperTask]:::pipeline
     SchedGrouper --> SchedIngester[AirflowSchedulerLogIngesterTask]:::pipeline
     SchedIngester --> SchedMapper[AirflowSchedulerLogToTimelineMapperTask]:::pipeline
 
-    FieldSetRead --> WorkFilter[AirflowWorkerLogFilterTask]:::pipeline
+    LogQuery --> WorkFilter[AirflowWorkerLogFilterTask]:::pipeline
     WorkFilter --> WorkGrouper[AirflowWorkerLogGrouperTask]:::pipeline
     WorkGrouper --> WorkIngester[AirflowWorkerLogIngesterTask]:::pipeline
     WorkIngester --> WorkMapper[AirflowWorkerLogToTimelineMapperTask]:::pipeline
 
-    FieldSetRead --> DpmFilter[AirflowDagProcessorManagerLogFilterTask]:::pipeline
+    LogQuery --> DpmFilter[AirflowDagProcessorManagerLogFilterTask]:::pipeline
     DpmFilter --> DpmSorter[AirflowDagProcessorManagerLogSorterTask]:::pipeline
     DpmSorter --> DpmGrouper[AirflowDagProcessorManagerLogGrouperTask]:::pipeline
     DpmGrouper --> DpmIngester[AirflowDagProcessorManagerLogIngesterTask]:::pipeline
     DpmIngester --> DpmMapper[AirflowDagProcessorManagerLogToTimelineMapperTask]:::pipeline
 
-    FieldSetRead --> OtherFilter[AirflowOtherLogFilterTask]:::pipeline
+    LogQuery --> OtherFilter[AirflowOtherLogFilterTask]:::pipeline
     OtherFilter --> OtherGrouper[AirflowOtherLogGrouperTask]:::pipeline
     OtherGrouper --> OtherIngester[AirflowOtherLogIngesterTask]:::pipeline
     OtherIngester --> OtherMapper[AirflowOtherLogToTimelineMapperTask]:::pipeline

@@ -28,23 +28,10 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReaderTask is a task that reads and parses field sets from MulticloudAPI audit logs.
-// It uses GCPOperationAuditLogFieldSetReader, MulticloudAPIAuditResourceFieldSetReader, and
-// GCPDefaultSeverityFieldSetReader to extract common GCP audit log fields, severity, and resource fields.
-var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudlogmulticloudapiaudit_contract.FieldSetReaderTaskID,
-	googlecloudlogmulticloudapiaudit_contract.ListLogEntriesTaskID.Ref(),
-	[]log.FieldSetReader{
-		&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
-		&googlecloudlogmulticloudapiaudit_contract.MulticloudAPIAuditResourceFieldSetReader{},
-		&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
-	},
-)
-
 // LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
 var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudlogmulticloudapiaudit_contract.LogIngesterTaskID,
-	googlecloudlogmulticloudapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlogmulticloudapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudlogmulticloudapiaudit_contract.LogTypeMulticloudAPI,
 )
 
@@ -52,9 +39,9 @@ var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 // This grouping allows for parallel processing of logs related to the same resource.
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudlogmulticloudapiaudit_contract.LogGrouperTaskID,
-	googlecloudlogmulticloudapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlogmulticloudapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		resourceFieldSet, err := log.GetFieldSet(l, &googlecloudlogmulticloudapiaudit_contract.MulticloudAPIAuditResourceFieldSet{})
+		resourceFieldSet, err := googlecloudlogmulticloudapiaudit_contract.ExtractMulticloudAPIAuditResource(l.NodeReader)
 		if err != nil {
 			return ""
 		}
@@ -80,7 +67,7 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.T
 }
 
 // LogIngesterTask implements LogToTimelineMapper.
-func (m *multicloudAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *multicloudAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogmulticloudapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
@@ -89,15 +76,11 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 	if tracker == nil {
 		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
 	}
-	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
-	auditFieldSet, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
-	if err != nil {
-		return nil, tracker, err
-	}
-	resourceFieldSet, err := log.GetFieldSet(l, &googlecloudlogmulticloudapiaudit_contract.MulticloudAPIAuditResourceFieldSet{})
+	resourceFieldSet, err := googlecloudlogmulticloudapiaudit_contract.ExtractMulticloudAPIAuditResource(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -124,7 +107,7 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 	shortMethodName = strings.ReplaceAll(shortMethodName, clusterTypeToFragmentInMethodNameMapping[resourceFieldSet.ClusterType], "") // Remove type specific part.
 
 	opPath := googlecloudlogmulticloudapiaudit_contract.MustOperationTimeline(ctx, targetPath, shortMethodName, auditFieldSet.OperationID)
-	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetPath, opPath, auditFieldSet, commonFieldSet, shortMethodName, resourceFieldSet.IsCluster())
+	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetPath, opPath, &auditFieldSet, l.Timestamp, shortMethodName, resourceFieldSet.IsCluster())
 
 	return cs, tracker, nil
 }

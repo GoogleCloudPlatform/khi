@@ -852,8 +852,8 @@ describe('Timeline', () => {
     });
   });
 
-  describe('hasLogInEvents, hasLogInRevisions, and hasLog', () => {
-    it('should correctly check if the timeline contains the log using binary search', () => {
+  describe('hasLog', () => {
+    it('should correctly check if the timeline contains the log', () => {
       internPool.addStrings([
         { id: 1, value: 'timeline-label' },
         { id: 2, value: 'user-name' },
@@ -928,16 +928,8 @@ describe('Timeline', () => {
       const log2 = logStore.getLog(2);
       const log3 = logStore.getLog(3);
 
-      expect(timeline.hasLogInRevisions(log1)).toBe(true);
-      expect(timeline.hasLogInEvents(log1)).toBe(false);
       expect(timeline.hasLog(log1)).toBe(true);
-
-      expect(timeline.hasLogInRevisions(log2)).toBe(false);
-      expect(timeline.hasLogInEvents(log2)).toBe(true);
       expect(timeline.hasLog(log2)).toBe(true);
-
-      expect(timeline.hasLogInRevisions(log3)).toBe(false);
-      expect(timeline.hasLogInEvents(log3)).toBe(false);
       expect(timeline.hasLog(log3)).toBe(false);
     });
   });

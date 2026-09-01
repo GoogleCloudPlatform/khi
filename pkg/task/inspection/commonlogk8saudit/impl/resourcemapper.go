@@ -25,7 +25,6 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
@@ -102,7 +101,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) GroupedLogTask() taskid
 }
 
 // LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (r *ResourceRevisionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
@@ -173,13 +172,11 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 		if !found || targetGroup == nil {
 			return nil
 		}
-		k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+		k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 		if k8sFieldSet.IsDryRun {
 			return nil
 		}
 		targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, targetGroup.Resource)
-
-		commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 
 		var bodyNode structured.Node
 		if bodyReader, ok := event.GetLastBodyReader("target"); ok && bodyReader != nil {
@@ -187,7 +184,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 		}
 
 		cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-			ChangedTime:  commonLogFieldSet.Timestamp,
+			ChangedTime:  event.Log.Timestamp,
 			ResourceBody: bodyNode,
 			Principal:    k8sFieldSet.Principal,
 			VerbType:     commonlogk8saudit_contract.VerbDelete,
@@ -206,8 +203,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 
 // handleTargetChange handles the target change.
 func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet, prevGroupData *resourceRevisionLogToTimelineMapperState) (*resourceRevisionLogToTimelineMapperState, error) {
-	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	if prevGroupData == nil {
@@ -382,7 +378,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx 
 	}
 
 	cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-		ChangedTime:      commonFieldSet.Timestamp,
+		ChangedTime:      event.Log.Timestamp,
 		ResourceBody:     bodyNode,
 		Principal:        k8sFieldSet.Principal,
 		VerbType:         k8sFieldSet.Verb,

@@ -27,7 +27,7 @@ import (
 func logTaskError(ctx context.Context, message string, err error, l *log.Log) {
 	var yaml string
 	if l != nil {
-		yamlBytes, err2 := l.Serialize("", &structured.YAMLNodeSerializer{})
+		yamlBytes, err2 := l.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 		if err2 != nil {
 			yaml = "ERROR!! failed to dump in yaml"
 		} else {

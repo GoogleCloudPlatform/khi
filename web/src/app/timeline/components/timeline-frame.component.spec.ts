@@ -158,7 +158,7 @@ describe('TimelineFrameComponent', () => {
     for (let i = 0; i <= 20; i++) {
       mockLogs.push(new MockLog(i));
     }
-    fixture.componentRef.setInput('allLogsWithoutFilter', mockLogs);
+    fixture.componentRef.setInput('allLogs', mockLogs);
 
     fixture.detectChanges();
   });

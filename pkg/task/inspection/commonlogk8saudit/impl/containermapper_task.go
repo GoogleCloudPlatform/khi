@@ -24,7 +24,6 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -72,7 +71,7 @@ func (c *containerLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskRe
 }
 
 // LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (c *containerLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (c *containerLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
@@ -101,6 +100,17 @@ func (c *containerLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets(ctx co
 	return result, nil
 }
 
+var (
+	pathStateWaiting    = structured.CompileFieldPath("state.waiting")
+	pathReason          = structured.CompileFieldPath("reason")
+	pathStateRunning    = structured.CompileFieldPath("state.running")
+	pathStartedAt       = structured.CompileFieldPath("startedAt")
+	pathReady           = structured.CompileFieldPath("ready")
+	pathStateTerminated = structured.CompileFieldPath("state.terminated")
+	pathFinishedAt      = structured.CompileFieldPath("finishedAt")
+	pathExitCode        = structured.CompileFieldPath("exitCode")
+)
+
 // PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
 func (c *containerLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, state *containerLogToTimelineMapperTaskState) (*containerLogToTimelineMapperTaskState, error) {
 	if state == nil {
@@ -117,11 +127,11 @@ func (c *containerLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 		return state, nil
 	}
 
-	findContainers := func(containerType containerType, fieldName string) {
-		statuses, err := bodyReader.GetReader(fieldName)
+	findContainers := func(containerType containerType, fieldPath structured.FieldPath) {
+		statuses, err := bodyReader.GetReader(fieldPath)
 		if err == nil {
-			for _, status := range statuses.Children() {
-				name, err := status.ReadString("name")
+			statuses.Children()(func(key structured.NodeChildrenKey, status structured.NodeReader) bool {
+				name, err := status.ReadString(pathContainerName)
 				if err == nil {
 					identity := &containerStatusIdentity{
 						containerName: name,
@@ -129,12 +139,13 @@ func (c *containerLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 					}
 					state.containerIdentities[identity.containerName] = identity
 				}
-			}
+				return true
+			})
 		}
 	}
-	findContainers(ContainerTypeContainer, "status.containerStatuses")
-	findContainers(ContainerTypeInitContainer, "status.initContainerStatuses")
-	findContainers(ContainerTypeEphemeral, "status.ephemeralContainerStatuses")
+	findContainers(ContainerTypeContainer, pathContainerStatuses)
+	findContainers(ContainerTypeInitContainer, pathInitContainerStatuses)
+	findContainers(ContainerTypeEphemeral, pathEphemeralContainerStatuses)
 
 	return state, nil
 }
@@ -151,7 +162,7 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 	if event.GroupRole != "pod" {
 		return cs, state, nil
 	}
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
 	if k8sFieldSet.IsDryRun {
 		return cs, state, nil
 	}
@@ -159,24 +170,23 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 
 	currentStateReaders := map[string]*structured.NodeReader{}
 	if hasBody && bodyReader != nil {
-		findContainerStateReaders := func(containerType containerType, fieldName string) {
-			statuses, err := bodyReader.GetReader(fieldName)
+		findContainerStateReaders := func(containerType containerType, fieldPath structured.FieldPath) {
+			statuses, err := bodyReader.GetReader(fieldPath)
 			if err == nil {
-				for _, status := range statuses.Children() {
-					name, err := status.ReadString("name")
+				statuses.Children()(func(key structured.NodeChildrenKey, status structured.NodeReader) bool {
+					name, err := status.ReadString(pathContainerName)
 					if err == nil {
-						currentStateReaders[name] = &status
+						s := status
+						currentStateReaders[name] = &s
 					}
-				}
+					return true
+				})
 			}
 		}
-		findContainerStateReaders(ContainerTypeContainer, "status.containerStatuses")
-		findContainerStateReaders(ContainerTypeInitContainer, "status.initContainerStatuses")
-		findContainerStateReaders(ContainerTypeEphemeral, "status.ephemeralContainerStatuses")
+		findContainerStateReaders(ContainerTypeContainer, pathContainerStatuses)
+		findContainerStateReaders(ContainerTypeInitContainer, pathInitContainerStatuses)
+		findContainerStateReaders(ContainerTypeEphemeral, pathEphemeralContainerStatuses)
 	}
-
-	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sAuditLogFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
 
 	for _, identity := range state.containerIdentities {
 		if _, found := state.containerStateWalkers[identity.containerName]; !found {
@@ -187,15 +197,15 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 			}
 		}
 		walker := state.containerStateWalkers[identity.containerName]
-		walker.CheckAndRecord(ctx, currentStateReaders[identity.containerName], cs, commonLogFieldSet, k8sAuditLogFieldSet)
+		walker.CheckAndRecord(ctx, currentStateReaders[identity.containerName], cs, event.Log.Timestamp, k8sFieldSet)
 
 		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
-			containerPath := MustResolveContainerTimelinePath(ctx, k8sAuditLogFieldSet.ClusterName, event.ResourceIdentity.Namespace, event.ResourceIdentity.Name, identity.containerName)
+			containerPath := MustResolveContainerTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity.Namespace, event.ResourceIdentity.Name, identity.containerName)
 			cs.AddRevision(containerPath, &khifilev6.StagingRevision{
-				VerbType:     k8sAuditLogFieldSet.Verb,
+				VerbType:     k8sFieldSet.Verb,
 				ResourceBody: nil,
-				Principal:    k8sAuditLogFieldSet.Principal,
-				ChangedTime:  commonLogFieldSet.Timestamp,
+				Principal:    k8sFieldSet.Principal,
+				ChangedTime:  event.Log.Timestamp,
 				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 			})
 		}
@@ -222,7 +232,7 @@ type containerStateWalker struct {
 }
 
 // CheckAndRecord compares the current container state with the previous state and records a revision if there is a significant change.
-func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *structured.NodeReader, cs *khifilev6.TimelineChangeSet, commonLog *log.CommonFieldSet, k8sAuditLog *commonlogk8saudit_contract.K8sAuditLogFieldSet) {
+func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *structured.NodeReader, cs *khifilev6.TimelineChangeSet, changedTime time.Time, k8sAuditLog commonlogk8saudit_contract.K8sAuditLogFieldSet) {
 	containerPath := MustResolveContainerTimelinePath(ctx, k8sAuditLog.ClusterName, w.podNamespace, w.podName, w.containerIdentity.containerName)
 	if stateReader == nil {
 		if w.lastState != "no state" {
@@ -230,7 +240,7 @@ func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *
 				Principal:    k8sAuditLog.Principal,
 				VerbType:     k8sAuditLog.Verb,
 				ResourceBody: nil,
-				ChangedTime:  commonLog.Timestamp,
+				ChangedTime:  changedTime,
 				StateType:    commonlogk8saudit_contract.RevisionStateContainerStatusNotAvailable,
 			})
 			w.lastState = "no state"
@@ -239,16 +249,16 @@ func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *
 		containerBody := stateReader.Node
 
 		// Get the reason from waiting state
-		waiting, err := stateReader.GetReader("state.waiting")
+		waiting, err := stateReader.GetReader(pathStateWaiting)
 		if err == nil {
-			reason, err := waiting.ReadString("reason")
+			reason, err := waiting.ReadString(pathReason)
 			state := fmt.Sprintf("waiting-%s", reason)
 			if err == nil && w.lastState != state {
 				cs.AddRevision(containerPath, &khifilev6.StagingRevision{
 					Principal:    k8sAuditLog.Principal,
 					VerbType:     k8sAuditLog.Verb,
 					ResourceBody: containerBody,
-					ChangedTime:  commonLog.Timestamp,
+					ChangedTime:  changedTime,
 					StateType:    commonlogk8saudit_contract.RevisionStateContainerWaiting,
 				})
 				w.lastState = state
@@ -256,9 +266,9 @@ func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *
 		}
 
 		// Get the reason from running state
-		running, err := stateReader.GetReader("state.running")
+		running, err := stateReader.GetReader(pathStateRunning)
 		if err == nil {
-			startTime, err := running.ReadString("startedAt")
+			startTime, err := running.ReadString(pathStartedAt)
 			if err == nil && w.lastStartTime != startTime {
 				startTimeParsed, err := time.Parse(time.RFC3339, startTime)
 				if err == nil {
@@ -273,7 +283,7 @@ func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *
 					w.lastState = "started"
 				}
 			}
-			ready, err := stateReader.ReadBool("ready")
+			ready, err := stateReader.ReadBool(pathReady)
 			if err == nil {
 				currentState := "ready"
 				revisionState := commonlogk8saudit_contract.RevisionStateContainerRunningReady
@@ -286,7 +296,7 @@ func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *
 						Principal:    k8sAuditLog.Principal,
 						VerbType:     k8sAuditLog.Verb,
 						ResourceBody: containerBody,
-						ChangedTime:  commonLog.Timestamp,
+						ChangedTime:  changedTime,
 						StateType:    revisionState,
 					})
 					w.lastState = currentState
@@ -295,9 +305,9 @@ func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *
 		}
 
 		// Get the reason from terminated state
-		terminated, err := stateReader.GetReader("state.terminated")
+		terminated, err := stateReader.GetReader(pathStateTerminated)
 		if err == nil {
-			startTime, err := terminated.ReadString("startedAt")
+			startTime, err := terminated.ReadString(pathStartedAt)
 			if err == nil && w.lastStartTime != startTime {
 				startTimeParsed, err := time.Parse(time.RFC3339, startTime)
 				if err == nil {
@@ -312,11 +322,11 @@ func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *
 				}
 			}
 
-			finishTime, err := terminated.ReadString("finishedAt")
+			finishTime, err := terminated.ReadString(pathFinishedAt)
 			if err == nil && w.lastFinishTime != finishTime {
 				finishTimeParsed, err := time.Parse(time.RFC3339, finishTime)
 				if err == nil {
-					exitCode := terminated.ReadIntOrDefault("exitCode", -1)
+					exitCode := terminated.ReadIntOrDefault(pathExitCode, -1)
 					revState := commonlogk8saudit_contract.RevisionStateContainerTerminatedWithSuccess
 					if exitCode != 0 {
 						revState = commonlogk8saudit_contract.RevisionStateContainerTerminatedWithError

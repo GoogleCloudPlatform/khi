@@ -30,6 +30,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -43,13 +44,13 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 	}{
 		{
 			name: "Scheduler basic identification and TaskInstance extraction",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: timestamp},
-				&googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Processing /app/models.py"},
-				&googlecloudclustercomposer_contract.ComposerFieldSet{
+			input: testlog.NewMockLog(
+				timestamp,
+				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Processing /app/models.py"},
+				googlecloudclustercomposer_contract.ComposerFieldSet{
 					SchedulerID: "airflow-scheduler-7b5f",
 				},
-				&googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{
+				googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{
 					TaskInstance: googlecloudclustercomposer_contract.NewAirflowTaskInstance(
 						"my_dag", "task_id_1", "2023-01-01T00:00:00Z", "1", "worker-1", googlecloudclustercomposer_contract.TASKINSTANCE_SUCCESS,
 					),
@@ -82,13 +83,13 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "Zombie task adds event to worker",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: timestamp},
-				&googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Detected zombie task"},
-				&googlecloudclustercomposer_contract.ComposerFieldSet{
+			input: testlog.NewMockLog(
+				timestamp,
+				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Detected zombie task"},
+				googlecloudclustercomposer_contract.ComposerFieldSet{
 					SchedulerID: "airflow-scheduler-7b5f",
 				},
-				&googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{
+				googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{
 					TaskInstance: googlecloudclustercomposer_contract.NewAirflowTaskInstance(
 						"my_dag", "task_id_zombie", "2023-01-01T00:00:00Z", "1", "worker-bad", googlecloudclustercomposer_contract.TASKINSTANCE_ZOMBIE,
 					),
@@ -123,10 +124,10 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "Scheduler log without TaskInstance",
-			input: log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: timestamp},
-				&googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Heartbeat"},
-				&googlecloudclustercomposer_contract.ComposerFieldSet{
+			input: testlog.NewMockLog(
+				timestamp,
+				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Heartbeat"},
+				googlecloudclustercomposer_contract.ComposerFieldSet{
 					SchedulerID: "airflow-scheduler-7b5f",
 				},
 			),

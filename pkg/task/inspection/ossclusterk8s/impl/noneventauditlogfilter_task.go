@@ -17,6 +17,7 @@ package ossclusterk8s_impl
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -24,6 +25,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
+)
+
+var (
+	pathAuditVerb               = structured.CompileFieldPath("verb")
+	pathAuditKind               = structured.CompileFieldPath("kind")
+	pathAuditResponseObjectKind = structured.CompileFieldPath("responseObject.kind")
+	pathAuditObjectRef          = structured.CompileFieldPath("objectRef")
 )
 
 var NonEventAuditLogFilterTask = inspectiontaskbase.NewProgressReportableInspectionTask(
@@ -40,8 +48,8 @@ var NonEventAuditLogFilterTask = inspectiontaskbase.NewProgressReportableInspect
 		var auditLogs []*log.Log
 
 		for _, l := range logs {
-			verb := l.ReadStringOrDefault("verb", "")
-			if l.ReadStringOrDefault("kind", "") == "Event" && l.ReadStringOrDefault("responseObject.kind", "") != "Event" && l.Has("objectRef") {
+			verb := l.ReadStringOrDefault(pathAuditVerb, "")
+			if l.ReadStringOrDefault(pathAuditKind, "") == "Event" && l.ReadStringOrDefault(pathAuditResponseObjectKind, "") != "Event" && l.Has(pathAuditObjectRef) {
 				if verb == "" || verb == "get" || verb == "watch" || verb == "list" {
 					continue
 				}

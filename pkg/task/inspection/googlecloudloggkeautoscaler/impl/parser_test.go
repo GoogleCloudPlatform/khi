@@ -23,12 +23,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -188,9 +188,9 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 	ingester := &autoscalerLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: testTime},
-				tc.input,
+			l := testlog.NewMockLog(
+				testTime,
+				*tc.input,
 			)
 			cs, err := ingester.ProcessLog(t.Context(), l)
 			if err != nil {
@@ -526,9 +526,9 @@ results:
 			tc.input.ClusterName = "test-cluster"
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-			l := log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: testTime},
-				tc.input,
+			l := testlog.NewMockLog(
+				testTime,
+				*tc.input,
 			)
 
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})

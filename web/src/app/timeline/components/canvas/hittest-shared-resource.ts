@@ -35,6 +35,16 @@ export interface HitTestResult {
 }
 
 /**
+ * Defines a rectangular region for WebGL scissor testing.
+ */
+export interface ScissorRect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
  * Shared resource for handling hit testing on timelines using WebGL.
  * It manages a framebuffer object (FBO) and texture to render an index map
  * for efficient retrieval of the object at a specific pixel.
@@ -112,10 +122,13 @@ export class TimelineHitTestSharedResource {
 
   /**
    * Prepares the shared resource for rendering the hit test map.
-   * Binds the FBO and clears the buffers. Resizes the texture if necessary.
+   * Binds the FBO, applies scissor clipping, and clears the buffers within the scissor region.
+   * Resizes the texture if necessary.
+   *
    * @param gl The WebGL2 rendering context.
+   * @param scissorRect Scissor box to restrict clearing and rasterization.
    */
-  beforeRender(gl: WebGL2RenderingContext) {
+  beforeRender(gl: WebGL2RenderingContext, scissorRect: ScissorRect) {
     if (this.sizeUpdated) {
       gl.bindTexture(gl.TEXTURE_2D, this.hittestTexture);
       gl.texImage2D(
@@ -141,16 +154,25 @@ export class TimelineHitTestSharedResource {
       this.sizeUpdated = false;
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.hittestFBO);
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(
+      scissorRect.x,
+      scissorRect.y,
+      scissorRect.width,
+      scissorRect.height,
+    );
     gl.clearBufferuiv(gl.COLOR, 0, this.clearBuffer);
     gl.clear(gl.DEPTH_BUFFER_BIT);
   }
 
   /**
-   * Unbinds the framebuffer after rendering is complete.
+   * Unbinds the framebuffer and disables scissor testing after rendering is complete.
+   *
    * @param gl The WebGL2 rendering context.
    */
   afterRender(gl: WebGL2RenderingContext) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.disable(gl.SCISSOR_TEST);
   }
 
   /**

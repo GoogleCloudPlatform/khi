@@ -22,10 +22,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 // TestResourceOwnerReferenceTimelineMapperTask_ProcessLog verifies that owner references in the resource body are mapped correctly to timeline aliases.
@@ -254,20 +254,19 @@ metadata:
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			nodeReader := parseYAML(tc.yaml)
 
-			k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				Principal:    "user-1",
-				APIVersion:   "core/v1",
-				PluralKind:   "pods",
-				ResourceName: "nginx",
-				Namespace:    "default",
-				ClusterName:  "k8s",
-				Verb:         commonlogk8saudit_contract.VerbUpdate,
-				IsDryRun:     tc.isDryRun,
-			}
-			commonFs := &log.CommonFieldSet{
-				Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			}
-			logObj := log.NewLogWithFieldSetsForTest(k8sFieldSet, commonFs)
+			logObj := testlog.NewMockLog(
+				time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					Principal:    "user-1",
+					APIVersion:   "core/v1",
+					PluralKind:   "pods",
+					ResourceName: "nginx",
+					Namespace:    "default",
+					ClusterName:  "k8s",
+					Verb:         commonlogk8saudit_contract.VerbUpdate,
+					IsDryRun:     tc.isDryRun,
+				},
+			)
 
 			targetResource := &commonlogk8saudit_contract.ResourceIdentity{
 				APIVersion: "core/v1",

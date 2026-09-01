@@ -43,6 +43,7 @@ import {
 } from 'src/app/timeline/components/style-model';
 import { TimelineChartMouseEvent } from 'src/app/timeline/components/timeline-chart.component';
 import { bisectLeft } from 'src/app/common/misc-util';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
 
@@ -174,11 +175,14 @@ export class TimelineSmartComponent {
   });
 
   /**
-   * List of logs matching the current filter criteria.
-   * Used for the histogram and log distribution views.
+   * Bitset of log IDs matching the current filter criteria.
+   * Used for passing directly to timeline frame WebGL rendering.
    */
-  protected readonly filteredLogs = computed(() => {
-    return this.inspectionDataStore.timelineView()?.filteredLogs() ?? [];
+  protected readonly filteredLogIds = computed(() => {
+    return (
+      this.inspectionDataStore.timelineView()?.filteredLogIds() ??
+      IdBitset.createEmpty()
+    );
   });
 
   /**
@@ -190,7 +194,7 @@ export class TimelineSmartComponent {
     if (header) {
       return header.startTimeUnixSeconds * 1000;
     }
-    const logs = this.filteredLogs();
+    const logs = this.allLogs();
     if (logs.length === 0) {
       return Date.now() - 60 * 60 * 1000;
     }
@@ -206,7 +210,7 @@ export class TimelineSmartComponent {
     if (header) {
       return header.endTimeUnixSeconds * 1000;
     }
-    const logs = this.filteredLogs();
+    const logs = this.allLogs();
     if (logs.length === 0) {
       return Date.now();
     }
@@ -263,8 +267,18 @@ export class TimelineSmartComponent {
     return this.selectionManager.selectedLogIndex();
   });
 
+  protected readonly selectedLogIndexForRenderer = computed(() => {
+    return this.selectionManager.selectedLogIndex() ?? 0xffffffff;
+  });
+
   private readonly highlightedLogIndices = computed(() => {
-    return this.selectionManager.highlightLogIndices();
+    return this.selectionManager.highlightedLogIndices();
+  });
+
+  protected readonly highlightedLogIndexBitset = computed(() => {
+    return IdBitset.fromSet(
+      this.selectionManager.highlightedLogIndices() ?? new Set<number>(),
+    );
   });
 
   /**
@@ -366,21 +380,25 @@ export class TimelineSmartComponent {
       return { timeline: currentSelected, targetTimeNs };
     }
 
+    const timelineStore =
+      this.inspectionDataStore.inspectionData()?.timelineStore;
+    const logTimelines = timelineStore
+      ? timelineStore.getTimelinesForLogId(targetLog.id)
+      : [];
+
     if (currentSelected) {
       const descendants = new Set(currentSelected.descendants());
-      const allTimelines = this.filteredTimelines();
-      const descendantMatch = allTimelines.find(
-        (t: ReadonlyDomainElement<Timeline>) =>
-          descendants.has(t) && t.hasLog(targetLog),
-      );
+      const descendantMatch = logTimelines.find((t) => descendants.has(t));
       if (descendantMatch) {
         return { timeline: descendantMatch, targetTimeNs };
       }
     }
 
-    const allTimelines = this.filteredTimelines();
-    const globalMatch = allTimelines.find(
-      (t: ReadonlyDomainElement<Timeline>) => t.hasLog(targetLog),
+    const filteredTimelineIds = this.inspectionDataStore
+      .timelineView()
+      ?.filteredTimelineIds();
+    const globalMatch = logTimelines.find(
+      (t) => !filteredTimelineIds || filteredTimelineIds.has(t.id),
     );
     return globalMatch ? { timeline: globalMatch, targetTimeNs } : null;
   }

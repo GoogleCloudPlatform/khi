@@ -388,5 +388,90 @@ describe('TimelineStore', () => {
       const rootChildren = store._getChildIdsForTimeline(1);
       expect(rootChildren.length).toBe(14);
     });
+
+    it('should correctly build and query reverse log indexes', () => {
+      internPool.addStrings([
+        { id: 1, value: 'timeline-1' },
+        { id: 2, value: 'timeline-2' },
+        { id: 3, value: 'summary' },
+      ]);
+
+      logStore.addLogs([
+        {
+          id: 1,
+          ts: 100n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+        {
+          id: 2,
+          ts: 200n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+        {
+          id: 3,
+          ts: 300n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+      ]);
+
+      store.addRevision({
+        id: 10,
+        logId: 1,
+        changedTime: 100n,
+        principalStringId: 1,
+        verbTypeId: 1,
+        stateTypeId: 1,
+      });
+      store.addEvent({ id: 20, logId: 2 });
+      store.addEvent({ id: 21, logId: 1 }); // Log 1 is shared in timeline 2 as an event
+
+      store.addTimeline({
+        id: 100,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [10],
+        eventIds: [],
+      });
+
+      store.addTimeline({
+        id: 200,
+        timelineTypeId: 1,
+        nameStringId: 2,
+        parentTimelineId: 0,
+        revisionIds: [],
+        eventIds: [20, 21],
+      });
+
+      store.shrinkToFit();
+
+      // Query log 1 (appears in timeline 100 as revision 10 and timeline 200 as event 21)
+      expect(store.getTimelineIdsForLogId(1)).toEqual([100, 200]);
+      const timelinesForLog1 = store.getTimelinesForLogId(1);
+      expect(timelinesForLog1.length).toBe(2);
+      expect(timelinesForLog1[0].id).toBe(100);
+      expect(timelinesForLog1[1].id).toBe(200);
+
+      const log1 = logStore.getLog(1);
+      expect(timelinesForLog1[0].lookupRevisionFromLog(log1)?.id).toBe(10);
+      expect(timelinesForLog1[1].lookupEventFromLog(log1)?.id).toBe(21);
+
+      // Query log 2 (appears only in timeline 200 as event 20)
+      expect(store.getTimelineIdsForLogId(2)).toEqual([200]);
+      const timelinesForLog2 = store.getTimelinesForLogId(2);
+      expect(timelinesForLog2.length).toBe(1);
+      const log2 = logStore.getLog(2);
+      expect(timelinesForLog2[0].lookupEventFromLog(log2)?.id).toBe(20);
+
+      // Query log 3 (not in any timeline)
+      expect(store.getTimelineIdsForLogId(3)).toEqual([]);
+      expect(store.getTimelinesForLogId(3)).toEqual([]);
+    });
   });
 });

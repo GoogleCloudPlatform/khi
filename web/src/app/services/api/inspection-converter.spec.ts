@@ -21,6 +21,7 @@ import {
   ValidationTiming as ProtoValidationTiming,
   UploadStatus as ProtoUploadStatus,
   InspectionPhase as ProtoInspectionPhase,
+  EstimatedCountPreset as ProtoEstimatedCountPreset,
   InspectionListItemSchema,
   DryRunInspectionResponseSchema,
   GetInspectionMetadataResponseSchema,
@@ -35,12 +36,14 @@ import {
   FileParameterFormField,
   SetParameterFormField,
 } from 'src/app/common/schema/form-types';
+import { EstimatedCountPreset } from 'src/app/common/schema/metadata-types';
 import {
   convertMapToParameterValues,
   convertProtoDryRunResponseToFrontend,
   convertProtoFormFieldToParameterFormField,
   convertProtoListItemToInspectionMetadata,
   convertProtoMetadataToInspectionMetadataOfRunResult,
+  mapProtoEstimatedCountPreset,
   mapProtoHintTypeToFormHintType,
   mapProtoUploadStatusToFormUploadStatus,
   mapProtoValidationTimingToFormTiming,
@@ -94,6 +97,18 @@ describe('inspection-converter', () => {
       expect(
         mapProtoUploadStatusToFormUploadStatus(ProtoUploadStatus.UNSPECIFIED),
       ).toBe(UploadStatus.Waiting);
+    });
+
+    it('maps ProtoEstimatedCountPreset correctly', () => {
+      expect(mapProtoEstimatedCountPreset(ProtoEstimatedCountPreset.FEW)).toBe(
+        EstimatedCountPreset.Few,
+      );
+      expect(
+        mapProtoEstimatedCountPreset(ProtoEstimatedCountPreset.UNSPECIFIED),
+      ).toBe(EstimatedCountPreset.None);
+      expect(mapProtoEstimatedCountPreset(undefined)).toBe(
+        EstimatedCountPreset.None,
+      );
     });
   });
 
@@ -383,6 +398,12 @@ describe('inspection-converter', () => {
             query: 'resource.type="k8s_node"',
             incomplete: true,
           },
+          {
+            id: 'q4',
+            name: 'q4',
+            query: 'resource.type="gce_instance"',
+            estimatedCountPreset: ProtoEstimatedCountPreset.FEW,
+          },
         ],
         plan: { taskGraph: 'graph TD; A-->B;' },
         jobCommand: { command: 'khi run ...' },
@@ -391,7 +412,7 @@ describe('inspection-converter', () => {
       const converted = convertProtoDryRunResponseToFrontend(res);
       expect(converted.metadata.form.length).toBe(1);
       expect(converted.metadata.form[0].id).toBe('f1');
-      expect(converted.metadata.query.length).toBe(3);
+      expect(converted.metadata.query.length).toBe(4);
       expect(converted.metadata.query[0].query).toBe('resource.type="gke"');
       expect(converted.metadata.query[0].estimatedCount).toBe(12345);
       expect(converted.metadata.query[0].incomplete).toBeUndefined();
@@ -399,6 +420,10 @@ describe('inspection-converter', () => {
       expect(converted.metadata.query[1].estimatedCount).toBe(0);
       expect(converted.metadata.query[2].estimatedCount).toBeUndefined();
       expect(converted.metadata.query[2].incomplete).toBeTrue();
+      expect(converted.metadata.query[3].estimatedCountPreset).toBe(
+        EstimatedCountPreset.Few,
+      );
+      expect(converted.metadata.query[3].estimatedCount).toBeUndefined();
       expect(converted.metadata.plan.taskGraph).toBe('graph TD; A-->B;');
       expect(converted.metadata.jobCommand?.command).toBe('khi run ...');
     });

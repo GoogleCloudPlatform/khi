@@ -23,6 +23,7 @@ import {
   BMFontConfig,
   IconAtlas,
 } from 'src/app/store/domain/style';
+import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
  * Represents the state required by shared timeline rendering resources.
@@ -39,6 +40,8 @@ export interface TimelineRendererSharedResourceState {
   pixelsPerMs: number;
   /** The time (in unix milliseconds) at the left edge of the viewport. */
   leftEdgeTime: number;
+  /** The index of the selected log, or 0xFFFFFFFF if none. */
+  selectedLogIndex: number;
 }
 
 /**
@@ -46,12 +49,19 @@ export interface TimelineRendererSharedResourceState {
  * This class manages MSDF textures for text and icons, and updates the shared view state UBO.
  */
 export class TimelineRendererSharedResource {
+  public static readonly BITSET_TEXTURE_WIDTH = 2048;
   public readonly MAX_NUMBER_FONTS = 10;
   public readonly MAX_ICON_FONTS = 128;
 
   /** Uniform Buffer Object for storing the view state (viewport, time). */
   uboViewState!: WebGLBuffer;
   uboViewStateSource!: ArrayBuffer;
+
+  /** Texture containing the R32UI bitset for active filtered log IDs. */
+  filterBitsetTexture!: WebGLTexture;
+
+  /** Texture containing the R32UI bitset for highlighted log indices. */
+  highlightBitsetTexture!: WebGLTexture;
 
   /** Uniform Buffer Object for storing parameters related to the number MSDF font atlas. */
   uboNumberMSDFParamBuffer!: WebGLBuffer;
@@ -92,10 +102,13 @@ export class TimelineRendererSharedResource {
     if (this.uboViewState === null) {
       throw new WebGLContextLostException('Failed to create buffer');
     }
-    this.uboViewStateSource = new ArrayBuffer(32); // 24 + 8 padding
+    this.uboViewStateSource = new ArrayBuffer(32);
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.uboViewState);
     gl.bufferData(gl.UNIFORM_BUFFER, this.uboViewStateSource, gl.DYNAMIC_DRAW);
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+
+    this.filterBitsetTexture = this.createBitsetTexture(gl);
+    this.highlightBitsetTexture = this.createBitsetTexture(gl);
 
     this.numberMSDFTexture = await WebGLUtil.loadTexture(
       gl,
@@ -247,10 +260,107 @@ export class TimelineRendererSharedResource {
       RendererConvertUtil.splitTimeToSecondsAndNanoSeconds(state.leftEdgeTime);
     dv.setUint32(16, seconds, true);
     dv.setUint32(20, nanoSeconds, true);
-    dv.setUint32(24, 0, true); // these are paddings for std140
+    dv.setUint32(24, state.selectedLogIndex, true);
     dv.setUint32(28, 0, true);
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.uboViewState);
     gl.bufferData(gl.UNIFORM_BUFFER, this.uboViewStateSource, gl.DYNAMIC_DRAW);
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+  }
+
+  /**
+   * Updates the filter bitset texture with active log IDs.
+   *
+   * @param gl The WebGL2 rendering context.
+   * @param bitset The bitset of active log IDs.
+   */
+  public updateFilterBitset(
+    gl: WebGL2RenderingContext,
+    bitset: IdBitset,
+  ): void {
+    this.uploadBitsetTexture(gl, this.filterBitsetTexture, bitset);
+  }
+
+  /**
+   * Updates the highlight bitset texture with highlighted log indices.
+   *
+   * @param gl The WebGL2 rendering context.
+   * @param bitset The bitset of highlighted log indices.
+   */
+  public updateHighlightBitset(
+    gl: WebGL2RenderingContext,
+    bitset: IdBitset,
+  ): void {
+    this.uploadBitsetTexture(gl, this.highlightBitsetTexture, bitset);
+  }
+
+  /**
+   * Creates an R32UI WebGL texture initialized for bitset lookup.
+   *
+   * @param gl The WebGL2 rendering context.
+   * @returns The newly created WebGLTexture.
+   */
+  private createBitsetTexture(gl: WebGL2RenderingContext): WebGLTexture {
+    const texture = gl.createTexture();
+    if (texture === null) {
+      throw new WebGLContextLostException('Failed to create bitset texture');
+    }
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const initialBuffer = new Uint32Array(
+      TimelineRendererSharedResource.BITSET_TEXTURE_WIDTH,
+    );
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.R32UI,
+      TimelineRendererSharedResource.BITSET_TEXTURE_WIDTH,
+      1,
+      0,
+      gl.RED_INTEGER,
+      gl.UNSIGNED_INT,
+      initialBuffer,
+    );
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return texture;
+  }
+
+  /**
+   * Uploads an IdBitset into an R32UI texture.
+   *
+   * @param gl The WebGL2 rendering context.
+   * @param texture The target WebGLTexture.
+   * @param bitset The IdBitset to upload.
+   */
+  private uploadBitsetTexture(
+    gl: WebGL2RenderingContext,
+    texture: WebGLTexture,
+    bitset: IdBitset,
+  ): void {
+    const width = TimelineRendererSharedResource.BITSET_TEXTURE_WIDTH;
+    const words = bitset.words;
+    const height = Math.max(1, Math.ceil(words.length / width));
+    let buffer: Uint32Array;
+    if (words.length === width * height) {
+      buffer = words;
+    } else {
+      buffer = new Uint32Array(width * height);
+      buffer.set(words);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.R32UI,
+      width,
+      height,
+      0,
+      gl.RED_INTEGER,
+      gl.UNSIGNED_INT,
+      buffer,
+    );
+    gl.bindTexture(gl.TEXTURE_2D, null);
   }
 }

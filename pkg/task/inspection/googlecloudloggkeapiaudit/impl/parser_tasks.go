@@ -28,26 +28,17 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReaderTask is a task that reads and parses field sets from GKE audit logs.
-// It uses GCPOperationAuditLogFieldSetReader, GKEAuditLogResourceFieldSetReader,
-// and GCPDefaultSeverityFieldSetReader to extract fields.
-var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudloggkeapiaudit_contract.FieldSetReaderTaskID, googlecloudloggkeapiaudit_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
-	&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
-	&googlecloudloggkeapiaudit_contract.GKEAuditLogResourceFieldSetReader{},
-	&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
-})
-
 // LogIngesterTask is a task that serializes GKE audit logs for storage in the history builder.
 var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudloggkeapiaudit_contract.LogIngesterTaskID,
-	googlecloudloggkeapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudloggkeapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudloggkeapiaudit_contract.LogTypeGkeAudit,
 )
 
 // LogGrouperTask is a task that groups GKE audit logs by GKE cluster or nodepool name.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeapiaudit_contract.LogGrouperTaskID, googlecloudloggkeapiaudit_contract.FieldSetReaderTaskID.Ref(),
+var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeapiaudit_contract.LogGrouperTaskID, googlecloudloggkeapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		resourceFieldSet, err := log.GetFieldSet(l, &googlecloudloggkeapiaudit_contract.GKEAuditLogResourceFieldSet{})
+		resourceFieldSet, err := googlecloudloggkeapiaudit_contract.ExtractGKEAuditLogResource(l.NodeReader)
 		if err != nil {
 			return ""
 		}
@@ -82,7 +73,7 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskRefe
 }
 
 // LogIngesterTask returns a reference to the log ingester task.
-func (g *gkeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (g *gkeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudloggkeapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
@@ -91,15 +82,11 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 	if tracker == nil {
 		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
 	}
-	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
-	auditFieldSet, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
-	if err != nil {
-		return nil, tracker, err
-	}
-	resourceFieldSet, err := log.GetFieldSet(l, &googlecloudloggkeapiaudit_contract.GKEAuditLogResourceFieldSet{})
+	resourceFieldSet, err := googlecloudloggkeapiaudit_contract.ExtractGKEAuditLogResource(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -120,7 +107,7 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 	shortMethodName := methodNameParts[len(methodNameParts)-1]
 
 	operationTimeline := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetTimeline, shortMethodName, auditFieldSet.OperationID)
-	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, auditFieldSet, commonFieldSet, shortMethodName, resourceFieldSet.IsCluster())
+	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, &auditFieldSet, l.Timestamp, shortMethodName, resourceFieldSet.IsCluster())
 
 	return cs, tracker, nil
 }

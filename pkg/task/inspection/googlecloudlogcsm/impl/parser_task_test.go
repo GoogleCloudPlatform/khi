@@ -22,12 +22,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
@@ -94,10 +94,10 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 	ingester := &CSMTrafficLogLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)},
-				tc.inputGCPAccessLog,
-				tc.inputIstioAccessLog,
+			l := testlog.NewMockLog(
+				time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+				*tc.inputGCPAccessLog,
+				*tc.inputIstioAccessLog,
 			)
 			cs, err := ingester.ProcessLog(t.Context(), l)
 			if err != nil {
@@ -230,10 +230,10 @@ func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				ClusterName: "test-cluster",
 			})
 
-			l := log.NewLogWithFieldSetsForTest(
-				&log.CommonFieldSet{Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)},
-				tc.inputGCPAccessLog,
-				tc.inputIstioAccessLog,
+			l := testlog.NewMockLog(
+				time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+				*tc.inputGCPAccessLog,
+				*tc.inputIstioAccessLog,
 			)
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
 			if err != nil {
