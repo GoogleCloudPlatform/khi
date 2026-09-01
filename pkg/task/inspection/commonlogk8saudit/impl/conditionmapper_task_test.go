@@ -700,4 +700,358 @@ status:
 		testchangeset.AssertTimeline(t, cs).
 			HasNoRevision(conditionPath)
 	})
+
+	t.Run("Truncated log maintains unchanged condition status without gap", func(t *testing.T) {
+		builder := khifilev6.NewBuilder()
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
+
+		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+		// Log 1 (t=10s): Initial update with Ready=True
+		logObj1 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC),
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s"},
+		)
+		bodyReader1 := structured.NewNodeReader(parseYAML(`
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:10Z"
+`))
+
+		// Log 2 (t=20s): Truncated log (ResourceBodyReader == nil)
+		logObj2 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 0, 0, 20, 0, time.UTC),
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbPatch, Principal: "user-1", ClusterName: "k8s", IsTruncated: true},
+		)
+
+		// Log 3 (t=30s): Next update with Ready=True (same lastTransitionTime)
+		logObj3 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 0, 0, 30, 0, time.UTC),
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s"},
+		)
+		bodyReader3 := structured.NewNodeReader(parseYAML(`
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:10Z"
+`))
+
+		resIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+			APIVersion: "core/v1",
+			Kind:       "pod",
+			Namespace:  "default",
+			Name:       "nginx",
+		}
+
+		groupSet := commonlogk8saudit_contract.RelatedGroupSet{
+			Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+				"target": {
+					Resource: resIdentity,
+					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
+						{Log: logObj1, ResourceBodyReader: bodyReader1},
+						{Log: logObj2, ResourceBodyReader: nil},
+						{Log: logObj3, ResourceBodyReader: bodyReader3},
+					},
+				},
+			},
+		}
+
+		event1 := commonlogk8saudit_contract.MultiGroupLogEvent{Log: logObj1, GroupRole: "target", ResourceIdentity: resIdentity, EventType: commonlogk8saudit_contract.ChangeEventTypeModification, GroupSet: groupSet}
+		event2 := commonlogk8saudit_contract.MultiGroupLogEvent{Log: logObj2, GroupRole: "target", ResourceIdentity: resIdentity, EventType: commonlogk8saudit_contract.ChangeEventTypeModification, GroupSet: groupSet}
+		event3 := commonlogk8saudit_contract.MultiGroupLogEvent{Log: logObj3, GroupRole: "target", ResourceIdentity: resIdentity, EventType: commonlogk8saudit_contract.ChangeEventTypeModification, GroupSet: groupSet}
+
+		// PreProcessLog
+		var state *conditionLogToTimelineMapperTaskState
+		var err error
+		state, err = taskSetting.PreProcessLog(ctx, 0, event1, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 1 failed: %v", err)
+		}
+		state, err = taskSetting.PreProcessLog(ctx, 1, event2, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 2 failed: %v", err)
+		}
+		state, err = taskSetting.PreProcessLog(ctx, 2, event3, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 3 failed: %v", err)
+		}
+
+		// ProcessLog 1 (t=10s) -> Emits True
+		cs1, state, err := taskSetting.ProcessLog(ctx, event1, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 1 failed: %v", err)
+		}
+		testchangeset.AssertTimeline(t, cs1).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     commonlogk8saudit_contract.VerbUpdate,
+				ResourceBody: parseYAML("lastTransitionTime: \"2024-01-01T00:00:10Z\"\nstatus: \"True\"\ntype: Ready\n"),
+				Principal:    "user-1",
+				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC),
+				StateType:    commonlogk8saudit_contract.RevisionStateConditionTrue,
+			}, nodeComparer)
+
+		// ProcessLog 2 (t=20s, truncated) -> Must NOT emit ConditionNotGiven, status continuity is preserved
+		cs2, state, err := taskSetting.ProcessLog(ctx, event2, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 2 failed: %v", err)
+		}
+		testchangeset.AssertTimeline(t, cs2).
+			HasNoRevision(conditionPath)
+
+		// ProcessLog 3 (t=30s) -> Same status and transition time, no duplicate revision
+		cs3, _, err := taskSetting.ProcessLog(ctx, event3, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 3 failed: %v", err)
+		}
+		testchangeset.AssertTimeline(t, cs3).
+			HasNoRevision(conditionPath)
+	})
+
+	t.Run("Truncated log with condition transition occurred during truncated period", func(t *testing.T) {
+		builder := khifilev6.NewBuilder()
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
+
+		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+		// Log 1 (t=10s): Ready=True
+		logObj1 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC),
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s"},
+		)
+		bodyReader1 := structured.NewNodeReader(parseYAML(`
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:10Z"
+`))
+
+		// Log 2 (t=20s): Truncated log
+		logObj2 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 0, 0, 20, 0, time.UTC),
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s", IsTruncated: true},
+		)
+
+		// Log 3 (t=30s): Ready=False with lastTransitionTime at t=20s
+		logObj3 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 0, 0, 30, 0, time.UTC),
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s"},
+		)
+		bodyReader3 := structured.NewNodeReader(parseYAML(`
+status:
+  conditions:
+  - type: Ready
+    status: "False"
+    lastTransitionTime: "2024-01-01T00:00:20Z"
+`))
+
+		resIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+			APIVersion: "core/v1",
+			Kind:       "pod",
+			Namespace:  "default",
+			Name:       "nginx",
+		}
+
+		groupSet := commonlogk8saudit_contract.RelatedGroupSet{
+			Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+				"target": {
+					Resource: resIdentity,
+					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
+						{Log: logObj1, ResourceBodyReader: bodyReader1},
+						{Log: logObj2, ResourceBodyReader: nil},
+						{Log: logObj3, ResourceBodyReader: bodyReader3},
+					},
+				},
+			},
+		}
+
+		event1 := commonlogk8saudit_contract.MultiGroupLogEvent{Log: logObj1, GroupRole: "target", ResourceIdentity: resIdentity, EventType: commonlogk8saudit_contract.ChangeEventTypeModification, GroupSet: groupSet}
+		event2 := commonlogk8saudit_contract.MultiGroupLogEvent{Log: logObj2, GroupRole: "target", ResourceIdentity: resIdentity, EventType: commonlogk8saudit_contract.ChangeEventTypeModification, GroupSet: groupSet}
+		event3 := commonlogk8saudit_contract.MultiGroupLogEvent{Log: logObj3, GroupRole: "target", ResourceIdentity: resIdentity, EventType: commonlogk8saudit_contract.ChangeEventTypeModification, GroupSet: groupSet}
+
+		// PreProcessLog
+		var state *conditionLogToTimelineMapperTaskState
+		var err error
+		state, err = taskSetting.PreProcessLog(ctx, 0, event1, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 1 failed: %v", err)
+		}
+		state, err = taskSetting.PreProcessLog(ctx, 1, event2, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 2 failed: %v", err)
+		}
+		state, err = taskSetting.PreProcessLog(ctx, 2, event3, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 3 failed: %v", err)
+		}
+
+		// ProcessLog 1 (t=10s) -> Emits True
+		cs1, state, err := taskSetting.ProcessLog(ctx, event1, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 1 failed: %v", err)
+		}
+		testchangeset.AssertTimeline(t, cs1).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     commonlogk8saudit_contract.VerbUpdate,
+				ResourceBody: parseYAML("lastTransitionTime: \"2024-01-01T00:00:10Z\"\nstatus: \"True\"\ntype: Ready\n"),
+				Principal:    "user-1",
+				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC),
+				StateType:    commonlogk8saudit_contract.RevisionStateConditionTrue,
+			}, nodeComparer)
+
+		// ProcessLog 2 (t=20s, truncated) -> Emits False at t=20s because lastTransitionTime is 20s
+		cs2, state, err := taskSetting.ProcessLog(ctx, event2, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 2 failed: %v", err)
+		}
+		testchangeset.AssertTimeline(t, cs2).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     commonlogk8saudit_contract.VerbUpdate,
+				ResourceBody: parseYAML("lastTransitionTime: \"2024-01-01T00:00:20Z\"\nstatus: \"False\"\ntype: Ready\n"),
+				Principal:    "user-1",
+				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 20, 0, time.UTC),
+				StateType:    commonlogk8saudit_contract.RevisionStateConditionFalse,
+			}, nodeComparer)
+
+		// ProcessLog 3 (t=30s) -> Already recorded False at t=20s, no duplicate revision
+		cs3, _, err := taskSetting.ProcessLog(ctx, event3, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 3 failed: %v", err)
+		}
+		testchangeset.AssertTimeline(t, cs3).
+			HasNoRevision(conditionPath)
+	})
+
+	t.Run("Truncated log with timezone offset in lastTransitionTime correctly normalizes and complements", func(t *testing.T) {
+		builder := khifilev6.NewBuilder()
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
+
+		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+		// Log 1 (t=10s): Ready=True with UTC timezone
+		logObj1 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC),
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s"},
+		)
+		bodyReader1 := structured.NewNodeReader(parseYAML(`
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:10Z"
+`))
+
+		// Log 2 (t=20s): Truncated log
+		logObj2 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 0, 0, 20, 0, time.UTC),
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s", IsTruncated: true},
+		)
+
+		// Log 3 (t=30s): Ready=False with non-UTC timezone (+09:00 for 2024-01-01T00:00:20Z -> 2024-01-01T09:00:20+09:00)
+		logObj3 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 0, 0, 30, 0, time.UTC),
+			commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s"},
+		)
+		bodyReader3 := structured.NewNodeReader(parseYAML(`
+status:
+  conditions:
+  - type: Ready
+    status: "False"
+    lastTransitionTime: "2024-01-01T09:00:20+09:00"
+`))
+
+		resIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+			APIVersion: "core/v1",
+			Kind:       "pod",
+			Namespace:  "default",
+			Name:       "nginx",
+		}
+
+		groupSet := commonlogk8saudit_contract.RelatedGroupSet{
+			Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+				"target": {
+					Resource: resIdentity,
+					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
+						{Log: logObj1, ResourceBodyReader: bodyReader1},
+						{Log: logObj2, ResourceBodyReader: nil},
+						{Log: logObj3, ResourceBodyReader: bodyReader3},
+					},
+				},
+			},
+		}
+
+		event1 := commonlogk8saudit_contract.MultiGroupLogEvent{Log: logObj1, GroupRole: "target", ResourceIdentity: resIdentity, EventType: commonlogk8saudit_contract.ChangeEventTypeModification, GroupSet: groupSet}
+		event2 := commonlogk8saudit_contract.MultiGroupLogEvent{Log: logObj2, GroupRole: "target", ResourceIdentity: resIdentity, EventType: commonlogk8saudit_contract.ChangeEventTypeModification, GroupSet: groupSet}
+		event3 := commonlogk8saudit_contract.MultiGroupLogEvent{Log: logObj3, GroupRole: "target", ResourceIdentity: resIdentity, EventType: commonlogk8saudit_contract.ChangeEventTypeModification, GroupSet: groupSet}
+
+		// PreProcessLog
+		var state *conditionLogToTimelineMapperTaskState
+		var err error
+		state, err = taskSetting.PreProcessLog(ctx, 0, event1, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 1 failed: %v", err)
+		}
+		state, err = taskSetting.PreProcessLog(ctx, 1, event2, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 2 failed: %v", err)
+		}
+		state, err = taskSetting.PreProcessLog(ctx, 2, event3, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 3 failed: %v", err)
+		}
+
+		// ProcessLog 1 (t=10s) -> Emits True
+		cs1, state, err := taskSetting.ProcessLog(ctx, event1, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 1 failed: %v", err)
+		}
+		testchangeset.AssertTimeline(t, cs1).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     commonlogk8saudit_contract.VerbUpdate,
+				ResourceBody: parseYAML("lastTransitionTime: \"2024-01-01T00:00:10Z\"\nstatus: \"True\"\ntype: Ready\n"),
+				Principal:    "user-1",
+				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC),
+				StateType:    commonlogk8saudit_contract.RevisionStateConditionTrue,
+			}, nodeComparer)
+
+		// ProcessLog 2 (t=20s, truncated) -> Emits False because parsed timezone offset 09:00 matches 00:00:20Z
+		cs2, state, err := taskSetting.ProcessLog(ctx, event2, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 2 failed: %v", err)
+		}
+		testchangeset.AssertTimeline(t, cs2).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     commonlogk8saudit_contract.VerbUpdate,
+				ResourceBody: parseYAML("lastTransitionTime: \"2024-01-01T09:00:20+09:00\"\nstatus: \"False\"\ntype: Ready\n"),
+				Principal:    "user-1",
+				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 20, 0, time.UTC),
+				StateType:    commonlogk8saudit_contract.RevisionStateConditionFalse,
+			}, nodeComparer)
+
+		// ProcessLog 3 (t=30s) -> Already recorded, no duplicate revision
+		cs3, _, err := taskSetting.ProcessLog(ctx, event3, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 3 failed: %v", err)
+		}
+		testchangeset.AssertTimeline(t, cs3).
+			HasNoRevision(conditionPath)
+	})
 }

@@ -340,7 +340,11 @@ func newConditionWalker(conditionPath *khifilev6.TimelinePath, conditionType str
 // checkLastTransitionTimes memorizes the last transition time of the condition. This value is used for complementing values for logs without the full status information.
 func (c *conditionWalker) checkLastTransitionTimes(condition *model.K8sResourceStatusCondition) {
 	if condition != nil && condition.Status != "" && condition.LastTransitionTime != "" {
-		c.lastTransitionStates[condition.LastTransitionTime] = condition
+		t, err := time.Parse(time.RFC3339, condition.LastTransitionTime)
+		if err != nil {
+			return
+		}
+		c.lastTransitionStates[t.UTC().Format(time.RFC3339)] = condition
 	}
 }
 
@@ -348,16 +352,36 @@ func (c *conditionWalker) checkLastTransitionTimes(condition *model.K8sResourceS
 // It tracks changes in Status, LastTransitionTime, and LastHeartbeatTime (ProbeLikeTime).
 func (c *conditionWalker) CheckAndRecord(ctx context.Context, changedTime time.Time, k8sAuditLog commonlogk8saudit_contract.K8sAuditLogFieldSet, condition *model.K8sResourceStatusCondition, cs *khifilev6.TimelineChangeSet) {
 	if condition == nil {
-		if c.lastStatus != "n/a" {
-			cs.AddRevision(c.conditionPath, &khifilev6.StagingRevision{
-				VerbType:     k8sAuditLog.Verb,
-				ResourceBody: nil,
-				Principal:    k8sAuditLog.Principal,
-				ChangedTime:  changedTime,
-				StateType:    commonlogk8saudit_contract.RevisionStateConditionNotGiven,
-			})
-			c.minChangeTime = &changedTime
-			c.lastStatus = "n/a"
+		refCond := c.getLastCondition(changedTime)
+		if refCond != nil && refCond.Status != "" {
+			if c.lastStatus != refCond.Status {
+				transitionTime, err := time.Parse(time.RFC3339, refCond.LastTransitionTime)
+				if err == nil {
+					state := conditionStateToRevisionState(refCond.Status)
+					body := c.serializeCondition(refCond)
+					cs.AddRevision(c.conditionPath, &khifilev6.StagingRevision{
+						VerbType:     k8sAuditLog.Verb,
+						ResourceBody: body,
+						Principal:    k8sAuditLog.Principal,
+						ChangedTime:  c.clampMinChangeTime(transitionTime),
+						StateType:    state,
+					})
+					c.lastStatus = refCond.Status
+					c.lastTransitionTime = refCond.LastTransitionTime
+				}
+			}
+		} else {
+			if c.lastStatus != "n/a" {
+				cs.AddRevision(c.conditionPath, &khifilev6.StagingRevision{
+					VerbType:     k8sAuditLog.Verb,
+					ResourceBody: nil,
+					Principal:    k8sAuditLog.Principal,
+					ChangedTime:  changedTime,
+					StateType:    commonlogk8saudit_contract.RevisionStateConditionNotGiven,
+				})
+				c.minChangeTime = &changedTime
+				c.lastStatus = "n/a"
+			}
 		}
 	} else {
 		c.lastStatus = condition.Status
@@ -442,7 +466,7 @@ func (c *conditionWalker) getLastCondition(beforeThan time.Time) *model.K8sResou
 		return c.lastTransitionTimeSorted[i].After(beforeThan)
 	})
 	if idx > 0 {
-		return c.lastTransitionStates[c.lastTransitionTimeSorted[idx-1].Format(time.RFC3339)]
+		return c.lastTransitionStates[c.lastTransitionTimeSorted[idx-1].UTC().Format(time.RFC3339)]
 	}
 	return nil
 }

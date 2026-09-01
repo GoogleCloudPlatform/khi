@@ -59,7 +59,7 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_con
 	result.ClusterName = reader.ReadStringOrDefault(pathResourceClusterName, "unknown")
 	result.RequestURI = resourceName
 	result.IsDryRun = reader.ReadStringOrDefault(pathLabelsDryRun, "") != ""
-	result.IsTruncated = strings.EqualFold(reader.ReadStringOrDefault(pathLabelsTruncated, ""), "true")
+	result.IsTruncated = reader.ReadStringOrDefault(pathLabelsTruncated, "") == "true" || reader.ReadBoolOrDefault(pathLabelsTruncated, false)
 
 	apiVersion, pluralKind, namespace, name, subResourceName, verb := parseKubernetesOperation(resourceName, methodName)
 	result.APIVersion = apiVersion

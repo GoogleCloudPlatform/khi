@@ -69,15 +69,16 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 	}
 
 	testCases := []struct {
-		name       string
-		inputState *resourceRevisionLogToTimelineMapperState
-		verb       *pb.Verb
-		bodyYAML   string
-		role       string
-		eventType  commonlogk8saudit_contract.ChangeEventType
-		isDryRun   bool
-		wantState  *resourceRevisionLogToTimelineMapperState
-		assert     func(t *testing.T, cs *khifilev6.TimelineChangeSet, node structured.Node)
+		name        string
+		inputState  *resourceRevisionLogToTimelineMapperState
+		verb        *pb.Verb
+		bodyYAML    string
+		role        string
+		eventType   commonlogk8saudit_contract.ChangeEventType
+		isDryRun    bool
+		isTruncated bool
+		wantState   *resourceRevisionLogToTimelineMapperState
+		assert      func(t *testing.T, cs *khifilev6.TimelineChangeSet, node structured.Node)
 	}{
 		{
 			name:       "Create event",
@@ -551,6 +552,52 @@ uid: "test-uid"`,
 					HasNoRevision(parentPath)
 			},
 		},
+		{
+			name:        "Truncated log emits RevisionStateK8sResourceTruncated",
+			inputState:  nil,
+			verb:        commonlogk8saudit_contract.VerbUpdate,
+			bodyYAML:    "",
+			role:        "target",
+			eventType:   commonlogk8saudit_contract.ChangeEventTypeModification,
+			isTruncated: true,
+			wantState:   &resourceRevisionLogToTimelineMapperState{},
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, node structured.Node) {
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(parentPath, &khifilev6.StagingRevision{
+						ChangedTime:  testTime,
+						ResourceBody: nil,
+						Principal:    "admin",
+						VerbType:     commonlogk8saudit_contract.VerbUpdate,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceTruncated,
+					}, nodeComparer)
+			},
+		},
+		{
+			name: "Truncated delete log emits RevisionStateK8sResourceDeleted",
+			inputState: &resourceRevisionLogToTimelineMapperState{
+				PrevUID: "test-uid",
+			},
+			verb:        commonlogk8saudit_contract.VerbDelete,
+			bodyYAML:    "",
+			role:        "target",
+			eventType:   commonlogk8saudit_contract.ChangeEventTypeModification,
+			isTruncated: true,
+			wantState: &resourceRevisionLogToTimelineMapperState{
+				WasCompletelyRemoved: false,
+				DeletionStarted:      true,
+				PrevUID:              "test-uid",
+			},
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, node structured.Node) {
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(parentPath, &khifilev6.StagingRevision{
+						ChangedTime:  testTime,
+						ResourceBody: nil,
+						Principal:    "admin",
+						VerbType:     commonlogk8saudit_contract.VerbDelete,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
+					}, nodeComparer)
+			},
+		},
 	}
 
 	mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSetting{
@@ -584,6 +631,7 @@ uid: "test-uid"`,
 					ClusterName:  "k8s",
 					Verb:         tc.verb,
 					IsDryRun:     tc.isDryRun,
+					IsTruncated:  tc.isTruncated,
 				},
 			)
 

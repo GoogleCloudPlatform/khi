@@ -131,6 +131,42 @@ objectRef:
 				Verb:            commonlogk8saudit_contract.VerbUpdate,
 			},
 		},
+		{
+			desc: "truncated log",
+			input: `
+auditID: "truncated-audit-id"
+verb: "update"
+annotations:
+  audit.k8s.io/truncated: "true"
+responseStatus:
+  code: 200
+  message: "OK"
+objectRef:
+  apiGroup: "core"
+  apiVersion: "v1"
+  resource: "pods"
+  namespace: "default"
+  name: "truncated-pod"
+`,
+			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				OperationID:     "truncated-audit-id",
+				IsFirst:         true,
+				IsLast:          true,
+				IsTruncated:     true,
+				Principal:       "unknown",
+				StatusCode:      200,
+				StatusMessage:   "OK",
+				IsError:         false,
+				RequestURI:      "",
+				APIVersion:      "core/v1",
+				PluralKind:      "pods",
+				Namespace:       "default",
+				ResourceName:    "truncated-pod",
+				SubresourceName: "",
+				ClusterName:     "cluster",
+				Verb:            commonlogk8saudit_contract.VerbUpdate,
+			},
+		},
 	}
 
 	for _, tc := range testCases {

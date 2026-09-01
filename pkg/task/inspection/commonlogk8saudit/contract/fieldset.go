@@ -100,6 +100,8 @@ type K8sAuditLogFieldSet struct {
 	IsLast bool
 	// IsDryRun is true if the request was a dry run.
 	IsDryRun bool
+	// IsTruncated is true if the audit log entry was truncated by kube-apiserver (audit.k8s.io/truncated: "true").
+	IsTruncated bool
 
 	// APIVersion is the API version of the resource (e.g., "apps/v1").
 	APIVersion string
@@ -126,8 +128,6 @@ type K8sAuditLogFieldSet struct {
 	StatusMessage string
 	// IsError is true if the response is an error.
 	IsError bool
-	// IsTruncated is true if the audit log entry was truncated by kube-apiserver (audit.k8s.io/truncated: "true").
-	IsTruncated bool
 	// Request is the request body.
 	Request *structured.NodeReader
 	// Response is the response body.

@@ -136,6 +136,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 		}, nil
 	}
 	if fieldSet.IsTruncated {
+		g.prevRevisionReader = nil
 		return &commonlogk8saudit_contract.ResourceManifestLog{
 			Log:                l,
 			ResourceBodyReader: nil,

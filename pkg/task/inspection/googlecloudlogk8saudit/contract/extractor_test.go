@@ -279,6 +279,32 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 				IsDryRun:     true,
 			},
 		},
+		{
+			name: "truncated log",
+			input: `{
+				"operation": {
+					"id": "test-op-5"
+				},
+				"protoPayload": {
+					"resourceName": "core/v1/namespaces/default/pods/nginx",
+					"methodName": "io.k8s.core.v1.pods.update"
+				},
+				"labels": {
+					"audit.k8s.io/truncated": "true"
+				}
+			}`,
+			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				OperationID:  "test-op-5",
+				APIVersion:   "core/v1",
+				PluralKind:   "pods",
+				Namespace:    "default",
+				ResourceName: "nginx",
+				ClusterName:  "unknown",
+				Verb:         commonlogk8saudit_contract.VerbUpdate,
+				RequestURI:   "core/v1/namespaces/default/pods/nginx",
+				IsTruncated:  true,
+			},
+		},
 	}
 
 	for _, tc := range testCases {

@@ -222,12 +222,20 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx 
 	state := commonlogk8saudit_contract.RevisionStateK8sResourceExisting
 	bodyReader, hasBody := event.GetLastBodyReader(event.GroupRole)
 
-	if !hasBody || bodyReader == nil {
+	switch {
+	case k8sFieldSet.IsTruncated:
+		if isDeletiveVerb(k8sFieldSet.Verb) {
+			prevGroupData.DeletionStarted = true
+			state = commonlogk8saudit_contract.RevisionStateK8sResourceDeleted
+		} else {
+			state = commonlogk8saudit_contract.RevisionStateK8sResourceTruncated
+		}
+	case !hasBody || bodyReader == nil:
 		if isDeletiveVerb(k8sFieldSet.Verb) {
 			prevGroupData.DeletionStarted = true
 			state = commonlogk8saudit_contract.RevisionStateK8sResourceDeleted
 		}
-	} else {
+	default:
 		deletionStarted := false
 		underGracefulPeriod := false
 		deletionCompleted := false

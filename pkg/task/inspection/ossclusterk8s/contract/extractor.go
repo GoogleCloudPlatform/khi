@@ -25,6 +25,8 @@ import (
 
 var (
 	pathAuditID               = structured.CompileFieldPath("auditID")
+	pathAnnotationsTruncated  = structured.CompileFieldPath("annotations.audit\\.k8s\\.io/truncated")
+	pathLabelsTruncated       = structured.CompileFieldPath("labels.audit\\.k8s\\.io/truncated")
 	pathObjectRef             = structured.CompileFieldPath("objectRef")
 	pathObjectRefAPIGroup     = structured.CompileFieldPath("objectRef.apiGroup")
 	pathObjectRefAPIVersion   = structured.CompileFieldPath("objectRef.apiVersion")
@@ -64,6 +66,10 @@ func ExtractOSSK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_con
 	// Currently this won't support the long running operation. TODO: support long running operation
 	result.IsFirst = true
 	result.IsLast = true
+	result.IsTruncated = reader.ReadStringOrDefault(pathAnnotationsTruncated, "") == "true" ||
+		reader.ReadStringOrDefault(pathLabelsTruncated, "") == "true" ||
+		reader.ReadBoolOrDefault(pathAnnotationsTruncated, false) ||
+		reader.ReadBoolOrDefault(pathLabelsTruncated, false)
 	apiGroup := reader.ReadStringOrDefault(pathObjectRefAPIGroup, "core")
 	apiVersion := reader.ReadStringOrDefault(pathObjectRefAPIVersion, "unknown")
 	kind := reader.ReadStringOrDefault(pathObjectRefResource, "unknown")
