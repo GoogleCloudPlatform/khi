@@ -198,9 +198,11 @@ func (p *InternPool) InternString(value string) *InternStringRef {
 	}
 
 	id := p.idGen.New(p.idNs)
-	p.idToStr.Store(id, value)
+	// Clone string before storing in the pool to prevent pinning large underlying byte buffers (such as protojson buffers).
+	cloned := strings.Clone(value)
+	p.idToStr.Store(id, cloned)
 
-	actual, loaded := p.strToID.LoadOrStore(value, id)
+	actual, loaded := p.strToID.LoadOrStore(cloned, id)
 	if loaded {
 		p.idToStr.Store(id, "")
 		return &InternStringRef{pool: p, id: actual.(uint32)}
