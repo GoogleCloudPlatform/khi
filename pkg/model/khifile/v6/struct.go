@@ -37,16 +37,17 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (*InternStructRef,
 		return nil, fmt.Errorf("expected map node, got %v", node.Type())
 	}
 
-	var flattenedKeys []string
-	var flattenedValues []structured.Node
-	err := flattenNode(node, "", true, &flattenedKeys, &flattenedValues)
+	flattenedKeys := make([]string, 0, 16)
+	flattenedValues := make([]structured.Node, 0, 16)
+	keyBuf := make([]byte, 0, 64)
+	err := flattenNodeHelper(node, keyBuf, true, &flattenedKeys, &flattenedValues)
 	if err != nil {
 		return nil, err
 	}
 
 	fieldSetRef := pool.InternFieldSet(flattenedKeys)
 
-	var values []*pb.InternedValue
+	values := make([]*pb.InternedValue, 0, len(flattenedValues))
 	for _, valNode := range flattenedValues {
 		val, err := ToInternedValue(valNode, pool)
 		if err != nil {
@@ -63,30 +64,40 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (*InternStructRef,
 // Note: This function assumes that there are no circular references in the node tree.
 // Circular references are not expected as structured.Node represents parsed tree data.
 func flattenNode(node structured.Node, prefix string, isRoot bool, keys *[]string, values *[]structured.Node) error {
+	var keyBuf []byte
+	if prefix != "" {
+		keyBuf = append(keyBuf, prefix...)
+	}
+	return flattenNodeHelper(node, keyBuf, isRoot, keys, values)
+}
+
+func flattenNodeHelper(node structured.Node, keyBuf []byte, isRoot bool, keys *[]string, values *[]structured.Node) error {
 	if node.Type() != structured.MapNodeType {
 		return fmt.Errorf("expected map node in flattenNode, got %v", node.Type())
 	}
 
 	for key, child := range node.Children() {
-		fullKey := key.Key
+		origLen := len(keyBuf)
 		if !isRoot {
-			fullKey = prefix + fieldPathSeparator + key.Key
+			keyBuf = append(keyBuf, fieldPathSeparator...)
 		}
+		keyBuf = append(keyBuf, key.Key...)
 
 		if child.Type() == structured.MapNodeType {
 			if child.Len() == 0 {
-				*keys = append(*keys, fullKey)
+				*keys = append(*keys, string(keyBuf))
 				*values = append(*values, child)
 			} else {
-				err := flattenNode(child, fullKey, false, keys, values)
+				err := flattenNodeHelper(child, keyBuf, false, keys, values)
 				if err != nil {
 					return err
 				}
 			}
 		} else {
-			*keys = append(*keys, fullKey)
+			*keys = append(*keys, string(keyBuf))
 			*values = append(*values, child)
 		}
+		keyBuf = keyBuf[:origLen]
 	}
 	return nil
 }
