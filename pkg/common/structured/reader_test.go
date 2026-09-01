@@ -372,3 +372,34 @@ nested:
 		})
 	}
 }
+
+func TestNodeReader_NilChildHandling(t *testing.T) {
+	testCases := []struct {
+		name    string
+		reader  *NodeReader
+		path    FieldPath
+		wantErr error
+	}{
+		{
+			name:    "nil reader node returns ErrFieldNotFound",
+			reader:  NewNodeReader(nil),
+			path:    CompileFieldPath("a.b.c"),
+			wantErr: ErrFieldNotFound,
+		},
+		{
+			name:    "map containing nil child returns ErrFieldNotFound on subpath",
+			reader:  NewNodeReader(NewStandardMap([]string{"a"}, []Node{nil})),
+			path:    CompileFieldPath("a.b"),
+			wantErr: ErrFieldNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := tc.reader.GetNode(tc.path)
+			if err != tc.wantErr {
+				t.Errorf("GetNode() error mismatch (-want %v, +got %v)", tc.wantErr, err)
+			}
+		})
+	}
+}
