@@ -33,14 +33,14 @@
         [disabled]="filterByTimeline() === false"
       ></khi-icon-toggle-button>
     </div>
-    <p class="spacer">{{ shownLogsCount() }}/{{ allLogsCount() }} logs</p>
+    <p class="spacer">{{ visibleLogsCount() }}/{{ allLogsCount() }} logs</p>
   </div>
   <div class="log-list-container" tabindex="0" (keydown)="onKeyDown($event)">
     <cdk-virtual-scroll-viewport class="virtual-viewport">
       <div class="log-list">
         @let store = logStore();
         @if (store) {
-          <ng-container *cdkVirtualFor="let logId of shownLogIds()">
+          <ng-container *cdkVirtualFor="let logId of visibleLogIds()">
             @let log = store.getLog(logId);
             <khi-log-view-log-line
               [log]="log"

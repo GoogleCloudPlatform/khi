@@ -89,7 +89,7 @@ export class LogListComponent {
 
   protected readonly allLogsCount = computed(() => this.logStore()?.count ?? 0);
 
-  protected readonly shownLogIds = computed(() => {
+  protected readonly visibleLogIds = computed(() => {
     const logStore = this.logStore();
     if (!logStore) {
       return [];
@@ -138,7 +138,9 @@ export class LogListComponent {
     return result;
   });
 
-  protected readonly shownLogsCount = computed(() => this.shownLogIds().length);
+  protected readonly visibleLogsCount = computed(
+    () => this.visibleLogIds().length,
+  );
 
   private disableScrollForNext = false;
 
@@ -146,7 +148,7 @@ export class LogListComponent {
     effect(() => {
       const viewport = this.viewPort();
 
-      const logIds = this.shownLogIds();
+      const logIds = this.visibleLogIds();
       const selectedIndex = this.selectedLogIndex();
       this.selectedTimelinesWithChildren();
 
@@ -187,7 +189,7 @@ export class LogListComponent {
       return;
     }
 
-    const logIds = this.shownLogIds();
+    const logIds = this.visibleLogIds();
     const store = this.logStore();
     if (logIds.length === 0 || !store) return;
 

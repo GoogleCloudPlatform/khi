@@ -64,7 +64,7 @@ describe('LogListComponent', () => {
   it('should show all logs when filterByTimeline is false', () => {
     fixture.componentRef.setInput('filterByTimeline', false);
     fixture.detectChanges();
-    expect(component['shownLogIds']()).toEqual(mockLogs.map((l) => l.id));
+    expect(component['visibleLogIds']()).toEqual(mockLogs.map((l) => l.id));
   });
 
   it('should filter logs by timeline when filterByTimeline is true', () => {
@@ -86,7 +86,7 @@ describe('LogListComponent', () => {
       .filter((log) => logIndices.has(log.logIndex))
       .map((l) => l.id);
 
-    expect(component['shownLogIds']()).toEqual(expectedLogIds);
+    expect(component['visibleLogIds']()).toEqual(expectedLogIds);
   });
 
   it('should emit logSelected event', () => {
