@@ -155,7 +155,6 @@ func (w *Workbench) IsClosed() bool {
 }
 
 // ReadStructYAMLs decodes the interned structs matching the given structIDs and returns a map of struct ID to YAML string representation.
-// If the struct YAML is available in SearchIndex.StructYAMLs, it is returned directly from the pre-serialized index.
 // Missing or invalid struct IDs are skipped (best-effort resolution).
 func (w *Workbench) ReadStructYAMLs(structIDs []uint32) (map[uint32]string, error) {
 	w.mu.RLock()
@@ -166,7 +165,7 @@ func (w *Workbench) ReadStructYAMLs(structIDs []uint32) (map[uint32]string, erro
 	}
 
 	result := make(map[uint32]string)
-	if len(structIDs) == 0 {
+	if len(structIDs) == 0 || w.internPool == nil {
 		return result, nil
 	}
 
@@ -176,17 +175,6 @@ func (w *Workbench) ReadStructYAMLs(structIDs []uint32) (map[uint32]string, erro
 			continue
 		}
 		if _, exists := result[structID]; exists {
-			continue
-		}
-
-		if w.searchIndex != nil && w.searchIndex.StructYAMLs != nil {
-			if yamlStr, ok := w.searchIndex.StructYAMLs[structID]; ok {
-				result[structID] = yamlStr
-				continue
-			}
-		}
-
-		if w.internPool == nil {
 			continue
 		}
 

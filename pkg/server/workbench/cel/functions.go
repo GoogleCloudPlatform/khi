@@ -49,15 +49,18 @@ func combinePatterns(patterns []string) string {
 	return "(?:" + strings.Join(patterns, ")|(?:") + ")"
 }
 
-// resolveStructYAML resolves the YAML string representation for a given struct ID, using the cache if available or serializing on-demand from the intern pool.
-func resolveStructYAML(structID uint32, pool khifilev6model.ReadonlyPool, structYAMLs map[uint32]string) (string, bool) {
-	if structYAMLs != nil {
-		if yaml, ok := structYAMLs[structID]; ok {
-			return yaml, true
-		}
-	}
+// resolveStructYAML resolves the YAML string representation for a given struct ID, using DirectYAMLSerializer when available.
+func resolveStructYAML(structID uint32, pool khifilev6model.ReadonlyPool) (string, bool) {
 	if pool == nil {
 		return "", false
+	}
+	if readonlyPool, ok := pool.(*khifilev6model.ReadonlyInternPool); ok {
+		serializer := khifilev6model.NewDirectYAMLSerializer()
+		yamlStr, err := serializer.SerializeFlatStruct(structID, readonlyPool)
+		if err != nil {
+			return "", false
+		}
+		return yamlStr, true
 	}
 	s := pool.ResolveStructFromID(structID)
 	if s == nil {
@@ -155,7 +158,6 @@ func MatchLogField(
 	patterns []string,
 	pool khifilev6model.ReadonlyPool,
 	trigramIndex *TrigramIndex,
-	structYAMLs map[uint32]string,
 ) (bool, error) {
 	if l == nil || len(patterns) == 0 || l.BodyStructID == 0 {
 		return false, nil
@@ -178,7 +180,7 @@ func MatchLogField(
 
 	// Wildcard search (pathKey == "*"):
 	if pathKey == "*" {
-		yaml, ok := resolveStructYAML(l.BodyStructID, pool, structYAMLs)
+		yaml, ok := resolveStructYAML(l.BodyStructID, pool)
 		if !ok {
 			return false, nil
 		}

@@ -499,9 +499,6 @@ func TestWorkbench_BuildAsyncIndexesWithProgress(t *testing.T) {
 				t.Fatalf("BuildAsyncIndexesWithProgress() error = %v, wantErr = %v", err, tc.wantErr)
 			}
 			if !tc.wantErr {
-				if len(index.StructYAMLs) != 1 {
-					t.Errorf("len(index.StructYAMLs) = %d, want 1", len(index.StructYAMLs))
-				}
 				if index.TrigramIndex == nil {
 					t.Errorf("index.TrigramIndex is nil, want non-nil")
 				}

@@ -314,7 +314,6 @@ type LogEvaluator struct {
 	currentLog    *LogData
 	internPool    khifilev6model.ReadonlyPool
 	trigramIndex  *TrigramIndex
-	structYAMLs   map[uint32]string
 	styleResolver StyleResolver
 }
 
@@ -339,13 +338,6 @@ func (e *LogEvaluator) SetTrigramIndex(idx *TrigramIndex) {
 	e.trigramIndex = idx
 }
 
-// SetStructYAMLs binds the pre-serialized StructYAMLs map for fast YAML regex matching.
-func (e *LogEvaluator) SetStructYAMLs(yamls map[uint32]string) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.structYAMLs = yamls
-}
-
 // NewLogEvaluator creates a new LogEvaluator.
 func NewLogEvaluator() (*LogEvaluator, error) {
 	eval := &LogEvaluator{}
@@ -359,7 +351,7 @@ func NewLogEvaluator() (*LogEvaluator, error) {
 		if err != nil {
 			return types.False
 		}
-		matched, err := MatchLogField(eval.currentLog, string(pathKey), patterns, eval.internPool, eval.trigramIndex, eval.structYAMLs)
+		matched, err := MatchLogField(eval.currentLog, string(pathKey), patterns, eval.internPool, eval.trigramIndex)
 		if err != nil {
 			return types.WrapErr(err)
 		}
@@ -371,7 +363,7 @@ func NewLogEvaluator() (*LogEvaluator, error) {
 		if err != nil {
 			return types.False
 		}
-		matched, err := MatchLogField(eval.currentLog, "*", patterns, eval.internPool, eval.trigramIndex, eval.structYAMLs)
+		matched, err := MatchLogField(eval.currentLog, "*", patterns, eval.internPool, eval.trigramIndex)
 		if err != nil {
 			return types.WrapErr(err)
 		}
