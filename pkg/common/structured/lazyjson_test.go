@@ -571,3 +571,26 @@ func BenchmarkLazyJSONNodeVsStandardMap(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkLazyJSONNode_GetChildByKey(b *testing.B) {
+	rawJSON := `{"insertId":"123","logName":"projects/p/logs/l","labels":{"k1":"v1","k2":"v2"},"resource":{"type":"gce_instance","labels":{"zone":"us-central1-a"}}}`
+	lazyNode := NewLazyJSONNodeFromBytes([]byte(rawJSON)).(*LazyJSONNode)
+
+	b.Run("Cold_FirstAccess", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			ResetGlobalLazyJSONCache()
+			_, _ = lazyNode.GetChildByKey("resource")
+		}
+	})
+
+	b.Run("Warm_CachedAccess", func(b *testing.B) {
+		// Warm up cache
+		_, _ = lazyNode.GetChildByKey("resource")
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, _ = lazyNode.GetChildByKey("resource")
+		}
+	})
+}

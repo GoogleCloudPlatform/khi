@@ -256,11 +256,28 @@ func (n *LazyJSONNode) Len() int {
 
 // GetChildByKey returns the child node matching the string key without allocating iterator closures or non-matching child nodes.
 func (n *LazyJSONNode) GetChildByKey(key string) (Node, bool) {
+	if len(n.data) == 0 || n.index >= len(n.data) {
+		return nil, false
+	}
+
+	ptr := uintptr(unsafe.Pointer(&n.data[0]))
+	if valIdx, ok := globalLazyJSONCache.get(ptr, n.index, key); ok {
+		if valIdx < 0 {
+			return nil, false
+		}
+		return &LazyJSONNode{
+			data:  n.data,
+			index: valIdx,
+		}, true
+	}
+
 	if n.Type() != MapNodeType {
 		return nil, false
 	}
+
 	idx := skipWhitespace(n.data, n.index)
 	if idx >= len(n.data) || n.data[idx] != '{' {
+		globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
 		return nil, false
 	}
 	idx++ // Skip '{'
@@ -268,24 +285,31 @@ func (n *LazyJSONNode) GetChildByKey(key string) (Node, bool) {
 	for {
 		idx = skipWhitespace(n.data, idx)
 		if idx >= len(n.data) || n.data[idx] == '}' {
+			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
 			return nil, false
 		}
 		if n.data[idx] != '"' {
+			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
 			return nil, false
 		}
 		keyStr, nextIdx, err := parseJSONString(n.data, idx)
 		if err != nil {
+			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
 			return nil, false
 		}
 		idx = skipWhitespace(n.data, nextIdx)
 		if idx >= len(n.data) || n.data[idx] != ':' {
+			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
 			return nil, false
 		}
 		idx++ // Skip ':'
 		valStartIdx := skipWhitespace(n.data, idx)
 		if valStartIdx >= len(n.data) {
+			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
 			return nil, false
 		}
+
+		globalLazyJSONCache.putIfAbsent(ptr, n.index, keyStr, valStartIdx, n.data)
 
 		if keyStr == key {
 			return &LazyJSONNode{
@@ -296,6 +320,7 @@ func (n *LazyJSONNode) GetChildByKey(key string) (Node, bool) {
 
 		valEndIdx, err := skipJSONValue(n.data, valStartIdx)
 		if err != nil {
+			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
 			return nil, false
 		}
 		idx = skipWhitespace(n.data, valEndIdx)
