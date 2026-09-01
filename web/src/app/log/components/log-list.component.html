@@ -41,11 +41,12 @@
         @let store = logStore();
         @if (store) {
           <ng-container *cdkVirtualFor="let logId of visibleLogIds()">
-            @let log = store.getLog(logId);
+            @let logIndex = store.getIndex(logId);
             <khi-log-view-log-line
-              [log]="log"
-              [selected]="selectedLogIndex() === log.logIndex"
-              [highlighted]="highlightedLogIndices().has(log.logIndex)"
+              [logId]="logId"
+              [logStore]="store"
+              [selected]="selectedLogIndex() === logIndex"
+              [highlighted]="highlightedLogIndices().has(logIndex)"
               (lineClick)="selectLog($event)"
               (lineHover)="onLogHover($event)"
             ></khi-log-view-log-line>

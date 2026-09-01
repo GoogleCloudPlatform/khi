@@ -14,12 +14,11 @@
  limitations under the License.
 -->
 
-@let logEntry = log();
 <div
   class="log-row"
   (mouseover)="onHover()"
   (click)="onClick()"
-  [matTooltip]="logEntry.summary"
+  [matTooltip]="summary()"
   matTooltipPosition="left"
   [class.selected]="selected()"
   [class.highlight]="highlighted()"
@@ -27,17 +26,17 @@
   <div
     class="type-indicator"
     [ngStyle]="typeStyle()"
-    [matTooltip]="'log type:' + logEntry.logType.label"
+    [matTooltip]="'log type:' + logType().label"
   ></div>
   <div class="severity-indicator-wrap">
     <div
       class="severity-indicator"
       [ngStyle]="severityStyle()"
-      [matTooltip]="'severity:' + logEntry.severity.label"
+      [matTooltip]="'severity:' + severity().label"
     >
-      {{ logEntry.severity.shortLabel }}
+      {{ severity().shortLabel }}
     </div>
   </div>
-  <div class="ts">{{ logEntry.legacyTimestampMs | tsf | async }}</div>
-  <div class="message">{{ logEntry.summary }}</div>
+  <div class="ts">{{ timestampMs() | tsf | async }}</div>
+  <div class="message">{{ summary() }}</div>
 </div>

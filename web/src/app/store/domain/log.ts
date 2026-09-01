@@ -40,7 +40,7 @@ export class Log {
    * Gets the timestamp of the log entry.
    */
   get timestamp(): bigint {
-    return this.store._getTimestamp(this.id);
+    return this.store.getTimestamp(this.id);
   }
 
   /**
@@ -55,21 +55,21 @@ export class Log {
    * Gets the human-readable summary of the log.
    */
   get summary(): string {
-    return this.store._getSummary(this.id);
+    return this.store.getSummary(this.id);
   }
 
   /**
    * Gets the associated log source category.
    */
   get logType(): ReadonlyDomainElement<LogType> {
-    return this.store._getLogType(this.id);
+    return this.store.getLogType(this.id);
   }
 
   /**
    * Gets the severity priority of the log.
    */
   get severity(): ReadonlyDomainElement<Severity> {
-    return this.store._getSeverity(this.id);
+    return this.store.getSeverity(this.id);
   }
 
   /**

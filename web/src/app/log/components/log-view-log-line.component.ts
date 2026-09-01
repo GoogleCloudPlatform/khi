@@ -15,12 +15,11 @@
  */
 
 import { Component, computed, input, output } from '@angular/core';
-import { Log } from 'src/app/store/domain/log';
-import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { LogStore } from 'src/app/store/domain/log-store';
 import { CommonModule } from '@angular/common';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TimestampFormatPipe } from 'src/app/common/timestamp-format.pipe';
-
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 
 /**
@@ -36,25 +35,58 @@ import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertu
 })
 export class LogViewLogLineComponent {
   /**
-   * The LogEntry to show in this line.
+   * The ID of the log entry to show in this line.
    */
-  readonly log = input.required<ReadonlyDomainElement<Log>>();
+  public readonly logId = input.required<number>();
+
+  /**
+   * The store containing log data.
+   */
+  public readonly logStore = input.required<LogStore>();
 
   /**
    * Whether this log line is currently selected.
    */
-  readonly selected = input<boolean>(false);
+  public readonly selected = input<boolean>(false);
 
   /**
    * Whether this log line is currently highlighted.
    */
-  readonly highlighted = input<boolean>(false);
+  public readonly highlighted = input<boolean>(false);
+
+  /**
+   * The human-readable summary of the log.
+   */
+  protected readonly summary = computed(() =>
+    this.logStore().getSummary(this.logId()),
+  );
+
+  /**
+   * The timestamp of the log in milliseconds for display.
+   */
+  protected readonly timestampMs = computed(() =>
+    BigIntTimeUtil.NsToNumberMs(this.logStore().getTimestamp(this.logId())),
+  );
+
+  /**
+   * The log type metadata.
+   */
+  protected readonly logType = computed(() =>
+    this.logStore().getLogType(this.logId()),
+  );
+
+  /**
+   * The severity metadata.
+   */
+  protected readonly severity = computed(() =>
+    this.logStore().getSeverity(this.logId()),
+  );
 
   /**
    * Dynamic background and text styling for the log type badge.
    */
   protected readonly typeStyle = computed(() => {
-    const t = this.log().logType;
+    const t = this.logType();
     const bg = RendererConvertUtil.hdrColorToCSSColor([
       t.backgroundColor.r,
       t.backgroundColor.g,
@@ -74,7 +106,7 @@ export class LogViewLogLineComponent {
    * Dynamic background and text styling for the severity indicator badge.
    */
   protected readonly severityStyle = computed(() => {
-    const s = this.log().severity;
+    const s = this.severity();
     const bg = RendererConvertUtil.hdrColorToCSSColor([
       s.backgroundColor.r,
       s.backgroundColor.g,
@@ -91,27 +123,26 @@ export class LogViewLogLineComponent {
   });
 
   /**
-   * An event triggered when user's mouse cursor hover on this line.
+   * Emits the log ID when the user hovers over this line.
    */
-  readonly lineHover = output<ReadonlyDomainElement<Log>>();
+  public readonly lineHover = output<number>();
 
   /**
-   * Emits the clicked `LogEntry` when the user selects this log line.
-   * This is typically used by the parent component to update the detailed view state.
+   * Emits the log ID when the user selects this log line.
    */
-  readonly lineClick = output<ReadonlyDomainElement<Log>>();
+  public readonly lineClick = output<number>();
 
   /**
    * Internal click handler that triggers the `lineClick` output signal.
    */
   protected onClick() {
-    this.lineClick.emit(this.log());
+    this.lineClick.emit(this.logId());
   }
 
   /**
    * Internal hover handler that triggers the `lineHover` output signal.
    */
   protected onHover() {
-    this.lineHover.emit(this.log());
+    this.lineHover.emit(this.logId());
   }
 }

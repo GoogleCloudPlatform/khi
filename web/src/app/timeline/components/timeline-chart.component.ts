@@ -152,7 +152,7 @@ export class TimelineChartComponent implements AfterViewInit {
   /**
    * Flag to indicate that the timeline needs to be redrawn.
    */
-  private readonly invalidate = signal(true);
+  private invalidate = true;
 
   private resizeObserver: ResizeObserver | null = null;
 
@@ -185,7 +185,7 @@ export class TimelineChartComponent implements AfterViewInit {
         chartViewModel.styleStore.stylesUpdated?.();
         this.timelineRenderer.invalidateStyles();
       }
-      this.invalidate.set(true);
+      this.invalidate = true;
       this.updateRendererParams();
     });
   }
@@ -221,7 +221,7 @@ export class TimelineChartComponent implements AfterViewInit {
 
     this.updateRendererParams();
     this.renderingLoopManager.registerRenderHandler(this.destroyRef, () => {
-      if (!this.invalidate()) {
+      if (!this.invalidate) {
         return;
       }
       this.contextManager.render({
@@ -229,7 +229,7 @@ export class TimelineChartComponent implements AfterViewInit {
         pixelsPerMs: this.pixelsPerMs(),
       });
       this.backgroundRenderer.render(this.leftEdgeTime(), this.pixelsPerMs());
-      this.invalidate.set(false);
+      this.invalidate = false;
     });
   }
 
@@ -256,7 +256,7 @@ export class TimelineChartComponent implements AfterViewInit {
         timeMS,
       });
     });
-    this.invalidate.set(true); // hittest needs redraw
+    this.invalidate = true; // hittest needs redraw
   }
 
   private handleResize() {
@@ -280,7 +280,7 @@ export class TimelineChartComponent implements AfterViewInit {
       glCanvas.height = rect.height * dpr;
       this.backgroundRenderer.resize(rect.width, rect.height, dpr);
       this.timelineRenderer.resize(rect.width, rect.height, dpr);
-      this.invalidate.set(true);
+      this.invalidate = true;
     });
   }
 
@@ -293,7 +293,7 @@ export class TimelineChartComponent implements AfterViewInit {
     const selectedLogIndex = this.selectedLogIndex();
     const highlightedLogIndexBitset = this.highlightedLogIndexBitset();
     const filteredLogIds = this.filteredLogIds();
-    this.invalidate.set(true);
+    this.invalidate = true;
     if (
       rulerViewModel === undefined ||
       rulerStyle === undefined ||

@@ -168,13 +168,19 @@ export class LogListComponent {
     });
   }
 
-  protected selectLog(logEntry: ReadonlyDomainElement<Log>) {
+  protected selectLog(logId: number) {
     this.disableScrollForNext = true;
-    this.logSelected.emit(logEntry);
+    const store = this.logStore();
+    if (store) {
+      this.logSelected.emit(store.getLog(logId));
+    }
   }
 
-  protected onLogHover(logEntry: ReadonlyDomainElement<Log>) {
-    this.logHovered.emit(logEntry);
+  protected onLogHover(logId: number) {
+    const store = this.logStore();
+    if (store) {
+      this.logHovered.emit(store.getLog(logId));
+    }
   }
 
   /**

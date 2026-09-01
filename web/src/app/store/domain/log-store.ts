@@ -263,37 +263,39 @@ export class LogStore {
     return this.ids[index];
   }
 
-  // --- Internal getters for Log adapter ---
-
   /**
    * Gets the timestamp of a log by its ID.
-   * @note Intended solely for internal retrieval inside the {@link Log} domain adapter.
+   * @param id The ID of the log.
+   * @returns The timestamp of the log in nanoseconds.
    */
-  public _getTimestamp(id: number): bigint {
+  public getTimestamp(id: number): bigint {
     return this.timestamps[this.getIndex(id)];
   }
 
   /**
    * Gets the summary value of a log by its ID.
-   * @note Intended solely for internal retrieval inside the {@link Log} domain adapter.
+   * @param id The ID of the log.
+   * @returns The interned summary string.
    */
-  public _getSummary(id: number): string {
+  public getSummary(id: number): string {
     return this.internPool.getString(this.summaryStringIds[this.getIndex(id)]);
   }
 
   /**
    * Gets the log type metadata of a log by its ID.
-   * @note Intended solely for internal retrieval inside the {@link Log} domain adapter.
+   * @param id The ID of the log.
+   * @returns The LogType domain element.
    */
-  public _getLogType(id: number): ReadonlyDomainElement<LogType> {
+  public getLogType(id: number): ReadonlyDomainElement<LogType> {
     return this.styleStore.getLogType(this.logTypeIds[this.getIndex(id)]);
   }
 
   /**
    * Gets the severity metadata of a log by its ID.
-   * @note Intended solely for internal retrieval inside the {@link Log} domain adapter.
+   * @param id The ID of the log.
+   * @returns The Severity domain element.
    */
-  public _getSeverity(id: number): ReadonlyDomainElement<Severity> {
+  public getSeverity(id: number): ReadonlyDomainElement<Severity> {
     return this.styleStore.getSeverity(this.severityIds[this.getIndex(id)]);
   }
 

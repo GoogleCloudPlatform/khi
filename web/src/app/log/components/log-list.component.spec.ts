@@ -91,13 +91,13 @@ describe('LogListComponent', () => {
 
   it('should emit logSelected event', () => {
     spyOn(component.logSelected, 'emit');
-    component['selectLog'](mockLogs[0]);
+    component['selectLog'](mockLogs[0].id);
     expect(component.logSelected.emit).toHaveBeenCalledWith(mockLogs[0]);
   });
 
   it('should emit logHovered event', () => {
     spyOn(component.logHovered, 'emit');
-    component['onLogHover'](mockLogs[0]);
+    component['onLogHover'](mockLogs[0].id);
     expect(component.logHovered.emit).toHaveBeenCalledWith(mockLogs[0]);
   });
 
