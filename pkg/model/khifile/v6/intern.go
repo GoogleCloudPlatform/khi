@@ -352,6 +352,10 @@ func (p *InternPool) resolveFieldSetFromID(id uint32) []uint32 {
 // It checks if an identical struct is already interned, and if not, assigns a new ID and stores it.
 func (p *InternPool) InternStruct(fieldPathSetID uint32, values []*pb.InternedValue) *InternStructRef {
 	key := structKey(fieldPathSetID, values)
+	return p.internStructWithKey(fieldPathSetID, values, key)
+}
+
+func (p *InternPool) internStructWithKey(fieldPathSetID uint32, values []*pb.InternedValue, key string) *InternStructRef {
 	if id, ok := p.structToID.Load(key); ok {
 		return &InternStructRef{pool: p, id: id.(uint32)}
 	}
