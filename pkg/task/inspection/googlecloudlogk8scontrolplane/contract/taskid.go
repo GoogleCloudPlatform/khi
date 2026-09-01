@@ -65,5 +65,14 @@ var OtherLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase
 // OtherLogToTimelineMapperTaskID is the task ID for adding events on history based on the other control plane components.
 var OtherLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](K8sControlPlaneLogTaskIDPrefix + "timeline-mapper-other")
 
+// HpaControllerLogFilterTaskID is the task ID for filtering HPA controller logs.
+var HpaControllerLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "hpa-controller-log-filter")
+
+// HpaControllerLogGrouperTaskID is the task ID for grouping HPA controller logs.
+var HpaControllerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](K8sControlPlaneLogTaskIDPrefix + "grouper-hpa-controller")
+
+// HpaControllerLogToTimelineMapperTaskID is the task ID for adding events on history based on HPA controller logs.
+var HpaControllerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](K8sControlPlaneLogTaskIDPrefix + "timeline-mapper-hpa-controller")
+
 // TailTaskID is the task ID for the final task in the control plane log processing pipeline.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](K8sControlPlaneLogTaskIDPrefix + "tail")

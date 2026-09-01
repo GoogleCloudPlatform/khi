@@ -65,6 +65,50 @@ func TestK8sControlPlaneLogIngester_ProcessLog(t *testing.T) {
 					HasSummary("")
 			},
 		},
+		{
+			name: "successful HPA final recommendation log ingestion",
+			input: testlog.NewMockLog(
+				testTime,
+				googlecloudlogk8scontrolplane_contract.K8sHPAControllerFieldSet{
+					FinalRecommendation: &googlecloudlogk8scontrolplane_contract.HPAFinalRecommendation{
+						HPA:            "gke-managed-cim/kube-state-metrics",
+						ConfiguredSize: 1,
+						Replicas:       1,
+						TargetRef: googlecloudlogk8scontrolplane_contract.HPATargetRef{
+							Kind: "StatefulSet",
+							Name: "kube-state-metrics",
+						},
+					},
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasTimestamp(testTime).
+					HasLogType(googlecloudlogk8scontrolplane_contract.LogTypeControlPlaneComponent).
+					HasSummary("[HPA Final] gke-managed-cim/kube-state-metrics: StatefulSet/kube-state-metrics = 1 replicas")
+			},
+		},
+		{
+			name: "successful HPA atomic recommendation log ingestion",
+			input: testlog.NewMockLog(
+				testTime,
+				googlecloudlogk8scontrolplane_contract.K8sHPAControllerFieldSet{
+					AtomicRecommendation: &googlecloudlogk8scontrolplane_contract.HPAAtomicRecommendation{
+						HPA:                "gke-managed-cim/kube-state-metrics",
+						MetricName:         "memory",
+						StatusAvgUtil:      27,
+						SpecTargetAvgValue: "400Mi",
+						Replicas:           1,
+					},
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasTimestamp(testTime).
+					HasLogType(googlecloudlogk8scontrolplane_contract.LogTypeControlPlaneComponent).
+					HasSummary("[HPA Metric] gke-managed-cim/kube-state-metrics: memory (27% / target 400Mi) -> 1 replicas")
+			},
+		},
 	}
 
 	ingester := &K8sControlPlaneLogIngester{}

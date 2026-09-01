@@ -30,6 +30,7 @@ var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8scontrolplan
 	[]taskid.UntypedTaskReference{
 		googlecloudlogk8scontrolplane_contract.SchedulerLogToTimelineMapperTaskID.Ref(),
 		googlecloudlogk8scontrolplane_contract.ControllerManagerLogToTimelineMapperTaskID.Ref(),
+		googlecloudlogk8scontrolplane_contract.HpaControllerLogToTimelineMapperTaskID.Ref(),
 		googlecloudlogk8scontrolplane_contract.OtherLogToTimelineMapperTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
@@ -71,6 +72,10 @@ func (i *K8sControlPlaneLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 
 	if msg, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneCommonMessage(l.NodeReader); err == nil && msg != "" {
 		cs.SetSummary(msg)
+	} else if hpaFS, err := googlecloudlogk8scontrolplane_contract.ExtractK8sHPAControllerComponent(l.NodeReader); err == nil {
+		if summary := hpaFS.Summary(); summary != "" {
+			cs.SetSummary(summary)
+		}
 	}
 
 	return cs, nil
