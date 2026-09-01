@@ -15,11 +15,8 @@
 package structured
 
 import (
-	"os"
 	"sync"
 )
-
-var lazyJSONCacheDisabled = os.Getenv("KHI_DISABLE_LAZYJSON_CACHE") == "1"
 
 // lazyJSONCacheKey identifies a specific field lookup within a LazyJSONNode.
 type lazyJSONCacheKey struct {
