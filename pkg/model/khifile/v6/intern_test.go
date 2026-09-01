@@ -444,7 +444,7 @@ func TestInternPool_StructRefs(t *testing.T) {
 
 	// Simulate an orphaned struct ID in idToStruct (e.g. from concurrent InternStruct collision).
 	orphanedID := idGen.New(IDStruct)
-	pool.idToStruct.Store(orphanedID, (*khifile.InternedStruct)(nil))
+	pool.storeStruct(orphanedID, (*khifile.InternedStruct)(nil))
 
 	var refs []*InternStructRef
 	for ref := range pool.StructRefs() {
