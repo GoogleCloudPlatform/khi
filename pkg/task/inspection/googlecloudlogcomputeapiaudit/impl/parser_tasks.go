@@ -60,7 +60,7 @@ type gcpComputeAuditLogLogToTimelineMapperSetting struct {
 }
 
 // LogIngesterTask returns a reference to the log ingester task.
-func (g *gcpComputeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (g *gcpComputeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogcomputeapiaudit_contract.LogIngesterTaskID.Ref()
 }
 

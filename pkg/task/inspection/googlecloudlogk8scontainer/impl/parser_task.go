@@ -100,7 +100,7 @@ type containerLogLogToTimelineMapper struct {
 }
 
 // LogIngesterTask returns the task reference of LogIngester.
-func (m *containerLogLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *containerLogLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogk8scontainer_contract.LogIngesterTaskID.Ref()
 }
 
@@ -158,7 +158,7 @@ type containerLogPodPhaseTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*containerLogPodPhaseMapperState]
 }
 
-func (m *containerLogPodPhaseTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *containerLogPodPhaseTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogk8scontainer_contract.LogIngesterTaskID.Ref()
 }
 

@@ -73,7 +73,7 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskRefe
 }
 
 // LogIngesterTask returns a reference to the log ingester task.
-func (g *gkeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (g *gkeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudloggkeapiaudit_contract.LogIngesterTaskID.Ref()
 }
 

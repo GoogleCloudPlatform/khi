@@ -28,7 +28,6 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -87,7 +86,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskRe
 }
 
 // LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (c *conditionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (c *conditionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 

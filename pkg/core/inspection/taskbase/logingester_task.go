@@ -47,18 +47,18 @@ type LogIngester interface {
 }
 
 // NewLogIngesterTask returns a task that ingests log metadata into the KHI v6 builder.
-func NewLogIngesterTask(taskID taskid.TaskImplementationID[[]*log.Log], ingester LogIngester, labels ...coretask.LabelOpt) coretask.Task[[]*log.Log] {
+func NewLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], ingester LogIngester, labels ...coretask.LabelOpt) coretask.Task[struct{}] {
 	rawLogTaskID := ingester.RawLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{rawLogTaskID}, ingester.Dependencies()...)
-	return NewProgressReportableInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
+	return NewProgressReportableInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
-			return []*log.Log{}, nil
+			return struct{}{}, nil
 		}
 		logs := coretask.GetTaskResult(ctx, rawLogTaskID)
 		builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 
 		concurrency := runtime.GOMAXPROCS(0)
@@ -134,10 +134,10 @@ func NewLogIngesterTask(taskID taskid.TaskImplementationID[[]*log.Log], ingester
 		progressUpdator.Done()
 
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return struct{}{}, ctx.Err()
 		}
 		if sharedErr != nil {
-			return nil, sharedErr
+			return struct{}{}, sharedErr
 		}
 
 		slog.DebugContext(ctx, fmt.Sprintf("LogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), len(logs), skippedLogCount.Load()))
@@ -148,7 +148,7 @@ func NewLogIngesterTask(taskID taskid.TaskImplementationID[[]*log.Log], ingester
 				attribute.String("log_count", fmt.Sprintf("%d", len(logs))),
 			)
 		}
-		return logs, nil
+		return struct{}{}, nil
 	}, append([]coretask.LabelOpt{
 		// Tasks modifying history must be dependent from SerializerTask.
 		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())}, labels...)...)

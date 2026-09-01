@@ -86,7 +86,7 @@ type OSSK8sEventTimelineMapper struct {
 }
 
 // LogIngesterTask returns the prerequisite log ingester task.
-func (m *OSSK8sEventTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *OSSK8sEventTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return ossclusterk8s_contract.OSSK8sEventLogIngesterTaskID.Ref()
 }
 

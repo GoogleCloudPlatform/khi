@@ -95,6 +95,6 @@ func (i *GCPOperationLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*
 var _ inspectiontaskbase.LogIngester = (*GCPOperationLogIngester)(nil)
 
 // NewGCPOperationLogIngesterTask returns a new log ingester task for GCP Operation audit logs.
-func NewGCPOperationLogIngesterTask(taskID taskid.TaskImplementationID[[]*log.Log], rawLogTask taskid.TaskReference[[]*log.Log], logType *pb.LogType) coretask.Task[[]*log.Log] {
+func NewGCPOperationLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], rawLogTask taskid.TaskReference[[]*log.Log], logType *pb.LogType) coretask.Task[struct{}] {
 	return inspectiontaskbase.NewLogIngesterTask(taskID, NewGCPOperationLogIngester(rawLogTask, logType))
 }

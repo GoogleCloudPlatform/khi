@@ -36,7 +36,7 @@ var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scomm
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
 
 // LogIngesterTaskID is the task ID to finalize the logs to be included in the final output.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-ingester")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-ingester")
 
 // ContainerdLogFilterTaskID is the ID for a task to filter only the logs for containerd.
 var ContainerdLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "containerd-log-filter")

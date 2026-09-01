@@ -65,7 +65,7 @@ func (o *OtherTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectionta
 }
 
 // LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *OtherTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (o *OtherTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogk8scontrolplane_contract.LogIngesterTaskID.Ref()
 }
 

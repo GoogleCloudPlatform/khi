@@ -55,7 +55,7 @@ type OnPremAPIAuditTimelineMapper struct {
 }
 
 // LogIngesterTask returns the task reference providing the ingested logs.
-func (m *OnPremAPIAuditTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *OnPremAPIAuditTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogonpremapiaudit_contract.LogIngesterTaskID.Ref()
 }
 

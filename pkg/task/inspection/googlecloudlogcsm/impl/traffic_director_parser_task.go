@@ -56,7 +56,7 @@ type CSMTrafficDirectorLogToTimelineMapper struct {
 }
 
 // LogIngesterTask returns a reference to the task that provides ingested logs.
-func (m *CSMTrafficDirectorLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *CSMTrafficDirectorLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogcsm_contract.CSMTrafficDirectorLogIngesterTaskID.Ref()
 }
 

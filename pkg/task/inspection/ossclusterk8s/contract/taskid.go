@@ -29,7 +29,7 @@ var InputAuditLogFilesFormTaskID = taskid.NewDefaultImplementationID[upload.Uplo
 var AuditLogFileReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-reader")
 var NonEventAuditLogFilterTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogProviderRef, "oss")
 var EventAuditLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-filter-event-audit")
-var OSSK8sEventLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "event-log-ingester")
+var OSSK8sEventLogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "event-log-ingester")
 var OSSK8sEventLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](OSSTaskPrefix + "event-log-grouper")
 var OSSK8sEventLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](OSSTaskPrefix + "event-timeline-mapper")
 

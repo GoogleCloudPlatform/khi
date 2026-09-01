@@ -33,7 +33,7 @@ var LogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix 
 var LogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "filter")
 
 // LogIngesterTaskID is the task id to serialize logs to history.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-ingester")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-ingester")
 
 // LogGrouperTaskID is the task id to group logs by node name and serial port number.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-grouper")

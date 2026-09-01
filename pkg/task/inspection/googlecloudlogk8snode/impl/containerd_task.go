@@ -277,7 +277,7 @@ func (c *containerdNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.Ta
 }
 
 // LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerdNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (c *containerdNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudlogk8snode_contract.LogIngesterTaskID.Ref()
 }
 

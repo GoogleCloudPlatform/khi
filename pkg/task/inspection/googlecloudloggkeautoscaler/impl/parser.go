@@ -94,7 +94,7 @@ type autoscalerTimelineMapper struct {
 }
 
 // LogIngesterTask returns the prerequisite log serializer task.
-func (m *autoscalerTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *autoscalerTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 	return googlecloudloggkeautoscaler_contract.LogIngesterTaskID.Ref()
 }
 

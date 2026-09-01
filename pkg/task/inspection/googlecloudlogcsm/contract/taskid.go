@@ -34,7 +34,7 @@ var InputCSMResponseFlagsTaskID = taskid.NewDefaultImplementationID[*gcpqueryuti
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "list-log-entries")
 
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-ingester")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-ingester")
 
 // LogGrouperTaskID is the task ID to group CSM traffic logs by their reporter pod for parallel processing.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
@@ -52,7 +52,7 @@ var CSMClusterIdentifierTaskID = taskid.NewDefaultImplementationID[[]string](Tas
 var ListCSMTrafficDirectorLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "list-traffic-director-log-entries")
 
 // CSMTrafficDirectorLogIngesterTaskID is the task ID to finalize the CSM Traffic Director logs.
-var CSMTrafficDirectorLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "traffic-director/log-ingester")
+var CSMTrafficDirectorLogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "traffic-director/log-ingester")
 
 // CSMTrafficDirectorLogGrouperTaskID is the task ID to group CSM Traffic Director logs.
 var CSMTrafficDirectorLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "traffic-director/grouper")
