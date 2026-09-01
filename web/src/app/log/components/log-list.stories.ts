@@ -18,15 +18,12 @@ import { Meta, StoryObj } from '@storybook/angular';
 import { LogListComponent } from './log-list.component';
 import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
-import { Log } from 'src/app/store/domain/log';
-import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 const meta: Meta<LogListComponent> = {
   title: 'Log/LogList',
   component: LogListComponent,
   tags: ['autodocs'],
   args: {
-    allLogsCount: 100,
     selectedLogIndex: 1,
     highlightedLogIndices: new Set([0]),
     selectedTimelinesWithChildren: [],
@@ -45,21 +42,18 @@ export const Default: Story = {
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const allLogs = Array.from(
-      mockData.logStore.logs(),
-    ) as ReadonlyDomainElement<Log>[];
-    const filteredLogIds = IdBitset.fromAll(allLogs.map((l) => l.id));
+    const logStore = mockData.logStore;
+    const filteredLogIds = IdBitset.fromSequential(logStore.count);
     return {
       props: {
         ...args,
-        allLogs,
+        logStore,
         filteredLogIds,
       },
       template: `
         <div style="height: 500px; border: 1px solid #ccc; position: relative;">
           <khi-log-list
-            [allLogsCount]="allLogsCount"
-            [allLogs]="allLogs"
+            [logStore]="logStore"
             [filteredLogIds]="filteredLogIds"
             [selectedLogIndex]="selectedLogIndex"
             [highlightedLogIndices]="highlightedLogIndices"

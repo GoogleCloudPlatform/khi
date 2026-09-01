@@ -31,6 +31,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
+import { LogStore } from 'src/app/store/domain/log-store';
 import { Log } from 'src/app/store/domain/log';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
@@ -62,10 +63,8 @@ class LogListScrollingStrategy extends FixedSizeVirtualScrollStrategy {
   ],
 })
 export class LogListComponent {
-  /** The total number of logs. */
-  public readonly allLogsCount = input.required<number>();
-  /** The list of all log entries in chronological order. */
-  public readonly allLogs = input.required<ReadonlyDomainElement<Log>[]>();
+  /** The store containing all logs. */
+  public readonly logStore = input<LogStore>();
   /** The bitset of filtered log IDs. */
   public readonly filteredLogIds = input.required<IdBitset>();
   /** The index of the currently selected log. */
@@ -88,7 +87,14 @@ export class LogListComponent {
 
   private readonly viewPort = viewChild(CdkVirtualScrollViewport);
 
-  protected readonly shownLogs = computed(() => {
+  protected readonly allLogsCount = computed(() => this.logStore()?.count ?? 0);
+
+  protected readonly shownLogIds = computed(() => {
+    const logStore = this.logStore();
+    if (!logStore) {
+      return [];
+    }
+
     const filterByTimeline = this.filterByTimeline();
     const filterLogIds = this.filteredLogIds();
 
@@ -96,40 +102,43 @@ export class LogListComponent {
       const timelines = this.selectedTimelinesWithChildren();
       if (timelines && timelines.length > 0) {
         const seenLogIds = new Set<number>();
-        const matchedLogs: ReadonlyDomainElement<Log>[] = [];
+        const matchedLogIds: number[] = [];
 
         for (const timeline of timelines) {
           for (const revision of timeline.revisions) {
             const logId = revision.logId;
             if (!seenLogIds.has(logId) && filterLogIds.has(logId)) {
               seenLogIds.add(logId);
-              matchedLogs.push(revision.log);
+              matchedLogIds.push(logId);
             }
           }
           for (const event of timeline.events) {
             const logId = event.logId;
             if (!seenLogIds.has(logId) && filterLogIds.has(logId)) {
               seenLogIds.add(logId);
-              matchedLogs.push(event.log);
+              matchedLogIds.push(logId);
             }
           }
         }
-        matchedLogs.sort((a, b) => a.logIndex - b.logIndex);
-        return matchedLogs;
+        matchedLogIds.sort(
+          (a, b) => logStore.getIndex(a) - logStore.getIndex(b),
+        );
+        return matchedLogIds;
       }
     }
 
-    const allLogs = this.allLogs();
-    const result: ReadonlyDomainElement<Log>[] = [];
-    for (const log of allLogs) {
-      if (filterLogIds.has(log.id)) {
-        result.push(log);
+    const totalCount = logStore.count;
+    const result: number[] = [];
+    for (let i = 0; i < totalCount; i++) {
+      const logId = logStore.getLogIdByIndex(i);
+      if (filterLogIds.has(logId)) {
+        result.push(logId);
       }
     }
     return result;
   });
 
-  protected readonly shownLogsCount = computed(() => this.shownLogs().length);
+  protected readonly shownLogsCount = computed(() => this.shownLogIds().length);
 
   private disableScrollForNext = false;
 
@@ -137,14 +146,14 @@ export class LogListComponent {
     effect(() => {
       const viewport = this.viewPort();
 
-      const logs = this.shownLogs();
+      const logIds = this.shownLogIds();
       const selectedIndex = this.selectedLogIndex();
       this.selectedTimelinesWithChildren();
 
       if (selectedIndex === -1) return;
 
       if (!this.disableScrollForNext) {
-        const arrayIndex = this.searchArrayIndexOfLog(logs, selectedIndex);
+        const arrayIndex = this.searchArrayIndexOfLog(logIds, selectedIndex);
         if (arrayIndex >= 0 && viewport) {
           // The child virtual scroll viewport might not have received the list of updated logs yet.
           // Wait a frame to ensure the viewport has the correct list of logs.
@@ -178,42 +187,47 @@ export class LogListComponent {
       return;
     }
 
-    const logs = this.shownLogs();
-    if (logs.length === 0) return;
+    const logIds = this.shownLogIds();
+    const store = this.logStore();
+    if (logIds.length === 0 || !store) return;
 
     // Prevent the default browser scrolling behavior when navigating the log list.
     event.preventDefault();
 
     const selectedIndex = this.selectedLogIndex();
-    const arrayIndex = this.searchArrayIndexOfLog(logs, selectedIndex);
+    const arrayIndex = this.searchArrayIndexOfLog(logIds, selectedIndex);
 
     let nextArrayIndex = -1;
     if (event.key === 'ArrowUp') {
       if (arrayIndex === -1) {
-        nextArrayIndex = logs.length - 1;
+        nextArrayIndex = logIds.length - 1;
       } else if (arrayIndex > 0) {
         nextArrayIndex = arrayIndex - 1;
       }
     } else if (event.key === 'ArrowDown') {
       if (arrayIndex === -1) {
         nextArrayIndex = 0;
-      } else if (arrayIndex < logs.length - 1) {
+      } else if (arrayIndex < logIds.length - 1) {
         nextArrayIndex = arrayIndex + 1;
       }
     }
 
-    if (nextArrayIndex >= 0 && nextArrayIndex < logs.length) {
+    if (nextArrayIndex >= 0 && nextArrayIndex < logIds.length) {
       // Direct emission without setting disableScrollForNext ensures that the view
       // automatically scrolls to the newly selected log.
-      this.logSelected.emit(logs[nextArrayIndex]);
+      this.logSelected.emit(store.getLog(logIds[nextArrayIndex]));
     }
   }
 
   private searchArrayIndexOfLog(
-    logs: ReadonlyDomainElement<Log>[],
+    logIds: readonly number[],
     logIndex: number,
   ): number {
-    const idx = bisectLeft(logs, logIndex, (l, t) => l.logIndex - t);
-    return idx < logs.length && logs[idx].logIndex === logIndex ? idx : -1;
+    const store = this.logStore();
+    if (!store) return -1;
+    const idx = bisectLeft(logIds, logIndex, (id, t) => store.getIndex(id) - t);
+    return idx < logIds.length && store.getIndex(logIds[idx]) === logIndex
+      ? idx
+      : -1;
   }
 }

@@ -38,15 +38,19 @@
   <div class="log-list-container" tabindex="0" (keydown)="onKeyDown($event)">
     <cdk-virtual-scroll-viewport class="virtual-viewport">
       <div class="log-list">
-        <ng-container *cdkVirtualFor="let log of shownLogs()">
-          <khi-log-view-log-line
-            [log]="log"
-            [selected]="selectedLogIndex() === log.logIndex"
-            [highlighted]="highlightedLogIndices().has(log.logIndex)"
-            (lineClick)="selectLog($event)"
-            (lineHover)="onLogHover($event)"
-          ></khi-log-view-log-line>
-        </ng-container>
+        @let store = logStore();
+        @if (store) {
+          <ng-container *cdkVirtualFor="let logId of shownLogIds()">
+            @let log = store.getLog(logId);
+            <khi-log-view-log-line
+              [log]="log"
+              [selected]="selectedLogIndex() === log.logIndex"
+              [highlighted]="highlightedLogIndices().has(log.logIndex)"
+              (lineClick)="selectLog($event)"
+              (lineHover)="onLogHover($event)"
+            ></khi-log-view-log-line>
+          </ng-container>
+        }
       </div>
     </cdk-virtual-scroll-viewport>
   </div>

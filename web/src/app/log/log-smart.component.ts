@@ -18,6 +18,7 @@ import { Component, computed, inject, resource, signal } from '@angular/core';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { SelectionManager } from 'src/app/services/selection-manager.service';
 import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
+import { LogStore } from 'src/app/store/domain/log-store';
 import { Log } from 'src/app/store/domain/log';
 import { TimelinePathNode } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
@@ -100,14 +101,10 @@ export class LogSmartComponent {
   public readonly selectedLog = this.selectionManager.selectedLog;
 
   /**
-   * The list of all logs in the inspection data.
+   * The store containing all logs in the inspection data.
    */
-  public readonly allLogs = computed<ReadonlyDomainElement<Log>[]>(() => {
-    const logStore = this.inspectionDataStore.inspectionData()?.logStore;
-    if (!logStore) {
-      return [];
-    }
-    return Array.from(logStore.logs());
+  public readonly logStore = computed<LogStore | undefined>(() => {
+    return this.inspectionDataStore.inspectionData()?.logStore;
   });
 
   /**
@@ -163,13 +160,6 @@ export class LogSmartComponent {
    */
   protected readonly includeTimelineChildren =
     this.selectionManager.timelineSelectionShouldIncludeChildren;
-
-  /**
-   * The total number of logs available, prior to any filtering.
-   */
-  public readonly allLogsCount = computed(() => {
-    return this.inspectionDataStore.inspectionData()?.logStore.count ?? 0;
-  });
 
   /**
    * Aggregates the selected log entry, its body, and its resource paths into a view model.
