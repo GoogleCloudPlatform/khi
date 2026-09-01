@@ -261,14 +261,16 @@ func (n *LazyJSONNode) GetChildByKey(key string) (Node, bool) {
 	}
 
 	ptr := uintptr(unsafe.Pointer(&n.data[0]))
-	if valIdx, ok := globalLazyJSONCache.get(ptr, n.index, key); ok {
-		if valIdx < 0 {
-			return nil, false
+	if !lazyJSONCacheDisabled {
+		if valIdx, ok := globalLazyJSONCache.get(ptr, n.index, key); ok {
+			if valIdx < 0 {
+				return nil, false
+			}
+			return &LazyJSONNode{
+				data:  n.data,
+				index: valIdx,
+			}, true
 		}
-		return &LazyJSONNode{
-			data:  n.data,
-			index: valIdx,
-		}, true
 	}
 
 	if n.Type() != MapNodeType {
@@ -277,7 +279,9 @@ func (n *LazyJSONNode) GetChildByKey(key string) (Node, bool) {
 
 	idx := skipWhitespace(n.data, n.index)
 	if idx >= len(n.data) || n.data[idx] != '{' {
-		globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+		if !lazyJSONCacheDisabled {
+			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+		}
 		return nil, false
 	}
 	idx++ // Skip '{'
@@ -285,31 +289,43 @@ func (n *LazyJSONNode) GetChildByKey(key string) (Node, bool) {
 	for {
 		idx = skipWhitespace(n.data, idx)
 		if idx >= len(n.data) || n.data[idx] == '}' {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			if !lazyJSONCacheDisabled {
+				globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			}
 			return nil, false
 		}
 		if n.data[idx] != '"' {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			if !lazyJSONCacheDisabled {
+				globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			}
 			return nil, false
 		}
 		keyStr, nextIdx, err := parseJSONString(n.data, idx)
 		if err != nil {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			if !lazyJSONCacheDisabled {
+				globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			}
 			return nil, false
 		}
 		idx = skipWhitespace(n.data, nextIdx)
 		if idx >= len(n.data) || n.data[idx] != ':' {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			if !lazyJSONCacheDisabled {
+				globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			}
 			return nil, false
 		}
 		idx++ // Skip ':'
 		valStartIdx := skipWhitespace(n.data, idx)
 		if valStartIdx >= len(n.data) {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			if !lazyJSONCacheDisabled {
+				globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			}
 			return nil, false
 		}
 
-		globalLazyJSONCache.putIfAbsent(ptr, n.index, keyStr, valStartIdx, n.data)
+		if !lazyJSONCacheDisabled {
+			globalLazyJSONCache.putIfAbsent(ptr, n.index, keyStr, valStartIdx, n.data)
+		}
 
 		if keyStr == key {
 			return &LazyJSONNode{
@@ -320,7 +336,9 @@ func (n *LazyJSONNode) GetChildByKey(key string) (Node, bool) {
 
 		valEndIdx, err := skipJSONValue(n.data, valStartIdx)
 		if err != nil {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			if !lazyJSONCacheDisabled {
+				globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			}
 			return nil, false
 		}
 		idx = skipWhitespace(n.data, valEndIdx)
