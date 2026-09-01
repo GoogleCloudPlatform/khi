@@ -372,7 +372,6 @@ nested:
 		})
 	}
 }
-
 func TestNodeReader_NilChildHandling(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -399,6 +398,48 @@ func TestNodeReader_NilChildHandling(t *testing.T) {
 			_, err := tc.reader.GetNode(tc.path)
 			if err != tc.wantErr {
 				t.Errorf("GetNode() error mismatch (-want %v, +got %v)", tc.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestNodeReader_WithLazyJSONNode(t *testing.T) {
+	rawJSON := `{"protoPayload":{"serviceName":"k8s.io","resourceName":"pods/nginx","status":{"code":200}},"labels":{"cluster":"gke-1"}}`
+	lazyNode := NewLazyJSONNodeFromBytes([]byte(rawJSON))
+	reader := NewNodeReader(lazyNode)
+
+	testCases := []struct {
+		name string
+		path FieldPath
+		want string
+	}{
+		{
+			name: "read serviceName from LazyJSONNode",
+			path: CompileFieldPath("protoPayload.serviceName"),
+			want: "k8s.io",
+		},
+		{
+			name: "read resourceName from LazyJSONNode",
+			path: CompileFieldPath("protoPayload.resourceName"),
+			want: "pods/nginx",
+		},
+		{
+			name: "read cluster label from LazyJSONNode",
+			path: CompileFieldPath("labels.cluster"),
+			want: "gke-1",
+		},
+		{
+			name: "read non-existing field",
+			path: CompileFieldPath("protoPayload.unknownField"),
+			want: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := reader.ReadStringOrDefault(tc.path, "")
+			if got != tc.want {
+				t.Errorf("ReadStringOrDefault() mismatch (-want %q, +got %q)", tc.want, got)
 			}
 		})
 	}

@@ -32,12 +32,15 @@ const (
 // NodeChildrenIterator is a type to represent the iterator returned from the Children method of Node interface.
 type NodeChildrenIterator = func(func(key NodeChildrenKey, value Node) bool)
 
-// Node interfce is a recursive data structure representing structured data.
+// Node interface is a recursive data structure representing structured data.
 type Node interface {
 	Type() NodeType
 	NodeScalarValue() (any, error)
 	Children() NodeChildrenIterator
 	Len() int
+	// GetChildByKey returns the child node matching the key.
+	// For MapNodeType, implementations should perform direct lookup without iterating all children.
+	GetChildByKey(key string) (Node, bool)
 }
 
 // NodeChildrenElement represents an item of Chidlren of a Node.

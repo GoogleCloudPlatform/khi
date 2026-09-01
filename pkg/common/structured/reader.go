@@ -76,39 +76,15 @@ func (n *NodeReader) GetNode(path FieldPath) (Node, error) {
 		return n.Node, nil
 	}
 	currentNode := n.Node
-	for i := 0; i < len(path.segments); i++ {
+	for _, seg := range path.segments {
 		if currentNode == nil {
 			return nil, ErrFieldNotFound
 		}
-
-		// Unwrap orderedMapNode if present since key ordering is not relevant for direct field lookup.
-		if ordered, ok := currentNode.(*orderedMapNode); ok {
-			currentNode = ordered.Unwrap()
-		}
-
-		// Fast-path: direct handle lookup on StandardMapNode without allocating closures.
-		if mapNode, ok := currentNode.(*StandardMapNode); ok {
-			child, found := mapNode.GetChildByHandle(path.handles[i])
-			if !found {
-				return nil, ErrFieldNotFound
-			}
-			currentNode = child
-			continue
-		}
-
-		// Fallback for custom Node implementations.
-		found := false
-		seg := path.segments[i]
-		for key, value := range currentNode.Children() {
-			if key.Key == seg {
-				currentNode = value
-				found = true
-				break
-			}
-		}
+		child, found := currentNode.GetChildByKey(seg)
 		if !found {
 			return nil, ErrFieldNotFound
 		}
+		currentNode = child
 	}
 	return currentNode, nil
 }

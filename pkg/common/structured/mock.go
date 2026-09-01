@@ -60,6 +60,11 @@ func (m *MockNode) Len() int {
 	return len(m.values)
 }
 
+// GetChildByKey implements Node.
+func (m *MockNode) GetChildByKey(key string) (Node, bool) {
+	return nil, false
+}
+
 // Get retrieves a mock value of the target type (supports both value and pointer registrations).
 func (m *MockNode) Get(targetType reflect.Type) (any, bool) {
 	if val, ok := m.values[targetType]; ok {

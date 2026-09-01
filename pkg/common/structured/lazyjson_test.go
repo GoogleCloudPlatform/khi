@@ -476,6 +476,69 @@ func TestLazyJSONNode_MergeNode(t *testing.T) {
 	}
 }
 
+func TestLazyJSONNode_GetChildByKey(t *testing.T) {
+	testCases := []struct {
+		name      string
+		json      string
+		targetKey string
+		wantFound bool
+		wantVal   any
+	}{
+		{
+			name:      "find first key",
+			json:      `{"a":"valA","b":"valB","c":"valC"}`,
+			targetKey: "a",
+			wantFound: true,
+			wantVal:   "valA",
+		},
+		{
+			name:      "find middle key",
+			json:      `{"a":"valA","b":"valB","c":"valC"}`,
+			targetKey: "b",
+			wantFound: true,
+			wantVal:   "valB",
+		},
+		{
+			name:      "find last key",
+			json:      `{"a":"valA","b":"valB","c":"valC"}`,
+			targetKey: "c",
+			wantFound: true,
+			wantVal:   "valC",
+		},
+		{
+			name:      "non existing key",
+			json:      `{"a":"valA","b":"valB"}`,
+			targetKey: "z",
+			wantFound: false,
+		},
+		{
+			name:      "nested map child",
+			json:      `{"protoPayload":{"serviceName":"k8s.io"}}`,
+			targetKey: "protoPayload",
+			wantFound: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := NewLazyJSONNodeFromBytes([]byte(tc.json)).(*LazyJSONNode)
+			child, found := node.GetChildByKey(tc.targetKey)
+			if diff := cmp.Diff(tc.wantFound, found); diff != "" {
+				t.Fatalf("GetChildByKey() found mismatch (-want +got):\n%s", diff)
+			}
+			if tc.wantFound && tc.wantVal != nil {
+				val, err := child.NodeScalarValue()
+				if err != nil {
+					t.Fatalf("NodeScalarValue() error = %v", err)
+				}
+				if diff := cmp.Diff(tc.wantVal, val); diff != "" {
+					t.Errorf("NodeScalarValue() mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkLazyJSONNodeVsStandardMap(b *testing.B) {
 	rawJSON := `{"insertId":"123","logName":"projects/p/logs/l","labels":{"k1":"v1","k2":"v2"},"resource":{"type":"gce_instance","labels":{"zone":"us-central1-a"}}}`
 	nodeFromJSON, err := FromYAML(rawJSON)

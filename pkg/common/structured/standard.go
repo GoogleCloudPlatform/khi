@@ -47,6 +47,11 @@ func (n *StandardScalarNode[T]) Len() int {
 	return 0
 }
 
+// GetChildByKey implements Node.
+func (n *StandardScalarNode[T]) GetChildByKey(key string) (Node, bool) {
+	return nil, false
+}
+
 // MarshalJSON implements json.Marshaler.
 func (n *StandardScalarNode[T]) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
@@ -138,6 +143,11 @@ func (n *StandardSequenceNode) Children() NodeChildrenIterator {
 
 func (n *StandardSequenceNode) Len() int {
 	return len(n.value)
+}
+
+// GetChildByKey implements Node.
+func (n *StandardSequenceNode) GetChildByKey(key string) (Node, bool) {
+	return nil, false
 }
 
 // MarshalYAML implements yaml.Marshaler.
