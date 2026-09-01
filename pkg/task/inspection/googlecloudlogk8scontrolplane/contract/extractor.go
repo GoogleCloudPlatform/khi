@@ -496,7 +496,7 @@ func (k *K8sHPAControllerFieldSet) Summary() string {
 
 		currentVal := ""
 		switch {
-		case k.AtomicRecommendation.StatusAvgUtil > 0:
+		case k.AtomicRecommendation.StatusAvgUtil >= 0:
 			currentVal = fmt.Sprintf("%d%%", k.AtomicRecommendation.StatusAvgUtil)
 		case k.AtomicRecommendation.StatusAvgValue != "":
 			currentVal = k.AtomicRecommendation.StatusAvgValue
@@ -506,7 +506,7 @@ func (k *K8sHPAControllerFieldSet) Summary() string {
 
 		targetVal := ""
 		switch {
-		case k.AtomicRecommendation.SpecTargetAvgUtil > 0:
+		case k.AtomicRecommendation.SpecTargetAvgUtil >= 0:
 			targetVal = fmt.Sprintf("%d%%", k.AtomicRecommendation.SpecTargetAvgUtil)
 		case k.AtomicRecommendation.SpecTargetAvgValue != "":
 			targetVal = k.AtomicRecommendation.SpecTargetAvgValue
@@ -592,10 +592,10 @@ func ExtractK8sHPAControllerComponent(reader *structured.NodeReader) (K8sHPACont
 			MetricType:             reader.ReadStringOrDefault(pathAtomicMetricType, ""),
 			MetricName:             reader.ReadStringOrDefault(pathAtomicMetricSpecName, ""),
 			SpecTargetAvgValue:     reader.ReadStringOrDefault(pathAtomicMetricSpecTargetAvgValue, ""),
-			SpecTargetAvgUtil:      reader.ReadIntOrDefault(pathAtomicMetricSpecTargetAvgUtil, 0),
+			SpecTargetAvgUtil:      reader.ReadIntOrDefault(pathAtomicMetricSpecTargetAvgUtil, -1),
 			SpecTargetValue:        reader.ReadStringOrDefault(pathAtomicMetricSpecTargetValue, ""),
 			StatusAvgValue:         reader.ReadStringOrDefault(pathAtomicMetricStatusAvgValue, ""),
-			StatusAvgUtil:          reader.ReadIntOrDefault(pathAtomicMetricStatusAvgUtil, 0),
+			StatusAvgUtil:          reader.ReadIntOrDefault(pathAtomicMetricStatusAvgUtil, -1),
 			StatusValue:            reader.ReadStringOrDefault(pathAtomicMetricStatusValue, ""),
 			NewestSampleAgeSeconds: reader.ReadFloatOrDefault(pathAtomicMetricNewestSampleAge, 0),
 			NewestSampleTime:       reader.ReadStringOrDefault(pathAtomicMetricNewestSampleTime, ""),

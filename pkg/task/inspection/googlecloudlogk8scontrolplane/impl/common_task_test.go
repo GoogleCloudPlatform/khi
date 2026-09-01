@@ -69,6 +69,9 @@ func TestK8sControlPlaneLogIngester_ProcessLog(t *testing.T) {
 			name: "successful HPA final recommendation log ingestion",
 			input: testlog.NewMockLog(
 				testTime,
+				googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{
+					ComponentName: "hpa-controller",
+				},
 				googlecloudlogk8scontrolplane_contract.K8sHPAControllerFieldSet{
 					FinalRecommendation: &googlecloudlogk8scontrolplane_contract.HPAFinalRecommendation{
 						HPA:            "gke-managed-cim/kube-state-metrics",
@@ -92,11 +95,15 @@ func TestK8sControlPlaneLogIngester_ProcessLog(t *testing.T) {
 			name: "successful HPA atomic recommendation log ingestion",
 			input: testlog.NewMockLog(
 				testTime,
+				googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{
+					ComponentName: "hpa-controller",
+				},
 				googlecloudlogk8scontrolplane_contract.K8sHPAControllerFieldSet{
 					AtomicRecommendation: &googlecloudlogk8scontrolplane_contract.HPAAtomicRecommendation{
 						HPA:                "gke-managed-cim/kube-state-metrics",
 						MetricName:         "memory",
 						StatusAvgUtil:      27,
+						SpecTargetAvgUtil:  -1,
 						SpecTargetAvgValue: "400Mi",
 						Replicas:           1,
 					},

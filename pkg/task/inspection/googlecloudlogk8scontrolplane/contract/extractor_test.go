@@ -567,6 +567,7 @@ jsonPayload:
 					MetricType:             "Resource",
 					MetricName:             "memory",
 					SpecTargetAvgValue:     "400Mi",
+					SpecTargetAvgUtil:      -1,
 					StatusAvgValue:         "36745216",
 					StatusAvgUtil:          27,
 					StatusValue:            "36745216",
@@ -738,11 +739,25 @@ func TestK8sHPAControllerFieldSet_Summary(t *testing.T) {
 					HPA:                "gke-managed-cim/kube-state-metrics",
 					MetricName:         "memory",
 					StatusAvgUtil:      27,
+					SpecTargetAvgUtil:  -1,
 					SpecTargetAvgValue: "400Mi",
 					Replicas:           1,
 				},
 			},
 			want: "[HPA Metric] gke-managed-cim/kube-state-metrics: memory (27% / target 400Mi) -> 1 replicas",
+		},
+		{
+			desc: "atomic recommendation with 0% utilization",
+			field: K8sHPAControllerFieldSet{
+				AtomicRecommendation: &HPAAtomicRecommendation{
+					HPA:               "default/web",
+					MetricName:        "cpu",
+					StatusAvgUtil:     0,
+					SpecTargetAvgUtil: 50,
+					Replicas:          1,
+				},
+			},
+			want: "[HPA Metric] default/web: cpu (0% / target 50%) -> 1 replicas",
 		},
 		{
 			desc: "atomic recommendation with dampening and override",
@@ -763,9 +778,11 @@ func TestK8sHPAControllerFieldSet_Summary(t *testing.T) {
 			desc: "atomic recommendation minimal",
 			field: K8sHPAControllerFieldSet{
 				AtomicRecommendation: &HPAAtomicRecommendation{
-					HPA:        "default/web",
-					MetricType: "Resource",
-					Replicas:   2,
+					HPA:               "default/web",
+					MetricType:        "Resource",
+					SpecTargetAvgUtil: -1,
+					StatusAvgUtil:     -1,
+					Replicas:          2,
 				},
 			},
 			want: "[HPA Metric] default/web: Resource -> 2 replicas",
