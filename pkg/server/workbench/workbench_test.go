@@ -153,30 +153,12 @@ func TestWorkbench_ReadStructYAMLs(t *testing.T) {
 			wantErrIs: ErrWorkbenchClosed,
 		},
 		{
-			name: "returns pre-serialized YAML from SearchIndex.StructYAMLs when available",
-			setupWb: func() *Workbench {
-				wb := NewWorkbench("wb-1", "insp-1")
-				wb.searchIndex = &SearchIndex{
-					StructYAMLs: map[uint32]string{
-						struct1ID: "message: cached in index\n",
-					},
-				}
-				return wb
-			},
-			structIDs: []uint32{struct1ID},
-			wantYAMLs: map[uint32]string{
-				struct1ID: "message: cached in index\n",
-			},
-		},
-		{
-			name: "falls back to intern pool when struct ID is not found in SearchIndex.StructYAMLs",
+			name: "successfully decodes structs on-demand from intern pool when searchIndex is initialized",
 			setupWb: func() *Workbench {
 				wb := NewWorkbench("wb-1", "insp-1")
 				wb.internPool.IngestChunk(chunk)
 				wb.searchIndex = &SearchIndex{
-					StructYAMLs: map[uint32]string{
-						999: "message: other\n",
-					},
+					InternPool: wb.internPool,
 				}
 				return wb
 			},

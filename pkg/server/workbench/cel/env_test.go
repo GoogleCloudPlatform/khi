@@ -44,7 +44,7 @@ spec:
 	if err != nil {
 		t.Fatalf("failed to create TimelineEvaluator: %v", err)
 	}
-	eval.SetInternPool(pool)
+	eval.SetInternPool(toReadonlyPool(pool))
 
 	nsTimeline := &TimelineData{
 		ID:           1,
@@ -205,20 +205,19 @@ user:
 	if err != nil {
 		t.Fatalf("failed to create LogEvaluator: %v", err)
 	}
-	eval.SetInternPool(pool)
-	yamlBytes, err := (&structured.YAMLNodeSerializer{}).Serialize(logNode)
-	if err != nil {
-		t.Fatalf("failed to serialize yaml: %v", err)
-	}
-	structYAMLs := map[uint32]string{
-		sRef.ID(): string(yamlBytes),
-	}
+	readonlyPool := toReadonlyPool(pool)
+	eval.SetInternPool(readonlyPool)
 	trigramIndex := NewTrigramIndex()
-	if err := trigramIndex.BuildFromStructYAMLs(t.Context(), structYAMLs, nil); err != nil {
+	if err := trigramIndex.BuildFromLogPool(readonlyPool, []LogTrigramItem{
+		{
+			ID:              10,
+			SummaryStringID: pool.InternString("failed to schedule pod").ID(),
+			BodyStructID:    sRef.ID(),
+		},
+	}, nil); err != nil {
 		t.Fatalf("failed to build trigram index: %v", err)
 	}
 	eval.SetTrigramIndex(trigramIndex)
-	eval.SetStructYAMLs(structYAMLs)
 	eval.SetStyleResolver(&SimpleStyleResolver{
 		LogTypes:   map[uint32]string{1: "k8s-audit"},
 		Severities: map[uint32]uint32{3: 3},
@@ -402,7 +401,7 @@ user:
 	if err != nil {
 		t.Fatalf("failed to create LogEvaluator: %v", err)
 	}
-	eval.SetInternPool(pool)
+	eval.SetInternPool(toReadonlyPool(pool))
 	eval.SetStyleResolver(&SimpleStyleResolver{
 		LogTypes:   map[uint32]string{1: "k8s-audit"},
 		Severities: map[uint32]uint32{3: 3},
@@ -539,7 +538,7 @@ spec:
 	if err != nil {
 		t.Fatalf("NewLogEvaluator() failed: %v", err)
 	}
-	eval.SetInternPool(pool)
+	eval.SetInternPool(toReadonlyPool(pool))
 	eval.SetTrigramIndex(trigramIdx)
 	eval.SetStyleResolver(&SimpleStyleResolver{
 		LogTypes: map[uint32]string{1: "k8s-audit"},
