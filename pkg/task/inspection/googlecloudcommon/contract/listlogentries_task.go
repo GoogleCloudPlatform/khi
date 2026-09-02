@@ -25,12 +25,10 @@ import (
 	"sync"
 	"time"
 
-	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logconvert"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/kwaymerge"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -106,34 +104,6 @@ func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogF
 	}()
 }
 
-func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *loggingpb.LogEntry, dest *[]*log.Log) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case l, ok := <-source:
-				if !ok {
-					return
-				}
-				node, err := logconvert.LogEntryToNode(l)
-				if err != nil {
-					slog.WarnContext(ctx, fmt.Sprintf("failed to convert loggingpb.LogEntry (insertId: %s, timestamp: %v) to structured.Node %v", l.InsertId, l.Timestamp, err))
-					continue
-				}
-				ts := time.Time{}
-				if l.Timestamp != nil {
-					ts = l.Timestamp.AsTime()
-				}
-				khiLog := log.NewLogWithTimestamp(structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)), ts)
-				*dest = append(*dest, khiLog)
-			}
-		}
-	}()
-}
-
 // NewListLogEntriesTask creates a new task that lists log entries from Cloud Logging based on the provided settings.
 func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[[]*log.Log] {
 	taskID := taskSetting.TaskID()
@@ -168,7 +138,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 				return nil, fmt.Errorf("TimePartitionCount returned an invalid value %d, it must be bigger than 0", timePartitionCount)
 			}
 
-			allLogs := make([]*log.Log, 0)
+			allLogSlices := make([][]*log.Log, 0, len(filters))
 			for filterIndex, filter := range filters {
 				err := setQueryInfo(ctx, taskID.String(), filter, filterIndex, len(filters), startTime, endTime, description)
 				if err != nil {
@@ -191,21 +161,24 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 
 				for groupIndex, group := range groups {
 					var wg sync.WaitGroup
-					var logChan = make(chan *loggingpb.LogEntry)
 					var progressChan = make(chan LogFetchProgress)
 					listCallIndex := filterIndex*len(groups) + groupIndex
 					allListCalls := len(filters) * len(groups)
 					monitorProgress(ctx, &wg, progressChan, progress, listCallIndex, allListCalls)
-					convertLogsArray(ctx, &wg, logChan, &allLogs)
-					err = progressReportableLogFetcher.FetchLogsWithProgress(logChan, progressChan, ctx, startTime, endTime, filter, group.container, group.resourceNames)
+					logs, err := progressReportableLogFetcher.FetchLogsWithProgress(progressChan, ctx, startTime, endTime, filter, group.container, group.resourceNames)
 					wg.Wait()
 
 					if err != nil {
 						err := setErrorMetadataForFetchLogError(ctx, err)
 						return nil, err
 					}
+					allLogSlices = append(allLogSlices, logs)
 				}
 			}
+
+			allLogs := kwaymerge.Merge(allLogSlices, func(a, b *log.Log) int {
+				return a.Timestamp.Compare(b.Timestamp)
+			})
 
 			tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
 			if tracingActive {
