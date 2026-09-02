@@ -271,6 +271,8 @@ func fetchLogsForStructuredQueries(
 	groups = divideGroupByMaximumResourceName(groups, maxResourceNameCountPerRequest)
 	progressReportableLogFetcher := NewTimePartitioningProgressReportableLogFetcher(logFetcher, 500*time.Millisecond, timePartitionCount, runtime.GOMAXPROCS(0))
 
+	taskStartTime := time.Now()
+	totalLogsFetched := 0
 	allLogSlices := make([][]*log.Log, 0, len(queries)*len(groups))
 	for queryIndex, q := range queries {
 		filterString := q.GenerateCloudLoggingQuery()
@@ -283,13 +285,14 @@ func fetchLogsForStructuredQueries(
 			var progressChan = make(chan LogFetchProgress)
 			listCallIndex := queryIndex*len(groups) + groupIndex
 			allListCalls := len(queries) * len(groups)
-			monitorProgress(ctx, &wg, progressChan, progress, listCallIndex, allListCalls)
+			monitorProgress(ctx, &wg, progressChan, progress, taskStartTime, totalLogsFetched, listCallIndex, allListCalls)
 			logs, err := progressReportableLogFetcher.FetchLogsWithProgress(progressChan, ctx, startTime, endTime, filterString, group.container, group.resourceNames)
 			wg.Wait()
 
 			if err != nil {
 				return nil, setErrorMetadataForFetchLogError(ctx, err)
 			}
+			totalLogsFetched += len(logs)
 			allLogSlices = append(allLogSlices, logs)
 		}
 	}
