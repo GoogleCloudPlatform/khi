@@ -19,12 +19,13 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestTimelineEvaluator(t *testing.T) {
-	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	pool := khifilev6model.NewInternPool(id.NewGenerator())
 	node, err := structured.FromYAML(`kind: Pod
 metadata:
   name: pod-sample
@@ -44,7 +45,7 @@ spec:
 	if err != nil {
 		t.Fatalf("failed to create TimelineEvaluator: %v", err)
 	}
-	eval.SetInternPool(pool)
+	eval.SetInternPool(toReadonlyPool(pool))
 
 	nsTimeline := &TimelineData{
 		ID:           1,
@@ -188,7 +189,7 @@ spec:
 }
 
 func TestLogEvaluator(t *testing.T) {
-	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	pool := khifilev6model.NewInternPool(id.NewGenerator())
 	logNode, err := structured.FromYAML(`verb: create
 user:
   username: system:admin
@@ -205,20 +206,19 @@ user:
 	if err != nil {
 		t.Fatalf("failed to create LogEvaluator: %v", err)
 	}
-	eval.SetInternPool(pool)
-	yamlBytes, err := (&structured.YAMLNodeSerializer{}).Serialize(logNode)
-	if err != nil {
-		t.Fatalf("failed to serialize yaml: %v", err)
-	}
-	structYAMLs := map[uint32]string{
-		sRef.ID(): string(yamlBytes),
-	}
+	readonlyPool := toReadonlyPool(pool)
+	eval.SetInternPool(readonlyPool)
 	trigramIndex := NewTrigramIndex()
-	if err := trigramIndex.BuildFromStructYAMLs(t.Context(), structYAMLs, nil); err != nil {
+	if err := trigramIndex.BuildFromLogPool(readonlyPool, []LogTrigramItem{
+		{
+			ID:              10,
+			SummaryStringID: pool.InternString("failed to schedule pod").ID(),
+			BodyStructID:    sRef.ID(),
+		},
+	}, nil); err != nil {
 		t.Fatalf("failed to build trigram index: %v", err)
 	}
 	eval.SetTrigramIndex(trigramIndex)
-	eval.SetStructYAMLs(structYAMLs)
 	eval.SetStyleResolver(&SimpleStyleResolver{
 		LogTypes:   map[uint32]string{1: "k8s-audit"},
 		Severities: map[uint32]uint32{3: 3},
@@ -385,7 +385,7 @@ func TestValidateLogQuery(t *testing.T) {
 }
 
 func TestLogEvaluator_FallbackWithoutTrigramIndex(t *testing.T) {
-	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	pool := khifilev6model.NewInternPool(id.NewGenerator())
 	logNode, err := structured.FromYAML(`verb: create
 user:
   username: system:admin
@@ -402,7 +402,7 @@ user:
 	if err != nil {
 		t.Fatalf("failed to create LogEvaluator: %v", err)
 	}
-	eval.SetInternPool(pool)
+	eval.SetInternPool(toReadonlyPool(pool))
 	eval.SetStyleResolver(&SimpleStyleResolver{
 		LogTypes:   map[uint32]string{1: "k8s-audit"},
 		Severities: map[uint32]uint32{3: 3},
@@ -474,7 +474,7 @@ user:
 }
 
 func TestLogEvaluator_WithTrigramIndex(t *testing.T) {
-	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	pool := khifilev6model.NewInternPool(id.NewGenerator())
 
 	node1, err := structured.FromYAML(`verb: create
 user:
@@ -539,7 +539,7 @@ spec:
 	if err != nil {
 		t.Fatalf("NewLogEvaluator() failed: %v", err)
 	}
-	eval.SetInternPool(pool)
+	eval.SetInternPool(toReadonlyPool(pool))
 	eval.SetTrigramIndex(trigramIdx)
 	eval.SetStyleResolver(&SimpleStyleResolver{
 		LogTypes: map[uint32]string{1: "k8s-audit"},

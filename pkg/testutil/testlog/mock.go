@@ -18,8 +18,11 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
+
+var defaultTestIDGen = id.NewGenerator()
 
 // MustLogFromYAML returns a log.Log instance from given YAML string.
 // This method is for testing only.
@@ -29,7 +32,7 @@ func MustLogFromYAML(text string) *log.Log {
 		panic(err.Error())
 	}
 	reader := structured.NewNodeReader(yamlNode)
-	l := log.NewLog(reader)
+	l := log.NewLog(defaultTestIDGen, reader)
 	if ts, err := reader.ReadTimestamp(pathTimestamp); err == nil {
 		l.Timestamp = ts
 	}
@@ -37,16 +40,22 @@ func MustLogFromYAML(text string) *log.Log {
 }
 
 // NewEmptyLogWithID creates a new empty Log with the given ID.
-func NewEmptyLogWithID(id string) *log.Log {
-	l := log.NewLog(structured.NewNodeReader(structured.NewEmptyMapNode()))
-	l.ID = id
+func NewEmptyLogWithID(logID uint32) *log.Log {
+	l := log.NewLog(defaultTestIDGen, structured.NewNodeReader(structured.NewEmptyMapNode()))
+	l.ID = logID
 	return l
 }
 
 // NewMockLog returns a *log.Log populated with the provided typed mock data structures.
 func NewMockLog(mockValues ...any) *log.Log {
+	gen := defaultTestIDGen
+	for _, v := range mockValues {
+		if g, ok := v.(*id.Generator); ok {
+			gen = g
+		}
+	}
 	mockNode := structured.NewMockNode(mockValues...)
-	l := log.NewLog(structured.NewNodeReader(mockNode))
+	l := log.NewLog(gen, structured.NewNodeReader(mockNode))
 	for _, v := range mockValues {
 		if t, ok := v.(time.Time); ok {
 			l.Timestamp = t

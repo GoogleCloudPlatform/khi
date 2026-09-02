@@ -19,40 +19,47 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewLog(t *testing.T) {
+	gen := id.NewGenerator()
 	node, err := structured.FromYAML("foo: bar")
 	if err != nil {
 		t.Fatalf("failed to parse yaml: %v", err)
 	}
 	reader := structured.NewNodeReader(node)
-	l := NewLog(reader)
+	l := NewLog(gen, reader)
 
 	if l.NodeReader != reader {
 		t.Errorf("NewLog() NodeReader mismatch (-want +got):\n%s", cmp.Diff(reader, l.NodeReader))
 	}
-	if l.ID == "" {
-		t.Errorf("NewLog() expected non-empty ID, got empty")
+	if l.ID == 0 {
+		t.Errorf("NewLog() expected non-zero ID, got 0")
 	}
 }
 
 func TestNewLogWithTimestamp(t *testing.T) {
+	gen := id.NewGenerator()
 	node, err := structured.FromYAML("foo: bar")
 	if err != nil {
 		t.Fatalf("failed to parse yaml: %v", err)
 	}
 	reader := structured.NewNodeReader(node)
 	testTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	l := NewLogWithTimestamp(reader, testTime)
+	l := NewLogWithTimestamp(gen, reader, testTime)
 
 	if !l.Timestamp.Equal(testTime) {
 		t.Errorf("NewLogWithTimestamp() Timestamp mismatch (-want +got):\n%s", cmp.Diff(testTime, l.Timestamp))
 	}
+	if l.ID == 0 {
+		t.Errorf("NewLogWithTimestamp() expected non-zero ID, got 0")
+	}
 }
 
 func TestNewLogFromYAMLString(t *testing.T) {
+	gen := id.NewGenerator()
 	testCases := []struct {
 		name    string
 		yaml    string
@@ -72,7 +79,7 @@ func TestNewLogFromYAMLString(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := NewLogFromYAMLString(tc.yaml)
+			got, err := NewLogFromYAMLString(gen, tc.yaml)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("NewLogFromYAMLString() error = %v, wantErr %v", err, tc.wantErr)
 			}

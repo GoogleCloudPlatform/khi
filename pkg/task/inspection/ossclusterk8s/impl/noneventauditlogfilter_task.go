@@ -17,45 +17,16 @@ package ossclusterk8s_impl
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
-var (
-	pathAuditVerb               = structured.CompileFieldPath("verb")
-	pathAuditKind               = structured.CompileFieldPath("kind")
-	pathAuditResponseObjectKind = structured.CompileFieldPath("responseObject.kind")
-	pathAuditObjectRef          = structured.CompileFieldPath("objectRef")
-)
-
-var NonEventAuditLogFilterTask = inspectiontaskbase.NewProgressReportableInspectionTask(
+var NonEventAuditLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	ossclusterk8s_contract.NonEventAuditLogFilterTaskID,
-	[]taskid.UntypedTaskReference{
-		ossclusterk8s_contract.AuditLogFileReaderTaskID.Ref(),
-	}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
-			return []*log.Log{}, nil
-		}
-
-		logs := coretask.GetTaskResult(ctx, ossclusterk8s_contract.AuditLogFileReaderTaskID.Ref())
-
-		var auditLogs []*log.Log
-
-		for _, l := range logs {
-			verb := l.ReadStringOrDefault(pathAuditVerb, "")
-			if l.ReadStringOrDefault(pathAuditKind, "") == "Event" && l.ReadStringOrDefault(pathAuditResponseObjectKind, "") != "Event" && l.Has(pathAuditObjectRef) {
-				if verb == "" || verb == "get" || verb == "watch" || verb == "list" {
-					continue
-				}
-				auditLogs = append(auditLogs, l)
-			}
-		}
-
-		return auditLogs, nil
-	})
+	ossclusterk8s_contract.AuditLogFileReaderTaskID.Ref(),
+	func(ctx context.Context, l *log.Log) bool {
+		isNonEvent, _ := ossclusterk8s_contract.ExtractOSSK8sIsNonEventAuditLog(l.NodeReader)
+		return isNonEvent
+	},
+)

@@ -202,21 +202,28 @@ func ProcessGCPClusterNodepoolOperationLog(
 }
 
 // TrackAndGetManifest tracks the latest resource manifest from an audit log and returns it if updated.
-func (t *GCPOperationTracker) TrackAndGetManifest(audit *GCPAuditLogFieldSet) (string, bool) {
+func (t *GCPOperationTracker) TrackAndGetManifest(audit *GCPAuditLogFieldSet) (structured.Node, bool) {
+	var manifestNode structured.Node
 	manifest := ""
 	if resp, err := audit.ResponseString(); err == nil && resp != "" {
 		manifest = resp
+		if audit.Response != nil {
+			manifestNode = audit.Response.Node
+		}
 	} else if req, err := audit.RequestString(); err == nil && req != "" {
 		manifest = req
+		if audit.Request != nil {
+			manifestNode = audit.Request.Node
+		}
 	}
-	if manifest == "" {
-		return "", false
+	if manifest == "" || manifestNode == nil {
+		return nil, false
 	}
 	if t.lastManifest == manifest {
-		return manifest, false
+		return manifestNode, false
 	}
 	t.lastManifest = manifest
-	return manifest, true
+	return manifestNode, true
 }
 
 // ProcessOperationLog adds necessary operation revisions or events to the TimelineChangeSet.

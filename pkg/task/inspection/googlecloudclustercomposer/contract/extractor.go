@@ -116,6 +116,27 @@ func stringToTiState(stateStr string) (Tistate, error) {
 	}
 }
 
+// ExtractComposerComponent extracts the component name from a Composer log NodeReader.
+func ExtractComposerComponent(reader *structured.NodeReader) (string, error) {
+	if mock, ok := structured.GetMock[ComposerFieldSet](reader); ok {
+		return mock.Component, nil
+	}
+	if reader == nil {
+		return "", nil
+	}
+
+	logName := reader.ReadStringOrDefault(pathLogName, "")
+	componentNameIndex := strings.LastIndex(logName, "/")
+	if componentNameIndex == -1 {
+		return "", fmt.Errorf("not a recognized composer component log")
+	}
+	component := logName[componentNameIndex+1:]
+	if component == "" {
+		return "", fmt.Errorf("not a recognized composer component log")
+	}
+	return component, nil
+}
+
 // ExtractComposer extracts ComposerFieldSet from a NodeReader.
 func ExtractComposer(reader *structured.NodeReader) (ComposerFieldSet, error) {
 	if mock, ok := structured.GetMock[ComposerFieldSet](reader); ok {

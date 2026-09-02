@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -91,7 +93,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
 
 	// 1. Initialize the Builder.
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 
 	cmpNode := cmp.Comparer(func(x, y structured.Node) bool {
 		if x == nil && y == nil {

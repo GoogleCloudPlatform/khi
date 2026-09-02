@@ -37,6 +37,12 @@ var (
 		regexCache.Store(pattern, re)
 		return re, nil
 	}
+
+	directYAMLSerializerPool = sync.Pool{
+		New: func() any {
+			return khifilev6model.NewDirectYAMLSerializer()
+		},
+	}
 )
 
 func combinePatterns(patterns []string) string {
@@ -49,33 +55,22 @@ func combinePatterns(patterns []string) string {
 	return "(?:" + strings.Join(patterns, ")|(?:") + ")"
 }
 
-// resolveStructYAML resolves the YAML string representation for a given struct ID, using the cache if available or serializing on-demand from the intern pool.
-func resolveStructYAML(structID uint32, pool khifilev6model.ReadonlyPool, structYAMLs map[uint32]string) (string, bool) {
-	if structYAMLs != nil {
-		if yaml, ok := structYAMLs[structID]; ok {
-			return yaml, true
-		}
-	}
+// resolveStructYAML resolves the YAML string representation for a given struct ID using DirectYAMLSerializer.
+func resolveStructYAML(structID uint32, pool *khifilev6model.ReadonlyInternPool) (string, bool) {
 	if pool == nil {
 		return "", false
 	}
-	s := pool.ResolveStructFromID(structID)
-	if s == nil {
-		return "", false
-	}
-	node, err := khifilev6model.FromInternedStruct(s, pool)
+	serializer := directYAMLSerializerPool.Get().(*khifilev6model.DirectYAMLSerializer)
+	defer directYAMLSerializerPool.Put(serializer)
+	yamlStr, err := serializer.SerializeFlatStruct(structID, pool)
 	if err != nil {
 		return "", false
 	}
-	yamlBytes, err := (&structured.YAMLNodeSerializer{}).Serialize(node)
-	if err != nil {
-		return "", false
-	}
-	return string(yamlBytes), true
+	return yamlStr, true
 }
 
 // resolveStructNode resolves the structured.Node from an interned struct ID.
-func resolveStructNode(structID uint32, pool khifilev6model.ReadonlyPool) (structured.Node, bool) {
+func resolveStructNode(structID uint32, pool *khifilev6model.ReadonlyInternPool) (structured.Node, bool) {
 	if pool == nil {
 		return nil, false
 	}
@@ -126,7 +121,7 @@ func MatchTimelinePath(t *TimelineData, key string, patterns []string, tlMap map
 }
 
 // MatchTimelineRevisionBodyField checks if any revision in timeline matches the pathKey and pattern(s).
-func MatchTimelineRevisionBodyField(t *TimelineData, pathKey string, patterns []string, pool khifilev6model.ReadonlyPool) bool {
+func MatchTimelineRevisionBodyField(t *TimelineData, pathKey string, patterns []string, pool *khifilev6model.ReadonlyInternPool) bool {
 	if t == nil || len(patterns) == 0 || pool == nil {
 		return false
 	}
@@ -153,9 +148,8 @@ func MatchLogField(
 	l *LogData,
 	pathKey string,
 	patterns []string,
-	pool khifilev6model.ReadonlyPool,
+	pool *khifilev6model.ReadonlyInternPool,
 	trigramIndex *TrigramIndex,
-	structYAMLs map[uint32]string,
 ) (bool, error) {
 	if l == nil || len(patterns) == 0 || l.BodyStructID == 0 {
 		return false, nil
@@ -178,7 +172,7 @@ func MatchLogField(
 
 	// Wildcard search (pathKey == "*"):
 	if pathKey == "*" {
-		yaml, ok := resolveStructYAML(l.BodyStructID, pool, structYAMLs)
+		yaml, ok := resolveStructYAML(l.BodyStructID, pool)
 		if !ok {
 			return false, nil
 		}

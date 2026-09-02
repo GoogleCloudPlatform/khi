@@ -19,6 +19,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -26,7 +28,7 @@ import (
 )
 
 func TestMustK8sClusterTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	testCases := []struct {
@@ -60,7 +62,7 @@ func TestMustK8sClusterTimeline(t *testing.T) {
 }
 
 func TestMustK8sAPIVersionTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	clusterTimeline := MustK8sClusterTimeline(ctx, "test-cluster")
@@ -128,7 +130,7 @@ func TestMustK8sAPIVersionTimeline(t *testing.T) {
 }
 
 func TestMustK8sKindTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	clusterTimeline := MustK8sClusterTimeline(ctx, "test-cluster")
@@ -197,7 +199,7 @@ func TestMustK8sKindTimeline(t *testing.T) {
 }
 
 func TestMustK8sNamespaceTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	clusterTimeline := MustK8sClusterTimeline(ctx, "test-cluster")
@@ -257,7 +259,7 @@ func TestMustK8sNamespaceTimeline(t *testing.T) {
 }
 
 func TestMustK8sNamespacedResourceTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	clusterTimeline := MustK8sClusterTimeline(ctx, "test-cluster")
@@ -318,7 +320,7 @@ func TestMustK8sNamespacedResourceTimeline(t *testing.T) {
 }
 
 func TestMustK8sClusterScopeResourceTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	clusterTimeline := MustK8sClusterTimeline(ctx, "test-cluster")
@@ -378,7 +380,7 @@ func TestMustK8sClusterScopeResourceTimeline(t *testing.T) {
 }
 
 func TestMustK8sSubresourceTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	clusterTimeline := MustK8sClusterTimeline(ctx, "test-cluster")

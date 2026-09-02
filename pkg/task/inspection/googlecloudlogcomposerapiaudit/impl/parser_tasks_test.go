@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -297,7 +299,7 @@ config:
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			builder := khifilev6.NewBuilder()
+			builder := khifilev6.NewBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, tc.inputResource.ProjectID)

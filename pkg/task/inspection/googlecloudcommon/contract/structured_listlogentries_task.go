@@ -22,10 +22,10 @@ import (
 	"sync"
 	"time"
 
-	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/kwaymerge"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -271,7 +271,9 @@ func fetchLogsForStructuredQueries(
 	groups = divideGroupByMaximumResourceName(groups, maxResourceNameCountPerRequest)
 	progressReportableLogFetcher := NewTimePartitioningProgressReportableLogFetcher(logFetcher, 500*time.Millisecond, timePartitionCount, runtime.GOMAXPROCS(0))
 
-	allLogs := make([]*log.Log, 0)
+	taskStartTime := time.Now()
+	totalLogsFetched := 0
+	allLogSlices := make([][]*log.Log, 0, len(queries)*len(groups))
 	for queryIndex, q := range queries {
 		filterString := q.GenerateCloudLoggingQuery()
 		if err := setStructuredQueryInfo(ctx, taskID, filterString, queryIndex, len(queries), startTime, endTime, queryName, nil, false); err != nil {
@@ -280,20 +282,24 @@ func fetchLogsForStructuredQueries(
 
 		for groupIndex, group := range groups {
 			var wg sync.WaitGroup
-			var logChan = make(chan *loggingpb.LogEntry)
 			var progressChan = make(chan LogFetchProgress)
 			listCallIndex := queryIndex*len(groups) + groupIndex
 			allListCalls := len(queries) * len(groups)
-			monitorProgress(ctx, &wg, progressChan, progress, listCallIndex, allListCalls)
-			convertLogsArray(ctx, &wg, logChan, &allLogs)
-			err := progressReportableLogFetcher.FetchLogsWithProgress(logChan, progressChan, ctx, startTime, endTime, filterString, group.container, group.resourceNames)
+			monitorProgress(ctx, &wg, progressChan, progress, taskStartTime, totalLogsFetched, listCallIndex, allListCalls)
+			logs, err := progressReportableLogFetcher.FetchLogsWithProgress(progressChan, ctx, startTime, endTime, filterString, group.container, group.resourceNames)
 			wg.Wait()
 
 			if err != nil {
 				return nil, setErrorMetadataForFetchLogError(ctx, err)
 			}
+			totalLogsFetched += len(logs)
+			allLogSlices = append(allLogSlices, logs)
 		}
 	}
+
+	allLogs := kwaymerge.Merge(allLogSlices, func(a, b *log.Log) int {
+		return a.Timestamp.Compare(b.Timestamp)
+	})
 
 	tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
 	if tracingActive {

@@ -35,11 +35,11 @@ var LogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	googlecloudlogserialport_contract.LogFilterTaskID,
 	googlecloudlogserialport_contract.LogQueryTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
-		serialFS, err := googlecloudlogserialport_contract.ExtractGCESerialPortLog(l.NodeReader)
+		msg, err := googlecloudlogserialport_contract.ExtractGCESerialPortMessage(l.NodeReader)
 		if err != nil {
 			return false
 		}
-		return serialFS.Message != ""
+		return msg != ""
 	},
 )
 

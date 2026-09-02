@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -123,7 +125,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 
 func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2026, 5, 27, 12, 0, 0, 0, time.UTC)
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 
 	// Define expected timeline paths.
 	wantNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGTimeline(khictx.WithValue(context.Background(), inspectioncore_contract.Builder, builder), "cluster", "test-ns", "test-neg")

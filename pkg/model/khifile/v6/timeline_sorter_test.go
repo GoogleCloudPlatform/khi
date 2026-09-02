@@ -19,12 +19,12 @@ import (
 	"time"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestCompareAlphabetical(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 	timelineType := &pb.TimelineType{Id: proto.Uint32(1)}
@@ -84,7 +84,7 @@ func TestCompareAlphabetical(t *testing.T) {
 }
 
 func TestCompareChronological(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 	timelineType := &pb.TimelineType{Id: proto.Uint32(1)}
@@ -113,10 +113,22 @@ func TestCompareChronological(t *testing.T) {
 			name: "both have direct revisions, A is older",
 			setupFunc: func(registry *TimelineRegistry) {
 				bA := registry.GetBuilder(pathA)
-				bA.AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1)})
+				bA.AddRevision(pendingRevision{ChangedTime: t1})
 
 				bB := registry.GetBuilder(pathB)
-				bB.AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t2)})
+				bB.AddRevision(pendingRevision{ChangedTime: t2})
+			},
+			maxDepth: 0,
+			want:     -1,
+		},
+		{
+			name: "both have direct events, A is older",
+			setupFunc: func(registry *TimelineRegistry) {
+				bA := registry.GetBuilder(pathA)
+				bA.AddEvent(pendingEvent{Timestamp: t1})
+
+				bB := registry.GetBuilder(pathB)
+				bB.AddEvent(pendingEvent{Timestamp: t2})
 			},
 			maxDepth: 0,
 			want:     -1,
@@ -125,10 +137,10 @@ func TestCompareChronological(t *testing.T) {
 			name: "A's grandchild is older, A comes first when depth allows search",
 			setupFunc: func(registry *TimelineRegistry) {
 				bGrandChild := registry.GetBuilder(pathAGrandChild)
-				bGrandChild.AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1)})
+				bGrandChild.AddRevision(pendingRevision{ChangedTime: t1})
 
 				bB := registry.GetBuilder(pathB)
-				bB.AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t2)})
+				bB.AddRevision(pendingRevision{ChangedTime: t2})
 			},
 			maxDepth: 2, // depth 2 allows reaching grandchild
 			want:     -1,
@@ -137,10 +149,10 @@ func TestCompareChronological(t *testing.T) {
 			name: "A's grandchild is older, but A loses when search depth is 1",
 			setupFunc: func(registry *TimelineRegistry) {
 				bGrandChild := registry.GetBuilder(pathAGrandChild)
-				bGrandChild.AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1)})
+				bGrandChild.AddRevision(pendingRevision{ChangedTime: t1})
 
 				bB := registry.GetBuilder(pathB)
-				bB.AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t2)})
+				bB.AddRevision(pendingRevision{ChangedTime: t2})
 			},
 			maxDepth: 1, // depth 1 only reaches ChildA, not GrandChildA
 			want:     1, // B comes first since B has t2, A has no times within depth 1
@@ -164,7 +176,7 @@ func TestCompareChronological(t *testing.T) {
 }
 
 func TestCompareGroupedChronological(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 	timelineType := &pb.TimelineType{Id: proto.Uint32(1)}
@@ -202,8 +214,8 @@ func TestCompareGroupedChronological(t *testing.T) {
 			a:    path1,
 			b:    path2,
 			setupFunc: func(registry *TimelineRegistry) {
-				registry.GetBuilder(path1).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1)}) // 10:00
-				registry.GetBuilder(path2).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t2)}) // 09:30
+				registry.GetBuilder(path1).AddRevision(pendingRevision{ChangedTime: t1}) // 10:00
+				registry.GetBuilder(path2).AddRevision(pendingRevision{ChangedTime: t2}) // 09:30
 			},
 			want: 1, // path1 (10:00) > path2 (09:30), so path2 comes first
 		},
@@ -212,9 +224,9 @@ func TestCompareGroupedChronological(t *testing.T) {
 			a:    path1, // cccc group (min time t2 = 09:30)
 			b:    path3, // dddd group (min time t3 = 09:45)
 			setupFunc: func(registry *TimelineRegistry) {
-				registry.GetBuilder(path1).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1)}) // 10:00
-				registry.GetBuilder(path2).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t2)}) // 09:30
-				registry.GetBuilder(path3).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t3)}) // 09:45
+				registry.GetBuilder(path1).AddRevision(pendingRevision{ChangedTime: t1}) // 10:00
+				registry.GetBuilder(path2).AddRevision(pendingRevision{ChangedTime: t2}) // 09:30
+				registry.GetBuilder(path3).AddRevision(pendingRevision{ChangedTime: t3}) // 09:45
 			},
 			want: -1, // cccc group (09:30) < dddd group (09:45)
 		},
@@ -223,8 +235,8 @@ func TestCompareGroupedChronological(t *testing.T) {
 			a:    pathParent,
 			b:    pathChild,
 			setupFunc: func(registry *TimelineRegistry) {
-				registry.GetBuilder(pathParent).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1)})
-				registry.GetBuilder(pathChild).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t2)})
+				registry.GetBuilder(pathParent).AddRevision(pendingRevision{ChangedTime: t1})
+				registry.GetBuilder(pathChild).AddRevision(pendingRevision{ChangedTime: t2})
 			},
 			want: -1, // pathParent ("aaaa-bbbb") comes before pathChild ("aaaa-bbbb-cccc-dddd") regardless of times
 		},
@@ -233,9 +245,9 @@ func TestCompareGroupedChronological(t *testing.T) {
 			a:    pathGroupA, // "aaaa-bb-01" (time = 09:00)
 			b:    pathGroupB, // "aaaa-bbbb-01" (time = 10:00, but sibling "aaaa-bbbb-02" has 08:00)
 			setupFunc: func(registry *TimelineRegistry) {
-				registry.GetBuilder(pathGroupA).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t0900)})  // 09:00
-				registry.GetBuilder(pathGroupB).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1000)})  // 10:00
-				registry.GetBuilder(pathGroupB2).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t0800)}) // 08:00
+				registry.GetBuilder(pathGroupA).AddRevision(pendingRevision{ChangedTime: t0900})  // 09:00
+				registry.GetBuilder(pathGroupB).AddRevision(pendingRevision{ChangedTime: t1000})  // 10:00
+				registry.GetBuilder(pathGroupB2).AddRevision(pendingRevision{ChangedTime: t0800}) // 08:00
 			},
 			want: 1, // pathGroupB's group ("aaaa-bbbb") has representative time 08:00 < 09:00 ("aaaa-bb"). If "aaaa-bbbb" leaked into "aaaa-bb", it would tie at 08:00 and return -1.
 		},

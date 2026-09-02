@@ -18,7 +18,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -98,7 +97,7 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 		tracker.ProcessOperationLog(ctx, cs, operationTimelinePath, &audit, l.Timestamp)
 	}
 
-	manifest, shouldUpdate := tracker.TrackAndGetManifest(&audit)
+	manifestNode, shouldUpdate := tracker.TrackAndGetManifest(&audit)
 	if shouldUpdate {
 		switch {
 		case verb == commonlogk8saudit_contract.VerbDelete:
@@ -112,7 +111,7 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 			cs.AddEvent(resourceTimelinePath)
 		default:
 			cs.AddRevision(resourceTimelinePath, &khifilev6.StagingRevision{
-				ResourceBody: structured.NewStandardScalarNode(manifest),
+				ResourceBody: manifestNode,
 				VerbType:     verb,
 				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
 				Principal:    audit.PrincipalEmail,

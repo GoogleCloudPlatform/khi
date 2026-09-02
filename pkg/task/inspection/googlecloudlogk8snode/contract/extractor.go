@@ -48,15 +48,31 @@ type K8sNodeLogCommonFieldSet struct {
 	NodeName  string
 }
 
-// ParserType returns the K8sNodeParserType corresponding to the component.
-func (k *K8sNodeLogCommonFieldSet) ParserType() K8sNodeParserType {
-	switch k.Component {
+// ExtractK8sNodeParserType extracts the K8sNodeParserType from a NodeReader without parsing the log message.
+func ExtractK8sNodeParserType(reader *structured.NodeReader) (K8sNodeParserType, error) {
+	if mock, ok := structured.GetMock[K8sNodeParserType](reader); ok {
+		return mock, nil
+	}
+	if reader == nil {
+		return Other, nil
+	}
+
+	component := reader.ReadStringOrDefault(pathSyslogIdentifier, "")
+	if component == "" {
+		logName := reader.ReadStringOrDefault(pathLogName, "")
+		lastSlash := strings.LastIndex(logName, "/")
+		if lastSlash != -1 {
+			component = logName[lastSlash+1:]
+		}
+	}
+	component = strings.Trim(component, "()")
+	switch component {
 	case "containerd":
-		return Containerd
+		return Containerd, nil
 	case "kubelet":
-		return Kubelet
+		return Kubelet, nil
 	default:
-		return Other
+		return Other, nil
 	}
 }
 

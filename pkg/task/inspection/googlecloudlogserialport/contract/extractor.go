@@ -47,6 +47,18 @@ var (
 	pathLogName      = structured.CompileFieldPath("logName")
 )
 
+// ExtractGCESerialPortMessage extracts only the escaped message from the structured node reader.
+func ExtractGCESerialPortMessage(reader *structured.NodeReader) (string, error) {
+	if mock, ok := structured.GetMock[GCESerialPortLogFieldSet](reader); ok {
+		return mock.Message, nil
+	}
+	if reader == nil {
+		return "", nil
+	}
+	textPayload := reader.ReadStringOrDefault(pathTextPayload, "")
+	return logutil.ConvertSpecialSequences(textPayload, serialportSequenceConverters...), nil
+}
+
 // ExtractGCESerialPortLog extracts GCESerialPortLogFieldSet from the structured node reader.
 func ExtractGCESerialPortLog(reader *structured.NodeReader) (GCESerialPortLogFieldSet, error) {
 	if mock, ok := structured.GetMock[GCESerialPortLogFieldSet](reader); ok {

@@ -425,3 +425,62 @@ func TestExtractComposerWorkerTaskInstance(t *testing.T) {
 		}
 	})
 }
+
+func TestExtractComposerComponent(t *testing.T) {
+	testCases := []struct {
+		name      string
+		yamlStr   string
+		want      string
+		wantError bool
+	}{
+		{
+			name:    "valid worker logName",
+			yamlStr: "logName: projects/test-project/logs/airflow-worker",
+			want:    "airflow-worker",
+		},
+		{
+			name:    "valid scheduler logName",
+			yamlStr: "logName: projects/test-project/logs/airflow-scheduler",
+			want:    "airflow-scheduler",
+		},
+		{
+			name:      "missing slash",
+			yamlStr:   "logName: invalid-log-name",
+			wantError: true,
+		},
+		{
+			name:      "empty component after slash",
+			yamlStr:   "logName: projects/test-project/logs/",
+			wantError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			node, err := structured.FromYAML(tc.yamlStr)
+			if err != nil {
+				t.Fatalf("failed to parse yaml: %v", err)
+			}
+			reader := structured.NewNodeReader(node)
+			got, err := ExtractComposerComponent(reader)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("ExtractComposerComponent() error = %v, wantError %v", err, tc.wantError)
+			}
+			if !tc.wantError && got != tc.want {
+				t.Errorf("ExtractComposerComponent() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+
+	t.Run("MockNode returns mock component directly", func(t *testing.T) {
+		mockFieldSet := ComposerFieldSet{Component: "airflow-worker"}
+		reader := structured.NewNodeReader(structured.NewMockNode(mockFieldSet))
+		got, err := ExtractComposerComponent(reader)
+		if err != nil {
+			t.Fatalf("ExtractComposerComponent() unexpected error: %v", err)
+		}
+		if got != mockFieldSet.Component {
+			t.Errorf("ExtractComposerComponent() = %q, want %q", got, mockFieldSet.Component)
+		}
+	})
+}

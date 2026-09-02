@@ -34,3 +34,17 @@ func ExtractK8sAuditLog(ctx context.Context, reader *structured.NodeReader) (K8s
 	}
 	return K8sAuditLogFieldSet{}, nil
 }
+
+// K8sAuditLogErrorExtractor is a function type for extracting whether a log represents an error from a NodeReader.
+type K8sAuditLogErrorExtractor func(reader *structured.NodeReader) (bool, error)
+
+// ExtractK8sAuditLogError extracts whether the K8s audit log is an error using the error extractor in the task context.
+func ExtractK8sAuditLogError(ctx context.Context, reader *structured.NodeReader) (bool, error) {
+	if mock, ok := structured.GetMock[K8sAuditLogFieldSet](reader); ok {
+		return mock.IsError, nil
+	}
+	if extractor, found := coretask.GetTaskResultOptional(ctx, K8sAuditLogErrorExtractorRef); found && extractor != nil {
+		return extractor(reader)
+	}
+	return false, nil
+}

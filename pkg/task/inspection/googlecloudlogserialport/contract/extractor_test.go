@@ -84,6 +84,54 @@ textPayload: bar`,
 	})
 }
 
+func TestExtractGCESerialPortMessage(t *testing.T) {
+	testCases := []struct {
+		desc        string
+		log         string
+		wantMessage string
+	}{
+		{
+			desc: "with escape sequences",
+			log: `logName: projects/project-foo/logs/serialconsole.googleapis.com%2Fserial_port_1_output
+textPayload: "\\x1b[31mred text\\x1b[0m"`,
+			wantMessage: "red text",
+		},
+		{
+			desc: "empty textPayload",
+			log: `logName: projects/project-foo/logs/serialconsole.googleapis.com%2Fserial_port_1_output
+textPayload: ""`,
+			wantMessage: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := testlog.MustLogFromYAML(tc.log)
+			gotMessage, err := ExtractGCESerialPortMessage(l.NodeReader)
+			if err != nil {
+				t.Fatalf("ExtractGCESerialPortMessage() returned unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.wantMessage, gotMessage); diff != "" {
+				t.Errorf("ExtractGCESerialPortMessage() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+
+	t.Run("MockNode returns mock message directly", func(t *testing.T) {
+		want := GCESerialPortLogFieldSet{
+			Message: "mock-message",
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(want))
+		got, err := ExtractGCESerialPortMessage(reader)
+		if err != nil {
+			t.Fatalf("ExtractGCESerialPortMessage() returned error: %v", err)
+		}
+		if diff := cmp.Diff(want.Message, got); diff != "" {
+			t.Errorf("ExtractGCESerialPortMessage() mismatch (-want +got):\n%s", diff)
+		}
+	})
+}
+
 func TestSerialPortSpecialSequenceConverter(t *testing.T) {
 	testCases := []struct {
 		name  string

@@ -16,6 +16,7 @@ package inspectiontaskbase
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -59,6 +60,33 @@ func TestNewLogFilterTask(t *testing.T) {
 			resultLogIDs: []string{"foo", "qux"},
 		},
 		{
+			name:     "should preserve order when filtering a large number of logs concurrently",
+			taskMode: inspectioncore_contract.TaskModeRun,
+			logYAMLs: func() []string {
+				yamls := make([]string, 100)
+				for i := 0; i < 100; i++ {
+					yamls[i] = fmt.Sprintf("id: item-%03d", i)
+				}
+				return yamls
+			}(),
+			logFilter: func(ctx context.Context, l *log.Log) bool {
+				id := l.ReadStringOrDefault(pathFilterTestID, "unknown")
+				// Keep only even numbered items
+				var idx int
+				if n, _ := fmt.Sscanf(id, "item-%03d", &idx); n == 1 {
+					return idx%2 == 0
+				}
+				return false
+			},
+			resultLogIDs: func() []string {
+				ids := make([]string, 50)
+				for i := 0; i < 50; i++ {
+					ids[i] = fmt.Sprintf("item-%03d", i*2)
+				}
+				return ids
+			}(),
+		},
+		{
 			name:     "should return an empty slice and perform no filtering for dryrun mode",
 			taskMode: inspectioncore_contract.TaskModeDryRun,
 			logFilter: func(ctx context.Context, l *log.Log) bool {
@@ -70,20 +98,15 @@ func TestNewLogFilterTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
 			logs := []*log.Log{}
 			for _, logYaml := range tc.logYAMLs {
-				l, err := log.NewLogFromYAMLString(logYaml)
-				if err != nil {
-					t.Fatal(err.Error())
-				}
-				logs = append(logs, l)
+				logs = append(logs, mustNewLogFromYAML(t, ctx, logYaml))
 			}
 
 			testSourceTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("source")
 			testTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("dest")
 			task := NewLogFilterTask(testTaskID, testSourceTaskID.Ref(), tc.logFilter)
-
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
 			result, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(testSourceTaskID.Ref(), logs))
 			if err != nil {
 				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)

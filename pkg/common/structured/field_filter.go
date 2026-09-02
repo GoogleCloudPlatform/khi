@@ -79,3 +79,11 @@ func (n *fieldFilterNode) Len() int {
 	})
 	return count
 }
+
+// GetChildByKey implements Node.
+func (n *fieldFilterNode) GetChildByKey(key string) (Node, bool) {
+	if _, ok := n.ignored[key]; ok {
+		return nil, false
+	}
+	return n.original.GetChildByKey(key)
+}

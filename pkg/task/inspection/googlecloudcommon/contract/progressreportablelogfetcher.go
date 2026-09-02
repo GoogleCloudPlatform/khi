@@ -17,13 +17,20 @@ package googlecloudcommon_contract
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logconvert"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -37,8 +44,8 @@ type LogFetchProgress struct {
 
 type ProgressReportableLogFetcher interface {
 	// FetchLogsWithProgress fetches logs while periodically reporting its progress through a separate channel.
-	// Implementations must close both the dest and progress channels upon completion.
-	FetchLogsWithProgress(dest chan<- *loggingpb.LogEntry, progress chan<- LogFetchProgress, ctx context.Context, beginTime, endTime time.Time, filterWithoutTimeRange string, container googlecloud.ResourceContainer, resourceContainers []string) error
+	// It closes the progress channel upon completion and returns timestamp-sorted logs.
+	FetchLogsWithProgress(progress chan<- LogFetchProgress, ctx context.Context, beginTime, endTime time.Time, filterWithoutTimeRange string, container googlecloud.ResourceContainer, resourceContainers []string) ([]*log.Log, error)
 }
 
 // StandardProgressReportableLogFetcher is a decorator for a LogFetcher that adds the ability
@@ -72,7 +79,8 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	logCount := atomic.Int32{}
-	latestLogTime := &beginTime
+	latestLogTime := atomic.Pointer[time.Time]{}
+	latestLogTime.Store(&beginTime)
 	totalDurationInSeconds := endTime.Sub(beginTime).Seconds()
 
 	if totalDurationInSeconds == 0 {
@@ -92,7 +100,7 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 				}
 				logCount.Add(1)
 				t := logEntry.Timestamp.AsTime()
-				latestLogTime = &t
+				latestLogTime.Store(&t)
 				select {
 				case <-subroutineCtx.Done():
 					return
@@ -117,7 +125,8 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 			case <-subroutineCtx.Done():
 				return
 			case <-ticker.C:
-				latestLogTimeFromBeginTimeInSeconds := latestLogTime.Sub(beginTime).Seconds()
+				latest := latestLogTime.Load()
+				latestLogTimeFromBeginTimeInSeconds := latest.Sub(beginTime).Seconds()
 				select {
 				case progress <- LogFetchProgress{
 					LogCount: int(logCount.Load()),
@@ -148,8 +157,6 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 	return nil
 }
 
-var _ ProgressReportableLogFetcher = (*StandardProgressReportableLogFetcher)(nil)
-
 type TimePartitioningProgressReportableLogFetcher struct {
 	client         *StandardProgressReportableLogFetcher
 	partitionCount int
@@ -167,8 +174,7 @@ func NewTimePartitioningProgressReportableLogFetcher(fetcher LogFetcher, interva
 }
 
 // FetchLogsWithProgress implements ProgressReportableLogFetcher.
-func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(logChan chan<- *loggingpb.LogEntry, progressChan chan<- LogFetchProgress, ctx context.Context, beginTime time.Time, endTime time.Time, filterWithoutTimeRange string, container googlecloud.ResourceContainer, resourceContainers []string) error {
-	defer close(logChan)
+func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(progressChan chan<- LogFetchProgress, ctx context.Context, beginTime time.Time, endTime time.Time, filterWithoutTimeRange string, container googlecloud.ResourceContainer, resourceContainers []string) ([]*log.Log, error) {
 	defer close(progressChan)
 
 	ticker := time.NewTicker(t.reportInterval)
@@ -180,10 +186,16 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 		Progress: 0,
 	}:
 	case <-ctx.Done():
-		return ctx.Err()
+		return nil, ctx.Err()
 	}
 
+	var subProgressMu sync.Mutex
+	idGen, idErr := khictx.GetValue(ctx, inspectioncore_contract.IDGenerator)
+	if idErr != nil {
+		idGen = id.NewGenerator()
+	}
 	subProgresses := make([]LogFetchProgress, t.partitionCount)
+	partitionLogs := make([][]*log.Log, t.partitionCount)
 	cancellableCtx, cancel := context.WithCancel(ctx)
 	rootGoroutineWaitGroup := sync.WaitGroup{}
 	rootGoroutineWaitGroup.Add(1)
@@ -196,10 +208,12 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 				return
 			case <-ticker.C:
 				result := LogFetchProgress{}
+				subProgressMu.Lock()
 				for _, subProgress := range subProgresses {
 					result.LogCount += subProgress.LogCount
 					result.Progress += subProgress.Progress / float32(t.partitionCount)
 				}
+				subProgressMu.Unlock()
 				progressChan <- result
 			}
 		}
@@ -218,16 +232,17 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 				return groupCtx.Err()
 			default:
 			}
-			partitionBeginTime := times[i]
-			partitionEndTime := times[i+1]
+			partitionBeginTime := times[subProgressIndex]
+			partitionEndTime := times[subProgressIndex+1]
 
 			childWg := sync.WaitGroup{}
 			childWg.Add(2)
 
 			subLogChan := make(chan *loggingpb.LogEntry)
 			subProgressChan := make(chan LogFetchProgress)
+			subLogs := make([]*log.Log, 0)
 
-			// Consume the subLogChan and route the log to the parent channel.
+			// Consume the subLogChan, convert proto to *log.Log in parallel, and append to subLogs.
 			go func() {
 				defer childWg.Done()
 				for {
@@ -238,17 +253,23 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 						if !ok {
 							return
 						}
-						select {
-						case logChan <- logEntry:
-						case <-groupCtx.Done():
-							return
+						node, err := logconvert.LogEntryToNode(logEntry)
+						if err != nil {
+							slog.WarnContext(groupCtx, fmt.Sprintf("failed to convert loggingpb.LogEntry (insertId: %s, timestamp: %v) to structured.Node %v", logEntry.InsertId, logEntry.Timestamp, err))
+							continue
 						}
+						ts := time.Time{}
+						if logEntry.Timestamp != nil {
+							ts = logEntry.Timestamp.AsTime()
+						}
+						khiLog := log.NewLogWithTimestamp(idGen, structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)), ts)
+						subLogs = append(subLogs, khiLog)
 					}
 				}
 			}()
 
 			// Consume the subProgressChan and store it to the progress array.
-			go func(subProgressIndex int) {
+			go func() {
 				defer childWg.Done()
 				for {
 					select {
@@ -258,17 +279,20 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 						if !ok {
 							return
 						}
+						subProgressMu.Lock()
 						subProgresses[subProgressIndex] = progress
+						subProgressMu.Unlock()
 					}
 				}
-			}(subProgressIndex)
+			}()
 
 			err := t.client.FetchLogsWithProgress(subLogChan, subProgressChan, cancellableCtx, partitionBeginTime, partitionEndTime, filterWithoutTimeRange, container, resourceContainers)
+			childWg.Wait()
+			partitionLogs[subProgressIndex] = subLogs
 			if err != nil {
 				cancel()
 				return err
 			}
-			childWg.Wait()
 			return nil
 		})
 	}
@@ -276,22 +300,35 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 	err := wg.Wait()
 	cancel()
 	rootGoroutineWaitGroup.Wait()
+
+	totalLogs := 0
+	for _, slice := range partitionLogs {
+		totalLogs += len(slice)
+	}
+	mergedLogs := make([]*log.Log, 0, totalLogs)
+	for _, slice := range partitionLogs {
+		mergedLogs = append(mergedLogs, slice...)
+	}
+
 	if err != nil {
-		return err
+		return mergedLogs, err
 	}
 	sumLog := 0
+	subProgressMu.Lock()
 	for _, subProgress := range subProgresses {
 		sumLog += subProgress.LogCount
 	}
+	subProgressMu.Unlock()
 	select {
 	case progressChan <- LogFetchProgress{
 		LogCount: sumLog,
 		Progress: 1,
 	}:
 	case <-ctx.Done():
-		return ctx.Err()
+		return nil, ctx.Err()
 	}
-	return nil
+
+	return mergedLogs, nil
 }
 
 func (t *TimePartitioningProgressReportableLogFetcher) getPartitionedTimes(beginTime, endTime time.Time) []time.Time {

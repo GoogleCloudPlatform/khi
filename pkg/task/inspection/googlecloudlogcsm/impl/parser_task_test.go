@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -224,7 +226,7 @@ func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	mapper := &CSMTrafficLogLogToTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			builder := khifilev6.NewBuilder()
+			builder := khifilev6.NewBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",

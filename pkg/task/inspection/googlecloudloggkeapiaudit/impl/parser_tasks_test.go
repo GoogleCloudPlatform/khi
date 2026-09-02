@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -58,7 +60,7 @@ var compareNodeOption = cmp.Transformer("StructuredNodeToYAML", func(n structure
 
 func TestLogToTimelineMapperTask(t *testing.T) {
 	// 1. Initialize the Builder.
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 
 	// 2. Set up expected path references.
 	wantProjectPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{

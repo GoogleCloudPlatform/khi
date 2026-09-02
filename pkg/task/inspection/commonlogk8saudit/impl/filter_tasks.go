@@ -27,10 +27,10 @@ import (
 var SuccessLogFilterTask = inspectiontaskbase.NewLogFilterTaskWithDependencies(
 	commonlogk8saudit_contract.SuccessLogFilterTaskID,
 	commonlogk8saudit_contract.K8sAuditLogProviderRef,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.K8sAuditLogExtractorRef},
+	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef},
 	func(ctx context.Context, l *log.Log) bool {
-		data, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.NodeReader)
-		return !data.IsError
+		isError, _ := commonlogk8saudit_contract.ExtractK8sAuditLogError(ctx, l.NodeReader)
+		return !isError
 	},
 )
 
@@ -38,9 +38,9 @@ var SuccessLogFilterTask = inspectiontaskbase.NewLogFilterTaskWithDependencies(
 var NonSuccessLogFilterTask = inspectiontaskbase.NewLogFilterTaskWithDependencies(
 	commonlogk8saudit_contract.NonSuccessLogFilterTaskID,
 	commonlogk8saudit_contract.K8sAuditLogProviderRef,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.K8sAuditLogExtractorRef},
+	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef},
 	func(ctx context.Context, l *log.Log) bool {
-		data, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.NodeReader)
-		return data.IsError
+		isError, _ := commonlogk8saudit_contract.ExtractK8sAuditLogError(ctx, l.NodeReader)
+		return isError
 	},
 )

@@ -47,12 +47,12 @@ type TimelineEvaluator struct {
 	env             *cel.Env
 	program         cel.Program
 	currentTimeline *TimelineData
-	internPool      khifilev6model.ReadonlyPool
+	internPool      *khifilev6model.ReadonlyInternPool
 	timelineMap     map[uint32]*TimelineData
 }
 
-// SetInternPool binds the ReadonlyPool for on-demand struct resolution.
-func (e *TimelineEvaluator) SetInternPool(pool khifilev6model.ReadonlyPool) {
+// SetInternPool binds the ReadonlyInternPool for on-demand struct resolution.
+func (e *TimelineEvaluator) SetInternPool(pool *khifilev6model.ReadonlyInternPool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.internPool = pool
@@ -312,9 +312,8 @@ type LogEvaluator struct {
 	env           *cel.Env
 	program       cel.Program
 	currentLog    *LogData
-	internPool    khifilev6model.ReadonlyPool
+	internPool    *khifilev6model.ReadonlyInternPool
 	trigramIndex  *TrigramIndex
-	structYAMLs   map[uint32]string
 	styleResolver StyleResolver
 }
 
@@ -325,8 +324,8 @@ func (e *LogEvaluator) SetStyleResolver(resolver StyleResolver) {
 	e.styleResolver = resolver
 }
 
-// SetInternPool binds the ReadonlyPool for on-demand struct/string resolution.
-func (e *LogEvaluator) SetInternPool(pool khifilev6model.ReadonlyPool) {
+// SetInternPool binds the ReadonlyInternPool for on-demand struct/string resolution.
+func (e *LogEvaluator) SetInternPool(pool *khifilev6model.ReadonlyInternPool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.internPool = pool
@@ -337,13 +336,6 @@ func (e *LogEvaluator) SetTrigramIndex(idx *TrigramIndex) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.trigramIndex = idx
-}
-
-// SetStructYAMLs binds the pre-serialized StructYAMLs map for fast YAML regex matching.
-func (e *LogEvaluator) SetStructYAMLs(yamls map[uint32]string) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.structYAMLs = yamls
 }
 
 // NewLogEvaluator creates a new LogEvaluator.
@@ -359,7 +351,7 @@ func NewLogEvaluator() (*LogEvaluator, error) {
 		if err != nil {
 			return types.False
 		}
-		matched, err := MatchLogField(eval.currentLog, string(pathKey), patterns, eval.internPool, eval.trigramIndex, eval.structYAMLs)
+		matched, err := MatchLogField(eval.currentLog, string(pathKey), patterns, eval.internPool, eval.trigramIndex)
 		if err != nil {
 			return types.WrapErr(err)
 		}
@@ -371,7 +363,7 @@ func NewLogEvaluator() (*LogEvaluator, error) {
 		if err != nil {
 			return types.False
 		}
-		matched, err := MatchLogField(eval.currentLog, "*", patterns, eval.internPool, eval.trigramIndex, eval.structYAMLs)
+		matched, err := MatchLogField(eval.currentLog, "*", patterns, eval.internPool, eval.trigramIndex)
 		if err != nil {
 			return types.WrapErr(err)
 		}

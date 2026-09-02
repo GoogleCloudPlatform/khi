@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -74,7 +76,7 @@ func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
 }
 
 func TestSerialPortLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 	wantSerialPortPath := googlecloudlogserialport_contract.MustSerialPortTimeline(ctx, "test-cluster", "node-name-bar", "serial_port_output_qux")
 

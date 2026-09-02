@@ -25,12 +25,10 @@ import (
 	"sync"
 	"time"
 
-	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logconvert"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/kwaymerge"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -80,9 +78,36 @@ type ListLogEntriesTaskSetting interface {
 	Description() *ListLogEntriesTaskDescription
 }
 
-func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogFetchProgress, progressDest *inspectionmetadata.TaskProgressMetadata, listCallIndex int, allListCalls int) {
+// formatETA formats a duration into a human-readable ETA string (e.g. "45s", "1m23s", "1h05m").
+func formatETA(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	d = d.Round(time.Second)
+	s := int(d.Seconds())
+	if s < 60 {
+		return fmt.Sprintf("%ds", s)
+	}
+	if s < 3600 {
+		return fmt.Sprintf("%dm%02ds", s/60, s%60)
+	}
+	return fmt.Sprintf("%dh%02dm", s/3600, (s%3600)/60)
+}
+
+// calculateETA estimates remaining duration based on elapsed time and completion ratio.
+func calculateETA(elapsed time.Duration, completeRatio float32) string {
+	if elapsed < 2*time.Second || completeRatio <= 0.005 {
+		return "--"
+	}
+	if completeRatio >= 1.0 {
+		return "0s"
+	}
+	remainingSeconds := float64(elapsed.Seconds()) * float64(1.0-completeRatio) / float64(completeRatio)
+	return formatETA(time.Duration(remainingSeconds * float64(time.Second)))
+}
+
+func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogFetchProgress, progressDest *inspectionmetadata.TaskProgressMetadata, taskStartTime time.Time, baseLogCount int, listCallIndex int, allListCalls int) {
 	wg.Add(1)
-	startingTime := time.Now()
 	go func() {
 		defer wg.Done()
 		for {
@@ -94,41 +119,15 @@ func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogF
 					return
 				}
 				current := time.Now()
-				elapsed := current.Sub(startingTime).Seconds()
+				elapsed := current.Sub(taskStartTime)
+				totalLogCount := baseLogCount + progress.LogCount
 				var lps float64
-				if elapsed > 0 {
-					lps = float64(progress.LogCount) / elapsed
+				if elapsed.Seconds() > 0 {
+					lps = float64(totalLogCount) / elapsed.Seconds()
 				}
 				completeRatio := (float32(listCallIndex) + progress.Progress) / float32(allListCalls)
-				progressDest.Update(completeRatio, fmt.Sprintf("%d logs fetched(%.2f lps)[%d/%d]", progress.LogCount, lps, listCallIndex, allListCalls))
-			}
-		}
-	}()
-}
-
-func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *loggingpb.LogEntry, dest *[]*log.Log) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case l, ok := <-source:
-				if !ok {
-					return
-				}
-				node, err := logconvert.LogEntryToNode(l)
-				if err != nil {
-					slog.WarnContext(ctx, fmt.Sprintf("failed to convert loggingpb.LogEntry (insertId: %s, timestamp: %v) to structured.Node %v", l.InsertId, l.Timestamp, err))
-					continue
-				}
-				ts := time.Time{}
-				if l.Timestamp != nil {
-					ts = l.Timestamp.AsTime()
-				}
-				khiLog := log.NewLogWithTimestamp(structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)), ts)
-				*dest = append(*dest, khiLog)
+				etaStr := calculateETA(elapsed, completeRatio)
+				progressDest.Update(completeRatio, fmt.Sprintf("%d logs fetched(%.2f lps, ETA %s)[%d/%d]", totalLogCount, lps, etaStr, listCallIndex+1, allListCalls))
 			}
 		}
 	}()
@@ -168,7 +167,9 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 				return nil, fmt.Errorf("TimePartitionCount returned an invalid value %d, it must be bigger than 0", timePartitionCount)
 			}
 
-			allLogs := make([]*log.Log, 0)
+			taskStartTime := time.Now()
+			totalLogsFetched := 0
+			allLogSlices := make([][]*log.Log, 0, len(filters))
 			for filterIndex, filter := range filters {
 				err := setQueryInfo(ctx, taskID.String(), filter, filterIndex, len(filters), startTime, endTime, description)
 				if err != nil {
@@ -191,21 +192,25 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 
 				for groupIndex, group := range groups {
 					var wg sync.WaitGroup
-					var logChan = make(chan *loggingpb.LogEntry)
 					var progressChan = make(chan LogFetchProgress)
 					listCallIndex := filterIndex*len(groups) + groupIndex
 					allListCalls := len(filters) * len(groups)
-					monitorProgress(ctx, &wg, progressChan, progress, listCallIndex, allListCalls)
-					convertLogsArray(ctx, &wg, logChan, &allLogs)
-					err = progressReportableLogFetcher.FetchLogsWithProgress(logChan, progressChan, ctx, startTime, endTime, filter, group.container, group.resourceNames)
+					monitorProgress(ctx, &wg, progressChan, progress, taskStartTime, totalLogsFetched, listCallIndex, allListCalls)
+					logs, err := progressReportableLogFetcher.FetchLogsWithProgress(progressChan, ctx, startTime, endTime, filter, group.container, group.resourceNames)
 					wg.Wait()
 
 					if err != nil {
 						err := setErrorMetadataForFetchLogError(ctx, err)
 						return nil, err
 					}
+					totalLogsFetched += len(logs)
+					allLogSlices = append(allLogSlices, logs)
 				}
 			}
+
+			allLogs := kwaymerge.Merge(allLogSlices, func(a, b *log.Log) int {
+				return a.Timestamp.Compare(b.Timestamp)
+			})
 
 			tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
 			if tracingActive {

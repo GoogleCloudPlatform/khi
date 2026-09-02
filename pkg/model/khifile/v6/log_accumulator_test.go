@@ -20,6 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -52,14 +53,16 @@ func TestLogAccumulator(t *testing.T) {
 
 	testCases := []struct {
 		name         string
-		logsToAdd    []*StagingLog
+		logsToAdd    func(gen *id.Generator) []*StagingLog
 		wantErr      bool
 		wantLogCount int
 		validate     func(t *testing.T, acc *LogAccumulator)
 	}{
 		{
-			name:         "empty accumulator",
-			logsToAdd:    []*StagingLog{},
+			name: "empty accumulator",
+			logsToAdd: func(gen *id.Generator) []*StagingLog {
+				return nil
+			},
 			wantErr:      false,
 			wantLogCount: 0,
 			validate: func(t *testing.T, acc *LogAccumulator) {
@@ -70,14 +73,16 @@ func TestLogAccumulator(t *testing.T) {
 		},
 		{
 			name: "single log",
-			logsToAdd: []*StagingLog{
-				{
-					Log:       log.NewLog(structured.NewNodeReader(node1)),
-					Summary:   "test summary",
-					Timestamp: time.Date(2026, 4, 29, 8, 0, 0, 0, time.UTC),
-					LogType:   testLogType,
-					Severity:  testSeverity,
-				},
+			logsToAdd: func(gen *id.Generator) []*StagingLog {
+				return []*StagingLog{
+					{
+						Log:       log.NewLog(gen, structured.NewNodeReader(node1)),
+						Summary:   "test summary",
+						Timestamp: time.Date(2026, 4, 29, 8, 0, 0, 0, time.UTC),
+						LogType:   testLogType,
+						Severity:  testSeverity,
+					},
+				}
 			},
 			wantErr:      false,
 			wantLogCount: 1,
@@ -107,28 +112,30 @@ func TestLogAccumulator(t *testing.T) {
 		},
 		{
 			name: "multiple logs with deduplication",
-			logsToAdd: []*StagingLog{
-				{
-					Log:       log.NewLog(structured.NewNodeReader(node1)),
-					Summary:   "test summary 1",
-					Timestamp: time.Now(),
-					LogType:   testLogType,
-					Severity:  testSeverity,
-				},
-				{
-					Log:       log.NewLog(structured.NewNodeReader(node2)), // Same structure
-					Summary:   "test summary 2",
-					Timestamp: time.Now(),
-					LogType:   testLogType,
-					Severity:  testSeverity,
-				},
-				{
-					Log:       log.NewLog(structured.NewNodeReader(node3)), // Different structure
-					Summary:   "test summary 3",
-					Timestamp: time.Now(),
-					LogType:   testLogType,
-					Severity:  testSeverity,
-				},
+			logsToAdd: func(gen *id.Generator) []*StagingLog {
+				return []*StagingLog{
+					{
+						Log:       log.NewLog(gen, structured.NewNodeReader(node1)),
+						Summary:   "test summary 1",
+						Timestamp: time.Now(),
+						LogType:   testLogType,
+						Severity:  testSeverity,
+					},
+					{
+						Log:       log.NewLog(gen, structured.NewNodeReader(node2)), // Same structure
+						Summary:   "test summary 2",
+						Timestamp: time.Now(),
+						LogType:   testLogType,
+						Severity:  testSeverity,
+					},
+					{
+						Log:       log.NewLog(gen, structured.NewNodeReader(node3)), // Different structure
+						Summary:   "test summary 3",
+						Timestamp: time.Now(),
+						LogType:   testLogType,
+						Severity:  testSeverity,
+					},
+				}
 			},
 			wantErr:      false,
 			wantLogCount: 3,
@@ -160,28 +167,30 @@ func TestLogAccumulator(t *testing.T) {
 		},
 		{
 			name: "multiple logs sorted chronologically",
-			logsToAdd: []*StagingLog{
-				{
-					Log:       log.NewLog(structured.NewNodeReader(node1)),
-					Summary:   "test summary 1",
-					Timestamp: time.Date(2026, 4, 29, 10, 0, 0, 0, time.UTC),
-					LogType:   testLogType,
-					Severity:  testSeverity,
-				},
-				{
-					Log:       log.NewLog(structured.NewNodeReader(node2)),
-					Summary:   "test summary 2",
-					Timestamp: time.Date(2026, 4, 29, 8, 0, 0, 0, time.UTC),
-					LogType:   testLogType,
-					Severity:  testSeverity,
-				},
-				{
-					Log:       log.NewLog(structured.NewNodeReader(node3)),
-					Summary:   "test summary 3",
-					Timestamp: time.Date(2026, 4, 29, 9, 0, 0, 0, time.UTC),
-					LogType:   testLogType,
-					Severity:  testSeverity,
-				},
+			logsToAdd: func(gen *id.Generator) []*StagingLog {
+				return []*StagingLog{
+					{
+						Log:       log.NewLog(gen, structured.NewNodeReader(node1)),
+						Summary:   "test summary 1",
+						Timestamp: time.Date(2026, 4, 29, 10, 0, 0, 0, time.UTC),
+						LogType:   testLogType,
+						Severity:  testSeverity,
+					},
+					{
+						Log:       log.NewLog(gen, structured.NewNodeReader(node2)),
+						Summary:   "test summary 2",
+						Timestamp: time.Date(2026, 4, 29, 8, 0, 0, 0, time.UTC),
+						LogType:   testLogType,
+						Severity:  testSeverity,
+					},
+					{
+						Log:       log.NewLog(gen, structured.NewNodeReader(node3)),
+						Summary:   "test summary 3",
+						Timestamp: time.Date(2026, 4, 29, 9, 0, 0, 0, time.UTC),
+						LogType:   testLogType,
+						Severity:  testSeverity,
+					},
+				}
 			},
 			wantErr:      false,
 			wantLogCount: 3,
@@ -209,28 +218,32 @@ func TestLogAccumulator(t *testing.T) {
 		},
 		{
 			name: "missing severity error",
-			logsToAdd: []*StagingLog{
-				{
-					Log:       log.NewLog(structured.NewNodeReader(node1)),
-					Summary:   "test summary",
-					Timestamp: time.Now(),
-					LogType:   testLogType,
-					Severity:  nil,
-				},
+			logsToAdd: func(gen *id.Generator) []*StagingLog {
+				return []*StagingLog{
+					{
+						Log:       log.NewLog(gen, structured.NewNodeReader(node1)),
+						Summary:   "test summary",
+						Timestamp: time.Now(),
+						LogType:   testLogType,
+						Severity:  nil,
+					},
+				}
 			},
 			wantErr:      true,
 			wantLogCount: 0,
 		},
 		{
 			name: "missing log type error",
-			logsToAdd: []*StagingLog{
-				{
-					Log:       log.NewLog(structured.NewNodeReader(node1)),
-					Summary:   "test summary",
-					Timestamp: time.Now(),
-					LogType:   nil,
-					Severity:  testSeverity,
-				},
+			logsToAdd: func(gen *id.Generator) []*StagingLog {
+				return []*StagingLog{
+					{
+						Log:       log.NewLog(gen, structured.NewNodeReader(node1)),
+						Summary:   "test summary",
+						Timestamp: time.Now(),
+						LogType:   nil,
+						Severity:  testSeverity,
+					},
+				}
 			},
 			wantErr:      true,
 			wantLogCount: 0,
@@ -239,12 +252,12 @@ func TestLogAccumulator(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			idGen := NewIDGenerator()
+			idGen := id.NewGenerator()
 			pool := NewInternPool(idGen)
 			serverPool := NewServerInternPool(pool, idGen)
 			acc := NewLogAccumulator(pool, serverPool, idGen)
 
-			for _, l := range tc.logsToAdd {
+			for _, l := range tc.logsToAdd(idGen) {
 				err := acc.AddLog(l)
 				if (err != nil) != tc.wantErr {
 					t.Fatalf("AddLog() error = %v, wantErr %v", err, tc.wantErr)

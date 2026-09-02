@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -222,7 +224,7 @@ func TestAutoscalerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// 1. Initialize the Builder first.
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 
 	// 2. Resolve comparative path instances using the Builder's accumulator.
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)

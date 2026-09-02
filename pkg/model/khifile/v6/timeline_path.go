@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -58,7 +59,7 @@ type timelinePathKey struct {
 // It is safe for concurrent use by multiple goroutines.
 type TimelinePathPool struct {
 	// idGen is used to generate unique IDs for new TimelinePath instances.
-	idGen *IDGenerator
+	idGen *id.Generator
 	// stringPool is used to intern string names of path segments to StringRefs.
 	stringPool *InternPool
 	// paths is a concurrent map caching timelinePathKey to *TimelinePath.
@@ -68,7 +69,7 @@ type TimelinePathPool struct {
 }
 
 // NewTimelinePathPool creates a new pool for deduplicating TimelinePath instances.
-func NewTimelinePathPool(idGen *IDGenerator, sp *InternPool) *TimelinePathPool {
+func NewTimelinePathPool(idGen *id.Generator, sp *InternPool) *TimelinePathPool {
 	return &TimelinePathPool{
 		idGen:      idGen,
 		stringPool: sp,
@@ -111,7 +112,7 @@ func (p *TimelinePathPool) getOrCreateSingle(parent *TimelinePath, name string, 
 	}
 
 	// 2. Create new path instance with a fresh ID.
-	newID := p.idGen.New(IDTimelinePath)
+	newID := p.idGen.New(id.TimelinePath)
 	newPath := &TimelinePath{
 		ID:     newID,
 		Parent: parent,

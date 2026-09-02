@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
@@ -36,7 +38,7 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	mapper := &kubeletNodeLogLogToTimelineMapperSetting{}
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 
 	testCases := []struct {
 		desc                 string

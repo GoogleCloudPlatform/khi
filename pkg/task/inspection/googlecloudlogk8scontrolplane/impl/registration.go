@@ -27,9 +27,11 @@ flowchart TD
     ListLogEntriesTask --> LogIngesterTask
     ListLogEntriesTask --> SchedulerLogFilterTask --> SchedulerGrouperTask --> SchedulerLogToTimelineMapperTask --> TailTask
     ListLogEntriesTask --> ControllerManagerLogFilterTask --> ControllerManagerGrouperTask --> ControllerManagerLogToTimelineMapperTask --> TailTask
+    ListLogEntriesTask --> HpaControllerLogFilterTask --> HpaControllerGrouperTask --> HpaControllerLogToTimelineMapperTask --> TailTask
     ListLogEntriesTask --> OtherLogFilterTask --> OtherGrouperTask --> OtherLogToTimelineMapperTask --> TailTask
     LogIngesterTask --> SchedulerLogToTimelineMapperTask
     LogIngesterTask --> ControllerManagerLogToTimelineMapperTask
+    LogIngesterTask --> HpaControllerLogToTimelineMapperTask
     LogIngesterTask --> OtherLogToTimelineMapperTask
 */
 func Register(registry coreinspection.InspectionTaskRegistry) error {
@@ -65,6 +67,9 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		ControllerManagerFilterTask,
 		ControllerManagerGrouperTask,
 		ControllerManagerLogToTimelineMapperTask,
+		HpaControllerLogFilterTask,
+		HpaControllerGrouperTask,
+		HpaControllerLogToTimelineMapperTask,
 		OtherLogFilterTask,
 		OtherGrouperTask,
 		OtherLogToTimelineMapperTask,

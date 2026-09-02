@@ -16,6 +16,7 @@ package googlecloudlogk8scontrolplane_contract
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -31,6 +32,41 @@ var (
 	pathComponentName = structured.CompileFieldPath("resource.labels.component_name")
 	pathMessage       = structured.CompileFieldPath("jsonPayload.message")
 	pathSourceFile    = structured.CompileFieldPath("sourceLocation.file")
+
+	pathAtomicRecommendation           = structured.CompileFieldPath("jsonPayload.atomicRecommendation")
+	pathAtomicHPA                      = structured.CompileFieldPath("jsonPayload.atomicRecommendation.hpa")
+	pathAtomicStartTime                = structured.CompileFieldPath("jsonPayload.atomicRecommendation.startTime")
+	pathAtomicMetricType               = structured.CompileFieldPath("jsonPayload.atomicRecommendation.metric.type")
+	pathAtomicMetricSpecName           = structured.CompileFieldPath("jsonPayload.atomicRecommendation.metric.spec.name")
+	pathAtomicMetricSpecTargetAvgValue = structured.CompileFieldPath("jsonPayload.atomicRecommendation.metric.spec.target.averageValue")
+	pathAtomicMetricSpecTargetAvgUtil  = structured.CompileFieldPath("jsonPayload.atomicRecommendation.metric.spec.target.averageUtilization")
+	pathAtomicMetricSpecTargetValue    = structured.CompileFieldPath("jsonPayload.atomicRecommendation.metric.spec.target.value")
+	pathAtomicMetricStatusAvgValue     = structured.CompileFieldPath("jsonPayload.atomicRecommendation.metric.status.averageValue")
+	pathAtomicMetricStatusAvgUtil      = structured.CompileFieldPath("jsonPayload.atomicRecommendation.metric.status.averageUtilization")
+	pathAtomicMetricStatusValue        = structured.CompileFieldPath("jsonPayload.atomicRecommendation.metric.status.value")
+	pathAtomicMetricNewestSampleAge    = structured.CompileFieldPath("jsonPayload.atomicRecommendation.metric.newestSampleAgeSeconds")
+	pathAtomicMetricNewestSampleTime   = structured.CompileFieldPath("jsonPayload.atomicRecommendation.metric.newestSampleTime")
+	pathAtomicPodCountReady            = structured.CompileFieldPath("jsonPayload.atomicRecommendation.podCount.ready")
+	pathAtomicPodCountTotal            = structured.CompileFieldPath("jsonPayload.atomicRecommendation.podCount.total")
+	pathAtomicPodCountUnready          = structured.CompileFieldPath("jsonPayload.atomicRecommendation.podCount.unready")
+	pathAtomicPodCountIgnored          = structured.CompileFieldPath("jsonPayload.atomicRecommendation.podCount.ignored")
+	pathAtomicSummaryDampening         = structured.CompileFieldPath("jsonPayload.atomicRecommendation.summary.dampening")
+	pathAtomicSummaryOverride          = structured.CompileFieldPath("jsonPayload.atomicRecommendation.summary.override")
+	pathAtomicSummaryReplicas          = structured.CompileFieldPath("jsonPayload.atomicRecommendation.summary.replicas")
+
+	pathFinalRecommendation      = structured.CompileFieldPath("jsonPayload.finalRecommendation")
+	pathFinalHPA                 = structured.CompileFieldPath("jsonPayload.finalRecommendation.hpa")
+	pathFinalStartTime           = structured.CompileFieldPath("jsonPayload.finalRecommendation.startTime")
+	pathFinalActuationTime       = structured.CompileFieldPath("jsonPayload.finalRecommendation.actuationTime")
+	pathFinalActuationLatency    = structured.CompileFieldPath("jsonPayload.finalRecommendation.actuationLatencySeconds")
+	pathFinalConfiguredSize      = structured.CompileFieldPath("jsonPayload.finalRecommendation.configuredSize")
+	pathFinalReplicas            = structured.CompileFieldPath("jsonPayload.finalRecommendation.replicas")
+	pathFinalLeadingMetricIndex  = structured.CompileFieldPath("jsonPayload.finalRecommendation.leadingMetricIndex")
+	pathFinalTargetRefAPIVersion = structured.CompileFieldPath("jsonPayload.finalRecommendation.targetRef.apiVersion")
+	pathFinalTargetRefKind       = structured.CompileFieldPath("jsonPayload.finalRecommendation.targetRef.kind")
+	pathFinalTargetRefName       = structured.CompileFieldPath("jsonPayload.finalRecommendation.targetRef.name")
+	pathFinalTopLevelLimit       = structured.CompileFieldPath("jsonPayload.finalRecommendation.topLevelLimit")
+	pathFinalTopLevelOverride    = structured.CompileFieldPath("jsonPayload.finalRecommendation.topLevelOverride")
 )
 
 // ControlplaneComponentParserType defines the parser type for control plane components.
@@ -41,6 +77,8 @@ var (
 	ComponentParserTypeScheduler ControlplaneComponentParserType = "scheduler"
 	// ComponentParserTypeControllerManager identifies controller-manager logs.
 	ComponentParserTypeControllerManager ControlplaneComponentParserType = "controller-manager"
+	// ComponentParserTypeHPAController identifies hpa-controller logs.
+	ComponentParserTypeHPAController ControlplaneComponentParserType = "hpa-controller"
 	// ComponentParserTypeOther identifies other control plane component logs.
 	ComponentParserTypeOther ControlplaneComponentParserType = "other"
 )
@@ -48,6 +86,7 @@ var (
 var componentNameToComponentParserTypeMap = map[string]ControlplaneComponentParserType{
 	"scheduler":          ComponentParserTypeScheduler,
 	"controller-manager": ComponentParserTypeControllerManager,
+	"hpa-controller":     ComponentParserTypeHPAController,
 }
 
 var itemsCaptureRegex = regexp.MustCompile(`\[(?P<apiVersionKind>[^,]+), namespace: (?P<namespace>[^,]*), name: (?P<name>[^,]+)`)
@@ -65,6 +104,21 @@ func (k *K8sControlplaneComponentFieldSet) ComponentParserType() ControlplaneCom
 		return parserType
 	}
 	return ComponentParserTypeOther
+}
+
+// ExtractK8sControlplaneComponentParserType extracts the ControlplaneComponentParserType from a NodeReader without extracting project or cluster metadata.
+func ExtractK8sControlplaneComponentParserType(reader *structured.NodeReader) (ControlplaneComponentParserType, error) {
+	if mock, ok := structured.GetMock[ControlplaneComponentParserType](reader); ok {
+		return mock, nil
+	}
+	if reader == nil {
+		return ComponentParserTypeOther, nil
+	}
+	componentName := reader.ReadStringOrDefault(pathComponentName, "")
+	if parserType, found := componentNameToComponentParserTypeMap[componentName]; found {
+		return parserType, nil
+	}
+	return ComponentParserTypeOther, nil
 }
 
 // ExtractK8sControlplaneComponent extracts K8sControlplaneComponentFieldSet from a NodeReader.
@@ -338,4 +392,242 @@ func (k *K8sControllerManagerComponentExtractor) ReadResourceAssociationFromItem
 		}
 	}
 	return result
+}
+
+// HPATargetRef contains reference information for the scaling target workload.
+type HPATargetRef struct {
+	APIVersion string
+	Kind       string
+	Name       string
+}
+
+// HasTarget returns whether TargetRef has valid kind and name.
+func (t HPATargetRef) HasTarget() bool {
+	return t.Kind != "" && t.Name != ""
+}
+
+// HasValidResourceIdentity returns whether TargetRef has valid apiVersion, kind, and name for resource timeline mapping.
+func (t HPATargetRef) HasValidResourceIdentity() bool {
+	return t.APIVersion != "" && t.Kind != "" && t.Name != ""
+}
+
+// String returns the formatted resource representation "<Kind>/<Name>".
+func (t HPATargetRef) String() string {
+	return fmt.Sprintf("%s/%s", t.Kind, t.Name)
+}
+
+// HPAPodCount contains pod counts associated with an HPA recommendation.
+type HPAPodCount struct {
+	Ready   int
+	Total   int
+	Unready int
+	Ignored int
+}
+
+// HPAAtomicRecommendation contains atomic recommendation details for a single metric.
+type HPAAtomicRecommendation struct {
+	HPA                    string
+	HPANamespace           string
+	HPAName                string
+	StartTime              string
+	MetricType             string
+	MetricName             string
+	SpecTargetAvgValue     string
+	SpecTargetAvgUtil      int
+	SpecTargetValue        string
+	StatusAvgValue         string
+	StatusAvgUtil          int
+	StatusValue            string
+	NewestSampleAgeSeconds float64
+	NewestSampleTime       string
+	PodCount               HPAPodCount
+	Dampening              string
+	Override               string
+	Replicas               int
+}
+
+// HPAFinalRecommendation contains merged final recommendation details for an HPA.
+type HPAFinalRecommendation struct {
+	HPA                     string
+	HPANamespace            string
+	HPAName                 string
+	StartTime               string
+	ActuationTime           string
+	ActuationLatencySeconds float64
+	ConfiguredSize          int
+	Replicas                int
+	LeadingMetricIndex      int
+	TargetRef               HPATargetRef
+	TopLevelLimit           string
+	TopLevelOverride        string
+}
+
+// K8sHPAControllerFieldSet contains extracted fields from an HPA controller log entry.
+type K8sHPAControllerFieldSet struct {
+	AtomicRecommendation *HPAAtomicRecommendation
+	FinalRecommendation  *HPAFinalRecommendation
+	Message              string
+}
+
+// Summary returns a human-readable summary of the HPA controller log entry.
+func (k *K8sHPAControllerFieldSet) Summary() string {
+	if k.FinalRecommendation != nil {
+		hpa := k.FinalRecommendation.HPA
+		replicas := k.FinalRecommendation.Replicas
+		configuredSize := k.FinalRecommendation.ConfiguredSize
+		targetRef := k.FinalRecommendation.TargetRef
+
+		var extra []string
+		if k.FinalRecommendation.TopLevelLimit != "" && k.FinalRecommendation.TopLevelLimit != "none" {
+			extra = append(extra, fmt.Sprintf("limit: %s", k.FinalRecommendation.TopLevelLimit))
+		}
+		if k.FinalRecommendation.TopLevelOverride != "" && k.FinalRecommendation.TopLevelOverride != "none" {
+			extra = append(extra, fmt.Sprintf("override: %s", k.FinalRecommendation.TopLevelOverride))
+		}
+		extraStr := ""
+		if len(extra) > 0 {
+			extraStr = fmt.Sprintf(" (%s)", strings.Join(extra, ", "))
+		}
+
+		if targetRef.HasTarget() {
+			if configuredSize != replicas {
+				return fmt.Sprintf("[HPA Final] %s: %s %d -> %d replicas%s", hpa, targetRef.String(), configuredSize, replicas, extraStr)
+			}
+			return fmt.Sprintf("[HPA Final] %s: %s = %d replicas%s", hpa, targetRef.String(), replicas, extraStr)
+		}
+		if configuredSize != replicas {
+			return fmt.Sprintf("[HPA Final] %s: %d -> %d replicas%s", hpa, configuredSize, replicas, extraStr)
+		}
+		return fmt.Sprintf("[HPA Final] %s = %d replicas%s", hpa, replicas, extraStr)
+	}
+
+	if k.AtomicRecommendation != nil {
+		hpa := k.AtomicRecommendation.HPA
+		replicas := k.AtomicRecommendation.Replicas
+		metricName := k.AtomicRecommendation.MetricName
+		if metricName == "" {
+			metricName = k.AtomicRecommendation.MetricType
+		}
+
+		currentVal := ""
+		switch {
+		case k.AtomicRecommendation.StatusAvgUtil >= 0:
+			currentVal = fmt.Sprintf("%d%%", k.AtomicRecommendation.StatusAvgUtil)
+		case k.AtomicRecommendation.StatusAvgValue != "":
+			currentVal = k.AtomicRecommendation.StatusAvgValue
+		case k.AtomicRecommendation.StatusValue != "":
+			currentVal = k.AtomicRecommendation.StatusValue
+		}
+
+		targetVal := ""
+		switch {
+		case k.AtomicRecommendation.SpecTargetAvgUtil >= 0:
+			targetVal = fmt.Sprintf("%d%%", k.AtomicRecommendation.SpecTargetAvgUtil)
+		case k.AtomicRecommendation.SpecTargetAvgValue != "":
+			targetVal = k.AtomicRecommendation.SpecTargetAvgValue
+		case k.AtomicRecommendation.SpecTargetValue != "":
+			targetVal = k.AtomicRecommendation.SpecTargetValue
+		}
+
+		var extra []string
+		if k.AtomicRecommendation.Dampening != "" && k.AtomicRecommendation.Dampening != "none" {
+			extra = append(extra, fmt.Sprintf("dampened: %s", k.AtomicRecommendation.Dampening))
+		}
+		if k.AtomicRecommendation.Override != "" && k.AtomicRecommendation.Override != "none" {
+			extra = append(extra, fmt.Sprintf("override: %s", k.AtomicRecommendation.Override))
+		}
+		extraStr := ""
+		if len(extra) > 0 {
+			extraStr = fmt.Sprintf(" (%s)", strings.Join(extra, ", "))
+		}
+
+		if metricName != "" && currentVal != "" && targetVal != "" {
+			return fmt.Sprintf("[HPA Metric] %s: %s (%s / target %s) -> %d replicas%s", hpa, metricName, currentVal, targetVal, replicas, extraStr)
+		}
+		if metricName != "" && currentVal != "" {
+			return fmt.Sprintf("[HPA Metric] %s: %s (%s) -> %d replicas%s", hpa, metricName, currentVal, replicas, extraStr)
+		}
+		if metricName != "" {
+			return fmt.Sprintf("[HPA Metric] %s: %s -> %d replicas%s", hpa, metricName, replicas, extraStr)
+		}
+		return fmt.Sprintf("[HPA Metric] %s -> %d replicas%s", hpa, replicas, extraStr)
+	}
+
+	return k.Message
+}
+
+func splitNamespaceAndName(fqdn string) (string, string) {
+	parts := strings.Split(fqdn, "/")
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return "", fqdn
+}
+
+// ExtractK8sHPAControllerComponent extracts K8sHPAControllerFieldSet from a NodeReader.
+func ExtractK8sHPAControllerComponent(reader *structured.NodeReader) (K8sHPAControllerFieldSet, error) {
+	if mock, ok := structured.GetMock[K8sHPAControllerFieldSet](reader); ok {
+		return mock, nil
+	}
+	var result K8sHPAControllerFieldSet
+
+	if reader.Has(pathFinalRecommendation) {
+		hpa := reader.ReadStringOrDefault(pathFinalHPA, "")
+		ns, name := splitNamespaceAndName(hpa)
+		finalRec := &HPAFinalRecommendation{
+			HPA:                     hpa,
+			HPANamespace:            ns,
+			HPAName:                 name,
+			StartTime:               reader.ReadStringOrDefault(pathFinalStartTime, ""),
+			ActuationTime:           reader.ReadStringOrDefault(pathFinalActuationTime, ""),
+			ActuationLatencySeconds: reader.ReadFloatOrDefault(pathFinalActuationLatency, 0),
+			ConfiguredSize:          reader.ReadIntOrDefault(pathFinalConfiguredSize, 0),
+			Replicas:                reader.ReadIntOrDefault(pathFinalReplicas, 0),
+			LeadingMetricIndex:      reader.ReadIntOrDefault(pathFinalLeadingMetricIndex, 0),
+			TargetRef: HPATargetRef{
+				APIVersion: reader.ReadStringOrDefault(pathFinalTargetRefAPIVersion, ""),
+				Kind:       reader.ReadStringOrDefault(pathFinalTargetRefKind, ""),
+				Name:       reader.ReadStringOrDefault(pathFinalTargetRefName, ""),
+			},
+			TopLevelLimit:    reader.ReadStringOrDefault(pathFinalTopLevelLimit, ""),
+			TopLevelOverride: reader.ReadStringOrDefault(pathFinalTopLevelOverride, ""),
+		}
+		result.FinalRecommendation = finalRec
+		return result, nil
+	}
+
+	if reader.Has(pathAtomicRecommendation) {
+		hpa := reader.ReadStringOrDefault(pathAtomicHPA, "")
+		ns, name := splitNamespaceAndName(hpa)
+		atomicRec := &HPAAtomicRecommendation{
+			HPA:                    hpa,
+			HPANamespace:           ns,
+			HPAName:                name,
+			StartTime:              reader.ReadStringOrDefault(pathAtomicStartTime, ""),
+			MetricType:             reader.ReadStringOrDefault(pathAtomicMetricType, ""),
+			MetricName:             reader.ReadStringOrDefault(pathAtomicMetricSpecName, ""),
+			SpecTargetAvgValue:     reader.ReadStringOrDefault(pathAtomicMetricSpecTargetAvgValue, ""),
+			SpecTargetAvgUtil:      reader.ReadIntOrDefault(pathAtomicMetricSpecTargetAvgUtil, -1),
+			SpecTargetValue:        reader.ReadStringOrDefault(pathAtomicMetricSpecTargetValue, ""),
+			StatusAvgValue:         reader.ReadStringOrDefault(pathAtomicMetricStatusAvgValue, ""),
+			StatusAvgUtil:          reader.ReadIntOrDefault(pathAtomicMetricStatusAvgUtil, -1),
+			StatusValue:            reader.ReadStringOrDefault(pathAtomicMetricStatusValue, ""),
+			NewestSampleAgeSeconds: reader.ReadFloatOrDefault(pathAtomicMetricNewestSampleAge, 0),
+			NewestSampleTime:       reader.ReadStringOrDefault(pathAtomicMetricNewestSampleTime, ""),
+			PodCount: HPAPodCount{
+				Ready:   reader.ReadIntOrDefault(pathAtomicPodCountReady, 0),
+				Total:   reader.ReadIntOrDefault(pathAtomicPodCountTotal, 0),
+				Unready: reader.ReadIntOrDefault(pathAtomicPodCountUnready, 0),
+				Ignored: reader.ReadIntOrDefault(pathAtomicPodCountIgnored, 0),
+			},
+			Dampening: reader.ReadStringOrDefault(pathAtomicSummaryDampening, ""),
+			Override:  reader.ReadStringOrDefault(pathAtomicSummaryOverride, ""),
+			Replicas:  reader.ReadIntOrDefault(pathAtomicSummaryReplicas, 0),
+		}
+		result.AtomicRecommendation = atomicRec
+		return result, nil
+	}
+
+	result.Message = reader.ReadStringOrDefault(pathMessage, "")
+	return result, nil
 }

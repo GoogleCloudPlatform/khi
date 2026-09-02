@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -67,9 +68,11 @@ func TestLogSorterByTimeTask(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+			idGen := khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator)
 			logs := []*log.Log{}
 			for _, ts := range tc.logs {
-				l := log.NewLogWithTimestamp(nil, ts)
+				l := log.NewLogWithTimestamp(idGen, nil, ts)
 				logs = append(logs, l)
 			}
 
@@ -77,7 +80,6 @@ func TestLogSorterByTimeTask(t *testing.T) {
 			testTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("dest")
 			task := NewLogSorterByTimeTask(testTaskID, testSourceTaskID.Ref())
 
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
 			sortedLogs, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.mode, map[string]any{}, tasktest.NewTaskDependencyValuePair(testSourceTaskID.Ref(), logs))
 			if err != nil {
 				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)

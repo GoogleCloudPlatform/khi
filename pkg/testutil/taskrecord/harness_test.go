@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
@@ -72,7 +73,7 @@ func setupTestServer(t *testing.T) *harnessTestContext {
 		[]taskid.UntypedTaskReference{},
 		func(ctx context.Context) ([]*log.Log, error) {
 			upstreamExecs.Add(1)
-			l, err := log.NewLogFromYAMLString("textPayload: hello from upstream\nseverity: INFO")
+			l, err := log.NewLogFromYAMLString(id.NewGenerator(), "textPayload: hello from upstream\nseverity: INFO")
 			if err != nil {
 				return nil, err
 			}

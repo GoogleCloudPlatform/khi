@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -585,7 +587,7 @@ endpoints:
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			builder := khifilev6.NewBuilder()
+			builder := khifilev6.NewBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			var reader *structured.NodeReader

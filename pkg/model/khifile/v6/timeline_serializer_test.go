@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	googlecmp "github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 )
@@ -38,8 +39,8 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 		name      string
 		ttype     *pb.TimelineType
 		aliasOf   string
-		events    []*pb.Event
-		revisions []*pb.Revision
+		events    []pendingEvent
+		revisions []pendingRevision
 	}
 
 	testCases := []struct {
@@ -54,14 +55,14 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 					id:     "root",
 					name:   "root",
 					ttype:  typeA,
-					events: []*pb.Event{{LogId: &id1}},
+					events: []pendingEvent{{LogID: id1}},
 				},
 				{
 					id:        "child",
 					parent:    "root",
 					name:      "child",
 					ttype:     typeB,
-					revisions: []*pb.Revision{{LogId: &id2}},
+					revisions: []pendingRevision{{LogID: id2}},
 				},
 				{
 					id:      "alias",
@@ -126,7 +127,7 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 					parent:    "timelineB",
 					name:      "C",
 					ttype:     typeA,
-					revisions: []*pb.Revision{{LogId: &id1}},
+					revisions: []pendingRevision{{LogID: id1}},
 				},
 			},
 			want: func(paths map[string]*TimelinePath, reg *TimelineRegistry) ([]*pb.Timeline, []*pb.TimelineItems) {
@@ -154,7 +155,7 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Isolated Setup for deterministic IDs
-			idGen := NewIDGenerator()
+			idGen := id.NewGenerator()
 			internPool := NewInternPool(idGen)
 			serverPool := NewServerInternPool(internPool, idGen)
 			pathPool := NewTimelinePathPool(idGen, internPool)
