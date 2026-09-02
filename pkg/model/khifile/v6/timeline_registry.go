@@ -66,7 +66,6 @@ func (r *TimelineRegistry) GetBuilder(path *TimelinePath) *TimelineBuilder {
 	newBuilder := &TimelineBuilder{
 		Path:            path,
 		TimelineItemsID: newID,
-		internPool:      r.clientPool,
 	}
 	r.idToBuilder.Store(newID, newBuilder)
 

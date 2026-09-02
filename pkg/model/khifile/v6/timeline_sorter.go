@@ -181,23 +181,8 @@ func FindOldestTime(path *TimelinePath, registry *TimelineRegistry, parentToChil
 	}
 
 	if builder, exists := registry.GetBuilderIfExists(path); exists {
-		builder.mu.Lock()
-		revisions := slices.Clone(builder.revisions)
-		events := slices.Clone(builder.events)
-		builder.mu.Unlock()
-
-		for _, rev := range revisions {
-			if t := rev.GetChangedTime(); t != nil {
-				updateOldest(t.AsTime())
-			}
-		}
-
-		for _, ev := range events {
-			if logEntry := registry.GetLog(ev.GetLogId()); logEntry != nil {
-				if t := logEntry.GetTs(); t != nil {
-					updateOldest(t.AsTime())
-				}
-			}
+		if t, ok := builder.FindOldestTime(); ok {
+			updateOldest(t)
 		}
 	}
 

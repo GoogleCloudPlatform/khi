@@ -21,7 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // StagingRevision represents a resource revision in parser-side domain model before serialization.
@@ -169,75 +168,60 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 
 	for path := range cs.Events {
 		builder := registry.GetBuilder(path)
-		builder.AddEvent(&pb.Event{
-			LogId: &resolvedLogID,
+		builder.AddEvent(pendingEvent{
+			LogID:     resolvedLogID,
+			Timestamp: cs.Log.Timestamp,
 		})
 	}
 
 	for path, revisions := range cs.Revisions {
 		builder := registry.GetBuilder(path)
 		for _, r := range revisions {
-			var bodyStructID *uint32
+			var bodyStructID uint32
 			if r.ResourceBody != nil {
 				structRef, err := ToInternedStruct(r.ResourceBody, serverPool)
 				if err != nil {
 					return fmt.Errorf("failed to intern resource body for revision: %w", err)
 				}
-				bodyStructID = &structRef.id
+				bodyStructID = structRef.id
 			}
 
-			var principalID *uint32
+			var principalID uint32
 			if r.Principal != "" {
 				ref := clientPool.InternString(r.Principal)
-				principalID = &ref.id
+				principalID = ref.id
 			}
 
-			var verbID *uint32
-			if r.VerbType != nil {
-				verbID = r.VerbType.Id
-			}
+			verbID := r.VerbType.GetId()
+			stateID := r.StateType.GetId()
 
-			var stateID *uint32
-			if r.StateType != nil {
-				stateID = r.StateType.Id
-			}
-
-			var changedTime *timestamppb.Timestamp
-			if !r.ChangedTime.IsZero() {
-				changedTime = timestamppb.New(r.ChangedTime)
-			}
-
-			var pbAnnotations []*pb.FieldAnnotation
+			annotations := make([]pendingFieldAnnotation, 0, len(r.FieldAnnotations))
 			for _, fa := range r.FieldAnnotations {
 				fieldPathRef := clientPool.InternString(fa.FieldPath)
-				pbAnn := &pb.FieldAnnotation{
-					FieldPathStringId: &fieldPathRef.id,
+				ann := pendingFieldAnnotation{
+					FieldPathStringID: fieldPathRef.id,
 				}
 				if fa.MutatingWebhook != nil {
 					configRef := clientPool.InternString(fa.MutatingWebhook.Configuration)
 					webhookRef := clientPool.InternString(fa.MutatingWebhook.Webhook)
-					var round int32 = int32(fa.MutatingWebhook.Round)
-					var index int32 = int32(fa.MutatingWebhook.Index)
-					pbAnn.Payload = &pb.FieldAnnotation_MutatingWebhook{
-						MutatingWebhook: &pb.MutatingWebhookInfo{
-							ConfigurationStringId: &configRef.id,
-							WebhookStringId:       &webhookRef.id,
-							Round:                 &round,
-							Index:                 &index,
-						},
+					ann.MutatingWebhook = &pendingMutatingWebhookInfo{
+						ConfigurationStringID: configRef.id,
+						WebhookStringID:       webhookRef.id,
+						Round:                 fa.MutatingWebhook.Round,
+						Index:                 fa.MutatingWebhook.Index,
 					}
 				}
-				pbAnnotations = append(pbAnnotations, pbAnn)
+				annotations = append(annotations, ann)
 			}
 
-			builder.AddRevision(&pb.Revision{
-				LogId:                &resolvedLogID,
-				ChangedTime:          changedTime,
-				ResourceBodyStructId: bodyStructID,
-				PrincipalStringId:    principalID,
+			builder.AddRevision(pendingRevision{
+				LogID:                resolvedLogID,
+				ChangedTime:          r.ChangedTime,
+				ResourceBodyStructID: bodyStructID,
+				PrincipalStringID:    principalID,
 				VerbType:             verbID,
 				StateType:            stateID,
-				FieldAnnotations:     pbAnnotations,
+				FieldAnnotations:     annotations,
 			})
 		}
 	}

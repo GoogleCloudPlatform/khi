@@ -28,7 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // TestBuilder_Build verifies that the Builder successfully generates a KHI file.
@@ -90,9 +89,9 @@ func TestBuilder_Build(t *testing.T) {
 				})
 				tb := b.TimelineAccumulator.GetBuilder(path)
 				logID := uint32(1)
-				tb.AddRevision(&pb.Revision{
-					LogId:       &logID,
-					ChangedTime: timestamppb.New(time.Date(2026, 4, 29, 8, 0, 0, 0, time.UTC)),
+				tb.AddRevision(pendingRevision{
+					LogID:       logID,
+					ChangedTime: time.Date(2026, 4, 29, 8, 0, 0, 0, time.UTC),
 				})
 			},
 			verify: func(t *testing.T, reader *Reader) {
