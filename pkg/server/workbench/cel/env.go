@@ -47,12 +47,12 @@ type TimelineEvaluator struct {
 	env             *cel.Env
 	program         cel.Program
 	currentTimeline *TimelineData
-	internPool      khifilev6model.ReadonlyPool
+	internPool      *khifilev6model.ReadonlyInternPool
 	timelineMap     map[uint32]*TimelineData
 }
 
-// SetInternPool binds the ReadonlyPool for on-demand struct resolution.
-func (e *TimelineEvaluator) SetInternPool(pool khifilev6model.ReadonlyPool) {
+// SetInternPool binds the ReadonlyInternPool for on-demand struct resolution.
+func (e *TimelineEvaluator) SetInternPool(pool *khifilev6model.ReadonlyInternPool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.internPool = pool
@@ -312,7 +312,7 @@ type LogEvaluator struct {
 	env           *cel.Env
 	program       cel.Program
 	currentLog    *LogData
-	internPool    khifilev6model.ReadonlyPool
+	internPool    *khifilev6model.ReadonlyInternPool
 	trigramIndex  *TrigramIndex
 	styleResolver StyleResolver
 }
@@ -324,8 +324,8 @@ func (e *LogEvaluator) SetStyleResolver(resolver StyleResolver) {
 	e.styleResolver = resolver
 }
 
-// SetInternPool binds the ReadonlyPool for on-demand struct/string resolution.
-func (e *LogEvaluator) SetInternPool(pool khifilev6model.ReadonlyPool) {
+// SetInternPool binds the ReadonlyInternPool for on-demand struct/string resolution.
+func (e *LogEvaluator) SetInternPool(pool *khifilev6model.ReadonlyInternPool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.internPool = pool

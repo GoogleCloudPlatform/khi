@@ -44,7 +44,7 @@ spec:
 	if err != nil {
 		t.Fatalf("failed to create TimelineEvaluator: %v", err)
 	}
-	eval.SetInternPool(pool)
+	eval.SetInternPool(toReadonlyPool(pool))
 
 	nsTimeline := &TimelineData{
 		ID:           1,
@@ -401,7 +401,7 @@ user:
 	if err != nil {
 		t.Fatalf("failed to create LogEvaluator: %v", err)
 	}
-	eval.SetInternPool(pool)
+	eval.SetInternPool(toReadonlyPool(pool))
 	eval.SetStyleResolver(&SimpleStyleResolver{
 		LogTypes:   map[uint32]string{1: "k8s-audit"},
 		Severities: map[uint32]uint32{3: 3},
@@ -538,7 +538,7 @@ spec:
 	if err != nil {
 		t.Fatalf("NewLogEvaluator() failed: %v", err)
 	}
-	eval.SetInternPool(pool)
+	eval.SetInternPool(toReadonlyPool(pool))
 	eval.SetTrigramIndex(trigramIdx)
 	eval.SetStyleResolver(&SimpleStyleResolver{
 		LogTypes: map[uint32]string{1: "k8s-audit"},
