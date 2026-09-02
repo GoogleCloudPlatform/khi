@@ -92,12 +92,11 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 
 	a.mu.Lock()
 	if needed := int(logID) - len(a.logs); needed > 0 {
-		// Note: Go compiler optimizes append(slice, make([]T, n)...) to avoid temporary allocation.
-		a.logs = append(a.logs, make([]*pb.Log, needed)...)
+		a.logs = slices.Grow(a.logs, needed)[:int(logID)]
 	}
 	a.logs[logID-1] = pbLog
 	if needed := int(s.Log.ID) - len(a.parserIDToID); needed > 0 {
-		a.parserIDToID = append(a.parserIDToID, make([]uint32, needed)...)
+		a.parserIDToID = slices.Grow(a.parserIDToID, needed)[:int(s.Log.ID)]
 	}
 	a.parserIDToID[s.Log.ID-1] = logID
 	a.mu.Unlock()
