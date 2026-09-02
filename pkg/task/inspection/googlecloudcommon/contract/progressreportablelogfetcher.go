@@ -25,7 +25,6 @@ import (
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logconvert"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/kwaymerge"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -77,7 +76,8 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	logCount := atomic.Int32{}
-	latestLogTime := &beginTime
+	latestLogTime := atomic.Pointer[time.Time]{}
+	latestLogTime.Store(&beginTime)
 	totalDurationInSeconds := endTime.Sub(beginTime).Seconds()
 
 	if totalDurationInSeconds == 0 {
@@ -97,7 +97,7 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 				}
 				logCount.Add(1)
 				t := logEntry.Timestamp.AsTime()
-				latestLogTime = &t
+				latestLogTime.Store(&t)
 				select {
 				case <-subroutineCtx.Done():
 					return
@@ -122,7 +122,8 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 			case <-subroutineCtx.Done():
 				return
 			case <-ticker.C:
-				latestLogTimeFromBeginTimeInSeconds := latestLogTime.Sub(beginTime).Seconds()
+				latest := latestLogTime.Load()
+				latestLogTimeFromBeginTimeInSeconds := latest.Sub(beginTime).Seconds()
 				select {
 				case progress <- LogFetchProgress{
 					LogCount: int(logCount.Load()),
@@ -185,6 +186,7 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 		return nil, ctx.Err()
 	}
 
+	var subProgressMu sync.Mutex
 	subProgresses := make([]LogFetchProgress, t.partitionCount)
 	partitionLogs := make([][]*log.Log, t.partitionCount)
 	cancellableCtx, cancel := context.WithCancel(ctx)
@@ -199,10 +201,12 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 				return
 			case <-ticker.C:
 				result := LogFetchProgress{}
+				subProgressMu.Lock()
 				for _, subProgress := range subProgresses {
 					result.LogCount += subProgress.LogCount
 					result.Progress += subProgress.Progress / float32(t.partitionCount)
 				}
+				subProgressMu.Unlock()
 				progressChan <- result
 			}
 		}
@@ -268,7 +272,9 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 						if !ok {
 							return
 						}
+						subProgressMu.Lock()
 						subProgresses[subProgressIndex] = progress
+						subProgressMu.Unlock()
 					}
 				}
 			}()
@@ -288,17 +294,24 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 	cancel()
 	rootGoroutineWaitGroup.Wait()
 
-	mergedLogs := kwaymerge.Merge(partitionLogs, func(a, b *log.Log) int {
-		return a.Timestamp.Compare(b.Timestamp)
-	})
+	totalLogs := 0
+	for _, slice := range partitionLogs {
+		totalLogs += len(slice)
+	}
+	mergedLogs := make([]*log.Log, 0, totalLogs)
+	for _, slice := range partitionLogs {
+		mergedLogs = append(mergedLogs, slice...)
+	}
 
 	if err != nil {
 		return mergedLogs, err
 	}
 	sumLog := 0
+	subProgressMu.Lock()
 	for _, subProgress := range subProgresses {
 		sumLog += subProgress.LogCount
 	}
+	subProgressMu.Unlock()
 	select {
 	case progressChan <- LogFetchProgress{
 		LogCount: sumLog,

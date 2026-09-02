@@ -63,6 +63,7 @@ func (h *mergeHeap[T]) Pop() any {
 	old := h.cursors
 	n := len(old)
 	x := old[n-1]
+	old[n-1] = nil
 	h.cursors = old[0 : n-1]
 	return x
 }
