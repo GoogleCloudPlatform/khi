@@ -192,17 +192,10 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 				principalID = ref.id
 			}
 
-			var verbID uint32
-			if r.VerbType != nil && r.VerbType.Id != nil {
-				verbID = *r.VerbType.Id
-			}
+			verbID := r.VerbType.GetId()
+			stateID := r.StateType.GetId()
 
-			var stateID uint32
-			if r.StateType != nil && r.StateType.Id != nil {
-				stateID = *r.StateType.Id
-			}
-
-			var annotations []pendingFieldAnnotation
+			annotations := make([]pendingFieldAnnotation, 0, len(r.FieldAnnotations))
 			for _, fa := range r.FieldAnnotations {
 				fieldPathRef := clientPool.InternString(fa.FieldPath)
 				ann := pendingFieldAnnotation{
