@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
@@ -175,9 +176,15 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
 						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
 						Principal:    "u@e.c",
-						ResourceBody: structured.NewStandardScalarNode("description: init\n"),
+						ResourceBody: reqNode,
 						ChangedTime:  now,
-					}, cmp.AllowUnexported(structured.StandardScalarNode[string]{})).
+					}, cmp.AllowUnexported(
+						structured.StandardMapNode{},
+						structured.StandardScalarNode[string]{},
+						structured.StandardScalarNode[any]{},
+						structured.StandardSequenceNode{},
+						unique.Handle[string]{},
+					)).
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						VerbType:     googlecloudcommon_contract.VerbOperationStart,
 						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
@@ -230,6 +237,20 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					t.Fatalf("log %d: unexpected error: %v", i, err)
 				}
 				results = append(results, cs)
+
+				// Register the mock log so that cs.Flush can resolve the log ID.
+				dummyID := uint32(1)
+				if err := builder.LogAccumulator.AddLog(&khifilev6.StagingLog{
+					Log:      l,
+					Severity: &pb.Severity{Id: &dummyID},
+					LogType:  &pb.LogType{Id: &dummyID},
+				}); err != nil {
+					t.Fatalf("log %d: AddLog() failed: %v", i, err)
+				}
+				// Flush verifies that all revisions and their ResourceBody can be interned without error.
+				if err := cs.Flush(builder.TimelineAccumulator); err != nil {
+					t.Fatalf("log %d: Flush() failed: %v", i, err)
+				}
 			}
 
 			tc.assert(t, builder, results)
