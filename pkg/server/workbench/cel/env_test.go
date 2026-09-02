@@ -19,12 +19,13 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestTimelineEvaluator(t *testing.T) {
-	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	pool := khifilev6model.NewInternPool(id.NewGenerator())
 	node, err := structured.FromYAML(`kind: Pod
 metadata:
   name: pod-sample
@@ -188,7 +189,7 @@ spec:
 }
 
 func TestLogEvaluator(t *testing.T) {
-	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	pool := khifilev6model.NewInternPool(id.NewGenerator())
 	logNode, err := structured.FromYAML(`verb: create
 user:
   username: system:admin
@@ -384,7 +385,7 @@ func TestValidateLogQuery(t *testing.T) {
 }
 
 func TestLogEvaluator_FallbackWithoutTrigramIndex(t *testing.T) {
-	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	pool := khifilev6model.NewInternPool(id.NewGenerator())
 	logNode, err := structured.FromYAML(`verb: create
 user:
   username: system:admin
@@ -473,7 +474,7 @@ user:
 }
 
 func TestLogEvaluator_WithTrigramIndex(t *testing.T) {
-	pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+	pool := khifilev6model.NewInternPool(id.NewGenerator())
 
 	node1, err := structured.FromYAML(`verb: create
 user:

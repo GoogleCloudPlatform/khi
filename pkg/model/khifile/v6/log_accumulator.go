@@ -21,6 +21,7 @@ import (
 	"time"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -40,14 +41,14 @@ type StagingLog struct {
 type LogAccumulator struct {
 	clientPool   *InternPool
 	serverPool   *InternPool
-	idGen        *IDGenerator
+	idGen        *id.Generator
 	logs         []*pb.Log
-	parserIDToID map[string]uint32
+	parserIDToID []uint32
 	mu           sync.RWMutex
 }
 
 // NewLogAccumulator creates a new LogAccumulator with the provided client and server InternPools and IDGenerator.
-func NewLogAccumulator(clientPool *InternPool, serverPool *InternPool, idGen *IDGenerator) *LogAccumulator {
+func NewLogAccumulator(clientPool *InternPool, serverPool *InternPool, idGen *id.Generator) *LogAccumulator {
 	if serverPool == nil {
 		serverPool = clientPool
 	}
@@ -56,7 +57,7 @@ func NewLogAccumulator(clientPool *InternPool, serverPool *InternPool, idGen *ID
 		serverPool:   serverPool,
 		idGen:        idGen,
 		logs:         make([]*pb.Log, 0),
-		parserIDToID: make(map[string]uint32),
+		parserIDToID: make([]uint32, 0),
 	}
 }
 
@@ -75,9 +76,9 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 		return fmt.Errorf("failed to intern log body: %w", err)
 	}
 
-	id := a.idGen.New(IDLog)
+	logID := a.idGen.New(id.Log)
 	pbLog := &pb.Log{
-		Id:           &id,
+		Id:           &logID,
 		BodyStructId: &internedBody.id,
 	}
 
@@ -90,26 +91,32 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 	pbLog.LogTypeId = s.LogType.Id
 
 	a.mu.Lock()
-	if needed := int(id) - len(a.logs); needed > 0 {
-		// Note: Go compiler optimizes append(slice, make([]T, n)...) to avoid temporary allocation.
-		a.logs = append(a.logs, make([]*pb.Log, needed)...)
+	if needed := int(logID) - len(a.logs); needed > 0 {
+		a.logs = slices.Grow(a.logs, needed)[:int(logID)]
 	}
-	a.logs[id-1] = pbLog
-	a.parserIDToID[s.Log.ID] = id
+	a.logs[logID-1] = pbLog
+	if needed := int(s.Log.ID) - len(a.parserIDToID); needed > 0 {
+		a.parserIDToID = slices.Grow(a.parserIDToID, needed)[:int(s.Log.ID)]
+	}
+	a.parserIDToID[s.Log.ID-1] = logID
 	a.mu.Unlock()
 
 	return nil
 }
 
-// ResolveLogID returns the serialized log ID (uint32) for a given parser-side log ID (string).
+// ResolveLogID returns the serialized log ID (uint32) for a given parser-side temporary log ID (uint32).
 // It returns false if the log ID is not found.
-// TODO(#699): For the historical reason, KHI's log.Log generates ID in the form of string.
-// We should improve this and use the parser ID directly to reduce this logic in future.
-func (a *LogAccumulator) ResolveLogID(parserID string) (uint32, bool) {
+func (a *LogAccumulator) ResolveLogID(parserID uint32) (uint32, bool) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	id, ok := a.parserIDToID[parserID]
-	return id, ok
+	if parserID == 0 || int(parserID) > len(a.parserIDToID) {
+		return 0, false
+	}
+	confirmedID := a.parserIDToID[parserID-1]
+	if confirmedID == 0 {
+		return 0, false
+	}
+	return confirmedID, true
 }
 
 // GetLog returns a log by its ID. Returns nil if the log is not found.

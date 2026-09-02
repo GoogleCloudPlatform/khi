@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
 	"gopkg.in/yaml.v3"
 )
@@ -230,7 +231,7 @@ protoPayload:
 				t.Fatalf("FromYAML() error = %v", err)
 			}
 
-			idGen := NewIDGenerator()
+			idGen := id.NewGenerator()
 			pool := NewInternPool(idGen)
 
 			internedRef, err := ToInternedStruct(node, pool)
@@ -368,7 +369,7 @@ spec:
 		b.Fatalf("FromYAML() error = %v", err)
 	}
 
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 	internedRef, err := ToInternedStruct(node, pool)
 	if err != nil {

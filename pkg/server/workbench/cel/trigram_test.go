@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -554,7 +555,7 @@ func TestTrigramIndex_BuildFromStructPool(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+			pool := khifilev6model.NewInternPool(id.NewGenerator())
 			structIDs := make([]uint32, 0, len(tc.yamls))
 			for _, yamlStr := range tc.yamls {
 				node, err := structured.FromYAML(yamlStr)
@@ -625,7 +626,7 @@ func TestTrigramIndex_BuildFromLogPool(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pool := khifilev6model.NewInternPool(&khifilev6model.IDGenerator{})
+			pool := khifilev6model.NewInternPool(id.NewGenerator())
 
 			// Intern strings
 			summaryIDMap := make(map[uint32]uint32)

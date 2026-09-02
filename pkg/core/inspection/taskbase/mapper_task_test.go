@@ -213,8 +213,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			ctx := context.Background()
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
 
-			builder := khifilev6.NewBuilder()
-			ctx = khictx.WithValue(ctx, inspectioncore_contract.Builder, builder)
+			idGen := khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator)
+			builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 
 			prevGroupMap := make(LogGroupMap)
 			var shouldHaveItems bool
@@ -222,7 +222,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			for _, tg := range tc.prevLogGroupMap {
 				var logs []*log.Log
 				for _, tl := range tg.logs {
-					l := mustNewLogFromYAML(t, tl.yaml)
+					l := mustNewLogFromYAML(t, ctx, tl.yaml)
 					logs = append(logs, l)
 					if tl.shouldIngest {
 						shouldHaveItems = true
@@ -245,7 +245,6 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				}
 			}
 
-			idGen := khifilev6.NewIDGenerator()
 			pool := khifilev6.NewInternPool(idGen)
 			pathPool := khifilev6.NewTimelinePathPool(idGen, pool)
 			timelineTypeID := uint32(3)

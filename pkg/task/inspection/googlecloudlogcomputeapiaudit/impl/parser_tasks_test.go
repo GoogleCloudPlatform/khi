@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -162,7 +164,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 }
 
 func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 
 	// Setup context with task result mapping containing ClusterIdentity
 	taskResults := typedmap.NewTypedMap()

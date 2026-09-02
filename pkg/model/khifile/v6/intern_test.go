@@ -19,12 +19,13 @@ import (
 
 	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestInternPool_Intern(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 
 	testCases := []struct {
@@ -64,7 +65,7 @@ func TestInternPool_Intern(t *testing.T) {
 }
 
 func TestInternPool_Intern_InvalidUTF8(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 
 	testCases := []struct {
@@ -108,7 +109,7 @@ func TestInternPool_Intern_InvalidUTF8(t *testing.T) {
 }
 
 func TestInternPool_ResolveStringFromID(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 	ref1 := pool.InternString("foo")
 	ref2 := pool.InternString("bar")
@@ -151,7 +152,7 @@ func TestInternPool_ResolveStringFromID(t *testing.T) {
 }
 
 func TestInternStringRef_ToProto(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 	ref := pool.InternString("foo")
 
@@ -173,7 +174,7 @@ func TestInternStringRef_ToProto(t *testing.T) {
 }
 
 func TestInternPool_SortedRefs(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 	pool.InternString("c")
 	pool.InternString("a")
@@ -220,7 +221,7 @@ func TestInternPool_SortedRefs(t *testing.T) {
 }
 
 func TestInternPool_InternFieldSet(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 
 	testCases := []struct {
@@ -270,7 +271,7 @@ func TestInternPool_InternFieldSet(t *testing.T) {
 }
 
 func TestInternPool_FieldSetRefs(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 
 	pool.InternFieldSet([]string{"a", "b"})
@@ -318,7 +319,7 @@ func TestInternPool_FieldSetRefs(t *testing.T) {
 }
 
 func TestInternPool_InternStruct(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 
 	fieldSetID1 := pool.InternFieldSet([]string{"foo", "bar"}).id
@@ -435,7 +436,7 @@ func TestInternPool_InternStruct(t *testing.T) {
 }
 
 func TestInternPool_StructRefs(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 
 	fsID := pool.InternFieldSet([]string{"key"}).id
@@ -443,7 +444,7 @@ func TestInternPool_StructRefs(t *testing.T) {
 	ref2 := pool.InternStruct(fsID, []*khifile.InternedValue{{Kind: &khifile.InternedValue_Int64Value{Int64Value: 2}}})
 
 	// Simulate an orphaned struct ID in idToStruct (e.g. from concurrent InternStruct collision).
-	orphanedID := idGen.New(IDStruct)
+	orphanedID := idGen.New(id.Struct)
 	pool.storeStruct(orphanedID, (*khifile.InternedStruct)(nil))
 
 	var refs []*InternStructRef
@@ -649,7 +650,7 @@ func TestServerInternPool(t *testing.T) {
 			clientStrs: []string{"client-only"},
 			serverStrs: []string{"server-only"},
 			checkStr:   "server-only",
-			wantID:     ServerStringIDBase + 1,
+			wantID:     id.ServerStringIDBase + 1,
 		},
 		{
 			name:       "server string already in client pool reuses client id",
@@ -663,13 +664,13 @@ func TestServerInternPool(t *testing.T) {
 			clientStrs: []string{"first-client", "second-client"},
 			serverStrs: []string{"second-client", "server-first"},
 			checkStr:   "server-first",
-			wantID:     ServerStringIDBase + 1,
+			wantID:     id.ServerStringIDBase + 1,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			idGen := NewIDGenerator()
+			idGen := id.NewGenerator()
 			clientPool := NewInternPool(idGen)
 			serverPool := NewServerInternPool(clientPool, idGen)
 

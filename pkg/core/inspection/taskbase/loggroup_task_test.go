@@ -78,20 +78,15 @@ func TestNwewLogGrouperTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
 			logs := []*log.Log{}
 			for _, logYaml := range tc.logYamls {
-				l, err := log.NewLogFromYAMLString(logYaml)
-				if err != nil {
-					t.Fatal(err.Error())
-				}
-				logs = append(logs, l)
+				logs = append(logs, mustNewLogFromYAML(t, ctx, logYaml))
 			}
 
 			testSourceTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("source")
 			testTaskID := taskid.NewDefaultImplementationID[LogGroupMap]("dest")
 			task := NewLogGrouperTask(testTaskID, testSourceTaskID.Ref(), tc.logGrouper)
-
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
 			result, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(testSourceTaskID.Ref(), logs))
 			if err != nil {
 				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)

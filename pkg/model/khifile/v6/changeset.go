@@ -158,7 +158,7 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 
 	resolvedLogID, ok := logAcc.ResolveLogID(cs.Log.ID)
 	if !ok {
-		return fmt.Errorf("failed to resolve log ID for parser log %q", cs.Log.ID)
+		return fmt.Errorf("failed to resolve log ID for parser log %d", cs.Log.ID)
 	}
 
 	for aliasPath, targetPath := range cs.Aliases {

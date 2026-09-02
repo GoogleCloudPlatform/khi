@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -41,7 +43,7 @@ func testReaderFromYAML(t *testing.T, yaml string) *structured.NodeReader {
 
 func TestLogToTimelineMapperTask(t *testing.T) {
 	// 1. Initialize the Builder first.
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
 

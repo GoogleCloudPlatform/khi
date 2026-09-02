@@ -22,6 +22,7 @@ import (
 
 	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 )
 
@@ -33,7 +34,7 @@ type BuilderProgressReporter interface {
 
 // Builder orchestrates the accumulators, pools, and final file generation for KHI v6 format.
 type Builder struct {
-	idGenerator         *IDGenerator
+	idGenerator         *id.Generator
 	internPool          *InternPool
 	serverInternPool    *InternPool
 	TimelineAccumulator *TimelineAccumulator
@@ -42,8 +43,7 @@ type Builder struct {
 }
 
 // NewBuilder initializes a new v6 Builder with all necessary accumulators and pools.
-func NewBuilder() *Builder {
-	gen := NewIDGenerator()
+func NewBuilder(gen *id.Generator) *Builder {
 	internPool := NewInternPool(gen)
 	serverPool := NewServerInternPool(internPool, gen)
 	logAcc := NewLogAccumulator(internPool, serverPool, gen)

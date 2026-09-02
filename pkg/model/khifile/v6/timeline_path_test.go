@@ -19,13 +19,14 @@ import (
 	"testing"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestTimelinePathPool_Get(t *testing.T) {
 	// Set up common dependencies for tests
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	internPool := NewInternPool(idGen)
 
 	id1 := uint32(1)

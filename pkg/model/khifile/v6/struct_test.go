@@ -20,6 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -192,7 +193,7 @@ time_val: 2026-04-20T03:00:00Z
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			idGenGot := NewIDGenerator()
+			idGenGot := id.NewGenerator()
 			poolGot := NewInternPool(idGenGot)
 
 			node, err := structured.FromYAML(tc.yaml)
@@ -208,7 +209,7 @@ time_val: 2026-04-20T03:00:00Z
 				return
 			}
 
-			idGenWant := NewIDGenerator()
+			idGenWant := id.NewGenerator()
 			poolWant := NewInternPool(idGenWant)
 			want := tc.want(poolWant)
 
@@ -240,7 +241,7 @@ time_val: 2026-04-20T03:00:00Z
 }
 
 func TestFromInternedValue(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := NewInternPool(idGen)
 	helloStrID := pool.InternString("hello").id
 	timeVal := time.Date(2026, 4, 20, 3, 0, 0, 0, time.UTC)

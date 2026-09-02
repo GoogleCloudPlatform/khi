@@ -152,13 +152,12 @@ func TestLogIngesterTask(t *testing.T) {
 				cancel()
 			}
 
-			builder := khifilev6.NewBuilder()
-			ctx = khictx.WithValue(ctx, inspectioncore_contract.Builder, builder)
+			builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 
 			var logs []*log.Log
-			shouldIngestMap := make(map[string]bool)
+			shouldIngestMap := make(map[uint32]bool)
 			for _, tl := range tc.prevLogs {
-				l := mustNewLogFromYAML(t, tl.yaml)
+				l := mustNewLogFromYAML(t, ctx, tl.yaml)
 				logs = append(logs, l)
 				shouldIngestMap[l.ID] = tl.shouldIngest
 			}
@@ -184,13 +183,13 @@ func TestLogIngesterTask(t *testing.T) {
 					shouldIngest := shouldIngestMap[l.ID]
 					if shouldIngest {
 						if !ok {
-							t.Errorf("expected log %s to be ingested, but ResolveLogID returned false", l.ID)
+							t.Errorf("expected log %d to be ingested, but ResolveLogID returned false", l.ID)
 						}
 						if resolvedID == 0 {
-							t.Errorf("expected log %s to have a valid resolved ID, got 0", l.ID)
+							t.Errorf("expected log %d to have a valid resolved ID, got 0", l.ID)
 						}
 					} else if ok {
-						t.Errorf("expected log %s NOT to be ingested, but ResolveLogID returned true with ID %d", l.ID, resolvedID)
+						t.Errorf("expected log %d NOT to be ingested, but ResolveLogID returned true with ID %d", l.ID, resolvedID)
 					}
 				}
 			}

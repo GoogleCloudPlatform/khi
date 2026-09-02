@@ -19,6 +19,7 @@ import (
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
 
 // ReadonlyPool defines the common read-only lookup interface implemented by InternPool and ReadonlyInternPool.
@@ -64,14 +65,14 @@ func (p *ReadonlyInternPool) IngestChunk(chunk *pbv6.InterningPoolChunk) {
 		if str == nil || str.Id == nil || str.Value == nil {
 			continue
 		}
-		id := *str.Id
-		if id >= ServerStringIDBase {
-			sIdx := id - ServerStringIDBase
+		idVal := *str.Id
+		if idVal >= id.ServerStringIDBase {
+			sIdx := idVal - id.ServerStringIDBase
 			p.serverStrings = ensureCapacity(p.serverStrings, sIdx)
 			p.serverStrings[sIdx] = *str.Value
 		} else {
-			p.clientStrings = ensureCapacity(p.clientStrings, id)
-			p.clientStrings[id] = *str.Value
+			p.clientStrings = ensureCapacity(p.clientStrings, idVal)
+			p.clientStrings[idVal] = *str.Value
 		}
 	}
 
@@ -104,18 +105,18 @@ func ensureCapacity[T any](slice []T, maxIndex uint32) []T {
 }
 
 // ResolveStringFromID returns the string corresponding to the given string ID, or empty string if not found.
-func (p *ReadonlyInternPool) ResolveStringFromID(id uint32) string {
+func (p *ReadonlyInternPool) ResolveStringFromID(idVal uint32) string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	if id >= ServerStringIDBase {
-		sIdx := id - ServerStringIDBase
+	if idVal >= id.ServerStringIDBase {
+		sIdx := idVal - id.ServerStringIDBase
 		if int(sIdx) < len(p.serverStrings) {
 			return p.serverStrings[sIdx]
 		}
 		return ""
 	}
-	if int(id) < len(p.clientStrings) {
-		return p.clientStrings[id]
+	if int(idVal) < len(p.clientStrings) {
+		return p.clientStrings[idVal]
 	}
 	return ""
 }
