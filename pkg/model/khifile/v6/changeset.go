@@ -168,15 +168,9 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 
 	for path := range cs.Events {
 		builder := registry.GetBuilder(path)
-		timestamp := cs.Log.Timestamp
-		if timestamp.IsZero() {
-			if pbLog := logAcc.GetLog(resolvedLogID); pbLog != nil && pbLog.Ts != nil {
-				timestamp = pbLog.Ts.AsTime()
-			}
-		}
 		builder.AddEvent(pendingEvent{
 			LogID:     resolvedLogID,
-			Timestamp: timestamp,
+			Timestamp: cs.Log.Timestamp,
 		})
 	}
 
