@@ -24,6 +24,9 @@ import (
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logconvert"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -516,9 +519,7 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			endTime := beginTime.Add(tc.duration)
 			fetcher := tc.fetcherFactory(t)
 
-			var logs []*loggingpb.LogEntry
 			var progresses []LogFetchProgress
-			logReceiveChan := channelToArrayParallel(t.Context(), &wg, &logs)
 			progressReceiveChan := channelToArrayParallel(t.Context(), &wg, &progresses)
 
 			progressReportableFetcher := NewTimePartitioningProgressReportableLogFetcher(fetcher, tick/2, tc.partitionCount, tc.maxParallelism)
@@ -544,7 +545,7 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 				}()
 			}
 
-			err := progressReportableFetcher.FetchLogsWithProgress(logReceiveChan, progressReceiveChan, cancellableCtx, beginTime, endTime, "test filter", googlecloud.Project("foobar"), []string{})
+			logs, err := progressReportableFetcher.FetchLogsWithProgress(progressReceiveChan, cancellableCtx, beginTime, endTime, "test filter", googlecloud.Project("foobar"), []string{})
 			if tc.wantErr != nil {
 				if err == nil {
 					t.Errorf("FetchLogsWithProgress() expected error, but got nil")
@@ -557,9 +558,34 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			wg.Wait()
 			close(afterFetchDone)
 
-			slices.SortFunc(logs, func(a, b *loggingpb.LogEntry) int { return a.Timestamp.AsTime().Compare(b.Timestamp.AsTime()) })
+			gotLogsString := []string{}
+			for _, l := range logs {
+				yaml, err := l.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+				if err != nil {
+					t.Fatalf("failed to serialize to yaml error=%v", err)
+				}
+				gotLogsString = append(gotLogsString, string(yaml))
+			}
 
-			if diff := cmp.Diff(tc.wantLogs, logs, protocmp.Transform(), cmpopts.IgnoreUnexported()); diff != "" {
+			wantLogsString := []string{}
+			for _, entry := range tc.wantLogs {
+				node, err := logconvert.LogEntryToNode(entry)
+				if err != nil {
+					t.Fatalf("failed to convert entry to node: %v", err)
+				}
+				ts := time.Time{}
+				if entry.Timestamp != nil {
+					ts = entry.Timestamp.AsTime()
+				}
+				khiLog := log.NewLogWithTimestamp(structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)), ts)
+				yaml, err := khiLog.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+				if err != nil {
+					t.Fatalf("failed to serialize to yaml error=%v", err)
+				}
+				wantLogsString = append(wantLogsString, string(yaml))
+			}
+
+			if diff := cmp.Diff(wantLogsString, gotLogsString); diff != "" {
 				t.Errorf("FetchLogsWithProgress() produced non expected result: (-want, +got):\n%v", diff)
 			}
 			if diff := cmp.Diff(tc.wantProgress, progresses); diff != "" {
