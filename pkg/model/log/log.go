@@ -15,45 +15,42 @@
 package log
 
 import (
-	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
-
-var logInstanceID = atomic.Int32{}
 
 // Log represents a log handled in KHI.
 // It provides direct access to its fields and basic metadata such as timestamp and instance ID.
 type Log struct {
 	*structured.NodeReader
 	Timestamp time.Time
-	ID        string
+	ID        uint32
 }
 
-// NewLog returns a log instance from NodeReader instance.
-func NewLog(reader *structured.NodeReader) *Log {
+// NewLog returns a log instance from NodeReader instance using the given ID Generator.
+func NewLog(gen *id.Generator, reader *structured.NodeReader) *Log {
 	return &Log{
-		ID:         strconv.Itoa(int(logInstanceID.Add(1))),
+		ID:         gen.New(id.TemporaryLog),
 		NodeReader: reader,
 	}
 }
 
-// NewLogWithTimestamp returns a log instance with the given NodeReader and timestamp.
-func NewLogWithTimestamp(reader *structured.NodeReader, timestamp time.Time) *Log {
+// NewLogWithTimestamp returns a log instance with the given NodeReader and timestamp using the given ID Generator.
+func NewLogWithTimestamp(gen *id.Generator, reader *structured.NodeReader, timestamp time.Time) *Log {
 	return &Log{
-		ID:         strconv.Itoa(int(logInstanceID.Add(1))),
+		ID:         gen.New(id.TemporaryLog),
 		NodeReader: reader,
 		Timestamp:  timestamp,
 	}
 }
 
-// NewLogFromYAMLString instantiates a new Log from the given YAML string.
-func NewLogFromYAMLString(yaml string) (*Log, error) {
+// NewLogFromYAMLString instantiates a new Log from the given YAML string using the given ID Generator.
+func NewLogFromYAMLString(gen *id.Generator, yaml string) (*Log, error) {
 	node, err := structured.FromYAML(yaml)
 	if err != nil {
 		return nil, err
 	}
-	return NewLog(structured.NewNodeReader(node)), nil
+	return NewLog(gen, structured.NewNodeReader(node)), nil
 }

@@ -68,8 +68,8 @@ var _ GroupedLogIngester[testState] = (*mockGroupedLogIngester)(nil)
 func TestNewGroupedLogIngesterTask(t *testing.T) {
 	testCases := []struct {
 		name          string
-		rawLogs       []*log.Log
-		groups        LogGroupMap
+		rawLogs       func(ctx context.Context) []*log.Log
+		groups        func(ctx context.Context, raw []*log.Log) LogGroupMap
 		setup         func(t *testing.T, rawLogs []*log.Log) (func(ctx context.Context, l *log.Log, state testState) (*khifilev6.LogChangeSet, testState, error), func(t *testing.T))
 		cancelContext bool
 		wantErr       bool
@@ -77,21 +77,22 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 	}{
 		{
 			name: "successfully processes logs with state",
-			rawLogs: []*log.Log{
-				mustNewLogFromYAML(t, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`),
-				mustNewLogFromYAML(t, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-2"}`),
+			rawLogs: func(ctx context.Context) []*log.Log {
+				return []*log.Log{
+					mustNewLogFromYAML(t, ctx, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`),
+					mustNewLogFromYAML(t, ctx, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-2"}`),
+				}
 			},
-			groups: LogGroupMap{
-				"group1": {
-					Group: "group1",
-					Logs: []*log.Log{
-						mustNewLogFromYAML(t, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`),
-						mustNewLogFromYAML(t, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-2"}`),
+			groups: func(ctx context.Context, raw []*log.Log) LogGroupMap {
+				return LogGroupMap{
+					"group1": {
+						Group: "group1",
+						Logs:  raw,
 					},
-				},
+				}
 			},
 			setup: func(t *testing.T, rawLogs []*log.Log) (func(ctx context.Context, l *log.Log, state testState) (*khifilev6.LogChangeSet, testState, error), func(t *testing.T)) {
-				processedStates := make(map[string]string)
+				processedStates := make(map[uint32]string)
 				processFn := func(ctx context.Context, l *log.Log, state testState) (*khifilev6.LogChangeSet, testState, error) {
 					newState := testState{Prefix: state.Prefix + "a"}
 					processedStates[l.ID] = newState.Prefix
@@ -119,16 +120,18 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 		},
 		{
 			name: "context cancelled",
-			rawLogs: []*log.Log{
-				mustNewLogFromYAML(t, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`),
+			rawLogs: func(ctx context.Context) []*log.Log {
+				return []*log.Log{
+					mustNewLogFromYAML(t, ctx, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`),
+				}
 			},
-			groups: LogGroupMap{
-				"group1": {
-					Group: "group1",
-					Logs: []*log.Log{
-						mustNewLogFromYAML(t, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`),
+			groups: func(ctx context.Context, raw []*log.Log) LogGroupMap {
+				return LogGroupMap{
+					"group1": {
+						Group: "group1",
+						Logs:  raw,
 					},
-				},
+				}
 			},
 			cancelContext: true,
 			wantErr:       true,
@@ -138,18 +141,16 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			for _, group := range tc.groups {
-				for i := range group.Logs {
-					if i < len(tc.rawLogs) {
-						group.Logs[i] = tc.rawLogs[i]
-					}
-				}
-			}
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+
+			rawLogs := tc.rawLogs(ctx)
+			groups := tc.groups(ctx, rawLogs)
 
 			var processFn func(ctx context.Context, l *log.Log, state testState) (*khifilev6.LogChangeSet, testState, error)
 			var verifyFn func(t *testing.T)
 			if tc.setup != nil {
-				processFn, verifyFn = tc.setup(t, tc.rawLogs)
+				processFn, verifyFn = tc.setup(t, rawLogs)
 			}
 
 			ingester := &mockGroupedLogIngester{
@@ -160,11 +161,6 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 
 			tid := taskid.NewDefaultImplementationID[struct{}]("test-grouped-ingester")
 			task := NewGroupedLogIngesterTask(tid, ingester)
-
-			ctx := context.Background()
-			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
-			builder := khifilev6.NewBuilder()
-			ctx = khictx.WithValue(ctx, inspectioncore_contract.Builder, builder)
 
 			if tc.cancelContext {
 				var cancel context.CancelFunc
@@ -177,8 +173,8 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 				task,
 				inspectioncore_contract.TaskModeRun,
 				map[string]any{},
-				tasktest.NewTaskDependencyValuePair(mockGroupedRawTaskID.Ref(), tc.rawLogs),
-				tasktest.NewTaskDependencyValuePair(mockGroupedLogTaskID.Ref(), tc.groups),
+				tasktest.NewTaskDependencyValuePair(mockGroupedRawTaskID.Ref(), rawLogs),
+				tasktest.NewTaskDependencyValuePair(mockGroupedLogTaskID.Ref(), groups),
 			)
 
 			if (err != nil) != tc.wantErr {
@@ -192,13 +188,13 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 			}
 
 			// Verify ingestion.
-			for _, l := range tc.rawLogs {
-				id, ok := builder.LogAccumulator.ResolveLogID(l.ID)
+			for _, l := range rawLogs {
+				idVal, ok := builder.LogAccumulator.ResolveLogID(l.ID)
 				if !ok {
-					t.Errorf("expected log %s to be resolved", l.ID)
+					t.Errorf("expected log %d to be resolved", l.ID)
 				}
-				if id == 0 {
-					t.Errorf("expected log %s to have valid ID", l.ID)
+				if idVal == 0 {
+					t.Errorf("expected log %d to have valid ID", l.ID)
 				}
 			}
 
@@ -210,10 +206,9 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 }
 
 func TestNewGroupedLogIngesterTask_ErrorHandling(t *testing.T) {
-	ctx := context.Background()
-	ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
+	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	rawLogs := []*log.Log{
-		mustNewLogFromYAML(t, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`),
+		mustNewLogFromYAML(t, ctx, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`),
 	}
 	groups := LogGroupMap{
 		"group1": {
@@ -233,9 +228,6 @@ func TestNewGroupedLogIngesterTask_ErrorHandling(t *testing.T) {
 
 	tid := taskid.NewDefaultImplementationID[struct{}]("test-grouped-ingester-error")
 	task := NewGroupedLogIngesterTask(tid, ingester)
-
-	builder := khifilev6.NewBuilder()
-	ctx = khictx.WithValue(ctx, inspectioncore_contract.Builder, builder)
 
 	_, _, err := inspectiontest.RunInspectionTask(
 		ctx,

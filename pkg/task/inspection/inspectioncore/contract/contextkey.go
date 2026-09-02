@@ -20,8 +20,13 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 )
+
+// IDGenerator is the context key to access the ID generator instance
+// used for allocating IDs during inspection execution.
+var IDGenerator = typedmap.NewTypedKey[*id.Generator]("khi.google.com/inspection/id-generator")
 
 // InspectionTaskMode is the context key to access the execution mode of the inspection task.
 var InspectionTaskMode = typedmap.NewTypedKey[InspectionTaskModeType]("khi.google.com/inspection/task-mode")

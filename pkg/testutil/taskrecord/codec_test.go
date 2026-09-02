@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
 )
@@ -98,9 +99,10 @@ func TestLogListCodec(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			gen := id.NewGenerator()
 			var logs []*log.Log
 			for _, y := range tc.inputYAML {
-				l, err := log.NewLogFromYAMLString(y)
+				l, err := log.NewLogFromYAMLString(gen, y)
 				if err != nil {
 					t.Fatalf("failed to create log from yaml: %v", err)
 				}

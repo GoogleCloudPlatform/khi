@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
@@ -31,7 +32,8 @@ import (
 
 func createTestKhiFile(t *testing.T, dir string, inspectionID string) {
 	t.Helper()
-	b := khifilev6model.NewBuilder()
+	idGen := id.NewGenerator()
+	b := khifilev6model.NewBuilder(idGen)
 	node := structured.NewStandardMap(
 		[]string{"name", "message"},
 		[]structured.Node{
@@ -42,7 +44,7 @@ func createTestKhiFile(t *testing.T, dir string, inspectionID string) {
 	severityID := uint32(1)
 	logTypeID := uint32(2)
 	if err := b.LogAccumulator.AddLog(&khifilev6model.StagingLog{
-		Log:       log.NewLog(structured.NewNodeReader(node)),
+		Log:       log.NewLog(idGen, structured.NewNodeReader(node)),
 		Summary:   "nginx log",
 		Timestamp: time.Date(2026, 4, 29, 8, 0, 0, 0, time.UTC),
 		Severity:  &khifilev6.Severity{Id: &severityID},

@@ -12,27 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package khifilev6
+package id
 
 import (
 	"sync"
 	"testing"
 )
 
-func TestIDGenerator(t *testing.T) {
+func TestGenerator(t *testing.T) {
 	t.Run("sequential new", func(t *testing.T) {
-		g := NewIDGenerator()
+		g := NewGenerator()
 
 		steps := []struct {
 			name string
-			ns   IDNamespace
+			ns   Namespace
 			want uint32
 		}{
-			{"first string", IDString, 1},
-			{"second string", IDString, 2},
-			{"first fieldset", IDFieldSet, 1},
-			{"first server string", IDServerString, ServerStringIDBase + 1},
-			{"second server string", IDServerString, ServerStringIDBase + 2},
+			{"first temporary log", TemporaryLog, 1},
+			{"second temporary log", TemporaryLog, 2},
+			{"first log", Log, 1},
+			{"second log", Log, 2},
+			{"first string", String, 1},
+			{"second string", String, 2},
+			{"first fieldset", FieldSet, 1},
+			{"first server string", ServerString, ServerStringIDBase + 1},
+			{"second server string", ServerString, ServerStringIDBase + 2},
 		}
 
 		for _, step := range steps {
@@ -46,16 +50,16 @@ func TestIDGenerator(t *testing.T) {
 	})
 
 	t.Run("set and new", func(t *testing.T) {
-		g := NewIDGenerator()
-		g.Set(IDString, 5)
+		g := NewGenerator()
+		g.Set(String, 5)
 
 		steps := []struct {
 			name string
-			ns   IDNamespace
+			ns   Namespace
 			want uint32
 		}{
-			{"after set 5", IDString, 6},
-			{"after set 6", IDString, 7},
+			{"after set 5", String, 6},
+			{"after set 6", String, 7},
 		}
 
 		for _, step := range steps {
@@ -69,7 +73,7 @@ func TestIDGenerator(t *testing.T) {
 	})
 
 	t.Run("concurrent new", func(t *testing.T) {
-		g := NewIDGenerator()
+		g := NewGenerator()
 		const (
 			numGoroutines = 10
 			numIncrements = 100
@@ -84,7 +88,7 @@ func TestIDGenerator(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				for j := 0; j < numIncrements; j++ {
-					id := g.New(IDString)
+					id := g.New(TemporaryLog)
 					mu.Lock()
 					if ids[id] {
 						t.Errorf("duplicate ID generated: %d", id)

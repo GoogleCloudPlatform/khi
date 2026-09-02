@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -86,12 +87,13 @@ func (c *LogListCodec) Deserialize(data []byte) (any, error) {
 	}
 
 	result := make([]*log.Log, 0, len(rawLogs))
+	idGen := id.NewGenerator()
 	for i, raw := range rawLogs {
 		node, err := structured.FromYAML(string(raw))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse log node[%d]: %w", i, err)
 		}
-		result = append(result, log.NewLog(structured.NewNodeReader(node)))
+		result = append(result, log.NewLog(idGen, structured.NewNodeReader(node)))
 	}
 
 	return result, nil

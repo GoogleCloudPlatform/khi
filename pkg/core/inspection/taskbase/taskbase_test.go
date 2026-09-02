@@ -15,14 +15,22 @@
 package inspectiontaskbase
 
 import (
+	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-func mustNewLogFromYAML(t *testing.T, yaml string) *log.Log {
+func mustNewLogFromYAML(t *testing.T, ctx context.Context, yaml string) *log.Log {
 	t.Helper()
-	l, err := log.NewLogFromYAMLString(yaml)
+	idGen, err := khictx.GetValue(ctx, inspectioncore_contract.IDGenerator)
+	if err != nil {
+		idGen = id.NewGenerator()
+	}
+	l, err := log.NewLogFromYAMLString(idGen, yaml)
 	if err != nil {
 		t.Fatalf("failed to create log from YAML: %v", err)
 	}

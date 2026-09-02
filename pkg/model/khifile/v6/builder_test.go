@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
@@ -35,12 +36,12 @@ import (
 func TestBuilder_Build(t *testing.T) {
 	testCases := []struct {
 		name   string
-		setup  func(b *Builder)
+		setup  func(gen *id.Generator, b *Builder)
 		verify func(t *testing.T, reader *Reader)
 	}{
 		{
 			name:  "empty build writes only style chunk",
-			setup: func(b *Builder) {},
+			setup: func(gen *id.Generator, b *Builder) {},
 			verify: func(t *testing.T, reader *Reader) {
 				chunk, err := reader.NextChunk()
 				if err != nil {
@@ -58,7 +59,7 @@ func TestBuilder_Build(t *testing.T) {
 		},
 		{
 			name: "full build writes metadata, log, timeline, style, and intern chunks",
-			setup: func(b *Builder) {
+			setup: func(gen *id.Generator, b *Builder) {
 				_ = b.MetadataAccumulator.AddMetadata(&inspectionmetadata.HeaderMetadata{
 					InspectionType: "test-inspection-type",
 					InspectionName: "test-inspection-name",
@@ -74,7 +75,7 @@ func TestBuilder_Build(t *testing.T) {
 				severityID := uint32(1)
 				logTypeID := uint32(2)
 				_ = b.LogAccumulator.AddLog(&StagingLog{
-					Log:       log.NewLog(structured.NewNodeReader(node)),
+					Log:       log.NewLog(gen, structured.NewNodeReader(node)),
 					Summary:   "hello summary",
 					Timestamp: time.Date(2026, 4, 29, 8, 0, 0, 0, time.UTC),
 					Severity:  &pb.Severity{Id: &severityID},
@@ -238,8 +239,9 @@ func TestBuilder_Build(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			b := NewBuilder()
-			tc.setup(b)
+			gen := id.NewGenerator()
+			b := NewBuilder(gen)
+			tc.setup(gen, b)
 
 			var buf bytes.Buffer
 			if err := b.Build(&buf, nil); err != nil {

@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
@@ -28,7 +30,7 @@ import (
 )
 
 func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 
 	projectTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: "test-project",

@@ -14,7 +14,10 @@
 
 package khifilev6
 
-import pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+import (
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+)
 
 // TimelineAccumulator acts as a facade, internally orchestrating a TimelineRegistry
 // and TimelinePathPool to properly manage aliasing and deep hierarchical paths.
@@ -24,7 +27,7 @@ type TimelineAccumulator struct {
 }
 
 // NewTimelineAccumulator creates a new TimelineAccumulator facade.
-func NewTimelineAccumulator(idGen *IDGenerator, clientPool *InternPool, serverPool *InternPool, logAcc *LogAccumulator) *TimelineAccumulator {
+func NewTimelineAccumulator(idGen *id.Generator, clientPool *InternPool, serverPool *InternPool, logAcc *LogAccumulator) *TimelineAccumulator {
 	pathPool := NewTimelinePathPool(idGen, clientPool)
 	registry := NewTimelineRegistry(idGen, clientPool, serverPool, logAcc)
 	return &TimelineAccumulator{

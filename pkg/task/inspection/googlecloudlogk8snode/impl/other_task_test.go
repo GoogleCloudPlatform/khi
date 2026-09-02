@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -43,7 +45,7 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// 1. Initialize Builder
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 
 	testCases := []struct {
 		desc                 string

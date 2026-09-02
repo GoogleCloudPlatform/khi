@@ -19,10 +19,11 @@ import (
 	"testing"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
 
 func TestTimelineRegistry_GetBuilder(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 

@@ -22,6 +22,7 @@ import (
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
@@ -243,7 +244,7 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 			name: "single namespace and pod hierarchy with events and revisions",
 			setupWorkbench: func() *Workbench {
 				wb := NewWorkbench("test-wb", "test-inspection")
-				idGen := &khifilev6model.IDGenerator{}
+				idGen := id.NewGenerator()
 				pool := khifilev6model.NewInternPool(idGen)
 
 				// Style Chunk
@@ -446,7 +447,7 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 func TestWorkbench_BuildAsyncIndexesWithProgress(t *testing.T) {
 	setupWBAndIndex := func() (*Workbench, *SearchIndex) {
 		wb := NewWorkbench("wb-test", "insp-test")
-		idGen := khifilev6model.NewIDGenerator()
+		idGen := id.NewGenerator()
 		pool := khifilev6model.NewInternPool(idGen)
 		node, err := structured.FromGoValue(map[string]any{"foo": "bar"}, &structured.AlphabeticalGoMapKeyOrderProvider{})
 		if err != nil {

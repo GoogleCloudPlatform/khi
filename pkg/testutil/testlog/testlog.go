@@ -73,7 +73,7 @@ func (b *TestLog) MustBuildLogEntity() *log.Log {
 	if err != nil {
 		panic(err.Error())
 	}
-	l := log.NewLog(reader)
+	l := log.NewLog(defaultTestIDGen, reader)
 	if ts, err := reader.ReadTimestamp(pathTimestamp); err == nil {
 		l.Timestamp = ts
 	}

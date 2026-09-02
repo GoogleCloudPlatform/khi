@@ -255,8 +255,7 @@ var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 
 ```go
 func TestMyMapper_ProcessLogByGroup(t *testing.T) {
-    builder := khifilev6.NewBuilder()
-    ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+    ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
     l := testlog.NewMockLog(time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC))
     mapper := &MyMapper{}

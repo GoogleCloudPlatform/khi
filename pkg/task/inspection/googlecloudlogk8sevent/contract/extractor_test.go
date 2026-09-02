@@ -157,14 +157,10 @@ jsonPayload:
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			var l *log.Log
-			var err error
 			if tc.mock != nil {
 				l = testlog.NewMockLog(*tc.mock)
 			} else {
-				l, err = log.NewLogFromYAMLString(tc.input)
-				if err != nil {
-					t.Fatalf("failed to parse test YAML data: %v", err)
-				}
+				l = testlog.MustLogFromYAML(tc.input)
 			}
 
 			got, err := ExtractKubernetesEvent(l.NodeReader)

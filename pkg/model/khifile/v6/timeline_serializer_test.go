@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	googlecmp "github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 )
@@ -154,7 +155,7 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Isolated Setup for deterministic IDs
-			idGen := NewIDGenerator()
+			idGen := id.NewGenerator()
 			internPool := NewInternPool(idGen)
 			serverPool := NewServerInternPool(internPool, idGen)
 			pathPool := NewTimelinePathPool(idGen, internPool)

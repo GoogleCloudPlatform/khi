@@ -20,13 +20,14 @@ import (
 	"sync"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
 
 // TimelineRegistry manages the registration and retrieval of TimelineBuilders mapped by their unique TimelinePath.
 // It is safe for concurrent use by multiple goroutines.
 type TimelineRegistry struct {
 	// idGen is used to generate unique IDs for new TimelineBuilder (TimelineItems) instances.
-	idGen *IDGenerator
+	idGen *id.Generator
 	// clientPool is passed to new TimelineBuilder instances for client string interning.
 	clientPool *InternPool
 	// serverPool is passed to new TimelineBuilder instances for struct interning.
@@ -40,7 +41,7 @@ type TimelineRegistry struct {
 }
 
 // NewTimelineRegistry creates a new registry for managing TimelineBuilders.
-func NewTimelineRegistry(idGen *IDGenerator, clientPool *InternPool, serverPool *InternPool, logAcc *LogAccumulator) *TimelineRegistry {
+func NewTimelineRegistry(idGen *id.Generator, clientPool *InternPool, serverPool *InternPool, logAcc *LogAccumulator) *TimelineRegistry {
 	if serverPool == nil {
 		serverPool = clientPool
 	}
@@ -61,7 +62,7 @@ func (r *TimelineRegistry) GetBuilder(path *TimelinePath) *TimelineBuilder {
 	}
 
 	// 2. Create new builder instance.
-	newID := r.idGen.New(IDTimelineItems)
+	newID := r.idGen.New(id.TimelineItems)
 	newBuilder := &TimelineBuilder{
 		Path:            path,
 		TimelineItemsID: newID,

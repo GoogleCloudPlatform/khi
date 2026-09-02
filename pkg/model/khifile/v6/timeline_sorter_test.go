@@ -19,12 +19,13 @@ import (
 	"time"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestCompareAlphabetical(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 	timelineType := &pb.TimelineType{Id: proto.Uint32(1)}
@@ -84,7 +85,7 @@ func TestCompareAlphabetical(t *testing.T) {
 }
 
 func TestCompareChronological(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 	timelineType := &pb.TimelineType{Id: proto.Uint32(1)}
@@ -164,7 +165,7 @@ func TestCompareChronological(t *testing.T) {
 }
 
 func TestCompareGroupedChronological(t *testing.T) {
-	idGen := NewIDGenerator()
+	idGen := id.NewGenerator()
 	internPool := NewInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 	timelineType := &pb.TimelineType{Id: proto.Uint32(1)}

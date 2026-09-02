@@ -20,6 +20,8 @@ import (
 	"time"
 	"unique"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -144,7 +146,7 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 	mapper := &schedulerLogToTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			builder := khifilev6.NewBuilder()
+			builder := khifilev6.NewBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			taskDependentValues := typedmap.NewTypedMap()

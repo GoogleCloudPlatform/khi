@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -31,7 +33,7 @@ import (
 )
 
 func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, "test-project")

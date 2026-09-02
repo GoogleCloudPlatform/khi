@@ -25,8 +25,11 @@ import (
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logconvert"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -535,7 +538,9 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 				}
 			}()
 
-			cancellableCtx, cancel := context.WithCancel(t.Context())
+			testCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			idGen := khictx.MustGetValue(testCtx, inspectioncore_contract.IDGenerator)
+			cancellableCtx, cancel := context.WithCancel(testCtx)
 			if tc.cancelAfter != 0 {
 				wg.Add(1)
 				go func() {
@@ -577,7 +582,7 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 				if entry.Timestamp != nil {
 					ts = entry.Timestamp.AsTime()
 				}
-				khiLog := log.NewLogWithTimestamp(structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)), ts)
+				khiLog := log.NewLogWithTimestamp(idGen, structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)), ts)
 				yaml, err := khiLog.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 				if err != nil {
 					t.Fatalf("failed to serialize to yaml error=%v", err)

@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -30,7 +32,7 @@ import (
 
 func TestGCPOperationTracker_ProcessOperationLog(t *testing.T) {
 	testTime := time.Date(2026, 6, 24, 10, 0, 0, 0, time.UTC)
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	parentPath := MustGCPProjectTimeline(ctx, "test-project")
@@ -166,7 +168,7 @@ func TestGCPOperationTracker_ProcessOperationLog(t *testing.T) {
 
 func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 	testTime := time.Date(2026, 6, 24, 10, 0, 0, 0, time.UTC)
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	parentPath := MustGCPProjectTimeline(ctx, "test-project")

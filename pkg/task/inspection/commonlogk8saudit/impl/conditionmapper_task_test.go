@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
@@ -30,7 +32,7 @@ import (
 )
 
 func TestConditionWalker(t *testing.T) {
-	builder := khifilev6.NewBuilder()
+	builder := khifilev6.NewBuilder(id.NewGenerator())
 	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
 	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
 	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
@@ -272,7 +274,7 @@ func TestConditionLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 	}
 
 	t.Run("PreProcessLog and ProcessLog standard lifecycle", func(t *testing.T) {
-		builder := khifilev6.NewBuilder()
+		builder := khifilev6.NewBuilder(id.NewGenerator())
 		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
 		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
 		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
@@ -366,7 +368,7 @@ status:
 	})
 
 	t.Run("PreProcessLog and ProcessLog inferred creation", func(t *testing.T) {
-		builder := khifilev6.NewBuilder()
+		builder := khifilev6.NewBuilder(id.NewGenerator())
 		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
 		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
 		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
@@ -447,7 +449,7 @@ status:
 	})
 
 	t.Run("PreProcessLog and ProcessLog inferred creation with UID tracking", func(t *testing.T) {
-		builder := khifilev6.NewBuilder()
+		builder := khifilev6.NewBuilder(id.NewGenerator())
 		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
 		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
 		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
@@ -555,7 +557,7 @@ status:
 	})
 
 	t.Run("PreProcessLog and ProcessLog deletion", func(t *testing.T) {
-		builder := khifilev6.NewBuilder()
+		builder := khifilev6.NewBuilder(id.NewGenerator())
 		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
 		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
 		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
@@ -630,7 +632,7 @@ status:
 	})
 
 	t.Run("DryRun log should be ignored", func(t *testing.T) {
-		builder := khifilev6.NewBuilder()
+		builder := khifilev6.NewBuilder(id.NewGenerator())
 		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
 		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
 		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})

@@ -25,9 +25,12 @@ import (
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logconvert"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -187,6 +190,10 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 	}
 
 	var subProgressMu sync.Mutex
+	idGen, idErr := khictx.GetValue(ctx, inspectioncore_contract.IDGenerator)
+	if idErr != nil {
+		idGen = id.NewGenerator()
+	}
 	subProgresses := make([]LogFetchProgress, t.partitionCount)
 	partitionLogs := make([][]*log.Log, t.partitionCount)
 	cancellableCtx, cancel := context.WithCancel(ctx)
@@ -255,7 +262,7 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 						if logEntry.Timestamp != nil {
 							ts = logEntry.Timestamp.AsTime()
 						}
-						khiLog := log.NewLogWithTimestamp(structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)), ts)
+						khiLog := log.NewLogWithTimestamp(idGen, structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)), ts)
 						subLogs = append(subLogs, khiLog)
 					}
 				}

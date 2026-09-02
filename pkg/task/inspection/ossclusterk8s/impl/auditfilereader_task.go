@@ -63,6 +63,7 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 
 		logLines := strings.Split(string(logData), "\n")
 		var logs []*log.Log
+		idGen := khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator)
 
 		progressutil.ReportProgressFromArraySync(tp, logLines, func(i int, line string) error {
 			trimmed := strings.TrimSpace(line)
@@ -79,7 +80,7 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 			}
 
 			ts, _ := reader.ReadTimestamp(pathAuditFileReaderStageTimestamp)
-			l := log.NewLogWithTimestamp(reader, ts)
+			l := log.NewLogWithTimestamp(idGen, reader, ts)
 			logs = append(logs, l)
 			return nil
 		})

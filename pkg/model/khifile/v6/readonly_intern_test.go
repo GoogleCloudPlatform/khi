@@ -19,6 +19,7 @@ import (
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -70,11 +71,11 @@ func TestReadonlyInternPool_IngestAndResolve(t *testing.T) {
 			name: "server-only string resolution with base offset",
 			chunk: &pbv6.InterningPoolChunk{
 				Strings: []*pbv6.InternString{
-					{Id: proto.Uint32(ServerStringIDBase + 1), Value: proto.String("server-str-1")},
-					{Id: proto.Uint32(ServerStringIDBase + 5), Value: proto.String("server-str-5")},
+					{Id: proto.Uint32(id.ServerStringIDBase + 1), Value: proto.String("server-str-1")},
+					{Id: proto.Uint32(id.ServerStringIDBase + 5), Value: proto.String("server-str-5")},
 				},
 			},
-			queryStrID:   ServerStringIDBase + 5,
+			queryStrID:   id.ServerStringIDBase + 5,
 			wantStr:      "server-str-5",
 			queryFsID:    999,
 			wantFieldSet: nil,

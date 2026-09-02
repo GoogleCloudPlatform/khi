@@ -20,20 +20,20 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
 func TestLogChangeSet_Flush(t *testing.T) {
-	idGen := khifilev6.NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := khifilev6.NewInternPool(idGen)
 	serverPool := khifilev6.NewServerInternPool(pool, idGen)
 	logAcc := khifilev6.NewLogAccumulator(pool, serverPool, idGen)
 
 	node := structured.NewStandardMap(nil, nil)
-	l := log.NewLog(structured.NewNodeReader(node))
-	l.ID = "test-log-id"
+	l := log.NewLog(idGen, structured.NewNodeReader(node))
 
 	severityID := uint32(1)
 	logTypeID := uint32(2)
@@ -62,7 +62,7 @@ func TestLogChangeSet_Flush(t *testing.T) {
 	}
 
 	// Verify that the log is resolved to its serialized ID.
-	resolvedID, ok := logAcc.ResolveLogID("test-log-id")
+	resolvedID, ok := logAcc.ResolveLogID(l.ID)
 	if !ok {
 		t.Fatal("expected log to be resolved in LogAccumulator")
 	}
@@ -72,15 +72,14 @@ func TestLogChangeSet_Flush(t *testing.T) {
 }
 
 func TestTimelineChangeSet_Flush(t *testing.T) {
-	idGen := khifilev6.NewIDGenerator()
+	idGen := id.NewGenerator()
 	pool := khifilev6.NewInternPool(idGen)
 	serverPool := khifilev6.NewServerInternPool(pool, idGen)
 	logAcc := khifilev6.NewLogAccumulator(pool, serverPool, idGen)
 	accumulator := khifilev6.NewTimelineAccumulator(idGen, pool, serverPool, logAcc)
 
 	node := structured.NewStandardMap(nil, nil)
-	l := log.NewLog(structured.NewNodeReader(node))
-	l.ID = "test-log-id"
+	l := log.NewLog(idGen, structured.NewNodeReader(node))
 
 	severityID := uint32(1)
 	logTypeID := uint32(2)
