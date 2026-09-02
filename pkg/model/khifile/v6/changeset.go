@@ -149,11 +149,10 @@ func (cs *TimelineChangeSet) AddAlias(aliasPath, targetPath *TimelinePath) {
 }
 
 // Flush converts staging events, revisions, and aliases to serialized types and writes them to the TimelineAccumulator.
-func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
+func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator, logAcc *LogAccumulator) error {
 	registry := accumulator.registry
 	clientPool := registry.clientPool
 	serverPool := registry.serverPool
-	logAcc := registry.logAcc
 
 	resolvedLogID, ok := logAcc.ResolveLogID(cs.Log.ID)
 	if !ok {

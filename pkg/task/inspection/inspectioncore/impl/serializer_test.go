@@ -19,6 +19,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
@@ -126,6 +127,24 @@ func TestSerializeTask(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			taskCtx := inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
+
+			if tc.taskMode == inspectioncore_contract.TaskModeRun {
+				ioConfig := khictx.MustGetValue(taskCtx, inspectioncore_contract.CurrentIOConfig)
+				inspectionID := khictx.MustGetValue(taskCtx, inspectioncore_contract.InspectionTaskInspectionID)
+				store := inspectioncore_contract.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
+				fw, err := store.GetWriter()
+				if err != nil {
+					t.Fatalf("failed to create file writer: %v", err)
+				}
+				w, err := khifilev6.NewWriter(fw)
+				if err != nil {
+					_ = fw.Close()
+					t.Fatalf("failed to create writer: %v", err)
+				}
+				idGen := khictx.MustGetValue(taskCtx, inspectioncore_contract.IDGenerator)
+				b := khifilev6.NewBuilder(idGen, w)
+				taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.Builder, b)
+			}
 
 			// Obtain the builder from task context.
 			builder := khictx.MustGetValue(taskCtx, inspectioncore_contract.Builder)

@@ -49,8 +49,10 @@ const (
 )
 
 // Writer writes chunks to a KHI v6 file.
+// It is safe for concurrent use by multiple goroutines.
 type Writer struct {
-	w io.Writer
+	w  io.Writer
+	mu sync.Mutex
 }
 
 // NewWriter creates a new Writer and writes the magic bytes and version.
@@ -62,46 +64,82 @@ func NewWriter(w io.Writer) (*Writer, error) {
 	return &Writer{w: w}, nil
 }
 
-// WriteChunk serializes the given protobuf message, gzips it, and writes the chunk header and payload.
-func (w *Writer) WriteChunk(chunkType ChunkType, message proto.Message) error {
-	// 1. Serialize proto message
+// MustNewTestWriter creates a new Writer writing to an in-memory bytes.Buffer for testing purposes.
+func MustNewTestWriter() *Writer {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf)
+	if err != nil {
+		panic(err)
+	}
+	return w
+}
+
+// Close closes the underlying writer if it implements io.Closer.
+func (w *Writer) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if closer, ok := w.w.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
+}
+
+// CompressChunk serializes and gzip-compresses the given protobuf message into a RawChunk.
+func CompressChunk(chunkType ChunkType, message proto.Message) (*RawChunk, error) {
 	b, err := proto.Marshal(message)
 	if err != nil {
-		return fmt.Errorf("failed to marshal proto message: %w", err)
+		return nil, fmt.Errorf("failed to marshal proto message: %w", err)
 	}
 
-	// 2. Compress payload with gzip
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
 	if _, err := gw.Write(b); err != nil {
-		return fmt.Errorf("failed to compress payload: %w", err)
+		return nil, fmt.Errorf("failed to compress payload: %w", err)
 	}
 	if err := gw.Close(); err != nil {
-		return fmt.Errorf("failed to close gzip writer: %w", err)
+		return nil, fmt.Errorf("failed to close gzip writer: %w", err)
 	}
 
 	payload := buf.Bytes()
 	const maxChunkSize = 64 * 1024 * 1024 // 64MB hard limit based on Protobuf constraints
 	if len(payload) > maxChunkSize {
-		return fmt.Errorf("payload size %d exceeds maximum allowed chunk size (64MB)", len(payload))
+		return nil, fmt.Errorf("payload size %d exceeds maximum allowed chunk size (64MB)", len(payload))
 	}
-	size := uint32(len(payload))
 
-	// 3. Write chunk header (Size, Type)
+	return &RawChunk{
+		Type: chunkType,
+		Data: payload,
+	}, nil
+}
+
+// WriteRawChunk writes a pre-compressed chunk header and payload directly to the underlying writer.
+func (w *Writer) WriteRawChunk(chunk *RawChunk) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	size := uint32(len(chunk.Data))
 	var header [8]byte
 	binary.LittleEndian.PutUint32(header[0:4], size)
-	binary.LittleEndian.PutUint32(header[4:8], uint32(chunkType))
+	binary.LittleEndian.PutUint32(header[4:8], uint32(chunk.Type))
 
 	if _, err := w.w.Write(header[:]); err != nil {
 		return fmt.Errorf("failed to write chunk header: %w", err)
 	}
 
-	// 4. Write payload
-	if _, err := w.w.Write(payload); err != nil {
+	if _, err := w.w.Write(chunk.Data); err != nil {
 		return fmt.Errorf("failed to write chunk payload: %w", err)
 	}
 
 	return nil
+}
+
+// WriteChunk serializes the given protobuf message, gzips it, and writes the chunk header and payload.
+func (w *Writer) WriteChunk(chunkType ChunkType, message proto.Message) error {
+	rawChunk, err := CompressChunk(chunkType, message)
+	if err != nil {
+		return err
+	}
+	return w.WriteRawChunk(rawChunk)
 }
 
 // WriteGenerator consumes the ChunkGenerator and writes all generated chunks sequentially.

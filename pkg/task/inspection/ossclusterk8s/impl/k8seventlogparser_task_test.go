@@ -72,7 +72,7 @@ func TestOSSK8sEventLogIngester_ProcessLog(t *testing.T) {
 
 func TestOSSK8sEventTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	// Initialize the shared Builder reference.
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	testCases := []struct {
 		desc   string

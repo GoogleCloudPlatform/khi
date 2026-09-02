@@ -113,7 +113,7 @@ describe('LogStore', () => {
     }).not.toThrow();
   });
 
-  it('should throw error if logs are out of timestamp order', () => {
+  it('should accept logs with out of order timestamps', () => {
     const logs: LogDTO[] = [
       { id: 1, ts: 1000n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
       { id: 2, ts: 999n, logTypeId: 2, severityTypeId: 2, summaryStringId: 2 },
@@ -122,7 +122,7 @@ describe('LogStore', () => {
     expect(() => {
       const s = LogStore.create(internPool, styleStore, 2);
       s.addLogs(logs);
-    }).toThrowError(/Logs are not sorted by timestamp/);
+    }).not.toThrow();
   });
 
   it('should fetch log entries and handle incorrect id lookups', () => {
@@ -288,7 +288,7 @@ describe('LogStore', () => {
       expect(() => emptyStore.getLog(1)).toThrowError(/Log ID 1 not found/);
     });
 
-    it('should throw error when adding unsorted logs', () => {
+    it('should accept adding unsorted logs', () => {
       const dynamicStore = LogStore.create(internPool, styleStore);
       dynamicStore.addLog({
         id: 1,
@@ -306,7 +306,8 @@ describe('LogStore', () => {
           severityTypeId: 1,
           summaryStringId: 1,
         }),
-      ).toThrowError(/Logs are not sorted by timestamp/);
+      ).not.toThrow();
+      expect(dynamicStore.count).toBe(2);
     });
 
     it('should retrieve log ID by chronological index', () => {

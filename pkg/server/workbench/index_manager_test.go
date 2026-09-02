@@ -33,7 +33,20 @@ import (
 func createTestKhiFile(t *testing.T, dir string, inspectionID string) {
 	t.Helper()
 	idGen := id.NewGenerator()
-	b := khifilev6model.NewBuilder(idGen)
+
+	filePath := filepath.Join(dir, inspectionID+".khi")
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+	defer f.Close()
+
+	writer, err := khifilev6model.NewWriter(f)
+	if err != nil {
+		t.Fatalf("failed to create writer: %v", err)
+	}
+
+	b := khifilev6model.NewBuilder(idGen, writer)
 	node := structured.NewStandardMap(
 		[]string{"name", "message"},
 		[]structured.Node{
@@ -53,14 +66,7 @@ func createTestKhiFile(t *testing.T, dir string, inspectionID string) {
 		t.Fatalf("failed to add log: %v", err)
 	}
 
-	filePath := filepath.Join(dir, inspectionID+".khi")
-	f, err := os.Create(filePath)
-	if err != nil {
-		t.Fatalf("failed to create test file: %v", err)
-	}
-	defer f.Close()
-
-	if err := b.Build(f, nil); err != nil {
+	if err := b.Build(nil); err != nil {
 		t.Fatalf("failed to build KHI file: %v", err)
 	}
 }

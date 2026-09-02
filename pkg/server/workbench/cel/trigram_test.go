@@ -555,7 +555,7 @@ func TestTrigramIndex_BuildFromStructPool(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pool := khifilev6model.NewInternPool(id.NewGenerator())
+			pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 			structIDs := make([]uint32, 0, len(tc.yamls))
 			for _, yamlStr := range tc.yamls {
 				node, err := structured.FromYAML(yamlStr)
@@ -626,7 +626,7 @@ func TestTrigramIndex_BuildFromLogPool(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pool := khifilev6model.NewInternPool(id.NewGenerator())
+			pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 			// Intern strings
 			summaryIDMap := make(map[uint32]uint32)

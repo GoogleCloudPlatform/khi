@@ -20,7 +20,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
@@ -131,42 +130,6 @@ func (g *splittingGenerator[T, C]) Close() error {
 
 // splittingGenerator implements ChunkGenerator
 var _ ChunkGenerator = (*splittingGenerator[proto.Message, proto.Message])(nil)
-
-// NewInternPoolGenerator creates a SplittingGenerator for InternPool chunks.
-// It groups pb.InternString messages into pb.InterningPoolChunk respecting the size limit.
-func NewInternPoolGenerator(chunkType ChunkType, seq iter.Seq[*pb.InternString]) ChunkGenerator {
-	wrapper := func(batch []*pb.InternString) *pb.InterningPoolChunk {
-		return &pb.InterningPoolChunk{Strings: batch}
-	}
-	return NewSplittingGenerator(chunkType, seq, DefaultChunkSizeLimit, wrapper)
-}
-
-// NewInternFieldPathSetGenerator creates a SplittingGenerator for InternPool chunks containing field path sets.
-// It groups pb.InternFieldPathSet messages into pb.InterningPoolChunk respecting the size limit.
-func NewInternFieldPathSetGenerator(chunkType ChunkType, seq iter.Seq[*pb.InternFieldPathSet]) ChunkGenerator {
-	wrapper := func(batch []*pb.InternFieldPathSet) *pb.InterningPoolChunk {
-		return &pb.InterningPoolChunk{FieldPathSets: batch}
-	}
-	return NewSplittingGenerator(chunkType, seq, DefaultChunkSizeLimit, wrapper)
-}
-
-// NewInternStructGenerator creates a SplittingGenerator for InternPool chunks containing structs.
-// It groups khifile.InternedStruct messages into pb.InterningPoolChunk respecting the size limit.
-func NewInternStructGenerator(chunkType ChunkType, seq iter.Seq[*khifile.InternedStruct]) ChunkGenerator {
-	wrapper := func(batch []*khifile.InternedStruct) *pb.InterningPoolChunk {
-		return &pb.InterningPoolChunk{Structs: batch}
-	}
-	return NewSplittingGenerator(chunkType, seq, DefaultChunkSizeLimit, wrapper)
-}
-
-// NewLogGenerator creates a SplittingGenerator for Log chunks.
-// It groups pb.Log messages into pb.LogChunk respecting the size limit.
-func NewLogGenerator(seq iter.Seq[*pb.Log]) ChunkGenerator {
-	wrapper := func(batch []*pb.Log) *pb.LogChunk {
-		return &pb.LogChunk{Logs: batch}
-	}
-	return NewSplittingGenerator(ChunkTypeLog, seq, DefaultChunkSizeLimit, wrapper)
-}
 
 // NewTimelineGenerator creates a SplittingGenerator for Timeline chunks.
 // It groups pb.Timeline messages into pb.TimelineChunk respecting the size limit.

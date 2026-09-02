@@ -249,7 +249,7 @@ func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T
 					state = nextState
 
 					if cs != nil {
-						err := cs.Flush(builder.TimelineAccumulator)
+						err := cs.Flush(builder.TimelineAccumulator, builder.LogAccumulator)
 						if err != nil {
 							setErr(err)
 							return

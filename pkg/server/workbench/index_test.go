@@ -245,7 +245,7 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 			setupWorkbench: func() *Workbench {
 				wb := NewWorkbench("test-wb", "test-inspection")
 				idGen := id.NewGenerator()
-				pool := khifilev6model.NewInternPool(idGen)
+				pool := khifilev6model.NewTestInternPool(idGen)
 
 				// Style Chunk
 				wb.styleChunk = &khifilev6.TimelineStyleChunk{
@@ -448,7 +448,7 @@ func TestWorkbench_BuildAsyncIndexesWithProgress(t *testing.T) {
 	setupWBAndIndex := func() (*Workbench, *SearchIndex) {
 		wb := NewWorkbench("wb-test", "insp-test")
 		idGen := id.NewGenerator()
-		pool := khifilev6model.NewInternPool(idGen)
+		pool := khifilev6model.NewTestInternPool(idGen)
 		node, err := structured.FromGoValue(map[string]any{"foo": "bar"}, &structured.AlphabeticalGoMapKeyOrderProvider{})
 		if err != nil {
 			t.Fatalf("FromGoValue() error = %v", err)

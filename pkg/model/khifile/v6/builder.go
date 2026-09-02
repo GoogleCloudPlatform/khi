@@ -16,12 +16,8 @@ package khifilev6
 
 import (
 	"fmt"
-	"io"
-	"iter"
 	"slices"
 
-	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 )
@@ -35,6 +31,7 @@ type BuilderProgressReporter interface {
 // Builder orchestrates the accumulators, pools, and final file generation for KHI v6 format.
 type Builder struct {
 	idGenerator         *id.Generator
+	writer              *Writer
 	internPool          *InternPool
 	serverInternPool    *InternPool
 	TimelineAccumulator *TimelineAccumulator
@@ -43,39 +40,39 @@ type Builder struct {
 }
 
 // NewBuilder initializes a new v6 Builder with all necessary accumulators and pools.
-func NewBuilder(gen *id.Generator) *Builder {
-	internPool := NewInternPool(gen)
-	serverPool := NewServerInternPool(internPool, gen)
-	logAcc := NewLogAccumulator(internPool, serverPool, gen)
+func NewBuilder(gen *id.Generator, writer *Writer) *Builder {
+	internPool := NewInternPool(gen, writer)
+	serverPool := NewServerInternPool(internPool, gen, writer)
+	logAcc := NewLogAccumulator(internPool, serverPool, gen, writer)
 
 	return &Builder{
 		idGenerator:         gen,
+		writer:              writer,
 		internPool:          internPool,
 		serverInternPool:    serverPool,
-		TimelineAccumulator: NewTimelineAccumulator(gen, internPool, serverPool, logAcc),
+		TimelineAccumulator: NewTimelineAccumulator(gen, internPool, serverPool),
 		LogAccumulator:      logAcc,
 		MetadataAccumulator: NewMetadataAccumulator(),
 	}
 }
 
-// Build writes the accumulated data to the provided io.Writer in KHI v6 format.
-func (b *Builder) Build(w io.Writer, reporter BuilderProgressReporter) error {
+// NewTestBuilder creates a Builder for testing purposes with an in-memory test writer.
+func NewTestBuilder(gen *id.Generator) *Builder {
+	return NewBuilder(gen, MustNewTestWriter())
+}
+
+// Build writes the accumulated metadata, timeline chunks, and flushes remaining log and intern pool chunks.
+func (b *Builder) Build(reporter BuilderProgressReporter) error {
 	report := func(progress float32, status string) {
 		if reporter != nil {
 			reporter.ReportProgress(progress, status)
 		}
 	}
 
-	report(0.0, "Initializing KHI writer")
-	writer, err := NewWriter(w)
-	if err != nil {
-		return fmt.Errorf("failed to create writer: %w", err)
-	}
-
 	report(0.1, "Writing timeline style chunk")
 	// 1. Write TimelineStyleChunk directly (no generator needed since it's a single chunk)
 	styleChunk := style.GenerateChunk()
-	if err := writer.WriteChunk(ChunkTypeTimelineStyle, styleChunk); err != nil {
+	if err := b.writer.WriteChunk(ChunkTypeTimelineStyle, styleChunk); err != nil {
 		return fmt.Errorf("failed to write timeline style chunk: %w", err)
 	}
 
@@ -85,20 +82,15 @@ func (b *Builder) Build(w io.Writer, reporter BuilderProgressReporter) error {
 	if len(metadataList) > 0 {
 		metadataGen := NewMetadataGenerator(slices.Values(metadataList))
 		defer metadataGen.Close()
-		if err := writer.WriteGenerator(metadataGen); err != nil {
+		if err := b.writer.WriteGenerator(metadataGen); err != nil {
 			return fmt.Errorf("failed to write metadata chunk: %w", err)
 		}
 	}
 
-	report(0.4, "Writing log chunks")
-	// 3. Write LogChunks
-	logs := b.LogAccumulator.Accumulate()
-	if len(logs) > 0 {
-		logGen := NewLogGenerator(slices.Values(logs))
-		defer logGen.Close()
-		if err := writer.WriteGenerator(logGen); err != nil {
-			return fmt.Errorf("failed to write log chunks: %w", err)
-		}
+	report(0.4, "Flushing log chunks")
+	// 3. Flush remaining LogChunks
+	if err := b.LogAccumulator.Flush(); err != nil {
+		return fmt.Errorf("failed to flush log accumulator: %w", err)
 	}
 
 	report(0.6, "Writing timeline chunks")
@@ -108,7 +100,7 @@ func (b *Builder) Build(w io.Writer, reporter BuilderProgressReporter) error {
 	if len(timelines) > 0 {
 		timelineGen := NewTimelineGenerator(slices.Values(timelines))
 		defer timelineGen.Close()
-		if err := writer.WriteGenerator(timelineGen); err != nil {
+		if err := b.writer.WriteGenerator(timelineGen); err != nil {
 			return fmt.Errorf("failed to write timeline chunks: %w", err)
 		}
 	}
@@ -116,56 +108,25 @@ func (b *Builder) Build(w io.Writer, reporter BuilderProgressReporter) error {
 	if len(timelineItems) > 0 {
 		timelineItemsGen := NewTimelineItemsGenerator(slices.Values(timelineItems))
 		defer timelineItemsGen.Close()
-		if err := writer.WriteGenerator(timelineItemsGen); err != nil {
+		if err := b.writer.WriteGenerator(timelineItemsGen); err != nil {
 			return fmt.Errorf("failed to write timeline items chunks: %w", err)
 		}
 	}
 
-	report(0.8, "Writing intern pool chunks")
-	// 5. Write Client InternPoolChunk (ChunkTypeInternPool = 2)
-	clientStringSeq := mapSeq(b.internPool.SortedStringRefs(), func(ref *InternStringRef) *pb.InternString {
-		return ref.ToProto()
-	})
-	clientStringGen := NewInternPoolGenerator(ChunkTypeInternPool, clientStringSeq)
-	if err := writer.WriteGenerator(clientStringGen); err != nil {
-		return fmt.Errorf("failed to write client intern string chunks: %w", err)
+	report(0.8, "Flushing intern pool chunks")
+	// 5. Flush client and server intern pool chunks
+	if err := b.internPool.Flush(); err != nil {
+		return fmt.Errorf("failed to flush client intern pool: %w", err)
+	}
+	if err := b.serverInternPool.Flush(); err != nil {
+		return fmt.Errorf("failed to flush server intern pool: %w", err)
 	}
 
-	// 6. Write Server InternPoolChunk (ChunkTypeServerInternPool = 6)
-	serverStringSeq := mapSeq(b.serverInternPool.SortedStringRefs(), func(ref *InternStringRef) *pb.InternString {
-		return ref.ToProto()
-	})
-	serverStringGen := NewInternPoolGenerator(ChunkTypeServerInternPool, serverStringSeq)
-	if err := writer.WriteGenerator(serverStringGen); err != nil {
-		return fmt.Errorf("failed to write server intern string chunks: %w", err)
-	}
-
-	fieldSetSeq := mapSeq(b.serverInternPool.FieldSetRefs(), func(ref *FieldPathSetRef) *pb.InternFieldPathSet {
-		return ref.ToProto()
-	})
-	fieldPathSetGen := NewInternFieldPathSetGenerator(ChunkTypeServerInternPool, fieldSetSeq)
-	if err := writer.WriteGenerator(fieldPathSetGen); err != nil {
-		return fmt.Errorf("failed to write server intern field path set chunks: %w", err)
-	}
-
-	structSeq := mapSeq(b.serverInternPool.StructRefs(), func(ref *InternStructRef) *khifile.InternedStruct {
-		return ref.ToProto()
-	})
-	structGen := NewInternStructGenerator(ChunkTypeServerInternPool, structSeq)
-	if err := writer.WriteGenerator(structGen); err != nil {
-		return fmt.Errorf("failed to write server intern struct chunks: %w", err)
+	report(0.95, "Closing writer")
+	if err := b.writer.Close(); err != nil {
+		return fmt.Errorf("failed to close writer: %w", err)
 	}
 
 	report(1.0, "Done")
 	return nil
-}
-
-func mapSeq[T any, U any](seq iter.Seq[T], f func(T) U) iter.Seq[U] {
-	return func(yield func(U) bool) {
-		for v := range seq {
-			if !yield(f(v)) {
-				return
-			}
-		}
-	}
 }

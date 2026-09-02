@@ -33,7 +33,7 @@ import (
 
 func TestGCPOperationTracker_ProcessOperationLog(t *testing.T) {
 	testTime := time.Date(2026, 6, 24, 10, 0, 0, 0, time.UTC)
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	parentPath := MustGCPProjectTimeline(ctx, "test-project")
@@ -169,7 +169,7 @@ func TestGCPOperationTracker_ProcessOperationLog(t *testing.T) {
 
 func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 	testTime := time.Date(2026, 6, 24, 10, 0, 0, 0, time.UTC)
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	parentPath := MustGCPProjectTimeline(ctx, "test-project")

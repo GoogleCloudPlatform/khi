@@ -27,7 +27,7 @@ import (
 func TestTimelinePathPool_Get(t *testing.T) {
 	// Set up common dependencies for tests
 	idGen := id.NewGenerator()
-	internPool := NewInternPool(idGen)
+	internPool := NewTestInternPool(idGen)
 
 	id1 := uint32(1)
 	id2 := uint32(2)

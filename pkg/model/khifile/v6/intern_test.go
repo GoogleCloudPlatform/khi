@@ -15,6 +15,7 @@
 package khifilev6
 
 import (
+	"bytes"
 	"testing"
 
 	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
@@ -26,7 +27,7 @@ import (
 
 func TestInternPool_Intern(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	testCases := []struct {
 		name   string
@@ -66,7 +67,7 @@ func TestInternPool_Intern(t *testing.T) {
 
 func TestInternPool_Intern_InvalidUTF8(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	testCases := []struct {
 		name        string
@@ -110,7 +111,7 @@ func TestInternPool_Intern_InvalidUTF8(t *testing.T) {
 
 func TestInternPool_ResolveStringFromID(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 	ref1 := pool.InternString("foo")
 	ref2 := pool.InternString("bar")
 
@@ -153,7 +154,7 @@ func TestInternPool_ResolveStringFromID(t *testing.T) {
 
 func TestInternStringRef_ToProto(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 	ref := pool.InternString("foo")
 
 	got := ref.ToProto()
@@ -175,7 +176,7 @@ func TestInternStringRef_ToProto(t *testing.T) {
 
 func TestInternPool_SortedRefs(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 	pool.InternString("c")
 	pool.InternString("a")
 	pool.InternString("b")
@@ -222,7 +223,7 @@ func TestInternPool_SortedRefs(t *testing.T) {
 
 func TestInternPool_InternFieldSet(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	testCases := []struct {
 		name   string
@@ -272,7 +273,7 @@ func TestInternPool_InternFieldSet(t *testing.T) {
 
 func TestInternPool_FieldSetRefs(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	pool.InternFieldSet([]string{"a", "b"})
 	pool.InternFieldSet([]string{"c"})
@@ -320,7 +321,7 @@ func TestInternPool_FieldSetRefs(t *testing.T) {
 
 func TestInternPool_InternStruct(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	fieldSetID1 := pool.InternFieldSet([]string{"foo", "bar"}).id
 	fieldSetID2 := pool.InternFieldSet([]string{"baz"}).id
@@ -437,7 +438,7 @@ func TestInternPool_InternStruct(t *testing.T) {
 
 func TestInternPool_StructRefs(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	fsID := pool.InternFieldSet([]string{"key"}).id
 	ref1 := pool.InternStruct(fsID, []*khifile.InternedValue{{Kind: &khifile.InternedValue_Int64Value{Int64Value: 1}}})
@@ -618,7 +619,7 @@ func TestInternPool_IngestChunk(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pool := NewInternPool(nil)
+			pool := NewTestInternPool(nil)
 			for _, c := range tc.chunks {
 				pool.IngestChunk(c)
 			}
@@ -671,8 +672,8 @@ func TestServerInternPool(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			idGen := id.NewGenerator()
-			clientPool := NewInternPool(idGen)
-			serverPool := NewServerInternPool(clientPool, idGen)
+			clientPool := NewTestInternPool(idGen)
+			serverPool := NewTestServerInternPool(clientPool, idGen)
 
 			for _, s := range tc.clientStrs {
 				clientPool.InternString(s)
@@ -689,5 +690,49 @@ func TestServerInternPool(t *testing.T) {
 				t.Errorf("Resolve() = %q, want %q", resolved, tc.checkStr)
 			}
 		})
+	}
+}
+
+func TestInternPool_StreamingFlush(t *testing.T) {
+	var buf bytes.Buffer
+	writer, err := NewWriter(&buf)
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	idGen := id.NewGenerator()
+	pool := NewInternPool(idGen, writer)
+	pool.SetChunkSizeLimit(50) // Set very small limit to trigger streaming chunk split
+
+	pool.InternString("string_one_with_enough_length_to_reach_limit")
+	pool.InternString("string_two_with_enough_length_to_reach_limit")
+
+	// Flush remaining items
+	if err := pool.Flush(); err != nil {
+		t.Fatalf("Flush() error = %v", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	reader, err := NewReader(&buf)
+	if err != nil {
+		t.Fatalf("NewReader() error = %v", err)
+	}
+
+	chunkCount := 0
+	for {
+		chunk, err := reader.NextChunk()
+		if err != nil {
+			break
+		}
+		if chunk.Type == ChunkTypeInternPool {
+			chunkCount++
+		}
+	}
+
+	if chunkCount < 2 {
+		t.Errorf("expected at least 2 intern pool chunks due to streaming split, got %d", chunkCount)
 	}
 }

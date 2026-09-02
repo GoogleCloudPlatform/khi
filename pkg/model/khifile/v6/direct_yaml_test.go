@@ -232,7 +232,7 @@ protoPayload:
 			}
 
 			idGen := id.NewGenerator()
-			pool := NewInternPool(idGen)
+			pool := NewTestInternPool(idGen)
 
 			internedRef, err := ToInternedStruct(node, pool)
 			if err != nil {
@@ -370,7 +370,7 @@ spec:
 	}
 
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 	internedRef, err := ToInternedStruct(node, pool)
 	if err != nil {
 		b.Fatalf("ToInternedStruct() error = %v", err)

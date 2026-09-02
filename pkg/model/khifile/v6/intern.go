@@ -16,6 +16,7 @@ package khifilev6
 
 import (
 	"encoding/binary"
+	"fmt"
 	"iter"
 	"math"
 	"slices"
@@ -23,6 +24,8 @@ import (
 	"strings"
 	"sync"
 	"unsafe"
+
+	"google.golang.org/protobuf/proto"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -109,10 +112,13 @@ func (r *InternStructRef) ToProto() *pb.InternedStruct {
 
 // InternPool manages interning of strings, field path sets, and structs to reduce memory usage.
 // It uses sync.Map for forward key deduplication and slice-based index resolution for ID lookup.
+// Newly interned elements are staged and flushed to the writer in chunks when reaching chunkSizeLimit.
 type InternPool struct {
 	parentPool *InternPool
 	idGen      *id.Generator
 	idNs       id.Namespace
+	writer     *Writer
+	chunkType  ChunkType
 
 	strToID      sync.Map // map[string]uint32
 	fieldSetToID sync.Map // map[string]uint32 (key is byte representation of []uint32)
@@ -126,30 +132,53 @@ type InternPool struct {
 
 	idToStructMu sync.RWMutex
 	idToStruct   []*pb.InternedStruct
+
+	flushMu            sync.Mutex
+	chunkSizeLimit     int
+	currentBatchSize   int
+	unflushedStrings   []*pbv6.InternString
+	unflushedFieldSets []*pbv6.InternFieldPathSet
+	unflushedStructs   []*pb.InternedStruct
 }
 
 var _ ReadonlyPool = (*InternPool)(nil)
 
-// NewInternPool creates a new InternPool with the given IDGenerator.
-func NewInternPool(idGen *id.Generator) *InternPool {
+// NewInternPool creates a new client InternPool with the given IDGenerator and Writer.
+func NewInternPool(idGen *id.Generator, writer *Writer) *InternPool {
 	return &InternPool{
-		idGen: idGen,
-		idNs:  id.String,
+		idGen:          idGen,
+		idNs:           id.String,
+		writer:         writer,
+		chunkType:      ChunkTypeInternPool,
+		chunkSizeLimit: DefaultChunkSizeLimit,
 	}
 }
 
+// NewTestInternPool creates a client InternPool with MustNewTestWriter for testing purposes.
+func NewTestInternPool(idGen *id.Generator) *InternPool {
+	return NewInternPool(idGen, MustNewTestWriter())
+}
+
 // NewServerInternPool creates a new server-only InternPool delegating string lookup to parent when available.
-func NewServerInternPool(parent *InternPool, idGen *id.Generator) *InternPool {
+func NewServerInternPool(parent *InternPool, idGen *id.Generator, writer *Writer) *InternPool {
 	return &InternPool{
-		parentPool: parent,
-		idGen:      idGen,
-		idNs:       id.ServerString,
+		parentPool:     parent,
+		idGen:          idGen,
+		idNs:           id.ServerString,
+		writer:         writer,
+		chunkType:      ChunkTypeServerInternPool,
+		chunkSizeLimit: DefaultChunkSizeLimit,
 	}
+}
+
+// NewTestServerInternPool creates a server InternPool with MustNewTestWriter for testing purposes.
+func NewTestServerInternPool(parent *InternPool, idGen *id.Generator) *InternPool {
+	return NewServerInternPool(parent, idGen, MustNewTestWriter())
 }
 
 // NewInternPoolFromChunk creates an InternPool pre-populated with entries from an InterningPoolChunk.
 func NewInternPoolFromChunk(chunk *pbv6.InterningPoolChunk) *InternPool {
-	pool := NewInternPool(nil)
+	pool := NewInternPool(nil, MustNewTestWriter())
 	pool.IngestChunk(chunk)
 	return pool
 }
@@ -267,6 +296,8 @@ func (p *InternPool) InternString(value string) *InternStringRef {
 		return &InternStringRef{pool: p, id: actual.(uint32)}
 	}
 
+	p.stageString(id, cloned)
+
 	return &InternStringRef{pool: p, id: id}
 }
 
@@ -325,6 +356,8 @@ func (p *InternPool) InternFieldSet(fieldNames []string) *FieldPathSetRef {
 		return &FieldPathSetRef{pool: p, id: actual.(uint32)}
 	}
 
+	p.stageFieldSet(newID, namesCopy)
+
 	return &FieldPathSetRef{pool: p, id: newID}
 }
 
@@ -375,7 +408,101 @@ func (p *InternPool) internStructWithKey(fieldPathSetID uint32, values []*pb.Int
 		return &InternStructRef{pool: p, id: actual.(uint32)}
 	}
 
+	p.stageStruct(s)
+
 	return &InternStructRef{pool: p, id: newID}
+}
+
+func (p *InternPool) stageString(idVal uint32, val string) {
+	item := &pbv6.InternString{
+		Id:    &idVal,
+		Value: &val,
+	}
+	itemSize := proto.Size(item) + 8
+
+	p.flushMu.Lock()
+	defer p.flushMu.Unlock()
+
+	p.unflushedStrings = append(p.unflushedStrings, item)
+	p.currentBatchSize += itemSize
+
+	if p.currentBatchSize >= p.chunkSizeLimit {
+		_ = p.flushLocked()
+	}
+}
+
+func (p *InternPool) stageFieldSet(idVal uint32, ids []uint32) {
+	item := &pbv6.InternFieldPathSet{
+		Id:                 &idVal,
+		FieldPathStringIds: ids,
+	}
+	itemSize := proto.Size(item) + 8
+
+	p.flushMu.Lock()
+	defer p.flushMu.Unlock()
+
+	p.unflushedFieldSets = append(p.unflushedFieldSets, item)
+	p.currentBatchSize += itemSize
+
+	if p.currentBatchSize >= p.chunkSizeLimit {
+		_ = p.flushLocked()
+	}
+}
+
+func (p *InternPool) stageStruct(s *pb.InternedStruct) {
+	itemSize := proto.Size(s) + 8
+
+	p.flushMu.Lock()
+	defer p.flushMu.Unlock()
+
+	p.unflushedStructs = append(p.unflushedStructs, s)
+	p.currentBatchSize += itemSize
+
+	if p.currentBatchSize >= p.chunkSizeLimit {
+		_ = p.flushLocked()
+	}
+}
+
+// SetChunkSizeLimit overrides the default chunk size limit for testing or performance tuning.
+func (p *InternPool) SetChunkSizeLimit(limit int) {
+	p.flushMu.Lock()
+	defer p.flushMu.Unlock()
+	p.chunkSizeLimit = limit
+}
+
+// Flush writes any pending unflushed intern pool items directly to the writer.
+func (p *InternPool) Flush() error {
+	p.flushMu.Lock()
+	defer p.flushMu.Unlock()
+	return p.flushLocked()
+}
+
+func (p *InternPool) flushLocked() error {
+	if len(p.unflushedStrings) == 0 && len(p.unflushedFieldSets) == 0 && len(p.unflushedStructs) == 0 {
+		return nil
+	}
+
+	chunk := &pbv6.InterningPoolChunk{
+		Strings:       p.unflushedStrings,
+		FieldPathSets: p.unflushedFieldSets,
+		Structs:       p.unflushedStructs,
+	}
+
+	p.unflushedStrings = nil
+	p.unflushedFieldSets = nil
+	p.unflushedStructs = nil
+	p.currentBatchSize = 0
+
+	rawChunk, err := CompressChunk(p.chunkType, chunk)
+	if err != nil {
+		return fmt.Errorf("failed to compress intern pool chunk: %w", err)
+	}
+
+	if err := p.writer.WriteRawChunk(rawChunk); err != nil {
+		return fmt.Errorf("failed to write intern pool raw chunk: %w", err)
+	}
+
+	return nil
 }
 
 // ResolveStructFromID returns the InternedStruct corresponding to the given ID.

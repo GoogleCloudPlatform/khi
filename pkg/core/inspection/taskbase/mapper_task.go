@@ -218,7 +218,7 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[TimelineM
 					groupData = nextGroupData
 
 					if cs != nil {
-						err := cs.Flush(builder.TimelineAccumulator)
+						err := cs.Flush(builder.TimelineAccumulator, builder.LogAccumulator)
 						if err != nil {
 							logTaskError(ctx, "failed to flush the changeset to timeline registry", err, l)
 							setErr(err)
