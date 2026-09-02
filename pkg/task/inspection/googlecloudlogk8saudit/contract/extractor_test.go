@@ -307,3 +307,69 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractGCPK8sAuditLogError(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		input     string
+		mock      *commonlogk8saudit_contract.K8sAuditLogFieldSet
+		wantError bool
+	}{
+		{
+			desc: "success log with status code 0",
+			input: `protoPayload:
+  status:
+    code: 0`,
+			wantError: false,
+		},
+		{
+			desc: "error log with status code 7",
+			input: `protoPayload:
+  status:
+    code: 7`,
+			wantError: true,
+		},
+		{
+			desc:      "empty log defaults to 0 (false)",
+			input:     `{}`,
+			wantError: false,
+		},
+		{
+			desc: "from mock with isError true",
+			mock: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				IsError: true,
+			},
+			wantError: true,
+		},
+		{
+			desc: "from mock with isError false",
+			mock: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				IsError: false,
+			},
+			wantError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			var reader *structured.NodeReader
+			if tc.mock != nil {
+				reader = structured.NewNodeReader(structured.NewMockNode(*tc.mock))
+			} else {
+				node, err := structured.FromYAML(tc.input)
+				if err != nil {
+					t.Fatalf("failed to parse test input: %v", err)
+				}
+				reader = structured.NewNodeReader(node)
+			}
+
+			got, err := ExtractGCPK8sAuditLogError(reader)
+			if err != nil {
+				t.Fatalf("ExtractGCPK8sAuditLogError() unexpected error: %v", err)
+			}
+			if got != tc.wantError {
+				t.Errorf("ExtractGCPK8sAuditLogError() = %v, want %v", got, tc.wantError)
+			}
+		})
+	}
+}

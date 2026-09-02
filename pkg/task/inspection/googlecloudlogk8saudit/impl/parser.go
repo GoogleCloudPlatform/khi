@@ -36,10 +36,21 @@ var GCPK8sAuditLogExtractorTask = coretask.NewTask(
 	coretask.NewTaskResultRetentionLabel(true),
 )
 
+// GCPK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for GCP audit logs.
+var GCPK8sAuditLogErrorExtractorTask = coretask.NewTask(
+	googlecloudlogk8saudit_contract.GCPK8sAuditLogErrorExtractorTaskID,
+	[]taskid.UntypedTaskReference{},
+	func(ctx context.Context) (commonlogk8saudit_contract.K8sAuditLogErrorExtractor, error) {
+		return googlecloudlogk8saudit_contract.ExtractGCPK8sAuditLogError, nil
+	},
+	coretask.NewTaskResultRetentionLabel(true),
+)
+
 var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudlogk8saudit_contract.GCPK8sAuditLogParserTailTaskID,
 	[]taskid.UntypedTaskReference{
 		commonlogk8saudit_contract.K8sAuditLogExtractorRef,
+		commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef,
 		commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),

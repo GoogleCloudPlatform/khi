@@ -29,11 +29,11 @@ var OtherLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	googlecloudlogk8scontrolplane_contract.OtherLogFilterTaskID,
 	googlecloudlogk8scontrolplane_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
-		componentFieldSet, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneComponent(l.NodeReader)
+		parserType, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneComponentParserType(l.NodeReader)
 		if err != nil {
 			return false
 		}
-		return componentFieldSet.ComponentParserType() == googlecloudlogk8scontrolplane_contract.ComponentParserTypeOther
+		return parserType == googlecloudlogk8scontrolplane_contract.ComponentParserTypeOther
 	},
 )
 

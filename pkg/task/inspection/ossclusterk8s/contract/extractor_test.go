@@ -175,6 +175,83 @@ objectRef:
 	})
 }
 
+func TestExtractOSSK8sAuditLogError(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		input     string
+		mock      *commonlogk8saudit_contract.K8sAuditLogFieldSet
+		wantError bool
+	}{
+		{
+			desc: "success status 200",
+			input: `auditID: "id-1"
+responseStatus:
+  code: 200`,
+			wantError: false,
+		},
+		{
+			desc: "success status 201",
+			input: `auditID: "id-2"
+responseStatus:
+  code: 201`,
+			wantError: false,
+		},
+		{
+			desc: "error status 404",
+			input: `auditID: "id-3"
+responseStatus:
+  code: 404`,
+			wantError: true,
+		},
+		{
+			desc: "error status 500",
+			input: `auditID: "id-4"
+responseStatus:
+  code: 500`,
+			wantError: true,
+		},
+		{
+			desc:      "empty log",
+			input:     `{}`,
+			wantError: false,
+		},
+		{
+			desc: "from mock with isError true",
+			mock: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				IsError: true,
+			},
+			wantError: true,
+		},
+		{
+			desc: "from mock with isError false",
+			mock: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				IsError: false,
+			},
+			wantError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			var reader *structured.NodeReader
+			if tc.mock != nil {
+				reader = structured.NewNodeReader(structured.NewMockNode(*tc.mock))
+			} else {
+				l := testlog.MustLogFromYAML(tc.input)
+				reader = l.NodeReader
+			}
+
+			got, err := ExtractOSSK8sAuditLogError(reader)
+			if err != nil {
+				t.Fatalf("ExtractOSSK8sAuditLogError() unexpected error: %v", err)
+			}
+			if got != tc.wantError {
+				t.Errorf("ExtractOSSK8sAuditLogError() = %v, want %v", got, tc.wantError)
+			}
+		})
+	}
+}
+
 func TestExtractOSSK8sEvent(t *testing.T) {
 	testCases := []struct {
 		desc  string

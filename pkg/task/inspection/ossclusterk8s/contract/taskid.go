@@ -35,4 +35,6 @@ var OSSK8sEventLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[ins
 
 var OSSK8sAuditLogExtractorTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogExtractorRef, "oss")
 
+var OSSK8sAuditLogErrorExtractorTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef, "oss")
+
 var OSSK8sAuditLogParserTailTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogParserTailRef, "oss")

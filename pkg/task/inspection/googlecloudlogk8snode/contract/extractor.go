@@ -60,6 +60,34 @@ func (k *K8sNodeLogCommonFieldSet) ParserType() K8sNodeParserType {
 	}
 }
 
+// ExtractK8sNodeParserType extracts the K8sNodeParserType from a NodeReader without parsing the log message.
+func ExtractK8sNodeParserType(reader *structured.NodeReader) (K8sNodeParserType, error) {
+	if mock, ok := structured.GetMock[K8sNodeLogCommonFieldSet](reader); ok {
+		return mock.ParserType(), nil
+	}
+	if reader == nil {
+		return Other, nil
+	}
+
+	component := reader.ReadStringOrDefault(pathSyslogIdentifier, "")
+	if component == "" {
+		logName := reader.ReadStringOrDefault(pathLogName, "")
+		lastSlash := strings.LastIndex(logName, "/")
+		if lastSlash != -1 {
+			component = logName[lastSlash+1:]
+		}
+	}
+	component = strings.Trim(component, "()")
+	switch component {
+	case "containerd":
+		return Containerd, nil
+	case "kubelet":
+		return Kubelet, nil
+	default:
+		return Other, nil
+	}
+}
+
 // ExtractK8sNodeLogCommon extracts K8sNodeLogCommonFieldSet from a NodeReader.
 func ExtractK8sNodeLogCommon(reader *structured.NodeReader, parser *logutil.SelectorLogParser[NodeLogContext]) (K8sNodeLogCommonFieldSet, error) {
 	if mock, ok := structured.GetMock[K8sNodeLogCommonFieldSet](reader); ok {

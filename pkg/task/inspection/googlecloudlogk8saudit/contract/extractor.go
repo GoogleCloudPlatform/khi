@@ -40,6 +40,17 @@ var (
 	pathLabels              = structured.CompileFieldPath("labels")
 )
 
+// ExtractGCPK8sAuditLogError extracts whether the log represents an error from a GCP Cloud Logging NodeReader.
+func ExtractGCPK8sAuditLogError(reader *structured.NodeReader) (bool, error) {
+	if mock, ok := structured.GetMock[commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
+		return mock.IsError, nil
+	}
+	if reader == nil {
+		return false, nil
+	}
+	return reader.ReadIntOrDefault(pathProtoStatusCode, 0) != 0, nil
+}
+
 // ExtractGCPK8sAuditLog extracts Kubernetes audit log data from a GCP Cloud Logging NodeReader.
 func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
 	if mock, ok := structured.GetMock[commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {

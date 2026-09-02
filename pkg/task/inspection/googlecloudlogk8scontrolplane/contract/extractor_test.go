@@ -99,6 +99,74 @@ resource:
 	}
 }
 
+func TestExtractK8sControlplaneComponentParserType(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		inputYAML string
+		mock      *K8sControlplaneComponentFieldSet
+		want      ControlplaneComponentParserType
+	}{
+		{
+			desc: "scheduler component",
+			inputYAML: `resource:
+  labels:
+    component_name: scheduler`,
+			want: ComponentParserTypeScheduler,
+		},
+		{
+			desc: "controller-manager component",
+			inputYAML: `resource:
+  labels:
+    component_name: controller-manager`,
+			want: ComponentParserTypeControllerManager,
+		},
+		{
+			desc: "hpa-controller component",
+			inputYAML: `resource:
+  labels:
+    component_name: hpa-controller`,
+			want: ComponentParserTypeHPAController,
+		},
+		{
+			desc: "other component",
+			inputYAML: `resource:
+  labels:
+    component_name: custom-component`,
+			want: ComponentParserTypeOther,
+		},
+		{
+			desc: "from mock",
+			mock: &K8sControlplaneComponentFieldSet{
+				ComponentName: "scheduler",
+			},
+			want: ComponentParserTypeScheduler,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			var l *log.Log
+			var err error
+			if tc.mock != nil {
+				l = testlog.NewMockLog(*tc.mock)
+			} else {
+				l, err = log.NewLogFromYAMLString(tc.inputYAML)
+				if err != nil {
+					t.Fatalf("failed to parse test input YAML: %v", err)
+				}
+			}
+
+			got, err := ExtractK8sControlplaneComponentParserType(l.NodeReader)
+			if err != nil {
+				t.Fatalf("ExtractK8sControlplaneComponentParserType() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractK8sControlplaneComponentParserType() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestExtractK8sControlplaneCommonMessage(t *testing.T) {
 	testCases := []struct {
 		desc      string

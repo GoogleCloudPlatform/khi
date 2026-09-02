@@ -106,6 +106,21 @@ func (k *K8sControlplaneComponentFieldSet) ComponentParserType() ControlplaneCom
 	return ComponentParserTypeOther
 }
 
+// ExtractK8sControlplaneComponentParserType extracts the ControlplaneComponentParserType from a NodeReader without extracting project or cluster metadata.
+func ExtractK8sControlplaneComponentParserType(reader *structured.NodeReader) (ControlplaneComponentParserType, error) {
+	if mock, ok := structured.GetMock[K8sControlplaneComponentFieldSet](reader); ok {
+		return mock.ComponentParserType(), nil
+	}
+	if reader == nil {
+		return ComponentParserTypeOther, nil
+	}
+	componentName := reader.ReadStringOrDefault(pathComponentName, "")
+	if parserType, found := componentNameToComponentParserTypeMap[componentName]; found {
+		return parserType, nil
+	}
+	return ComponentParserTypeOther, nil
+}
+
 // ExtractK8sControlplaneComponent extracts K8sControlplaneComponentFieldSet from a NodeReader.
 func ExtractK8sControlplaneComponent(reader *structured.NodeReader) (K8sControlplaneComponentFieldSet, error) {
 	if mock, ok := structured.GetMock[K8sControlplaneComponentFieldSet](reader); ok {
