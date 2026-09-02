@@ -29,6 +29,12 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
    - Do not capitalize the first character of messages in `fmt.Errorf`, `t.Error`, `t.Errorf`, `t.Fatal`, `t.Fatalf`, etc. (e.g., use lowercase "failed to ..." instead of "Failed to ...").
    - This rule does not apply if the message starts with a capitalized name, such as a method name or proper acronym (e.g. `MyFunction() mismatch (-want +got)`).
 
+3. **Backward Compatibility and Refactoring**:
+   - Internal Go code in KHI requires **no backward compatibility**. When modifying functions, methods, interfaces, or structs, do **NOT** retain deprecated shims, wrappers, or aliases, and do **NOT** introduce unnecessary variadic parameters or defensive nil fallbacks solely to preserve old call sites.
+   - Always update all call sites across the monorepo directly.
+   - Updating test call sites, constructors, and assertions to adapt to refactored signatures is expected and required.
+   - Refer to the `backward-compatibility-policy` skill for concrete anti-patterns and details.
+
 ## Testing Practices
 
 1. **Table-Driven Tests**: Tests must be written using the table-driven testing pattern. Define a slice of anonymous structs representing the test cases, and iterate over them using `t.Run()`.
