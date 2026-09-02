@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"iter"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -106,19 +107,24 @@ func (r *InternStructRef) ToProto() *pb.InternedStruct {
 }
 
 // InternPool manages interning of strings, field path sets, and structs to reduce memory usage.
-// It uses sync.Map for concurrent access and relies on IDGenerator for generating IDs.
+// It uses sync.Map for forward key deduplication and slice-based index resolution for ID lookup.
 type InternPool struct {
 	parentPool *InternPool
 	idGen      *IDGenerator
 	idNs       IDNamespace
-	strToID    sync.Map // map[string]uint32
-	idToStr    sync.Map // map[uint32]string
 
+	strToID      sync.Map // map[string]uint32
 	fieldSetToID sync.Map // map[string]uint32 (key is byte representation of []uint32)
-	idToFieldSet sync.Map // map[uint32][]uint32
+	structToID   sync.Map // map[string]uint32
 
-	structToID sync.Map // map[string]uint32
-	idToStruct sync.Map // map[uint32]*pb.InternedStruct
+	idToStrMu sync.RWMutex
+	idToStr   []string
+
+	idToFieldSetMu sync.RWMutex
+	idToFieldSet   [][]uint32
+
+	idToStructMu sync.RWMutex
+	idToStruct   []*pb.InternedStruct
 }
 
 var _ ReadonlyPool = (*InternPool)(nil)
@@ -154,24 +160,76 @@ func (p *InternPool) IngestChunk(chunk *pbv6.InterningPoolChunk) {
 	}
 	for _, str := range chunk.Strings {
 		if str.Id != nil && str.Value != nil {
-			p.idToStr.Store(*str.Id, *str.Value)
+			p.storeString(*str.Id, *str.Value)
 			p.strToID.Store(*str.Value, *str.Id)
 		}
 	}
 	for _, fs := range chunk.FieldPathSets {
 		if fs.Id != nil {
-			p.idToFieldSet.Store(*fs.Id, fs.FieldPathStringIds)
+			p.storeFieldSet(*fs.Id, fs.FieldPathStringIds)
 			p.fieldSetToID.Store(fieldSetKey(fs.FieldPathStringIds), *fs.Id)
 		}
 	}
 	for _, s := range chunk.Structs {
 		if s.Id != nil {
-			p.idToStruct.Store(*s.Id, s)
+			p.storeStruct(*s.Id, s)
 			if s.FieldPathSetId != nil {
 				p.structToID.Store(structKey(*s.FieldPathSetId, s.Values), *s.Id)
 			}
 		}
 	}
+}
+
+func (p *InternPool) strIndex(id uint32) int {
+	if p.idNs == IDServerString {
+		if id <= ServerStringIDBase {
+			return -1
+		}
+		return int(id - ServerStringIDBase - 1)
+	}
+	if id == 0 {
+		return -1
+	}
+	return int(id - 1)
+}
+
+func (p *InternPool) storeString(id uint32, value string) {
+	idx := p.strIndex(id)
+	if idx < 0 {
+		return
+	}
+	p.idToStrMu.Lock()
+	defer p.idToStrMu.Unlock()
+	if idx >= len(p.idToStr) {
+		p.idToStr = slices.Grow(p.idToStr, idx+1-len(p.idToStr))[:idx+1]
+	}
+	p.idToStr[idx] = value
+}
+
+func (p *InternPool) storeFieldSet(id uint32, fieldSet []uint32) {
+	if id == 0 {
+		return
+	}
+	idx := int(id - 1)
+	p.idToFieldSetMu.Lock()
+	defer p.idToFieldSetMu.Unlock()
+	if idx >= len(p.idToFieldSet) {
+		p.idToFieldSet = slices.Grow(p.idToFieldSet, idx+1-len(p.idToFieldSet))[:idx+1]
+	}
+	p.idToFieldSet[idx] = fieldSet
+}
+
+func (p *InternPool) storeStruct(id uint32, s *pb.InternedStruct) {
+	if id == 0 {
+		return
+	}
+	idx := int(id - 1)
+	p.idToStructMu.Lock()
+	defer p.idToStructMu.Unlock()
+	if idx >= len(p.idToStruct) {
+		p.idToStruct = slices.Grow(p.idToStruct, idx+1-len(p.idToStruct))[:idx+1]
+	}
+	p.idToStruct[idx] = s
 }
 
 // InternString returns a InternStringRef for the given string.
@@ -198,11 +256,13 @@ func (p *InternPool) InternString(value string) *InternStringRef {
 	}
 
 	id := p.idGen.New(p.idNs)
-	p.idToStr.Store(id, value)
+	// Clone string before storing in the pool to prevent pinning large underlying byte buffers (such as protojson buffers).
+	cloned := strings.Clone(value)
+	p.storeString(id, cloned)
 
-	actual, loaded := p.strToID.LoadOrStore(value, id)
+	actual, loaded := p.strToID.LoadOrStore(cloned, id)
 	if loaded {
-		p.idToStr.Store(id, "")
+		p.storeString(id, "")
 		return &InternStringRef{pool: p, id: actual.(uint32)}
 	}
 
@@ -218,13 +278,20 @@ func (p *InternPool) ResolveStringFromID(id uint32) string {
 // resolveStringFromID returns the string corresponding to the given ID.
 // It returns an empty string if the ID is not found.
 func (p *InternPool) resolveStringFromID(id uint32) string {
-	if value, ok := p.idToStr.Load(id); ok {
-		return value.(string)
+	idx := p.strIndex(id)
+	if idx >= 0 {
+		p.idToStrMu.RLock()
+		var val string
+		if idx < len(p.idToStr) {
+			val = p.idToStr[idx]
+		}
+		p.idToStrMu.RUnlock()
+		if val != "" {
+			return val
+		}
 	}
 	if p.parentPool != nil {
-		if value, ok := p.parentPool.idToStr.Load(id); ok {
-			return value.(string)
-		}
+		return p.parentPool.resolveStringFromID(id)
 	}
 	return ""
 }
@@ -248,12 +315,12 @@ func (p *InternPool) InternFieldSet(fieldNames []string) *FieldPathSetRef {
 
 	namesCopy := make([]uint32, len(ids))
 	copy(namesCopy, ids)
-	p.idToFieldSet.Store(id, namesCopy)
+	p.storeFieldSet(id, namesCopy)
 	keyStore := fieldSetKey(namesCopy)
 
 	actual, loaded := p.fieldSetToID.LoadOrStore(keyStore, id)
 	if loaded {
-		p.idToFieldSet.Store(id, []uint32{})
+		p.storeFieldSet(id, nil)
 		return &FieldPathSetRef{pool: p, id: actual.(uint32)}
 	}
 
@@ -269,8 +336,14 @@ func (p *InternPool) ResolveFieldSetFromID(id uint32) []uint32 {
 // resolveFieldSetFromID returns the field path set corresponding to the given ID.
 // It returns nil if the ID is not found.
 func (p *InternPool) resolveFieldSetFromID(id uint32) []uint32 {
-	if value, ok := p.idToFieldSet.Load(id); ok {
-		return value.([]uint32)
+	if id == 0 {
+		return nil
+	}
+	idx := int(id - 1)
+	p.idToFieldSetMu.RLock()
+	defer p.idToFieldSetMu.RUnlock()
+	if idx < len(p.idToFieldSet) {
+		return p.idToFieldSet[idx]
 	}
 	return nil
 }
@@ -279,6 +352,10 @@ func (p *InternPool) resolveFieldSetFromID(id uint32) []uint32 {
 // It checks if an identical struct is already interned, and if not, assigns a new ID and stores it.
 func (p *InternPool) InternStruct(fieldPathSetID uint32, values []*pb.InternedValue) *InternStructRef {
 	key := structKey(fieldPathSetID, values)
+	return p.internStructWithKey(fieldPathSetID, values, key)
+}
+
+func (p *InternPool) internStructWithKey(fieldPathSetID uint32, values []*pb.InternedValue, key string) *InternStructRef {
 	if id, ok := p.structToID.Load(key); ok {
 		return &InternStructRef{pool: p, id: id.(uint32)}
 	}
@@ -289,11 +366,11 @@ func (p *InternPool) InternStruct(fieldPathSetID uint32, values []*pb.InternedVa
 		FieldPathSetId: &fieldPathSetID,
 		Values:         values,
 	}
-	p.idToStruct.Store(id, s)
+	p.storeStruct(id, s)
 
 	actual, loaded := p.structToID.LoadOrStore(key, id)
 	if loaded {
-		p.idToStruct.Store(id, (*pb.InternedStruct)(nil))
+		p.storeStruct(id, nil)
 		return &InternStructRef{pool: p, id: actual.(uint32)}
 	}
 
@@ -309,8 +386,14 @@ func (p *InternPool) ResolveStructFromID(id uint32) *pb.InternedStruct {
 // resolveStructFromID returns the InternedStruct corresponding to the given ID.
 // It returns nil if the ID is not found.
 func (p *InternPool) resolveStructFromID(id uint32) *pb.InternedStruct {
-	if val, ok := p.idToStruct.Load(id); ok {
-		return val.(*pb.InternedStruct)
+	if id == 0 {
+		return nil
+	}
+	idx := int(id - 1)
+	p.idToStructMu.RLock()
+	defer p.idToStructMu.RUnlock()
+	if idx < len(p.idToStruct) {
+		return p.idToStruct[idx]
 	}
 	return nil
 }

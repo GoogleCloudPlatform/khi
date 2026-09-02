@@ -16,14 +16,35 @@
 package khifilev6
 
 import (
+	"encoding/binary"
 	"fmt"
+	"math"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+var (
+	nullInternedValue = &pb.InternedValue{
+		Kind: &pb.InternedValue_NullValue{
+			NullValue: structpb.NullValue_NULL_VALUE,
+		},
+	}
+	boolTrueInternedValue = &pb.InternedValue{
+		Kind: &pb.InternedValue_BoolValue{
+			BoolValue: true,
+		},
+	}
+	boolFalseInternedValue = &pb.InternedValue{
+		Kind: &pb.InternedValue_BoolValue{
+			BoolValue: false,
+		},
+	}
 )
 
 // FieldPathSeparator is the separator used for field paths in InternedStruct.
@@ -47,6 +68,19 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (*InternStructRef,
 
 	fieldSetRef := pool.InternFieldSet(flattenedKeys)
 
+	// Fast-path: compute deterministic structKey directly from node values.
+	// If the struct is already interned, we can return its reference immediately
+	// without allocating []*pb.InternedValue and individual *pb.InternedValue proto messages.
+	key, err := structKeyFromNodes(fieldSetRef.id, flattenedValues, pool, keyBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	if id, ok := pool.structToID.Load(key); ok {
+		return &InternStructRef{pool: pool, id: id.(uint32)}, nil
+	}
+
+	// Slow-path: construct protobuf values only for new unique structs.
 	values := make([]*pb.InternedValue, 0, len(flattenedValues))
 	for _, valNode := range flattenedValues {
 		val, err := ToInternedValue(valNode, pool)
@@ -56,7 +90,7 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (*InternStructRef,
 		values = append(values, val)
 	}
 
-	return pool.InternStruct(fieldSetRef.id, values), nil
+	return pool.internStructWithKey(fieldSetRef.id, values, key), nil
 }
 
 // flattenNode is a helper function to recursively flatten map nodes.
@@ -122,19 +156,14 @@ func scalarToInternedValue(node structured.Node, pool *InternPool) (*pb.Interned
 		return nil, err
 	}
 	if val == nil {
-		return &pb.InternedValue{
-			Kind: &pb.InternedValue_NullValue{
-				NullValue: structpb.NullValue_NULL_VALUE,
-			},
-		}, nil
+		return nullInternedValue, nil
 	}
 	switch v := val.(type) {
 	case bool:
-		return &pb.InternedValue{
-			Kind: &pb.InternedValue_BoolValue{
-				BoolValue: v,
-			},
-		}, nil
+		if v {
+			return boolTrueInternedValue, nil
+		}
+		return boolFalseInternedValue, nil
 	case string:
 		strRef := pool.InternString(v)
 		return &pb.InternedValue{
@@ -162,6 +191,78 @@ func scalarToInternedValue(node structured.Node, pool *InternPool) (*pb.Interned
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported scalar type: %T", v)
+	}
+}
+
+func structKeyFromNodes(fieldPathSetID uint32, nodes []structured.Node, pool *InternPool, buf []byte) (string, error) {
+	buf = buf[:0]
+	buf = binary.LittleEndian.AppendUint32(buf, fieldPathSetID)
+	for _, n := range nodes {
+		var err error
+		buf, err = appendNodeKey(buf, n, pool)
+		if err != nil {
+			return "", err
+		}
+	}
+	return unsafe.String(unsafe.SliceData(buf), len(buf)), nil
+}
+
+func appendNodeKey(buf []byte, node structured.Node, pool *InternPool) ([]byte, error) {
+	if node == nil {
+		return append(buf, 0x00), nil
+	}
+	switch node.Type() {
+	case structured.ScalarNodeType:
+		val, err := node.NodeScalarValue()
+		if err != nil {
+			return nil, err
+		}
+		if val == nil {
+			return append(buf, 0x01), nil
+		}
+		switch v := val.(type) {
+		case bool:
+			if v {
+				return append(buf, 0x02, 0x01), nil
+			}
+			return append(buf, 0x02, 0x00), nil
+		case int:
+			buf = append(buf, 0x03)
+			return binary.LittleEndian.AppendUint64(buf, uint64(v)), nil
+		case float64:
+			buf = append(buf, 0x04)
+			return binary.LittleEndian.AppendUint64(buf, math.Float64bits(v)), nil
+		case string:
+			strRef := pool.InternString(v)
+			buf = append(buf, 0x05)
+			return binary.LittleEndian.AppendUint32(buf, strRef.id), nil
+		case time.Time:
+			buf = append(buf, 0x07)
+			buf = binary.LittleEndian.AppendUint64(buf, uint64(v.Unix()))
+			return binary.LittleEndian.AppendUint32(buf, uint32(v.Nanosecond())), nil
+		default:
+			return nil, fmt.Errorf("unsupported scalar type: %T", v)
+		}
+	case structured.SequenceNodeType:
+		buf = append(buf, 0x08)
+		buf = binary.LittleEndian.AppendUint32(buf, uint32(node.Len()))
+		for _, child := range node.Children() {
+			var err error
+			buf, err = appendNodeKey(buf, child, pool)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return buf, nil
+	case structured.MapNodeType:
+		s, err := ToInternedStruct(node, pool)
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, 0x06)
+		return binary.LittleEndian.AppendUint32(buf, s.id), nil
+	default:
+		return append(buf, 0xFF), nil
 	}
 }
 
