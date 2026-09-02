@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"iter"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -199,8 +200,8 @@ func (p *InternPool) storeString(id uint32, value string) {
 	}
 	p.idToStrMu.Lock()
 	defer p.idToStrMu.Unlock()
-	if needed := idx + 1 - len(p.idToStr); needed > 0 {
-		p.idToStr = append(p.idToStr, make([]string, needed)...)
+	if idx >= len(p.idToStr) {
+		p.idToStr = slices.Grow(p.idToStr, idx+1-len(p.idToStr))[:idx+1]
 	}
 	p.idToStr[idx] = value
 }
@@ -212,8 +213,8 @@ func (p *InternPool) storeFieldSet(id uint32, fieldSet []uint32) {
 	idx := int(id - 1)
 	p.idToFieldSetMu.Lock()
 	defer p.idToFieldSetMu.Unlock()
-	if needed := idx + 1 - len(p.idToFieldSet); needed > 0 {
-		p.idToFieldSet = append(p.idToFieldSet, make([][]uint32, needed)...)
+	if idx >= len(p.idToFieldSet) {
+		p.idToFieldSet = slices.Grow(p.idToFieldSet, idx+1-len(p.idToFieldSet))[:idx+1]
 	}
 	p.idToFieldSet[idx] = fieldSet
 }
@@ -225,8 +226,8 @@ func (p *InternPool) storeStruct(id uint32, s *pb.InternedStruct) {
 	idx := int(id - 1)
 	p.idToStructMu.Lock()
 	defer p.idToStructMu.Unlock()
-	if needed := idx + 1 - len(p.idToStruct); needed > 0 {
-		p.idToStruct = append(p.idToStruct, make([]*pb.InternedStruct, needed)...)
+	if idx >= len(p.idToStruct) {
+		p.idToStruct = slices.Grow(p.idToStruct, idx+1-len(p.idToStruct))[:idx+1]
 	}
 	p.idToStruct[idx] = s
 }
@@ -280,14 +281,13 @@ func (p *InternPool) resolveStringFromID(id uint32) string {
 	idx := p.strIndex(id)
 	if idx >= 0 {
 		p.idToStrMu.RLock()
+		var val string
 		if idx < len(p.idToStr) {
-			val := p.idToStr[idx]
-			p.idToStrMu.RUnlock()
-			if val != "" {
-				return val
-			}
-		} else {
-			p.idToStrMu.RUnlock()
+			val = p.idToStr[idx]
+		}
+		p.idToStrMu.RUnlock()
+		if val != "" {
+			return val
 		}
 	}
 	if p.parentPool != nil {
