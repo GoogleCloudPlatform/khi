@@ -18,6 +18,7 @@ globs: **/*.ts
 - Do NOT use `as unknown as X` type assertions in non test code.
 - Do NOT use Object literal type in non test code. Define an interface instead.
 - Do NOT reference types by accessing fields of other types (e.g., `Type['field']`). Use the official type name directly.
+- Internal TypeScript code in KHI requires no backward compatibility. When refactoring functions, classes, interfaces, or Angular component inputs/outputs, update all call sites across the codebase directly without leaving deprecated wrappers, unnecessary optional parameters, or fallback logic. Refer to the `backward-compatibility-policy` skill for anti-patterns and details.
 
 ## Angular coding rules
 

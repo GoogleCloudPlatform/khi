@@ -28,6 +28,7 @@ Language specific rules are written in each language's rule files. Please respec
 
 * All comments must be written in English.
 * License headers are automatically added by commit hook. Do not add license header.
-* Do not modify/remove existing test code without asking the user.
+* Do not remove test cases or weaken test assertions without asking the user. However, updating test call sites, constructor parameters, and argument types to adapt to refactored signatures is required.
+* KHI is an integrated monorepo application. Internal code (Go/TS functions, types, interfaces, internal APIs, and task DAGs) does NOT require backward compatibility. When updating code, unify directly onto the new implementation and update all call sites across the monorepo without retaining legacy shims or wrappers. The only exception is `.khi` file persistence, where compatibility requirements must be discussed during planning. Refer to the `backward-compatibility-policy` skill for anti-patterns and details.
 * Do not perform git commit/push without any approval from the user.
 * Do not assume before reading files. Read the file before changing it.
