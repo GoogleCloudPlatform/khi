@@ -26,6 +26,7 @@ var EventAuditLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	ossclusterk8s_contract.EventAuditLogFilterTaskID,
 	ossclusterk8s_contract.AuditLogFileReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
-		return l.ReadStringOrDefault(pathAuditKind, "") == "Event" && l.ReadStringOrDefault(pathAuditResponseObjectKind, "") == "Event"
+		isEvent, _ := ossclusterk8s_contract.ExtractOSSK8sIsEventAuditLog(l.NodeReader)
+		return isEvent
 	},
 )

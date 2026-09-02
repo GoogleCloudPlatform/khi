@@ -17,30 +17,16 @@ package ossclusterk8s_impl
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
-)
-
-var (
-	pathAuditVerb               = structured.CompileFieldPath("verb")
-	pathAuditKind               = structured.CompileFieldPath("kind")
-	pathAuditResponseObjectKind = structured.CompileFieldPath("responseObject.kind")
-	pathAuditObjectRef          = structured.CompileFieldPath("objectRef")
 )
 
 var NonEventAuditLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	ossclusterk8s_contract.NonEventAuditLogFilterTaskID,
 	ossclusterk8s_contract.AuditLogFileReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
-		verb := l.ReadStringOrDefault(pathAuditVerb, "")
-		if l.ReadStringOrDefault(pathAuditKind, "") == "Event" && l.ReadStringOrDefault(pathAuditResponseObjectKind, "") != "Event" && l.Has(pathAuditObjectRef) {
-			if verb == "" || verb == "get" || verb == "watch" || verb == "list" {
-				return false
-			}
-			return true
-		}
-		return false
+		isNonEvent, _ := ossclusterk8s_contract.ExtractOSSK8sIsNonEventAuditLog(l.NodeReader)
+		return isNonEvent
 	},
 )

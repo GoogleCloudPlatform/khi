@@ -221,9 +221,7 @@ func TestExtractK8sNodeParserType(t *testing.T) {
 	}
 
 	t.Run("from mock", func(t *testing.T) {
-		mockLog := testlog.NewMockLog(K8sNodeLogCommonFieldSet{
-			Component: "containerd",
-		})
+		mockLog := testlog.NewMockLog(Containerd)
 		got, err := ExtractK8sNodeParserType(mockLog.NodeReader)
 		if err != nil {
 			t.Fatalf("ExtractK8sNodeParserType() unexpected error: %v", err)

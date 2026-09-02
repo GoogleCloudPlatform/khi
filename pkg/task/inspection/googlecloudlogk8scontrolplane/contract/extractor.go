@@ -108,8 +108,8 @@ func (k *K8sControlplaneComponentFieldSet) ComponentParserType() ControlplaneCom
 
 // ExtractK8sControlplaneComponentParserType extracts the ControlplaneComponentParserType from a NodeReader without extracting project or cluster metadata.
 func ExtractK8sControlplaneComponentParserType(reader *structured.NodeReader) (ControlplaneComponentParserType, error) {
-	if mock, ok := structured.GetMock[K8sControlplaneComponentFieldSet](reader); ok {
-		return mock.ComponentParserType(), nil
+	if mock, ok := structured.GetMock[ControlplaneComponentParserType](reader); ok {
+		return mock, nil
 	}
 	if reader == nil {
 		return ComponentParserTypeOther, nil

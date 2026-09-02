@@ -312,7 +312,6 @@ func TestExtractGCPK8sAuditLogError(t *testing.T) {
 	testCases := []struct {
 		desc      string
 		input     string
-		mock      *commonlogk8saudit_contract.K8sAuditLogFieldSet
 		wantError bool
 	}{
 		{
@@ -334,34 +333,15 @@ func TestExtractGCPK8sAuditLogError(t *testing.T) {
 			input:     `{}`,
 			wantError: false,
 		},
-		{
-			desc: "from mock with isError true",
-			mock: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				IsError: true,
-			},
-			wantError: true,
-		},
-		{
-			desc: "from mock with isError false",
-			mock: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				IsError: false,
-			},
-			wantError: false,
-		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			var reader *structured.NodeReader
-			if tc.mock != nil {
-				reader = structured.NewNodeReader(structured.NewMockNode(*tc.mock))
-			} else {
-				node, err := structured.FromYAML(tc.input)
-				if err != nil {
-					t.Fatalf("failed to parse test input: %v", err)
-				}
-				reader = structured.NewNodeReader(node)
+			node, err := structured.FromYAML(tc.input)
+			if err != nil {
+				t.Fatalf("failed to parse test input: %v", err)
 			}
+			reader := structured.NewNodeReader(node)
 
 			got, err := ExtractGCPK8sAuditLogError(reader)
 			if err != nil {
@@ -372,4 +352,30 @@ func TestExtractGCPK8sAuditLogError(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("from mock with isError true", func(t *testing.T) {
+		reader := structured.NewNodeReader(structured.NewMockNode(commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			IsError: true,
+		}))
+		got, err := ExtractGCPK8sAuditLogError(reader)
+		if err != nil {
+			t.Fatalf("ExtractGCPK8sAuditLogError() unexpected error: %v", err)
+		}
+		if !got {
+			t.Errorf("ExtractGCPK8sAuditLogError() = false, want true")
+		}
+	})
+
+	t.Run("from mock with isError false", func(t *testing.T) {
+		reader := structured.NewNodeReader(structured.NewMockNode(commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			IsError: false,
+		}))
+		got, err := ExtractGCPK8sAuditLogError(reader)
+		if err != nil {
+			t.Fatalf("ExtractGCPK8sAuditLogError() unexpected error: %v", err)
+		}
+		if got {
+			t.Errorf("ExtractGCPK8sAuditLogError() = true, want false")
+		}
+	})
 }

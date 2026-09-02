@@ -179,7 +179,6 @@ func TestExtractOSSK8sAuditLogError(t *testing.T) {
 	testCases := []struct {
 		desc      string
 		input     string
-		mock      *commonlogk8saudit_contract.K8sAuditLogFieldSet
 		wantError bool
 	}{
 		{
@@ -215,33 +214,12 @@ responseStatus:
 			input:     `{}`,
 			wantError: false,
 		},
-		{
-			desc: "from mock with isError true",
-			mock: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				IsError: true,
-			},
-			wantError: true,
-		},
-		{
-			desc: "from mock with isError false",
-			mock: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				IsError: false,
-			},
-			wantError: false,
-		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			var reader *structured.NodeReader
-			if tc.mock != nil {
-				reader = structured.NewNodeReader(structured.NewMockNode(*tc.mock))
-			} else {
-				l := testlog.MustLogFromYAML(tc.input)
-				reader = l.NodeReader
-			}
-
-			got, err := ExtractOSSK8sAuditLogError(reader)
+			l := testlog.MustLogFromYAML(tc.input)
+			got, err := ExtractOSSK8sAuditLogError(l.NodeReader)
 			if err != nil {
 				t.Fatalf("ExtractOSSK8sAuditLogError() unexpected error: %v", err)
 			}
@@ -250,6 +228,32 @@ responseStatus:
 			}
 		})
 	}
+
+	t.Run("from mock with isError true", func(t *testing.T) {
+		reader := structured.NewNodeReader(structured.NewMockNode(commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			IsError: true,
+		}))
+		got, err := ExtractOSSK8sAuditLogError(reader)
+		if err != nil {
+			t.Fatalf("ExtractOSSK8sAuditLogError() unexpected error: %v", err)
+		}
+		if !got {
+			t.Errorf("ExtractOSSK8sAuditLogError() = false, want true")
+		}
+	})
+
+	t.Run("from mock with isError false", func(t *testing.T) {
+		reader := structured.NewNodeReader(structured.NewMockNode(commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			IsError: false,
+		}))
+		got, err := ExtractOSSK8sAuditLogError(reader)
+		if err != nil {
+			t.Fatalf("ExtractOSSK8sAuditLogError() unexpected error: %v", err)
+		}
+		if got {
+			t.Errorf("ExtractOSSK8sAuditLogError() = true, want false")
+		}
+	})
 }
 
 func TestExtractOSSK8sEvent(t *testing.T) {
@@ -333,6 +337,134 @@ responseObject:
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("ExtractOSSK8sEvent() mismatch (-want +got):\n%s", diff)
+		}
+	})
+}
+
+func TestExtractOSSK8sIsEventAuditLog(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		input     string
+		wantEvent bool
+	}{
+		{
+			desc: "valid event log",
+			input: `kind: Event
+responseObject:
+  kind: Event`,
+			wantEvent: true,
+		},
+		{
+			desc: "pod audit log",
+			input: `kind: Event
+responseObject:
+  kind: Pod`,
+			wantEvent: false,
+		},
+		{
+			desc:      "empty log",
+			input:     `{}`,
+			wantEvent: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := testlog.MustLogFromYAML(tc.input)
+			got, err := ExtractOSSK8sIsEventAuditLog(l.NodeReader)
+			if err != nil {
+				t.Fatalf("ExtractOSSK8sIsEventAuditLog() unexpected error: %v", err)
+			}
+			if got != tc.wantEvent {
+				t.Errorf("ExtractOSSK8sIsEventAuditLog() = %v, want %v", got, tc.wantEvent)
+			}
+		})
+	}
+
+	t.Run("from mock", func(t *testing.T) {
+		reader := structured.NewNodeReader(structured.NewMockNode(OSSK8sEventFieldSet{}))
+		got, err := ExtractOSSK8sIsEventAuditLog(reader)
+		if err != nil {
+			t.Fatalf("ExtractOSSK8sIsEventAuditLog() unexpected error: %v", err)
+		}
+		if !got {
+			t.Errorf("ExtractOSSK8sIsEventAuditLog() = false, want true")
+		}
+	})
+}
+
+func TestExtractOSSK8sIsNonEventAuditLog(t *testing.T) {
+	testCases := []struct {
+		desc         string
+		input        string
+		wantNonEvent bool
+	}{
+		{
+			desc: "valid non-event resource log",
+			input: `kind: Event
+verb: create
+objectRef:
+  resource: pods
+responseObject:
+  kind: Pod`,
+			wantNonEvent: true,
+		},
+		{
+			desc: "read verb get is filtered out",
+			input: `kind: Event
+verb: get
+objectRef:
+  resource: pods
+responseObject:
+  kind: Pod`,
+			wantNonEvent: false,
+		},
+		{
+			desc: "event object is filtered out",
+			input: `kind: Event
+verb: create
+objectRef:
+  resource: events
+responseObject:
+  kind: Event`,
+			wantNonEvent: false,
+		},
+		{
+			desc: "missing objectRef",
+			input: `kind: Event
+verb: create
+responseObject:
+  kind: Pod`,
+			wantNonEvent: false,
+		},
+		{
+			desc:         "empty log",
+			input:        `{}`,
+			wantNonEvent: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := testlog.MustLogFromYAML(tc.input)
+			got, err := ExtractOSSK8sIsNonEventAuditLog(l.NodeReader)
+			if err != nil {
+				t.Fatalf("ExtractOSSK8sIsNonEventAuditLog() unexpected error: %v", err)
+			}
+			if got != tc.wantNonEvent {
+				t.Errorf("ExtractOSSK8sIsNonEventAuditLog() = %v, want %v", got, tc.wantNonEvent)
+			}
+		})
+	}
+
+	t.Run("from mock", func(t *testing.T) {
+		reader := structured.NewNodeReader(structured.NewMockNode(commonlogk8saudit_contract.K8sAuditLogFieldSet{}))
+		got, err := ExtractOSSK8sIsNonEventAuditLog(reader)
+		if err != nil {
+			t.Fatalf("ExtractOSSK8sIsNonEventAuditLog() unexpected error: %v", err)
+		}
+		if !got {
+			t.Errorf("ExtractOSSK8sIsNonEventAuditLog() = false, want true")
 		}
 	})
 }
