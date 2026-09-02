@@ -17,6 +17,7 @@ package googlecloudcommon_contract
 import (
 	"testing"
 	"time"
+	"unique"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 
@@ -313,4 +314,131 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 				ChangedTime: testTime,
 			})
 	})
+}
+
+func TestGCPOperationTracker_TrackAndGetManifest(t *testing.T) {
+	createReader := func(t *testing.T, data map[string]any) *structured.NodeReader {
+		t.Helper()
+		if data == nil {
+			return nil
+		}
+		node, err := structured.FromGoValue(data, &structured.AlphabeticalGoMapKeyOrderProvider{})
+		if err != nil {
+			t.Fatalf("failed to create node: %v", err)
+		}
+		return structured.NewNodeReader(node)
+	}
+
+	testCases := []struct {
+		name       string
+		operations []struct {
+			audit       *GCPAuditLogFieldSet
+			wantNode    structured.Node
+			wantUpdated bool
+		}
+	}{
+		{
+			name: "no request or response returns nil and false",
+			operations: []struct {
+				audit       *GCPAuditLogFieldSet
+				wantNode    structured.Node
+				wantUpdated bool
+			}{
+				{
+					audit:       &GCPAuditLogFieldSet{},
+					wantNode:    nil,
+					wantUpdated: false,
+				},
+			},
+		},
+		{
+			name: "response manifest tracked and deduplicated",
+			operations: func() []struct {
+				audit       *GCPAuditLogFieldSet
+				wantNode    structured.Node
+				wantUpdated bool
+			} {
+				node1 := createReader(t, map[string]any{"name": "res-1"}).Node
+				node2 := createReader(t, map[string]any{"name": "res-2"}).Node
+				return []struct {
+					audit       *GCPAuditLogFieldSet
+					wantNode    structured.Node
+					wantUpdated bool
+				}{
+					{
+						audit: &GCPAuditLogFieldSet{
+							Response: structured.NewNodeReader(node1),
+						},
+						wantNode:    node1,
+						wantUpdated: true,
+					},
+					{
+						audit: &GCPAuditLogFieldSet{
+							Response: structured.NewNodeReader(node1),
+						},
+						wantNode:    node1,
+						wantUpdated: false,
+					},
+					{
+						audit: &GCPAuditLogFieldSet{
+							Response: structured.NewNodeReader(node2),
+						},
+						wantNode:    node2,
+						wantUpdated: true,
+					},
+				}
+			}(),
+		},
+		{
+			name: "request manifest tracked when response absent",
+			operations: func() []struct {
+				audit       *GCPAuditLogFieldSet
+				wantNode    structured.Node
+				wantUpdated bool
+			} {
+				node1 := createReader(t, map[string]any{"name": "req-1"}).Node
+				return []struct {
+					audit       *GCPAuditLogFieldSet
+					wantNode    structured.Node
+					wantUpdated bool
+				}{
+					{
+						audit: &GCPAuditLogFieldSet{
+							Request: structured.NewNodeReader(node1),
+						},
+						wantNode:    node1,
+						wantUpdated: true,
+					},
+					{
+						audit: &GCPAuditLogFieldSet{
+							Request: structured.NewNodeReader(node1),
+						},
+						wantNode:    node1,
+						wantUpdated: false,
+					},
+				}
+			}(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tracker := NewGCPOperationTracker()
+			for i, op := range tc.operations {
+				gotNode, gotUpdated := tracker.TrackAndGetManifest(op.audit)
+				if gotUpdated != op.wantUpdated {
+					t.Errorf("op %d: TrackAndGetManifest() gotUpdated = %v, want %v", i, gotUpdated, op.wantUpdated)
+				}
+				if diff := cmp.Diff(op.wantNode, gotNode, cmp.AllowUnexported(
+					structured.StandardMapNode{},
+					structured.StandardScalarNode[string]{},
+					structured.StandardScalarNode[any]{},
+					structured.StandardSequenceNode{},
+					unique.Handle[string]{},
+				)); diff != "" {
+					t.Errorf("op %d: TrackAndGetManifest() node mismatch (-want +got):\n%s", i, diff)
+				}
+			}
+		})
+	}
 }
