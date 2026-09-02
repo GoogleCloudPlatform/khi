@@ -209,10 +209,7 @@ func TestExtractK8sNodeParserType(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			nodeLog, err := log.NewLogFromYAMLString(tc.input)
-			if err != nil {
-				t.Fatalf("failed to parse yaml: %v", err)
-			}
+			nodeLog := testlog.MustLogFromYAML(tc.input)
 			got, err := ExtractK8sNodeParserType(nodeLog.NodeReader)
 			if err != nil {
 				t.Fatalf("ExtractK8sNodeParserType() unexpected error: %v", err)

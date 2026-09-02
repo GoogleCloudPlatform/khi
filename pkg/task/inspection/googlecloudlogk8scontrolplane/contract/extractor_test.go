@@ -146,14 +146,10 @@ func TestExtractK8sControlplaneComponentParserType(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			var l *log.Log
-			var err error
 			if tc.mock != nil {
 				l = testlog.NewMockLog(*tc.mock)
 			} else {
-				l, err = log.NewLogFromYAMLString(tc.inputYAML)
-				if err != nil {
-					t.Fatalf("failed to parse test input YAML: %v", err)
-				}
+				l = testlog.MustLogFromYAML(tc.inputYAML)
 			}
 
 			got, err := ExtractK8sControlplaneComponentParserType(l.NodeReader)
