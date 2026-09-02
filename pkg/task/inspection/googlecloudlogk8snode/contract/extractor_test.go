@@ -128,41 +128,63 @@ resource:
 	}
 }
 
-func TestK8sNodeLogCommonFieldSet_ParserType(t *testing.T) {
+func TestExtractK8sNodeParserType(t *testing.T) {
 	testCases := []struct {
-		desc     string
-		fieldSet K8sNodeLogCommonFieldSet
-		want     K8sNodeParserType
+		desc  string
+		input string
+		want  K8sNodeParserType
 	}{
 		{
-			desc: "containerd parser type",
-			fieldSet: K8sNodeLogCommonFieldSet{
-				Component: "containerd",
-			},
+			desc: "containerd from syslog identifier",
+			input: `jsonPayload:
+  SYSLOG_IDENTIFIER: "containerd"`,
 			want: Containerd,
 		},
 		{
-			desc: "kubelet parser type",
-			fieldSet: K8sNodeLogCommonFieldSet{
-				Component: "kubelet",
-			},
+			desc: "kubelet with parenthesis from syslog identifier",
+			input: `jsonPayload:
+  SYSLOG_IDENTIFIER: "(kubelet)"`,
 			want: Kubelet,
 		},
 		{
-			desc: "other parser type",
-			fieldSet: K8sNodeLogCommonFieldSet{
-				Component: "other-component",
-			},
+			desc:  "kubelet from logName fallback",
+			input: `logName: projects/test-project/logs/kubelet`,
+			want:  Kubelet,
+		},
+		{
+			desc: "other component",
+			input: `jsonPayload:
+  SYSLOG_IDENTIFIER: "dockerd"`,
 			want: Other,
+		},
+		{
+			desc:  "empty log",
+			input: `{}`,
+			want:  Other,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			got := tc.fieldSet.ParserType()
+			nodeLog := testlog.MustLogFromYAML(tc.input)
+			got, err := ExtractK8sNodeParserType(nodeLog.NodeReader)
+			if err != nil {
+				t.Fatalf("ExtractK8sNodeParserType() unexpected error: %v", err)
+			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("ParserType() mismatch (-want +got):\n%s", diff)
+				t.Errorf("ExtractK8sNodeParserType() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("from mock", func(t *testing.T) {
+		mockLog := testlog.NewMockLog(Containerd)
+		got, err := ExtractK8sNodeParserType(mockLog.NodeReader)
+		if err != nil {
+			t.Fatalf("ExtractK8sNodeParserType() unexpected error: %v", err)
+		}
+		if diff := cmp.Diff(Containerd, got); diff != "" {
+			t.Errorf("ExtractK8sNodeParserType() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }

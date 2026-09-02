@@ -29,11 +29,11 @@ func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source 
 		taskID,
 		source,
 		func(ctx context.Context, l *log.Log) bool {
-			fs, err := googlecloudclustercomposer_contract.ExtractComposer(l.NodeReader)
+			component, err := googlecloudclustercomposer_contract.ExtractComposerComponent(l.NodeReader)
 			if err != nil {
 				return false
 			}
-			return fs.Component == componentName
+			return component == componentName
 		},
 	)
 }
@@ -46,11 +46,11 @@ var AirflowOtherLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	googlecloudclustercomposer_contract.AirflowOtherLogFilterTaskID,
 	googlecloudclustercomposer_contract.ComposerLogsQueryTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
-		fs, err := googlecloudclustercomposer_contract.ExtractComposer(l.NodeReader)
+		component, err := googlecloudclustercomposer_contract.ExtractComposerComponent(l.NodeReader)
 		if err != nil {
 			return false
 		}
 		// If it's none of the specific components we support parsing, it goes to "Other"
-		return fs.Component != "airflow-worker" && fs.Component != "airflow-scheduler" && fs.Component != "dag-processor-manager"
+		return component != "airflow-worker" && component != "airflow-scheduler" && component != "dag-processor-manager"
 	},
 )

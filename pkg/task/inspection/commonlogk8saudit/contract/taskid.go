@@ -32,6 +32,9 @@ var K8sAuditLogProviderRef = taskid.NewTaskReference[[]*log.Log](TaskIDPrefix + 
 // K8sAuditLogExtractorRef is the task reference for the task providing K8sAuditLogExtractor.
 var K8sAuditLogExtractorRef = taskid.NewTaskReference[K8sAuditLogExtractor](TaskIDPrefix + "k8s-auditlog-extractor")
 
+// K8sAuditLogErrorExtractorRef is the task reference for the task providing K8sAuditLogErrorExtractor.
+var K8sAuditLogErrorExtractorRef = taskid.NewTaskReference[K8sAuditLogErrorExtractor](TaskIDPrefix + "k8s-auditlog-error-extractor")
+
 // K8sAuditLogParserTailRef is the task reference for the task to depend all enabled k8s audit log parsing sub tasks.
 var K8sAuditLogParserTailRef = taskid.NewTaskReference[struct{}](TaskIDPrefix + "k8s-auditlog-parser-tail")
 

@@ -35,10 +35,21 @@ var OSSK8sAuditLogExtractorTask = coretask.NewTask(
 	coretask.NewTaskResultRetentionLabel(true),
 )
 
+// OSSK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for OSS audit logs.
+var OSSK8sAuditLogErrorExtractorTask = coretask.NewTask(
+	ossclusterk8s_contract.OSSK8sAuditLogErrorExtractorTaskID,
+	[]taskid.UntypedTaskReference{},
+	func(ctx context.Context) (commonlogk8saudit_contract.K8sAuditLogErrorExtractor, error) {
+		return ossclusterk8s_contract.ExtractOSSK8sAuditLogError, nil
+	},
+	coretask.NewTaskResultRetentionLabel(true),
+)
+
 var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 	ossclusterk8s_contract.OSSK8sAuditLogParserTailTaskID,
 	[]taskid.UntypedTaskReference{
 		commonlogk8saudit_contract.K8sAuditLogExtractorRef,
+		commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef,
 		commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),

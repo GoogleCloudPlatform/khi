@@ -41,6 +41,8 @@ var (
 	pathRequestObject         = structured.CompileFieldPath("requestObject")
 	pathResponseObject        = structured.CompileFieldPath("responseObject")
 
+	pathKind                     = structured.CompileFieldPath("kind")
+	pathResponseObjectKind       = structured.CompileFieldPath("responseObject.kind")
 	pathEventInvolvedAPIVersion  = structured.CompileFieldPath("responseObject.involvedObject.apiVersion")
 	pathEventInvolvedKind        = structured.CompileFieldPath("responseObject.involvedObject.kind")
 	pathEventInvolvedNamespace   = structured.CompileFieldPath("responseObject.involvedObject.namespace")
@@ -49,6 +51,47 @@ var (
 	pathEventReason              = structured.CompileFieldPath("responseObject.reason")
 	pathEventMessage             = structured.CompileFieldPath("responseObject.message")
 )
+
+// ExtractOSSK8sIsEventAuditLog extracts whether the log is an OSS K8s audit log for an Event resource.
+func ExtractOSSK8sIsEventAuditLog(reader *structured.NodeReader) (bool, error) {
+	if _, ok := structured.GetMock[OSSK8sEventFieldSet](reader); ok {
+		return true, nil
+	}
+	if reader == nil {
+		return false, nil
+	}
+	return reader.ReadStringOrDefault(pathKind, "") == "Event" && reader.ReadStringOrDefault(pathResponseObjectKind, "") == "Event", nil
+}
+
+// ExtractOSSK8sIsNonEventAuditLog extracts whether the log is an OSS K8s audit log for a non-event resource.
+func ExtractOSSK8sIsNonEventAuditLog(reader *structured.NodeReader) (bool, error) {
+	if _, ok := structured.GetMock[commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
+		return true, nil
+	}
+	if reader == nil {
+		return false, nil
+	}
+	verb := reader.ReadStringOrDefault(pathVerb, "")
+	if reader.ReadStringOrDefault(pathKind, "") == "Event" && reader.ReadStringOrDefault(pathResponseObjectKind, "") != "Event" && reader.Has(pathObjectRef) {
+		if verb == "" || verb == "get" || verb == "watch" || verb == "list" {
+			return false, nil
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// ExtractOSSK8sAuditLogError extracts whether an OSS audit log is an error.
+func ExtractOSSK8sAuditLogError(reader *structured.NodeReader) (bool, error) {
+	if mock, ok := structured.GetMock[commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
+		return mock.IsError, nil
+	}
+	if reader == nil || (!reader.Has(pathAuditID) && !reader.Has(pathObjectRef)) {
+		return false, nil
+	}
+	statusCode := reader.ReadIntOrDefault(pathResponseStatusCode, 0)
+	return statusCode < 200 || statusCode >= 300, nil
+}
 
 // ExtractOSSK8sAuditLog extracts commonlogk8saudit_contract.K8sAuditLogFieldSet from OSS audit log entries.
 func ExtractOSSK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {

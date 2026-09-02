@@ -17,9 +17,12 @@ package inspectiontaskbase
 import (
 	"context"
 	"fmt"
+	"runtime"
+	"sync/atomic"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -49,23 +52,60 @@ func NewLogFilterTaskWithDependencies(tid taskid.TaskImplementationID[[]*log.Log
 		}
 
 		logs := coretask.GetTaskResult(ctx, sourceLogs)
-		completed := 0
-		filteredLogs := []*log.Log{}
+		if len(logs) == 0 {
+			return []*log.Log{}, nil
+		}
+
+		concurrency := min(runtime.GOMAXPROCS(0), len(logs))
+		if concurrency <= 0 {
+			concurrency = 1
+		}
+
+		var completed atomic.Int32
+		workerResults := make([][]*log.Log, concurrency)
 
 		progressUpdator := progressutil.NewProgressUpdator(progress, time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {
-			tp.Percentage = float32(completed) / float32(len(logs))
-			tp.Message = fmt.Sprintf("%d/%d", completed, len(logs))
+			current := int(completed.Load())
+			tp.Percentage = float32(current) / float32(len(logs))
+			tp.Message = fmt.Sprintf("%d/%d", current, len(logs))
 		})
 		progressUpdator.Start(ctx)
 
-		for _, l := range logs {
-			if logFilter(ctx, l) {
-				filteredLogs = append(filteredLogs, l)
-			}
-			completed++
+		pool := worker.NewPool(concurrency)
+		for c := 0; c < concurrency; c++ {
+			c := c
+			pool.Run(func() {
+				start := c * len(logs) / concurrency
+				end := (c + 1) * len(logs) / concurrency
+				var workerFiltered []*log.Log
+				for i := start; i < end; i++ {
+					if ctx.Err() != nil {
+						return
+					}
+					if logFilter(ctx, logs[i]) {
+						workerFiltered = append(workerFiltered, logs[i])
+					}
+					completed.Add(1)
+				}
+				workerResults[c] = workerFiltered
+			})
 		}
+		pool.Wait()
 
 		progressUpdator.Done()
+
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		totalCount := 0
+		for _, wr := range workerResults {
+			totalCount += len(wr)
+		}
+		filteredLogs := make([]*log.Log, 0, totalCount)
+		for _, wr := range workerResults {
+			filteredLogs = append(filteredLogs, wr...)
+		}
 
 		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
 		if tracingActive {

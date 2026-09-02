@@ -194,11 +194,11 @@ func newParserTypeFilterTask(taskid taskid.TaskImplementationID[[]*log.Log], log
 		taskid,
 		logSource,
 		func(ctx context.Context, l *log.Log) bool {
-			componentFieldSet, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
+			gotParserType, err := googlecloudlogk8snode_contract.ExtractK8sNodeParserType(l.NodeReader)
 			if err != nil {
 				return false
 			}
-			return componentFieldSet.ParserType() == parserType
+			return gotParserType == parserType
 		},
 	)
 }

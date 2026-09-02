@@ -17,32 +17,16 @@ package ossclusterk8s_impl
 import (
 	"context"
 
-	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
-var EventAuditLogFilterTask = inspectiontaskbase.NewProgressReportableInspectionTask(
+var EventAuditLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	ossclusterk8s_contract.EventAuditLogFilterTaskID,
-	[]taskid.UntypedTaskReference{
-		ossclusterk8s_contract.AuditLogFileReaderTaskID.Ref(),
-	}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
-			return []*log.Log{}, nil
-		}
-		logs := coretask.GetTaskResult(ctx, ossclusterk8s_contract.AuditLogFileReaderTaskID.Ref())
-
-		var eventLogs []*log.Log
-
-		for _, l := range logs {
-			if l.ReadStringOrDefault(pathAuditKind, "") == "Event" && l.ReadStringOrDefault(pathAuditResponseObjectKind, "") == "Event" {
-				eventLogs = append(eventLogs, l)
-			}
-		}
-
-		return eventLogs, nil
-	})
+	ossclusterk8s_contract.AuditLogFileReaderTaskID.Ref(),
+	func(ctx context.Context, l *log.Log) bool {
+		isEvent, _ := ossclusterk8s_contract.ExtractOSSK8sIsEventAuditLog(l.NodeReader)
+		return isEvent
+	},
+)
