@@ -132,45 +132,6 @@ resource:
 	}
 }
 
-func TestK8sNodeLogCommonFieldSet_ParserType(t *testing.T) {
-	testCases := []struct {
-		desc     string
-		fieldSet K8sNodeLogCommonFieldSet
-		want     K8sNodeParserType
-	}{
-		{
-			desc: "containerd parser type",
-			fieldSet: K8sNodeLogCommonFieldSet{
-				Component: "containerd",
-			},
-			want: Containerd,
-		},
-		{
-			desc: "kubelet parser type",
-			fieldSet: K8sNodeLogCommonFieldSet{
-				Component: "kubelet",
-			},
-			want: Kubelet,
-		},
-		{
-			desc: "other parser type",
-			fieldSet: K8sNodeLogCommonFieldSet{
-				Component: "other-component",
-			},
-			want: Other,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			got := tc.fieldSet.ParserType()
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("ParserType() mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
 func TestExtractK8sNodeParserType(t *testing.T) {
 	testCases := []struct {
 		desc  string

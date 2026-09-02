@@ -48,18 +48,6 @@ type K8sNodeLogCommonFieldSet struct {
 	NodeName  string
 }
 
-// ParserType returns the K8sNodeParserType corresponding to the component.
-func (k *K8sNodeLogCommonFieldSet) ParserType() K8sNodeParserType {
-	switch k.Component {
-	case "containerd":
-		return Containerd
-	case "kubelet":
-		return Kubelet
-	default:
-		return Other
-	}
-}
-
 // ExtractK8sNodeParserType extracts the K8sNodeParserType from a NodeReader without parsing the log message.
 func ExtractK8sNodeParserType(reader *structured.NodeReader) (K8sNodeParserType, error) {
 	if mock, ok := structured.GetMock[K8sNodeParserType](reader); ok {
