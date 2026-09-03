@@ -51,6 +51,8 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: "./go.mod"
+          cache: true
+          cache-dependency-path: "go.sum"
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -97,6 +99,8 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: "./go.mod"
+          cache: true
+          cache-dependency-path: "go.sum"
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
@@ -143,6 +147,8 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: "./go.mod"
+          cache: true
+          cache-dependency-path: "go.sum"
 
       - name: npm install
         working-directory: ./web
@@ -170,6 +176,8 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: "./go.mod"
+          cache: true
+          cache-dependency-path: "go.sum"
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -194,6 +202,8 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: "./go.mod"
+          cache: true
+          cache-dependency-path: "go.sum"
 
       - name: Install addlicense package
         run: go mod download
@@ -221,6 +231,8 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: "./go.mod"
+          cache: true
+          cache-dependency-path: "go.sum"
 
       - name: npm install (web)
         working-directory: ./web
