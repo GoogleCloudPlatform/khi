@@ -32,6 +32,7 @@ var (
 	pathProtoMethodName     = structured.CompileFieldPath("protoPayload.methodName")
 	pathResourceClusterName = structured.CompileFieldPath("resource.labels.cluster_name")
 	pathLabelsDryRun        = structured.CompileFieldPath("labels.command\\.gke\\.io/dryRun")
+	pathLabelsTruncated     = structured.CompileFieldPath("labels.audit\\.k8s\\.io/truncated")
 	pathProtoPrincipal      = structured.CompileFieldPath("protoPayload.authenticationInfo.principalEmail")
 	pathProtoStatusCode     = structured.CompileFieldPath("protoPayload.status.code")
 	pathProtoStatusMessage  = structured.CompileFieldPath("protoPayload.status.message")
@@ -69,6 +70,7 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_con
 	result.ClusterName = reader.ReadStringOrDefault(pathResourceClusterName, "unknown")
 	result.RequestURI = resourceName
 	result.IsDryRun = reader.ReadStringOrDefault(pathLabelsDryRun, "") != ""
+	result.IsTruncated = reader.ReadStringOrDefault(pathLabelsTruncated, "") == "true" || reader.ReadBoolOrDefault(pathLabelsTruncated, false)
 
 	apiVersion, pluralKind, namespace, name, subResourceName, verb := parseKubernetesOperation(resourceName, methodName)
 	result.APIVersion = apiVersion

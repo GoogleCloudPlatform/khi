@@ -93,18 +93,8 @@ func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestL
 		return group.Logs[i].Log.Timestamp.After(eventTime)
 	})
 
-	// Scan backwards from the match to find the latest log entry with a valid resource body.
-	var lastManifestLog *ResourceManifestLog
-	for i := idx - 1; i >= 0; i-- {
-		logEntry := group.Logs[i]
-		if logEntry.ResourceBodyReader != nil {
-			lastManifestLog = logEntry
-			break
-		}
-	}
-
-	if lastManifestLog != nil {
-		return lastManifestLog, true
+	if idx > 0 {
+		return group.Logs[idx-1], true
 	}
 	return nil, false
 }

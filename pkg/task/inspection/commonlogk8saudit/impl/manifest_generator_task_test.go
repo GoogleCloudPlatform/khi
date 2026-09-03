@@ -31,6 +31,7 @@ type testGroupManifestGeneratorInput struct {
 	requestYAML  string
 	responseYAML string
 	isDryRun     bool
+	isTruncated  bool
 }
 
 func TestGroupManifestGenerator(t *testing.T) {
@@ -70,6 +71,42 @@ metadata:
 				`apiVersion: v1
 kind: Pod
 metadata:
+  labels:
+    qux: quux
+`,
+			},
+		},
+		{
+			desc: "truncated log clears previous revision and does not merge old state in subsequent patch",
+			inputs: []*testGroupManifestGeneratorInput{
+				{
+					verb: commonlogk8saudit_contract.VerbCreate,
+					responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar`,
+				},
+				{
+					verb:        commonlogk8saudit_contract.VerbUpdate,
+					isTruncated: true,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					requestYAML: `metadata:
+  labels:
+    qux: quux`,
+				},
+			},
+			wantBodies: []string{
+				`apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar
+`,
+				"",
+				`metadata:
   labels:
     qux: quux
 `,
@@ -359,6 +396,7 @@ metadata:
 					Request:     request,
 					Response:    response,
 					IsDryRun:    input.isDryRun,
+					IsTruncated: input.isTruncated,
 				}))
 			}
 

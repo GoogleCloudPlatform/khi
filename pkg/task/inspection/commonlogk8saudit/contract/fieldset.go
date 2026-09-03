@@ -100,6 +100,8 @@ type K8sAuditLogFieldSet struct {
 	IsLast bool
 	// IsDryRun is true if the request was a dry run.
 	IsDryRun bool
+	// IsTruncated is true if the audit log entry was truncated by kube-apiserver (audit.k8s.io/truncated: "true").
+	IsTruncated bool
 
 	// APIVersion is the API version of the resource (e.g., "apps/v1").
 	APIVersion string

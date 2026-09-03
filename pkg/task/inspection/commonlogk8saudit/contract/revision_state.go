@@ -151,6 +151,15 @@ var (
 		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+	RevisionStateK8sResourceTruncated = style.MustRegisterRevisionState(
+		"Resource exists, but log details were truncated",
+		"deployed_code",
+		`The Kubernetes resource exists, but the audit log payload was truncated by kube-apiserver due to size limits.
+
+**Note**: Full manifest and patch contents are not available for this operation.`,
+		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
+	)
 	RevisionStateK8sResourceDeleting = style.MustRegisterRevisionState(
 		"Resource is being deleted",
 		"auto_delete",
