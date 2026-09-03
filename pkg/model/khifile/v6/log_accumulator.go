@@ -15,7 +15,9 @@
 package khifilev6
 
 import (
+	"cmp"
 	"fmt"
+	"math"
 	"slices"
 	"sync"
 	"time"
@@ -26,6 +28,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// estimatedLogProtoSize is the estimated serialized protobuf byte size for a Log entry plus slice overhead.
+const estimatedLogProtoSize = 48
 
 // StagingLog represents a log entry and its associated metadata to be added to LogAccumulator.
 type StagingLog struct {
@@ -41,15 +46,20 @@ type StagingLog struct {
 // completed chunks directly to the destination Writer.
 // It is safe for concurrent use by multiple goroutines.
 type LogAccumulator struct {
-	clientPool       *InternPool
-	serverPool       *InternPool
-	idGen            *id.Generator
-	writer           *Writer
-	chunkSizeLimit   int
-	currentBatch     []*pb.Log
-	currentBatchSize int
-	parserIDToID     []uint32
-	mu               sync.Mutex
+	clientPool         *InternPool
+	serverPool         *InternPool
+	idGen              *id.Generator
+	writer             *Writer
+	chunkSizeLimit     int
+	batchIDs           []uint32
+	batchTimestamps    []int64 // Unix nanoseconds, or math.MinInt64 if zero
+	batchLogTypeIDs    []uint32
+	batchSeverityIDs   []uint32
+	batchSummaryIDs    []uint32
+	batchBodyStructIDs []uint32
+	currentBatchSize   int
+	parserIDToID       []uint32
+	mu                 sync.Mutex
 }
 
 // NewLogAccumulator creates a new LogAccumulator with the provided client and server InternPools, IDGenerator, and destination Writer.
@@ -58,13 +68,18 @@ func NewLogAccumulator(clientPool *InternPool, serverPool *InternPool, idGen *id
 		serverPool = clientPool
 	}
 	return &LogAccumulator{
-		clientPool:     clientPool,
-		serverPool:     serverPool,
-		idGen:          idGen,
-		writer:         writer,
-		chunkSizeLimit: DefaultChunkSizeLimit,
-		currentBatch:   make([]*pb.Log, 0),
-		parserIDToID:   make([]uint32, 0),
+		clientPool:         clientPool,
+		serverPool:         serverPool,
+		idGen:              idGen,
+		writer:             writer,
+		chunkSizeLimit:     DefaultChunkSizeLimit,
+		batchIDs:           make([]uint32, 0),
+		batchTimestamps:    make([]int64, 0),
+		batchLogTypeIDs:    make([]uint32, 0),
+		batchSeverityIDs:   make([]uint32, 0),
+		batchSummaryIDs:    make([]uint32, 0),
+		batchBodyStructIDs: make([]uint32, 0),
+		parserIDToID:       make([]uint32, 0),
 	}
 }
 
@@ -80,7 +95,7 @@ func (a *LogAccumulator) SetChunkSizeLimit(limit int) {
 	a.chunkSizeLimit = limit
 }
 
-// AddLog converts a StagingLog into a khifilev6.Log proto and adds it to the accumulator.
+// AddLog converts a StagingLog into an interned log entry and adds it to the accumulator.
 // It interns the log body to optimize storage and flushes chunks directly to the Writer when the batch size exceeds the chunk limit.
 func (a *LogAccumulator) AddLog(s *StagingLog) error {
 	if s.Severity == nil || s.Severity.Id == nil {
@@ -96,20 +111,17 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 	}
 
 	logID := a.idGen.New(id.Log)
-	pbLog := &pb.Log{
-		Id:           &logID,
-		BodyStructId: &internedBody.id,
+	summaryStrRef := a.clientPool.InternString(s.Summary)
+
+	var tsNano int64 = math.MinInt64
+	if !s.Timestamp.IsZero() {
+		tsNano = s.Timestamp.UnixNano()
 	}
 
-	pbLog.Ts = timestamppb.New(s.Timestamp)
-	pbLog.SeverityTypeId = s.Severity.Id
-
-	summaryStrRef := a.clientPool.InternString(s.Summary)
-	pbLog.SummaryStringId = &summaryStrRef.id
-
-	pbLog.LogTypeId = s.LogType.Id
-
-	itemSize := proto.Size(pbLog) + 8
+	sevID := s.Severity.GetId()
+	logTypeID := s.LogType.GetId()
+	bodyStructID := internedBody.id
+	summaryID := summaryStrRef.id
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -119,33 +131,57 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 	}
 	a.parserIDToID[s.Log.ID-1] = logID
 
-	if a.currentBatchSize+itemSize > a.chunkSizeLimit && len(a.currentBatch) > 0 {
+	if a.currentBatchSize+estimatedLogProtoSize > a.chunkSizeLimit && len(a.batchIDs) > 0 {
 		if err := a.flushLocked(); err != nil {
 			return err
 		}
 	}
 
-	a.currentBatch = append(a.currentBatch, pbLog)
-	a.currentBatchSize += itemSize
+	a.batchIDs = append(a.batchIDs, logID)
+	a.batchTimestamps = append(a.batchTimestamps, tsNano)
+	a.batchLogTypeIDs = append(a.batchLogTypeIDs, logTypeID)
+	a.batchSeverityIDs = append(a.batchSeverityIDs, sevID)
+	a.batchSummaryIDs = append(a.batchSummaryIDs, summaryID)
+	a.batchBodyStructIDs = append(a.batchBodyStructIDs, bodyStructID)
+	a.currentBatchSize += estimatedLogProtoSize
 
 	return nil
 }
 
+// flushLocked sorts staged logs chronologically and writes them as a compressed LogChunk to the destination Writer.
 func (a *LogAccumulator) flushLocked() error {
-	if len(a.currentBatch) == 0 {
+	n := len(a.batchIDs)
+	if n == 0 {
 		return nil
 	}
 
-	batch := a.currentBatch
-	a.currentBatch = make([]*pb.Log, 0)
-	a.currentBatchSize = 0
+	indices := make([]int, n)
+	for i := range indices {
+		indices[i] = i
+	}
 
-	slices.SortStableFunc(batch, func(x, y *pb.Log) int {
-		return x.GetTs().AsTime().Compare(y.GetTs().AsTime())
+	slices.SortStableFunc(indices, func(i, j int) int {
+		return cmp.Compare(a.batchTimestamps[i], a.batchTimestamps[j])
 	})
 
+	logs := make([]*pb.Log, n)
+	for outIdx, inIdx := range indices {
+		var ts *timestamppb.Timestamp
+		if a.batchTimestamps[inIdx] != math.MinInt64 {
+			ts = timestamppb.New(time.Unix(0, a.batchTimestamps[inIdx]).UTC())
+		}
+		logs[outIdx] = &pb.Log{
+			Id:              proto.Uint32(a.batchIDs[inIdx]),
+			Ts:              ts,
+			SeverityTypeId:  proto.Uint32(a.batchSeverityIDs[inIdx]),
+			LogTypeId:       proto.Uint32(a.batchLogTypeIDs[inIdx]),
+			BodyStructId:    proto.Uint32(a.batchBodyStructIDs[inIdx]),
+			SummaryStringId: proto.Uint32(a.batchSummaryIDs[inIdx]),
+		}
+	}
+
 	chunk := &pb.LogChunk{
-		Logs: batch,
+		Logs: logs,
 	}
 
 	rawChunk, err := CompressChunk(ChunkTypeLog, chunk)
@@ -156,6 +192,14 @@ func (a *LogAccumulator) flushLocked() error {
 	if err := a.writer.WriteRawChunk(rawChunk); err != nil {
 		return fmt.Errorf("failed to write log chunk: %w", err)
 	}
+
+	a.batchIDs = a.batchIDs[:0]
+	a.batchTimestamps = a.batchTimestamps[:0]
+	a.batchLogTypeIDs = a.batchLogTypeIDs[:0]
+	a.batchSeverityIDs = a.batchSeverityIDs[:0]
+	a.batchSummaryIDs = a.batchSummaryIDs[:0]
+	a.batchBodyStructIDs = a.batchBodyStructIDs[:0]
+	a.currentBatchSize = 0
 
 	return nil
 }
