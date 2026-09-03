@@ -22,6 +22,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -734,5 +735,53 @@ func TestInternPool_StreamingFlush(t *testing.T) {
 
 	if chunkCount < 2 {
 		t.Errorf("expected at least 2 intern pool chunks due to streaming split, got %d", chunkCount)
+	}
+}
+
+func TestInternPool_ChunkSorting(t *testing.T) {
+	var buf bytes.Buffer
+	writer, err := NewWriter(&buf)
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	idGen := id.NewGenerator()
+	pool := NewServerInternPool(nil, idGen, writer)
+
+	// Add strings in non-alphabetical order.
+	pool.InternString("zebra")
+	pool.InternString("apple")
+	pool.InternString("mango")
+
+	// Flush to writer.
+	if err := pool.Flush(); err != nil {
+		t.Fatalf("Flush() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	reader, err := NewReader(&buf)
+	if err != nil {
+		t.Fatalf("NewReader() error = %v", err)
+	}
+
+	chunk, err := reader.NextChunk()
+	if err != nil {
+		t.Fatalf("NextChunk() error = %v", err)
+	}
+
+	var poolChunk pb.InterningPoolChunk
+	if err := proto.Unmarshal(chunk.Data, &poolChunk); err != nil {
+		t.Fatalf("proto.Unmarshal() error = %v", err)
+	}
+
+	var gotValues []string
+	for _, s := range poolChunk.Strings {
+		gotValues = append(gotValues, s.GetValue())
+	}
+	wantValues := []string{"apple", "mango", "zebra"}
+	if diff := cmp.Diff(wantValues, gotValues); diff != "" {
+		t.Errorf("chunk strings mismatch (-want +got):\n%s", diff)
 	}
 }

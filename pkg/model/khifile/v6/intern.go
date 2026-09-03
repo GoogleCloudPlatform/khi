@@ -15,6 +15,7 @@
 package khifilev6
 
 import (
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"iter"
@@ -481,6 +482,20 @@ func (p *InternPool) flushLocked() error {
 	if len(p.unflushedStrings) == 0 && len(p.unflushedFieldSets) == 0 && len(p.unflushedStructs) == 0 {
 		return nil
 	}
+
+	// Sort items inside the chunk before flushing to optimize gzip compression.
+	slices.SortFunc(p.unflushedStrings, func(a, b *pbv6.InternString) int {
+		return strings.Compare(a.GetValue(), b.GetValue())
+	})
+	slices.SortFunc(p.unflushedFieldSets, func(a, b *pbv6.InternFieldPathSet) int {
+		return cmp.Compare(a.GetId(), b.GetId())
+	})
+	slices.SortFunc(p.unflushedStructs, func(a, b *pb.InternedStruct) int {
+		if diff := cmp.Compare(a.GetFieldPathSetId(), b.GetFieldPathSetId()); diff != 0 {
+			return diff
+		}
+		return cmp.Compare(a.GetId(), b.GetId())
+	})
 
 	chunk := &pbv6.InterningPoolChunk{
 		Strings:       p.unflushedStrings,
