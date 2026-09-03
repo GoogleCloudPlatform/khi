@@ -157,11 +157,15 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 	consumerWg.Wait()
 	cancelProgress()
 	progressWg.Wait()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	// Send final progress report.
 	select {
 	case progress <- LogFetchProgress{LogCount: int(logCount.Load()), Progress: 1.0}:
 	case <-ctx.Done():
+		return ctx.Err()
 	}
 	return nil
 }
