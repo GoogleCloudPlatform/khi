@@ -10,7 +10,7 @@ precision highp int;
 flat in RevisionModel revisionModel;
 in vec2 uv;
 in vec2 revisionScreenSize;
-flat in float leftEdgeTimeMS;
+flat in float revisionClippedOffsetPx;
 
 layout(location = 0) out vec4 fragColor;
 
@@ -65,10 +65,9 @@ float borderStripePattern(float pitch){
 
   float isVerticalEdge = step(distFromEdge.x, distFromEdge.y);
 
-  float posAlongBorder = mix(revisionRelativeUV.x, revisionRelativeUV.y, isVerticalEdge);
+  float posAlongBorder = mix(revisionClippedOffsetPx + revisionRelativeUV.x, revisionRelativeUV.y, isVerticalEdge);
 
-  float patternVal = leftEdgeTimeMS + posAlongBorder;
-  float stripeVal = mod(patternVal, pitch);
+  float stripeVal = mod(posAlongBorder, pitch);
   return step(stripeVal, pitch / 2.0);
 }
 
