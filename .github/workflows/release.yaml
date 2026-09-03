@@ -43,12 +43,25 @@ jobs:
         id: cache-frontend-build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: pkg/server/dist
+          path: |
+            pkg/server/dist
+            pkg/model/khifile/v6/style/assets
+            scripts/msdf-generator/zzz_generated_used_icons.json
+            web/angular.json
+            web/src/environments/version*
+            scripts/make/*.done
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/src/**', 'web/package-lock.json', 'web/angular-template.json', 'web/tsconfig*.json', 'web/.browserslistrc', 'proto/**', 'buf.gen.yaml', 'pkg/model/enum/**', 'pkg/task/inspection/**', 'scripts/generate-angular-json.sh', 'scripts/generate-version.sh', 'scripts/frontend-codegen/**', 'scripts/fontlist-gen/**', 'scripts/msdf-generator/**', '.node-version', 'VERSION') }}
 
       - name: Touch frontend build artifact dummy
         if: steps.cache-frontend-build.outputs.cache-hit == 'true'
-        run: touch pkg/server/dist/browser/build-web.done
+        run: |
+          touch scripts/make/build-proto.done
+          make generate-backend
+          touch web/angular.json web/src/environments/version*
+          touch scripts/msdf-generator/zzz_generated_used_icons.json
+          touch scripts/make/generate-font-atlas.done
+          touch scripts/make/generate-frontend.done
+          touch pkg/server/dist/browser/build-web.done
 
       - name: Setup Node.js
         if: steps.cache-frontend-build.outputs.cache-hit != 'true'
@@ -75,12 +88,16 @@ jobs:
             pkg/model/khifile/v6/style/assets
             scripts/msdf-generator/zzz_generated_used_icons.json
             scripts/make/generate-font-atlas.done
-            scripts/make/msdf-setup.done
           key: font-atlas-${{ runner.os }}-${{ hashFiles('scripts/msdf-generator/**', 'scripts/fontlist-gen/**', 'pkg/task/inspection/**') }}
 
       - name: Touch font atlas dummy
         if: steps.cache-frontend-build.outputs.cache-hit != 'true' && steps.cache-font-atlas.outputs.cache-hit == 'true'
-        run: touch scripts/make/generate-font-atlas.done scripts/make/msdf-setup.done
+        run: |
+          touch scripts/make/build-proto.done
+          touch scripts/make/generate-backend.done
+          touch scripts/msdf-generator/zzz_generated_used_icons.json
+          touch scripts/make/generate-font-atlas.done
+          touch scripts/make/generate-frontend.done
 
       - name: Install Frontend Dependencies
         if: steps.cache-frontend-build.outputs.cache-hit != 'true'

@@ -49,7 +49,13 @@ jobs:
         id: cache-frontend-build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: pkg/server/dist
+          path: |
+            pkg/server/dist
+            pkg/model/khifile/v6/style/assets
+            scripts/msdf-generator/zzz_generated_used_icons.json
+            web/angular.json
+            web/src/environments/version*
+            scripts/make/*.done
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/src/**', 'web/package-lock.json', 'web/angular-template.json', 'web/tsconfig*.json', 'web/.browserslistrc', 'proto/**', 'buf.gen.yaml', 'pkg/model/enum/**', 'pkg/task/inspection/**', 'scripts/generate-angular-json.sh', 'scripts/generate-version.sh', 'scripts/frontend-codegen/**', 'scripts/fontlist-gen/**', 'scripts/msdf-generator/**', '.node-version', 'VERSION') }}
 
       - name: Set up Go
@@ -85,12 +91,16 @@ jobs:
             pkg/model/khifile/v6/style/assets
             scripts/msdf-generator/zzz_generated_used_icons.json
             scripts/make/generate-font-atlas.done
-            scripts/make/msdf-setup.done
           key: font-atlas-${{ runner.os }}-${{ hashFiles('scripts/msdf-generator/**', 'scripts/fontlist-gen/**', 'pkg/task/inspection/**') }}
 
       - name: Touch font atlas dummy
         if: steps.cache-frontend-build.outputs.cache-hit != 'true' && steps.cache-font-atlas.outputs.cache-hit == 'true'
-        run: touch scripts/make/generate-font-atlas.done scripts/make/msdf-setup.done
+        run: |
+          touch scripts/make/build-proto.done
+          touch scripts/make/generate-backend.done
+          touch scripts/msdf-generator/zzz_generated_used_icons.json
+          touch scripts/make/generate-font-atlas.done
+          touch scripts/make/generate-frontend.done
 
       - name: npm install
         if: steps.cache-frontend-build.outputs.cache-hit != 'true'
@@ -105,7 +115,13 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-dist
-          path: pkg/server/dist
+          path: |
+            pkg/server/dist
+            pkg/model/khifile/v6/style/assets
+            scripts/msdf-generator/zzz_generated_used_icons.json
+            web/angular.json
+            web/src/environments/version*
+            scripts/make/*.done
           retention-days: 1
 
   backend-tests:
@@ -130,10 +146,11 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: frontend-dist
-          path: pkg/server/dist
 
       - name: Touch frontend build artifact dummy
-        run: touch pkg/server/dist/browser/build-web.done
+        run: |
+          touch scripts/make/build-proto.done
+          touch pkg/server/dist/browser/build-web.done
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -201,12 +218,16 @@ jobs:
             pkg/model/khifile/v6/style/assets
             scripts/msdf-generator/zzz_generated_used_icons.json
             scripts/make/generate-font-atlas.done
-            scripts/make/msdf-setup.done
           key: font-atlas-${{ runner.os }}-${{ hashFiles('scripts/msdf-generator/**', 'scripts/fontlist-gen/**', 'pkg/task/inspection/**') }}
 
       - name: Touch font atlas dummy
         if: steps.cache-font-atlas.outputs.cache-hit == 'true'
-        run: touch scripts/make/generate-font-atlas.done scripts/make/msdf-setup.done
+        run: |
+          touch scripts/make/build-proto.done
+          touch scripts/make/generate-backend.done
+          touch scripts/msdf-generator/zzz_generated_used_icons.json
+          touch scripts/make/generate-font-atlas.done
+          touch scripts/make/generate-frontend.done
 
       - name: Generate frontend codes
         run: make generate-frontend
@@ -268,12 +289,16 @@ jobs:
             pkg/model/khifile/v6/style/assets
             scripts/msdf-generator/zzz_generated_used_icons.json
             scripts/make/generate-font-atlas.done
-            scripts/make/msdf-setup.done
           key: font-atlas-${{ runner.os }}-${{ hashFiles('scripts/msdf-generator/**', 'scripts/fontlist-gen/**', 'pkg/task/inspection/**') }}
 
       - name: Touch font atlas dummy
         if: steps.cache-font-atlas.outputs.cache-hit == 'true'
-        run: touch scripts/make/generate-font-atlas.done scripts/make/msdf-setup.done
+        run: |
+          touch scripts/make/build-proto.done
+          touch scripts/make/generate-backend.done
+          touch scripts/msdf-generator/zzz_generated_used_icons.json
+          touch scripts/make/generate-font-atlas.done
+          touch scripts/make/generate-frontend.done
 
       - name: Generate frontend codes
         run: make generate-frontend
@@ -305,10 +330,19 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: frontend-dist
-          path: pkg/server/dist
+
+      - name: Generate backend code
+        run: |
+          touch scripts/make/build-proto.done
+          make generate-backend
 
       - name: Touch frontend build artifact dummy
-        run: touch pkg/server/dist/browser/build-web.done
+        run: |
+          touch web/angular.json web/src/environments/version*
+          touch scripts/msdf-generator/zzz_generated_used_icons.json
+          touch scripts/make/generate-font-atlas.done
+          touch scripts/make/generate-frontend.done
+          touch pkg/server/dist/browser/build-web.done
 
       - name: Build binary
         run: make build-go-binaries
