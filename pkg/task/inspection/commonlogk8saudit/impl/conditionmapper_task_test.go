@@ -704,7 +704,7 @@ status:
 	})
 
 	t.Run("Truncated log maintains unchanged condition status without gap", func(t *testing.T) {
-		builder := khifilev6.NewBuilder()
+		builder := khifilev6.NewTestBuilder(id.NewGenerator())
 		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
 		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
 		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
@@ -818,7 +818,7 @@ status:
 	})
 
 	t.Run("Truncated log with condition transition occurred during truncated period", func(t *testing.T) {
-		builder := khifilev6.NewBuilder()
+		builder := khifilev6.NewTestBuilder(id.NewGenerator())
 		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
 		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
 		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
@@ -938,7 +938,7 @@ status:
 	})
 
 	t.Run("Truncated log with timezone offset in lastTransitionTime correctly normalizes and complements", func(t *testing.T) {
-		builder := khifilev6.NewBuilder()
+		builder := khifilev6.NewTestBuilder(id.NewGenerator())
 		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
 		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
 		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
