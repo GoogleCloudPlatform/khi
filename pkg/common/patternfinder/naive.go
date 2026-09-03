@@ -29,6 +29,8 @@ type naivePatternFinder[T any] struct {
 	mu       sync.RWMutex
 }
 
+var _ PatternFinder[any] = (*naivePatternFinder[any])(nil)
+
 // NewNaivePatternFinder creates a new instance of naivePatternFinder.
 func NewNaivePatternFinder[T any]() PatternFinder[T] {
 	return &naivePatternFinder[T]{
@@ -84,25 +86,26 @@ func (f *naivePatternFinder[T]) DeletePattern(pattern string) (T, error) {
 }
 
 // Match checks for the longest registered pattern that is a prefix of the searchTarget.
-func (f *naivePatternFinder[T]) Match(searchTarget []rune) *PatternMatchResult[T] {
+func (f *naivePatternFinder[T]) Match(searchTarget string) (PatternMatchResult[T], bool) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	var bestMatch *PatternMatchResult[T]
-	targetStr := string(searchTarget)
+	var bestMatch PatternMatchResult[T]
+	var found bool
 
 	for _, pattern := range f.keys {
-		if strings.HasPrefix(targetStr, pattern) {
-			if bestMatch == nil || len(pattern) > bestMatch.End {
+		if strings.HasPrefix(searchTarget, pattern) {
+			if !found || len(pattern) > bestMatch.End {
 				value, _ := typeddict.Get(f.patterns, pattern)
-				bestMatch = &PatternMatchResult[T]{
+				bestMatch = PatternMatchResult[T]{
 					Value: value,
 					Start: 0, // Start is always 0 for a prefix match on a given slice
 					End:   len(pattern),
 				}
+				found = true
 			}
 		}
 	}
 
-	return bestMatch
+	return bestMatch, found
 }

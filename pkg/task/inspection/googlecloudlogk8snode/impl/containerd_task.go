@@ -148,7 +148,7 @@ var PodSandboxIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspecti
 
 		logChan := make(chan *log.Log)
 		errGrp, childCtx := errgroup.WithContext(ctx)
-		podSandboxIDFinder := patternfinder.NewTriePatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]()
+		podSandboxIDFinder := patternfinder.NewRadixPatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]()
 		for i := 0; i < runtime.GOMAXPROCS(0); i++ {
 			errGrp.Go(func() error {
 				for {

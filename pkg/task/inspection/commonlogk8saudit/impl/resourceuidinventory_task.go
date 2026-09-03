@@ -79,7 +79,7 @@ var UIDPatternFinderTask = inspectiontaskbase.NewProgressReportableInspectionTas
 			return nil, nil
 		}
 		uidMap := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDInventoryTaskID.Ref())
-		finder := patternfinder.NewTriePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
+		finder := patternfinder.NewRadixPatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
 		for uid, resource := range uidMap {
 			err := finder.AddPattern(uid, resource)
 			if err != nil {

@@ -32,9 +32,9 @@ func TestPatternFinderImplementations(t *testing.T) {
 			},
 		},
 		{
-			name: "trie",
+			name: "radix",
 			constructor: func() PatternFinder[int] {
-				return NewTriePatternFinder[int]()
+				return NewRadixPatternFinder[int]()
 			},
 		},
 	}
@@ -94,6 +94,60 @@ func TestPatternFinderImplementations(t *testing.T) {
 				}
 			})
 
+			t.Run("NonASCIIPatterns", func(t *testing.T) {
+				finder := f.constructor()
+				patterns := []struct {
+					pattern string
+					value   int
+				}{
+					{"東京", 1},
+					{"京都", 2},
+					{"東京都", 3},
+					{"東京タワー", 4},
+				}
+
+				for _, p := range patterns {
+					if err := finder.AddPattern(p.pattern, p.value); err != nil {
+						t.Fatalf("AddPattern(%q) failed: %v", p.pattern, err)
+					}
+				}
+
+				for _, p := range patterns {
+					val, err := finder.GetPattern(p.pattern)
+					if err != nil {
+						t.Errorf("GetPattern(%q) failed: %v", p.pattern, err)
+					}
+					if val != p.value {
+						t.Errorf("GetPattern(%q) = %d, want %d", p.pattern, val, p.value)
+					}
+				}
+
+				matchCases := []struct {
+					target    string
+					wantMatch bool
+					wantValue int
+					wantEnd   int
+				}{
+					{"東京都新宿区", true, 3, len("東京都")},
+					{"京都府京都市", true, 2, len("京都")},
+					{"東京タワー展望台", true, 4, len("東京タワー")},
+					{"大阪府", false, 0, 0},
+				}
+
+				for _, mc := range matchCases {
+					res, ok := finder.Match(mc.target)
+					if ok != mc.wantMatch {
+						t.Errorf("Match(%q) ok = %v, want %v", mc.target, ok, mc.wantMatch)
+					}
+					if mc.wantMatch && res.Value != mc.wantValue {
+						t.Errorf("Match(%q) Value = %d, want %d", mc.target, res.Value, mc.wantValue)
+					}
+					if mc.wantMatch && res.End != mc.wantEnd {
+						t.Errorf("Match(%q) End = %d, want %d", mc.target, res.End, mc.wantEnd)
+					}
+				}
+			})
+
 			t.Run("Match", func(t *testing.T) {
 				finder := f.constructor()
 				finder.AddPattern("a", 1)
@@ -119,17 +173,17 @@ func TestPatternFinderImplementations(t *testing.T) {
 
 				for _, tc := range testCases {
 					t.Run(tc.name, func(t *testing.T) {
-						result := finder.Match([]rune(tc.text))
+						result, ok := finder.Match(tc.text)
 
 						if !tc.wantMatch {
-							if result != nil {
+							if ok {
 								t.Errorf("expected no match, but got one: %+v", result)
 							}
 							return
 						}
 
-						if result == nil {
-							t.Fatal("expected a match, but got nil")
+						if !ok {
+							t.Fatal("expected a match, but got false")
 						}
 						if result.Value != tc.wantValue {
 							t.Errorf("got value %d, want %d", result.Value, tc.wantValue)
@@ -159,9 +213,9 @@ func BenchmarkPatternFinder(b *testing.B) {
 			},
 		},
 		{
-			name: "trie",
+			name: "radix",
 			constructor: func() PatternFinder[int] {
-				return NewTriePatternFinder[int]()
+				return NewRadixPatternFinder[int]()
 			},
 		},
 	}
@@ -198,9 +252,9 @@ func BenchmarkPatternFinder(b *testing.B) {
 					}
 
 					// Text that will match the last and longest pattern
-					matchText := []rune(patterns[s.numPatterns-1] + "_extra_suffix")
+					matchText := patterns[s.numPatterns-1] + "_extra_suffix"
 					// Text that will not match any pattern
-					noMatchText := []rune("zzzz_no_match_here")
+					noMatchText := "zzzz_no_match_here"
 
 					b.ResetTimer()
 

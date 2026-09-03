@@ -32,7 +32,7 @@ type PatternFinder[T any] interface {
 	DeletePattern(pattern string) (T, error)
 
 	// Match checks if any registered pattern is a prefix of the searchTarget.
-	// It returns the longest valid match. If no patterns match, it returns nil.
+	// It returns the longest valid match and true. If no patterns match, it returns false.
 	// The result's Start field will always be 0.
-	Match(searchTarget []rune) *PatternMatchResult[T]
+	Match(searchTarget string) (PatternMatchResult[T], bool)
 }

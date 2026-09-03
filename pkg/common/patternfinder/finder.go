@@ -14,7 +14,10 @@
 
 package patternfinder
 
-import "fmt"
+import (
+	"fmt"
+	"unicode/utf8"
+)
 
 // PatternMatchResult represents a single match found within a larger text.
 // It includes the start and end positions of the match.
@@ -48,10 +51,8 @@ func (p *PatternMatchResult[T]) GetMatchedString(original string) (string, error
 //
 //	A slice of PatternMatchResult for every non-overlapping match found.
 func FindAllWithStarterRunes[T any](searchText string, finder PatternFinder[T], includeFirst bool, starterRunes ...rune) []PatternMatchResult[T] {
-	runes := []rune(searchText)
-	starters := make(map[rune]struct{}, len(starterRunes))
-	for _, r := range starterRunes {
-		starters[r] = struct{}{}
+	if len(searchText) == 0 {
+		return nil
 	}
 
 	var results []PatternMatchResult[T]
@@ -59,7 +60,7 @@ func FindAllWithStarterRunes[T any](searchText string, finder PatternFinder[T], 
 
 	// Handle the case where a match can start at the very beginning
 	if includeFirst {
-		if match := finder.Match(runes); match != nil {
+		if match, ok := finder.Match(searchText); ok {
 			results = append(results, PatternMatchResult[T]{
 				Value: match.Value,
 				Start: 0,
@@ -69,22 +70,37 @@ func FindAllWithStarterRunes[T any](searchText string, finder PatternFinder[T], 
 		}
 	}
 
-	for i < len(runes) {
-		// Find the next starter rune
-		_, isStarter := starters[runes[i]]
+	for i < len(searchText) {
+		var r rune
+		var size int
+		if searchText[i] < utf8.RuneSelf {
+			r = rune(searchText[i])
+			size = 1
+		} else {
+			r, size = utf8.DecodeRuneInString(searchText[i:])
+		}
+
+		isStarter := false
+		for _, s := range starterRunes {
+			if r == s {
+				isStarter = true
+				break
+			}
+		}
+
 		if !isStarter {
-			i++
+			i += size
 			continue
 		}
 
 		// Starter rune found, attempt to match from the next position
-		searchPosition := i + 1
-		if searchPosition >= len(runes) {
+		searchPosition := i + size
+		if searchPosition >= len(searchText) {
 			break // Reached the end of the string
 		}
 
-		searchSlice := runes[searchPosition:]
-		if match := finder.Match(searchSlice); match != nil {
+		searchSlice := searchText[searchPosition:]
+		if match, ok := finder.Match(searchSlice); ok {
 			// A match was found, calculate absolute positions
 			matchStart := searchPosition
 			matchEnd := matchStart + match.End
@@ -96,8 +112,8 @@ func FindAllWithStarterRunes[T any](searchText string, finder PatternFinder[T], 
 			// Advance the main loop cursor past the found match
 			i = matchEnd
 		} else {
-			// No match, just advance to the next character
-			i++
+			// No match, advance to the next character
+			i += size
 		}
 	}
 
