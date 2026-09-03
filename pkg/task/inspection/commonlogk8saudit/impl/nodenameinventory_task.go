@@ -16,6 +16,7 @@ package commonlogk8saudit_impl
 
 import (
 	"context"
+	"slices"
 
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
@@ -43,6 +44,7 @@ func (n *nodeNameMergeStrategy) Merge(results [][]string) ([]string, error) {
 	for k := range result {
 		ret = append(ret, k)
 	}
+	slices.Sort(ret)
 	return ret, nil
 }
 
