@@ -152,7 +152,7 @@ export class TimelineChartComponent implements AfterViewInit {
   /**
    * Flag to indicate that the timeline needs to be redrawn.
    */
-  private invalidate = true;
+  invalidate = true;
 
   private resizeObserver: ResizeObserver | null = null;
 
@@ -185,6 +185,8 @@ export class TimelineChartComponent implements AfterViewInit {
         chartViewModel.styleStore.stylesUpdated?.();
         this.timelineRenderer.invalidateStyles();
       }
+      this.leftEdgeTime();
+      this.pixelsPerMs();
       this.invalidate = true;
       this.updateRendererParams();
     });
