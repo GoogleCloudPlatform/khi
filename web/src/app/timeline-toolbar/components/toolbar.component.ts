@@ -18,7 +18,6 @@ import {
   Component,
   HostListener,
   viewChild,
-  ElementRef,
   input,
   model,
   output,
@@ -35,6 +34,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
+import { ChipSearchBarComponent } from 'src/app/shared/components/chip-search-bar/chip-search-bar.component';
 import { TimelineFilterBuilderComponent } from './timeline-filter-builder.component';
 import { SearchScope } from 'src/app/services/view-state.service';
 import { TimelineFilterConfig } from '../types/filter-config';
@@ -75,14 +75,15 @@ export enum ToolbarPopupStatus {
     MatSelectModule,
     MatInputModule,
     MatFormFieldModule,
+    ChipSearchBarComponent,
   ],
 })
 export class ToolbarComponent {
   /**
-   * Reference to the Log Search input element for search focus management.
+   * Reference to the ChipSearchBarComponent for search focus management.
    */
-  public readonly logSearchInput =
-    viewChild<ElementRef<HTMLInputElement>>('logSearchInput');
+  public readonly chipSearchBar =
+    viewChild<ChipSearchBarComponent>('chipSearchBar');
 
   // Inputs (Signals)
   readonly showButtonLabel = input(false);
@@ -96,7 +97,7 @@ export class ToolbarComponent {
   readonly logOrTimelineNotSelected = input(true);
   readonly nameFilter = model('');
   readonly selectedSeverity = model<string>('ANY');
-  readonly logSearchQuery = model<string>('');
+  readonly logSearchTerms = model<string[]>([]);
 
   /**
    * Holds the current active search scope.
@@ -346,7 +347,7 @@ export class ToolbarComponent {
       }
       if (this.activeSearchScope() === SearchScope.Global) {
         event.preventDefault();
-        this.logSearchInput()?.nativeElement.focus();
+        this.chipSearchBar()?.focus();
       }
     }
   }

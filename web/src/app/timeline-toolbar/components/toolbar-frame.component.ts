@@ -62,8 +62,8 @@ export class ToolbarFrameComponent {
   /** Holds the currently selected severity state. */
   readonly selectedSeverity = model.required<string>();
 
-  /** Holds the standard log search input query. */
-  readonly logSearchQuery = model.required<string>();
+  /** Holds the standard log search terms array. */
+  readonly logSearchTerms = model.required<string[]>();
 
   /** Configured standard timeline filters. */
   readonly timelineFilters = model.required<TimelineFilterConfig[]>();
