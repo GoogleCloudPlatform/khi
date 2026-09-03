@@ -72,12 +72,15 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 	defer ticker.Stop() // ticker must be closed before closing progress
 
 	stubChan := make(chan *loggingpb.LogEntry)
-	subroutineCtx, cancelSubroutine := context.WithCancel(ctx)
+	consumerCtx, cancelConsumer := context.WithCancel(ctx)
+	defer cancelConsumer()
+	progressCtx, cancelProgress := context.WithCancel(ctx)
+	defer cancelProgress()
 
 	filter := fmt.Sprintf("%s\n%s", filterWithoutTimeRange, gcpqueryutil.TimeRangeQuerySection(beginTime, endTime, false))
 
-	wg := sync.WaitGroup{}
-	wg.Add(2)
+	var consumerWg sync.WaitGroup
+	var progressWg sync.WaitGroup
 	logCount := atomic.Int32{}
 	latestLogTime := atomic.Pointer[time.Time]{}
 	latestLogTime.Store(&beginTime)
@@ -88,11 +91,12 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 	}
 
 	// Consume logs from log fetcher and record count and the latest time for reporting progress
+	consumerWg.Add(1)
 	go func() {
-		defer wg.Done() // fetcher.FetchLogs is expected to run in sync. But make sure all the logs are consumed in this go routine.
+		defer consumerWg.Done()
 		for {
 			select {
-			case <-subroutineCtx.Done():
+			case <-consumerCtx.Done():
 				return
 			case logEntry, ok := <-stubChan:
 				if !ok {
@@ -102,7 +106,7 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 				t := logEntry.Timestamp.AsTime()
 				latestLogTime.Store(&t)
 				select {
-				case <-subroutineCtx.Done():
+				case <-consumerCtx.Done():
 					return
 				case dest <- logEntry:
 				}
@@ -111,18 +115,19 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 	}()
 
 	// Report progress for every reportInterval
+	progressWg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer progressWg.Done()
 		// Send initial progress
 		select {
 		case progress <- LogFetchProgress{}:
-		case <-subroutineCtx.Done():
+		case <-progressCtx.Done():
 			return
 		}
 
 		for {
 			select {
-			case <-subroutineCtx.Done():
+			case <-progressCtx.Done():
 				return
 			case <-ticker.C:
 				latest := latestLogTime.Load()
@@ -132,7 +137,7 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 					LogCount: int(logCount.Load()),
 					Progress: float32(latestLogTimeFromBeginTimeInSeconds) / float32(totalDurationInSeconds),
 				}:
-				case <-subroutineCtx.Done():
+				case <-progressCtx.Done():
 					return
 				}
 			}
@@ -141,18 +146,26 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 
 	err := s.fetcher.FetchLogs(stubChan, ctx, filter, container, resourceContainers)
 	if err != nil {
-		cancelSubroutine()
-		wg.Wait()
+		cancelConsumer()
+		cancelProgress()
+		consumerWg.Wait()
+		progressWg.Wait()
 		return err
 	}
 
-	cancelSubroutine()
-	wg.Wait()
+	// Wait for consumer to consume all logs from stubChan and forward them to dest.
+	consumerWg.Wait()
+	cancelProgress()
+	progressWg.Wait()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	// Send final progress report.
 	select {
 	case progress <- LogFetchProgress{LogCount: int(logCount.Load()), Progress: 1.0}:
 	case <-ctx.Done():
+		return ctx.Err()
 	}
 	return nil
 }
