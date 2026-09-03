@@ -51,6 +51,28 @@ jobs:
       - name: Update VERSION file
         run: echo "${GITHUB_REF_NAME#v}" > VERSION
 
+      - name: Cache woff2_decompress binary
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: scripts/msdf-generator/vendor/woff2/woff2_decompress
+          key: woff2-bin-${{ runner.os }}-${{ hashFiles('scripts/msdf-generator/setup.sh') }}
+
+      - name: Cache font atlas
+        id: cache-font-atlas
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            web/src/assets/zzz-*
+            pkg/model/khifile/v6/style/assets
+            scripts/msdf-generator/zzz_generated_used_icons.json
+            scripts/make/generate-font-atlas.done
+            scripts/make/msdf-setup.done
+          key: font-atlas-${{ runner.os }}-${{ hashFiles('scripts/msdf-generator/**', 'scripts/fontlist-gen/**', 'pkg/task/inspection/**') }}
+
+      - name: Touch font atlas dummy
+        if: steps.cache-font-atlas.outputs.cache-hit == 'true'
+        run: touch scripts/make/generate-font-atlas.done scripts/make/msdf-setup.done
+
       - name: Build Binaries
         run: make build-go-binaries
 

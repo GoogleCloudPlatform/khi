@@ -14,12 +14,23 @@
 # limitations under the License.
 
 
-mkdir -p vendor
-cd vendor
-git clone --recursive https://github.com/google/woff2.git
-cd woff2
-make clean all
-cd ../..
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
+
+WOFF2_COMMIT="1c69169e9e1811dccd6c54c532fedda300233968"
+
+if [ ! -f "./vendor/woff2/woff2_decompress" ]; then
+  mkdir -p vendor
+  cd vendor
+  git clone https://github.com/google/woff2.git
+  cd woff2
+  git checkout "${WOFF2_COMMIT}"
+  git submodule update --init --recursive
+  make clean all
+  cd ../..
+fi
 
 ./vendor/woff2/woff2_decompress ./node_modules/@fontsource/roboto/files/roboto-latin-700-normal.woff2
 ./vendor/woff2/woff2_decompress ./node_modules/material-symbols/material-symbols-outlined.woff2
