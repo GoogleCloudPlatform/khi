@@ -51,6 +51,12 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: "./go.mod"
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: "./.node-version"
+          cache: "npm"
+          cache-dependency-path: "web/package-lock.json"
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
       # Building frontend artifacts because that is used in embed.fs in Go.
@@ -84,6 +90,8 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: "./.node-version"
+          cache: "npm"
+          cache-dependency-path: "web/package-lock.json"
 
       - name: Set up Go # Go dependency is needed for `make generate-frontend`
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -128,6 +136,8 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: "./.node-version"
+          cache: "npm"
+          cache-dependency-path: "web/package-lock.json"
 
       - name: Set up Go # Go dependency is needed for `make generate-frontend`
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -164,6 +174,8 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: "./.node-version"
+          cache: "npm"
+          cache-dependency-path: "web/package-lock.json"
       - name: npm install
         working-directory: ./web
         run: npm ci
@@ -202,6 +214,8 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: "./.node-version"
+          cache: "npm"
+          cache-dependency-path: "web/package-lock.json"
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
