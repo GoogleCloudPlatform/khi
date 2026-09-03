@@ -28,17 +28,17 @@ type radixNode[T any] struct {
 	value    T
 }
 
-// triePatternFinder is an implementation of PatternFinder using a Radix Tree.
-type triePatternFinder[T any] struct {
+// radixPatternFinder is an implementation of PatternFinder using a Radix Tree.
+type radixPatternFinder[T any] struct {
 	root *radixNode[T]
 	mu   sync.RWMutex
 }
 
-var _ PatternFinder[any] = (*triePatternFinder[any])(nil)
+var _ PatternFinder[any] = (*radixPatternFinder[any])(nil)
 
-// NewTriePatternFinder creates a new instance of triePatternFinder backed by a Radix Tree.
-func NewTriePatternFinder[T any]() PatternFinder[T] {
-	return &triePatternFinder[T]{
+// NewRadixPatternFinder creates a new instance of radixPatternFinder backed by a Radix Tree.
+func NewRadixPatternFinder[T any]() PatternFinder[T] {
+	return &radixPatternFinder[T]{
 		root: &radixNode[T]{},
 	}
 }
@@ -54,7 +54,7 @@ func longestCommonPrefix(s1, s2 string) int {
 }
 
 // AddPattern adds a new pattern and its outcome to the finder.
-func (f *triePatternFinder[T]) AddPattern(pattern string, outcome T) error {
+func (f *radixPatternFinder[T]) AddPattern(pattern string, outcome T) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -78,7 +78,7 @@ func (f *triePatternFinder[T]) AddPattern(pattern string, outcome T) error {
 				hasValue: true,
 				value:    outcome,
 			}
-			curr.indices += string(search[0])
+			curr.indices += string([]byte{search[0]})
 			curr.children = append(curr.children, child)
 			return nil
 		}
@@ -102,7 +102,7 @@ func (f *triePatternFinder[T]) AddPattern(pattern string, outcome T) error {
 
 		splitNode := &radixNode[T]{
 			prefix:   child.prefix[:commonPrefixLen],
-			indices:  string(child.prefix[commonPrefixLen]),
+			indices:  string([]byte{child.prefix[commonPrefixLen]}),
 			children: []*radixNode[T]{child},
 		}
 
@@ -117,7 +117,7 @@ func (f *triePatternFinder[T]) AddPattern(pattern string, outcome T) error {
 				hasValue: true,
 				value:    outcome,
 			}
-			splitNode.indices += string(search[commonPrefixLen])
+			splitNode.indices += string([]byte{search[commonPrefixLen]})
 			splitNode.children = append(splitNode.children, newChild)
 		}
 
@@ -127,7 +127,7 @@ func (f *triePatternFinder[T]) AddPattern(pattern string, outcome T) error {
 }
 
 // GetPattern retrieves the outcome for a given pattern.
-func (f *triePatternFinder[T]) GetPattern(pattern string) (T, error) {
+func (f *radixPatternFinder[T]) GetPattern(pattern string) (T, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
@@ -158,7 +158,7 @@ func (f *triePatternFinder[T]) GetPattern(pattern string) (T, error) {
 }
 
 // DeletePattern removes a pattern from the finder.
-func (f *triePatternFinder[T]) DeletePattern(pattern string) (T, error) {
+func (f *radixPatternFinder[T]) DeletePattern(pattern string) (T, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -176,7 +176,7 @@ func (f *triePatternFinder[T]) DeletePattern(pattern string) (T, error) {
 }
 
 // delete removes a pattern from the subtree rooted at curr.
-func (f *triePatternFinder[T]) delete(curr *radixNode[T], search string) (T, error) {
+func (f *radixPatternFinder[T]) delete(curr *radixNode[T], search string) (T, error) {
 	idx := strings.IndexByte(curr.indices, search[0])
 	if idx == -1 {
 		return *new(T), ErrPatternNotFound
@@ -197,7 +197,9 @@ func (f *triePatternFinder[T]) delete(curr *radixNode[T], search string) (T, err
 
 		if len(child.children) == 0 {
 			curr.indices = curr.indices[:idx] + curr.indices[idx+1:]
-			curr.children = append(curr.children[:idx], curr.children[idx+1:]...)
+			copy(curr.children[idx:], curr.children[idx+1:])
+			curr.children[len(curr.children)-1] = nil
+			curr.children = curr.children[:len(curr.children)-1]
 		} else if len(child.children) == 1 {
 			grandChild := child.children[0]
 			child.prefix += grandChild.prefix
@@ -228,7 +230,7 @@ func (f *triePatternFinder[T]) delete(curr *radixNode[T], search string) (T, err
 }
 
 // Match checks for the longest registered pattern that is a prefix of the searchTarget.
-func (f *triePatternFinder[T]) Match(searchTarget string) (PatternMatchResult[T], bool) {
+func (f *radixPatternFinder[T]) Match(searchTarget string) (PatternMatchResult[T], bool) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 

@@ -32,9 +32,9 @@ func TestPatternFinderImplementations(t *testing.T) {
 			},
 		},
 		{
-			name: "trie",
+			name: "radix",
 			constructor: func() PatternFinder[int] {
-				return NewTriePatternFinder[int]()
+				return NewRadixPatternFinder[int]()
 			},
 		},
 	}
@@ -91,6 +91,60 @@ func TestPatternFinderImplementations(t *testing.T) {
 				err = finder.AddPattern(pattern, 2)
 				if err != ErrPatternAlreadyExists {
 					t.Errorf("expected ErrPatternAlreadyExists, but got %v", err)
+				}
+			})
+
+			t.Run("NonASCIIPatterns", func(t *testing.T) {
+				finder := f.constructor()
+				patterns := []struct {
+					pattern string
+					value   int
+				}{
+					{"東京", 1},
+					{"京都", 2},
+					{"東京都", 3},
+					{"東京タワー", 4},
+				}
+
+				for _, p := range patterns {
+					if err := finder.AddPattern(p.pattern, p.value); err != nil {
+						t.Fatalf("AddPattern(%q) failed: %v", p.pattern, err)
+					}
+				}
+
+				for _, p := range patterns {
+					val, err := finder.GetPattern(p.pattern)
+					if err != nil {
+						t.Errorf("GetPattern(%q) failed: %v", p.pattern, err)
+					}
+					if val != p.value {
+						t.Errorf("GetPattern(%q) = %d, want %d", p.pattern, val, p.value)
+					}
+				}
+
+				matchCases := []struct {
+					target    string
+					wantMatch bool
+					wantValue int
+					wantEnd   int
+				}{
+					{"東京都新宿区", true, 3, len("東京都")},
+					{"京都府京都市", true, 2, len("京都")},
+					{"東京タワー展望台", true, 4, len("東京タワー")},
+					{"大阪府", false, 0, 0},
+				}
+
+				for _, mc := range matchCases {
+					res, ok := finder.Match(mc.target)
+					if ok != mc.wantMatch {
+						t.Errorf("Match(%q) ok = %v, want %v", mc.target, ok, mc.wantMatch)
+					}
+					if mc.wantMatch && res.Value != mc.wantValue {
+						t.Errorf("Match(%q) Value = %d, want %d", mc.target, res.Value, mc.wantValue)
+					}
+					if mc.wantMatch && res.End != mc.wantEnd {
+						t.Errorf("Match(%q) End = %d, want %d", mc.target, res.End, mc.wantEnd)
+					}
 				}
 			})
 
@@ -159,9 +213,9 @@ func BenchmarkPatternFinder(b *testing.B) {
 			},
 		},
 		{
-			name: "trie",
+			name: "radix",
 			constructor: func() PatternFinder[int] {
-				return NewTriePatternFinder[int]()
+				return NewRadixPatternFinder[int]()
 			},
 		},
 	}
