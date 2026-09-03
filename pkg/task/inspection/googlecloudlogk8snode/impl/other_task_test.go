@@ -45,7 +45,7 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// 1. Initialize Builder
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	testCases := []struct {
 		desc                 string

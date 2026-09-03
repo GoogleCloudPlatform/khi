@@ -15,9 +15,12 @@
 package khifilev6
 
 import (
+	"fmt"
 	"math"
 	"sync"
+	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -132,6 +135,157 @@ func (s *FlatStructStore) Store(id uint32, fieldPathSetID uint32, values []*pb.I
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.storeLocked(id, fieldPathSetID, values)
+}
+
+// StoreFromNodes encodes and saves an interned struct directly from a slice of structured nodes.
+// It bypasses intermediate Protobuf value allocations to minimize heap churn during ingestion.
+func (s *FlatStructStore) StoreFromNodes(id uint32, fieldPathSetID uint32, nodes []structured.Node, pool *InternPool) error {
+	// Pre-intern any nested maps before acquiring the store lock to prevent self-deadlock on s.mu.
+	for _, n := range nodes {
+		if err := ensureNestedMapsInterned(n, pool); err != nil {
+			return err
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.ensureStructCapacity(id)
+	if !s.structPresent[id] {
+		s.structPresent[id] = true
+		s.count++
+	}
+
+	s.structFieldPathSetIDs[id] = fieldPathSetID
+	valCount := uint32(len(nodes))
+	s.structValueCounts[id] = valCount
+
+	if valCount == 0 {
+		s.structValueOffsets[id] = 0
+		return nil
+	}
+
+	startOffset := s.reserveSlots(valCount)
+	s.structValueOffsets[id] = startOffset
+
+	for i, n := range nodes {
+		slot := startOffset + uint32(i)
+		if err := s.encodeNodeAt(slot, n, pool); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ensureNestedMapsInterned eagerly interns child map nodes before acquiring the store lock.
+// This prevents self-deadlock on s.mu when recursively interning nested structures.
+func ensureNestedMapsInterned(node structured.Node, pool *InternPool) error {
+	if node == nil {
+		return nil
+	}
+	switch node.Type() {
+	case structured.MapNodeType:
+		_, err := ToInternedStruct(node, pool)
+		return err
+	case structured.SequenceNodeType:
+		for _, child := range node.Children() {
+			if err := ensureNestedMapsInterned(child, pool); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// encodeNodeAt packs a single structured.Node into the target slot within the SoA arrays.
+// It translates leaf values directly to primitive representations without allocating heap wrappers.
+func (s *FlatStructStore) encodeNodeAt(slot uint32, node structured.Node, pool *InternPool) error {
+	if node == nil {
+		s.valueKinds[slot] = uint8(FlatValueKindNull)
+		s.valueData[slot] = 0
+		s.valueAux[slot] = 0
+		return nil
+	}
+
+	switch node.Type() {
+	case structured.ScalarNodeType:
+		val, err := node.NodeScalarValue()
+		if err != nil {
+			return err
+		}
+		if val == nil {
+			s.valueKinds[slot] = uint8(FlatValueKindNull)
+			s.valueData[slot] = 0
+			s.valueAux[slot] = 0
+			return nil
+		}
+		switch v := val.(type) {
+		case bool:
+			s.valueKinds[slot] = uint8(FlatValueKindBool)
+			if v {
+				s.valueData[slot] = 1
+			} else {
+				s.valueData[slot] = 0
+			}
+			s.valueAux[slot] = 0
+		case int:
+			s.valueKinds[slot] = uint8(FlatValueKindInt64)
+			s.valueData[slot] = uint64(int64(v))
+			s.valueAux[slot] = 0
+		case float64:
+			s.valueKinds[slot] = uint8(FlatValueKindDouble)
+			s.valueData[slot] = math.Float64bits(v)
+			s.valueAux[slot] = 0
+		case string:
+			strRef := pool.InternString(v)
+			s.valueKinds[slot] = uint8(FlatValueKindStringID)
+			s.valueData[slot] = uint64(strRef.id)
+			s.valueAux[slot] = 0
+		case time.Time:
+			s.valueKinds[slot] = uint8(FlatValueKindTimestamp)
+			s.valueData[slot] = uint64(v.Unix())
+			s.valueAux[slot] = uint32(v.Nanosecond())
+		default:
+			return fmt.Errorf("unsupported scalar type: %T", v)
+		}
+		return nil
+
+	case structured.SequenceNodeType:
+		listCount := uint32(node.Len())
+		s.valueKinds[slot] = uint8(FlatValueKindList)
+		s.valueAux[slot] = listCount
+
+		if listCount == 0 {
+			s.valueData[slot] = 0
+			return nil
+		}
+
+		listOffset := s.reserveSlots(listCount)
+		s.valueData[slot] = uint64(listOffset)
+
+		idx := uint32(0)
+		for _, child := range node.Children() {
+			itemSlot := listOffset + idx
+			idx++
+			if err := s.encodeNodeAt(itemSlot, child, pool); err != nil {
+				return err
+			}
+		}
+		return nil
+
+	case structured.MapNodeType:
+		sRef, err := ToInternedStruct(node, pool)
+		if err != nil {
+			return err
+		}
+		s.valueKinds[slot] = uint8(FlatValueKindStructID)
+		s.valueData[slot] = uint64(sRef.id)
+		s.valueAux[slot] = 0
+		return nil
+
+	default:
+		return fmt.Errorf("unknown node type: %v", node.Type())
+	}
 }
 
 func (s *FlatStructStore) storeLocked(id uint32, fieldPathSetID uint32, values []*pb.InternedValue) {

@@ -124,4 +124,15 @@ describe('ToolbarComponent', () => {
 
     expect(component.timelineFilters().length).toBe(0);
   });
+
+  it('should bind logSearchTerms to khi-chip-search-bar', () => {
+    fixture.componentRef.setInput('logSearchTerms', ['test-query']);
+    fixture.detectChanges();
+
+    const chipSearchBar = fixture.debugElement.query(
+      By.css('khi-chip-search-bar'),
+    );
+    expect(chipSearchBar).toBeTruthy();
+    expect(component.logSearchTerms()).toEqual(['test-query']);
+  });
 });

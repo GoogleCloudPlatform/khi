@@ -65,7 +65,6 @@ export class LogStore {
   private idToIndex: (number | undefined)[] = [];
 
   private logCount = 0;
-  private previousTimestamp = 0n;
 
   private constructor(
     private readonly internPool: InternPoolStore,
@@ -94,7 +93,6 @@ export class LogStore {
 
   /**
    * Appends multiple logs to the store.
-   * Logs must be in non-decreasing timestamp order.
    *
    * @param logs An iterable of LogDTO objects.
    */
@@ -192,18 +190,10 @@ export class LogStore {
 
   /**
    * Appends a single log to the store.
-   * Logs must be added in non-decreasing timestamp order.
    *
    * @param log The raw LogDTO to add.
    */
   public addLog(log: LogDTO): void {
-    if (this.logCount > 0 && log.ts < this.previousTimestamp) {
-      throw new Error(
-        `Logs are not sorted by timestamp at index ${this.logCount}: timestamp ${log.ts} < ${this.previousTimestamp}`,
-      );
-    }
-    this.previousTimestamp = log.ts;
-
     this.ensureCapacity(this.logCount + 1);
 
     const index = this.logCount;

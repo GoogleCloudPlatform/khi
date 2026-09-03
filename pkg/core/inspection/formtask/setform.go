@@ -220,7 +220,7 @@ func (b *SetFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common_
 		field.Default = defaultValue
 		currentValue = defaultValue
 
-		if valueRaw, exist := req[b.id.ReferenceIDString()]; exist {
+		if valueRaw, exist := req[b.id.ReferenceIDString()]; exist && valueRaw != nil {
 			valueSlice, isSlice := valueRaw.([]interface{})
 			if !isSlice {
 				// Also try to handle string[] (though json unmarshal usually gives []interface{})

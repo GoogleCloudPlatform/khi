@@ -30,7 +30,7 @@ import (
 )
 
 func TestOtherLogToTimelineMapperTask(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	projectTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: "test-project",

@@ -96,28 +96,11 @@ limitations under the License.
             </mat-select>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="search-input">
-            <mat-icon matPrefix class="search-prefix-icon">search</mat-icon>
-            <mat-label>Search Logs</mat-label>
-            <input
-              #logSearchInput
-              matInput
-              placeholder="Search in log body..."
-              [value]="logSearchQuery()"
-              (input)="logSearchQuery.set($any($event.target).value)"
-            />
-            @if (logSearchQuery()) {
-              <button
-                matSuffix
-                mat-icon-button
-                aria-label="Clear"
-                (click)="logSearchQuery.set('')"
-                class="clear-search-btn"
-              >
-                <mat-icon>close</mat-icon>
-              </button>
-            }
-          </mat-form-field>
+          <khi-chip-search-bar
+            #chipSearchBar
+            [(searchTerms)]="logSearchTerms"
+            placeholder="Search in log body..."
+          ></khi-chip-search-bar>
         </div>
       </div>
       <div class="right-control">

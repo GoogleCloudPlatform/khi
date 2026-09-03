@@ -34,7 +34,7 @@ import (
 
 func TestLogToTimelineMapperTask(t *testing.T) {
 	// Initialize the shared Builder reference.
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	testCases := []struct {
 		desc   string

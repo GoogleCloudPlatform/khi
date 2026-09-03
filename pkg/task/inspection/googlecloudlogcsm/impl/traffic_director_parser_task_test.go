@@ -216,7 +216,7 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	mapper := &CSMTrafficDirectorLogToTimelineMapper{}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			builder := khifilev6.NewBuilder(id.NewGenerator())
+			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
@@ -248,7 +248,7 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					t.Fatalf("log %d: AddLog() failed: %v", i, err)
 				}
 				// Flush verifies that all revisions and their ResourceBody can be interned without error.
-				if err := cs.Flush(builder.TimelineAccumulator); err != nil {
+				if err := cs.Flush(builder.TimelineAccumulator, builder.LogAccumulator); err != nil {
 					t.Fatalf("log %d: Flush() failed: %v", i, err)
 				}
 			}

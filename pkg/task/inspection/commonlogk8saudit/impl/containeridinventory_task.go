@@ -60,7 +60,7 @@ var ContainerIDPatternFinderTask = inspectiontaskbase.NewProgressReportableInspe
 		}
 
 		cidMap := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ContainerIDInventoryTaskID.Ref())
-		finder := patternfinder.NewTriePatternFinder[*commonlogk8saudit_contract.ContainerIdentity]()
+		finder := patternfinder.NewRadixPatternFinder[*commonlogk8saudit_contract.ContainerIdentity]()
 		for cid, v := range cidMap {
 			finder.AddPattern(cid, v)
 		}

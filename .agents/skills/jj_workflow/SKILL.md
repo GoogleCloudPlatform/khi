@@ -1,6 +1,6 @@
 ---
 name: jj-workflow
-description: Guidelines and procedures for using Jujutsu (jj) in KHI, including change management, pushing commits with auto-generated bookmarks, addressing PR review feedback without squashing, and resolving conflicts incrementally from oldest to newest commit.
+description: Guidelines and procedures for using Jujutsu (jj) in KHI, including change management, workspace isolation, pushing commits with auto-generated bookmarks, addressing PR review feedback without squashing, and resolving conflicts incrementally from oldest to newest commit.
 ---
 
 # KHI Jujutsu (`jj`) Workflow Guidelines
@@ -11,16 +11,29 @@ This guide outlines the standard version control workflow for working on the Kub
 
 ## 1. Core Principles
 
+- **Prefer Jujutsu (`jj`) Commands**: Always use `jj` commands instead of raw Git commands whenever possible.
 - **Working Copy is Always a Change**: In Jujutsu, the working copy (`@`) is treated as an in-progress change/commit at all times.
 - **Describe vs. New**:
   - `jj describe -m "..."`: Updates the commit message of the _current_ change (`@`). It does not create a new commit.
   - `jj new`: Commits and freezes the current change, then creates a new, empty working-copy change (`@`) on top of it.
 - **Task Boundaries**: Always run `jj new` upon completing a logical unit of work or before switching tasks.
+- **Workspace Isolation**: Always make changes strictly within your assigned workspace. You may inspect or reference other workspaces, but never modify files or commit changes in another workspace.
 - **Explicit Approval for Pushes**: Never execute `jj git push` or create remote modifications without explicit user approval.
 
 ---
 
-## 2. Standard Development Flow
+## 2. Workspace Isolation
+
+> [!IMPORTANT]
+> **Never modify files or state in other workspaces.**
+>
+> - Inspecting or referencing other workspaces (e.g., viewing files or reading logs) is allowed.
+> - However, you must NEVER modify, edit, or create files in another workspace.
+> - All changes, commits, and development work must take place strictly within your assigned workspace.
+
+---
+
+## 3. Standard Development Flow
 
 ### Starting a New Change
 
@@ -68,7 +81,7 @@ This freezes your completed change into the commit graph history (`@-`) and move
 
 ---
 
-## 3. Pushing Changes & Remote Bookmarks
+## 4. Pushing Changes & Remote Bookmarks
 
 > [!IMPORTANT]
 > **Do not invent custom remote branch names manually.**
@@ -91,7 +104,7 @@ jj git push --tracked
 
 ---
 
-## 4. Addressing PR Review Feedback (No Squashing)
+## 5. Addressing PR Review Feedback (No Squashing)
 
 > [!IMPORTANT]
 > **Do NOT squash review fixes into the original commit (`jj squash` is forbidden here).**
@@ -148,7 +161,7 @@ When review comments require code changes:
 
 ---
 
-## 5. Conflict Resolution Workflow (Oldest to Newest)
+## 6. Conflict Resolution Workflow (Oldest to Newest)
 
 In Jujutsu, merge and rebase conflicts do not abort operations. Instead, conflicts are recorded as first-class states directly on the affected commits.
 
@@ -208,10 +221,11 @@ In Jujutsu, merge and rebase conflicts do not abort operations. Instead, conflic
 
 ---
 
-## 6. Pre-flight Checklist
+## 7. Pre-flight Checklist
 
 Before finalizing any task or pushing to a remote repository:
 
+- [ ] Worked strictly within the assigned workspace and made no cross-workspace modifications.
 - [ ] Executed `make pre-commit` to format all code and documentation files.
 - [ ] Passed all linters and tests (`make lint-go`, `make lint-web`, `make test-go`, `make test-web`).
 - [ ] For PR reviews: created a new incremental commit with `jj new` without squashing.

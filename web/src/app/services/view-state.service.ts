@@ -68,9 +68,9 @@ export class ViewStateService {
   public readonly standardSelectedSeverity = signal<string>('ANY');
 
   /**
-   * The persistent standard mode log search query.
+   * The persistent standard mode log search terms.
    */
-  public readonly standardLogSearchQuery = signal<string>('');
+  public readonly standardLogSearchTerms = signal<string[]>([]);
 
   /**
    * The persistent advanced mode timeline include CEL query.

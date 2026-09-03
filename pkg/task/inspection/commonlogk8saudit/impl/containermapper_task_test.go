@@ -342,7 +342,7 @@ state:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := khifilev6.NewBuilder(id.NewGenerator())
+			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			containerPath := MustResolveContainerTimelinePath(ctx, "k8s", podNamespace, podName, containerName)
@@ -628,7 +628,7 @@ status:
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			builder := khifilev6.NewBuilder(id.NewGenerator())
+			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			containerPath := MustResolveContainerTimelinePath(ctx, "k8s", podNamespace, podName, "main-container")

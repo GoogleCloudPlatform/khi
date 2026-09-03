@@ -182,7 +182,7 @@ func TestToReadableResourceName(t *testing.T) {
 func TestCheckStartingAndTerminationLog(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	testCases := []struct {
 		desc           string

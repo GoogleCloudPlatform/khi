@@ -134,7 +134,7 @@ func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			builder := khifilev6.NewBuilder(id.NewGenerator())
+			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			taskDependentValues := typedmap.NewTypedMap()

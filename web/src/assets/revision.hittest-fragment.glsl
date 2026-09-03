@@ -10,7 +10,7 @@ precision highp int;
 flat in RevisionModel revisionModel;
 in vec2 uv;
 in vec2 revisionScreenSize;
-flat in float leftEdgeTimeMS;
+flat in float revisionClippedOffsetPx;
 
 
 // Output for picking / hit testing.

@@ -329,27 +329,3 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
 .severity-select {
   width: 150px;
 }
-
-.search-input {
-  width: 200px;
-}
-
-.search-prefix-icon {
-  color: mat.m2-get-color-from-palette($gray-palette, 600);
-  margin-right: 4px;
-}
-
-.clear-search-btn {
-  width: 24px !important;
-  height: 24px !important;
-  padding: 0 !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  mat-icon {
-    font-size: 16px !important;
-    width: 16px !important;
-    height: 16px !important;
-  }
-}

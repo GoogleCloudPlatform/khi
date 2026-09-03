@@ -24,7 +24,7 @@ import (
 
 func TestTimelineRegistry_GetBuilder(t *testing.T) {
 	idGen := id.NewGenerator()
-	internPool := NewInternPool(idGen)
+	internPool := NewTestInternPool(idGen)
 	pool := NewTimelinePathPool(idGen, internPool)
 
 	id := uint32(1)
@@ -123,9 +123,8 @@ func TestTimelineRegistry_GetBuilder(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Use a fresh registry for each test case
-			serverPool := NewServerInternPool(internPool, idGen)
-			logAcc := NewLogAccumulator(internPool, serverPool, idGen)
-			registry := NewTimelineRegistry(idGen, internPool, serverPool, logAcc)
+			serverPool := NewTestServerInternPool(internPool, idGen)
+			registry := NewTimelineRegistry(idGen, internPool, serverPool)
 			tc.test(t, registry)
 		})
 	}

@@ -15,6 +15,7 @@
 package khifilev6
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestLogAccumulator(t *testing.T) {
@@ -56,7 +58,7 @@ func TestLogAccumulator(t *testing.T) {
 		logsToAdd    func(gen *id.Generator) []*StagingLog
 		wantErr      bool
 		wantLogCount int
-		validate     func(t *testing.T, acc *LogAccumulator)
+		validate     func(t *testing.T, logs []*pb.Log, acc *LogAccumulator)
 	}{
 		{
 			name: "empty accumulator",
@@ -65,9 +67,9 @@ func TestLogAccumulator(t *testing.T) {
 			},
 			wantErr:      false,
 			wantLogCount: 0,
-			validate: func(t *testing.T, acc *LogAccumulator) {
-				if gotLog := acc.GetLog(1); gotLog != nil {
-					t.Errorf("GetLog(1) returned a log on empty accumulator instead of nil")
+			validate: func(t *testing.T, logs []*pb.Log, acc *LogAccumulator) {
+				if len(logs) != 0 {
+					t.Errorf("expected 0 logs, got %d", len(logs))
 				}
 			},
 		},
@@ -86,8 +88,7 @@ func TestLogAccumulator(t *testing.T) {
 			},
 			wantErr:      false,
 			wantLogCount: 1,
-			validate: func(t *testing.T, acc *LogAccumulator) {
-				logs := acc.Accumulate()
+			validate: func(t *testing.T, logs []*pb.Log, acc *LogAccumulator) {
 				if logs[0].GetId() != 1 {
 					t.Errorf("expected ID 1, got %d", logs[0].GetId())
 				}
@@ -99,14 +100,6 @@ func TestLogAccumulator(t *testing.T) {
 				}
 				if logs[0].GetLogTypeId() != testLogTypeID {
 					t.Errorf("expected log type %d, got %d", testLogTypeID, logs[0].GetLogTypeId())
-				}
-
-				// Verify GetLog
-				if gotLog := acc.GetLog(1); gotLog == nil || gotLog.GetId() != 1 {
-					t.Errorf("GetLog(1) failed to return the correct log")
-				}
-				if gotLog := acc.GetLog(999); gotLog != nil {
-					t.Errorf("GetLog(999) returned a log instead of nil")
 				}
 			},
 		},
@@ -139,8 +132,7 @@ func TestLogAccumulator(t *testing.T) {
 			},
 			wantErr:      false,
 			wantLogCount: 3,
-			validate: func(t *testing.T, acc *LogAccumulator) {
-				logs := acc.Accumulate()
+			validate: func(t *testing.T, logs []*pb.Log, acc *LogAccumulator) {
 				if logs[0].GetId() != 1 {
 					t.Errorf("expected ID 1, got %d", logs[0].GetId())
 				}
@@ -157,11 +149,6 @@ func TestLogAccumulator(t *testing.T) {
 				}
 				if logs[0].GetBodyStructId() == logs[2].GetBodyStructId() {
 					t.Errorf("log 3 should have different body struct ID from log 0")
-				}
-
-				// Verify GetLog
-				if gotLog := acc.GetLog(2); gotLog == nil || gotLog.GetId() != 2 {
-					t.Errorf("GetLog(2) failed to return the correct log")
 				}
 			},
 		},
@@ -194,8 +181,7 @@ func TestLogAccumulator(t *testing.T) {
 			},
 			wantErr:      false,
 			wantLogCount: 3,
-			validate: func(t *testing.T, acc *LogAccumulator) {
-				logs := acc.Accumulate()
+			validate: func(t *testing.T, logs []*pb.Log, acc *LogAccumulator) {
 				// Expected order should be: summary 2 (8:00), summary 3 (9:00), summary 1 (10:00)
 				if logs[0].GetId() != 2 {
 					t.Errorf("expected first log to have ID 2, got %d", logs[0].GetId())
@@ -253,9 +239,14 @@ func TestLogAccumulator(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			idGen := id.NewGenerator()
-			pool := NewInternPool(idGen)
-			serverPool := NewServerInternPool(pool, idGen)
-			acc := NewLogAccumulator(pool, serverPool, idGen)
+			var buf bytes.Buffer
+			writer, err := NewWriter(&buf)
+			if err != nil {
+				t.Fatalf("NewWriter() error = %v", err)
+			}
+			pool := NewInternPool(idGen, writer)
+			serverPool := NewServerInternPool(pool, idGen, writer)
+			acc := NewLogAccumulator(pool, serverPool, idGen, writer)
 
 			for _, l := range tc.logsToAdd(idGen) {
 				err := acc.AddLog(l)
@@ -264,14 +255,101 @@ func TestLogAccumulator(t *testing.T) {
 				}
 			}
 
-			logs := acc.Accumulate()
+			if err := acc.Flush(); err != nil {
+				t.Fatalf("Flush() error = %v", err)
+			}
+			if err := writer.Close(); err != nil {
+				t.Fatalf("Close() error = %v", err)
+			}
+
+			reader, err := NewReader(&buf)
+			if err != nil {
+				t.Fatalf("NewReader() error = %v", err)
+			}
+
+			var logs []*pb.Log
+			for {
+				chunk, err := reader.NextChunk()
+				if err != nil {
+					break
+				}
+				if chunk.Type == ChunkTypeLog {
+					var logChunk pb.LogChunk
+					if err := proto.Unmarshal(chunk.Data, &logChunk); err != nil {
+						t.Fatalf("failed to unmarshal log chunk: %v", err)
+					}
+					logs = append(logs, logChunk.Logs...)
+				}
+			}
+
 			if len(logs) != tc.wantLogCount {
 				t.Fatalf("expected %d logs, got %d", tc.wantLogCount, len(logs))
 			}
 
 			if tc.validate != nil {
-				tc.validate(t, acc)
+				tc.validate(t, logs, acc)
 			}
 		})
+	}
+}
+
+func TestLogAccumulator_StreamingSplit(t *testing.T) {
+	var buf bytes.Buffer
+	writer, err := NewWriter(&buf)
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	idGen := id.NewGenerator()
+	pool := NewInternPool(idGen, writer)
+	serverPool := NewServerInternPool(pool, idGen, writer)
+	acc := NewLogAccumulator(pool, serverPool, idGen, writer)
+	acc.SetChunkSizeLimit(50) // Small limit to trigger chunk split on AddLog
+
+	node := structured.NewStandardMap(
+		[]string{"msg"},
+		[]structured.Node{structured.NewStandardScalarNode("large message to trigger batch split")},
+	)
+	sevID := uint32(1)
+	logTypeID := uint32(2)
+
+	for i := 0; i < 5; i++ {
+		err := acc.AddLog(&StagingLog{
+			Log:       log.NewLog(idGen, structured.NewNodeReader(node)),
+			Summary:   "summary",
+			Timestamp: time.Now(),
+			Severity:  &pb.Severity{Id: &sevID},
+			LogType:   &pb.LogType{Id: &logTypeID},
+		})
+		if err != nil {
+			t.Fatalf("AddLog() error = %v", err)
+		}
+	}
+
+	if err := acc.Flush(); err != nil {
+		t.Fatalf("Flush() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	reader, err := NewReader(&buf)
+	if err != nil {
+		t.Fatalf("NewReader() error = %v", err)
+	}
+
+	chunkCount := 0
+	for {
+		chunk, err := reader.NextChunk()
+		if err != nil {
+			break
+		}
+		if chunk.Type == ChunkTypeLog {
+			chunkCount++
+		}
+	}
+
+	if chunkCount < 2 {
+		t.Errorf("expected at least 2 log chunks due to streaming split, got %d", chunkCount)
 	}
 }

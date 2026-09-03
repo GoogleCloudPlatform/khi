@@ -28,9 +28,9 @@ import (
 
 func TestLogChangeSet_Flush(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := khifilev6.NewInternPool(idGen)
-	serverPool := khifilev6.NewServerInternPool(pool, idGen)
-	logAcc := khifilev6.NewLogAccumulator(pool, serverPool, idGen)
+	pool := khifilev6.NewTestInternPool(idGen)
+	serverPool := khifilev6.NewTestServerInternPool(pool, idGen)
+	logAcc := khifilev6.NewTestLogAccumulator(pool, serverPool, idGen)
 
 	node := structured.NewStandardMap(nil, nil)
 	l := log.NewLog(idGen, structured.NewNodeReader(node))
@@ -73,10 +73,10 @@ func TestLogChangeSet_Flush(t *testing.T) {
 
 func TestTimelineChangeSet_Flush(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := khifilev6.NewInternPool(idGen)
-	serverPool := khifilev6.NewServerInternPool(pool, idGen)
-	logAcc := khifilev6.NewLogAccumulator(pool, serverPool, idGen)
-	accumulator := khifilev6.NewTimelineAccumulator(idGen, pool, serverPool, logAcc)
+	pool := khifilev6.NewTestInternPool(idGen)
+	serverPool := khifilev6.NewTestServerInternPool(pool, idGen)
+	logAcc := khifilev6.NewTestLogAccumulator(pool, serverPool, idGen)
+	accumulator := khifilev6.NewTimelineAccumulator(idGen, pool, serverPool)
 
 	node := structured.NewStandardMap(nil, nil)
 	l := log.NewLog(idGen, structured.NewNodeReader(node))
@@ -122,7 +122,7 @@ func TestTimelineChangeSet_Flush(t *testing.T) {
 		HasRevision(path, stagingRev)
 
 	// Flush to accumulator.
-	if err := cs.Flush(accumulator); err != nil {
+	if err := cs.Flush(accumulator, logAcc); err != nil {
 		t.Fatalf("Flush() returned unexpected error: %v", err)
 	}
 

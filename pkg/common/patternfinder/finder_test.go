@@ -27,7 +27,7 @@ import (
 )
 
 func TestFindAllWithStarterRunes(t *testing.T) {
-	finder := NewTriePatternFinder[int]()
+	finder := NewRadixPatternFinder[int]()
 	finder.AddPattern("cat", 1)
 	finder.AddPattern("dog", 2)
 	finder.AddPattern("catalog", 3) // For longest match testing
@@ -191,9 +191,9 @@ func BenchmarkFindAllWithStarterRunes(b *testing.B) {
 			},
 		},
 		{
-			name: "trie",
+			name: "radix",
 			constructor: func() PatternFinder[string] {
-				return NewTriePatternFinder[string]()
+				return NewRadixPatternFinder[string]()
 			},
 		},
 	}
@@ -250,9 +250,9 @@ func BenchmarkFindAllWithStarterRunesWithContainerIDScenario(b *testing.B) {
 			},
 		},
 		{
-			name: "trie",
+			name: "radix",
 			constructor: func() PatternFinder[string] {
-				return NewTriePatternFinder[string]()
+				return NewRadixPatternFinder[string]()
 			},
 		},
 	}

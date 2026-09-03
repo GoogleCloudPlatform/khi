@@ -115,8 +115,6 @@ func TestBuilder_Build(t *testing.T) {
 					ChunkTypeTimeline,
 					ChunkTypeInternPool,
 					ChunkTypeServerInternPool,
-					ChunkTypeServerInternPool,
-					ChunkTypeServerInternPool,
 				}
 
 				var gotTypes []ChunkType
@@ -227,8 +225,29 @@ func TestBuilder_Build(t *testing.T) {
 								}
 							}
 							if !foundSummary {
-								t.Error("Expected 'hello summary' to be interned in InternPool.")
+								t.Error("Expected 'hello summary' to be interned in client InternPool.")
 							}
+						}
+
+					case ChunkTypeServerInternPool:
+						var internPool pb.InterningPoolChunk
+						if err := proto.Unmarshal(c.Data, &internPool); err != nil {
+							t.Fatalf("Failed to unmarshal server intern pool chunk: %v.", err)
+						}
+						if len(internPool.Strings) > 0 {
+							foundLogMsg := false
+							for _, s := range internPool.Strings {
+								if s.GetValue() == "hello log" {
+									foundLogMsg = true
+									break
+								}
+							}
+							if !foundLogMsg {
+								t.Error("Expected 'hello log' to be interned in server InternPool.")
+							}
+						}
+						if len(internPool.Structs) == 0 {
+							t.Error("Expected interned structs in server InternPool.")
 						}
 					}
 				}
@@ -239,11 +258,15 @@ func TestBuilder_Build(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			gen := id.NewGenerator()
-			b := NewBuilder(gen)
+			var buf bytes.Buffer
+			writer, err := NewWriter(&buf)
+			if err != nil {
+				t.Fatalf("NewWriter() failed: %v.", err)
+			}
+			b := NewBuilder(gen, writer)
 			tc.setup(gen, b)
 
-			var buf bytes.Buffer
-			if err := b.Build(&buf, nil); err != nil {
+			if err := b.Build(nil); err != nil {
 				t.Fatalf("Build() failed: %v.", err)
 			}
 

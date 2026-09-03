@@ -33,7 +33,7 @@ import (
 )
 
 func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, "test-project")
@@ -139,7 +139,7 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-			finder := patternfinder.NewTriePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
+			finder := patternfinder.NewRadixPatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
 
 			l := testlog.NewMockLog(tc.inputComponentField, tc.inputControllerManagerFieldSet, tc.inputMessageField)

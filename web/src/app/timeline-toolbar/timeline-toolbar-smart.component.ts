@@ -105,9 +105,9 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   protected readonly selectedSeverity =
     this.viewStateService.standardSelectedSeverity;
 
-  /** Direct log search filter text query. */
-  protected readonly logSearchQuery =
-    this.viewStateService.standardLogSearchQuery;
+  /** Direct log search terms signal. */
+  protected readonly logSearchTerms =
+    this.viewStateService.standardLogSearchTerms;
 
   /** Configured active standard timeline filters. */
   protected readonly timelineFilters =
@@ -247,11 +247,11 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
       if (!this.isAdvancedMode()) {
         const filters = this.timelineFilters();
         const severity = this.selectedSeverity();
-        const searchQuery = this.logSearchQuery();
+        const searchTerms = this.logSearchTerms();
 
         const timelineQuery = compileFiltersToCel(filters, severity);
         const timelineExclusionQuery = compileExclusionFiltersToCel(filters);
-        const logQuery = compileLogFiltersToCel(severity, searchQuery);
+        const logQuery = compileLogFiltersToCel(severity, searchTerms);
 
         this.viewStateService.advancedTimelineIncludeCel.set(timelineQuery);
         this.viewStateService.advancedTimelineExcludeCel.set(
@@ -425,19 +425,25 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
 }
 
 /**
- * Compiles log search query and severity into a CEL expression.
+ * Compiles log search terms and severity into a CEL expression.
  */
 export function compileLogFiltersToCel(
   severity: string,
-  searchQuery: string,
+  searchTerms: readonly string[] = [],
 ): string {
   const parts: string[] = [];
   if (severity && severity !== 'ANY') {
     parts.push(`severity >= ${severity}`);
   }
-  if (searchQuery && searchQuery.trim() !== '') {
-    const escaped = searchQuery.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    parts.push(`body("${escaped}")`);
+  const validTerms = searchTerms
+    .map((term) => term.trim())
+    .filter((term) => term !== '');
+
+  if (validTerms.length === 1) {
+    parts.push(`body(${JSON.stringify(validTerms[0])})`);
+  } else if (validTerms.length > 1) {
+    const jsonEscapedTerms = validTerms.map((term) => JSON.stringify(term));
+    parts.push(`body([${jsonEscapedTerms.join(', ')}])`);
   }
   return parts.join(' && ');
 }

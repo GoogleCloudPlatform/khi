@@ -19,7 +19,6 @@ import (
 	"iter"
 	"sync"
 
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
 
@@ -32,8 +31,6 @@ type TimelineRegistry struct {
 	clientPool *InternPool
 	// serverPool is passed to new TimelineBuilder instances for struct interning.
 	serverPool *InternPool
-	// logAcc is the LogAccumulator reference used to resolve log IDs.
-	logAcc *LogAccumulator
 	// builders is a concurrent map caching *TimelinePath to its *TimelineBuilder.
 	builders sync.Map // map[*TimelinePath]*TimelineBuilder
 	// idToBuilder is a concurrent map caching ID to *TimelineBuilder.
@@ -41,7 +38,7 @@ type TimelineRegistry struct {
 }
 
 // NewTimelineRegistry creates a new registry for managing TimelineBuilders.
-func NewTimelineRegistry(idGen *id.Generator, clientPool *InternPool, serverPool *InternPool, logAcc *LogAccumulator) *TimelineRegistry {
+func NewTimelineRegistry(idGen *id.Generator, clientPool *InternPool, serverPool *InternPool) *TimelineRegistry {
 	if serverPool == nil {
 		serverPool = clientPool
 	}
@@ -49,7 +46,6 @@ func NewTimelineRegistry(idGen *id.Generator, clientPool *InternPool, serverPool
 		idGen:      idGen,
 		clientPool: clientPool,
 		serverPool: serverPool,
-		logAcc:     logAcc,
 	}
 }
 
@@ -127,12 +123,4 @@ func (r *TimelineRegistry) ResolveBuilderFromID(id uint32) *TimelineBuilder {
 		return value.(*TimelineBuilder)
 	}
 	return nil
-}
-
-// GetLog retrieves a log entry by its ID from the underlying accumulator.
-func (r *TimelineRegistry) GetLog(id uint32) *pb.Log {
-	if r.logAcc == nil {
-		return nil
-	}
-	return r.logAcc.GetLog(id)
 }

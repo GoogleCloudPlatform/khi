@@ -194,7 +194,7 @@ time_val: 2026-04-20T03:00:00Z
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			idGenGot := id.NewGenerator()
-			poolGot := NewInternPool(idGenGot)
+			poolGot := NewTestInternPool(idGenGot)
 
 			node, err := structured.FromYAML(tc.yaml)
 			if err != nil {
@@ -210,7 +210,7 @@ time_val: 2026-04-20T03:00:00Z
 			}
 
 			idGenWant := id.NewGenerator()
-			poolWant := NewInternPool(idGenWant)
+			poolWant := NewTestInternPool(idGenWant)
 			want := tc.want(poolWant)
 
 			if diff := cmp.Diff(want, got.ToProto(), protocmp.Transform()); diff != "" {
@@ -242,7 +242,7 @@ time_val: 2026-04-20T03:00:00Z
 
 func TestFromInternedValue(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 	helloStrID := pool.InternString("hello").id
 	timeVal := time.Date(2026, 4, 20, 3, 0, 0, 0, time.UTC)
 

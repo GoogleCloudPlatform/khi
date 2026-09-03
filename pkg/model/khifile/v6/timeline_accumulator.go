@@ -27,9 +27,9 @@ type TimelineAccumulator struct {
 }
 
 // NewTimelineAccumulator creates a new TimelineAccumulator facade.
-func NewTimelineAccumulator(idGen *id.Generator, clientPool *InternPool, serverPool *InternPool, logAcc *LogAccumulator) *TimelineAccumulator {
+func NewTimelineAccumulator(idGen *id.Generator, clientPool *InternPool, serverPool *InternPool) *TimelineAccumulator {
 	pathPool := NewTimelinePathPool(idGen, clientPool)
-	registry := NewTimelineRegistry(idGen, clientPool, serverPool, logAcc)
+	registry := NewTimelineRegistry(idGen, clientPool, serverPool)
 	return &TimelineAccumulator{
 		pathPool: pathPool,
 		registry: registry,
