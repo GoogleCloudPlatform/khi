@@ -23,13 +23,14 @@ WOFF2_COMMIT="1c69169e9e1811dccd6c54c532fedda300233968"
 
 if [ ! -f "./vendor/woff2/woff2_decompress" ]; then
   mkdir -p vendor
-  cd vendor
-  git clone https://github.com/google/woff2.git
-  cd woff2
-  git checkout "${WOFF2_COMMIT}"
-  git submodule update --init --recursive
-  make clean all
-  cd ../..
+  rm -rf vendor/woff2
+  git clone https://github.com/google/woff2.git vendor/woff2
+  (
+    cd vendor/woff2
+    git checkout "${WOFF2_COMMIT}"
+    git submodule update --init --recursive
+    make clean all
+  )
 fi
 
 ./vendor/woff2/woff2_decompress ./node_modules/@fontsource/roboto/files/roboto-latin-700-normal.woff2
