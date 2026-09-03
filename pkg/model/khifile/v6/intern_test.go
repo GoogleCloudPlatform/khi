@@ -16,6 +16,7 @@ package khifilev6
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
@@ -488,157 +489,6 @@ func TestInternPool_StructRefs(t *testing.T) {
 	}
 }
 
-func TestNewInternPoolFromChunk(t *testing.T) {
-	str1ID := uint32(1)
-	str1Val := "key"
-	fs1ID := uint32(1)
-	struct1ID := uint32(1)
-
-	chunk := &pb.InterningPoolChunk{
-		Strings: []*pb.InternString{
-			{Id: &str1ID, Value: &str1Val},
-		},
-		FieldPathSets: []*pb.InternFieldPathSet{
-			{Id: &fs1ID, FieldPathStringIds: []uint32{str1ID}},
-		},
-		Structs: []*khifile.InternedStruct{
-			{
-				Id:             &struct1ID,
-				FieldPathSetId: &fs1ID,
-				Values: []*khifile.InternedValue{
-					{Kind: &khifile.InternedValue_StringValue{StringValue: str1ID}},
-				},
-			},
-		},
-	}
-
-	testCases := []struct {
-		name       string
-		poolChunk  *pb.InterningPoolChunk
-		queryID    uint32
-		wantFound  bool
-		wantString string
-	}{
-		{
-			name:       "resolves struct from populated chunk",
-			poolChunk:  chunk,
-			queryID:    struct1ID,
-			wantFound:  true,
-			wantString: "key",
-		},
-		{
-			name:       "returns nil for non-existent struct ID",
-			poolChunk:  chunk,
-			queryID:    999,
-			wantFound:  false,
-			wantString: "",
-		},
-		{
-			name:       "handles nil chunk gracefully",
-			poolChunk:  nil,
-			queryID:    struct1ID,
-			wantFound:  false,
-			wantString: "",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			pool := NewInternPoolFromChunk(tc.poolChunk)
-			gotStruct := pool.ResolveStructFromID(tc.queryID)
-			if (gotStruct != nil) != tc.wantFound {
-				t.Fatalf("ResolveStructFromID(%d) = %v, wantFound = %v", tc.queryID, gotStruct, tc.wantFound)
-			}
-			if tc.wantFound {
-				if diff := cmp.Diff(tc.poolChunk.Structs[0], gotStruct, protocmp.Transform()); diff != "" {
-					t.Errorf("ResolveStructFromID() struct mismatch (-want +got):\n%s", diff)
-				}
-				resolvedStr := pool.resolveStringFromID(gotStruct.Values[0].GetStringValue())
-				if resolvedStr != tc.wantString {
-					t.Errorf("resolveStringFromID() = %q, want %q", resolvedStr, tc.wantString)
-				}
-			}
-		})
-	}
-}
-
-func TestInternPool_IngestChunk(t *testing.T) {
-	str1ID := uint32(1)
-	str1Val := "status"
-	str2ID := uint32(2)
-	str2Val := "Running"
-	fs1ID := uint32(1)
-	struct1ID := uint32(10)
-
-	stringChunk := &pb.InterningPoolChunk{
-		Strings: []*pb.InternString{
-			{Id: &str1ID, Value: &str1Val},
-			{Id: &str2ID, Value: &str2Val},
-		},
-	}
-
-	fieldPathChunk := &pb.InterningPoolChunk{
-		FieldPathSets: []*pb.InternFieldPathSet{
-			{Id: &fs1ID, FieldPathStringIds: []uint32{str1ID}},
-		},
-	}
-
-	structChunk := &pb.InterningPoolChunk{
-		Structs: []*khifile.InternedStruct{
-			{
-				Id:             &struct1ID,
-				FieldPathSetId: &fs1ID,
-				Values: []*khifile.InternedValue{
-					{Kind: &khifile.InternedValue_StringValue{StringValue: str2ID}},
-				},
-			},
-		},
-	}
-
-	testCases := []struct {
-		name       string
-		chunks     []*pb.InterningPoolChunk
-		queryID    uint32
-		wantFound  bool
-		wantString string
-	}{
-		{
-			name:       "sequentially ingests multiple chunks for strings, field paths, and structs",
-			chunks:     []*pb.InterningPoolChunk{stringChunk, fieldPathChunk, structChunk},
-			queryID:    struct1ID,
-			wantFound:  true,
-			wantString: "Running",
-		},
-		{
-			name:       "handles nil chunk during multi-chunk ingestion",
-			chunks:     []*pb.InterningPoolChunk{stringChunk, nil, fieldPathChunk, structChunk},
-			queryID:    struct1ID,
-			wantFound:  true,
-			wantString: "Running",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			pool := NewTestInternPool(nil)
-			for _, c := range tc.chunks {
-				pool.IngestChunk(c)
-			}
-
-			gotStruct := pool.ResolveStructFromID(tc.queryID)
-			if (gotStruct != nil) != tc.wantFound {
-				t.Fatalf("ResolveStructFromID(%d) = %v, wantFound = %v", tc.queryID, gotStruct, tc.wantFound)
-			}
-			if tc.wantFound {
-				resolvedStr := pool.resolveStringFromID(gotStruct.Values[0].GetStringValue())
-				if resolvedStr != tc.wantString {
-					t.Errorf("resolveStringFromID() = %q, want %q", resolvedStr, tc.wantString)
-				}
-			}
-		})
-	}
-}
-
 func TestServerInternPool(t *testing.T) {
 	testCases := []struct {
 		name       string
@@ -783,5 +633,57 @@ func TestInternPool_ChunkSorting(t *testing.T) {
 	wantValues := []string{"apple", "mango", "zebra"}
 	if diff := cmp.Diff(wantValues, gotValues); diff != "" {
 		t.Errorf("chunk strings mismatch (-want +got):\n%s", diff)
+	}
+}
+
+type failingWriter struct {
+	failAfter int
+	written   int
+}
+
+func (f *failingWriter) Write(p []byte) (n int, err error) {
+	if f.written >= f.failAfter {
+		return 0, errors.New("simulated write error")
+	}
+	f.written += len(p)
+	return len(p), nil
+}
+
+func TestInternPool_ErrorPropagation(t *testing.T) {
+	testCases := []struct {
+		name    string
+		mutate  func(pool *InternPool)
+		wantErr bool
+	}{
+		{
+			name: "propagates writer error on Flush",
+			mutate: func(pool *InternPool) {
+				pool.InternString("some_string")
+			},
+			wantErr: true,
+		},
+		{
+			name: "propagates error encountered during streaming flush",
+			mutate: func(pool *InternPool) {
+				pool.SetChunkSizeLimit(10)
+				pool.InternString("string_exceeding_limit")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			writer, err := NewWriter(&failingWriter{failAfter: 4})
+			if err != nil {
+				t.Fatalf("NewWriter() error = %v", err)
+			}
+			pool := NewInternPool(id.NewGenerator(), writer)
+			tc.mutate(pool)
+
+			if err := pool.Flush(); (err != nil) != tc.wantErr {
+				t.Errorf("Flush() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+		})
 	}
 }

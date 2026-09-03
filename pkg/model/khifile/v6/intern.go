@@ -26,8 +26,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"google.golang.org/protobuf/proto"
-
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
@@ -112,6 +110,19 @@ func (r *InternStructRef) ToProto() *pb.InternedStruct {
 }
 
 // InternPool manages interning of strings, field path sets, and structs to reduce memory usage.
+// stagedString holds an unflushed interned string as a flat value to avoid protobuf pointer allocations.
+type stagedString struct {
+	id    uint32
+	value string
+}
+
+// stagedFieldSet holds an unflushed interned field path set as a flat value to avoid protobuf pointer allocations.
+type stagedFieldSet struct {
+	id                 uint32
+	fieldPathStringIDs []uint32
+}
+
+// InternPool manages interning for strings, field paths, and structs in KHI v6.
 // It uses sync.Map for forward key deduplication and slice-based index resolution for ID lookup.
 // Newly interned elements are staged and flushed to the writer in chunks when reaching chunkSizeLimit.
 type InternPool struct {
@@ -120,6 +131,7 @@ type InternPool struct {
 	idNs       id.Namespace
 	writer     *Writer
 	chunkType  ChunkType
+	err        error
 
 	strToID      sync.Map // map[string]uint32
 	fieldSetToID sync.Map // map[string]uint32 (key is byte representation of []uint32)
@@ -136,8 +148,8 @@ type InternPool struct {
 	flushMu            sync.Mutex
 	chunkSizeLimit     int
 	currentBatchSize   int
-	unflushedStrings   []*pbv6.InternString
-	unflushedFieldSets []*pbv6.InternFieldPathSet
+	unflushedStrings   []stagedString
+	unflushedFieldSets []stagedFieldSet
 	unflushedStructIDs []uint32
 }
 
@@ -176,38 +188,6 @@ func NewServerInternPool(parent *InternPool, idGen *id.Generator, writer *Writer
 // NewTestServerInternPool creates a server InternPool with MustNewTestWriter for testing purposes.
 func NewTestServerInternPool(parent *InternPool, idGen *id.Generator) *InternPool {
 	return NewServerInternPool(parent, idGen, MustNewTestWriter())
-}
-
-// NewInternPoolFromChunk creates an InternPool pre-populated with entries from an InterningPoolChunk.
-func NewInternPoolFromChunk(chunk *pbv6.InterningPoolChunk) *InternPool {
-	pool := NewInternPool(nil, MustNewTestWriter())
-	pool.IngestChunk(chunk)
-	return pool
-}
-
-// IngestChunk adds all strings, field path sets, and structs from an InterningPoolChunk into the pool.
-func (p *InternPool) IngestChunk(chunk *pbv6.InterningPoolChunk) {
-	if chunk == nil {
-		return
-	}
-	for _, str := range chunk.Strings {
-		if str.Id != nil && str.Value != nil {
-			p.storeString(*str.Id, *str.Value)
-			p.strToID.Store(*str.Value, *str.Id)
-		}
-	}
-	for _, fs := range chunk.FieldPathSets {
-		if fs.Id != nil {
-			p.storeFieldSet(*fs.Id, fs.FieldPathStringIds)
-			p.fieldSetToID.Store(fieldSetKey(fs.FieldPathStringIds), *fs.Id)
-		}
-	}
-	p.flatStructs.StoreProtoBatch(chunk.Structs)
-	for _, s := range chunk.Structs {
-		if s.Id != nil && s.FieldPathSetId != nil {
-			p.structToID.Store(structKey(*s.FieldPathSetId, s.Values), *s.Id)
-		}
-	}
 }
 
 func (p *InternPool) strIndex(idVal uint32) int {
@@ -400,16 +380,16 @@ func (p *InternPool) internStructWithKey(fieldPathSetID uint32, values []*pb.Int
 }
 
 func (p *InternPool) stageString(idVal uint32, val string) {
-	item := &pbv6.InternString{
-		Id:    &idVal,
-		Value: &val,
-	}
-	itemSize := proto.Size(item) + 8
+	// Approximate Protobuf encoded size: tag + varint(id) + tag + varint(len) + len(val) + chunk framing.
+	itemSize := len(val) + 16
 
 	p.flushMu.Lock()
 	defer p.flushMu.Unlock()
 
-	p.unflushedStrings = append(p.unflushedStrings, item)
+	p.unflushedStrings = append(p.unflushedStrings, stagedString{
+		id:    idVal,
+		value: val,
+	})
 	p.currentBatchSize += itemSize
 
 	if p.currentBatchSize >= p.chunkSizeLimit {
@@ -418,16 +398,16 @@ func (p *InternPool) stageString(idVal uint32, val string) {
 }
 
 func (p *InternPool) stageFieldSet(idVal uint32, ids []uint32) {
-	item := &pbv6.InternFieldPathSet{
-		Id:                 &idVal,
-		FieldPathStringIds: ids,
-	}
-	itemSize := proto.Size(item) + 8
+	// Approximate Protobuf encoded size: tag + varint(id) + tag + varint(len) + repeated varints + chunk framing.
+	itemSize := 16 + len(ids)*4
 
 	p.flushMu.Lock()
 	defer p.flushMu.Unlock()
 
-	p.unflushedFieldSets = append(p.unflushedFieldSets, item)
+	p.unflushedFieldSets = append(p.unflushedFieldSets, stagedFieldSet{
+		id:                 idVal,
+		fieldPathStringIDs: ids,
+	})
 	p.currentBatchSize += itemSize
 
 	if p.currentBatchSize >= p.chunkSizeLimit {
@@ -461,21 +441,46 @@ func (p *InternPool) SetChunkSizeLimit(limit int) {
 func (p *InternPool) Flush() error {
 	p.flushMu.Lock()
 	defer p.flushMu.Unlock()
+	if p.err != nil {
+		return p.err
+	}
 	return p.flushLocked()
 }
 
 func (p *InternPool) flushLocked() error {
+	if p.err != nil {
+		return p.err
+	}
 	if len(p.unflushedStrings) == 0 && len(p.unflushedFieldSets) == 0 && len(p.unflushedStructIDs) == 0 {
 		return nil
 	}
 
 	// Sort items inside the chunk before flushing to optimize gzip compression.
-	slices.SortFunc(p.unflushedStrings, func(a, b *pbv6.InternString) int {
-		return strings.Compare(a.GetValue(), b.GetValue())
+	slices.SortFunc(p.unflushedStrings, func(a, b stagedString) int {
+		return strings.Compare(a.value, b.value)
 	})
-	slices.SortFunc(p.unflushedFieldSets, func(a, b *pbv6.InternFieldPathSet) int {
-		return cmp.Compare(a.GetId(), b.GetId())
+	slices.SortFunc(p.unflushedFieldSets, func(a, b stagedFieldSet) int {
+		return cmp.Compare(a.id, b.id)
 	})
+
+	pbStrings := make([]*pbv6.InternString, len(p.unflushedStrings))
+	for i := range p.unflushedStrings {
+		id := p.unflushedStrings[i].id
+		val := p.unflushedStrings[i].value
+		pbStrings[i] = &pbv6.InternString{
+			Id:    &id,
+			Value: &val,
+		}
+	}
+
+	pbFieldSets := make([]*pbv6.InternFieldPathSet, len(p.unflushedFieldSets))
+	for i := range p.unflushedFieldSets {
+		id := p.unflushedFieldSets[i].id
+		pbFieldSets[i] = &pbv6.InternFieldPathSet{
+			Id:                 &id,
+			FieldPathStringIds: p.unflushedFieldSets[i].fieldPathStringIDs,
+		}
+	}
 
 	structs := make([]*pb.InternedStruct, 0, len(p.unflushedStructIDs))
 	for _, sID := range p.unflushedStructIDs {
@@ -491,23 +496,25 @@ func (p *InternPool) flushLocked() error {
 	})
 
 	chunk := &pbv6.InterningPoolChunk{
-		Strings:       p.unflushedStrings,
-		FieldPathSets: p.unflushedFieldSets,
+		Strings:       pbStrings,
+		FieldPathSets: pbFieldSets,
 		Structs:       structs,
 	}
 
-	p.unflushedStrings = nil
-	p.unflushedFieldSets = nil
-	p.unflushedStructIDs = nil
+	p.unflushedStrings = p.unflushedStrings[:0]
+	p.unflushedFieldSets = p.unflushedFieldSets[:0]
+	p.unflushedStructIDs = p.unflushedStructIDs[:0]
 	p.currentBatchSize = 0
 
 	rawChunk, err := CompressChunk(p.chunkType, chunk)
 	if err != nil {
-		return fmt.Errorf("failed to compress intern pool chunk: %w", err)
+		p.err = fmt.Errorf("failed to compress intern pool chunk: %w", err)
+		return p.err
 	}
 
 	if err := p.writer.WriteRawChunk(rawChunk); err != nil {
-		return fmt.Errorf("failed to write intern pool raw chunk: %w", err)
+		p.err = fmt.Errorf("failed to write intern pool raw chunk: %w", err)
+		return p.err
 	}
 
 	return nil

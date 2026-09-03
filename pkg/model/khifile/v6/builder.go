@@ -62,7 +62,13 @@ func NewTestBuilder(gen *id.Generator) *Builder {
 }
 
 // Build writes the accumulated metadata, timeline chunks, and flushes remaining log and intern pool chunks.
-func (b *Builder) Build(reporter BuilderProgressReporter) error {
+func (b *Builder) Build(reporter BuilderProgressReporter) (err error) {
+	defer func() {
+		if closeErr := b.writer.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close writer: %w", closeErr)
+		}
+	}()
+
 	report := func(progress float32, status string) {
 		if reporter != nil {
 			reporter.ReportProgress(progress, status)
@@ -120,11 +126,6 @@ func (b *Builder) Build(reporter BuilderProgressReporter) error {
 	}
 	if err := b.serverInternPool.Flush(); err != nil {
 		return fmt.Errorf("failed to flush server intern pool: %w", err)
-	}
-
-	report(0.95, "Closing writer")
-	if err := b.writer.Close(); err != nil {
-		return fmt.Errorf("failed to close writer: %w", err)
 	}
 
 	report(1.0, "Done")
