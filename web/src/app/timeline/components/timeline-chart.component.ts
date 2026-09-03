@@ -152,21 +152,7 @@ export class TimelineChartComponent implements AfterViewInit {
   /**
    * Flag to indicate that the timeline needs to be redrawn.
    */
-  private _invalidate = true;
-
-  /**
-   * Returns whether the timeline needs to be redrawn.
-   */
-  get invalidate(): boolean {
-    return this._invalidate;
-  }
-
-  /**
-   * Sets whether the timeline needs to be redrawn.
-   */
-  set invalidate(value: boolean) {
-    this._invalidate = value;
-  }
+  invalidate = true;
 
   private resizeObserver: ResizeObserver | null = null;
 
