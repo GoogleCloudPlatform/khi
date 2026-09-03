@@ -15,34 +15,42 @@
 package patternfinder
 
 import (
+	"strings"
 	"sync"
 )
 
-// trieNode represents a node in the Trie.
-type trieNode[T any] struct {
-	children       map[rune]*trieNode[T]
-	isEndOfPattern bool
-	outcome        T
+// radixNode represents a node in the Radix Tree (compressed Patricia tree).
+type radixNode[T any] struct {
+	prefix   string
+	indices  string
+	children []*radixNode[T]
+	hasValue bool
+	value    T
 }
 
-// newTrieNode creates a new Trie node.
-func newTrieNode[T any]() *trieNode[T] {
-	return &trieNode[T]{
-		children: make(map[rune]*trieNode[T]),
-	}
-}
-
-// triePatternFinder is an implementation of PatternFinder using a Trie data structure.
+// triePatternFinder is an implementation of PatternFinder using a Radix Tree.
 type triePatternFinder[T any] struct {
-	root *trieNode[T]
+	root *radixNode[T]
 	mu   sync.RWMutex
 }
 
-// NewTriePatternFinder creates a new instance of triePatternFinder.
+var _ PatternFinder[any] = (*triePatternFinder[any])(nil)
+
+// NewTriePatternFinder creates a new instance of triePatternFinder backed by a Radix Tree.
 func NewTriePatternFinder[T any]() PatternFinder[T] {
 	return &triePatternFinder[T]{
-		root: newTrieNode[T](),
+		root: &radixNode[T]{},
 	}
+}
+
+// longestCommonPrefix returns the length of the longest common prefix of s1 and s2.
+func longestCommonPrefix(s1, s2 string) int {
+	maxLen := min(len(s1), len(s2))
+	i := 0
+	for i < maxLen && s1[i] == s2[i] {
+		i++
+	}
+	return i
 }
 
 // AddPattern adds a new pattern and its outcome to the finder.
@@ -50,34 +58,72 @@ func (f *triePatternFinder[T]) AddPattern(pattern string, outcome T) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	node := f.root
-	for _, r := range pattern {
-		if _, ok := node.children[r]; !ok {
-			node.children[r] = newTrieNode[T]()
+	if pattern == "" {
+		if f.root.hasValue {
+			return ErrPatternAlreadyExists
 		}
-		node = node.children[r]
+		f.root.hasValue = true
+		f.root.value = outcome
+		return nil
 	}
 
-	if node.isEndOfPattern {
-		return ErrPatternAlreadyExists
-	}
+	curr := f.root
+	search := pattern
 
-	node.isEndOfPattern = true
-	node.outcome = outcome
-	return nil
-}
-
-// findNode traverses the Trie and returns the node corresponding to the pattern.
-func (f *triePatternFinder[T]) findNode(pattern string) *trieNode[T] {
-	node := f.root
-	for _, r := range pattern {
-		if n, ok := node.children[r]; ok {
-			node = n
-		} else {
+	for {
+		idx := strings.IndexByte(curr.indices, search[0])
+		if idx == -1 {
+			child := &radixNode[T]{
+				prefix:   search,
+				hasValue: true,
+				value:    outcome,
+			}
+			curr.indices += string(search[0])
+			curr.children = append(curr.children, child)
 			return nil
 		}
+
+		child := curr.children[idx]
+		commonPrefixLen := longestCommonPrefix(search, child.prefix)
+
+		if commonPrefixLen == len(child.prefix) {
+			if commonPrefixLen == len(search) {
+				if child.hasValue {
+					return ErrPatternAlreadyExists
+				}
+				child.hasValue = true
+				child.value = outcome
+				return nil
+			}
+			search = search[commonPrefixLen:]
+			curr = child
+			continue
+		}
+
+		splitNode := &radixNode[T]{
+			prefix:   child.prefix[:commonPrefixLen],
+			indices:  string(child.prefix[commonPrefixLen]),
+			children: []*radixNode[T]{child},
+		}
+
+		child.prefix = child.prefix[commonPrefixLen:]
+
+		if commonPrefixLen == len(search) {
+			splitNode.hasValue = true
+			splitNode.value = outcome
+		} else {
+			newChild := &radixNode[T]{
+				prefix:   search[commonPrefixLen:],
+				hasValue: true,
+				value:    outcome,
+			}
+			splitNode.indices += string(search[commonPrefixLen])
+			splitNode.children = append(splitNode.children, newChild)
+		}
+
+		curr.children[idx] = splitNode
+		return nil
 	}
-	return node
 }
 
 // GetPattern retrieves the outcome for a given pattern.
@@ -85,12 +131,30 @@ func (f *triePatternFinder[T]) GetPattern(pattern string) (T, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	node := f.findNode(pattern)
-	if node == nil || !node.isEndOfPattern {
-		return *new(T), ErrPatternNotFound
-	}
+	curr := f.root
+	search := pattern
 
-	return node.outcome, nil
+	for {
+		if len(search) == 0 {
+			if curr.hasValue {
+				return curr.value, nil
+			}
+			return *new(T), ErrPatternNotFound
+		}
+
+		idx := strings.IndexByte(curr.indices, search[0])
+		if idx == -1 {
+			return *new(T), ErrPatternNotFound
+		}
+
+		child := curr.children[idx]
+		if !strings.HasPrefix(search, child.prefix) {
+			return *new(T), ErrPatternNotFound
+		}
+
+		search = search[len(child.prefix):]
+		curr = child
+	}
 }
 
 // DeletePattern removes a pattern from the finder.
@@ -98,42 +162,118 @@ func (f *triePatternFinder[T]) DeletePattern(pattern string) (T, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	node := f.findNode(pattern)
-	if node == nil || !node.isEndOfPattern {
+	if pattern == "" {
+		if !f.root.hasValue {
+			return *new(T), ErrPatternNotFound
+		}
+		out := f.root.value
+		f.root.hasValue = false
+		f.root.value = *new(T)
+		return out, nil
+	}
+
+	return f.delete(f.root, pattern)
+}
+
+// delete removes a pattern from the subtree rooted at curr.
+func (f *triePatternFinder[T]) delete(curr *radixNode[T], search string) (T, error) {
+	idx := strings.IndexByte(curr.indices, search[0])
+	if idx == -1 {
 		return *new(T), ErrPatternNotFound
 	}
 
-	originalOutcome := node.outcome
-	node.isEndOfPattern = false
-	node.outcome = *new(T) // Clear the outcome
+	child := curr.children[idx]
+	if !strings.HasPrefix(search, child.prefix) {
+		return *new(T), ErrPatternNotFound
+	}
 
-	return originalOutcome, nil
+	if len(search) == len(child.prefix) {
+		if !child.hasValue {
+			return *new(T), ErrPatternNotFound
+		}
+		out := child.value
+		child.hasValue = false
+		child.value = *new(T)
+
+		if len(child.children) == 0 {
+			curr.indices = curr.indices[:idx] + curr.indices[idx+1:]
+			curr.children = append(curr.children[:idx], curr.children[idx+1:]...)
+		} else if len(child.children) == 1 {
+			grandChild := child.children[0]
+			child.prefix += grandChild.prefix
+			child.indices = grandChild.indices
+			child.children = grandChild.children
+			child.hasValue = grandChild.hasValue
+			child.value = grandChild.value
+		}
+
+		return out, nil
+	}
+
+	out, err := f.delete(child, search[len(child.prefix):])
+	if err != nil {
+		return *new(T), err
+	}
+
+	if len(child.children) == 1 && !child.hasValue {
+		grandChild := child.children[0]
+		child.prefix += grandChild.prefix
+		child.indices = grandChild.indices
+		child.children = grandChild.children
+		child.hasValue = grandChild.hasValue
+		child.value = grandChild.value
+	}
+
+	return out, nil
 }
 
 // Match checks for the longest registered pattern that is a prefix of the searchTarget.
-func (f *triePatternFinder[T]) Match(searchTarget []rune) *PatternMatchResult[T] {
+func (f *triePatternFinder[T]) Match(searchTarget string) (PatternMatchResult[T], bool) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	var bestMatch *PatternMatchResult[T]
-	node := f.root
+	curr := f.root
+	search := searchTarget
+	currentOffset := 0
 
-	for i, r := range searchTarget {
-		if nextNode, ok := node.children[r]; ok {
-			node = nextNode
-			if node.isEndOfPattern {
-				// Found a valid pattern, record it as the current best match
-				bestMatch = &PatternMatchResult[T]{
-					Value: node.outcome,
-					Start: 0, // Start is always 0 for a prefix match on a given slice
-					End:   i + 1,
-				}
-			}
-		} else {
-			// No further matches possible
+	var bestVal T
+	var bestEnd int
+	var found bool
+
+	if curr.hasValue {
+		bestVal = curr.value
+		bestEnd = 0
+		found = true
+	}
+
+	for len(search) > 0 {
+		idx := strings.IndexByte(curr.indices, search[0])
+		if idx == -1 {
 			break
+		}
+
+		child := curr.children[idx]
+		if !strings.HasPrefix(search, child.prefix) {
+			break
+		}
+
+		currentOffset += len(child.prefix)
+		search = search[len(child.prefix):]
+		curr = child
+
+		if curr.hasValue {
+			bestVal = curr.value
+			bestEnd = currentOffset
+			found = true
 		}
 	}
 
-	return bestMatch
+	if found {
+		return PatternMatchResult[T]{
+			Value: bestVal,
+			Start: 0,
+			End:   bestEnd,
+		}, true
+	}
+	return PatternMatchResult[T]{}, false
 }

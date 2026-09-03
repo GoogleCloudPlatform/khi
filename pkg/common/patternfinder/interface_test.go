@@ -119,17 +119,17 @@ func TestPatternFinderImplementations(t *testing.T) {
 
 				for _, tc := range testCases {
 					t.Run(tc.name, func(t *testing.T) {
-						result := finder.Match([]rune(tc.text))
+						result, ok := finder.Match(tc.text)
 
 						if !tc.wantMatch {
-							if result != nil {
+							if ok {
 								t.Errorf("expected no match, but got one: %+v", result)
 							}
 							return
 						}
 
-						if result == nil {
-							t.Fatal("expected a match, but got nil")
+						if !ok {
+							t.Fatal("expected a match, but got false")
 						}
 						if result.Value != tc.wantValue {
 							t.Errorf("got value %d, want %d", result.Value, tc.wantValue)
@@ -198,9 +198,9 @@ func BenchmarkPatternFinder(b *testing.B) {
 					}
 
 					// Text that will match the last and longest pattern
-					matchText := []rune(patterns[s.numPatterns-1] + "_extra_suffix")
+					matchText := patterns[s.numPatterns-1] + "_extra_suffix"
 					// Text that will not match any pattern
-					noMatchText := []rune("zzzz_no_match_here")
+					noMatchText := "zzzz_no_match_here"
 
 					b.ResetTimer()
 
