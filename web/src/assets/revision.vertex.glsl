@@ -19,7 +19,7 @@ uniform highp usampler2D u_highlightBitset;
 out vec2 uv;                // UV coordinates for the quad (0.0 to 1.0).
 out vec2 revisionScreenSize; // The dimensions of the revision box in pixels.
 flat out RevisionModel revisionModel; // The revision data model passed to fragment shader.
-flat out float leftEdgeTimeMS; // The timestamp at the left edge of the revision in ms (used for stripe patterns).
+flat out float revisionClippedOffsetPx; // The clipped left edge offset of the revision in screen pixels.
 
 // Generates the position of the vertex based on gl_VertexID.
 vec4 genQuadPosition(){
@@ -81,9 +81,10 @@ void main(){
   // 4. Transform the vertex position.
   pos.x = leftEdgeClip + durationClip * (pos.x * 0.5 + 0.5);
   
-  // 5. Pass screen size and time information to fragment shader.
+  // 5. Pass screen size and clipped pixel offset to fragment shader.
   revisionScreenSize = vec2(durationXScreen, targetHeight);
-  leftEdgeTimeMS = float(leftEdgeRelativeTime.x)* 1e+3 + float(leftEdgeRelativeTime.y) * 1e-6;
+  ivec2 clippedDiffTime = ivec2(cappedTime.xy - time.xy);
+  revisionClippedOffsetPx = (float(clippedDiffTime.x) * 1e+3 + float(clippedDiffTime.y) * 1e-6) * vs.pixelsPerMs;
   
   // Z=0.0 is the default depth for revisions.
   gl_Position = pos;
