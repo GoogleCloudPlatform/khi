@@ -57,7 +57,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "complete topology with node, pod, service, replicaset, deployment and edges",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 				nodeStructID := internJSON(t, pool, `{
 					"metadata": {"uid": "node-uid-1", "labels": {"kubernetes.io/hostname": "node-1"}},
@@ -310,7 +310,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "virtual node synthesized when pod references unobserved node",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 				podStructID := internJSON(t, pool, `{
 					"metadata": {"uid": "pod-uid-2"},
@@ -376,7 +376,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "node name resolved from binding child timeline",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 				podStructID := internJSON(t, pool, `{
 					"metadata": {"uid": "pod-uid-3"},
@@ -455,7 +455,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "deletion threshold filters expired resources and keeps recent deletions",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 				pod1StructID := internJSON(t, pool, `{"metadata": {"uid": "pod-1"}}`)
 				pod2StructID := internJSON(t, pool, `{"metadata": {"uid": "pod-2"}}`)
@@ -518,7 +518,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "timeline bitset filtering restricts resources",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 				pod1StructID := internJSON(t, pool, `{"metadata": {"uid": "pod-1"}}`)
 				pod2StructID := internJSON(t, pool, `{"metadata": {"uid": "pod-2"}}`)
@@ -580,7 +580,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "empty timeline bitset filters all resources",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 				pod1StructID := internJSON(t, pool, `{"metadata": {"uid": "pod-1"}}`)
 
 				timelines := []*cel.TimelineData{
@@ -618,7 +618,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "node condition positivity and container waiting states",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 				nodeStructID := internJSON(t, pool, `{
 					"metadata": {"uid": "node-uid-2"},
@@ -740,7 +740,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "pod node resolved from node child pod phase timeline when manifest lacks node name",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 				nodeStructID := internJSON(t, pool, `{
 					"metadata": {"uid": "node-uid-1"},
@@ -832,7 +832,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "pod resolved from pod phase timeline with child container and condition when manifest reader is nil",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 				timelines := []*cel.TimelineData{
 					{ID: 1, Name: "test-cluster"},
@@ -948,7 +948,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "pod synthesized from pod phase timeline without primary pod timeline",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 				timelines := []*cel.TimelineData{
 					{ID: 1, Name: "test-cluster"},
@@ -1019,7 +1019,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "pod fallback with waiting container and negative condition",
 			setup: func(t *testing.T) (*Builder, *apiv1.GetArchitectureGraphRequest) {
-				pool := khifilev6model.NewInternPool(id.NewGenerator())
+				pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 				timelines := []*cel.TimelineData{
 					{ID: 1, Name: "test-cluster"},

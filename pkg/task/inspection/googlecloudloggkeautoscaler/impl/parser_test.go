@@ -224,7 +224,7 @@ func TestAutoscalerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// 1. Initialize the Builder first.
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	// 2. Resolve comparative path instances using the Builder's accumulator.
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)

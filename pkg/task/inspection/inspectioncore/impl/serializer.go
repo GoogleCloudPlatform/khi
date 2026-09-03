@@ -63,20 +63,11 @@ var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(inspe
 		}
 	}
 
-	// 2. Prepare Output File Store
+	// 2. Prepare Output File Store for size reporting
 	store := inspectioncore_contract.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
-	writer, err := store.GetWriter()
-	if err != nil {
-		return nil, err
-	}
 
-	// 3. Build KHI v6 format and write
-	if err := builder.Build(writer, &taskProgressReporter{progress: progress}); err != nil {
-		writer.Close()
-		return nil, err
-	}
-
-	if err := writer.Close(); err != nil {
+	// 3. Build KHI v6 format and flush remaining chunks
+	if err := builder.Build(&taskProgressReporter{progress: progress}); err != nil {
 		return nil, err
 	}
 

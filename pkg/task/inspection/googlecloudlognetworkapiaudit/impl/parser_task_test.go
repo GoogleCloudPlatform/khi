@@ -125,7 +125,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 
 func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2026, 5, 27, 12, 0, 0, 0, time.UTC)
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	// Define expected timeline paths.
 	wantNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGTimeline(khictx.WithValue(context.Background(), inspectioncore_contract.Builder, builder), "cluster", "test-ns", "test-neg")

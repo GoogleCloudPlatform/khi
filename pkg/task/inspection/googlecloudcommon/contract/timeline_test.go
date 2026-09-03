@@ -28,7 +28,7 @@ import (
 )
 
 func TestMustComposerEnvironmentTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	projectTimeline := MustGCPProjectTimeline(ctx, "test-project")
@@ -97,7 +97,7 @@ func TestMustComposerEnvironmentTimeline(t *testing.T) {
 }
 
 func TestMustGKEClusterTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	projectTimeline := MustGCPProjectTimeline(ctx, "test-project")
@@ -163,7 +163,7 @@ func TestMustGKEClusterTimeline(t *testing.T) {
 }
 
 func TestMustGKENodePoolTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	projectTimeline := MustGCPProjectTimeline(ctx, "test-project")
@@ -240,7 +240,7 @@ func TestMustGKENodePoolTimeline(t *testing.T) {
 }
 
 func TestMustGCPOperationTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	projectTimeline := MustGCPProjectTimeline(ctx, "test-project")
@@ -319,7 +319,7 @@ func TestMustGCPOperationTimeline(t *testing.T) {
 }
 
 func TestMustGCPProjectTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	testCases := []struct {
@@ -353,7 +353,7 @@ func TestMustGCPProjectTimeline(t *testing.T) {
 }
 
 func TestMustGCPResourceTypeTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	projectTimeline := MustGCPProjectTimeline(ctx, "test-project")
@@ -423,7 +423,7 @@ func TestMustGCPResourceTypeTimeline(t *testing.T) {
 }
 
 func TestMustGCPResourceTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	projectTimeline := MustGCPProjectTimeline(ctx, "test-project")

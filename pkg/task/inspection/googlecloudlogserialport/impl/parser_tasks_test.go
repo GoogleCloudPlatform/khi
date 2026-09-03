@@ -76,7 +76,7 @@ func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
 }
 
 func TestSerialPortLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 	wantSerialPortPath := googlecloudlogserialport_contract.MustSerialPortTimeline(ctx, "test-cluster", "node-name-bar", "serial_port_output_qux")
 

@@ -15,18 +15,21 @@
 package khifilev6
 
 import (
+	"bytes"
+	"errors"
 	"testing"
 
 	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestInternPool_Intern(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	testCases := []struct {
 		name   string
@@ -66,7 +69,7 @@ func TestInternPool_Intern(t *testing.T) {
 
 func TestInternPool_Intern_InvalidUTF8(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	testCases := []struct {
 		name        string
@@ -110,7 +113,7 @@ func TestInternPool_Intern_InvalidUTF8(t *testing.T) {
 
 func TestInternPool_ResolveStringFromID(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 	ref1 := pool.InternString("foo")
 	ref2 := pool.InternString("bar")
 
@@ -153,7 +156,7 @@ func TestInternPool_ResolveStringFromID(t *testing.T) {
 
 func TestInternStringRef_ToProto(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 	ref := pool.InternString("foo")
 
 	got := ref.ToProto()
@@ -175,7 +178,7 @@ func TestInternStringRef_ToProto(t *testing.T) {
 
 func TestInternPool_SortedRefs(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 	pool.InternString("c")
 	pool.InternString("a")
 	pool.InternString("b")
@@ -222,7 +225,7 @@ func TestInternPool_SortedRefs(t *testing.T) {
 
 func TestInternPool_InternFieldSet(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	testCases := []struct {
 		name   string
@@ -272,7 +275,7 @@ func TestInternPool_InternFieldSet(t *testing.T) {
 
 func TestInternPool_FieldSetRefs(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	pool.InternFieldSet([]string{"a", "b"})
 	pool.InternFieldSet([]string{"c"})
@@ -320,7 +323,7 @@ func TestInternPool_FieldSetRefs(t *testing.T) {
 
 func TestInternPool_InternStruct(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	fieldSetID1 := pool.InternFieldSet([]string{"foo", "bar"}).id
 	fieldSetID2 := pool.InternFieldSet([]string{"baz"}).id
@@ -437,15 +440,15 @@ func TestInternPool_InternStruct(t *testing.T) {
 
 func TestInternPool_StructRefs(t *testing.T) {
 	idGen := id.NewGenerator()
-	pool := NewInternPool(idGen)
+	pool := NewTestInternPool(idGen)
 
 	fsID := pool.InternFieldSet([]string{"key"}).id
 	ref1 := pool.InternStruct(fsID, []*khifile.InternedValue{{Kind: &khifile.InternedValue_Int64Value{Int64Value: 1}}})
 	ref2 := pool.InternStruct(fsID, []*khifile.InternedValue{{Kind: &khifile.InternedValue_Int64Value{Int64Value: 2}}})
 
-	// Simulate an orphaned struct ID in idToStruct (e.g. from concurrent InternStruct collision).
+	// Simulate an orphaned struct ID in FlatStructStore (e.g. from concurrent InternStruct collision).
 	orphanedID := idGen.New(id.Struct)
-	pool.storeStruct(orphanedID, (*khifile.InternedStruct)(nil))
+	pool.FlatStructStore().Store(orphanedID, fsID, nil)
 
 	var refs []*InternStructRef
 	for ref := range pool.StructRefs() {
@@ -486,157 +489,6 @@ func TestInternPool_StructRefs(t *testing.T) {
 	}
 }
 
-func TestNewInternPoolFromChunk(t *testing.T) {
-	str1ID := uint32(1)
-	str1Val := "key"
-	fs1ID := uint32(1)
-	struct1ID := uint32(1)
-
-	chunk := &pb.InterningPoolChunk{
-		Strings: []*pb.InternString{
-			{Id: &str1ID, Value: &str1Val},
-		},
-		FieldPathSets: []*pb.InternFieldPathSet{
-			{Id: &fs1ID, FieldPathStringIds: []uint32{str1ID}},
-		},
-		Structs: []*khifile.InternedStruct{
-			{
-				Id:             &struct1ID,
-				FieldPathSetId: &fs1ID,
-				Values: []*khifile.InternedValue{
-					{Kind: &khifile.InternedValue_StringValue{StringValue: str1ID}},
-				},
-			},
-		},
-	}
-
-	testCases := []struct {
-		name       string
-		poolChunk  *pb.InterningPoolChunk
-		queryID    uint32
-		wantFound  bool
-		wantString string
-	}{
-		{
-			name:       "resolves struct from populated chunk",
-			poolChunk:  chunk,
-			queryID:    struct1ID,
-			wantFound:  true,
-			wantString: "key",
-		},
-		{
-			name:       "returns nil for non-existent struct ID",
-			poolChunk:  chunk,
-			queryID:    999,
-			wantFound:  false,
-			wantString: "",
-		},
-		{
-			name:       "handles nil chunk gracefully",
-			poolChunk:  nil,
-			queryID:    struct1ID,
-			wantFound:  false,
-			wantString: "",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			pool := NewInternPoolFromChunk(tc.poolChunk)
-			gotStruct := pool.ResolveStructFromID(tc.queryID)
-			if (gotStruct != nil) != tc.wantFound {
-				t.Fatalf("ResolveStructFromID(%d) = %v, wantFound = %v", tc.queryID, gotStruct, tc.wantFound)
-			}
-			if tc.wantFound {
-				if diff := cmp.Diff(tc.poolChunk.Structs[0], gotStruct, protocmp.Transform()); diff != "" {
-					t.Errorf("ResolveStructFromID() struct mismatch (-want +got):\n%s", diff)
-				}
-				resolvedStr := pool.resolveStringFromID(gotStruct.Values[0].GetStringValue())
-				if resolvedStr != tc.wantString {
-					t.Errorf("resolveStringFromID() = %q, want %q", resolvedStr, tc.wantString)
-				}
-			}
-		})
-	}
-}
-
-func TestInternPool_IngestChunk(t *testing.T) {
-	str1ID := uint32(1)
-	str1Val := "status"
-	str2ID := uint32(2)
-	str2Val := "Running"
-	fs1ID := uint32(1)
-	struct1ID := uint32(10)
-
-	stringChunk := &pb.InterningPoolChunk{
-		Strings: []*pb.InternString{
-			{Id: &str1ID, Value: &str1Val},
-			{Id: &str2ID, Value: &str2Val},
-		},
-	}
-
-	fieldPathChunk := &pb.InterningPoolChunk{
-		FieldPathSets: []*pb.InternFieldPathSet{
-			{Id: &fs1ID, FieldPathStringIds: []uint32{str1ID}},
-		},
-	}
-
-	structChunk := &pb.InterningPoolChunk{
-		Structs: []*khifile.InternedStruct{
-			{
-				Id:             &struct1ID,
-				FieldPathSetId: &fs1ID,
-				Values: []*khifile.InternedValue{
-					{Kind: &khifile.InternedValue_StringValue{StringValue: str2ID}},
-				},
-			},
-		},
-	}
-
-	testCases := []struct {
-		name       string
-		chunks     []*pb.InterningPoolChunk
-		queryID    uint32
-		wantFound  bool
-		wantString string
-	}{
-		{
-			name:       "sequentially ingests multiple chunks for strings, field paths, and structs",
-			chunks:     []*pb.InterningPoolChunk{stringChunk, fieldPathChunk, structChunk},
-			queryID:    struct1ID,
-			wantFound:  true,
-			wantString: "Running",
-		},
-		{
-			name:       "handles nil chunk during multi-chunk ingestion",
-			chunks:     []*pb.InterningPoolChunk{stringChunk, nil, fieldPathChunk, structChunk},
-			queryID:    struct1ID,
-			wantFound:  true,
-			wantString: "Running",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			pool := NewInternPool(nil)
-			for _, c := range tc.chunks {
-				pool.IngestChunk(c)
-			}
-
-			gotStruct := pool.ResolveStructFromID(tc.queryID)
-			if (gotStruct != nil) != tc.wantFound {
-				t.Fatalf("ResolveStructFromID(%d) = %v, wantFound = %v", tc.queryID, gotStruct, tc.wantFound)
-			}
-			if tc.wantFound {
-				resolvedStr := pool.resolveStringFromID(gotStruct.Values[0].GetStringValue())
-				if resolvedStr != tc.wantString {
-					t.Errorf("resolveStringFromID() = %q, want %q", resolvedStr, tc.wantString)
-				}
-			}
-		})
-	}
-}
-
 func TestServerInternPool(t *testing.T) {
 	testCases := []struct {
 		name       string
@@ -671,8 +523,8 @@ func TestServerInternPool(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			idGen := id.NewGenerator()
-			clientPool := NewInternPool(idGen)
-			serverPool := NewServerInternPool(clientPool, idGen)
+			clientPool := NewTestInternPool(idGen)
+			serverPool := NewTestServerInternPool(clientPool, idGen)
 
 			for _, s := range tc.clientStrs {
 				clientPool.InternString(s)
@@ -687,6 +539,150 @@ func TestServerInternPool(t *testing.T) {
 			}
 			if resolved := ref.Resolve(); resolved != tc.checkStr {
 				t.Errorf("Resolve() = %q, want %q", resolved, tc.checkStr)
+			}
+		})
+	}
+}
+
+func TestInternPool_StreamingFlush(t *testing.T) {
+	var buf bytes.Buffer
+	writer, err := NewWriter(&buf)
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	idGen := id.NewGenerator()
+	pool := NewInternPool(idGen, writer)
+	pool.SetChunkSizeLimit(50) // Set very small limit to trigger streaming chunk split
+
+	pool.InternString("string_one_with_enough_length_to_reach_limit")
+	pool.InternString("string_two_with_enough_length_to_reach_limit")
+
+	// Flush remaining items
+	if err := pool.Flush(); err != nil {
+		t.Fatalf("Flush() error = %v", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	reader, err := NewReader(&buf)
+	if err != nil {
+		t.Fatalf("NewReader() error = %v", err)
+	}
+
+	chunkCount := 0
+	for {
+		chunk, err := reader.NextChunk()
+		if err != nil {
+			break
+		}
+		if chunk.Type == ChunkTypeInternPool {
+			chunkCount++
+		}
+	}
+
+	if chunkCount < 2 {
+		t.Errorf("expected at least 2 intern pool chunks due to streaming split, got %d", chunkCount)
+	}
+}
+
+func TestInternPool_ChunkSorting(t *testing.T) {
+	var buf bytes.Buffer
+	writer, err := NewWriter(&buf)
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	idGen := id.NewGenerator()
+	pool := NewServerInternPool(nil, idGen, writer)
+
+	// Add strings in non-alphabetical order.
+	pool.InternString("zebra")
+	pool.InternString("apple")
+	pool.InternString("mango")
+
+	// Flush to writer.
+	if err := pool.Flush(); err != nil {
+		t.Fatalf("Flush() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	reader, err := NewReader(&buf)
+	if err != nil {
+		t.Fatalf("NewReader() error = %v", err)
+	}
+
+	chunk, err := reader.NextChunk()
+	if err != nil {
+		t.Fatalf("NextChunk() error = %v", err)
+	}
+
+	var poolChunk pb.InterningPoolChunk
+	if err := proto.Unmarshal(chunk.Data, &poolChunk); err != nil {
+		t.Fatalf("proto.Unmarshal() error = %v", err)
+	}
+
+	var gotValues []string
+	for _, s := range poolChunk.Strings {
+		gotValues = append(gotValues, s.GetValue())
+	}
+	wantValues := []string{"apple", "mango", "zebra"}
+	if diff := cmp.Diff(wantValues, gotValues); diff != "" {
+		t.Errorf("chunk strings mismatch (-want +got):\n%s", diff)
+	}
+}
+
+type failingWriter struct {
+	failAfter int
+	written   int
+}
+
+func (f *failingWriter) Write(p []byte) (n int, err error) {
+	if f.written >= f.failAfter {
+		return 0, errors.New("simulated write error")
+	}
+	f.written += len(p)
+	return len(p), nil
+}
+
+func TestInternPool_ErrorPropagation(t *testing.T) {
+	testCases := []struct {
+		name    string
+		mutate  func(pool *InternPool)
+		wantErr bool
+	}{
+		{
+			name: "propagates writer error on Flush",
+			mutate: func(pool *InternPool) {
+				pool.InternString("some_string")
+			},
+			wantErr: true,
+		},
+		{
+			name: "propagates error encountered during streaming flush",
+			mutate: func(pool *InternPool) {
+				pool.SetChunkSizeLimit(10)
+				pool.InternString("string_exceeding_limit")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			writer, err := NewWriter(&failingWriter{failAfter: 4})
+			if err != nil {
+				t.Fatalf("NewWriter() error = %v", err)
+			}
+			pool := NewInternPool(id.NewGenerator(), writer)
+			tc.mutate(pool)
+
+			if err := pool.Flush(); (err != nil) != tc.wantErr {
+				t.Errorf("Flush() error = %v, wantErr = %v", err, tc.wantErr)
 			}
 		})
 	}

@@ -61,7 +61,7 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 	idGen := id.NewGenerator()
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.IDGenerator, idGen)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.CurrentIOConfig, ioConfig)
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.Builder, khifilev6.NewBuilder(idGen))
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.Builder, khifilev6.NewTestBuilder(idGen))
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionRunMetadata, generateTestMetadata())
 	return taskCtx
 }

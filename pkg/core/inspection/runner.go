@@ -19,8 +19,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -130,7 +132,26 @@ func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
 			return id.NewGenerator(), nil
 		}),
 		RunContextOptionFromFunc(inspectioncore_contract.Builder, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (*khifilev6.Builder, error) {
-			return khifilev6.NewBuilder(khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator)), nil
+			var writer *khifilev6.Writer
+			if mode == inspectioncore_contract.TaskModeDryRun {
+				var err error
+				writer, err = khifilev6.NewWriter(io.Discard)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				store := inspectioncore_contract.NewFileSystemInspectionResultRepository(filepath.Join(i.ioconfig.DataDestination, i.ID+".khi"))
+				fileWriter, err := store.GetWriter()
+				if err != nil {
+					return nil, err
+				}
+				writer, err = khifilev6.NewWriter(fileWriter)
+				if err != nil {
+					_ = fileWriter.Close()
+					return nil, err
+				}
+			}
+			return khifilev6.NewBuilder(khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator), writer), nil
 		}),
 	}
 

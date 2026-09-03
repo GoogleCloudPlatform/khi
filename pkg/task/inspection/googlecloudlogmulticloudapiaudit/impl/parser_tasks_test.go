@@ -43,7 +43,7 @@ func testReaderFromYAML(t *testing.T, yaml string) *structured.NodeReader {
 
 func TestLogToTimelineMapperTask(t *testing.T) {
 	// 1. Initialize the Builder first.
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
 

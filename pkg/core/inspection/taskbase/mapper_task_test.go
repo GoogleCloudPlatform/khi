@@ -245,7 +245,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				}
 			}
 
-			pool := khifilev6.NewInternPool(idGen)
+			pool := khifilev6.NewTestInternPool(idGen)
 			pathPool := khifilev6.NewTimelinePathPool(idGen, pool)
 			timelineTypeID := uint32(3)
 			timelineType := &pb.TimelineType{Id: &timelineTypeID}

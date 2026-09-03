@@ -16,8 +16,11 @@ package khifilev6
 
 import (
 	"testing"
+	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -336,6 +339,188 @@ func TestFlatStructStore_NestedStructWithID(t *testing.T) {
 			gotChild := store.ResolveStruct(*tc.wantChild.Id)
 			if diff := cmp.Diff(tc.wantChild, gotChild, protocmp.Transform()); diff != "" {
 				t.Errorf("ResolveStruct(%d) child mismatch (-want +got):\n%s", *tc.wantChild.Id, diff)
+			}
+		})
+	}
+}
+
+func TestFlatStructStore_StoreFromNodes(t *testing.T) {
+	testTime := time.Date(2026, 4, 20, 3, 0, 0, 500000, time.UTC)
+
+	testCases := []struct {
+		name       string
+		id         uint32
+		fsID       uint32
+		nodes      func(pool *InternPool) []structured.Node
+		wantStruct func(pool *InternPool) *pb.InternedStruct
+	}{
+		{
+			name: "all scalar node types",
+			id:   1,
+			fsID: 10,
+			nodes: func(pool *InternPool) []structured.Node {
+				return []structured.Node{
+					structured.NewStandardScalarNode[any](nil),
+					structured.NewStandardScalarNode(true),
+					structured.NewStandardScalarNode(false),
+					structured.NewStandardScalarNode(12345),
+					structured.NewStandardScalarNode(3.14159),
+					structured.NewStandardScalarNode("hello world"),
+					structured.NewStandardScalarNode(testTime),
+				}
+			},
+			wantStruct: func(pool *InternPool) *pb.InternedStruct {
+				return &pb.InternedStruct{
+					Id:             proto.Uint32(1),
+					FieldPathSetId: proto.Uint32(10),
+					Values: []*pb.InternedValue{
+						{Kind: &pb.InternedValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}},
+						{Kind: &pb.InternedValue_BoolValue{BoolValue: true}},
+						{Kind: &pb.InternedValue_BoolValue{BoolValue: false}},
+						{Kind: &pb.InternedValue_Int64Value{Int64Value: 12345}},
+						{Kind: &pb.InternedValue_DoubleValue{DoubleValue: 3.14159}},
+						{Kind: &pb.InternedValue_StringValue{StringValue: pool.InternString("hello world").id}},
+						{
+							Kind: &pb.InternedValue_TimestampValue{
+								TimestampValue: &timestamppb.Timestamp{
+									Seconds: testTime.Unix(),
+									Nanos:   int32(testTime.Nanosecond()),
+								},
+							},
+						},
+					},
+				}
+			},
+		},
+		{
+			name: "nested sequence node with mixed values",
+			id:   2,
+			fsID: 20,
+			nodes: func(pool *InternPool) []structured.Node {
+				return []structured.Node{
+					structured.NewStandardSequenceNode([]structured.Node{
+						structured.NewStandardScalarNode(100),
+						structured.NewStandardScalarNode("item"),
+						structured.NewStandardScalarNode[any](nil),
+					}),
+				}
+			},
+			wantStruct: func(pool *InternPool) *pb.InternedStruct {
+				return &pb.InternedStruct{
+					Id:             proto.Uint32(2),
+					FieldPathSetId: proto.Uint32(20),
+					Values: []*pb.InternedValue{
+						{
+							Kind: &pb.InternedValue_ListValue{
+								ListValue: &pb.InternedListValue{
+									Values: []*pb.InternedValue{
+										{Kind: &pb.InternedValue_Int64Value{Int64Value: 100}},
+										{Kind: &pb.InternedValue_StringValue{StringValue: pool.InternString("item").id}},
+										{Kind: &pb.InternedValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}},
+									},
+								},
+							},
+						},
+					},
+				}
+			},
+		},
+		{
+			name: "sequence containing nested map without deadlock",
+			id:   3,
+			fsID: 30,
+			nodes: func(pool *InternPool) []structured.Node {
+				childMap := structured.NewStandardMap(
+					[]string{"val"},
+					[]structured.Node{structured.NewStandardScalarNode(999)},
+				)
+				return []structured.Node{
+					structured.NewStandardSequenceNode([]structured.Node{
+						childMap,
+					}),
+				}
+			},
+			wantStruct: func(pool *InternPool) *pb.InternedStruct {
+				childMap := structured.NewStandardMap(
+					[]string{"val"},
+					[]structured.Node{structured.NewStandardScalarNode(999)},
+				)
+				childRef, _ := ToInternedStruct(childMap, pool)
+				return &pb.InternedStruct{
+					Id:             proto.Uint32(3),
+					FieldPathSetId: proto.Uint32(30),
+					Values: []*pb.InternedValue{
+						{
+							Kind: &pb.InternedValue_ListValue{
+								ListValue: &pb.InternedListValue{
+									Values: []*pb.InternedValue{
+										{Kind: &pb.InternedValue_StructId{StructId: childRef.id}},
+									},
+								},
+							},
+						},
+					},
+				}
+			},
+		},
+		{
+			name: "empty map node",
+			id:   4,
+			fsID: 40,
+			nodes: func(pool *InternPool) []structured.Node {
+				emptyMap := structured.NewStandardMap(nil, nil)
+				return []structured.Node{
+					emptyMap,
+				}
+			},
+			wantStruct: func(pool *InternPool) *pb.InternedStruct {
+				emptyMap := structured.NewStandardMap(nil, nil)
+				childRef, _ := ToInternedStruct(emptyMap, pool)
+				return &pb.InternedStruct{
+					Id:             proto.Uint32(4),
+					FieldPathSetId: proto.Uint32(40),
+					Values: []*pb.InternedValue{
+						{Kind: &pb.InternedValue_StructId{StructId: childRef.id}},
+					},
+				}
+			},
+		},
+		{
+			name: "empty struct without nodes",
+			id:   5,
+			fsID: 50,
+			nodes: func(pool *InternPool) []structured.Node {
+				return nil
+			},
+			wantStruct: func(pool *InternPool) *pb.InternedStruct {
+				return &pb.InternedStruct{
+					Id:             proto.Uint32(5),
+					FieldPathSetId: proto.Uint32(50),
+					Values:         []*pb.InternedValue{},
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			idGen := id.NewGenerator()
+			pool := NewTestInternPool(idGen)
+			store := NewFlatStructStore()
+
+			nodes := tc.nodes(pool)
+			if err := store.StoreFromNodes(tc.id, tc.fsID, nodes, pool); err != nil {
+				t.Fatalf("StoreFromNodes() unexpected error: %v", err)
+			}
+
+			if !store.Has(tc.id) {
+				t.Fatalf("store.Has(%d) = false, want true", tc.id)
+			}
+
+			got := store.ResolveStruct(tc.id)
+			want := tc.wantStruct(pool)
+			if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("ResolveStruct(%d) mismatch (-want +got):\n%s", tc.id, diff)
 			}
 		})
 	}

@@ -164,7 +164,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 }
 
 func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
-	builder := khifilev6.NewBuilder(id.NewGenerator())
+	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	// Setup context with task result mapping containing ClusterIdentity
 	taskResults := typedmap.NewTypedMap()

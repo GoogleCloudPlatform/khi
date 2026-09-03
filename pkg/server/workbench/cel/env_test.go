@@ -25,7 +25,7 @@ import (
 )
 
 func TestTimelineEvaluator(t *testing.T) {
-	pool := khifilev6model.NewInternPool(id.NewGenerator())
+	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 	node, err := structured.FromYAML(`kind: Pod
 metadata:
   name: pod-sample
@@ -189,7 +189,7 @@ spec:
 }
 
 func TestLogEvaluator(t *testing.T) {
-	pool := khifilev6model.NewInternPool(id.NewGenerator())
+	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 	logNode, err := structured.FromYAML(`verb: create
 user:
   username: system:admin
@@ -385,7 +385,7 @@ func TestValidateLogQuery(t *testing.T) {
 }
 
 func TestLogEvaluator_FallbackWithoutTrigramIndex(t *testing.T) {
-	pool := khifilev6model.NewInternPool(id.NewGenerator())
+	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 	logNode, err := structured.FromYAML(`verb: create
 user:
   username: system:admin
@@ -474,7 +474,7 @@ user:
 }
 
 func TestLogEvaluator_WithTrigramIndex(t *testing.T) {
-	pool := khifilev6model.NewInternPool(id.NewGenerator())
+	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 
 	node1, err := structured.FromYAML(`verb: create
 user:
