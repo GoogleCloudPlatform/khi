@@ -27,6 +27,7 @@ limitations under the License.
         <button
           type="button"
           class="remove-chip-btn"
+          (mousedown)="$event.preventDefault()"
           (click)="onRemoveChip($index, $event)"
         >
           <mat-icon>close</mat-icon>
@@ -51,6 +52,7 @@ limitations under the License.
       type="button"
       class="clear-search-btn"
       matTooltip="Clear search"
+      (mousedown)="$event.preventDefault()"
       (click)="onClearClick($event)"
     >
       <mat-icon>close</mat-icon>

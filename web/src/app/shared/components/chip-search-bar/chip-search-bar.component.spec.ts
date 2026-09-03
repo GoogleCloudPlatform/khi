@@ -174,6 +174,63 @@ describe('ChipSearchBarComponent', () => {
     ]);
   });
 
+  it('should combine draft at selection when pasting delimited text', () => {
+    const inputEl = fixture.debugElement.query(By.css('.search-text-input'))
+      .nativeElement as HTMLInputElement;
+
+    component.onDraftInput('prefix_suffix');
+    fixture.detectChanges();
+
+    inputEl.setSelectionRange(7, 7); // between 'prefix_' and 'suffix'
+
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', 'middle1 | middle2');
+    const pasteEvent = new ClipboardEvent('paste', {
+      clipboardData,
+      bubbles: true,
+      cancelable: true,
+    });
+
+    inputEl.dispatchEvent(pasteEvent);
+    fixture.detectChanges();
+
+    expect(component.searchTerms()).toEqual([
+      'prefix_middle1',
+      'middle2suffix',
+    ]);
+    expect(component.draft()).toBe('');
+  });
+
+  it('should prevent default on mousedown for remove button to preserve input focus', () => {
+    fixture.componentRef.setInput('searchTerms', ['chip1']);
+    fixture.detectChanges();
+
+    const removeBtn = fixture.debugElement.query(By.css('.remove-chip-btn'));
+    const mousedownEvent = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+    });
+
+    removeBtn.nativeElement.dispatchEvent(mousedownEvent);
+
+    expect(mousedownEvent.defaultPrevented).toBeTrue();
+  });
+
+  it('should prevent default on mousedown for clear button to preserve input focus', () => {
+    fixture.componentRef.setInput('searchTerms', ['foo']);
+    fixture.detectChanges();
+
+    const clearBtn = fixture.debugElement.query(By.css('.clear-search-btn'));
+    const mousedownEvent = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+    });
+
+    clearBtn.nativeElement.dispatchEvent(mousedownEvent);
+
+    expect(mousedownEvent.defaultPrevented).toBeTrue();
+  });
+
   it('should clear all chips and draft when clicking clear button', () => {
     fixture.componentRef.setInput('searchTerms', ['foo']);
     fixture.detectChanges();

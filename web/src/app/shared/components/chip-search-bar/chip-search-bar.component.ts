@@ -153,7 +153,14 @@ export class ChipSearchBarComponent {
     const pastedText = event.clipboardData?.getData('text') ?? '';
     if (pastedText.includes('|') || pastedText.includes('\n')) {
       event.preventDefault();
-      const rawSegments = pastedText.split(/[|\r\n]+/);
+      const input = this.inputElement()?.nativeElement;
+      const start = input?.selectionStart ?? 0;
+      const end = input?.selectionEnd ?? 0;
+      const currentVal = this.draft();
+      const combined =
+        currentVal.slice(0, start) + pastedText + currentVal.slice(end);
+
+      const rawSegments = combined.split(/[|\r\n]+/);
       const validSegments: string[] = [];
       for (const seg of rawSegments) {
         const trimmed = seg.trim();

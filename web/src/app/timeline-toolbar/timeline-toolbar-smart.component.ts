@@ -440,13 +440,9 @@ export function compileLogFiltersToCel(
     .filter((term) => term !== '');
 
   if (validTerms.length === 1) {
-    const escaped = validTerms[0].replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    parts.push(`body("${escaped}")`);
+    parts.push(`body(${JSON.stringify(validTerms[0])})`);
   } else if (validTerms.length > 1) {
-    const jsonEscapedTerms = validTerms.map((term) => {
-      const escaped = term.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      return `"${escaped}"`;
-    });
+    const jsonEscapedTerms = validTerms.map((term) => JSON.stringify(term));
     parts.push(`body([${jsonEscapedTerms.join(', ')}])`);
   }
   return parts.join(' && ');

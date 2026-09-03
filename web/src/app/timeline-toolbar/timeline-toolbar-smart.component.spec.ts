@@ -61,12 +61,15 @@ describe('TimelineToolbarSmart compilation helpers', () => {
       );
     });
 
-    it('should escape double quotes and backslashes in search terms', () => {
+    it('should escape double quotes, backslashes, and control characters in search terms', () => {
       expect(compileLogFiltersToCel('ANY', ['hello "world"'])).toBe(
         'body("hello \\"world\\"")',
       );
       expect(compileLogFiltersToCel('ANY', ['path\\to\\file'])).toBe(
         'body("path\\\\to\\\\file")',
+      );
+      expect(compileLogFiltersToCel('ANY', ['line1\nline2'])).toBe(
+        'body("line1\\nline2")',
       );
       expect(
         compileLogFiltersToCel('ANY', ['path\\to\\file', 'hello "world"']),
