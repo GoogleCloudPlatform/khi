@@ -1,0 +1,202 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$container-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$container-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  400
+);
+$container-border-hover-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  600
+);
+$container-border-focus-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  500
+);
+
+$prefix-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$input-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$input-placeholder-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  500
+);
+
+$chip-bg-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 50);
+$chip-border-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 200);
+$chip-text-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 800);
+$chip-remove-hover-color: mat.m2-get-color-from-palette(
+  mat.$m2-red-palette,
+  600
+);
+
+$or-badge-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+$or-badge-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
+
+$clear-btn-hover-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  800
+);
+
+:host {
+  display: contents;
+}
+
+.chip-search-container {
+  display: grid;
+  grid-template:
+    'prefix tokens clear' 1fr
+    / auto 1fr auto;
+  align-items: center;
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 440px;
+  min-height: 36px;
+  border: 1px solid $container-border-color;
+  border-radius: 4px;
+  padding: 2px 8px;
+  background-color: $container-bg-color;
+  cursor: text;
+  box-sizing: border-box;
+  transition:
+    max-width 0.2s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: $container-border-hover-color;
+  }
+
+  &:focus-within {
+    max-width: 580px;
+    border-color: $container-border-focus-color;
+    box-shadow: 0 0 0 1px $container-border-focus-color;
+  }
+}
+
+.search-prefix-icon {
+  grid-area: prefix;
+  color: $prefix-icon-color;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-tokens-wrapper {
+  grid-area: tokens;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.search-chip {
+  display: flex;
+  align-items: center;
+  background-color: $chip-bg-color;
+  border: 1px solid $chip-border-color;
+  border-radius: 12px;
+  padding: 1px 4px 1px 8px;
+  font-size: 12px;
+  color: $chip-text-color;
+  max-width: 200px;
+
+  .chip-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .remove-chip-btn {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin-left: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    border-radius: 50%;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      color: $chip-remove-hover-color;
+    }
+  }
+}
+
+.or-separator {
+  font-size: 10px;
+  font-weight: 700;
+  color: $or-badge-text-color;
+  background-color: $or-badge-bg-color;
+  padding: 1px 4px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+.search-text-input {
+  flex: 1 1 80px;
+  min-width: 80px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: $input-text-color;
+  padding: 4px 0;
+
+  &::placeholder {
+    color: $input-placeholder-color;
+  }
+}
+
+.clear-search-btn {
+  grid-area: clear;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: $prefix-icon-color;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  margin-left: 4px;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    color: $clear-btn-hover-color;
+  }
+}

@@ -32,33 +32,48 @@ import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-conf
 
 describe('TimelineToolbarSmart compilation helpers', () => {
   describe('compileLogFiltersToCel', () => {
-    it('should return empty string when severity is ANY and searchQuery is empty', () => {
-      expect(compileLogFiltersToCel('ANY', '')).toBe('');
-      expect(compileLogFiltersToCel('ANY', '   ')).toBe('');
+    it('should return empty string when severity is ANY and searchTerms is empty', () => {
+      expect(compileLogFiltersToCel('ANY', [])).toBe('');
+      expect(compileLogFiltersToCel('ANY', ['   '])).toBe('');
     });
 
     it('should compile severity filter when severity is not ANY', () => {
-      expect(compileLogFiltersToCel('INFO', '')).toBe('severity >= INFO');
-      expect(compileLogFiltersToCel('ERROR', '')).toBe('severity >= ERROR');
+      expect(compileLogFiltersToCel('INFO', [])).toBe('severity >= INFO');
+      expect(compileLogFiltersToCel('ERROR', [])).toBe('severity >= ERROR');
     });
 
-    it('should compile search query filter when searchQuery is provided', () => {
-      expect(compileLogFiltersToCel('ANY', 'hello')).toBe('body("hello")');
+    it('should compile search terms filter when single term is provided', () => {
+      expect(compileLogFiltersToCel('ANY', ['hello'])).toBe('body("hello")');
     });
 
-    it('should join severity and search query with &&', () => {
-      expect(compileLogFiltersToCel('WARNING', 'my-query')).toBe(
+    it('should compile search terms filter when multiple terms are provided', () => {
+      expect(compileLogFiltersToCel('ANY', ['foo', 'bar'])).toBe(
+        'body(["foo", "bar"])',
+      );
+    });
+
+    it('should join severity and search terms with &&', () => {
+      expect(compileLogFiltersToCel('WARNING', ['my-query'])).toBe(
         'severity >= WARNING && body("my-query")',
       );
+      expect(compileLogFiltersToCel('WARNING', ['foo', 'bar'])).toBe(
+        'severity >= WARNING && body(["foo", "bar"])',
+      );
     });
 
-    it('should escape double quotes and backslashes in search query', () => {
-      expect(compileLogFiltersToCel('ANY', 'hello "world"')).toBe(
+    it('should escape double quotes, backslashes, and control characters in search terms', () => {
+      expect(compileLogFiltersToCel('ANY', ['hello "world"'])).toBe(
         'body("hello \\"world\\"")',
       );
-      expect(compileLogFiltersToCel('ANY', 'path\\to\\file')).toBe(
+      expect(compileLogFiltersToCel('ANY', ['path\\to\\file'])).toBe(
         'body("path\\\\to\\\\file")',
       );
+      expect(compileLogFiltersToCel('ANY', ['line1\nline2'])).toBe(
+        'body("line1\\nline2")',
+      );
+      expect(
+        compileLogFiltersToCel('ANY', ['path\\to\\file', 'hello "world"']),
+      ).toBe('body(["path\\\\to\\\\file", "hello \\"world\\""])');
     });
   });
 
@@ -235,7 +250,7 @@ describe('TimelineToolbarSmartComponent', () => {
   let advancedLogCelSignal: WritableSignal<string>;
   let standardTimelineFiltersSignal: WritableSignal<TimelineFilterConfig[]>;
   let standardSelectedSeveritySignal: WritableSignal<string>;
-  let standardLogSearchQuerySignal: WritableSignal<string>;
+  let standardLogSearchTermsSignal: WritableSignal<string[]>;
 
   beforeEach(async () => {
     mockCelValidationClient = jasmine.createSpyObj(
@@ -255,7 +270,7 @@ describe('TimelineToolbarSmartComponent', () => {
     advancedLogCelSignal = signal('');
     standardTimelineFiltersSignal = signal([]);
     standardSelectedSeveritySignal = signal('ANY');
-    standardLogSearchQuerySignal = signal('');
+    standardLogSearchTermsSignal = signal([]);
 
     mockBackendFilter = {
       updateFilterParams: jasmine.createSpy('updateFilterParams'),
@@ -280,7 +295,7 @@ describe('TimelineToolbarSmartComponent', () => {
         activeSearchScope: signal(0),
         timezoneShift: of(0),
         standardSelectedSeverity: standardSelectedSeveritySignal,
-        standardLogSearchQuery: standardLogSearchQuerySignal,
+        standardLogSearchTerms: standardLogSearchTermsSignal,
         standardTimelineFilters: standardTimelineFiltersSignal,
         advancedTimelineIncludeCel: advancedTimelineIncludeCelSignal,
         advancedTimelineExcludeCel: advancedTimelineExcludeCelSignal,
