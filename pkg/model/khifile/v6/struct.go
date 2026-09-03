@@ -25,26 +25,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
-	"google.golang.org/protobuf/types/known/structpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
-)
-
-var (
-	nullInternedValue = &pb.InternedValue{
-		Kind: &pb.InternedValue_NullValue{
-			NullValue: structpb.NullValue_NULL_VALUE,
-		},
-	}
-	boolTrueInternedValue = &pb.InternedValue{
-		Kind: &pb.InternedValue_BoolValue{
-			BoolValue: true,
-		},
-	}
-	boolFalseInternedValue = &pb.InternedValue{
-		Kind: &pb.InternedValue_BoolValue{
-			BoolValue: false,
-		},
-	}
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
 
 // FieldPathSeparator is the separator used for field paths in InternedStruct.
@@ -80,17 +61,19 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (*InternStructRef,
 		return &InternStructRef{pool: pool, id: id.(uint32)}, nil
 	}
 
-	// Slow-path: construct protobuf values only for new unique structs.
-	values := make([]*pb.InternedValue, 0, len(flattenedValues))
-	for _, valNode := range flattenedValues {
-		val, err := ToInternedValue(valNode, pool)
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, val)
+	newID := pool.idGen.New(id.Struct)
+	if err := pool.flatStructs.StoreFromNodes(newID, fieldSetRef.id, flattenedValues, pool); err != nil {
+		return nil, err
 	}
 
-	return pool.internStructWithKey(fieldSetRef.id, values, key), nil
+	actual, loaded := pool.structToID.LoadOrStore(key, newID)
+	if loaded {
+		return &InternStructRef{pool: pool, id: actual.(uint32)}, nil
+	}
+
+	pool.stageStruct(newID)
+
+	return &InternStructRef{pool: pool, id: newID}, nil
 }
 
 // flattenNode is a helper function to recursively flatten map nodes.
@@ -134,64 +117,6 @@ func flattenNodeHelper(node structured.Node, keyBuf []byte, isRoot bool, keys *[
 		keyBuf = keyBuf[:origLen]
 	}
 	return nil
-}
-
-// ToInternedValue converts a structured.Node to an InternedValue.
-func ToInternedValue(node structured.Node, pool *InternPool) (*pb.InternedValue, error) {
-	switch node.Type() {
-	case structured.ScalarNodeType:
-		return scalarToInternedValue(node, pool)
-	case structured.SequenceNodeType:
-		return sequenceToInternedValue(node, pool)
-	case structured.MapNodeType:
-		return mapToInternedValue(node, pool)
-	default:
-		return nil, fmt.Errorf("unknown node type: %v", node.Type())
-	}
-}
-
-func scalarToInternedValue(node structured.Node, pool *InternPool) (*pb.InternedValue, error) {
-	val, err := node.NodeScalarValue()
-	if err != nil {
-		return nil, err
-	}
-	if val == nil {
-		return nullInternedValue, nil
-	}
-	switch v := val.(type) {
-	case bool:
-		if v {
-			return boolTrueInternedValue, nil
-		}
-		return boolFalseInternedValue, nil
-	case string:
-		strRef := pool.InternString(v)
-		return &pb.InternedValue{
-			Kind: &pb.InternedValue_StringValue{
-				StringValue: strRef.id,
-			},
-		}, nil
-	case int:
-		return &pb.InternedValue{
-			Kind: &pb.InternedValue_Int64Value{
-				Int64Value: int64(v),
-			},
-		}, nil
-	case float64:
-		return &pb.InternedValue{
-			Kind: &pb.InternedValue_DoubleValue{
-				DoubleValue: v,
-			},
-		}, nil
-	case time.Time:
-		return &pb.InternedValue{
-			Kind: &pb.InternedValue_TimestampValue{
-				TimestampValue: timestamppb.New(v),
-			},
-		}, nil
-	default:
-		return nil, fmt.Errorf("unsupported scalar type: %T", v)
-	}
 }
 
 func structKeyFromNodes(fieldPathSetID uint32, nodes []structured.Node, pool *InternPool, buf []byte) (string, error) {
@@ -264,36 +189,6 @@ func appendNodeKey(buf []byte, node structured.Node, pool *InternPool) ([]byte, 
 	default:
 		return append(buf, 0xFF), nil
 	}
-}
-
-func sequenceToInternedValue(node structured.Node, pool *InternPool) (*pb.InternedValue, error) {
-	listValues := make([]*pb.InternedValue, 0, node.Len())
-	for _, child := range node.Children() {
-		val, err := ToInternedValue(child, pool)
-		if err != nil {
-			return nil, err
-		}
-		listValues = append(listValues, val)
-	}
-	return &pb.InternedValue{
-		Kind: &pb.InternedValue_ListValue{
-			ListValue: &pb.InternedListValue{
-				Values: listValues,
-			},
-		},
-	}, nil
-}
-
-func mapToInternedValue(node structured.Node, pool *InternPool) (*pb.InternedValue, error) {
-	s, err := ToInternedStruct(node, pool)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.InternedValue{
-		Kind: &pb.InternedValue_StructId{
-			StructId: s.id,
-		},
-	}, nil
 }
 
 // FromInternedStruct converts an InternedStruct back to a structured.Node.

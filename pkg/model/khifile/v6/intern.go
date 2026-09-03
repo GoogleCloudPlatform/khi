@@ -131,15 +131,14 @@ type InternPool struct {
 	idToFieldSetMu sync.RWMutex
 	idToFieldSet   [][]uint32
 
-	idToStructMu sync.RWMutex
-	idToStruct   []*pb.InternedStruct
+	flatStructs *FlatStructStore
 
 	flushMu            sync.Mutex
 	chunkSizeLimit     int
 	currentBatchSize   int
 	unflushedStrings   []*pbv6.InternString
 	unflushedFieldSets []*pbv6.InternFieldPathSet
-	unflushedStructs   []*pb.InternedStruct
+	unflushedStructIDs []uint32
 }
 
 var _ ReadonlyPool = (*InternPool)(nil)
@@ -152,6 +151,7 @@ func NewInternPool(idGen *id.Generator, writer *Writer) *InternPool {
 		writer:         writer,
 		chunkType:      ChunkTypeInternPool,
 		chunkSizeLimit: DefaultChunkSizeLimit,
+		flatStructs:    NewFlatStructStore(),
 	}
 }
 
@@ -169,6 +169,7 @@ func NewServerInternPool(parent *InternPool, idGen *id.Generator, writer *Writer
 		writer:         writer,
 		chunkType:      ChunkTypeServerInternPool,
 		chunkSizeLimit: DefaultChunkSizeLimit,
+		flatStructs:    NewFlatStructStore(),
 	}
 }
 
@@ -201,12 +202,10 @@ func (p *InternPool) IngestChunk(chunk *pbv6.InterningPoolChunk) {
 			p.fieldSetToID.Store(fieldSetKey(fs.FieldPathStringIds), *fs.Id)
 		}
 	}
+	p.flatStructs.StoreProtoBatch(chunk.Structs)
 	for _, s := range chunk.Structs {
-		if s.Id != nil {
-			p.storeStruct(*s.Id, s)
-			if s.FieldPathSetId != nil {
-				p.structToID.Store(structKey(*s.FieldPathSetId, s.Values), *s.Id)
-			}
+		if s.Id != nil && s.FieldPathSetId != nil {
+			p.structToID.Store(structKey(*s.FieldPathSetId, s.Values), *s.Id)
 		}
 	}
 }
@@ -250,17 +249,9 @@ func (p *InternPool) storeFieldSet(idVal uint32, fieldSet []uint32) {
 	p.idToFieldSet[idx] = fieldSet
 }
 
-func (p *InternPool) storeStruct(idVal uint32, s *pb.InternedStruct) {
-	if idVal == 0 {
-		return
-	}
-	idx := int(idVal - 1)
-	p.idToStructMu.Lock()
-	defer p.idToStructMu.Unlock()
-	if idx >= len(p.idToStruct) {
-		p.idToStruct = slices.Grow(p.idToStruct, idx+1-len(p.idToStruct))[:idx+1]
-	}
-	p.idToStruct[idx] = s
+// FlatStructStore returns the underlying FlatStructStore.
+func (p *InternPool) FlatStructStore() *FlatStructStore {
+	return p.flatStructs
 }
 
 // InternString returns a InternStringRef for the given string.
@@ -396,20 +387,14 @@ func (p *InternPool) internStructWithKey(fieldPathSetID uint32, values []*pb.Int
 	}
 
 	newID := p.idGen.New(id.Struct)
-	s := &pb.InternedStruct{
-		Id:             &newID,
-		FieldPathSetId: &fieldPathSetID,
-		Values:         values,
-	}
-	p.storeStruct(newID, s)
+	p.flatStructs.Store(newID, fieldPathSetID, values)
 
 	actual, loaded := p.structToID.LoadOrStore(key, newID)
 	if loaded {
-		p.storeStruct(newID, nil)
 		return &InternStructRef{pool: p, id: actual.(uint32)}
 	}
 
-	p.stageStruct(s)
+	p.stageStruct(newID)
 
 	return &InternStructRef{pool: p, id: newID}
 }
@@ -450,13 +435,14 @@ func (p *InternPool) stageFieldSet(idVal uint32, ids []uint32) {
 	}
 }
 
-func (p *InternPool) stageStruct(s *pb.InternedStruct) {
-	itemSize := proto.Size(s) + 8
+func (p *InternPool) stageStruct(idVal uint32) {
+	_, _, count, _ := p.flatStructs.GetValueSpan(idVal)
+	itemSize := int(16 + count*12 + 8)
 
 	p.flushMu.Lock()
 	defer p.flushMu.Unlock()
 
-	p.unflushedStructs = append(p.unflushedStructs, s)
+	p.unflushedStructIDs = append(p.unflushedStructIDs, idVal)
 	p.currentBatchSize += itemSize
 
 	if p.currentBatchSize >= p.chunkSizeLimit {
@@ -479,7 +465,7 @@ func (p *InternPool) Flush() error {
 }
 
 func (p *InternPool) flushLocked() error {
-	if len(p.unflushedStrings) == 0 && len(p.unflushedFieldSets) == 0 && len(p.unflushedStructs) == 0 {
+	if len(p.unflushedStrings) == 0 && len(p.unflushedFieldSets) == 0 && len(p.unflushedStructIDs) == 0 {
 		return nil
 	}
 
@@ -490,7 +476,14 @@ func (p *InternPool) flushLocked() error {
 	slices.SortFunc(p.unflushedFieldSets, func(a, b *pbv6.InternFieldPathSet) int {
 		return cmp.Compare(a.GetId(), b.GetId())
 	})
-	slices.SortFunc(p.unflushedStructs, func(a, b *pb.InternedStruct) int {
+
+	structs := make([]*pb.InternedStruct, 0, len(p.unflushedStructIDs))
+	for _, sID := range p.unflushedStructIDs {
+		if s := p.flatStructs.ResolveStruct(sID); s != nil {
+			structs = append(structs, s)
+		}
+	}
+	slices.SortFunc(structs, func(a, b *pb.InternedStruct) int {
 		if diff := cmp.Compare(a.GetFieldPathSetId(), b.GetFieldPathSetId()); diff != 0 {
 			return diff
 		}
@@ -500,12 +493,12 @@ func (p *InternPool) flushLocked() error {
 	chunk := &pbv6.InterningPoolChunk{
 		Strings:       p.unflushedStrings,
 		FieldPathSets: p.unflushedFieldSets,
-		Structs:       p.unflushedStructs,
+		Structs:       structs,
 	}
 
 	p.unflushedStrings = nil
 	p.unflushedFieldSets = nil
-	p.unflushedStructs = nil
+	p.unflushedStructIDs = nil
 	p.currentBatchSize = 0
 
 	rawChunk, err := CompressChunk(p.chunkType, chunk)
@@ -532,11 +525,11 @@ func (p *InternPool) resolveStructFromID(id uint32) *pb.InternedStruct {
 	if id == 0 {
 		return nil
 	}
-	idx := int(id - 1)
-	p.idToStructMu.RLock()
-	defer p.idToStructMu.RUnlock()
-	if idx < len(p.idToStruct) {
-		return p.idToStruct[idx]
+	if s := p.flatStructs.ResolveStruct(id); s != nil {
+		return s
+	}
+	if p.parentPool != nil {
+		return p.parentPool.resolveStructFromID(id)
 	}
 	return nil
 }

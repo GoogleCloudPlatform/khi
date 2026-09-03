@@ -445,9 +445,9 @@ func TestInternPool_StructRefs(t *testing.T) {
 	ref1 := pool.InternStruct(fsID, []*khifile.InternedValue{{Kind: &khifile.InternedValue_Int64Value{Int64Value: 1}}})
 	ref2 := pool.InternStruct(fsID, []*khifile.InternedValue{{Kind: &khifile.InternedValue_Int64Value{Int64Value: 2}}})
 
-	// Simulate an orphaned struct ID in idToStruct (e.g. from concurrent InternStruct collision).
+	// Simulate an orphaned struct ID in FlatStructStore (e.g. from concurrent InternStruct collision).
 	orphanedID := idGen.New(id.Struct)
-	pool.storeStruct(orphanedID, (*khifile.InternedStruct)(nil))
+	pool.FlatStructStore().Store(orphanedID, fsID, nil)
 
 	var refs []*InternStructRef
 	for ref := range pool.StructRefs() {
