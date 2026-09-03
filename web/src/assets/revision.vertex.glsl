@@ -84,7 +84,8 @@ void main(){
   // 5. Pass screen size and clipped pixel offset to fragment shader.
   revisionScreenSize = vec2(durationXScreen, targetHeight);
   ivec2 clippedDiffTime = ivec2(cappedTime.xy - time.xy);
-  revisionClippedOffsetPx = (float(clippedDiffTime.x) * 1e+3 + float(clippedDiffTime.y) * 1e-6) * vs.pixelsPerMs;
+  float rawOffset = (float(clippedDiffTime.x) * 1e+3 + float(clippedDiffTime.y) * 1e-6) * vs.pixelsPerMs;
+  revisionClippedOffsetPx = mod(rawOffset, rls.borderStripePitch);
   
   // Z=0.0 is the default depth for revisions.
   gl_Position = pos;
