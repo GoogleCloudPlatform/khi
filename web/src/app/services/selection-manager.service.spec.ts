@@ -23,16 +23,29 @@ import { StyleStore } from 'src/app/store/domain/style-store';
 import { LogStore } from 'src/app/store/domain/log-store';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { StructStore } from 'src/app/store/domain/struct-store';
+import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 
 describe('SelectionManager', () => {
   let service: SelectionManager;
   let dataStore: InspectionDataStore;
   let logStore: LogStore;
   let timelineStore: TimelineStore;
+  let mockWorkbenchClient: jasmine.SpyObj<WorkbenchClientService>;
 
   beforeEach(() => {
+    mockWorkbenchClient = jasmine.createSpyObj('WorkbenchClientService', [
+      'getTimelineIdsForLog',
+    ]);
+    mockWorkbenchClient.getTimelineIdsForLog.and.returnValue(
+      Promise.resolve([4]),
+    );
+
     TestBed.configureTestingModule({
-      providers: [InspectionDataStore, SelectionManager],
+      providers: [
+        InspectionDataStore,
+        SelectionManager,
+        { provide: WorkbenchClientService, useValue: mockWorkbenchClient },
+      ],
     });
 
     dataStore = TestBed.inject(InspectionDataStore);
@@ -280,12 +293,12 @@ describe('SelectionManager', () => {
     expect(selection).not.toContain(timeline4);
   });
 
-  it('should sync timeline and revision selections when a log is selected', () => {
+  it('should sync timeline and revision selections when a log is selected', async () => {
     const logs = Array.from(logStore.logs());
     const targetLog = logs[0];
 
     // When log is selected, it should automatically resolve target resource/revision in the hierarchy
-    service.onSelectLog(targetLog);
+    await service.onSelectLog(targetLog);
 
     expect(service.selectedLog()?.id).toBe(targetLog.id);
     // When no timeline is initially selected, selecting a log automatically selects its corresponding timeline
@@ -293,7 +306,7 @@ describe('SelectionManager', () => {
     expect(service.selectedRevision()?.logIndex).toBe(targetLog.logIndex);
   });
 
-  it('should automatically clear log/revision selection if newly selected timeline does not contain them (sync effect)', () => {
+  it('should automatically clear log/revision selection if newly selected timeline does not contain them (sync effect)', async () => {
     const logs = Array.from(logStore.logs());
     const targetLog = logs[0];
     const timelines = timelineStore.timelines;
@@ -302,7 +315,7 @@ describe('SelectionManager', () => {
 
     service.timelineSelectionShouldIncludeChildren.set(false);
     // Select log (will select Log 1, Revision 1)
-    service.onSelectLog(targetLog);
+    await service.onSelectLog(targetLog);
     expect(service.selectedLog()?.id).toBe(targetLog.id);
 
     // Explicitly select timeline 4 to align with test scenario
@@ -312,34 +325,31 @@ describe('SelectionManager', () => {
     // Select unrelated timeline
     service.onSelectTimeline(unrelatedTimeline);
 
-    // Expectations after effect propagates
-    TestBed.tick();
-
     expect(service.selectedTimeline()).toBe(unrelatedTimeline);
     // Since Log 1 is not in Timeline 1, selections must be cleared
     expect(service.selectedLog()).toBeNull();
     expect(service.selectedRevision()).toBeNull();
   });
 
-  it('should prioritize currently selected timeline when selecting a log present in that timeline', () => {
+  it('should prioritize currently selected timeline when selecting a log present in that timeline', async () => {
     const logs = Array.from(logStore.logs());
     const targetLog = logs[0];
     const timelines = timelineStore.timelines;
     const timeline4 = timelines.find((t) => t.id === 4)!;
 
     service.onSelectTimeline(timeline4);
-    service.onSelectLog(targetLog);
+    await service.onSelectLog(targetLog);
 
     expect(service.selectedTimeline()?.id).toBe(4);
     expect(service.selectedLog()?.id).toBe(targetLog.id);
     expect(service.selectedRevision()?.logIndex).toBe(targetLog.logIndex);
   });
 
-  it('should clear log and revision selection when timeline is set to null', () => {
+  it('should clear log and revision selection when timeline is set to null', async () => {
     const logs = Array.from(logStore.logs());
     const targetLog = logs[0];
 
-    service.onSelectLog(targetLog);
+    await service.onSelectLog(targetLog);
     expect(service.selectedLog()?.id).toBe(targetLog.id);
 
     service.onSelectTimeline(null);
@@ -349,7 +359,7 @@ describe('SelectionManager', () => {
     expect(service.selectedRevision()).toBeNull();
   });
 
-  it('should allow selecting a log belonging to a child timeline when parent timeline is selected and shouldIncludeChildren is true', () => {
+  it('should allow selecting a log belonging to a child timeline when parent timeline is selected and shouldIncludeChildren is true', async () => {
     const logs = Array.from(logStore.logs());
     const targetLog = logs[0]; // Log 1 belongs to Timeline 4
     const timelines = timelineStore.timelines;
@@ -357,21 +367,21 @@ describe('SelectionManager', () => {
 
     service.timelineSelectionShouldIncludeChildren.set(true);
     service.onSelectTimeline(timeline3);
-    service.onSelectLog(targetLog);
+    await service.onSelectLog(targetLog);
 
     expect(service.selectedTimeline()?.id).toBe(3);
     expect(service.selectedLog()?.id).toBe(targetLog.id);
     expect(service.selectedRevision()?.logIndex).toBe(targetLog.logIndex);
   });
 
-  it('should update selected timeline when selecting an unrelated log while another timeline is selected', () => {
+  it('should update selected timeline when selecting an unrelated log while another timeline is selected', async () => {
     const logs = Array.from(logStore.logs());
     const targetLog = logs[0]; // Log 1 belongs to Timeline 4
     const timelines = timelineStore.timelines;
     const unrelatedTimeline = timelines.find((t) => t.id === 5)!; // Timeline 5 is unrelated to Timeline 4
 
     service.onSelectTimeline(unrelatedTimeline);
-    service.onSelectLog(targetLog);
+    await service.onSelectLog(targetLog);
 
     expect(service.selectedTimeline()?.id).toBe(4);
     expect(service.selectedLog()?.id).toBe(targetLog.id);

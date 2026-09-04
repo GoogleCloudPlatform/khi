@@ -449,14 +449,9 @@ export class Timeline {
    * Checks if this timeline contains the specified log.
    */
   public hasLog(log: ReadonlyDomainElement<Log>): boolean {
-    if (this.timelineStore) {
-      return this.timelineStore
-        .getTimelineIdsForLogId(log.id)
-        .includes(this.id);
-    }
     return (
-      this.events.some((e) => e.logIndex === log.logIndex) ||
-      this.revisions.some((r) => r.logIndex === log.logIndex)
+      this.lookupRevisionFromLog(log) !== null ||
+      this.lookupEventFromLog(log) !== null
     );
   }
 }

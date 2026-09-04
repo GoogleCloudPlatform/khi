@@ -39,7 +39,11 @@ describe('LogSmartComponent', () => {
   beforeEach(async () => {
     workbenchClientSpy = jasmine.createSpyObj('WorkbenchClientService', [
       'readStructYAML',
+      'getTimelineIdsForLog',
     ]);
+    workbenchClientSpy.getTimelineIdsForLog.and.returnValue(
+      Promise.resolve([]),
+    );
     mockSelectedLog = signal<ReadonlyDomainElement<Log> | null>(null);
     mockSelectedTimeline = signal<ReadonlyDomainElement<Timeline> | null>(null);
 

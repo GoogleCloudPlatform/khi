@@ -18,6 +18,7 @@ import { InspectionDataStore } from 'src/app/services/inspection-data-store.serv
 import { Log } from 'src/app/store/domain/log';
 import { Timeline, Revision, Event } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 
 /**
  * SelectionManager provides selected/highlighted list of logs, timelines, revisions or events from the received user interaction.
@@ -26,6 +27,7 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 @Injectable({ providedIn: 'root' })
 export class SelectionManager {
   private readonly inspectionDataStore = inject(InspectionDataStore);
+  private readonly workbenchClient = inject(WorkbenchClientService);
 
   // Writable signals representing internal state.
   private readonly selectedLogId = signal<number | null>(null);
@@ -204,7 +206,9 @@ export class SelectionManager {
   /**
    * Selects a log entry and updates dependent selections.
    */
-  public onSelectLog(log: ReadonlyDomainElement<Log> | null) {
+  public async onSelectLog(
+    log: ReadonlyDomainElement<Log> | null,
+  ): Promise<void> {
     if (!log) {
       this.selectedLogId.set(null);
       this.selectedRevision.set(null);
@@ -216,12 +220,6 @@ export class SelectionManager {
     const timelineStore =
       this.inspectionDataStore.inspectionData()?.timelineStore;
     if (!timelineStore) {
-      this.selectedRevision.set(null);
-      return;
-    }
-
-    const logTimelines = timelineStore.getTimelinesForLogId(log.id);
-    if (logTimelines.length === 0) {
       this.selectedRevision.set(null);
       return;
     }
@@ -271,16 +269,39 @@ export class SelectionManager {
     }
 
     // Priority 3: When no timeline is selected or the log is not found in the currently selected timelines,
-    // automatically select the first visible timeline containing the log.
-    for (const timeline of logTimelines) {
-      if (!filteredTimelineIds || filteredTimelineIds.has(timeline.id)) {
-        this.selectedTimeline.set(timeline);
-        const revision = timeline.lookupRevisionFromLog(log);
-        this.selectedRevision.set(revision);
+    // query the backend for timelines containing the log and select the first matching visible timeline.
+    this.selectedRevision.set(null);
+    try {
+      const timelineIds = await this.workbenchClient.getTimelineIdsForLog(
+        log.id,
+      );
+      if (this.selectedLogId() !== log.id) {
         return;
       }
+      const currentData = this.inspectionDataStore.inspectionData();
+      if (!currentData) return;
+      const currentFilteredTimelineIds = this.inspectionDataStore
+        .timelineView()
+        ?.filteredTimelineIds();
+
+      for (const tId of timelineIds) {
+        if (
+          !currentFilteredTimelineIds ||
+          currentFilteredTimelineIds.has(tId)
+        ) {
+          const timeline = currentData.timelineStore.getTimeline(tId);
+          this.selectedTimeline.set(timeline);
+          const revision = timeline.lookupRevisionFromLog(log);
+          this.selectedRevision.set(revision);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn(
+        '[SelectionManager] Failed to fetch timelines for log:',
+        err,
+      );
     }
-    this.selectedRevision.set(null);
   }
 
   /**
@@ -322,11 +343,7 @@ export class SelectionManager {
     const validTimelines = this.selectedTimelinesWithChildren();
     const validTimelineIds = new Set(validTimelines.map((t) => t.id));
 
-    const isLogValid = this.isSelectedLogValid(
-      log,
-      validTimelineIds,
-      validTimelines,
-    );
+    const isLogValid = this.isSelectedLogValid(log, validTimelines);
     const isRevisionValid = this.isSelectedRevisionValid(
       revision,
       validTimelineIds,
@@ -345,20 +362,10 @@ export class SelectionManager {
    */
   private isSelectedLogValid(
     log: ReadonlyDomainElement<Log> | null,
-    validTimelineIds: Set<number>,
     validTimelines: ReadonlyDomainElement<Timeline>[],
   ): boolean {
     if (!log) return true;
-    const timelineStore =
-      this.inspectionDataStore.inspectionData()?.timelineStore;
-    if (timelineStore) {
-      return timelineStore
-        .getTimelineIdsForLogId(log.id)
-        .some((id) => validTimelineIds.has(id));
-    }
-    return validTimelines.some(
-      (t) => t.lookupRevisionFromLog(log) || t.lookupEventFromLog(log),
-    );
+    return validTimelines.some((t) => t.hasLog(log));
   }
 
   /**

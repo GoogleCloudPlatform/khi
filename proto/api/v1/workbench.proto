@@ -56,6 +56,10 @@ service WorkbenchService {
 
   // Computes the Kubernetes architecture graph for a specific timestamp based on the active timeline filter.
   rpc GetArchitectureGraph(GetArchitectureGraphRequest) returns (GetArchitectureGraphResponse);
+
+  // Retrieves timeline IDs associated with specified log IDs.
+  rpc GetTimelineIDsForLogs(GetTimelineIDsForLogsRequest) returns (GetTimelineIDsForLogsResponse);
+
   // Explicitly closes and releases an active Workbench session.
   rpc CloseWorkbench(CloseWorkbenchRequest) returns (CloseWorkbenchResponse);
 }
@@ -304,4 +308,26 @@ message CloseWorkbenchRequest {
 // Response confirming closure of a Workbench session.
 message CloseWorkbenchResponse {
   bool closed = 1;
+}
+
+// Request to retrieve timeline IDs associated with log IDs.
+message GetTimelineIDsForLogsRequest {
+  // The active workbench session identifier.
+  string workbench_id = 1;
+  // The unique IDs of the logs to look up.
+  repeated uint32 log_ids = 2;
+}
+
+// Association between a log ID and the timeline IDs containing it.
+message LogTimelineBinding {
+  // The log ID.
+  uint32 log_id = 1;
+  // The list of timeline IDs referencing this log.
+  repeated uint32 timeline_ids = 2;
+}
+
+// Response containing resolved timeline ID associations.
+message GetTimelineIDsForLogsResponse {
+  // The resolved timeline ID bindings for requested logs.
+  repeated LogTimelineBinding bindings = 1;
 }

@@ -19,13 +19,12 @@
 package apiv1connect
 
 import (
+	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
+	v1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	http "net/http"
 	strings "strings"
-
-	connect "connectrpc.com/connect"
-	v1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 )
 
 // This is a compile-time assertion to ensure that this generated file and the connect package are
@@ -81,6 +80,9 @@ const (
 	// WorkbenchServiceGetArchitectureGraphProcedure is the fully-qualified name of the
 	// WorkbenchService's GetArchitectureGraph RPC.
 	WorkbenchServiceGetArchitectureGraphProcedure = "/api.v1.WorkbenchService/GetArchitectureGraph"
+	// WorkbenchServiceGetTimelineIDsForLogsProcedure is the fully-qualified name of the
+	// WorkbenchService's GetTimelineIDsForLogs RPC.
+	WorkbenchServiceGetTimelineIDsForLogsProcedure = "/api.v1.WorkbenchService/GetTimelineIDsForLogs"
 	// WorkbenchServiceCloseWorkbenchProcedure is the fully-qualified name of the WorkbenchService's
 	// CloseWorkbench RPC.
 	WorkbenchServiceCloseWorkbenchProcedure = "/api.v1.WorkbenchService/CloseWorkbench"
@@ -110,6 +112,8 @@ type WorkbenchServiceClient interface {
 	CancelFilterTimelineSync(context.Context, *connect.Request[v1.CancelFilterTimelineSyncRequest]) (*connect.Response[v1.CancelFilterTimelineSyncResponse], error)
 	// Computes the Kubernetes architecture graph for a specific timestamp based on the active timeline filter.
 	GetArchitectureGraph(context.Context, *connect.Request[v1.GetArchitectureGraphRequest]) (*connect.Response[v1.GetArchitectureGraphResponse], error)
+	// Retrieves timeline IDs associated with specified log IDs.
+	GetTimelineIDsForLogs(context.Context, *connect.Request[v1.GetTimelineIDsForLogsRequest]) (*connect.Response[v1.GetTimelineIDsForLogsResponse], error)
 	// Explicitly closes and releases an active Workbench session.
 	CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error)
 }
@@ -191,6 +195,12 @@ func NewWorkbenchServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workbenchServiceMethods.ByName("GetArchitectureGraph")),
 			connect.WithClientOptions(opts...),
 		),
+		getTimelineIDsForLogs: connect.NewClient[v1.GetTimelineIDsForLogsRequest, v1.GetTimelineIDsForLogsResponse](
+			httpClient,
+			baseURL+WorkbenchServiceGetTimelineIDsForLogsProcedure,
+			connect.WithSchema(workbenchServiceMethods.ByName("GetTimelineIDsForLogs")),
+			connect.WithClientOptions(opts...),
+		),
 		closeWorkbench: connect.NewClient[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse](
 			httpClient,
 			baseURL+WorkbenchServiceCloseWorkbenchProcedure,
@@ -213,6 +223,7 @@ type workbenchServiceClient struct {
 	filterTimelineSync       *connect.Client[v1.FilterTimelineSyncRequest, v1.FilterTimelineSyncResponse]
 	cancelFilterTimelineSync *connect.Client[v1.CancelFilterTimelineSyncRequest, v1.CancelFilterTimelineSyncResponse]
 	getArchitectureGraph     *connect.Client[v1.GetArchitectureGraphRequest, v1.GetArchitectureGraphResponse]
+	getTimelineIDsForLogs    *connect.Client[v1.GetTimelineIDsForLogsRequest, v1.GetTimelineIDsForLogsResponse]
 	closeWorkbench           *connect.Client[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse]
 }
 
@@ -271,6 +282,11 @@ func (c *workbenchServiceClient) GetArchitectureGraph(ctx context.Context, req *
 	return c.getArchitectureGraph.CallUnary(ctx, req)
 }
 
+// GetTimelineIDsForLogs calls api.v1.WorkbenchService.GetTimelineIDsForLogs.
+func (c *workbenchServiceClient) GetTimelineIDsForLogs(ctx context.Context, req *connect.Request[v1.GetTimelineIDsForLogsRequest]) (*connect.Response[v1.GetTimelineIDsForLogsResponse], error) {
+	return c.getTimelineIDsForLogs.CallUnary(ctx, req)
+}
+
 // CloseWorkbench calls api.v1.WorkbenchService.CloseWorkbench.
 func (c *workbenchServiceClient) CloseWorkbench(ctx context.Context, req *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error) {
 	return c.closeWorkbench.CallUnary(ctx, req)
@@ -300,6 +316,8 @@ type WorkbenchServiceHandler interface {
 	CancelFilterTimelineSync(context.Context, *connect.Request[v1.CancelFilterTimelineSyncRequest]) (*connect.Response[v1.CancelFilterTimelineSyncResponse], error)
 	// Computes the Kubernetes architecture graph for a specific timestamp based on the active timeline filter.
 	GetArchitectureGraph(context.Context, *connect.Request[v1.GetArchitectureGraphRequest]) (*connect.Response[v1.GetArchitectureGraphResponse], error)
+	// Retrieves timeline IDs associated with specified log IDs.
+	GetTimelineIDsForLogs(context.Context, *connect.Request[v1.GetTimelineIDsForLogsRequest]) (*connect.Response[v1.GetTimelineIDsForLogsResponse], error)
 	// Explicitly closes and releases an active Workbench session.
 	CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error)
 }
@@ -377,6 +395,12 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 		connect.WithSchema(workbenchServiceMethods.ByName("GetArchitectureGraph")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workbenchServiceGetTimelineIDsForLogsHandler := connect.NewUnaryHandler(
+		WorkbenchServiceGetTimelineIDsForLogsProcedure,
+		svc.GetTimelineIDsForLogs,
+		connect.WithSchema(workbenchServiceMethods.ByName("GetTimelineIDsForLogs")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workbenchServiceCloseWorkbenchHandler := connect.NewUnaryHandler(
 		WorkbenchServiceCloseWorkbenchProcedure,
 		svc.CloseWorkbench,
@@ -407,6 +431,8 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 			workbenchServiceCancelFilterTimelineSyncHandler.ServeHTTP(w, r)
 		case WorkbenchServiceGetArchitectureGraphProcedure:
 			workbenchServiceGetArchitectureGraphHandler.ServeHTTP(w, r)
+		case WorkbenchServiceGetTimelineIDsForLogsProcedure:
+			workbenchServiceGetTimelineIDsForLogsHandler.ServeHTTP(w, r)
 		case WorkbenchServiceCloseWorkbenchProcedure:
 			workbenchServiceCloseWorkbenchHandler.ServeHTTP(w, r)
 		default:
@@ -460,6 +486,10 @@ func (UnimplementedWorkbenchServiceHandler) CancelFilterTimelineSync(context.Con
 
 func (UnimplementedWorkbenchServiceHandler) GetArchitectureGraph(context.Context, *connect.Request[v1.GetArchitectureGraphRequest]) (*connect.Response[v1.GetArchitectureGraphResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.GetArchitectureGraph is not implemented"))
+}
+
+func (UnimplementedWorkbenchServiceHandler) GetTimelineIDsForLogs(context.Context, *connect.Request[v1.GetTimelineIDsForLogsRequest]) (*connect.Response[v1.GetTimelineIDsForLogsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.GetTimelineIDsForLogs is not implemented"))
 }
 
 func (UnimplementedWorkbenchServiceHandler) CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error) {

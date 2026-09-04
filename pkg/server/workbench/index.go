@@ -33,12 +33,13 @@ type IndexedLog = cel.LogData
 
 // SearchIndex encapsulates the indexed timelines and logs of a Workbench session.
 type SearchIndex struct {
-	Timelines     []*cel.TimelineData
-	TimelineMap   map[uint32]*cel.TimelineData
-	Logs          []cel.LogData
-	InternPool    *khifilev6model.ReadonlyInternPool
-	TrigramIndex  *cel.TrigramIndex
-	StyleResolver cel.StyleResolver
+	Timelines        []*cel.TimelineData
+	TimelineMap      map[uint32]*cel.TimelineData
+	Logs             []cel.LogData
+	InternPool       *khifilev6model.ReadonlyInternPool
+	TrigramIndex     *cel.TrigramIndex
+	StyleResolver    cel.StyleResolver
+	LogTimelineIndex *LogTimelineCSRIndex
 }
 
 // GetLog retrieves a log entry by its 1-based log ID in O(1) time.
@@ -47,6 +48,14 @@ func (s *SearchIndex) GetLog(id uint32) *cel.LogData {
 		return nil
 	}
 	return &s.Logs[id-1]
+}
+
+// GetTimelineIDsForLog returns the timeline IDs associated with the specified log ID in O(1) time.
+func (s *SearchIndex) GetTimelineIDsForLog(logID uint32) []uint32 {
+	if s == nil || s.LogTimelineIndex == nil {
+		return nil
+	}
+	return s.LogTimelineIndex.GetTimelineIDs(logID)
 }
 
 type styleMaps struct {
@@ -124,13 +133,16 @@ func (w *Workbench) BuildBaseSearchIndex() (*SearchIndex, error) {
 
 	w.linkTimelineHierarchy(timelines, timelineMap)
 
+	logTimelineIndex := NewLogTimelineCSRIndex(w.maxLogID, timelines)
+
 	return &SearchIndex{
-		Timelines:     timelines,
-		TimelineMap:   timelineMap,
-		Logs:          logs,
-		InternPool:    w.internPool,
-		TrigramIndex:  nil,
-		StyleResolver: styles,
+		Timelines:        timelines,
+		TimelineMap:      timelineMap,
+		Logs:             logs,
+		InternPool:       w.internPool,
+		TrigramIndex:     nil,
+		StyleResolver:    styles,
+		LogTimelineIndex: logTimelineIndex,
 	}, nil
 }
 

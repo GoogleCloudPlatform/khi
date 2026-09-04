@@ -66,6 +66,44 @@ export interface FilterTimelineResult {
 }
 
 /**
+ * Configuration options for batch-loading cached resources in Workbench.
+ */
+interface BatchFetchOptions<T> {
+  /**
+   * The list of numeric IDs to fetch.
+   */
+  readonly ids: readonly number[];
+
+  /**
+   * The LRU cache instance storing resolved values.
+   */
+  readonly cache: LRUCache<number, T>;
+
+  /**
+   * The tracking map for active in-flight requests.
+   */
+  readonly inFlightPromises: Map<number, Promise<T | null>>;
+
+  /**
+   * Maximum number of IDs per RPC request batch.
+   */
+  readonly batchSize: number;
+
+  /**
+   * Dispatches the batch request to the server and returns the retrieved mapping.
+   */
+  readonly fetchBatch: (
+    batch: number[],
+    workbenchId: string,
+  ) => Promise<Map<number, T>>;
+
+  /**
+   * Optional generator for default values when an ID was requested in a batch but omitted in the response.
+   */
+  readonly defaultMissingValue?: () => T;
+}
+
+/**
  * WorkbenchClientService manages the lifecycle and communication with the backend WorkbenchService.
  */
 @Injectable({
@@ -82,6 +120,16 @@ export class WorkbenchClientService implements OnDestroy {
    */
   private static readonly MAX_STRUCT_IDS_PER_BATCH = 200;
 
+  /**
+   * Maximum number of logId to timelineIds entries to cache in memory.
+   */
+  private static readonly LOG_TIMELINE_CACHE_CAPACITY = 10000;
+
+  /**
+   * Maximum number of log IDs per batch request when querying timeline IDs.
+   */
+  private static readonly MAX_LOG_IDS_PER_BATCH = 1000;
+
   private readonly connectClient = inject(ConnectClientService);
   private readonly userIdService = inject(UserIdentityService);
 
@@ -92,6 +140,13 @@ export class WorkbenchClientService implements OnDestroy {
   private readonly inFlightYamlPromises = new Map<
     number,
     Promise<string | null>
+  >();
+  private readonly logTimelineCache = new LRUCache<number, readonly number[]>(
+    WorkbenchClientService.LOG_TIMELINE_CACHE_CAPACITY,
+  );
+  private readonly inFlightLogTimelinePromises = new Map<
+    number,
+    Promise<readonly number[] | null>
   >();
 
   private currentSessionId: string | null = null;
@@ -266,6 +321,8 @@ export class WorkbenchClientService implements OnDestroy {
       }
       this.structYamlCache.clear();
       this.inFlightYamlPromises.clear();
+      this.logTimelineCache.clear();
+      this.inFlightLogTimelinePromises.clear();
       this.isWorkbenchExpiredSignal.set(false);
       this.activeWorkbenchIdSignal.set(workbenchId);
       this.startHeartbeat(workbenchId);
@@ -425,6 +482,8 @@ export class WorkbenchClientService implements OnDestroy {
     this.stopHeartbeat();
     this.structYamlCache.clear();
     this.inFlightYamlPromises.clear();
+    this.logTimelineCache.clear();
+    this.inFlightLogTimelinePromises.clear();
     this.currentSessionId = null;
     this.currentInspectionId = null;
     this.isWorkbenchExpiredSignal.set(false);
@@ -464,31 +523,6 @@ export class WorkbenchClientService implements OnDestroy {
   }
 
   /**
-   * Prefetches the specified struct IDs in the background into the local LRU cache.
-   *
-   * Filters out non-positive IDs, already-cached IDs, and currently in-flight requests.
-   *
-   * @param structIds The interned struct IDs to prefetch.
-   */
-  public prefetchStructYAMLs(structIds: readonly number[]): void {
-    if (!this.isWorkbenchActive()) {
-      return;
-    }
-    const uncachedIds = structIds.filter(
-      (id) =>
-        id > 0 &&
-        !this.structYamlCache.has(id) &&
-        !this.inFlightYamlPromises.has(id),
-    );
-    if (uncachedIds.length === 0) {
-      return;
-    }
-    void this.readStructYAMLs(uncachedIds).catch((err) => {
-      console.debug('[WorkbenchClient] Background prefetch failed:', err);
-    });
-  }
-
-  /**
    * Fetches the decoded YAML representations of multiple interned structs by ID from the active Workbench session.
    *
    * Checks the in-memory LRU cache and active in-flight requests before dispatching RPC calls.
@@ -500,9 +534,86 @@ export class WorkbenchClientService implements OnDestroy {
   public async readStructYAMLs(
     structIds: readonly number[],
   ): Promise<Map<number, string>> {
-    const resultMap = new Map<number, string>();
+    return this.fetchWithBatchCache({
+      ids: structIds,
+      cache: this.structYamlCache,
+      inFlightPromises: this.inFlightYamlPromises,
+      batchSize: WorkbenchClientService.MAX_STRUCT_IDS_PER_BATCH,
+      fetchBatch: async (batch, workbenchId) => {
+        const res = await this.connectClient.workbenchClient.readStructYAMLs({
+          workbenchId,
+          structIds: batch,
+        });
+        const map = new Map<number, string>();
+        for (const structYaml of res.structYamls) {
+          map.set(structYaml.structId, structYaml.yaml ?? '');
+        }
+        return map;
+      },
+    });
+  }
+
+  /**
+   * Fetches the timeline IDs associated with a single log ID.
+   *
+   * Delegates to {@link getTimelineIdsForLogs} to utilize in-memory caching and in-flight deduplication.
+   *
+   * @param logId The log ID to query.
+   * @returns An array of timeline IDs containing the log.
+   */
+  public async getTimelineIdsForLog(logId: number): Promise<readonly number[]> {
+    if (!logId || logId <= 0) {
+      return [];
+    }
+    const timelineMap = await this.getTimelineIdsForLogs([logId]);
+    return timelineMap.get(logId) ?? [];
+  }
+
+  /**
+   * Fetches the timeline IDs associated with multiple log IDs from the active Workbench session.
+   *
+   * Checks the in-memory LRU cache and active in-flight requests before dispatching RPC calls.
+   * Requests larger than 1000 items are automatically partitioned into batches.
+   *
+   * @param logIds The log IDs to query.
+   * @returns A map of log ID to array of timeline IDs.
+   */
+  public async getTimelineIdsForLogs(
+    logIds: readonly number[],
+  ): Promise<Map<number, readonly number[]>> {
+    return this.fetchWithBatchCache({
+      ids: logIds,
+      cache: this.logTimelineCache,
+      inFlightPromises: this.inFlightLogTimelinePromises,
+      batchSize: WorkbenchClientService.MAX_LOG_IDS_PER_BATCH,
+      defaultMissingValue: () => [],
+      fetchBatch: async (batch, workbenchId) => {
+        const res =
+          await this.connectClient.workbenchClient.getTimelineIDsForLogs({
+            workbenchId,
+            logIds: batch,
+          });
+        const map = new Map<number, readonly number[]>();
+        for (const binding of res.bindings) {
+          map.set(binding.logId, binding.timelineIds);
+        }
+        return map;
+      },
+    });
+  }
+
+  /**
+   * Loads items by numeric ID in batches with LRU caching, in-flight promise deduplication, and error handling.
+   *
+   * @param options Configuration specifying IDs, cache, in-flight promises, batching, and fetch callback.
+   * @returns A map of numeric ID to resolved values.
+   */
+  private async fetchWithBatchCache<T>(
+    options: BatchFetchOptions<T>,
+  ): Promise<Map<number, T>> {
+    const resultMap = new Map<number, T>();
     const uniqueIds = new Set<number>();
-    for (const id of structIds) {
+    for (const id of options.ids) {
       if (id > 0) {
         uniqueIds.add(id);
       }
@@ -520,17 +631,17 @@ export class WorkbenchClientService implements OnDestroy {
     const pendingPromises: Promise<void>[] = [];
 
     for (const id of uniqueIds) {
-      const cached = this.structYamlCache.get(id);
+      const cached = options.cache.get(id);
       if (cached !== undefined) {
         resultMap.set(id, cached);
         continue;
       }
-      const inFlight = this.inFlightYamlPromises.get(id);
+      const inFlight = options.inFlightPromises.get(id);
       if (inFlight !== undefined) {
         pendingPromises.push(
-          inFlight.then((yaml: string | null) => {
-            if (yaml !== null) {
-              resultMap.set(id, yaml);
+          inFlight.then((val: T | null) => {
+            if (val !== null) {
+              resultMap.set(id, val);
             }
           }),
         );
@@ -544,46 +655,39 @@ export class WorkbenchClientService implements OnDestroy {
       return resultMap;
     }
 
-    const resolvers = new Map<number, (yaml: string | null) => void>();
+    const resolvers = new Map<number, (val: T | null) => void>();
     const rejecters = new Map<number, (err: unknown) => void>();
 
     for (const id of idsToFetch) {
-      const promise = new Promise<string | null>((resolve, reject) => {
+      const promise = new Promise<T | null>((resolve, reject) => {
         resolvers.set(id, resolve);
         rejecters.set(id, reject);
       });
-      this.inFlightYamlPromises.set(id, promise);
+      options.inFlightPromises.set(id, promise);
     }
 
     const batchPromises: Promise<void>[] = [];
-    for (
-      let i = 0;
-      i < idsToFetch.length;
-      i += WorkbenchClientService.MAX_STRUCT_IDS_PER_BATCH
-    ) {
-      const batch = idsToFetch.slice(
-        i,
-        i + WorkbenchClientService.MAX_STRUCT_IDS_PER_BATCH,
-      );
+    for (let i = 0; i < idsToFetch.length; i += options.batchSize) {
+      const batch = idsToFetch.slice(i, i + options.batchSize);
       batchPromises.push(
         (async () => {
           try {
-            const res =
-              await this.connectClient.workbenchClient.readStructYAMLs({
-                workbenchId,
-                structIds: batch,
-              });
-            const receivedIds = new Set<number>();
-            for (const structYaml of res.structYamls) {
-              const yaml = structYaml.yaml ?? '';
-              this.structYamlCache.put(structYaml.structId, yaml);
-              resultMap.set(structYaml.structId, yaml);
-              receivedIds.add(structYaml.structId);
-              resolvers.get(structYaml.structId)?.(yaml);
+            const batchResult = await options.fetchBatch(batch, workbenchId);
+            for (const [id, value] of batchResult) {
+              options.cache.put(id, value);
+              resultMap.set(id, value);
+              resolvers.get(id)?.(value);
             }
             for (const id of batch) {
-              if (!receivedIds.has(id)) {
-                resolvers.get(id)?.(null);
+              if (!batchResult.has(id)) {
+                if (options.defaultMissingValue) {
+                  const defaultValue = options.defaultMissingValue();
+                  options.cache.put(id, defaultValue);
+                  resultMap.set(id, defaultValue);
+                  resolvers.get(id)?.(defaultValue);
+                } else {
+                  resolvers.get(id)?.(null);
+                }
               }
             }
           } catch (e) {
@@ -594,7 +698,7 @@ export class WorkbenchClientService implements OnDestroy {
             throw e;
           } finally {
             for (const id of batch) {
-              this.inFlightYamlPromises.delete(id);
+              options.inFlightPromises.delete(id);
             }
           }
         })(),

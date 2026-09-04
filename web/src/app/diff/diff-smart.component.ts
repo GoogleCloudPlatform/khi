@@ -168,13 +168,8 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
     }
     const log = this.selectionManager.selectedLog();
     if (log) {
-      const logTimelineIds = new Set(
-        this.inspectionDataStore
-          .inspectionData()
-          ?.timelineStore.getTimelineIdsForLogId(log.id) ?? [],
-      );
       for (const t of this.selectionManager.selectedTimelinesWithChildren()) {
-        if (logTimelineIds.has(t.id)) {
+        if (t.hasLog(log)) {
           return t;
         }
       }

@@ -80,10 +80,32 @@ export class LogSmartComponent {
     },
   });
 
+  private readonly logTimelineIdsResource = resource({
+    params: () => this.selectionManager.selectedLog()?.id,
+    loader: async ({ params: logId }) => {
+      if (!logId || logId <= 0) {
+        return [];
+      }
+      try {
+        return await this.workbenchClientService.getTimelineIdsForLog(logId);
+      } catch (err) {
+        console.warn(
+          `[LogSmartComponent] Failed to get timeline IDs for logId ${logId}:`,
+          err,
+        );
+        return [];
+      }
+    },
+  });
+
   /**
-   * Signal indicating whether the log body YAML is currently being loaded.
+   * Signal indicating whether the log body YAML or timeline references are currently being loaded.
    */
-  public readonly isLoading = this.logBodyResource.isLoading;
+  public readonly isLoading = computed(
+    () =>
+      this.logBodyResource.isLoading() ||
+      this.logTimelineIdsResource.isLoading(),
+  );
 
   /** Holds the active search scope. */
   public readonly activeSearchScope = this.viewState.activeSearchScope;
@@ -176,36 +198,38 @@ export class LogSmartComponent {
       const filteredTimelineIds = this.inspectionDataStore
         .timelineView()
         ?.filteredTimelineIds();
-      const logTimelines =
-        data?.timelineStore.getTimelinesForLogId(log.id) ?? [];
+      const timelineIds = this.logTimelineIdsResource.value() ?? [];
 
       const resourceRefs: ResourceRefAnnotationViewModel[] = [];
-      for (const timeline of logTimelines) {
-        if (filteredTimelineIds && !filteredTimelineIds.has(timeline.id)) {
-          continue;
-        }
-        if (
-          timeline.lookupEventFromLog(log) !== null ||
-          timeline.lookupRevisionFromLog(log) !== null
-        ) {
-          const timelineType = this.styleOverrideService.getTimelineType(
-            timeline.type.id,
-          );
-          const pathNodes: ResourcePathNodeViewModel[] = timeline.path.map(
-            (node: TimelinePathNode) => ({
-              id: node.id,
-              label: node.label,
-              type: this.styleOverrideService.getTimelineType(node.type.id),
-            }),
-          );
+      if (data) {
+        for (const tId of timelineIds) {
+          if (filteredTimelineIds && !filteredTimelineIds.has(tId)) {
+            continue;
+          }
+          const timeline = data.timelineStore.getTimeline(tId);
+          if (
+            timeline.lookupEventFromLog(log) !== null ||
+            timeline.lookupRevisionFromLog(log) !== null
+          ) {
+            const timelineType = this.styleOverrideService.getTimelineType(
+              timeline.type.id,
+            );
+            const pathNodes: ResourcePathNodeViewModel[] = timeline.path.map(
+              (node: TimelinePathNode) => ({
+                id: node.id,
+                label: node.label,
+                type: this.styleOverrideService.getTimelineType(node.type.id),
+              }),
+            );
 
-          resourceRefs.push({
-            label: timeline.debugPathText,
-            timelineId: timeline.id,
-            name: timeline.name,
-            type: timelineType,
-            pathNodes,
-          });
+            resourceRefs.push({
+              label: timeline.debugPathText,
+              timelineId: timeline.id,
+              name: timeline.name,
+              type: timelineType,
+              pathNodes,
+            });
+          }
         }
       }
 

@@ -69,7 +69,7 @@ import {
 import { KHI_FRONTEND_EXTENSION_BUNDLES } from './app/extensions/extension-common/extension';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { KHIIconRegistrationModule } from './app/shared/module/icon-registration.module';
-import { StructYamlPrefetchService } from 'src/app/services/struct-yaml-prefetch.service';
+import { WorkbenchPrefetchService } from 'src/app/services/workbench-prefetch.service';
 
 if (environment.production) {
   enableProdMode();
@@ -145,7 +145,7 @@ export const appConfig: ApplicationConfig = {
         extension.initializeExtension(extensionStore);
       });
       notificationManager.initialize();
-      inject(StructYamlPrefetchService);
+      inject(WorkbenchPrefetchService);
     }),
   ],
 };

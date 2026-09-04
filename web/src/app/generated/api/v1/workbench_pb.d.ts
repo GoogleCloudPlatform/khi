@@ -905,6 +905,83 @@ export declare type CloseWorkbenchResponse =
 export declare const CloseWorkbenchResponseSchema: GenMessage<CloseWorkbenchResponse>;
 
 /**
+ * Request to retrieve timeline IDs associated with log IDs.
+ *
+ * @generated from message api.v1.GetTimelineIDsForLogsRequest
+ */
+export declare type GetTimelineIDsForLogsRequest =
+  Message<'api.v1.GetTimelineIDsForLogsRequest'> & {
+    /**
+     * The active workbench session identifier.
+     *
+     * @generated from field: string workbench_id = 1;
+     */
+    workbenchId: string;
+
+    /**
+     * The unique IDs of the logs to look up.
+     *
+     * @generated from field: repeated uint32 log_ids = 2;
+     */
+    logIds: number[];
+  };
+
+/**
+ * Describes the message api.v1.GetTimelineIDsForLogsRequest.
+ * Use `create(GetTimelineIDsForLogsRequestSchema)` to create a new message.
+ */
+export declare const GetTimelineIDsForLogsRequestSchema: GenMessage<GetTimelineIDsForLogsRequest>;
+
+/**
+ * Association between a log ID and the timeline IDs containing it.
+ *
+ * @generated from message api.v1.LogTimelineBinding
+ */
+export declare type LogTimelineBinding =
+  Message<'api.v1.LogTimelineBinding'> & {
+    /**
+     * The log ID.
+     *
+     * @generated from field: uint32 log_id = 1;
+     */
+    logId: number;
+
+    /**
+     * The list of timeline IDs referencing this log.
+     *
+     * @generated from field: repeated uint32 timeline_ids = 2;
+     */
+    timelineIds: number[];
+  };
+
+/**
+ * Describes the message api.v1.LogTimelineBinding.
+ * Use `create(LogTimelineBindingSchema)` to create a new message.
+ */
+export declare const LogTimelineBindingSchema: GenMessage<LogTimelineBinding>;
+
+/**
+ * Response containing resolved timeline ID associations.
+ *
+ * @generated from message api.v1.GetTimelineIDsForLogsResponse
+ */
+export declare type GetTimelineIDsForLogsResponse =
+  Message<'api.v1.GetTimelineIDsForLogsResponse'> & {
+    /**
+     * The resolved timeline ID bindings for requested logs.
+     *
+     * @generated from field: repeated api.v1.LogTimelineBinding bindings = 1;
+     */
+    bindings: LogTimelineBinding[];
+  };
+
+/**
+ * Describes the message api.v1.GetTimelineIDsForLogsResponse.
+ * Use `create(GetTimelineIDsForLogsResponseSchema)` to create a new message.
+ */
+export declare const GetTimelineIDsForLogsResponseSchema: GenMessage<GetTimelineIDsForLogsResponse>;
+
+/**
  * Mode specifying whether the associated sparse bitset represents matching or excluded items.
  *
  * @generated from enum api.v1.FilterResultMode
@@ -1046,6 +1123,16 @@ export declare const WorkbenchService: GenService<{
     methodKind: 'unary';
     input: typeof GetArchitectureGraphRequestSchema;
     output: typeof GetArchitectureGraphResponseSchema;
+  };
+  /**
+   * Retrieves timeline IDs associated with specified log IDs.
+   *
+   * @generated from rpc api.v1.WorkbenchService.GetTimelineIDsForLogs
+   */
+  getTimelineIDsForLogs: {
+    methodKind: 'unary';
+    input: typeof GetTimelineIDsForLogsRequestSchema;
+    output: typeof GetTimelineIDsForLogsResponseSchema;
   };
   /**
    * Explicitly closes and releases an active Workbench session.

@@ -44,6 +44,7 @@ describe('WorkbenchClientService', () => {
         watchIndexProgress: jasmine.createSpy('watchIndexProgress'),
         heartbeatWorkbench: jasmine.createSpy('heartbeatWorkbench'),
         readStructYAMLs: jasmine.createSpy('readStructYAMLs'),
+        getTimelineIDsForLogs: jasmine.createSpy('getTimelineIDsForLogs'),
         filterTimeline: jasmine.createSpy('filterTimeline'),
         getArchitectureGraph: jasmine.createSpy('getArchitectureGraph'),
         closeWorkbench: jasmine.createSpy('closeWorkbench'),
@@ -387,71 +388,134 @@ describe('WorkbenchClientService', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('should prefetch uncached struct IDs in background and populate cache', async () => {
+  it('should return empty map without RPC call if logIds is empty or contains only non-positive IDs', async () => {
+    const res = await service.getTimelineIdsForLogs([0, -1]);
+    expect(res.size).toBe(0);
+    expect(
+      mockConnectClient.workbenchClient.getTimelineIDsForLogs,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should throw error on getTimelineIdsForLogs if no workbench session is active', async () => {
+    await expectAsync(
+      service.getTimelineIdsForLogs([42]),
+    ).toBeRejectedWithError('No active Workbench session found.');
+  });
+
+  it('should call getTimelineIDsForLogs on backend client with active workbench ID and return timeline IDs map', async () => {
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
     ).and.returnValue(mockOpenWorkbenchReady());
     (
-      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+      mockConnectClient.workbenchClient.getTimelineIDsForLogs as jasmine.Spy
     ).and.returnValue(
       Promise.resolve({
-        structYamls: [
-          { structId: 101, yaml: 'kind: Service\n' },
-          { structId: 102, yaml: 'kind: Deployment\n' },
+        bindings: [
+          { logId: 10, timelineIds: [100, 200] },
+          { logId: 20, timelineIds: [200] },
         ],
       }),
     );
 
     await service.openWorkbench('session-0', 'inspection-1');
 
-    service.prefetchStructYAMLs([101, 102]);
+    const result = await service.getTimelineIdsForLogs([10, 20, 30]);
 
-    await Promise.resolve();
-    await Promise.resolve();
-
-    // Verify that subsequent read calls are fulfilled from cache without dispatching new RPCs.
-    (
-      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
-    ).calls.reset();
-    const yaml101 = await service.readStructYAML(101);
-    const yaml102 = await service.readStructYAML(102);
-    expect(yaml101).toBe('kind: Service\n');
-    expect(yaml102).toBe('kind: Deployment\n');
     expect(
-      mockConnectClient.workbenchClient.readStructYAMLs,
-    ).not.toHaveBeenCalled();
+      mockConnectClient.workbenchClient.getTimelineIDsForLogs,
+    ).toHaveBeenCalledWith({
+      workbenchId: 'usr-1-session-0',
+      logIds: [10, 20, 30],
+    });
+    expect(result.get(10)).toEqual([100, 200]);
+    expect(result.get(20)).toEqual([200]);
+    expect(result.get(30)).toEqual([]);
   });
 
-  it('should not dispatch RPC in prefetchStructYAMLs if all IDs are already cached or non-positive', async () => {
+  it('should cache getTimelineIdsForLogs responses and avoid duplicate RPC calls', async () => {
     (
       mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
     ).and.returnValue(mockOpenWorkbenchReady());
     (
-      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
+      mockConnectClient.workbenchClient.getTimelineIDsForLogs as jasmine.Spy
     ).and.returnValue(
       Promise.resolve({
-        structYamls: [{ structId: 200, yaml: 'kind: ConfigMap\n' }],
+        bindings: [{ logId: 100, timelineIds: [500] }],
       }),
     );
 
     await service.openWorkbench('session-0', 'inspection-1');
-    await service.readStructYAML(200);
-    (
-      mockConnectClient.workbenchClient.readStructYAMLs as jasmine.Spy
-    ).calls.reset();
 
-    service.prefetchStructYAMLs([200, 0, -5]);
+    const res1 = await service.getTimelineIdsForLogs([100]);
+    const res2 = await service.getTimelineIdsForLogs([100]);
 
+    expect(res1.get(100)).toEqual([500]);
+    expect(res2.get(100)).toEqual([500]);
     expect(
-      mockConnectClient.workbenchClient.readStructYAMLs,
-    ).not.toHaveBeenCalled();
+      (
+        mockConnectClient.workbenchClient.getTimelineIDsForLogs as jasmine.Spy
+      ).calls.count(),
+    ).toBe(1);
   });
 
-  it('should not prefetch if workbench is not active', () => {
-    service.prefetchStructYAMLs([1, 2, 3]);
+  it('should deduplicate concurrent in-flight requests for same log IDs', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenWorkbenchReady());
+
+    let resolveRpc!: (value: unknown) => void;
+    const rpcPromise = new Promise((resolve) => {
+      resolveRpc = resolve;
+    });
+
+    (
+      mockConnectClient.workbenchClient.getTimelineIDsForLogs as jasmine.Spy
+    ).and.returnValue(rpcPromise);
+
+    await service.openWorkbench('session-0', 'inspection-1');
+
+    const [promise1, promise2] = [
+      service.getTimelineIdsForLogs([200]),
+      service.getTimelineIdsForLogs([200]),
+    ];
+
+    resolveRpc({
+      bindings: [{ logId: 200, timelineIds: [888] }],
+    });
+
+    const [res1, res2] = await Promise.all([promise1, promise2]);
+
     expect(
-      mockConnectClient.workbenchClient.readStructYAMLs,
+      (
+        mockConnectClient.workbenchClient.getTimelineIDsForLogs as jasmine.Spy
+      ).calls.count(),
+    ).toBe(1);
+    expect(res1.get(200)).toEqual([888]);
+    expect(res2.get(200)).toEqual([888]);
+  });
+
+  it('should delegate to getTimelineIdsForLogs on getTimelineIdsForLog and return empty array for non-positive log ID', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenWorkbenchReady());
+    (
+      mockConnectClient.workbenchClient.getTimelineIDsForLogs as jasmine.Spy
+    ).and.returnValue(
+      Promise.resolve({
+        bindings: [{ logId: 77, timelineIds: [1, 2] }],
+      }),
+    );
+
+    await service.openWorkbench('session-0', 'inspection-1');
+
+    const zeroRes = await service.getTimelineIdsForLog(0);
+    expect(zeroRes).toEqual([]);
+    expect(
+      mockConnectClient.workbenchClient.getTimelineIDsForLogs,
     ).not.toHaveBeenCalled();
+
+    const tIds = await service.getTimelineIdsForLog(77);
+    expect(tIds).toEqual([1, 2]);
   });
 
   it('should stream progress and return final result on filterTimeline', async () => {

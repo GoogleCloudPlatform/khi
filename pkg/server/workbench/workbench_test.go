@@ -20,6 +20,7 @@ import (
 
 	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -192,6 +193,83 @@ func TestWorkbench_ReadStructYAMLs(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantYAMLs, gotYAMLs); diff != "" {
 				t.Errorf("ReadStructYAMLs(%v) YAML mismatch (-want +got):\n%s", tc.structIDs, diff)
+			}
+		})
+	}
+}
+
+func TestWorkbench_GetTimelineIDsForLogs(t *testing.T) {
+	testCases := []struct {
+		name      string
+		setupWb   func() *Workbench
+		logIDs    []uint32
+		wantMap   map[uint32][]uint32
+		wantErrIs error
+	}{
+		{
+			name: "returns ErrWorkbenchClosed when workbench is closed",
+			setupWb: func() *Workbench {
+				wb := NewWorkbench("wb-closed", "insp-1")
+				wb.Close()
+				return wb
+			},
+			logIDs:    []uint32{1, 2},
+			wantErrIs: ErrWorkbenchClosed,
+		},
+		{
+			name: "returns empty map when searchIndex is not set",
+			setupWb: func() *Workbench {
+				return NewWorkbench("wb-1", "insp-1")
+			},
+			logIDs: []uint32{1, 2},
+			wantMap: map[uint32][]uint32{
+				1: {},
+				2: {},
+			},
+		},
+		{
+			name: "returns timeline IDs from search index CSR",
+			setupWb: func() *Workbench {
+				wb := NewWorkbench("wb-1", "insp-1")
+				csr := NewLogTimelineCSRIndex(10, []*cel.TimelineData{
+					{
+						ID:     100,
+						Events: []cel.EventInfo{{LogID: 1}, {LogID: 2}},
+					},
+					{
+						ID:     200,
+						Events: []cel.EventInfo{{LogID: 2}},
+					},
+				})
+				wb.searchIndex = &SearchIndex{
+					LogTimelineIndex: csr,
+				}
+				return wb
+			},
+			logIDs: []uint32{1, 2, 3, 0},
+			wantMap: map[uint32][]uint32{
+				1: {100},
+				2: {100, 200},
+				3: {},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			wb := tc.setupWb()
+			gotMap, err := wb.GetTimelineIDsForLogs(tc.logIDs)
+			if tc.wantErrIs != nil {
+				if !errors.Is(err, tc.wantErrIs) {
+					t.Fatalf("GetTimelineIDsForLogs(%v) error = %v, want %v", tc.logIDs, err, tc.wantErrIs)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("GetTimelineIDsForLogs(%v) unexpected error = %v", tc.logIDs, err)
+			}
+			if diff := cmp.Diff(tc.wantMap, gotMap); diff != "" {
+				t.Errorf("GetTimelineIDsForLogs(%v) mismatch (-want +got):\n%s", tc.logIDs, diff)
 			}
 		})
 	}

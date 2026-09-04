@@ -21,13 +21,12 @@
 package apiv1
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -1737,6 +1736,162 @@ func (x *CloseWorkbenchResponse) GetClosed() bool {
 	return false
 }
 
+// Request to retrieve timeline IDs associated with log IDs.
+type GetTimelineIDsForLogsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The active workbench session identifier.
+	WorkbenchId *string `protobuf:"bytes,1,opt,name=workbench_id,json=workbenchId" json:"workbench_id,omitempty"`
+	// The unique IDs of the logs to look up.
+	LogIds        []uint32 `protobuf:"varint,2,rep,packed,name=log_ids,json=logIds" json:"log_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTimelineIDsForLogsRequest) Reset() {
+	*x = GetTimelineIDsForLogsRequest{}
+	mi := &file_api_v1_workbench_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTimelineIDsForLogsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTimelineIDsForLogsRequest) ProtoMessage() {}
+
+func (x *GetTimelineIDsForLogsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTimelineIDsForLogsRequest.ProtoReflect.Descriptor instead.
+func (*GetTimelineIDsForLogsRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GetTimelineIDsForLogsRequest) GetWorkbenchId() string {
+	if x != nil && x.WorkbenchId != nil {
+		return *x.WorkbenchId
+	}
+	return ""
+}
+
+func (x *GetTimelineIDsForLogsRequest) GetLogIds() []uint32 {
+	if x != nil {
+		return x.LogIds
+	}
+	return nil
+}
+
+// Association between a log ID and the timeline IDs containing it.
+type LogTimelineBinding struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The log ID.
+	LogId *uint32 `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
+	// The list of timeline IDs referencing this log.
+	TimelineIds   []uint32 `protobuf:"varint,2,rep,packed,name=timeline_ids,json=timelineIds" json:"timeline_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogTimelineBinding) Reset() {
+	*x = LogTimelineBinding{}
+	mi := &file_api_v1_workbench_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogTimelineBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogTimelineBinding) ProtoMessage() {}
+
+func (x *LogTimelineBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogTimelineBinding.ProtoReflect.Descriptor instead.
+func (*LogTimelineBinding) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *LogTimelineBinding) GetLogId() uint32 {
+	if x != nil && x.LogId != nil {
+		return *x.LogId
+	}
+	return 0
+}
+
+func (x *LogTimelineBinding) GetTimelineIds() []uint32 {
+	if x != nil {
+		return x.TimelineIds
+	}
+	return nil
+}
+
+// Response containing resolved timeline ID associations.
+type GetTimelineIDsForLogsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The resolved timeline ID bindings for requested logs.
+	Bindings      []*LogTimelineBinding `protobuf:"bytes,1,rep,name=bindings" json:"bindings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTimelineIDsForLogsResponse) Reset() {
+	*x = GetTimelineIDsForLogsResponse{}
+	mi := &file_api_v1_workbench_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTimelineIDsForLogsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTimelineIDsForLogsResponse) ProtoMessage() {}
+
+func (x *GetTimelineIDsForLogsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTimelineIDsForLogsResponse.ProtoReflect.Descriptor instead.
+func (*GetTimelineIDsForLogsResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetTimelineIDsForLogsResponse) GetBindings() []*LogTimelineBinding {
+	if x != nil {
+		return x.Bindings
+	}
+	return nil
+}
+
 var File_api_v1_workbench_proto protoreflect.FileDescriptor
 
 const file_api_v1_workbench_proto_rawDesc = "" +
@@ -1854,11 +2009,19 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\x15CloseWorkbenchRequest\x12!\n" +
 	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\"0\n" +
 	"\x16CloseWorkbenchResponse\x12\x16\n" +
-	"\x06closed\x18\x01 \x01(\bR\x06closed*v\n" +
+	"\x06closed\x18\x01 \x01(\bR\x06closed\"Z\n" +
+	"\x1cGetTimelineIDsForLogsRequest\x12!\n" +
+	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\x12\x17\n" +
+	"\alog_ids\x18\x02 \x03(\rR\x06logIds\"N\n" +
+	"\x12LogTimelineBinding\x12\x15\n" +
+	"\x06log_id\x18\x01 \x01(\rR\x05logId\x12!\n" +
+	"\ftimeline_ids\x18\x02 \x03(\rR\vtimelineIds\"W\n" +
+	"\x1dGetTimelineIDsForLogsResponse\x126\n" +
+	"\bbindings\x18\x01 \x03(\v2\x1a.api.v1.LogTimelineBindingR\bbindings*v\n" +
 	"\x10FilterResultMode\x12\"\n" +
 	"\x1eFILTER_RESULT_MODE_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aFILTER_RESULT_MODE_INCLUDE\x10\x01\x12\x1e\n" +
-	"\x1aFILTER_RESULT_MODE_EXCLUDE\x10\x022\xe5\b\n" +
+	"\x1aFILTER_RESULT_MODE_EXCLUDE\x10\x022\xcb\t\n" +
 	"\x10WorkbenchService\x12N\n" +
 	"\rOpenWorkbench\x12\x1c.api.v1.OpenWorkbenchRequest\x1a\x1d.api.v1.OpenWorkbenchResponse0\x01\x12X\n" +
 	"\x11OpenWorkbenchSync\x12 .api.v1.OpenWorkbenchSyncRequest\x1a!.api.v1.OpenWorkbenchSyncResponse\x12j\n" +
@@ -1870,7 +2033,8 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\x0eFilterTimeline\x12\x1d.api.v1.FilterTimelineRequest\x1a\x1e.api.v1.FilterTimelineResponse0\x01\x12[\n" +
 	"\x12FilterTimelineSync\x12!.api.v1.FilterTimelineSyncRequest\x1a\".api.v1.FilterTimelineSyncResponse\x12m\n" +
 	"\x18CancelFilterTimelineSync\x12'.api.v1.CancelFilterTimelineSyncRequest\x1a(.api.v1.CancelFilterTimelineSyncResponse\x12a\n" +
-	"\x14GetArchitectureGraph\x12#.api.v1.GetArchitectureGraphRequest\x1a$.api.v1.GetArchitectureGraphResponse\x12O\n" +
+	"\x14GetArchitectureGraph\x12#.api.v1.GetArchitectureGraphRequest\x1a$.api.v1.GetArchitectureGraphResponse\x12d\n" +
+	"\x15GetTimelineIDsForLogs\x12$.api.v1.GetTimelineIDsForLogsRequest\x1a%.api.v1.GetTimelineIDsForLogsResponse\x12O\n" +
 	"\x0eCloseWorkbench\x12\x1d.api.v1.CloseWorkbenchRequest\x1a\x1e.api.v1.CloseWorkbenchResponseB?Z=github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1b\beditionsp\xe8\a"
 
 var (
@@ -1886,7 +2050,7 @@ func file_api_v1_workbench_proto_rawDescGZIP() []byte {
 }
 
 var file_api_v1_workbench_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_api_v1_workbench_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_api_v1_workbench_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_api_v1_workbench_proto_goTypes = []any{
 	(FilterResultMode)(0),                      // 0: api.v1.FilterResultMode
 	(OpenWorkbenchResponse_Stage)(0),           // 1: api.v1.OpenWorkbenchResponse.Stage
@@ -1916,55 +2080,61 @@ var file_api_v1_workbench_proto_goTypes = []any{
 	(*CancelFilterTimelineSyncResponse)(nil),   // 25: api.v1.CancelFilterTimelineSyncResponse
 	(*CloseWorkbenchRequest)(nil),              // 26: api.v1.CloseWorkbenchRequest
 	(*CloseWorkbenchResponse)(nil),             // 27: api.v1.CloseWorkbenchResponse
-	(*timestamppb.Timestamp)(nil),              // 28: google.protobuf.Timestamp
-	(*SparseBitset)(nil),                       // 29: api.v1.SparseBitset
-	(*GetArchitectureGraphRequest)(nil),        // 30: api.v1.GetArchitectureGraphRequest
-	(*GetArchitectureGraphResponse)(nil),       // 31: api.v1.GetArchitectureGraphResponse
+	(*GetTimelineIDsForLogsRequest)(nil),       // 28: api.v1.GetTimelineIDsForLogsRequest
+	(*LogTimelineBinding)(nil),                 // 29: api.v1.LogTimelineBinding
+	(*GetTimelineIDsForLogsResponse)(nil),      // 30: api.v1.GetTimelineIDsForLogsResponse
+	(*timestamppb.Timestamp)(nil),              // 31: google.protobuf.Timestamp
+	(*SparseBitset)(nil),                       // 32: api.v1.SparseBitset
+	(*GetArchitectureGraphRequest)(nil),        // 33: api.v1.GetArchitectureGraphRequest
+	(*GetArchitectureGraphResponse)(nil),       // 34: api.v1.GetArchitectureGraphResponse
 }
 var file_api_v1_workbench_proto_depIdxs = []int32{
 	1,  // 0: api.v1.OpenWorkbenchResponse.stage:type_name -> api.v1.OpenWorkbenchResponse.Stage
 	1,  // 1: api.v1.OpenWorkbenchSyncResponse.stage:type_name -> api.v1.OpenWorkbenchResponse.Stage
 	2,  // 2: api.v1.WatchIndexProgressResponse.state:type_name -> api.v1.WatchIndexProgressResponse.IndexState
 	2,  // 3: api.v1.PullIndexProgressResponse.state:type_name -> api.v1.WatchIndexProgressResponse.IndexState
-	28, // 4: api.v1.HeartbeatWorkbenchResponse.expires_at:type_name -> google.protobuf.Timestamp
+	31, // 4: api.v1.HeartbeatWorkbenchResponse.expires_at:type_name -> google.protobuf.Timestamp
 	15, // 5: api.v1.ReadStructYAMLsResponse.struct_yamls:type_name -> api.v1.StructYAML
 	0,  // 6: api.v1.FilterResult.timeline_mode:type_name -> api.v1.FilterResultMode
-	29, // 7: api.v1.FilterResult.timeline_bitset:type_name -> api.v1.SparseBitset
+	32, // 7: api.v1.FilterResult.timeline_bitset:type_name -> api.v1.SparseBitset
 	0,  // 8: api.v1.FilterResult.log_mode:type_name -> api.v1.FilterResultMode
-	29, // 9: api.v1.FilterResult.log_bitset:type_name -> api.v1.SparseBitset
+	32, // 9: api.v1.FilterResult.log_bitset:type_name -> api.v1.SparseBitset
 	19, // 10: api.v1.FilterTimelineResponse.progress:type_name -> api.v1.FilterProgress
 	20, // 11: api.v1.FilterTimelineResponse.result:type_name -> api.v1.FilterResult
 	19, // 12: api.v1.FilterTimelineSyncResponse.progress:type_name -> api.v1.FilterProgress
 	20, // 13: api.v1.FilterTimelineSyncResponse.result:type_name -> api.v1.FilterResult
-	3,  // 14: api.v1.WorkbenchService.OpenWorkbench:input_type -> api.v1.OpenWorkbenchRequest
-	5,  // 15: api.v1.WorkbenchService.OpenWorkbenchSync:input_type -> api.v1.OpenWorkbenchSyncRequest
-	7,  // 16: api.v1.WorkbenchService.CancelOpenWorkbenchSync:input_type -> api.v1.CancelOpenWorkbenchSyncRequest
-	9,  // 17: api.v1.WorkbenchService.WatchIndexProgress:input_type -> api.v1.WatchIndexProgressRequest
-	11, // 18: api.v1.WorkbenchService.PullIndexProgress:input_type -> api.v1.PullIndexProgressRequest
-	13, // 19: api.v1.WorkbenchService.HeartbeatWorkbench:input_type -> api.v1.HeartbeatWorkbenchRequest
-	16, // 20: api.v1.WorkbenchService.ReadStructYAMLs:input_type -> api.v1.ReadStructYAMLsRequest
-	18, // 21: api.v1.WorkbenchService.FilterTimeline:input_type -> api.v1.FilterTimelineRequest
-	22, // 22: api.v1.WorkbenchService.FilterTimelineSync:input_type -> api.v1.FilterTimelineSyncRequest
-	24, // 23: api.v1.WorkbenchService.CancelFilterTimelineSync:input_type -> api.v1.CancelFilterTimelineSyncRequest
-	30, // 24: api.v1.WorkbenchService.GetArchitectureGraph:input_type -> api.v1.GetArchitectureGraphRequest
-	26, // 25: api.v1.WorkbenchService.CloseWorkbench:input_type -> api.v1.CloseWorkbenchRequest
-	4,  // 26: api.v1.WorkbenchService.OpenWorkbench:output_type -> api.v1.OpenWorkbenchResponse
-	6,  // 27: api.v1.WorkbenchService.OpenWorkbenchSync:output_type -> api.v1.OpenWorkbenchSyncResponse
-	8,  // 28: api.v1.WorkbenchService.CancelOpenWorkbenchSync:output_type -> api.v1.CancelOpenWorkbenchSyncResponse
-	10, // 29: api.v1.WorkbenchService.WatchIndexProgress:output_type -> api.v1.WatchIndexProgressResponse
-	12, // 30: api.v1.WorkbenchService.PullIndexProgress:output_type -> api.v1.PullIndexProgressResponse
-	14, // 31: api.v1.WorkbenchService.HeartbeatWorkbench:output_type -> api.v1.HeartbeatWorkbenchResponse
-	17, // 32: api.v1.WorkbenchService.ReadStructYAMLs:output_type -> api.v1.ReadStructYAMLsResponse
-	21, // 33: api.v1.WorkbenchService.FilterTimeline:output_type -> api.v1.FilterTimelineResponse
-	23, // 34: api.v1.WorkbenchService.FilterTimelineSync:output_type -> api.v1.FilterTimelineSyncResponse
-	25, // 35: api.v1.WorkbenchService.CancelFilterTimelineSync:output_type -> api.v1.CancelFilterTimelineSyncResponse
-	31, // 36: api.v1.WorkbenchService.GetArchitectureGraph:output_type -> api.v1.GetArchitectureGraphResponse
-	27, // 37: api.v1.WorkbenchService.CloseWorkbench:output_type -> api.v1.CloseWorkbenchResponse
-	26, // [26:38] is the sub-list for method output_type
-	14, // [14:26] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	29, // 14: api.v1.GetTimelineIDsForLogsResponse.bindings:type_name -> api.v1.LogTimelineBinding
+	3,  // 15: api.v1.WorkbenchService.OpenWorkbench:input_type -> api.v1.OpenWorkbenchRequest
+	5,  // 16: api.v1.WorkbenchService.OpenWorkbenchSync:input_type -> api.v1.OpenWorkbenchSyncRequest
+	7,  // 17: api.v1.WorkbenchService.CancelOpenWorkbenchSync:input_type -> api.v1.CancelOpenWorkbenchSyncRequest
+	9,  // 18: api.v1.WorkbenchService.WatchIndexProgress:input_type -> api.v1.WatchIndexProgressRequest
+	11, // 19: api.v1.WorkbenchService.PullIndexProgress:input_type -> api.v1.PullIndexProgressRequest
+	13, // 20: api.v1.WorkbenchService.HeartbeatWorkbench:input_type -> api.v1.HeartbeatWorkbenchRequest
+	16, // 21: api.v1.WorkbenchService.ReadStructYAMLs:input_type -> api.v1.ReadStructYAMLsRequest
+	18, // 22: api.v1.WorkbenchService.FilterTimeline:input_type -> api.v1.FilterTimelineRequest
+	22, // 23: api.v1.WorkbenchService.FilterTimelineSync:input_type -> api.v1.FilterTimelineSyncRequest
+	24, // 24: api.v1.WorkbenchService.CancelFilterTimelineSync:input_type -> api.v1.CancelFilterTimelineSyncRequest
+	33, // 25: api.v1.WorkbenchService.GetArchitectureGraph:input_type -> api.v1.GetArchitectureGraphRequest
+	28, // 26: api.v1.WorkbenchService.GetTimelineIDsForLogs:input_type -> api.v1.GetTimelineIDsForLogsRequest
+	26, // 27: api.v1.WorkbenchService.CloseWorkbench:input_type -> api.v1.CloseWorkbenchRequest
+	4,  // 28: api.v1.WorkbenchService.OpenWorkbench:output_type -> api.v1.OpenWorkbenchResponse
+	6,  // 29: api.v1.WorkbenchService.OpenWorkbenchSync:output_type -> api.v1.OpenWorkbenchSyncResponse
+	8,  // 30: api.v1.WorkbenchService.CancelOpenWorkbenchSync:output_type -> api.v1.CancelOpenWorkbenchSyncResponse
+	10, // 31: api.v1.WorkbenchService.WatchIndexProgress:output_type -> api.v1.WatchIndexProgressResponse
+	12, // 32: api.v1.WorkbenchService.PullIndexProgress:output_type -> api.v1.PullIndexProgressResponse
+	14, // 33: api.v1.WorkbenchService.HeartbeatWorkbench:output_type -> api.v1.HeartbeatWorkbenchResponse
+	17, // 34: api.v1.WorkbenchService.ReadStructYAMLs:output_type -> api.v1.ReadStructYAMLsResponse
+	21, // 35: api.v1.WorkbenchService.FilterTimeline:output_type -> api.v1.FilterTimelineResponse
+	23, // 36: api.v1.WorkbenchService.FilterTimelineSync:output_type -> api.v1.FilterTimelineSyncResponse
+	25, // 37: api.v1.WorkbenchService.CancelFilterTimelineSync:output_type -> api.v1.CancelFilterTimelineSyncResponse
+	34, // 38: api.v1.WorkbenchService.GetArchitectureGraph:output_type -> api.v1.GetArchitectureGraphResponse
+	30, // 39: api.v1.WorkbenchService.GetTimelineIDsForLogs:output_type -> api.v1.GetTimelineIDsForLogsResponse
+	27, // 40: api.v1.WorkbenchService.CloseWorkbench:output_type -> api.v1.CloseWorkbenchResponse
+	28, // [28:41] is the sub-list for method output_type
+	15, // [15:28] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_workbench_proto_init() }
@@ -1984,7 +2154,7 @@ func file_api_v1_workbench_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_workbench_proto_rawDesc), len(file_api_v1_workbench_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   25,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

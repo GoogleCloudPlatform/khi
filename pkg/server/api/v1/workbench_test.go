@@ -840,3 +840,89 @@ func TestWorkbenchServiceServer_GetArchitectureGraph(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkbenchGetTimelineIDsForLogs(t *testing.T) {
+	testCases := []struct {
+		name        string
+		req         func(wbID string) *apiv1.GetTimelineIDsForLogsRequest
+		wantErrCode connect.Code
+	}{
+		{
+			name: "returns InvalidArgument when workbench_id is empty",
+			req: func(wbID string) *apiv1.GetTimelineIDsForLogsRequest {
+				return &apiv1.GetTimelineIDsForLogsRequest{
+					WorkbenchId: proto.String(""),
+					LogIds:      []uint32{1, 2},
+				}
+			},
+			wantErrCode: connect.CodeInvalidArgument,
+		},
+		{
+			name: "returns NotFound when workbench_id does not exist",
+			req: func(wbID string) *apiv1.GetTimelineIDsForLogsRequest {
+				return &apiv1.GetTimelineIDsForLogsRequest{
+					WorkbenchId: proto.String("non-existent-wb"),
+					LogIds:      []uint32{1, 2},
+				}
+			},
+			wantErrCode: connect.CodeNotFound,
+		},
+		{
+			name: "returns bindings for requested log IDs in valid workbench session",
+			req: func(wbID string) *apiv1.GetTimelineIDsForLogsRequest {
+				return &apiv1.GetTimelineIDsForLogsRequest{
+					WorkbenchId: proto.String(wbID),
+					LogIds:      []uint32{1, 2},
+				}
+			},
+			wantErrCode: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+			defer ts.Close()
+			defer manager.Stop()
+
+			openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
+				UserId:       proto.String("user-timeline-ids"),
+				SessionId:    proto.String("session-timeline-ids"),
+				InspectionId: proto.String(validInspID),
+			}))
+			if err != nil {
+				t.Fatalf("OpenWorkbench() error = %v", err)
+			}
+			var wbID string
+			for openStream.Receive() {
+				if openStream.Msg().GetWorkbenchId() != "" {
+					wbID = openStream.Msg().GetWorkbenchId()
+				}
+			}
+			if err := openStream.Err(); err != nil {
+				t.Fatalf("OpenWorkbench() stream error = %v", err)
+			}
+
+			req := tc.req(wbID)
+			resp, err := client.GetTimelineIDsForLogs(context.Background(), connect.NewRequest(req))
+			if tc.wantErrCode != 0 {
+				if err == nil {
+					t.Fatalf("expected error with code %v, got nil", tc.wantErrCode)
+				}
+				if connect.CodeOf(err) != tc.wantErrCode {
+					t.Errorf("error code = %v, want %v (err = %v)", connect.CodeOf(err), tc.wantErrCode, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("GetTimelineIDsForLogs() unexpected error = %v", err)
+			}
+			if resp.Msg == nil {
+				t.Fatalf("expected non-nil response message")
+			}
+			if len(resp.Msg.GetBindings()) != len(req.GetLogIds()) {
+				t.Errorf("got %d bindings, want %d", len(resp.Msg.GetBindings()), len(req.GetLogIds()))
+			}
+		})
+	}
+}

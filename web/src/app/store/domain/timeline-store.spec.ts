@@ -389,7 +389,7 @@ describe('TimelineStore', () => {
       expect(rootChildren.length).toBe(14);
     });
 
-    it('should correctly build and query reverse log indexes', () => {
+    it('should correctly check logs on timelines and handle large log IDs without RangeError', () => {
       internPool.addStrings([
         { id: 1, value: 'timeline-1' },
         { id: 2, value: 'timeline-2' },
@@ -451,27 +451,55 @@ describe('TimelineStore', () => {
 
       store.shrinkToFit();
 
-      // Query log 1 (appears in timeline 100 as revision 10 and timeline 200 as event 21)
-      expect(store.getTimelineIdsForLogId(1)).toEqual([100, 200]);
-      const timelinesForLog1 = store.getTimelinesForLogId(1);
-      expect(timelinesForLog1.length).toBe(2);
-      expect(timelinesForLog1[0].id).toBe(100);
-      expect(timelinesForLog1[1].id).toBe(200);
-
+      const t100 = store.getTimeline(100);
+      const t200 = store.getTimeline(200);
       const log1 = logStore.getLog(1);
-      expect(timelinesForLog1[0].lookupRevisionFromLog(log1)?.id).toBe(10);
-      expect(timelinesForLog1[1].lookupEventFromLog(log1)?.id).toBe(21);
-
-      // Query log 2 (appears only in timeline 200 as event 20)
-      expect(store.getTimelineIdsForLogId(2)).toEqual([200]);
-      const timelinesForLog2 = store.getTimelinesForLogId(2);
-      expect(timelinesForLog2.length).toBe(1);
       const log2 = logStore.getLog(2);
-      expect(timelinesForLog2[0].lookupEventFromLog(log2)?.id).toBe(20);
+      const log3 = logStore.getLog(3);
 
-      // Query log 3 (not in any timeline)
-      expect(store.getTimelineIdsForLogId(3)).toEqual([]);
-      expect(store.getTimelinesForLogId(3)).toEqual([]);
+      expect(t100.hasLog(log1)).toBe(true);
+      expect(t100.hasLog(log2)).toBe(false);
+      expect(t100.hasLog(log3)).toBe(false);
+
+      expect(t200.hasLog(log1)).toBe(true);
+      expect(t200.hasLog(log2)).toBe(true);
+      expect(t200.hasLog(log3)).toBe(false);
+
+      expect(t100.lookupRevisionFromLog(log1)?.id).toBe(10);
+      expect(t200.lookupEventFromLog(log1)?.id).toBe(21);
+      expect(t200.lookupEventFromLog(log2)?.id).toBe(20);
+    });
+
+    it('should shrinkToFit successfully even with log IDs exceeding 16M (Issue #954)', () => {
+      const largeLogId = 17_000_000;
+      const largeStore = TimelineStore.create(
+        internPool,
+        styleStore,
+        logStore,
+        1,
+        1,
+        0,
+      );
+      largeStore.addRevision({
+        id: 1,
+        logId: largeLogId,
+        changedTime: 100n,
+        principalStringId: 1,
+        verbTypeId: 1,
+        stateTypeId: 1,
+      });
+      largeStore.addTimeline({
+        id: 1,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [1],
+        eventIds: [],
+      });
+
+      expect(() => {
+        largeStore.shrinkToFit();
+      }).not.toThrow();
     });
   });
 });

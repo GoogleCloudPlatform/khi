@@ -25,26 +25,28 @@ import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { bisectLeft } from 'src/app/common/misc-util';
 
-interface TimelineItemWithStructId {
+interface TimelineItemCandidate {
   readonly timestamp: bigint;
   readonly structId: number;
+  readonly logId: number;
 }
 
 interface SurroundingCandidate {
   readonly logIndex: number;
+  readonly logId: number;
   readonly structIds: readonly number[];
 }
 
 /**
- * Service that orchestrates prefetching of Struct YAMLs in the background.
+ * Service that orchestrates background prefetching of Struct YAMLs and Log Timeline bindings.
  *
  * Listens to selection changes in {@link SelectionManager} and delegates batch
  * prefetch requests to {@link WorkbenchClientService}.
  */
 @Injectable({ providedIn: 'root' })
-export class StructYamlPrefetchService {
+export class WorkbenchPrefetchService {
   /**
-   * Maximum number of struct IDs to prefetch when a timeline is selected.
+   * Maximum number of struct IDs and log IDs to prefetch when a timeline is selected.
    */
   public static readonly PREFETCH_TIMELINE_LIMIT = 50;
 
@@ -116,37 +118,36 @@ export class StructYamlPrefetchService {
   }
 
   /**
-   * Prefetches the initial batch of struct IDs from a selected timeline in chronological order.
+   * Prefetches the initial batch of struct IDs and log IDs from a selected timeline in chronological order.
    *
-   * @param timeline The timeline to prefetch struct IDs for.
+   * @param timeline The timeline to prefetch items for.
    */
   public prefetchTimeline(timeline: ReadonlyDomainElement<Timeline>): void {
-    const items: TimelineItemWithStructId[] = [];
+    const items: TimelineItemCandidate[] = [];
 
     for (const revision of timeline.revisions) {
-      if (revision.structId > 0) {
-        items.push({
-          timestamp: revision.changedTime,
-          structId: revision.structId,
-        });
-      }
+      items.push({
+        timestamp: revision.changedTime,
+        structId: revision.structId,
+        logId: revision.logId,
+      });
       const log = revision.log;
       if (log && log.structId > 0) {
         items.push({
           timestamp: log.timestamp,
           structId: log.structId,
+          logId: revision.logId,
         });
       }
     }
 
     for (const event of timeline.events) {
       const log = event.log;
-      if (log && log.structId > 0) {
-        items.push({
-          timestamp: event.timestamp,
-          structId: log.structId,
-        });
-      }
+      items.push({
+        timestamp: event.timestamp,
+        structId: log && log.structId > 0 ? log.structId : 0,
+        logId: event.logId,
+      });
     }
 
     if (items.length === 0) {
@@ -157,25 +158,40 @@ export class StructYamlPrefetchService {
       a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0,
     );
 
-    const structIds: number[] = [];
-    const seen = new Set<number>();
+    const structIds = new Set<number>();
+    const logIds = new Set<number>();
+
     for (const item of items) {
-      if (!seen.has(item.structId)) {
-        seen.add(item.structId);
-        structIds.push(item.structId);
-        if (
-          structIds.length >= StructYamlPrefetchService.PREFETCH_TIMELINE_LIMIT
-        ) {
-          break;
-        }
+      if (
+        item.structId > 0 &&
+        structIds.size < WorkbenchPrefetchService.PREFETCH_TIMELINE_LIMIT
+      ) {
+        structIds.add(item.structId);
+      }
+      if (
+        item.logId > 0 &&
+        logIds.size < WorkbenchPrefetchService.PREFETCH_TIMELINE_LIMIT
+      ) {
+        logIds.add(item.logId);
+      }
+      if (
+        structIds.size >= WorkbenchPrefetchService.PREFETCH_TIMELINE_LIMIT &&
+        logIds.size >= WorkbenchPrefetchService.PREFETCH_TIMELINE_LIMIT
+      ) {
+        break;
       }
     }
 
-    this.workbenchClient.prefetchStructYAMLs(structIds);
+    if (structIds.size > 0) {
+      this.prefetchStructYAMLs(Array.from(structIds));
+    }
+    if (logIds.size > 0) {
+      this.prefetchTimelineIdsForLogs(Array.from(logIds));
+    }
   }
 
   /**
-   * Prefetches the struct IDs of revisions surrounding the selected revision on the same timeline.
+   * Prefetches the struct IDs and log IDs of revisions surrounding the selected revision on the same timeline.
    *
    * @param revision The currently selected revision.
    */
@@ -193,15 +209,19 @@ export class StructYamlPrefetchService {
 
     const [startIndex, endIndex] = this.getSurroundingRange(
       revision.index,
-      StructYamlPrefetchService.PREFETCH_SURROUNDING_REVISIONS_RADIUS,
+      WorkbenchPrefetchService.PREFETCH_SURROUNDING_REVISIONS_RADIUS,
       revisions.length,
     );
 
     const structIds = new Set<number>();
+    const logIds = new Set<number>();
     for (let i = startIndex; i < endIndex; i++) {
       const rev = revisions[i];
       if (rev.structId > 0) {
         structIds.add(rev.structId);
+      }
+      if (rev.logId > 0) {
+        logIds.add(rev.logId);
       }
       const log = rev.log;
       if (log && log.structId > 0) {
@@ -210,12 +230,15 @@ export class StructYamlPrefetchService {
     }
 
     if (structIds.size > 0) {
-      this.workbenchClient.prefetchStructYAMLs(Array.from(structIds));
+      this.prefetchStructYAMLs(Array.from(structIds));
+    }
+    if (logIds.size > 0) {
+      this.prefetchTimelineIdsForLogs(Array.from(logIds));
     }
   }
 
   /**
-   * Prefetches the struct IDs of logs surrounding the selected log.
+   * Prefetches the struct IDs and log IDs of logs surrounding the selected log.
    *
    * @param log The currently selected log.
    */
@@ -232,22 +255,27 @@ export class StructYamlPrefetchService {
       this.selectionManager.selectedTimelinesWithChildren();
     const targetLogIndex = log.logIndex;
     const structIds = new Set<number>();
+    const logIds = new Set<number>();
 
-    // Include the selected log's struct ID if available
+    // Include the selected log's struct ID and log ID
     if (log.structId > 0) {
       structIds.add(log.structId);
     }
+    if (log.id > 0) {
+      logIds.add(log.id);
+    }
 
-    const radius = StructYamlPrefetchService.PREFETCH_SURROUNDING_LOGS_RADIUS;
+    const radius = WorkbenchPrefetchService.PREFETCH_SURROUNDING_LOGS_RADIUS;
 
     if (selectedTimelines.length === 0) {
       // Pass 1: Timeline filter is OFF. Search directly within LogStore around targetLogIndex.
-      this.collectSurroundingLogStoreStructIds(
+      this.collectSurroundingLogStoreCandidates(
         logStore,
         targetLogIndex,
         filteredLogIds,
         radius,
         structIds,
+        logIds,
       );
     } else {
       // Pass 2: Timeline filter is ON.
@@ -280,6 +308,7 @@ export class StructYamlPrefetchService {
         (a, b) => b.logIndex - a.logIndex,
         radius,
         structIds,
+        logIds,
       );
 
       // Add nearest forward candidates (ascending logIndex order)
@@ -288,35 +317,44 @@ export class StructYamlPrefetchService {
         (a, b) => a.logIndex - b.logIndex,
         radius,
         structIds,
+        logIds,
       );
     }
 
     if (structIds.size > 0) {
-      this.workbenchClient.prefetchStructYAMLs(Array.from(structIds));
+      this.prefetchStructYAMLs(Array.from(structIds));
+    }
+    if (logIds.size > 0) {
+      this.prefetchTimelineIdsForLogs(Array.from(logIds));
     }
   }
 
   /**
-   * Scans logStore directly to collect surrounding struct IDs when timeline filter is inactive.
+   * Scans logStore directly to collect surrounding struct IDs and log IDs when timeline filter is inactive.
    *
    * @param logStore The domain log store.
    * @param targetLogIndex The chronological log index of the selected log.
    * @param filteredLogIds The bitset of filtered log IDs.
    * @param radius The maximum number of items to scan backwards and forwards.
    * @param structIds Output set of collected struct IDs.
+   * @param logIds Output set of collected log IDs.
    */
-  private collectSurroundingLogStoreStructIds(
+  private collectSurroundingLogStoreCandidates(
     logStore: LogStore,
     targetLogIndex: number,
     filteredLogIds: IdBitset,
     radius: number,
     structIds: Set<number>,
+    logIds: Set<number>,
   ): void {
     let backwardCount = 0;
     for (let i = targetLogIndex - 1; i >= 0 && backwardCount < radius; i--) {
       const id = logStore.getLogIdByIndex(i);
       if (filteredLogIds.has(id)) {
         backwardCount++;
+        if (id > 0) {
+          logIds.add(id);
+        }
         const structId = logStore.getBodyStructId(id);
         if (structId > 0) {
           structIds.add(structId);
@@ -333,6 +371,9 @@ export class StructYamlPrefetchService {
       const id = logStore.getLogIdByIndex(i);
       if (filteredLogIds.has(id)) {
         forwardCount++;
+        if (id > 0) {
+          logIds.add(id);
+        }
         const structId = logStore.getBodyStructId(id);
         if (structId > 0) {
           structIds.add(structId);
@@ -369,7 +410,7 @@ export class StructYamlPrefetchService {
       targetLogIndex,
       (item, target) => item.logIndex - target,
     );
-    const radius = StructYamlPrefetchService.PREFETCH_SURROUNDING_LOGS_RADIUS;
+    const radius = WorkbenchPrefetchService.PREFETCH_SURROUNDING_LOGS_RADIUS;
 
     // Backward items before targetLogIndex
     const startBackward = Math.max(0, idx - radius);
@@ -377,12 +418,11 @@ export class StructYamlPrefetchService {
       const item = items[i];
       if (filteredLogIds.has(item.logId)) {
         const candidateStructIds = getStructIds(item).filter((id) => id > 0);
-        if (candidateStructIds.length > 0) {
-          backwardCandidates.push({
-            logIndex: item.logIndex,
-            structIds: candidateStructIds,
-          });
-        }
+        backwardCandidates.push({
+          logIndex: item.logIndex,
+          logId: item.logId,
+          structIds: candidateStructIds,
+        });
       }
     }
 
@@ -392,36 +432,74 @@ export class StructYamlPrefetchService {
       const item = items[i];
       if (filteredLogIds.has(item.logId)) {
         const candidateStructIds = getStructIds(item).filter((id) => id > 0);
-        if (candidateStructIds.length > 0) {
-          forwardCandidates.push({
-            logIndex: item.logIndex,
-            structIds: candidateStructIds,
-          });
-        }
+        forwardCandidates.push({
+          logIndex: item.logIndex,
+          logId: item.logId,
+          structIds: candidateStructIds,
+        });
       }
     }
   }
 
   /**
-   * Sorts candidate items, selects up to the limit, and adds their struct IDs to the output set.
+   * Sorts candidate items, selects up to the limit, and adds their struct IDs and log IDs to the output sets.
    *
    * @param candidates The list of collected candidates.
    * @param compareFn Comparison function for ordering.
    * @param limit Maximum number of items to select.
    * @param structIds Output set of struct IDs.
+   * @param logIds Output set of log IDs.
    */
   private addTopCandidates(
     candidates: SurroundingCandidate[],
     compareFn: (a: SurroundingCandidate, b: SurroundingCandidate) => number,
     limit: number,
     structIds: Set<number>,
+    logIds: Set<number>,
   ): void {
     candidates.sort(compareFn);
     const top = candidates.slice(0, limit);
     for (const item of top) {
+      if (item.logId > 0) {
+        logIds.add(item.logId);
+      }
       for (const id of item.structIds) {
         structIds.add(id);
       }
     }
+  }
+
+  /**
+   * Prefetches the specified struct IDs in the background into the local LRU cache.
+   *
+   * @param structIds The interned struct IDs to prefetch.
+   */
+  public prefetchStructYAMLs(structIds: readonly number[]): void {
+    if (structIds.length === 0 || !this.workbenchClient.isWorkbenchActive()) {
+      return;
+    }
+    void this.workbenchClient.readStructYAMLs(structIds).catch((err) => {
+      console.debug(
+        '[WorkbenchPrefetch] Background struct YAML prefetch failed:',
+        err,
+      );
+    });
+  }
+
+  /**
+   * Prefetches the timeline IDs associated with the specified log IDs in the background into the local LRU cache.
+   *
+   * @param logIds The log IDs to prefetch.
+   */
+  public prefetchTimelineIdsForLogs(logIds: readonly number[]): void {
+    if (logIds.length === 0 || !this.workbenchClient.isWorkbenchActive()) {
+      return;
+    }
+    void this.workbenchClient.getTimelineIdsForLogs(logIds).catch((err) => {
+      console.debug(
+        '[WorkbenchPrefetch] Background timeline IDs prefetch failed:',
+        err,
+      );
+    });
   }
 }

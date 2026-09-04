@@ -332,6 +332,51 @@ func (s *WorkbenchServiceServer) ReadStructYAMLs(
 	return connect.NewResponse(res), nil
 }
 
+// GetTimelineIDsForLogs retrieves timeline IDs associated with specified log IDs.
+func (s *WorkbenchServiceServer) GetTimelineIDsForLogs(
+	ctx context.Context,
+	req *connect.Request[apiv1.GetTimelineIDsForLogsRequest],
+) (*connect.Response[apiv1.GetTimelineIDsForLogsResponse], error) {
+	msg := req.Msg
+	if msg.GetWorkbenchId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
+	}
+
+	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	if err != nil {
+		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	bindingsMap, err := wb.GetTimelineIDsForLogs(msg.GetLogIds())
+	if err != nil {
+		if errors.Is(err, workbench.ErrWorkbenchClosed) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get timeline IDs for logs: %w", err))
+	}
+
+	seen := make(map[uint32]bool)
+	bindings := make([]*apiv1.LogTimelineBinding, 0, len(msg.GetLogIds()))
+	for _, logID := range msg.GetLogIds() {
+		if seen[logID] {
+			continue
+		}
+		seen[logID] = true
+		timelineIDs := bindingsMap[logID]
+		bindings = append(bindings, &apiv1.LogTimelineBinding{
+			LogId:       proto.Uint32(logID),
+			TimelineIds: timelineIDs,
+		})
+	}
+
+	return connect.NewResponse(&apiv1.GetTimelineIDsForLogsResponse{
+		Bindings: bindings,
+	}), nil
+}
+
 // FilterTimeline executes a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
 func (s *WorkbenchServiceServer) FilterTimeline(
 	ctx context.Context,

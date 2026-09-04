@@ -192,6 +192,35 @@ func (w *Workbench) ReadStructYAMLs(structIDs []uint32) (map[uint32]string, erro
 	return result, nil
 }
 
+// GetTimelineIDsForLogs retrieves the timeline IDs associated with each requested log ID.
+// Missing or unreferenced log IDs return an empty slice.
+func (w *Workbench) GetTimelineIDsForLogs(logIDs []uint32) (map[uint32][]uint32, error) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	if w.closed {
+		return nil, ErrWorkbenchClosed
+	}
+
+	result := make(map[uint32][]uint32, len(logIDs))
+	for _, logID := range logIDs {
+		if logID == 0 {
+			continue
+		}
+		if _, exists := result[logID]; exists {
+			continue
+		}
+		tls := w.searchIndex.GetTimelineIDsForLog(logID)
+		if len(tls) > 0 {
+			result[logID] = tls
+		} else {
+			result[logID] = []uint32{}
+		}
+	}
+
+	return result, nil
+}
+
 // IndexStatus returns the current index construction status snapshot.
 func (w *Workbench) IndexStatus() (IndexState, float64, string, error) {
 	w.indexMu.RLock()

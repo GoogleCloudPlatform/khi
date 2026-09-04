@@ -380,27 +380,36 @@ export class TimelineSmartComponent {
       return { timeline: currentSelected, targetTimeNs };
     }
 
-    const timelineStore =
-      this.inspectionDataStore.inspectionData()?.timelineStore;
-    const logTimelines = timelineStore
-      ? timelineStore.getTimelinesForLogId(targetLog.id)
-      : [];
-
     if (currentSelected) {
-      const descendants = new Set(currentSelected.descendants());
-      const descendantMatch = logTimelines.find((t) => descendants.has(t));
-      if (descendantMatch) {
-        return { timeline: descendantMatch, targetTimeNs };
+      for (const descendant of currentSelected.descendants()) {
+        if (descendant.hasLog(targetLog)) {
+          return { timeline: descendant, targetTimeNs };
+        }
       }
     }
 
-    const filteredTimelineIds = this.inspectionDataStore
-      .timelineView()
-      ?.filteredTimelineIds();
-    const globalMatch = logTimelines.find(
-      (t) => !filteredTimelineIds || filteredTimelineIds.has(t.id),
-    );
-    return globalMatch ? { timeline: globalMatch, targetTimeNs } : null;
+    const timelineStore =
+      this.inspectionDataStore.inspectionData()?.timelineStore;
+    if (timelineStore) {
+      const filteredTimelineIds = this.inspectionDataStore
+        .timelineView()
+        ?.filteredTimelineIds();
+      if (filteredTimelineIds) {
+        for (const tId of filteredTimelineIds) {
+          const t = timelineStore.getTimeline(tId);
+          if (t.hasLog(targetLog)) {
+            return { timeline: t, targetTimeNs };
+          }
+        }
+      } else {
+        for (const t of timelineStore.timelines) {
+          if (t.hasLog(targetLog)) {
+            return { timeline: t, targetTimeNs };
+          }
+        }
+      }
+    }
+    return null;
   }
 
   /**
