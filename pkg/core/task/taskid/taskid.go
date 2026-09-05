@@ -36,6 +36,7 @@ import (
 // UntypedTaskReference defines the interface for task references without type information.
 // This allows the task system to handle references generically when exact types are not needed.
 type UntypedTaskReference interface {
+	PointToPointDescriptor
 	// String returns the string representation of the reference ID.
 	String() string
 	// ReferenceIDString returns the reference ID portion without any implementation hash.
@@ -73,12 +74,41 @@ type UntypedTaskImplementationID interface {
 type TaskImplementationID[TaskResult any] interface {
 	UntypedTaskImplementationID
 	// Ref returns the typed reference associated with this implementation ID.
-	Ref() TaskReference[TaskResult]
+	Ref(opts ...ReferenceOption) TaskReference[TaskResult]
 }
 
 // taskReferenceImpl implements the TaskReference interface for a specific result type.
 type taskReferenceImpl[TaskResult any] struct {
-	id string
+	id     string
+	config DependencyConfig
+}
+
+var _ TaskReference[any] = (*taskReferenceImpl[any])(nil)
+var _ PointToPointDescriptor = (*taskReferenceImpl[any])(nil)
+
+// DescriptorKind returns whether this dependency requires data or only order.
+func (t taskReferenceImpl[TaskResult]) DescriptorKind() EdgeKind {
+	return t.config.Kind
+}
+
+// DescriptorCondition returns whether this dependency is mandatory or optional.
+func (t taskReferenceImpl[TaskResult]) DescriptorCondition() EdgeCondition {
+	return t.config.Condition
+}
+
+// DescriptorCardinality returns whether this dependency is point-to-point or fan-in.
+func (t taskReferenceImpl[TaskResult]) DescriptorCardinality() EdgeCardinality {
+	return t.config.Cardinality
+}
+
+// DescriptorScope returns the effective dependency resolution scope.
+func (t taskReferenceImpl[TaskResult]) DescriptorScope() DependencyScope {
+	return t.config.ResolvedScope()
+}
+
+// ReferenceID returns the target task's reference ID without any implementation hash.
+func (t taskReferenceImpl[TaskResult]) ReferenceID() string {
+	return t.id
 }
 
 // String returns the string representation of the reference ID.
@@ -89,7 +119,8 @@ func (t taskReferenceImpl[TaskResult]) String() string {
 // GetZeroValue returns a zero value of the TaskResult type.
 // This is used to distinguish between TaskReference[A] and TaskReference[B] at the type level.
 func (t taskReferenceImpl[TaskResult]) GetZeroValue() TaskResult {
-	return *new(TaskResult)
+	var zero TaskResult
+	return zero
 }
 
 // taskImplementationIDImpl implements the TaskImplementationID interface for a specific result type.
@@ -98,6 +129,9 @@ type taskImplementationIDImpl[TaskResult any] struct {
 	implementationHash string
 }
 
+var _ TaskImplementationID[any] = (*taskImplementationIDImpl[any])(nil)
+var _ UntypedTaskImplementationID = (*taskImplementationIDImpl[any])(nil)
+
 // String returns the full string representation of the implementation ID in the format "referenceId#implementationHash".
 func (t taskImplementationIDImpl[TaskResult]) String() string {
 	return t.referenceId + "#" + t.implementationHash
@@ -105,8 +139,8 @@ func (t taskImplementationIDImpl[TaskResult]) String() string {
 
 // Ref returns a TaskReference associated with this implementation ID.
 // This allows accessing the reference from the implementation, enabling type-safe dependencies.
-func (t taskImplementationIDImpl[TaskResult]) Ref() TaskReference[TaskResult] {
-	return taskReferenceImpl[TaskResult]{id: t.referenceId}
+func (t taskImplementationIDImpl[TaskResult]) Ref(opts ...ReferenceOption) TaskReference[TaskResult] {
+	return NewTaskReference[TaskResult](t.referenceId, opts...)
 }
 
 // ReferenceIDString returns the reference ID portion of the task reference.
@@ -140,11 +174,15 @@ func (t taskImplementationIDImpl[TaskResult]) GetUntypedReference() UntypedTaskR
 // This function is used to create references to tasks that can be used in dependencies.
 // The ID cannot contain '#' as it would be confused with an implementation hash.
 // Typically used to define the interface of a task that other tasks can depend on.
-func NewTaskReference[TaskResult any](id string) TaskReference[TaskResult] {
+func NewTaskReference[TaskResult any](id string, opts ...ReferenceOption) TaskReference[TaskResult] {
 	if strings.Contains(id, "#") {
 		panic(fmt.Sprintf("reference id %s is invalid. It cannot contain '#' in reference ID\nThis is likely a bug in the KHI task implementation or an incorrect ID was provided in the taskid definition.\nPlease report a bug at https://github.com/GoogleCloudPlatform/khi/issues", id))
 	}
-	return taskReferenceImpl[TaskResult]{id: id}
+	cfg := NewDefaultPointToPointConfig()
+	for _, opt := range opts {
+		ApplyReferenceOption(&cfg, opt)
+	}
+	return taskReferenceImpl[TaskResult]{id: id, config: cfg}
 }
 
 // NewDefaultImplementationID creates a new TaskImplementationID with the "default" implementation hash.
@@ -168,14 +206,4 @@ func NewImplementationID[TaskResult any](baseReference TaskReference[TaskResult]
 		panic(fmt.Sprintf("implementation hash %s is invalid. It cannot contain '#' in NewImplementationID.\nThis is likely a bug in the KHI task implementation or an incorrect ID was provided in the taskid definition.\nPlease report a bug at https://github.com/GoogleCloudPlatform/khi/issues", implementationHash))
 	}
 	return taskImplementationIDImpl[TaskResult]{referenceId: baseReference.String(), implementationHash: implementationHash}
-}
-
-// ReinterpretTaskReference casts UntypedTaskReference to TaskReference[T]. Use this with caution.
-func ReinterpretTaskReference[T any](ref UntypedTaskReference) TaskReference[T] {
-	return ref.(TaskReference[T])
-}
-
-// ReinterpretTaskImplementationID casts UntypedImplementationID to TaskImplementationID[T]. Use this with caution.
-func ReinterpretTaskImplementationID[T any](id UntypedTaskImplementationID) TaskImplementationID[T] {
-	return id.(TaskImplementationID[T])
 }
