@@ -19,13 +19,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
@@ -139,7 +138,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 		assert        func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
-			name: "operation started revision is correctly created",
+			name: "attachNetworkEndpoints for Pod endpoint (GCE_VM_IP_PORT) start log",
 			inputLog: testlog.NewMockLog(
 				testTime,
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
@@ -154,14 +153,22 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			),
 			prevGroupData: nil,
 			wantGroupData: &perNEGHistoryModificationStatus{
-				LastNegAttachRequest: &negAttachOrDetachRequest{
-					NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
-						{
-							Instance:  "test-node",
-							IpAddress: "10.0.0.1",
-							Port:      "80",
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-1": {
+						Method: "attachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "test-node",
+									IpAddress: "10.0.0.1",
+									Port:      "80",
+								},
+							},
 						},
 					},
+				},
+				KnownEndpoints: map[string]bool{
+					"pod:10.0.0.1:80": true,
 				},
 			},
 			setupContext: func(ctx context.Context) context.Context {
@@ -171,7 +178,19 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Name:      "test-neg",
 					},
 				}
-				return tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ipLeases := resourcelease.NewResourceLeaseHistory[*commonlogk8saudit_contract.ResourceIdentity]()
+				ipLeases.TouchResourceLease("10.0.0.1", testTime, &commonlogk8saudit_contract.ResourceIdentity{
+					Kind:      "pod",
+					Namespace: "test-ns",
+					Name:      "test-pod",
+				})
+				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+					"test-neg": "test-bs",
+				}
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := googlecloudlognetworkapiaudit_contract.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints", "op-1")
@@ -183,10 +202,36 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: test-node\n  ipAddress: 10.0.0.1\n  port: \"80\"").Node,
 					}, nodeTransformer)
+
+				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
+				nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
+				podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
+				wantPodNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, podPath, "test-neg")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantPodNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttaching,
+					}, nodeTransformer)
+
+				bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
+				wantBSNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, "test-pod")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttaching,
+					}, nodeTransformer)
 			},
 		},
 		{
-			name: "operation finished revision is correctly created",
+			name: "attachNetworkEndpoints for Pod endpoint (GCE_VM_IP_PORT) finish log",
 			inputLog: testlog.NewMockLog(
 				testTime,
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
@@ -200,18 +245,23 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
 				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
-				LastNegAttachRequest: &negAttachOrDetachRequest{
-					NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
-						{
-							Instance:  "test-node",
-							IpAddress: "10.0.0.1",
-							Port:      "80",
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-1": {
+						Method: "attachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "test-node",
+									IpAddress: "10.0.0.1",
+									Port:      "80",
+								},
+							},
 						},
 					},
 				},
 			},
 			wantGroupData: &perNEGHistoryModificationStatus{
-				LastNegAttachRequest: nil,
+				PendingOperations: map[string]*pendingNEGOperation{},
 			},
 			setupContext: func(ctx context.Context) context.Context {
 				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
@@ -256,7 +306,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
 						VerbType:    commonlogk8saudit_contract.VerbReady,
-						StateType:   commonlogk8saudit_contract.RevisionStateConditionTrue,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttached,
 					}, nodeTransformer)
 
 				bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
@@ -267,8 +317,817 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
 						VerbType:    commonlogk8saudit_contract.VerbReady,
-						StateType:   commonlogk8saudit_contract.RevisionStateConditionTrue,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttached,
 					}, nodeTransformer)
+			},
+		},
+		{
+			name: "attachNetworkEndpoints for Node endpoint (GCE_VM_IP) start log",
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
+					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
+					OperationID:    "op-2",
+					OperationFirst: true,
+					OperationLast:  false,
+					PrincipalEmail: "test-user@google.com",
+					Request:        testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13"),
+				},
+			),
+			prevGroupData: nil,
+			wantGroupData: &perNEGHistoryModificationStatus{
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-2": {
+						Method: "attachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "zones/us-central1-a/instances/test-node",
+									IpAddress: "10.0.0.13",
+								},
+							},
+						},
+					},
+				},
+				KnownEndpoints: map[string]bool{
+					"node:test-node": true,
+				},
+			},
+			setupContext: func(ctx context.Context) context.Context {
+				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+					"test-neg": {
+						Namespace: "test-ns",
+						Name:      "test-neg",
+					},
+				}
+				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+					"test-neg": "test-bs",
+				}
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				return ctx
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantOpPath := googlecloudlognetworkapiaudit_contract.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints", "op-2")
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOpPath, &khifilev6.StagingRevision{
+						ChangedTime:  testTime,
+						Principal:    "test-user@google.com",
+						VerbType:     googlecloudcommon_contract.VerbOperationStart,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
+						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13").Node,
+					}, nodeTransformer)
+
+				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttaching,
+					}, nodeTransformer)
+
+				bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
+				wantBSNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, "test-node")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttaching,
+					}, nodeTransformer)
+			},
+		},
+		{
+			name: "attachNetworkEndpoints for Node endpoint (GCE_VM_IP) finish log",
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
+					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
+					OperationID:    "op-2",
+					OperationFirst: false,
+					OperationLast:  true,
+					PrincipalEmail: "test-user@google.com",
+				},
+			),
+			prevGroupData: &perNEGHistoryModificationStatus{
+				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-2": {
+						Method: "attachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "zones/us-central1-a/instances/test-node",
+									IpAddress: "10.0.0.13",
+								},
+							},
+						},
+					},
+				},
+			},
+			wantGroupData: &perNEGHistoryModificationStatus{
+				PendingOperations: map[string]*pendingNEGOperation{},
+			},
+			setupContext: func(ctx context.Context) context.Context {
+				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+					"test-neg": {
+						Namespace: "test-ns",
+						Name:      "test-neg",
+					},
+				}
+				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+					"test-neg": "test-bs",
+				}
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				return ctx
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantOpPath := googlecloudlognetworkapiaudit_contract.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints", "op-2")
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOpPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+					}, nodeTransformer)
+
+				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbReady,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttached,
+					}, nodeTransformer)
+
+				bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
+				wantBSNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, "test-node")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbReady,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttached,
+					}, nodeTransformer)
+			},
+		},
+		{
+			name: "detachNetworkEndpoints for Node endpoint (GCE_VM_IP) start log",
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
+					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
+					OperationID:    "op-3",
+					OperationFirst: true,
+					OperationLast:  false,
+					PrincipalEmail: "test-user@google.com",
+					Request:        testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13"),
+				},
+			),
+			prevGroupData: nil,
+			wantGroupData: &perNEGHistoryModificationStatus{
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-3": {
+						Method: "detachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "zones/us-central1-a/instances/test-node",
+									IpAddress: "10.0.0.13",
+								},
+							},
+						},
+					},
+				},
+				KnownEndpoints: map[string]bool{
+					"node:test-node": true,
+				},
+			},
+			setupContext: func(ctx context.Context) context.Context {
+				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+					"test-neg": {
+						Namespace: "test-ns",
+						Name:      "test-neg",
+					},
+				}
+				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+					"test-neg": "test-bs",
+				}
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				return ctx
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantOpPath := googlecloudlognetworkapiaudit_contract.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-3")
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOpPath, &khifilev6.StagingRevision{
+						ChangedTime:  testTime,
+						Principal:    "test-user@google.com",
+						VerbType:     googlecloudcommon_contract.VerbOperationStart,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
+						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13").Node,
+					}, nodeTransformer)
+
+				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: time.Unix(0, 0),
+						Principal:   "N/A",
+						VerbType:    commonlogk8saudit_contract.VerbUnknown,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointExistingLogNotFound,
+					}).
+					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbNonReady,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching,
+					}, nodeTransformer)
+
+				bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
+				wantBSNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, "test-node")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: time.Unix(0, 0),
+						Principal:   "N/A",
+						VerbType:    commonlogk8saudit_contract.VerbUnknown,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointExistingLogNotFound,
+					}).
+					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbNonReady,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching,
+					}, nodeTransformer)
+			},
+		},
+		{
+			name: "detachNetworkEndpoints for Node endpoint (GCE_VM_IP) finish log",
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
+					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
+					OperationID:    "op-3",
+					OperationFirst: false,
+					OperationLast:  true,
+					PrincipalEmail: "test-user@google.com",
+				},
+			),
+			prevGroupData: &perNEGHistoryModificationStatus{
+				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-3": {
+						Method: "detachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "zones/us-central1-a/instances/test-node",
+									IpAddress: "10.0.0.13",
+								},
+							},
+						},
+					},
+				},
+			},
+			wantGroupData: &perNEGHistoryModificationStatus{
+				PendingOperations: map[string]*pendingNEGOperation{},
+			},
+			setupContext: func(ctx context.Context) context.Context {
+				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+					"test-neg": {
+						Namespace: "test-ns",
+						Name:      "test-neg",
+					},
+				}
+				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+					"test-neg": "test-bs",
+				}
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				return ctx
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantOpPath := googlecloudlognetworkapiaudit_contract.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-3")
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOpPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+					}, nodeTransformer)
+
+				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached,
+					}, nodeTransformer)
+
+				bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
+				wantBSNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, "test-node")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached,
+					}, nodeTransformer)
+			},
+		},
+		{
+			name: "detachNetworkEndpoints for Pod endpoint (GCE_VM_IP_PORT) start log",
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
+					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
+					OperationID:    "op-4",
+					OperationFirst: true,
+					OperationLast:  false,
+					PrincipalEmail: "test-user@google.com",
+					Request:        testReaderFromYAML(t, "networkEndpoints:\n- instance: test-node\n  ipAddress: 10.0.0.1\n  port: \"80\""),
+				},
+			),
+			prevGroupData: nil,
+			wantGroupData: &perNEGHistoryModificationStatus{
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-4": {
+						Method: "detachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "test-node",
+									IpAddress: "10.0.0.1",
+									Port:      "80",
+								},
+							},
+						},
+					},
+				},
+				KnownEndpoints: map[string]bool{
+					"pod:10.0.0.1:80": true,
+				},
+			},
+			setupContext: func(ctx context.Context) context.Context {
+				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+					"test-neg": {
+						Namespace: "test-ns",
+						Name:      "test-neg",
+					},
+				}
+				ipLeases := resourcelease.NewResourceLeaseHistory[*commonlogk8saudit_contract.ResourceIdentity]()
+				ipLeases.TouchResourceLease("10.0.0.1", testTime, &commonlogk8saudit_contract.ResourceIdentity{
+					Kind:      "pod",
+					Namespace: "test-ns",
+					Name:      "test-pod",
+				})
+				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+					"test-neg": "test-bs",
+				}
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				return ctx
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantOpPath := googlecloudlognetworkapiaudit_contract.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-4")
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOpPath, &khifilev6.StagingRevision{
+						ChangedTime:  testTime,
+						Principal:    "test-user@google.com",
+						VerbType:     googlecloudcommon_contract.VerbOperationStart,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
+						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: test-node\n  ipAddress: 10.0.0.1\n  port: \"80\"").Node,
+					}, nodeTransformer)
+
+				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
+				nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
+				podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
+				wantPodNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, podPath, "test-neg")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantPodNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: time.Unix(0, 0),
+						Principal:   "N/A",
+						VerbType:    commonlogk8saudit_contract.VerbUnknown,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointExistingLogNotFound,
+					}).
+					HasRevision(wantPodNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbNonReady,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching,
+					}, nodeTransformer)
+
+				bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
+				wantBSNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, "test-pod")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: time.Unix(0, 0),
+						Principal:   "N/A",
+						VerbType:    commonlogk8saudit_contract.VerbUnknown,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointExistingLogNotFound,
+					}).
+					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbNonReady,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching,
+					}, nodeTransformer)
+			},
+		},
+		{
+			name: "detachNetworkEndpoints for Pod endpoint (GCE_VM_IP_PORT) finish log",
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
+					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
+					OperationID:    "op-4",
+					OperationFirst: false,
+					OperationLast:  true,
+					PrincipalEmail: "test-user@google.com",
+				},
+			),
+			prevGroupData: &perNEGHistoryModificationStatus{
+				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-4": {
+						Method: "detachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "test-node",
+									IpAddress: "10.0.0.1",
+									Port:      "80",
+								},
+							},
+						},
+					},
+				},
+			},
+			wantGroupData: &perNEGHistoryModificationStatus{
+				PendingOperations: map[string]*pendingNEGOperation{},
+			},
+			setupContext: func(ctx context.Context) context.Context {
+				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+					"test-neg": {
+						Namespace: "test-ns",
+						Name:      "test-neg",
+					},
+				}
+				ipLeases := resourcelease.NewResourceLeaseHistory[*commonlogk8saudit_contract.ResourceIdentity]()
+				ipLeases.TouchResourceLease("10.0.0.1", testTime, &commonlogk8saudit_contract.ResourceIdentity{
+					Kind:      "pod",
+					Namespace: "test-ns",
+					Name:      "test-pod",
+				})
+				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+					"test-neg": "test-bs",
+				}
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				return ctx
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantOpPath := googlecloudlognetworkapiaudit_contract.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-4")
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOpPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+					}, nodeTransformer)
+
+				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
+				nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
+				podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
+				wantPodNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, podPath, "test-neg")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantPodNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached,
+					}, nodeTransformer)
+
+				bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
+				wantBSNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, "test-pod")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached,
+					}, nodeTransformer)
+			},
+		},
+		{
+			name: "concurrent operations on same NEG are tracked independently",
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
+					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
+					OperationID:    "op-detach",
+					OperationFirst: false,
+					OperationLast:  true,
+					PrincipalEmail: "test-user@google.com",
+				},
+			),
+			prevGroupData: &perNEGHistoryModificationStatus{
+				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-attach": {
+						Method: "attachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "zones/us-central1-a/instances/test-node-1",
+									IpAddress: "10.0.0.1",
+								},
+							},
+						},
+					},
+					"op-detach": {
+						Method: "detachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "zones/us-central1-a/instances/test-node-2",
+									IpAddress: "10.0.0.2",
+								},
+							},
+						},
+					},
+				},
+			},
+			wantGroupData: &perNEGHistoryModificationStatus{
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-attach": {
+						Method: "attachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "zones/us-central1-a/instances/test-node-1",
+									IpAddress: "10.0.0.1",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupContext: func(ctx context.Context) context.Context {
+				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+					"test-neg": {
+						Namespace: "test-ns",
+						Name:      "test-neg",
+					},
+				}
+				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+					"test-neg": "test-bs",
+				}
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				return ctx
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node-2")
+				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached,
+					}, nodeTransformer)
+			},
+		},
+		{
+			name: "missing start log for detach only creates operation log not found and succeed revisions",
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
+					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
+					OperationID:    "op-missing",
+					OperationFirst: false,
+					OperationLast:  true,
+					PrincipalEmail: "test-user@google.com",
+				},
+			),
+			prevGroupData: nil,
+			wantGroupData: &perNEGHistoryModificationStatus{
+				PendingOperations: map[string]*pendingNEGOperation{},
+			},
+			setupContext: func(ctx context.Context) context.Context {
+				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+					"test-neg": {
+						Namespace: "test-ns",
+						Name:      "test-neg",
+					},
+				}
+				return tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantOpPath := googlecloudlognetworkapiaudit_contract.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-missing")
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOpPath, &khifilev6.StagingRevision{
+						ChangedTime: time.Unix(0, 0),
+						Principal:   "test-user@google.com",
+						VerbType:    googlecloudcommon_contract.VerbOperationStart,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationStartedLogNotFound,
+					}, nodeTransformer).
+					HasRevision(wantOpPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+					}, nodeTransformer)
+			},
+		},
+		{
+			name: "operation failure does not emit success revision on endpoint",
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
+					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
+					OperationID:    "op-fail",
+					OperationFirst: false,
+					OperationLast:  true,
+					PrincipalEmail: "test-user@google.com",
+					Status:         1,
+				},
+			),
+			prevGroupData: &perNEGHistoryModificationStatus{
+				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-fail": {
+						Method: "attachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "zones/us-central1-a/instances/test-node",
+									IpAddress: "10.0.0.13",
+								},
+							},
+						},
+					},
+				},
+			},
+			wantGroupData: &perNEGHistoryModificationStatus{
+				PendingOperations: map[string]*pendingNEGOperation{},
+			},
+			setupContext: func(ctx context.Context) context.Context {
+				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+					"test-neg": {
+						Namespace: "test-ns",
+						Name:      "test-neg",
+					},
+				}
+				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+					"test-neg": "test-bs",
+				}
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				return ctx
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantOpPath := googlecloudlognetworkapiaudit_contract.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints", "op-fail")
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOpPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationFailed,
+					}, nodeTransformer)
+
+				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
+
+				// Node NEG subresource should NOT have any revision added
+				testchangeset.AssertTimeline(t, cs).
+					HasNoRevision(wantNodeNEGPath)
+			},
+		},
+		{
+			name: "detachNetworkEndpoints when endpoint was already known does not emit ExistingLogNotFound",
+			inputLog: testlog.NewMockLog(
+				testTime,
+				googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
+					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
+					OperationID:    "op-detach-known",
+					OperationFirst: true,
+					OperationLast:  false,
+					PrincipalEmail: "test-user@google.com",
+					Request:        testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13"),
+				},
+			),
+			prevGroupData: &perNEGHistoryModificationStatus{
+				OperationTracker:  googlecloudcommon_contract.NewGCPOperationTracker(),
+				PendingOperations: map[string]*pendingNEGOperation{},
+				KnownEndpoints: map[string]bool{
+					"node:test-node": true,
+				},
+			},
+			wantGroupData: &perNEGHistoryModificationStatus{
+				PendingOperations: map[string]*pendingNEGOperation{
+					"op-detach-known": {
+						Method: "detachNetworkEndpoints",
+						Request: &negAttachOrDetachRequest{
+							NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
+								{
+									Instance:  "zones/us-central1-a/instances/test-node",
+									IpAddress: "10.0.0.13",
+								},
+							},
+						},
+					},
+				},
+				KnownEndpoints: map[string]bool{
+					"node:test-node": true,
+				},
+			},
+			setupContext: func(ctx context.Context) context.Context {
+				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+					"test-neg": {
+						Namespace: "test-ns",
+						Name:      "test-neg",
+					},
+				}
+				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+					"test-neg": "test-bs",
+				}
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				return ctx
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						Principal:   "test-user@google.com",
+						VerbType:    commonlogk8saudit_contract.VerbNonReady,
+						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching,
+					}, nodeTransformer)
+
+				if revisions := cs.Revisions[wantNodeNEGPath]; len(revisions) != 1 {
+					t.Errorf("expected exactly 1 revision on %v, got %d", wantNodeNEGPath, len(revisions))
+				}
 			},
 		},
 	}
@@ -305,26 +1164,13 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				tc.assert(t, ctx, cs)
 			}
 
-			// Wait, assert the returned group data.
 			if tc.wantGroupData != nil {
-				if tc.wantGroupData.LastNegAttachRequest == nil {
-					if gotGroupData.LastNegAttachRequest != nil {
-						t.Errorf("want LastNegAttachRequest to be nil, but got %v", gotGroupData.LastNegAttachRequest)
-					}
-				} else {
-					if gotGroupData.LastNegAttachRequest == nil {
-						t.Errorf("want LastNegAttachRequest to be %v, but got nil", tc.wantGroupData.LastNegAttachRequest)
-					} else {
-						// check network endpoints
-						if len(gotGroupData.LastNegAttachRequest.NetworkEndpoints) != len(tc.wantGroupData.LastNegAttachRequest.NetworkEndpoints) {
-							t.Fatalf("network endpoints length mismatch: want %d, got %d", len(tc.wantGroupData.LastNegAttachRequest.NetworkEndpoints), len(gotGroupData.LastNegAttachRequest.NetworkEndpoints))
-						}
-						for i, wantEndpoint := range tc.wantGroupData.LastNegAttachRequest.NetworkEndpoints {
-							gotEndpoint := gotGroupData.LastNegAttachRequest.NetworkEndpoints[i]
-							if gotEndpoint.Instance != wantEndpoint.Instance || gotEndpoint.IpAddress != wantEndpoint.IpAddress || gotEndpoint.Port != wantEndpoint.Port {
-								t.Errorf("endpoint mismatch: want %+v, got %+v", wantEndpoint, gotEndpoint)
-							}
-						}
+				if diff := cmp.Diff(tc.wantGroupData.PendingOperations, gotGroupData.PendingOperations); diff != "" {
+					t.Errorf("PendingOperations mismatch (-want +got):\n%s", diff)
+				}
+				if tc.wantGroupData.KnownEndpoints != nil {
+					if diff := cmp.Diff(tc.wantGroupData.KnownEndpoints, gotGroupData.KnownEndpoints); diff != "" {
+						t.Errorf("KnownEndpoints mismatch (-want +got):\n%s", diff)
 					}
 				}
 			}
