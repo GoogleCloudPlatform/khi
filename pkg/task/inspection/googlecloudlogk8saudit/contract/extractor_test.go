@@ -322,7 +322,7 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 			got.Request = nil
 			got.Response = nil
 
-			if diff := cmp.Diff(tc.want, got, cmpopts.SortSlices(func(a, b *commonlogk8saudit_contract.MutatingWebhookResult) bool {
+			if diff := cmp.Diff(tc.want, *got, cmpopts.SortSlices(func(a, b *commonlogk8saudit_contract.MutatingWebhookResult) bool {
 				if a.Round != b.Round {
 					return a.Round < b.Round
 				}

@@ -15,8 +15,11 @@
 package structured
 
 import (
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestNodeReader(t *testing.T) {
@@ -443,4 +446,196 @@ func TestNodeReader_WithLazyJSONNode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNodeReader_Cache(t *testing.T) {
+	type testCacheData struct {
+		name  string
+		value int
+	}
+
+	testKey := NewCacheKey[*testCacheData]()
+	otherKey := NewCacheKey[*testCacheData]()
+
+	testCases := []struct {
+		name      string
+		setup     func() *NodeReader
+		storeVal  *testCacheData
+		queryKey  CacheKey[*testCacheData]
+		wantVal   *testCacheData
+		wantFound bool
+	}{
+		{
+			name: "store and retrieve valid cached data",
+			setup: func() *NodeReader {
+				return NewNodeReader(NewEmptyMapNode())
+			},
+			storeVal:  &testCacheData{name: "foo", value: 42},
+			queryKey:  testKey,
+			wantVal:   &testCacheData{name: "foo", value: 42},
+			wantFound: true,
+		},
+		{
+			name: "uninitialized cache returns false",
+			setup: func() *NodeReader {
+				return NewNodeReader(NewEmptyMapNode())
+			},
+			storeVal:  nil,
+			queryKey:  testKey,
+			wantVal:   nil,
+			wantFound: false,
+		},
+		{
+			name: "nil reader returns false safely",
+			setup: func() *NodeReader {
+				return nil
+			},
+			storeVal:  nil,
+			queryKey:  testKey,
+			wantVal:   nil,
+			wantFound: false,
+		},
+		{
+			name: "different key returns false",
+			setup: func() *NodeReader {
+				return NewNodeReader(NewEmptyMapNode())
+			},
+			storeVal:  &testCacheData{name: "foo", value: 42},
+			queryKey:  otherKey,
+			wantVal:   nil,
+			wantFound: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			reader := tc.setup()
+			if tc.storeVal != nil && reader != nil {
+				SetCache(reader, testKey, tc.storeVal)
+			}
+
+			got, ok := GetCache(reader, tc.queryKey)
+			if ok != tc.wantFound {
+				t.Fatalf("GetCache() found = %v, want %v", ok, tc.wantFound)
+			}
+			if tc.wantFound {
+				if diff := cmp.Diff(tc.wantVal, got, cmp.AllowUnexported(testCacheData{})); diff != "" {
+					t.Errorf("GetCache() mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestNodeReader_MultipleCacheKeys(t *testing.T) {
+	type cacheA struct {
+		id   int
+		name string
+	}
+	type cacheB struct {
+		tags []string
+	}
+
+	keyA := NewCacheKey[*cacheA]()
+	keyB := NewCacheKey[*cacheB]()
+
+	testCases := []struct {
+		name       string
+		operations func(r *NodeReader)
+		verify     func(t *testing.T, r *NodeReader)
+	}{
+		{
+			name: "multiple distinct cache keys coexist simultaneously",
+			operations: func(r *NodeReader) {
+				SetCache(r, keyA, &cacheA{id: 1, name: "item-1"})
+				SetCache(r, keyB, &cacheB{tags: []string{"tag-1", "tag-2"}})
+			},
+			verify: func(t *testing.T, r *NodeReader) {
+				gotA, okA := GetCache(r, keyA)
+				if !okA {
+					t.Fatalf("GetCache(keyA) expected ok=true")
+				}
+				wantA := &cacheA{id: 1, name: "item-1"}
+				if diff := cmp.Diff(wantA, gotA, cmp.AllowUnexported(cacheA{})); diff != "" {
+					t.Errorf("cacheA mismatch (-want +got):\n%s", diff)
+				}
+
+				gotB, okB := GetCache(r, keyB)
+				if !okB {
+					t.Fatalf("GetCache(keyB) expected ok=true")
+				}
+				wantB := &cacheB{tags: []string{"tag-1", "tag-2"}}
+				if diff := cmp.Diff(wantB, gotB, cmp.AllowUnexported(cacheB{})); diff != "" {
+					t.Errorf("cacheB mismatch (-want +got):\n%s", diff)
+				}
+			},
+		},
+		{
+			name: "overwriting one key does not affect other keys",
+			operations: func(r *NodeReader) {
+				SetCache(r, keyA, &cacheA{id: 1, name: "item-1"})
+				SetCache(r, keyB, &cacheB{tags: []string{"initial"}})
+				// Overwrite keyA
+				SetCache(r, keyA, &cacheA{id: 2, name: "item-updated"})
+			},
+			verify: func(t *testing.T, r *NodeReader) {
+				gotA, okA := GetCache(r, keyA)
+				if !okA {
+					t.Fatalf("GetCache(keyA) expected ok=true")
+				}
+				wantA := &cacheA{id: 2, name: "item-updated"}
+				if diff := cmp.Diff(wantA, gotA, cmp.AllowUnexported(cacheA{})); diff != "" {
+					t.Errorf("cacheA mismatch (-want +got):\n%s", diff)
+				}
+
+				gotB, okB := GetCache(r, keyB)
+				if !okB {
+					t.Fatalf("GetCache(keyB) expected ok=true")
+				}
+				wantB := &cacheB{tags: []string{"initial"}}
+				if diff := cmp.Diff(wantB, gotB, cmp.AllowUnexported(cacheB{})); diff != "" {
+					t.Errorf("cacheB mismatch (-want +got):\n%s", diff)
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := NewNodeReader(NewEmptyMapNode())
+			tc.operations(r)
+			tc.verify(t, r)
+		})
+	}
+}
+
+func TestNodeReader_CacheConcurrency(t *testing.T) {
+	type concurrentVal struct {
+		idx int
+	}
+	keys := make([]CacheKey[*concurrentVal], 10)
+	for i := range keys {
+		keys[i] = NewCacheKey[*concurrentVal]()
+	}
+
+	r := NewNodeReader(NewEmptyMapNode())
+	var wg sync.WaitGroup
+	const goroutines = 20
+	const iterations = 100
+
+	for g := 0; g < goroutines; g++ {
+		wg.Add(1)
+		go func(gID int) {
+			defer wg.Done()
+			for it := 0; it < iterations; it++ {
+				key := keys[(gID+it)%len(keys)]
+				SetCache(r, key, &concurrentVal{idx: gID*iterations + it})
+				val, ok := GetCache(r, key)
+				if ok && val == nil {
+					t.Errorf("GetCache returned ok=true with nil value")
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
 }

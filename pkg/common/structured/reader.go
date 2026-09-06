@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
@@ -32,22 +33,99 @@ var ErrFieldNotFound = errors.New("field not found")
 // NodeReaderChildrenIterator is a type that represents an iterator function for navigating
 type NodeReaderChildrenIterator = func(func(key NodeChildrenKey, value NodeReader) bool)
 
+var nextCacheKeyID atomic.Uint32
+
+// CacheKey is a type-safe token identifying a cached extraction result of type T associated with a NodeReader.
+type CacheKey[T any] struct {
+	id uint32
+}
+
+// NewCacheKey allocates a globally unique type-safe cache key for values of type T.
+func NewCacheKey[T any]() CacheKey[T] {
+	return CacheKey[T]{
+		id: nextCacheKeyID.Add(1),
+	}
+}
+
+type readerCacheEntry struct {
+	keyID uint32
+	val   any
+}
+
+type readerCache struct {
+	entries atomic.Pointer[[]readerCacheEntry]
+}
+
 // NodeReader provides a convenient way to read values from a node structure.
 // It offers type-safe accessor methods and path navigation capabilities.
 type NodeReader struct {
 	Node
+	cache *readerCache
 }
 
 // NewNodeReader creates a new NodeReader instance from a given Node.
 func NewNodeReader(node Node) *NodeReader {
-	return &NodeReader{node}
+	return &NodeReader{
+		Node:  node,
+		cache: &readerCache{},
+	}
+}
+
+// SetCache stores a cached value of type T for the given key into the reader in a thread-safe, lock-free manner.
+// If a concurrent write conflicts, the cache update is skipped and the value will be re-parsed on subsequent lookups.
+func SetCache[T any](reader *NodeReader, key CacheKey[T], val T) {
+	if reader == nil || reader.cache == nil {
+		return
+	}
+	oldEntries := reader.cache.entries.Load()
+	var newEntries []readerCacheEntry
+	if oldEntries == nil {
+		newEntries = []readerCacheEntry{{keyID: key.id, val: val}}
+	} else {
+		found := false
+		newEntries = make([]readerCacheEntry, len(*oldEntries))
+		copy(newEntries, *oldEntries)
+		for i, entry := range newEntries {
+			if entry.keyID == key.id {
+				newEntries[i].val = val
+				found = true
+				break
+			}
+		}
+		if !found {
+			newEntries = append(newEntries, readerCacheEntry{keyID: key.id, val: val})
+		}
+	}
+	reader.cache.entries.CompareAndSwap(oldEntries, &newEntries)
+}
+
+// GetCache retrieves a cached value of type T for the given key from the reader in a thread-safe manner.
+// Returns the zero value and false if no cached value for the key exists or reader is nil.
+func GetCache[T any](reader *NodeReader, key CacheKey[T]) (T, bool) {
+	var zero T
+	if reader == nil || reader.cache == nil {
+		return zero, false
+	}
+	entriesPtr := reader.cache.entries.Load()
+	if entriesPtr == nil {
+		return zero, false
+	}
+	for _, entry := range *entriesPtr {
+		if entry.keyID == key.id {
+			if typed, ok := entry.val.(T); ok {
+				return typed, true
+			}
+			return zero, false
+		}
+	}
+	return zero, false
 }
 
 // Children returns an iterator for navigating through readers of the children of this node.
 func (n *NodeReader) Children() NodeReaderChildrenIterator {
 	return func(callback func(key NodeChildrenKey, value NodeReader) bool) {
 		for key, value := range n.Node.Children() {
-			if !callback(key, NodeReader{value}) {
+			if !callback(key, NodeReader{Node: value}) {
 				return
 			}
 		}
@@ -57,7 +135,8 @@ func (n *NodeReader) Children() NodeReaderChildrenIterator {
 // WithKeyOrder returns a new NodeReader wrapping the node with the specified key order.
 func (n *NodeReader) WithKeyOrder(priorityKeys ...string) *NodeReader {
 	return &NodeReader{
-		Node: WithKeyOrder(n.Node, priorityKeys...),
+		Node:  WithKeyOrder(n.Node, priorityKeys...),
+		cache: n.cache,
 	}
 }
 
@@ -95,7 +174,7 @@ func (n *NodeReader) GetReader(path FieldPath) (*NodeReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &NodeReader{node}, nil
+	return NewNodeReader(node), nil
 }
 
 // Serialize serializes the structured data at the given pre-compiled FieldPath with the given NodeSerializer.

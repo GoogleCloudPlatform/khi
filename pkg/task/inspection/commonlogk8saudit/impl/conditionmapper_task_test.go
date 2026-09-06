@@ -43,7 +43,7 @@ func TestConditionWalker(t *testing.T) {
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	baseTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	k8sFieldSet := commonlogk8saudit_contract.K8sAuditLogFieldSet{
+	k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
 		Verb:      commonlogk8saudit_contract.VerbUpdate,
 		Principal: "user-1",
 	}

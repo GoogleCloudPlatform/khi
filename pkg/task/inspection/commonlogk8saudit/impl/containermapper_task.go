@@ -231,7 +231,7 @@ type containerStateWalker struct {
 }
 
 // CheckAndRecord compares the current container state with the previous state and records a revision if there is a significant change.
-func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *structured.NodeReader, cs *khifilev6.TimelineChangeSet, changedTime time.Time, k8sAuditLog commonlogk8saudit_contract.K8sAuditLogFieldSet) {
+func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *structured.NodeReader, cs *khifilev6.TimelineChangeSet, changedTime time.Time, k8sAuditLog *commonlogk8saudit_contract.K8sAuditLogFieldSet) {
 	containerPath := MustResolveContainerTimelinePath(ctx, k8sAuditLog.ClusterName, w.podNamespace, w.podName, w.containerIdentity.containerName)
 	if stateReader == nil {
 		if w.lastState != "no state" {

@@ -67,7 +67,7 @@ func ExtractOSSK8sIsEventAuditLog(reader *structured.NodeReader) (bool, error) {
 
 // ExtractOSSK8sIsNonEventAuditLog extracts whether the log is an OSS K8s audit log for a non-event resource.
 func ExtractOSSK8sIsNonEventAuditLog(reader *structured.NodeReader) (bool, error) {
-	if _, ok := structured.GetMock[commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
+	if _, ok := structured.GetMock[*commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
 		return true, nil
 	}
 	if reader == nil {
@@ -85,10 +85,16 @@ func ExtractOSSK8sIsNonEventAuditLog(reader *structured.NodeReader) (bool, error
 
 // ExtractOSSK8sAuditLogError extracts whether an OSS audit log is an error.
 func ExtractOSSK8sAuditLogError(reader *structured.NodeReader) (bool, error) {
-	if mock, ok := structured.GetMock[commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
+	if reader == nil {
+		return false, nil
+	}
+	if mock, ok := structured.GetMock[*commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
 		return mock.IsError, nil
 	}
-	if reader == nil || (!reader.Has(pathAuditID) && !reader.Has(pathObjectRef)) {
+	if cached, ok := structured.GetCache(reader, commonlogk8saudit_contract.K8sAuditLogCacheKey); ok {
+		return cached.IsError, nil
+	}
+	if !reader.Has(pathAuditID) && !reader.Has(pathObjectRef) {
 		return false, nil
 	}
 	statusCode := reader.ReadIntOrDefault(pathResponseStatusCode, 0)
@@ -96,15 +102,21 @@ func ExtractOSSK8sAuditLogError(reader *structured.NodeReader) (bool, error) {
 }
 
 // ExtractOSSK8sAuditLog extracts commonlogk8saudit_contract.K8sAuditLogFieldSet from OSS audit log entries.
-func ExtractOSSK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
-	if mock, ok := structured.GetMock[commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
+func ExtractOSSK8sAuditLog(reader *structured.NodeReader) (*commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
+	if reader == nil {
+		return &commonlogk8saudit_contract.K8sAuditLogFieldSet{}, nil
+	}
+	if cached, ok := structured.GetCache(reader, commonlogk8saudit_contract.K8sAuditLogCacheKey); ok {
+		return cached, nil
+	}
+	if mock, ok := structured.GetMock[*commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
 		return mock, nil
 	}
-	if reader == nil || (!reader.Has(pathAuditID) && !reader.Has(pathObjectRef)) {
-		return commonlogk8saudit_contract.K8sAuditLogFieldSet{}, nil
+	if !reader.Has(pathAuditID) && !reader.Has(pathObjectRef) {
+		return &commonlogk8saudit_contract.K8sAuditLogFieldSet{}, nil
 	}
 
-	var result commonlogk8saudit_contract.K8sAuditLogFieldSet
+	result := &commonlogk8saudit_contract.K8sAuditLogFieldSet{}
 	result.OperationID = reader.ReadStringOrDefault(pathAuditID, "")
 	// Currently this won't support the long running operation. TODO: support long running operation
 	result.IsFirst = true
@@ -141,6 +153,8 @@ func ExtractOSSK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_con
 	result.IsError = result.StatusCode < 200 || result.StatusCode >= 300
 	result.Request, _ = reader.GetReader(pathRequestObject)
 	result.Response, _ = reader.GetReader(pathResponseObject)
+
+	structured.SetCache(reader, commonlogk8saudit_contract.K8sAuditLogCacheKey, result)
 	return result, nil
 }
 

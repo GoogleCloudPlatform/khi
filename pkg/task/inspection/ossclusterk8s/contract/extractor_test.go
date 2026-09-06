@@ -183,7 +183,7 @@ objectRef:
 				protocmp.Transform(),
 			}
 
-			if diff := cmp.Diff(tc.want, got, opts...); diff != "" {
+			if diff := cmp.Diff(tc.want, *got, opts...); diff != "" {
 				t.Errorf("ExtractOSSK8sAuditLog() mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -205,7 +205,7 @@ objectRef:
 			cmpopts.IgnoreFields(commonlogk8saudit_contract.K8sAuditLogFieldSet{}, "Request", "Response"),
 			protocmp.Transform(),
 		}
-		if diff := cmp.Diff(want, got, opts...); diff != "" {
+		if diff := cmp.Diff(want, *got, opts...); diff != "" {
 			t.Errorf("ExtractOSSK8sAuditLog() mismatch (-want +got):\n%s", diff)
 		}
 	})
@@ -494,7 +494,7 @@ responseObject:
 	}
 
 	t.Run("from mock", func(t *testing.T) {
-		reader := structured.NewNodeReader(structured.NewMockNode(commonlogk8saudit_contract.K8sAuditLogFieldSet{}))
+		reader := structured.NewNodeReader(structured.NewMockNode(&commonlogk8saudit_contract.K8sAuditLogFieldSet{}))
 		got, err := ExtractOSSK8sIsNonEventAuditLog(reader)
 		if err != nil {
 			t.Fatalf("ExtractOSSK8sIsNonEventAuditLog() unexpected error: %v", err)

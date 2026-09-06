@@ -91,16 +91,17 @@ func (m *MockNode) Get(targetType reflect.Type) (any, bool) {
 
 // GetMock retrieves a mocked value of type T from the NodeReader if it wraps a MockNode.
 func GetMock[T any](reader *NodeReader) (T, bool) {
+	var zero T
 	if reader == nil || reader.Node == nil {
-		return *new(T), false
+		return zero, false
 	}
 	mockNode, ok := reader.Node.(*MockNode)
 	if !ok {
-		return *new(T), false
+		return zero, false
 	}
 	val, found := mockNode.Get(reflect.TypeFor[T]())
 	if !found {
-		return *new(T), false
+		return zero, false
 	}
 	typedVal, ok := val.(T)
 	return typedVal, ok

@@ -360,7 +360,7 @@ state:
 			cs := khifilev6.NewTimelineChangeSet(l)
 
 			for _, step := range tt.steps {
-				k8sFieldSet := commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					Verb:        step.verb,
 					Principal:   "user-1",
 					ClusterName: "k8s",

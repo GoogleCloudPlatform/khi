@@ -360,7 +360,7 @@ func (c *conditionWalker) checkLastTransitionTimes(condition *model.K8sResourceS
 
 // CheckAndRecord compares the current condition with the previous state and records a revision if there is a significant change.
 // It tracks changes in Status, LastTransitionTime, and LastHeartbeatTime (ProbeLikeTime).
-func (c *conditionWalker) CheckAndRecord(ctx context.Context, changedTime time.Time, k8sAuditLog commonlogk8saudit_contract.K8sAuditLogFieldSet, condition *model.K8sResourceStatusCondition, cs *khifilev6.TimelineChangeSet) {
+func (c *conditionWalker) CheckAndRecord(ctx context.Context, changedTime time.Time, k8sAuditLog *commonlogk8saudit_contract.K8sAuditLogFieldSet, condition *model.K8sResourceStatusCondition, cs *khifilev6.TimelineChangeSet) {
 	if condition == nil {
 		refCond := c.getLastCondition(changedTime)
 		if refCond != nil && refCond.Status != "" {
