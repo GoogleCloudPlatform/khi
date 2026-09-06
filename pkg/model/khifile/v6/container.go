@@ -84,6 +84,24 @@ func (w *Writer) Close() error {
 	return nil
 }
 
+var (
+	gzipWriterPool = sync.Pool{
+		New: func() any {
+			return gzip.NewWriter(io.Discard)
+		},
+	}
+	gzipReaderPool = sync.Pool{
+		New: func() any {
+			return new(gzip.Reader)
+		},
+	}
+	gzipBufferPool = sync.Pool{
+		New: func() any {
+			return new(bytes.Buffer)
+		},
+	}
+)
+
 // CompressChunk serializes and gzip-compresses the given protobuf message into a RawChunk.
 func CompressChunk(chunkType ChunkType, message proto.Message) (*RawChunk, error) {
 	b, err := proto.Marshal(message)
@@ -91,8 +109,18 @@ func CompressChunk(chunkType ChunkType, message proto.Message) (*RawChunk, error
 		return nil, fmt.Errorf("failed to marshal proto message: %w", err)
 	}
 
-	var buf bytes.Buffer
-	gw := gzip.NewWriter(&buf)
+	buf := gzipBufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer func() {
+		if buf.Cap() <= 32*1024*1024 {
+			gzipBufferPool.Put(buf)
+		}
+	}()
+
+	gw := gzipWriterPool.Get().(*gzip.Writer)
+	gw.Reset(buf)
+	defer gzipWriterPool.Put(gw)
+
 	if _, err := gw.Write(b); err != nil {
 		return nil, fmt.Errorf("failed to compress payload: %w", err)
 	}
@@ -100,15 +128,14 @@ func CompressChunk(chunkType ChunkType, message proto.Message) (*RawChunk, error
 		return nil, fmt.Errorf("failed to close gzip writer: %w", err)
 	}
 
-	payload := buf.Bytes()
 	const maxChunkSize = 64 * 1024 * 1024 // 64MB hard limit based on Protobuf constraints
-	if len(payload) > maxChunkSize {
-		return nil, fmt.Errorf("payload size %d exceeds maximum allowed chunk size (64MB)", len(payload))
+	if buf.Len() > maxChunkSize {
+		return nil, fmt.Errorf("payload size %d exceeds maximum allowed chunk size (64MB)", buf.Len())
 	}
 
 	return &RawChunk{
 		Type: chunkType,
-		Data: payload,
+		Data: bytes.Clone(buf.Bytes()),
 	}, nil
 }
 
@@ -165,19 +192,6 @@ type RawChunk struct {
 	Type ChunkType
 	Data []byte // Compressed gzip data
 }
-
-var (
-	gzipReaderPool = sync.Pool{
-		New: func() any {
-			return new(gzip.Reader)
-		},
-	}
-	gzipBufferPool = sync.Pool{
-		New: func() any {
-			return new(bytes.Buffer)
-		},
-	}
-)
 
 // DecompressWith decompresses the gzip payload using pooled resources and passes the uncompressed byte slice
 // to the callback. The buffer is recycled once the callback returns.

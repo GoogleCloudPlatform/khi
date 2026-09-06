@@ -86,143 +86,210 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (commonlogk8saudit_con
 	result.IsError = result.StatusCode != 0
 	result.Request, _ = reader.GetReader(pathProtoRequest)
 	result.Response, _ = reader.GetReader(pathProtoResponse)
-
-	type roundIndex struct{ round, index int }
-	webhookResults := make(map[roundIndex]*commonlogk8saudit_contract.MutatingWebhookResult)
-
-	getOrCreateResult := func(round, index int) *commonlogk8saudit_contract.MutatingWebhookResult {
-		ri := roundIndex{round, index}
-		if res, ok := webhookResults[ri]; ok {
-			return res
-		}
-		res := &commonlogk8saudit_contract.MutatingWebhookResult{
-			Round: round,
-			Index: index,
-		}
-		webhookResults[ri] = res
-		return res
-	}
-
 	labelsReader, _ := reader.GetReader(pathLabels)
-	if labelsReader != nil {
-		labelsReader.Children()(func(key structured.NodeChildrenKey, value structured.NodeReader) bool {
-			keyStr := key.Key
-			var prefix string
-			switch {
-			case strings.HasPrefix(keyStr, commonlogk8saudit_contract.MutatingWebhookMutationPrefix+"round_"):
-				prefix = commonlogk8saudit_contract.MutatingWebhookMutationPrefix
-			case strings.HasPrefix(keyStr, commonlogk8saudit_contract.MutatingWebhookPatchPrefix+"round_"):
-				prefix = commonlogk8saudit_contract.MutatingWebhookPatchPrefix
-			case strings.HasPrefix(keyStr, commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix+"round_"):
-				prefix = commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix
-			}
-
-			if prefix != "" {
-				suffix := strings.TrimPrefix(keyStr, prefix+"round_")
-				parts := strings.Split(suffix, "_index_")
-				if len(parts) == 2 {
-					round, err1 := strconv.Atoi(parts[0])
-					index, err2 := strconv.Atoi(parts[1])
-					if err1 == nil && err2 == nil {
-						res := getOrCreateResult(round, index)
-						valStr, err := value.ReadString(structured.EmptyFieldPath)
-						if err == nil {
-							switch prefix {
-							case commonlogk8saudit_contract.MutatingWebhookMutationPrefix:
-								var mutationInfo commonlogk8saudit_contract.MutatingWebhookMutationInfo
-								if json.Unmarshal([]byte(valStr), &mutationInfo) == nil {
-									res.Configuration = mutationInfo.Configuration
-									res.Webhook = mutationInfo.Webhook
-									res.Mutated = mutationInfo.Mutated
-								}
-							case commonlogk8saudit_contract.MutatingWebhookPatchPrefix:
-								var patchInfo commonlogk8saudit_contract.MutatingWebhookPatchInfo
-								if json.Unmarshal([]byte(valStr), &patchInfo) == nil {
-									res.Patch = patchInfo.Patch
-									if res.Configuration == "" {
-										res.Configuration = patchInfo.Configuration
-									}
-									if res.Webhook == "" {
-										res.Webhook = patchInfo.Webhook
-									}
-								}
-							case commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix:
-								res.FailedOpen = true
-								if res.Webhook == "" {
-									res.Webhook = valStr
-								}
-							}
-						}
-					}
-				}
-			}
-			return true
-		})
-	}
-
-	for _, res := range webhookResults {
-		result.MutatingWebhookResults = append(result.MutatingWebhookResults, res)
-	}
+	result.MutatingWebhookResults = extractMutatingWebhookResults(labelsReader)
 
 	return result, nil
+}
+
+// mutatingWebhookKey identifies a mutating webhook result by its round and execution index.
+type mutatingWebhookKey struct {
+	round int
+	index int
+}
+
+// extractMutatingWebhookResults parses mutating webhook execution results recorded in the log labels.
+func extractMutatingWebhookResults(labelsReader *structured.NodeReader) []*commonlogk8saudit_contract.MutatingWebhookResult {
+	if labelsReader == nil {
+		return nil
+	}
+
+	var webhookResults map[mutatingWebhookKey]*commonlogk8saudit_contract.MutatingWebhookResult
+
+	labelsReader.Children()(func(childKey structured.NodeChildrenKey, childVal structured.NodeReader) bool {
+		prefix, round, index, ok := parseWebhookLabelKey(childKey.Key)
+		if !ok {
+			return true
+		}
+
+		valStr, err := childVal.ReadString(structured.EmptyFieldPath)
+		if err != nil {
+			return true
+		}
+
+		if webhookResults == nil {
+			webhookResults = make(map[mutatingWebhookKey]*commonlogk8saudit_contract.MutatingWebhookResult)
+		}
+		key := mutatingWebhookKey{round: round, index: index}
+		res, exists := webhookResults[key]
+		if !exists {
+			res = &commonlogk8saudit_contract.MutatingWebhookResult{
+				Round: round,
+				Index: index,
+			}
+			webhookResults[key] = res
+		}
+
+		populateWebhookResult(res, prefix, valStr)
+		return true
+	})
+
+	if len(webhookResults) == 0 {
+		return nil
+	}
+	out := make([]*commonlogk8saudit_contract.MutatingWebhookResult, 0, len(webhookResults))
+	for _, res := range webhookResults {
+		out = append(out, res)
+	}
+	return out
+}
+
+// parseWebhookLabelKey extracts the admission webhook prefix, round, and index from a label key.
+func parseWebhookLabelKey(key string) (prefix string, round int, index int, ok bool) {
+	switch {
+	case strings.HasPrefix(key, commonlogk8saudit_contract.MutatingWebhookMutationPrefix+"round_"):
+		prefix = commonlogk8saudit_contract.MutatingWebhookMutationPrefix
+	case strings.HasPrefix(key, commonlogk8saudit_contract.MutatingWebhookPatchPrefix+"round_"):
+		prefix = commonlogk8saudit_contract.MutatingWebhookPatchPrefix
+	case strings.HasPrefix(key, commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix+"round_"):
+		prefix = commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix
+	default:
+		return "", 0, 0, false
+	}
+
+	suffix := strings.TrimPrefix(key, prefix+"round_")
+	roundStr, indexStr, found := strings.Cut(suffix, "_index_")
+	if !found {
+		return "", 0, 0, false
+	}
+	r, err1 := strconv.Atoi(roundStr)
+	idx, err2 := strconv.Atoi(indexStr)
+	if err1 != nil || err2 != nil {
+		return "", 0, 0, false
+	}
+	return prefix, r, idx, true
+}
+
+// populateWebhookResult populates the webhook result from a JSON payload or string value.
+func populateWebhookResult(res *commonlogk8saudit_contract.MutatingWebhookResult, prefix string, valStr string) {
+	switch prefix {
+	case commonlogk8saudit_contract.MutatingWebhookMutationPrefix:
+		var mutationInfo commonlogk8saudit_contract.MutatingWebhookMutationInfo
+		if json.Unmarshal([]byte(valStr), &mutationInfo) == nil {
+			res.Configuration = mutationInfo.Configuration
+			res.Webhook = mutationInfo.Webhook
+			res.Mutated = mutationInfo.Mutated
+		}
+	case commonlogk8saudit_contract.MutatingWebhookPatchPrefix:
+		var patchInfo commonlogk8saudit_contract.MutatingWebhookPatchInfo
+		if json.Unmarshal([]byte(valStr), &patchInfo) == nil {
+			res.Patch = patchInfo.Patch
+			if res.Configuration == "" {
+				res.Configuration = patchInfo.Configuration
+			}
+			if res.Webhook == "" {
+				res.Webhook = patchInfo.Webhook
+			}
+		}
+	case commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix:
+		res.FailedOpen = true
+		if res.Webhook == "" {
+			res.Webhook = valStr
+		}
+	}
+}
+
+// parseVerb parses the Kubernetes operation verb from methodName.
+func parseVerb(methodName string) *pb.Verb {
+	verbStr := methodName
+	if lastDot := strings.LastIndexByte(methodName, '.'); lastDot >= 0 {
+		verbStr = methodName[lastDot+1:]
+	}
+	switch verbStr {
+	case "create":
+		return commonlogk8saudit_contract.VerbCreate
+	case "update":
+		return commonlogk8saudit_contract.VerbUpdate
+	case "delete":
+		return commonlogk8saudit_contract.VerbDelete
+	case "deletecollection":
+		return commonlogk8saudit_contract.VerbDeleteCollection
+	case "patch":
+		return commonlogk8saudit_contract.VerbPatch
+	default:
+		return commonlogk8saudit_contract.VerbUnknown
+	}
+}
+
+// isNamespaceOperation checks if the method modifies the "Namespace" resource itself.
+// In GCP audit logs, such methods have "namespaces" as their 5th dot-separated segment (e.g., "io.k8s.core.v1.namespaces.create").
+func isNamespaceOperation(methodName string) bool {
+	idx := 0
+	for frag := range strings.SplitSeq(methodName, ".") {
+		if idx == 4 {
+			return frag == "namespaces"
+		}
+		idx++
+	}
+	return false
+}
+
+// parseResourceTarget parses the resource target fields from resourceName.
+func parseResourceTarget(resourceName string, isNamespaceOp bool) (apiVersion, pluralKind, namespace, name, subResourceName string) {
+	var frags [8]string
+	numFrags := 0
+	for frag := range strings.SplitSeq(resourceName, "/") {
+		if numFrags < len(frags) {
+			frags[numFrags] = frag
+		}
+		numFrags++
+	}
+
+	switch {
+	case isNamespaceOp:
+		namespace = "cluster-scope"
+		pluralKind = "namespaces"
+		if numFrags > 3 {
+			name = frags[3]
+		}
+		if numFrags > 4 {
+			subResourceName = frags[4]
+		}
+	case numFrags >= 5 && frags[2] == "namespaces":
+		if numFrags > 3 {
+			namespace = frags[3]
+		}
+		if numFrags > 4 {
+			pluralKind = frags[4]
+		}
+		if numFrags > 5 {
+			name = frags[5]
+		}
+		if numFrags > 6 {
+			subResourceName = frags[6]
+		}
+	case numFrags >= 3:
+		namespace = "cluster-scope"
+		pluralKind = frags[2]
+		if numFrags > 3 {
+			name = frags[3]
+		}
+		if numFrags > 4 {
+			subResourceName = frags[4]
+		}
+	}
+
+	if numFrags >= 2 {
+		apiVersion = resourceName[:len(frags[0])+1+len(frags[1])]
+	}
+	return
 }
 
 // parseKubernetesOperation parses the resourceName and methodName from a GCP audit log
 // to determine the details of a Kubernetes API operation, returning split fields.
 func parseKubernetesOperation(resourceName string, methodName string) (apiVersion, pluralKind, namespace, name, subResourceName string, verb *pb.Verb) {
-	resourceNameFragments := strings.Split(resourceName, "/")
-	methodNameFragments := strings.Split(methodName, ".")
-	verbStr := methodNameFragments[len(methodNameFragments)-1]
-	switch verbStr {
-	case "create":
-		verb = commonlogk8saudit_contract.VerbCreate
-	case "update":
-		verb = commonlogk8saudit_contract.VerbUpdate
-	case "delete":
-		verb = commonlogk8saudit_contract.VerbDelete
-	case "deletecollection":
-		verb = commonlogk8saudit_contract.VerbDeleteCollection
-	case "patch":
-		verb = commonlogk8saudit_contract.VerbPatch
-	default:
-		verb = commonlogk8saudit_contract.VerbUnknown
-	}
-
-	switch {
-	case len(methodNameFragments) > 4 && methodNameFragments[4] == "namespaces": // This log is to modify "Namespace" resource itself
-		namespace = "cluster-scope"
-		if len(resourceNameFragments) > 3 {
-			name = resourceNameFragments[3]
-		}
-		pluralKind = "namespaces"
-		if len(resourceNameFragments) > 4 {
-			subResourceName = resourceNameFragments[4]
-		}
-	case len(resourceNameFragments) >= 5 && resourceNameFragments[2] == "namespaces":
-		if len(resourceNameFragments) > 3 {
-			namespace = resourceNameFragments[3]
-		}
-		if len(resourceNameFragments) > 4 {
-			pluralKind = resourceNameFragments[4]
-		}
-		if len(resourceNameFragments) > 5 {
-			name = resourceNameFragments[5]
-		}
-		if len(resourceNameFragments) > 6 {
-			subResourceName = resourceNameFragments[6]
-		}
-	case len(resourceNameFragments) >= 3:
-		namespace = "cluster-scope"
-		if len(resourceNameFragments) > 3 {
-			name = resourceNameFragments[3]
-		}
-		pluralKind = resourceNameFragments[2]
-		if len(resourceNameFragments) > 4 {
-			subResourceName = resourceNameFragments[4]
-		}
-	}
-	if len(resourceNameFragments) >= 2 {
-		apiVersion = resourceNameFragments[0] + "/" + resourceNameFragments[1]
-	}
+	verb = parseVerb(methodName)
+	isNamespaceOp := isNamespaceOperation(methodName)
+	apiVersion, pluralKind, namespace, name, subResourceName = parseResourceTarget(resourceName, isNamespaceOp)
 	return
 }

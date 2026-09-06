@@ -405,3 +405,19 @@ func TestExtractGCPK8sAuditLogError(t *testing.T) {
 		}
 	})
 }
+
+func BenchmarkParseKubernetesOperation(b *testing.B) {
+	resourceName := "core/v1/namespaces/default/pods/nginx"
+	methodName := "io.k8s.core.v1.pods.create"
+	b.ResetTimer()
+	b.ReportAllocs()
+	for b.Loop() {
+		apiVersion, pluralKind, namespace, name, subResourceName, verb := parseKubernetesOperation(resourceName, methodName)
+		_ = apiVersion
+		_ = pluralKind
+		_ = namespace
+		_ = name
+		_ = subResourceName
+		_ = verb
+	}
+}
