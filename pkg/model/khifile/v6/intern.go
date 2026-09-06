@@ -95,17 +95,17 @@ type InternStructRef struct {
 }
 
 // ID returns the interned struct ID.
-func (r *InternStructRef) ID() uint32 {
+func (r InternStructRef) ID() uint32 {
 	return r.id
 }
 
 // Resolve returns the underlying pb.InternedStruct protobuf message.
-func (r *InternStructRef) Resolve() *pb.InternedStruct {
+func (r InternStructRef) Resolve() *pb.InternedStruct {
 	return r.pool.resolveStructFromID(r.id)
 }
 
 // ToProto converts InternStructRef to its proto representation.
-func (r *InternStructRef) ToProto() *pb.InternedStruct {
+func (r InternStructRef) ToProto() *pb.InternedStruct {
 	return r.Resolve()
 }
 
@@ -273,6 +273,24 @@ func (p *InternPool) InternString(value string) *InternStringRef {
 	return &InternStringRef{pool: p, id: id}
 }
 
+// InternStringBytes interns a byte slice by performing zero-allocation string lookup
+// in pool.strToID using unsafe.String. Falls back to pool.InternString only on cache miss.
+func (p *InternPool) InternStringBytes(b []byte) InternStringRef {
+	if len(b) == 0 {
+		return *p.InternString("")
+	}
+	strKey := unsafe.String(unsafe.SliceData(b), len(b))
+	if idVal, ok := p.strToID.Load(strKey); ok {
+		return InternStringRef{pool: p, id: idVal.(uint32)}
+	}
+	if p.parentPool != nil {
+		if idVal, ok := p.parentPool.strToID.Load(strKey); ok {
+			return InternStringRef{pool: p, id: idVal.(uint32)}
+		}
+	}
+	return *p.InternString(string(b))
+}
+
 // ResolveStringFromID returns the string corresponding to the given ID.
 // It returns an empty string if the ID is not found.
 func (p *InternPool) ResolveStringFromID(id uint32) string {
@@ -302,17 +320,22 @@ func (p *InternPool) resolveStringFromID(id uint32) string {
 
 // InternFieldSet returns a FieldPathSetRef for the given list of strings.
 // It first interns each string to get its ID, and then interns the resulting list of IDs.
-// It uses unsafe string cast for fast lookup in fieldSetToID map without allocation.
 func (p *InternPool) InternFieldSet(fieldNames []string) *FieldPathSetRef {
 	ids := make([]uint32, len(fieldNames))
 	for i, name := range fieldNames {
 		ids[i] = p.InternString(name).id
 	}
+	idVal := p.InternFieldSetFromIDs(ids)
+	return &FieldPathSetRef{pool: p, id: idVal}
+}
 
+// InternFieldSetFromIDs interns a slice of field string IDs directly without
+// creating intermediate string slices or *FieldPathSetRef heap pointers.
+func (p *InternPool) InternFieldSetFromIDs(ids []uint32) uint32 {
 	// Zero-allocation lookup using unsafe string.
 	keyLookup := fieldSetKey(ids)
 	if idVal, ok := p.fieldSetToID.Load(keyLookup); ok {
-		return &FieldPathSetRef{pool: p, id: idVal.(uint32)}
+		return idVal.(uint32)
 	}
 
 	newID := p.idGen.New(id.FieldSet)
@@ -325,12 +348,12 @@ func (p *InternPool) InternFieldSet(fieldNames []string) *FieldPathSetRef {
 	actual, loaded := p.fieldSetToID.LoadOrStore(keyStore, newID)
 	if loaded {
 		p.storeFieldSet(newID, nil)
-		return &FieldPathSetRef{pool: p, id: actual.(uint32)}
+		return actual.(uint32)
 	}
 
 	p.stageFieldSet(newID, namesCopy)
 
-	return &FieldPathSetRef{pool: p, id: newID}
+	return newID
 }
 
 // ResolveFieldSetFromID returns the field path set corresponding to the given ID.

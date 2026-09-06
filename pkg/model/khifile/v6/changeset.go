@@ -16,6 +16,7 @@ package khifilev6
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -110,32 +111,78 @@ func (cs *LogChangeSet) Flush(logAcc *LogAccumulator) error {
 	})
 }
 
+const (
+	defaultSliceCapacity     = 4
+	maxRetainedSliceCapacity = 32
+	maxRetainedMapEntries    = 32
+)
+
+var timelineChangeSetPool = sync.Pool{
+	New: func() any {
+		return &TimelineChangeSet{
+			Events:    make([]*TimelinePath, 0, defaultSliceCapacity),
+			Revisions: make(map[*TimelinePath][]*StagingRevision),
+			Aliases:   make(map[*TimelinePath]*TimelinePath),
+		}
+	},
+}
+
 // TimelineChangeSet stages events and revisions for multiple timeline paths.
 // It acts as a localized buffer during the parsing phase of a single log.
+// Instances are pooled via sync.Pool to eliminate allocation overhead.
 type TimelineChangeSet struct {
 	// Log holds the reference to the parser-side log model.
 	Log *log.Log
-	// Events tracks which paths should have an event associated with this log.
-	Events map[*TimelinePath]bool
-	// Revisions tracks staging revisions to be appended to specific paths.
+
+	Events    []*TimelinePath
 	Revisions map[*TimelinePath][]*StagingRevision
-	// Aliases tracks structural path aliases to be registered. The key is the alias path and the value is the target path.
-	Aliases map[*TimelinePath]*TimelinePath
+	Aliases   map[*TimelinePath]*TimelinePath
 }
 
-// NewTimelineChangeSet creates a new TimelineChangeSet to stage timeline mutations.
+// NewTimelineChangeSet retrieves a TimelineChangeSet from the pool or allocates a new one.
 func NewTimelineChangeSet(l *log.Log) *TimelineChangeSet {
-	return &TimelineChangeSet{
-		Log:       l,
-		Events:    make(map[*TimelinePath]bool),
-		Revisions: make(map[*TimelinePath][]*StagingRevision),
-		Aliases:   make(map[*TimelinePath]*TimelinePath),
+	cs := timelineChangeSetPool.Get().(*TimelineChangeSet)
+	cs.Log = l
+	return cs
+}
+
+// Release resets the changeset fields and returns it to the pool for reuse.
+func (cs *TimelineChangeSet) Release() {
+	if cs == nil {
+		return
 	}
+	cs.Log = nil
+
+	if cap(cs.Events) > maxRetainedSliceCapacity {
+		cs.Events = make([]*TimelinePath, 0, defaultSliceCapacity)
+	} else {
+		clear(cs.Events)
+		cs.Events = cs.Events[:0]
+	}
+
+	if len(cs.Revisions) > maxRetainedMapEntries {
+		cs.Revisions = make(map[*TimelinePath][]*StagingRevision)
+	} else {
+		clear(cs.Revisions)
+	}
+
+	if len(cs.Aliases) > maxRetainedMapEntries {
+		cs.Aliases = make(map[*TimelinePath]*TimelinePath)
+	} else {
+		clear(cs.Aliases)
+	}
+
+	timelineChangeSetPool.Put(cs)
 }
 
 // AddEvent stages a timeline event on the specified path for the log associated with this changeset.
 func (cs *TimelineChangeSet) AddEvent(path *TimelinePath) {
-	cs.Events[path] = true
+	for _, p := range cs.Events {
+		if p == path {
+			return
+		}
+	}
+	cs.Events = append(cs.Events, path)
 }
 
 // AddRevision stages a resource revision on the specified path.
@@ -146,6 +193,53 @@ func (cs *TimelineChangeSet) AddRevision(path *TimelinePath, revision *StagingRe
 // AddAlias stages an alias mapping from the alias path to the target path.
 func (cs *TimelineChangeSet) AddAlias(aliasPath, targetPath *TimelinePath) {
 	cs.Aliases[aliasPath] = targetPath
+}
+
+// HasEvent reports whether an event is staged on the given path.
+func (cs *TimelineChangeSet) HasEvent(path *TimelinePath) bool {
+	for _, p := range cs.Events {
+		if p == path {
+			return true
+		}
+	}
+	return false
+}
+
+// GetRevisions returns all staging revisions for the given path.
+func (cs *TimelineChangeSet) GetRevisions(path *TimelinePath) []*StagingRevision {
+	return cs.Revisions[path]
+}
+
+// GetAlias returns the target path mapped by aliasPath, if staged.
+func (cs *TimelineChangeSet) GetAlias(aliasPath *TimelinePath) (*TimelinePath, bool) {
+	target, ok := cs.Aliases[aliasPath]
+	return target, ok
+}
+
+// ForEachEvent calls fn for each staged event path.
+func (cs *TimelineChangeSet) ForEachEvent(fn func(path *TimelinePath)) {
+	for _, p := range cs.Events {
+		fn(p)
+	}
+}
+
+// ForEachRevision calls fn for each path and its staged revisions.
+func (cs *TimelineChangeSet) ForEachRevision(fn func(path *TimelinePath, revs []*StagingRevision)) {
+	for p, revs := range cs.Revisions {
+		fn(p, revs)
+	}
+}
+
+// ForEachAlias calls fn for each staged alias-target pair.
+func (cs *TimelineChangeSet) ForEachAlias(fn func(aliasPath, targetPath *TimelinePath)) {
+	for alias, target := range cs.Aliases {
+		fn(alias, target)
+	}
+}
+
+// IsEmpty reports whether the changeset contains no staged mutations.
+func (cs *TimelineChangeSet) IsEmpty() bool {
+	return len(cs.Events) == 0 && len(cs.Revisions) == 0 && len(cs.Aliases) == 0
 }
 
 // Flush converts staging events, revisions, and aliases to serialized types and writes them to the TimelineAccumulator.
@@ -159,70 +253,89 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator, logAcc *Log
 		return fmt.Errorf("failed to resolve log ID for parser log %d", cs.Log.ID)
 	}
 
-	for aliasPath, targetPath := range cs.Aliases {
-		if err := accumulator.SetAlias(aliasPath, targetPath); err != nil {
-			return fmt.Errorf("failed to set timeline alias: %w", err)
+	var err error
+	cs.ForEachAlias(func(aliasPath, targetPath *TimelinePath) {
+		if err == nil {
+			err = accumulator.SetAlias(aliasPath, targetPath)
 		}
+	})
+	if err != nil {
+		return fmt.Errorf("failed to set timeline alias: %w", err)
 	}
 
-	for path := range cs.Events {
+	cs.ForEachEvent(func(path *TimelinePath) {
 		builder := registry.GetBuilder(path)
 		builder.AddEvent(pendingEvent{
 			LogID:     resolvedLogID,
 			Timestamp: cs.Log.Timestamp,
 		})
+	})
+
+	var flushErr error
+	flushRevision := func(path *TimelinePath, r *StagingRevision) error {
+		var bodyStructID uint32
+		if r.ResourceBody != nil {
+			structRef, err := ToInternedStruct(r.ResourceBody, serverPool)
+			if err != nil {
+				return fmt.Errorf("failed to intern resource body for revision: %w", err)
+			}
+			bodyStructID = structRef.id
+		}
+
+		var principalID uint32
+		if r.Principal != "" {
+			ref := clientPool.InternString(r.Principal)
+			principalID = ref.id
+		}
+
+		verbID := r.VerbType.GetId()
+		stateID := r.StateType.GetId()
+
+		annotations := make([]pendingFieldAnnotation, 0, len(r.FieldAnnotations))
+		for _, fa := range r.FieldAnnotations {
+			fieldPathRef := clientPool.InternString(fa.FieldPath)
+			ann := pendingFieldAnnotation{
+				FieldPathStringID: fieldPathRef.id,
+			}
+			if fa.MutatingWebhook != nil {
+				configRef := clientPool.InternString(fa.MutatingWebhook.Configuration)
+				webhookRef := clientPool.InternString(fa.MutatingWebhook.Webhook)
+				ann.MutatingWebhook = &pendingMutatingWebhookInfo{
+					ConfigurationStringID: configRef.id,
+					WebhookStringID:       webhookRef.id,
+					Round:                 fa.MutatingWebhook.Round,
+					Index:                 fa.MutatingWebhook.Index,
+				}
+			}
+			annotations = append(annotations, ann)
+		}
+
+		builder := registry.GetBuilder(path)
+		builder.AddRevision(pendingRevision{
+			LogID:                resolvedLogID,
+			ChangedTime:          r.ChangedTime,
+			ResourceBodyStructID: bodyStructID,
+			PrincipalStringID:    principalID,
+			VerbType:             verbID,
+			StateType:            stateID,
+			FieldAnnotations:     annotations,
+		})
+		return nil
 	}
 
-	for path, revisions := range cs.Revisions {
-		builder := registry.GetBuilder(path)
-		for _, r := range revisions {
-			var bodyStructID uint32
-			if r.ResourceBody != nil {
-				structRef, err := ToInternedStruct(r.ResourceBody, serverPool)
-				if err != nil {
-					return fmt.Errorf("failed to intern resource body for revision: %w", err)
-				}
-				bodyStructID = structRef.id
-			}
-
-			var principalID uint32
-			if r.Principal != "" {
-				ref := clientPool.InternString(r.Principal)
-				principalID = ref.id
-			}
-
-			verbID := r.VerbType.GetId()
-			stateID := r.StateType.GetId()
-
-			annotations := make([]pendingFieldAnnotation, 0, len(r.FieldAnnotations))
-			for _, fa := range r.FieldAnnotations {
-				fieldPathRef := clientPool.InternString(fa.FieldPath)
-				ann := pendingFieldAnnotation{
-					FieldPathStringID: fieldPathRef.id,
-				}
-				if fa.MutatingWebhook != nil {
-					configRef := clientPool.InternString(fa.MutatingWebhook.Configuration)
-					webhookRef := clientPool.InternString(fa.MutatingWebhook.Webhook)
-					ann.MutatingWebhook = &pendingMutatingWebhookInfo{
-						ConfigurationStringID: configRef.id,
-						WebhookStringID:       webhookRef.id,
-						Round:                 fa.MutatingWebhook.Round,
-						Index:                 fa.MutatingWebhook.Index,
-					}
-				}
-				annotations = append(annotations, ann)
-			}
-
-			builder.AddRevision(pendingRevision{
-				LogID:                resolvedLogID,
-				ChangedTime:          r.ChangedTime,
-				ResourceBodyStructID: bodyStructID,
-				PrincipalStringID:    principalID,
-				VerbType:             verbID,
-				StateType:            stateID,
-				FieldAnnotations:     annotations,
-			})
+	cs.ForEachRevision(func(path *TimelinePath, revisions []*StagingRevision) {
+		if flushErr != nil {
+			return
 		}
+		for _, r := range revisions {
+			if err := flushRevision(path, r); err != nil {
+				flushErr = err
+				return
+			}
+		}
+	})
+	if flushErr != nil {
+		return flushErr
 	}
 	return nil
 }

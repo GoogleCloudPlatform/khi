@@ -92,7 +92,7 @@ metadata:
 				lastStates:   map[string]*pb.RevisionState{},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				if len(cs.Events) > 0 || len(cs.Revisions) > 0 || len(cs.Aliases) > 0 {
+				if !cs.IsEmpty() {
 					t.Errorf("expected empty timeline changeset, but got: %v", cs)
 				}
 			},
@@ -127,7 +127,7 @@ endpoints:
 				lastStates: map[string]*pb.RevisionState{},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				if len(cs.Events) > 0 || len(cs.Revisions) > 0 || len(cs.Aliases) > 0 {
+				if !cs.IsEmpty() {
 					t.Errorf("expected empty timeline changeset, but got: %v", cs)
 				}
 			},
@@ -541,7 +541,7 @@ metadata:
 				lastStates:   map[string]*pb.RevisionState{},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				if len(cs.Events) > 0 || len(cs.Revisions) > 0 || len(cs.Aliases) > 0 {
+				if !cs.IsEmpty() {
 					t.Errorf("expected empty timeline changeset, but got: %v", cs)
 				}
 			},

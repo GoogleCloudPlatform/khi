@@ -165,3 +165,72 @@ func TestTimelineChangeSet_Flush(t *testing.T) {
 		t.Errorf("expected test-webhook ID")
 	}
 }
+
+func TestTimelineChangeSet_Release(t *testing.T) {
+	testCases := []struct {
+		name       string
+		entryCount int
+	}{
+		{
+			name:       "normal size within pool retention threshold",
+			entryCount: 2,
+		},
+		{
+			name:       "oversized exceeding pool retention threshold",
+			entryCount: 50,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			idGen := id.NewGenerator()
+			pool := khifilev6.NewTestInternPool(idGen)
+			pathPool := khifilev6.NewTimelinePathPool(idGen, pool)
+
+			timelineTypeID := uint32(1)
+			timelineType := &pb.TimelineType{Id: &timelineTypeID}
+
+			node := structured.NewStandardMap(nil, nil)
+			l := log.NewLog(idGen, structured.NewNodeReader(node))
+
+			cs := khifilev6.NewTimelineChangeSet(l)
+			paths := make([]*khifilev6.TimelinePath, tc.entryCount)
+			for i := 0; i < tc.entryCount; i++ {
+				paths[i] = pathPool.Get(nil, khifilev6.PathSegment{
+					Name: "test-path-" + string(rune('a'+i%26)) + "-" + string(rune('0'+i/26)),
+					Type: timelineType,
+				})
+				cs.AddEvent(paths[i])
+				cs.AddRevision(paths[i], &khifilev6.StagingRevision{ChangedTime: time.Now()})
+				cs.AddAlias(paths[i], paths[0])
+			}
+
+			if cs.IsEmpty() {
+				t.Fatal("expected changeset to not be empty before Release")
+			}
+
+			cs.Release()
+
+			if !cs.IsEmpty() {
+				t.Errorf("expected changeset to be empty after Release")
+			}
+			if cs.Log != nil {
+				t.Errorf("expected cs.Log to be nil after Release, got %v", cs.Log)
+			}
+			if cap(cs.Events) > 32 {
+				t.Errorf("expected cap(cs.Events) to be within retention threshold, got %d", cap(cs.Events))
+			}
+			for _, p := range paths {
+				if cs.HasEvent(p) {
+					t.Errorf("expected no events staged on path %v after Release", p)
+				}
+				if len(cs.GetRevisions(p)) != 0 {
+					t.Errorf("expected no revisions staged on path %v after Release", p)
+				}
+				if _, ok := cs.GetAlias(p); ok {
+					t.Errorf("expected no alias staged for path %v after Release", p)
+				}
+			}
+		})
+	}
+}

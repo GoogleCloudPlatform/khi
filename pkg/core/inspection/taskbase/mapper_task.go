@@ -224,15 +224,16 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[TimelineM
 							setErr(err)
 							return
 						}
-						for p := range cs.Events {
+						cs.ForEachEvent(func(p *khifilev6.TimelinePath) {
 							localResult.Events[p]++
-						}
-						for p, revs := range cs.Revisions {
+						})
+						cs.ForEachRevision(func(p *khifilev6.TimelinePath, revs []*khifilev6.StagingRevision) {
 							localResult.Revisions[p] += len(revs)
-						}
-						for alias, target := range cs.Aliases {
+						})
+						cs.ForEachAlias(func(alias, target *khifilev6.TimelinePath) {
 							localResult.Aliases[alias] = target
-						}
+						})
+						cs.Release()
 					} else {
 						skippedLogCount.Add(1)
 					}

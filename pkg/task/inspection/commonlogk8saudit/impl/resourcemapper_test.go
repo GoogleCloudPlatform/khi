@@ -775,13 +775,13 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 
 				var existingLogNotFoundCount int
 				for _, cs := range changeSets {
-					for _, revs := range cs.Revisions {
+					cs.ForEachRevision(func(_ *khifilev6.TimelinePath, revs []*khifilev6.StagingRevision) {
 						for _, r := range revs {
 							if r.StateType == commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
 								existingLogNotFoundCount++
 							}
 						}
-					}
+					})
 				}
 				if existingLogNotFoundCount != 1 {
 					t.Errorf("expected exactly 1 ExistingLogNotFound revision across all change sets, got %d", existingLogNotFoundCount)
@@ -813,13 +813,13 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 			assert: func(t *testing.T, changeSets []*khifilev6.TimelineChangeSet) {
 				var existingLogNotFoundCount int
 				for _, cs := range changeSets {
-					for _, revs := range cs.Revisions {
+					cs.ForEachRevision(func(_ *khifilev6.TimelinePath, revs []*khifilev6.StagingRevision) {
 						for _, r := range revs {
 							if r.StateType == commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
 								existingLogNotFoundCount++
 							}
 						}
-					}
+					})
 				}
 				if existingLogNotFoundCount != 0 {
 					t.Errorf("expected 0 ExistingLogNotFound revision when starting with create, got %d", existingLogNotFoundCount)
@@ -858,13 +858,13 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 			assert: func(t *testing.T, changeSets []*khifilev6.TimelineChangeSet) {
 				var existingLogNotFoundCount int
 				for _, cs := range changeSets {
-					for _, revs := range cs.Revisions {
+					cs.ForEachRevision(func(_ *khifilev6.TimelinePath, revs []*khifilev6.StagingRevision) {
 						for _, r := range revs {
 							if r.StateType == commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
 								existingLogNotFoundCount++
 							}
 						}
-					}
+					})
 				}
 				if existingLogNotFoundCount != 1 {
 					t.Errorf("expected exactly 1 ExistingLogNotFound revision from initial patch, got %d", existingLogNotFoundCount)
@@ -906,13 +906,13 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 
 				var existingLogNotFoundCount int
 				for _, cs := range changeSets {
-					for _, revs := range cs.Revisions {
+					cs.ForEachRevision(func(_ *khifilev6.TimelinePath, revs []*khifilev6.StagingRevision) {
 						for _, r := range revs {
 							if r.StateType == commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
 								existingLogNotFoundCount++
 							}
 						}
-					}
+					})
 				}
 				if existingLogNotFoundCount != 1 {
 					t.Errorf("expected exactly 1 ExistingLogNotFound revision falling back to Unix(0,0), got %d", existingLogNotFoundCount)

@@ -614,17 +614,17 @@ status:
 			mergedCS := khifilev6.NewTimelineChangeSet(testlog.NewMockLog())
 			for _, cs := range changeSets {
 				if cs != nil {
-					for path, revs := range cs.Revisions {
+					cs.ForEachRevision(func(path *khifilev6.TimelinePath, revs []*khifilev6.StagingRevision) {
 						for _, r := range revs {
 							mergedCS.AddRevision(path, r)
 						}
-					}
-					for path := range cs.Events {
+					})
+					cs.ForEachEvent(func(path *khifilev6.TimelinePath) {
 						mergedCS.AddEvent(path)
-					}
-					for aliasPath, targetPath := range cs.Aliases {
+					})
+					cs.ForEachAlias(func(aliasPath, targetPath *khifilev6.TimelinePath) {
 						mergedCS.AddAlias(aliasPath, targetPath)
-					}
+					})
 				}
 			}
 

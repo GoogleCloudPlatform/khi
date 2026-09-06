@@ -87,7 +87,7 @@ func AssertTimeline(t *testing.T, cs *khifilev6.TimelineChangeSet) *TimelineChan
 // HasEvent asserts that an event was staged on the expected path.
 func (a *TimelineChangeSetAsserter) HasEvent(wantPath *khifilev6.TimelinePath) *TimelineChangeSetAsserter {
 	a.t.Helper()
-	if !a.cs.Events[wantPath] {
+	if !a.cs.HasEvent(wantPath) {
 		a.t.Errorf("TimelineChangeSet: expected event staged on path %v, but not found", wantPath)
 	}
 	return a
@@ -96,7 +96,7 @@ func (a *TimelineChangeSetAsserter) HasEvent(wantPath *khifilev6.TimelinePath) *
 // HasNoEvent asserts that no event was staged on the path.
 func (a *TimelineChangeSetAsserter) HasNoEvent(path *khifilev6.TimelinePath) *TimelineChangeSetAsserter {
 	a.t.Helper()
-	if a.cs.Events[path] {
+	if a.cs.HasEvent(path) {
 		a.t.Errorf("TimelineChangeSet: expected no event staged on path %v, but found one", path)
 	}
 	return a
@@ -105,8 +105,8 @@ func (a *TimelineChangeSetAsserter) HasNoEvent(path *khifilev6.TimelinePath) *Ti
 // HasRevision asserts that a matching StagingRevision was staged on the expected path.
 func (a *TimelineChangeSetAsserter) HasRevision(wantPath *khifilev6.TimelinePath, wantRevision *khifilev6.StagingRevision, cmpOpts ...cmp.Option) *TimelineChangeSetAsserter {
 	a.t.Helper()
-	revisions, exist := a.cs.Revisions[wantPath]
-	if !exist || len(revisions) == 0 {
+	revisions := a.cs.GetRevisions(wantPath)
+	if len(revisions) == 0 {
 		a.t.Errorf("TimelineChangeSet: no revisions found for path %v", wantPath)
 		return a
 	}
@@ -130,8 +130,8 @@ func (a *TimelineChangeSetAsserter) HasRevision(wantPath *khifilev6.TimelinePath
 // HasNoRevision asserts that no revision was staged on the path.
 func (a *TimelineChangeSetAsserter) HasNoRevision(path *khifilev6.TimelinePath) *TimelineChangeSetAsserter {
 	a.t.Helper()
-	revisions, exist := a.cs.Revisions[path]
-	if exist && len(revisions) > 0 {
+	revisions := a.cs.GetRevisions(path)
+	if len(revisions) > 0 {
 		a.t.Errorf("TimelineChangeSet: expected no revisions staged on path %v, but found %d", path, len(revisions))
 	}
 	return a
@@ -140,7 +140,7 @@ func (a *TimelineChangeSetAsserter) HasNoRevision(path *khifilev6.TimelinePath) 
 // HasAlias asserts that an alias mapping from the alias path to the target path was staged.
 func (a *TimelineChangeSetAsserter) HasAlias(wantAliasPath, wantTargetPath *khifilev6.TimelinePath) *TimelineChangeSetAsserter {
 	a.t.Helper()
-	targetPath, exist := a.cs.Aliases[wantAliasPath]
+	targetPath, exist := a.cs.GetAlias(wantAliasPath)
 	if !exist {
 		a.t.Errorf("TimelineChangeSet: alias from path %v not found", wantAliasPath)
 		return a
@@ -154,7 +154,7 @@ func (a *TimelineChangeSetAsserter) HasAlias(wantAliasPath, wantTargetPath *khif
 // HasNoAlias asserts that no alias was staged for the given alias path.
 func (a *TimelineChangeSetAsserter) HasNoAlias(aliasPath *khifilev6.TimelinePath) *TimelineChangeSetAsserter {
 	a.t.Helper()
-	targetPath, exist := a.cs.Aliases[aliasPath]
+	targetPath, exist := a.cs.GetAlias(aliasPath)
 	if exist {
 		a.t.Errorf("TimelineChangeSet: expected no alias staged for path %v, but found one pointing to %v", aliasPath, targetPath)
 	}

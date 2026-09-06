@@ -90,19 +90,19 @@ func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
 			asserts: []func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet){
 				func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 					// "==========="
-					if cs != nil && len(cs.Revisions) > 0 {
+					if cs != nil && !cs.IsEmpty() {
 						t.Error("expected no timeline revisions for header boundary")
 					}
 				},
 				func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 					// HeaderCandidate
-					if cs != nil && len(cs.Revisions) > 0 {
+					if cs != nil && !cs.IsEmpty() {
 						t.Error("expected no timeline revisions for header candidates")
 					}
 				},
 				func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 					// Separator
-					if cs != nil && len(cs.Revisions) > 0 {
+					if cs != nil && !cs.IsEmpty() {
 						t.Error("expected no timeline revisions for separators")
 					}
 				},

@@ -32,63 +32,59 @@ import (
 // \x00 is hardly included in YAML fields. So \x00 is a good separator.
 const fieldPathSeparator = "\x00"
 
-// ToInternedStruct converts a structured.Node to an InternedStructRef.
+// ToInternedStruct converts a structured.Node to an InternStructRef.
 // The input node must be a MapNodeType. It flattens nested maps by joining keys with a null character (\x00).
-func ToInternedStruct(node structured.Node, pool *InternPool) (*InternStructRef, error) {
+func ToInternedStruct(node structured.Node, pool *InternPool) (InternStructRef, error) {
 	if node.Type() != structured.MapNodeType {
-		return nil, fmt.Errorf("expected map node, got %v", node.Type())
+		return InternStructRef{}, fmt.Errorf("expected map node, got %v", node.Type())
 	}
 
-	flattenedKeys := make([]string, 0, 16)
-	flattenedValues := make([]structured.Node, 0, 16)
-	keyBuf := make([]byte, 0, 64)
-	err := flattenNodeHelper(node, keyBuf, true, &flattenedKeys, &flattenedValues)
+	pathIDs := make([]uint32, 0, 32)
+	flattenedValues := make([]structured.Node, 0, 32)
+	keyBuf := make([]byte, 0, 128)
+
+	err := traverseLeafNodes(node, keyBuf, true, func(key []byte, val structured.Node) error {
+		idVal := pool.InternStringBytes(key).id
+		pathIDs = append(pathIDs, idVal)
+		flattenedValues = append(flattenedValues, val)
+		return nil
+	})
 	if err != nil {
-		return nil, err
+		return InternStructRef{}, err
 	}
 
-	fieldSetRef := pool.InternFieldSet(flattenedKeys)
+	fieldSetID := pool.InternFieldSetFromIDs(pathIDs)
 
 	// Fast-path: compute deterministic structKey directly from node values.
 	// If the struct is already interned, we can return its reference immediately
 	// without allocating []*pb.InternedValue and individual *pb.InternedValue proto messages.
-	key, err := structKeyFromNodes(fieldSetRef.id, flattenedValues, pool, keyBuf)
+	key, err := structKeyFromNodes(fieldSetID, flattenedValues, pool, keyBuf)
 	if err != nil {
-		return nil, err
+		return InternStructRef{}, err
 	}
 
-	if id, ok := pool.structToID.Load(key); ok {
-		return &InternStructRef{pool: pool, id: id.(uint32)}, nil
+	if idVal, ok := pool.structToID.Load(key); ok {
+		return InternStructRef{pool: pool, id: idVal.(uint32)}, nil
 	}
 
 	newID := pool.idGen.New(id.Struct)
-	if err := pool.flatStructs.StoreFromNodes(newID, fieldSetRef.id, flattenedValues, pool); err != nil {
-		return nil, err
+	if err := pool.flatStructs.StoreFromNodes(newID, fieldSetID, flattenedValues, pool); err != nil {
+		return InternStructRef{}, err
 	}
 
 	actual, loaded := pool.structToID.LoadOrStore(key, newID)
 	if loaded {
-		return &InternStructRef{pool: pool, id: actual.(uint32)}, nil
+		return InternStructRef{pool: pool, id: actual.(uint32)}, nil
 	}
 
 	pool.stageStruct(newID)
 
-	return &InternStructRef{pool: pool, id: newID}, nil
+	return InternStructRef{pool: pool, id: newID}, nil
 }
 
-// flattenNode is a helper function to recursively flatten map nodes.
-// It flattens nested maps but preserves empty maps as leaves.
-// Note: This function assumes that there are no circular references in the node tree.
-// Circular references are not expected as structured.Node represents parsed tree data.
-func flattenNode(node structured.Node, prefix string, isRoot bool, keys *[]string, values *[]structured.Node) error {
-	keyBuf := make([]byte, 0, len(prefix)+64)
-	if prefix != "" {
-		keyBuf = append(keyBuf, prefix...)
-	}
-	return flattenNodeHelper(node, keyBuf, isRoot, keys, values)
-}
-
-func flattenNodeHelper(node structured.Node, keyBuf []byte, isRoot bool, keys *[]string, values *[]structured.Node) error {
+// traverseLeafNodes walks through the map AST recursively and invokes onLeaf for each leaf node
+// with the flattened key byte slice.
+func traverseLeafNodes(node structured.Node, keyBuf []byte, isRoot bool, onLeaf func(key []byte, val structured.Node) error) error {
 	if node.Type() != structured.MapNodeType {
 		return fmt.Errorf("expected map node in flattenNode, got %v", node.Type())
 	}
@@ -100,19 +96,14 @@ func flattenNodeHelper(node structured.Node, keyBuf []byte, isRoot bool, keys *[
 		}
 		keyBuf = append(keyBuf, key.Key...)
 
-		if child.Type() == structured.MapNodeType {
-			if child.Len() == 0 {
-				*keys = append(*keys, string(keyBuf))
-				*values = append(*values, child)
-			} else {
-				err := flattenNodeHelper(child, keyBuf, false, keys, values)
-				if err != nil {
-					return err
-				}
+		if child.Type() == structured.MapNodeType && child.Len() > 0 {
+			if err := traverseLeafNodes(child, keyBuf, false, onLeaf); err != nil {
+				return err
 			}
 		} else {
-			*keys = append(*keys, string(keyBuf))
-			*values = append(*values, child)
+			if err := onLeaf(keyBuf, child); err != nil {
+				return err
+			}
 		}
 		keyBuf = keyBuf[:origLen]
 	}

@@ -371,7 +371,7 @@ func TestFromInternedValue(t *testing.T) {
 	}
 }
 
-func TestFlattenNode(t *testing.T) {
+func TestTraverseLeafNodes(t *testing.T) {
 	testCases := []struct {
 		name       string
 		yaml       string
@@ -439,16 +439,20 @@ b: 3
 
 			var gotKeys []string
 			var gotValues []structured.Node
-			err = flattenNode(node, "", true, &gotKeys, &gotValues)
+			err = traverseLeafNodes(node, nil, true, func(key []byte, val structured.Node) error {
+				gotKeys = append(gotKeys, string(key))
+				gotValues = append(gotValues, val)
+				return nil
+			})
 			if (err != nil) != tc.wantErr {
-				t.Fatalf("flattenNode() error = %v, wantErr %v", err, tc.wantErr)
+				t.Fatalf("traverseLeafNodes() error = %v, wantErr %v", err, tc.wantErr)
 			}
 			if err != nil {
 				return
 			}
 
 			if diff := cmp.Diff(tc.wantKeys, gotKeys); diff != "" {
-				t.Errorf("flattenNode() keys mismatch (-want +got):\n%s", diff)
+				t.Errorf("traverseLeafNodes() keys mismatch (-want +got):\n%s", diff)
 			}
 
 			var gotValuesJSON []string
@@ -459,7 +463,7 @@ b: 3
 			}
 
 			if diff := cmp.Diff(tc.wantValues, gotValuesJSON); diff != "" {
-				t.Errorf("flattenNode() values mismatch (-want +got):\n%s", diff)
+				t.Errorf("traverseLeafNodes() values mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

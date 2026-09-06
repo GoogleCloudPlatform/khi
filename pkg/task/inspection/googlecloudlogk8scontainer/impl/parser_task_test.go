@@ -581,12 +581,12 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer)
 
-				if css[1].Revisions[bindingPath] != nil {
+				if len(css[1].GetRevisions(bindingPath)) > 0 {
 					t.Errorf("expected no revision on bindingPath in second changeset, but got one")
 				}
 
 				// Verify PodPhase timeline does NOT have a revision in the second changeset
-				if css[1].Revisions[expectedPath] != nil {
+				if len(css[1].GetRevisions(expectedPath)) > 0 {
 					t.Errorf("expected no revision on podPhasePath in second changeset, but got one")
 				}
 			},
