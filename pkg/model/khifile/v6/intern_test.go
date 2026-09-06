@@ -183,7 +183,7 @@ func TestInternPool_SortedRefs(t *testing.T) {
 	pool.InternString("a")
 	pool.InternString("b")
 
-	var refs []*InternStringRef
+	var refs []InternStringRef
 	for ref := range pool.SortedStringRefs() {
 		refs = append(refs, ref)
 	}
@@ -281,7 +281,7 @@ func TestInternPool_FieldSetRefs(t *testing.T) {
 	pool.InternFieldSet([]string{"c"})
 	pool.InternFieldSet([]string{"a", "c"})
 
-	var refs []*FieldPathSetRef
+	var refs []FieldPathSetRef
 	for ref := range pool.FieldSetRefs() {
 		refs = append(refs, ref)
 	}
@@ -450,7 +450,7 @@ func TestInternPool_StructRefs(t *testing.T) {
 	orphanedID := idGen.New(id.Struct)
 	pool.FlatStructStore().Store(orphanedID, fsID, nil)
 
-	var refs []*InternStructRef
+	var refs []InternStructRef
 	for ref := range pool.StructRefs() {
 		refs = append(refs, ref)
 	}
@@ -684,6 +684,47 @@ func TestInternPool_ErrorPropagation(t *testing.T) {
 			if err := pool.Flush(); (err != nil) != tc.wantErr {
 				t.Errorf("Flush() error = %v, wantErr = %v", err, tc.wantErr)
 			}
+		})
+	}
+}
+
+func TestUninitializedRefs_Panic(t *testing.T) {
+	testCases := []struct {
+		name string
+		fn   func()
+	}{
+		{
+			name: "uninitialized InternStringRef panics on Resolve",
+			fn: func() {
+				var ref InternStringRef
+				ref.Resolve()
+			},
+		},
+		{
+			name: "uninitialized FieldPathSetRef panics on Resolve",
+			fn: func() {
+				var ref FieldPathSetRef
+				ref.Resolve()
+			},
+		},
+		{
+			name: "uninitialized InternStructRef panics on Resolve",
+			fn: func() {
+				var ref InternStructRef
+				ref.Resolve()
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Errorf("expected panic, but did not panic")
+				}
+			}()
+			tc.fn()
 		})
 	}
 }

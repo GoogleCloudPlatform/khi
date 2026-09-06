@@ -22,6 +22,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -312,7 +313,7 @@ func TestFromInternedValue(t *testing.T) {
 			value: &pb.InternedValue{
 				Kind: &pb.InternedValue_StructValue{
 					StructValue: &pb.InternedStruct{
-						FieldPathSetId: &pool.InternFieldSet([]string{"a"}).id,
+						FieldPathSetId: proto.Uint32(pool.InternFieldSet([]string{"a"}).id),
 						Values: []*pb.InternedValue{
 							{Kind: &pb.InternedValue_Int64Value{Int64Value: 1}},
 						},

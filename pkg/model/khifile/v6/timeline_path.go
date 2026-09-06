@@ -32,7 +32,7 @@ type TimelinePath struct {
 	// Parent is a pointer to the parent path. It is nil for root paths.
 	Parent *TimelinePath
 	// Name is a reference to the interned string name of this path segment.
-	Name *InternStringRef
+	Name InternStringRef
 	// Type is the style definition for this timeline path segment.
 	Type *pb.TimelineType
 }

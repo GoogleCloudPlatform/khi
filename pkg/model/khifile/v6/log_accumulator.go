@@ -225,3 +225,16 @@ func (a *LogAccumulator) ResolveLogID(parserID uint32) (uint32, bool) {
 	}
 	return confirmedID, true
 }
+
+// Dispose releases batch buffers and lookup arrays to allow GC to reclaim memory.
+func (a *LogAccumulator) Dispose() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.batchIDs = nil
+	a.batchTimestamps = nil
+	a.batchLogTypeIDs = nil
+	a.batchSeverityIDs = nil
+	a.batchSummaryIDs = nil
+	a.batchBodyStructIDs = nil
+	a.parserIDToID = nil
+}

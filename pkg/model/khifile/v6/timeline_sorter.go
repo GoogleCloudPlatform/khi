@@ -141,7 +141,7 @@ func findPrefixOldestTime(prefix string, registry *TimelineRegistry, parentToChi
 
 	var visit func(p *TimelinePath)
 	visit = func(p *TimelinePath) {
-		if p == nil || p.Name == nil {
+		if p == nil || p.Name.id == 0 {
 			return
 		}
 		pName := p.Name.Resolve()
@@ -218,7 +218,7 @@ func sortTimelinePaths(paths iter.Seq[*TimelinePath], registry *TimelineRegistry
 	groupedSortMap := make(map[uint32]map[string]time.Time)
 
 	for _, path := range allPaths {
-		if path == nil || path.Name == nil {
+		if path == nil || path.Name.id == 0 {
 			continue
 		}
 		if path.Type != nil && path.Type.Id != nil {

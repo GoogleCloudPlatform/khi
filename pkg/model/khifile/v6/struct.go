@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
@@ -32,6 +32,47 @@ import (
 // \x00 is hardly included in YAML fields. So \x00 is a good separator.
 const fieldPathSeparator = "\x00"
 
+type internScratch struct {
+	pathIDs         []uint32
+	flattenedValues []structured.Node
+	pathBuf         []byte
+	keyBuf          []byte
+}
+
+var internScratchPool = sync.Pool{
+	New: func() any {
+		return &internScratch{
+			pathIDs:         make([]uint32, 0, 32),
+			flattenedValues: make([]structured.Node, 0, 32),
+			pathBuf:         make([]byte, 0, 128),
+			keyBuf:          make([]byte, 0, 256),
+		}
+	},
+}
+
+func getInternScratch() *internScratch {
+	s := internScratchPool.Get().(*internScratch)
+	s.pathIDs = s.pathIDs[:0]
+	s.flattenedValues = s.flattenedValues[:0]
+	s.pathBuf = s.pathBuf[:0]
+	s.keyBuf = s.keyBuf[:0]
+	return s
+}
+
+func putInternScratch(s *internScratch) {
+	if cap(s.pathIDs) > 4096 || cap(s.flattenedValues) > 4096 || cap(s.pathBuf) > 65536 || cap(s.keyBuf) > 65536 {
+		return
+	}
+	for i := range s.flattenedValues {
+		s.flattenedValues[i] = nil
+	}
+	s.pathIDs = s.pathIDs[:0]
+	s.flattenedValues = s.flattenedValues[:0]
+	s.pathBuf = s.pathBuf[:0]
+	s.keyBuf = s.keyBuf[:0]
+	internScratchPool.Put(s)
+}
+
 // ToInternedStruct converts a structured.Node to an InternStructRef.
 // The input node must be a MapNodeType. It flattens nested maps by joining keys with a null character (\x00).
 func ToInternedStruct(node structured.Node, pool *InternPool) (InternStructRef, error) {
@@ -39,42 +80,39 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (InternStructRef, 
 		return InternStructRef{}, fmt.Errorf("expected map node, got %v", node.Type())
 	}
 
-	pathIDs := make([]uint32, 0, 32)
-	flattenedValues := make([]structured.Node, 0, 32)
-	keyBuf := make([]byte, 0, 128)
+	scratch := getInternScratch()
+	defer putInternScratch(scratch)
 
-	err := traverseLeafNodes(node, keyBuf, true, func(key []byte, val structured.Node) error {
+	err := traverseLeafNodes(node, scratch.pathBuf, true, func(key []byte, val structured.Node) error {
 		idVal := pool.InternStringBytes(key).id
-		pathIDs = append(pathIDs, idVal)
-		flattenedValues = append(flattenedValues, val)
+		scratch.pathIDs = append(scratch.pathIDs, idVal)
+		scratch.flattenedValues = append(scratch.flattenedValues, val)
 		return nil
 	})
 	if err != nil {
 		return InternStructRef{}, err
 	}
 
-	fieldSetID := pool.InternFieldSetFromIDs(pathIDs)
+	fieldSetID := pool.InternFieldSetFromIDs(scratch.pathIDs)
 
-	// Fast-path: compute deterministic structKey directly from node values.
-	// If the struct is already interned, we can return its reference immediately
-	// without allocating []*pb.InternedValue and individual *pb.InternedValue proto messages.
-	key, err := structKeyFromNodes(fieldSetID, flattenedValues, pool, keyBuf)
+	// Fast-path: compute deterministic structKey directly from node values into pooled scratch buffer.
+	keyBytes, err := structKeyFromNodes(fieldSetID, scratch.flattenedValues, pool, scratch.keyBuf)
 	if err != nil {
 		return InternStructRef{}, err
 	}
 
-	if idVal, ok := pool.structToID.Load(key); ok {
-		return InternStructRef{pool: pool, id: idVal.(uint32)}, nil
+	if idVal, ok := pool.structToID.LoadBytes(keyBytes); ok {
+		return InternStructRef{pool: pool, id: idVal}, nil
 	}
 
 	newID := pool.idGen.New(id.Struct)
-	if err := pool.flatStructs.StoreFromNodes(newID, fieldSetID, flattenedValues, pool); err != nil {
+	if err := pool.flatStructs.StoreFromNodes(newID, fieldSetID, scratch.flattenedValues, pool); err != nil {
 		return InternStructRef{}, err
 	}
 
-	actual, loaded := pool.structToID.LoadOrStore(key, newID)
+	actual, loaded := pool.structToID.LoadOrStoreBytes(keyBytes, newID)
 	if loaded {
-		return InternStructRef{pool: pool, id: actual.(uint32)}, nil
+		return InternStructRef{pool: pool, id: actual}, nil
 	}
 
 	pool.stageStruct(newID)
@@ -110,17 +148,17 @@ func traverseLeafNodes(node structured.Node, keyBuf []byte, isRoot bool, onLeaf 
 	return nil
 }
 
-func structKeyFromNodes(fieldPathSetID uint32, nodes []structured.Node, pool *InternPool, buf []byte) (string, error) {
+func structKeyFromNodes(fieldPathSetID uint32, nodes []structured.Node, pool *InternPool, buf []byte) ([]byte, error) {
 	buf = buf[:0]
 	buf = binary.LittleEndian.AppendUint32(buf, fieldPathSetID)
 	for _, n := range nodes {
 		var err error
 		buf, err = appendNodeKey(buf, n, pool)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
-	return unsafe.String(unsafe.SliceData(buf), len(buf)), nil
+	return buf, nil
 }
 
 func appendNodeKey(buf []byte, node structured.Node, pool *InternPool) ([]byte, error) {

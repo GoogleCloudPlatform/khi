@@ -63,6 +63,15 @@ func NewTestBuilder(gen *id.Generator) *Builder {
 
 // Dispose releases accumulators and pools held by the Builder to allow GC to reclaim memory.
 func (b *Builder) Dispose() {
+	if b.LogAccumulator != nil {
+		b.LogAccumulator.Dispose()
+	}
+	if b.internPool != nil {
+		b.internPool.Dispose()
+	}
+	if b.serverInternPool != nil {
+		b.serverInternPool.Dispose()
+	}
 	b.TimelineAccumulator = nil
 	b.LogAccumulator = nil
 	b.internPool = nil
