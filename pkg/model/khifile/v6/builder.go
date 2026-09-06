@@ -61,8 +61,18 @@ func NewTestBuilder(gen *id.Generator) *Builder {
 	return NewBuilder(gen, MustNewTestWriter())
 }
 
+// Dispose releases accumulators and pools held by the Builder to allow GC to reclaim memory.
+func (b *Builder) Dispose() {
+	b.TimelineAccumulator = nil
+	b.LogAccumulator = nil
+	b.internPool = nil
+	b.serverInternPool = nil
+	b.MetadataAccumulator = nil
+}
+
 // Build writes the accumulated metadata, timeline chunks, and flushes remaining log and intern pool chunks.
 func (b *Builder) Build(reporter BuilderProgressReporter) (err error) {
+	defer b.Dispose()
 	defer func() {
 		if closeErr := b.writer.Close(); closeErr != nil && err == nil {
 			err = fmt.Errorf("failed to close writer: %w", closeErr)

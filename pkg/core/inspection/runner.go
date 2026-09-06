@@ -415,6 +415,11 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_cont
 		defer close(i.runComplete)
 		defer i.inspectionCancel()
 		defer cancel()
+		defer func() {
+			i.runnerLock.Lock()
+			i.cancel = nil
+			i.runnerLock.Unlock()
+		}()
 		runFunc(cancelableCtx)
 		progress, found := typedmap.Get(i.metadata, inspectionmetadata.ProgressMetadataKey)
 		if !found {
@@ -556,8 +561,13 @@ func (i *InspectionTaskRunner) GetCurrentMetadata() (*typedmap.ReadonlyTypedMap,
 
 // Cancel requests the cancellation of a running inspection.
 func (i *InspectionTaskRunner) Cancel() error {
-	if i.cancel == nil {
+	i.runnerLock.Lock()
+	defer i.runnerLock.Unlock()
+	if i.runner == nil {
 		return fmt.Errorf("this task is not yet started")
+	}
+	if i.cancel == nil {
+		return fmt.Errorf("task %s is already finished", i.ID)
 	}
 	if _, err := i.Result(); err == nil {
 		return fmt.Errorf("task %s is already finished", i.ID)
