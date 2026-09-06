@@ -337,5 +337,15 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator, logAcc *Log
 	if flushErr != nil {
 		return flushErr
 	}
+
+	totalAdded := len(cs.Events)
+	for _, revs := range cs.Revisions {
+		totalAdded += len(revs)
+	}
+	if totalAdded > 0 {
+		if err := accumulator.NotifyItemsAdded(totalAdded); err != nil {
+			return fmt.Errorf("failed to notify timeline items added: %w", err)
+		}
+	}
 	return nil
 }

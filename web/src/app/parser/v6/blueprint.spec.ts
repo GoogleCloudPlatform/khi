@@ -316,6 +316,94 @@ describe('V6TimelineAssembler', () => {
       eventIds: [1],
     });
   });
+
+  it('should merge timeline items across multiple chunks and deduplicate timelines', () => {
+    const builder = jasmine.createSpyObj<InspectionDataBuilder>(
+      'InspectionDataBuilder',
+      ['addRevision', 'addEvent', 'addTimeline'],
+    );
+    const assembler = new V6TimelineAssembler(builder);
+
+    const chunk1 = create(TimelineChunkSchema, {
+      timelineItems: [
+        create(TimelineItemsSchema, {
+          id: 100,
+          revisions: [
+            create(RevisionSchema, {
+              logId: 10,
+              changedTime: create(TimestampSchema, { seconds: 1n, nanos: 0 }),
+              principalStringId: 5,
+              verbType: 2,
+              stateType: 3,
+            }),
+          ],
+          events: [
+            create(EventSchema, {
+              logId: 20,
+            }),
+          ],
+        }),
+      ],
+      timelines: [
+        create(TimelineSchema, {
+          id: 1,
+          timelineType: 10,
+          nameStringId: 20,
+          timelineItemsId: 100,
+          parentTimelineId: 0,
+        }),
+      ],
+    });
+
+    const chunk2 = create(TimelineChunkSchema, {
+      timelineItems: [
+        create(TimelineItemsSchema, {
+          id: 100,
+          revisions: [
+            create(RevisionSchema, {
+              logId: 11,
+              changedTime: create(TimestampSchema, { seconds: 2n, nanos: 0 }),
+              principalStringId: 5,
+              verbType: 2,
+              stateType: 3,
+            }),
+          ],
+          events: [
+            create(EventSchema, {
+              logId: 21,
+            }),
+          ],
+        }),
+      ],
+      timelines: [
+        create(TimelineSchema, {
+          id: 1,
+          timelineType: 10,
+          nameStringId: 20,
+          timelineItemsId: 100,
+          parentTimelineId: 0,
+        }),
+      ],
+    });
+
+    assembler.ingest(chunk1);
+    assembler.ingest(chunk2);
+
+    expect(builder.addRevision).toHaveBeenCalledTimes(2);
+    expect(builder.addEvent).toHaveBeenCalledTimes(2);
+
+    assembler.finalize();
+
+    expect(builder.addTimeline).toHaveBeenCalledTimes(1);
+    expect(builder.addTimeline).toHaveBeenCalledWith({
+      id: 1,
+      timelineTypeId: 10,
+      nameStringId: 20,
+      parentTimelineId: 0,
+      revisionIds: [1, 2],
+      eventIds: [1, 2],
+    });
+  });
 });
 
 describe('V6MetadataAssembler', () => {

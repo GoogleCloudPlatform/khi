@@ -22,7 +22,10 @@ import (
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func createTestKhiFileData(t *testing.T) []byte {
@@ -215,6 +218,130 @@ func TestFormatByteSize(t *testing.T) {
 			got := formatByteSize(tc.input)
 			if got != tc.want {
 				t.Errorf("formatByteSize(%d) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestWorkbench_NewFromReader_TimelineChunkMerge(t *testing.T) {
+	testCases := []struct {
+		name         string
+		buildChunks  func(t *testing.T) []byte
+		wantTimeline *cel.TimelineData
+	}{
+		{
+			name: "merges multiple timeline chunks with duplicate timeline IDs and items",
+			buildChunks: func(t *testing.T) []byte {
+				var buf bytes.Buffer
+				writer, err := khifilev6model.NewWriter(&buf)
+				if err != nil {
+					t.Fatalf("failed to create writer: %v", err)
+				}
+
+				metadataChunk := &khifilev6.MetadataChunk{
+					Metadata: []*khifilev6.MetadataItem{
+						{
+							Payload: &khifilev6.MetadataItem_Header{
+								Header: &khifilev6.HeaderMetadata{
+									InspectionName: proto.String("test-inspection"),
+								},
+							},
+						},
+					},
+				}
+				if err := writer.WriteChunk(khifilev6model.ChunkTypeMetadata, metadataChunk); err != nil {
+					t.Fatalf("failed to write metadata chunk: %v", err)
+				}
+
+				logChunk := &khifilev6.LogChunk{
+					Logs: []*khifilev6.Log{
+						{Id: proto.Uint32(1), SummaryStringId: proto.Uint32(1)},
+						{Id: proto.Uint32(2), SummaryStringId: proto.Uint32(2)},
+					},
+				}
+				if err := writer.WriteChunk(khifilev6model.ChunkTypeLog, logChunk); err != nil {
+					t.Fatalf("failed to write log chunk: %v", err)
+				}
+
+				// First timeline chunk with log 2
+				chunk1 := &khifilev6.TimelineChunk{
+					Timelines: []*khifilev6.Timeline{
+						{Id: proto.Uint32(10), TimelineItemsId: proto.Uint32(100)},
+					},
+					TimelineItems: []*khifilev6.TimelineItems{
+						{
+							Id: proto.Uint32(100),
+							Revisions: []*khifilev6.Revision{
+								{LogId: proto.Uint32(2), ChangedTime: &timestamppb.Timestamp{Seconds: 200}},
+							},
+							Events: []*khifilev6.Event{
+								{LogId: proto.Uint32(2)},
+							},
+						},
+					},
+				}
+				if err := writer.WriteChunk(khifilev6model.ChunkTypeTimeline, chunk1); err != nil {
+					t.Fatalf("failed to write timeline chunk 1: %v", err)
+				}
+
+				// Second timeline chunk with log 1 (earlier timestamp) and duplicate timeline ID 10
+				chunk2 := &khifilev6.TimelineChunk{
+					Timelines: []*khifilev6.Timeline{
+						{Id: proto.Uint32(10), TimelineItemsId: proto.Uint32(100)},
+					},
+					TimelineItems: []*khifilev6.TimelineItems{
+						{
+							Id: proto.Uint32(100),
+							Revisions: []*khifilev6.Revision{
+								{LogId: proto.Uint32(1), ChangedTime: &timestamppb.Timestamp{Seconds: 100}},
+							},
+							Events: []*khifilev6.Event{
+								{LogId: proto.Uint32(1)},
+							},
+						},
+					},
+				}
+				if err := writer.WriteChunk(khifilev6model.ChunkTypeTimeline, chunk2); err != nil {
+					t.Fatalf("failed to write timeline chunk 2: %v", err)
+				}
+
+				return buf.Bytes()
+			},
+			wantTimeline: &cel.TimelineData{
+				ID: 10,
+				Events: []cel.EventInfo{
+					{LogID: 1},
+					{LogID: 2},
+				},
+				Revisions: []cel.RevisionInfo{
+					{LogID: 1, ChangedTime: 100 * 1_000_000_000},
+					{LogID: 2, ChangedTime: 200 * 1_000_000_000},
+				},
+				SeverityMask: 1,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			data := tc.buildChunks(t)
+			wb, err := NewFromReader(
+				context.Background(),
+				"wb-test-merge",
+				"inspection-merge",
+				bytes.NewReader(data),
+				int64(len(data)),
+				nil,
+			)
+			if err != nil {
+				t.Fatalf("NewFromReader() error = %v", err)
+			}
+			if len(wb.searchIndex.Timelines) != 1 {
+				t.Fatalf("len(searchIndex.Timelines) = %d, want 1", len(wb.searchIndex.Timelines))
+			}
+			gotTimeline := wb.searchIndex.Timelines[0]
+			if diff := cmp.Diff(tc.wantTimeline, gotTimeline); diff != "" {
+				t.Errorf("Timeline mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

@@ -73,6 +73,7 @@ type Workbench struct {
 	timelineChunks    []*khifilev6.TimelineChunk
 	rawTimelines      []rawTimeline
 	rawTimelineItems  map[uint32]*rawTimelineItems
+	seenTimelineIDs   map[uint32]bool
 	searchIndex       *SearchIndex
 
 	indexMu          sync.RWMutex
@@ -152,6 +153,13 @@ func (w *Workbench) IsClosed() bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	return w.closed
+}
+
+// SearchIndex returns the built SearchIndex for this workbench.
+func (w *Workbench) SearchIndex() *SearchIndex {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.searchIndex
 }
 
 // ReadStructYAMLs decodes the interned structs matching the given structIDs and returns a map of struct ID to YAML string representation.

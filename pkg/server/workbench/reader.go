@@ -363,14 +363,27 @@ func (w *Workbench) ingestParsedChunk(res *parsedChunkResult) error {
 		}
 	case khifilev6model.ChunkTypeTimeline:
 		if len(res.rawTimelines) > 0 {
-			w.rawTimelines = append(w.rawTimelines, res.rawTimelines...)
+			if w.seenTimelineIDs == nil {
+				w.seenTimelineIDs = make(map[uint32]bool)
+			}
+			for _, tl := range res.rawTimelines {
+				if !w.seenTimelineIDs[tl.id] {
+					w.seenTimelineIDs[tl.id] = true
+					w.rawTimelines = append(w.rawTimelines, tl)
+				}
+			}
 		}
 		if len(res.rawTimelineItems) > 0 {
 			if w.rawTimelineItems == nil {
 				w.rawTimelineItems = make(map[uint32]*rawTimelineItems)
 			}
 			for _, item := range res.rawTimelineItems {
-				w.rawTimelineItems[item.id] = item
+				if existing, ok := w.rawTimelineItems[item.id]; ok {
+					existing.events = append(existing.events, item.events...)
+					existing.revisions = append(existing.revisions, item.revisions...)
+				} else {
+					w.rawTimelineItems[item.id] = item
+				}
 			}
 		}
 	}
@@ -381,14 +394,20 @@ func (w *Workbench) ingestParsedChunk(res *parsedChunkResult) error {
 // immediately decoupling them from heavy Protobuf messages so they can be garbage collected.
 func (w *Workbench) ingestTimelineChunk(chunk *khifilev6.TimelineChunk) {
 	if len(chunk.Timelines) > 0 {
+		if w.seenTimelineIDs == nil {
+			w.seenTimelineIDs = make(map[uint32]bool)
+		}
 		for _, tl := range chunk.Timelines {
-			w.rawTimelines = append(w.rawTimelines, rawTimeline{
-				id:              tl.GetId(),
-				parentID:        tl.GetParentTimelineId(),
-				nameStringID:    tl.GetNameStringId(),
-				timelineType:    tl.GetTimelineType(),
-				timelineItemsID: tl.GetTimelineItemsId(),
-			})
+			if !w.seenTimelineIDs[tl.GetId()] {
+				w.seenTimelineIDs[tl.GetId()] = true
+				w.rawTimelines = append(w.rawTimelines, rawTimeline{
+					id:              tl.GetId(),
+					parentID:        tl.GetParentTimelineId(),
+					nameStringID:    tl.GetNameStringId(),
+					timelineType:    tl.GetTimelineType(),
+					timelineItemsID: tl.GetTimelineItemsId(),
+				})
+			}
 		}
 	}
 	if len(chunk.TimelineItems) > 0 {
@@ -424,7 +443,12 @@ func (w *Workbench) ingestTimelineChunk(chunk *khifilev6.TimelineChunk) {
 					}
 				}
 			}
-			w.rawTimelineItems[rawItem.id] = rawItem
+			if existing, ok := w.rawTimelineItems[rawItem.id]; ok {
+				existing.events = append(existing.events, rawItem.events...)
+				existing.revisions = append(existing.revisions, rawItem.revisions...)
+			} else {
+				w.rawTimelineItems[rawItem.id] = rawItem
+			}
 		}
 	}
 }

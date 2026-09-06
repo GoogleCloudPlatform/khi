@@ -294,6 +294,7 @@ export class V6LogAssembler implements DataAssembler<LogChunk> {
  */
 export class V6TimelineAssembler implements DataAssembler<TimelineChunk> {
   private readonly rawTimelines: Timeline[] = [];
+  private readonly seenTimelineIds = new Set<number>();
   private readonly itemsMap = new Map<
     number,
     { revisionIds: number[]; eventIds: number[] }
@@ -310,10 +311,11 @@ export class V6TimelineAssembler implements DataAssembler<TimelineChunk> {
   ingest(proto: TimelineChunk): void {
     // 1. Process timelineItems: stream revisions and events directly to builder
     for (const items of proto.timelineItems) {
-      if (this.itemsMap.has(items.id)) {
-        throw new Error(`Duplicate timelineItems id: ${items.id}`);
+      let entry = this.itemsMap.get(items.id);
+      if (!entry) {
+        entry = { revisionIds: [], eventIds: [] };
+        this.itemsMap.set(items.id, entry);
       }
-      const revisionIds: number[] = [];
       for (const r of items.revisions) {
         const id = this.nextRevisionId++;
         const changedTime = r.changedTime
@@ -346,25 +348,25 @@ export class V6TimelineAssembler implements DataAssembler<TimelineChunk> {
             };
           }),
         });
-        revisionIds.push(id);
+        entry.revisionIds.push(id);
       }
 
-      const eventIds: number[] = [];
       for (const e of items.events) {
         const id = this.nextEventId++;
         this.builder.addEvent({
           id,
           logId: e.logId,
         });
-        eventIds.push(id);
+        entry.eventIds.push(id);
       }
-
-      this.itemsMap.set(items.id, { revisionIds, eventIds });
     }
 
-    // 2. Store raw timelines
+    // 2. Store raw timelines (deduplicating by timeline id)
     for (const t of proto.timelines) {
-      this.rawTimelines.push(t);
+      if (!this.seenTimelineIds.has(t.id)) {
+        this.seenTimelineIds.add(t.id);
+        this.rawTimelines.push(t);
+      }
     }
   }
 

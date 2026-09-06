@@ -15,8 +15,10 @@
 package workbench
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
@@ -130,6 +132,7 @@ func (w *Workbench) BuildBaseSearchIndex() (*SearchIndex, error) {
 	}
 	w.rawTimelines = nil
 	w.rawTimelineItems = nil
+	w.seenTimelineIDs = nil
 
 	w.linkTimelineHierarchy(timelines, timelineMap)
 
@@ -360,6 +363,9 @@ func (w *Workbench) indexTimelinesParallel(
 								Severity: sev,
 							})
 						}
+						slices.SortStableFunc(events, func(a, b cel.EventInfo) int {
+							return cmp.Compare(a.LogID, b.LogID)
+						})
 					}
 
 					if len(item.revisions) > 0 {
@@ -386,6 +392,9 @@ func (w *Workbench) indexTimelinesParallel(
 								Severity:             sev,
 							})
 						}
+						slices.SortStableFunc(revisions, func(a, b cel.RevisionInfo) int {
+							return cmp.Compare(a.ChangedTime, b.ChangedTime)
+						})
 					}
 				}
 

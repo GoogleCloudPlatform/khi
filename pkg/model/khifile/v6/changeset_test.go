@@ -76,7 +76,7 @@ func TestTimelineChangeSet_Flush(t *testing.T) {
 	pool := khifilev6.NewTestInternPool(idGen)
 	serverPool := khifilev6.NewTestServerInternPool(pool, idGen)
 	logAcc := khifilev6.NewTestLogAccumulator(pool, serverPool, idGen)
-	accumulator := khifilev6.NewTimelineAccumulator(idGen, pool, serverPool)
+	accumulator := khifilev6.NewTestTimelineAccumulator(idGen, pool, serverPool)
 
 	node := structured.NewStandardMap(nil, nil)
 	l := log.NewLog(idGen, structured.NewNodeReader(node))

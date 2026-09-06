@@ -87,6 +87,13 @@ type TimelineBuilder struct {
 	revisions []pendingRevision
 	// events accumulates the logs or events associated with the timeline.
 	events []pendingEvent
+	// hasEverHadItems tracks whether this builder has ever received events or revisions,
+	// even after in-memory slices have been flushed and cleared.
+	hasEverHadItems bool
+	// oldestTime caches the earliest timestamp observed among all events and revisions.
+	oldestTime time.Time
+	// hasOldestTime indicates if oldestTime has been recorded.
+	hasOldestTime bool
 }
 
 // AddEvent adds a parsed event to the builder in a thread-safe manner.
@@ -94,6 +101,13 @@ func (b *TimelineBuilder) AddEvent(e pendingEvent) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.events = append(b.events, e)
+	b.hasEverHadItems = true
+	if !e.Timestamp.IsZero() {
+		if !b.hasOldestTime || e.Timestamp.Before(b.oldestTime) {
+			b.oldestTime = e.Timestamp
+			b.hasOldestTime = true
+		}
+	}
 }
 
 // AddRevision adds a parsed revision to the builder in a thread-safe manner.
@@ -101,9 +115,16 @@ func (b *TimelineBuilder) AddRevision(r pendingRevision) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.revisions = append(b.revisions, r)
+	b.hasEverHadItems = true
+	if !r.ChangedTime.IsZero() {
+		if !b.hasOldestTime || r.ChangedTime.Before(b.oldestTime) {
+			b.oldestTime = r.ChangedTime
+			b.hasOldestTime = true
+		}
+	}
 }
 
-// HasItems returns true if the builder has accumulated any events or revisions.
+// HasItems returns true if the builder currently has accumulated events or revisions in memory.
 func (b *TimelineBuilder) HasItems() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -124,33 +145,40 @@ func (b *TimelineBuilder) HasEvent() bool {
 	return len(b.events) > 0
 }
 
+// HasEverHadItems returns true if the builder has ever accumulated events or revisions,
+// even if they have already been flushed from memory.
+func (b *TimelineBuilder) HasEverHadItems() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.hasEverHadItems
+}
+
 // FindOldestTime returns the oldest timestamp among all accumulated events and revisions in this builder.
 func (b *TimelineBuilder) FindOldestTime() (time.Time, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	return b.oldestTime, b.hasOldestTime
+}
 
-	var oldest time.Time
-	found := false
+// ExtractPendingProto converts currently accumulated events and revisions into a TimelineItems protobuf message
+// and clears the in-memory slices to release memory. It returns nil if no events or revisions are staged.
+func (b *TimelineBuilder) ExtractPendingProto() *pb.TimelineItems {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
-	for _, rev := range b.revisions {
-		if rev.ChangedTime.IsZero() {
-			continue
-		}
-		if !found || rev.ChangedTime.Before(oldest) {
-			oldest = rev.ChangedTime
-			found = true
-		}
+	if len(b.events) == 0 && len(b.revisions) == 0 {
+		return nil
 	}
-	for _, ev := range b.events {
-		if ev.Timestamp.IsZero() {
-			continue
-		}
-		if !found || ev.Timestamp.Before(oldest) {
-			oldest = ev.Timestamp
-			found = true
-		}
+
+	itemsID := b.TimelineItemsID
+	items := &pb.TimelineItems{
+		Id:        &itemsID,
+		Events:    b.convertEventsToProtoLocked(),
+		Revisions: b.convertRevisionsToProtoLocked(),
 	}
-	return oldest, found
+	b.events = nil
+	b.revisions = nil
+	return items
 }
 
 // ToProto converts the accumulated data into a TimelineItems protobuf message.

@@ -640,15 +640,24 @@ export class TimelineStore {
     id: number,
   ): ReadonlyDomainElement<Revision[]> {
     const revIds = this.timelineRevisionIds[this.getTimelineIndex(id)];
-    if (!revIds) {
+    if (!revIds || revIds.length === 0) {
       return [];
     }
 
+    const sortedRevIds = Array.from(revIds);
+    sortedRevIds.sort((a, b) => {
+      const logA = this._getRevisionLogId(a);
+      const logB = this._getRevisionLogId(b);
+      return (
+        this.logStore.getLog(logA).logIndex -
+        this.logStore.getLog(logB).logIndex
+      );
+    });
+
     const revisions: Revision[] = [];
-    for (let i = 0; i < revIds.length; i++) {
-      revisions.push(new Revision(revIds[i], id, this, i));
+    for (let i = 0; i < sortedRevIds.length; i++) {
+      revisions.push(new Revision(sortedRevIds[i], id, this, i));
     }
-    revisions.sort((r1, r2) => r1.logIndex - r2.logIndex);
     return revisions;
   }
 
@@ -658,15 +667,26 @@ export class TimelineStore {
    */
   public _getEventsForTimeline(id: number): ReadonlyDomainElement<Event[]> {
     const eventIds = this.timelineEventIds[this.getTimelineIndex(id)];
-    if (!eventIds) {
+    if (!eventIds || eventIds.length === 0) {
       return [];
     }
 
+    const sortedEvtIds = Array.from(eventIds);
+    sortedEvtIds.sort((a, b) => {
+      const idxA = this.eventIdToIndex[a];
+      const idxB = this.eventIdToIndex[b];
+      const logA = idxA !== undefined ? this.eventLogIds[idxA] : 0;
+      const logB = idxB !== undefined ? this.eventLogIds[idxB] : 0;
+      return (
+        this.logStore.getLog(logA).logIndex -
+        this.logStore.getLog(logB).logIndex
+      );
+    });
+
     const events: Event[] = [];
-    for (let i = 0; i < eventIds.length; i++) {
-      events.push(new Event(eventIds[i], id, this));
+    for (let i = 0; i < sortedEvtIds.length; i++) {
+      events.push(new Event(sortedEvtIds[i], id, this));
     }
-    events.sort((e1, e2) => e1.logIndex - e2.logIndex);
     return events;
   }
 

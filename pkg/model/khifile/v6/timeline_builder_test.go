@@ -165,3 +165,45 @@ func TestTimelineBuilder_FindOldestTime(t *testing.T) {
 		})
 	}
 }
+
+func TestTimelineBuilder_ExtractPendingProto(t *testing.T) {
+	builder := &TimelineBuilder{TimelineItemsID: 42}
+
+	if got := builder.ExtractPendingProto(); got != nil {
+		t.Fatalf("expected nil from empty builder, got %v", got)
+	}
+
+	builder.AddEvent(pendingEvent{LogID: 10})
+	builder.AddRevision(pendingRevision{LogID: 20})
+
+	firstProto := builder.ExtractPendingProto()
+	if firstProto == nil {
+		t.Fatalf("expected non-nil proto, got nil")
+	}
+	if len(firstProto.Events) != 1 || firstProto.Events[0].GetLogId() != 10 {
+		t.Errorf("unexpected events: %v", firstProto.Events)
+	}
+	if len(firstProto.Revisions) != 1 || firstProto.Revisions[0].GetLogId() != 20 {
+		t.Errorf("unexpected revisions: %v", firstProto.Revisions)
+	}
+
+	// After extraction, internal slices should be cleared
+	if builder.HasItems() {
+		t.Errorf("expected HasItems to be false after ExtractPendingProto")
+	}
+	if !builder.HasEverHadItems() {
+		t.Errorf("expected HasEverHadItems to remain true")
+	}
+
+	secondProto := builder.ExtractPendingProto()
+	if secondProto != nil {
+		t.Errorf("expected nil on second extraction with no new items, got %v", secondProto)
+	}
+
+	// Add more items and verify second extraction works
+	builder.AddEvent(pendingEvent{LogID: 30})
+	thirdProto := builder.ExtractPendingProto()
+	if thirdProto == nil || len(thirdProto.Events) != 1 || thirdProto.Events[0].GetLogId() != 30 {
+		t.Errorf("unexpected third proto: %v", thirdProto)
+	}
+}

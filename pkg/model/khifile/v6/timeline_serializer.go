@@ -35,7 +35,7 @@ func extractTimelineItems(registry *TimelineRegistry) []*pb.TimelineItems {
 	var items []*pb.TimelineItems
 
 	for builder := range registry.Builders() {
-		if proto := builder.ToProto(); proto != nil {
+		if proto := builder.ExtractPendingProto(); proto != nil {
 			items = append(items, proto)
 		}
 	}
@@ -59,7 +59,7 @@ func extractTimelines(pool *TimelinePathPool, registry *TimelineRegistry) []*pb.
 	var timelines []*pb.Timeline
 	for _, path := range sortedPaths {
 		var itemsID *uint32
-		if b, ok := registry.GetBuilderIfExists(path); ok && b.HasItems() {
+		if b, ok := registry.GetBuilderIfExists(path); ok && b.HasEverHadItems() {
 			id := b.TimelineItemsID
 			itemsID = &id
 		}

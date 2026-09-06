@@ -50,7 +50,7 @@ func NewBuilder(gen *id.Generator, writer *Writer) *Builder {
 		writer:              writer,
 		internPool:          internPool,
 		serverInternPool:    serverPool,
-		TimelineAccumulator: NewTimelineAccumulator(gen, internPool, serverPool),
+		TimelineAccumulator: NewTimelineAccumulator(gen, internPool, serverPool, writer),
 		LogAccumulator:      logAcc,
 		MetadataAccumulator: NewMetadataAccumulator(),
 	}
@@ -110,23 +110,9 @@ func (b *Builder) Build(reporter BuilderProgressReporter) (err error) {
 	}
 
 	report(0.6, "Writing timeline chunks")
-	// 4. Write TimelineChunks
-	timelines, timelineItems := b.TimelineAccumulator.Accumulate()
-
-	if len(timelines) > 0 {
-		timelineGen := NewTimelineGenerator(slices.Values(timelines))
-		defer timelineGen.Close()
-		if err := b.writer.WriteGenerator(timelineGen); err != nil {
-			return fmt.Errorf("failed to write timeline chunks: %w", err)
-		}
-	}
-
-	if len(timelineItems) > 0 {
-		timelineItemsGen := NewTimelineItemsGenerator(slices.Values(timelineItems))
-		defer timelineItemsGen.Close()
-		if err := b.writer.WriteGenerator(timelineItemsGen); err != nil {
-			return fmt.Errorf("failed to write timeline items chunks: %w", err)
-		}
+	// 4. Flush timeline chunks
+	if err := b.TimelineAccumulator.Flush(); err != nil {
+		return fmt.Errorf("failed to flush timeline accumulator: %w", err)
 	}
 
 	report(0.8, "Flushing intern pool chunks")
