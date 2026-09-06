@@ -573,8 +573,10 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			}
 
 			wantLogsString := []string{}
+			testStore := structured.NewLazyJSONBlockStore(4, 8)
+			testBuilder := testStore.NewBuilder(10, 1024)
 			for _, entry := range tc.wantLogs {
-				node, err := logconvert.LogEntryToNode(entry)
+				node, err := logconvert.LogEntryToNode(testBuilder, entry)
 				if err != nil {
 					t.Fatalf("failed to convert entry to node: %v", err)
 				}
@@ -589,6 +591,7 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 				}
 				wantLogsString = append(wantLogsString, string(yaml))
 			}
+			testBuilder.Flush()
 
 			if diff := cmp.Diff(wantLogsString, gotLogsString); diff != "" {
 				t.Errorf("FetchLogsWithProgress() produced non expected result: (-want, +got):\n%v", diff)

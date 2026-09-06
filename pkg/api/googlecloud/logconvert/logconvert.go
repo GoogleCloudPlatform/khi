@@ -49,11 +49,11 @@ var GCPLogEntryKeyOrder = []string{
 }
 
 // LogEntryToNode converts a Google Cloud Logging LogEntry protobuf message into a structured.Node.
-// It directly marshals the LogEntry into JSON bytes via protojson and wraps it in a LazyJSONNode.
-func LogEntryToNode(l *loggingpb.LogEntry) (structured.Node, error) {
+// It directly marshals the LogEntry into JSON bytes via protojson and appends it to the block builder.
+func LogEntryToNode(builder *structured.LazyJSONBlockBuilder, l *loggingpb.LogEntry) (structured.Node, error) {
 	jsonBytes, err := protojsonMarshalOptions.Marshal(l)
 	if err != nil {
 		return nil, err
 	}
-	return structured.NewLazyJSONNodeFromBytes(jsonBytes), nil
+	return builder.Add(jsonBytes), nil
 }

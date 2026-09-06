@@ -234,6 +234,8 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 
 	times := t.getPartitionedTimes(beginTime, endTime)
 
+	blockStore := structured.NewLazyJSONBlockStore(32, 16)
+
 	wg, groupCtx := errgroup.WithContext(cancellableCtx)
 	wg.SetLimit(t.maxParallelism)
 
@@ -254,10 +256,12 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 			subLogChan := make(chan *loggingpb.LogEntry)
 			subProgressChan := make(chan LogFetchProgress)
 			subLogs := make([]*log.Log, 0)
+			builder := blockStore.NewBuilder(100, 256*1024)
 
 			// Consume the subLogChan, convert proto to *log.Log in parallel, and append to subLogs.
 			go func() {
 				defer childWg.Done()
+				defer builder.Flush()
 				for {
 					select {
 					case <-groupCtx.Done():
@@ -266,7 +270,7 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 						if !ok {
 							return
 						}
-						node, err := logconvert.LogEntryToNode(logEntry)
+						node, err := logconvert.LogEntryToNode(builder, logEntry)
 						if err != nil {
 							slog.WarnContext(groupCtx, fmt.Sprintf("failed to convert loggingpb.LogEntry (insertId: %s, timestamp: %v) to structured.Node %v", logEntry.InsertId, logEntry.Timestamp, err))
 							continue

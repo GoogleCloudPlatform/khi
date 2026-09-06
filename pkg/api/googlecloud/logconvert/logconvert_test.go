@@ -197,7 +197,10 @@ func TestLogEntryToNode(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := LogEntryToNode(tc.logEntry)
+			store := structured.NewLazyJSONBlockStore(4, 8)
+			builder := store.NewBuilder(10, 1024)
+			got, err := LogEntryToNode(builder, tc.logEntry)
+			builder.Flush()
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("LogEntryToNode() error = %v, wantErr %v", err, tc.wantErr)
 			}
@@ -237,7 +240,10 @@ func TestLogEntryWithKeyOrder(t *testing.T) {
 		Severity: ltype.LogSeverity_INFO,
 	}
 
-	node, err := LogEntryToNode(entry)
+	store := structured.NewLazyJSONBlockStore(4, 8)
+	builder := store.NewBuilder(10, 1024)
+	node, err := LogEntryToNode(builder, entry)
+	builder.Flush()
 	if err != nil {
 		t.Fatalf("LogEntryToNode() failed: %v", err)
 	}
@@ -272,10 +278,13 @@ func BenchmarkLogEntryToNode(b *testing.B) {
 		Timestamp: nowpb,
 	}
 
+	store := structured.NewLazyJSONBlockStore(16, 64)
+	builder := store.NewBuilder(100, 256*1024)
+
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		_, err := LogEntryToNode(entry)
+		_, err := LogEntryToNode(builder, entry)
 		if err != nil {
 			b.Fatal(err)
 		}

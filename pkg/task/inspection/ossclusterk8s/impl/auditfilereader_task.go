@@ -65,13 +65,16 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 		var logs []*log.Log
 		idGen := khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator)
 
+		blockStore := structured.NewLazyJSONBlockStore(32, 16)
+		builder := blockStore.NewBuilder(100, 256*1024)
+
 		progressutil.ReportProgressFromArraySync(tp, logLines, func(i int, line string) error {
 			trimmed := strings.TrimSpace(line)
 			if trimmed == "" {
 				return nil
 			}
 
-			node := structured.NewLazyJSONNodeFromBytes(unsafe.Slice(unsafe.StringData(trimmed), len(trimmed)))
+			node := builder.Add(unsafe.Slice(unsafe.StringData(trimmed), len(trimmed)))
 			reader := structured.NewNodeReader(node)
 
 			// TODO: we may need to consider processing logs not with ResponseComplete stage. All logs not on the ResponseComplete stage will be ignored for now.
@@ -84,6 +87,7 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 			logs = append(logs, l)
 			return nil
 		})
+		builder.Flush()
 
 		slices.SortFunc(logs, func(a, b *log.Log) int {
 			return a.Timestamp.Compare(b.Timestamp)

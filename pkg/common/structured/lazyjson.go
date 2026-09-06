@@ -27,11 +27,14 @@ import (
 // ErrInvalidJSON indicates that invalid JSON syntax was encountered during scanning.
 var ErrInvalidJSON = errors.New("invalid json format")
 
-// LazyJSONNode represents structured data as an immutable JSON byte buffer and an offset index.
-// Child nodes reuse the underlying byte buffer without allocating sub-slices, adjusting only the offset index.
+// LazyJSONNode represents structured data backed by an entry in LazyJSONBlockStore and an offset index.
+// Child nodes reuse the underlying block reference without allocating sub-slices, adjusting only the offset index.
 type LazyJSONNode struct {
-	data  []byte
-	index int
+	store   *LazyJSONBlockStore
+	blockID uint32
+	offset  uint32
+	length  uint32
+	index   int
 }
 
 var _ Node = (*LazyJSONNode)(nil)
@@ -51,19 +54,32 @@ func NewLazyJSONNode(node Node) (Node, error) {
 
 // NewLazyJSONNodeFromBytes creates a LazyJSONNode from a JSON byte slice.
 func NewLazyJSONNodeFromBytes(data []byte) Node {
-	return &LazyJSONNode{
-		data:  data,
-		index: 0,
+	blockID := defaultStandaloneBlockStore.ReserveBlock(data)
+	compressed, err := compressBlockData(data)
+	if err == nil {
+		defaultStandaloneBlockStore.SetCompressed(blockID, compressed)
 	}
+	return &LazyJSONNode{
+		store:   defaultStandaloneBlockStore,
+		blockID: blockID,
+		offset:  0,
+		length:  uint32(len(data)),
+		index:   0,
+	}
+}
+
+func (n *LazyJSONNode) getBuffer() []byte {
+	return n.store.GetBuffer(n.blockID, n.offset, n.length)
 }
 
 // Type returns the NodeType of this node.
 func (n *LazyJSONNode) Type() NodeType {
-	idx := skipWhitespace(n.data, n.index)
-	if idx >= len(n.data) {
+	data := n.getBuffer()
+	idx := skipWhitespace(data, n.index)
+	if idx >= len(data) {
 		return InvalidNodeType
 	}
-	switch n.data[idx] {
+	switch data[idx] {
 	case '{':
 		return MapNodeType
 	case '[':
@@ -80,7 +96,8 @@ func (n *LazyJSONNode) NodeScalarValue() (any, error) {
 	if n.Type() != ScalarNodeType {
 		return nil, ErrNonScalarNode
 	}
-	val, _, err := parseJSONScalar(n.data, n.index)
+	data := n.getBuffer()
+	val, _, err := parseJSONScalar(data, n.index, true)
 	return val, err
 }
 
@@ -90,93 +107,101 @@ func (n *LazyJSONNode) Children() NodeChildrenIterator {
 	switch nodeType {
 	case MapNodeType:
 		return func(yield func(key NodeChildrenKey, value Node) bool) {
-			idx := skipWhitespace(n.data, n.index)
-			if idx >= len(n.data) || n.data[idx] != '{' {
+			data := n.getBuffer()
+			idx := skipWhitespace(data, n.index)
+			if idx >= len(data) || data[idx] != '{' {
 				return
 			}
 			idx++ // Skip '{'
 			childIndex := 0
 
 			for {
-				idx = skipWhitespace(n.data, idx)
-				if idx >= len(n.data) {
+				idx = skipWhitespace(data, idx)
+				if idx >= len(data) {
 					return
 				}
-				if n.data[idx] == '}' {
-					return
-				}
-
-				if n.data[idx] != '"' {
+				if data[idx] == '}' {
 					return
 				}
 
-				keyStr, nextIdx, err := parseJSONString(n.data, idx)
+				if data[idx] != '"' {
+					return
+				}
+
+				keyStr, nextIdx, err := parseJSONString(data, idx, true)
 				if err != nil {
 					return
 				}
-				idx = skipWhitespace(n.data, nextIdx)
-				if idx >= len(n.data) || n.data[idx] != ':' {
+				idx = skipWhitespace(data, nextIdx)
+				if idx >= len(data) || data[idx] != ':' {
 					return
 				}
 				idx++ // Skip ':'
-				valStartIdx := skipWhitespace(n.data, idx)
-				if valStartIdx >= len(n.data) {
+				valStartIdx := skipWhitespace(data, idx)
+				if valStartIdx >= len(data) {
 					return
 				}
 
 				childNode := &LazyJSONNode{
-					data:  n.data,
-					index: valStartIdx,
+					store:   n.store,
+					blockID: n.blockID,
+					offset:  n.offset,
+					length:  n.length,
+					index:   valStartIdx,
 				}
 				if !yield(NodeChildrenKey{Index: childIndex, Key: keyStr}, childNode) {
 					return
 				}
 				childIndex++
 
-				valEndIdx, err := skipJSONValue(n.data, valStartIdx)
+				valEndIdx, err := skipJSONValue(data, valStartIdx)
 				if err != nil {
 					return
 				}
-				idx = skipWhitespace(n.data, valEndIdx)
-				if idx < len(n.data) && n.data[idx] == ',' {
+				idx = skipWhitespace(data, valEndIdx)
+				if idx < len(data) && data[idx] == ',' {
 					idx++
 				}
 			}
 		}
 	case SequenceNodeType:
 		return func(yield func(key NodeChildrenKey, value Node) bool) {
-			idx := skipWhitespace(n.data, n.index)
-			if idx >= len(n.data) || n.data[idx] != '[' {
+			data := n.getBuffer()
+			idx := skipWhitespace(data, n.index)
+			if idx >= len(data) || data[idx] != '[' {
 				return
 			}
 			idx++ // Skip '['
 			childIndex := 0
 
 			for {
-				idx = skipWhitespace(n.data, idx)
-				if idx >= len(n.data) {
+				idx = skipWhitespace(data, idx)
+				if idx >= len(data) {
 					return
 				}
-				if n.data[idx] == ']' {
+				if data[idx] == ']' {
 					return
 				}
 
 				elemStartIdx := idx
 				childNode := &LazyJSONNode{
-					data:  n.data,
-					index: elemStartIdx,
+					store:   n.store,
+					blockID: n.blockID,
+					offset:  n.offset,
+					length:  n.length,
+					index:   elemStartIdx,
 				}
 				if !yield(NodeChildrenKey{Index: childIndex, Key: ""}, childNode) {
 					return
 				}
 				childIndex++
 
-				elemEndIdx, err := skipJSONValue(n.data, elemStartIdx)
+				elemEndIdx, err := skipJSONValue(data, elemStartIdx)
 				if err != nil {
 					return
 				}
-				idx = skipWhitespace(n.data, elemEndIdx)
-				if idx < len(n.data) && n.data[idx] == ',' {
+				idx = skipWhitespace(data, elemEndIdx)
+				if idx < len(data) && data[idx] == ',' {
 					idx++
 				}
 			}
@@ -191,60 +216,62 @@ func (n *LazyJSONNode) Len() int {
 	nodeType := n.Type()
 	switch nodeType {
 	case MapNodeType:
-		idx := skipWhitespace(n.data, n.index)
-		if idx >= len(n.data) || n.data[idx] != '{' {
+		data := n.getBuffer()
+		idx := skipWhitespace(data, n.index)
+		if idx >= len(data) || data[idx] != '{' {
 			return 0
 		}
 		idx++
 		count := 0
 		for {
-			idx = skipWhitespace(n.data, idx)
-			if idx >= len(n.data) || n.data[idx] == '}' {
+			idx = skipWhitespace(data, idx)
+			if idx >= len(data) || data[idx] == '}' {
 				break
 			}
-			if n.data[idx] != '"' {
+			if data[idx] != '"' {
 				break
 			}
-			_, nextIdx, err := parseJSONString(n.data, idx)
+			_, nextIdx, err := parseJSONString(data, idx, false)
 			if err != nil {
 				break
 			}
-			idx = skipWhitespace(n.data, nextIdx)
-			if idx >= len(n.data) || n.data[idx] != ':' {
+			idx = skipWhitespace(data, nextIdx)
+			if idx >= len(data) || data[idx] != ':' {
 				break
 			}
 			idx++
-			valStartIdx := skipWhitespace(n.data, idx)
-			valEndIdx, err := skipJSONValue(n.data, valStartIdx)
+			valStartIdx := skipWhitespace(data, idx)
+			valEndIdx, err := skipJSONValue(data, valStartIdx)
 			if err != nil {
 				break
 			}
 			count++
-			idx = skipWhitespace(n.data, valEndIdx)
-			if idx < len(n.data) && n.data[idx] == ',' {
+			idx = skipWhitespace(data, valEndIdx)
+			if idx < len(data) && data[idx] == ',' {
 				idx++
 			}
 		}
 		return count
 	case SequenceNodeType:
-		idx := skipWhitespace(n.data, n.index)
-		if idx >= len(n.data) || n.data[idx] != '[' {
+		data := n.getBuffer()
+		idx := skipWhitespace(data, n.index)
+		if idx >= len(data) || data[idx] != '[' {
 			return 0
 		}
 		idx++
 		count := 0
 		for {
-			idx = skipWhitespace(n.data, idx)
-			if idx >= len(n.data) || n.data[idx] == ']' {
+			idx = skipWhitespace(data, idx)
+			if idx >= len(data) || data[idx] == ']' {
 				break
 			}
-			elemEndIdx, err := skipJSONValue(n.data, idx)
+			elemEndIdx, err := skipJSONValue(data, idx)
 			if err != nil {
 				break
 			}
 			count++
-			idx = skipWhitespace(n.data, elemEndIdx)
-			if idx < len(n.data) && n.data[idx] == ',' {
+			idx = skipWhitespace(data, elemEndIdx)
+			if idx < len(data) && data[idx] == ',' {
 				idx++
 			}
 		}
@@ -256,18 +283,21 @@ func (n *LazyJSONNode) Len() int {
 
 // GetChildByKey returns the child node matching the string key without allocating iterator closures or non-matching child nodes.
 func (n *LazyJSONNode) GetChildByKey(key string) (Node, bool) {
-	if len(n.data) == 0 || n.index >= len(n.data) {
+	if n.length == 0 || n.index >= int(n.length) {
 		return nil, false
 	}
 
-	ptr := uintptr(unsafe.Pointer(&n.data[0]))
-	if valIdx, ok := globalLazyJSONCache.get(ptr, n.index, key); ok {
+	absOffset := n.offset + uint32(n.index)
+	if valIdx, ok := n.store.cache.get(n.blockID, absOffset, key); ok {
 		if valIdx < 0 {
 			return nil, false
 		}
 		return &LazyJSONNode{
-			data:  n.data,
-			index: valIdx,
+			store:   n.store,
+			blockID: n.blockID,
+			offset:  n.offset,
+			length:  n.length,
+			index:   valIdx,
 		}, true
 	}
 
@@ -275,56 +305,60 @@ func (n *LazyJSONNode) GetChildByKey(key string) (Node, bool) {
 		return nil, false
 	}
 
-	idx := skipWhitespace(n.data, n.index)
-	if idx >= len(n.data) || n.data[idx] != '{' {
-		globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+	data := n.getBuffer()
+	idx := skipWhitespace(data, n.index)
+	if idx >= len(data) || data[idx] != '{' {
+		n.store.cache.put(n.blockID, absOffset, key, -1)
 		return nil, false
 	}
 	idx++ // Skip '{'
 
 	for {
-		idx = skipWhitespace(n.data, idx)
-		if idx >= len(n.data) || n.data[idx] == '}' {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+		idx = skipWhitespace(data, idx)
+		if idx >= len(data) || data[idx] == '}' {
+			n.store.cache.put(n.blockID, absOffset, key, -1)
 			return nil, false
 		}
-		if n.data[idx] != '"' {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+		if data[idx] != '"' {
+			n.store.cache.put(n.blockID, absOffset, key, -1)
 			return nil, false
 		}
-		keyStr, nextIdx, err := parseJSONString(n.data, idx)
+		keyStr, nextIdx, err := parseJSONString(data, idx, false)
 		if err != nil {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			n.store.cache.put(n.blockID, absOffset, key, -1)
 			return nil, false
 		}
-		idx = skipWhitespace(n.data, nextIdx)
-		if idx >= len(n.data) || n.data[idx] != ':' {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+		idx = skipWhitespace(data, nextIdx)
+		if idx >= len(data) || data[idx] != ':' {
+			n.store.cache.put(n.blockID, absOffset, key, -1)
 			return nil, false
 		}
 		idx++ // Skip ':'
-		valStartIdx := skipWhitespace(n.data, idx)
-		if valStartIdx >= len(n.data) {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+		valStartIdx := skipWhitespace(data, idx)
+		if valStartIdx >= len(data) {
+			n.store.cache.put(n.blockID, absOffset, key, -1)
 			return nil, false
 		}
 
-		globalLazyJSONCache.putIfAbsent(ptr, n.index, keyStr, valStartIdx, n.data)
+		n.store.cache.putIfAbsent(n.blockID, absOffset, keyStr, valStartIdx)
 
 		if keyStr == key {
 			return &LazyJSONNode{
-				data:  n.data,
-				index: valStartIdx,
+				store:   n.store,
+				blockID: n.blockID,
+				offset:  n.offset,
+				length:  n.length,
+				index:   valStartIdx,
 			}, true
 		}
 
-		valEndIdx, err := skipJSONValue(n.data, valStartIdx)
+		valEndIdx, err := skipJSONValue(data, valStartIdx)
 		if err != nil {
-			globalLazyJSONCache.put(ptr, n.index, key, -1, n.data)
+			n.store.cache.put(n.blockID, absOffset, key, -1)
 			return nil, false
 		}
-		idx = skipWhitespace(n.data, valEndIdx)
-		if idx < len(n.data) && n.data[idx] == ',' {
+		idx = skipWhitespace(data, valEndIdx)
+		if idx < len(data) && data[idx] == ',' {
 			idx++
 		}
 	}
@@ -342,7 +376,7 @@ func skipWhitespace(data []byte, index int) int {
 	return index
 }
 
-func parseJSONString(data []byte, index int) (string, int, error) {
+func parseJSONString(data []byte, index int, copyString bool) (string, int, error) {
 	idx := skipWhitespace(data, index)
 	if idx >= len(data) || data[idx] != '"' {
 		return "", idx, ErrInvalidJSON
@@ -366,6 +400,9 @@ stringScanLoop:
 			if !hasEscapes {
 				if start == idx {
 					return "", idx + 1, nil
+				}
+				if copyString {
+					return string(data[start:idx]), idx + 1, nil
 				}
 				return unsafe.String(&data[start], idx-start), idx + 1, nil
 			}
@@ -470,7 +507,7 @@ func parseHex4(b []byte) (rune, error) {
 	return val, nil
 }
 
-func parseJSONScalar(data []byte, index int) (any, int, error) {
+func parseJSONScalar(data []byte, index int, copyString bool) (any, int, error) {
 	idx := skipWhitespace(data, index)
 	if idx >= len(data) {
 		return nil, idx, ErrInvalidJSON
@@ -478,7 +515,7 @@ func parseJSONScalar(data []byte, index int) (any, int, error) {
 
 	switch data[idx] {
 	case '"':
-		return parseJSONString(data, idx)
+		return parseJSONString(data, idx, copyString)
 	case 't':
 		if idx+4 <= len(data) && data[idx] == 't' && data[idx+1] == 'r' && data[idx+2] == 'u' && data[idx+3] == 'e' {
 			return true, idx + 4, nil
@@ -611,7 +648,7 @@ func skipJSONValue(data []byte, index int) (int, error) {
 		}
 		return idx, ErrInvalidJSON
 	case '"':
-		_, nextIdx, err := parseJSONString(data, idx)
+		_, nextIdx, err := parseJSONString(data, idx, false)
 		return nextIdx, err
 	default:
 		// Scalar (bool, null, number)
