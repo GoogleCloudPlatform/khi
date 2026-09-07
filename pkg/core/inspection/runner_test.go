@@ -16,6 +16,8 @@ package coreinspection
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
@@ -417,6 +419,90 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantEnabledFeatures, gotEnabledFeatures, cmpopts.SortSlices(func(a, b string) bool { return a < b }), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("enabledFeatures mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestInspectionTaskRunner_Cancel(t *testing.T) {
+	logger.InitGlobalKHILogger()
+
+	testCases := []struct {
+		name       string
+		failTask   bool
+		setupRun   func(t *testing.T, runner *InspectionTaskRunner)
+		wantErrSub string
+	}{
+		{
+			name:       "cancel before start returns error",
+			setupRun:   func(t *testing.T, runner *InspectionTaskRunner) {},
+			wantErrSub: "this task is not yet started",
+		},
+		{
+			name: "cancel after successful completion returns already finished error",
+			setupRun: func(t *testing.T, runner *InspectionTaskRunner) {
+				req := &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}
+				if err := runner.Run(context.Background(), req); err != nil {
+					t.Fatalf("Run failed: %v", err)
+				}
+				<-runner.Wait()
+			},
+			wantErrSub: "is already finished",
+		},
+		{
+			name:     "cancel after failed completion returns already finished error",
+			failTask: true,
+			setupRun: func(t *testing.T, runner *InspectionTaskRunner) {
+				req := &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}
+				_ = runner.Run(context.Background(), req)
+				<-runner.Wait()
+			},
+			wantErrSub: "is already finished",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			server, err := NewServer(&inspectioncore_contract.IOConfig{TemporaryFolder: t.TempDir()})
+			if err != nil {
+				t.Fatalf("NewServer failed: %v", err)
+			}
+			inspectionType := InspectionType{Id: "test-inspection", Name: "Test Inspection"}
+			if err := server.AddInspectionType(inspectionType); err != nil {
+				t.Fatalf("AddInspectionType failed: %v", err)
+			}
+			dummyTaskID := taskid.NewDefaultImplementationID[any]("dummy-task")
+			dummyTask := coretask.NewTask(
+				dummyTaskID,
+				nil,
+				func(ctx context.Context) (any, error) {
+					if tc.failTask {
+						return nil, fmt.Errorf("simulated failure")
+					}
+					return "success", nil
+				},
+				coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionTypes, []string{inspectionType.Id}),
+				coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
+				coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
+				coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+			)
+			if err := server.AddTask(dummyTask); err != nil {
+				t.Fatalf("AddTask failed: %v", err)
+			}
+			inspectionID, err := server.CreateInspection(inspectionType.Id)
+			if err != nil {
+				t.Fatalf("CreateInspection failed: %v", err)
+			}
+			runner := server.GetInspection(inspectionID)
+
+			tc.setupRun(t, runner)
+
+			err = runner.Cancel()
+			if err == nil {
+				t.Fatalf("Cancel() expected error containing %q, got nil", tc.wantErrSub)
+			}
+			if !strings.Contains(err.Error(), tc.wantErrSub) {
+				t.Errorf("Cancel() error %q does not contain %q", err.Error(), tc.wantErrSub)
 			}
 		})
 	}
