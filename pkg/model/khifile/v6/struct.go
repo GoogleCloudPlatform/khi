@@ -87,6 +87,9 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (InternStructRef, 
 		idVal := pool.InternStringBytes(key).id
 		scratch.pathIDs = append(scratch.pathIDs, idVal)
 		scratch.flattenedValues = append(scratch.flattenedValues, val)
+		if cap(key) > cap(scratch.pathBuf) {
+			scratch.pathBuf = key[:0]
+		}
 		return nil
 	})
 	if err != nil {
@@ -99,6 +102,9 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (InternStructRef, 
 	keyBytes, err := structKeyFromNodes(fieldSetID, scratch.flattenedValues, pool, scratch.keyBuf)
 	if err != nil {
 		return InternStructRef{}, err
+	}
+	if cap(keyBytes) > cap(scratch.keyBuf) {
+		scratch.keyBuf = keyBytes[:0]
 	}
 
 	if idVal, ok := pool.structToID.LoadBytes(keyBytes); ok {

@@ -41,9 +41,6 @@ type InternStringRef struct {
 // Resolve returns the original string value.
 // It delegates to the pool to resolve the string from the stored ID.
 func (r InternStringRef) Resolve() string {
-	if r.pool == nil {
-		panic("InternStringRef.Resolve: uninitialized InternStringRef (nil pool)")
-	}
 	return r.pool.resolveStringFromID(r.id)
 }
 
@@ -72,9 +69,6 @@ type FieldPathSetRef struct {
 // Resolve returns the original list of strings in the set.
 // It delegates to the pool to resolve the field path set and then resolves each string ID.
 func (r FieldPathSetRef) Resolve() []string {
-	if r.pool == nil {
-		panic("FieldPathSetRef.Resolve: uninitialized FieldPathSetRef (nil pool)")
-	}
 	ids := r.pool.resolveFieldSetFromID(r.id)
 	res := make([]string, len(ids))
 	for i, id := range ids {
@@ -112,9 +106,6 @@ func (r InternStructRef) ID() uint32 {
 
 // Resolve returns the underlying pb.InternedStruct protobuf message.
 func (r InternStructRef) Resolve() *pb.InternedStruct {
-	if r.pool == nil {
-		panic("InternStructRef.Resolve: uninitialized InternStructRef (nil pool)")
-	}
 	return r.pool.resolveStructFromID(r.id)
 }
 
