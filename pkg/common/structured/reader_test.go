@@ -405,7 +405,8 @@ func TestNodeReader_NilChildHandling(t *testing.T) {
 
 func TestNodeReader_WithLazyJSONNode(t *testing.T) {
 	rawJSON := `{"protoPayload":{"serviceName":"k8s.io","resourceName":"pods/nginx","status":{"code":200}},"labels":{"cluster":"gke-1"}}`
-	lazyNode := NewLazyJSONNodeFromBytes([]byte(rawJSON))
+	store := NewLazyJSONBlockStore(4, 8)
+	lazyNode := NewLazyJSONNodeFromBytes(store, []byte(rawJSON))
 	reader := NewNodeReader(lazyNode)
 
 	testCases := []struct {

@@ -71,6 +71,64 @@ func TestLazyJSONBlockStore_BasicAndEviction(t *testing.T) {
 	}
 }
 
+func TestNewLazyJSONBlockStore_PowerOfTwoValidation(t *testing.T) {
+	testCases := []struct {
+		name       string
+		shardCount int
+		shardCap   int
+		wantPanic  bool
+	}{
+		{
+			name:       "valid power of two (4)",
+			shardCount: 4,
+			shardCap:   8,
+			wantPanic:  false,
+		},
+		{
+			name:       "valid power of two (1)",
+			shardCount: 1,
+			shardCap:   8,
+			wantPanic:  false,
+		},
+		{
+			name:       "zero shard count",
+			shardCount: 0,
+			shardCap:   8,
+			wantPanic:  true,
+		},
+		{
+			name:       "negative shard count",
+			shardCount: -2,
+			shardCap:   8,
+			wantPanic:  true,
+		},
+		{
+			name:       "non-power of two (3)",
+			shardCount: 3,
+			shardCap:   8,
+			wantPanic:  true,
+		},
+		{
+			name:       "non-power of two (6)",
+			shardCount: 6,
+			shardCap:   8,
+			wantPanic:  true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if (r != nil) != tc.wantPanic {
+					t.Errorf("NewLazyJSONBlockStore() panic = %v, wantPanic %v", r != nil, tc.wantPanic)
+				}
+			}()
+			_ = NewLazyJSONBlockStore(tc.shardCount, tc.shardCap)
+		})
+	}
+}
+
 func TestLazyJSONBlockBuilder_BatchingAndNodeAccess(t *testing.T) {
 	testCases := []struct {
 		name       string
@@ -176,4 +234,29 @@ func TestLazyJSONBlockStore_ConcurrentAccess(t *testing.T) {
 		}(c)
 	}
 	wg.Wait()
+}
+
+func TestNewDefaultLazyJSONBlockStore(t *testing.T) {
+	testCases := []struct {
+		name          string
+		wantShards    int
+		wantShardMask uint32
+	}{
+		{
+			name:          "default 1GB store has 64 shards",
+			wantShards:    DefaultLazyJSONBlockStoreShardCount,
+			wantShardMask: DefaultLazyJSONBlockStoreShardCount - 1,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := NewDefaultLazyJSONBlockStore()
+			if diff := cmp.Diff(tc.wantShards, len(store.shards)); diff != "" {
+				t.Errorf("shards count mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantShardMask, store.shardMask); diff != "" {
+				t.Errorf("shardMask mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
 }

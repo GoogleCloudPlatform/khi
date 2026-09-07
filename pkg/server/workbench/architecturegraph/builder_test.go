@@ -31,7 +31,8 @@ import (
 
 func internJSON(t *testing.T, pool *khifilev6model.InternPool, jsonStr string) uint32 {
 	t.Helper()
-	node := structured.NewLazyJSONNodeFromBytes([]byte(jsonStr))
+	store := structured.NewLazyJSONBlockStore(4, 8)
+	node := structured.NewLazyJSONNodeFromBytes(store, []byte(jsonStr))
 	ref, err := khifilev6model.ToInternedStruct(node, pool)
 	if err != nil {
 		t.Fatalf("failed to intern JSON: %v", err)

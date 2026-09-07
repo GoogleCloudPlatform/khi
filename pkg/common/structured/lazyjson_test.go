@@ -88,7 +88,8 @@ func TestLazyJSONNode_Scalar(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			node := NewLazyJSONNodeFromBytes([]byte(tc.input))
+			store := NewLazyJSONBlockStore(4, 8)
+			node := NewLazyJSONNodeFromBytes(store, []byte(tc.input))
 			if diff := cmp.Diff(tc.wantType, node.Type()); diff != "" {
 				t.Errorf("Type() mismatch (-want +got):\n%s", diff)
 			}
@@ -126,7 +127,8 @@ func TestLazyJSONNode_Sequence(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			node := NewLazyJSONNodeFromBytes([]byte(tc.input))
+			store := NewLazyJSONBlockStore(4, 8)
+			node := NewLazyJSONNodeFromBytes(store, []byte(tc.input))
 			if diff := cmp.Diff(NodeType(SequenceNodeType), node.Type()); diff != "" {
 				t.Errorf("Type() mismatch (-want +got):\n%s", diff)
 			}
@@ -199,7 +201,8 @@ func TestLazyJSONNode_Map(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			node := NewLazyJSONNodeFromBytes([]byte(tc.input))
+			store := NewLazyJSONBlockStore(4, 8)
+			node := NewLazyJSONNodeFromBytes(store, []byte(tc.input))
 			if diff := cmp.Diff(NodeType(MapNodeType), node.Type()); diff != "" {
 				t.Errorf("Type() mismatch (-want +got):\n%s", diff)
 			}
@@ -241,7 +244,8 @@ func TestLazyJSONNode_NodeReader(t *testing.T) {
 		"items": ["a", "b", "c"]
 	}`
 
-	node := NewLazyJSONNodeFromBytes([]byte(jsonStr))
+	store := NewLazyJSONBlockStore(4, 8)
+	node := NewLazyJSONNodeFromBytes(store, []byte(jsonStr))
 	reader := NewNodeReader(node)
 
 	name, err := reader.ReadString(CompileFieldPath("name"))
@@ -310,7 +314,8 @@ func TestNewLazyJSONNode(t *testing.T) {
 		},
 	)
 
-	lazyNode, err := NewLazyJSONNode(stdMap)
+	store := NewLazyJSONBlockStore(4, 8)
+	lazyNode, err := NewLazyJSONNode(store, stdMap)
 	if err != nil {
 		t.Fatalf("NewLazyJSONNode failed: %v", err)
 	}
@@ -335,7 +340,8 @@ func TestNewLazyJSONNode(t *testing.T) {
 
 func TestLazyJSONNode_Concurrency(t *testing.T) {
 	jsonStr := `{"foo":"bar","nested":{"num":42},"arr":[1,2,3]}`
-	node := NewLazyJSONNodeFromBytes([]byte(jsonStr))
+	store := NewLazyJSONBlockStore(4, 8)
+	node := NewLazyJSONNodeFromBytes(store, []byte(jsonStr))
 
 	var wg sync.WaitGroup
 	for i := 0; i < 20; i++ {
@@ -364,7 +370,8 @@ func TestLazyJSONNode_Concurrency(t *testing.T) {
 }
 
 func TestLazyJSONNode_ChildrenEarlyBreak(t *testing.T) {
-	mapNode := NewLazyJSONNodeFromBytes([]byte(`{"a":1,"b":2,"c":3}`))
+	store := NewLazyJSONBlockStore(4, 8)
+	mapNode := NewLazyJSONNodeFromBytes(store, []byte(`{"a":1,"b":2,"c":3}`))
 	mapKeys := make([]string, 0)
 	for key := range mapNode.Children() {
 		mapKeys = append(mapKeys, key.Key)
@@ -376,7 +383,7 @@ func TestLazyJSONNode_ChildrenEarlyBreak(t *testing.T) {
 		t.Errorf("map Children early break mismatch (-want +got):\n%s", diff)
 	}
 
-	seqNode := NewLazyJSONNodeFromBytes([]byte(`[10,20,30,40]`))
+	seqNode := NewLazyJSONNodeFromBytes(store, []byte(`[10,20,30,40]`))
 	seqCount := 0
 	for key := range seqNode.Children() {
 		seqCount++
@@ -391,7 +398,8 @@ func TestLazyJSONNode_ChildrenEarlyBreak(t *testing.T) {
 
 func TestLazyJSONNode_Serialization(t *testing.T) {
 	inputJSON := `{"foo":"bar","items":[1,2,3]}`
-	lazyNode := NewLazyJSONNodeFromBytes([]byte(inputJSON))
+	store := NewLazyJSONBlockStore(4, 8)
+	lazyNode := NewLazyJSONNodeFromBytes(store, []byte(inputJSON))
 
 	yamlSerializer := &YAMLNodeSerializer{}
 	yamlBytes, err := yamlSerializer.Serialize(lazyNode)
@@ -425,7 +433,8 @@ func TestLazyJSONNode_ReadReflectWithEscapes(t *testing.T) {
 	}
 
 	inputJSON := `{"title":"hello \"world\" \n test","nested":{"message":"inner \"quotes\" and \\ slashes","code":200}}`
-	node := NewLazyJSONNodeFromBytes([]byte(inputJSON))
+	store := NewLazyJSONBlockStore(4, 8)
+	node := NewLazyJSONNodeFromBytes(store, []byte(inputJSON))
 	reader := NewNodeReader(node)
 
 	var target SampleStruct
@@ -447,8 +456,9 @@ func TestLazyJSONNode_ReadReflectWithEscapes(t *testing.T) {
 }
 
 func TestLazyJSONNode_MergeNode(t *testing.T) {
-	prev := NewLazyJSONNodeFromBytes([]byte(`{"name":"test","count":1,"labels":{"env":"prod"}}`))
-	patch := NewLazyJSONNodeFromBytes([]byte(`{"count":2,"labels":{"tier":"frontend"}}`))
+	store := NewLazyJSONBlockStore(4, 8)
+	prev := NewLazyJSONNodeFromBytes(store, []byte(`{"name":"test","count":1,"labels":{"env":"prod"}}`))
+	patch := NewLazyJSONNodeFromBytes(store, []byte(`{"count":2,"labels":{"tier":"frontend"}}`))
 
 	merged, err := MergeNode(prev, patch, MergeConfiguration{
 		MergeMapOrderStrategy: &DefaultMergeMapOrderStrategy{},
@@ -528,7 +538,8 @@ func TestLazyJSONNode_GetChildByKey(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			node := NewLazyJSONNodeFromBytes([]byte(tc.json)).(*LazyJSONNode)
+			store := NewLazyJSONBlockStore(4, 8)
+			node := NewLazyJSONNodeFromBytes(store, []byte(tc.json)).(*LazyJSONNode)
 			child, found := node.GetChildByKey(tc.targetKey)
 			if diff := cmp.Diff(tc.wantFound, found); diff != "" {
 				t.Fatalf("GetChildByKey() found mismatch (-want +got):\n%s", diff)
@@ -552,7 +563,8 @@ func BenchmarkLazyJSONNodeVsStandardMap(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	lazyNode := NewLazyJSONNodeFromBytes([]byte(rawJSON))
+	store := NewLazyJSONBlockStore(4, 8)
+	lazyNode := NewLazyJSONNodeFromBytes(store, []byte(rawJSON))
 	pathZone := CompileFieldPath("resource.labels.zone")
 
 	b.Run("StandardMap_ReadString", func(b *testing.B) {
@@ -574,12 +586,13 @@ func BenchmarkLazyJSONNodeVsStandardMap(b *testing.B) {
 
 func BenchmarkLazyJSONNode_GetChildByKey(b *testing.B) {
 	rawJSON := `{"insertId":"123","logName":"projects/p/logs/l","labels":{"k1":"v1","k2":"v2"},"resource":{"type":"gce_instance","labels":{"zone":"us-central1-a"}}}`
-	lazyNode := NewLazyJSONNodeFromBytes([]byte(rawJSON)).(*LazyJSONNode)
+	store := NewLazyJSONBlockStore(4, 8)
+	lazyNode := NewLazyJSONNodeFromBytes(store, []byte(rawJSON)).(*LazyJSONNode)
 
 	b.Run("Cold_FirstAccess", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			ResetGlobalLazyJSONCache()
+			lazyNode.store.cache.clear()
 			_, _ = lazyNode.GetChildByKey("resource")
 		}
 	})

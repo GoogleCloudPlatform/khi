@@ -234,7 +234,7 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 
 	times := t.getPartitionedTimes(beginTime, endTime)
 
-	blockStore := structured.NewLazyJSONBlockStore(32, 16)
+	blockStore := structured.NewDefaultLazyJSONBlockStore()
 
 	wg, groupCtx := errgroup.WithContext(cancellableCtx)
 	wg.SetLimit(t.maxParallelism)

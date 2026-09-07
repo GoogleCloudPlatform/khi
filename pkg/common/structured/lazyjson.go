@@ -39,8 +39,8 @@ type LazyJSONNode struct {
 
 var _ Node = (*LazyJSONNode)(nil)
 
-// NewLazyJSONNode serializes a given Node to JSON and wraps it in a LazyJSONNode.
-func NewLazyJSONNode(node Node) (Node, error) {
+// NewLazyJSONNode serializes a given Node to JSON and registers it into the LazyJSONBlockStore.
+func NewLazyJSONNode(store *LazyJSONBlockStore, node Node) (Node, error) {
 	if lazyNode, ok := node.(*LazyJSONNode); ok {
 		return lazyNode, nil
 	}
@@ -49,18 +49,18 @@ func NewLazyJSONNode(node Node) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewLazyJSONNodeFromBytes(data), nil
+	return NewLazyJSONNodeFromBytes(store, data), nil
 }
 
-// NewLazyJSONNodeFromBytes creates a LazyJSONNode from a JSON byte slice.
-func NewLazyJSONNodeFromBytes(data []byte) Node {
-	blockID := defaultStandaloneBlockStore.ReserveBlock(data)
+// NewLazyJSONNodeFromBytes creates a LazyJSONNode backed by a LazyJSONBlockStore from a JSON byte slice.
+func NewLazyJSONNodeFromBytes(store *LazyJSONBlockStore, data []byte) Node {
+	blockID := store.ReserveBlock(data)
 	compressed, err := compressBlockData(data)
 	if err == nil {
-		defaultStandaloneBlockStore.SetCompressed(blockID, compressed)
+		store.SetCompressed(blockID, compressed)
 	}
 	return &LazyJSONNode{
-		store:   defaultStandaloneBlockStore,
+		store:   store,
 		blockID: blockID,
 		offset:  0,
 		length:  uint32(len(data)),

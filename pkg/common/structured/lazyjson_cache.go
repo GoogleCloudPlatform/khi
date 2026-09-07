@@ -15,6 +15,7 @@
 package structured
 
 import (
+	"strings"
 	"sync"
 )
 
@@ -168,6 +169,9 @@ type lazyJSONCache struct {
 }
 
 func newLazyJSONCache(shardCount, shardCap int) *lazyJSONCache {
+	if shardCount <= 0 || (shardCount&(shardCount-1)) != 0 {
+		panic("shardCount must be a power of two")
+	}
 	shards := make([]*lazyJSONCacheShard, shardCount)
 	for i := 0; i < shardCount; i++ {
 		shards[i] = newLazyJSONCacheShard(shardCap)
@@ -198,13 +202,13 @@ func (c *lazyJSONCache) get(blockID uint32, absOffset uint32, key string) (int, 
 }
 
 func (c *lazyJSONCache) put(blockID uint32, absOffset uint32, key string, valIndex int) {
-	k := lazyJSONCacheKey{blockID: blockID, absOffset: absOffset, key: key}
+	k := lazyJSONCacheKey{blockID: blockID, absOffset: absOffset, key: strings.Clone(key)}
 	shardIdx := hashLazyJSONKey(blockID, absOffset, key) & c.shardMask
 	c.shards[shardIdx].put(k, valIndex)
 }
 
 func (c *lazyJSONCache) putIfAbsent(blockID uint32, absOffset uint32, key string, valIndex int) {
-	k := lazyJSONCacheKey{blockID: blockID, absOffset: absOffset, key: key}
+	k := lazyJSONCacheKey{blockID: blockID, absOffset: absOffset, key: strings.Clone(key)}
 	shardIdx := hashLazyJSONKey(blockID, absOffset, key) & c.shardMask
 	c.shards[shardIdx].putIfAbsent(k, valIndex)
 }
@@ -219,10 +223,3 @@ const (
 	lazyJSONCacheShardCount = 64
 	lazyJSONCacheShardCap   = 512
 )
-
-var globalLazyJSONCache = newLazyJSONCache(lazyJSONCacheShardCount, lazyJSONCacheShardCap)
-
-// ResetGlobalLazyJSONCache clears all entries in the global LazyJSONNode LRU cache.
-func ResetGlobalLazyJSONCache() {
-	globalLazyJSONCache.clear()
-}

@@ -15,42 +15,14 @@
 package structured
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/binary"
 	"fmt"
-	"io"
 	"sync"
+
+	"github.com/golang/snappy"
 )
 
-var gzipReaderPool = sync.Pool{
-	New: func() any {
-		return new(gzip.Reader)
-	},
-}
-
-var gzipWriterPool = sync.Pool{
-	New: func() any {
-		zw, _ := gzip.NewWriterLevel(io.Discard, gzip.BestSpeed)
-		return zw
-	},
-}
-
 func compressBlockData(data []byte) ([]byte, error) {
-	zw := gzipWriterPool.Get().(*gzip.Writer)
-	defer gzipWriterPool.Put(zw)
-
-	var buf bytes.Buffer
-	buf.Grow(len(data) / 4)
-	zw.Reset(&buf)
-
-	if _, err := zw.Write(data); err != nil {
-		return nil, err
-	}
-	if err := zw.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return snappy.Encode(nil, data), nil
 }
 
 type lazyJSONBlock struct {
@@ -205,8 +177,22 @@ type LazyJSONBlockStore struct {
 	cache     *lazyJSONCache
 }
 
+// DefaultLazyJSONBlockStoreShardCount is the default shard count for LazyJSONBlockStore.
+const DefaultLazyJSONBlockStoreShardCount = 64
+
+// DefaultLazyJSONBlockStoreShardCap is the default capacity per shard, sizing total uncompressed cache to 1 GB (4,096 blocks * 256 KB).
+const DefaultLazyJSONBlockStoreShardCap = 64
+
+// NewDefaultLazyJSONBlockStore creates a new LazyJSONBlockStore with default 1 GB uncompressed cache capacity.
+func NewDefaultLazyJSONBlockStore() *LazyJSONBlockStore {
+	return NewLazyJSONBlockStore(DefaultLazyJSONBlockStoreShardCount, DefaultLazyJSONBlockStoreShardCap)
+}
+
 // NewLazyJSONBlockStore creates a new LazyJSONBlockStore with the specified shard count and shard capacity.
 func NewLazyJSONBlockStore(shardCount, shardCap int) *LazyJSONBlockStore {
+	if shardCount <= 0 || (shardCount&(shardCount-1)) != 0 {
+		panic("shardCount must be a power of two")
+	}
 	shards := make([]*blockLRUShard, shardCount)
 	for i := 0; i < shardCount; i++ {
 		shards[i] = newBlockLRUShard(shardCap)
@@ -270,23 +256,13 @@ func (s *LazyJSONBlockStore) put(blockID uint32, b *lazyJSONBlock) {
 }
 
 func (s *LazyJSONBlockStore) decompress(compressed []byte) ([]byte, error) {
-	if len(compressed) < 4 {
-		return nil, fmt.Errorf("compressed block too short: %d bytes", len(compressed))
+	decodedLen, err := snappy.DecodedLen(compressed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get snappy decoded length: %w", err)
 	}
-	uncompressedSize := int(binary.LittleEndian.Uint32(compressed[len(compressed)-4:]))
-
-	zr := gzipReaderPool.Get().(*gzip.Reader)
-	defer gzipReaderPool.Put(zr)
-
-	br := bytes.NewReader(compressed)
-	if err := zr.Reset(br); err != nil {
-		return nil, err
-	}
-	defer zr.Close()
-
-	decompressed := make([]byte, uncompressedSize)
-	if _, err := io.ReadFull(zr, decompressed); err != nil {
-		return nil, err
+	decompressed := make([]byte, decodedLen)
+	if _, err := snappy.Decode(decompressed, compressed); err != nil {
+		return nil, fmt.Errorf("failed to decompress snappy block: %w", err)
 	}
 	return decompressed, nil
 }
@@ -295,6 +271,3 @@ func (s *LazyJSONBlockStore) decompress(compressed []byte) ([]byte, error) {
 func (s *LazyJSONBlockStore) NewBuilder(maxEntries, maxBytes int) *LazyJSONBlockBuilder {
 	return newLazyJSONBlockBuilder(s, maxEntries, maxBytes)
 }
-
-// defaultStandaloneBlockStore is the global block store used for standalone nodes created without an explicit builder.
-var defaultStandaloneBlockStore = NewLazyJSONBlockStore(16, 64)

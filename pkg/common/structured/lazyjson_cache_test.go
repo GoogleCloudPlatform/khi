@@ -159,3 +159,43 @@ func TestLazyJSONCache_Clear(t *testing.T) {
 		t.Error("expected 'foo' to be cleared after clear()")
 	}
 }
+
+func TestNewLazyJSONCache_PowerOfTwoValidation(t *testing.T) {
+	testCases := []struct {
+		name       string
+		shardCount int
+		shardCap   int
+		wantPanic  bool
+	}{
+		{
+			name:       "valid power of two (4)",
+			shardCount: 4,
+			shardCap:   8,
+			wantPanic:  false,
+		},
+		{
+			name:       "zero shard count",
+			shardCount: 0,
+			shardCap:   8,
+			wantPanic:  true,
+		},
+		{
+			name:       "non-power of two (5)",
+			shardCount: 5,
+			shardCap:   8,
+			wantPanic:  true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if (r != nil) != tc.wantPanic {
+					t.Errorf("newLazyJSONCache() panic = %v, wantPanic %v", r != nil, tc.wantPanic)
+				}
+			}()
+			_ = newLazyJSONCache(tc.shardCount, tc.shardCap)
+		})
+	}
+}

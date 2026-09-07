@@ -76,6 +76,7 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 
 	grp, childCtx := errgroup.WithContext(ctx)
 	grp.SetLimit(runtime.GOMAXPROCS(0))
+	blockStore := structured.NewDefaultLazyJSONBlockStore()
 
 	for path, group := range logGroups {
 		grp.Go(func() error {
@@ -84,6 +85,7 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 			generator := groupManifestGenerator{
 				mergeConfigRegistry: mergeConfigRegistry,
 				resourceName:        group.Resource.Name,
+				blockStore:          blockStore,
 			}
 			for _, l := range group.Logs {
 				select {
@@ -121,6 +123,8 @@ type groupManifestGenerator struct {
 	mergeConfigRegistry *k8s.K8sManifestMergeConfigRegistry
 	// resourceName is the name of the resource.
 	resourceName string
+	// blockStore is the store for compressing manifest nodes.
+	blockStore *structured.LazyJSONBlockStore
 }
 
 // Process processes the log to generate manifest.
@@ -179,7 +183,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 			name := item.ReadStringOrDefault(pathMetadataName, "")
 			if name == g.resourceName {
 				found = true
-				bodyReader, err := constructResourceBodyFromListItem(&item, g.prevRevisionReader)
+				bodyReader, err := constructResourceBodyFromListItem(g.blockStore, &item, g.prevRevisionReader)
 				if err != nil {
 					slog.WarnContext(ctx, fmt.Sprintf("failed to construct resource body from list item: %v", err))
 				} else {
@@ -211,7 +215,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 				ResourceBodyReader: g.prevRevisionReader,
 			}, nil
 		} else {
-			lazyMergedNode, err := structured.NewLazyJSONNode(mergedNode)
+			lazyMergedNode, err := structured.NewLazyJSONNode(g.blockStore, mergedNode)
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("failed to convert merged node to lazy JSON node: %v", err))
 				mergedNodeReader = structured.NewNodeReader(structured.WithKeyOrder(mergedNode, k8s.K8sManifestKeyOrder...))
@@ -243,7 +247,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 
 // constructResourceBodyFromListItem constructs a complete resource manifest NodeReader from a list item,
 // injecting apiVersion and kind from the previous revision if they are not present in the item.
-func constructResourceBodyFromListItem(item *structured.NodeReader, prevRevision *structured.NodeReader) (*structured.NodeReader, error) {
+func constructResourceBodyFromListItem(store *structured.LazyJSONBlockStore, item *structured.NodeReader, prevRevision *structured.NodeReader) (*structured.NodeReader, error) {
 	if item == nil {
 		return nil, fmt.Errorf("item reader cannot be nil")
 	}
@@ -294,6 +298,6 @@ func constructResourceBodyFromListItem(item *structured.NodeReader, prevRevision
 		}
 	}
 	buf.WriteByte('}')
-	lazyNode := structured.NewLazyJSONNodeFromBytes(buf.Bytes())
+	lazyNode := structured.NewLazyJSONNodeFromBytes(store, buf.Bytes())
 	return structured.NewNodeReader(structured.WithKeyOrder(lazyNode, k8s.K8sManifestKeyOrder...)), nil
 }

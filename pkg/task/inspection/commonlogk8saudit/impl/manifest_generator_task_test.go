@@ -407,6 +407,7 @@ metadata:
 			groupManifestGenerator := groupManifestGenerator{
 				mergeConfigRegistry: config,
 				resourceName:        tc.resourceName,
+				blockStore:          structured.NewLazyJSONBlockStore(4, 8),
 			}
 			gotManifests := []string{}
 			for _, l := range logs {
@@ -554,7 +555,8 @@ status:
 				prevReader = structured.NewNodeReader(prevNode)
 			}
 
-			gotReader, err := constructResourceBodyFromListItem(itemReader, prevReader)
+			store := structured.NewLazyJSONBlockStore(4, 8)
+			gotReader, err := constructResourceBodyFromListItem(store, itemReader, prevReader)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("constructResourceBodyFromListItem() error = %v, wantErr %v", err, tc.wantErr)
 			}

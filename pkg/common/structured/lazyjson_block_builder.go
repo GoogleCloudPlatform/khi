@@ -32,6 +32,7 @@ type LazyJSONBlockBuilder struct {
 	maxEntries     int
 	maxBytes       int
 	currentBlockID uint32
+	currentBlock   *lazyJSONBlock
 	currentBuffer  []byte
 	entryCount     int
 	hasActiveBlock bool
@@ -63,16 +64,13 @@ func (b *LazyJSONBlockBuilder) Add(data []byte) *LazyJSONNode {
 
 	offset := uint32(len(b.currentBuffer))
 	length := uint32(len(data))
+
+	b.currentBlock.mu.Lock()
 	b.currentBuffer = append(b.currentBuffer, data...)
+	b.currentBlock.uncompressed = b.currentBuffer
+	b.currentBlock.mu.Unlock()
+
 	b.entryCount++
-
-	b.store.mu.RLock()
-	block := b.store.blocks[b.currentBlockID]
-	b.store.mu.RUnlock()
-
-	block.mu.Lock()
-	block.uncompressed = b.currentBuffer
-	block.mu.Unlock()
 
 	node := &LazyJSONNode{
 		store:   b.store,
@@ -102,6 +100,9 @@ func (b *LazyJSONBlockBuilder) Flush() {
 func (b *LazyJSONBlockBuilder) startNewBlockLocked() {
 	b.currentBuffer = make([]byte, 0, b.maxBytes)
 	b.currentBlockID = b.store.ReserveBlock(b.currentBuffer)
+	b.store.mu.RLock()
+	b.currentBlock = b.store.blocks[b.currentBlockID]
+	b.store.mu.RUnlock()
 	b.entryCount = 0
 	b.hasActiveBlock = true
 }
@@ -117,5 +118,6 @@ func (b *LazyJSONBlockBuilder) flushCurrentBlockLocked() {
 	b.store.SetCompressed(b.currentBlockID, compressed)
 	b.hasActiveBlock = false
 	b.currentBuffer = nil
+	b.currentBlock = nil
 	b.entryCount = 0
 }

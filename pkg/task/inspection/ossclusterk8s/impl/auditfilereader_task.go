@@ -65,7 +65,7 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 		var logs []*log.Log
 		idGen := khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator)
 
-		blockStore := structured.NewLazyJSONBlockStore(32, 16)
+		blockStore := structured.NewDefaultLazyJSONBlockStore()
 		builder := blockStore.NewBuilder(100, 256*1024)
 
 		progressutil.ReportProgressFromArraySync(tp, logLines, func(i int, line string) error {

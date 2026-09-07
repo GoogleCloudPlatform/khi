@@ -55,7 +55,8 @@ func TestWithKeyOrder(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			node := NewLazyJSONNodeFromBytes([]byte(tc.jsonInput))
+			store := NewLazyJSONBlockStore(4, 8)
+			node := NewLazyJSONNodeFromBytes(store, []byte(tc.jsonInput))
 			ordered := WithKeyOrder(node, tc.priorityKeys...)
 
 			var gotKeys []string
@@ -85,7 +86,8 @@ func TestWithKeyOrderNonMap(t *testing.T) {
 
 func TestNodeReaderWithKeyOrder(t *testing.T) {
 	jsonBytes := []byte(`{"logName":"projects/p/logs/l","insertId":"ins-123","severity":"INFO"}`)
-	node := NewLazyJSONNodeFromBytes(jsonBytes)
+	store := NewLazyJSONBlockStore(4, 8)
+	node := NewLazyJSONNodeFromBytes(store, jsonBytes)
 	reader := NewNodeReader(node)
 
 	orderedReader := reader.WithKeyOrder("insertId", "logName")
@@ -102,7 +104,8 @@ func TestNodeReaderWithKeyOrder(t *testing.T) {
 
 func TestWithKeyOrderNested(t *testing.T) {
 	jsonBytes := []byte(`{"a": 1, "b": 2, "c": 3}`)
-	node := NewLazyJSONNodeFromBytes(jsonBytes)
+	store := NewLazyJSONBlockStore(4, 8)
+	node := NewLazyJSONNodeFromBytes(store, jsonBytes)
 	ordered1 := WithKeyOrder(node, "b")
 	ordered2 := WithKeyOrder(ordered1, "c")
 
