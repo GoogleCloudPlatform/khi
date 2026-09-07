@@ -40,6 +40,7 @@ clean: ## Clean build artifacts and generated files
 	@echo "Cleaning intermediate generated files..."
 	rm -rf pkg/generated
 	rm -rf web/angular.json web/src/environments/version.*.ts
+	find ./pkg -name "zzz_*.go" -delete
 	rm -f scripts/msdf-generator/zzz_generated_used_icons.json
 	@echo "Cleaning make dummy files..."
 	rm -rf scripts/make/*.done

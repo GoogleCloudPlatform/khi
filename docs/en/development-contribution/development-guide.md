@@ -90,6 +90,22 @@ When you want to run backend tests without Cloud Logging, run the following code
 KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
+### Clean up legacy generated test files
+
+If you have local working copies created before test flags were migrated to environment variables, you may find leftover untracked `zzz_testflag_test.go` files in `pkg/`.
+
+To clean up all leftover generated files, run:
+
+```shell
+make clean
+```
+
+Or delete them directly with:
+
+```shell
+find ./pkg -name "zzz_*.go" -delete
+```
+
 ### Run storybook
 
 To develop frontend components, we usually start [storybook](https://storybook.js.org/) server on port 6006 with the following code.

@@ -17,6 +17,7 @@ package testutil
 import (
 	"io"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -136,8 +137,11 @@ func TestSkipCloudLogging(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.setEnv {
 				t.Setenv("KHI_SKIP_CLOUD_LOGGING", tc.envValue)
-			} else {
-				t.Setenv("KHI_SKIP_CLOUD_LOGGING", "")
+			} else if prev, ok := os.LookupEnv("KHI_SKIP_CLOUD_LOGGING"); ok {
+				_ = os.Unsetenv("KHI_SKIP_CLOUD_LOGGING")
+				t.Cleanup(func() {
+					_ = os.Setenv("KHI_SKIP_CLOUD_LOGGING", prev)
+				})
 			}
 			got := SkipCloudLogging()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
