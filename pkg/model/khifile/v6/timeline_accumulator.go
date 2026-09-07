@@ -15,6 +15,7 @@
 package khifilev6
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"sync"
@@ -125,7 +126,7 @@ func (a *TimelineAccumulator) FlushPendingItems() error {
 
 	// Sort items by ID to ensure deterministic output within each chunk
 	slices.SortFunc(items, func(a, b *pb.TimelineItems) int {
-		return int(a.GetId()) - int(b.GetId())
+		return cmp.Compare(a.GetId(), b.GetId())
 	})
 
 	gen := NewTimelineItemsGenerator(slices.Values(items))

@@ -644,14 +644,15 @@ export class TimelineStore {
       return [];
     }
 
-    const sortedRevIds = Array.from(revIds);
+    const sortedRevIds = revIds.slice();
     sortedRevIds.sort((a, b) => {
       const logA = this._getRevisionLogId(a);
       const logB = this._getRevisionLogId(b);
-      return (
-        this.logStore.getLog(logA).logIndex -
-        this.logStore.getLog(logB).logIndex
-      );
+      const logEntryA = this.logStore.getLog(logA);
+      const logEntryB = this.logStore.getLog(logB);
+      const indexA = logEntryA ? logEntryA.logIndex : 0;
+      const indexB = logEntryB ? logEntryB.logIndex : 0;
+      return indexA - indexB;
     });
 
     const revisions: Revision[] = [];
@@ -671,16 +672,17 @@ export class TimelineStore {
       return [];
     }
 
-    const sortedEvtIds = Array.from(eventIds);
+    const sortedEvtIds = eventIds.slice();
     sortedEvtIds.sort((a, b) => {
       const idxA = this.eventIdToIndex[a];
       const idxB = this.eventIdToIndex[b];
       const logA = idxA !== undefined ? this.eventLogIds[idxA] : 0;
       const logB = idxB !== undefined ? this.eventLogIds[idxB] : 0;
-      return (
-        this.logStore.getLog(logA).logIndex -
-        this.logStore.getLog(logB).logIndex
-      );
+      const logEntryA = this.logStore.getLog(logA);
+      const logEntryB = this.logStore.getLog(logB);
+      const indexA = logEntryA ? logEntryA.logIndex : 0;
+      const indexB = logEntryB ? logEntryB.logIndex : 0;
+      return indexA - indexB;
     });
 
     const events: Event[] = [];

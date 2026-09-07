@@ -121,10 +121,12 @@ type rawTimelineItems struct {
 // NewWorkbench creates a new Workbench instance.
 func NewWorkbench(id string, inspectionID string) *Workbench {
 	return &Workbench{
-		id:           id,
-		inspectionID: inspectionID,
-		internPool:   khifilev6model.NewReadonlyInternPool(),
-		filterJobs:   streamingutil.NewAsyncJobManager[*apiv1.FilterProgress, *apiv1.FilterResult](15*time.Second, 1*time.Minute),
+		id:               id,
+		inspectionID:     inspectionID,
+		internPool:       khifilev6model.NewReadonlyInternPool(),
+		filterJobs:       streamingutil.NewAsyncJobManager[*apiv1.FilterProgress, *apiv1.FilterResult](15*time.Second, 1*time.Minute),
+		rawTimelineItems: make(map[uint32]*rawTimelineItems),
+		seenTimelineIDs:  make(map[uint32]bool),
 	}
 }
 
