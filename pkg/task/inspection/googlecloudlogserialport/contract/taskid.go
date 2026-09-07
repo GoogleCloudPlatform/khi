@@ -39,4 +39,4 @@ var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-grouper")
 
 // LogToTimelineMapperTaskID is the task id to relate serialized logs to events on timeline.
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](TaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "timeline-mapper")

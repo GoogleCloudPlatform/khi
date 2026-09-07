@@ -38,4 +38,4 @@ var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](ComputeAPIAu
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](ComputeAPIAuditLogTaskIDPrefix + "grouper")
 
 // LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](ComputeAPIAuditLogTaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](ComputeAPIAuditLogTaskIDPrefix + "timeline-mapper")

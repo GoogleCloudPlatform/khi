@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -106,7 +105,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) LogIngesterTask() taski
 }
 
 // TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (r *ResourceRevisionLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
 	return commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID
 }
 

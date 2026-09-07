@@ -18,7 +18,6 @@ import (
 	"context"
 	"strings"
 
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -45,7 +44,7 @@ func (n *namespaceRequestLogToTimelineMapperTaskSetting) LogIngesterTask() taski
 }
 
 // TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (n *namespaceRequestLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
+func (n *namespaceRequestLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
 	return commonlogk8saudit_contract.NamespaceRequestLogToTimelineMapperTaskID
 }
 

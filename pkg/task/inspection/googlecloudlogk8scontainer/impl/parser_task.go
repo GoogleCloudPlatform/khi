@@ -209,10 +209,9 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 	bindingPath := commonlogk8saudit_contract.MustK8sSubresourceTimeline(ctx, podPath, "binding")
 
 	// Check if audit log has already written to the Pod or its binding timeline
-	resourceResult := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref())
-
-	_, hasPodRevision := resourceResult.Revisions[podPath]
-	_, hasBindingRevision := resourceResult.Revisions[bindingPath]
+	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	hasPodRevision := builder.TimelineAccumulator.HasRevision(podPath)
+	hasBindingRevision := builder.TimelineAccumulator.HasRevision(bindingPath)
 
 	if hasPodRevision || hasBindingRevision {
 		return nil, &containerLogPodPhaseMapperState{AuditLogFound: true}, nil

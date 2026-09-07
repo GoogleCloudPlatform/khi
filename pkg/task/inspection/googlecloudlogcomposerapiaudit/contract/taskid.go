@@ -37,4 +37,4 @@ var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](ComposerAPIA
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](ComposerAPIAuditLogTaskIDPrefix + "grouper")
 
 // LogToTimelineMapperTaskID is the task ID for associating events/revisions with Composer audit logs.
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](ComposerAPIAuditLogTaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](ComposerAPIAuditLogTaskIDPrefix + "timeline-mapper")

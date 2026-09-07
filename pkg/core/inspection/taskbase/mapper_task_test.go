@@ -29,7 +29,6 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
-	"github.com/google/go-cmp/cmp"
 )
 
 var (
@@ -111,7 +110,6 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 		passCount       int
 		cancelContext   bool
 		wantError       bool
-		wantResult      func(path *khifilev6.TimelinePath) TimelineMapperResult
 	}{
 		{
 			desc:     "DryRun mode",
@@ -129,9 +127,6 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			},
 			passCount: 1,
 			wantError: false,
-			wantResult: func(path *khifilev6.TimelinePath) TimelineMapperResult {
-				return NewTimelineMapperResult()
-			},
 		},
 		{
 			desc:     "Normal execution with some skipped logs and 2 passes",
@@ -153,11 +148,6 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			},
 			passCount: 2,
 			wantError: false,
-			wantResult: func(path *khifilev6.TimelinePath) TimelineMapperResult {
-				res := NewTimelineMapperResult()
-				res.Events[path] = 1
-				return res
-			},
 		},
 		{
 			desc:     "Execution with error in one log",
@@ -179,9 +169,6 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			},
 			passCount: 0,
 			wantError: true,
-			wantResult: func(path *khifilev6.TimelinePath) TimelineMapperResult {
-				return NewTimelineMapperResult()
-			},
 		},
 		{
 			desc:     "Execution with context cancelled",
@@ -200,15 +187,12 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			passCount:     0,
 			cancelContext: true,
 			wantError:     true,
-			wantResult: func(path *khifilev6.TimelinePath) TimelineMapperResult {
-				return NewTimelineMapperResult()
-			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			tid := taskid.NewDefaultImplementationID[TimelineMapperResult]("mock-timeline-mapper")
+			tid := taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper")
 
 			ctx := context.Background()
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
@@ -263,7 +247,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				cancel()
 			}
 
-			gotResult, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockLogToTimelineMapperPrevTaskID.Ref(), prevGroupMap))
+			_, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockLogToTimelineMapperPrevTaskID.Ref(), prevGroupMap))
 			if (err != nil) != tc.wantError {
 				t.Fatalf("RunInspectionTask() error = %v, wantError %v", err, tc.wantError)
 			}
@@ -273,10 +257,6 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				if err == nil || err.Error() != expectedErr.Error() {
 					t.Errorf("RunInspectionTask() error = %v, want %v", err, expectedErr)
 				}
-			}
-
-			if diff := cmp.Diff(tc.wantResult(path), gotResult); diff != "" {
-				t.Errorf("TimelineMapperResult mismatch (-want +got):\n%s", diff)
 			}
 
 			if !tc.wantError {

@@ -43,10 +43,10 @@ var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
 
 // LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](TaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "timeline-mapper")
 
 // PodPhaseTimelineMapperTaskID is the task id for associating container log node info with pod phase timelines.
-var PodPhaseTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](TaskIDPrefix + "pod-phase-timeline-mapper")
+var PodPhaseTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "pod-phase-timeline-mapper")
 
 // TailTaskID is a nop task just to require all container log mappers.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "tail")

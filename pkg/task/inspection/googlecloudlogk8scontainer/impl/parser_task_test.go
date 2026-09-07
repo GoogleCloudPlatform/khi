@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -317,11 +316,11 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name                   string
-		inputLogs              []*log.Log
-		cluster                googlecloudk8scommon_contract.GoogleCloudClusterIdentity
-		resourceRevisionResult inspectiontaskbase.TimelineMapperResult
-		assert                 func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet)
+		name      string
+		inputLogs []*log.Log
+		cluster   googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		setup     func()
+		assert    func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet)
 	}{
 		{
 			name: "skipped because NodeName is empty",
@@ -396,7 +395,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				testlog.NewMockLog(
 					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
-						PodName:       "test-pod",
+						PodName:       "test-pod-audit",
 						ContainerName: "test-container",
 					},
 					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
@@ -408,10 +407,9 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
-			resourceRevisionResult: inspectiontaskbase.TimelineMapperResult{
-				Revisions: map[*khifilev6.TimelinePath]int{
-					podPath: 1,
-				},
+			setup: func() {
+				auditPodPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod-audit")
+				builder.TimelineAccumulator.AddTestRevision(auditPodPath)
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
 				if css[0] != nil {
@@ -425,7 +423,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				testlog.NewMockLog(
 					googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 						Namespace:     "test-namespace",
-						PodName:       "test-pod",
+						PodName:       "test-pod-binding",
 						ContainerName: "test-container",
 					},
 					googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
@@ -437,10 +435,10 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
-			resourceRevisionResult: inspectiontaskbase.TimelineMapperResult{
-				Revisions: map[*khifilev6.TimelinePath]int{
-					bindingPath: 1,
-				},
+			setup: func() {
+				bindingPodPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod-binding")
+				subresourcePath := commonlogk8saudit_contract.MustK8sSubresourceTimeline(ctx, bindingPodPath, "binding")
+				builder.TimelineAccumulator.AddTestRevision(subresourcePath)
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
 				if css[0] != nil {
@@ -681,9 +679,11 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	mapper := &containerLogPodPhaseTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.setup != nil {
+				tc.setup()
+			}
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8scontainer_contract.ClusterIdentityTaskID.Ref(), tc.cluster)
-			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(), tc.resourceRevisionResult)
 
 			var css []*khifilev6.TimelineChangeSet
 			var state *containerLogPodPhaseMapperState

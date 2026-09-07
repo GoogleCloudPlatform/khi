@@ -36,38 +36,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// TimelineMapperResult holds the summary of writes performed by a timeline mapper.
-type TimelineMapperResult struct {
-	// Events maps timeline paths to the number of events written.
-	Events map[*khifilev6.TimelinePath]int
-	// Revisions maps timeline paths to the number of revisions written.
-	Revisions map[*khifilev6.TimelinePath]int
-	// Aliases maps alias paths to their target paths.
-	Aliases map[*khifilev6.TimelinePath]*khifilev6.TimelinePath
-}
-
-// NewTimelineMapperResult creates an initialized TimelineMapperResult.
-func NewTimelineMapperResult() TimelineMapperResult {
-	return TimelineMapperResult{
-		Events:    make(map[*khifilev6.TimelinePath]int),
-		Revisions: make(map[*khifilev6.TimelinePath]int),
-		Aliases:   make(map[*khifilev6.TimelinePath]*khifilev6.TimelinePath),
-	}
-}
-
-// Merge merges another TimelineMapperResult into this one.
-func (r *TimelineMapperResult) Merge(other TimelineMapperResult) {
-	for p, count := range other.Events {
-		r.Events[p] += count
-	}
-	for p, count := range other.Revisions {
-		r.Revisions[p] += count
-	}
-	for alias, target := range other.Aliases {
-		r.Aliases[alias] = target
-	}
-}
-
 // LogToTimelineMapper defines the interface for mapping logs to timeline elements (events or revisions) in KHI file v6 format.
 type LogToTimelineMapper[T any] interface {
 	// LogIngesterTask is one of prerequisite task of LogToTimelineMapper ingesting logs before processing with this mapper.
@@ -116,13 +84,13 @@ func (StatelessMapperBase) PreProcessLogByGroup(ctx context.Context, passIndex i
 
 // NewLogToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry based on grouped logs.
 // It processes logs in parallel and applies the logic from the provided LogToTimelineMapper.
-func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[TimelineMapperResult], mapper LogToTimelineMapper[T], labels ...coretask.LabelOpt) coretask.Task[TimelineMapperResult] {
+func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}], mapper LogToTimelineMapper[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
 	groupedLogTaskID := mapper.GroupedLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{mapper.LogIngesterTask(), mapper.GroupedLogTask()}, mapper.Dependencies()...)
-	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (TimelineMapperResult, error) {
+	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
-			return NewTimelineMapperResult(), nil
+			return struct{}{}, nil
 		}
 
 		builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
@@ -169,9 +137,6 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[TimelineM
 			return sharedErr != nil
 		}
 
-		var resultMu sync.Mutex
-		finalResult := NewTimelineMapperResult()
-
 		pool := worker.NewPool(runtime.GOMAXPROCS(0))
 		for _, group := range groupedLogs {
 			if ctx.Err() != nil {
@@ -201,8 +166,6 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[TimelineM
 					}
 				}
 
-				localResult := NewTimelineMapperResult()
-
 				// 2. Final processing pass
 				for _, l := range group.Logs {
 					if hasErr() {
@@ -219,39 +182,26 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[TimelineM
 
 					if cs != nil {
 						err := cs.Flush(builder.TimelineAccumulator, builder.LogAccumulator)
+						cs.Release()
 						if err != nil {
 							logTaskError(ctx, "failed to flush the changeset to timeline registry", err, l)
 							setErr(err)
 							return
 						}
-						cs.ForEachEvent(func(p *khifilev6.TimelinePath) {
-							localResult.Events[p]++
-						})
-						cs.ForEachRevision(func(p *khifilev6.TimelinePath, revs []*khifilev6.StagingRevision) {
-							localResult.Revisions[p] += len(revs)
-						})
-						cs.ForEachAlias(func(alias, target *khifilev6.TimelinePath) {
-							localResult.Aliases[alias] = target
-						})
-						cs.Release()
 					} else {
 						skippedLogCount.Add(1)
 					}
 				}
-
-				resultMu.Lock()
-				finalResult.Merge(localResult)
-				resultMu.Unlock()
 			})
 		}
 		pool.Wait()
 		updator.Done()
 
 		if ctx.Err() != nil {
-			return NewTimelineMapperResult(), ctx.Err()
+			return struct{}{}, ctx.Err()
 		}
 		if sharedErr != nil {
-			return NewTimelineMapperResult(), sharedErr
+			return struct{}{}, sharedErr
 		}
 
 		slog.DebugContext(ctx, fmt.Sprintf("LogToTimelineMapperTask %s finished: processed %d logs (skipped %d logs)", tid.String(), totalLogCount, skippedLogCount.Load()))
@@ -263,7 +213,7 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[TimelineM
 			)
 		}
 
-		return finalResult, nil
+		return struct{}{}, nil
 	}, append([]coretask.LabelOpt{
 		// Tasks modifying history must be dependent from SerializerTask.
 		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())}, labels...)...)

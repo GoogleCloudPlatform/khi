@@ -52,7 +52,29 @@ func (a *TimelineAccumulator) SetAlias(aliasPath, targetPath *TimelinePath) erro
 	return a.registry.SetAlias(aliasPath, targetPath)
 }
 
+// HasRevision reports whether the timeline at path has any accumulated revisions.
+func (a *TimelineAccumulator) HasRevision(path *TimelinePath) bool {
+	if b, ok := a.registry.GetBuilderIfExists(path); ok {
+		return b.HasRevision()
+	}
+	return false
+}
+
+// HasEvent reports whether the timeline at path has any accumulated events.
+func (a *TimelineAccumulator) HasEvent(path *TimelinePath) bool {
+	if b, ok := a.registry.GetBuilderIfExists(path); ok {
+		return b.HasEvent()
+	}
+	return false
+}
+
 // Accumulate extracts the arrays of Timeline and TimelineItems protobuf messages.
 func (a *TimelineAccumulator) Accumulate() ([]*pb.Timeline, []*pb.TimelineItems) {
 	return ExtractTimelinesAndItemsChunkSource(a.pathPool, a.registry)
+}
+
+// AddTestRevision adds a dummy revision to the timeline builder at path for testing purposes.
+func (a *TimelineAccumulator) AddTestRevision(path *TimelinePath) {
+	b := a.GetBuilder(path)
+	b.AddRevision(pendingRevision{})
 }

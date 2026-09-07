@@ -110,6 +110,20 @@ func (b *TimelineBuilder) HasItems() bool {
 	return len(b.events) > 0 || len(b.revisions) > 0
 }
 
+// HasRevision returns true if the builder has accumulated any revisions.
+func (b *TimelineBuilder) HasRevision() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.revisions) > 0
+}
+
+// HasEvent returns true if the builder has accumulated any events.
+func (b *TimelineBuilder) HasEvent() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.events) > 0
+}
+
 // FindOldestTime returns the oldest timestamp among all accumulated events and revisions in this builder.
 func (b *TimelineBuilder) FindOldestTime() (time.Time, bool) {
 	b.mu.Lock()

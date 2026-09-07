@@ -102,7 +102,7 @@ func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestL
 // ManifestLogToTimelineMapper defines the interface for manifest timeline mappers.
 type ManifestLogToTimelineMapper[T any] interface {
 	// TaskID returns the task ID.
-	TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult]
+	TaskID() taskid.TaskImplementationID[struct{}]
 	// LogIngesterTask returns the task reference for the log ingester task.
 	LogIngesterTask() taskid.TaskReference[struct{}]
 	// GroupedLogTask returns the task reference for the grouped log task.
@@ -146,14 +146,14 @@ func (ManifestStatelessMapperBase) PreProcessLog(ctx context.Context, passIndex 
 }
 
 // NewManifestLogToTimelineMapper creates a new timeline mapper task utilizing the mapper interface.
-func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T]) coretask.Task[inspectiontaskbase.TimelineMapperResult] {
+func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T]) coretask.Task[struct{}] {
 	groupedLogTaskID := setting.GroupedLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{setting.LogIngesterTask(), setting.GroupedLogTask()}, setting.Dependencies()...)
 
-	return inspectiontaskbase.NewProgressReportableInspectionTask(setting.TaskID(), dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (inspectiontaskbase.TimelineMapperResult, error) {
+	return inspectiontaskbase.NewProgressReportableInspectionTask(setting.TaskID(), dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
-			return inspectiontaskbase.NewTimelineMapperResult(), nil
+			return struct{}{}, nil
 		}
 
 		builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
@@ -162,7 +162,7 @@ func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T
 		tp.MarkIndeterminate()
 		relatedGroupSets, err := setting.ResolveRelatedGroupSets(ctx, groupedLogs)
 		if err != nil {
-			return inspectiontaskbase.NewTimelineMapperResult(), err
+			return struct{}{}, err
 		}
 
 		var processedGroupCount atomic.Int32
@@ -194,9 +194,6 @@ func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T
 			return sharedErr != nil
 		}
 
-		var resultMu sync.Mutex
-		finalResult := inspectiontaskbase.NewTimelineMapperResult()
-
 		pool := worker.NewPool(runtime.GOMAXPROCS(0))
 		passCount := setting.PassCount()
 
@@ -224,8 +221,6 @@ func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T
 					}
 				}
 
-				localResult := inspectiontaskbase.NewTimelineMapperResult()
-
 				// 2. Final processing pass
 				for event := range iterateMultiGroupLog(groupSet) {
 					if hasErr() {
@@ -240,25 +235,13 @@ func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T
 
 					if cs != nil {
 						err := cs.Flush(builder.TimelineAccumulator, builder.LogAccumulator)
+						cs.Release()
 						if err != nil {
 							setErr(err)
 							return
 						}
-						cs.ForEachEvent(func(p *khifilev6.TimelinePath) {
-							localResult.Events[p]++
-						})
-						cs.ForEachRevision(func(p *khifilev6.TimelinePath, revs []*khifilev6.StagingRevision) {
-							localResult.Revisions[p] += len(revs)
-						})
-						cs.ForEachAlias(func(alias, target *khifilev6.TimelinePath) {
-							localResult.Aliases[alias] = target
-						})
 					}
 				}
-
-				resultMu.Lock()
-				finalResult.Merge(localResult)
-				resultMu.Unlock()
 			})
 		}
 
@@ -266,10 +249,10 @@ func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T
 		updator.Done()
 
 		if sharedErr != nil {
-			return inspectiontaskbase.NewTimelineMapperResult(), sharedErr
+			return struct{}{}, sharedErr
 		}
 
-		return finalResult, nil
+		return struct{}{}, nil
 	})
 }
 

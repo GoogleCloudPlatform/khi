@@ -31,7 +31,7 @@ var NonEventAuditLogFilterTaskID = taskid.NewImplementationID(commonlogk8saudit_
 var EventAuditLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-filter-event-audit")
 var OSSK8sEventLogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "event-log-ingester")
 var OSSK8sEventLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](OSSTaskPrefix + "event-log-grouper")
-var OSSK8sEventLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](OSSTaskPrefix + "event-timeline-mapper")
+var OSSK8sEventLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "event-timeline-mapper")
 
 var OSSK8sAuditLogExtractorTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogExtractorRef, "oss")
 
