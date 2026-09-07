@@ -113,7 +113,7 @@ In KHI, use `inspectiontaskbase.NewInventoryTaskBuilder` to build **two or more 
 1. **`DiscoveryTask` is included in the graph only when requested by another task**:
    Each discovery task created by `.DiscoveryTask(...)` on the builder automatically receives `coretask.NewSubsequentTaskRefsTaskLabel`. As a result, **the discovery task itself is never included in the task graph unless requested as a dependency by a parser or feature task that uses it** (if the corresponding parser is disabled, the discovery task is excluded from the graph).
 2. **Optional integration of enabled results by `InventoryTask`**:
-   The inventory task created by `.InventoryTask(strategy)` on the builder uses `coretask.GetTaskResultOptional` to collect and merge **only the results of Discovery tasks that were actually included and executed in the graph**.
+   The inventory task created by `.InventoryTask(strategy)` on the builder uses `coretask.GetOptionalTaskResult` to collect and merge **only the results of Discovery tasks that were actually included and executed in the graph**.
 
 #### Example Code: Two Discovery Tasks (Node Log and Audit Log) and an Integrated Inventory Task
 

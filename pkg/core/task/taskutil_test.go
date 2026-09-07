@@ -24,113 +24,470 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/google/go-cmp/cmp"
 )
+
+type mockGraphMetadata struct {
+	boundTasks        map[string]bool
+	boundTasksWithTag map[string][]string
+}
+
+func (m *mockGraphMetadata) IsBound(referenceID string) bool {
+	if m.boundTasks == nil {
+		return false
+	}
+	return m.boundTasks[referenceID]
+}
+
+func (m *mockGraphMetadata) BoundReferenceIDsWithTag(tag string) []string {
+	if m.boundTasksWithTag == nil {
+		return nil
+	}
+	return m.boundTasksWithTag[tag]
+}
+
+var _ core_contract.TaskGraphMetadata = (*mockGraphMetadata)(nil)
 
 func TestWrapErrorWithTaskInformation(t *testing.T) {
 	taskID := taskid.NewDefaultImplementationID[any]("foo.com/bar")
 
-	ctx := context.Background()
-	ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, core_contract.TaskImplementationIDContextKey, taskID)
-
-	originalErr := errors.New("original error message")
-
-	wrappedErr := WrapErrorWithTaskInformation(ctx, originalErr)
-
-	expectedTaskFragment := "An error occurred in task `foo.com/bar#default`"
-	if !strings.Contains(wrappedErr.Error(), expectedTaskFragment) {
-		t.Errorf("Expected wrapped error to contain task ID, got: %v", wrappedErr)
+	testCases := []struct {
+		name                 string
+		originalErr          error
+		expectedTaskFragment string
+	}{
+		{
+			name:                 "wraps error with task implementation ID",
+			originalErr:          errors.New("original error message"),
+			expectedTaskFragment: "An error occurred in task `foo.com/bar#default`",
+		},
 	}
 
-	if !strings.Contains(wrappedErr.Error(), originalErr.Error()) {
-		t.Errorf("Expected wrapped error to contain original error message, got: %v", wrappedErr)
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, core_contract.TaskImplementationIDContextKey, taskID)
 
-	if !errors.Is(wrappedErr, originalErr) {
-		t.Error("errors.Is failed to identify the original error in the wrapped error")
+			wrappedErr := WrapErrorWithTaskInformation(ctx, tc.originalErr)
+
+			if !strings.Contains(wrappedErr.Error(), tc.expectedTaskFragment) {
+				t.Errorf("expected wrapped error to contain task ID, got: %v", wrappedErr)
+			}
+			if !strings.Contains(wrappedErr.Error(), tc.originalErr.Error()) {
+				t.Errorf("expected wrapped error to contain original error message, got: %v", wrappedErr)
+			}
+			if !errors.Is(wrappedErr, tc.originalErr) {
+				t.Error("errors.Is failed to identify the original error in the wrapped error")
+			}
+		})
 	}
 }
 
 func TestGetTaskResult(t *testing.T) {
-	// Create reference and task result map
 	strRef := taskid.NewTaskReference[string]("test.string")
+	orderOnlyRef := taskid.NewTaskReference[string]("test.order_only", taskid.OrderOnly)
 	nonExistentRef := taskid.NewTaskReference[bool]("test.nonexistent")
-
-	// Prepare task result map
-	taskResults := typedmap.NewTypedMap()
-	typedmap.Set(taskResults, typedmap.NewTypedKey[string](strRef.ReferenceIDString()), "test-value")
-
-	// Set up context with task results
-	ctx := context.Background()
-	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-
-	// We also need to set TaskImplementationIDContextKey for panic case to work properly
 	taskID := taskid.NewDefaultImplementationID[any]("test.id")
-	ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, core_contract.TaskImplementationIDContextKey, taskID)
 
-	t.Run("get string result", func(t *testing.T) {
-		result := GetTaskResult(ctx, strRef)
-		if result != "test-value" {
-			t.Errorf("Expected 'test-value', got '%s'", result)
-		}
-	})
+	testCases := []struct {
+		name         string
+		setupCtx     func(ctx context.Context) context.Context
+		targetRef    taskid.TaskReference[string]
+		want         string
+		wantErrMatch string
+	}{
+		{
+			name: "success with declared dependency",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				typedmap.Set(taskResults, typedmap.NewTypedKey[string](strRef.ReferenceIDString()), "test-value")
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{strRef})
+				return ctx
+			},
+			targetRef: strRef,
+			want:      "test-value",
+		},
+		{
+			name: "success when task dependencies context key is omitted",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				typedmap.Set(taskResults, typedmap.NewTypedKey[string](strRef.ReferenceIDString()), "test-value")
+				return khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+			},
+			targetRef: strRef,
+			want:      "test-value",
+		},
+		{
+			name: "panic when dependency is not declared in task dependencies",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				typedmap.Set(taskResults, typedmap.NewTypedKey[string](strRef.ReferenceIDString()), "test-value")
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{})
+				return ctx
+			},
+			targetRef:    strRef,
+			wantErrMatch: "undeclared task dependency access",
+		},
+		{
+			name: "panic when dependency is declared as order-only",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				typedmap.Set(taskResults, typedmap.NewTypedKey[string](orderOnlyRef.ReferenceIDString()), "test-value")
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{orderOnlyRef})
+				return ctx
+			},
+			targetRef:    orderOnlyRef,
+			wantErrMatch: "cannot get task result for order-only dependency",
+		},
+		{
+			name: "panic when result is missing in result map and lists available results",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				typedmap.Set(taskResults, typedmap.NewTypedKey[string]("other.task"), "other-val")
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{nonExistentRef})
+				return ctx
+			},
+			targetRef:    taskid.NewTaskReference[string]("test.nonexistent"),
+			wantErrMatch: "Available task results:\n* other.task",
+		},
+	}
 
-	t.Run("nonexistent result causes panic", func(t *testing.T) {
-		// Setup recovery to catch expected panic
-		defer func() {
-			r := recover()
-			if r == nil {
-				t.Error("Expected panic but none occurred")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, core_contract.TaskImplementationIDContextKey, taskID)
+			ctx = tc.setupCtx(ctx)
+
+			if tc.wantErrMatch != "" {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Errorf("expected panic containing %q, but none occurred", tc.wantErrMatch)
+						return
+					}
+					msg := ""
+					if err, ok := r.(error); ok {
+						msg = err.Error()
+					} else if s, ok := r.(string); ok {
+						msg = s
+					} else {
+						t.Fatalf("unexpected panic type: %T", r)
+					}
+					if !strings.Contains(msg, tc.wantErrMatch) {
+						t.Errorf("expected panic message to contain %q, got: %v", tc.wantErrMatch, msg)
+					}
+				}()
 			}
-			// The panic value is a wrapped error, not a string
-			if err, ok := r.(error); ok {
-				if !strings.Contains(err.Error(), "test.nonexistent") {
-					t.Errorf("Expected error message to contain reference ID, got: %v", err)
-				}
 
-				if !strings.Contains(err.Error(), "test.id#default") {
-					t.Errorf("Expected error message to contain task ID, got: %v", err)
+			got := GetTaskResult(ctx, tc.targetRef)
+			if tc.wantErrMatch == "" {
+				if diff := cmp.Diff(tc.want, got); diff != "" {
+					t.Errorf("GetTaskResult() mismatch (-want +got):\n%s", diff)
 				}
-			} else {
-				t.Errorf("Expected panic value to be an error, got: %T", r)
 			}
-		}()
-
-		// This should cause a panic
-		_ = GetTaskResult(ctx, nonExistentRef)
-	})
+		})
+	}
 }
 
-func TestGetTaskResultOptional(t *testing.T) {
-	// Create reference and task result map
-	strRef := taskid.NewTaskReference[string]("test.string")
-	nonExistentRef := taskid.NewTaskReference[bool]("test.nonexistent")
-
-	// Prepare task result map
-	taskResults := typedmap.NewTypedMap()
-	typedmap.Set(taskResults, typedmap.NewTypedKey[string](strRef.ReferenceIDString()), "test-value")
-
-	// Set up context with task results
-	ctx := context.Background()
-	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-
-	// We also need to set TaskImplementationIDContextKey for panic case to work properly
+func TestGetOptionalTaskResult(t *testing.T) {
+	strRef := taskid.NewTaskReference[string]("test.string", taskid.Optional)
+	orderOnlyRef := taskid.NewTaskReference[string]("test.order_only", taskid.OrderOnly, taskid.Optional)
 	taskID := taskid.NewDefaultImplementationID[any]("test.id")
-	ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, core_contract.TaskImplementationIDContextKey, taskID)
 
-	t.Run("get string result", func(t *testing.T) {
-		result, found := GetTaskResultOptional(ctx, strRef)
-		if result != "test-value" {
-			t.Errorf("Expected 'test-value', got '%s'", result)
-		}
-		if !found {
-			t.Errorf("Expected result to be found, but it was not")
-		}
-	})
+	testCases := []struct {
+		name         string
+		setupCtx     func(ctx context.Context) context.Context
+		targetRef    taskid.TaskReference[string]
+		wantVal      string
+		wantOk       bool
+		wantErrMatch string
+	}{
+		{
+			name: "success found result when bound in graph metadata",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				typedmap.Set(taskResults, typedmap.NewTypedKey[string](strRef.ReferenceIDString()), "opt-bound-value")
+				meta := &mockGraphMetadata{
+					boundTasks: map[string]bool{strRef.ReferenceIDString(): true},
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{strRef})
+				return ctx
+			},
+			targetRef: strRef,
+			wantVal:   "opt-bound-value",
+			wantOk:    true,
+		},
+		{
+			name: "not found when not bound in graph metadata",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				meta := &mockGraphMetadata{
+					boundTasks: map[string]bool{strRef.ReferenceIDString(): false},
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{strRef})
+				return ctx
+			},
+			targetRef: strRef,
+			wantVal:   "",
+			wantOk:    false,
+		},
+		{
+			name: "panic when bound in graph metadata but missing from result map",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				meta := &mockGraphMetadata{
+					boundTasks: map[string]bool{strRef.ReferenceIDString(): true},
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{strRef})
+				return ctx
+			},
+			targetRef:    strRef,
+			wantErrMatch: "was bound in DAG but result is missing",
+		},
+		{
+			name: "panic when task graph metadata is missing",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{strRef})
+				return ctx
+			},
+			targetRef:    strRef,
+			wantErrMatch: "value not found for key: khi.google.com/task-graph-metadata",
+		},
+		{
+			name: "panic when dependency is not declared in task dependencies",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				meta := &mockGraphMetadata{
+					boundTasks: map[string]bool{strRef.ReferenceIDString(): true},
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{})
+				return ctx
+			},
+			targetRef:    strRef,
+			wantErrMatch: "undeclared task dependency access",
+		},
+		{
+			name: "panic when order-only dependency",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				meta := &mockGraphMetadata{
+					boundTasks: map[string]bool{orderOnlyRef.ReferenceIDString(): true},
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{orderOnlyRef})
+				return ctx
+			},
+			targetRef:    orderOnlyRef,
+			wantErrMatch: "cannot get task result for order-only dependency",
+		},
+	}
 
-	t.Run("nonexistent result must not cause panic", func(t *testing.T) {
-		_, found := GetTaskResultOptional(ctx, nonExistentRef)
-		if found {
-			t.Errorf("Expected result not to be found, but it was")
-		}
-	})
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, core_contract.TaskImplementationIDContextKey, taskID)
+			ctx = tc.setupCtx(ctx)
+
+			if tc.wantErrMatch != "" {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Errorf("expected panic containing %q, but none occurred", tc.wantErrMatch)
+						return
+					}
+					msg := ""
+					if err, ok := r.(error); ok {
+						msg = err.Error()
+					} else if s, ok := r.(string); ok {
+						msg = s
+					} else {
+						t.Fatalf("unexpected panic type: %T", r)
+					}
+					if !strings.Contains(msg, tc.wantErrMatch) {
+						t.Errorf("expected panic message to contain %q, got: %v", tc.wantErrMatch, msg)
+					}
+				}()
+			}
+
+			val, ok := GetOptionalTaskResult(ctx, tc.targetRef)
+			if tc.wantErrMatch == "" {
+				if diff := cmp.Diff(tc.wantOk, ok); diff != "" {
+					t.Errorf("GetOptionalTaskResult() ok mismatch (-want %v +got %v):\n%s", tc.wantOk, ok, diff)
+				}
+				if diff := cmp.Diff(tc.wantVal, val); diff != "" {
+					t.Errorf("GetOptionalTaskResult() value mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestGetTaskResultsWithTag(t *testing.T) {
+	tag := NewTag[string]("test/tag")
+	tagRef := tag.Ref()
+	orderOnlyTagRef := tag.Ref(taskid.OrderOnly)
+	taskID := taskid.NewDefaultImplementationID[any]("test.consumer")
+
+	testCases := []struct {
+		name         string
+		setupCtx     func(ctx context.Context) context.Context
+		targetRef    TagReference[string]
+		want         []string
+		wantErrMatch string
+	}{
+		{
+			name: "aggregates multiple producers in deterministic order",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				typedmap.Set(taskResults, typedmap.NewTypedKey[string]("p1"), "apple")
+				typedmap.Set(taskResults, typedmap.NewTypedKey[string]("p2"), "banana")
+				meta := &mockGraphMetadata{
+					boundTasksWithTag: map[string][]string{tag.ID(): {"p1", "p2"}},
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
+				return ctx
+			},
+			targetRef: tagRef,
+			want:      []string{"apple", "banana"},
+		},
+		{
+			name: "returns empty slice when no producers bound",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				meta := &mockGraphMetadata{
+					boundTasksWithTag: map[string][]string{tag.ID(): {}},
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
+				return ctx
+			},
+			targetRef: tagRef,
+			want:      []string{},
+		},
+		{
+			name: "returns empty slice when tag has nil bound tasks",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				meta := &mockGraphMetadata{
+					boundTasksWithTag: nil,
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
+				return ctx
+			},
+			targetRef: tagRef,
+			want:      []string{},
+		},
+		{
+			name: "panic when producer result missing",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				meta := &mockGraphMetadata{
+					boundTasksWithTag: map[string][]string{tag.ID(): {"missing-p"}},
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
+				return ctx
+			},
+			targetRef:    tagRef,
+			wantErrMatch: "task missing-p providing tag test/tag result missing",
+		},
+		{
+			name: "panic when tag reference undeclared",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				meta := &mockGraphMetadata{
+					boundTasksWithTag: map[string][]string{tag.ID(): {}},
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{})
+				return ctx
+			},
+			targetRef:    tagRef,
+			wantErrMatch: "undeclared task dependency access",
+		},
+		{
+			name: "panic when tag reference is order-only",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				meta := &mockGraphMetadata{
+					boundTasksWithTag: map[string][]string{tag.ID(): {}},
+				}
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{orderOnlyTagRef})
+				return ctx
+			},
+			targetRef:    orderOnlyTagRef,
+			wantErrMatch: "cannot get task result for order-only dependency",
+		},
+		{
+			name: "panic when task graph metadata is missing",
+			setupCtx: func(ctx context.Context) context.Context {
+				taskResults := typedmap.NewTypedMap()
+				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
+				return ctx
+			},
+			targetRef:    tagRef,
+			wantErrMatch: "value not found for key: khi.google.com/task-graph-metadata",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, core_contract.TaskImplementationIDContextKey, taskID)
+			ctx = tc.setupCtx(ctx)
+
+			if tc.wantErrMatch != "" {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Errorf("expected panic containing %q, but none occurred", tc.wantErrMatch)
+						return
+					}
+					msg := ""
+					if err, ok := r.(error); ok {
+						msg = err.Error()
+					} else if s, ok := r.(string); ok {
+						msg = s
+					} else {
+						t.Fatalf("unexpected panic type: %T", r)
+					}
+					if !strings.Contains(msg, tc.wantErrMatch) {
+						t.Errorf("expected panic message to contain %q, got: %v", tc.wantErrMatch, msg)
+					}
+				}()
+			}
+
+			got := GetTaskResultsWithTag(ctx, tc.targetRef)
+			if tc.wantErrMatch == "" {
+				if diff := cmp.Diff(tc.want, got); diff != "" {
+					t.Errorf("GetTaskResultsWithTag() mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
 }

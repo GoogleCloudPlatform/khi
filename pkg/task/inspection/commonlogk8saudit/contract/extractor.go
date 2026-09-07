@@ -37,7 +37,7 @@ func ExtractK8sAuditLog(ctx context.Context, reader *structured.NodeReader) (*K8
 	if cached, ok := structured.GetCache(reader, K8sAuditLogCacheKey); ok {
 		return cached, nil
 	}
-	if extractor, found := coretask.GetTaskResultOptional(ctx, K8sAuditLogExtractorRef); found && extractor != nil {
+	if extractor, found := coretask.GetOptionalTaskResult(ctx, K8sAuditLogExtractorRef); found {
 		res, err := extractor(reader)
 		if err == nil && res != nil {
 			structured.SetCache(reader, K8sAuditLogCacheKey, res)
@@ -58,7 +58,7 @@ func ExtractK8sAuditLogError(ctx context.Context, reader *structured.NodeReader)
 	if cached, ok := structured.GetCache(reader, K8sAuditLogCacheKey); ok {
 		return cached.IsError, nil
 	}
-	if extractor, found := coretask.GetTaskResultOptional(ctx, K8sAuditLogErrorExtractorRef); found && extractor != nil {
+	if extractor, found := coretask.GetOptionalTaskResult(ctx, K8sAuditLogErrorExtractorRef); found {
 		return extractor(reader)
 	}
 	return false, nil

@@ -19,8 +19,22 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// TaskResultMapContextKey is the key to get the result of each tasks run before.
+// TaskGraphMetadata provides information about the resolved task graph.
+type TaskGraphMetadata interface {
+	// IsBound returns true if the task reference was bound to the graph.
+	IsBound(referenceID string) bool
+	// BoundReferenceIDsWithTag returns the list of task reference IDs that provide the given tag.
+	BoundReferenceIDsWithTag(tag string) []string
+}
+
+// TaskResultMapContextKey is the key to get the result of each task run before.
 var TaskResultMapContextKey = typedmap.NewTypedKey[*typedmap.TypedMap]("khi.google.com/task-result-map")
 
 // TaskImplementationIDContextKey is the key to get the current task implementation ID.
 var TaskImplementationIDContextKey = typedmap.NewTypedKey[taskid.UntypedTaskImplementationID]("khi.google.com/task-implementation-id")
+
+// TaskDependenciesContextKey is the key to get the dependencies declared by the running task.
+var TaskDependenciesContextKey = typedmap.NewTypedKey[[]taskid.DependencyDescriptor]("khi.google.com/task-dependencies")
+
+// TaskGraphMetadataContextKey is the key to get the TaskGraphMetadata.
+var TaskGraphMetadataContextKey = typedmap.NewTypedKey[TaskGraphMetadata]("khi.google.com/task-graph-metadata")

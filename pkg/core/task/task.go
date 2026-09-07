@@ -45,14 +45,15 @@ var LabelKeySubsequentTaskRefs = NewTaskLabelKey[[]taskid.UntypedTaskReference](
 // LabelKeyTaskResultRetention indicates whether the task result should be retained in the runner after all dependent tasks finish.
 var LabelKeyTaskResultRetention = NewTaskLabelKey[bool](KHISystemPrefix + "task-result-retention")
 
+// UntypedTask represents a task in the DAG without compile-time result type information.
 type UntypedTask interface {
 	UntypedID() taskid.UntypedTaskImplementationID
 	// Labels returns KHITaskLabelSet assigned to this task unit.
 	// The implementation of this function must return a constant value.
 	Labels() *typedmap.ReadonlyTypedMap
 
-	// Dependencies returns the list of task references. Task runner will wait these dependent tasks to be done before running this task.
-	Dependencies() []taskid.UntypedTaskReference
+	// Dependencies returns the list of task dependencies. Task runner will wait for these dependencies before running this task.
+	Dependencies() []Dependency
 
 	UntypedRun(ctx context.Context) (any, error)
 }
@@ -69,10 +70,11 @@ type Task[TaskResult any] interface {
 	Run(ctx context.Context) (TaskResult, error)
 }
 
+// TaskImpl provides the default implementation of Task.
 type TaskImpl[TaskResult any] struct {
 	id           taskid.TaskImplementationID[TaskResult]
 	labels       *typedmap.ReadonlyTypedMap
-	dependencies []taskid.UntypedTaskReference
+	dependencies []Dependency
 	runFunc      func(ctx context.Context) (TaskResult, error)
 }
 
@@ -82,7 +84,7 @@ func (c *TaskImpl[TaskResult]) Run(ctx context.Context) (TaskResult, error) {
 }
 
 // Dependencies implements Task.
-func (c *TaskImpl[TaskResult]) Dependencies() []taskid.UntypedTaskReference {
+func (c *TaskImpl[TaskResult]) Dependencies() []Dependency {
 	return c.dependencies
 }
 
@@ -96,38 +98,85 @@ func (c *TaskImpl[TaskResult]) Labels() *typedmap.ReadonlyTypedMap {
 	return c.labels
 }
 
+// UntypedID implements UntypedTask.
 func (c *TaskImpl[TaskResult]) UntypedID() taskid.UntypedTaskImplementationID {
 	return c.ID()
 }
 
+// UntypedRun implements UntypedTask.
 func (c *TaskImpl[TaskResult]) UntypedRun(ctx context.Context) (any, error) {
 	return c.Run(ctx)
 }
 
 var _ Task[any] = (*TaskImpl[any])(nil)
 
-func NewTask[TaskResult any](taskId taskid.TaskImplementationID[TaskResult], dependencies []taskid.UntypedTaskReference, runFunc func(ctx context.Context) (TaskResult, error), labelOpts ...LabelOpt) *TaskImpl[TaskResult] {
-	verifyTaskID(taskId)
-	verifyDependenciesHasValues(taskId, dependencies)
+// NewTask constructs a new Task with the given implementation ID, dependencies, execution function, and label options.
+func NewTask[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], dependencies []Dependency, runFunc func(ctx context.Context) (TaskResult, error), labelOpts ...LabelOpt) *TaskImpl[TaskResult] {
+	verifyTaskID(taskID)
+	verifyNonNilDependencies(taskID, dependencies)
 	labels := NewLabelSet(labelOpts...)
-	verifyLabelKeys(taskId, labels)
+	verifyLabelKeys(taskID, labels)
 	return &TaskImpl[TaskResult]{
-		id:           taskId,
+		id:           taskID,
 		labels:       labels,
-		dependencies: dedupeTaskReferences(dependencies),
+		dependencies: dedupeDependencies(dependencies),
 		runFunc:      runFunc,
 	}
 }
 
-func dedupeTaskReferences(reference []taskid.UntypedTaskReference) []taskid.UntypedTaskReference {
-	result := []taskid.UntypedTaskReference{}
-	seen := map[string]struct{}{}
-	for _, ref := range reference {
-		if _, ok := seen[ref.String()]; ok {
+// NewTailTask creates a no-op barrier task that waits for all given dependencies in order-only mode.
+func NewTailTask(taskID taskid.TaskImplementationID[struct{}], dependencies []Dependency, labelOpts ...LabelOpt) *TaskImpl[struct{}] {
+	verifyTaskID(taskID)
+	verifyNonNilDependencies(taskID, dependencies)
+	orderOnlyDeps := make([]Dependency, len(dependencies))
+	for i, dep := range dependencies {
+		orderOnlyDeps[i] = ToOrderOnly(dep)
+	}
+	return NewTask(
+		taskID,
+		orderOnlyDeps,
+		func(ctx context.Context) (struct{}, error) {
+			return struct{}{}, nil
+		},
+		labelOpts...,
+	)
+}
+
+// isMoreRestrictiveDependency returns true if candidate is strictly more restrictive than current.
+// EdgeKindData is more restrictive than EdgeKindOrderOnly.
+// When kinds are equal, ConditionRequired is more restrictive than ConditionOptional.
+func isMoreRestrictiveDependency(candidate, current Dependency) bool {
+	// Data is strictly more restrictive than OrderOnly.
+	if current.DescriptorKind() == taskid.EdgeKindOrderOnly && candidate.DescriptorKind() != taskid.EdgeKindOrderOnly {
+		return true
+	}
+	if current.DescriptorKind() != taskid.EdgeKindOrderOnly && candidate.DescriptorKind() == taskid.EdgeKindOrderOnly {
+		return false
+	}
+	// When both have the same kind, Required is more restrictive than Optional.
+	if current.DescriptorCondition() == taskid.ConditionOptional && candidate.DescriptorCondition() == taskid.ConditionRequired {
+		return true
+	}
+	return false
+}
+
+func dedupeDependencies(dependencies []Dependency) []Dependency {
+	result := make([]Dependency, 0, len(dependencies))
+	seen := make(map[string]int, len(dependencies))
+	for _, dep := range dependencies {
+		key := dependencyKey(dep)
+		if key == "" {
+			result = append(result, dep)
 			continue
 		}
-		seen[ref.String()] = struct{}{}
-		result = append(result, ref)
+		if idx, ok := seen[key]; ok {
+			if isMoreRestrictiveDependency(dep, result[idx]) {
+				result[idx] = dep
+			}
+			continue
+		}
+		seen[key] = len(result)
+		result = append(result, dep)
 	}
 	return result
 }
@@ -139,7 +188,7 @@ Please define task IDs and types used in its type parameter in a different packa
 	}
 }
 
-func verifyDependenciesHasValues[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], dependencies []taskid.UntypedTaskReference) {
+func verifyNonNilDependencies(taskID taskid.UntypedTaskImplementationID, dependencies []Dependency) {
 	for i, dependency := range dependencies {
 		if dependency == nil {
 			panic(fmt.Sprintf(`Invalid task definition: %s. Given task dependency list contains a nil reference at #%d. This may be caused because of initialization order issue of global variables.
@@ -148,7 +197,7 @@ Please define task IDs and types used in its type parameter in a different packa
 	}
 }
 
-func verifyLabelKeys[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], labels *typedmap.ReadonlyTypedMap) {
+func verifyLabelKeys(taskID taskid.UntypedTaskImplementationID, labels *typedmap.ReadonlyTypedMap) {
 	keys := labels.Keys()
 	for i, key := range keys {
 		if key == "" {

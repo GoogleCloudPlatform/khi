@@ -102,7 +102,7 @@ func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSet
 			// In DryRun: perform volume estimation across all container groups and record query metadata.
 			if taskMode != inspectioncore_contract.TaskModeRun {
 				clientFactory := coretask.GetTaskResult(ctx, APIClientFactoryTaskID.Ref())
-				callOptionInjector, _ := coretask.GetTaskResultOptional(ctx, APIClientCallOptionsInjectorTaskID.Ref())
+				callOptionInjector, _ := coretask.GetOptionalTaskResult(ctx, APIClientCallOptionsInjectorTaskID.Ref())
 				return nil, estimateAndRecordQueries(ctx, taskID.String(), clientFactory, callOptionInjector, groups, queries, startTime, endTime, queryName)
 			}
 

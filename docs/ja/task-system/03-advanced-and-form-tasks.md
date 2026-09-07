@@ -113,7 +113,7 @@ KHI では、`inspectiontaskbase.NewInventoryTaskBuilder` を使用して、情�
 1. **`DiscoveryTask` は別のタスクにリクエストされた場合のみグラフに含まれる**:
    ビルダの `.DiscoveryTask(...)` で生成された各ディスカバリタスクには、`coretask.NewSubsequentTaskRefsTaskLabel` が自動で付与されます。これにより、**ディスカバリタスク自体は、それを使用するパーサーや機能タスクから依存関係としてリクエストされない限り、タスクグラフにいっさい含まれません**（該当パーサーが無効ならグラフから除外されます）。
 2. **`InventoryTask` による有効な結果のオプショナル統合**:
-   ビルダの `.InventoryTask(strategy)` で生成されたインベントリタスクは、`coretask.GetTaskResultOptional` を用いて、**グラフに実際に含まれて実行された Discovery タスクの結果のみ** を回収・マージします。
+   ビルダの `.InventoryTask(strategy)` で生成されたインベントリタスクは、`coretask.GetOptionalTaskResult` を用いて、**グラフに実際に含まれて実行された Discovery タスクの結果のみ** を回収・マージします。
 
 #### 実装サンプル: ノードログと監査ログの 2 つの Discovery タスクと統合 Inventory タスク
 
