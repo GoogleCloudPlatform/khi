@@ -150,9 +150,6 @@ var GCPSeverityCacheKey = structured.NewCacheKey[*pb.Severity]()
 
 // ExtractGCPAuditLog extracts GCP Audit Log fields from a NodeReader.
 func ExtractGCPAuditLog(reader *structured.NodeReader) (GCPAuditLogFieldSet, error) {
-	if reader == nil {
-		return GCPAuditLogFieldSet{}, nil
-	}
 	if cached, ok := structured.GetCache(reader, GCPAuditLogCacheKey); ok {
 		return *cached, nil
 	}
@@ -228,9 +225,6 @@ func ExtractGCPAccessLog(reader *structured.NodeReader) (GCPAccessLogFieldSet, e
 
 // ExtractGCPSeverity extracts severity from a GCP Cloud Logging entry.
 func ExtractGCPSeverity(reader *structured.NodeReader) (*pb.Severity, error) {
-	if reader == nil {
-		return nil, nil
-	}
 	if cached, ok := structured.GetCache(reader, GCPSeverityCacheKey); ok {
 		return cached, nil
 	}

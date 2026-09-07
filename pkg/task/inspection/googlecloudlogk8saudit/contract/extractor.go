@@ -43,9 +43,6 @@ var (
 
 // ExtractGCPK8sAuditLogError extracts whether the log represents an error from a GCP Cloud Logging NodeReader.
 func ExtractGCPK8sAuditLogError(reader *structured.NodeReader) (bool, error) {
-	if reader == nil {
-		return false, nil
-	}
 	if cached, ok := structured.GetCache(reader, commonlogk8saudit_contract.K8sAuditLogCacheKey); ok {
 		return cached.IsError, nil
 	}
@@ -57,9 +54,6 @@ func ExtractGCPK8sAuditLogError(reader *structured.NodeReader) (bool, error) {
 
 // ExtractGCPK8sAuditLog extracts Kubernetes audit log data from a GCP Cloud Logging NodeReader.
 func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (*commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
-	if reader == nil {
-		return nil, nil
-	}
 	if cached, ok := structured.GetCache(reader, commonlogk8saudit_contract.K8sAuditLogCacheKey); ok {
 		return cached, nil
 	}

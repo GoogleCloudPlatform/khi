@@ -85,9 +85,6 @@ func ExtractOSSK8sIsNonEventAuditLog(reader *structured.NodeReader) (bool, error
 
 // ExtractOSSK8sAuditLogError extracts whether an OSS audit log is an error.
 func ExtractOSSK8sAuditLogError(reader *structured.NodeReader) (bool, error) {
-	if reader == nil {
-		return false, nil
-	}
 	if mock, ok := structured.GetMock[*commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
 		return mock.IsError, nil
 	}
@@ -103,9 +100,6 @@ func ExtractOSSK8sAuditLogError(reader *structured.NodeReader) (bool, error) {
 
 // ExtractOSSK8sAuditLog extracts commonlogk8saudit_contract.K8sAuditLogFieldSet from OSS audit log entries.
 func ExtractOSSK8sAuditLog(reader *structured.NodeReader) (*commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
-	if reader == nil {
-		return &commonlogk8saudit_contract.K8sAuditLogFieldSet{}, nil
-	}
 	if cached, ok := structured.GetCache(reader, commonlogk8saudit_contract.K8sAuditLogCacheKey); ok {
 		return cached, nil
 	}

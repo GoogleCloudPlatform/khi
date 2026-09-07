@@ -72,31 +72,34 @@ func NewNodeReader(node Node) *NodeReader {
 }
 
 // SetCache stores a cached value of type T for the given key into the reader in a thread-safe, lock-free manner.
-// If a concurrent write conflicts, the cache update is skipped and the value will be re-parsed on subsequent lookups.
 func SetCache[T any](reader *NodeReader, key CacheKey[T], val T) {
 	if reader == nil || reader.cache == nil {
 		return
 	}
-	oldEntries := reader.cache.entries.Load()
-	var newEntries []readerCacheEntry
-	if oldEntries == nil {
-		newEntries = []readerCacheEntry{{keyID: key.id, val: val}}
-	} else {
-		found := false
-		newEntries = make([]readerCacheEntry, len(*oldEntries))
-		copy(newEntries, *oldEntries)
-		for i, entry := range newEntries {
-			if entry.keyID == key.id {
-				newEntries[i].val = val
-				found = true
-				break
+	for {
+		oldEntries := reader.cache.entries.Load()
+		var newEntries []readerCacheEntry
+		if oldEntries == nil {
+			newEntries = []readerCacheEntry{{keyID: key.id, val: val}}
+		} else {
+			found := false
+			newEntries = make([]readerCacheEntry, len(*oldEntries))
+			copy(newEntries, *oldEntries)
+			for i, entry := range newEntries {
+				if entry.keyID == key.id {
+					newEntries[i].val = val
+					found = true
+					break
+				}
+			}
+			if !found {
+				newEntries = append(newEntries, readerCacheEntry{keyID: key.id, val: val})
 			}
 		}
-		if !found {
-			newEntries = append(newEntries, readerCacheEntry{keyID: key.id, val: val})
+		if reader.cache.entries.CompareAndSwap(oldEntries, &newEntries) {
+			return
 		}
 	}
-	reader.cache.entries.CompareAndSwap(oldEntries, &newEntries)
 }
 
 // GetCache retrieves a cached value of type T for the given key from the reader in a thread-safe manner.
