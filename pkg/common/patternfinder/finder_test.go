@@ -22,8 +22,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestFindAllWithStarterRunes(t *testing.T) {

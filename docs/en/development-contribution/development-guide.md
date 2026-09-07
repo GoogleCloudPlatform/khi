@@ -87,7 +87,7 @@ make test
 When you want to run backend tests without Cloud Logging, run the following code.
 
 ```shell
-go test ./... -args -skip-cloud-logging=true
+KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
 ### Run storybook

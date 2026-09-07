@@ -27,9 +27,9 @@ import (
 	logging "cloud.google.com/go/logging/apiv2"
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
-	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/iterator"
 )
@@ -346,7 +346,7 @@ func (f *realLogProbeFetcher) ProbeLogTimestamps(ctx context.Context, container 
 
 // TestLiveMetricEstimation runs against real GCP when RUN_LIVE_ESTIMATION_TESTS=true.
 func TestLiveMetricEstimation(t *testing.T) {
-	if os.Getenv("RUN_LIVE_ESTIMATION_TESTS") != "true" || *testflags.SkipCloudLogging {
+	if os.Getenv("RUN_LIVE_ESTIMATION_TESTS") != "true" || testutil.SkipCloudLogging() {
 		t.Skip("skipping live test: set RUN_LIVE_ESTIMATION_TESTS=true to run")
 		return
 	}
@@ -461,7 +461,7 @@ func TestLiveMetricEstimation(t *testing.T) {
 
 // TestEstimateClusterLogs tests log estimation for a specific project and cluster.
 func TestEstimateClusterLogs(t *testing.T) {
-	if os.Getenv("RUN_LIVE_ESTIMATION_TESTS") != "true" || *testflags.SkipCloudLogging {
+	if os.Getenv("RUN_LIVE_ESTIMATION_TESTS") != "true" || testutil.SkipCloudLogging() {
 		t.Skip("skipping live test: set RUN_LIVE_ESTIMATION_TESTS=true to run")
 		return
 	}
@@ -573,7 +573,7 @@ protoPayload.methodName=~"\.(deployments|replicasets|pods|nodes)\."`),
 
 // TestEstimateTseKakeruClusterLogs tests log volume estimation for yesterday on tse-kakeru clusters.
 func TestEstimateTseKakeruClusterLogs(t *testing.T) {
-	if os.Getenv("RUN_LIVE_ESTIMATION_TESTS") != "true" || *testflags.SkipCloudLogging {
+	if os.Getenv("RUN_LIVE_ESTIMATION_TESTS") != "true" || testutil.SkipCloudLogging() {
 		t.Skip("skipping live test: set RUN_LIVE_ESTIMATION_TESTS=true to run")
 		return
 	}
@@ -703,7 +703,7 @@ protoPayload.methodName=~"\.(deployments|replicasets|pods|nodes)\."`),
 
 // TestAccuracyOneHourComparison tests accuracy by comparing estimated vs actual counts over a time window.
 func TestAccuracyOneHourComparison(t *testing.T) {
-	if os.Getenv("RUN_LIVE_ESTIMATION_TESTS") != "true" || *testflags.SkipCloudLogging {
+	if os.Getenv("RUN_LIVE_ESTIMATION_TESTS") != "true" || testutil.SkipCloudLogging() {
 		t.Skip("skipping live test: set RUN_LIVE_ESTIMATION_TESTS=true to run")
 		return
 	}

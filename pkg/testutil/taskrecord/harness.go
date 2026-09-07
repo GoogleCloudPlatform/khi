@@ -25,7 +25,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -115,26 +114,14 @@ func sanitizeTestName(testName string) string {
 func NewJobTestHarness(t testing.TB, server *coreinspection.InspectionTaskServer, cfg *JobTestConfig) *JobTestHarness {
 	fixtureDir := filepath.Join("testdata", "fixtures", sanitizeTestName(t.Name()))
 
-	isRecord := false
-	if testflags.RecordTaskResults != nil && *testflags.RecordTaskResults {
-		isRecord = true
-	} else if os.Getenv("KHI_RECORD_TASK_RESULTS") == "1" {
-		isRecord = true
-	}
+	recordEnv := os.Getenv("KHI_RECORD_TASK_RESULTS")
+	isRecord := recordEnv == "1" || recordEnv == "true"
 
-	isCPU := false
-	if testflags.TaskCPUProfile != nil && *testflags.TaskCPUProfile {
-		isCPU = true
-	} else if os.Getenv("KHI_TASK_CPUPROFILE") == "1" {
-		isCPU = true
-	}
+	cpuEnv := os.Getenv("KHI_TASK_CPUPROFILE")
+	isCPU := cpuEnv == "1" || cpuEnv == "true"
 
-	isMem := false
-	if testflags.TaskMemProfile != nil && *testflags.TaskMemProfile {
-		isMem = true
-	} else if os.Getenv("KHI_TASK_MEMPROFILE") == "1" {
-		isMem = true
-	}
+	memEnv := os.Getenv("KHI_TASK_MEMPROFILE")
+	isMem := memEnv == "1" || memEnv == "true"
 
 	var cpuPath, memPath string
 	if isCPU {

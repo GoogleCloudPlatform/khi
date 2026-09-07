@@ -83,10 +83,10 @@ KHIの開発環境のAngularサーバーはリクエストを `localhost:4200/ap
 make test
 ```
 
-バックエンドのテストをCloud Loggingと一緒に実行したい場合は下記のコードを実行してください。
+バックエンドのテストをCloud Loggingなしで実行したい場合は下記のコードを実行してください。
 
 ```shell
-go test ./... -args -skip-cloud-logging=true
+KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
 ### Storybookの起動

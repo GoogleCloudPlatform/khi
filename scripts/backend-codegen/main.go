@@ -28,11 +28,8 @@ import (
 
 const (
 	inspectionRegistrationTemplatePath = "scripts/backend-codegen/templates/zzz_register_inspection.go.tpl"
-	testflagTemplatePath               = "scripts/backend-codegen/templates/zzz_testflag_test.go.tpl"
 	inspectionRegistrationOutputPath   = "pkg/generated/zzz_register_inspection.go"
-	testFlagOutputFileName             = "zzz_testflag_test.go"
 	inspectionPkgDir                   = "pkg/task/inspection"
-	testPkgDir                         = "pkg"
 	goModPath                          = "go.mod"
 )
 
@@ -45,9 +42,6 @@ func main() {
 func run() error {
 	if err := generateInspectionRegistration(); err != nil {
 		return fmt.Errorf("failed to generate inspection registration: %w", err)
-	}
-	if err := generateTestflags(); err != nil {
-		return fmt.Errorf("failed to generate testflags: %w", err)
 	}
 	return nil
 }
@@ -90,38 +84,6 @@ func generateInspectionRegistration() error {
 	if err := os.WriteFile(inspectionRegistrationOutputPath, formattedSource, 0644); err != nil {
 		return fmt.Errorf("failed to write generated file: %w", err)
 	}
-	return nil
-}
-
-func generateTestflags() error {
-	finder := NewTestPackageFinder(testPkgDir)
-	packages, err := finder.Find()
-	if err != nil {
-		return fmt.Errorf("failed to find test packages: %w", err)
-	}
-
-	tmpl, err := template.ParseFiles(testflagTemplatePath)
-	if err != nil {
-		return fmt.Errorf("failed to parse template: %w", err)
-	}
-
-	for _, pkg := range packages {
-		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, pkg); err != nil {
-			return fmt.Errorf("failed to execute template for %s: %w", pkg.DirectoryPath, err)
-		}
-
-		formattedSource, err := format.Source(buf.Bytes())
-		if err != nil {
-			return fmt.Errorf("failed to format generated code for %s: %w", pkg.DirectoryPath, err)
-		}
-
-		outputPath := filepath.Join(pkg.DirectoryPath, testFlagOutputFileName)
-		if err := os.WriteFile(outputPath, formattedSource, 0644); err != nil {
-			return fmt.Errorf("failed to write generated file for %s: %w", pkg.DirectoryPath, err)
-		}
-	}
-
 	return nil
 }
 

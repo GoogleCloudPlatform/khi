@@ -165,7 +165,7 @@ jobs:
       - name: Backend Test
         run: |
           make generate-backend
-          go test ./... -args -skip-cloud-logging=true
+          KHI_SKIP_CLOUD_LOGGING=true go test ./...
       - name: Backend Format and Lint Check
         run: |
           make check-format-misc

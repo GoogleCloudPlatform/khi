@@ -37,7 +37,7 @@ $(GENERATE_BACKEND_DUMMY): $(GENERATE_PROTO_DUMMY) ## Generate backend source co
 	go run ./scripts/backend-codegen/
 	touch $(GENERATE_BACKEND_DUMMY)
 .PHONY: generate-backend
- generate-backend: $(GENERATE_BACKEND_DUMMY) ## Generate backend source code
+generate-backend: $(GENERATE_BACKEND_DUMMY) ## Generate backend source code
 
 # TODO: eventually the following cp commands are not needed after we removed icon image dependency directly from the frontend.
 $(FRONTEND_GENERATED_ASSETS_DUMMY): scripts/msdf-generator/zzz_generated_used_icons.json scripts/msdf-generator/index.js $(MSDF_SETUP_DUMMY) ## Generate font atlas

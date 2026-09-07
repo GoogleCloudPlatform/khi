@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
-	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 )
@@ -31,7 +31,7 @@ const testProjectID = "kubernetes-history-inspector"
 func IsValidLogQuery(t *testing.T, query string) error {
 	t.Helper()
 
-	if *testflags.SkipCloudLogging {
+	if testutil.SkipCloudLogging() {
 		t.Skip("cloud logging tests are skipped")
 	}
 

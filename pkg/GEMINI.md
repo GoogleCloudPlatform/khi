@@ -66,11 +66,6 @@ We follow Google's Go coding standards and the conventions outlined in the root 
 - **Test Utilities**: Use the `testutil` package for common test setup and helper functions. Avoid duplicating test logic.
   - **Task Testing**: Use `tasktest` and `inspectiontest` packages for testing tasks. See `pkg/task/inspection/googlecloudclustergke/impl/autocompletegkeclusternames_task_test.go` for a reference implementation.
 - **Mocks**: When testing interactions between packages, use interfaces and mock implementations.
-- **Skipping Tests**: For tests that require external dependencies (like Cloud Logging), use the `-skip-cloud-logging=true` flag as documented in the root `GEMINI.md`. Ensure such tests are properly tagged.
-
-    ```bash
-    go test ./... -args -skip-cloud-logging=true
-    ```
 
 ## 4. Dependency Management
 

@@ -30,7 +30,6 @@ node_modules/
 
 # Generated files
 pkg/generated/*.go
-zzz_*.go
 zzz_*.json
 
 # Vendor folders

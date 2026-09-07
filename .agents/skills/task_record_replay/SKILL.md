@@ -18,7 +18,7 @@ The `taskrecord` framework provides a **Record & Replay** mechanism tailored for
 ```mermaid
 flowchart TD
     A[1. Write Benchmark Code] -->|Use JobTestHarness in testing.B| B[2. Record Fixtures from Live Data]
-    B -->|Run with -record-task-results| C[3. Upload Fixtures to GCS]
+    B -->|Run with KHI_RECORD_TASK_RESULTS=1| C[3. Upload Fixtures to GCS]
     C -->|make upload-fixtures to gs://khi-fixtures| D[4. Fast Local Benchmarks]
     D -->|make download-fixtures & go test -bench| E[5. CPU & Memory Profiling]
     E -->|Generate pprof profiles & analyze| F[6. Optimize Code & Measure Gains]
@@ -214,11 +214,9 @@ make download-fixtures
 
 ### Step 2: Record a New Fixture from Live GCP Data
 
-When creating a new benchmark or updating dataset fixtures, run with `-record-task-results` (requires GCP credentials):
+When creating a new benchmark or updating dataset fixtures, run with `KHI_RECORD_TASK_RESULTS=1` (requires GCP credentials):
 
 ```bash
-go test -bench=BenchmarkMyTask -record-task-results ./pkg/task/inspection/mypackage/impl/...
-# Alternatively using environment variable:
 KHI_RECORD_TASK_RESULTS=1 go test -bench=BenchmarkMyTask ./pkg/task/inspection/mypackage/impl/...
 ```
 
@@ -251,7 +249,7 @@ BenchmarkMyTask-12           48   24856012 ns/op  5148016 B/op    42890 allocs/o
 Generate a CPU profile (`pprof/<BenchmarkName>/cpu.pprof`) strictly during `TargetTask` execution:
 
 ```bash
-go test -bench=BenchmarkMyTask -task-cpuprofile -run=^$ ./pkg/task/inspection/mypackage/impl/...
+KHI_TASK_CPUPROFILE=1 go test -bench=BenchmarkMyTask -run=^$ ./pkg/task/inspection/mypackage/impl/...
 ```
 
 Analyze via interactive Web UI:
@@ -265,7 +263,7 @@ go tool pprof -http=:8080 ./pprof/BenchmarkMyTask/cpu.pprof
 Generate a heap profile (`pprof/<BenchmarkName>/mem.pprof`) strictly after `TargetTask` execution:
 
 ```bash
-go test -bench=BenchmarkMyTask -task-memprofile -run=^$ ./pkg/task/inspection/mypackage/impl/...
+KHI_TASK_MEMPROFILE=1 go test -bench=BenchmarkMyTask -run=^$ ./pkg/task/inspection/mypackage/impl/...
 ```
 
 Analyze memory allocation hotspots:
@@ -293,7 +291,7 @@ go tool pprof -http=:8080 -sample_index=alloc_space ./pprof/BenchmarkMyTask/mem.
 ### `failed to read fixture file: open testdata/fixtures/.../xxx.json: no such file or directory`
 
 - **Cause:** The JSON fixture file has not been downloaded or recorded yet.
-- **Solution:** Run `make download-fixtures` to pull cached fixtures from GCS, or run `go test -bench=BenchmarkMyTask -record-task-results` with live credentials.
+- **Solution:** Run `make download-fixtures` to pull cached fixtures from GCS, or run `KHI_RECORD_TASK_RESULTS=1 go test -bench=BenchmarkMyTask` with live credentials.
 
 ### `TargetTask executed with context.Canceled error`
 

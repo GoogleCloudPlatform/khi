@@ -11,7 +11,7 @@ GENERATE_PROTO_DUMMY := $(DUMMY_DIR)/build-proto.done
 FRONTEND_GENERATED_ASSETS_DUMMY := $(DUMMY_DIR)/generate-font-atlas.done
 MSDF_SETUP_DUMMY := $(DUMMY_DIR)/msdf-setup.done
 
-BACKEND_TEST_SRCS := $(shell find . -path "./web" -prune -o -path "./.git" -prune -o -name "*_test.go" -not -name "zzz_*.go" -print)
+BACKEND_TEST_SRCS := $(shell find . -path "./web" -prune -o -path "./.git" -prune -o -name "*_test.go" -print)
 BACKEND_SRCS := $(shell find . -path "./web" -prune -o -path "./.git" -prune -o -name "*.go" -not -name "zzz_*.go" -not -name "*_test.go" -print)
 ENUM_GO_ALL_FILES := $(wildcard pkg/model/enum/*.go)
 ENUM_GO_FILES := $(filter-out %_test.go,$(ENUM_GO_ALL_FILES))
@@ -38,9 +38,9 @@ clean: ## Clean build artifacts and generated files
 	@echo "Cleaning test and coverage reports..."
 	rm -rf go-cover.html go-cover.output result.json
 	@echo "Cleaning intermediate generated files..."
-	find . -path "./scripts" -path "./web" -prune -o -path "./.git" -prune -o -type f -name "zzz_*.go" -exec rm -f {} + -o -type f -name "zzz_*.json" -exec rm -f {} +
 	rm -rf pkg/generated
 	rm -rf web/angular.json web/src/environments/version.*.ts
+	rm -f scripts/msdf-generator/zzz_generated_used_icons.json
 	@echo "Cleaning make dummy files..."
 	rm -rf scripts/make/*.done
 

@@ -87,3 +87,62 @@ func TestResponseFromString(t *testing.T) {
 		})
 	}
 }
+
+func TestSkipCloudLogging(t *testing.T) {
+	testCases := []struct {
+		name     string
+		envValue string
+		setEnv   bool
+		want     bool
+	}{
+		{
+			name:     "env is true",
+			envValue: "true",
+			setEnv:   true,
+			want:     true,
+		},
+		{
+			name:     "env is 1",
+			envValue: "1",
+			setEnv:   true,
+			want:     true,
+		},
+		{
+			name:     "env is false",
+			envValue: "false",
+			setEnv:   true,
+			want:     false,
+		},
+		{
+			name:     "env is 0",
+			envValue: "0",
+			setEnv:   true,
+			want:     false,
+		},
+		{
+			name:     "env is empty string",
+			envValue: "",
+			setEnv:   true,
+			want:     false,
+		},
+		{
+			name:   "env is unset",
+			setEnv: false,
+			want:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.setEnv {
+				t.Setenv("KHI_SKIP_CLOUD_LOGGING", tc.envValue)
+			} else {
+				t.Setenv("KHI_SKIP_CLOUD_LOGGING", "")
+			}
+			got := SkipCloudLogging()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("SkipCloudLogging() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

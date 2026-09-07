@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -56,4 +57,10 @@ func ResponseFromString(code int, response string) *http.Response {
 // P returns the pointer of given value. This is helper to get the pointer from literal because Go doesn't allow &"foo".
 func P[T any](value T) *T {
 	return &value
+}
+
+// SkipCloudLogging returns true if Cloud Logging integration tests should be skipped.
+func SkipCloudLogging() bool {
+	v := os.Getenv("KHI_SKIP_CLOUD_LOGGING")
+	return v == "true" || v == "1"
 }

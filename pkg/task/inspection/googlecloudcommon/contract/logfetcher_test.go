@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
-	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 )
 
 func TestLogFetcherImpl_FetchLogs(t *testing.T) {
-	if *testflags.SkipCloudLogging {
+	if testutil.SkipCloudLogging() {
 		t.Skip()
 		return
 	}
@@ -70,7 +70,7 @@ func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 }
 
 func TestLogFetcherImpl_FetchLogsIsCancellable(t *testing.T) {
-	if *testflags.SkipCloudLogging {
+	if testutil.SkipCloudLogging() {
 		t.Skip()
 		return
 	}
