@@ -94,7 +94,7 @@ func (m *WorkbenchManager) GetOrOpen(ctx context.Context, workbenchID string, in
 	m.mu.Lock()
 	wb, ok := m.workbenches[workbenchID]
 	lease, hasLease := m.leases[workbenchID]
-	if ok && hasLease && lease.After(time.Now()) && !wb.IsClosed() && wb.InspectionID() == inspectionID {
+	if ok && hasLease && (lease.After(time.Now()) || len(m.workbenches) <= 1) && !wb.IsClosed() && wb.InspectionID() == inspectionID {
 		m.leases[workbenchID] = time.Now().Add(m.ttl)
 		m.mu.Unlock()
 		if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_READY, 100, "Workbench attached."); err != nil {
@@ -194,7 +194,7 @@ func (m *WorkbenchManager) Heartbeat(workbenchID string) (*Workbench, time.Time,
 
 	wb, ok := m.workbenches[workbenchID]
 	lease, hasLease := m.leases[workbenchID]
-	if !ok || !hasLease || time.Now().After(lease) {
+	if !ok || !hasLease || (len(m.workbenches) > 1 && time.Now().After(lease)) {
 		return nil, time.Time{}, ErrWorkbenchNotFound
 	}
 	if wb.IsClosed() {
@@ -234,7 +234,7 @@ func (m *WorkbenchManager) Get(workbenchID string) (*Workbench, error) {
 
 	wb, ok := m.workbenches[workbenchID]
 	lease, hasLease := m.leases[workbenchID]
-	if !ok || !hasLease || time.Now().After(lease) {
+	if !ok || !hasLease || (len(m.workbenches) > 1 && time.Now().After(lease)) {
 		return nil, ErrWorkbenchNotFound
 	}
 	if wb.IsClosed() {

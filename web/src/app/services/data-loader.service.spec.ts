@@ -195,6 +195,28 @@ describe('InspectionDataLoaderService', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('should dismiss progress and alert when openWorkbench returns undefined', async () => {
+      const alertSpy = spyOn(window, 'alert').and.stub();
+      spyOn(console, 'error').and.stub();
+
+      mockBackendService.getInspectionData.and.returnValue(
+        of({
+          fileName: 'test.khi',
+          content: new Blob(['fake-data']),
+        }),
+      );
+
+      mockWorkbenchClient.openWorkbench.and.resolveTo(undefined);
+
+      await service.loadInspectionDataFromBackend('insp-1');
+
+      expect(mockProgress.dismiss).toHaveBeenCalled();
+      expect(alertSpy).toHaveBeenCalled();
+      expect(
+        mockInspectionDataStore.setNewInspectionData,
+      ).not.toHaveBeenCalled();
+    });
+
     it('should dismiss progress and alert on getInspectionData failure', async () => {
       const alertSpy = spyOn(window, 'alert').and.stub();
       spyOn(console, 'error').and.stub();

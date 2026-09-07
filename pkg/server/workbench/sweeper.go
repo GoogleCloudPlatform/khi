@@ -69,17 +69,31 @@ func (s *Sweeper) Run(target SweeperTarget) {
 	}()
 }
 
-// Sweep inspects target leases and requests removal of sessions that expired before now.
+// Sweep inspects target leases and evicts the oldest expired session when multiple sessions exist.
+// If only one session exists, it is preserved without eviction.
 func (s *Sweeper) Sweep(target SweeperTarget, now time.Time) int {
 	leases := target.Leases()
-	evictedCount := 0
+	if len(leases) <= 1 {
+		return 0
+	}
+
+	var oldestExpiredID string
+	var oldestExpiredTime time.Time
+
 	for id, expiresAt := range leases {
 		if now.After(expiresAt) {
-			target.Remove(id)
-			evictedCount++
+			if oldestExpiredID == "" || expiresAt.Before(oldestExpiredTime) {
+				oldestExpiredID = id
+				oldestExpiredTime = expiresAt
+			}
 		}
 	}
-	return evictedCount
+
+	if oldestExpiredID != "" {
+		target.Remove(oldestExpiredID)
+		return 1
+	}
+	return 0
 }
 
 // Stop terminates the sweeper goroutine and waits for completion.

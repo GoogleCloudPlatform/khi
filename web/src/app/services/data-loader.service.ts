@@ -204,10 +204,13 @@ export class InspectionDataLoaderService {
     })();
 
     try {
-      const [{ parsedData, rawInspectionData }] = await Promise.all([
-        localTask,
-        serverTask,
-      ]);
+      const [{ parsedData, rawInspectionData }, workbenchId] =
+        await Promise.all([localTask, serverTask]);
+      if (!workbenchId) {
+        throw new Error(
+          'Failed to initialize or attach to the workbench session on the backend.',
+        );
+      }
       this.inspectionDataStore.setNewInspectionData(parsedData);
       this.extension.notifyLifecycleOnInspectionDataOpen(
         parsedData,

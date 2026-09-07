@@ -58,20 +58,52 @@ func TestSweeper_Sweep(t *testing.T) {
 		wantRemoved []string
 	}{
 		{
-			name: "evicts expired leases only",
+			name: "preserves single expired lease without eviction",
+			leases: map[string]time.Time{
+				"wb-expired-single": baseTime.Add(-10 * time.Second),
+			},
+			now:         baseTime,
+			wantRemoved: nil,
+		},
+		{
+			name: "evicts oldest expired lease when multiple expired exist",
+			leases: map[string]time.Time{
+				"wb-expired-1": baseTime.Add(-10 * time.Second),
+				"wb-expired-2": baseTime.Add(-1 * time.Second),
+			},
+			now:         baseTime,
+			wantRemoved: []string{"wb-expired-1"},
+		},
+		{
+			name: "evicts oldest expired lease when mixed with active leases",
 			leases: map[string]time.Time{
 				"wb-expired-1": baseTime.Add(-10 * time.Second),
 				"wb-expired-2": baseTime.Add(-1 * time.Second),
 				"wb-active-1":  baseTime.Add(10 * time.Second),
 			},
 			now:         baseTime,
-			wantRemoved: []string{"wb-expired-1", "wb-expired-2"},
+			wantRemoved: []string{"wb-expired-1"},
 		},
 		{
 			name: "does nothing when all active",
 			leases: map[string]time.Time{
 				"wb-active-1": baseTime.Add(10 * time.Second),
+				"wb-active-2": baseTime.Add(20 * time.Second),
 			},
+			now:         baseTime,
+			wantRemoved: nil,
+		},
+		{
+			name: "does nothing when single active lease exists",
+			leases: map[string]time.Time{
+				"wb-active-1": baseTime.Add(10 * time.Second),
+			},
+			now:         baseTime,
+			wantRemoved: nil,
+		},
+		{
+			name:        "does nothing when leases is empty",
+			leases:      map[string]time.Time{},
 			now:         baseTime,
 			wantRemoved: nil,
 		},
@@ -108,7 +140,8 @@ func TestSweeper_RunAndStop(t *testing.T) {
 	sweeper := NewSweeper(10 * time.Millisecond)
 	target := &mockSweeperTarget{
 		leases: map[string]time.Time{
-			"session-auto-1": time.Now().Add(-1 * time.Minute),
+			"session-auto-1": time.Now().Add(-2 * time.Minute),
+			"session-auto-2": time.Now().Add(-1 * time.Minute),
 		},
 	}
 

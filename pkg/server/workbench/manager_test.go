@@ -430,3 +430,99 @@ func TestNewWorkbenchManager_PanicsOnNilIndexManager(t *testing.T) {
 	}()
 	NewWorkbenchManager(inspectionServer, nil, time.Minute, 0)
 }
+
+func TestWorkbenchManager_SingleWorkbenchRetention(t *testing.T) {
+	inspectionServer, validInspectionID := createTestInspectionServer(t)
+
+	// Short TTL of 20ms
+	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 20*time.Millisecond, 0)
+	defer mgr.Stop()
+
+	wb, err := mgr.GetOrOpen(context.Background(), "single-session-1", validInspectionID, nil)
+	if err != nil {
+		t.Fatalf("GetOrOpen() unexpected error: %v", err)
+	}
+
+	// Wait for TTL to elapse
+	time.Sleep(40 * time.Millisecond)
+
+	// 1. Get() should still succeed because only 1 workbench exists
+	gotWb, err := mgr.Get(wb.ID())
+	if err != nil {
+		t.Errorf("Get() on expired single workbench unexpected error: %v", err)
+	}
+	if gotWb != wb {
+		t.Errorf("Get() workbench = %p, want %p", gotWb, wb)
+	}
+
+	// 2. Heartbeat() should refresh lease and succeed
+	heartbeatWb, newExpiresAt, err := mgr.Heartbeat(wb.ID())
+	if err != nil {
+		t.Errorf("Heartbeat() on expired single workbench unexpected error: %v", err)
+	}
+	if heartbeatWb != wb {
+		t.Errorf("Heartbeat() workbench = %p, want %p", heartbeatWb, wb)
+	}
+	if !newExpiresAt.After(time.Now()) {
+		t.Errorf("Heartbeat() newExpiresAt = %v, want future time", newExpiresAt)
+	}
+
+	// 3. GetOrOpen() with same ID should reattach without error
+	reattachWb, err := mgr.GetOrOpen(context.Background(), wb.ID(), validInspectionID, nil)
+	if err != nil {
+		t.Errorf("GetOrOpen() reattach unexpected error: %v", err)
+	}
+	if reattachWb != wb {
+		t.Errorf("GetOrOpen() reattach workbench = %p, want %p", reattachWb, wb)
+	}
+}
+
+func TestWorkbenchManager_MultipleWorkbenchesExpiration(t *testing.T) {
+	inspectionServer, validInspectionID := createTestInspectionServer(t)
+
+	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 20*time.Millisecond, 0)
+	defer mgr.Stop()
+
+	// Open session 1
+	wb1, err := mgr.GetOrOpen(context.Background(), "multi-session-1", validInspectionID, nil)
+	if err != nil {
+		t.Fatalf("GetOrOpen(session-1) unexpected error: %v", err)
+	}
+
+	// Stagger session 2 slightly so session 1 has an older expiration time
+	time.Sleep(10 * time.Millisecond)
+	wb2, err := mgr.GetOrOpen(context.Background(), "multi-session-2", validInspectionID, nil)
+	if err != nil {
+		t.Fatalf("GetOrOpen(session-2) unexpected error: %v", err)
+	}
+
+	// Wait until both leases have expired
+	time.Sleep(30 * time.Millisecond)
+
+	sweeper := NewSweeper(10 * time.Millisecond)
+
+	// First sweep: should evict oldest expired session (session 1) and leave session 2
+	evicted := sweeper.Sweep(mgr, time.Now())
+	if evicted != 1 {
+		t.Errorf("first Sweep() evicted = %d, want 1", evicted)
+	}
+
+	if _, err := mgr.Get(wb1.ID()); !errors.Is(err, ErrWorkbenchNotFound) {
+		t.Errorf("Get(wb1.ID()) error = %v, want ErrWorkbenchNotFound", err)
+	}
+
+	// wb2 is now the single remaining workbench, so Get() must succeed despite expired lease
+	gotWb2, err := mgr.Get(wb2.ID())
+	if err != nil {
+		t.Errorf("Get(wb2.ID()) unexpected error: %v", err)
+	}
+	if gotWb2 != wb2 {
+		t.Errorf("Get(wb2.ID()) workbench = %p, want %p", gotWb2, wb2)
+	}
+
+	// Second sweep: should NOT evict wb2 because len(leases) <= 1
+	evictedSecond := sweeper.Sweep(mgr, time.Now())
+	if evictedSecond != 0 {
+		t.Errorf("second Sweep() evicted = %d, want 0", evictedSecond)
+	}
+}
