@@ -119,7 +119,10 @@ func CompressChunk(chunkType ChunkType, message proto.Message) (*RawChunk, error
 
 	gw := gzipWriterPool.Get().(*gzip.Writer)
 	gw.Reset(buf)
-	defer gzipWriterPool.Put(gw)
+	defer func() {
+		gw.Reset(io.Discard)
+		gzipWriterPool.Put(gw)
+	}()
 
 	if _, err := gw.Write(b); err != nil {
 		return nil, fmt.Errorf("failed to compress payload: %w", err)
