@@ -56,7 +56,17 @@ describe('ConnectClientService', () => {
 
   it('should use JSON content-type when environment.production is false', async () => {
     let capturedContentType: string | null = null;
-    spyOn(globalThis, 'fetch').and.callFake((_input, init) => {
+    const originalFetch = globalThis.fetch;
+    spyOn(globalThis, 'fetch').and.callFake((input, init) => {
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof Request
+            ? input.url
+            : String(input);
+      if (!url.includes('HeartbeatWorkbench')) {
+        return originalFetch(input, init);
+      }
       const headers = new Headers(init?.headers);
       capturedContentType = headers.get('content-type');
       return Promise.resolve(
@@ -85,7 +95,17 @@ describe('ConnectClientService', () => {
       (environment as { useBinaryFormat?: boolean }).useBinaryFormat = true;
       const binaryService = new ConnectClientService();
       let capturedContentType: string | null = null;
-      spyOn(globalThis, 'fetch').and.callFake((_input, init) => {
+      const originalFetch = globalThis.fetch;
+      spyOn(globalThis, 'fetch').and.callFake((input, init) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof Request
+              ? input.url
+              : String(input);
+        if (!url.includes('HeartbeatWorkbench')) {
+          return originalFetch(input, init);
+        }
         const headers = new Headers(init?.headers);
         capturedContentType = headers.get('content-type');
         return Promise.resolve(
@@ -109,7 +129,17 @@ describe('ConnectClientService', () => {
 
   it('retries unary RPC when encountering 502 Bad Gateway', async () => {
     let callCount = 0;
-    spyOn(globalThis, 'fetch').and.callFake(() => {
+    const originalFetch = globalThis.fetch;
+    spyOn(globalThis, 'fetch').and.callFake((input, init) => {
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof Request
+            ? input.url
+            : String(input);
+      if (!url.includes('HeartbeatWorkbench')) {
+        return originalFetch(input, init);
+      }
       callCount++;
       if (callCount === 1) {
         return Promise.resolve(
