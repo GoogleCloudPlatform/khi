@@ -111,12 +111,6 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 			KnownEndpoints:    make(map[string]bool),
 		}
 	}
-	if prevGroupData.PendingOperations == nil {
-		prevGroupData.PendingOperations = make(map[string]*pendingNEGOperation)
-	}
-	if prevGroupData.KnownEndpoints == nil {
-		prevGroupData.KnownEndpoints = make(map[string]bool)
-	}
 
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 	negs := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref())
@@ -145,7 +139,6 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 		prevGroupData.OperationTracker.ProcessOperationLog(ctx, cs, negOperationPath, &auditFieldSet, l.Timestamp)
 	}
 
-	ipLeases := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref())
 	// Add neg subresource under resources with the same IP of the endpoint.
 	shortMethodName := getShortMethodNameFromMethodName(auditFieldSet.MethodName)
 	var startVerb, endVerb *pb.Verb
@@ -205,61 +198,80 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	}
 
 	if negRequest != nil {
-		negToBS := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref())
-		for _, endpoint := range negRequest.NetworkEndpoints {
-			var resourceTimelinePath *khifilev6.TimelinePath
-			var bsSubresourceName string
-			var endpointKey string
-
-			if endpoint.IpAddress != "" && endpoint.Port != "" {
-				lease, err := ipLeases.GetResourceLeaseHolderAt(endpoint.IpAddress, l.Timestamp)
-				if err != nil {
-					slog.WarnContext(ctx, fmt.Sprintf("Failed to identify the holder of the IP %s.\n This might be because the IP holder resource wasn't updated during the log period ", endpoint.IpAddress))
-					continue
-				}
-				holder := lease.Holder
-				if holder.Kind != "pod" {
-					slog.DebugContext(ctx, fmt.Sprintf("IP %s is held by non-pod resource %s/%s, skipping NEG mapping", endpoint.IpAddress, holder.Kind, holder.Name))
-					continue
-				}
-
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterIdentity.ClusterName)
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
-				nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, holder.Namespace)
-				resourceTimelinePath = commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, holder.Name)
-				bsSubresourceName = holder.Name
-				endpointKey = getPodEndpointKey(endpoint.IpAddress, endpoint.Port)
-			} else if endpoint.Instance != "" {
-				nodeName := getInstanceNameFromResourceName(endpoint.Instance)
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterIdentity.ClusterName)
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
-				resourceTimelinePath = commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, nodeName)
-				bsSubresourceName = nodeName
-				endpointKey = getNodeEndpointKey(nodeName)
-			} else {
-				continue
-			}
-
-			// Add revisions to the resource-level NEG subresource timeline.
-			negSubresourcePath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, resourceTimelinePath, negName)
-			isKnown := prevGroupData.KnownEndpoints[endpointKey]
-			addEndpointRevisions(cs, negSubresourcePath, shortMethodName, isKnown, l.Timestamp, verb, state, auditFieldSet.PrincipalEmail)
-
-			// Add revisions to the BackendService-level NEG subresource timeline if associated.
-			if bsName, found := negToBS[negName]; found {
-				// BackendService is usually global in the context of gsmrsvd backends.
-				bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, clusterIdentity.ProjectID, "backendServices", bsName)
-				bsNegSubresourcePath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, bsSubresourceName)
-				addEndpointRevisions(cs, bsNegSubresourcePath, shortMethodName, isKnown, l.Timestamp, verb, state, auditFieldSet.PrincipalEmail)
-			}
-
-			prevGroupData.KnownEndpoints[endpointKey] = true
-		}
+		m.processEndpointRevisions(ctx, cs, l, &auditFieldSet, prevGroupData, clusterIdentity, negName, shortMethodName, negRequest, verb, state)
 	}
 
 	return cs, prevGroupData, nil
+}
+
+// processEndpointRevisions resolves resource endpoints (Pod or Node) and records the corresponding NEG subresource revisions.
+func (m *networkAPITimelineMapper) processEndpointRevisions(
+	ctx context.Context,
+	cs *khifilev6.TimelineChangeSet,
+	l *log.Log,
+	auditFieldSet *googlecloudcommon_contract.GCPAuditLogFieldSet,
+	prevGroupData *perNEGHistoryModificationStatus,
+	clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity,
+	negName string,
+	shortMethodName string,
+	negRequest *negAttachOrDetachRequest,
+	verb *pb.Verb,
+	state *pb.RevisionState,
+) {
+	negToBS := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref())
+	ipLeases := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref())
+
+	for _, endpoint := range negRequest.NetworkEndpoints {
+		var resourceTimelinePath *khifilev6.TimelinePath
+		var bsSubresourceName string
+		var endpointKey string
+
+		if endpoint.IpAddress != "" && endpoint.Port != "" {
+			lease, err := ipLeases.GetResourceLeaseHolderAt(endpoint.IpAddress, l.Timestamp)
+			if err != nil {
+				slog.WarnContext(ctx, fmt.Sprintf("Failed to identify the holder of the IP %s.\n This might be because the IP holder resource wasn't updated during the log period ", endpoint.IpAddress))
+				continue
+			}
+			holder := lease.Holder
+			if holder.Kind != "pod" {
+				slog.DebugContext(ctx, fmt.Sprintf("IP %s is held by non-pod resource %s/%s, skipping NEG mapping", endpoint.IpAddress, holder.Kind, holder.Name))
+				continue
+			}
+
+			clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterIdentity.ClusterName)
+			apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+			kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
+			nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, holder.Namespace)
+			resourceTimelinePath = commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, holder.Name)
+			bsSubresourceName = holder.Name
+			endpointKey = getPodEndpointKey(endpoint.IpAddress, endpoint.Port)
+		} else if endpoint.Instance != "" {
+			nodeName := getInstanceNameFromResourceName(endpoint.Instance)
+			clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterIdentity.ClusterName)
+			apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+			kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
+			resourceTimelinePath = commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, nodeName)
+			bsSubresourceName = nodeName
+			endpointKey = getNodeEndpointKey(nodeName)
+		} else {
+			continue
+		}
+
+		// Add revisions to the resource-level NEG subresource timeline.
+		negSubresourcePath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, resourceTimelinePath, negName)
+		isKnown := prevGroupData.KnownEndpoints[endpointKey]
+		addEndpointRevisions(cs, negSubresourcePath, shortMethodName, isKnown, l.Timestamp, verb, state, auditFieldSet.PrincipalEmail)
+
+		// Add revisions to the BackendService-level NEG subresource timeline if associated.
+		if bsName, found := negToBS[negName]; found {
+			// BackendService is usually global in the context of gsmrsvd backends.
+			bsPath := googlecloudlognetworkapiaudit_contract.MustGCPResourceTimeline(ctx, clusterIdentity.ProjectID, "backendServices", bsName)
+			bsNegSubresourcePath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, bsPath, bsSubresourceName)
+			addEndpointRevisions(cs, bsNegSubresourcePath, shortMethodName, isKnown, l.Timestamp, verb, state, auditFieldSet.PrincipalEmail)
+		}
+
+		prevGroupData.KnownEndpoints[endpointKey] = true
+	}
 }
 
 var _ inspectiontaskbase.LogToTimelineMapper[*perNEGHistoryModificationStatus] = (*networkAPITimelineMapper)(nil)

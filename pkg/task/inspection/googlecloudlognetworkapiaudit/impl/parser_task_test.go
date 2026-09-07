@@ -259,6 +259,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						},
 					},
 				},
+				KnownEndpoints: make(map[string]bool),
 			},
 			wantGroupData: &perNEGHistoryModificationStatus{
 				PendingOperations: map[string]*pendingNEGOperation{},
@@ -433,6 +434,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						},
 					},
 				},
+				KnownEndpoints: make(map[string]bool),
 			},
 			wantGroupData: &perNEGHistoryModificationStatus{
 				PendingOperations: map[string]*pendingNEGOperation{},
@@ -611,6 +613,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						},
 					},
 				},
+				KnownEndpoints: make(map[string]bool),
 			},
 			wantGroupData: &perNEGHistoryModificationStatus{
 				PendingOperations: map[string]*pendingNEGOperation{},
@@ -785,6 +788,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
 				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				KnownEndpoints:   make(map[string]bool),
 				PendingOperations: map[string]*pendingNEGOperation{
 					"op-4": {
 						Method: "detachNetworkEndpoints",
@@ -876,6 +880,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
 				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				KnownEndpoints:   make(map[string]bool),
 				PendingOperations: map[string]*pendingNEGOperation{
 					"op-attach": {
 						Method: "attachNetworkEndpoints",
@@ -1005,6 +1010,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
 				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				KnownEndpoints:   make(map[string]bool),
 				PendingOperations: map[string]*pendingNEGOperation{
 					"op-fail": {
 						Method: "attachNetworkEndpoints",
