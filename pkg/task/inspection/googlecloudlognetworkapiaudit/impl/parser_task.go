@@ -226,7 +226,8 @@ func (m *networkAPITimelineMapper) processEndpointRevisions(
 		var bsSubresourceName string
 		var endpointKey string
 
-		if endpoint.IpAddress != "" && endpoint.Port != "" {
+		switch {
+		case endpoint.IpAddress != "" && endpoint.Port != "":
 			lease, err := ipLeases.GetResourceLeaseHolderAt(endpoint.IpAddress, l.Timestamp)
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to identify the holder of the IP %s.\n This might be because the IP holder resource wasn't updated during the log period ", endpoint.IpAddress))
@@ -245,7 +246,7 @@ func (m *networkAPITimelineMapper) processEndpointRevisions(
 			resourceTimelinePath = commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, holder.Name)
 			bsSubresourceName = holder.Name
 			endpointKey = getPodEndpointKey(endpoint.IpAddress, endpoint.Port)
-		} else if endpoint.Instance != "" {
+		case endpoint.Instance != "":
 			nodeName := getInstanceNameFromResourceName(endpoint.Instance)
 			clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterIdentity.ClusterName)
 			apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
@@ -253,7 +254,7 @@ func (m *networkAPITimelineMapper) processEndpointRevisions(
 			resourceTimelinePath = commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, nodeName)
 			bsSubresourceName = nodeName
 			endpointKey = getNodeEndpointKey(nodeName)
-		} else {
+		default:
 			continue
 		}
 
