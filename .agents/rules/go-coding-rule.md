@@ -40,7 +40,7 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 1. **Table-Driven Tests**: Tests must be written using the table-driven testing pattern. Define a slice of anonymous structs representing the test cases, and iterate over them using `t.Run()`.
 2. **Assertions and Diffs**:
    - **Scalar Values**: For single scalar values (e.g. `int`, `bool`, `float`, single-line `string`, enum), compare directly using equality operators (`==` or `!=`). Report test failures with `t.Errorf` in `got, want` format (e.g., `t.Errorf("got %v, want %v", got, tc.want)` or `t.Errorf("MyFunction(%v) = %v, want %v", tc.input, got, tc.want)`). Do **NOT** use `cmp.Diff` for scalar values.
-   - **Complex Structs and Collections**: **MUST USE** `github.com/google/go-cmp/cmp` (`cmp.Diff`) when comparing complex structs, slices or maps of structs, or nested structures. Output `cmp.Diff` when an assertion fails to clearly communicate the mismatch (`-want +got`).
+   - **Complex Structs and Collections**: **MUST USE** `github.com/google/go-cmp/cmp` (`cmp.Diff`) when comparing complex structs, slices, maps, or nested structures. Output `cmp.Diff` when an assertion fails to clearly communicate the mismatch (`-want +got`).
    - **Multiline Strings Exception**: `cmp.Diff` is permitted for a single string variable if and only if the string spans multiple lines (e.g., generated YAML, JSON, or multiline text blocks) where line-by-line diffing is beneficial.
    - **DO NOT USE** the `reflect` package for test assertions (e.g., `reflect.DeepEqual`). Always prefer `cmp.Diff` for complex types.
 3. **Running Tests**:
