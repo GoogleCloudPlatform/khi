@@ -18,6 +18,12 @@
 # ==============================================================================
 set -euo pipefail
 
+# Check if jq is installed
+if ! command -v jq &> /dev/null; then
+  echo "Error: jq is required but not installed. Please install jq to run this script." >&2
+  exit 1
+fi
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AGENTS_DIR="${REPO_ROOT}/.agents"
 OUT_JSON="${AGENTS_DIR}/plugins.json"
@@ -34,12 +40,8 @@ shopt -s nullglob
 CONFIG_FILES=("${AGENTS_DIR}"/plugins-*.json)
 shopt -u nullglob
 
-if [[ ${#CONFIG_FILES[@]} -eq 0 ]]; then
-  echo '{"entries":[]}' > "${OUT_JSON}"
-else
-  # Merge entries from all matching config files
-  jq -s '{entries: ([.[].entries // []] | add)}' "${CONFIG_FILES[@]}" > "${OUT_JSON}"
-fi
+# Merge entries from all matching config files
+jq -s '{entries: ([.[].entries // []] | add)}' "${CONFIG_FILES[@]}" > "${OUT_JSON}"
 
 echo "Generated ${OUT_JSON} from ${#CONFIG_FILES[@]} config file(s):"
 for f in "${CONFIG_FILES[@]}"; do
