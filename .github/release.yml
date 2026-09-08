@@ -49,7 +49,9 @@ changelog:
           - type:docs
           - dependencies
           - type:chore
+    - title: Maintenance 🧹
+      labels:
+        - type:chore
     - title: Dependencies ⏫
       labels:
         - dependencies
-        - type:chore
