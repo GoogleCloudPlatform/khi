@@ -60,12 +60,18 @@ lint: lint-web lint-go ## Run all linters
 .PHONY: format
 format: format-web format-go format-misc ## Format all source code
 
+## Plugins
+.PHONY: generate-plugins
+generate-plugins: ## Generate .agents/plugins.json by merging all .agents/plugins-*.json
+	@./scripts/generate-plugins-json.sh
+
 # ====================================================================================
 #  Setup
 # ====================================================================================
 
+## Setup
 .PHONY: setup
-setup: setup-hooks
+setup: setup-hooks generate-plugins ## Set up development environment
 	cd web && npm install
 	make build
 

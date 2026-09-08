@@ -8,6 +8,11 @@ bin
 /khi-debug
 __debug_bin*
 
+# Antigravity plugin configs (plugins-oss.json is the only tracked config)
+.agents/plugins.json
+.agents/plugins-*.json
+!.agents/plugins-oss.json
+
 # Generated KHI files
 *.khi
 
