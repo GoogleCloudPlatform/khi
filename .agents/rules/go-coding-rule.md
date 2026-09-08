@@ -39,41 +39,83 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 
 1. **Table-Driven Tests**: Tests must be written using the table-driven testing pattern. Define a slice of anonymous structs representing the test cases, and iterate over them using `t.Run()`.
 2. **Assertions and Diffs**:
-   - **MUST USE** `github.com/google/go-cmp/cmp` for complex comparisons and generating diffs. Show `cmp.Diff` when an assertion fails to clearly communicate the mismatch.
-   - **DO NOT USE** the `reflect` package for test assertions (e.g., `reflect.DeepEqual`). Always prefer `cmp.Diff`.
+   - **Scalar Values**: For single scalar values (e.g. `int`, `bool`, `float`, single-line `string`, enum), compare directly using equality operators (`==` or `!=`). Report test failures with `t.Errorf` in `got, want` format (e.g., `t.Errorf("got %v, want %v", got, tc.want)` or `t.Errorf("MyFunction(%v) = %v, want %v", tc.input, got, tc.want)`). Do **NOT** use `cmp.Diff` for scalar values.
+   - **Complex Structs and Collections**: **MUST USE** `github.com/google/go-cmp/cmp` (`cmp.Diff`) when comparing complex structs, slices, maps, or nested structures. Output `cmp.Diff` when an assertion fails to clearly communicate the mismatch (`-want +got`).
+   - **Multiline Strings Exception**: `cmp.Diff` is permitted for a single string variable if and only if the string spans multiple lines (e.g., generated YAML, JSON, or multiline text blocks) where line-by-line diffing is beneficial.
+   - **DO NOT USE** the `reflect` package for test assertions (e.g., `reflect.DeepEqual`). Always prefer `cmp.Diff` for complex types.
 3. **Running Tests**:
    - Executing `make test-go` runs all backend tests.
    - For iterating on specific tests, `go test ./pkg/path/to/test -run TestName` is acceptable, provided a full `make test-go` ensures no regressions before finalizing work.
 4. **Test File Naming**: When adding tests for a file `A.go`, the test file **must** be named `A_test.go`. Do not create independent test files that group tests from multiple files.
 
 > [!IMPORTANT]
-> A typical table-driven test should look something like this:
+> Typical table-driven tests should follow these patterns:
+>
+> ### 1. Scalar Comparison (e.g. `int`, `bool`, single-line `string`)
 >
 > ```go
-> import (
->  "testing"
->  "github.com/google/go-cmp/cmp"
-> )
->
-> func TestMyFunction(t *testing.T) {
+> func TestCountItems(t *testing.T) {
 >  testCases := []struct {
->   name     string
->   input    string
->   want string
+>   name  string
+>   input string
+>   want  int
 >  }{
 >   {
->    name:     "valid input",
->    input:    "foo",
->    want: "bar",
+>    name:  "single item",
+>    input: "foo",
+>    want:  1,
 >   },
 >  }
 >  for _, tc := range testCases {
 >   t.Run(tc.name, func(t *testing.T) {
->    got := MyFunction(tc.input)
->    if diff := cmp.Diff(tc.want, got); diff != "" {
->     t.Errorf("MyFunction() mismatch (-want +got):\n%s", diff)
+>    got := CountItems(tc.input)
+>    if got != tc.want {
+>     t.Errorf("CountItems(%q) = %d, want %d", tc.input, got, tc.want)
 >    }
 >   })
 >  }
+> }
+> ```
+>
+> ### 2. Complex Struct Comparison
+>
+> ```go
+> import (
+>  "testing"
+>
+>  "github.com/google/go-cmp/cmp"
+> )
+>
+> func TestParseUser(t *testing.T) {
+>  testCases := []struct {
+>   name  string
+>   input string
+>   want  User
+>  }{
+>   {
+>    name:  "valid user",
+>    input: "id: 1, name: Alice",
+>    want: User{
+>     ID:   1,
+>     Name: "Alice",
+>    },
+>   },
+>  }
+>  for _, tc := range testCases {
+>   t.Run(tc.name, func(t *testing.T) {
+>    got := ParseUser(tc.input)
+>    if diff := cmp.Diff(tc.want, got); diff != "" {
+>     t.Errorf("ParseUser() mismatch (-want +got):\n%s", diff)
+>    }
+>   })
+>  }
+> }
+> ```
+>
+> ### 3. Multiline String Comparison (Exception)
+>
+> ```go
+> if diff := cmp.Diff(tc.wantYAML, gotYAML); diff != "" {
+>  t.Errorf("RenderYAML() mismatch (-want +got):\n%s", diff)
 > }
 > ```
