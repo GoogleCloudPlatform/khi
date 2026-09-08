@@ -185,8 +185,8 @@ func TestGetTaskResult(t *testing.T) {
 
 			got := GetTaskResult(ctx, tc.targetRef)
 			if tc.wantErrMatch == "" {
-				if diff := cmp.Diff(tc.want, got); diff != "" {
-					t.Errorf("GetTaskResult() mismatch (-want +got):\n%s", diff)
+				if got != tc.want {
+					t.Errorf("GetTaskResult() = %q, want %q", got, tc.want)
 				}
 			}
 		})
@@ -326,11 +326,11 @@ func TestGetOptionalTaskResult(t *testing.T) {
 
 			val, ok := GetOptionalTaskResult(ctx, tc.targetRef)
 			if tc.wantErrMatch == "" {
-				if diff := cmp.Diff(tc.wantOk, ok); diff != "" {
-					t.Errorf("GetOptionalTaskResult() ok mismatch (-want %v +got %v):\n%s", tc.wantOk, ok, diff)
+				if ok != tc.wantOk {
+					t.Errorf("GetOptionalTaskResult() ok = %v, want %v", ok, tc.wantOk)
 				}
-				if diff := cmp.Diff(tc.wantVal, val); diff != "" {
-					t.Errorf("GetOptionalTaskResult() value mismatch (-want +got):\n%s", diff)
+				if val != tc.wantVal {
+					t.Errorf("GetOptionalTaskResult() val = %q, want %q", val, tc.wantVal)
 				}
 			}
 		})
@@ -486,6 +486,146 @@ func TestGetTaskResultsWithTag(t *testing.T) {
 			if tc.wantErrMatch == "" {
 				if diff := cmp.Diff(tc.want, got); diff != "" {
 					t.Errorf("GetTaskResultsWithTag() mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestNewTailTask(t *testing.T) {
+	tailID := taskid.NewDefaultImplementationID[struct{}]("tail.test")
+	depA := taskid.NewTaskReference[string]("task.a")
+	depB := taskid.NewTaskReference[string]("task.b", taskid.Optional)
+	tag := NewTag[int]("tag.test")
+	tailLabelKey := NewTaskLabelKey[string]("tail-label")
+
+	testCases := []struct {
+		name         string
+		taskID       taskid.TaskImplementationID[struct{}]
+		deps         []Dependency
+		wantDepCount int
+		shouldPanic  bool
+		panicMatch   string
+		verifyDeps   func(t *testing.T, deps []Dependency)
+	}{
+		{
+			name:         "empty dependencies",
+			taskID:       tailID,
+			deps:         nil,
+			wantDepCount: 0,
+		},
+		{
+			name:         "converts all dependencies to order-only and preserves attributes",
+			taskID:       tailID,
+			deps:         []Dependency{depA, depB, tag.Ref()},
+			wantDepCount: 3,
+			verifyDeps: func(t *testing.T, deps []Dependency) {
+				if len(deps) != 3 {
+					t.Fatalf("expected 3 dependencies, got %d", len(deps))
+				}
+				for i, dep := range deps {
+					if got := dep.DescriptorKind(); got != taskid.EdgeKindOrderOnly {
+						t.Errorf("dep[%d].DescriptorKind() = %v, want %v", i, got, taskid.EdgeKindOrderOnly)
+					}
+				}
+				if got := deps[1].DescriptorCondition(); got != taskid.ConditionOptional {
+					t.Errorf("dep[1].DescriptorCondition() = %v, want %v", got, taskid.ConditionOptional)
+				}
+				if fanIn, ok := deps[2].(taskid.FanInDescriptor); !ok || fanIn.Tag() != "tag.test" {
+					t.Errorf("dep[2] tag mismatch, want tag.test, got %v", deps[2])
+				}
+			},
+		},
+		{
+			name:         "deduplicates duplicate dependencies",
+			taskID:       tailID,
+			deps:         []Dependency{depA, depA},
+			wantDepCount: 1,
+			verifyDeps: func(t *testing.T, deps []Dependency) {
+				if len(deps) != 1 {
+					t.Fatalf("expected 1 dependency, got %d", len(deps))
+				}
+				if got := deps[0].DescriptorKind(); got != taskid.EdgeKindOrderOnly {
+					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindOrderOnly)
+				}
+			},
+		},
+		{
+			name:        "panics when taskID is nil",
+			taskID:      nil,
+			deps:        []Dependency{},
+			shouldPanic: true,
+			panicMatch:  "Invalid taskID",
+		},
+		{
+			name:        "panics when dependencies contains nil",
+			taskID:      tailID,
+			deps:        []Dependency{depA, nil},
+			shouldPanic: true,
+			panicMatch:  "contains a nil reference",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.shouldPanic {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Errorf("expected panic containing %q, but none occurred", tc.panicMatch)
+						return
+					}
+					msg := ""
+					if err, ok := r.(error); ok {
+						msg = err.Error()
+					} else if s, ok := r.(string); ok {
+						msg = s
+					}
+					if !strings.Contains(msg, tc.panicMatch) {
+						t.Errorf("expected panic message to contain %q, got %q", tc.panicMatch, msg)
+					}
+				}()
+			}
+
+			tailTask := NewTailTask(tc.taskID, tc.deps, labelOptFunc(func(labels *typedmap.TypedMap) {
+				typedmap.Set(labels, tailLabelKey, "tail-label-val")
+			}))
+
+			if !tc.shouldPanic {
+				if got := tailTask.ID().String(); got != tailID.String() {
+					t.Errorf("tailTask.ID() = %q, want %q", got, tailID.String())
+				}
+				if got := tailTask.UntypedID().String(); got != tailID.String() {
+					t.Errorf("tailTask.UntypedID() = %q, want %q", got, tailID.String())
+				}
+
+				val, ok := typedmap.Get(tailTask.Labels(), tailLabelKey)
+				if !ok || val != "tail-label-val" {
+					t.Errorf("expected tail task label tail-label-val, got %v (found: %v)", val, ok)
+				}
+
+				if got := len(tailTask.Dependencies()); got != tc.wantDepCount {
+					t.Errorf("len(tailTask.Dependencies()) = %d, want %d", got, tc.wantDepCount)
+				}
+
+				if tc.verifyDeps != nil {
+					tc.verifyDeps(t, tailTask.Dependencies())
+				}
+
+				res, err := tailTask.Run(t.Context())
+				if err != nil {
+					t.Fatalf("tailTask.Run() unexpected error: %v", err)
+				}
+				if res != (struct{}{}) {
+					t.Errorf("tailTask.Run() = %v, want %v", res, struct{}{})
+				}
+
+				untypedRes, err := tailTask.UntypedRun(t.Context())
+				if err != nil {
+					t.Fatalf("tailTask.UntypedRun() unexpected error: %v", err)
+				}
+				if untypedRes != (struct{}{}) {
+					t.Errorf("tailTask.UntypedRun() = %v, want %v", untypedRes, struct{}{})
 				}
 			}
 		})

@@ -124,40 +124,62 @@ func NewTask[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], dep
 	}
 }
 
-// NewTailTask creates a no-op barrier task that waits for all given dependencies in order-only mode.
-func NewTailTask(taskID taskid.TaskImplementationID[struct{}], dependencies []Dependency, labelOpts ...LabelOpt) *TaskImpl[struct{}] {
-	verifyTaskID(taskID)
-	verifyNonNilDependencies(taskID, dependencies)
-	orderOnlyDeps := make([]Dependency, len(dependencies))
-	for i, dep := range dependencies {
-		orderOnlyDeps[i] = ToOrderOnly(dep)
+// mergeDependencies combines two duplicate dependencies targeting the same task or tag,
+// selecting the most restrictive attributes: Data over OrderOnly, Required over Optional,
+// and the broader scope (ScopeAll > ScopeActiveFeatures > ScopeActiveGraph).
+func mergeDependencies(a, b Dependency) Dependency {
+	kind := taskid.EdgeKindOrderOnly
+	if a.DescriptorKind() == taskid.EdgeKindData || b.DescriptorKind() == taskid.EdgeKindData {
+		kind = taskid.EdgeKindData
 	}
-	return NewTask(
-		taskID,
-		orderOnlyDeps,
-		func(ctx context.Context) (struct{}, error) {
-			return struct{}{}, nil
-		},
-		labelOpts...,
-	)
+
+	condition := taskid.ConditionOptional
+	if a.DescriptorCondition() == taskid.ConditionRequired || b.DescriptorCondition() == taskid.ConditionRequired {
+		condition = taskid.ConditionRequired
+	}
+
+	scope := mergeScopes(a.DescriptorScope(), b.DescriptorScope())
+
+	switch d := a.(type) {
+	case taskid.PointToPointDescriptor:
+		var opts []taskid.ReferenceOption
+		if kind == taskid.EdgeKindOrderOnly {
+			opts = append(opts, taskid.OrderOnly)
+		}
+		if condition == taskid.ConditionOptional {
+			opts = append(opts, taskid.Optional)
+		}
+		if scope != taskid.ScopeUnspecified {
+			opts = append(opts, scope)
+		}
+		return taskid.NewTaskReference[any](d.ReferenceID(), opts...)
+	case taskid.FanInDescriptor:
+		var opts []taskid.FanInOption
+		if kind == taskid.EdgeKindOrderOnly {
+			opts = append(opts, taskid.OrderOnly)
+		}
+		if scope != taskid.ScopeUnspecified {
+			opts = append(opts, scope)
+		}
+		return NewTagReference[any](d.Tag(), opts...)
+	default:
+		return a
+	}
 }
 
-// isMoreRestrictiveDependency returns true if candidate is strictly more restrictive than current.
-// EdgeKindData is more restrictive than EdgeKindOrderOnly.
-// When kinds are equal, ConditionRequired is more restrictive than ConditionOptional.
-func isMoreRestrictiveDependency(candidate, current Dependency) bool {
-	// Data is strictly more restrictive than OrderOnly.
-	if current.DescriptorKind() == taskid.EdgeKindOrderOnly && candidate.DescriptorKind() != taskid.EdgeKindOrderOnly {
-		return true
+// mergeScopes returns the broader dependency scope between a and b.
+// Scope breadth order: ScopeAll > ScopeActiveFeatures > ScopeActiveGraph > ScopeUnspecified.
+func mergeScopes(a, b taskid.DependencyScope) taskid.DependencyScope {
+	if a == taskid.ScopeAll || b == taskid.ScopeAll {
+		return taskid.ScopeAll
 	}
-	if current.DescriptorKind() != taskid.EdgeKindOrderOnly && candidate.DescriptorKind() == taskid.EdgeKindOrderOnly {
-		return false
+	if a == taskid.ScopeActiveFeatures || b == taskid.ScopeActiveFeatures {
+		return taskid.ScopeActiveFeatures
 	}
-	// When both have the same kind, Required is more restrictive than Optional.
-	if current.DescriptorCondition() == taskid.ConditionOptional && candidate.DescriptorCondition() == taskid.ConditionRequired {
-		return true
+	if a == taskid.ScopeActiveGraph || b == taskid.ScopeActiveGraph {
+		return taskid.ScopeActiveGraph
 	}
-	return false
+	return taskid.ScopeUnspecified
 }
 
 func dedupeDependencies(dependencies []Dependency) []Dependency {
@@ -170,9 +192,7 @@ func dedupeDependencies(dependencies []Dependency) []Dependency {
 			continue
 		}
 		if idx, ok := seen[key]; ok {
-			if isMoreRestrictiveDependency(dep, result[idx]) {
-				result[idx] = dep
-			}
+			result[idx] = mergeDependencies(result[idx], dep)
 			continue
 		}
 		seen[key] = len(result)

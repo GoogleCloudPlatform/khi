@@ -22,7 +22,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewTask(t *testing.T) {
@@ -79,8 +78,8 @@ func TestNewTask(t *testing.T) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if diff := cmp.Diff(taskid.EdgeKindData, gotDeps[0].DescriptorKind()); diff != "" {
-					t.Errorf("dep[0].DescriptorKind() mismatch (-want +got):\n%s", diff)
+				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
+					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
 				}
 			},
 		},
@@ -93,8 +92,8 @@ func TestNewTask(t *testing.T) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if diff := cmp.Diff(taskid.EdgeKindData, gotDeps[0].DescriptorKind()); diff != "" {
-					t.Errorf("dep[0].DescriptorKind() mismatch (-want +got):\n%s", diff)
+				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
+					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
 				}
 			},
 		},
@@ -107,8 +106,8 @@ func TestNewTask(t *testing.T) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if diff := cmp.Diff(taskid.ConditionRequired, gotDeps[0].DescriptorCondition()); diff != "" {
-					t.Errorf("dep[0].DescriptorCondition() mismatch (-want +got):\n%s", diff)
+				if got := gotDeps[0].DescriptorCondition(); got != taskid.ConditionRequired {
+					t.Errorf("dep[0].DescriptorCondition() = %v, want %v", got, taskid.ConditionRequired)
 				}
 			},
 		},
@@ -121,13 +120,27 @@ func TestNewTask(t *testing.T) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if diff := cmp.Diff(taskid.ConditionRequired, gotDeps[0].DescriptorCondition()); diff != "" {
-					t.Errorf("dep[0].DescriptorCondition() mismatch (-want +got):\n%s", diff)
+				if got := gotDeps[0].DescriptorCondition(); got != taskid.ConditionRequired {
+					t.Errorf("dep[0].DescriptorCondition() = %v, want %v", got, taskid.ConditionRequired)
 				}
 			},
 		},
 		{
-			name:         "upgrades order-only dependency to data dependency even when candidate is optional",
+			name:         "preserves optional condition when both duplicates are optional",
+			taskID:       taskID,
+			deps:         []Dependency{taskid.NewTaskReference[string]("task.b", taskid.Optional), taskid.NewTaskReference[string]("task.b", taskid.Optional)},
+			wantDepCount: 1,
+			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
+				if len(gotDeps) != 1 {
+					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
+				}
+				if got := gotDeps[0].DescriptorCondition(); got != taskid.ConditionOptional {
+					t.Errorf("dep[0].DescriptorCondition() = %v, want %v", got, taskid.ConditionOptional)
+				}
+			},
+		},
+		{
+			name:         "upgrades order-only dependency to data dependency and keeps required when candidate is optional",
 			taskID:       taskID,
 			deps:         []Dependency{ToOrderOnly(depA), taskid.NewTaskReference[string]("task.a", taskid.Optional)},
 			wantDepCount: 1,
@@ -135,13 +148,16 @@ func TestNewTask(t *testing.T) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if diff := cmp.Diff(taskid.EdgeKindData, gotDeps[0].DescriptorKind()); diff != "" {
-					t.Errorf("dep[0].DescriptorKind() mismatch (-want +got):\n%s", diff)
+				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
+					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
+				}
+				if got := gotDeps[0].DescriptorCondition(); got != taskid.ConditionRequired {
+					t.Errorf("dep[0].DescriptorCondition() = %v, want %v", got, taskid.ConditionRequired)
 				}
 			},
 		},
 		{
-			name:         "preserves data dependency when optional data is followed by required order-only",
+			name:         "preserves data dependency and required condition when optional data is followed by required order-only",
 			taskID:       taskID,
 			deps:         []Dependency{taskid.NewTaskReference[string]("task.a", taskid.Optional), ToOrderOnly(depA)},
 			wantDepCount: 1,
@@ -149,8 +165,39 @@ func TestNewTask(t *testing.T) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if diff := cmp.Diff(taskid.EdgeKindData, gotDeps[0].DescriptorKind()); diff != "" {
-					t.Errorf("dep[0].DescriptorKind() mismatch (-want +got):\n%s", diff)
+				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
+					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
+				}
+				if got := gotDeps[0].DescriptorCondition(); got != taskid.ConditionRequired {
+					t.Errorf("dep[0].DescriptorCondition() = %v, want %v", got, taskid.ConditionRequired)
+				}
+			},
+		},
+		{
+			name:         "merges scopes favoring broader scope when duplicated",
+			taskID:       taskID,
+			deps:         []Dependency{taskid.NewTaskReference[string]("task.a", taskid.ScopeActiveFeatures), taskid.NewTaskReference[string]("task.a", taskid.ScopeAll)},
+			wantDepCount: 1,
+			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
+				if len(gotDeps) != 1 {
+					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
+				}
+				if got := gotDeps[0].DescriptorScope(); got != taskid.ScopeAll {
+					t.Errorf("dep[0].DescriptorScope() = %v, want %v", got, taskid.ScopeAll)
+				}
+			},
+		},
+		{
+			name:         "preserves broader scope when followed by narrower scope duplicate",
+			taskID:       taskID,
+			deps:         []Dependency{taskid.NewTaskReference[string]("task.a", taskid.ScopeAll), taskid.NewTaskReference[string]("task.a", taskid.ScopeActiveFeatures)},
+			wantDepCount: 1,
+			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
+				if len(gotDeps) != 1 {
+					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
+				}
+				if got := gotDeps[0].DescriptorScope(); got != taskid.ScopeAll {
+					t.Errorf("dep[0].DescriptorScope() = %v, want %v", got, taskid.ScopeAll)
 				}
 			},
 		},
@@ -163,8 +210,8 @@ func TestNewTask(t *testing.T) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if diff := cmp.Diff(taskid.EdgeKindData, gotDeps[0].DescriptorKind()); diff != "" {
-					t.Errorf("dep[0].DescriptorKind() mismatch (-want +got):\n%s", diff)
+				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
+					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
 				}
 			},
 		},
@@ -177,8 +224,36 @@ func TestNewTask(t *testing.T) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if diff := cmp.Diff(taskid.EdgeKindData, gotDeps[0].DescriptorKind()); diff != "" {
-					t.Errorf("dep[0].DescriptorKind() mismatch (-want +got):\n%s", diff)
+				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
+					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
+				}
+			},
+		},
+		{
+			name:         "merges tag reference scopes favoring broader scope when duplicated",
+			taskID:       taskID,
+			deps:         []Dependency{tag.Ref(taskid.ScopeActiveGraph), tag.Ref(taskid.ScopeActiveFeatures)},
+			wantDepCount: 1,
+			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
+				if len(gotDeps) != 1 {
+					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
+				}
+				if got := gotDeps[0].DescriptorScope(); got != taskid.ScopeActiveFeatures {
+					t.Errorf("dep[0].DescriptorScope() = %v, want %v", got, taskid.ScopeActiveFeatures)
+				}
+			},
+		},
+		{
+			name:         "preserves broader tag reference scope when followed by narrower scope duplicate",
+			taskID:       taskID,
+			deps:         []Dependency{tag.Ref(taskid.ScopeActiveFeatures), tag.Ref(taskid.ScopeActiveGraph)},
+			wantDepCount: 1,
+			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
+				if len(gotDeps) != 1 {
+					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
+				}
+				if got := gotDeps[0].DescriptorScope(); got != taskid.ScopeActiveFeatures {
+					t.Errorf("dep[0].DescriptorScope() = %v, want %v", got, taskid.ScopeActiveFeatures)
 				}
 			},
 		},
@@ -268,15 +343,15 @@ func TestNewTask(t *testing.T) {
 			task := NewTask(tc.taskID, tc.deps, runFunc, tc.labelOpts...)
 
 			if !tc.shouldPanic {
-				if diff := cmp.Diff(tc.taskID.String(), task.ID().String()); diff != "" {
-					t.Errorf("task.ID() mismatch (-want +got):\n%s", diff)
+				if got := task.ID().String(); got != tc.taskID.String() {
+					t.Errorf("task.ID() = %q, want %q", got, tc.taskID.String())
 				}
-				if diff := cmp.Diff(tc.taskID.String(), task.UntypedID().String()); diff != "" {
-					t.Errorf("task.UntypedID() mismatch (-want +got):\n%s", diff)
+				if got := task.UntypedID().String(); got != tc.taskID.String() {
+					t.Errorf("task.UntypedID() = %q, want %q", got, tc.taskID.String())
 				}
 				if tc.wantDepCount > 0 {
-					if diff := cmp.Diff(tc.wantDepCount, len(task.Dependencies())); diff != "" {
-						t.Errorf("len(task.Dependencies()) mismatch (-want +got):\n%s", diff)
+					if got := len(task.Dependencies()); got != tc.wantDepCount {
+						t.Errorf("len(task.Dependencies()) = %d, want %d", got, tc.wantDepCount)
 					}
 				}
 
@@ -307,8 +382,8 @@ func TestNewTask(t *testing.T) {
 					if err != nil {
 						t.Fatalf("task.Run() unexpected error: %v", err)
 					}
-					if diff := cmp.Diff("result", res); diff != "" {
-						t.Errorf("task.Run() mismatch (-want +got):\n%s", diff)
+					if res != "result" {
+						t.Errorf("task.Run() = %q, want %q", res, "result")
 					}
 				}
 
@@ -321,8 +396,8 @@ func TestNewTask(t *testing.T) {
 					if err != nil {
 						t.Fatalf("task.UntypedRun() unexpected error: %v", err)
 					}
-					if diff := cmp.Diff("result", untypedRes); diff != "" {
-						t.Errorf("task.UntypedRun() mismatch (-want +got):\n%s", diff)
+					if untypedRes != "result" {
+						t.Errorf("task.UntypedRun() = %v, want %q", untypedRes, "result")
 					}
 				}
 			}
@@ -334,146 +409,4 @@ type labelOptFunc func(labels *typedmap.TypedMap)
 
 func (f labelOptFunc) Write(labels *typedmap.TypedMap) {
 	f(labels)
-}
-
-func TestNewTailTask(t *testing.T) {
-	tailID := taskid.NewDefaultImplementationID[struct{}]("tail.test")
-	depA := taskid.NewTaskReference[string]("task.a")
-	depB := taskid.NewTaskReference[string]("task.b", taskid.Optional)
-	tag := NewTag[int]("tag.test")
-	tailLabelKey := NewTaskLabelKey[string]("tail-label")
-
-	testCases := []struct {
-		name         string
-		taskID       taskid.TaskImplementationID[struct{}]
-		deps         []Dependency
-		wantDepCount int
-		shouldPanic  bool
-		panicMatch   string
-		verifyDeps   func(t *testing.T, deps []Dependency)
-	}{
-		{
-			name:         "empty dependencies",
-			taskID:       tailID,
-			deps:         nil,
-			wantDepCount: 0,
-		},
-		{
-			name:         "converts all dependencies to order-only and preserves attributes",
-			taskID:       tailID,
-			deps:         []Dependency{depA, depB, tag.Ref()},
-			wantDepCount: 3,
-			verifyDeps: func(t *testing.T, deps []Dependency) {
-				if len(deps) != 3 {
-					t.Fatalf("expected 3 dependencies, got %d", len(deps))
-				}
-				for i, dep := range deps {
-					if diff := cmp.Diff(taskid.EdgeKindOrderOnly, dep.DescriptorKind()); diff != "" {
-						t.Errorf("dep[%d].DescriptorKind() mismatch (-want +got):\n%s", i, diff)
-					}
-				}
-				// Verify depB preserves ConditionOptional
-				if diff := cmp.Diff(taskid.ConditionOptional, deps[1].DescriptorCondition()); diff != "" {
-					t.Errorf("dep[1].DescriptorCondition() mismatch (-want +got):\n%s", diff)
-				}
-				// Verify tag dependency preserves tag ID
-				if fanIn, ok := deps[2].(taskid.FanInDescriptor); !ok || fanIn.Tag() != "tag.test" {
-					t.Errorf("dep[2] tag mismatch, want tag.test, got %v", deps[2])
-				}
-			},
-		},
-		{
-			name:         "deduplicates duplicate dependencies",
-			taskID:       tailID,
-			deps:         []Dependency{depA, depA},
-			wantDepCount: 1,
-			verifyDeps: func(t *testing.T, deps []Dependency) {
-				if len(deps) != 1 {
-					t.Fatalf("expected 1 dependency, got %d", len(deps))
-				}
-				if diff := cmp.Diff(taskid.EdgeKindOrderOnly, deps[0].DescriptorKind()); diff != "" {
-					t.Errorf("dep[0].DescriptorKind() mismatch (-want +got):\n%s", diff)
-				}
-			},
-		},
-		{
-			name:        "panics when taskID is nil",
-			taskID:      nil,
-			deps:        []Dependency{},
-			shouldPanic: true,
-			panicMatch:  "Invalid taskID",
-		},
-		{
-			name:        "panics when dependencies contains nil",
-			taskID:      tailID,
-			deps:        []Dependency{depA, nil},
-			shouldPanic: true,
-			panicMatch:  "contains a nil reference",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.shouldPanic {
-				defer func() {
-					r := recover()
-					if r == nil {
-						t.Errorf("expected panic containing %q, but none occurred", tc.panicMatch)
-						return
-					}
-					msg := ""
-					if err, ok := r.(error); ok {
-						msg = err.Error()
-					} else if s, ok := r.(string); ok {
-						msg = s
-					}
-					if !strings.Contains(msg, tc.panicMatch) {
-						t.Errorf("expected panic message to contain %q, got %q", tc.panicMatch, msg)
-					}
-				}()
-			}
-
-			tailTask := NewTailTask(tc.taskID, tc.deps, labelOptFunc(func(labels *typedmap.TypedMap) {
-				typedmap.Set(labels, tailLabelKey, "tail-label-val")
-			}))
-
-			if !tc.shouldPanic {
-				if diff := cmp.Diff(tailID.String(), tailTask.ID().String()); diff != "" {
-					t.Errorf("tailTask.ID() mismatch (-want +got):\n%s", diff)
-				}
-				if diff := cmp.Diff(tailID.String(), tailTask.UntypedID().String()); diff != "" {
-					t.Errorf("tailTask.UntypedID() mismatch (-want +got):\n%s", diff)
-				}
-
-				val, ok := typedmap.Get(tailTask.Labels(), tailLabelKey)
-				if !ok || val != "tail-label-val" {
-					t.Errorf("expected tail task label tail-label-val, got %v (found: %v)", val, ok)
-				}
-
-				if diff := cmp.Diff(tc.wantDepCount, len(tailTask.Dependencies())); diff != "" {
-					t.Errorf("len(tailTask.Dependencies()) mismatch (-want +got):\n%s", diff)
-				}
-
-				if tc.verifyDeps != nil {
-					tc.verifyDeps(t, tailTask.Dependencies())
-				}
-
-				res, err := tailTask.Run(t.Context())
-				if err != nil {
-					t.Fatalf("tailTask.Run() unexpected error: %v", err)
-				}
-				if diff := cmp.Diff(struct{}{}, res); diff != "" {
-					t.Errorf("tailTask.Run() mismatch (-want +got):\n%s", diff)
-				}
-
-				untypedRes, err := tailTask.UntypedRun(t.Context())
-				if err != nil {
-					t.Fatalf("tailTask.UntypedRun() unexpected error: %v", err)
-				}
-				if diff := cmp.Diff(struct{}{}, untypedRes); diff != "" {
-					t.Errorf("tailTask.UntypedRun() mismatch (-want +got):\n%s", diff)
-				}
-			}
-		})
-	}
 }

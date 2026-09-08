@@ -79,19 +79,6 @@ func NewTagReference[TaskResult any](tag string, opts ...taskid.FanInOption) Tag
 	}
 }
 
-func scopeOptionFromScope(s taskid.DependencyScope) taskid.ScopeOption {
-	switch s {
-	case taskid.ScopeActiveFeatures:
-		return taskid.FromActiveFeatures
-	case taskid.ScopeActiveGraph:
-		return taskid.FromActiveGraph
-	case taskid.ScopeAll:
-		return taskid.FromAll
-	default:
-		return nil
-	}
-}
-
 // ToOrderOnly converts any Dependency into an order-only dependency.
 func ToOrderOnly(dep Dependency) Dependency {
 	if dep.DescriptorKind() == taskid.EdgeKindOrderOnly {
@@ -104,15 +91,15 @@ func ToOrderOnly(dep Dependency) Dependency {
 			opts = append(opts, taskid.Optional)
 		}
 		opts = append(opts, taskid.OrderOnly)
-		if scopeOpt := scopeOptionFromScope(d.DescriptorScope()); scopeOpt != nil {
-			opts = append(opts, scopeOpt)
+		if d.DescriptorScope() != taskid.ScopeUnspecified {
+			opts = append(opts, d.DescriptorScope())
 		}
 		return taskid.NewTaskReference[any](d.ReferenceID(), opts...)
 	case taskid.FanInDescriptor:
 		var opts []taskid.FanInOption
 		opts = append(opts, taskid.OrderOnly)
-		if scopeOpt := scopeOptionFromScope(d.DescriptorScope()); scopeOpt != nil {
-			opts = append(opts, scopeOpt)
+		if d.DescriptorScope() != taskid.ScopeUnspecified {
+			opts = append(opts, d.DescriptorScope())
 		}
 		return NewTagReference[any](d.Tag(), opts...)
 	default:

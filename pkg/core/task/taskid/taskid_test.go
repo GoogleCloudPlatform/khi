@@ -14,11 +14,7 @@
 
 package taskid
 
-import (
-	"testing"
-
-	"github.com/google/go-cmp/cmp"
-)
+import "testing"
 
 func TestNewTaskReference(t *testing.T) {
 	testCases := []struct {
@@ -56,11 +52,11 @@ func TestNewTaskReference(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(tc.wantString, ref.String()); diff != "" {
-				t.Errorf("String() mismatch (-want +got):\n%s", diff)
+			if got := ref.String(); got != tc.wantString {
+				t.Errorf("ref.String() = %q, want %q", got, tc.wantString)
 			}
-			if diff := cmp.Diff(tc.wantReferenceID, ref.ReferenceIDString()); diff != "" {
-				t.Errorf("ReferenceIDString() mismatch (-want +got):\n%s", diff)
+			if got := ref.ReferenceIDString(); got != tc.wantReferenceID {
+				t.Errorf("ref.ReferenceIDString() = %q, want %q", got, tc.wantReferenceID)
 			}
 		})
 	}
@@ -126,17 +122,17 @@ func TestTaskImplementationID(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(tc.wantString, implID.String()); diff != "" {
-				t.Errorf("String() mismatch (-want +got):\n%s", diff)
+			if got := implID.String(); got != tc.wantString {
+				t.Errorf("implID.String() = %q, want %q", got, tc.wantString)
 			}
-			if diff := cmp.Diff(tc.wantReferenceIDString, implID.ReferenceIDString()); diff != "" {
-				t.Errorf("ReferenceIDString() mismatch (-want +got):\n%s", diff)
+			if got := implID.ReferenceIDString(); got != tc.wantReferenceIDString {
+				t.Errorf("implID.ReferenceIDString() = %q, want %q", got, tc.wantReferenceIDString)
 			}
-			if diff := cmp.Diff(tc.wantImplementationHash, implID.GetTaskImplementationHash()); diff != "" {
-				t.Errorf("GetTaskImplementationHash() mismatch (-want +got):\n%s", diff)
+			if got := implID.GetTaskImplementationHash(); got != tc.wantImplementationHash {
+				t.Errorf("implID.GetTaskImplementationHash() = %q, want %q", got, tc.wantImplementationHash)
 			}
-			if diff := cmp.Diff(tc.wantReferenceIDString, implID.GetUntypedReference().ReferenceIDString()); diff != "" {
-				t.Errorf("GetUntypedReference().ReferenceIDString() mismatch (-want +got):\n%s", diff)
+			if got := implID.GetUntypedReference().ReferenceIDString(); got != tc.wantReferenceIDString {
+				t.Errorf("implID.GetUntypedReference().ReferenceIDString() = %q, want %q", got, tc.wantReferenceIDString)
 			}
 		})
 	}
@@ -171,8 +167,8 @@ func TestTaskReferenceDescriptor(t *testing.T) {
 			wantRefID:       "foo.bar",
 		},
 		{
-			name:            "Ref() with Optional and FromActiveFeatures",
-			ref:             NewDefaultImplementationID[string]("foo.bar").Ref(Optional, FromActiveFeatures),
+			name:            "Ref() with Optional and ScopeActiveFeatures",
+			ref:             NewDefaultImplementationID[string]("foo.bar").Ref(Optional, ScopeActiveFeatures),
 			wantKind:        EdgeKindData,
 			wantCondition:   ConditionOptional,
 			wantCardinality: CardinalityPointToPoint,
@@ -189,8 +185,8 @@ func TestTaskReferenceDescriptor(t *testing.T) {
 			wantRefID:       "foo.bar",
 		},
 		{
-			name:            "Ref() with Optional, FromActiveFeatures, and OrderOnly",
-			ref:             NewDefaultImplementationID[string]("foo.bar").Ref(Optional, FromActiveFeatures, OrderOnly),
+			name:            "Ref() with Optional, ScopeActiveFeatures, and OrderOnly",
+			ref:             NewDefaultImplementationID[string]("foo.bar").Ref(Optional, ScopeActiveFeatures, OrderOnly),
 			wantKind:        EdgeKindOrderOnly,
 			wantCondition:   ConditionOptional,
 			wantCardinality: CardinalityPointToPoint,
@@ -225,20 +221,20 @@ func TestTaskReferenceDescriptor(t *testing.T) {
 			gotScope := tc.ref.DescriptorScope()
 			gotRefID := tc.ref.ReferenceID()
 
-			if diff := cmp.Diff(tc.wantKind, gotKind); diff != "" {
-				t.Errorf("DescriptorKind() mismatch (-want +got):\n%s", diff)
+			if gotKind != tc.wantKind {
+				t.Errorf("DescriptorKind() = %v, want %v", gotKind, tc.wantKind)
 			}
-			if diff := cmp.Diff(tc.wantCondition, gotCondition); diff != "" {
-				t.Errorf("DescriptorCondition() mismatch (-want +got):\n%s", diff)
+			if gotCondition != tc.wantCondition {
+				t.Errorf("DescriptorCondition() = %v, want %v", gotCondition, tc.wantCondition)
 			}
-			if diff := cmp.Diff(tc.wantCardinality, gotCardinality); diff != "" {
-				t.Errorf("DescriptorCardinality() mismatch (-want +got):\n%s", diff)
+			if gotCardinality != tc.wantCardinality {
+				t.Errorf("DescriptorCardinality() = %v, want %v", gotCardinality, tc.wantCardinality)
 			}
-			if diff := cmp.Diff(tc.wantScope, gotScope); diff != "" {
-				t.Errorf("DescriptorScope() mismatch (-want +got):\n%s", diff)
+			if gotScope != tc.wantScope {
+				t.Errorf("DescriptorScope() = %v, want %v", gotScope, tc.wantScope)
 			}
-			if diff := cmp.Diff(tc.wantRefID, gotRefID); diff != "" {
-				t.Errorf("ReferenceID() mismatch (-want +got):\n%s", diff)
+			if gotRefID != tc.wantRefID {
+				t.Errorf("ReferenceID() = %q, want %q", gotRefID, tc.wantRefID)
 			}
 		})
 	}
@@ -246,12 +242,12 @@ func TestTaskReferenceDescriptor(t *testing.T) {
 
 func TestTaskReferenceGetZeroValue(t *testing.T) {
 	refInt := NewTaskReference[int]("int.task")
-	if diff := cmp.Diff(0, refInt.GetZeroValue()); diff != "" {
-		t.Errorf("GetZeroValue() mismatch (-want +got):\n%s", diff)
+	if got := refInt.GetZeroValue(); got != 0 {
+		t.Errorf("refInt.GetZeroValue() = %v, want 0", got)
 	}
 
 	refStr := NewTaskReference[string]("str.task")
-	if diff := cmp.Diff("", refStr.GetZeroValue()); diff != "" {
-		t.Errorf("GetZeroValue() mismatch (-want +got):\n%s", diff)
+	if got := refStr.GetZeroValue(); got != "" {
+		t.Errorf("refStr.GetZeroValue() = %q, want %q", got, "")
 	}
 }

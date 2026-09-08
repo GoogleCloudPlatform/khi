@@ -18,7 +18,7 @@ The following example shows how to declare a task that returns an `int` value:
 ```go
 var IntGeneratorTask = task.NewTask(
     IntGeneratorTaskID,
-    []taskid.UntypedTaskReference{},
+    []coretask.Dependency{},
     func(ctx context.Context) (int, error) {
         return 1, nil
     },
@@ -29,18 +29,19 @@ In this example, the following key elements are declared:
 
 1. **`IntGeneratorTask` type**: The Go compiler infers the task type as `task.Task[int]` using generic inference.
 2. **First argument (`IntGeneratorTaskID`)**: This indicates the ID of the task implementation in the task graph. It must have the type `taskid.TaskImplementationID[int]`. You can use this ID to reference the task from other tasks.
-3. **Second argument (`[]taskid.UntypedTaskReference`)**: This is the list of task references that this task depends on. It is used to order the task graph and read values from other tasks in the graph.
+3. **Second argument (`[]coretask.Dependency`)**: This is the list of dependencies that this task depends on. It accepts point-to-point task references (`TaskReference[T]`), tag references (`TagReference[T]`), and order-only dependencies.
 4. **Third argument (execution function)**: The return value of this function must match the task's type parameter (`int` in this case), and it must always return an error as the second return value.
 
 ## 3. Reading Values from Tasks
 
-To read a value from a task, you must include a reference to that target task in the dependency list.
-This allows the task execution function to safely get the return value from the dependency task using `coretask.GetTaskResult(ctx, dependencyTaskRef)`:
+### 3.1 Point-to-Point Dependencies (`GetTaskResult`)
+
+To read a value from an upstream task, include its reference (`taskID.Ref()`) in the dependency list:
 
 ```go
 var DoubleIntTask = task.NewTask(
     DoubleIntTaskID,
-    []taskid.UntypedTaskReference{IntGeneratorTaskID.Ref()}, // Specify the dependency task reference
+    []coretask.Dependency{IntGeneratorTaskID.Ref()}, // Specify the dependency task reference
     func(ctx context.Context) (int, error) {
         // Pass the context and reference ID to get the result
         value := coretask.GetTaskResult(ctx, IntGeneratorTaskID.Ref())
@@ -52,6 +53,91 @@ var DoubleIntTask = task.NewTask(
 > [!IMPORTANT]
 > **Do not access undeclared dependencies**
 > Calling `coretask.GetTaskResult` for a task that is not declared in the dependency list causes a runtime panic. Always include the target task reference in the dependency list passed as the second argument.
+
+### 3.2 Optional Dependencies (`GetOptionalTaskResult`)
+
+When a dependency is not guaranteed to be active in the task graph (for example, if it belongs to an optional feature that the user may disable), mark it with `taskid.Optional`:
+
+```go
+var SafeConsumerTask = task.NewTask(
+    SafeConsumerTaskID,
+    []coretask.Dependency{OptionalTaskID.Ref(taskid.Optional)},
+    func(ctx context.Context) (string, error) {
+        // You can pass standard Ref() without flags when retrieving the result
+        if val, ok := coretask.GetOptionalTaskResult(ctx, OptionalTaskID.Ref()); ok {
+            return val, nil
+        }
+        return "fallback", nil
+    },
+)
+```
+
+### 3.3 Tag-based Fan-In Dependencies (`GetTaskResultsWithTag`)
+
+When multiple producers contribute items of the same type (for example, multiple log parsers producing log summaries), use a `Tag[T]`:
+
+```go
+// 1. Declare a tag in contract
+var LogItemTag = coretask.NewTag[*LogItem]("khi.google.com/log-items")
+
+// 2. Producer tasks declare that they provide the tag
+var ParserTaskA = task.NewTask(
+    ParserTaskAID,
+    []coretask.Dependency{SourceLogRef},
+    runParserA,
+    coretask.ProvidesTag(LogItemTag),
+)
+
+// 3. Consumer task aggregates all active producers with GetTaskResultsWithTag
+var AggregatorTask = task.NewTask(
+    AggregatorTaskID,
+    []coretask.Dependency{LogItemTag.Ref()},
+    func(ctx context.Context) ([]*LogItem, error) {
+        items := coretask.GetTaskResultsWithTag(ctx, LogItemTag.Ref())
+        return items, nil
+    },
+)
+```
+
+### 3.4 Order-Only Dependencies and Barrier Tasks (`NewTailTask`)
+
+To enforce execution order without passing data, use `taskid.OrderOnly`:
+
+```go
+// Task runs only after CleanupTask completes
+var PostTask = task.NewTask(
+    PostTaskID,
+    []coretask.Dependency{CleanupTaskID.Ref(taskid.OrderOnly)},
+    runPostTask,
+)
+```
+
+To create a barrier task that waits for multiple tasks to finish, use `coretask.NewTailTask`:
+
+```go
+var AllParsersTailTask = coretask.NewTailTask(
+    AllParsersTailTaskID,
+    []coretask.Dependency{ParserA.Ref(), ParserB.Ref(), TagRef},
+)
+```
+
+### 3.5 Explicit Dependency Scope Specification (`taskid.Scope*`)
+
+To override default scope resolution (`ScopeAll` for required point-to-point, `ScopeActiveGraph` for tags and optional references), pass a scope constant as an option:
+
+```go
+var AdvancedConsumerTask = task.NewTask(
+    AdvancedConsumerTaskID,
+    []coretask.Dependency{
+        // Target producers enabled by active features during tag fan-in
+        LogItemTag.Ref(taskid.ScopeActiveFeatures),
+
+        // Eagerly pull in an optional task from the entire task pool if present
+        OptionalTaskID.Ref(taskid.Optional, taskid.ScopeAll),
+    },
+    runAdvancedConsumer,
+)
+```
 
 ## 4. Logging Inside Tasks (`slog`)
 

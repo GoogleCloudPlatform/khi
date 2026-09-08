@@ -126,3 +126,21 @@ func WrapErrorWithTaskInformation(ctx context.Context, err error) error {
 	errorMessage := fmt.Sprintf("An error occurred in task `%s`", taskID.String())
 	return errors.Join(errors.New(errorMessage), err)
 }
+
+// NewTailTask creates a no-op barrier task that waits for all given dependencies in order-only mode.
+func NewTailTask(taskID taskid.TaskImplementationID[struct{}], dependencies []Dependency, labelOpts ...LabelOpt) *TaskImpl[struct{}] {
+	verifyTaskID(taskID)
+	verifyNonNilDependencies(taskID, dependencies)
+	orderOnlyDeps := make([]Dependency, len(dependencies))
+	for i, dep := range dependencies {
+		orderOnlyDeps[i] = ToOrderOnly(dep)
+	}
+	return NewTask(
+		taskID,
+		orderOnlyDeps,
+		func(ctx context.Context) (struct{}, error) {
+			return struct{}{}, nil
+		},
+		labelOpts...,
+	)
+}

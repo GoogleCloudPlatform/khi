@@ -158,10 +158,23 @@ type OrderOnlyOption interface {
 	FanInOption
 }
 
-// ScopeOption is an option that configures the resolution scope for either point-to-point or fan-in references.
-type ScopeOption interface {
-	ReferenceOption
-	FanInOption
+var (
+	_ ReferenceOption = DependencyScope(0)
+	_ FanInOption     = DependencyScope(0)
+)
+
+func (s DependencyScope) applyReference(c *DependencyConfig) {
+	if s == ScopeUnspecified {
+		return
+	}
+	if c.Scope != ScopeUnspecified && c.Scope != s {
+		panic("dependency scope is already set to a conflicting value")
+	}
+	c.Scope = s
+}
+
+func (s DependencyScope) applyFanIn(c *DependencyConfig) {
+	s.applyReference(c)
 }
 
 type optionalOption struct{}
@@ -187,31 +200,6 @@ func (o orderOnlyOption) applyFanIn(c *DependencyConfig) {
 // OrderOnly configures the dependency kind to EdgeKindOrderOnly.
 // It can be applied to both point-to-point references and fan-in references.
 var OrderOnly OrderOnlyOption = orderOnlyOption{}
-
-type scopeOption DependencyScope
-
-func (s scopeOption) applyReference(c *DependencyConfig) {
-	if c.Scope != ScopeUnspecified && c.Scope != DependencyScope(s) {
-		panic("dependency scope is already set to a conflicting value")
-	}
-	c.Scope = DependencyScope(s)
-}
-
-func (s scopeOption) applyFanIn(c *DependencyConfig) {
-	s.applyReference(c)
-}
-
-// FromActiveGraph configures the dependency scope to ScopeActiveGraph.
-// It can be applied to both point-to-point and fan-in references.
-var FromActiveGraph ScopeOption = scopeOption(ScopeActiveGraph)
-
-// FromActiveFeatures configures the dependency scope to ScopeActiveFeatures.
-// It can be applied to both point-to-point and fan-in references.
-var FromActiveFeatures ScopeOption = scopeOption(ScopeActiveFeatures)
-
-// FromAll configures the dependency scope to ScopeAll.
-// It can be applied to both point-to-point and fan-in references.
-var FromAll ScopeOption = scopeOption(ScopeAll)
 
 // ApplyReferenceOption applies a ReferenceOption to a DependencyConfig.
 func ApplyReferenceOption(c *DependencyConfig, opt ReferenceOption) {

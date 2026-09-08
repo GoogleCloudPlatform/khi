@@ -21,7 +21,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewTag(t *testing.T) {
@@ -70,11 +69,11 @@ func TestNewTag(t *testing.T) {
 
 			tag := NewTag[string](tc.inputID)
 			if !tc.shouldPanic {
-				if diff := cmp.Diff(tc.wantID, tag.ID()); diff != "" {
-					t.Errorf("tag.ID() mismatch (-want +got):\n%s", diff)
+				if got := tag.ID(); got != tc.wantID {
+					t.Errorf("tag.ID() = %q, want %q", got, tc.wantID)
 				}
-				if diff := cmp.Diff(tc.wantID, tag.String()); diff != "" {
-					t.Errorf("tag.String() mismatch (-want +got):\n%s", diff)
+				if got := tag.String(); got != tc.wantID {
+					t.Errorf("tag.String() = %q, want %q", got, tc.wantID)
 				}
 			}
 		})
@@ -102,7 +101,7 @@ func TestTagRef(t *testing.T) {
 		},
 		{
 			name:            "order-only tag reference from active features",
-			opts:            []taskid.FanInOption{taskid.OrderOnly, taskid.FromActiveFeatures},
+			opts:            []taskid.FanInOption{taskid.OrderOnly, taskid.ScopeActiveFeatures},
 			wantKind:        taskid.EdgeKindOrderOnly,
 			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityFanIn,
@@ -110,7 +109,7 @@ func TestTagRef(t *testing.T) {
 		},
 		{
 			name:            "tag reference from all",
-			opts:            []taskid.FanInOption{taskid.FromAll},
+			opts:            []taskid.FanInOption{taskid.ScopeAll},
 			wantKind:        taskid.EdgeKindData,
 			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityFanIn,
@@ -121,20 +120,20 @@ func TestTagRef(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ref := tag.Ref(tc.opts...)
-			if diff := cmp.Diff(tag.ID(), ref.Tag()); diff != "" {
-				t.Errorf("Tag() mismatch (-want +got):\n%s", diff)
+			if got := ref.Tag(); got != tag.ID() {
+				t.Errorf("Tag() = %q, want %q", got, tag.ID())
 			}
-			if diff := cmp.Diff(tc.wantKind, ref.DescriptorKind()); diff != "" {
-				t.Errorf("DescriptorKind() mismatch (-want +got):\n%s", diff)
+			if got := ref.DescriptorKind(); got != tc.wantKind {
+				t.Errorf("DescriptorKind() = %v, want %v", got, tc.wantKind)
 			}
-			if diff := cmp.Diff(tc.wantCondition, ref.DescriptorCondition()); diff != "" {
-				t.Errorf("DescriptorCondition() mismatch (-want +got):\n%s", diff)
+			if got := ref.DescriptorCondition(); got != tc.wantCondition {
+				t.Errorf("DescriptorCondition() = %v, want %v", got, tc.wantCondition)
 			}
-			if diff := cmp.Diff(tc.wantCardinality, ref.DescriptorCardinality()); diff != "" {
-				t.Errorf("DescriptorCardinality() mismatch (-want +got):\n%s", diff)
+			if got := ref.DescriptorCardinality(); got != tc.wantCardinality {
+				t.Errorf("DescriptorCardinality() = %v, want %v", got, tc.wantCardinality)
 			}
-			if diff := cmp.Diff(tc.wantScope, ref.DescriptorScope()); diff != "" {
-				t.Errorf("DescriptorScope() mismatch (-want +got):\n%s", diff)
+			if got := ref.DescriptorScope(); got != tc.wantScope {
+				t.Errorf("DescriptorScope() = %v, want %v", got, tc.wantScope)
 			}
 		})
 	}
@@ -166,11 +165,11 @@ func TestProvidesTag(t *testing.T) {
 			opt.Write(labels)
 
 			val, found := typedmap.Get(labels, LabelKeyProvidedTag(tc.tag.ID()))
-			if diff := cmp.Diff(true, found); diff != "" {
-				t.Errorf("label found mismatch (-want +got):\n%s", diff)
+			if !found {
+				t.Errorf("expected label to be found, but was not")
 			}
-			if diff := cmp.Diff(tc.wantVal, val); diff != "" {
-				t.Errorf("label value mismatch (-want +got):\n%s", diff)
+			if val != tc.wantVal {
+				t.Errorf("label value = %v, want %v", val, tc.wantVal)
 			}
 			key := LabelKeyProvidedTag(tc.tag.ID()).Key()
 			if !strings.HasPrefix(key, tc.wantPrefix) {

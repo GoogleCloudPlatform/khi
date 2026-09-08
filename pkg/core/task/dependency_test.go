@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestTagReference(t *testing.T) {
@@ -55,7 +54,7 @@ func TestTagReference(t *testing.T) {
 		{
 			name:            "tag reference from active features",
 			tag:             "test/features_tag",
-			opts:            []taskid.FanInOption{taskid.FromActiveFeatures},
+			opts:            []taskid.FanInOption{taskid.ScopeActiveFeatures},
 			wantKind:        taskid.EdgeKindData,
 			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityFanIn,
@@ -65,7 +64,7 @@ func TestTagReference(t *testing.T) {
 		{
 			name:            "tag reference from all",
 			tag:             "test/all_tag",
-			opts:            []taskid.FanInOption{taskid.FromAll},
+			opts:            []taskid.FanInOption{taskid.ScopeAll},
 			wantKind:        taskid.EdgeKindData,
 			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityFanIn,
@@ -75,7 +74,7 @@ func TestTagReference(t *testing.T) {
 		{
 			name:            "tag reference order-only from all",
 			tag:             "test/order_all_tag",
-			opts:            []taskid.FanInOption{taskid.OrderOnly, taskid.FromAll},
+			opts:            []taskid.FanInOption{taskid.OrderOnly, taskid.ScopeAll},
 			wantKind:        taskid.EdgeKindOrderOnly,
 			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityFanIn,
@@ -88,23 +87,23 @@ func TestTagReference(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ref := NewTagReference[int](tc.tag, tc.opts...)
 
-			if diff := cmp.Diff(tc.wantKind, ref.DescriptorKind()); diff != "" {
-				t.Errorf("DescriptorKind() mismatch (-want +got):\n%s", diff)
+			if got := ref.DescriptorKind(); got != tc.wantKind {
+				t.Errorf("DescriptorKind() = %v, want %v", got, tc.wantKind)
 			}
-			if diff := cmp.Diff(tc.wantCondition, ref.DescriptorCondition()); diff != "" {
-				t.Errorf("DescriptorCondition() mismatch (-want +got):\n%s", diff)
+			if got := ref.DescriptorCondition(); got != tc.wantCondition {
+				t.Errorf("DescriptorCondition() = %v, want %v", got, tc.wantCondition)
 			}
-			if diff := cmp.Diff(tc.wantCardinality, ref.DescriptorCardinality()); diff != "" {
-				t.Errorf("DescriptorCardinality() mismatch (-want +got):\n%s", diff)
+			if got := ref.DescriptorCardinality(); got != tc.wantCardinality {
+				t.Errorf("DescriptorCardinality() = %v, want %v", got, tc.wantCardinality)
 			}
-			if diff := cmp.Diff(tc.wantScope, ref.DescriptorScope()); diff != "" {
-				t.Errorf("DescriptorScope() mismatch (-want +got):\n%s", diff)
+			if got := ref.DescriptorScope(); got != tc.wantScope {
+				t.Errorf("DescriptorScope() = %v, want %v", got, tc.wantScope)
 			}
-			if diff := cmp.Diff(tc.wantTag, ref.Tag()); diff != "" {
-				t.Errorf("Tag() mismatch (-want +got):\n%s", diff)
+			if got := ref.Tag(); got != tc.wantTag {
+				t.Errorf("Tag() = %q, want %q", got, tc.wantTag)
 			}
-			if diff := cmp.Diff(0, ref.GetZeroValue()); diff != "" {
-				t.Errorf("GetZeroValue() mismatch (-want +got):\n%s", diff)
+			if got := ref.GetZeroValue(); got != 0 {
+				t.Errorf("GetZeroValue() = %v, want 0", got)
 			}
 		})
 	}
@@ -132,7 +131,7 @@ func TestToOrderOnly(t *testing.T) {
 		},
 		{
 			name:            "point-to-point optional to order-only preserving optional",
-			input:           taskid.NewTaskReference[string]("task.b", taskid.Optional, taskid.FromActiveFeatures),
+			input:           taskid.NewTaskReference[string]("task.b", taskid.Optional, taskid.ScopeActiveFeatures),
 			wantKind:        taskid.EdgeKindOrderOnly,
 			wantCondition:   taskid.ConditionOptional,
 			wantCardinality: taskid.CardinalityPointToPoint,
@@ -141,7 +140,7 @@ func TestToOrderOnly(t *testing.T) {
 		},
 		{
 			name:            "point-to-point from active graph to order-only",
-			input:           taskid.NewTaskReference[string]("task.c", taskid.FromActiveGraph),
+			input:           taskid.NewTaskReference[string]("task.c", taskid.ScopeActiveGraph),
 			wantKind:        taskid.EdgeKindOrderOnly,
 			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityPointToPoint,
@@ -150,7 +149,7 @@ func TestToOrderOnly(t *testing.T) {
 		},
 		{
 			name:            "tag reference data to order-only",
-			input:           NewTagReference[string]("tag.foo", taskid.FromAll),
+			input:           NewTagReference[string]("tag.foo", taskid.ScopeAll),
 			wantKind:        taskid.EdgeKindOrderOnly,
 			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityFanIn,
@@ -168,7 +167,7 @@ func TestToOrderOnly(t *testing.T) {
 		},
 		{
 			name:            "tag reference from active features to order-only",
-			input:           NewTagReference[string]("tag.features", taskid.FromActiveFeatures),
+			input:           NewTagReference[string]("tag.features", taskid.ScopeActiveFeatures),
 			wantKind:        taskid.EdgeKindOrderOnly,
 			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityFanIn,
@@ -207,25 +206,25 @@ func TestToOrderOnly(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := ToOrderOnly(tc.input)
 
-			if diff := cmp.Diff(tc.wantKind, got.DescriptorKind()); diff != "" {
-				t.Errorf("DescriptorKind() mismatch (-want +got):\n%s", diff)
+			if gotKind := got.DescriptorKind(); gotKind != tc.wantKind {
+				t.Errorf("DescriptorKind() = %v, want %v", gotKind, tc.wantKind)
 			}
-			if diff := cmp.Diff(tc.wantCondition, got.DescriptorCondition()); diff != "" {
-				t.Errorf("DescriptorCondition() mismatch (-want +got):\n%s", diff)
+			if gotCondition := got.DescriptorCondition(); gotCondition != tc.wantCondition {
+				t.Errorf("DescriptorCondition() = %v, want %v", gotCondition, tc.wantCondition)
 			}
-			if diff := cmp.Diff(tc.wantCardinality, got.DescriptorCardinality()); diff != "" {
-				t.Errorf("DescriptorCardinality() mismatch (-want +got):\n%s", diff)
+			if gotCardinality := got.DescriptorCardinality(); gotCardinality != tc.wantCardinality {
+				t.Errorf("DescriptorCardinality() = %v, want %v", gotCardinality, tc.wantCardinality)
 			}
-			if diff := cmp.Diff(tc.wantScope, got.DescriptorScope()); diff != "" {
-				t.Errorf("DescriptorScope() mismatch (-want +got):\n%s", diff)
+			if gotScope := got.DescriptorScope(); gotScope != tc.wantScope {
+				t.Errorf("DescriptorScope() = %v, want %v", gotScope, tc.wantScope)
 			}
 			if tc.wantRefID != "" {
 				p2p, ok := got.(taskid.PointToPointDescriptor)
 				if !ok {
 					t.Fatalf("expected PointToPointDescriptor, got %T", got)
 				}
-				if diff := cmp.Diff(tc.wantRefID, p2p.ReferenceID()); diff != "" {
-					t.Errorf("ReferenceID() mismatch (-want +got):\n%s", diff)
+				if refID := p2p.ReferenceID(); refID != tc.wantRefID {
+					t.Errorf("ReferenceID() = %q, want %q", refID, tc.wantRefID)
 				}
 			}
 			if tc.wantTag != "" {
@@ -233,8 +232,8 @@ func TestToOrderOnly(t *testing.T) {
 				if !ok {
 					t.Fatalf("expected FanInDescriptor, got %T", got)
 				}
-				if diff := cmp.Diff(tc.wantTag, fanIn.Tag()); diff != "" {
-					t.Errorf("Tag() mismatch (-want +got):\n%s", diff)
+				if tag := fanIn.Tag(); tag != tc.wantTag {
+					t.Errorf("Tag() = %q, want %q", tag, tc.wantTag)
 				}
 			}
 		})

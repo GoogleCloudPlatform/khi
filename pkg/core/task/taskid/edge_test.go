@@ -65,9 +65,9 @@ func TestReferenceOption(t *testing.T) {
 			wantResolvedScope: ScopeActiveGraph,
 		},
 		{
-			name:       "point-to-point with FromActiveGraph",
+			name:       "point-to-point with ScopeActiveGraph",
 			baseConfig: NewDefaultPointToPointConfig(),
-			options:    []ReferenceOption{FromActiveGraph},
+			options:    []ReferenceOption{ScopeActiveGraph},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindData,
 				Condition:   ConditionRequired,
@@ -77,9 +77,9 @@ func TestReferenceOption(t *testing.T) {
 			wantResolvedScope: ScopeActiveGraph,
 		},
 		{
-			name:       "point-to-point with Optional and FromActiveFeatures",
+			name:       "point-to-point with Optional and ScopeActiveFeatures",
 			baseConfig: NewDefaultPointToPointConfig(),
-			options:    []ReferenceOption{Optional, FromActiveFeatures},
+			options:    []ReferenceOption{Optional, ScopeActiveFeatures},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindData,
 				Condition:   ConditionOptional,
@@ -89,9 +89,9 @@ func TestReferenceOption(t *testing.T) {
 			wantResolvedScope: ScopeActiveFeatures,
 		},
 		{
-			name:       "point-to-point with FromActiveFeatures and Optional",
+			name:       "point-to-point with ScopeActiveFeatures and Optional",
 			baseConfig: NewDefaultPointToPointConfig(),
-			options:    []ReferenceOption{FromActiveFeatures, Optional},
+			options:    []ReferenceOption{ScopeActiveFeatures, Optional},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindData,
 				Condition:   ConditionOptional,
@@ -101,9 +101,9 @@ func TestReferenceOption(t *testing.T) {
 			wantResolvedScope: ScopeActiveFeatures,
 		},
 		{
-			name:       "point-to-point with Optional and FromAll",
+			name:       "point-to-point with Optional and ScopeAll",
 			baseConfig: NewDefaultPointToPointConfig(),
-			options:    []ReferenceOption{Optional, FromAll},
+			options:    []ReferenceOption{Optional, ScopeAll},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindData,
 				Condition:   ConditionOptional,
@@ -113,9 +113,9 @@ func TestReferenceOption(t *testing.T) {
 			wantResolvedScope: ScopeAll,
 		},
 		{
-			name:       "point-to-point with FromActiveFeatures only",
+			name:       "point-to-point with ScopeActiveFeatures only",
 			baseConfig: NewDefaultPointToPointConfig(),
-			options:    []ReferenceOption{FromActiveFeatures},
+			options:    []ReferenceOption{ScopeActiveFeatures},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindData,
 				Condition:   ConditionRequired,
@@ -125,9 +125,9 @@ func TestReferenceOption(t *testing.T) {
 			wantResolvedScope: ScopeActiveFeatures,
 		},
 		{
-			name:       "point-to-point with duplicate FromActiveFeatures (idempotent)",
+			name:       "point-to-point with duplicate ScopeActiveFeatures (idempotent)",
 			baseConfig: NewDefaultPointToPointConfig(),
-			options:    []ReferenceOption{FromActiveFeatures, FromActiveFeatures},
+			options:    []ReferenceOption{ScopeActiveFeatures, ScopeActiveFeatures},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindData,
 				Condition:   ConditionRequired,
@@ -161,9 +161,9 @@ func TestReferenceOption(t *testing.T) {
 			wantResolvedScope: ScopeAll,
 		},
 		{
-			name:       "point-to-point with Optional, FromActiveFeatures, and OrderOnly",
+			name:       "point-to-point with Optional, ScopeActiveFeatures, and OrderOnly",
 			baseConfig: NewDefaultPointToPointConfig(),
-			options:    []ReferenceOption{Optional, FromActiveFeatures, OrderOnly},
+			options:    []ReferenceOption{Optional, ScopeActiveFeatures, OrderOnly},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindOrderOnly,
 				Condition:   ConditionOptional,
@@ -183,8 +183,8 @@ func TestReferenceOption(t *testing.T) {
 			if diff := cmp.Diff(tc.wantConfig, cfg); diff != "" {
 				t.Errorf("DependencyConfig mismatch (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantResolvedScope, cfg.ResolvedScope()); diff != "" {
-				t.Errorf("ResolvedScope() mismatch (-want +got):\n%s", diff)
+			if got := cfg.ResolvedScope(); got != tc.wantResolvedScope {
+				t.Errorf("ResolvedScope() = %v, want %v", got, tc.wantResolvedScope)
 			}
 		})
 	}
@@ -211,9 +211,9 @@ func TestFanInOption(t *testing.T) {
 			wantResolvedScope: ScopeActiveGraph,
 		},
 		{
-			name:       "fan-in with FromActiveFeatures",
+			name:       "fan-in with ScopeActiveFeatures",
 			baseConfig: NewDefaultFanInConfig(),
-			options:    []FanInOption{FromActiveFeatures},
+			options:    []FanInOption{ScopeActiveFeatures},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindData,
 				Condition:   ConditionRequired,
@@ -223,9 +223,9 @@ func TestFanInOption(t *testing.T) {
 			wantResolvedScope: ScopeActiveFeatures,
 		},
 		{
-			name:       "fan-in with duplicate FromActiveFeatures (idempotent)",
+			name:       "fan-in with duplicate ScopeActiveFeatures (idempotent)",
 			baseConfig: NewDefaultFanInConfig(),
-			options:    []FanInOption{FromActiveFeatures, FromActiveFeatures},
+			options:    []FanInOption{ScopeActiveFeatures, ScopeActiveFeatures},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindData,
 				Condition:   ConditionRequired,
@@ -235,9 +235,9 @@ func TestFanInOption(t *testing.T) {
 			wantResolvedScope: ScopeActiveFeatures,
 		},
 		{
-			name:       "fan-in with FromAll and OrderOnly",
+			name:       "fan-in with ScopeAll and OrderOnly",
 			baseConfig: NewDefaultFanInConfig(),
-			options:    []FanInOption{FromAll, OrderOnly},
+			options:    []FanInOption{ScopeAll, OrderOnly},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindOrderOnly,
 				Condition:   ConditionRequired,
@@ -259,9 +259,9 @@ func TestFanInOption(t *testing.T) {
 			wantResolvedScope: ScopeActiveGraph,
 		},
 		{
-			name:       "fan-in with FromActiveGraph",
+			name:       "fan-in with ScopeActiveGraph",
 			baseConfig: NewDefaultFanInConfig(),
-			options:    []FanInOption{FromActiveGraph},
+			options:    []FanInOption{ScopeActiveGraph},
 			wantConfig: DependencyConfig{
 				Kind:        EdgeKindData,
 				Condition:   ConditionRequired,
@@ -281,8 +281,8 @@ func TestFanInOption(t *testing.T) {
 			if diff := cmp.Diff(tc.wantConfig, cfg); diff != "" {
 				t.Errorf("DependencyConfig mismatch (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantResolvedScope, cfg.ResolvedScope()); diff != "" {
-				t.Errorf("ResolvedScope() mismatch (-want +got):\n%s", diff)
+			if got := cfg.ResolvedScope(); got != tc.wantResolvedScope {
+				t.Errorf("ResolvedScope() = %v, want %v", got, tc.wantResolvedScope)
 			}
 		})
 	}
@@ -295,19 +295,19 @@ func TestReferenceOptionPanic(t *testing.T) {
 		options    []ReferenceOption
 	}{
 		{
-			name:       "FromAll called after FromActiveFeatures",
+			name:       "ScopeAll called after ScopeActiveFeatures",
 			baseConfig: NewDefaultPointToPointConfig(),
-			options:    []ReferenceOption{FromActiveFeatures, FromAll},
+			options:    []ReferenceOption{ScopeActiveFeatures, ScopeAll},
 		},
 		{
-			name:       "FromActiveFeatures called after FromAll",
+			name:       "ScopeActiveFeatures called after ScopeAll",
 			baseConfig: NewDefaultPointToPointConfig(),
-			options:    []ReferenceOption{FromAll, FromActiveFeatures},
+			options:    []ReferenceOption{ScopeAll, ScopeActiveFeatures},
 		},
 		{
-			name:       "FromActiveGraph called after FromActiveFeatures",
+			name:       "ScopeActiveGraph called after ScopeActiveFeatures",
 			baseConfig: NewDefaultPointToPointConfig(),
-			options:    []ReferenceOption{FromActiveFeatures, FromActiveGraph},
+			options:    []ReferenceOption{ScopeActiveFeatures, ScopeActiveGraph},
 		},
 	}
 
@@ -335,19 +335,19 @@ func TestFanInOptionPanic(t *testing.T) {
 		options    []FanInOption
 	}{
 		{
-			name:       "FromAll called after FromActiveFeatures",
+			name:       "ScopeAll called after ScopeActiveFeatures",
 			baseConfig: NewDefaultFanInConfig(),
-			options:    []FanInOption{FromActiveFeatures, FromAll},
+			options:    []FanInOption{ScopeActiveFeatures, ScopeAll},
 		},
 		{
-			name:       "FromActiveFeatures called after FromAll",
+			name:       "ScopeActiveFeatures called after ScopeAll",
 			baseConfig: NewDefaultFanInConfig(),
-			options:    []FanInOption{FromAll, FromActiveFeatures},
+			options:    []FanInOption{ScopeAll, ScopeActiveFeatures},
 		},
 		{
-			name:       "FromActiveGraph called after FromActiveFeatures",
+			name:       "ScopeActiveGraph called after ScopeActiveFeatures",
 			baseConfig: NewDefaultFanInConfig(),
-			options:    []FanInOption{FromActiveFeatures, FromActiveGraph},
+			options:    []FanInOption{ScopeActiveFeatures, ScopeActiveGraph},
 		},
 	}
 

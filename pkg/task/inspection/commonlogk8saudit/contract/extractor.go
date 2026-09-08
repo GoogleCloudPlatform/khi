@@ -21,8 +21,6 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-var emptyK8sAuditLogFieldSet = &K8sAuditLogFieldSet{}
-
 // K8sAuditLogCacheKey identifies the cached K8sAuditLogFieldSet on a NodeReader.
 var K8sAuditLogCacheKey = structured.NewCacheKey[*K8sAuditLogFieldSet]()
 
@@ -37,14 +35,12 @@ func ExtractK8sAuditLog(ctx context.Context, reader *structured.NodeReader) (*K8
 	if cached, ok := structured.GetCache(reader, K8sAuditLogCacheKey); ok {
 		return cached, nil
 	}
-	if extractor, found := coretask.GetOptionalTaskResult(ctx, K8sAuditLogExtractorRef); found {
-		res, err := extractor(reader)
-		if err == nil && res != nil {
-			structured.SetCache(reader, K8sAuditLogCacheKey, res)
-		}
-		return res, err
+	extractor := coretask.GetTaskResult(ctx, K8sAuditLogExtractorRef)
+	res, err := extractor(reader)
+	if err == nil && res != nil {
+		structured.SetCache(reader, K8sAuditLogCacheKey, res)
 	}
-	return emptyK8sAuditLogFieldSet, nil
+	return res, err
 }
 
 // K8sAuditLogErrorExtractor is a function type for extracting whether a log represents an error from a NodeReader.
@@ -58,8 +54,6 @@ func ExtractK8sAuditLogError(ctx context.Context, reader *structured.NodeReader)
 	if cached, ok := structured.GetCache(reader, K8sAuditLogCacheKey); ok {
 		return cached.IsError, nil
 	}
-	if extractor, found := coretask.GetOptionalTaskResult(ctx, K8sAuditLogErrorExtractorRef); found {
-		return extractor(reader)
-	}
-	return false, nil
+	extractor := coretask.GetTaskResult(ctx, K8sAuditLogErrorExtractorRef)
+	return extractor(reader)
 }
