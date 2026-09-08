@@ -16,29 +16,40 @@ changelog:
   categories:
     - title: New features 🎉
       labels:
-        - features
+        - type:feature
     - title: Bug Fixes 🐛
       labels:
-        - bug
+        - type:bug
+    - title: Performance Improvements ⚡
+      labels:
+        - type:perf
+    - title: Refactoring ♻️
+      labels:
+        - type:refactor
     - title: CI/CD ⚙️
       labels:
-        - cicd
+        - area:cicd
     - title: Development Environment 💻
       labels:
-        - devenv
+        - area:devenv
     - title: Documentation 📝
       labels:
-        - documentation
+        - type:docs
     - title: Other Changes 🛠
       labels:
         - "*"
       exclude:
         labels:
-          - features
-          - bug
-          - cicd
-          - devenv
-          - documentation
+          - type:feature
+          - type:bug
+          - type:perf
+          - type:refactor
+          - area:cicd
+          - area:devenv
+          - type:docs
+          - dependencies
+          - type:chore
     - title: Dependencies ⏫
       labels:
         - dependencies
+        - type:chore
