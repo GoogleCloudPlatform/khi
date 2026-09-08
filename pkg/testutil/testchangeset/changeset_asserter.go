@@ -105,8 +105,8 @@ func (a *TimelineChangeSetAsserter) HasNoEvent(path *khifilev6.TimelinePath) *Ti
 // HasEventCount asserts that the total number of staged events matches the expected count.
 func (a *TimelineChangeSetAsserter) HasEventCount(wantCount int) *TimelineChangeSetAsserter {
 	a.t.Helper()
-	if diff := cmp.Diff(wantCount, len(a.cs.Events)); diff != "" {
-		a.t.Errorf("TimelineChangeSet: event count mismatch (-want +got):\n%s", diff)
+	if gotCount := len(a.cs.Events); gotCount != wantCount {
+		a.t.Errorf("TimelineChangeSet: event count mismatch: want %d, got %d", wantCount, gotCount)
 	}
 	return a
 }

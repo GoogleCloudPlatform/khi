@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"strings"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -30,9 +28,6 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
-
-// eventMessageUIDStarterRunes are delimiters that may precede a Kubernetes resource UID in event messages.
-var eventMessageUIDStarterRunes = []rune{'"', ' ', '=', ':', '/', '(', '[', '\'', '#'}
 
 // OSSK8sEventLogIngester handles event log metadata ingestion.
 type OSSK8sEventLogIngester struct{}
@@ -49,37 +44,6 @@ func (i *OSSK8sEventLogIngester) Dependencies() []taskid.UntypedTaskReference {
 	}
 }
 
-// formatEventSummary constructs the event summary and replaces any detected resource UIDs with their readable strings.
-func formatEventSummary(reason, message string, finder patternfinder.PatternFinder[*commonlogk8saudit_contract.ResourceIdentity]) string {
-	if message == "" {
-		return fmt.Sprintf("【%s】", reason)
-	}
-	if finder == nil {
-		return fmt.Sprintf("【%s】%s", reason, message)
-	}
-	matches := patternfinder.FindAllWithStarterRunes(message, finder, true, eventMessageUIDStarterRunes...)
-	if len(matches) == 0 {
-		return fmt.Sprintf("【%s】%s", reason, message)
-	}
-
-	var sb strings.Builder
-	sb.WriteString("【")
-	sb.WriteString(reason)
-	sb.WriteString("】")
-
-	lastIndex := 0
-	for _, match := range matches {
-		if match.Start < lastIndex {
-			continue
-		}
-		sb.WriteString(message[lastIndex:match.Start])
-		sb.WriteString(match.Value.SummaryTag())
-		lastIndex = match.End
-	}
-	sb.WriteString(message[lastIndex:])
-	return sb.String()
-}
-
 // ProcessLog populates metadata into the LogChangeSet.
 func (i *OSSK8sEventLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
@@ -94,7 +58,7 @@ func (i *OSSK8sEventLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*k
 		return nil, fmt.Errorf("failed to get OSS k8s event fieldset: %w", err)
 	}
 	finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
-	cs.SetSummary(formatEventSummary(event.Reason, event.Message, finder))
+	cs.SetSummary(commonlogk8saudit_contract.FormatEventSummary(event.Reason, event.Message, finder))
 	cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
 
 	return cs, nil
@@ -157,7 +121,7 @@ func (m *OSSK8sEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *lo
 	if event.Message != "" {
 		finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
 		if finder != nil {
-			matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, eventMessageUIDStarterRunes...)
+			matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, commonlogk8saudit_contract.EventMessageUIDStarterRunes...)
 			for _, match := range matches {
 				matchedPath := commonlogk8saudit_contract.MustResourceTimeline(ctx, "cluster", match.Value)
 				cs.AddEvent(matchedPath)

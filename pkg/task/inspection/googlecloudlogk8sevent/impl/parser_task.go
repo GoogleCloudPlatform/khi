@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"strings"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -31,9 +29,6 @@ import (
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
-
-// eventMessageUIDStarterRunes are delimiters that may precede a Kubernetes resource UID in event messages.
-var eventMessageUIDStarterRunes = []rune{'"', ' ', '=', ':', '/', '(', '[', '\'', '#'}
 
 // KubernetesEventLogIngester handles log ingestion into the KHI v6 builder format.
 type KubernetesEventLogIngester struct{}
@@ -48,37 +43,6 @@ func (i *KubernetesEventLogIngester) Dependencies() []taskid.UntypedTaskReferenc
 	return []taskid.UntypedTaskReference{
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
 	}
-}
-
-// formatEventSummary constructs the event summary and replaces any detected resource UIDs with their readable strings.
-func formatEventSummary(reason, message string, finder patternfinder.PatternFinder[*commonlogk8saudit_contract.ResourceIdentity]) string {
-	if message == "" {
-		return fmt.Sprintf("【%s】", reason)
-	}
-	if finder == nil {
-		return fmt.Sprintf("【%s】%s", reason, message)
-	}
-	matches := patternfinder.FindAllWithStarterRunes(message, finder, true, eventMessageUIDStarterRunes...)
-	if len(matches) == 0 {
-		return fmt.Sprintf("【%s】%s", reason, message)
-	}
-
-	var sb strings.Builder
-	sb.WriteString("【")
-	sb.WriteString(reason)
-	sb.WriteString("】")
-
-	lastIndex := 0
-	for _, match := range matches {
-		if match.Start < lastIndex {
-			continue
-		}
-		sb.WriteString(message[lastIndex:match.Start])
-		sb.WriteString(match.Value.SummaryTag())
-		lastIndex = match.End
-	}
-	sb.WriteString(message[lastIndex:])
-	return sb.String()
 }
 
 // ProcessLog processes a raw log entry and populates its metadata into LogChangeSet.
@@ -99,7 +63,7 @@ func (i *KubernetesEventLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 		return nil, fmt.Errorf("failed to extract kubernetes event: %w", err)
 	}
 	finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
-	cs.SetSummary(formatEventSummary(event.Reason, event.Message, finder))
+	cs.SetSummary(commonlogk8saudit_contract.FormatEventSummary(event.Reason, event.Message, finder))
 
 	return cs, nil
 }
@@ -161,7 +125,7 @@ func (m *KubernetesEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l
 	if event.Message != "" {
 		finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
 		if finder != nil {
-			matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, eventMessageUIDStarterRunes...)
+			matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, commonlogk8saudit_contract.EventMessageUIDStarterRunes...)
 			for _, match := range matches {
 				matchedPath := commonlogk8saudit_contract.MustResourceTimeline(ctx, event.ClusterName, match.Value)
 				cs.AddEvent(matchedPath)
