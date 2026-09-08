@@ -121,6 +121,14 @@ func (r *ResourceIdentity) ParentIdentity() *ResourceIdentity {
 	}
 }
 
+// SummaryTag formats a resource's name, namespace, API version, and kind into a bracketed log summary tag.
+func (r *ResourceIdentity) SummaryTag() string {
+	if r.Namespace == "" {
+		return fmt.Sprintf("【%s (APIVersion: %s, Kind: %s)】", r.Name, r.APIVersion, r.Kind)
+	}
+	return fmt.Sprintf("【%s (Namespace: %s, APIVersion: %s, Kind: %s)】", r.Name, r.Namespace, r.APIVersion, r.Kind)
+}
+
 var _ resourcelease.LeaseHolder = (*ResourceIdentity)(nil)
 
 type ContainerIdentity struct {

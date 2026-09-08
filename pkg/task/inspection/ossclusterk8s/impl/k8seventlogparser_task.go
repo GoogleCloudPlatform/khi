@@ -18,7 +18,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -37,7 +39,9 @@ func (i *OSSK8sEventLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 
 // Dependencies returns additional dependencies of the ingester.
 func (i *OSSK8sEventLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+	return []taskid.UntypedTaskReference{
+		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
+	}
 }
 
 // ProcessLog populates metadata into the LogChangeSet.
@@ -49,11 +53,12 @@ func (i *OSSK8sEventLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*k
 	cs.SetLogType(commonlogk8saudit_contract.LogTypeEvent)
 	cs.SetTimestamp(l.Timestamp)
 
-	eventFS, err := ossclusterk8s_contract.ExtractOSSK8sEvent(l.NodeReader)
+	event, err := ossclusterk8s_contract.ExtractOSSK8sEvent(l.NodeReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OSS k8s event fieldset: %w", err)
 	}
-	cs.SetSummary(fmt.Sprintf("【%s】%s", eventFS.Reason, eventFS.Message))
+	finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
+	cs.SetSummary(commonlogk8saudit_contract.FormatEventSummary(event.Reason, event.Message, finder))
 	cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
 
 	return cs, nil
@@ -92,7 +97,9 @@ func (m *OSSK8sEventTimelineMapper) LogIngesterTask() taskid.TaskReference[struc
 
 // Dependencies returns additional mapper dependencies.
 func (m *OSSK8sEventTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+	return []taskid.UntypedTaskReference{
+		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
+	}
 }
 
 // GroupedLogTask returns the task providing grouped logs.
@@ -100,17 +107,27 @@ func (m *OSSK8sEventTimelineMapper) GroupedLogTask() taskid.TaskReference[inspec
 	return ossclusterk8s_contract.OSSK8sEventLogGrouperTaskID.Ref()
 }
 
-// ProcessLogByGroup maps a single event log to its resource timeline.
+// ProcessLogByGroup maps a single event log to its resource timeline and matches any resource UIDs in the message.
 func (m *OSSK8sEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	event, err := ossclusterk8s_contract.ExtractOSSK8sEvent(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, fmt.Errorf("failed to get OSS k8s event fieldset: %w", err)
 	}
 
-	targetPath := commonlogk8saudit_contract.MustResourceTimeline(ctx, "cluster", event.ResourceIdentity())
-
+	primaryResourcePath := commonlogk8saudit_contract.MustResourceTimeline(ctx, "cluster", event.ResourceIdentity())
 	cs := khifilev6.NewTimelineChangeSet(l)
-	cs.AddEvent(targetPath)
+	cs.AddEvent(primaryResourcePath)
+
+	if event.Message != "" {
+		finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
+		if finder != nil {
+			matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, commonlogk8saudit_contract.EventMessageUIDStarterRunes...)
+			for _, match := range matches {
+				matchedPath := commonlogk8saudit_contract.MustResourceTimeline(ctx, "cluster", match.Value)
+				cs.AddEvent(matchedPath)
+			}
+		}
+	}
 
 	return cs, struct{}{}, nil
 }

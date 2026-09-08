@@ -102,6 +102,15 @@ func (a *TimelineChangeSetAsserter) HasNoEvent(path *khifilev6.TimelinePath) *Ti
 	return a
 }
 
+// HasEventCount asserts that the total number of staged events matches the expected count.
+func (a *TimelineChangeSetAsserter) HasEventCount(wantCount int) *TimelineChangeSetAsserter {
+	a.t.Helper()
+	if gotCount := len(a.cs.Events); gotCount != wantCount {
+		a.t.Errorf("TimelineChangeSet: event count mismatch: want %d, got %d", wantCount, gotCount)
+	}
+	return a
+}
+
 // HasRevision asserts that a matching StagingRevision was staged on the expected path.
 func (a *TimelineChangeSetAsserter) HasRevision(wantPath *khifilev6.TimelinePath, wantRevision *khifilev6.StagingRevision, cmpOpts ...cmp.Option) *TimelineChangeSetAsserter {
 	a.t.Helper()

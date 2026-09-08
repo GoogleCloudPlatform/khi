@@ -18,13 +18,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -39,7 +40,9 @@ func (i *KubernetesEventLogIngester) RawLogTask() taskid.TaskReference[[]*log.Lo
 
 // Dependencies returns additional task dependencies of the ingester.
 func (i *KubernetesEventLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+	return []taskid.UntypedTaskReference{
+		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
+	}
 }
 
 // ProcessLog processes a raw log entry and populates its metadata into LogChangeSet.
@@ -55,11 +58,12 @@ func (i *KubernetesEventLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 		cs.SetSeverity(severity)
 	}
 
-	eventFS, err := googlecloudlogk8sevent_contract.ExtractKubernetesEvent(l.NodeReader)
+	event, err := googlecloudlogk8sevent_contract.ExtractKubernetesEvent(l.NodeReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract kubernetes event: %w", err)
 	}
-	cs.SetSummary(fmt.Sprintf("【%s】%s", eventFS.Reason, eventFS.Message))
+	finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
+	cs.SetSummary(commonlogk8saudit_contract.FormatEventSummary(event.Reason, event.Message, finder))
 
 	return cs, nil
 }
@@ -98,7 +102,7 @@ func (m *KubernetesEventTimelineMapper) LogIngesterTask() taskid.TaskReference[s
 // Dependencies returns additional task dependencies.
 func (m *KubernetesEventTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(),
+		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -107,17 +111,27 @@ func (m *KubernetesEventTimelineMapper) GroupedLogTask() taskid.TaskReference[in
 	return googlecloudlogk8sevent_contract.LogGrouperTaskID.Ref()
 }
 
-// ProcessLogByGroup maps a single GKE Event Log to its resource timeline path.
+// ProcessLogByGroup maps a single GKE Event Log to its resource timeline path and matches any resource UIDs in the message.
 func (m *KubernetesEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	event, err := googlecloudlogk8sevent_contract.ExtractKubernetesEvent(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, fmt.Errorf("failed to extract kubernetes event: %w", err)
 	}
 
-	targetPath := MustResolveK8sResourceTimelinePath(ctx, &event)
-
+	primaryResourcePath := MustResolveK8sResourceTimelinePath(ctx, &event)
 	cs := khifilev6.NewTimelineChangeSet(l)
-	cs.AddEvent(targetPath)
+	cs.AddEvent(primaryResourcePath)
+
+	if event.Message != "" {
+		finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
+		if finder != nil {
+			matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, commonlogk8saudit_contract.EventMessageUIDStarterRunes...)
+			for _, match := range matches {
+				matchedPath := commonlogk8saudit_contract.MustResourceTimeline(ctx, event.ClusterName, match.Value)
+				cs.AddEvent(matchedPath)
+			}
+		}
+	}
 
 	return cs, struct{}{}, nil
 }
