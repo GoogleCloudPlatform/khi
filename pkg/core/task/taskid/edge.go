@@ -225,4 +225,6 @@ type TaskEdge struct {
 	Cardinality EdgeCardinality
 	// Tag is the tag identifier if this edge originated from a fan-in dependency.
 	Tag string
+	// Priority specifies the precedence weight of this edge during graph resolution and cycle pruning.
+	Priority int
 }

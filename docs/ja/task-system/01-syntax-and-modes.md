@@ -80,15 +80,16 @@ var SafeConsumerTask = task.NewTask(
 // 1. contract でタグを宣言
 var LogItemTag = coretask.NewTag[*LogItem]("khi.google.com/log-items")
 
-// 2. プロデューサタスクが ProvidesTag でタグの提供を宣言
+// 2. プロデューサタスクが ProvidesTag でタグの提供を宣言。必要に応じて WithTagPriority で優先度を指定可能
 var ParserTaskA = task.NewTask(
     ParserTaskAID,
     []coretask.Dependency{SourceLogRef},
     runParserA,
-    coretask.ProvidesTag(LogItemTag),
+    coretask.ProvidesTag(LogItemTag, coretask.WithTagPriority(10)),
 )
 
 // 3. コンシューマタスクが GetTaskResultsWithTag で全アクティブプロデューサの結果を集約取得
+// 純粋な集約タスクの場合は AllowMultiStageExecution() を指定してマルチステージ実行を許可可能
 var AggregatorTask = task.NewTask(
     AggregatorTaskID,
     []coretask.Dependency{LogItemTag.Ref()},
@@ -96,8 +97,24 @@ var AggregatorTask = task.NewTask(
         items := coretask.GetTaskResultsWithTag(ctx, LogItemTag.Ref())
         return items, nil
     },
+    coretask.AllowMultiStageExecution(),
 )
 ```
+
+#### ファンインにおける循環依存と Priority による安定したグラフの実現
+
+ファンイン集約を用いる際、以下のような前提条件が揃うとタスクグラフに循環参照が生じます:
+
+1. **クロスインベントリ依存による前提条件**:
+   監査ログパーサーやコンテナログパーサーのように複数の独立したログパーサーが存在し、それぞれが IP アドレス一覧やコンテナ ID 一覧といった異なるインベントリのプロデューサでありつつ、他方のインベントリをクエリ生成のために消費する構造を持つ場合です。単体では非循環な DAG であっても、ユーザーが両方の機能を同時に有効化した際、ファンイン集約 (`TagReference`) を介して相互依存ループが形成されます。
+2. **Priority による決定論的枝刈りと安定したグラフ**:
+   循環を解消するためにエッジを任意に選んで切り落とすと、実行環境やタスク登録順序によって実行順序やデータフローが変動し、再現性のない不安定なグラフになってしまいます。
+   - デフォルトで `DefaultTagPriority = 100` が設定される `coretask.WithTagPriority(priority)` により、プロデューサ側がデータの確度や寄与度を宣言します。数値が小さいほど高優先度として扱われます。
+   - グラフリゾルバはサイクル内の最も優先度の低いファンインエッジを決定論的に枝刈りし、常に一意で安定したグラフを導出します。サイクル内の優先度が同着で判断できない場合は推測せず Fail-Fast でエラーを返します。
+3. **マルチステージ実行 (`coretask.AllowMultiStageExecution`)**:
+   エッジを枝刈りしてもデータを欠落させないために、副作用のない純粋な集約タスクには `AllowMultiStageExecution()` を付与します。リゾルバはタスクを分割・複製し、確定的な高優先度プロデューサからの入力をパーサーに渡す早期ステージと、パーサー完了後のフィードバック結果を追加集約する後期ステージの 2 段階で安全に実行します。このラベルのないタスクがマルチステージ実行を要する循環に巻き込まれた場合は、実行時エラーとして検知されます。
+
+詳細なアーキテクチャ背景は、[概念ガイド: 6. ファンインにおける循環依存の前提条件と Priority によるグラフ安定化](../khi-task-system-concept.md#6-ファンインにおける循環依存の前提条件と-priority-によるグラフ安定化) を参照してください。
 
 ### 3.4 順序制御依存 (Order-Only) とバリアタスク (`NewTailTask`)
 

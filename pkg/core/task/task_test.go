@@ -33,18 +33,19 @@ func TestNewTask(t *testing.T) {
 	expectedErr := errors.New("execution failure")
 
 	testCases := []struct {
-		name            string
-		taskID          taskid.TaskImplementationID[string]
-		deps            []Dependency
-		labelOpts       []LabelOpt
-		runFunc         func(ctx context.Context) (string, error)
-		wantDepCount    int
-		wantLabelVal    string
-		wantProvidedTag string
-		wantErr         error
-		shouldPanic     bool
-		panicMatch      string
-		verifyDeps      func(t *testing.T, deps []Dependency)
+		name                string
+		taskID              taskid.TaskImplementationID[string]
+		deps                []Dependency
+		labelOpts           []LabelOpt
+		runFunc             func(ctx context.Context) (string, error)
+		wantDepCount        int
+		wantLabelVal        string
+		wantProvidedTag     string
+		wantAllowMultiStage bool
+		wantErr             error
+		shouldPanic         bool
+		panicMatch          string
+		verifyDeps          func(t *testing.T, deps []Dependency)
 	}{
 		{
 			name:         "creates task with deduplicated p2p and tag dependencies",
@@ -276,6 +277,13 @@ func TestNewTask(t *testing.T) {
 			wantProvidedTag: "tag.test",
 		},
 		{
+			name:                "creates task with AllowMultiStageExecution label option",
+			taskID:              taskID,
+			deps:                []Dependency{},
+			labelOpts:           []LabelOpt{AllowMultiStageExecution()},
+			wantAllowMultiStage: true,
+		},
+		{
 			name:   "propagates error from run function",
 			taskID: taskID,
 			deps:   []Dependency{},
@@ -370,6 +378,13 @@ func TestNewTask(t *testing.T) {
 					val, ok := typedmap.Get(task.Labels(), LabelKeyProvidedTag(tc.wantProvidedTag))
 					if !ok || !val {
 						t.Errorf("expected provided tag label %v, got %v (found: %v)", tc.wantProvidedTag, val, ok)
+					}
+				}
+
+				if tc.wantAllowMultiStage {
+					val, ok := typedmap.Get(task.Labels(), LabelKeyAllowMultiStageExecution)
+					if !ok || !val {
+						t.Errorf("expected allow-multi-stage-execution label true, got %v (found: %v)", val, ok)
 					}
 				}
 

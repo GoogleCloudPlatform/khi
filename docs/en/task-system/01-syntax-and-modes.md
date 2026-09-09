@@ -80,15 +80,16 @@ When multiple producers contribute items of the same type (for example, multiple
 // 1. Declare a tag in contract
 var LogItemTag = coretask.NewTag[*LogItem]("khi.google.com/log-items")
 
-// 2. Producer tasks declare that they provide the tag
+// 2. Producer tasks declare that they provide the tag (optionally specifying WithTagPriority)
 var ParserTaskA = task.NewTask(
     ParserTaskAID,
     []coretask.Dependency{SourceLogRef},
     runParserA,
-    coretask.ProvidesTag(LogItemTag),
+    coretask.ProvidesTag(LogItemTag, coretask.WithTagPriority(10)),
 )
 
 // 3. Consumer task aggregates all active producers with GetTaskResultsWithTag
+// Pure aggregator tasks can specify AllowMultiStageExecution() to permit multi-stage execution
 var AggregatorTask = task.NewTask(
     AggregatorTaskID,
     []coretask.Dependency{LogItemTag.Ref()},
@@ -96,8 +97,24 @@ var AggregatorTask = task.NewTask(
         items := coretask.GetTaskResultsWithTag(ctx, LogItemTag.Ref())
         return items, nil
     },
+    coretask.AllowMultiStageExecution(),
 )
 ```
+
+#### Fan-In Circular Dependencies and Achieving a Stable Graph via Priority
+
+When using fan-in aggregation, circular dependencies (cycles) can arise under the following prerequisite conditions:
+
+1. **Prerequisite Conditions (Cross-Inventory Dependencies)**:
+   When multiple independent log parsers (for example, audit log parser and container log parser) produce different inventories (such as IP address lists and container ID lists) while simultaneously consuming each other's inventories to narrow their queries. While each parser is an acyclic DAG in isolation, enabling both features simultaneously dynamically forms a mutual dependency loop via fan-in aggregations (`TagReference`).
+2. **Deterministic Pruning via Priority for a Stable Graph**:
+   Arbitrarily cutting edges to break cycles causes execution order and data flow to fluctuate based on task registration order, producing an unreproducible, unstable graph.
+   - `coretask.WithTagPriority(priority)` (default: `DefaultTagPriority = 100`, where lower numbers indicate higher precedence) lets producers declare the certainty and priority of their contribution.
+   - The graph resolver deterministically prunes the lowest-priority fan-in edge within the cycle, producing an always unique and stable graph. If priorities tie within a cycle and the choice is ambiguous, the resolver does not guess and fails fast with an error.
+3. **Multi-Stage Execution (`coretask.AllowMultiStageExecution`)**:
+   To avoid losing data when pruning feedback edges, pure side-effect-free aggregator tasks should declare `AllowMultiStageExecution()`. The resolver automatically splits and clones the aggregator into an early stage (passing high-priority inputs to parsers) and a late stage (collecting feedback outputs after parsers complete). If an unlabelled task requires multi-stage execution to resolve a cycle, graph resolution fails fast with an error.
+
+For architectural details, see [Concept Guide: 6. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority](../khi-task-system-concept.md#6-prerequisites-of-fan-in-cycles-and-graph-stabilization-via-priority).
 
 ### 3.4 Order-Only Dependencies and Barrier Tasks (`NewTailTask`)
 

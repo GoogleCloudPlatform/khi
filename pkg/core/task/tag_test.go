@@ -143,30 +143,48 @@ func TestProvidesTag(t *testing.T) {
 	tag := NewTag[[]string]("khi.google.com/tag/names")
 
 	testCases := []struct {
-		name       string
-		tag        Tag[[]string]
-		wantLabel  string
-		wantVal    bool
-		wantPrefix string
+		name         string
+		tag          Tag[[]string]
+		opts         []ProvidesTagOption
+		wantVal      bool
+		wantPriority int
+		wantPrefix   string
 	}{
 		{
-			name:       "provides tag label is set correctly",
-			tag:        tag,
-			wantLabel:  LabelKeyProvidedTag(tag.ID()).Key(),
-			wantVal:    true,
-			wantPrefix: KHISystemPrefix + "provided-tag/",
+			name:         "provides tag label with default priority",
+			tag:          tag,
+			opts:         nil,
+			wantVal:      true,
+			wantPriority: DefaultTagPriority,
+			wantPrefix:   KHISystemPrefix + "provided-tag/",
+		},
+		{
+			name:         "provides tag label with explicit custom priority",
+			tag:          tag,
+			opts:         []ProvidesTagOption{WithTagPriority(10)},
+			wantVal:      true,
+			wantPriority: 10,
+			wantPrefix:   KHISystemPrefix + "provided-tag/",
+		},
+		{
+			name:         "provides tag label with multiple priorities selects last",
+			tag:          tag,
+			opts:         []ProvidesTagOption{WithTagPriority(20), WithTagPriority(5)},
+			wantVal:      true,
+			wantPriority: 5,
+			wantPrefix:   KHISystemPrefix + "provided-tag/",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			opt := ProvidesTag(tc.tag)
+			opt := ProvidesTag(tc.tag, tc.opts...)
 			labels := typedmap.NewTypedMap()
 			opt.Write(labels)
 
 			val, found := typedmap.Get(labels, LabelKeyProvidedTag(tc.tag.ID()))
 			if !found {
-				t.Errorf("expected label to be found, but was not")
+				t.Errorf("expected provided-tag label to be found, but was not")
 			}
 			if val != tc.wantVal {
 				t.Errorf("label value = %v, want %v", val, tc.wantVal)
@@ -174,6 +192,18 @@ func TestProvidesTag(t *testing.T) {
 			key := LabelKeyProvidedTag(tc.tag.ID()).Key()
 			if !strings.HasPrefix(key, tc.wantPrefix) {
 				t.Errorf("expected prefix %s, got %s", tc.wantPrefix, key)
+			}
+
+			priorityVal, priorityFound := typedmap.Get(labels, LabelKeyProvidedTagPriority(tc.tag.ID()))
+			if !priorityFound {
+				t.Errorf("expected provided-tag-priority label to be found, but was not")
+			}
+			if priorityVal != tc.wantPriority {
+				t.Errorf("priority label value = %d, want %d", priorityVal, tc.wantPriority)
+			}
+			priorityKey := LabelKeyProvidedTagPriority(tc.tag.ID()).Key()
+			if !strings.HasPrefix(priorityKey, LabelKeyProvidedTagPriorityPrefix) {
+				t.Errorf("expected prefix %s, got %s", LabelKeyProvidedTagPriorityPrefix, priorityKey)
 			}
 		})
 	}

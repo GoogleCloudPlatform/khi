@@ -45,6 +45,9 @@ var LabelKeySubsequentTaskRefs = NewTaskLabelKey[[]taskid.UntypedTaskReference](
 // LabelKeyTaskResultRetention indicates whether the task result should be retained in the runner after all dependent tasks finish.
 var LabelKeyTaskResultRetention = NewTaskLabelKey[bool](KHISystemPrefix + "task-result-retention")
 
+// LabelKeyAllowMultiStageExecution indicates that the task is pure and eligible for multi-stage execution during cycle resolution.
+var LabelKeyAllowMultiStageExecution = NewTaskLabelKey[bool](KHISystemPrefix + "allow-multi-stage-execution")
+
 // UntypedTask represents a task in the DAG without compile-time result type information.
 type UntypedTask interface {
 	UntypedID() taskid.UntypedTaskImplementationID
@@ -109,6 +112,20 @@ func (c *TaskImpl[TaskResult]) UntypedRun(ctx context.Context) (any, error) {
 }
 
 var _ Task[any] = (*TaskImpl[any])(nil)
+
+type allowMultiStageExecutionLabelOpt struct{}
+
+func (a *allowMultiStageExecutionLabelOpt) Write(labels *typedmap.TypedMap) {
+	typedmap.Set(labels, LabelKeyAllowMultiStageExecution, true)
+}
+
+var _ LabelOpt = (*allowMultiStageExecutionLabelOpt)(nil)
+
+// AllowMultiStageExecution returns a LabelOpt declaring that the task is eligible for multi-stage execution.
+// Such tasks can be cloned and executed across multiple stages during graph resolution to break FanIn dependency cycles.
+func AllowMultiStageExecution() LabelOpt {
+	return &allowMultiStageExecutionLabelOpt{}
+}
 
 // NewTask constructs a new Task with the given implementation ID, dependencies, execution function, and label options.
 func NewTask[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], dependencies []Dependency, runFunc func(ctx context.Context) (TaskResult, error), labelOpts ...LabelOpt) *TaskImpl[TaskResult] {
