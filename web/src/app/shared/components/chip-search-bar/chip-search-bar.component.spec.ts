@@ -244,4 +244,245 @@ describe('ChipSearchBarComponent', () => {
     expect(component.searchTerms()).toEqual([]);
     expect(component.draft()).toBe('');
   });
+
+  it('should switch chip to editing mode when clicked', () => {
+    fixture.componentRef.setInput('searchTerms', ['foo', 'bar']);
+    fixture.detectChanges();
+
+    const chipEls = fixture.debugElement.queryAll(By.css('.search-chip'));
+    chipEls[0].nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.editingIndex()).toBe(0);
+    expect(component.editingText()).toBe('foo');
+
+    const editInput = fixture.debugElement.query(By.css('.chip-edit-input'));
+    expect(editInput).toBeTruthy();
+    expect((editInput.nativeElement as HTMLInputElement).value).toBe('foo');
+  });
+
+  it('should commit edited chip on Enter key', () => {
+    fixture.componentRef.setInput('searchTerms', ['foo', 'bar']);
+    fixture.detectChanges();
+
+    const chipEls = fixture.debugElement.queryAll(By.css('.search-chip'));
+    chipEls[0].nativeElement.click();
+    fixture.detectChanges();
+
+    const editInput = fixture.debugElement.query(By.css('.chip-edit-input'))
+      .nativeElement as HTMLInputElement;
+    component.onChipEditInput('baz');
+    fixture.detectChanges();
+
+    editInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    fixture.detectChanges();
+
+    expect(component.searchTerms()).toEqual(['baz', 'bar']);
+    expect(component.editingIndex()).toBeNull();
+    expect(fixture.debugElement.query(By.css('.chip-edit-input'))).toBeNull();
+  });
+
+  it('should cancel editing and restore original text on Escape key', () => {
+    fixture.componentRef.setInput('searchTerms', ['foo']);
+    fixture.detectChanges();
+
+    const chipEl = fixture.debugElement.query(By.css('.search-chip'));
+    chipEl.nativeElement.click();
+    fixture.detectChanges();
+
+    const editInput = fixture.debugElement.query(By.css('.chip-edit-input'))
+      .nativeElement as HTMLInputElement;
+    component.onChipEditInput('edited');
+    fixture.detectChanges();
+
+    editInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+
+    expect(component.searchTerms()).toEqual(['foo']);
+    expect(component.editingIndex()).toBeNull();
+  });
+
+  it('should commit edited chip on blur', () => {
+    fixture.componentRef.setInput('searchTerms', ['foo']);
+    fixture.detectChanges();
+
+    const chipEl = fixture.debugElement.query(By.css('.search-chip'));
+    chipEl.nativeElement.click();
+    fixture.detectChanges();
+
+    const editInput = fixture.debugElement.query(By.css('.chip-edit-input'))
+      .nativeElement as HTMLInputElement;
+    component.onChipEditInput('blurred');
+    fixture.detectChanges();
+
+    editInput.dispatchEvent(new Event('blur'));
+    fixture.detectChanges();
+
+    expect(component.searchTerms()).toEqual(['blurred']);
+    expect(component.editingIndex()).toBeNull();
+  });
+
+  it('should remove chip if committed value is empty or whitespace only', () => {
+    fixture.componentRef.setInput('searchTerms', ['foo', 'bar']);
+    fixture.detectChanges();
+
+    const chipEls = fixture.debugElement.queryAll(By.css('.search-chip'));
+    chipEls[0].nativeElement.click();
+    fixture.detectChanges();
+
+    const editInput = fixture.debugElement.query(By.css('.chip-edit-input'))
+      .nativeElement as HTMLInputElement;
+    component.onChipEditInput('   ');
+    fixture.detectChanges();
+
+    editInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    fixture.detectChanges();
+
+    expect(component.searchTerms()).toEqual(['bar']);
+    expect(component.editingIndex()).toBeNull();
+  });
+
+  it('should split into multiple chips when delimiter is in edited chip text', () => {
+    fixture.componentRef.setInput('searchTerms', ['first', 'second']);
+    fixture.detectChanges();
+
+    const chipEls = fixture.debugElement.queryAll(By.css('.search-chip'));
+    chipEls[0].nativeElement.click();
+    fixture.detectChanges();
+
+    const editInput = fixture.debugElement.query(By.css('.chip-edit-input'))
+      .nativeElement as HTMLInputElement;
+    component.onChipEditInput('alpha | beta\ngamma');
+    fixture.detectChanges();
+
+    editInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    fixture.detectChanges();
+
+    expect(component.searchTerms()).toEqual([
+      'alpha',
+      'beta',
+      'gamma',
+      'second',
+    ]);
+    expect(component.editingIndex()).toBeNull();
+  });
+
+  it('should remove chip and exit edit mode when remove button is clicked during edit', () => {
+    fixture.componentRef.setInput('searchTerms', ['chip1', 'chip2']);
+    fixture.detectChanges();
+
+    const chipEls = fixture.debugElement.queryAll(By.css('.search-chip'));
+    chipEls[0].nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.editingIndex()).toBe(0);
+
+    const removeBtn = fixture.debugElement.query(By.css('.remove-chip-btn'));
+    removeBtn.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.searchTerms()).toEqual(['chip2']);
+    expect(component.editingIndex()).toBeNull();
+  });
+
+  it('should adjust editingIndex when a preceding chip is removed', () => {
+    fixture.componentRef.setInput('searchTerms', ['chip1', 'chip2', 'chip3']);
+    fixture.detectChanges();
+
+    const chipEls = fixture.debugElement.queryAll(By.css('.search-chip'));
+    chipEls[1].nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.editingIndex()).toBe(1);
+
+    const removeBtns = fixture.debugElement.queryAll(
+      By.css('.remove-chip-btn'),
+    );
+    removeBtns[0].nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.editingIndex()).toBe(0);
+    expect(component.searchTerms()).toEqual(['chip2', 'chip3']);
+  });
+
+  it('should clear editing state when clear button is clicked during edit', () => {
+    fixture.componentRef.setInput('searchTerms', ['foo']);
+    fixture.detectChanges();
+
+    const chipEl = fixture.debugElement.query(By.css('.search-chip'));
+    chipEl.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.editingIndex()).toBe(0);
+
+    const clearBtn = fixture.debugElement.query(By.css('.clear-search-btn'));
+    clearBtn.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.searchTerms()).toEqual([]);
+    expect(component.editingIndex()).toBeNull();
+    expect(component.editingText()).toBe('');
+  });
+
+  it('should commit main draft before starting chip edit', () => {
+    fixture.componentRef.setInput('searchTerms', ['foo']);
+    fixture.detectChanges();
+
+    component.onDraftInput('draft_term');
+    fixture.detectChanges();
+
+    const chipEl = fixture.debugElement.query(By.css('.search-chip'));
+    chipEl.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.searchTerms()).toEqual(['foo', 'draft_term']);
+    expect(component.draft()).toBe('');
+    expect(component.editingIndex()).toBe(0);
+  });
+
+  it('should not close edit mode when clicking inside the active chip editor', () => {
+    fixture.componentRef.setInput('searchTerms', ['foo']);
+    fixture.detectChanges();
+
+    const chipEl = fixture.debugElement.query(By.css('.search-chip'));
+    chipEl.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.editingIndex()).toBe(0);
+
+    const editingChipDiv = fixture.debugElement.query(
+      By.css('.search-chip.editing'),
+    );
+    const clickEvent = new MouseEvent('click', { bubbles: true });
+    spyOn(clickEvent, 'stopPropagation');
+    editingChipDiv.nativeElement.dispatchEvent(clickEvent);
+
+    expect(clickEvent.stopPropagation).toHaveBeenCalled();
+    expect(component.editingIndex()).toBe(0);
+  });
+
+  it('should adjust index and handle bounds check in startChipEdit', () => {
+    fixture.componentRef.setInput('searchTerms', ['first', 'second', 'third']);
+    fixture.detectChanges();
+
+    // Start editing 'first'
+    component.startChipEdit(0);
+    expect(component.editingIndex()).toBe(0);
+
+    // Empty 'first' so it gets removed, then start editing 'third' (originally index 2)
+    component.onChipEditInput('   ');
+    component.startChipEdit(2);
+
+    // Since 'first' was removed, previous index 2 is now index 1 ('third')
+    expect(component.searchTerms()).toEqual(['second', 'third']);
+    expect(component.editingIndex()).toBe(1);
+    expect(component.editingText()).toBe('third');
+
+    // Out of bounds startChipEdit should be ignored
+    component.startChipEdit(99);
+    expect(component.editingIndex()).toBe(1);
+
+    component.startChipEdit(-1);
+    expect(component.editingIndex()).toBe(1);
+  });
 });

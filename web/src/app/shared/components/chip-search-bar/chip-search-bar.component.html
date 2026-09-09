@@ -22,17 +22,43 @@ limitations under the License.
   <mat-icon class="search-prefix-icon">search</mat-icon>
   <div class="search-tokens-wrapper">
     @for (chip of searchTerms(); track $index) {
-      <div class="search-chip">
-        <span class="chip-text">{{ chip }}</span>
-        <button
-          type="button"
-          class="remove-chip-btn"
-          (mousedown)="$event.preventDefault()"
-          (click)="onRemoveChip($index, $event)"
+      @if (editingIndex() === $index) {
+        <div class="search-chip editing" (click)="$event.stopPropagation()">
+          <input
+            #chipEditInput
+            type="text"
+            class="chip-edit-input"
+            [value]="editingText()"
+            (input)="onChipEditInput(chipEditInput.value)"
+            (blur)="onChipEditBlur()"
+            (keydown)="onChipEditKeyDown($event)"
+          />
+          <button
+            type="button"
+            class="remove-chip-btn"
+            (mousedown)="$event.preventDefault()"
+            (click)="onRemoveChip($index, $event)"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      } @else {
+        <div
+          class="search-chip"
+          matTooltip="Click to edit"
+          (click)="onChipClick($index, $event)"
         >
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
+          <span class="chip-text">{{ chip }}</span>
+          <button
+            type="button"
+            class="remove-chip-btn"
+            (mousedown)="$event.preventDefault()"
+            (click)="onRemoveChip($index, $event)"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
       <span class="or-separator">OR</span>
     }
     <input
