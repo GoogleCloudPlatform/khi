@@ -25,29 +25,29 @@ import (
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-var inputKindNameAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]string{
-	"default": strings.Split("pods replicasets daemonsets nodes deployments namespaces statefulsets services servicenetworkendpointgroups ingresses poddisruptionbudgets jobs cronjobs endpointslices persistentvolumes persistentvolumeclaims storageclasses horizontalpodautoscalers verticalpodautoscalers multidimpodautoscalers", " "),
+var inputKindsAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]string{
+	"legacy_default": strings.Split("pods replicasets daemonsets nodes deployments namespaces statefulsets services servicenetworkendpointgroups ingresses poddisruptionbudgets jobs cronjobs endpointslices persistentvolumes persistentvolumeclaims storageclasses horizontalpodautoscalers verticalpodautoscalers multidimpodautoscalers", " "),
 }
 
 // InputKindFilterTask is a form task for inputting the kind filter.
 var InputKindFilterTask = formtask.NewSetFormTaskBuilder(googlecloudk8scommon_contract.InputKindFilterTaskID, googlecloudcommon_contract.PriorityForK8sResourceFilterGroup+5000, "Kind").
-	WithDefaultValueConstant([]string{"@default"}, true).
-	WithDescription("The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources").
+	WithDefaultValueConstant([]string{"@any", "-leases"}, true).
+	WithDescription("The kinds of resources to gather logs. Specify `@any` to query all kinds of resources, or prefix with `-` to exclude specific kinds (e.g., `-leases`). `@legacy_default` matches a set of kinds frequently queried in legacy KHI versions.").
 	WithAllowAddAll(false).
 	WithAllowRemoveAll(false).
 	WithAllowCustomValue(true).
 	WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		result := []inspectionmetadata.SetParameterFormFieldOptionItem{}
-		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@any", Description: "[Alias] An alias matches any of the kinds"})
-		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@default", Description: "[Alias] An alias matches a set of kinds that frequently queried."})
-		return result, nil
+		return []inspectionmetadata.SetParameterFormFieldOptionItem{
+			{ID: "@any", Description: "[Alias] An alias matches any of the kinds"},
+			{ID: "@legacy_default", Description: "[Alias] An alias matches a set of kinds frequently queried in legacy KHI versions."},
+		}, nil
 	}).
 	WithValidator(func(ctx context.Context, value []string) (string, error) {
 		if len(value) == 0 {
 			return "kind filter can't be empty", nil
 		}
 		filterInStr := strings.Join(value, " ")
-		result, err := gcpqueryutil.ParseSetFilter(filterInStr, inputKindNameAliasMap, true, true, true)
+		result, err := gcpqueryutil.ParseSetFilter(filterInStr, inputKindsAliasMap, true, true, true)
 		if err != nil {
 			return "", err
 		}
@@ -55,7 +55,7 @@ var InputKindFilterTask = formtask.NewSetFormTaskBuilder(googlecloudk8scommon_co
 	}).
 	WithConverter(func(ctx context.Context, value []string) (*gcpqueryutil.SetFilterParseResult, error) {
 		filterInStr := strings.Join(value, " ")
-		result, err := gcpqueryutil.ParseSetFilter(filterInStr, inputKindNameAliasMap, true, true, true)
+		result, err := gcpqueryutil.ParseSetFilter(filterInStr, inputKindsAliasMap, true, true, true)
 		if err != nil {
 			return nil, err
 		}

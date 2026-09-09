@@ -59,7 +59,7 @@ func getAuditLogJobTestConfig() *taskrecord.JobTestConfig {
 			"cloud.google.com/common/input-query-resource-names/cloud.google.com/log/k8s-audit/audit-list-log-entries": "projects/khi-testing-with-auditlog",
 			"cloud.google.com/k8s/input-cluster-name": "p0-gke-basic-1",
 			"cloud.google.com/k8s/input-kinds": []any{
-				"@default",
+				"@legacy_default",
 			},
 			"cloud.google.com/k8s/input-namespaces": []any{
 				"@all_cluster_scoped",
