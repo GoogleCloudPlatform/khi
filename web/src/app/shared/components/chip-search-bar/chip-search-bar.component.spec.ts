@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+  fakeAsync,
+  tick,
+} from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ChipSearchBarComponent } from './chip-search-bar.component';
@@ -385,13 +390,14 @@ describe('ChipSearchBarComponent', () => {
     expect(component.editingIndex()).toBeNull();
   });
 
-  it('should adjust editingIndex when a preceding chip is removed', () => {
+  it('should adjust editingIndex and maintain focus when a preceding chip is removed', fakeAsync(() => {
     fixture.componentRef.setInput('searchTerms', ['chip1', 'chip2', 'chip3']);
     fixture.detectChanges();
 
     const chipEls = fixture.debugElement.queryAll(By.css('.search-chip'));
     chipEls[1].nativeElement.click();
     fixture.detectChanges();
+    tick();
 
     expect(component.editingIndex()).toBe(1);
 
@@ -400,9 +406,29 @@ describe('ChipSearchBarComponent', () => {
     );
     removeBtns[0].nativeElement.click();
     fixture.detectChanges();
+    tick();
 
     expect(component.editingIndex()).toBe(0);
     expect(component.searchTerms()).toEqual(['chip2', 'chip3']);
+    const editInput = fixture.debugElement.query(By.css('.chip-edit-input'))
+      .nativeElement as HTMLInputElement;
+    expect(document.activeElement).toBe(editInput);
+  }));
+
+  it('should ignore blur events if the blur index does not match editingIndex', () => {
+    fixture.componentRef.setInput('searchTerms', ['chip1', 'chip2']);
+    fixture.detectChanges();
+
+    component.startChipEdit(0);
+    component.onChipEditInput('modified');
+
+    component.onChipEditBlur(1);
+    expect(component.editingIndex()).toBe(0);
+    expect(component.searchTerms()).toEqual(['chip1', 'chip2']);
+
+    component.onChipEditBlur(0);
+    expect(component.editingIndex()).toBeNull();
+    expect(component.searchTerms()).toEqual(['modified', 'chip2']);
   });
 
   it('should clear editing state when clear button is clicked during edit', () => {

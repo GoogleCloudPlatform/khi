@@ -237,8 +237,12 @@ export class ChipSearchBarComponent {
 
   /**
    * Handles blur on the active chip edit input to commit changes.
+   * @param index Index of the chip reporting the blur event.
    */
-  onChipEditBlur() {
+  onChipEditBlur(index: number) {
+    if (this.editingIndex() !== index) {
+      return;
+    }
     this.commitChipEdit();
   }
 
@@ -254,6 +258,13 @@ export class ChipSearchBarComponent {
       this.editingText.set('');
     } else if (this.editingIndex() !== null && this.editingIndex()! > index) {
       this.editingIndex.update((curr) => (curr !== null ? curr - 1 : null));
+      setTimeout(() => {
+        const input = this.chipEditInput()?.nativeElement;
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      }, 0);
     }
     this.searchTerms.update((terms) => terms.filter((_, i) => i !== index));
   }

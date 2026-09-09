@@ -30,7 +30,7 @@ limitations under the License.
             class="chip-edit-input"
             [value]="editingText()"
             (input)="onChipEditInput(chipEditInput.value)"
-            (blur)="onChipEditBlur()"
+            (blur)="onChipEditBlur($index)"
             (keydown)="onChipEditKeyDown($event)"
           />
           <button
