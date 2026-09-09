@@ -668,7 +668,7 @@ func convertParametersToMap(params *apiv1.InspectionParameters) map[string]any {
 		}
 	}
 	if params.GetTimezoneShiftHours() != 0 {
-		values["timezoneShiftHours"] = params.GetTimezoneShiftHours()
+		values[inspectioncore_contract.TaskInputKeyTimezoneShiftHours] = params.GetTimezoneShiftHours()
 	}
 	return values
 }
