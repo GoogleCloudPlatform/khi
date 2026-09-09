@@ -555,7 +555,7 @@ describe('InspectionTaskClient testing', () => {
         expect(backendAPISpy.runInspection).toHaveBeenCalledWith('test', {
           test: 'foo',
 
-          timezoneShift: -new Date().getTimezoneOffset() / 60, // This parameter should come from view state
+          timezoneShiftHours: -new Date().getTimezoneOffset() / 60, // This parameter should come from view state
         });
         done();
       });
@@ -579,7 +579,7 @@ describe('InspectionTaskClient testing', () => {
         expect(backendAPISpy.dryRunInspection).toHaveBeenCalledWith('test', {
           test: 'foo',
 
-          timezoneShift: -new Date().getTimezoneOffset() / 60, // This parameter should come from view state
+          timezoneShiftHours: -new Date().getTimezoneOffset() / 60, // This parameter should come from view state
         });
         expect(response).toEqual(testData);
         done();
