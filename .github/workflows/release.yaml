@@ -19,6 +19,12 @@ on:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-beta-[0-9]+"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag name (e.g. v1.2.3 or v1.2.3-beta-1)"
+        required: true
+        type: string
 
 jobs:
   release-draft:
@@ -28,6 +34,29 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Determine and validate tag
+        id: resolve-tag
+        env:
+          INPUT_TAG_NAME: ${{ inputs.tag_name }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG_NAME"
+            if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-beta-[0-9]+)?$'; then
+              echo "Error: Tag '$TAG' does not match expected format (e.g. v1.2.3 or v1.2.3-beta-1)"
+              exit 1
+            fi
+            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+              echo "Error: Tag '$TAG' already exists"
+              exit 1
+            fi
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -37,7 +66,7 @@ jobs:
           cache-dependency-path: "go.sum"
 
       - name: Update VERSION file
-        run: echo "${GITHUB_REF_NAME#v}" > VERSION
+        run: echo "${{ steps.resolve-tag.outputs.version }}" > VERSION
 
       - name: Cache frontend build
         id: cache-frontend-build
@@ -108,8 +137,18 @@ jobs:
       - name: Build Binaries
         run: make build-go-binaries
 
+      - name: Push release tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.resolve-tag.outputs.tag_name }}"
+          git push origin "${{ steps.resolve-tag.outputs.tag_name }}"
+
       - name: Create Release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
+          tag_name: ${{ steps.resolve-tag.outputs.tag_name }}
           draft: true
+          generate_release_notes: true
           files: bin/*
