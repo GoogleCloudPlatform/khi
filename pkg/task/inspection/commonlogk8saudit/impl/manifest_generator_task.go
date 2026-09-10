@@ -40,10 +40,11 @@ import (
 )
 
 var (
-	pathAPIVersion   = structured.CompileFieldPath("apiVersion")
-	pathKind         = structured.CompileFieldPath("kind")
-	pathItems        = structured.CompileFieldPath("items")
-	pathMetadataName = structured.CompileFieldPath("metadata.name")
+	pathAPIVersion        = structured.CompileFieldPath("apiVersion")
+	pathKind              = structured.CompileFieldPath("kind")
+	pathItems             = structured.CompileFieldPath("items")
+	pathMetadataName      = structured.CompileFieldPath("metadata.name")
+	pathMetadataNamespace = structured.CompileFieldPath("metadata.namespace")
 )
 
 // ManifestGeneratorTask is the task to generate manifest from k8s audit logs.
@@ -129,9 +130,6 @@ type groupManifestGenerator struct {
 
 // Process processes the log to generate manifest.
 func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*commonlogk8saudit_contract.ResourceManifestLog, error) {
-	if g.prevRevisionReader == nil {
-		g.prevRevisionReader = structured.NewNodeReader(structured.NewEmptyMapNode())
-	}
 	fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.NodeReader)
 	if fieldSet.IsDryRun {
 		return &commonlogk8saudit_contract.ResourceManifestLog{
@@ -140,7 +138,9 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 		}, nil
 	}
 	if fieldSet.IsTruncated {
-		g.prevRevisionReader = nil
+		if g.prevRevisionReader != nil {
+			g.prevRevisionReader = extractResourceIdentity(g.blockStore, g.prevRevisionReader)
+		}
 		return &commonlogk8saudit_contract.ResourceManifestLog{
 			Log:                l,
 			ResourceBodyReader: nil,
@@ -202,6 +202,9 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 	}
 
 	if fieldSet.Verb == commonlogk8saudit_contract.VerbPatch && partial {
+		if g.prevRevisionReader == nil {
+			g.prevRevisionReader = structured.NewNodeReader(structured.NewEmptyMapNode())
+		}
 		mergeConfigResolver := g.mergeConfigRegistry.Get(fieldSet.APIVersion, commonlogk8saudit_contract.GetSingularKindName(fieldSet.PluralKind))
 		mergedNode, err := structured.MergeNode(g.prevRevisionReader.Node, currentBodyReader.Node, structured.MergeConfiguration{
 			MergeMapOrderStrategy:    &structured.DefaultMergeMapOrderStrategy{},
@@ -300,4 +303,54 @@ func constructResourceBodyFromListItem(store *structured.LazyJSONBlockStore, ite
 	buf.WriteByte('}')
 	lazyNode := structured.NewLazyJSONNodeFromBytes(store, buf.Bytes())
 	return structured.NewNodeReader(structured.WithKeyOrder(lazyNode, k8s.K8sManifestKeyOrder...)), nil
+}
+
+// extractResourceIdentity extracts immutable resource identity metadata from the previous revision.
+// It preserves apiVersion, kind, metadata.name, metadata.namespace, metadata.uid, and metadata.creationTimestamp,
+// returning a NodeReader containing only those fields. If prevRevision contains no identity fields,
+// it returns an empty map NodeReader.
+func extractResourceIdentity(store *structured.LazyJSONBlockStore, prevRevision *structured.NodeReader) *structured.NodeReader {
+	apiVersion := prevRevision.ReadStringOrDefault(pathAPIVersion, "")
+	kind := prevRevision.ReadStringOrDefault(pathKind, "")
+	name := prevRevision.ReadStringOrDefault(pathMetadataName, "")
+	namespace := prevRevision.ReadStringOrDefault(pathMetadataNamespace, "")
+	uid := prevRevision.ReadStringOrDefault(pathMetadataUID, "")
+	creationTimestamp := prevRevision.ReadStringOrDefault(pathMetadataCreationTimestamp, "")
+
+	if apiVersion == "" && kind == "" && name == "" && namespace == "" && uid == "" && creationTimestamp == "" {
+		return structured.NewNodeReader(structured.NewEmptyMapNode())
+	}
+
+	metadata := make(map[string]any)
+	if name != "" {
+		metadata["name"] = name
+	}
+	if namespace != "" {
+		metadata["namespace"] = namespace
+	}
+	if uid != "" {
+		metadata["uid"] = uid
+	}
+	if creationTimestamp != "" {
+		metadata["creationTimestamp"] = creationTimestamp
+	}
+
+	root := make(map[string]any)
+	if apiVersion != "" {
+		root["apiVersion"] = apiVersion
+	}
+	if kind != "" {
+		root["kind"] = kind
+	}
+	if len(metadata) > 0 {
+		root["metadata"] = metadata
+	}
+
+	jsonBytes, err := json.Marshal(root)
+	if err != nil {
+		return structured.NewNodeReader(structured.NewEmptyMapNode())
+	}
+
+	lazyNode := structured.NewLazyJSONNodeFromBytes(store, jsonBytes)
+	return structured.NewNodeReader(structured.WithKeyOrder(lazyNode, k8s.K8sManifestKeyOrder...))
 }
