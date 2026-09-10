@@ -39,8 +39,8 @@ func (i *KubernetesEventLogIngester) RawLogTask() taskid.TaskReference[[]*log.Lo
 }
 
 // Dependencies returns additional task dependencies of the ingester.
-func (i *KubernetesEventLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (i *KubernetesEventLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
@@ -100,8 +100,8 @@ func (m *KubernetesEventTimelineMapper) LogIngesterTask() taskid.TaskReference[s
 }
 
 // Dependencies returns additional task dependencies.
-func (m *KubernetesEventTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (m *KubernetesEventTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }

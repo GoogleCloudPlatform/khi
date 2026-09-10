@@ -21,13 +21,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
 // InputLocationsTask defines a form task for inputting the resource location.
 var InputLocationsTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputLocationsTaskID, googlecloudcommon_contract.PriorityForResourceIdentifierGroup+3000, "Location").
-	WithDependencies([]taskid.UntypedTaskReference{googlecloudcommon_contract.AutocompleteLocationTaskID.Ref()}).
+	WithDependencies([]coretask.Dependency{googlecloudcommon_contract.AutocompleteLocationTaskID.Ref()}).
 	WithDescription(
 		"The location(region) to specify the resource exist(s|ed)",
 	).

@@ -18,7 +18,7 @@ import (
 	"context"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
@@ -27,7 +27,7 @@ import (
 var SuccessLogFilterTask = inspectiontaskbase.NewLogFilterTaskWithDependencies(
 	commonlogk8saudit_contract.SuccessLogFilterTaskID,
 	commonlogk8saudit_contract.K8sAuditLogProviderRef,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef},
+	[]coretask.Dependency{commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef.Ref(coretask.FromActiveGraph)},
 	func(ctx context.Context, l *log.Log) bool {
 		isError, _ := commonlogk8saudit_contract.ExtractK8sAuditLogError(ctx, l.NodeReader)
 		return !isError
@@ -38,7 +38,7 @@ var SuccessLogFilterTask = inspectiontaskbase.NewLogFilterTaskWithDependencies(
 var NonSuccessLogFilterTask = inspectiontaskbase.NewLogFilterTaskWithDependencies(
 	commonlogk8saudit_contract.NonSuccessLogFilterTaskID,
 	commonlogk8saudit_contract.K8sAuditLogProviderRef,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef},
+	[]coretask.Dependency{commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef.Ref(coretask.FromActiveGraph)},
 	func(ctx context.Context, l *log.Log) bool {
 		isError, _ := commonlogk8saudit_contract.ExtractK8sAuditLogError(ctx, l.NodeReader)
 		return isError

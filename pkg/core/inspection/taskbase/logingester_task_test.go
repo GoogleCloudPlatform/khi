@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -41,8 +42,8 @@ func (m *mockLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 	return mockLogIngesterPrevTaskID.Ref()
 }
 
-func (m *mockLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (m *mockLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 var (

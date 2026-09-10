@@ -16,554 +16,827 @@ package coretask
 
 import (
 	"context"
-	"fmt"
-	"sort"
+	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/google/go-cmp/cmp"
 )
 
-// mockUntypedTask is a mock implementation of the UntypedTask interface for testing.
 type mockUntypedTask struct {
 	id           taskid.UntypedTaskImplementationID
 	labels       *typedmap.ReadonlyTypedMap
-	dependencies []taskid.UntypedTaskReference
+	dependencies []Dependency
 }
 
 func (m *mockUntypedTask) UntypedID() taskid.UntypedTaskImplementationID { return m.id }
 func (m *mockUntypedTask) Labels() *typedmap.ReadonlyTypedMap            { return m.labels }
-func (m *mockUntypedTask) Dependencies() []taskid.UntypedTaskReference   { return m.dependencies }
+func (m *mockUntypedTask) Dependencies() []Dependency                    { return m.dependencies }
 func (m *mockUntypedTask) UntypedRun(ctx context.Context) (any, error)   { return nil, nil }
 
 var _ UntypedTask = (*mockUntypedTask)(nil)
 
-// newMockTaskWithRequiredLabel creates a new mockUntypedTask for testing, with an option to set the required label.
-func newMockTaskWithRequiredLabel(idStr string, required bool) UntypedTask {
-	id := taskid.NewDefaultImplementationID[any](idStr)
-	var labels *typedmap.ReadonlyTypedMap
-	if required {
-		labels = NewLabelSet(WithLabelValue(LabelKeyRequiredTask, true))
-	} else {
-		labels = NewLabelSet()
-	}
-	return &mockUntypedTask{
-		id:     id,
-		labels: labels,
-	}
-}
-
-func TestRequiredTaskLabelGraphResolverRule_Resolve(t *testing.T) {
-	optionalTaskA := newMockTaskWithRequiredLabel("optional-task-a", false)
-	requiredTaskB := newMockTaskWithRequiredLabel("required-task-b", true)
-	requiredTaskC := newMockTaskWithRequiredLabel("required-task-c", true)
-
-	testCases := []struct {
-		name              string
-		currentGraphTasks []UntypedTask
-		availableTasks    []UntypedTask
-		expectedTasks     []string // task IDs
-		expectedChanged   bool
-		expectErr         bool
-	}{
-		{
-			name:              "should add a required task",
-			currentGraphTasks: []UntypedTask{optionalTaskA},
-			availableTasks:    []UntypedTask{optionalTaskA, requiredTaskB},
-			expectedTasks:     []string{"optional-task-a#default", "required-task-b#default"},
-			expectedChanged:   true,
-			expectErr:         false,
-		},
-		{
-			name:              "should not add an already existing task",
-			currentGraphTasks: []UntypedTask{optionalTaskA, requiredTaskB},
-			availableTasks:    []UntypedTask{optionalTaskA, requiredTaskB},
-			expectedTasks:     []string{"optional-task-a#default", "required-task-b#default"},
-			expectedChanged:   false,
-			expectErr:         false,
-		},
-		{
-			name:              "should do nothing if no required tasks are available",
-			currentGraphTasks: []UntypedTask{optionalTaskA},
-			availableTasks:    []UntypedTask{optionalTaskA},
-			expectedTasks:     []string{"optional-task-a#default"},
-			expectedChanged:   false,
-			expectErr:         false,
-		},
-		{
-			name:              "should add multiple required tasks",
-			currentGraphTasks: []UntypedTask{},
-			availableTasks:    []UntypedTask{optionalTaskA, requiredTaskB, requiredTaskC},
-			expectedTasks:     []string{"required-task-b#default", "required-task-c#default"},
-			expectedChanged:   true,
-			expectErr:         false,
-		},
-		{
-			name:              "should handle empty current tasks",
-			currentGraphTasks: []UntypedTask{},
-			availableTasks:    []UntypedTask{optionalTaskA, requiredTaskB},
-			expectedTasks:     []string{"required-task-b#default"},
-			expectedChanged:   true,
-			expectErr:         false,
-		},
-		{
-			name:              "should handle empty available tasks",
-			currentGraphTasks: []UntypedTask{optionalTaskA},
-			availableTasks:    []UntypedTask{},
-			expectedTasks:     []string{"optional-task-a#default"},
-			expectedChanged:   false,
-			expectErr:         false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			rule := &RequiredTaskLabelGraphResolverRule{}
-			result, err := rule.Resolve(tc.currentGraphTasks, tc.availableTasks)
-
-			if (err != nil) != tc.expectErr {
-				t.Fatalf("Resolve() error = %v, expectErr %v", err, tc.expectErr)
-			}
-			if err != nil {
-				return
-			}
-
-			if result.Changed != tc.expectedChanged {
-				t.Errorf("Expected Changed to be %v, but got %v", tc.expectedChanged, result.Changed)
-			}
-
-			resultTaskIDs := make([]string, len(result.Tasks))
-			for i, task := range result.Tasks {
-				resultTaskIDs[i] = task.UntypedID().String()
-			}
-
-			sort.Strings(resultTaskIDs)
-			sort.Strings(tc.expectedTasks)
-
-			if len(resultTaskIDs) != len(tc.expectedTasks) {
-				t.Fatalf("Expected %d tasks, but got %d. Expected: %v, Got: %v", len(tc.expectedTasks), len(resultTaskIDs), tc.expectedTasks, resultTaskIDs)
-			}
-
-			for i := range resultTaskIDs {
-				if resultTaskIDs[i] != tc.expectedTasks[i] {
-					t.Errorf("Task mismatch at index %d. Expected %v, but got %v", i, tc.expectedTasks[i], resultTaskIDs[i])
-				}
-			}
-		})
-	}
-}
-
-// mockTaskOptions allows configuring a mock task's dependencies and priority.
-type mockTaskOptions struct {
-	dependencies       []taskid.UntypedTaskReference
-	priority           int
-	subsequentTaskRefs []taskid.UntypedTaskReference
-}
-
-// newMockTask creates a new mockUntypedTask for testing with custom options.
-func newMockTask(idStr string, implID string, opts mockTaskOptions) UntypedTask {
-	id := taskid.NewImplementationID(taskid.NewTaskReference[any](idStr), implID)
-	labelOpts := []LabelOpt{WithLabelValue(LabelKeyTaskSelectionPriority, opts.priority)}
-	if len(opts.subsequentTaskRefs) > 0 {
-		labelOpts = append(labelOpts, WithLabelValue(LabelKeySubsequentTaskRefs, opts.subsequentTaskRefs))
-	}
-	labels := NewLabelSet(labelOpts...)
+func createMockTask(refID, implHash string, deps []Dependency, labelOpts ...LabelOpt) UntypedTask {
+	id := taskid.NewImplementationID(taskid.NewTaskReference[any](refID), implHash)
 	return &mockUntypedTask{
 		id:           id,
-		labels:       labels,
-		dependencies: opts.dependencies,
+		labels:       NewLabelSet(labelOpts...),
+		dependencies: deps,
 	}
 }
 
-func TestDependencyResolverGraphResolverRule_Resolve(t *testing.T) {
-	providerRefA := taskid.NewTaskReference[any]("provider-a")
-	providerRefB := taskid.NewTaskReference[any]("provider-b")
-	unresolvableRef := taskid.NewTaskReference[any]("unresolvable")
-
-	providerTaskA := newMockTask("provider-a", "default", mockTaskOptions{})
-	providerTaskB := newMockTask("provider-b", "default", mockTaskOptions{})
-
-	consumerTask := newMockTask("consumer", "default", mockTaskOptions{dependencies: []taskid.UntypedTaskReference{providerRefA}})
-	multiConsumerTask := newMockTask("multi-consumer", "default", mockTaskOptions{dependencies: []taskid.UntypedTaskReference{providerRefA, providerRefB}})
-	unresolvableConsumerTask := newMockTask("unresolvable-consumer", "default", mockTaskOptions{dependencies: []taskid.UntypedTaskReference{unresolvableRef}})
-
+func TestResolveGraph_MandatoryClosure(t *testing.T) {
 	testCases := []struct {
-		name              string
-		currentGraphTasks []UntypedTask
-		availableTasks    []UntypedTask
-		expectedTasks     []string // task implementation IDs
-		expectedChanged   bool
-		expectErr         bool
+		name           string
+		initialTasks   []UntypedTask
+		availableTasks []UntypedTask
+		wantTaskIDs    []string
+		wantErr        bool
 	}{
 		{
-			name:              "should resolve a simple dependency",
-			currentGraphTasks: []UntypedTask{consumerTask},
-			availableTasks:    []UntypedTask{consumerTask, providerTaskA},
-			expectedTasks:     []string{"consumer#default", "provider-a#default"},
-			expectedChanged:   true,
-			expectErr:         false,
+			name: "single task without dependencies",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			wantTaskIDs: []string{"task-a#default"},
+			wantErr:     false,
 		},
 		{
-			name:              "should do nothing if dependency is already satisfied",
-			currentGraphTasks: []UntypedTask{consumerTask, providerTaskA},
-			availableTasks:    []UntypedTask{consumerTask, providerTaskA},
-			expectedTasks:     []string{"consumer#default", "provider-a#default"},
-			expectedChanged:   false,
-			expectErr:         false,
+			name: "transitive mandatory dependencies are resolved",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", []Dependency{
+					taskid.NewTaskReference[any]("task-b"),
+				}),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", []Dependency{
+					taskid.NewTaskReference[any]("task-b"),
+				}),
+				createMockTask("task-b", "default", []Dependency{
+					taskid.NewTaskReference[any]("task-c"),
+				}),
+				createMockTask("task-c", "default", nil),
+			},
+			wantTaskIDs: []string{"task-c#default", "task-b#default", "task-a#default"},
+			wantErr:     false,
 		},
 		{
-			name:              "should return an error for unresolvable dependency",
-			currentGraphTasks: []UntypedTask{unresolvableConsumerTask},
-			availableTasks:    []UntypedTask{providerTaskA},
-			expectedTasks:     nil,
-			expectedChanged:   false,
-			expectErr:         true,
+			name: "required task label automatically pulls task into graph",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+				createMockTask("required-task", "default", nil, WithLabelValue(LabelKeyRequiredTask, true)),
+			},
+			wantTaskIDs: []string{"required-task#default", "task-a#default"},
+			wantErr:     false,
 		},
 		{
-			name:              "should resolve multiple dependencies",
-			currentGraphTasks: []UntypedTask{multiConsumerTask},
-			availableTasks:    []UntypedTask{multiConsumerTask, providerTaskA, providerTaskB},
-			expectedTasks:     []string{"multi-consumer#default", "provider-a#default", "provider-b#default"},
-			expectedChanged:   true,
-			expectErr:         false,
-		},
-		{
-			name:              "should do nothing if there are no dependencies",
-			currentGraphTasks: []UntypedTask{providerTaskA},
-			availableTasks:    []UntypedTask{consumerTask, providerTaskA},
-			expectedTasks:     []string{"provider-a#default"},
-			expectedChanged:   false,
-			expectErr:         false,
+			name: "missing mandatory dependency returns error",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", []Dependency{
+					taskid.NewTaskReference[any]("non-existent"),
+				}),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", []Dependency{
+					taskid.NewTaskReference[any]("non-existent"),
+				}),
+			},
+			wantTaskIDs: nil,
+			wantErr:     true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rule := &TaskDependencyGraphResolverRule{}
-			result, err := rule.Resolve(tc.currentGraphTasks, tc.availableTasks)
-
-			if (err != nil) != tc.expectErr {
-				t.Fatalf("Resolve() error = %v, expectErr %v", err, tc.expectErr)
+			taskSet, err := ResolveGraph(tc.initialTasks, tc.availableTasks, nil)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ResolveGraph() error = %v, wantErr = %v", err, tc.wantErr)
 			}
-			if err != nil {
+			if tc.wantErr {
 				return
 			}
 
-			if result.Changed != tc.expectedChanged {
-				t.Errorf("Expected Changed to be %v, but got %v", tc.expectedChanged, result.Changed)
+			var gotTaskIDs []string
+			for _, task := range taskSet.GetAll() {
+				gotTaskIDs = append(gotTaskIDs, task.UntypedID().String())
 			}
 
-			resultTaskIDs := make([]string, len(result.Tasks))
-			for i, task := range result.Tasks {
-				resultTaskIDs[i] = task.UntypedID().String()
+			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
+				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestResolveGraph_OptionalDependencies(t *testing.T) {
+	tagA := NewTag[any]("tag-a")
+
+	testCases := []struct {
+		name           string
+		initialTasks   []UntypedTask
+		availableTasks []UntypedTask
+		wantTaskIDs    []string
+		wantEdgeCount  int
+	}{
+		{
+			name: "optional dependency is activated when target exists in graph",
+			initialTasks: []UntypedTask{
+				createMockTask("consumer", "default", []Dependency{
+					taskid.NewTaskReference[any]("provider", taskid.ScopeActiveGraph),
+				}),
+				createMockTask("provider", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("consumer", "default", []Dependency{
+					taskid.NewTaskReference[any]("provider", taskid.ScopeActiveGraph),
+				}),
+				createMockTask("provider", "default", nil),
+			},
+			wantTaskIDs:   []string{"provider#default", "consumer#default"},
+			wantEdgeCount: 1,
+		},
+		{
+			name: "optional dependency is NOT activated when target is not in graph",
+			initialTasks: []UntypedTask{
+				createMockTask("consumer", "default", []Dependency{
+					taskid.NewTaskReference[any]("provider", taskid.ScopeActiveGraph),
+				}),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("consumer", "default", []Dependency{
+					taskid.NewTaskReference[any]("provider", taskid.ScopeActiveGraph),
+				}),
+				createMockTask("provider", "default", nil),
+			},
+			wantTaskIDs:   []string{"consumer#default"},
+			wantEdgeCount: 0,
+		},
+		{
+			name: "fan-in with ScopeActiveGraph only includes existing tasks",
+			initialTasks: []UntypedTask{
+				createMockTask("collector", "default", []Dependency{
+					tagA.Ref(taskid.ScopeActiveGraph),
+				}),
+				createMockTask("prod1", "default", nil, ProvidesTag(tagA)),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("collector", "default", []Dependency{
+					tagA.Ref(),
+				}),
+				createMockTask("prod1", "default", nil, ProvidesTag(tagA)),
+				createMockTask("prod2", "default", nil, ProvidesTag(tagA)), // not in graph
+			},
+			wantTaskIDs:   []string{"prod1#default", "collector#default"},
+			wantEdgeCount: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			taskSet, err := ResolveGraph(tc.initialTasks, tc.availableTasks, nil)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
 			}
 
-			sort.Strings(resultTaskIDs)
-			sort.Strings(tc.expectedTasks)
-
-			if len(resultTaskIDs) != len(tc.expectedTasks) {
-				t.Fatalf("Expected %d tasks, but got %d. Expected: %v, Got: %v", len(tc.expectedTasks), len(resultTaskIDs), tc.expectedTasks, resultTaskIDs)
+			var gotTaskIDs []string
+			for _, task := range taskSet.GetAll() {
+				gotTaskIDs = append(gotTaskIDs, task.UntypedID().String())
 			}
 
-			for i := range resultTaskIDs {
-				if resultTaskIDs[i] != tc.expectedTasks[i] {
-					t.Errorf("Task mismatch at index %d. Expected %v, but got %v", i, tc.expectedTasks[i], resultTaskIDs[i])
+			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
+				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
+			}
+			if len(taskSet.Edges()) != tc.wantEdgeCount {
+				t.Errorf("got %d edges, want %d", len(taskSet.Edges()), tc.wantEdgeCount)
+			}
+		})
+	}
+}
+
+func TestResolveGraph_FanInScopeActiveFeatures(t *testing.T) {
+	tagDiscovery := NewTag[any]("discovery")
+
+	testCases := []struct {
+		name        string
+		setup       func() (initialTasks, availableTasks, disabledTasks []UntypedTask)
+		wantTaskIDs []string
+		wantErr     bool
+	}{
+		{
+			name: "anchor check includes anchored provider but excludes unselected feature provider",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				commonAncestor := createMockTask("common-ancestor", "default", nil)
+				prod1 := createMockTask("prod1", "default", []Dependency{
+					taskid.NewTaskReference[any]("common-ancestor"),
+				}, ProvidesTag(tagDiscovery))
+				unselectedFeature := createMockTask("unselected-feature", "default", nil)
+				prod2 := createMockTask("prod2", "default", []Dependency{
+					taskid.NewTaskReference[any]("unselected-feature"),
+				}, ProvidesTag(tagDiscovery))
+				collector := createMockTask("collector", "default", []Dependency{
+					tagDiscovery.Ref(FromActiveFeatures),
+				})
+				return []UntypedTask{collector, commonAncestor},
+					[]UntypedTask{collector, commonAncestor, prod1, unselectedFeature, prod2},
+					[]UntypedTask{unselectedFeature}
+			},
+			wantTaskIDs: []string{"common-ancestor#default", "prod1#default", "collector#default"},
+			wantErr:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			initial, available, disabled := tc.setup()
+			taskSet, err := ResolveGraph(initial, available, disabled)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ResolveGraph() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+
+			var gotTaskIDs []string
+			for _, task := range taskSet.GetAll() {
+				gotTaskIDs = append(gotTaskIDs, task.UntypedID().String())
+			}
+
+			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
+				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
+	testCases := []struct {
+		name        string
+		setup       func() (initialTasks, availableTasks, disabledTasks []UntypedTask)
+		wantTaskIDs []string
+		wantEdges   []taskid.TaskEdge
+		wantErr     bool
+	}{
+		{
+			name: "pulls in target task and upstream dependencies when upstream merges into active graph",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				commonAncestor := createMockTask("common-ancestor", "default", nil)
+				targetTask := createMockTask("target-task", "default", []Dependency{
+					taskid.NewTaskReference[any]("common-ancestor"),
+				})
+				collector := createMockTask("collector", "default", []Dependency{
+					taskid.NewTaskReference[any]("target-task", taskid.ScopeActiveFeatures),
+				})
+				return []UntypedTask{collector, commonAncestor},
+					[]UntypedTask{collector, commonAncestor, targetTask},
+					nil
+			},
+			wantTaskIDs: []string{"common-ancestor#default", "target-task#default", "collector#default"},
+			wantEdges: []taskid.TaskEdge{
+				{
+					SourceRefID:  "target-task",
+					SourceImplID: "target-task#default",
+					TargetImplID: "collector#default",
+					Cardinality:  taskid.CardinalityPointToPoint,
+				},
+				{
+					SourceRefID:  "common-ancestor",
+					SourceImplID: "common-ancestor#default",
+					TargetImplID: "target-task#default",
+					Cardinality:  taskid.CardinalityPointToPoint,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "excludes target task when upstream prerequisite is disabled or outside active graph",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				unselectedFeature := createMockTask("unselected-feature", "default", nil)
+				targetTask := createMockTask("target-task", "default", []Dependency{
+					taskid.NewTaskReference[any]("unselected-feature"),
+				})
+				collector := createMockTask("collector", "default", []Dependency{
+					taskid.NewTaskReference[any]("target-task", taskid.ScopeActiveFeatures),
+				})
+				return []UntypedTask{collector},
+					[]UntypedTask{collector, unselectedFeature, targetTask},
+					[]UntypedTask{unselectedFeature}
+			},
+			wantTaskIDs: []string{"collector#default"},
+			wantEdges:   nil,
+			wantErr:     false,
+		},
+		{
+			name: "chains multi-hop point-to-point dependencies with ScopeActiveFeatures",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				commonAncestor := createMockTask("common-ancestor", "default", nil)
+				intermediateTask := createMockTask("intermediate-task", "default", []Dependency{
+					taskid.NewTaskReference[any]("common-ancestor"),
+				})
+				targetTask := createMockTask("target-task", "default", []Dependency{
+					taskid.NewTaskReference[any]("intermediate-task"),
+				})
+				collector := createMockTask("collector", "default", []Dependency{
+					taskid.NewTaskReference[any]("target-task", taskid.ScopeActiveFeatures),
+				})
+				return []UntypedTask{collector, commonAncestor},
+					[]UntypedTask{collector, commonAncestor, intermediateTask, targetTask},
+					nil
+			},
+			wantTaskIDs: []string{"common-ancestor#default", "intermediate-task#default", "target-task#default", "collector#default"},
+			wantEdges: []taskid.TaskEdge{
+				{
+					SourceRefID:  "target-task",
+					SourceImplID: "target-task#default",
+					TargetImplID: "collector#default",
+					Cardinality:  taskid.CardinalityPointToPoint,
+				},
+				{
+					SourceRefID:  "common-ancestor",
+					SourceImplID: "common-ancestor#default",
+					TargetImplID: "intermediate-task#default",
+					Cardinality:  taskid.CardinalityPointToPoint,
+				},
+				{
+					SourceRefID:  "intermediate-task",
+					SourceImplID: "intermediate-task#default",
+					TargetImplID: "target-task#default",
+					Cardinality:  taskid.CardinalityPointToPoint,
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			initial, available, disabled := tc.setup()
+			taskSet, err := ResolveGraph(initial, available, disabled)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ResolveGraph() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+
+			var gotTaskIDs []string
+			for _, task := range taskSet.GetAll() {
+				gotTaskIDs = append(gotTaskIDs, task.UntypedID().String())
+			}
+
+			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
+				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
+			}
+
+			if tc.wantEdges != nil {
+				if diff := cmp.Diff(tc.wantEdges, taskSet.Edges()); diff != "" {
+					t.Errorf("ResolveGraph() edges mismatch (-want +got):\n%s", diff)
 				}
 			}
 		})
 	}
 }
 
-// mockGraphResolverRule is a mock implementation of GraphResolverRule for testing GraphResolver.
-type mockGraphResolverRule struct {
-	name        string
-	resolveFunc func(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error)
-}
-
-func (m *mockGraphResolverRule) Name() string { return m.name }
-func (m *mockGraphResolverRule) Resolve(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error) {
-	return m.resolveFunc(currentGraphTasks, availableTasks)
-}
-
-func TestGraphResolver_Resolve(t *testing.T) {
-	taskA := newMockTask("task-a", "default", mockTaskOptions{})
-	taskB := newMockTask("task-b", "default", mockTaskOptions{})
-	taskC := newMockTask("task-c", "default", mockTaskOptions{})
+func TestResolveGraph_EdgeDeduplication(t *testing.T) {
+	tagA := NewTag[any]("tag-a")
 
 	testCases := []struct {
-		name          string
-		rules         []GraphResolverRule
-		requiredTasks []UntypedTask
-		maxIteration  int
-		expectedTasks []string
-		expectErr     bool
+		name         string
+		initialTasks []UntypedTask
+		wantEdges    []taskid.TaskEdge
 	}{
 		{
-			name: "should reach a stable state",
-			rules: []GraphResolverRule{
-				&mockGraphResolverRule{
-					name: "add-b-once",
-					resolveFunc: func(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error) {
-						// Add taskB only if it's not present
-						for _, task := range currentGraphTasks {
-							if task.UntypedID().String() == taskB.UntypedID().String() {
-								return GraphResolverRuleResult{Changed: false, Tasks: currentGraphTasks}, nil
-							}
-						}
-						return GraphResolverRuleResult{Changed: true, Tasks: append(currentGraphTasks, taskB)}, nil
-					},
-				},
-				&mockGraphResolverRule{
-					name: "do-nothing",
-					resolveFunc: func(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error) {
-						return GraphResolverRuleResult{Changed: false, Tasks: currentGraphTasks}, nil
-					},
+			name: "point-to-point dependency and fan-in dependency deduplicate with tag preserved",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil, ProvidesTag(tagA)),
+				createMockTask("task-b", "default", []Dependency{
+					taskid.NewTaskReference[any]("task-a"),
+					tagA.Ref(),
+				}),
+			},
+			wantEdges: []taskid.TaskEdge{
+				{
+					SourceRefID:  "task-a",
+					SourceImplID: "task-a#default",
+					TargetImplID: "task-b#default",
+					Cardinality:  taskid.CardinalityPointToPoint,
+					Tag:          "tag-a",
+					Priority:     100,
 				},
 			},
-			requiredTasks: []UntypedTask{taskA},
-			maxIteration:  5,
-			expectedTasks: []string{"task-a#default", "task-b#default"},
-			expectErr:     false,
 		},
 		{
-			name: "should return error if max iterations are reached",
-			rules: []GraphResolverRule{
-				&mockGraphResolverRule{
-					name: "always-change",
-					resolveFunc: func(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error) {
-						// Always report change, but add a new task instance to avoid duplicates error
-						newTask := newMockTask("new-task", "default", mockTaskOptions{})
-						return GraphResolverRuleResult{Changed: true, Tasks: append(currentGraphTasks, newTask)}, nil
-					},
+			name: "multiple dependencies deduplicate with priority merging",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil, ProvidesTag(tagA, WithTagPriority(20))),
+				createMockTask("task-b", "default", []Dependency{
+					taskid.NewTaskReference[any]("task-a", taskid.ScopeActiveGraph),
+					tagA.Ref(),
+				}),
+			},
+			wantEdges: []taskid.TaskEdge{
+				{
+					SourceRefID:  "task-a",
+					SourceImplID: "task-a#default",
+					TargetImplID: "task-b#default",
+					Cardinality:  taskid.CardinalityPointToPoint,
+					Tag:          "tag-a",
+					Priority:     20,
 				},
 			},
-			requiredTasks: []UntypedTask{taskA},
-			maxIteration:  3,
-			expectedTasks: nil,
-			expectErr:     true,
-		},
-		{
-			name: "should propagate an error from a rule",
-			rules: []GraphResolverRule{
-				&mockGraphResolverRule{
-					name: "return-error",
-					resolveFunc: func(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error) {
-						return GraphResolverRuleResult{}, fmt.Errorf("internal rule error")
-					},
-				},
-			},
-			requiredTasks: []UntypedTask{taskA},
-			maxIteration:  5,
-			expectedTasks: nil,
-			expectErr:     true,
-		},
-		{
-			name:          "should handle no rules",
-			rules:         []GraphResolverRule{},
-			requiredTasks: []UntypedTask{taskA},
-			maxIteration:  5,
-			expectedTasks: []string{"task-a#default"},
-			expectErr:     false,
-		},
-		{
-			name: "should finish in one iteration if no changes",
-			rules: []GraphResolverRule{
-				&mockGraphResolverRule{
-					name: "do-nothing",
-					resolveFunc: func(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error) {
-						return GraphResolverRuleResult{Changed: false, Tasks: currentGraphTasks}, nil
-					},
-				},
-			},
-			requiredTasks: []UntypedTask{taskA, taskC},
-			maxIteration:  5,
-			expectedTasks: []string{"task-a#default", "task-c#default"},
-			expectErr:     false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			resolver := &GraphResolver{
-				Rules:        tc.rules,
-				MaxIteration: tc.maxIteration,
-			}
-			resultTasks, err := resolver.Resolve(tc.requiredTasks, nil) // availableTasks is not used by mock rules
-
-			if (err != nil) != tc.expectErr {
-				t.Fatalf("Resolve() error = %v, expectErr %v", err, tc.expectErr)
-			}
+			taskSet, err := ResolveGraph(tc.initialTasks, tc.initialTasks, nil)
 			if err != nil {
-				return
+				t.Fatalf("ResolveGraph() unexpected error = %v", err)
 			}
 
-			resultTaskIDs := make([]string, len(resultTasks))
-			for i, task := range resultTasks {
-				resultTaskIDs[i] = task.UntypedID().String()
-			}
-
-			sort.Strings(resultTaskIDs)
-			sort.Strings(tc.expectedTasks)
-
-			if len(resultTaskIDs) != len(tc.expectedTasks) {
-				t.Fatalf("Expected %d tasks, but got %d. Expected: %v, Got: %v", len(tc.expectedTasks), len(resultTaskIDs), tc.expectedTasks, resultTaskIDs)
-			}
-
-			for i := range resultTaskIDs {
-				if resultTaskIDs[i] != tc.expectedTasks[i] {
-					t.Errorf("Task mismatch at index %d. Expected %v, but got %v", i, tc.expectedTasks[i], resultTaskIDs[i])
-				}
+			edges := taskSet.Edges()
+			if diff := cmp.Diff(tc.wantEdges, edges); diff != "" {
+				t.Errorf("Edges() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestSubsequentTaskRefsGraphResolverRule_Resolve(t *testing.T) {
-	// Task and Reference Definitions
-	taskBRef := taskid.NewTaskReference[any]("task-b")
-	taskDRef := taskid.NewTaskReference[any]("task-d")
-
-	taskA := newMockTask("task-a", "default", mockTaskOptions{subsequentTaskRefs: []taskid.UntypedTaskReference{taskBRef}})
-	taskB := newMockTask("task-b", "default", mockTaskOptions{})
-	taskC := newMockTask("task-c", "default", mockTaskOptions{subsequentTaskRefs: []taskid.UntypedTaskReference{taskBRef}})
-	taskD := newMockTask("task-d", "default", mockTaskOptions{}) // This task is available but not requested initially
-	taskE := newMockTask("task-e", "default", mockTaskOptions{subsequentTaskRefs: []taskid.UntypedTaskReference{taskDRef}})
-
+func TestResolveGraph_CyclicDependency(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		currentGraphTasks    []UntypedTask
-		availableTasks       []UntypedTask
-		expectedTaskIDs      []string
-		expectedChanged      bool
-		expectErr            bool
-		dependencyValidation func(t *testing.T, tasks []UntypedTask)
+		name         string
+		initialTasks []UntypedTask
+		wantErrMsg   string
 	}{
 		{
-			name:              "should add a subsequent task",
-			currentGraphTasks: []UntypedTask{taskA},
-			availableTasks:    []UntypedTask{taskA, taskB},
-			expectedTaskIDs:   []string{"task-a#default", "task-b#default"},
-			expectedChanged:   true,
-			expectErr:         false,
-			dependencyValidation: func(t *testing.T, tasks []UntypedTask) {
-				taskMap := tasksToMap(tasks)
-				subsequentTask, ok := taskMap["task-b#default"]
-				if !ok {
-					t.Fatal("Subsequent task B not found in result")
-				}
-				assertIsWrappedAndDependsOn(t, subsequentTask, "task-a")
+			name: "three-task cycle returns cyclic dependency error",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", []Dependency{
+					taskid.NewTaskReference[any]("task-b"),
+				}),
+				createMockTask("task-b", "default", []Dependency{
+					taskid.NewTaskReference[any]("task-c"),
+				}),
+				createMockTask("task-c", "default", []Dependency{
+					taskid.NewTaskReference[any]("task-a"),
+				}),
 			},
-		},
-		{
-			name:              "should update dependency of an existing subsequent task",
-			currentGraphTasks: []UntypedTask{taskA, taskB},
-			availableTasks:    []UntypedTask{taskA, taskB},
-			expectedTaskIDs:   []string{"task-a#default", "task-b#default"},
-			expectedChanged:   true,
-			expectErr:         false,
-			dependencyValidation: func(t *testing.T, tasks []UntypedTask) {
-				taskMap := tasksToMap(tasks)
-				subsequentTask, ok := taskMap["task-b#default"]
-				if !ok {
-					t.Fatal("Subsequent task B not found in result")
-				}
-				assertIsWrappedAndDependsOn(t, subsequentTask, "task-a")
-			},
-		},
-		{
-			name:              "should add multiple dependencies to a subsequent task",
-			currentGraphTasks: []UntypedTask{taskA, taskC},
-			availableTasks:    []UntypedTask{taskA, taskB, taskC},
-			expectedTaskIDs:   []string{"task-a#default", "task-b#default", "task-c#default"},
-			expectedChanged:   true,
-			expectErr:         false,
-			dependencyValidation: func(t *testing.T, tasks []UntypedTask) {
-				taskMap := tasksToMap(tasks)
-				subsequentTask, ok := taskMap["task-b#default"]
-				if !ok {
-					t.Fatal("Subsequent task B not found in result")
-				}
-				assertIsWrappedAndDependsOn(t, subsequentTask, "task-a", "task-c")
-			},
-		},
-		{
-			name:              "should return an error for unresolvable subsequent task",
-			currentGraphTasks: []UntypedTask{taskE},
-			availableTasks:    []UntypedTask{taskA, taskB, taskE}, // taskD is not available
-			expectedTaskIDs:   nil,
-			expectedChanged:   false,
-			expectErr:         true,
-		},
-		{
-			name:              "should do nothing if no subsequent tasks are defined",
-			currentGraphTasks: []UntypedTask{taskB, taskD},
-			availableTasks:    []UntypedTask{taskB, taskD},
-			expectedTaskIDs:   []string{"task-b#default", "task-d#default"},
-			expectedChanged:   false,
-			expectErr:         false,
+			wantErrMsg: "cyclic dependency",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rule := &SubsequentTaskRefsGraphResolverRule{}
-			result, err := rule.Resolve(tc.currentGraphTasks, tc.availableTasks)
-
-			if (err != nil) != tc.expectErr {
-				t.Fatalf("Resolve() error = %v, expectErr %v", err, tc.expectErr)
+			_, err := ResolveGraph(tc.initialTasks, tc.initialTasks, nil)
+			if err == nil {
+				t.Fatal("expected error for cyclic dependency, got nil")
 			}
-			if err != nil {
-				return
-			}
-
-			if result.Changed != tc.expectedChanged {
-				t.Errorf("Expected Changed to be %v, but got %v", tc.expectedChanged, result.Changed)
-			}
-
-			resultTaskIDs := make([]string, len(result.Tasks))
-			for i, task := range result.Tasks {
-				resultTaskIDs[i] = task.UntypedID().String()
-			}
-			sort.Strings(resultTaskIDs)
-			sort.Strings(tc.expectedTaskIDs)
-			if fmt.Sprintf("%v", resultTaskIDs) != fmt.Sprintf("%v", tc.expectedTaskIDs) {
-				t.Errorf("Expected task IDs %v, but got %v", tc.expectedTaskIDs, resultTaskIDs)
-			}
-
-			if tc.dependencyValidation != nil {
-				tc.dependencyValidation(t, result.Tasks)
+			if !strings.Contains(err.Error(), tc.wantErrMsg) {
+				t.Errorf("error = %q, want substring %q", err.Error(), tc.wantErrMsg)
 			}
 		})
 	}
 }
 
-func tasksToMap(tasks []UntypedTask) map[string]UntypedTask {
-	m := make(map[string]UntypedTask)
-	for _, task := range tasks {
-		m[task.UntypedID().String()] = task
+func TestResolveGraph_DisabledTasks(t *testing.T) {
+	tagA := NewTag[any]("tag-a")
+
+	testCases := []struct {
+		name           string
+		initialTasks   []UntypedTask
+		availableTasks []UntypedTask
+		disabledTasks  []UntypedTask
+		wantTaskIDs    []string
+		wantErr        bool
+	}{
+		{
+			name: "initial task is disabled returns error",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			disabledTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			wantErr: true,
+		},
+		{
+			name: "mandatory dependency of initial task is disabled returns error",
+			initialTasks: []UntypedTask{
+				createMockTask("consumer", "default", []Dependency{
+					taskid.NewTaskReference[any]("provider"),
+				}),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("consumer", "default", []Dependency{
+					taskid.NewTaskReference[any]("provider"),
+				}),
+				createMockTask("provider", "default", nil),
+			},
+			disabledTasks: []UntypedTask{
+				createMockTask("provider", "default", nil),
+			},
+			wantErr: true,
+		},
+		{
+			name: "required task is disabled returns error",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+				createMockTask("task-required", "default", nil, NewRequiredTaskLabel()),
+			},
+			disabledTasks: []UntypedTask{
+				createMockTask("task-required", "default", nil),
+			},
+			wantErr: true,
+		},
+		{
+			name: "initial task has variant in initial tasks returns error",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "v1", nil),
+				createMockTask("task-a", "v2", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "v1", nil),
+				createMockTask("task-a", "v2", nil),
+			},
+			disabledTasks: nil,
+			wantErr:       true,
+		},
+		{
+			name: "initial task has variant in available tasks returns error",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+				createMockTask("task-a", "custom", nil),
+			},
+			disabledTasks: nil,
+			wantErr:       true,
+		},
+		{
+			name: "optional dependency is disabled is safely ignored",
+			initialTasks: []UntypedTask{
+				createMockTask("consumer", "default", []Dependency{
+					taskid.NewTaskReference[any]("provider", taskid.ScopeActiveGraph),
+				}),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("consumer", "default", []Dependency{
+					taskid.NewTaskReference[any]("provider", taskid.ScopeActiveGraph),
+				}),
+				createMockTask("provider", "default", nil),
+			},
+			disabledTasks: []UntypedTask{
+				createMockTask("provider", "default", nil),
+			},
+			wantTaskIDs: []string{"consumer#default"},
+			wantErr:     false,
+		},
+		{
+			name: "fan-in resolves multiple producers providing same tag with different reference IDs",
+			initialTasks: []UntypedTask{
+				createMockTask("consumer", "default", []Dependency{
+					tagA.Ref(FromActiveFeatures),
+				}),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("consumer", "default", []Dependency{
+					tagA.Ref(FromActiveFeatures),
+				}),
+				createMockTask("provider-a", "default", nil, ProvidesTag(tagA)),
+				createMockTask("provider-b", "default", nil, ProvidesTag(tagA)),
+			},
+			disabledTasks: nil,
+			wantTaskIDs:   []string{"provider-a#default", "provider-b#default", "consumer#default"},
+			wantErr:       false,
+		},
 	}
-	return m
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			taskSet, err := ResolveGraph(tc.initialTasks, tc.availableTasks, tc.disabledTasks)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ResolveGraph() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+
+			var gotTaskIDs []string
+			for _, task := range taskSet.GetAll() {
+				gotTaskIDs = append(gotTaskIDs, task.UntypedID().String())
+			}
+
+			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
+				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
 }
 
-func assertIsWrappedAndDependsOn(t *testing.T, task UntypedTask, expectedDepIDs ...string) {
-	t.Helper()
-	wrappedTask, ok := task.(*dependencyOverridenUntypedTask)
-	if !ok {
-		t.Fatalf("Task %s is not a wrapped dependency-overridden task", task.UntypedID())
+type mockUnknownScopeFanIn struct {
+	tag string
+}
+
+var _ taskid.FanInDescriptor = (*mockUnknownScopeFanIn)(nil)
+
+func (m mockUnknownScopeFanIn) DescriptorCardinality() taskid.EdgeCardinality {
+	return taskid.CardinalityFanIn
+}
+
+func (m mockUnknownScopeFanIn) DescriptorScope() taskid.DependencyScope {
+	return taskid.DependencyScope(999)
+}
+
+func (m mockUnknownScopeFanIn) Tag() string {
+	return m.tag
+}
+
+func TestResolveGraph_UnknownScope(t *testing.T) {
+	testCases := []struct {
+		name       string
+		task       UntypedTask
+		wantErrMsg string
+	}{
+		{
+			name: "unknown DependencyScope returns error",
+			task: createMockTask("collector", "default", []Dependency{
+				mockUnknownScopeFanIn{tag: "some-tag"},
+			}),
+			wantErrMsg: "unsupported dependency scope",
+		},
 	}
 
-	depsMap := make(map[string]bool)
-	for _, dep := range wrappedTask.Dependencies() {
-		depsMap[dep.String()] = true
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ResolveGraph([]UntypedTask{tc.task}, []UntypedTask{tc.task}, nil)
+			if err == nil {
+				t.Fatal("expected error for unknown DependencyScope, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrMsg) {
+				t.Errorf("error = %q, want substring %q", err.Error(), tc.wantErrMsg)
+			}
+		})
+	}
+}
+
+func TestResolveGraph_InputValidation(t *testing.T) {
+	testCases := []struct {
+		name           string
+		initialTasks   []UntypedTask
+		availableTasks []UntypedTask
+		disabledTasks  []UntypedTask
+		wantErrMsg     string
+		wantErr        bool
+	}{
+		{
+			name: "available tasks has duplicate reference ID (variant)",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "v1", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "v1", nil),
+				createMockTask("task-a", "v2", nil),
+			},
+			disabledTasks: nil,
+			wantErr:       true,
+			wantErrMsg:    "conflicting implementation",
+		},
+		{
+			name: "initial task is not in available tasks",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-b", "default", nil),
+			},
+			disabledTasks: nil,
+			wantErr:       true,
+			wantErrMsg:    "not in available tasks",
+		},
+		{
+			name: "initial task implementation does not match available task implementation",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "custom", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			disabledTasks: nil,
+			wantErr:       true,
+			wantErrMsg:    "conflicting implementation",
+		},
+		{
+			name: "initial tasks has duplicate reference ID",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			disabledTasks: nil,
+			wantErr:       true,
+			wantErrMsg:    "duplicate reference",
+		},
+		{
+			name: "disabled task is not in available tasks",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			disabledTasks: []UntypedTask{
+				createMockTask("task-b", "default", nil),
+			},
+			wantErr:    true,
+			wantErrMsg: "not in available tasks",
+		},
+		{
+			name: "disabled task implementation does not match available task implementation",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+				createMockTask("task-b", "default", nil),
+			},
+			disabledTasks: []UntypedTask{
+				createMockTask("task-b", "custom", nil),
+			},
+			wantErr:    true,
+			wantErrMsg: "conflicting implementation",
+		},
+		{
+			name: "disabled tasks has duplicate reference ID",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+				createMockTask("task-b", "default", nil),
+			},
+			disabledTasks: []UntypedTask{
+				createMockTask("task-b", "default", nil),
+				createMockTask("task-b", "default", nil),
+			},
+			wantErr:    true,
+			wantErrMsg: "duplicate reference",
+		},
+		{
+			name: "initial task is in disabled tasks",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			disabledTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			wantErr:    true,
+			wantErrMsg: "explicitly disabled",
+		},
+		{
+			name: "valid inputs succeed without error",
+			initialTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+			},
+			availableTasks: []UntypedTask{
+				createMockTask("task-a", "default", nil),
+				createMockTask("task-b", "default", nil),
+			},
+			disabledTasks: []UntypedTask{
+				createMockTask("task-b", "default", nil),
+			},
+			wantErr: false,
+		},
 	}
 
-	if len(depsMap) != len(expectedDepIDs) {
-		t.Errorf("Expected %d dependencies, but got %d for task %s", len(expectedDepIDs), len(depsMap), task.UntypedID())
-	}
-
-	for _, depID := range expectedDepIDs {
-		if !depsMap[depID] {
-			t.Errorf("Expected task %s to have dependency %s, but it was not found", task.UntypedID(), depID)
-		}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ResolveGraph(tc.initialTasks, tc.availableTasks, tc.disabledTasks)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ResolveGraph() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if tc.wantErr && tc.wantErrMsg != "" {
+				if !strings.Contains(err.Error(), tc.wantErrMsg) {
+					t.Errorf("ResolveGraph() error = %q, want substring %q", err.Error(), tc.wantErrMsg)
+				}
+			}
+		})
 	}
 }

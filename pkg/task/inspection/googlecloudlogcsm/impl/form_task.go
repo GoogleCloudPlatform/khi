@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 )
@@ -34,7 +33,7 @@ import (
 const priorityForCSMGroup = googlecloudcommon_contract.FormBasePriority + 10000
 
 var InputFleetProjectIDTask = formtask.NewTextFormTaskBuilder(googlecloudlogcsm_contract.InputFleetProjectIDTaskID, priorityForCSMGroup+500, "Fleet project ID").
-	WithDependencies([]taskid.UntypedTaskReference{
+	WithDependencies([]coretask.Dependency{
 		googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(),
 	}).
 	WithDescription("The project ID where the Fleet is hosted and CSM control plane logs are stored. Default is the cluster's project ID.").

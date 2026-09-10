@@ -103,8 +103,8 @@ func (k *K8sEventListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Con
 }
 
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
-func (k *K8sEventListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (k *K8sEventListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogk8sevent_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
 	}

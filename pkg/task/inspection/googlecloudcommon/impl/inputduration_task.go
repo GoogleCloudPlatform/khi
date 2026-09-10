@@ -22,14 +22,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // InputDurationTask defines a form task to input the duration for log queries.
 var InputDurationTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputDurationTaskID, googlecloudcommon_contract.PriorityForQueryTimeGroup+4000, "Duration").
-	WithDependencies([]taskid.UntypedTaskReference{
+	WithDependencies([]coretask.Dependency{
 		inspectioncore_contract.InspectionTimeTaskID.Ref(),
 		googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 		inspectioncore_contract.TimeZoneShiftInputTaskID.Ref(),

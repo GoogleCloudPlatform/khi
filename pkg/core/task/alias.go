@@ -25,7 +25,7 @@ import (
 func NewAliasTask[TaskResult any](taskId taskid.TaskImplementationID[TaskResult], sourceTaskReference taskid.TaskReference[TaskResult], labelOpts ...LabelOpt) *TaskImpl[TaskResult] {
 	return NewTask(
 		taskId,
-		[]taskid.UntypedTaskReference{sourceTaskReference},
+		[]Dependency{sourceTaskReference},
 		func(ctx context.Context) (TaskResult, error) {
 			return GetTaskResult(ctx, sourceTaskReference), nil
 		},

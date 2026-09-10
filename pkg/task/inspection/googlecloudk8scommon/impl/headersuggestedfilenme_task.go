@@ -24,7 +24,6 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -33,7 +32,7 @@ import (
 
 // HeaderSuggestedFileNameTask is a task to supply the suggested file name of the KHI file generated.
 // This name is used in frontend to save the inspection data as a file.
-var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(googlecloudk8scommon_contract.HeaderSuggestedFileNameTaskID, []taskid.UntypedTaskReference{
+var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(googlecloudk8scommon_contract.HeaderSuggestedFileNameTaskID, []coretask.Dependency{
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),

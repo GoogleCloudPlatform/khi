@@ -24,14 +24,13 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // InputStartTimeTask defines an inspection task that calculates the start time of a query
 // from the end time and duration.
-var InputStartTimeTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputStartTimeTaskID, []taskid.UntypedTaskReference{
+var InputStartTimeTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputStartTimeTaskID, []coretask.Dependency{
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputDurationTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (time.Time, error) {

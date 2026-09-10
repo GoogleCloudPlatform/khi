@@ -24,14 +24,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // InputEndTimeTask defines a form task to input the end time for log queries.
 var InputEndTimeTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputEndTimeTaskID, googlecloudcommon_contract.PriorityForQueryTimeGroup+5000, "End time").
-	WithDependencies([]taskid.UntypedTaskReference{
+	WithDependencies([]coretask.Dependency{
 		inspectioncore_contract.TimeZoneShiftInputTaskID.Ref(),
 	}).
 	WithDescription(`The endtime of query. Please input it in the format of RFC3339

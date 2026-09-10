@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -69,8 +70,8 @@ type composerAuditLogLogToTimelineMapperSetting struct {
 }
 
 // Dependencies returns additional task dependencies.
-func (s *composerAuditLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (s *composerAuditLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // GroupedLogTask returns a reference to the log grouper task.

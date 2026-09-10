@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -56,8 +57,8 @@ func (m *mockLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{
 	return mockLogSerializerPrevTaskID.Ref()
 }
 
-func (m *mockLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (m *mockLogToTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 func (m *mockLogToTimelineMapper) PassCount() int {

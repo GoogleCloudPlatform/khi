@@ -53,6 +53,8 @@ type TaskReference[TaskResult any] interface {
 	// This is used to maintain type safety by ensuring TaskReference[A] and TaskReference[B]
 	// are considered different types when A and B are different.
 	GetZeroValue() TaskResult
+	// Ref returns a new TaskReference with the specified dependency options applied.
+	Ref(opts ...ReferenceOption) TaskReference[TaskResult]
 }
 
 // UntypedTaskImplementationID defines the interface for task implementation IDs
@@ -63,8 +65,6 @@ type UntypedTaskImplementationID interface {
 	String() string
 	// ReferenceIDString returns only the reference ID portion without the implementation hash.
 	ReferenceIDString() string
-	// GetTaskImplementationHash returns the implementation-specific hash part of the ID.
-	GetTaskImplementationHash() string
 	// GetUntypedReference returns the reference ID associated with this implementation ID.
 	GetUntypedReference() UntypedTaskReference
 }
@@ -86,16 +86,6 @@ type taskReferenceImpl[TaskResult any] struct {
 var _ TaskReference[any] = (*taskReferenceImpl[any])(nil)
 var _ PointToPointDescriptor = (*taskReferenceImpl[any])(nil)
 
-// DescriptorKind returns whether this dependency requires data or only order.
-func (t taskReferenceImpl[TaskResult]) DescriptorKind() EdgeKind {
-	return t.config.Kind
-}
-
-// DescriptorCondition returns whether this dependency is mandatory or optional.
-func (t taskReferenceImpl[TaskResult]) DescriptorCondition() EdgeCondition {
-	return t.config.Condition
-}
-
 // DescriptorCardinality returns whether this dependency is point-to-point or fan-in.
 func (t taskReferenceImpl[TaskResult]) DescriptorCardinality() EdgeCardinality {
 	return t.config.Cardinality
@@ -103,7 +93,7 @@ func (t taskReferenceImpl[TaskResult]) DescriptorCardinality() EdgeCardinality {
 
 // DescriptorScope returns the effective dependency resolution scope.
 func (t taskReferenceImpl[TaskResult]) DescriptorScope() DependencyScope {
-	return t.config.ResolvedScope()
+	return t.config.Scope
 }
 
 // ReferenceID returns the target task's reference ID without any implementation hash.
@@ -121,6 +111,15 @@ func (t taskReferenceImpl[TaskResult]) String() string {
 func (t taskReferenceImpl[TaskResult]) GetZeroValue() TaskResult {
 	var zero TaskResult
 	return zero
+}
+
+// Ref returns a new TaskReference with the specified dependency options applied.
+func (t taskReferenceImpl[TaskResult]) Ref(opts ...ReferenceOption) TaskReference[TaskResult] {
+	cfg := t.config
+	for _, opt := range opts {
+		ApplyReferenceOption(&cfg, opt)
+	}
+	return taskReferenceImpl[TaskResult]{id: t.id, config: cfg}
 }
 
 // taskImplementationIDImpl implements the TaskImplementationID interface for a specific result type.
@@ -156,12 +155,6 @@ func (t taskReferenceImpl[TaskResult]) isTaskReference() bool {
 // ReferenceIDString returns only the reference ID portion of the implementation ID, without the hash.
 func (t taskImplementationIDImpl[TaskResult]) ReferenceIDString() string {
 	return t.referenceId
-}
-
-// GetTaskImplementationHash returns the implementation-specific hash part of the ID.
-// This distinguishes between different implementations of the same reference.
-func (t taskImplementationIDImpl[TaskResult]) GetTaskImplementationHash() string {
-	return t.implementationHash
 }
 
 // GetUntypedReference returns the reference ID associated with this implementation ID as an UntypedTaskReference.

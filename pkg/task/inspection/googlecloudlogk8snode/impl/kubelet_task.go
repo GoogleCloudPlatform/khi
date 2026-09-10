@@ -41,8 +41,8 @@ type kubeletNodeLogLogToTimelineMapperSetting struct {
 }
 
 // Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (k *kubeletNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (k *kubeletNodeLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
 		commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(),

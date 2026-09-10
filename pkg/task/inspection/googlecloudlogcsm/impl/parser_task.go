@@ -37,8 +37,8 @@ func (i *CSMTrafficLogLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log]
 }
 
 // Dependencies returns the task dependencies.
-func (i *CSMTrafficLogLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (i *CSMTrafficLogLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // ProcessLog parses raw log entry and populates the LogChangeSet.
@@ -100,8 +100,8 @@ func (m *CSMTrafficLogLogToTimelineMapper) LogIngesterTask() taskid.TaskReferenc
 }
 
 // Dependencies returns additional task dependencies.
-func (m *CSMTrafficLogLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (m *CSMTrafficLogLogToTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(),
 	}
 }

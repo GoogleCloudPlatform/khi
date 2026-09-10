@@ -19,12 +19,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
 // LocationFetcherTask is the task to inject the reference to LocationFetcher.
-var LocationFetcherTask = coretask.NewTask(googlecloudcommon_contract.LocationFetcherTaskID, []taskid.UntypedTaskReference{
+var LocationFetcherTask = coretask.NewTask(googlecloudcommon_contract.LocationFetcherTaskID, []coretask.Dependency{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
@@ -40,7 +39,7 @@ var LocationFetcherTask = coretask.NewTask(googlecloudcommon_contract.LocationFe
 })
 
 // LoggingFetcherTask is a task to inject the reference to LogFetcher.
-var LoggingFetcherTask = coretask.NewTask(googlecloudcommon_contract.LoggingFetcherTaskID, []taskid.UntypedTaskReference{
+var LoggingFetcherTask = coretask.NewTask(googlecloudcommon_contract.LoggingFetcherTaskID, []coretask.Dependency{
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 }, func(ctx context.Context) (googlecloudcommon_contract.LogFetcher, error) {

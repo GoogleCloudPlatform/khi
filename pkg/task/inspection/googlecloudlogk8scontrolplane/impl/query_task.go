@@ -69,8 +69,8 @@ type controlPlaneListLogEntriesTaskSetting struct {
 }
 
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
-func (c *controlPlaneListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (c *controlPlaneListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogk8scontrolplane_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudlogk8scontrolplane_contract.InputControlPlaneComponentNameFilterTaskID.Ref(),
 	}

@@ -19,13 +19,12 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	taskid "github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(googlecloudk8scommon_contract.ClusterIdentityTaskID, []taskid.UntypedTaskReference{
+var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(googlecloudk8scommon_contract.ClusterIdentityTaskID, []coretask.Dependency{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudcommon_contract.InputLocationsTaskID.Ref(),

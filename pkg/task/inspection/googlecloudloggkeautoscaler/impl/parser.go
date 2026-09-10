@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -40,8 +41,8 @@ func (i *autoscalerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 }
 
 // Dependencies returns additional dependencies of the ingester.
-func (i *autoscalerLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (i *autoscalerLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // ProcessLog ingests metadata for a single log.
@@ -99,8 +100,8 @@ func (m *autoscalerTimelineMapper) LogIngesterTask() taskid.TaskReference[struct
 }
 
 // Dependencies returns additional dependencies of the mapper.
-func (m *autoscalerTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (m *autoscalerTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // GroupedLogTask returns the log grouper task reference.

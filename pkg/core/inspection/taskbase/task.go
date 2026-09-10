@@ -45,7 +45,7 @@ type InspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspectionco
 // Returns:
 //
 //	A task with progress reporting capabilities.
-func NewProgressReportableInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, taskFunc ProgressReportableInspectionTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
+func NewProgressReportableInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []coretask.Dependency, taskFunc ProgressReportableInspectionTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
 
 	return NewInspectionTask(taskId, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (T, error) {
 		metadataSet := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
@@ -74,7 +74,7 @@ func NewProgressReportableInspectionTask[T any](taskId taskid.TaskImplementation
 // Returns:
 //
 //	An inspection task.
-func NewInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, taskFunc InspectionTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
+func NewInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []coretask.Dependency, taskFunc InspectionTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
 	return coretask.NewTask(taskId, dependencies, func(ctx context.Context) (T, error) {
 		taskMode := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskMode)
 		return taskFunc(ctx, taskMode)

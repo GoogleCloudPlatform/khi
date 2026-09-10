@@ -44,7 +44,7 @@ type StructuredListLogEntriesTaskSetting interface {
 	TaskID() taskid.TaskImplementationID[[]*log.Log]
 
 	// Dependencies returns the list of dependencies for the task.
-	Dependencies() []taskid.UntypedTaskReference
+	Dependencies() []coretask.Dependency
 
 	// DefaultResourceNames returns default resource names (e.g. ["projects/<project-id>"]).
 	DefaultResourceNames(ctx context.Context) ([]string, error)
@@ -63,7 +63,8 @@ type StructuredListLogEntriesTaskSetting interface {
 // In DryRun mode, it estimates log volumes and populates QueryMetadata with estimated counts.
 func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSetting) coretask.Task[[]*log.Log] {
 	taskID := taskSetting.TaskID()
-	dependencies := taskSetting.Dependencies()
+	dependencies := []coretask.Dependency{}
+	dependencies = append(dependencies, taskSetting.Dependencies()...)
 	dependencies = append(dependencies,
 		InputStartTimeTaskID.Ref(),
 		InputEndTimeTaskID.Ref(),
@@ -131,7 +132,7 @@ func (a *resourceNamesSettingAdapter) TaskID() taskid.TaskImplementationID[[]*lo
 	return a.taskSetting.TaskID()
 }
 
-func (a *resourceNamesSettingAdapter) Dependencies() []taskid.UntypedTaskReference {
+func (a *resourceNamesSettingAdapter) Dependencies() []coretask.Dependency {
 	return a.taskSetting.Dependencies()
 }
 

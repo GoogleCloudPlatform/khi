@@ -65,8 +65,8 @@ func (c *composerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Con
 }
 
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
-func (c *composerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (c *composerListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerComponentsTaskID.Ref(),

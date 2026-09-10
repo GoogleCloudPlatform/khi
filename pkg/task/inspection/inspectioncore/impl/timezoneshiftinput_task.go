@@ -20,11 +20,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var TimeZoneShiftInputTask = inspectiontaskbase.NewInspectionTask(inspectioncore_contract.TimeZoneShiftInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*time.Location, error) {
+var TimeZoneShiftInputTask = inspectiontaskbase.NewInspectionTask(inspectioncore_contract.TimeZoneShiftInputTaskID, []coretask.Dependency{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*time.Location, error) {
 	req := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
 	if tzShiftAny, found := req["timezoneShift"]; found {
 		if tzShiftFloat, convertible := tzShiftAny.(float64); convertible {

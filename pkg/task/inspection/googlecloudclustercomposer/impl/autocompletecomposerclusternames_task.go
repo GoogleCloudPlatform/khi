@@ -21,7 +21,6 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -30,7 +29,7 @@ import (
 
 // AutocompleteComposerClusterNamesTask is an implementation for googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID
 // the task returns GKE cluster name where the provided Composer environment is running.
-var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerClusterNamesTaskID, []taskid.UntypedTaskReference{
+var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerClusterNamesTaskID, []coretask.Dependency{
 	googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinderTaskID.Ref(),
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputLocationsTaskID.Ref(),

@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
@@ -76,8 +77,8 @@ type conditionLogToTimelineMapperTaskSetting struct {
 }
 
 // Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (c *conditionLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (c *conditionLogToTimelineMapperTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.

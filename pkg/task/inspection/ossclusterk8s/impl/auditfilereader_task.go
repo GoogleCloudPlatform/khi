@@ -28,7 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
@@ -41,7 +40,7 @@ var (
 
 var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionTask(
 	ossclusterk8s_contract.AuditLogFileReaderTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		ossclusterk8s_contract.InputAuditLogFilesFormTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {

@@ -20,6 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -108,6 +109,72 @@ func TestNwewLogGrouperTask(t *testing.T) {
 				if diff := cmp.Diff(wantLogIDs, gotLogIDs); diff != "" {
 					t.Errorf("log IDs for group %q mismatch (-want +got):\n%s", key, diff)
 				}
+			}
+		})
+	}
+}
+
+func TestNewLogGrouperTaskWithDependencies(t *testing.T) {
+	testCases := []struct {
+		name       string
+		extraValue string
+		logYamls   []string
+		wantGroups map[string][]string
+	}{
+		{
+			name:       "accesses extra dependency within grouper",
+			extraValue: "prefix-",
+			logYamls: []string{
+				`id: foo`,
+				`id: bar`,
+			},
+			wantGroups: map[string][]string{
+				"prefix-f": {"foo"},
+				"prefix-b": {"bar"},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+			logs := []*log.Log{}
+			for _, logYaml := range tc.logYamls {
+				logs = append(logs, mustNewLogFromYAML(t, ctx, logYaml))
+			}
+
+			testSourceTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("source")
+			testExtraTaskID := taskid.NewDefaultImplementationID[string]("extra")
+			testTaskID := taskid.NewDefaultImplementationID[LogGroupMap]("dest")
+
+			task := NewLogGrouperTaskWithDependencies(
+				testTaskID,
+				testSourceTaskID.Ref(),
+				[]coretask.Dependency{testExtraTaskID.Ref()},
+				func(ctx context.Context, l *log.Log) string {
+					extra := coretask.GetTaskResult(ctx, testExtraTaskID.Ref())
+					return extra + l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
+				},
+			)
+			result, _, err := inspectiontest.RunInspectionTask(
+				ctx,
+				task,
+				inspectioncore_contract.TaskModeRun,
+				map[string]any{},
+				tasktest.NewTaskDependencyValuePair(testSourceTaskID.Ref(), logs),
+				tasktest.NewTaskDependencyValuePair(testExtraTaskID.Ref(), tc.extraValue),
+			)
+			if err != nil {
+				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+			}
+
+			gotGroups := map[string][]string{}
+			for key, group := range result {
+				for _, l := range group.Logs {
+					gotGroups[key] = append(gotGroups[key], l.ReadStringOrDefault(pathGroupTestID, "unknown"))
+				}
+			}
+			if diff := cmp.Diff(tc.wantGroups, gotGroups); diff != "" {
+				t.Errorf("grouped log IDs mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

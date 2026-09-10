@@ -18,6 +18,7 @@ import (
 	"context"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -26,15 +27,13 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8scontrolplane_contract.TailTaskID,
-	[]taskid.UntypedTaskReference{
+var TailTask = coretask.NewTailTask(
+	googlecloudlogk8scontrolplane_contract.TailTaskID,
+	[]coretask.Dependency{
 		googlecloudlogk8scontrolplane_contract.SchedulerLogToTimelineMapperTaskID.Ref(),
 		googlecloudlogk8scontrolplane_contract.ControllerManagerLogToTimelineMapperTaskID.Ref(),
 		googlecloudlogk8scontrolplane_contract.HpaControllerLogToTimelineMapperTaskID.Ref(),
 		googlecloudlogk8scontrolplane_contract.OtherLogToTimelineMapperTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
-		return struct{}{}, nil
 	},
 	inspectioncore_contract.FeatureTaskLabel(
 		"Kubernetes Control Plane Component Logs",
@@ -53,8 +52,8 @@ func (i *K8sControlPlaneLogIngester) RawLogTask() taskid.TaskReference[[]*log.Lo
 }
 
 // Dependencies implements inspectiontaskbase.LogIngester.
-func (i *K8sControlPlaneLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (i *K8sControlPlaneLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // ProcessLog implements inspectiontaskbase.LogIngester.

@@ -43,8 +43,8 @@ func (i *otherLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 }
 
 // Dependencies returns additional task dependencies of the ingester.
-func (i *otherLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (i *otherLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // ProcessLog is called for each log entry to customize log metadata (summary, severity, timestamp, etc.).
@@ -85,8 +85,8 @@ func (m *otherLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct
 }
 
 // Dependencies returns additional task dependencies of the mapper.
-func (m *otherLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (m *otherLogToTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	}
 }

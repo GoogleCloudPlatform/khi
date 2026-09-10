@@ -21,7 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -95,7 +95,7 @@ func NewTextFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority i
 	}
 }
 
-func (b *TextFormTaskBuilder[T]) WithDependencies(dependencies []taskid.UntypedTaskReference) *TextFormTaskBuilder[T] {
+func (b *TextFormTaskBuilder[T]) WithDependencies(dependencies []coretask.Dependency) *TextFormTaskBuilder[T] {
 	b.FormTaskBuilderBase.WithDependencies(dependencies)
 	return b
 }
@@ -157,8 +157,8 @@ func (b *TextFormTaskBuilder[T]) WithValidatingTiming(timing inspectionmetadata.
 	return b
 }
 
-func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common_task.Task[T] {
-	return common_task.NewTask(b.id, b.dependencies, func(ctx context.Context) (T, error) {
+func (b *TextFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.Task[T] {
+	return coretask.NewTask(b.id, b.dependencies, func(ctx context.Context) (T, error) {
 		m := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 		req := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
 		taskMode := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskMode)

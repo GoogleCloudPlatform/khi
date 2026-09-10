@@ -47,8 +47,8 @@ func (i *GCPOperationLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] 
 }
 
 // Dependencies returns additional task dependencies of the ingester.
-func (i *GCPOperationLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (i *GCPOperationLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // ProcessLog parses raw log entry and populates the LogChangeSet.

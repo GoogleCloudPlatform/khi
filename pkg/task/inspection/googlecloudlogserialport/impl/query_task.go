@@ -96,8 +96,8 @@ type serialPortLoggingFilterTaskSetting struct {
 }
 
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
-func (s *serialPortLoggingFilterTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (s *serialPortLoggingFilterTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
 		commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref(),

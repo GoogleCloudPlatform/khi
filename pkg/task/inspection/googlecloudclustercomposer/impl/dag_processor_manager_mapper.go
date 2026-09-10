@@ -83,8 +83,8 @@ func (i *dagProcessorManagerLogIngester) GroupedLogTask() taskid.TaskReference[i
 }
 
 // Dependencies returns additional task dependencies of the ingester.
-func (i *dagProcessorManagerLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (i *dagProcessorManagerLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // ProcessLogByGroup is called for each log entry in a group to customize log metadata.
@@ -160,8 +160,8 @@ func (m *dagProcessorManagerTimelineMapper) LogIngesterTask() taskid.TaskReferen
 }
 
 // Dependencies returns additional task dependencies of the mapper.
-func (m *dagProcessorManagerTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (m *dagProcessorManagerTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	}
 }

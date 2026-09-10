@@ -33,19 +33,18 @@ func TestNewTask(t *testing.T) {
 	expectedErr := errors.New("execution failure")
 
 	testCases := []struct {
-		name                string
-		taskID              taskid.TaskImplementationID[string]
-		deps                []Dependency
-		labelOpts           []LabelOpt
-		runFunc             func(ctx context.Context) (string, error)
-		wantDepCount        int
-		wantLabelVal        string
-		wantProvidedTag     string
-		wantAllowMultiStage bool
-		wantErr             error
-		shouldPanic         bool
-		panicMatch          string
-		verifyDeps          func(t *testing.T, deps []Dependency)
+		name            string
+		taskID          taskid.TaskImplementationID[string]
+		deps            []Dependency
+		labelOpts       []LabelOpt
+		runFunc         func(ctx context.Context) (string, error)
+		wantDepCount    int
+		wantLabelVal    string
+		wantProvidedTag string
+		wantErr         error
+		shouldPanic     bool
+		panicMatch      string
+		verifyDeps      func(t *testing.T, deps []Dependency)
 	}{
 		{
 			name:         "creates task with deduplicated p2p and tag dependencies",
@@ -71,106 +70,44 @@ func TestNewTask(t *testing.T) {
 			},
 		},
 		{
-			name:         "upgrades order-only dependency to data dependency when duplicated",
+			name:         "upgrades active graph scope to all when duplicate is all",
 			taskID:       taskID,
-			deps:         []Dependency{ToOrderOnly(depA), depA},
+			deps:         []Dependency{taskid.NewTaskReference[string]("task.b", taskid.ScopeActiveGraph), depB},
 			wantDepCount: 1,
 			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
-					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
+				if got := gotDeps[0].DescriptorScope(); got != taskid.ScopeAll {
+					t.Errorf("dep[0].DescriptorScope() = %v, want %v", got, taskid.ScopeAll)
 				}
 			},
 		},
 		{
-			name:         "preserves data dependency when followed by order-only duplicate",
+			name:         "preserves all scope when followed by active graph duplicate",
 			taskID:       taskID,
-			deps:         []Dependency{depA, ToOrderOnly(depA)},
+			deps:         []Dependency{depB, taskid.NewTaskReference[string]("task.b", taskid.ScopeActiveGraph)},
 			wantDepCount: 1,
 			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
-					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
+				if got := gotDeps[0].DescriptorScope(); got != taskid.ScopeAll {
+					t.Errorf("dep[0].DescriptorScope() = %v, want %v", got, taskid.ScopeAll)
 				}
 			},
 		},
 		{
-			name:         "upgrades optional dependency to required when duplicate is required",
+			name:         "preserves active graph scope when both duplicates are active graph",
 			taskID:       taskID,
-			deps:         []Dependency{taskid.NewTaskReference[string]("task.b", taskid.Optional), depB},
+			deps:         []Dependency{taskid.NewTaskReference[string]("task.b", taskid.ScopeActiveGraph), taskid.NewTaskReference[string]("task.b", taskid.ScopeActiveGraph)},
 			wantDepCount: 1,
 			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
 				if len(gotDeps) != 1 {
 					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
 				}
-				if got := gotDeps[0].DescriptorCondition(); got != taskid.ConditionRequired {
-					t.Errorf("dep[0].DescriptorCondition() = %v, want %v", got, taskid.ConditionRequired)
-				}
-			},
-		},
-		{
-			name:         "preserves required dependency when followed by optional duplicate",
-			taskID:       taskID,
-			deps:         []Dependency{depB, taskid.NewTaskReference[string]("task.b", taskid.Optional)},
-			wantDepCount: 1,
-			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
-				if len(gotDeps) != 1 {
-					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
-				}
-				if got := gotDeps[0].DescriptorCondition(); got != taskid.ConditionRequired {
-					t.Errorf("dep[0].DescriptorCondition() = %v, want %v", got, taskid.ConditionRequired)
-				}
-			},
-		},
-		{
-			name:         "preserves optional condition when both duplicates are optional",
-			taskID:       taskID,
-			deps:         []Dependency{taskid.NewTaskReference[string]("task.b", taskid.Optional), taskid.NewTaskReference[string]("task.b", taskid.Optional)},
-			wantDepCount: 1,
-			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
-				if len(gotDeps) != 1 {
-					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
-				}
-				if got := gotDeps[0].DescriptorCondition(); got != taskid.ConditionOptional {
-					t.Errorf("dep[0].DescriptorCondition() = %v, want %v", got, taskid.ConditionOptional)
-				}
-			},
-		},
-		{
-			name:         "upgrades order-only dependency to data dependency and keeps required when candidate is optional",
-			taskID:       taskID,
-			deps:         []Dependency{ToOrderOnly(depA), taskid.NewTaskReference[string]("task.a", taskid.Optional)},
-			wantDepCount: 1,
-			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
-				if len(gotDeps) != 1 {
-					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
-				}
-				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
-					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
-				}
-				if got := gotDeps[0].DescriptorCondition(); got != taskid.ConditionRequired {
-					t.Errorf("dep[0].DescriptorCondition() = %v, want %v", got, taskid.ConditionRequired)
-				}
-			},
-		},
-		{
-			name:         "preserves data dependency and required condition when optional data is followed by required order-only",
-			taskID:       taskID,
-			deps:         []Dependency{taskid.NewTaskReference[string]("task.a", taskid.Optional), ToOrderOnly(depA)},
-			wantDepCount: 1,
-			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
-				if len(gotDeps) != 1 {
-					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
-				}
-				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
-					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
-				}
-				if got := gotDeps[0].DescriptorCondition(); got != taskid.ConditionRequired {
-					t.Errorf("dep[0].DescriptorCondition() = %v, want %v", got, taskid.ConditionRequired)
+				if got := gotDeps[0].DescriptorScope(); got != taskid.ScopeActiveGraph {
+					t.Errorf("dep[0].DescriptorScope() = %v, want %v", got, taskid.ScopeActiveGraph)
 				}
 			},
 		},
@@ -199,34 +136,6 @@ func TestNewTask(t *testing.T) {
 				}
 				if got := gotDeps[0].DescriptorScope(); got != taskid.ScopeAll {
 					t.Errorf("dep[0].DescriptorScope() = %v, want %v", got, taskid.ScopeAll)
-				}
-			},
-		},
-		{
-			name:         "upgrades order-only tag reference to data tag reference when duplicated",
-			taskID:       taskID,
-			deps:         []Dependency{tag.Ref(taskid.OrderOnly), tag.Ref()},
-			wantDepCount: 1,
-			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
-				if len(gotDeps) != 1 {
-					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
-				}
-				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
-					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
-				}
-			},
-		},
-		{
-			name:         "preserves data tag reference when followed by order-only duplicate",
-			taskID:       taskID,
-			deps:         []Dependency{tag.Ref(), tag.Ref(taskid.OrderOnly)},
-			wantDepCount: 1,
-			verifyDeps: func(t *testing.T, gotDeps []Dependency) {
-				if len(gotDeps) != 1 {
-					t.Fatalf("expected 1 dependency, got %d", len(gotDeps))
-				}
-				if got := gotDeps[0].DescriptorKind(); got != taskid.EdgeKindData {
-					t.Errorf("dep[0].DescriptorKind() = %v, want %v", got, taskid.EdgeKindData)
 				}
 			},
 		},
@@ -276,13 +185,7 @@ func TestNewTask(t *testing.T) {
 			labelOpts:       []LabelOpt{ProvidesTag(tag)},
 			wantProvidedTag: "tag.test",
 		},
-		{
-			name:                "creates task with AllowMultiStageExecution label option",
-			taskID:              taskID,
-			deps:                []Dependency{},
-			labelOpts:           []LabelOpt{AllowMultiStageExecution()},
-			wantAllowMultiStage: true,
-		},
+
 		{
 			name:   "propagates error from run function",
 			taskID: taskID,
@@ -378,13 +281,6 @@ func TestNewTask(t *testing.T) {
 					val, ok := typedmap.Get(task.Labels(), LabelKeyProvidedTag(tc.wantProvidedTag))
 					if !ok || !val {
 						t.Errorf("expected provided tag label %v, got %v (found: %v)", tc.wantProvidedTag, val, ok)
-					}
-				}
-
-				if tc.wantAllowMultiStage {
-					val, ok := typedmap.Get(task.Labels(), LabelKeyAllowMultiStageExecution)
-					if !ok || !val {
-						t.Errorf("expected allow-multi-stage-execution label true, got %v (found: %v)", val, ok)
 					}
 				}
 

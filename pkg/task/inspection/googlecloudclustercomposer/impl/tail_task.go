@@ -15,24 +15,18 @@
 package googlecloudclustercomposer_impl
 
 import (
-	"context"
-
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var ComposerLogsTailTask = coretask.NewTask(
+var ComposerLogsTailTask = coretask.NewTailTask(
 	googlecloudclustercomposer_contract.ComposerLogsTailTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		googlecloudclustercomposer_contract.AirflowWorkerLogToTimelineMapperTaskID.Ref(),
 		googlecloudclustercomposer_contract.AirflowSchedulerLogToTimelineMapperTaskID.Ref(),
 		googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogToTimelineMapperTaskID.Ref(),
 		googlecloudclustercomposer_contract.AirflowOtherLogToTimelineMapperTaskID.Ref(),
-	},
-	func(ctx context.Context) (struct{}, error) {
-		return struct{}{}, nil
 	},
 	inspectioncore_contract.FeatureTaskLabel(
 		"Managed Service for Apache Airflow Logs",

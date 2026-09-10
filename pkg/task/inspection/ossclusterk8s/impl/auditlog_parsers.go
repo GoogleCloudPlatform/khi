@@ -17,9 +17,7 @@ package ossclusterk8s_impl
 import (
 	"context"
 
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
@@ -28,7 +26,7 @@ import (
 // OSSK8sAuditLogExtractorTask provides K8sAuditLogExtractor for OSS audit logs.
 var OSSK8sAuditLogExtractorTask = coretask.NewTask(
 	ossclusterk8s_contract.OSSK8sAuditLogExtractorTaskID,
-	[]taskid.UntypedTaskReference{},
+	[]coretask.Dependency{},
 	func(ctx context.Context) (commonlogk8saudit_contract.K8sAuditLogExtractor, error) {
 		return ossclusterk8s_contract.ExtractOSSK8sAuditLog, nil
 	},
@@ -38,16 +36,16 @@ var OSSK8sAuditLogExtractorTask = coretask.NewTask(
 // OSSK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for OSS audit logs.
 var OSSK8sAuditLogErrorExtractorTask = coretask.NewTask(
 	ossclusterk8s_contract.OSSK8sAuditLogErrorExtractorTaskID,
-	[]taskid.UntypedTaskReference{},
+	[]coretask.Dependency{},
 	func(ctx context.Context) (commonlogk8saudit_contract.K8sAuditLogErrorExtractor, error) {
 		return ossclusterk8s_contract.ExtractOSSK8sAuditLogError, nil
 	},
 	coretask.NewTaskResultRetentionLabel(true),
 )
 
-var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
+var OSSK8sAuditLogParserTailTask = coretask.NewTailTask(
 	ossclusterk8s_contract.OSSK8sAuditLogParserTailTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		commonlogk8saudit_contract.K8sAuditLogExtractorRef,
 		commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef,
 		commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
@@ -64,8 +62,5 @@ var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 		commonlogk8saudit_contract.ContainerIDDiscoveryTaskID.Ref(),
 		commonlogk8saudit_contract.IPLeaseHistoryDiscoveryTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
-		return struct{}{}, nil
-	},
-	inspectioncore_contract.FeatureTaskLabel("Kubernetes Audit Logs", `Gather Kubernetes audit logs to visualize resource modifications and API call histories on associated timelines.`, 1001, true), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+	inspectioncore_contract.FeatureTaskLabel("Kubernetes Audit Logs", `Gather Kubernetes audit logs to visualize resource modifications and API call histories on associated timelines.`, 1001, true),
 )

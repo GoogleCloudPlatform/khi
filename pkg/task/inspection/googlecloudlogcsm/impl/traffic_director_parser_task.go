@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -60,8 +61,8 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) LogIngesterTask() taskid.TaskRef
 }
 
 // Dependencies returns additional task dependencies.
-func (m *CSMTrafficDirectorLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (m *CSMTrafficDirectorLogToTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(),
 	}
 }

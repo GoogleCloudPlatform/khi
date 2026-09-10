@@ -64,8 +64,8 @@ func (s *composerAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.
 }
 
 // Dependencies returns task dependencies for query construction.
-func (s *composerAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (s *composerAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogcomposerapiaudit_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	}

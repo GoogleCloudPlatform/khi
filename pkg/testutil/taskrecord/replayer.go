@@ -99,7 +99,7 @@ func newReplayStubTask(taskRef taskid.UntypedTaskReference, val any) coretask.Un
 	implID := taskid.NewImplementationID(typedRef, "replay")
 	return coretask.NewTask[any](
 		implID,
-		[]taskid.UntypedTaskReference{},
+		[]coretask.Dependency{},
 		func(ctx context.Context) (any, error) {
 			return val, nil
 		},

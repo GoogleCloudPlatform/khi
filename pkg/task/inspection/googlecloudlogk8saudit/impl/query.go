@@ -41,8 +41,8 @@ func (k *GCPK8sAuditLogListLogEntriesTaskSetting) DefaultResourceNames(ctx conte
 }
 
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
-func (k *GCPK8sAuditLogListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (k *GCPK8sAuditLogListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputKindFilterTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),

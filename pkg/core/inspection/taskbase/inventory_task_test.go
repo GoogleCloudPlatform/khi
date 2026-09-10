@@ -16,9 +16,9 @@ package inspectiontaskbase
 
 import (
 	"context"
+	"slices"
 	"testing"
 
-	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -26,154 +26,151 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type testSimpleStringMergerStrategy struct {
-}
+func TestInventoryTask(t *testing.T) {
+	inventoryTag := coretask.NewTag[map[string]struct{}]("test-inventory-tag")
+	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test-merger")
 
-// Merge implements InventoryMergerTaskSetting.
-func (t *testSimpleStringMergerStrategy) Merge(results []map[string]struct{}) (map[string]struct{}, error) {
-	result := make(map[string]struct{})
-	for _, r := range results {
-		for k := range r {
-			result[k] = struct{}{}
-		}
-	}
-	return result, nil
-}
-
-var _ InventoryMergerStrategy[map[string]struct{}] = (*testSimpleStringMergerStrategy)(nil)
-
-// TestInventoryTask_ProvidedFromSingleDiscoveryTask tests a scenario where the merger task
-// receives data from only one of two available discovery tasks.
-// This is because the main user task only depends on the parent of the first discovery task.
-// The test verifies that only the result from the first discovery task ("foo") is present in the final merged map and the task dependency topology doesn't add the discovery-2 task not intentionally.
-func TestInventoryTask_ProvidedFromSingleDiscoveryTask(t *testing.T) {
 	nop := func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	}
-	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test")
-	builder := NewInventoryTaskBuilder(mergerTaskID)
-	mergerTask := builder.InventoryTask(&testSimpleStringMergerStrategy{})
-	discovery1ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery1")
-	discovery2ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery2")
+
 	discovery1ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-1-parent")
-	discovery1ParentTask := NewInspectionTask(discovery1ParentTaskID, []taskid.UntypedTaskReference{}, nop, coretask.NewSubsequentTaskRefsTaskLabel(discovery1ID.Ref()))
-	discovery1 := builder.DiscoveryTask(discovery1ID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (map[string]struct{}, error) {
-		return map[string]struct{}{
-			"foo": {},
-		}, nil
-	})
+	discovery1ParentTask := NewInspectionTask(discovery1ParentTaskID, []coretask.Dependency{}, nop)
+
 	discovery2ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-2-parent")
-	discovery2ParentTask := NewInspectionTask(discovery2ParentTaskID, []taskid.UntypedTaskReference{}, nop, coretask.NewSubsequentTaskRefsTaskLabel(discovery2ID.Ref()))
-	discovery2 := builder.DiscoveryTask(discovery2ID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (map[string]struct{}, error) {
-		return map[string]struct{}{
-			"bar": {},
-		}, nil
-	})
-	userTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("user")
+	discovery2ParentTask := NewInspectionTask(discovery2ParentTaskID, []coretask.Dependency{}, nop)
 
-	userTask := NewInspectionTask(userTaskID, []taskid.UntypedTaskReference{mergerTaskID.Ref(), discovery1ParentTaskID.Ref()}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
-		return coretask.GetTaskResult(ctx, mergerTaskID.Ref()), nil
-	})
+	discovery1ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery-1")
+	discovery1 := NewInspectionTask(
+		discovery1ID,
+		[]coretask.Dependency{discovery1ParentTaskID.Ref()},
+		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
+			return map[string]struct{}{"foo": {}}, nil
+		},
+		coretask.ProvidesTag(inventoryTag, coretask.WithTagPriority(10)),
+	)
 
-	wantMap := map[string]struct{}{
-		"foo": {},
-	}
-	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotMap, _, err := inspectiontest.RunInspectionTaskWithDependency(ctx, userTask, []coretask.UntypedTask{mergerTask, discovery1, discovery2, discovery1ParentTask, discovery2ParentTask}, inspectioncore_contract.TaskModeRun, map[string]any{})
-	if err != nil {
-		t.Errorf("running merger task failed with error: %v", err)
-	}
-	if diff := cmp.Diff(wantMap, gotMap); diff != "" {
-		t.Errorf("merger task result mismatch (-want +got):\n%s", diff)
-	}
-}
+	discovery2ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery-2")
+	discovery2 := NewInspectionTask(
+		discovery2ID,
+		[]coretask.Dependency{discovery2ParentTaskID.Ref()},
+		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
+			return map[string]struct{}{"bar": {}}, nil
+		},
+		coretask.ProvidesTag(inventoryTag),
+	)
 
-// TestInventoryTask_ProvidedFromMultipleDiscoveryTask tests a scenario where the merger task
-// receives and merges data from multiple discovery tasks.
-// This is because the main user task depends on the parents of both discovery tasks.
-// The test verifies that the results from both discovery tasks ("foo" and "bar") are present in the final merged map.
-func TestInventoryTask_ProvidedFromMultipleDiscoveryTask(t *testing.T) {
-	nop := func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
-		return struct{}{}, nil
-	}
-	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test")
-	builder := NewInventoryTaskBuilder(mergerTaskID)
-	mergerTask := builder.InventoryTask(&testSimpleStringMergerStrategy{})
-	discovery1ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery1")
-	discovery2ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery2")
-	discovery1ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-1-parent")
-	discovery1ParentTask := NewInspectionTask(discovery1ParentTaskID, []taskid.UntypedTaskReference{}, nop, coretask.NewSubsequentTaskRefsTaskLabel(discovery1ID.Ref()))
-	discovery1 := builder.DiscoveryTask(discovery1ID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (map[string]struct{}, error) {
-		return map[string]struct{}{
-			"foo": {},
-		}, nil
-	})
-	discovery2ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-2-parent")
-	discovery2ParentTask := NewInspectionTask(discovery2ParentTaskID, []taskid.UntypedTaskReference{}, nop, coretask.NewSubsequentTaskRefsTaskLabel(discovery2ID.Ref()))
-	discovery2 := builder.DiscoveryTask(discovery2ID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (map[string]struct{}, error) {
-		return map[string]struct{}{
-			"bar": {},
-		}, nil
-	})
-	userTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("user")
+	mergerTask := NewInventoryTask(
+		mergerTaskID,
+		inventoryTag,
+		func(results []map[string]struct{}) (map[string]struct{}, error) {
+			result := make(map[string]struct{})
+			for _, r := range results {
+				for k := range r {
+					result[k] = struct{}{}
+				}
+			}
+			return result, nil
+		},
+	)
 
-	userTask := NewInspectionTask(userTaskID, []taskid.UntypedTaskReference{mergerTaskID.Ref(), discovery1ParentTaskID.Ref(), discovery2ParentTaskID.Ref()}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
-		return coretask.GetTaskResult(ctx, mergerTaskID.Ref()), nil
-	})
+	cyclicDiscoveryTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("cyclic-discovery")
+	cyclicDiscoveryTask := NewInspectionTask(
+		cyclicDiscoveryTaskID,
+		[]coretask.Dependency{mergerTaskID.Ref()},
+		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
+			return map[string]struct{}{"cyclic": {}}, nil
+		},
+		coretask.ProvidesTag(inventoryTag, coretask.WithTagPriority(100)),
+	)
 
-	wantMap := map[string]struct{}{
-		"foo": {},
-		"bar": {},
+	defaultAvailableTasks := []coretask.UntypedTask{
+		mergerTask,
+		discovery1,
+		discovery2,
+		discovery1ParentTask,
+		discovery2ParentTask,
 	}
-	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotMap, _, err := inspectiontest.RunInspectionTaskWithDependency(ctx, userTask, []coretask.UntypedTask{mergerTask, discovery1, discovery2, discovery1ParentTask, discovery2ParentTask}, inspectioncore_contract.TaskModeRun, map[string]any{})
-	if err != nil {
-		t.Errorf("running merger task failed with error: %v", err)
-	}
-	if diff := cmp.Diff(wantMap, gotMap); diff != "" {
-		t.Errorf("merger task result mismatch (-want +got):\n%s", diff)
-	}
-}
 
-// TestInventoryTask_ProvidedFromNoDiscoveryTask tests a scenario where the merger task receives no data.
-// This is because the main user task does not depend on any of the discovery tasks' parents.
-// The test verifies that the final merged map is empty.
-func TestInventoryTask_ProvidedFromNoDiscoveryTask(t *testing.T) {
-	nop := func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
-		return struct{}{}, nil
+	testCases := []struct {
+		name           string
+		availableTasks []coretask.UntypedTask
+		userTaskDeps   []coretask.Dependency
+		wantMap        map[string]struct{}
+	}{
+		{
+			name:           "provided from single discovery task when only parent 1 is active",
+			availableTasks: defaultAvailableTasks,
+			userTaskDeps:   []coretask.Dependency{mergerTaskID.Ref(), discovery1ParentTaskID.Ref()},
+			wantMap: map[string]struct{}{
+				"foo": {},
+			},
+		},
+		{
+			name:           "provided from multiple discovery tasks when both parent 1 and 2 are active",
+			availableTasks: defaultAvailableTasks,
+			userTaskDeps:   []coretask.Dependency{mergerTaskID.Ref(), discovery1ParentTaskID.Ref(), discovery2ParentTaskID.Ref()},
+			wantMap: map[string]struct{}{
+				"foo": {},
+				"bar": {},
+			},
+		},
+		{
+			name:           "provided from no discovery tasks when neither parent is active",
+			availableTasks: defaultAvailableTasks,
+			userTaskDeps:   []coretask.Dependency{mergerTaskID.Ref()},
+			wantMap:        map[string]struct{}{},
+		},
+		{
+			name:           "prunes circular dependency created by selected cyclic task so merger only includes non-cyclic discovery tasks",
+			availableTasks: append(slices.Clone(defaultAvailableTasks), cyclicDiscoveryTask),
+			userTaskDeps:   []coretask.Dependency{mergerTaskID.Ref(), discovery1ParentTaskID.Ref(), cyclicDiscoveryTaskID.Ref()},
+			wantMap: map[string]struct{}{
+				"foo": {},
+			},
+		},
 	}
-	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test")
-	builder := NewInventoryTaskBuilder(mergerTaskID)
-	mergerTask := builder.InventoryTask(&testSimpleStringMergerStrategy{})
-	discovery1ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery1")
-	discovery2ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery2")
-	discovery1ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-1-parent")
-	discovery1ParentTask := NewInspectionTask(discovery1ParentTaskID, []taskid.UntypedTaskReference{}, nop, coretask.NewSubsequentTaskRefsTaskLabel(discovery1ID.Ref()))
-	discovery1 := builder.DiscoveryTask(discovery1ID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (map[string]struct{}, error) {
-		return map[string]struct{}{
-			"foo": {},
-		}, nil
-	})
-	discovery2ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-2-parent")
-	discovery2ParentTask := NewInspectionTask(discovery2ParentTaskID, []taskid.UntypedTaskReference{}, nop, coretask.NewSubsequentTaskRefsTaskLabel(discovery2ID.Ref()))
-	discovery2 := builder.DiscoveryTask(discovery2ID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (map[string]struct{}, error) {
-		return map[string]struct{}{
-			"bar": {},
-		}, nil
-	})
-	userTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("user")
 
-	userTask := NewInspectionTask(userTaskID, []taskid.UntypedTaskReference{mergerTaskID.Ref()}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
-		return coretask.GetTaskResult(ctx, mergerTaskID.Ref()), nil
-	})
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			userTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("user-" + tc.name)
+			userTask := NewInspectionTask(
+				userTaskID,
+				tc.userTaskDeps,
+				func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
+					return coretask.GetTaskResult(ctx, mergerTaskID.Ref()), nil
+				},
+			)
 
-	wantMap := map[string]struct{}{}
-	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotMap, _, err := inspectiontest.RunInspectionTaskWithDependency(ctx, userTask, []coretask.UntypedTask{mergerTask, discovery1, discovery2, discovery1ParentTask, discovery2ParentTask}, inspectioncore_contract.TaskModeRun, map[string]any{})
-	if err != nil {
-		t.Errorf("running merger task failed with error: %v", err)
-	}
-	if diff := cmp.Diff(wantMap, gotMap); diff != "" {
-		t.Errorf("merger task result mismatch (-want +got):\n%s", diff)
+			dryRunCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			gotDryRunMap, _, err := inspectiontest.RunInspectionTaskWithDependency(
+				dryRunCtx,
+				userTask,
+				tc.availableTasks,
+				inspectioncore_contract.TaskModeDryRun,
+				map[string]any{},
+			)
+			if err != nil {
+				t.Fatalf("RunInspectionTaskWithDependency() dry run error: %v", err)
+			}
+			if diff := cmp.Diff(map[string]struct{}(nil), gotDryRunMap); diff != "" {
+				t.Errorf("merger task dry run result mismatch (-want +got):\n%s", diff)
+			}
+
+			runCtx := inspectiontest.NextRunTaskContext(t.Context(), dryRunCtx)
+			gotMap, _, err := inspectiontest.RunInspectionTaskWithDependency(
+				runCtx,
+				userTask,
+				tc.availableTasks,
+				inspectioncore_contract.TaskModeRun,
+				map[string]any{},
+			)
+			if err != nil {
+				t.Fatalf("RunInspectionTaskWithDependency() run error: %v", err)
+			}
+			if diff := cmp.Diff(tc.wantMap, gotMap); diff != "" {
+				t.Errorf("merger task result mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

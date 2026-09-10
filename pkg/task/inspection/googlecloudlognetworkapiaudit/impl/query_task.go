@@ -83,8 +83,8 @@ func (n *networkAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.C
 }
 
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (n *networkAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlognetworkapiaudit_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(),
 	}

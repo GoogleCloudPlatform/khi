@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -52,7 +53,7 @@ func (m *mockGroupedLogIngester) GroupedLogTask() taskid.TaskReference[LogGroupM
 	return m.groupTask
 }
 
-func (m *mockGroupedLogIngester) Dependencies() []taskid.UntypedTaskReference {
+func (m *mockGroupedLogIngester) Dependencies() []coretask.Dependency {
 	return nil
 }
 

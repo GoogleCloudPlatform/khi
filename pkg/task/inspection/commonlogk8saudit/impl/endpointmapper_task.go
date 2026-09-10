@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -72,8 +73,8 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) PassCount() int {
 }
 
 // Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (e *endpointResourceLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (e *endpointResourceLogToTimelineMapperTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.

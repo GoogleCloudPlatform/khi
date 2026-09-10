@@ -25,7 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -35,7 +34,7 @@ import (
 // User can extend this behavior with defining new task for googlecloudcommon_contract.APIClientFactoryOptionsTaskID with higher selection priority.
 var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudcommon_contract.APIClientFactoryOptionsTaskID,
-	[]taskid.UntypedTaskReference{},
+	[]coretask.Dependency{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]googlecloud.ClientFactoryOption, error) {
 		var options []googlecloud.ClientFactoryOption
 		optionsFromContext, err := khictx.GetValue(ctx, googlecloudcommon_contract.APIClientFactoryOptionsContextKey)
@@ -75,7 +74,7 @@ var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
 // Each APIClient use must call this injector method before to supply parameters correctly.
 var APICallOptionsInjectorTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID,
-	[]taskid.UntypedTaskReference{},
+	[]coretask.Dependency{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*googlecloud.CallOptionInjector, error) {
 		var options []googlecloud.CallOptionInjectorOption
 		optionsFromContext, err := khictx.GetValue(ctx, googlecloudcommon_contract.APICallOptionsInjectorContextKey)

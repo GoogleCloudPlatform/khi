@@ -31,7 +31,6 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -47,9 +46,10 @@ var (
 )
 
 // ManifestGeneratorTask is the task to generate manifest from k8s audit logs.
-var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTask(commonlogk8saudit_contract.ManifestGeneratorTaskID, []taskid.UntypedTaskReference{
+var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTask(commonlogk8saudit_contract.ManifestGeneratorTaskID, []coretask.Dependency{
 	commonlogk8saudit_contract.ChangeTargetGrouperTaskID.Ref(),
 	commonlogk8saudit_contract.K8sResourceMergeConfigTaskID.Ref(),
+	commonlogk8saudit_contract.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
 }, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceManifestLogGroupMap, error) {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{}, nil

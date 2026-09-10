@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
@@ -42,7 +42,7 @@ func NewFileFormTaskBuilder(id taskid.TaskImplementationID[upload.UploadResult],
 }
 
 // WithDependencies sets the task dependencies
-func (b *FileFormTaskBuilder) WithDependencies(dependencies []taskid.UntypedTaskReference) *FileFormTaskBuilder {
+func (b *FileFormTaskBuilder) WithDependencies(dependencies []coretask.Dependency) *FileFormTaskBuilder {
 	b.FormTaskBuilderBase.WithDependencies(dependencies)
 	return b
 }
@@ -53,8 +53,8 @@ func (b *FileFormTaskBuilder) WithDescription(description string) *FileFormTaskB
 	return b
 }
 
-func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_task.Task[upload.UploadResult] {
-	return common_task.NewTask(b.FormTaskBuilderBase.id, b.FormTaskBuilderBase.dependencies, func(ctx context.Context) (upload.UploadResult, error) {
+func (b *FileFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask.Task[upload.UploadResult] {
+	return coretask.NewTask(b.FormTaskBuilderBase.id, b.FormTaskBuilderBase.dependencies, func(ctx context.Context) (upload.UploadResult, error) {
 		metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 
 		req := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)

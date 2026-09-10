@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
@@ -62,7 +63,7 @@ func TestFormTaskBuilderBase_WithDescription(t *testing.T) {
 
 func TestFormTaskBuilderBase_WithDependencies(t *testing.T) {
 	builder := NewFormTaskBuilderBase(taskid.NewDefaultImplementationID[string]("test-id"), 1, "Test Label")
-	testDependencies := []taskid.UntypedTaskReference{taskid.NewTaskReference[string]("dep1"), taskid.NewTaskReference[string]("dep2")}
+	testDependencies := []coretask.Dependency{taskid.NewTaskReference[string]("dep1"), taskid.NewTaskReference[string]("dep2")}
 
 	result := builder.WithDependencies(testDependencies)
 

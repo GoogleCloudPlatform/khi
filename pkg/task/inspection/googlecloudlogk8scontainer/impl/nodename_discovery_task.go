@@ -17,21 +17,20 @@ package googlecloudlogk8scontainer_impl
 import (
 	"context"
 
-	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // NodeNameDiscoveryTask extracts node names from Kubernetes Container log labels and registers them to NodeNameInventoryTask.
-var NodeNameDiscoveryTask = commonlogk8saudit_contract.NodeNameInventoryBuilder.DiscoveryTask(
+var NodeNameDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudlogk8scontainer_contract.NodeNameDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		googlecloudlogk8scontainer_contract.ListLogEntriesTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]string, error) {
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return nil, nil
 		}
@@ -51,4 +50,5 @@ var NodeNameDiscoveryTask = commonlogk8saudit_contract.NodeNameInventoryBuilder.
 		}
 		return result, nil
 	},
+	coretask.ProvidesTag(commonlogk8saudit_contract.TagNodeNameDiscovery),
 )

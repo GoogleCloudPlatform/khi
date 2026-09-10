@@ -44,8 +44,8 @@ func NewLogFilterTask(tid taskid.TaskImplementationID[[]*log.Log], sourceLogs ta
 
 // NewLogFilterTaskWithDependencies creates a task that consumes a list of logs and returns a new list
 // containing only the logs that satisfy the filter function, with extra task dependencies.
-func NewLogFilterTaskWithDependencies(tid taskid.TaskImplementationID[[]*log.Log], sourceLogs taskid.TaskReference[[]*log.Log], extraDependencies []taskid.UntypedTaskReference, logFilter LogFilterFunc) coretask.Task[[]*log.Log] {
-	dependencies := append([]taskid.UntypedTaskReference{sourceLogs}, extraDependencies...)
+func NewLogFilterTaskWithDependencies(tid taskid.TaskImplementationID[[]*log.Log], sourceLogs taskid.TaskReference[[]*log.Log], extraDependencies []coretask.Dependency, logFilter LogFilterFunc) coretask.Task[[]*log.Log] {
+	dependencies := append([]coretask.Dependency{sourceLogs}, extraDependencies...)
 	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 		if taskMode != inspectioncore_contract.TaskModeRun {
 			return []*log.Log{}, nil

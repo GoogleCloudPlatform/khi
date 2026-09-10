@@ -15,7 +15,7 @@
 package coretask
 
 import (
-	"context"
+	"container/heap"
 	"fmt"
 	"slices"
 	"strings"
@@ -24,314 +24,592 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// DefaultTaskGraphResolver is the default configuration of graph resolver used for constructing complete task graph.
-var DefaultTaskGraphResolver = NewGraphResolver(100,
-	&RequiredTaskLabelGraphResolverRule{},
-	&TaskDependencyGraphResolverRule{},
-	&SubsequentTaskRefsGraphResolverRule{},
-)
-
-// GraphResolverRuleResult represents the result of a single GraphResolverRule execution.
-type GraphResolverRuleResult struct {
-	// Changed indicates whether the rule modified the task list.
-	Changed bool
-	// Tasks is the updated list of tasks after the rule has been applied.
-	Tasks []UntypedTask
-}
-
-// GraphResolverRule provides a rule to change the list of tasks included in the task graph from the given mandatory tasks.
-type GraphResolverRule interface {
-	// Name returns the name of the rule.
-	Name() string
-	// Resolve applies the rule to the current task graph, potentially adding, modifying tasks or removing tasks.
-	Resolve(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error)
-}
-
-// GraphResolver iteratively applies a set of rules to determine the final set of tasks for the task graph.
-// It starts with a set of required tasks and expands it based on the rules until a stable state is reached.
-type GraphResolver struct {
-	// Rules is the list of rules to be applied in each iteration.
-	Rules []GraphResolverRule
-	// MaxIteration is the maximum number of iterations to perform before considering the resolution failed.
-	MaxIteration int
-}
-
-// NewGraphResolver returns a new instance of GraphResolver with given rules and configurations.
-func NewGraphResolver(maxIteration int, rules ...GraphResolverRule) *GraphResolver {
-	return &GraphResolver{
-		Rules:        rules,
-		MaxIteration: maxIteration,
-	}
-}
-
-// Resolve determines the final set of tasks for the task graph.
-// It iteratively applies the configured rules, starting with the initial `requiredTasks`.
-// The process continues until no more changes are made to the task list (a stable state)
-// or the `MaxIteration` limit is reached.
-func (r *GraphResolver) Resolve(requiredTasks []UntypedTask, availableTasks []UntypedTask) ([]UntypedTask, error) {
-	currentTasks := slices.Clone(requiredTasks)
-	sortedAvailableTasks := slices.Clone(availableTasks)
-	slices.SortFunc(sortedAvailableTasks, compareTaskByReference)
-	for iter := 0; iter < r.MaxIteration; iter++ {
-		stabled := true
-		for _, rule := range r.Rules {
-			result, err := rule.Resolve(currentTasks, sortedAvailableTasks)
-			if err != nil {
-				return nil, fmt.Errorf("failed to call Resolve function for the rule %s\n%s", rule.Name(), err.Error())
-			}
-			if result.Changed {
-				stabled = false
-			}
-			currentTasks = result.Tasks
-		}
-		if stabled {
-			return currentTasks, nil
-		}
-	}
-	return nil, fmt.Errorf("failed to complete the resolution of tasks included in the task graph in given iteration count %d ", r.MaxIteration)
-}
-
-func compareTaskByReference(a, b UntypedTask) int {
-	return strings.Compare(a.UntypedID().ReferenceIDString(), b.UntypedID().ReferenceIDString())
-}
-
-// RequiredTaskLabelGraphResolverRule is a resolver rule that adds tasks to the graph
-// if they have the `LabelKeyRequiredTask` label set to true.
-type RequiredTaskLabelGraphResolverRule struct{}
-
-// Name implements GraphResolverRule.
-func (r *RequiredTaskLabelGraphResolverRule) Name() string {
-	return "require-task-label"
-}
-
-// Resolve implements GraphResolverRule.
-func (r *RequiredTaskLabelGraphResolverRule) Resolve(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error) {
-	taskMap, err := getMapOfTaskIDToUntypedTask(currentGraphTasks)
+// ResolveGraph resolves the task graph starting from initialTasks, drawing dependencies from availableTasks,
+// and excluding disabledTasks.
+// It applies a deterministic 5-phase resolution algorithm and returns a runnable TaskSet containing
+// topologically sorted tasks and concrete TaskEdges.
+func ResolveGraph(
+	initialTasks []UntypedTask,
+	availableTasks []UntypedTask,
+	disabledTasks []UntypedTask,
+) (*TaskSet, error) {
+	availableTaskMap, disabledRefIDSet, err := verifyInput(initialTasks, availableTasks, disabledTasks)
 	if err != nil {
-		return GraphResolverRuleResult{}, err
+		return nil, err
 	}
 
-	result := GraphResolverRuleResult{
-		Tasks:   currentGraphTasks,
-		Changed: false,
+	// --- Phase 1: Mandatory Closure ---
+	graphTaskMap, err := resolveMandatoryClosure(initialTasks, availableTasks, availableTaskMap, disabledRefIDSet)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, task := range availableTasks {
-		tid := task.UntypedID().String()
-		if _, found := taskMap[tid]; found {
-			continue
+	// --- Phase 2: Active Feature Expansion & Fan-In Candidate Binding ---
+	candidateFanInEdges, err := resolveActiveFeaturesAndCandidateFanInEdges(graphTaskMap, availableTasks, availableTaskMap, disabledRefIDSet)
+	if err != nil {
+		return nil, err
+	}
+
+	// --- Phase 3: Point-to-Point Edge Binding ---
+	pointToPointEdges := resolvePointToPointEdges(graphTaskMap)
+
+	// --- Phase 4: Fan-In Cycle Resolution & Edge Deduplication ---
+	resolvedTasks, resolvedEdges, boundFanInRefIDsByTaskImplID, err := resolveFanInEdgesAndCycles(graphTaskMap, pointToPointEdges, candidateFanInEdges)
+	if err != nil {
+		return nil, err
+	}
+
+	// --- Phase 5: Topological Sorting (Kahn's Algorithm) ---
+	return buildAndSortTaskSet(resolvedTasks, resolvedEdges, boundFanInRefIDsByTaskImplID), nil
+}
+
+// verifyInput validates the input tasks to ResolveGraph:
+// 1. availableTasks must contain at most one implementation for each reference ID (no variants).
+// 2. initialTasks must be a subset of availableTasks with matching implementation IDs.
+// 3. disabledTasks must be a subset of availableTasks with matching implementation IDs.
+// 4. No task in initialTasks can also be present in disabledTasks.
+// It returns a map of reference ID to UntypedTask for availableTasks, and a set of disabled reference IDs.
+func verifyInput(
+	initialTasks []UntypedTask,
+	availableTasks []UntypedTask,
+	disabledTasks []UntypedTask,
+) (map[string]UntypedTask, map[string]struct{}, error) {
+	availableTaskMap := make(map[string]UntypedTask, len(availableTasks))
+	for _, t := range availableTasks {
+		refID := t.UntypedID().ReferenceIDString()
+		implID := t.UntypedID().String()
+		if existing, exists := availableTaskMap[refID]; exists {
+			return nil, nil, fmt.Errorf("available task %q has conflicting implementation %q for reference %q", implID, existing.UntypedID().String(), refID)
 		}
-		if required, found := typedmap.Get(task.Labels(), LabelKeyRequiredTask); required && found {
-			result.Tasks = append(result.Tasks, task)
-			result.Changed = true
+		availableTaskMap[refID] = t
+	}
+
+	initialRefIDSet, err := verifyTaskSubset(initialTasks, availableTaskMap, "initial")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	disabledRefIDSet, err := verifyTaskSubset(disabledTasks, availableTaskMap, "disabled")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for refID := range disabledRefIDSet {
+		if _, isInitial := initialRefIDSet[refID]; isInitial {
+			return nil, nil, fmt.Errorf("initial task %q is explicitly disabled", availableTaskMap[refID].UntypedID().String())
 		}
 	}
-	return result, nil
+
+	return availableTaskMap, disabledRefIDSet, nil
 }
 
-var _ GraphResolverRule = (*RequiredTaskLabelGraphResolverRule)(nil)
-
-// TaskDependencyGraphResolverRule is a resolver rule that adds tasks to the graph
-// to satisfy the dependencies of tasks already in the graph.
-type TaskDependencyGraphResolverRule struct {
+// verifyTaskSubset verifies that all tasks in the given subset exist in availableTaskMap with matching implementation IDs and no duplicate references.
+func verifyTaskSubset(
+	tasks []UntypedTask,
+	availableTaskMap map[string]UntypedTask,
+	kind string,
+) (map[string]struct{}, error) {
+	refIDSet := make(map[string]struct{}, len(tasks))
+	for _, t := range tasks {
+		refID := t.UntypedID().ReferenceIDString()
+		implID := t.UntypedID().String()
+		if _, exists := refIDSet[refID]; exists {
+			return nil, fmt.Errorf("%s task %q has duplicate reference %q", kind, implID, refID)
+		}
+		avail, exists := availableTaskMap[refID]
+		if !exists {
+			return nil, fmt.Errorf("%s task %q is not in available tasks", kind, implID)
+		}
+		if avail.UntypedID().String() != implID {
+			return nil, fmt.Errorf("%s task %q has conflicting implementation %q in available tasks for reference %q", kind, implID, avail.UntypedID().String(), refID)
+		}
+		refIDSet[refID] = struct{}{}
+	}
+	return refIDSet, nil
 }
 
-// Name implements GraphResolverRule.
-func (d *TaskDependencyGraphResolverRule) Name() string {
-	return "dependency"
-}
+// resolveMandatoryClosure computes the initial graph tasks by expanding mandatory point-to-point dependencies
+// starting from initialTasks and system-required tasks in availableTasks.
+func resolveMandatoryClosure(
+	initialTasks []UntypedTask,
+	availableTasks []UntypedTask,
+	availableTaskMap map[string]UntypedTask,
+	disabledRefIDSet map[string]struct{},
+) (map[string]UntypedTask, error) {
+	graphTaskMap := make(map[string]UntypedTask)
+	queue := make([]UntypedTask, 0)
 
-// Resolve adds tasks from the available pool to satisfy unmet dependencies of tasks
-// currently in the graph. If multiple tasks can satisfy a single dependency, the one
-// with the highest priority is chosen. It returns an error if a dependency cannot be resolved.
-func (d *TaskDependencyGraphResolverRule) Resolve(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error) {
-	inclduedTaskReferences := getMapOfReferenceIDs(currentGraphTasks)
+	// Collect initial tasks.
+	for _, t := range initialTasks {
+		refID := t.UntypedID().ReferenceIDString()
+		graphTaskMap[refID] = t
+		queue = append(queue, t)
+	}
 
-	missingReferences := make(map[string]taskid.UntypedTaskReference)
-	for _, task := range currentGraphTasks {
-		for _, dependency := range task.Dependencies() {
-			refID := dependency.ReferenceIDString()
-			if _, found := inclduedTaskReferences[refID]; !found {
-				missingReferences[refID] = dependency
+	// Collect system-required tasks (LabelKeyRequiredTask).
+	for _, t := range availableTasks {
+		if req, found := typedmap.Get(t.Labels(), LabelKeyRequiredTask); found && req {
+			refID := t.UntypedID().ReferenceIDString()
+			if _, isDisabled := disabledRefIDSet[refID]; isDisabled {
+				return nil, fmt.Errorf("required task %q is explicitly disabled", t.UntypedID())
+			}
+			if _, exists := graphTaskMap[refID]; !exists {
+				graphTaskMap[refID] = t
+				queue = append(queue, t)
 			}
 		}
 	}
 
-	result := GraphResolverRuleResult{
-		Tasks:   currentGraphTasks,
-		Changed: false,
+	// Expand mandatory point-to-point dependency closure.
+	if err := expandMandatoryDependencies(queue, graphTaskMap, availableTaskMap, disabledRefIDSet); err != nil {
+		return nil, err
 	}
 
-	if len(missingReferences) > 0 {
-		result.Changed = true
-		for _, ref := range missingReferences {
-			task, err := findUntypedTaskForTaskReference(ref, availableTasks)
-			if err != nil {
-				return GraphResolverRuleResult{}, err
-			}
-			result.Tasks = append(result.Tasks, task)
-		}
-	}
-	return result, nil
+	return graphTaskMap, nil
 }
 
-var _ GraphResolverRule = (*TaskDependencyGraphResolverRule)(nil)
+// expandMandatoryDependencies expands the mandatory point-to-point dependency closure for tasks in queue.
+func expandMandatoryDependencies(
+	queue []UntypedTask,
+	graphTaskMap map[string]UntypedTask,
+	availableTaskMap map[string]UntypedTask,
+	disabledRefIDSet map[string]struct{},
+) error {
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
 
-// dependencyOverridenUntypedTask wraps an existing UntypedTask to dynamically override its dependencies.
-// This is used by SubsequentTaskRefsGraphResolverRule to ensure that a subsequent task
-// correctly depends on the task that triggered its addition to the graph.
-type dependencyOverridenUntypedTask struct {
-	Parent                 UntypedTask
-	AdditionalDependencies []taskid.UntypedTaskReference
-}
-
-// newDependencyOverridenUntypedTask creates a new instance of dependencyOverridenUntypedTask,
-// wrapping the provided parent task.
-func newDependencyOverridenUntypedTask(parent UntypedTask) *dependencyOverridenUntypedTask {
-	return &dependencyOverridenUntypedTask{
-		Parent:                 parent,
-		AdditionalDependencies: make([]taskid.UntypedTaskReference, 0),
-	}
-}
-
-// AddDependency adds a new task reference to the list of additional dependencies, ignoring duplicates.
-// It returns true if the dependency was added, and false if it already existed.
-func (d *dependencyOverridenUntypedTask) AddDependency(newTaskRef taskid.UntypedTaskReference) bool {
-	for _, ref := range d.Dependencies() {
-		if ref.ReferenceIDString() == newTaskRef.ReferenceIDString() {
-			return false
-		}
-	}
-	d.AdditionalDependencies = append(d.AdditionalDependencies, newTaskRef)
-	return true
-}
-
-// Dependencies implements UntypedTask by returning the parent's dependencies merged with any additional dependencies.
-func (d *dependencyOverridenUntypedTask) Dependencies() []taskid.UntypedTaskReference {
-	return append(d.Parent.Dependencies(), d.AdditionalDependencies...)
-}
-
-// Labels implements UntypedTask by delegating to the parent task.
-func (d *dependencyOverridenUntypedTask) Labels() *typedmap.ReadonlyTypedMap {
-	return d.Parent.Labels()
-}
-
-// UntypedID implements UntypedTask by delegating to the parent task.
-func (d *dependencyOverridenUntypedTask) UntypedID() taskid.UntypedTaskImplementationID {
-	return d.Parent.UntypedID()
-}
-
-// UntypedRun implements UntypedTask by delegating to the parent task.
-func (d *dependencyOverridenUntypedTask) UntypedRun(ctx context.Context) (any, error) {
-	return d.Parent.UntypedRun(ctx)
-}
-
-var _ UntypedTask = (*dependencyOverridenUntypedTask)(nil)
-
-// SubsequentTaskRefsGraphResolverRule is a resolver rule that adds tasks to the graph
-// based on the `LabelKeySubsequentTaskRefs` label of tasks already in the graph.
-// This rule won't resolve dependencies of tasks added as the subsequent task. This must be used with the `dependency` resolver rule.
-type SubsequentTaskRefsGraphResolverRule struct {
-}
-
-// Name implements GraphResolverRule.
-func (s *SubsequentTaskRefsGraphResolverRule) Name() string {
-	return "subsequent-task-label"
-}
-
-// Resolve ensures that subsequent tasks specified by the `LabelKeySubsequentTaskRefs` label
-// are included in the graph. It dynamically updates dependencies to ensure that the
-// subsequent task runs after the task that requested it.
-func (s *SubsequentTaskRefsGraphResolverRule) Resolve(currentGraphTasks []UntypedTask, availableTasks []UntypedTask) (GraphResolverRuleResult, error) {
-	result := GraphResolverRuleResult{
-		Changed: false,
-		Tasks:   currentGraphTasks,
-	}
-	missingSubsequentTaskReferences := make(map[string]taskid.UntypedTaskReference)
-	missingSubsequentTaskReqquestedBy := make(map[string][]UntypedTask)
-	for _, task := range currentGraphTasks {
-		taskRefs := typedmap.GetOrDefault(task.Labels(), LabelKeySubsequentTaskRefs, []taskid.UntypedTaskReference{})
-		for _, subsequentTaskRef := range taskRefs {
-			found := false
-			// try finding subsequent tasks from already included tasks
-			for i, t := range currentGraphTasks {
-				if t.UntypedID().ReferenceIDString() == subsequentTaskRef.ReferenceIDString() {
-					if _, isDependencyOverridable := t.(*dependencyOverridenUntypedTask); !isDependencyOverridable {
-						currentGraphTasks[i] = newDependencyOverridenUntypedTask(t)
-						t = currentGraphTasks[i]
+		for _, dep := range curr.Dependencies() {
+			if dep.DescriptorScope() == taskid.ScopeAll && dep.DescriptorCardinality() == taskid.CardinalityPointToPoint {
+				ptp, ok := dep.(taskid.PointToPointDescriptor)
+				if !ok {
+					continue
+				}
+				refID := ptp.ReferenceID()
+				if _, exists := graphTaskMap[refID]; !exists {
+					if _, isDisabled := disabledRefIDSet[refID]; isDisabled {
+						return fmt.Errorf("required dependency %q required by %q is disabled", refID, curr.UntypedID())
 					}
-					if t.(*dependencyOverridenUntypedTask).AddDependency(task.UntypedID().GetUntypedReference()) {
-						result.Changed = true
+					targetTask, ok := availableTaskMap[refID]
+					if !ok {
+						return fmt.Errorf("required dependency %q required by %q not found", refID, curr.UntypedID())
 					}
-					found = true
+					graphTaskMap[refID] = targetTask
+					queue = append(queue, targetTask)
 				}
 			}
-			if !found {
-				missingSubsequentTaskReferences[subsequentTaskRef.ReferenceIDString()] = subsequentTaskRef
-				missingSubsequentTaskReqquestedBy[subsequentTaskRef.ReferenceIDString()] = append(missingSubsequentTaskReqquestedBy[subsequentTaskRef.ReferenceIDString()], task)
+		}
+	}
+	return nil
+}
+
+// resolveActiveFeaturesAndCandidateFanInEdges resolves candidate fan-in edges and conditionally expands
+// active feature tasks (both point-to-point and fan-in) for all tasks in graphTaskMap.
+func resolveActiveFeaturesAndCandidateFanInEdges(
+	graphTaskMap map[string]UntypedTask,
+	availableTasks []UntypedTask,
+	availableTaskMap map[string]UntypedTask,
+	disabledRefIDSet map[string]struct{},
+) ([]taskid.TaskEdge, error) {
+	queue := make([]UntypedTask, 0, len(graphTaskMap))
+	visited := make(map[string]struct{}, len(graphTaskMap))
+
+	for _, t := range graphTaskMap {
+		queue = append(queue, t)
+	}
+	slices.SortFunc(queue, compareTaskByImplementationID)
+	for _, t := range queue {
+		visited[t.UntypedID().String()] = struct{}{}
+	}
+
+	var rawEdges []taskid.TaskEdge
+
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+
+		expandActiveFeaturePointToPointDependencies(curr, availableTaskMap, graphTaskMap, disabledRefIDSet)
+
+		taskEdges, err := resolveTaskCandidateFanInEdges(curr, availableTasks, availableTaskMap, graphTaskMap, disabledRefIDSet)
+		if err != nil {
+			return nil, err
+		}
+		rawEdges = append(rawEdges, taskEdges...)
+
+		if newlyAdded := findAndMarkUnvisitedTasks(graphTaskMap, visited); len(newlyAdded) > 0 {
+			queue = append(queue, newlyAdded...)
+		}
+	}
+
+	slices.SortFunc(rawEdges, compareTaskEdge)
+	return rawEdges, nil
+}
+
+// expandActiveFeaturePointToPointDependencies expands any point-to-point dependencies of task
+// configured with ScopeActiveFeatures if their upstream dependencies merge into active features.
+func expandActiveFeaturePointToPointDependencies(
+	task UntypedTask,
+	availableTaskMap map[string]UntypedTask,
+	graphTaskMap map[string]UntypedTask,
+	disabledRefIDSet map[string]struct{},
+) {
+	for _, dep := range task.Dependencies() {
+		if dep.DescriptorCardinality() != taskid.CardinalityPointToPoint || dep.DescriptorScope() != taskid.ScopeActiveFeatures {
+			continue
+		}
+		ptp, ok := dep.(taskid.PointToPointDescriptor)
+		if !ok {
+			continue
+		}
+		refID := ptp.ReferenceID()
+		if _, isDisabled := disabledRefIDSet[refID]; isDisabled {
+			continue
+		}
+		if _, inGraph := graphTaskMap[refID]; inGraph {
+			continue
+		}
+
+		targetTask, ok := availableTaskMap[refID]
+		if !ok {
+			continue
+		}
+
+		subgraph, ok := tryResolveActiveFeatureSubgraph(targetTask, availableTaskMap, graphTaskMap, disabledRefIDSet)
+		if ok {
+			for _, subTask := range subgraph {
+				graphTaskMap[subTask.UntypedID().ReferenceIDString()] = subTask
+			}
+		}
+	}
+}
+
+// resolveTaskCandidateFanInEdges processes fan-in dependencies of a single task.
+func resolveTaskCandidateFanInEdges(
+	task UntypedTask,
+	availableTasks []UntypedTask,
+	availableTaskMap map[string]UntypedTask,
+	graphTaskMap map[string]UntypedTask,
+	disabledRefIDSet map[string]struct{},
+) ([]taskid.TaskEdge, error) {
+	var taskEdges []taskid.TaskEdge
+
+	for _, dep := range task.Dependencies() {
+		if dep.DescriptorCardinality() != taskid.CardinalityFanIn {
+			continue
+		}
+		fanInDep, ok := dep.(taskid.FanInDescriptor)
+		if !ok {
+			continue
+		}
+
+		tag := fanInDep.Tag()
+		var matchingProducers []UntypedTask
+		switch fanInDep.DescriptorScope() {
+		case taskid.ScopeActiveFeatures:
+			matchingProducers = findAndConditionallyExpandActiveFeatureTasks(tag, availableTasks, availableTaskMap, graphTaskMap, disabledRefIDSet)
+		case taskid.ScopeActiveGraph:
+			matchingProducers = findActiveGraphTasksByTag(tag, graphTaskMap)
+		case taskid.ScopeAll:
+			return nil, fmt.Errorf("ScopeAll is not supported for fan-in dependency on tag %q", tag)
+		default:
+			return nil, fmt.Errorf("unknown or unsupported dependency scope: %v", fanInDep.DescriptorScope())
+		}
+
+		for _, p := range matchingProducers {
+			priority := typedmap.GetOrDefault(p.Labels(), LabelKeyProvidedTagPriority(tag), DefaultTagPriority)
+			taskEdges = append(taskEdges, taskid.TaskEdge{
+				SourceRefID:  p.UntypedID().ReferenceIDString(),
+				SourceImplID: p.UntypedID().String(),
+				TargetImplID: task.UntypedID().String(),
+				Cardinality:  taskid.CardinalityFanIn,
+				Tag:          tag,
+				Priority:     priority,
+			})
+		}
+	}
+
+	return taskEdges, nil
+}
+
+// findAndMarkUnvisitedTasks finds any tasks in graphTaskMap that have not yet been marked visited,
+// marks them as visited, and returns them sorted by implementation ID.
+func findAndMarkUnvisitedTasks(
+	graphTaskMap map[string]UntypedTask,
+	visited map[string]struct{},
+) []UntypedTask {
+	var newlyAdded []UntypedTask
+	for _, t := range graphTaskMap {
+		implID := t.UntypedID().String()
+		if _, seen := visited[implID]; !seen {
+			visited[implID] = struct{}{}
+			newlyAdded = append(newlyAdded, t)
+		}
+	}
+	if len(newlyAdded) > 0 {
+		slices.SortFunc(newlyAdded, compareTaskByImplementationID)
+	}
+	return newlyAdded
+}
+
+// findActiveGraphTasksByTag returns all tasks currently in graphTaskMap that provide the given tag.
+func findActiveGraphTasksByTag(tag string, graphTaskMap map[string]UntypedTask) []UntypedTask {
+	var matching []UntypedTask
+	for _, t := range graphTaskMap {
+		if slices.Contains(getProvidedTags(t), tag) {
+			matching = append(matching, t)
+		}
+	}
+	slices.SortFunc(matching, compareTaskByImplementationID)
+	return matching
+}
+
+// compareTaskEdge compares two task edges deterministically by SourceImplID, TargetImplID, Tag, and Priority.
+func compareTaskEdge(a, b taskid.TaskEdge) int {
+	if c := strings.Compare(a.SourceImplID, b.SourceImplID); c != 0 {
+		return c
+	}
+	if c := strings.Compare(a.TargetImplID, b.TargetImplID); c != 0 {
+		return c
+	}
+	if c := strings.Compare(a.Tag, b.Tag); c != 0 {
+		return c
+	}
+	return a.Priority - b.Priority
+}
+
+// resolvePointToPointEdges creates point-to-point edges for all tasks in graphTaskMap
+// whose source (upstream dependency) exists in the graph (both required and optional).
+func resolvePointToPointEdges(graphTaskMap map[string]UntypedTask) []taskid.TaskEdge {
+	tasks := make([]UntypedTask, 0, len(graphTaskMap))
+	for _, t := range graphTaskMap {
+		tasks = append(tasks, t)
+	}
+	slices.SortFunc(tasks, compareTaskByImplementationID)
+
+	var rawEdges []taskid.TaskEdge
+	for _, t := range tasks {
+		for _, dep := range t.Dependencies() {
+			if dep.DescriptorCardinality() == taskid.CardinalityPointToPoint {
+				ptp, ok := dep.(taskid.PointToPointDescriptor)
+				if !ok {
+					continue
+				}
+				refID := ptp.ReferenceID()
+				if sourceTask, exists := graphTaskMap[refID]; exists {
+					rawEdges = append(rawEdges, taskid.TaskEdge{
+						SourceRefID:  refID,
+						SourceImplID: sourceTask.UntypedID().String(),
+						TargetImplID: t.UntypedID().String(),
+						Cardinality:  taskid.CardinalityPointToPoint,
+					})
+				}
+			}
+		}
+	}
+	return rawEdges
+}
+
+// deduplicateAndNormalizeEdges merges duplicate edges between the same source and target.
+// Minimum Priority takes precedence.
+func deduplicateAndNormalizeEdges(rawEdges []taskid.TaskEdge) []taskid.TaskEdge {
+	type edgeKey struct {
+		sourceImplID string
+		targetImplID string
+	}
+	edgeMap := make(map[edgeKey]taskid.TaskEdge)
+	order := make([]edgeKey, 0, len(rawEdges))
+
+	for _, e := range rawEdges {
+		key := edgeKey{sourceImplID: e.SourceImplID, targetImplID: e.TargetImplID}
+		if existing, exists := edgeMap[key]; exists {
+			if existing.Priority == 0 || (e.Priority > 0 && e.Priority < existing.Priority) {
+				existing.Priority = e.Priority
+			}
+			if existing.Tag == "" && e.Tag != "" {
+				existing.Tag = e.Tag
+			}
+			if existing.Cardinality == taskid.CardinalityPointToPoint || e.Cardinality == taskid.CardinalityPointToPoint {
+				existing.Cardinality = taskid.CardinalityPointToPoint
+			}
+			edgeMap[key] = existing
+		} else {
+			edgeMap[key] = e
+			order = append(order, key)
+		}
+	}
+
+	deduped := make([]taskid.TaskEdge, 0, len(order))
+	for _, k := range order {
+		deduped = append(deduped, edgeMap[k])
+	}
+	return deduped
+}
+
+// buildAndSortTaskSet executes Kahn's algorithm with a min-heap for deterministic ordering.
+func buildAndSortTaskSet(
+	tasks []UntypedTask,
+	edges []taskid.TaskEdge,
+	boundFanInRefIDsByTaskImplID map[string]map[string][]string,
+) *TaskSet {
+	inDegree := make(map[string]int, len(tasks))
+	outgoing := make(map[string][]string) // key: source task implementation ID -> []target task implementation ID
+
+	// Index tasks by ImplementationID for O(1) ready queue push.
+	implToTask := make(map[string]UntypedTask, len(tasks))
+	for _, task := range tasks {
+		implID := task.UntypedID().String()
+		inDegree[implID] = 0
+		implToTask[implID] = task
+	}
+
+	for _, e := range edges {
+		outgoing[e.SourceImplID] = append(outgoing[e.SourceImplID], e.TargetImplID)
+		inDegree[e.TargetImplID]++
+	}
+
+	h := &taskMinHeap{}
+	heap.Init(h)
+	for _, task := range tasks {
+		if inDegree[task.UntypedID().String()] == 0 {
+			heap.Push(h, task)
+		}
+	}
+
+	sortedTasks := make([]UntypedTask, 0, len(tasks))
+	for h.Len() > 0 {
+		curr := heap.Pop(h).(UntypedTask)
+		sortedTasks = append(sortedTasks, curr)
+
+		for _, targetImplID := range outgoing[curr.UntypedID().String()] {
+			inDegree[targetImplID]--
+			if inDegree[targetImplID] == 0 {
+				if task, ok := implToTask[targetImplID]; ok {
+					heap.Push(h, task)
+				}
 			}
 		}
 	}
 
-	for idStr, taskRef := range missingSubsequentTaskReferences {
-		task, err := findUntypedTaskForTaskReference(taskRef, availableTasks)
-		if err != nil {
-			return GraphResolverRuleResult{}, err
-		}
-		overridenTask := newDependencyOverridenUntypedTask(task)
-		for _, requestedSuccessor := range missingSubsequentTaskReqquestedBy[idStr] {
-			overridenTask.AddDependency(requestedSuccessor.UntypedID().GetUntypedReference())
-		}
-		result.Tasks = append(result.Tasks, overridenTask)
-		result.Changed = true
-	}
-	return result, nil
+	return NewResolvedTaskSet(sortedTasks, edges, boundFanInRefIDsByTaskImplID)
 }
 
-var _ GraphResolverRule = (*SubsequentTaskRefsGraphResolverRule)(nil)
-
-// getMapOfTaskIDToUntypedTask creates a map from task ID string to UntypedTask.
-// It returns an error if duplicate task IDs are found.
-func getMapOfTaskIDToUntypedTask(tasks []UntypedTask) (map[string]UntypedTask, error) {
-	includedTaskIDs := map[string]UntypedTask{}
-	for _, task := range tasks {
-		tid := task.UntypedID().String()
-		if _, found := includedTaskIDs[tid]; found {
-			return nil, fmt.Errorf("getMapOfTaskIDToUntypedTask: failed to generate map of taskIDs. multiple tasks with task ID '%s' found", tid)
+// getProvidedTags extracts all tag IDs that the task provides.
+func getProvidedTags(task UntypedTask) []string {
+	var tags []string
+	for _, key := range task.Labels().Keys() {
+		if strings.HasPrefix(key, LabelKeyProvidedTagPrefix) {
+			provided := typedmap.GetOrDefault(task.Labels(), typedmap.NewTypedKey[bool](key), false)
+			if provided {
+				tags = append(tags, strings.TrimPrefix(key, LabelKeyProvidedTagPrefix))
+			}
 		}
-		includedTaskIDs[tid] = task
 	}
-	return includedTaskIDs, nil
+	slices.Sort(tags)
+	return tags
 }
 
-// getMapOfReferenceIDs creates a map from a task's reference ID string to its UntypedTaskReference.
-// This map is used to quickly check if a task satisfying a certain reference is already in the graph.
-// It safely ignores duplicate references, as multiple task implementations can satisfy the same reference.
-func getMapOfReferenceIDs(tasks []UntypedTask) map[string]taskid.UntypedTaskReference {
-	taskReferenceMap := map[string]taskid.UntypedTaskReference{}
-	for _, task := range tasks {
-		refID := task.UntypedID().ReferenceIDString()
-		// A task graph can contain tasks sharing a same task reference. Duplication is safely ignored.
-		taskReferenceMap[refID] = task.UntypedID().GetUntypedReference()
+// findAndConditionallyExpandActiveFeatureTasks resolves candidate producers for ScopeActiveFeatures.
+func findAndConditionallyExpandActiveFeatureTasks(
+	tag string,
+	availableTasks []UntypedTask,
+	availableTaskMap map[string]UntypedTask,
+	graphTaskMap map[string]UntypedTask,
+	disabledRefIDSet map[string]struct{},
+) []UntypedTask {
+	var matching []UntypedTask
+	for _, t := range availableTasks {
+		refID := t.UntypedID().ReferenceIDString()
+		if _, isDisabled := disabledRefIDSet[refID]; isDisabled {
+			continue
+		}
+		if !slices.Contains(getProvidedTags(t), tag) {
+			continue
+		}
+
+		if existing, inGraph := graphTaskMap[refID]; inGraph {
+			matching = append(matching, existing)
+			continue
+		}
+
+		// Verify that candidate's upstream dependencies merge into active features.
+		subgraph, ok := tryResolveActiveFeatureSubgraph(t, availableTaskMap, graphTaskMap, disabledRefIDSet)
+		if ok {
+			for _, subTask := range subgraph {
+				graphTaskMap[subTask.UntypedID().ReferenceIDString()] = subTask
+			}
+			matching = append(matching, t)
+		}
 	}
-	return taskReferenceMap
+	slices.SortFunc(matching, compareTaskByImplementationID)
+	return matching
 }
 
-// findUntypedTaskForTaskReference searches the sorted list of available tasks for a task
-// matching the given reference using binary search and returns it.
-// It returns an error if no matching task is found.
-func findUntypedTaskForTaskReference(ref taskid.UntypedTaskReference, availableTasks []UntypedTask) (UntypedTask, error) {
-	target := ref.ReferenceIDString()
-	idx, found := slices.BinarySearchFunc(availableTasks, target, func(t UntypedTask, target string) int {
-		return strings.Compare(t.UntypedID().ReferenceIDString(), target)
-	})
-	if found {
-		return availableTasks[idx], nil
+// tryResolveActiveFeatureSubgraph verifies that all mandatory dependency branches of candidate reach existing tasks in graphTaskMap
+// without passing through any disabled tasks, and returns the subgraph of tasks to add to the graph.
+func tryResolveActiveFeatureSubgraph(
+	candidate UntypedTask,
+	availableTaskMap map[string]UntypedTask,
+	graphTaskMap map[string]UntypedTask,
+	disabledRefIDSet map[string]struct{},
+) ([]UntypedTask, bool) {
+	subgraphMap := make(map[string]UntypedTask)
+	queue := []UntypedTask{candidate}
+	subgraphMap[candidate.UntypedID().ReferenceIDString()] = candidate
+
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+
+		// Fails if the current task is disabled.
+		if _, isDisabled := disabledRefIDSet[curr.UntypedID().ReferenceIDString()]; isDisabled {
+			return nil, false
+		}
+
+		hasMandatoryDeps := false
+		for _, dep := range curr.Dependencies() {
+			if dep.DescriptorScope() == taskid.ScopeAll && dep.DescriptorCardinality() == taskid.CardinalityPointToPoint {
+				hasMandatoryDeps = true
+				ptp, ok := dep.(taskid.PointToPointDescriptor)
+				if !ok {
+					continue
+				}
+				depRefID := ptp.ReferenceID()
+
+				if _, isDisabled := disabledRefIDSet[depRefID]; isDisabled {
+					return nil, false // Branch targets a disabled task.
+				}
+
+				if _, inGraph := graphTaskMap[depRefID]; inGraph {
+					// Branch successfully reaches an existing task in the active graph.
+					continue
+				}
+
+				if _, inSub := subgraphMap[depRefID]; !inSub {
+					nextTask, ok := availableTaskMap[depRefID]
+					if !ok {
+						return nil, false // Missing dependency.
+					}
+					subgraphMap[depRefID] = nextTask
+					queue = append(queue, nextTask)
+				}
+			}
+		}
+
+		// If an upstream task reached from candidate has no mandatory dependencies,
+		// this dependency branch terminates outside the active graph.
+		if curr != candidate && !hasMandatoryDeps {
+			return nil, false
+		}
 	}
 
-	var availableTaskIDs []string
-	for _, task := range availableTasks {
-		availableTaskIDs = append(availableTaskIDs, "*"+task.UntypedID().String())
+	result := make([]UntypedTask, 0, len(subgraphMap))
+	for _, task := range subgraphMap {
+		result = append(result, task)
 	}
-	return nil, fmt.Errorf("failed to resolve task dependency. No available task can be referenced as '%s'.\nAvailable tasks:\n%s", ref.ReferenceIDString(), strings.Join(availableTaskIDs, "\n"))
+	return result, true
+}
+
+// compareTaskByImplementationID compares two UntypedTasks lexicographically by their implementation ID string.
+func compareTaskByImplementationID(a, b UntypedTask) int {
+	return strings.Compare(a.UntypedID().String(), b.UntypedID().String())
 }

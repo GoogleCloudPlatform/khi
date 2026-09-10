@@ -20,10 +20,8 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -42,21 +40,18 @@ var (
 	pathIPLeaseNamespace    = structured.CompileFieldPath("namespace")
 )
 
-var IPLeaseHistoryInventoryTask = commonlogk8saudit_contract.IPLeaseHistoryInventoryBuilder.InventoryTask(&ipLeaseHistoryInventoryMergeStrategy{})
+var IPLeaseHistoryInventoryTask = inspectiontaskbase.NewInventoryTask(
+	commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID,
+	commonlogk8saudit_contract.TagIPLeaseHistoryDiscovery,
+	func(results []commonlogk8saudit_contract.IPLeaseHistory) (commonlogk8saudit_contract.IPLeaseHistory, error) {
+		return resourcelease.MergeResourceLeaseHistories(results...), nil
+	},
+)
 
-type ipLeaseHistoryInventoryMergeStrategy struct{}
-
-// Merge implements inspectiontaskbase.InventoryMergerStrategy.
-func (i *ipLeaseHistoryInventoryMergeStrategy) Merge(results []commonlogk8saudit_contract.IPLeaseHistory) (commonlogk8saudit_contract.IPLeaseHistory, error) {
-	return resourcelease.MergeResourceLeaseHistories(results...), nil
-}
-
-var _ inspectiontaskbase.InventoryMergerStrategy[commonlogk8saudit_contract.IPLeaseHistory] = (*ipLeaseHistoryInventoryMergeStrategy)(nil)
-
-var IPLeaseHistoryDiscoveryTask = commonlogk8saudit_contract.IPLeaseHistoryInventoryBuilder.DiscoveryTask(
+var IPLeaseHistoryDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	commonlogk8saudit_contract.IPLeaseHistoryDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.IPLeaseHistory, error) {
+	[]coretask.Dependency{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.IPLeaseHistory, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return nil, nil
 		}
@@ -75,6 +70,7 @@ var IPLeaseHistoryDiscoveryTask = commonlogk8saudit_contract.IPLeaseHistoryInven
 		}
 		return leaseHistory, nil
 	},
+	coretask.ProvidesTag(commonlogk8saudit_contract.TagIPLeaseHistoryDiscovery),
 )
 
 func processPodResource(group *commonlogk8saudit_contract.ResourceManifestLogGroup, leaseHistory commonlogk8saudit_contract.IPLeaseHistory) {

@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -36,7 +37,7 @@ var JobModeCommandTaskID = taskid.NewDefaultImplementationID[any](inspectioncore
 // JobModeCommandTask calculates the job mode command example and populates it into the metadata map.
 var JobModeCommandTask = inspectiontaskbase.NewInspectionTask(
 	JobModeCommandTaskID,
-	[]taskid.UntypedTaskReference{},
+	[]coretask.Dependency{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (any, error) {
 		metadataSet := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 		jobMetadata, found := typedmap.Get(metadataSet, inspectionmetadata.JobModeCommandMetadataKey)

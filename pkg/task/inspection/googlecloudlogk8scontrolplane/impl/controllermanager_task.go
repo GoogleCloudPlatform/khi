@@ -91,8 +91,8 @@ type ControllerManagerTimelineMapper struct {
 }
 
 // Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (o *ControllerManagerTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (o *ControllerManagerTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }

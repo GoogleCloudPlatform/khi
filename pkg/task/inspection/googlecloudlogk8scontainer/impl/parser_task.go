@@ -42,8 +42,8 @@ func (i *containerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 }
 
 // Dependencies returns additional task dependencies of the ingester.
-func (i *containerLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (i *containerLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // ProcessLog is called for each log entry to customize log metadata.
@@ -105,8 +105,8 @@ func (m *containerLogLogToTimelineMapper) LogIngesterTask() taskid.TaskReference
 }
 
 // Dependencies returns task dependencies of this mapper.
-func (m *containerLogLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (m *containerLogLogToTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogk8scontainer_contract.ClusterIdentityTaskID.Ref(),
 	}
 }
@@ -162,8 +162,8 @@ func (m *containerLogPodPhaseTimelineMapper) LogIngesterTask() taskid.TaskRefere
 	return googlecloudlogk8scontainer_contract.LogIngesterTaskID.Ref()
 }
 
-func (m *containerLogPodPhaseTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (m *containerLogPodPhaseTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogk8scontainer_contract.ClusterIdentityTaskID.Ref(),
 		commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),
 	}
@@ -328,15 +328,12 @@ var PodPhaseTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*
 )
 
 // TailTask is a nop task that depends on all container log mappers.
-var TailTask = inspectiontaskbase.NewInspectionTask(
+var TailTask = coretask.NewTailTask(
 	googlecloudlogk8scontainer_contract.TailTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		googlecloudlogk8scontainer_contract.LogToTimelineMapperTaskID.Ref(),
 		googlecloudlogk8scontainer_contract.PodPhaseTimelineMapperTaskID.Ref(),
 		googlecloudlogk8scontainer_contract.NodeNameDiscoveryTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
-		return struct{}{}, nil
 	},
 	inspectioncore_contract.FeatureTaskLabel(
 		"Kubernetes Container Logs",

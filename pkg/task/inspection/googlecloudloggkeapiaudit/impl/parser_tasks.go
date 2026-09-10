@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -62,9 +63,9 @@ type gkeAuditLogLogToTimelineMapperSetting struct {
 	inspectiontaskbase.SinglePassMapperBase[*googlecloudcommon_contract.GCPOperationTracker]
 }
 
-// Dependencies returns additional task references used in timeline mapper.
-func (g *gkeAuditLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+// Dependencies returns additional task dependencies used in timeline mapper.
+func (g *gkeAuditLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // GroupedLogTask returns a reference to the task that provides the grouped logs.

@@ -112,7 +112,7 @@ In KHI, connections (edges) between tasks in the DAG are represented by the `Dep
   Represents a direct 1-to-1 dependency on a specific task reference (`taskID.Ref()`). Downstream tasks read the upstream task's return value using `coretask.GetTaskResult(ctx, ref)`.
 - **Tag Fan-In (`TagReference[T]`)**:
   Represents a 1-to-N aggregated dependency. Producer tasks declare the tags they provide using the `coretask.ProvidesTag(tag, opts...)` label option. You can optionally specify `coretask.WithTagPriority(priority)` to assign precedence to the producer's contribution (default: 100, where lower numerical values indicate higher precedence). A consumer task declares a dependency on the tag using `tag.Ref()`. During execution, the consumer retrieves a combined slice of results (`[]T`) from all active producer tasks using `coretask.GetTaskResultsWithTag(ctx, tag.Ref())`. This allows new log parsers or metadata producers to be added without modifying downstream consumer tasks.
-  When cross-inventory dependencies between multiple producers cause circular dependencies, pure aggregator tasks annotated with `coretask.AllowMultiStageExecution()` can be split into multiple execution stages by the graph resolver to automatically resolve cycles. For details on prerequisites and resolution mechanisms, see [6. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority](#6-prerequisites-of-fan-in-cycles-and-graph-stabilization-via-priority).
+  When cross-inventory dependencies between multiple producers cause circular dependencies, the graph resolver deterministically prunes candidate fan-in edges that form cycles, automatically resolving the circular dependency into a single-stage DAG. For details on prerequisites and resolution mechanisms, see [6. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority](#6-prerequisites-of-fan-in-cycles-and-graph-stabilization-via-priority).
 
 #### 2. Edge Kind: Data vs Order-Only
 
@@ -200,11 +200,7 @@ KHI achieves an always unique, deterministic, and stable graph through the follo
    Producer tasks declare their contribution certainty and priority using `ProvidesTag(tag, WithTagPriority(priority))` (default: 100, where lower numerical values indicate higher precedence).
    - For example: A parser providing definitive metadata early in execution has high precedence (`Priority: 10`), whereas a parser supplementing metadata later as a byproduct of parsing has low precedence (`Priority: 100`).
 2. **Priority-Based Deterministic Pruning**:
-   When a cycle is detected across fan-in dependencies, the graph resolver deterministically prunes the fan-in edge with the **lowest priority (highest numerical value)** within the cycle, restoring an acyclic DAG.
-3. **Strict Fail-Fast on Priority Ties**:
-   If edges in a cycle share identical priorities and the resolver cannot deterministically pick which edge to prune, it does not guess. Graph resolution fails fast immediately with an error.
-4. **Data Preservation via Multi-Stage Execution (`AllowMultiStageExecution`)**:
-   For pure, side-effect-free aggregator tasks (such as in-memory inventory aggregators), annotating them with `AllowMultiStageExecution()` permits the resolver to automatically split and clone them into early and late execution stages. The early stage receives high-priority inputs, while the late stage collects feedback inputs from dependent parsers, safely resolving cycles without dropping data.
+   When candidate fan-in edges are evaluated, the graph resolver considers producers in order of priority and deterministically prunes any candidate edge that would form a cycle, yielding a safe, acyclic DAG.
 
 ---
 

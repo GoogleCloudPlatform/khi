@@ -84,8 +84,8 @@ func (m *networkAPITimelineMapper) LogIngesterTask() taskid.TaskReference[struct
 }
 
 // Dependencies are the additional references used in timeline mapper.
-func (m *networkAPITimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (m *networkAPITimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(),
 		commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(),

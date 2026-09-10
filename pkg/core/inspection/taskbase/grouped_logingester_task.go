@@ -43,7 +43,7 @@ type GroupedLogIngester[T any] interface {
 	// GroupedLogTask returns a reference to the task that provides the grouped logs.
 	GroupedLogTask() taskid.TaskReference[LogGroupMap]
 	// Dependencies returns additional task dependencies of the ingester.
-	Dependencies() []taskid.UntypedTaskReference
+	Dependencies() []coretask.Dependency
 	// PassCount returns the number of pre-processing passes to perform on each group.
 	PassCount() int
 	// PreProcessLogByGroup is called during a pre-processing pass for each log in a group.
@@ -72,7 +72,10 @@ func (SinglePassGroupedIngesterBase[T]) PreProcessLogByGroup(ctx context.Context
 func NewGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[struct{}], ingester GroupedLogIngester[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
 	rawLogTaskID := ingester.RawLogTask()
 	groupedLogTaskID := ingester.GroupedLogTask()
-	dependencies := append([]taskid.UntypedTaskReference{rawLogTaskID, groupedLogTaskID}, ingester.Dependencies()...)
+	dependencies := append([]coretask.Dependency{rawLogTaskID, groupedLogTaskID}, ingester.Dependencies()...)
+	allLabels := append([]coretask.LabelOpt{
+		coretask.ProvidesTag(TagLogIngester),
+	}, labels...)
 	return NewProgressReportableInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return struct{}{}, nil
@@ -195,7 +198,5 @@ func NewGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[struct{
 			)
 		}
 		return struct{}{}, nil
-	}, append([]coretask.LabelOpt{
-		// Tasks modifying history must be dependent from SerializerTask.
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())}, labels...)...)
+	}, allLabels...)
 }

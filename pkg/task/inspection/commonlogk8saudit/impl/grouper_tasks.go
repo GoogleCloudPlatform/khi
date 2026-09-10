@@ -23,7 +23,6 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -39,9 +38,12 @@ var (
 
 // NonSuccessLogGrouperTask groups logs by resource path.
 // K8s audit error logs are simply associated with timelines as events. They don't require any special grouping, so they use the resource associated with the original resource name modified by the request.
-var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTaskWithDependencies(
 	commonlogk8saudit_contract.NonSuccessLogGrouperTaskID,
 	commonlogk8saudit_contract.NonSuccessLogFilterTaskID.Ref(),
+	[]coretask.Dependency{
+		commonlogk8saudit_contract.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
+	},
 	func(ctx context.Context, l *log.Log) string {
 		fieldSet, _ := commonlogk8saudit_contract.ExtractK8sAuditLog(ctx, l.NodeReader)
 		return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s,name=%s, subresource=%s", fieldSet.APIVersion, fieldSet.PluralKind, fieldSet.Namespace, fieldSet.ResourceName, fieldSet.SubresourceName)
@@ -54,7 +56,10 @@ var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 // 2. When a subresource is modified by the operation and its result contains its parent manifest, it uses the parent resource as the group key.
 var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspectionTask[commonlogk8saudit_contract.ResourceLogGroupMap](
 	commonlogk8saudit_contract.ChangeTargetGrouperTaskID,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.LogSorterTaskID.Ref()},
+	[]coretask.Dependency{
+		commonlogk8saudit_contract.LogSorterTaskID.Ref(),
+		commonlogk8saudit_contract.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
+	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceLogGroupMap, error) {
 		if taskMode != inspectioncore_contract.TaskModeRun {
 			return commonlogk8saudit_contract.ResourceLogGroupMap{}, nil

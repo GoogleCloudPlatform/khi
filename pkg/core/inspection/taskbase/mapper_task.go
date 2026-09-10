@@ -41,7 +41,7 @@ type LogToTimelineMapper[T any] interface {
 	// LogIngesterTask is one of prerequisite task of LogToTimelineMapper ingesting logs before processing with this mapper.
 	LogIngesterTask() taskid.TaskReference[struct{}]
 	// Dependencies are the additional references used in timeline mapper.
-	Dependencies() []taskid.UntypedTaskReference
+	Dependencies() []coretask.Dependency
 	// GroupedLogTask returns a reference to the task that provides the grouped logs.
 	GroupedLogTask() taskid.TaskReference[LogGroupMap]
 	// PassCount returns the number of pre-processing passes to perform on each group.
@@ -86,7 +86,10 @@ func (StatelessMapperBase) PreProcessLogByGroup(ctx context.Context, passIndex i
 // It processes logs in parallel and applies the logic from the provided LogToTimelineMapper.
 func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}], mapper LogToTimelineMapper[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
 	groupedLogTaskID := mapper.GroupedLogTask()
-	dependencies := append([]taskid.UntypedTaskReference{mapper.LogIngesterTask(), mapper.GroupedLogTask()}, mapper.Dependencies()...)
+	dependencies := append([]coretask.Dependency{mapper.LogIngesterTask(), mapper.GroupedLogTask()}, mapper.Dependencies()...)
+	allLabels := append([]coretask.LabelOpt{
+		coretask.ProvidesTag(TagTimelineMapper),
+	}, labels...)
 	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
@@ -214,7 +217,5 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}]
 		}
 
 		return struct{}{}, nil
-	}, append([]coretask.LabelOpt{
-		// Tasks modifying history must be dependent from SerializerTask.
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())}, labels...)...)
+	}, allLabels...)
 }

@@ -61,8 +61,8 @@ func (g *multicloudAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx contex
 }
 
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
-func (g *multicloudAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (g *multicloudAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogmulticloudapiaudit_contract.ClusterIdentityTaskID.Ref(),
 	}
 }

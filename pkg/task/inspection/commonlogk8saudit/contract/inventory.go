@@ -15,32 +15,33 @@
 package commonlogk8saudit_contract
 
 import (
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
 )
 
-var NodeNameInventoryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-inventory")
+// TagNodeNameDiscovery is the tag for discovery tasks producing node names.
+var TagNodeNameDiscovery = coretask.NewTag[[]string]("khi.google.com/inspection/commonlogk8saudit/nodename")
 
-// NodeNameInventoryBuilder is the inventory tasks builder for gathering node names
-var NodeNameInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder[[]string](NodeNameInventoryTaskID)
+var NodeNameInventoryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-inventory")
 
 type UIDToResourceIdentity = map[string]*ResourceIdentity
 
-var ResourceUIDInventoryTaskID = taskid.NewDefaultImplementationID[UIDToResourceIdentity](TaskIDPrefix + "resource-uid-inventory")
+// TagResourceUIDDiscovery is the tag for discovery tasks producing resource UID maps.
+var TagResourceUIDDiscovery = coretask.NewTag[UIDToResourceIdentity]("khi.google.com/inspection/commonlogk8saudit/resourceuid")
 
-// ResourceUIDInventoryBuilder is the inventory tasks builder for gathering resource uids
-var ResourceUIDInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder[UIDToResourceIdentity](ResourceUIDInventoryTaskID)
+var ResourceUIDInventoryTaskID = taskid.NewDefaultImplementationID[UIDToResourceIdentity](TaskIDPrefix + "resource-uid-inventory")
 
 type ContainerIDToContainerIdentity = map[string]*ContainerIdentity
 
-var ContainerIDInventoryTaskID = taskid.NewDefaultImplementationID[ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-inventory")
+// TagContainerIDDiscovery is the tag for discovery tasks producing container ID maps.
+var TagContainerIDDiscovery = coretask.NewTag[ContainerIDToContainerIdentity]("khi.google.com/inspection/commonlogk8saudit/containerid")
 
-// ContainerIDInventoryBuilder is the inventory tasks builder for gathering the relationship between container id and container identity
-var ContainerIDInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder[ContainerIDToContainerIdentity](ContainerIDInventoryTaskID)
+var ContainerIDInventoryTaskID = taskid.NewDefaultImplementationID[ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-inventory")
 
 type IPLeaseHistory = *resourcelease.ResourceLeaseHistory[*ResourceIdentity]
 
-var IPLeaseHistoryInventoryTaskID = taskid.NewDefaultImplementationID[IPLeaseHistory](TaskIDPrefix + "ip-lease-history-inventory")
+// TagIPLeaseHistoryDiscovery is the tag for discovery tasks producing IP lease histories.
+var TagIPLeaseHistoryDiscovery = coretask.NewTag[IPLeaseHistory]("khi.google.com/inspection/commonlogk8saudit/iplease")
 
-var IPLeaseHistoryInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder[IPLeaseHistory](IPLeaseHistoryInventoryTaskID)
+var IPLeaseHistoryInventoryTaskID = taskid.NewDefaultImplementationID[IPLeaseHistory](TaskIDPrefix + "ip-lease-history-inventory")

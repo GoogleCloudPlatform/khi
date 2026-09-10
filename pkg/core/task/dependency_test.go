@@ -25,8 +25,6 @@ func TestTagReference(t *testing.T) {
 		name            string
 		tag             string
 		opts            []taskid.FanInOption
-		wantKind        taskid.EdgeKind
-		wantCondition   taskid.EdgeCondition
 		wantCardinality taskid.EdgeCardinality
 		wantScope       taskid.DependencyScope
 		wantTag         string
@@ -35,51 +33,25 @@ func TestTagReference(t *testing.T) {
 			name:            "default tag reference",
 			tag:             "test/tag",
 			opts:            nil,
-			wantKind:        taskid.EdgeKindData,
-			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityFanIn,
-			wantScope:       taskid.ScopeActiveGraph,
+			wantScope:       taskid.ScopeActiveFeatures,
 			wantTag:         "test/tag",
-		},
-		{
-			name:            "order-only tag reference",
-			tag:             "test/order_only_tag",
-			opts:            []taskid.FanInOption{taskid.OrderOnly},
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityFanIn,
-			wantScope:       taskid.ScopeActiveGraph,
-			wantTag:         "test/order_only_tag",
 		},
 		{
 			name:            "tag reference from active features",
 			tag:             "test/features_tag",
 			opts:            []taskid.FanInOption{taskid.ScopeActiveFeatures},
-			wantKind:        taskid.EdgeKindData,
-			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityFanIn,
 			wantScope:       taskid.ScopeActiveFeatures,
 			wantTag:         "test/features_tag",
 		},
 		{
-			name:            "tag reference from all",
-			tag:             "test/all_tag",
-			opts:            []taskid.FanInOption{taskid.ScopeAll},
-			wantKind:        taskid.EdgeKindData,
-			wantCondition:   taskid.ConditionRequired,
+			name:            "tag reference from active graph",
+			tag:             "test/graph_tag",
+			opts:            []taskid.FanInOption{taskid.ScopeActiveGraph},
 			wantCardinality: taskid.CardinalityFanIn,
-			wantScope:       taskid.ScopeAll,
-			wantTag:         "test/all_tag",
-		},
-		{
-			name:            "tag reference order-only from all",
-			tag:             "test/order_all_tag",
-			opts:            []taskid.FanInOption{taskid.OrderOnly, taskid.ScopeAll},
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityFanIn,
-			wantScope:       taskid.ScopeAll,
-			wantTag:         "test/order_all_tag",
+			wantScope:       taskid.ScopeActiveGraph,
+			wantTag:         "test/graph_tag",
 		},
 	}
 
@@ -87,12 +59,6 @@ func TestTagReference(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ref := NewTagReference[int](tc.tag, tc.opts...)
 
-			if got := ref.DescriptorKind(); got != tc.wantKind {
-				t.Errorf("DescriptorKind() = %v, want %v", got, tc.wantKind)
-			}
-			if got := ref.DescriptorCondition(); got != tc.wantCondition {
-				t.Errorf("DescriptorCondition() = %v, want %v", got, tc.wantCondition)
-			}
 			if got := ref.DescriptorCardinality(); got != tc.wantCardinality {
 				t.Errorf("DescriptorCardinality() = %v, want %v", got, tc.wantCardinality)
 			}
@@ -109,148 +75,7 @@ func TestTagReference(t *testing.T) {
 	}
 }
 
-func TestToOrderOnly(t *testing.T) {
-	testCases := []struct {
-		name            string
-		input           Dependency
-		wantKind        taskid.EdgeKind
-		wantCondition   taskid.EdgeCondition
-		wantCardinality taskid.EdgeCardinality
-		wantScope       taskid.DependencyScope
-		wantRefID       string
-		wantTag         string
-	}{
-		{
-			name:            "point-to-point data to order-only",
-			input:           taskid.NewTaskReference[string]("task.a"),
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityPointToPoint,
-			wantScope:       taskid.ScopeAll,
-			wantRefID:       "task.a",
-		},
-		{
-			name:            "point-to-point optional to order-only preserving optional",
-			input:           taskid.NewTaskReference[string]("task.b", taskid.Optional, taskid.ScopeActiveFeatures),
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionOptional,
-			wantCardinality: taskid.CardinalityPointToPoint,
-			wantScope:       taskid.ScopeActiveFeatures,
-			wantRefID:       "task.b",
-		},
-		{
-			name:            "point-to-point from active graph to order-only",
-			input:           taskid.NewTaskReference[string]("task.c", taskid.ScopeActiveGraph),
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityPointToPoint,
-			wantScope:       taskid.ScopeActiveGraph,
-			wantRefID:       "task.c",
-		},
-		{
-			name:            "tag reference data to order-only",
-			input:           NewTagReference[string]("tag.foo", taskid.ScopeAll),
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityFanIn,
-			wantScope:       taskid.ScopeAll,
-			wantTag:         "tag.foo",
-		},
-		{
-			name:            "tag reference default active graph to order-only",
-			input:           NewTagReference[string]("tag.bar"),
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityFanIn,
-			wantScope:       taskid.ScopeActiveGraph,
-			wantTag:         "tag.bar",
-		},
-		{
-			name:            "tag reference from active features to order-only",
-			input:           NewTagReference[string]("tag.features", taskid.ScopeActiveFeatures),
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityFanIn,
-			wantScope:       taskid.ScopeActiveFeatures,
-			wantTag:         "tag.features",
-		},
-		{
-			name:            "already order-only remains unchanged",
-			input:           taskid.NewTaskReference[string]("task.d", taskid.OrderOnly),
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityPointToPoint,
-			wantScope:       taskid.ScopeAll,
-			wantRefID:       "task.d",
-		},
-		{
-			name:            "already order-only tag reference remains unchanged",
-			input:           NewTagReference[string]("tag.already_order_only", taskid.OrderOnly),
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityFanIn,
-			wantScope:       taskid.ScopeActiveGraph,
-			wantTag:         "tag.already_order_only",
-		},
-		{
-			name:            "custom dependency descriptor returns unchanged",
-			input:           customDependency{kind: taskid.EdgeKindData},
-			wantKind:        taskid.EdgeKindData,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityPointToPoint,
-			wantScope:       taskid.ScopeAll,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := ToOrderOnly(tc.input)
-
-			if gotKind := got.DescriptorKind(); gotKind != tc.wantKind {
-				t.Errorf("DescriptorKind() = %v, want %v", gotKind, tc.wantKind)
-			}
-			if gotCondition := got.DescriptorCondition(); gotCondition != tc.wantCondition {
-				t.Errorf("DescriptorCondition() = %v, want %v", gotCondition, tc.wantCondition)
-			}
-			if gotCardinality := got.DescriptorCardinality(); gotCardinality != tc.wantCardinality {
-				t.Errorf("DescriptorCardinality() = %v, want %v", gotCardinality, tc.wantCardinality)
-			}
-			if gotScope := got.DescriptorScope(); gotScope != tc.wantScope {
-				t.Errorf("DescriptorScope() = %v, want %v", gotScope, tc.wantScope)
-			}
-			if tc.wantRefID != "" {
-				p2p, ok := got.(taskid.PointToPointDescriptor)
-				if !ok {
-					t.Fatalf("expected PointToPointDescriptor, got %T", got)
-				}
-				if refID := p2p.ReferenceID(); refID != tc.wantRefID {
-					t.Errorf("ReferenceID() = %q, want %q", refID, tc.wantRefID)
-				}
-			}
-			if tc.wantTag != "" {
-				fanIn, ok := got.(taskid.FanInDescriptor)
-				if !ok {
-					t.Fatalf("expected FanInDescriptor, got %T", got)
-				}
-				if tag := fanIn.Tag(); tag != tc.wantTag {
-					t.Errorf("Tag() = %q, want %q", tag, tc.wantTag)
-				}
-			}
-		})
-	}
-}
-
-type customDependency struct {
-	kind taskid.EdgeKind
-}
-
-func (c customDependency) DescriptorKind() taskid.EdgeKind {
-	return c.kind
-}
-
-func (c customDependency) DescriptorCondition() taskid.EdgeCondition {
-	return taskid.ConditionRequired
-}
+type customDependency struct{}
 
 func (c customDependency) DescriptorCardinality() taskid.EdgeCardinality {
 	return taskid.CardinalityPointToPoint

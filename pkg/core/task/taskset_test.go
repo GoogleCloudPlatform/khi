@@ -16,7 +16,7 @@ package coretask
 
 import (
 	"context"
-	"sort"
+	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -26,7 +26,7 @@ import (
 
 type testTask struct {
 	id           taskid.TaskImplementationID[any]
-	dependencies []taskid.UntypedTaskReference
+	dependencies []Dependency
 	labels       *typedmap.ReadonlyTypedMap
 }
 
@@ -54,268 +54,405 @@ func (d *testTask) Labels() *typedmap.ReadonlyTypedMap {
 }
 
 // Dependencies implements KHITaskUnit.
-func (d *testTask) Dependencies() []taskid.UntypedTaskReference {
+func (d *testTask) Dependencies() []Dependency {
 	return d.dependencies
-}
-
-// assertSortTaskGraph is a test helper that verifies the sortTaskGraph results
-// match the expected task IDs, missing dependencies, etc.
-func assertSortTaskGraph(t *testing.T, tasks []UntypedTask, expectedTaskIDs []string, expectedMissing []string, expectedRunnable bool, expectedCyclicDependencyPath string) {
-	t.Helper() // Mark this as a helper function to improve test output
-
-	// Create task set and run the sort
-	taskSet := &TaskSet{tasks: tasks}
-	result := taskSet.sortTaskGraph()
-
-	// Compare actual vs expected runnable status
-	if result.Runnable != expectedRunnable {
-		t.Errorf("Expected runnable=%v, got %v", expectedRunnable, result.Runnable)
-	}
-
-	// Compare actual vs expected cyclic dependency status
-	if result.CyclicDependencyPath != expectedCyclicDependencyPath {
-		t.Errorf("Expected cyclicDependencyPath=%v, got %v", expectedCyclicDependencyPath, result.CyclicDependencyPath)
-	}
-
-	// If not runnable and expected not runnable with specific reasons, check missing dependencies
-	if !expectedRunnable {
-		// Check missing dependencies match expected
-		actualMissing := make([]string, 0, len(result.MissingDependencies))
-		for _, dep := range result.MissingDependencies {
-			actualMissing = append(actualMissing, dep.ReferenceIDString())
-		}
-
-		// Sort both slices to ensure consistent comparison
-		sort.Strings(actualMissing)
-		sort.Strings(expectedMissing)
-
-		if diff := cmp.Diff(actualMissing, expectedMissing); diff != "" {
-			t.Errorf("Missing dependencies mismatch (-actual,+expected):\n%s", diff)
-		}
-		return
-	}
-
-	// If expected runnable, check task IDs in the expected order
-	if len(result.TopologicalSortedTasks) != len(expectedTaskIDs) {
-		t.Errorf("Expected %d tasks, got %d", len(expectedTaskIDs), len(result.TopologicalSortedTasks))
-		return
-	}
-
-	actualTaskIDs := make([]string, 0, len(result.TopologicalSortedTasks))
-	for _, task := range result.TopologicalSortedTasks {
-		actualTaskIDs = append(actualTaskIDs, task.UntypedID().ReferenceIDString())
-	}
-
-	if diff := cmp.Diff(actualTaskIDs, expectedTaskIDs); diff != "" {
-		t.Errorf("Task ordering mismatch (-actual,+expected):\n%s", diff)
-	}
 }
 
 func newDebugTask(id string, dependencies []string, labelOpt ...LabelOpt) *testTask {
 	labels := NewLabelSet(labelOpt...)
-	dependencyReferenceIds := []taskid.UntypedTaskReference{}
-	for _, id := range dependencies {
-		dependencyReferenceIds = append(dependencyReferenceIds, taskid.NewTaskReference[any](id))
+	deps := make([]Dependency, 0, len(dependencies))
+	for _, depID := range dependencies {
+		deps = append(deps, taskid.NewTaskReference[any](depID))
 	}
 
 	return &testTask{
 		id:           taskid.NewDefaultImplementationID[any](id),
-		dependencies: dependencyReferenceIds,
+		dependencies: deps,
 		labels:       labels,
 	}
 }
 
-func TestSortTaskGraphWithValidGraph(t *testing.T) {
-	tasks := []UntypedTask{
-		newDebugTask("foo", []string{"bar"}),
-		newDebugTask("bar", []string{}),
-		newDebugTask("qux", []string{"quux"}),
-		newDebugTask("quux", []string{"foo", "bar"}),
+func TestNewTaskSet(t *testing.T) {
+	testCases := []struct {
+		name       string
+		tasks      []UntypedTask
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name: "unique tasks succeed",
+			tasks: []UntypedTask{
+				newDebugTask("foo", nil),
+				newDebugTask("bar", nil),
+			},
+			wantErr: false,
+		},
+		{
+			name: "duplicate task IDs return error",
+			tasks: []UntypedTask{
+				newDebugTask("foo", nil),
+				newDebugTask("foo", nil),
+			},
+			wantErr:    true,
+			wantErrMsg: "multiple tasks have the same ID",
+		},
 	}
 
-	// Expected order after topological sort
-	expectedTaskIDs := []string{"bar", "foo", "quux", "qux"}
-
-	// This graph is valid, so no missing dependencies, is runnable, and has no cycles
-	assertSortTaskGraph(t, tasks, expectedTaskIDs, []string{}, true, "")
-}
-
-func TestSortTaskGraphReturnsTheStableResult(t *testing.T) {
-	COUNT := 100
-	for i := 0; i < COUNT; i++ {
-		tasks := []UntypedTask{
-			newDebugTask("foo", []string{}),
-			newDebugTask("bar", []string{"foo"}),
-			newDebugTask("qux", []string{"foo"}),
-			newDebugTask("quux", []string{"foo"}),
-		}
-
-		// Expected order after topological sort
-		expectedTaskIDs := []string{"foo", "qux", "quux", "bar"}
-
-		// This graph is valid, so no missing dependencies, is runnable, and has no cycles
-		assertSortTaskGraph(t, tasks, expectedTaskIDs, []string{}, true, "")
-	}
-}
-
-func TestSortTaskGraphWithMissingDependency(t *testing.T) {
-	tasks := []UntypedTask{
-		newDebugTask("foo", []string{"bar", "missing-input2"}),
-		newDebugTask("bar", []string{}),
-		newDebugTask("qux", []string{"quux", "missing-input1"}),
-		newDebugTask("quux", []string{"foo", "bar"}),
-	}
-
-	// Graph has missing dependencies, so we expect it to be not runnable
-	expectedMissing := []string{"missing-input1", "missing-input2"}
-
-	// When dependencies are missing, we don't have a sorted list of tasks
-	assertSortTaskGraph(t, tasks, []string{}, expectedMissing, false, "")
-}
-
-func TestResolveGraphWithCircularDependency(t *testing.T) {
-	tasks := []UntypedTask{
-		newDebugTask("foo", []string{"bar", "qux"}),
-		newDebugTask("bar", []string{}),
-		newDebugTask("qux", []string{"quux"}),
-		newDebugTask("quux", []string{"foo", "bar"}),
-	}
-	for i := 0; i < 100; i++ { // to check the stability
-		// This graph has a cycle, so we expect it to be not runnable
-		// When there's a cycle, we don't have a sorted list of tasks or missing dependencies
-		assertSortTaskGraph(t, tasks, []string{}, []string{}, false, "... -> foo#default] -> [quux#default -> qux#default -> foo#default] -> [quux#default -> ...")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			set, err := NewTaskSet(tc.tasks)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("NewTaskSet() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				if !strings.Contains(err.Error(), tc.wantErrMsg) {
+					t.Errorf("expected error message containing '%s', got '%v'", tc.wantErrMsg, err)
+				}
+				return
+			}
+			if len(set.GetAll()) != len(tc.tasks) {
+				t.Errorf("expected %d tasks in set, got %d", len(tc.tasks), len(set.GetAll()))
+			}
+		})
 	}
 }
 
-func TestDumpGraphviz(t *testing.T) {
-	inputTasks := []UntypedTask{
-		newDebugTask("foo", []string{"bar"}),
-		newDebugTask("bar", []string{"qux", "quux"}),
-		newDebugTask("qux", []string{}),
-		newDebugTask("quux", []string{}),
+func TestTaskSet_AddAndRemove(t *testing.T) {
+	testCases := []struct {
+		name        string
+		initial     []UntypedTask
+		op          func(s *TaskSet) error
+		wantTaskIDs []string
+		wantErr     bool
+		wantErrMsg  string
+	}{
+		{
+			name: "add new task succeeds",
+			initial: []UntypedTask{
+				newDebugTask("foo", nil),
+			},
+			op: func(s *TaskSet) error {
+				return s.Add(newDebugTask("bar", nil))
+			},
+			wantTaskIDs: []string{"foo#default", "bar#default"},
+			wantErr:     false,
+		},
+		{
+			name: "add duplicate task fails",
+			initial: []UntypedTask{
+				newDebugTask("foo", nil),
+			},
+			op: func(s *TaskSet) error {
+				return s.Add(newDebugTask("foo", nil))
+			},
+			wantTaskIDs: []string{"foo#default"},
+			wantErr:     true,
+			wantErrMsg:  "is duplicated",
+		},
+		{
+			name: "remove existing task succeeds",
+			initial: []UntypedTask{
+				newDebugTask("foo", nil),
+				newDebugTask("bar", nil),
+			},
+			op: func(s *TaskSet) error {
+				return s.Remove("foo#default")
+			},
+			wantTaskIDs: []string{"bar#default"},
+			wantErr:     false,
+		},
+		{
+			name: "remove non-existent task fails",
+			initial: []UntypedTask{
+				newDebugTask("foo", nil),
+			},
+			op: func(s *TaskSet) error {
+				return s.Remove("bar#default")
+			},
+			wantTaskIDs: []string{"foo#default"},
+			wantErr:     true,
+			wantErrMsg:  "not found",
+		},
 	}
-	ts, err := NewTaskSet(inputTasks)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, err := NewTaskSet(tc.initial)
+			if err != nil {
+				t.Fatalf("failed to create task set: %v", err)
+			}
+
+			opErr := tc.op(s)
+			if (opErr != nil) != tc.wantErr {
+				t.Fatalf("operation error = %v, wantErr = %v", opErr, tc.wantErr)
+			}
+			if tc.wantErr {
+				if !strings.Contains(opErr.Error(), tc.wantErrMsg) {
+					t.Errorf("expected error message containing '%s', got '%v'", tc.wantErrMsg, opErr)
+				}
+			}
+
+			gotIDs := make([]string, 0, len(s.GetAll()))
+			for _, task := range s.GetAll() {
+				gotIDs = append(gotIDs, task.UntypedID().String())
+			}
+			if diff := cmp.Diff(tc.wantTaskIDs, gotIDs); diff != "" {
+				t.Errorf("task IDs mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestTaskSet_Get(t *testing.T) {
+	testCases := []struct {
+		name       string
+		taskID     string
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name:    "get existing task succeeds",
+			taskID:  "foo#default",
+			wantErr: false,
+		},
+		{
+			name:       "get non-existing task returns error",
+			taskID:     "missing#default",
+			wantErr:    true,
+			wantErrMsg: "was not found",
+		},
+	}
+
+	s, err := NewTaskSet([]UntypedTask{newDebugTask("foo", nil)})
 	if err != nil {
-		t.Fatalf("unexpected err:%s", err.Error())
-	}
-	resolvedTaskSet, err := ts.ToRunnableTaskSet()
-	if err != nil {
-		t.Errorf("unexpected err:%s", err.Error())
+		t.Fatalf("failed to create task set: %v", err)
 	}
 
-	expected := `digraph G {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			task, err := s.Get(tc.taskID)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Get() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				if !strings.Contains(err.Error(), tc.wantErrMsg) {
+					t.Errorf("expected error message containing '%s', got '%v'", tc.wantErrMsg, err)
+				}
+				return
+			}
+			if task.UntypedID().String() != tc.taskID {
+				t.Errorf("expected task ID %s, got %s", tc.taskID, task.UntypedID())
+			}
+		})
+	}
+}
+
+func TestTaskSet_MetadataQueries(t *testing.T) {
+	taskA := newDebugTask("taskA", nil)
+	taskB := newDebugTask("taskB", nil)
+	taskC := newDebugTask("taskC", nil)
+	tasks := []UntypedTask{taskA, taskB, taskC}
+
+	edges := []taskid.TaskEdge{
+		{
+			SourceRefID:  "taskA",
+			SourceImplID: "taskA#default",
+			TargetImplID: "taskB#default",
+		},
+		{
+			SourceRefID:  "taskC",
+			SourceImplID: "taskC#default",
+			TargetImplID: "taskB#default",
+		},
+	}
+
+	boundFanInRefIDsByTaskImplID := map[string]map[string][]string{
+		"taskB#default": {
+			"tag-sample": {"taskA"},
+		},
+	}
+
+	resolved := NewResolvedTaskSet(tasks, edges, boundFanInRefIDsByTaskImplID)
+
+	testCases := []struct {
+		name string
+		test func(t *testing.T)
+	}{
+		{
+			name: "IncomingEdges returns all edges targeting task",
+			test: func(t *testing.T) {
+				got := resolved.IncomingEdges("taskB#default")
+				if len(got) != 2 {
+					t.Errorf("expected 2 incoming edges, got %d", len(got))
+				}
+			},
+		},
+		{
+			name: "IsBound returns true for bound tasks and false for unbound",
+			test: func(t *testing.T) {
+				if !resolved.IsBound("taskA") {
+					t.Errorf("expected taskA to be bound")
+				}
+				if !resolved.IsBound("taskB") {
+					t.Errorf("expected taskB to be bound")
+				}
+				if resolved.IsBound("unbound") {
+					t.Errorf("expected unbound task to not be bound")
+				}
+			},
+		},
+		{
+			name: "BoundReferenceIDsForTaskImplWithTag returns task-specific bound ref IDs",
+			test: func(t *testing.T) {
+				got := resolved.BoundReferenceIDsForTaskImplWithTag("taskB#default", "tag-sample")
+				want := []string{"taskA"}
+				if diff := cmp.Diff(want, got); diff != "" {
+					t.Errorf("BoundReferenceIDsForTaskImplWithTag mismatch (-want +got):\n%s", diff)
+				}
+				if diff := cmp.Diff([]string(nil), resolved.BoundReferenceIDsForTaskImplWithTag("taskUnknown#default", "tag-sample")); diff != "" {
+					t.Errorf("BoundReferenceIDsForTaskImplWithTag mismatch (-want +got):\n%s", diff)
+				}
+				if diff := cmp.Diff([]string(nil), resolved.BoundReferenceIDsForTaskImplWithTag("taskB#default", "non-existent-tag")); diff != "" {
+					t.Errorf("BoundReferenceIDsForTaskImplWithTag mismatch (-want +got):\n%s", diff)
+				}
+			},
+		},
+		{
+			name: "Edges returns copy of all edges",
+			test: func(t *testing.T) {
+				got := resolved.Edges()
+				if len(got) != 2 {
+					t.Errorf("expected 2 edges, got %d", len(got))
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, tc.test)
+	}
+}
+
+func TestTaskSet_DumpGraphviz(t *testing.T) {
+	testCases := []struct {
+		name       string
+		tasks      []UntypedTask
+		wantDOT    string
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name: "valid DAG produces expected Graphviz DOT",
+			tasks: []UntypedTask{
+				newDebugTask("foo", []string{"bar"}),
+				newDebugTask("bar", []string{"qux", "quux"}),
+				newDebugTask("qux", []string{}),
+				newDebugTask("quux", []string{}),
+			},
+			wantDOT: `digraph G {
 start [shape="diamond",fillcolor=gray,style=filled]
-qux_default [shape="circle",label="qux#default"]
 quux_default [shape="circle",label="quux#default"]
+qux_default [shape="circle",label="qux#default"]
 bar_default [shape="circle",label="bar#default"]
 foo_default [shape="circle",label="foo#default"]
-start -> qux_default
 start -> quux_default
+start -> qux_default
 qux_default -> bar_default
 quux_default -> bar_default
 bar_default -> foo_default
-}`
-	graphViz, err := resolvedTaskSet.DumpGraphviz()
-	if err != nil {
-		t.Errorf("unexpected err:%s", err.Error())
+}`,
+			wantErr: false,
+		},
 	}
-	if diff := cmp.Diff(graphViz, expected); diff != "" {
-		t.Errorf("generated graph is not matching with the expected result\n%s", diff)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resolvedTaskSet, err := ResolveGraph(tc.tasks, tc.tasks, nil)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ResolveGraph() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+
+			graphViz, err := resolvedTaskSet.DumpGraphviz()
+			if err != nil {
+				t.Fatalf("DumpGraphviz() error = %v", err)
+			}
+			if diff := cmp.Diff(tc.wantDOT, graphViz); diff != "" {
+				t.Errorf("DumpGraphviz() mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
-func TestDumpGraphvizReturnsStableResult(t *testing.T) {
-	COUNT := 100
-	for i := 0; i < COUNT; i++ {
-		featureTasks := []UntypedTask{
-			newDebugTask("foo", []string{"qux", "quux", "hoge"}),
-			newDebugTask("qux", []string{}),
-			newDebugTask("quux", []string{}),
-			newDebugTask("hoge", []string{"fuga"}),
-			newDebugTask("fuga", []string{}),
-		}
-		ts, err := NewTaskSet(featureTasks)
-		if err != nil {
-			t.Fatalf("unexpected err:%s", err.Error())
-		}
-		resolvedTaskSet, err := ts.ToRunnableTaskSet()
-		if err != nil {
-			t.Errorf("unexpected err:%s", err.Error())
-			break
-		}
+func TestTaskSet_DumpGraphvizNonRunnable(t *testing.T) {
+	testCases := []struct {
+		name       string
+		wantErrMsg string
+	}{
+		{
+			name:       "unresolved task set returns error for DumpGraphviz",
+			wantErrMsg: "can't draw a graph for non runnable graph",
+		},
+	}
 
-		expected := `digraph G {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			unresolved, err := NewTaskSet([]UntypedTask{newDebugTask("foo", nil)})
+			if err != nil {
+				t.Fatalf("failed to create task set: %v", err)
+			}
+
+			_, err = unresolved.DumpGraphviz()
+			if err == nil {
+				t.Fatal("expected error for non-runnable graph, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrMsg) {
+				t.Errorf("expected error message containing '%s', got '%v'", tc.wantErrMsg, err)
+			}
+		})
+	}
+}
+
+func TestTaskSet_DumpGraphvizReturnsStableResult(t *testing.T) {
+	COUNT := 100
+	expected := `digraph G {
 start [shape="diamond",fillcolor=gray,style=filled]
-qux_default [shape="circle",label="qux#default"]
-quux_default [shape="circle",label="quux#default"]
 fuga_default [shape="circle",label="fuga#default"]
 hoge_default [shape="circle",label="hoge#default"]
+quux_default [shape="circle",label="quux#default"]
+qux_default [shape="circle",label="qux#default"]
 foo_default [shape="circle",label="foo#default"]
-start -> qux_default
-start -> quux_default
 start -> fuga_default
+start -> quux_default
+start -> qux_default
 fuga_default -> hoge_default
 qux_default -> foo_default
 quux_default -> foo_default
 hoge_default -> foo_default
 }`
+
+	featureTasks := []UntypedTask{
+		newDebugTask("foo", []string{"qux", "quux", "hoge"}),
+		newDebugTask("qux", []string{}),
+		newDebugTask("quux", []string{}),
+		newDebugTask("hoge", []string{"fuga"}),
+		newDebugTask("fuga", []string{}),
+	}
+
+	for i := 0; i < COUNT; i++ {
+		resolvedTaskSet, err := ResolveGraph(featureTasks, featureTasks, nil)
+		if err != nil {
+			t.Fatalf("iteration %d: ResolveGraph() error = %v", i, err)
+		}
+
 		graphViz, err := resolvedTaskSet.DumpGraphviz()
 		if err != nil {
-			t.Errorf("unexpected err:%s", err.Error())
-			break
+			t.Fatalf("iteration %d: DumpGraphviz() error = %v", i, err)
 		}
-		if diff := cmp.Diff(graphViz, expected); diff != "" {
-			t.Errorf("generated graph is not matching with the expected result at %d\n%s", i, diff)
-			break
+		if diff := cmp.Diff(expected, graphViz); diff != "" {
+			t.Fatalf("iteration %d: DumpGraphviz() mismatch (-want +got):\n%s", i, diff)
 		}
-	}
-}
-
-func TestAddDefinitionToSet(t *testing.T) {
-	ds, err := NewTaskSet([]UntypedTask{})
-	if err != nil {
-		t.Errorf("unexpected err:%s", err)
-	}
-
-	err = ds.Add(newDebugTask("bar", []string{"qux", "quux"}))
-	if err != nil {
-		t.Errorf("unexpected err:%s", err)
-	}
-
-	// Add a task with same ID
-	err = ds.Add(newDebugTask("bar", []string{"qux2", "quux2"}))
-	if err == nil {
-		t.Errorf("expected error, but returned no error")
-	}
-}
-
-func TestRemoveDefinitionFromSet(t *testing.T) {
-	ds, err := NewTaskSet([]UntypedTask{
-		newDebugTask("bar", []string{"qux", "quux"}),
-		newDebugTask("foo", []string{"qux", "quux"}),
-	})
-	if err != nil {
-		t.Errorf("unexpected err:%s", err)
-	}
-
-	err = ds.Remove("bar#default")
-	if err != nil {
-		t.Errorf("unexpected err:%s", err)
-	}
-
-	// Remove a task with non-existent ID
-	err = ds.Remove("bar#default")
-	if err == nil {
-		t.Errorf("expected error, but returned no error")
-	}
-}
-
-func TestNewSetWithDuplicatedID(t *testing.T) {
-	_, err := NewTaskSet([]UntypedTask{
-		newDebugTask("bar", []string{"qux", "quux"}),
-		newDebugTask("bar", []string{"qux", "quux"}),
-	})
-	if err == nil {
-		t.Errorf("expected error, but returned no error")
 	}
 }

@@ -16,6 +16,7 @@ package formtask
 
 import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
@@ -24,7 +25,7 @@ type FormTaskBuilderBase[T any] struct {
 	id           taskid.TaskImplementationID[T]
 	label        string
 	priority     int
-	dependencies []taskid.UntypedTaskReference
+	dependencies []coretask.Dependency
 	description  string
 }
 
@@ -34,7 +35,7 @@ func NewFormTaskBuilderBase[T any](id taskid.TaskImplementationID[T], priority i
 		id:           id,
 		priority:     priority,
 		label:        label,
-		dependencies: []taskid.UntypedTaskReference{},
+		dependencies: []coretask.Dependency{},
 	}
 }
 
@@ -45,7 +46,7 @@ func (b *FormTaskBuilderBase[T]) WithDescription(description string) *FormTaskBu
 }
 
 // WithDependencies sets the task dependencies
-func (b *FormTaskBuilderBase[T]) WithDependencies(dependencies []taskid.UntypedTaskReference) *FormTaskBuilderBase[T] {
+func (b *FormTaskBuilderBase[T]) WithDependencies(dependencies []coretask.Dependency) *FormTaskBuilderBase[T] {
 	b.dependencies = dependencies
 	return b
 }

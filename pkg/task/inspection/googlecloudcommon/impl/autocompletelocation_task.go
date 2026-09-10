@@ -20,14 +20,13 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // AutocompleteLocationTask is a task that provides a list of available locations for autocomplete.
 var AutocompleteLocationTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudcommon_contract.AutocompleteLocationTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(), // for API restriction
 		googlecloudcommon_contract.LocationFetcherTaskID.Ref(),
 	},

@@ -111,8 +111,8 @@ func (c *containerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Co
 }
 
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
-func (c *containerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (c *containerListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogk8scontainer_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref(),
 		googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref(),

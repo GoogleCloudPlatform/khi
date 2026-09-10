@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
@@ -37,7 +36,7 @@ var inputNamespacesAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][
 
 // InputNamespaceFilterTask is a form task for inputting the namespace filter.
 var InputNamespaceFilterTask = formtask.NewSetFormTaskBuilder(googlecloudk8scommon_contract.InputNamespaceFilterTaskID, googlecloudcommon_contract.PriorityForK8sResourceFilterGroup+4000, "Namespaces").
-	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteNamespacesTaskID.Ref()}).
+	WithDependencies([]coretask.Dependency{googlecloudk8scommon_contract.AutocompleteNamespacesTaskID.Ref()}).
 	WithDefaultValueConstant([]string{"@all_cluster_scoped", "@all_namespaced"}, true).
 	WithDescription("The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.").
 	WithAllowAddAll(false).

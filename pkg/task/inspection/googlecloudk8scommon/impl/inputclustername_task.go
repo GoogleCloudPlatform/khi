@@ -25,7 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
@@ -36,7 +35,7 @@ var clusterNameValidator = regexp.MustCompile(`^\s*[0-9a-z\-]+\s*$`)
 // This task returns the raw cluster name without the prefix defined from the cluster type.
 // This input also supports autocomplete cluster names from some task having ID for googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.
 var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_contract.InputClusterNameTaskID, googlecloudcommon_contract.PriorityForResourceIdentifierGroup+4000, "Cluster name").
-	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref()}).
+	WithDependencies([]coretask.Dependency{googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref()}).
 	WithDescription("The cluster name to gather logs.").
 	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
 		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref())

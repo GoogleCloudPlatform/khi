@@ -26,7 +26,6 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -35,7 +34,7 @@ var resourceNamesInputKey = typedmap.NewTypedKey[*googlecloudcommon_contract.Res
 
 // InputLoggingFilterResourceNameTask defines an inspection task that creates a form group
 // for overriding log filter resource names for advanced users.
-var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*googlecloudcommon_contract.ResourceNamesInput, error) {
+var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID, []coretask.Dependency{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*googlecloudcommon_contract.ResourceNamesInput, error) {
 	// Tasks requiring active resource names can change, so we always retrieve current tasks that need resource names from the task graph.
 	taskRunner := khictx.MustGetValue(ctx, inspectioncore_contract.TaskRunner)
 	currentActiveResourceNameInputRequests := getCurrentActiveQueryIDsForResourceName(taskRunner)

@@ -39,8 +39,8 @@ type otherNodeLogLogToTimelineMapperSetting struct {
 }
 
 // Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (o *otherNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (o *otherNodeLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(),
 	}
 }

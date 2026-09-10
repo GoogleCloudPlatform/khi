@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -57,8 +58,8 @@ type multicloudAuditLogLogToTimelineMapperSetting struct {
 }
 
 // Dependencies implements LogToTimelineMapper.
-func (m *multicloudAuditLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (m *multicloudAuditLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // GroupedLogTask implements LogToTimelineMapper.

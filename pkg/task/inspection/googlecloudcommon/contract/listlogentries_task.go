@@ -57,7 +57,7 @@ type ListLogEntriesTaskSetting interface {
 
 	// Dependencies returns the list of dependencies for the Cloud Logging list log entries task.
 	// Return the dependency task reference IDs when the result is used in DefaultResourceNames(), LogFilters() or TimePartitionCount().
-	Dependencies() []taskid.UntypedTaskReference
+	Dependencies() []coretask.Dependency
 
 	// DefaultResourceNames returns the list of resource names for the Cloud Logging list log entries task.
 	// This is just a default value for the resource name. Users can override this value with the form field.
@@ -136,7 +136,8 @@ func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogF
 // NewListLogEntriesTask creates a new task that lists log entries from Cloud Logging based on the provided settings.
 func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[[]*log.Log] {
 	taskID := taskSetting.TaskID()
-	dependencies := taskSetting.Dependencies()
+	dependencies := []coretask.Dependency{}
+	dependencies = append(dependencies, taskSetting.Dependencies()...)
 	dependencies = append(dependencies, InputStartTimeTaskID.Ref(), InputEndTimeTaskID.Ref(), InputLoggingFilterResourceNameTaskID.Ref(), LoggingFetcherTaskID.Ref())
 	description := taskSetting.Description()
 

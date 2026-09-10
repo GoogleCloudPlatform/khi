@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -40,9 +41,9 @@ func (i *k8sAuditLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 }
 
 // Dependencies implements inspectiontaskbase.LogIngester.
-func (i *k8sAuditLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
-		commonlogk8saudit_contract.K8sAuditLogExtractorRef,
+func (i *k8sAuditLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
+		commonlogk8saudit_contract.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
 	}
 }
 

@@ -18,14 +18,13 @@ import (
 	"context"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 // GDCVForVMWareClusterNamePrefixTask is a task that returns a prefix policy as the cluster name prefix for GDCV for VMWare.
 // This task applies "vmwareClusters/" prefix only for platform audit and CSM logs.
-var GDCVForVMWareClusterNamePrefixTask = coretask.NewTask(googlecloudclustergdcvmware_contract.ClusterNamePrefixTaskIDForGDCVForVMWare, []taskid.UntypedTaskReference{}, func(_ context.Context) (googlecloudk8scommon_contract.ClusterPrefixPolicy, error) {
+var GDCVForVMWareClusterNamePrefixTask = coretask.NewTask(googlecloudclustergdcvmware_contract.ClusterNamePrefixTaskIDForGDCVForVMWare, []coretask.Dependency{}, func(_ context.Context) (googlecloudk8scommon_contract.ClusterPrefixPolicy, error) {
 	return googlecloudk8scommon_contract.ClusterPrefixPolicy{
 		Prefix: "vmwareClusters/",
 		RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{

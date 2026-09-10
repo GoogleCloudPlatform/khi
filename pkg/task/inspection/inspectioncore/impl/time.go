@@ -19,19 +19,18 @@ import (
 	"time"
 
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // InspectionTimeProducer is a provider of inspection time.
 // Tasks shouldn't use time.Now() directly to make test easier.
-var InspectionTimeProducer common_task.Task[time.Time] = common_task.NewTask(inspectioncore_contract.InspectionTimeTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (time.Time, error) {
+var InspectionTimeProducer common_task.Task[time.Time] = common_task.NewTask(inspectioncore_contract.InspectionTimeTaskID, []common_task.Dependency{}, func(ctx context.Context) (time.Time, error) {
 	return time.Now(), nil
 })
 
 // TestInspectionTimeTaskProducer is a function to generate a fake InspectionTimeProducer task with the given time string.
 var TestInspectionTimeTaskProducer func(timeStr string) common_task.Task[time.Time] = func(timeStr string) common_task.Task[time.Time] {
-	return common_task.NewTask(inspectioncore_contract.InspectionTimeTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (time.Time, error) {
+	return common_task.NewTask(inspectioncore_contract.InspectionTimeTaskID, []common_task.Dependency{}, func(ctx context.Context) (time.Time, error) {
 		t, err := time.Parse(time.RFC3339, timeStr)
 		if err != nil {
 			return time.Time{}, err

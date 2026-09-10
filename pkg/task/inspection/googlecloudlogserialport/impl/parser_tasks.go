@@ -52,8 +52,8 @@ func (i *serialPortLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 }
 
 // Dependencies returns additional task dependencies of the ingester.
-func (i *serialPortLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (i *serialPortLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // ProcessLog parses raw log entry and manually populates the LogChangeSet.
@@ -115,8 +115,8 @@ func (s *serialportLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[in
 }
 
 // Dependencies implements the LogToTimelineMapper interface.
-func (s *serialportLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (s *serialportLogToTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	}
 }

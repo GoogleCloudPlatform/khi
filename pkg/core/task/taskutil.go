@@ -37,9 +37,9 @@ func dependencyKey(dep Dependency) string {
 	}
 }
 
-// verifyDataDependencyDeclared verifies that the given dependency descriptor was declared
-// in the running task's dependencies and is not an OrderOnly dependency.
-func verifyDataDependencyDeclared(ctx context.Context, dep Dependency) {
+// verifyDependencyDeclared verifies that the given dependency descriptor was declared
+// in the running task's dependencies.
+func verifyDependencyDeclared(ctx context.Context, dep Dependency) {
 	deps, err := khictx.GetValue(ctx, core_contract.TaskDependenciesContextKey)
 	if err != nil || deps == nil {
 		return
@@ -51,9 +51,6 @@ func verifyDataDependencyDeclared(ctx context.Context, dep Dependency) {
 
 	for _, declared := range deps {
 		if dependencyKey(declared) == targetKey {
-			if declared.DescriptorKind() == taskid.EdgeKindOrderOnly {
-				panic(WrapErrorWithTaskInformation(ctx, fmt.Errorf("cannot get task result for order-only dependency: %s", targetKey)))
-			}
 			return
 		}
 	}
@@ -62,9 +59,9 @@ func verifyDataDependencyDeclared(ctx context.Context, dep Dependency) {
 }
 
 // GetTaskResult retrieves the result of a previously executed required task.
-// Panics if the dependency is undeclared, is order-only, or the result is missing.
+// Panics if the dependency is undeclared or the result is missing.
 func GetTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]) T {
-	verifyDataDependencyDeclared(ctx, reference)
+	verifyDependencyDeclared(ctx, reference)
 	taskResults := khictx.MustGetValue(ctx, core_contract.TaskResultMapContextKey)
 	result, found := typedmap.Get(taskResults, typedmap.NewTypedKey[T](reference.ReferenceIDString()))
 	if !found {
@@ -83,7 +80,7 @@ func GetTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]
 // If the task was not included in the execution graph, it safely returns (zeroValue, false).
 // If the task was bound in the graph but the result is missing, it panics.
 func GetOptionalTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]) (T, bool) {
-	verifyDataDependencyDeclared(ctx, reference)
+	verifyDependencyDeclared(ctx, reference)
 	refID := reference.ReferenceIDString()
 	graphMetadata := khictx.MustGetValue(ctx, core_contract.TaskGraphMetadataContextKey)
 	if !graphMetadata.IsBound(refID) {
@@ -102,13 +99,14 @@ func GetOptionalTaskResult[T any](ctx context.Context, reference taskid.TaskRefe
 // GetTaskResultsWithTag retrieves all results of tasks providing the given tag as a slice.
 // Producer task results are returned in deterministic order.
 // If no tasks match the tag, an empty slice is returned.
-// Panics if the dependency is undeclared, is order-only, or task graph metadata is not available.
+// Panics if the dependency is undeclared, or task graph metadata or task implementation ID is not available in the context.
 func GetTaskResultsWithTag[T any](ctx context.Context, tagReference TagReference[T]) []T {
-	verifyDataDependencyDeclared(ctx, tagReference)
+	verifyDependencyDeclared(ctx, tagReference)
 	graphMetadata := khictx.MustGetValue(ctx, core_contract.TaskGraphMetadataContextKey)
 	taskResults := khictx.MustGetValue(ctx, core_contract.TaskResultMapContextKey)
+	taskImplementationID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
 
-	boundRefIDs := graphMetadata.BoundReferenceIDsWithTag(tagReference.Tag())
+	boundRefIDs := graphMetadata.BoundReferenceIDsForTaskImplWithTag(taskImplementationID.String(), tagReference.Tag())
 	results := make([]T, 0, len(boundRefIDs))
 	for _, refID := range boundRefIDs {
 		res, found := typedmap.Get(taskResults, typedmap.NewTypedKey[T](refID))
@@ -127,17 +125,13 @@ func WrapErrorWithTaskInformation(ctx context.Context, err error) error {
 	return errors.Join(errors.New(errorMessage), err)
 }
 
-// NewTailTask creates a no-op barrier task that waits for all given dependencies in order-only mode.
+// NewTailTask creates a no-op barrier task that waits for all given dependencies.
 func NewTailTask(taskID taskid.TaskImplementationID[struct{}], dependencies []Dependency, labelOpts ...LabelOpt) *TaskImpl[struct{}] {
 	verifyTaskID(taskID)
 	verifyNonNilDependencies(taskID, dependencies)
-	orderOnlyDeps := make([]Dependency, len(dependencies))
-	for i, dep := range dependencies {
-		orderOnlyDeps[i] = ToOrderOnly(dep)
-	}
 	return NewTask(
 		taskID,
-		orderOnlyDeps,
+		dependencies,
 		func(ctx context.Context) (struct{}, error) {
 			return struct{}{}, nil
 		},

@@ -19,12 +19,7 @@ import (
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-// NEGToBackendServiceMergeStrategy is the merge strategy for the NEG to BackendService inventory.
-type NEGToBackendServiceMergeStrategy struct{}
-
-var _ inspectiontaskbase.InventoryMergerStrategy[googlecloudk8scommon_contract.NEGToBackendServiceMap] = (*NEGToBackendServiceMergeStrategy)(nil)
-
-func (s *NEGToBackendServiceMergeStrategy) Merge(maps []googlecloudk8scommon_contract.NEGToBackendServiceMap) (googlecloudk8scommon_contract.NEGToBackendServiceMap, error) {
+func mergeNEGToBackendService(maps []googlecloudk8scommon_contract.NEGToBackendServiceMap) (googlecloudk8scommon_contract.NEGToBackendServiceMap, error) {
 	result := make(googlecloudk8scommon_contract.NEGToBackendServiceMap)
 	for _, m := range maps {
 		for k, v := range m {
@@ -35,6 +30,8 @@ func (s *NEGToBackendServiceMergeStrategy) Merge(maps []googlecloudk8scommon_con
 }
 
 // NEGToBackendServiceInventoryTask is the inventory task that provides aggregated NEG to BackendService mappings.
-var NEGToBackendServiceInventoryTask = googlecloudk8scommon_contract.NEGToBackendServiceInventoryBuilder.InventoryTask(
-	&NEGToBackendServiceMergeStrategy{},
+var NEGToBackendServiceInventoryTask = inspectiontaskbase.NewInventoryTask(
+	googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID,
+	googlecloudk8scommon_contract.TagNEGToBackendServiceDiscovery,
+	mergeNEGToBackendService,
 )

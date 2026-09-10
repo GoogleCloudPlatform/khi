@@ -17,25 +17,26 @@ package googlecloudk8scommon_contract
 import (
 	"regexp"
 
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
 type NEGNameToResourceIdentityMap = map[string]commonlogk8saudit_contract.ResourceIdentity
 
-var NEGNamesInventoryTaskID = taskid.NewDefaultImplementationID[NEGNameToResourceIdentityMap](GoogleCloudCommonK8STaskIDPrefix + "neg-names-inventory")
-
-var NEGNamesInventoryTaskBuilder = inspectiontaskbase.NewInventoryTaskBuilder(NEGNamesInventoryTaskID)
+var (
+	NEGNamesInventoryTaskID = taskid.NewDefaultImplementationID[NEGNameToResourceIdentityMap](GoogleCloudCommonK8STaskIDPrefix + "neg-names-inventory")
+	TagNEGNamesDiscovery    = coretask.NewTag[NEGNameToResourceIdentityMap]("googlecloud-neg-names-discovery")
+)
 
 // NEGToBackendServiceMap is a map from NEG name to BackendService name.
 type NEGToBackendServiceMap = map[string]string
 
 // NEGToBackendServiceInventoryTaskID is the task ID for the inventory task that provides NEG to BackendService mappings.
-var NEGToBackendServiceInventoryTaskID = taskid.NewDefaultImplementationID[NEGToBackendServiceMap](GoogleCloudCommonK8STaskIDPrefix + "neg-to-backend-service-inventory")
-
-// NEGToBackendServiceInventoryBuilder is the inventory task builder for NEG to BackendService mappings.
-var NEGToBackendServiceInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder(NEGToBackendServiceInventoryTaskID)
+var (
+	NEGToBackendServiceInventoryTaskID = taskid.NewDefaultImplementationID[NEGToBackendServiceMap](GoogleCloudCommonK8STaskIDPrefix + "neg-to-backend-service-inventory")
+	TagNEGToBackendServiceDiscovery    = coretask.NewTag[NEGToBackendServiceMap]("googlecloud-neg-to-backend-service-discovery")
+)
 
 var negToBackendServiceRegex = regexp.MustCompile(`NEG "Key\{\\"([^"]+)\\"[^}]*\}" attached to BackendService "Key\{\\"([^"]+)\\"\}"`)
 

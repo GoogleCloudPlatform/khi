@@ -31,6 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -42,7 +43,7 @@ import (
 )
 
 type mockListLogEntriesTaskSetting struct {
-	dependencies       []taskid.UntypedTaskReference
+	dependencies       []coretask.Dependency
 	resourceNames      []string
 	logFilters         []string
 	timePartitionCount int
@@ -50,7 +51,7 @@ type mockListLogEntriesTaskSetting struct {
 }
 
 // Dependencies implements ListLogEntriesTaskSetting.
-func (s *mockListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+func (s *mockListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
 	return s.dependencies
 }
 

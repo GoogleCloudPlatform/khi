@@ -17,19 +17,18 @@ package googlecloudlogk8sevent_impl
 import (
 	"context"
 
-	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // EventLogNEGDiscoveryTask is the discovery task that extracts NEG to BackendService mappings from Kubernetes Event logs.
-var EventLogNEGDiscoveryTask = googlecloudk8scommon_contract.NEGToBackendServiceInventoryBuilder.DiscoveryTask(
+var EventLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudlogk8sevent_contract.NEGToBackendServiceDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (googlecloudk8scommon_contract.NEGToBackendServiceMap, error) {
+	[]coretask.Dependency{googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref()},
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (googlecloudk8scommon_contract.NEGToBackendServiceMap, error) {
 		if taskMode != inspectioncore_contract.TaskModeRun {
 			return nil, nil
 		}
@@ -48,4 +47,5 @@ var EventLogNEGDiscoveryTask = googlecloudk8scommon_contract.NEGToBackendService
 		}
 		return result, nil
 	},
+	coretask.ProvidesTag(googlecloudk8scommon_contract.TagNEGToBackendServiceDiscovery),
 )

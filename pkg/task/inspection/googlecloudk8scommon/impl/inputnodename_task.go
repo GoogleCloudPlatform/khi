@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
@@ -33,7 +32,7 @@ var nodeNameSubstringValidator = regexp.MustCompile("^[-a-z0-9]*$")
 
 // InputNodeNameFilterTask is a task to collect list of substrings of node names. This input value is used in querying k8s_node or serialport logs.
 var InputNodeNameFilterTask = formtask.NewSetFormTaskBuilder(googlecloudk8scommon_contract.InputNodeNameFilterTaskID, googlecloudcommon_contract.PriorityForK8sResourceFilterGroup+3000, "Node names").
-	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID.Ref()}).
+	WithDependencies([]coretask.Dependency{googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID.Ref()}).
 	WithDefaultValueConstant([]string{}, true).
 	WithDescription("A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.").
 	WithAllowAddAll(false).

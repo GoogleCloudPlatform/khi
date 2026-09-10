@@ -23,8 +23,8 @@ import (
 type TaskGraphMetadata interface {
 	// IsBound returns true if the task reference was bound to the graph.
 	IsBound(referenceID string) bool
-	// BoundReferenceIDsWithTag returns the list of task reference IDs that provide the given tag.
-	BoundReferenceIDsWithTag(tag string) []string
+	// BoundReferenceIDsForTaskImplWithTag returns the list of task reference IDs providing the tag bound specifically to the given task implementation ID.
+	BoundReferenceIDsForTaskImplWithTag(taskImplementationID string, tag string) []string
 }
 
 // TaskResultMapContextKey is the key to get the result of each task run before.

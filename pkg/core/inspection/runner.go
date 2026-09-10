@@ -580,16 +580,14 @@ func (i *InspectionTaskRunner) ResolveTaskGraph() (*coretask.TaskSet, error) {
 	if i.featureTasks == nil || i.availableTasks == nil {
 		return nil, fmt.Errorf("this runner is not ready for resolving graph")
 	}
-	resolver := coretask.DefaultTaskGraphResolver
-	resolvedTask, err := resolver.Resolve(i.featureTasks.GetAll(), i.availableTasks.GetAll())
-	if err != nil {
-		return nil, err
+	featureSet := coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionFeatureFlag, false))
+	var disabledTasks []coretask.UntypedTask
+	for _, t := range featureSet.GetAll() {
+		if !i.enabledFeatures[t.UntypedID().String()] {
+			disabledTasks = append(disabledTasks, t)
+		}
 	}
-	initialTaskSet, err := coretask.NewTaskSet(resolvedTask)
-	if err != nil {
-		return nil, err
-	}
-	return initialTaskSet.ToRunnableTaskSet()
+	return coretask.ResolveGraph(i.featureTasks.GetAll(), i.availableTasks.GetAll(), disabledTasks)
 }
 
 func (i *InspectionTaskRunner) generateMetadataForDryRun(ctx context.Context, initHeader *inspectionmetadata.HeaderMetadata, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {

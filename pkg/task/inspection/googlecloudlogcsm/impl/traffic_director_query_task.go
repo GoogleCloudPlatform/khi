@@ -81,8 +81,8 @@ func (s *CSMTrafficDirectorListLogEntryTaskSetting) DefaultResourceNames(ctx con
 }
 
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
-func (s *CSMTrafficDirectorListLogEntryTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (s *CSMTrafficDirectorListLogEntryTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogcsm_contract.InputFleetProjectIDTaskID.Ref(),
 		googlecloudlogcsm_contract.CSMClusterIdentifierTaskID.Ref(),
 	}

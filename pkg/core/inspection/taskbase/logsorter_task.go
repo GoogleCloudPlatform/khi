@@ -26,7 +26,7 @@ import (
 )
 
 func NewLogSorterByTimeTask(taskID taskid.TaskImplementationID[[]*log.Log], logSource taskid.TaskReference[[]*log.Log]) coretask.Task[[]*log.Log] {
-	return NewProgressReportableInspectionTask(taskID, []taskid.UntypedTaskReference{logSource}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
+	return NewProgressReportableInspectionTask(taskID, []coretask.Dependency{logSource}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 		if taskMode != inspectioncore_contract.TaskModeRun {
 			return []*log.Log{}, nil
 		}

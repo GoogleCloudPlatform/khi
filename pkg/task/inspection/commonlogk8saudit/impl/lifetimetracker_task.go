@@ -28,7 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -173,7 +172,7 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 // ResourceLifetimeTrackerTask is the task to track the lifetime of resources.
 var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspectionTask[commonlogk8saudit_contract.ResourceManifestLogGroupMap](
 	commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(),
 		commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref(),
 	},

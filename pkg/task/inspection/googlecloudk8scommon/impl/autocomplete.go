@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -32,16 +31,16 @@ import (
 // AutocompleteMetricsK8sContainerTask is the task to provide the default metrics type to collect the cluster names.
 // The resource type "k8s_container" must be available on the returned metrics type.
 // This task is overridden in GKE clusters.
-var AutocompleteMetricsK8sContainerTask = coretask.NewTask(googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
+var AutocompleteMetricsK8sContainerTask = coretask.NewTask(googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID, []coretask.Dependency{}, func(ctx context.Context) (string, error) {
 	// logging.googleapis.com/log_entry_count is better from the perspective of KHI's purpose, but use container metrics for longer retention period(24 months).
 	return "kubernetes.io/anthos/up", nil
 })
 
-var AutocompleteMetricsK8sNodeTask = coretask.NewTask(googlecloudk8scommon_contract.AutocompleteMetricsK8sNodeTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
+var AutocompleteMetricsK8sNodeTask = coretask.NewTask(googlecloudk8scommon_contract.AutocompleteMetricsK8sNodeTaskID, []coretask.Dependency{}, func(ctx context.Context) (string, error) {
 	return "kubernetes.io/anthos/up", nil
 })
 
-var AutocompleteClusterIdentityTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID, []taskid.UntypedTaskReference{
+var AutocompleteClusterIdentityTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID, []coretask.Dependency{
 	googlecloudk8scommon_contract.ClusterNamePrefixTaskRef,
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
@@ -133,7 +132,7 @@ func filterAndTrimPrefixFromClusterNames(metricsLabels []map[string]string, pref
 }
 
 // AutocompleteLocationForClusterTask returns the location for the given cluster name.
-var AutocompleteLocationForClusterTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteLocationForClusterTaskID, []taskid.UntypedTaskReference{
+var AutocompleteLocationForClusterTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteLocationForClusterTaskID, []coretask.Dependency{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), // This task must not depend on ClusterIdentity because this autocomplete will generate the source of it.
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
@@ -198,7 +197,7 @@ var AutocompleteLocationForClusterTask = inspectiontaskbase.NewGlobalCachedTask(
 	}, nil
 }, coretask.WithSelectionPriority(500))
 
-var AutocompleteNamespacesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteNamespacesTaskID, []taskid.UntypedTaskReference{
+var AutocompleteNamespacesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteNamespacesTaskID, []coretask.Dependency{
 	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
@@ -258,7 +257,7 @@ var AutocompleteNamespacesTask = inspectiontaskbase.NewGlobalCachedTask(googlecl
 	}, nil
 })
 
-var AutocompletePodNamesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompletePodNamesTaskID, []taskid.UntypedTaskReference{
+var AutocompletePodNamesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompletePodNamesTaskID, []coretask.Dependency{
 	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
@@ -308,7 +307,7 @@ var AutocompletePodNamesTask = inspectiontaskbase.NewGlobalCachedTask(googleclou
 	}, nil
 })
 
-var AutocompleteNodeNamesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID, []taskid.UntypedTaskReference{
+var AutocompleteNodeNamesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID, []coretask.Dependency{
 	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),

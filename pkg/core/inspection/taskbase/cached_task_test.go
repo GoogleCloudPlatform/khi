@@ -58,7 +58,7 @@ func TestCachedTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			prevValues := []CacheableTaskResult[string]{}
-			task := NewGlobalCachedTask(tc.taskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, prevValue CacheableTaskResult[string]) (CacheableTaskResult[string], error) {
+			task := NewGlobalCachedTask(tc.taskID, []coretask.Dependency{}, func(ctx context.Context, prevValue CacheableTaskResult[string]) (CacheableTaskResult[string], error) {
 				prevValues = append(prevValues, prevValue)
 				return CacheableTaskResult[string]{
 					Value:            "res",
@@ -108,7 +108,7 @@ func TestInspectionCachedTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			prevValues := []CacheableTaskResult[string]{}
-			task := NewInspectionCachedTask(tc.taskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, prevValue CacheableTaskResult[string]) (CacheableTaskResult[string], error) {
+			task := NewInspectionCachedTask(tc.taskID, []coretask.Dependency{}, func(ctx context.Context, prevValue CacheableTaskResult[string]) (CacheableTaskResult[string], error) {
 				prevValues = append(prevValues, prevValue)
 				return CacheableTaskResult[string]{
 					Value:            "res",

@@ -39,8 +39,8 @@ func (i *K8sNodeLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 }
 
 // Dependencies returns the dependencies of the log ingester.
-func (i *K8sNodeLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (i *K8sNodeLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
 		commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(),
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
@@ -168,17 +168,15 @@ var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 )
 
 // TailTask is a nop task that depends on all node component mappers and other child tasks to group them.
-var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8snode_contract.TailTaskID,
-	[]taskid.UntypedTaskReference{
+var TailTask = coretask.NewTailTask(
+	googlecloudlogk8snode_contract.TailTaskID,
+	[]coretask.Dependency{
 		googlecloudlogk8snode_contract.ContainerdLogLogToTimelineMapperTaskID.Ref(),
 		googlecloudlogk8snode_contract.KubeletLogLogToTimelineMapperTaskID.Ref(),
 		googlecloudlogk8snode_contract.OtherLogLogToTimelineMapperTaskID.Ref(),
 
 		googlecloudlogk8snode_contract.ContainerIDDiscoveryTaskID.Ref(),
 		googlecloudlogk8snode_contract.NodeNameDiscoveryTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
-		return struct{}{}, nil
 	},
 	inspectioncore_contract.FeatureTaskLabel(
 		"Kubernetes Node Logs",

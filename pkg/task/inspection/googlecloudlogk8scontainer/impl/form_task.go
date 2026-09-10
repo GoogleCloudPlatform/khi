@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
@@ -40,7 +39,7 @@ var inputNamespacesAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][
 
 // InputContainerQueryNamespaceFilterTask is a form task that allows users to specify which namespaces to query for container logs.
 var InputContainerQueryNamespaceFilterTask = formtask.NewSetFormTaskBuilder(googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
-	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteNamespacesTaskID.Ref()}).
+	WithDependencies([]coretask.Dependency{googlecloudk8scommon_contract.AutocompleteNamespacesTaskID.Ref()}).
 	WithDefaultValueConstant([]string{"@managed"}, true).
 	WithAllowAddAll(false).
 	WithAllowRemoveAll(false).
@@ -96,7 +95,7 @@ var inputPodNamesAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]s
 
 // InputContainerQueryPodNamesFilterMask is a form task that allows users to specify which pod names to query for container logs.
 var InputContainerQueryPodNamesFilterMask = formtask.NewSetFormTaskBuilder(googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
-	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompletePodNamesTaskID.Ref()}).
+	WithDependencies([]coretask.Dependency{googlecloudk8scommon_contract.AutocompletePodNamesTaskID.Ref()}).
 	WithDefaultValueConstant([]string{"@any"}, true).
 	WithAllowAddAll(false).
 	WithAllowRemoveAll(false).

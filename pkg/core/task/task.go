@@ -45,9 +45,6 @@ var LabelKeySubsequentTaskRefs = NewTaskLabelKey[[]taskid.UntypedTaskReference](
 // LabelKeyTaskResultRetention indicates whether the task result should be retained in the runner after all dependent tasks finish.
 var LabelKeyTaskResultRetention = NewTaskLabelKey[bool](KHISystemPrefix + "task-result-retention")
 
-// LabelKeyAllowMultiStageExecution indicates that the task is pure and eligible for multi-stage execution during cycle resolution.
-var LabelKeyAllowMultiStageExecution = NewTaskLabelKey[bool](KHISystemPrefix + "allow-multi-stage-execution")
-
 // UntypedTask represents a task in the DAG without compile-time result type information.
 type UntypedTask interface {
 	UntypedID() taskid.UntypedTaskImplementationID
@@ -113,20 +110,6 @@ func (c *TaskImpl[TaskResult]) UntypedRun(ctx context.Context) (any, error) {
 
 var _ Task[any] = (*TaskImpl[any])(nil)
 
-type allowMultiStageExecutionLabelOpt struct{}
-
-func (a *allowMultiStageExecutionLabelOpt) Write(labels *typedmap.TypedMap) {
-	typedmap.Set(labels, LabelKeyAllowMultiStageExecution, true)
-}
-
-var _ LabelOpt = (*allowMultiStageExecutionLabelOpt)(nil)
-
-// AllowMultiStageExecution returns a LabelOpt declaring that the task is eligible for multi-stage execution.
-// Such tasks can be cloned and executed across multiple stages during graph resolution to break FanIn dependency cycles.
-func AllowMultiStageExecution() LabelOpt {
-	return &allowMultiStageExecutionLabelOpt{}
-}
-
 // NewTask constructs a new Task with the given implementation ID, dependencies, execution function, and label options.
 func NewTask[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], dependencies []Dependency, runFunc func(ctx context.Context) (TaskResult, error), labelOpts ...LabelOpt) *TaskImpl[TaskResult] {
 	verifyTaskID(taskID)
@@ -142,39 +125,19 @@ func NewTask[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], dep
 }
 
 // mergeDependencies combines two duplicate dependencies targeting the same task or tag,
-// selecting the most restrictive attributes: Data over OrderOnly, Required over Optional,
-// and the broader scope (ScopeAll > ScopeActiveFeatures > ScopeActiveGraph).
+// selecting the broader scope (ScopeAll > ScopeActiveFeatures > ScopeActiveGraph).
 func mergeDependencies(a, b Dependency) Dependency {
-	kind := taskid.EdgeKindOrderOnly
-	if a.DescriptorKind() == taskid.EdgeKindData || b.DescriptorKind() == taskid.EdgeKindData {
-		kind = taskid.EdgeKindData
-	}
-
-	condition := taskid.ConditionOptional
-	if a.DescriptorCondition() == taskid.ConditionRequired || b.DescriptorCondition() == taskid.ConditionRequired {
-		condition = taskid.ConditionRequired
-	}
-
 	scope := mergeScopes(a.DescriptorScope(), b.DescriptorScope())
 
 	switch d := a.(type) {
 	case taskid.PointToPointDescriptor:
 		var opts []taskid.ReferenceOption
-		if kind == taskid.EdgeKindOrderOnly {
-			opts = append(opts, taskid.OrderOnly)
-		}
-		if condition == taskid.ConditionOptional {
-			opts = append(opts, taskid.Optional)
-		}
 		if scope != taskid.ScopeUnspecified {
 			opts = append(opts, scope)
 		}
 		return taskid.NewTaskReference[any](d.ReferenceID(), opts...)
 	case taskid.FanInDescriptor:
 		var opts []taskid.FanInOption
-		if kind == taskid.EdgeKindOrderOnly {
-			opts = append(opts, taskid.OrderOnly)
-		}
 		if scope != taskid.ScopeUnspecified {
 			opts = append(opts, scope)
 		}

@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 )
@@ -28,7 +27,7 @@ import (
 // CSM BackendService names follow the pattern: gsmrsvd-(cluster-identifier)-(neg-id).
 var CSMClusterIdentifierTask = coretask.NewTask(
 	googlecloudlogcsm_contract.CSMClusterIdentifierTaskID,
-	[]taskid.UntypedTaskReference{googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref()},
+	[]coretask.Dependency{googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref()},
 	func(ctx context.Context) ([]string, error) {
 		inventory := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref())
 

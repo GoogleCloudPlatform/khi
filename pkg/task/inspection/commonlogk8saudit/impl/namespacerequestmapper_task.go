@@ -18,6 +18,7 @@ import (
 	"context"
 	"strings"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -29,8 +30,8 @@ type namespaceRequestLogToTimelineMapperTaskSetting struct {
 }
 
 // Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
-func (n *namespaceRequestLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (n *namespaceRequestLogToTimelineMapperTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.

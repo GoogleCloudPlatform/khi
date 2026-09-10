@@ -21,19 +21,17 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var ResourceUIDInventoryTask = commonlogk8saudit_contract.ResourceUIDInventoryBuilder.InventoryTask(&resourceUIDMergeStrategy{})
+var ResourceUIDInventoryTask = inspectiontaskbase.NewInventoryTask(
+	commonlogk8saudit_contract.ResourceUIDInventoryTaskID,
+	commonlogk8saudit_contract.TagResourceUIDDiscovery,
+	mergeResourceUIDs,
+)
 
-type resourceUIDMergeStrategy struct{}
-
-var _ inspectiontaskbase.InventoryMergerStrategy[commonlogk8saudit_contract.UIDToResourceIdentity] = (*resourceUIDMergeStrategy)(nil)
-
-// Merge implements inspectiontaskbase.InventoryMergerStrategy.
-func (r *resourceUIDMergeStrategy) Merge(results []commonlogk8saudit_contract.UIDToResourceIdentity) (commonlogk8saudit_contract.UIDToResourceIdentity, error) {
+func mergeResourceUIDs(results []commonlogk8saudit_contract.UIDToResourceIdentity) (commonlogk8saudit_contract.UIDToResourceIdentity, error) {
 	result := map[string]*commonlogk8saudit_contract.ResourceIdentity{}
 	for _, r := range results {
 		for uid, s := range r {
@@ -43,10 +41,10 @@ func (r *resourceUIDMergeStrategy) Merge(results []commonlogk8saudit_contract.UI
 	return result, nil
 }
 
-var ResourceUIDDiscoveryTask = commonlogk8saudit_contract.ResourceUIDInventoryBuilder.DiscoveryTask(
+var ResourceUIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	commonlogk8saudit_contract.ResourceUIDDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.UIDToResourceIdentity, error) {
+	[]coretask.Dependency{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.UIDToResourceIdentity, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return commonlogk8saudit_contract.UIDToResourceIdentity{}, nil
 		}
@@ -69,11 +67,12 @@ var ResourceUIDDiscoveryTask = commonlogk8saudit_contract.ResourceUIDInventoryBu
 		}
 		return result, nil
 	},
+	coretask.ProvidesTag(commonlogk8saudit_contract.TagResourceUIDDiscovery),
 )
 
 var UIDPatternFinderTask = inspectiontaskbase.NewProgressReportableInspectionTask(
 	commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.ResourceUIDInventoryTaskID.Ref()},
+	[]coretask.Dependency{commonlogk8saudit_contract.ResourceUIDInventoryTaskID.Ref()},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (patternfinder.PatternFinder[*commonlogk8saudit_contract.ResourceIdentity], error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return nil, nil

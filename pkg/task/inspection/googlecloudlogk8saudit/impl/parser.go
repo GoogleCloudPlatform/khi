@@ -17,9 +17,7 @@ package googlecloudlogk8saudit_impl
 import (
 	"context"
 
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
@@ -29,7 +27,7 @@ import (
 // GCPK8sAuditLogExtractorTask provides K8sAuditLogExtractor for GCP audit logs.
 var GCPK8sAuditLogExtractorTask = coretask.NewTask(
 	googlecloudlogk8saudit_contract.GCPK8sAuditLogExtractorTaskID,
-	[]taskid.UntypedTaskReference{},
+	[]coretask.Dependency{},
 	func(ctx context.Context) (commonlogk8saudit_contract.K8sAuditLogExtractor, error) {
 		return googlecloudlogk8saudit_contract.ExtractGCPK8sAuditLog, nil
 	},
@@ -39,16 +37,16 @@ var GCPK8sAuditLogExtractorTask = coretask.NewTask(
 // GCPK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for GCP audit logs.
 var GCPK8sAuditLogErrorExtractorTask = coretask.NewTask(
 	googlecloudlogk8saudit_contract.GCPK8sAuditLogErrorExtractorTaskID,
-	[]taskid.UntypedTaskReference{},
+	[]coretask.Dependency{},
 	func(ctx context.Context) (commonlogk8saudit_contract.K8sAuditLogErrorExtractor, error) {
 		return googlecloudlogk8saudit_contract.ExtractGCPK8sAuditLogError, nil
 	},
 	coretask.NewTaskResultRetentionLabel(true),
 )
 
-var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
+var GCPK8sAuditLogParserTailTask = coretask.NewTailTask(
 	googlecloudlogk8saudit_contract.GCPK8sAuditLogParserTailTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		commonlogk8saudit_contract.K8sAuditLogExtractorRef,
 		commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef,
 		commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
@@ -67,8 +65,5 @@ var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 		googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID.Ref(),
 		googlecloudlogk8saudit_contract.NEGToBackendServiceDiscoveryTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
-		return struct{}{}, nil
-	},
-	inspectioncore_contract.FeatureTaskLabel("Kubernetes Audit Logs", `Gather Kubernetes audit logs to visualize resource modifications and API call histories on associated timelines.`, 1001, true), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+	inspectioncore_contract.FeatureTaskLabel("Kubernetes Audit Logs", `Gather Kubernetes audit logs to visualize resource modifications and API call histories on associated timelines.`, 1001, true),
 )

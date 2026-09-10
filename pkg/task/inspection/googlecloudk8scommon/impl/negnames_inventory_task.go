@@ -17,21 +17,14 @@ package googlecloudk8scommon_impl
 import (
 	"context"
 
-	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var NEGNamesInventoryTask = googlecloudk8scommon_contract.NEGNamesInventoryTaskBuilder.InventoryTask(&negNamesInventoryMergerStrategy{})
-
-type negNamesInventoryMergerStrategy struct{}
-
-// Merge implements inspectiontaskbase.InventoryMergerStrategy.
-func (s *negNamesInventoryMergerStrategy) Merge(results []googlecloudk8scommon_contract.NEGNameToResourceIdentityMap) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
+func mergeNEGNames(results []googlecloudk8scommon_contract.NEGNameToResourceIdentityMap) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
 	result := map[string]commonlogk8saudit_contract.ResourceIdentity{}
 	for _, r := range results {
 		for negName, identity := range r {
@@ -41,13 +34,18 @@ func (s *negNamesInventoryMergerStrategy) Merge(results []googlecloudk8scommon_c
 	return result, nil
 }
 
-var _ inspectiontaskbase.InventoryMergerStrategy[googlecloudk8scommon_contract.NEGNameToResourceIdentityMap] = (*negNamesInventoryMergerStrategy)(nil)
+var NEGNamesInventoryTask = inspectiontaskbase.NewInventoryTask(
+	googlecloudk8scommon_contract.NEGNamesInventoryTaskID,
+	googlecloudk8scommon_contract.TagNEGNamesDiscovery,
+	mergeNEGNames,
+)
 
-var NEGNamesDiscoveryTask = googlecloudk8scommon_contract.NEGNamesInventoryTaskBuilder.DiscoveryTask(googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{
+var NEGNamesDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+	googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID,
+	[]coretask.Dependency{
 		commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return nil, nil
 		}
@@ -64,4 +62,5 @@ var NEGNamesDiscoveryTask = googlecloudk8scommon_contract.NEGNamesInventoryTaskB
 		}
 		return result, nil
 	},
+	coretask.ProvidesTag(googlecloudk8scommon_contract.TagNEGNamesDiscovery),
 )

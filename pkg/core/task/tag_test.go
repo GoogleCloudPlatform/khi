@@ -86,34 +86,20 @@ func TestTagRef(t *testing.T) {
 	testCases := []struct {
 		name            string
 		opts            []taskid.FanInOption
-		wantKind        taskid.EdgeKind
-		wantCondition   taskid.EdgeCondition
 		wantCardinality taskid.EdgeCardinality
 		wantScope       taskid.DependencyScope
 	}{
 		{
 			name:            "default tag reference",
 			opts:            nil,
-			wantKind:        taskid.EdgeKindData,
-			wantCondition:   taskid.ConditionRequired,
-			wantCardinality: taskid.CardinalityFanIn,
-			wantScope:       taskid.ScopeActiveGraph,
-		},
-		{
-			name:            "order-only tag reference from active features",
-			opts:            []taskid.FanInOption{taskid.OrderOnly, taskid.ScopeActiveFeatures},
-			wantKind:        taskid.EdgeKindOrderOnly,
-			wantCondition:   taskid.ConditionRequired,
 			wantCardinality: taskid.CardinalityFanIn,
 			wantScope:       taskid.ScopeActiveFeatures,
 		},
 		{
-			name:            "tag reference from all",
-			opts:            []taskid.FanInOption{taskid.ScopeAll},
-			wantKind:        taskid.EdgeKindData,
-			wantCondition:   taskid.ConditionRequired,
+			name:            "tag reference from active graph",
+			opts:            []taskid.FanInOption{taskid.ScopeActiveGraph},
 			wantCardinality: taskid.CardinalityFanIn,
-			wantScope:       taskid.ScopeAll,
+			wantScope:       taskid.ScopeActiveGraph,
 		},
 	}
 
@@ -122,12 +108,6 @@ func TestTagRef(t *testing.T) {
 			ref := tag.Ref(tc.opts...)
 			if got := ref.Tag(); got != tag.ID() {
 				t.Errorf("Tag() = %q, want %q", got, tag.ID())
-			}
-			if got := ref.DescriptorKind(); got != tc.wantKind {
-				t.Errorf("DescriptorKind() = %v, want %v", got, tc.wantKind)
-			}
-			if got := ref.DescriptorCondition(); got != tc.wantCondition {
-				t.Errorf("DescriptorCondition() = %v, want %v", got, tc.wantCondition)
 			}
 			if got := ref.DescriptorCardinality(); got != tc.wantCardinality {
 				t.Errorf("DescriptorCardinality() = %v, want %v", got, tc.wantCardinality)

@@ -70,7 +70,7 @@ func setupTestServer(t *testing.T) *harnessTestContext {
 
 	upstreamTask := coretask.NewTask[[]*log.Log](
 		upstreamTaskID,
-		[]taskid.UntypedTaskReference{},
+		[]coretask.Dependency{},
 		func(ctx context.Context) ([]*log.Log, error) {
 			upstreamExecs.Add(1)
 			l, err := log.NewLogFromYAMLString(id.NewGenerator(), "textPayload: hello from upstream\nseverity: INFO")
@@ -83,7 +83,7 @@ func setupTestServer(t *testing.T) *harnessTestContext {
 
 	downstreamTask := coretask.NewTask[[]string](
 		downstreamTaskID,
-		[]taskid.UntypedTaskReference{upstreamTaskID.Ref()},
+		[]coretask.Dependency{upstreamTaskID.Ref()},
 		func(ctx context.Context) ([]string, error) {
 			downstreamExecs.Add(1)
 			logs := coretask.GetTaskResult(ctx, upstreamTaskID.Ref())

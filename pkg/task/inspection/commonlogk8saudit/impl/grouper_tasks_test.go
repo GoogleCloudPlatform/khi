@@ -15,12 +15,16 @@
 package commonlogk8saudit_impl
 
 import (
+	"context"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -350,6 +354,134 @@ kind: Binding`,
 
 			if diff := cmp.Diff(got, tc.want, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
 				t.Errorf("mismatch (-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestNonSuccessLogGrouperTask(t *testing.T) {
+	testCases := []struct {
+		name          string
+		logYamls      []string
+		wantGroupKeys []string
+	}{
+		{
+			name: "groups non-success logs using extractor without panic",
+			logYamls: []string{
+				`id: log-1
+textPayload: "error 1"`,
+			},
+			wantGroupKeys: []string{
+				"apiVersion=v1,kind=pods,ns=default,name=pod-1, subresource=",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+			logs := make([]*log.Log, 0, len(tc.logYamls))
+			for _, yml := range tc.logYamls {
+				node, err := structured.FromYAML(yml)
+				if err != nil {
+					t.Fatalf("failed to parse yaml: %v", err)
+				}
+				logs = append(logs, &log.Log{
+					NodeReader: structured.NewNodeReader(node),
+				})
+			}
+
+			mockExtractor := commonlogk8saudit_contract.K8sAuditLogExtractor(func(reader *structured.NodeReader) (*commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
+				return &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					APIVersion:   "v1",
+					PluralKind:   "pods",
+					Namespace:    "default",
+					ResourceName: "pod-1",
+				}, nil
+			})
+
+			result, _, err := inspectiontest.RunInspectionTask(
+				ctx,
+				NonSuccessLogGrouperTask,
+				inspectioncore_contract.TaskModeRun,
+				map[string]any{},
+				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.NonSuccessLogFilterTaskID.Ref(), logs),
+				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.K8sAuditLogExtractorRef, mockExtractor),
+			)
+			if err != nil {
+				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+			}
+
+			gotGroupKeys := []string{}
+			for groupKey := range result {
+				gotGroupKeys = append(gotGroupKeys, groupKey)
+			}
+			if diff := cmp.Diff(tc.wantGroupKeys, gotGroupKeys, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
+				t.Errorf("groups mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestChangeTargetGrouperTask(t *testing.T) {
+	testCases := []struct {
+		name      string
+		logYamls  []string
+		wantPaths []string
+	}{
+		{
+			name: "groups target resource using extractor without panic",
+			logYamls: []string{
+				`id: log-1`,
+			},
+			wantPaths: []string{
+				"apiVersion=v1,kind=pod,ns=default,name=pod-1",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+			logs := make([]*log.Log, 0, len(tc.logYamls))
+			for _, yml := range tc.logYamls {
+				node, err := structured.FromYAML(yml)
+				if err != nil {
+					t.Fatalf("failed to parse yaml: %v", err)
+				}
+				logs = append(logs, &log.Log{
+					NodeReader: structured.NewNodeReader(node),
+				})
+			}
+
+			mockExtractor := commonlogk8saudit_contract.K8sAuditLogExtractor(func(reader *structured.NodeReader) (*commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
+				return &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					APIVersion:   "v1",
+					PluralKind:   "pods",
+					Namespace:    "default",
+					ResourceName: "pod-1",
+					Verb:         commonlogk8saudit_contract.VerbCreate,
+				}, nil
+			})
+
+			result, _, err := inspectiontest.RunInspectionTask(
+				ctx,
+				ChangeTargetGrouperTask,
+				inspectioncore_contract.TaskModeRun,
+				map[string]any{},
+				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.LogSorterTaskID.Ref(), logs),
+				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.K8sAuditLogExtractorRef, mockExtractor),
+			)
+			if err != nil {
+				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+			}
+
+			gotPaths := []string{}
+			for path := range result {
+				gotPaths = append(gotPaths, path)
+			}
+			if diff := cmp.Diff(tc.wantPaths, gotPaths, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
+				t.Errorf("paths mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

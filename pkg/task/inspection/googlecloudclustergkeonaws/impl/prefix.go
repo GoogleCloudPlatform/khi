@@ -17,15 +17,14 @@ package googlecloudclustergkeonaws_impl
 import (
 	"context"
 
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudclustergkeonaws_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 // AnthosOnAWSClusterNamePrefixTask is a task that provides the cluster name prefix policy for GKE on AWS.
 // This task applies "awsClusters/" prefix across all usage layers.
-var AnthosOnAWSClusterNamePrefixTask = common_task.NewTask(googlecloudclustergkeonaws_contract.ClusterNamePrefixTaskID, []taskid.UntypedTaskReference{}, func(_ context.Context) (googlecloudk8scommon_contract.ClusterPrefixPolicy, error) {
+var AnthosOnAWSClusterNamePrefixTask = coretask.NewTask(googlecloudclustergkeonaws_contract.ClusterNamePrefixTaskID, []coretask.Dependency{}, func(_ context.Context) (googlecloudk8scommon_contract.ClusterPrefixPolicy, error) {
 	return googlecloudk8scommon_contract.ClusterPrefixPolicy{
 		Prefix: "awsClusters/",
 		RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{

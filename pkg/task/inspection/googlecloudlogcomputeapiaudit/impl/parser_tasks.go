@@ -65,8 +65,8 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.
 }
 
 // Dependencies returns additional task dependencies.
-func (g *gcpComputeAuditLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (g *gcpComputeAuditLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref(),
 	}
 }

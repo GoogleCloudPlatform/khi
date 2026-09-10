@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -37,14 +38,14 @@ import (
 )
 
 type mockStructuredListLogEntriesTaskSetting struct {
-	dependencies       []taskid.UntypedTaskReference
+	dependencies       []coretask.Dependency
 	resourceNames      []string
 	queries            []*logestimator.StructuredLogQuery
 	timePartitionCount int
 	queryName          string
 }
 
-func (s *mockStructuredListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+func (s *mockStructuredListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
 	return s.dependencies
 }
 

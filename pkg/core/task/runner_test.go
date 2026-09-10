@@ -26,8 +26,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func createMockTask(id string, dependencies []string, runFunc func(ctx context.Context) (any, error), labelOpts ...LabelOpt) UntypedTask {
-	deps := make([]taskid.UntypedTaskReference, len(dependencies))
+func createMockRunnableTask(id string, dependencies []string, runFunc func(ctx context.Context) (any, error), labelOpts ...LabelOpt) UntypedTask {
+	deps := make([]Dependency, len(dependencies))
 	for i, dep := range dependencies {
 		deps[i] = taskid.NewTaskReference[any](dep)
 	}
@@ -41,107 +41,126 @@ func createMockTask(id string, dependencies []string, runFunc func(ctx context.C
 }
 
 func TestLocalRunner_SingleTask(t *testing.T) {
-	taskResult := "task_result"
-	task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
-		return taskResult, nil
-	}, NewTaskResultRetentionLabel(true))
-
-	taskSet, err := NewTaskSet([]UntypedTask{task})
-	if err != nil {
-		t.Fatalf("Failed to create task set: %v", err)
+	testCases := []struct {
+		name       string
+		taskResult string
+	}{
+		{
+			name:       "execute single task and verify retained result",
+			taskResult: "task_result",
+		},
 	}
 
-	sortResult := taskSet.sortTaskGraph()
-	runnableSet := &TaskSet{tasks: sortResult.TopologicalSortedTasks, runnable: true}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			task := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
+				return tc.taskResult, nil
+			}, NewTaskResultRetentionLabel(true))
 
-	runner, err := NewLocalRunner(runnableSet)
-	if err != nil {
-		t.Fatalf("Failed to create runner: %v", err)
-	}
+			runnableSet, err := ResolveGraph([]UntypedTask{task}, []UntypedTask{task}, nil)
+			if err != nil {
+				t.Fatalf("failed to resolve task graph: %v", err)
+			}
 
-	err = runner.Run(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to run task: %v", err)
-	}
+			runner, err := NewLocalRunner(runnableSet)
+			if err != nil {
+				t.Fatalf("failed to create runner: %v", err)
+			}
 
-	<-runner.Wait()
+			err = runner.Run(context.Background())
+			if err != nil {
+				t.Fatalf("failed to run task: %v", err)
+			}
 
-	val, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
-	if !found {
-		t.Errorf("Expected task result to be found")
-	}
-	if val != taskResult {
-		t.Errorf("Expected task result '%v', got '%v'", taskResult, val)
+			<-runner.Wait()
+
+			val, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
+			if !found {
+				t.Errorf("expected task result to be found")
+			}
+			if val != tc.taskResult {
+				t.Errorf("expected task result '%v', got '%v'", tc.taskResult, val)
+			}
+		})
 	}
 }
 
 func TestLocalRunner_TasksWithDependencies(t *testing.T) {
-	executionOrder := []string{}
-	var mu sync.Mutex
-
-	task1 := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
-		mu.Lock()
-		executionOrder = append(executionOrder, "task1")
-		mu.Unlock()
-		return "result1", nil
-	}, NewTaskResultRetentionLabel(true))
-
-	task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
-		mu.Lock()
-		executionOrder = append(executionOrder, "task2")
-		mu.Unlock()
-
-		task1Result := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
-		if task1Result != "result1" {
-			panic("task1 result is not matching")
-		}
-		return "result2", nil
-	}, NewTaskResultRetentionLabel(true))
-
-	taskSet, err := NewTaskSet([]UntypedTask{task1, task2})
-	if err != nil {
-		t.Fatalf("Failed to create task set: %v", err)
+	testCases := []struct {
+		name            string
+		wantExecOrder   []string
+		wantTask1Result string
+		wantTask2Result string
+	}{
+		{
+			name:            "two sequential tasks with data dependency",
+			wantExecOrder:   []string{"task1", "task2"},
+			wantTask1Result: "result1",
+			wantTask2Result: "result2",
+		},
 	}
 
-	sortResult := taskSet.sortTaskGraph()
-	runnableSet := &TaskSet{tasks: sortResult.TopologicalSortedTasks, runnable: true}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			executionOrder := []string{}
+			var mu sync.Mutex
 
-	runner, err := NewLocalRunner(runnableSet)
-	if err != nil {
-		t.Fatalf("Failed to create runner: %v", err)
-	}
+			task1 := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
+				mu.Lock()
+				executionOrder = append(executionOrder, "task1")
+				mu.Unlock()
+				return tc.wantTask1Result, nil
+			}, NewTaskResultRetentionLabel(true))
 
-	err = runner.Run(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to run task: %v", err)
-	}
+			task2 := createMockRunnableTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
+				mu.Lock()
+				executionOrder = append(executionOrder, "task2")
+				mu.Unlock()
 
-	<-runner.Wait()
+				task1Result := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+				if task1Result != tc.wantTask1Result {
+					panic("task1 result is not matching")
+				}
+				return tc.wantTask2Result, nil
+			}, NewTaskResultRetentionLabel(true))
 
-	if len(executionOrder) != 2 {
-		t.Errorf("Expected 2 tasks to be executed, got %d", len(executionOrder))
-	}
-	if executionOrder[0] != "task1" {
-		t.Errorf("Expected task1 to be executed first, got %s", executionOrder[0])
-	}
-	if executionOrder[1] != "task2" {
-		t.Errorf("Expected task2 to be executed second, got %s", executionOrder[1])
-	}
+			runnableSet, err := ResolveGraph([]UntypedTask{task1, task2}, []UntypedTask{task1, task2}, nil)
+			if err != nil {
+				t.Fatalf("failed to resolve task graph: %v", err)
+			}
 
-	task1Result, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
-	if !found {
-		t.Errorf("Expected task result to be found")
-	}
-	if task1Result != "result1" {
-		t.Errorf("Expected task1 result 'result1', got '%v'", task1Result)
-	}
+			runner, err := NewLocalRunner(runnableSet)
+			if err != nil {
+				t.Fatalf("failed to create runner: %v", err)
+			}
 
-	task2Result, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task2"))
-	if !found {
-		t.Errorf("Expected task result to be found")
-	}
-	if task2Result != "result2" {
-		t.Errorf("Expected task2 result 'result2', got '%v'", task2Result)
+			err = runner.Run(context.Background())
+			if err != nil {
+				t.Fatalf("failed to run task: %v", err)
+			}
+
+			<-runner.Wait()
+
+			if diff := cmp.Diff(tc.wantExecOrder, executionOrder); diff != "" {
+				t.Errorf("execution order mismatch (-want +got):\n%s", diff)
+			}
+
+			task1Result, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
+			if !found {
+				t.Errorf("expected task1 result to be found")
+			}
+			if task1Result != tc.wantTask1Result {
+				t.Errorf("expected task1 result '%s', got '%v'", tc.wantTask1Result, task1Result)
+			}
+
+			task2Result, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task2"))
+			if !found {
+				t.Errorf("expected task2 result to be found")
+			}
+			if task2Result != tc.wantTask2Result {
+				t.Errorf("expected task2 result '%s', got '%v'", tc.wantTask2Result, task2Result)
+			}
+		})
 	}
 }
 
@@ -154,7 +173,7 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 		{
 			name: "single task without retention is deleted immediately after completion",
 			setupTasks: func() []UntypedTask {
-				task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+				task := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
 					return "result1", nil
 				})
 				return []UntypedTask{task}
@@ -169,7 +188,7 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 		{
 			name: "single task with retention is kept after completion",
 			setupTasks: func() []UntypedTask {
-				task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+				task := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
 					return "result1", nil
 				}, NewTaskResultRetentionLabel(true))
 				return []UntypedTask{task}
@@ -187,10 +206,10 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 		{
 			name: "dependency chain without retention deletes all intermediate results",
 			setupTasks: func() []UntypedTask {
-				task1 := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+				task1 := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
 					return "result1", nil
 				})
-				task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
+				task2 := createMockRunnableTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
 					task1Val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
 					if task1Val != "result1" {
 						return nil, errors.New("unexpected task1 result")
@@ -213,10 +232,10 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 		{
 			name: "dependency chain with upstream retained keeps upstream and deletes downstream",
 			setupTasks: func() []UntypedTask {
-				task1 := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+				task1 := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
 					return "result1", nil
 				}, NewTaskResultRetentionLabel(true))
-				task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
+				task2 := createMockRunnableTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
 					task1Val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
 					if task1Val != "result1" {
 						return nil, errors.New("unexpected task1 result")
@@ -242,10 +261,10 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 		{
 			name: "multi-dependent tasks all receive upstream result before it is deleted",
 			setupTasks: func() []UntypedTask {
-				task1 := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+				task1 := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
 					return "shared_result", nil
 				})
-				task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
+				task2 := createMockRunnableTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
 					val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
 					if val != "shared_result" {
 						return nil, errors.New("task2: invalid task1 result")
@@ -253,7 +272,7 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 					time.Sleep(10 * time.Millisecond)
 					return "result2", nil
 				})
-				task3 := createMockTask("task3", []string{"task1"}, func(ctx context.Context) (any, error) {
+				task3 := createMockRunnableTask("task3", []string{"task1"}, func(ctx context.Context) (any, error) {
 					val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
 					if val != "shared_result" {
 						return nil, errors.New("task3: invalid task1 result")
@@ -273,18 +292,18 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 		{
 			name: "diamond dependency with final task retained",
 			setupTasks: func() []UntypedTask {
-				taskA := createMockTask("taskA", nil, func(ctx context.Context) (any, error) {
+				taskA := createMockRunnableTask("taskA", nil, func(ctx context.Context) (any, error) {
 					return "resA", nil
 				})
-				taskB := createMockTask("taskB", []string{"taskA"}, func(ctx context.Context) (any, error) {
+				taskB := createMockRunnableTask("taskB", []string{"taskA"}, func(ctx context.Context) (any, error) {
 					resA := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskA"))
 					return resA + "->B", nil
 				})
-				taskC := createMockTask("taskC", []string{"taskA"}, func(ctx context.Context) (any, error) {
+				taskC := createMockRunnableTask("taskC", []string{"taskA"}, func(ctx context.Context) (any, error) {
 					resA := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskA"))
 					return resA + "->C", nil
 				})
-				taskD := createMockTask("taskD", []string{"taskB", "taskC"}, func(ctx context.Context) (any, error) {
+				taskD := createMockRunnableTask("taskD", []string{"taskB", "taskC"}, func(ctx context.Context) (any, error) {
 					resB := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskB"))
 					resC := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskC"))
 					return resB + "+" + resC + "->D", nil
@@ -321,30 +340,25 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tasks := tc.setupTasks()
-			taskSet, err := NewTaskSet(tasks)
+			runnableSet, err := ResolveGraph(tasks, tasks, nil)
 			if err != nil {
-				t.Fatalf("Failed to create task set: %v", err)
-			}
-
-			runnableSet, err := taskSet.ToRunnableTaskSet()
-			if err != nil {
-				t.Fatalf("Failed to sort task set: %v", err)
+				t.Fatalf("failed to resolve graph: %v", err)
 			}
 
 			runner, err := NewLocalRunner(runnableSet)
 			if err != nil {
-				t.Fatalf("Failed to create runner: %v", err)
+				t.Fatalf("failed to create runner: %v", err)
 			}
 
 			err = runner.Run(context.Background())
 			if err != nil {
-				t.Fatalf("Failed to run task: %v", err)
+				t.Fatalf("failed to run task: %v", err)
 			}
 
 			<-runner.Wait()
 
 			if _, err := runner.Result(); err != nil {
-				t.Fatalf("Runner completed with error: %v", err)
+				t.Fatalf("runner completed with error: %v", err)
 			}
 
 			tc.verify(t, runner)
@@ -353,154 +367,184 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 }
 
 func TestLocalRunner_TaskError(t *testing.T) {
-	expectedErr := errors.New("task error")
-
-	task1 := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
-		return nil, expectedErr
-	})
-
-	task2Executed := false
-	task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
-		task2Executed = true
-		return "result2", nil
-	})
-
-	taskSet, err := NewTaskSet([]UntypedTask{task1, task2})
-	if err != nil {
-		t.Fatalf("Failed to create task set: %v", err)
+	testCases := []struct {
+		name        string
+		expectedErr error
+	}{
+		{
+			name:        "dependent task is skipped when dependency fails",
+			expectedErr: errors.New("task error"),
+		},
 	}
 
-	sortResult := taskSet.sortTaskGraph()
-	runnableSet := &TaskSet{tasks: sortResult.TopologicalSortedTasks, runnable: true}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			task1 := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
+				return nil, tc.expectedErr
+			})
 
-	runner, err := NewLocalRunner(runnableSet)
-	if err != nil {
-		t.Fatalf("Failed to create runner: %v", err)
-	}
+			task2Executed := false
+			task2 := createMockRunnableTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
+				task2Executed = true
+				return "result2", nil
+			})
 
-	err = runner.Run(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to run task: %v", err)
-	}
+			tasks := []UntypedTask{task1, task2}
+			runnableSet, err := ResolveGraph(tasks, tasks, nil)
+			if err != nil {
+				t.Fatalf("failed to resolve graph: %v", err)
+			}
 
-	<-runner.Wait()
+			runner, err := NewLocalRunner(runnableSet)
+			if err != nil {
+				t.Fatalf("failed to create runner: %v", err)
+			}
 
-	_, err = runner.Result()
-	if err == nil {
-		t.Error("Expected an error, got nil")
-	}
-	if !strings.Contains(err.Error(), expectedErr.Error()) {
-		t.Errorf("Expected error containing '%s', got '%s'", expectedErr.Error(), err.Error())
-	}
+			err = runner.Run(context.Background())
+			if err != nil {
+				t.Fatalf("failed to run task: %v", err)
+			}
 
-	if task2Executed {
-		t.Error("Dependent task should not be executed when a dependency fails")
+			<-runner.Wait()
+
+			_, err = runner.Result()
+			if err == nil {
+				t.Error("expected an error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.expectedErr.Error()) {
+				t.Errorf("expected error containing '%s', got '%s'", tc.expectedErr.Error(), err.Error())
+			}
+
+			if task2Executed {
+				t.Error("dependent task should not be executed when a dependency fails")
+			}
+		})
 	}
 }
 
 func TestLocalRunner_ContextCancellation(t *testing.T) {
-	taskStarted := make(chan struct{})
-
-	task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
-		close(taskStarted)
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(5 * time.Second):
-			return "unexpected completion", nil
-		}
-	})
-
-	taskSet, err := NewTaskSet([]UntypedTask{task})
-	if err != nil {
-		t.Fatalf("Failed to create task set: %v", err)
+	testCases := []struct {
+		name string
+	}{
+		{
+			name: "runner cancels task execution on context cancellation",
+		},
 	}
 
-	sortResult := taskSet.sortTaskGraph()
-	runnableSet := &TaskSet{tasks: sortResult.TopologicalSortedTasks, runnable: true}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			taskStarted := make(chan struct{})
 
-	runner, err := NewLocalRunner(runnableSet)
-	if err != nil {
-		t.Fatalf("Failed to create runner: %v", err)
-	}
+			task := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
+				close(taskStarted)
 
-	ctx, cancel := context.WithCancel(context.Background())
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-time.After(5 * time.Second):
+					return "unexpected completion", nil
+				}
+			})
 
-	err = runner.Run(ctx)
-	if err != nil {
-		t.Fatalf("Failed to run task: %v", err)
-	}
+			tasks := []UntypedTask{task}
+			runnableSet, err := ResolveGraph(tasks, tasks, nil)
+			if err != nil {
+				t.Fatalf("failed to resolve graph: %v", err)
+			}
 
-	<-taskStarted
+			runner, err := NewLocalRunner(runnableSet)
+			if err != nil {
+				t.Fatalf("failed to create runner: %v", err)
+			}
 
-	cancel()
+			ctx, cancel := context.WithCancel(context.Background())
 
-	<-runner.Wait()
+			err = runner.Run(ctx)
+			if err != nil {
+				t.Fatalf("failed to run task: %v", err)
+			}
 
-	_, err = runner.Result()
-	if err == nil {
-		t.Error("Expected an error, got nil")
-	}
-	if !strings.Contains(err.Error(), context.Canceled.Error()) {
-		t.Errorf("Expected error containing '%s', got '%s'", context.Canceled.Error(), err.Error())
+			<-taskStarted
+
+			cancel()
+
+			<-runner.Wait()
+
+			_, err = runner.Result()
+			if err == nil {
+				t.Error("expected an error, got nil")
+			}
+			if !strings.Contains(err.Error(), context.Canceled.Error()) {
+				t.Errorf("expected error containing '%s', got '%s'", context.Canceled.Error(), err.Error())
+			}
+		})
 	}
 }
 
 func TestLocalRunner_AddInterceptor(t *testing.T) {
-	executionOrder := []string{}
-
-	interceptor1 := func(ctx context.Context, task UntypedTask, next func(context.Context) (any, error)) (any, error) {
-		executionOrder = append(executionOrder, "interceptor1_start")
-		res, err := next(ctx)
-		executionOrder = append(executionOrder, "interceptor1_end")
-		return res, err
+	testCases := []struct {
+		name          string
+		expectedOrder []string
+	}{
+		{
+			name: "interceptors wrap task execution in order",
+			expectedOrder: []string{
+				"interceptor1_start",
+				"interceptor2_start",
+				"task_execution",
+				"interceptor2_end",
+				"interceptor1_end",
+			},
+		},
 	}
 
-	interceptor2 := func(ctx context.Context, task UntypedTask, next func(context.Context) (any, error)) (any, error) {
-		executionOrder = append(executionOrder, "interceptor2_start")
-		res, err := next(ctx)
-		executionOrder = append(executionOrder, "interceptor2_end")
-		return res, err
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			executionOrder := []string{}
 
-	task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
-		executionOrder = append(executionOrder, "task_execution")
-		return "result", nil
-	})
+			interceptor1 := func(ctx context.Context, task UntypedTask, next func(context.Context) (any, error)) (any, error) {
+				executionOrder = append(executionOrder, "interceptor1_start")
+				res, err := next(ctx)
+				executionOrder = append(executionOrder, "interceptor1_end")
+				return res, err
+			}
 
-	taskSet, err := NewTaskSet([]UntypedTask{task})
-	if err != nil {
-		t.Fatalf("Failed to create task set: %v", err)
-	}
+			interceptor2 := func(ctx context.Context, task UntypedTask, next func(context.Context) (any, error)) (any, error) {
+				executionOrder = append(executionOrder, "interceptor2_start")
+				res, err := next(ctx)
+				executionOrder = append(executionOrder, "interceptor2_end")
+				return res, err
+			}
 
-	sortResult := taskSet.sortTaskGraph()
-	runnableSet := &TaskSet{tasks: sortResult.TopologicalSortedTasks, runnable: true}
+			task := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
+				executionOrder = append(executionOrder, "task_execution")
+				return "result", nil
+			})
 
-	runner, err := NewLocalRunner(runnableSet)
-	if err != nil {
-		t.Fatalf("Failed to create runner: %v", err)
-	}
+			tasks := []UntypedTask{task}
+			runnableSet, err := ResolveGraph(tasks, tasks, nil)
+			if err != nil {
+				t.Fatalf("failed to resolve graph: %v", err)
+			}
 
-	runner.AddInterceptor(interceptor1)
-	runner.AddInterceptor(interceptor2)
+			runner, err := NewLocalRunner(runnableSet)
+			if err != nil {
+				t.Fatalf("failed to create runner: %v", err)
+			}
 
-	err = runner.Run(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to run task: %v", err)
-	}
+			runner.AddInterceptor(interceptor1)
+			runner.AddInterceptor(interceptor2)
 
-	<-runner.Wait()
+			err = runner.Run(context.Background())
+			if err != nil {
+				t.Fatalf("failed to run task: %v", err)
+			}
 
-	expectedOrder := []string{
-		"interceptor1_start",
-		"interceptor2_start",
-		"task_execution",
-		"interceptor2_end",
-		"interceptor1_end",
-	}
+			<-runner.Wait()
 
-	if diff := cmp.Diff(expectedOrder, executionOrder); diff != "" {
-		t.Errorf("Execution order mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.expectedOrder, executionOrder); diff != "" {
+				t.Errorf("execution order mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

@@ -23,14 +23,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // AutocompleteComposerEnvironmentIdentityTask is the task that autocompletes composer environment identities.
-var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID, []taskid.UntypedTaskReference{
+var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID, []coretask.Dependency{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
@@ -105,7 +104,7 @@ var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewGlobalCa
 	}, nil
 })
 
-var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteLocationForComposerEnvironmentTaskID, []taskid.UntypedTaskReference{
+var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteLocationForComposerEnvironmentTaskID, []coretask.Dependency{
 	googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
@@ -180,8 +179,8 @@ var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewGloba
 	coretask.WithSelectionPriority(1000),
 )
 
-var AutocompleteComposerComponentsTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerComponentsTaskID, []taskid.UntypedTaskReference{
-	googlecloudclustercomposer_contract.ClusterIdentityTaskID.GetUntypedReference(),
+var AutocompleteComposerComponentsTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerComponentsTaskID, []coretask.Dependency{
+	googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),

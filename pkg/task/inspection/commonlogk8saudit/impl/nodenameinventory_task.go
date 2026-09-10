@@ -18,21 +18,20 @@ import (
 	"context"
 	"slices"
 
-	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // NodeNameInventoryTask provides list of node name found in this inspection for later task usage.
-var NodeNameInventoryTask = commonlogk8saudit_contract.NodeNameInventoryBuilder.InventoryTask(&nodeNameMergeStrategy{})
+var NodeNameInventoryTask = inspectiontaskbase.NewInventoryTask(
+	commonlogk8saudit_contract.NodeNameInventoryTaskID,
+	commonlogk8saudit_contract.TagNodeNameDiscovery,
+	mergeNodeNames,
+)
 
-type nodeNameMergeStrategy struct{}
-
-// Merge implements inspectiontaskbase.InventoryMergerStrategy.
-func (n *nodeNameMergeStrategy) Merge(results [][]string) ([]string, error) {
+func mergeNodeNames(results [][]string) ([]string, error) {
 	result := map[string]struct{}{}
 	for _, r := range results {
 		for _, s := range r {
@@ -48,13 +47,11 @@ func (n *nodeNameMergeStrategy) Merge(results [][]string) ([]string, error) {
 	return ret, nil
 }
 
-var _ inspectiontaskbase.InventoryMergerStrategy[[]string] = (*nodeNameMergeStrategy)(nil)
-
 // NodeNameDiscoveryTask extracts node name from audit logs and node names are registered on NodeNameInventoryTask.
-var NodeNameDiscoveryTask = commonlogk8saudit_contract.NodeNameInventoryBuilder.DiscoveryTask(
+var NodeNameDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	commonlogk8saudit_contract.NodeNameDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]string, error) {
+	[]coretask.Dependency{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return nil, nil
 		}
@@ -76,4 +73,5 @@ var NodeNameDiscoveryTask = commonlogk8saudit_contract.NodeNameInventoryBuilder.
 		}
 		return ret, nil
 	},
+	coretask.ProvidesTag(commonlogk8saudit_contract.TagNodeNameDiscovery),
 )

@@ -49,8 +49,8 @@ var ContainerdLogFilterTask = newParserTypeFilterTask(googlecloudlogk8snode_cont
 var ContainerdLogGroupTask = newNodeAndComponentNameGrouperTask(googlecloudlogk8snode_contract.ContainerdLogGroupTaskID, googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref())
 
 // ContainerIDDiscoveryTask discovers mappings between container IDs and GKE pod containers.
-var ContainerIDDiscoveryTask = commonlogk8saudit_contract.ContainerIDInventoryBuilder.DiscoveryTask(googlecloudlogk8snode_contract.ContainerIDDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{
+var ContainerIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspectionTask(googlecloudlogk8snode_contract.ContainerIDDiscoveryTaskID,
+	[]coretask.Dependency{
 		googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
@@ -122,11 +122,12 @@ var ContainerIDDiscoveryTask = commonlogk8saudit_contract.ContainerIDInventoryBu
 
 		return result, nil
 	},
+	coretask.ProvidesTag(commonlogk8saudit_contract.TagContainerIDDiscovery),
 )
 
 // PodSandboxIDDiscoveryTask discovers mappings between pod sandbox IDs and GKE pods.
 var PodSandboxIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspectionTask(googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (patternfinder.PatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo], error) {
@@ -263,8 +264,8 @@ type containerdNodeLogLogToTimelineMapperSetting struct {
 }
 
 // Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerdNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (c *containerdNodeLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
 		commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(),

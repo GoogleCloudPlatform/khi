@@ -108,7 +108,7 @@ type ManifestLogToTimelineMapper[T any] interface {
 	// GroupedLogTask returns the task reference for the grouped log task.
 	GroupedLogTask() taskid.TaskReference[ResourceManifestLogGroupMap]
 	// Dependencies returns additional task dependencies of the mapper.
-	Dependencies() []taskid.UntypedTaskReference
+	Dependencies() []coretask.Dependency
 	// PassCount returns the number of pre-processing passes.
 	PassCount() int
 	// ResolveRelatedGroupSets resolves log groups into related group sets to be processed together.
@@ -146,9 +146,12 @@ func (ManifestStatelessMapperBase) PreProcessLog(ctx context.Context, passIndex 
 }
 
 // NewManifestLogToTimelineMapper creates a new timeline mapper task utilizing the mapper interface.
-func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T]) coretask.Task[struct{}] {
+func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T], labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	groupedLogTaskID := setting.GroupedLogTask()
-	dependencies := append([]taskid.UntypedTaskReference{setting.LogIngesterTask(), setting.GroupedLogTask()}, setting.Dependencies()...)
+	dependencies := append([]coretask.Dependency{setting.LogIngesterTask(), setting.GroupedLogTask()}, setting.Dependencies()...)
+	allLabels := append([]coretask.LabelOpt{
+		coretask.ProvidesTag(inspectiontaskbase.TagTimelineMapper),
+	}, labelOpts...)
 
 	return inspectiontaskbase.NewProgressReportableInspectionTask(setting.TaskID(), dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
@@ -253,7 +256,7 @@ func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T
 		}
 
 		return struct{}{}, nil
-	})
+	}, allLabels...)
 }
 
 // iterateMultiGroupLog merges and yields log events from all roles in chronological order.

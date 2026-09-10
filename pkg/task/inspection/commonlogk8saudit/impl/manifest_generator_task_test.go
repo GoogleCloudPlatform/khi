@@ -15,13 +15,17 @@
 package commonlogk8saudit_impl
 
 import (
+	"context"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
@@ -580,6 +584,108 @@ status:
 			}
 			if diff := cmp.Diff(tc.wantYAML, string(yamlBytes)); diff != "" {
 				t.Errorf("YAML serialization mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestManifestGeneratorTask(t *testing.T) {
+	testCases := []struct {
+		name         string
+		logYamls     []string
+		wantManifest string
+	}{
+		{
+			name: "generates manifest from audit logs using extractor dependency",
+			logYamls: []string{
+				`id: log-1`,
+			},
+			wantManifest: `apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-1
+`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+			logs := make([]*log.Log, 0, len(tc.logYamls))
+			for _, yml := range tc.logYamls {
+				node, err := structured.FromYAML(yml)
+				if err != nil {
+					t.Fatalf("failed to parse yaml: %v", err)
+				}
+				logs = append(logs, &log.Log{
+					NodeReader: structured.NewNodeReader(node),
+				})
+			}
+
+			respNode, err := structured.FromYAML(`apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-1
+`)
+			if err != nil {
+				t.Fatalf("failed to parse mock response yaml: %v", err)
+			}
+
+			mockExtractor := commonlogk8saudit_contract.K8sAuditLogExtractor(func(reader *structured.NodeReader) (*commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
+				return &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					APIVersion:   "v1",
+					PluralKind:   "pods",
+					Namespace:    "default",
+					ResourceName: "pod-1",
+					Verb:         commonlogk8saudit_contract.VerbCreate,
+					Response:     structured.NewNodeReader(respNode),
+				}, nil
+			})
+
+			mergeConfigRegistry, err := k8s.GenerateDefaultMergeConfig()
+			if err != nil {
+				t.Fatalf("failed to generate merge config: %v", err)
+			}
+
+			logGroups := commonlogk8saudit_contract.ResourceLogGroupMap{
+				"group1": &commonlogk8saudit_contract.ResourceLogGroup{
+					Resource: &commonlogk8saudit_contract.ResourceIdentity{
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Namespace:  "default",
+						Name:       "pod-1",
+					},
+					Logs: logs,
+				},
+			}
+
+			result, _, err := inspectiontest.RunInspectionTask(
+				ctx,
+				ManifestGeneratorTask,
+				inspectioncore_contract.TaskModeRun,
+				map[string]any{},
+				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.ChangeTargetGrouperTaskID.Ref(), logGroups),
+				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.K8sResourceMergeConfigTaskID.Ref(), mergeConfigRegistry),
+				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.K8sAuditLogExtractorRef, mockExtractor),
+			)
+			if err != nil {
+				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+			}
+
+			group, ok := result["group1"]
+			if !ok || len(group.Logs) == 0 {
+				t.Fatalf("expected result for group1, got %v", result)
+			}
+			gotBody := group.Logs[0].ResourceBodyReader
+			if gotBody == nil {
+				t.Fatal("expected ResourceBodyReader to be non-nil")
+			}
+			yamlBytes, err := gotBody.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+			if err != nil {
+				t.Fatalf("Serialize failed: %v", err)
+			}
+			if diff := cmp.Diff(tc.wantManifest, string(yamlBytes)); diff != "" {
+				t.Errorf("manifest mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

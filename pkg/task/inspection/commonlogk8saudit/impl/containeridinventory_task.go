@@ -23,17 +23,17 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var ContainerIDInventoryTask = commonlogk8saudit_contract.ContainerIDInventoryBuilder.InventoryTask(&containerIDMergeStrategy{})
+var ContainerIDInventoryTask = inspectiontaskbase.NewInventoryTask(
+	commonlogk8saudit_contract.ContainerIDInventoryTaskID,
+	commonlogk8saudit_contract.TagContainerIDDiscovery,
+	mergeContainerIDs,
+)
 
-type containerIDMergeStrategy struct{}
-
-// Merge implements inspectiontaskbase.InventoryMergerStrategy.
-func (c *containerIDMergeStrategy) Merge(results []commonlogk8saudit_contract.ContainerIDToContainerIdentity) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
+func mergeContainerIDs(results []commonlogk8saudit_contract.ContainerIDToContainerIdentity) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
 	result := map[string]*commonlogk8saudit_contract.ContainerIdentity{}
 	for _, r := range results {
 		for cid, s := range r {
@@ -47,11 +47,9 @@ func (c *containerIDMergeStrategy) Merge(results []commonlogk8saudit_contract.Co
 	return result, nil
 }
 
-var _ inspectiontaskbase.InventoryMergerStrategy[commonlogk8saudit_contract.ContainerIDToContainerIdentity] = (*containerIDMergeStrategy)(nil)
-
 var ContainerIDPatternFinderTask = inspectiontaskbase.NewProgressReportableInspectionTask(
 	commonlogk8saudit_contract.ContainerIDPatternFinderTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		commonlogk8saudit_contract.ContainerIDInventoryTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (patternfinder.PatternFinder[*commonlogk8saudit_contract.ContainerIdentity], error) {
@@ -76,12 +74,12 @@ var (
 	pathContainerName              = structured.CompileFieldPath("name")
 )
 
-var ContainerIDDiscoveryTask = commonlogk8saudit_contract.ContainerIDInventoryBuilder.DiscoveryTask(
+var ContainerIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	commonlogk8saudit_contract.ContainerIDDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return nil, nil
 		}
@@ -107,6 +105,7 @@ var ContainerIDDiscoveryTask = commonlogk8saudit_contract.ContainerIDInventoryBu
 		}
 		return result, nil
 	},
+	coretask.ProvidesTag(commonlogk8saudit_contract.TagContainerIDDiscovery),
 )
 
 func extractContainerIDs(reader *structured.NodeReader, fieldPath structured.FieldPath, result commonlogk8saudit_contract.ContainerIDToContainerIdentity) {

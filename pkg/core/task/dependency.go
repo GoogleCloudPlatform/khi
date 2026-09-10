@@ -21,6 +21,15 @@ import (
 // Dependency represents any task dependency descriptor, such as a point-to-point reference or a fan-in tag reference.
 type Dependency = taskid.DependencyDescriptor
 
+var (
+	// FromActiveFeatures configures the dependency scope to ScopeActiveFeatures.
+	FromActiveFeatures = taskid.ScopeActiveFeatures
+	// FromActiveGraph configures the dependency scope to ScopeActiveGraph.
+	FromActiveGraph = taskid.ScopeActiveGraph
+	// FromAll configures the dependency scope to ScopeAll.
+	FromAll = taskid.ScopeAll
+)
+
 // TagReference defines a typed reference to an aggregation of tasks providing a specific tag.
 type TagReference[TaskResult any] interface {
 	taskid.FanInDescriptor
@@ -36,16 +45,6 @@ type tagReferenceImpl[TaskResult any] struct {
 var _ TagReference[any] = (*tagReferenceImpl[any])(nil)
 var _ taskid.FanInDescriptor = (*tagReferenceImpl[any])(nil)
 
-// DescriptorKind returns whether this dependency requires data or only execution order.
-func (t *tagReferenceImpl[TaskResult]) DescriptorKind() taskid.EdgeKind {
-	return t.config.Kind
-}
-
-// DescriptorCondition returns whether this dependency is required or optional.
-func (t *tagReferenceImpl[TaskResult]) DescriptorCondition() taskid.EdgeCondition {
-	return t.config.Condition
-}
-
 // DescriptorCardinality returns that this dependency is a fan-in aggregation.
 func (t *tagReferenceImpl[TaskResult]) DescriptorCardinality() taskid.EdgeCardinality {
 	return t.config.Cardinality
@@ -53,7 +52,7 @@ func (t *tagReferenceImpl[TaskResult]) DescriptorCardinality() taskid.EdgeCardin
 
 // DescriptorScope returns the effective dependency resolution scope.
 func (t *tagReferenceImpl[TaskResult]) DescriptorScope() taskid.DependencyScope {
-	return t.config.ResolvedScope()
+	return t.config.Scope
 }
 
 // Tag returns the tag name to match producer tasks.
@@ -76,33 +75,5 @@ func NewTagReference[TaskResult any](tag string, opts ...taskid.FanInOption) Tag
 	return &tagReferenceImpl[TaskResult]{
 		tag:    tag,
 		config: cfg,
-	}
-}
-
-// ToOrderOnly converts any Dependency into an order-only dependency.
-func ToOrderOnly(dep Dependency) Dependency {
-	if dep.DescriptorKind() == taskid.EdgeKindOrderOnly {
-		return dep
-	}
-	switch d := dep.(type) {
-	case taskid.PointToPointDescriptor:
-		var opts []taskid.ReferenceOption
-		if d.DescriptorCondition() == taskid.ConditionOptional {
-			opts = append(opts, taskid.Optional)
-		}
-		opts = append(opts, taskid.OrderOnly)
-		if d.DescriptorScope() != taskid.ScopeUnspecified {
-			opts = append(opts, d.DescriptorScope())
-		}
-		return taskid.NewTaskReference[any](d.ReferenceID(), opts...)
-	case taskid.FanInDescriptor:
-		var opts []taskid.FanInOption
-		opts = append(opts, taskid.OrderOnly)
-		if d.DescriptorScope() != taskid.ScopeUnspecified {
-			opts = append(opts, d.DescriptorScope())
-		}
-		return NewTagReference[any](d.Tag(), opts...)
-	default:
-		return dep
 	}
 }

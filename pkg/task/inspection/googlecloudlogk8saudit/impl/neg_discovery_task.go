@@ -19,9 +19,8 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
@@ -34,10 +33,10 @@ var (
 )
 
 // AuditLogNEGDiscoveryTask is the discovery task that extracts NEG to BackendService mappings from Kubernetes Audit logs.
-var AuditLogNEGDiscoveryTask = googlecloudk8scommon_contract.NEGToBackendServiceInventoryBuilder.DiscoveryTask(
+var AuditLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudlogk8saudit_contract.NEGToBackendServiceDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (googlecloudk8scommon_contract.NEGToBackendServiceMap, error) {
+	[]coretask.Dependency{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (googlecloudk8scommon_contract.NEGToBackendServiceMap, error) {
 		if taskMode != inspectioncore_contract.TaskModeRun {
 			return nil, nil
 		}
@@ -68,4 +67,5 @@ var AuditLogNEGDiscoveryTask = googlecloudk8scommon_contract.NEGToBackendService
 		}
 		return result, nil
 	},
+	coretask.ProvidesTag(googlecloudk8scommon_contract.TagNEGToBackendServiceDiscovery),
 )

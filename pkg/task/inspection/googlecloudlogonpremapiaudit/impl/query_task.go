@@ -61,8 +61,8 @@ func (o *onpremAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Co
 }
 
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
-func (o *onpremAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{
+func (o *onpremAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
 		googlecloudlogonpremapiaudit_contract.ClusterIdentityTaskID.Ref(),
 	}
 }

@@ -41,7 +41,7 @@ type LogIngester interface {
 	// RawLogTask returns the task reference that provides the raw logs to ingest.
 	RawLogTask() taskid.TaskReference[[]*log.Log]
 	// Dependencies returns additional task dependencies of the ingester.
-	Dependencies() []taskid.UntypedTaskReference
+	Dependencies() []coretask.Dependency
 	// ProcessLog is called for each log entry to customize log metadata (summary, severity, timestamp, etc.).
 	ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error)
 }
@@ -49,7 +49,10 @@ type LogIngester interface {
 // NewLogIngesterTask returns a task that ingests log metadata into the KHI v6 builder.
 func NewLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], ingester LogIngester, labels ...coretask.LabelOpt) coretask.Task[struct{}] {
 	rawLogTaskID := ingester.RawLogTask()
-	dependencies := append([]taskid.UntypedTaskReference{rawLogTaskID}, ingester.Dependencies()...)
+	dependencies := append([]coretask.Dependency{rawLogTaskID}, ingester.Dependencies()...)
+	allLabels := append([]coretask.LabelOpt{
+		coretask.ProvidesTag(TagLogIngester),
+	}, labels...)
 	return NewProgressReportableInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return struct{}{}, nil
@@ -149,7 +152,5 @@ func NewLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], ingester L
 			)
 		}
 		return struct{}{}, nil
-	}, append([]coretask.LabelOpt{
-		// Tasks modifying history must be dependent from SerializerTask.
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())}, labels...)...)
+	}, allLabels...)
 }

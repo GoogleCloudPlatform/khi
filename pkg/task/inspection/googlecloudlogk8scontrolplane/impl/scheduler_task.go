@@ -18,6 +18,7 @@ import (
 	"context"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -52,8 +53,8 @@ type SchedulerTimelineMapper struct {
 }
 
 // Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (m *SchedulerTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (m *SchedulerTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
