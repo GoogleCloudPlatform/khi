@@ -143,7 +143,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 		}
 		return &commonlogk8saudit_contract.ResourceManifestLog{
 			Log:                l,
-			ResourceBodyReader: nil,
+			ResourceBodyReader: g.prevRevisionReader,
 		}, nil
 	}
 	currentBodyReader := fieldSet.Response

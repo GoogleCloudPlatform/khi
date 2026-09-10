@@ -105,7 +105,9 @@ metadata:
   labels:
     foo: bar
 `,
-				"",
+				`apiVersion: v1
+kind: Pod
+`,
 				`apiVersion: v1
 kind: Pod
 metadata:
@@ -151,7 +153,14 @@ metadata:
   labels:
     foo: bar
 `,
-				"",
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+`,
 				`apiVersion: v1
 kind: Pod
 metadata:
@@ -205,8 +214,22 @@ metadata:
   labels:
     foo: bar
 `,
-				"",
-				"",
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+`,
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+`,
 				`apiVersion: v1
 kind: Pod
 metadata:
@@ -279,7 +302,14 @@ metadata:
   labels:
     foo: bar
 `,
-				"",
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+`,
 				`apiVersion: v1
 kind: Pod
 metadata:
