@@ -67,7 +67,7 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": {
-            "regexp": ".*server started at http://localhost:9876.*"
+            "regexp": ".*server started at http://localhost:[0-9]+.*"
           },
           "endsPattern": {
             "regexp": ".*Executed .* FAILURE.*|.*Executed .* SUCCESS.*"
