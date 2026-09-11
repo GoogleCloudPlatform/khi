@@ -50,12 +50,12 @@
       "name": "Launch Karma (Chrome)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:9876",
+      "url": "http://127.0.0.1:9876",
       "webRoot": "${workspaceFolder}/web",
       "preLaunchTask": "Start Karma",
       "sourceMaps": true,
       "sourceMapPathOverrides": {
-        "http://localhost:9876/base/*": "${webRoot}/*"
+        "http://127.0.0.1:9876/base/*": "${webRoot}/*"
       }
     }
   ]

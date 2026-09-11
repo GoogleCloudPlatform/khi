@@ -53,7 +53,9 @@ module.exports = function (config) {
       ]
     },
     reporters: ['progress', 'kjhtml'],
-    port: 9876,
+    port: parseInt(process.env.KARMA_PORT, 10) || 9876,
+    hostname: '127.0.0.1',
+    listenAddress: '127.0.0.1',
     colors: true,
     logLevel: config.LOG_INFO,
     autoWatch: true,
@@ -71,7 +73,8 @@ module.exports = function (config) {
           '--no-sandbox',
           '--enable-unsafe-swiftshader',
           '--enable-webgl',
-          '--disable-gpu'
+          '--disable-gpu',
+          '--remote-debugging-port=0'
         ]
       }
     },
