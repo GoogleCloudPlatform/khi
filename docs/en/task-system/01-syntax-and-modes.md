@@ -29,7 +29,7 @@ In this example, the following key elements are declared:
 
 1. **`IntGeneratorTask` type**: The Go compiler infers the task type as `task.Task[int]` using generic inference.
 2. **First argument (`IntGeneratorTaskID`)**: This indicates the ID of the task implementation in the task graph. It must have the type `taskid.TaskImplementationID[int]`. You can use this ID to reference the task from other tasks.
-3. **Second argument (`[]coretask.Dependency`)**: This is the list of dependencies that this task depends on. It accepts point-to-point task references (`TaskReference[T]`), tag references (`TagReference[T]`), and order-only dependencies.
+3. **Second argument (`[]coretask.Dependency`)**: This is the list of dependencies that this task depends on. It accepts point-to-point task references (`TaskReference[T]`) and tag references (`TagReference[T]`).
 4. **Third argument (execution function)**: The return value of this function must match the task's type parameter (`int` in this case), and it must always return an error as the second return value.
 
 ## 3. Reading Values from Tasks
@@ -53,6 +53,16 @@ var DoubleIntTask = task.NewTask(
 > [!IMPORTANT]
 > **Do not access undeclared dependencies**
 > Calling `coretask.GetTaskResult` for a task that is not declared in the dependency list causes a runtime panic. Always include the target task reference in the dependency list passed as the second argument.
+
+#### Dependency Scopes
+
+When you declare a dependency using `taskID.Ref()`, the graph resolver uses a **dependency scope** to decide how to locate and activate the target task:
+
+- **`taskid.ScopeAll` (`coretask.FromAll`)**: Eagerly searches all registered tasks and pulls the target task into the execution graph. This is the **default for point-to-point references** (`taskID.Ref()`).
+- **`taskid.ScopeActiveFeatures` (`coretask.FromActiveFeatures`)**: Pulls in producer tasks only if they belong to features that are enabled for the current inspection. This is the **default for tag fan-in references** (`tag.Ref()`).
+- **`taskid.ScopeActiveGraph` (`coretask.FromActiveGraph`)**: Lazily binds only to tasks that are already included in the active graph by other dependencies. It never pulls new upstream tasks into the graph on its own.
+
+You can override the default scope when declaring dependencies (see [3.4 Explicit Dependency Scope Specification](#34-explicit-dependency-scope-specification-taskidscope)).
 
 ### 3.2 Optional Dependencies (`GetOptionalTaskResult`)
 
@@ -112,40 +122,18 @@ When using fan-in aggregation, circular dependencies (cycles) can arise under th
 
 For architectural details, see [Concept Guide: 6. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority](../khi-task-system-concept.md#6-prerequisites-of-fan-in-cycles-and-graph-stabilization-via-priority).
 
-### 3.4 Order-Only Dependencies and Barrier Tasks (`NewTailTask`)
+### 3.4 Explicit Dependency Scope Specification (`taskid.Scope*`)
 
-To enforce execution order without passing data, use `taskid.OrderOnly`:
-
-```go
-// Task runs only after CleanupTask completes
-var PostTask = task.NewTask(
-    PostTaskID,
-    []coretask.Dependency{CleanupTaskID.Ref(taskid.OrderOnly)},
-    runPostTask,
-)
-```
-
-To create a barrier task that waits for multiple tasks to finish, use `coretask.NewTailTask`:
-
-```go
-var AllParsersTailTask = coretask.NewTailTask(
-    AllParsersTailTaskID,
-    []coretask.Dependency{ParserA.Ref(), ParserB.Ref(), TagRef},
-)
-```
-
-### 3.5 Explicit Dependency Scope Specification (`taskid.Scope*`)
-
-To override default scope resolution (`ScopeAll` for required point-to-point, `ScopeActiveGraph` for tags and optional references), pass a scope constant as an option:
+To override the default scope resolution (`ScopeAll` for point-to-point references, `ScopeActiveFeatures` for tag fan-in references), pass a scope constant or scope option when creating the reference:
 
 ```go
 var AdvancedConsumerTask = task.NewTask(
     AdvancedConsumerTaskID,
     []coretask.Dependency{
-        // Target producers enabled by active features during tag fan-in
-        LogItemTag.Ref(taskid.ScopeActiveFeatures),
+        // Lazily bind to tag producers that are already in the active graph
+        LogItemTag.Ref(taskid.ScopeActiveGraph),
 
-        // Eagerly pull in an optional task from the entire task pool if present
+        // Eagerly pull an optional task from the entire task pool if available
         OptionalTaskID.Ref(taskid.Optional, taskid.ScopeAll),
     },
     runAdvancedConsumer,

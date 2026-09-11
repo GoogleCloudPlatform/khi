@@ -29,7 +29,7 @@ var IntGeneratorTask = task.NewTask(
 
 1. **`IntGeneratorTask` 型**: Go コンパイラはジェネリクス推論によりこのタスクの型を `task.Task[int]` と推論します。
 2. **第一引数 (`IntGeneratorTaskID`)**: タスクグラフにおけるそのタスク実装の ID を示します。これは `taskid.TaskImplementationID[int]` 型である必要があります。この ID を使用して、他のタスクからそのタスクへの参照を取得できます。
-3. **第二引数 (`[]coretask.Dependency`)**: このタスクが依存する依存関係のリストです。ポイント・ツー・ポイントのタスク参照 (`TaskReference[T]`)、タグ参照 (`TagReference[T]`)、順序制御依存 (`OrderOnly`) などを指定できます。
+3. **第二引数 (`[]coretask.Dependency`)**: このタスクが依存する依存関係のリストです。ポイント・ツー・ポイントのタスク参照 (`TaskReference[T]`) やタグ参照 (`TagReference[T]`) を指定できます。
 4. **第三引数 (実行関数)**: この関数の戻り値はタスクの型パラメータ（この場合は `int`）に準拠している必要があり、かつ戻り値の第二引数として常にエラーを返す必要があります。
 
 ## 3. タスク内部からの値の取得
@@ -53,6 +53,16 @@ var DoubleIntTask = task.NewTask(
 > [!IMPORTANT]
 > **未宣言の依存関係へのアクセス禁止**
 > 依存関係リストに宣言していないタスクに対して `coretask.GetTaskResult` を呼び出すと、実行時パニック (`panic`) が発生します。必ず第二引数の依存関係リストにアクセス対象のタスク参照を含めてください。
+
+#### 依存関係スコープ
+
+`taskID.Ref()` で依存関係を宣言すると、グラフリゾルバが対象タスクをどのように探索してアクティブグラフに組み込むかを制御する**依存関係スコープ**が適用されます。
+
+- **`taskid.ScopeAll` (`coretask.FromAll`)**: 登録された全タスクプールから探索し、対象タスクを実行グラフに引き込みます。通常の**ポイント・ツー・ポイント参照のデフォルト**です。
+- **`taskid.ScopeActiveFeatures` (`coretask.FromActiveFeatures`)**: 今回のインスペクションで有効化された機能に属するプロデューサタスクのみを引き込みます。**タグによるファンイン参照のデフォルト**です。
+- **`taskid.ScopeActiveGraph` (`coretask.FromActiveGraph`)**: 他の依存関係によってすでにアクティブグラフに含まれているタスクにのみ遅延バインドします。新たな上流タスクを自発的にグラフへ引き込むことはありません。
+
+必要に応じて、依存関係宣言時にスコープを明示的に指定して上書きできます。詳細は [3.4 依存関係スコープの明示指定 (`taskid.Scope*`)](#34-依存関係スコープの明示指定-taskidscope) を参照してください。
 
 ### 3.2 オプショナルな依存関係 (`GetOptionalTaskResult`)
 
@@ -112,38 +122,16 @@ var AggregatorTask = task.NewTask(
 
 詳細なアーキテクチャ背景は、[概念ガイド: 6. ファンインにおける循環依存の前提条件と Priority によるグラフ安定化](../khi-task-system-concept.md#6-ファンインにおける循環依存の前提条件と-priority-によるグラフ安定化) を参照してください。
 
-### 3.4 順序制御依存 (Order-Only) とバリアタスク (`NewTailTask`)
+### 3.4 依存関係スコープの明示指定 (`taskid.Scope*`)
 
-データの受け渡しを行わずに実行順序のみを制御したい場合は、`taskid.OrderOnly` を使用します:
-
-```go
-// CleanupTask が完了した後にのみ実行されるタスク
-var PostTask = task.NewTask(
-    PostTaskID,
-    []coretask.Dependency{CleanupTaskID.Ref(taskid.OrderOnly)},
-    runPostTask,
-)
-```
-
-複数のタスクの完了を待機するバリアタスクを作成する場合は、`coretask.NewTailTask` を使用します:
-
-```go
-var AllParsersTailTask = coretask.NewTailTask(
-    AllParsersTailTaskID,
-    []coretask.Dependency{ParserA.Ref(), ParserB.Ref(), TagRef},
-)
-```
-
-### 3.5 依存関係スコープの明示指定 (`taskid.Scope*`)
-
-デフォルトのスコープ解決（必須タスクは `ScopeAll`、タグやオプショナルは `ScopeActiveGraph`）を上書きしたい場合は、オプションとしてスコープ定数を渡します:
+デフォルトのスコープ解決（ポイント・ツー・ポイント参照は `ScopeAll`、タグファンイン参照は `ScopeActiveFeatures`）を上書きしたい場合は、参照作成時にスコープ定数またはスコープオプションを渡します:
 
 ```go
 var AdvancedConsumerTask = task.NewTask(
     AdvancedConsumerTaskID,
     []coretask.Dependency{
-        // タグ集約において、アクティブ機能の配下にあるプロデューサのみを対象にする
-        LogItemTag.Ref(taskid.ScopeActiveFeatures),
+        // アクティブグラフにすでに含まれているタグプロデューサにのみ遅延バインドする
+        LogItemTag.Ref(taskid.ScopeActiveGraph),
 
         // オプショナル依存において、全タスクプールから探索して引き込む
         OptionalTaskID.Ref(taskid.Optional, taskid.ScopeAll),
