@@ -15,8 +15,6 @@
 package inspectioncore_contract
 
 import (
-	"fmt"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
@@ -52,8 +50,7 @@ var (
 	LabelKeyInspectionFeatureFlag        = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "feature")
 	LabelKeyInspectionDefaultFeatureFlag = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "default-feature")
 	LabelKeyProgressReportable           = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "progress-reportable")
-	LabelKeyInspectionTypes              = coretask.NewTaskLabelKey[[]string](InspectionTaskPrefix + "inspection-type")
-	// LabelKeyInspectionTypeLabelSelector is a label key used to specify multiple target environments using a label selector.
+	// LabelKeyInspectionTypeLabelSelector is a task label key used to specify target inspection types using a label selector.
 	LabelKeyInspectionTypeLabelSelector = coretask.NewTaskLabelKey[LabelSelector](InspectionTaskPrefix + "inspection-type-selector")
 	LabelKeyFeatureTaskTitle            = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/title")
 	LabelKeyFeatureTaskDescription      = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/description")
@@ -111,34 +108,9 @@ func (itl *InspectionTypeLabelSelectorImpl) Write(label *typedmap.TypedMap) {
 
 var _ coretask.LabelOpt = (*InspectionTypeLabelSelectorImpl)(nil)
 
-// InspectionTypeLabelSelector returns a LabelOpt to mark the task to match with the selector instead of raw ID lists.
+// InspectionTypeLabelSelector returns a LabelOpt to mark the task to match against InspectionType labels using the given selector.
 func InspectionTypeLabelSelector(selector map[string]string) *InspectionTypeLabelSelectorImpl {
 	return &InspectionTypeLabelSelectorImpl{
 		selector: LabelSelector(selector),
-	}
-}
-
-type InspectionTypeLabelImpl struct {
-	inspectionTypes []string
-}
-
-// Write implements task.LabelOpt.
-func (itl *InspectionTypeLabelImpl) Write(label *typedmap.TypedMap) {
-	typedmap.Set(label, LabelKeyInspectionTypes, itl.inspectionTypes)
-}
-
-var _ coretask.LabelOpt = (*InspectionTypeLabelImpl)(nil)
-
-// InspectionTypeLabel returns a LabelOpt to mark the task only to be used in the specified inspection types.
-// This label must not be used in the feature task. Use the FeatureTaskLabel in feature tasks.
-func InspectionTypeLabel(types ...string) *InspectionTypeLabelImpl {
-	for i, t := range types {
-		if t == "" {
-			panic(fmt.Sprintf(`Invalid inspection type at index at #%d. Empty inspection type was given to InspectionTypeLabel function. This may be caused because of initialization order issue of global variables.
-Please define task IDs and types used in its type parameter in a different package.`, i))
-		}
-	}
-	return &InspectionTypeLabelImpl{
-		inspectionTypes: types,
 	}
 }

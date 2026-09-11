@@ -184,7 +184,7 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 
 	filteredTasks := []coretask.UntypedTask{}
 	for _, task := range i.inspectionServer.RootTaskSet.GetAll() {
-		if i.isTaskCompatible(task, currentType) {
+		if isTaskCompatible(task, currentType) {
 			filteredTasks = append(filteredTasks, task)
 		}
 	}
@@ -205,24 +205,15 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 	return i.SetFeatureList(defaultFeatureIds)
 }
 
-func (i *InspectionTaskRunner) isTaskCompatible(task coretask.UntypedTask, currentType *InspectionType) bool {
+func isTaskCompatible(task coretask.UntypedTask, inspectionType *InspectionType) bool {
 	labels := task.Labels()
 
-	// 1. Evaluate with new Label Selector if present
+	// 1. Evaluate with Label Selector if present.
 	if selector, ok := typedmap.Get(labels, inspectioncore_contract.LabelKeyInspectionTypeLabelSelector); ok {
-		return selector.Match(currentType.Labels)
+		return selector.Match(inspectionType.Labels)
 	}
 
-	// 2. Fallback to legacy list
-	if legacyList, ok := typedmap.Get(labels, inspectioncore_contract.LabelKeyInspectionTypes); ok {
-		if slices.Contains(legacyList, currentType.Id) {
-			slog.Warn("Legacy inspection type list is used for task. Please migrate to label-selector approach.", "taskID", task.UntypedID().String())
-			return true
-		}
-		return false
-	}
-
-	// 3. Defaults to true if neither is defined (global tasks)
+	// 2. Defaults to true if no selector is defined (global tasks).
 	return true
 }
 

@@ -31,48 +31,47 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 
 KHI の「New Inspection」画面では、選択された環境やログ種別に応じて、どのタスクをグラフに含めて実行するかが動的に決定されます。これらを制御するために、インスペクションタスクには特別なラベルを付与できます。
 
-### 2.1 汎用ラベルセレクタによるフィルタリング (`LabelSelector`)
+### 2.1 `InspectionTypeLabelSelector` によるタスクの絞り込み
 
-現在の KHI では、タスクに対して任意のキー・バリュー形式のメタデータラベルを付与し、それらをブール論理 (AND / OR / NOT 等) の式で表現した **`LabelSelector`** によって、特定の環境やモードでのみ有効化する柔軟なタスク絞り込みを行います。
+KHI では、各 `InspectionType` が対象環境やログソース、プラットフォームを表すキー・バリュー形式のラベルを保持しています。代表的なキーは以下の通りです。
+
+- `inspectioncore_contract.InspectionTypeLabelKeyEnvironment` (`"khi.google.com/environment"`)
+- `inspectioncore_contract.InspectionTypeLabelKeyLogSource` (`"khi.google.com/log_source"`)
+- `inspectioncore_contract.InspectionTypeLabelKeyBasePlatform` (`"khi.google.com/base_platform"`)
+
+特定のインスペクションタイプでのみタスクを実行可能にするには、タスク定義時に `InspectionTypeLabelSelector` ラベルオプションを指定して必要なキー・バリューのペアを設定します。
 
 ```go
-// 汎用の LabelValue オプションを利用したタスクラベル設定
-var AdvancedTask = task.NewTask(AdvancedTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (any, error) {
+var AdvancedTask = coretask.NewTask(AdvancedTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (any, error) {
     return nil, nil
 },
-    coretask.LabelValue("environment", "gcp"),
-    coretask.LabelValue("feature-stage", "beta"),
+    inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+        inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+        inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+    }),
 )
 ```
 
-これに対して、サーバー初期化時やインスペクション構成時に以下のような式を評価してタスクを抽出します:
+インスペクション開始時、ランナーはセレクタに含まれるすべてのキー・バリューが選択された `InspectionType.Labels` に一致するかを検証します。`InspectionTypeLabelSelector` が指定されていないタスクはグローバルタスクとして扱われ、すべてのインスペクションタイプで利用可能になります。
+
+また、パッケージ内で登録する全タスクに一括してセレクタを適用する場合は、`coreinspection.NewScopedRegistry` でレジストリをラップして登録できます。
 
 ```go
-selector, _ := labelselector.Parse("environment=gcp && !feature-stage=deprecated")
-compatibleTasks := taskSet.Select(selector)
+func Register(registry coreinspection.InspectionTaskRegistry) error {
+    scoped := coreinspection.NewScopedRegistry(registry, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+        inspectioncore_contract.InspectionTypeLabelKeyEnvironment: "googlecloud",
+    }))
+    return coretask.RegisterTasks(scoped, TaskA, TaskB)
+}
 ```
 
-### 2.2 レガシー Inspection Type ラベル (`InspectionTypeLabel`)
-
-互換性のため、従来の `InspectionTypeLabel` も引き続き利用可能です。
-このラベルにリストされている Inspection Type (例: GCP Cloud Logging, ローカルログファイル等) でのみタスクを有効化します。
-
-```go
-var MyTask = task.NewTask(MyTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (any, error) {
-    return nil, nil
-}, inspectioncore_contract.InspectionTypeLabel(
-    "example.khi.google.com/inspection-type-1",
-    "example.khi.google.com/inspection-type-2",
-))
-```
-
-### 2.3 FeatureTask ラベル
+### 2.2 FeatureTask ラベル
 
 FeatureTask ラベルは、そのタスクを KHI の「New Inspection」画面におけるトグル可能な機能として公開するための特別なラベルです。
 マッパータスクなどの主機能となるタスクに指定することで、ユーザーは機能の有効/無効を選択できます。
 
 ```go
-inspectioncore_contract.FeatureTaskLabel("my-feature", "機能ラベル", "機能詳細の説明文", true, "gcp-gke")
+inspectioncore_contract.FeatureTaskLabel("機能ラベル", "機能詳細の説明文", 1000, true)
 ```
 
 ## 3. ログから情報を発見するためのタスクユーティリティ (`Inventory` と `Discovery` タスク)
