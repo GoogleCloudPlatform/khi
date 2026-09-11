@@ -197,3 +197,15 @@ func Delete[T any](m *TypedMap, key TypedKey[T]) {
 	defer m.lockKey(key.key)()
 	m.container.Delete(key.key)
 }
+
+// ToStringMap converts all key-value pairs in the map to a string map using fmt.Sprint.
+func ToStringMap(m ReadableTypedMap) map[string]string {
+	result := make(map[string]string)
+	m.rangeAll(func(k, v interface{}) bool {
+		if strKey, ok := k.(string); ok {
+			result[strKey] = fmt.Sprint(v)
+		}
+		return true
+	})
+	return result
+}

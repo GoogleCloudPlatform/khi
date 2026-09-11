@@ -16,6 +16,7 @@ package coretask
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -33,6 +34,7 @@ type mockUntypedTask struct {
 func (m *mockUntypedTask) UntypedID() taskid.UntypedTaskImplementationID { return m.id }
 func (m *mockUntypedTask) Labels() *typedmap.ReadonlyTypedMap            { return m.labels }
 func (m *mockUntypedTask) Dependencies() []Dependency                    { return m.dependencies }
+func (m *mockUntypedTask) ResultType() reflect.Type                      { return reflect.TypeFor[any]() }
 func (m *mockUntypedTask) UntypedRun(ctx context.Context) (any, error)   { return nil, nil }
 
 var _ UntypedTask = (*mockUntypedTask)(nil)
@@ -304,12 +306,14 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 					SourceImplID: "target-task#default",
 					TargetImplID: "collector#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					OutputType:   "interface {}",
 				},
 				{
 					SourceRefID:  "common-ancestor",
 					SourceImplID: "common-ancestor#default",
 					TargetImplID: "target-task#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					OutputType:   "interface {}",
 				},
 			},
 			wantErr: false,
@@ -356,18 +360,21 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 					SourceImplID: "target-task#default",
 					TargetImplID: "collector#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					OutputType:   "interface {}",
 				},
 				{
 					SourceRefID:  "common-ancestor",
 					SourceImplID: "common-ancestor#default",
 					TargetImplID: "intermediate-task#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					OutputType:   "interface {}",
 				},
 				{
 					SourceRefID:  "intermediate-task",
 					SourceImplID: "intermediate-task#default",
 					TargetImplID: "target-task#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					OutputType:   "interface {}",
 				},
 			},
 			wantErr: false,
@@ -428,6 +435,7 @@ func TestResolveGraph_EdgeDeduplication(t *testing.T) {
 					Cardinality:  taskid.CardinalityPointToPoint,
 					Tag:          "tag-a",
 					Priority:     100,
+					OutputType:   "interface {}",
 				},
 			},
 		},
@@ -448,6 +456,7 @@ func TestResolveGraph_EdgeDeduplication(t *testing.T) {
 					Cardinality:  taskid.CardinalityPointToPoint,
 					Tag:          "tag-a",
 					Priority:     20,
+					OutputType:   "interface {}",
 				},
 			},
 		},
@@ -662,6 +671,10 @@ func (m mockUnknownScopeFanIn) DescriptorScope() taskid.DependencyScope {
 
 func (m mockUnknownScopeFanIn) Tag() string {
 	return m.tag
+}
+
+func (m mockUnknownScopeFanIn) ResultType() reflect.Type {
+	return reflect.TypeFor[any]()
 }
 
 func TestResolveGraph_UnknownScope(t *testing.T) {

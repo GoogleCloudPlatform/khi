@@ -87,7 +87,7 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask.Tas
 		}
 
 		return uploadResult, nil
-	}, labelOpts...)
+	}, append(labelOpts, inspectioncore_contract.NewFormTaskLabelOpt(b.label, b.description))...)
 }
 
 // setFormHintsFromUploadResult sets the appropriate hint and hint type on a form field

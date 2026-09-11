@@ -38,7 +38,7 @@ endif
 
 .PHONY: format-go
 format-go: ## Format backend source code
-	golangci-lint run --fix
+	golangci-lint run --config=.golangci.yaml --fix
 
 .PHONY: format-web
 format-web: $(GENERATE_FRONTEND_DUMMY) ## Format frontend source code

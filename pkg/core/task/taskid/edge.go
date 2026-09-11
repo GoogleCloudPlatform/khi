@@ -14,6 +14,10 @@
 
 package taskid
 
+import (
+	"reflect"
+)
+
 // EdgeCardinality represents the multiplicity of the dependency.
 type EdgeCardinality int
 
@@ -51,6 +55,8 @@ type DependencyDescriptor interface {
 	DescriptorCardinality() EdgeCardinality
 	// DescriptorScope returns the effective dependency resolution scope.
 	DescriptorScope() DependencyScope
+	// ResultType returns the reflection Type for the expected result type of this dependency.
+	ResultType() reflect.Type
 }
 
 // PointToPointDescriptor is an interface for 1:1 dependencies targeting a single task by reference ID.
@@ -144,4 +150,6 @@ type TaskEdge struct {
 	Tag string
 	// Priority specifies the precedence weight of this edge during graph resolution and cycle pruning.
 	Priority int
+	// OutputType is the string representation of the data type transported over this edge.
+	OutputType string
 }

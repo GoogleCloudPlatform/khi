@@ -15,6 +15,8 @@
 package coretask
 
 import (
+	"reflect"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
@@ -53,6 +55,11 @@ func (t *tagReferenceImpl[TaskResult]) DescriptorCardinality() taskid.EdgeCardin
 // DescriptorScope returns the effective dependency resolution scope.
 func (t *tagReferenceImpl[TaskResult]) DescriptorScope() taskid.DependencyScope {
 	return t.config.Scope
+}
+
+// ResultType returns the reflection Type for the expected result type of this dependency.
+func (t *tagReferenceImpl[TaskResult]) ResultType() reflect.Type {
+	return reflect.TypeFor[TaskResult]()
 }
 
 // Tag returns the tag name to match producer tasks.

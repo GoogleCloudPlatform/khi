@@ -16,6 +16,7 @@ package taskid
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -94,6 +95,11 @@ func (t taskReferenceImpl[TaskResult]) DescriptorCardinality() EdgeCardinality {
 // DescriptorScope returns the effective dependency resolution scope.
 func (t taskReferenceImpl[TaskResult]) DescriptorScope() DependencyScope {
 	return t.config.Scope
+}
+
+// ResultType returns the reflection Type for the expected result type of this dependency.
+func (t taskReferenceImpl[TaskResult]) ResultType() reflect.Type {
+	return reflect.TypeFor[TaskResult]()
 }
 
 // ReferenceID returns the target task's reference ID without any implementation hash.

@@ -198,9 +198,9 @@ func TestIsTaskCompatible(t *testing.T) {
 				tt.labelOpts...,
 			)
 
-			got := isTaskCompatible(task, tt.inspectionType)
+			got, _ := EvaluateTaskCompatibility(task, tt.inspectionType)
 			if got != tt.want {
-				t.Errorf("isTaskCompatible() = %v, want %v", got, tt.want)
+				t.Errorf("EvaluateTaskCompatibility() = %v, want %v", got, tt.want)
 			}
 		})
 	}

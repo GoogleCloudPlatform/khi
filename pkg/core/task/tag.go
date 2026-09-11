@@ -15,6 +15,7 @@
 package coretask
 
 import (
+	"reflect"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -30,6 +31,9 @@ const DefaultTagPriority = 100
 // LabelKeyProvidedTagPriorityPrefix is the prefix used for tag priority labels on tasks.
 const LabelKeyProvidedTagPriorityPrefix = KHISystemPrefix + "provided-tag-priority/"
 
+// LabelKeyProvidedTagTypePrefix is the prefix used for tag output type labels on tasks.
+const LabelKeyProvidedTagTypePrefix = KHISystemPrefix + "provided-tag-type/"
+
 // LabelKeyProvidedTag returns a TaskLabelKey to record a provided tag on a task.
 func LabelKeyProvidedTag(tagID string) TaskLabelKey[bool] {
 	return NewTaskLabelKey[bool](LabelKeyProvidedTagPrefix + tagID)
@@ -38,6 +42,11 @@ func LabelKeyProvidedTag(tagID string) TaskLabelKey[bool] {
 // LabelKeyProvidedTagPriority returns a TaskLabelKey to record the priority of a provided tag on a task.
 func LabelKeyProvidedTagPriority(tagID string) TaskLabelKey[int] {
 	return NewTaskLabelKey[int](LabelKeyProvidedTagPriorityPrefix + tagID)
+}
+
+// LabelKeyProvidedTagType returns a TaskLabelKey to record the output type of a provided tag on a task.
+func LabelKeyProvidedTagType(tagID string) TaskLabelKey[string] {
+	return NewTaskLabelKey[string](LabelKeyProvidedTagTypePrefix + tagID)
 }
 
 // Tag represents a strongly-typed tag identifier that groups task outputs of type TaskResult.
@@ -102,6 +111,7 @@ type providesTagLabelOpt[TaskResult any] struct {
 func (p *providesTagLabelOpt[TaskResult]) Write(labels *typedmap.TypedMap) {
 	typedmap.Set(labels, LabelKeyProvidedTag(p.tag.ID()), true)
 	typedmap.Set(labels, LabelKeyProvidedTagPriority(p.tag.ID()), p.priority)
+	typedmap.Set(labels, LabelKeyProvidedTagType(p.tag.ID()), reflect.TypeFor[TaskResult]().String())
 }
 
 var _ LabelOpt = (*providesTagLabelOpt[any])(nil)
