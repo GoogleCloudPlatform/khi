@@ -24,6 +24,11 @@ import (
 )
 
 // DefaultK8sResourceMergeConfigTask is the task that generates the default patch request merge config.
-var DefaultK8sResourceMergeConfigTask = coretask.NewTask(commonlogk8saudit_contract.K8sResourceMergeConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*k8s.K8sManifestMergeConfigRegistry, error) {
-	return k8s.GenerateDefaultMergeConfig()
-})
+var DefaultK8sResourceMergeConfigTask = coretask.NewTask(
+	commonlogk8saudit_contract.K8sResourceMergeConfigTaskID,
+	[]taskid.UntypedTaskReference{},
+	func(ctx context.Context) (*k8s.K8sManifestMergeConfigRegistry, error) {
+		return k8s.GenerateDefaultMergeConfig()
+	},
+	coretask.WithTaskDescription("Generates the default Kubernetes manifest patch request merge configuration."),
+)
