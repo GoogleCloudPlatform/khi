@@ -148,20 +148,7 @@ func NewTaskResultRetentionLabel(retain bool) LabelOpt {
 	}
 }
 
-type taskDescriptionLabelOptImpl struct {
-	description string
-}
-
-// Write implements LabelOpt.
-func (o *taskDescriptionLabelOptImpl) Write(label *typedmap.TypedMap) {
-	typedmap.Set(label, LabelKeyTaskDescription, o.description)
-}
-
-var _ LabelOpt = (*taskDescriptionLabelOptImpl)(nil)
-
 // WithTaskDescription returns a LabelOpt to attach a human-readable description to the task.
 func WithTaskDescription(description string) LabelOpt {
-	return &taskDescriptionLabelOptImpl{
-		description: description,
-	}
+	return WithLabelValue(LabelKeyTaskDescription, description)
 }
