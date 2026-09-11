@@ -31,48 +31,47 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 
 On the "New Inspection" screen in KHI, the system dynamically determines which tasks to include and run in the graph based on the selected environment and log types. To control this behavior, you can attach special labels to inspection tasks.
 
-### 2.1 Filtering with General Label Selectors (`LabelSelector`)
+### 2.1 Filtering Tasks with `InspectionTypeLabelSelector`
 
-In current KHI versions, you can attach arbitrary key-value metadata labels to tasks and filter them flexibly using **`LabelSelector`**, which evaluates boolean logic expressions (AND, OR, NOT, etc.) to enable tasks only in specific environments or modes.
+In KHI, each `InspectionType` defines a set of key-value labels indicating its target environment, log source, and platform:
+
+- `inspectioncore_contract.InspectionTypeLabelKeyEnvironment` (`"khi.google.com/environment"`)
+- `inspectioncore_contract.InspectionTypeLabelKeyLogSource` (`"khi.google.com/log_source"`)
+- `inspectioncore_contract.InspectionTypeLabelKeyBasePlatform` (`"khi.google.com/base_platform"`)
+
+To restrict a task so that it only runs for compatible inspection types, attach an `InspectionTypeLabelSelector` label option specifying the required label key-value pairs:
 
 ```go
-// Set task labels using the general LabelValue option
-var AdvancedTask = task.NewTask(AdvancedTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (any, error) {
+var AdvancedTask = coretask.NewTask(AdvancedTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (any, error) {
     return nil, nil
 },
-    coretask.LabelValue("environment", "gcp"),
-    coretask.LabelValue("feature-stage", "beta"),
+    inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+        inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+        inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+    }),
 )
 ```
 
-During server initialization or inspection configuration, KHI evaluates expressions like the following to select tasks:
+When an inspection starts, the runner checks that all key-value pairs in the selector match the selected `InspectionType.Labels`. Tasks without an `InspectionTypeLabelSelector` are treated as global tasks and are included for all inspection types.
+
+You can also apply an `InspectionTypeLabelSelector` to all tasks registered in a package by wrapping the registry with `coreinspection.NewScopedRegistry`:
 
 ```go
-selector, _ := labelselector.Parse("environment=gcp && !feature-stage=deprecated")
-compatibleTasks := taskSet.Select(selector)
+func Register(registry coreinspection.InspectionTaskRegistry) error {
+    scoped := coreinspection.NewScopedRegistry(registry, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+        inspectioncore_contract.InspectionTypeLabelKeyEnvironment: "googlecloud",
+    }))
+    return coretask.RegisterTasks(scoped, TaskA, TaskB)
+}
 ```
 
-### 2.2 Legacy Inspection Type Labels (`InspectionTypeLabel`)
-
-For backward compatibility, you can still use traditional `InspectionTypeLabel` declarations.
-This enables the task only for the Inspection Types listed in the label (e.g., GCP Cloud Logging, local log files, etc.).
-
-```go
-var MyTask = task.NewTask(MyTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (any, error) {
-    return nil, nil
-}, inspectioncore_contract.InspectionTypeLabel(
-    "example.khi.google.com/inspection-type-1",
-    "example.khi.google.com/inspection-type-2",
-))
-```
-
-### 2.3 FeatureTask Labels
+### 2.2 FeatureTask Labels
 
 The FeatureTask label is a special label that exposes a task as a toggleable feature on KHI's "New Inspection" screen.
 By specifying this label on main feature tasks such as mappers, you allow users to enable or disable the feature.
 
 ```go
-inspectioncore_contract.FeatureTaskLabel("my-feature", "Feature label", "Detailed description of the feature", true, "gcp-gke")
+inspectioncore_contract.FeatureTaskLabel("Feature label", "Detailed description of the feature", 1000, true)
 ```
 
 ## 3. Task Utilities for Discovering Information from Logs (`Inventory` and `Discovery` Tasks)

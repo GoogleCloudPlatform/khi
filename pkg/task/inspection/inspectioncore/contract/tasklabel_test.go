@@ -62,3 +62,99 @@ func TestFeatureTaskLabels(t *testing.T) {
 		}
 	})
 }
+
+// TestLabelSelector_Match tests LabelSelector.Match.
+func TestLabelSelector_Match(t *testing.T) {
+	tests := []struct {
+		name         string
+		selector     LabelSelector
+		targetLabels map[string]string
+		want         bool
+	}{
+		{
+			name: "Exact match",
+			selector: LabelSelector{
+				"env": "gcp",
+			},
+			targetLabels: map[string]string{
+				"env": "gcp",
+			},
+			want: true,
+		},
+		{
+			name: "Target has superset of labels",
+			selector: LabelSelector{
+				"env": "gcp",
+			},
+			targetLabels: map[string]string{
+				"env":      "gcp",
+				"platform": "k8s",
+			},
+			want: true,
+		},
+		{
+			name: "Value mismatch",
+			selector: LabelSelector{
+				"env": "gcp",
+			},
+			targetLabels: map[string]string{
+				"env": "aws",
+			},
+			want: false,
+		},
+		{
+			name: "Target missing key",
+			selector: LabelSelector{
+				"env": "gcp",
+			},
+			targetLabels: map[string]string{
+				"platform": "k8s",
+			},
+			want: false,
+		},
+		{
+			name:         "Empty selector matches any target labels",
+			selector:     LabelSelector{},
+			targetLabels: map[string]string{"env": "gcp"},
+			want:         true,
+		},
+		{
+			name: "Selector with keys fails on nil target labels",
+			selector: LabelSelector{
+				"env": "gcp",
+			},
+			targetLabels: nil,
+			want:         false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.selector.Match(tt.targetLabels)
+			if got != tt.want {
+				t.Errorf("Match() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestInspectionTypeLabelSelector tests InspectionTypeLabelSelector.
+func TestInspectionTypeLabelSelector(t *testing.T) {
+	labelOpt := InspectionTypeLabelSelector(map[string]string{
+		"env": "gcp",
+	})
+	labelSet := coretask.NewLabelSet(labelOpt)
+
+	got, ok := typedmap.Get(labelSet, LabelKeyInspectionTypeLabelSelector)
+	if !ok {
+		t.Fatalf("LabelKeyInspectionTypeLabelSelector not found in label set")
+	}
+
+	want := LabelSelector{
+		"env": "gcp",
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("InspectionTypeLabelSelector mismatch (-want +got):\n%s", diff)
+	}
+}

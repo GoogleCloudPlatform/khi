@@ -94,7 +94,7 @@ func (r *requiredTaskLabelImpl) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, LabelKeyRequiredTask, true)
 }
 
-// InspectionTypeLabel returns a LabelOpt to mark the task is always included in the result task graph.
+// NewRequiredTaskLabel returns a LabelOpt to mark the task is always included in the result task graph.
 func NewRequiredTaskLabel() *requiredTaskLabelImpl {
 	return &requiredTaskLabelImpl{}
 }

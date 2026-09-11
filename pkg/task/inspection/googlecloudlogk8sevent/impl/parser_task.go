@@ -38,7 +38,6 @@ func (i *KubernetesEventLogIngester) RawLogTask() taskid.TaskReference[[]*log.Lo
 	return googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref()
 }
 
-// Dependencies returns additional task dependencies of the ingester.
 func (i *KubernetesEventLogIngester) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
@@ -99,7 +98,6 @@ func (m *KubernetesEventTimelineMapper) LogIngesterTask() taskid.TaskReference[s
 	return googlecloudlogk8sevent_contract.LogIngesterTaskID.Ref()
 }
 
-// Dependencies returns additional task dependencies.
 func (m *KubernetesEventTimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),

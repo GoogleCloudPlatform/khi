@@ -197,8 +197,8 @@ export class BackendAPIImpl implements BackendAPI {
       request as Record<string, unknown>,
     );
     const tzShift =
-      typeof request['timezoneShift'] === 'number'
-        ? (request['timezoneShift'] as number)
+      typeof request['timezoneShiftHours'] === 'number'
+        ? (request['timezoneShiftHours'] as number)
         : 0;
     return from(
       this.connectClient.inspectionClient.runInspection({
@@ -219,8 +219,8 @@ export class BackendAPIImpl implements BackendAPI {
       request as Record<string, unknown>,
     );
     const tzShift =
-      typeof request['timezoneShift'] === 'number'
-        ? (request['timezoneShift'] as number)
+      typeof request['timezoneShiftHours'] === 'number'
+        ? (request['timezoneShiftHours'] as number)
         : 0;
     return from(
       this.connectClient.inspectionClient.dryRunInspection({
@@ -327,7 +327,7 @@ export class InspectionClient {
 
   private nonFormParameters = concat(this.viewState.timezoneShift).pipe(
     map((tzShift) => ({
-      timezoneShift: tzShift,
+      timezoneShiftHours: tzShift,
     })),
     shareReplay(1),
   );
