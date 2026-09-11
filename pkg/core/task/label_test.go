@@ -20,34 +20,71 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-func TestWithTaskDescription(t *testing.T) {
-	testCases := []struct {
-		name        string
-		description string
-		want        string
-	}{
-		{
-			name:        "sets simple task description",
-			description: "Parses Kubernetes audit log entries.",
-			want:        "Parses Kubernetes audit log entries.",
-		},
-		{
-			name:        "sets empty task description",
-			description: "",
-			want:        "",
-		},
-	}
+func TestWithLabelValue(t *testing.T) {
+	testStringKey := NewTaskLabelKey[string]("test-string-key")
+	testIntKey := NewTaskLabelKey[int]("test-int-key")
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			labels := NewLabelSet(WithTaskDescription(tc.description))
-			got, found := typedmap.Get(labels, LabelKeyTaskDescription)
-			if !found {
-				t.Errorf("LabelKeyTaskDescription not found in label set")
-			}
-			if got != tc.want {
-				t.Errorf("got %q, want %q", got, tc.want)
-			}
-		})
-	}
+	t.Run("string label", func(t *testing.T) {
+		testCases := []struct {
+			name  string
+			value string
+			want  string
+		}{
+			{
+				name:  "sets non-empty string value",
+				value: "hello",
+				want:  "hello",
+			},
+			{
+				name:  "sets empty string value",
+				value: "",
+				want:  "",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				labels := NewLabelSet(WithLabelValue(testStringKey, tc.value))
+				got, found := typedmap.Get(labels, testStringKey)
+				if !found {
+					t.Fatalf("key %q not found in label set", testStringKey)
+				}
+				if got != tc.want {
+					t.Errorf("got %q, want %q", got, tc.want)
+				}
+			})
+		}
+	})
+
+	t.Run("int label", func(t *testing.T) {
+		testCases := []struct {
+			name  string
+			value int
+			want  int
+		}{
+			{
+				name:  "sets positive integer",
+				value: 42,
+				want:  42,
+			},
+			{
+				name:  "sets zero",
+				value: 0,
+				want:  0,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				labels := NewLabelSet(WithLabelValue(testIntKey, tc.value))
+				got, found := typedmap.Get(labels, testIntKey)
+				if !found {
+					t.Fatalf("key %q not found in label set", testIntKey)
+				}
+				if got != tc.want {
+					t.Errorf("got %d, want %d", got, tc.want)
+				}
+			})
+		}
+	})
 }
