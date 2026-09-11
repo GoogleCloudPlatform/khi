@@ -81,7 +81,7 @@ metadata:
 			},
 		},
 		{
-			desc: "truncated log clears previous revision and does not merge old state in subsequent patch",
+			desc: "truncated log preserves type identity and does not merge old mutable state in subsequent patch",
 			inputs: []*testGroupManifestGeneratorInput{
 				{
 					verb: commonlogk8saudit_contract.VerbCreate,
@@ -109,10 +109,218 @@ metadata:
   labels:
     foo: bar
 `,
-				"",
-				`metadata:
+				`apiVersion: v1
+kind: Pod
+`,
+				`apiVersion: v1
+kind: Pod
+metadata:
   labels:
     qux: quux
+`,
+			},
+		},
+		{
+			desc: "truncated log preserves immutable identity metadata in subsequent patch",
+			inputs: []*testGroupManifestGeneratorInput{
+				{
+					verb: commonlogk8saudit_contract.VerbCreate,
+					responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: test-ns
+  uid: "test-uid-1234"
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  labels:
+    foo: bar`,
+				},
+				{
+					verb:        commonlogk8saudit_contract.VerbUpdate,
+					isTruncated: true,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					requestYAML: `metadata:
+  labels:
+    qux: quux`,
+				},
+			},
+			wantBodies: []string{
+				`apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  labels:
+    foo: bar
+`,
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+`,
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+  labels:
+    qux: quux
+`,
+			},
+		},
+		{
+			desc: "consecutive truncated logs preserve immutable identity metadata in subsequent patch",
+			inputs: []*testGroupManifestGeneratorInput{
+				{
+					verb: commonlogk8saudit_contract.VerbCreate,
+					responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: test-ns
+  uid: "test-uid-1234"
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  labels:
+    foo: bar`,
+				},
+				{
+					verb:        commonlogk8saudit_contract.VerbUpdate,
+					isTruncated: true,
+				},
+				{
+					verb:        commonlogk8saudit_contract.VerbUpdate,
+					isTruncated: true,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					requestYAML: `metadata:
+  labels:
+    qux: quux`,
+				},
+			},
+			wantBodies: []string{
+				`apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  labels:
+    foo: bar
+`,
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+`,
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+`,
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+  labels:
+    qux: quux
+`,
+			},
+		},
+		{
+			desc: "initial truncated log followed by patch merges patch into empty body",
+			inputs: []*testGroupManifestGeneratorInput{
+				{
+					verb:        commonlogk8saudit_contract.VerbUpdate,
+					isTruncated: true,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					requestYAML: `metadata:
+  name: new-pod
+  labels:
+    qux: quux`,
+				},
+			},
+			wantBodies: []string{
+				"",
+				`metadata:
+  name: new-pod
+  labels:
+    qux: quux
+`,
+			},
+		},
+		{
+			desc: "truncated log followed by delete with DeleteOptions returns preserved identity reader",
+			inputs: []*testGroupManifestGeneratorInput{
+				{
+					verb: commonlogk8saudit_contract.VerbCreate,
+					responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  labels:
+    foo: bar`,
+				},
+				{
+					verb:        commonlogk8saudit_contract.VerbUpdate,
+					isTruncated: true,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbDelete,
+					requestYAML: `apiVersion: meta.k8s.io/__internal
+kind: DeleteOptions`,
+				},
+			},
+			wantBodies: []string{
+				`apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  labels:
+    foo: bar
+`,
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
+`,
+				`apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-pod
+  namespace: test-ns
+  uid: test-uid-1234
 `,
 			},
 		},
@@ -569,15 +777,116 @@ status:
 			}
 
 			if got := gotReader.ReadStringOrDefault(pathAPIVersion, ""); got != tc.wantAPIVer {
-				t.Errorf("apiVersion mismatch (-want +got):\n%s", cmp.Diff(tc.wantAPIVer, got))
+				t.Errorf("apiVersion = %q, want %q", got, tc.wantAPIVer)
 			}
 			if got := gotReader.ReadStringOrDefault(pathKind, ""); got != tc.wantKind {
-				t.Errorf("kind mismatch (-want +got):\n%s", cmp.Diff(tc.wantKind, got))
+				t.Errorf("kind = %q, want %q", got, tc.wantKind)
 			}
 			if got := gotReader.ReadStringOrDefault(pathMetadataName, ""); got != tc.wantMetaName {
-				t.Errorf("metadata.name mismatch (-want +got):\n%s", cmp.Diff(tc.wantMetaName, got))
+				t.Errorf("metadata.name = %q, want %q", got, tc.wantMetaName)
 			}
 
+			yamlBytes, err := gotReader.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+			if err != nil {
+				t.Fatalf("Serialize() failed: %v", err)
+			}
+			if diff := cmp.Diff(tc.wantYAML, string(yamlBytes)); diff != "" {
+				t.Errorf("YAML serialization mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestExtractResourceIdentity(t *testing.T) {
+	testCases := []struct {
+		name     string
+		prevYAML string
+		wantYAML string
+	}{
+		{
+			name:     "empty map returns empty map",
+			prevYAML: "{}\n",
+			wantYAML: "{}\n",
+		},
+		{
+			name: "prevRevision without identity metadata returns empty map",
+			prevYAML: `spec:
+  replicas: 3
+status:
+  readyReplicas: 3`,
+			wantYAML: "{}\n",
+		},
+		{
+			name: "prevRevision with only type metadata",
+			prevYAML: `apiVersion: v1
+kind: Service
+spec:
+  ports:
+    - port: 80`,
+			wantYAML: `apiVersion: v1
+kind: Service
+`,
+		},
+		{
+			name: "prevRevision with all identity metadata and non-identity fields",
+			prevYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+  namespace: my-ns
+  uid: uid-abc-123
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  labels:
+    app: test
+spec:
+  containers:
+    - name: c1
+status:
+  phase: Running`,
+			wantYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: my-pod
+  namespace: my-ns
+  uid: uid-abc-123
+`,
+		},
+		{
+			name: "cluster-scoped resource without namespace",
+			prevYAML: `apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: test-cluster-role
+  uid: uid-cluster-role-1
+  creationTimestamp: "2026-09-10T00:00:00Z"
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]`,
+			wantYAML: `apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: "2026-09-10T00:00:00Z"
+  name: test-cluster-role
+  uid: uid-cluster-role-1
+`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := structured.NewLazyJSONBlockStore(4, 8)
+			var prevReader *structured.NodeReader
+			if tc.prevYAML != "" {
+				node, err := structured.FromYAML(tc.prevYAML)
+				if err != nil {
+					t.Fatalf("failed to parse prevYAML: %v", err)
+				}
+				prevReader = structured.NewNodeReader(node)
+			}
+
+			gotReader := extractResourceIdentity(store, prevReader)
 			yamlBytes, err := gotReader.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
 			if err != nil {
 				t.Fatalf("Serialize() failed: %v", err)

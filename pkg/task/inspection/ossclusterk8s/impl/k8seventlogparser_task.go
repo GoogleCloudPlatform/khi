@@ -37,6 +37,7 @@ func (i *OSSK8sEventLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 	return ossclusterk8s_contract.EventAuditLogFilterTaskID.Ref()
 }
 
+// Dependencies returns additional dependencies of the ingester.
 func (i *OSSK8sEventLogIngester) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
@@ -94,6 +95,7 @@ func (m *OSSK8sEventTimelineMapper) LogIngesterTask() taskid.TaskReference[struc
 	return ossclusterk8s_contract.OSSK8sEventLogIngesterTaskID.Ref()
 }
 
+// Dependencies returns additional mapper dependencies.
 func (m *OSSK8sEventTimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),

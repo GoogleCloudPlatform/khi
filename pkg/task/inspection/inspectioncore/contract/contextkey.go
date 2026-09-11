@@ -35,6 +35,9 @@ var InspectionTaskMode = typedmap.NewTypedKey[InspectionTaskModeType]("khi.googl
 // It contains a map of parameter names to their values.
 var InspectionTaskInput = typedmap.NewTypedKey[map[string]any]("khi.google.com/inspection/task-input")
 
+// TaskInputKeyTimezoneShiftHours is the map key for timezone shift hours in InspectionTaskInput.
+const TaskInputKeyTimezoneShiftHours = "timezoneShiftHours"
+
 // InspectionCreationTime is the context key to access the time when user created the inspection.
 var InspectionCreationTime = typedmap.NewTypedKey[time.Time]("khi.google.com/inspection/creation-time")
 

@@ -57,7 +57,6 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 		func(ctx context.Context) (any, error) {
 			return "success", nil
 		},
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionTypes, []string{inspectionType.Id}),
 		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
 		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
@@ -113,60 +112,77 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 }
 
 func TestIsTaskCompatible(t *testing.T) {
-	runner := &InspectionTaskRunner{}
-
 	tests := []struct {
-		name        string
-		taskLabels  map[string]any // simplified setup
-		currentType *InspectionType
-		want        bool
+		name           string
+		labelOpts      []coretask.LabelOpt
+		inspectionType *InspectionType
+		want           bool
 	}{
 		{
 			name: "Selector matches target labels",
-			taskLabels: map[string]any{
-				inspectioncore_contract.LabelKeyInspectionTypeLabelSelector.Key(): inspectioncore_contract.LabelSelector{"platform": "gke"},
+			labelOpts: []coretask.LabelOpt{
+				inspectioncore_contract.InspectionTypeLabelSelector(inspectioncore_contract.LabelSelector{"platform": "gke"}),
 			},
-			currentType: &InspectionType{
+			inspectionType: &InspectionType{
 				Id:     "some-env",
 				Labels: map[string]string{"platform": "gke", "provider": "google"},
 			},
 			want: true,
 		},
 		{
-			name: "Selector does not match target labels",
-			taskLabels: map[string]any{
-				inspectioncore_contract.LabelKeyInspectionTypeLabelSelector.Key(): inspectioncore_contract.LabelSelector{"platform": "gke"},
+			name: "Selector does not match target labels due to value mismatch",
+			labelOpts: []coretask.LabelOpt{
+				inspectioncore_contract.InspectionTypeLabelSelector(inspectioncore_contract.LabelSelector{"platform": "gke"}),
 			},
-			currentType: &InspectionType{
+			inspectionType: &InspectionType{
 				Id:     "some-env",
 				Labels: map[string]string{"platform": "gdc"},
 			},
 			want: false,
 		},
 		{
-			name: "Fallback to legacy list - match",
-			taskLabels: map[string]any{
-				inspectioncore_contract.LabelKeyInspectionTypes.Key(): []string{"legacy-env", "other-env"},
+			name: "Selector does not match target labels due to missing key in target",
+			labelOpts: []coretask.LabelOpt{
+				inspectioncore_contract.InspectionTypeLabelSelector(inspectioncore_contract.LabelSelector{"platform": "gke"}),
 			},
-			currentType: &InspectionType{
-				Id: "legacy-env",
-			},
-			want: true,
-		},
-		{
-			name: "Fallback to legacy list - no match",
-			taskLabels: map[string]any{
-				inspectioncore_contract.LabelKeyInspectionTypes.Key(): []string{"other-env"},
-			},
-			currentType: &InspectionType{
-				Id: "legacy-env",
+			inspectionType: &InspectionType{
+				Id:     "some-env",
+				Labels: map[string]string{"provider": "google"},
 			},
 			want: false,
 		},
 		{
-			name:       "No selector, no legacy list (Global task)",
-			taskLabels: map[string]any{},
-			currentType: &InspectionType{
+			name: "Multi-key selector matches when all keys match",
+			labelOpts: []coretask.LabelOpt{
+				inspectioncore_contract.InspectionTypeLabelSelector(inspectioncore_contract.LabelSelector{
+					"platform": "gke",
+					"provider": "google",
+				}),
+			},
+			inspectionType: &InspectionType{
+				Id:     "some-env",
+				Labels: map[string]string{"platform": "gke", "provider": "google", "region": "us-central1"},
+			},
+			want: true,
+		},
+		{
+			name: "Multi-key selector fails when only some keys match",
+			labelOpts: []coretask.LabelOpt{
+				inspectioncore_contract.InspectionTypeLabelSelector(inspectioncore_contract.LabelSelector{
+					"platform": "gke",
+					"provider": "aws",
+				}),
+			},
+			inspectionType: &InspectionType{
+				Id:     "some-env",
+				Labels: map[string]string{"platform": "gke", "provider": "google"},
+			},
+			want: false,
+		},
+		{
+			name:      "No selector (Global task)",
+			labelOpts: []coretask.LabelOpt{},
+			inspectionType: &InspectionType{
 				Id: "any-env",
 			},
 			want: true,
@@ -175,26 +191,16 @@ func TestIsTaskCompatible(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create task with labels
-			opts := []coretask.LabelOpt{}
-			for k, v := range tt.taskLabels {
-				if k == inspectioncore_contract.LabelKeyInspectionTypeLabelSelector.Key() {
-					opts = append(opts, inspectioncore_contract.InspectionTypeLabelSelector(v.(inspectioncore_contract.LabelSelector)))
-				} else if k == inspectioncore_contract.LabelKeyInspectionTypes.Key() {
-					opts = append(opts, coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionTypes, v.([]string)))
-				}
-			}
-
 			task := coretask.NewTask(
 				taskid.NewDefaultImplementationID[any]("test-task"),
 				nil,
 				func(ctx context.Context) (any, error) { return nil, nil },
-				opts...,
+				tt.labelOpts...,
 			)
 
-			got := runner.isTaskCompatible(task, tt.currentType)
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("isTaskCompatible() mismatch (-want +got):\n%s", diff)
+			got := isTaskCompatible(task, tt.inspectionType)
+			if got != tt.want {
+				t.Errorf("isTaskCompatible() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -481,7 +487,6 @@ func TestInspectionTaskRunner_Cancel(t *testing.T) {
 					}
 					return "success", nil
 				},
-				coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionTypes, []string{inspectionType.Id}),
 				coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
 				coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
 				coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),

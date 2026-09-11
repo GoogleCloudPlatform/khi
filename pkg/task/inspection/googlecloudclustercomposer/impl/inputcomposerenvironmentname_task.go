@@ -16,6 +16,7 @@ package googlecloudclustercomposer_impl
 
 import (
 	"context"
+	"slices"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
@@ -27,7 +28,18 @@ import (
 // InputComposerEnvironmentNameTask is the task that inputs composer environment name.
 var InputComposerEnvironmentNameTask = formtask.NewTextFormTaskBuilder(googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID, googlecloudcommon_contract.PriorityForResourceIdentifierGroup+4400, "Composer Environment Name").WithDependencies(
 	[]coretask.Dependency{googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref()},
-).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+).WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
+	environments := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref())
+	if len(previousValues) > 0 && slices.ContainsFunc(environments.Values, func(env googlecloudclustercomposer_contract.ComposerEnvironmentIdentity) bool {
+		return env.EnvironmentName == previousValues[0]
+	}) {
+		return previousValues[0], nil
+	}
+	if len(environments.Values) == 0 {
+		return "", nil
+	}
+	return environments.Values[0].EnvironmentName, nil
+}).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
 	environments := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref())
 	if environments.Error != "" {
 		return []string{}, nil

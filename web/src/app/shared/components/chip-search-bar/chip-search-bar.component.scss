@@ -39,6 +39,19 @@ $input-placeholder-color: mat.m2-get-color-from-palette(
 
 $chip-bg-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 50);
 $chip-border-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 200);
+$chip-hover-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  100
+);
+$chip-hover-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  300
+);
+$chip-editing-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$chip-editing-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  500
+);
 $chip-text-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 800);
 $chip-remove-hover-color: mat.m2-get-color-from-palette(
   mat.$m2-red-palette,
@@ -120,11 +133,38 @@ $clear-btn-hover-color: mat.m2-get-color-from-palette(
   font-size: 12px;
   color: $chip-text-color;
   max-width: 200px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover {
+    background-color: $chip-hover-bg-color;
+    border-color: $chip-hover-border-color;
+  }
+
+  &.editing {
+    background-color: $chip-editing-bg-color;
+    border-color: $chip-editing-border-color;
+    cursor: text;
+  }
 
   .chip-text {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .chip-edit-input {
+    border: 0;
+    outline: none;
+    background: transparent;
+    font-size: 12px;
+    color: $chip-text-color;
+    padding: 0;
+    min-width: 24px;
+    max-width: 170px;
+    width: 100%;
   }
 
   .remove-chip-btn {

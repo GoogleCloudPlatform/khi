@@ -26,13 +26,10 @@ import (
 
 var TimeZoneShiftInputTask = inspectiontaskbase.NewInspectionTask(inspectioncore_contract.TimeZoneShiftInputTaskID, []coretask.Dependency{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*time.Location, error) {
 	req := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
-	if tzShiftAny, found := req["timezoneShift"]; found {
-		if tzShiftFloat, convertible := tzShiftAny.(float64); convertible {
+	if tzShiftAny, found := req[inspectioncore_contract.TaskInputKeyTimezoneShiftHours]; found {
+		if tzShiftFloat, convertible := tzShiftAny.(float64); convertible && tzShiftFloat != 0 {
 			return time.FixedZone("Unknown", int(tzShiftFloat*3600)), nil
-		} else {
-			return time.UTC, nil
 		}
-	} else {
-		return time.UTC, nil
 	}
+	return time.UTC, nil
 })

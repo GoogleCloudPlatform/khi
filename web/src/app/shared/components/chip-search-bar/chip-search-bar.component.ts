@@ -29,6 +29,17 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 
 /**
+ * Splits raw input text by pipe delimiters or newlines into trimmed, non-empty search terms.
+ * @param raw The raw string containing delimiters.
+ */
+function splitSearchTerms(raw: string): string[] {
+  return raw
+    .split(/[|\r\n]+/)
+    .map((seg) => seg.trim())
+    .filter((seg) => seg.length > 0);
+}
+
+/**
  * Dumb component responsible for rendering an inline multi-chip search input with OR logic.
  */
 @Component({
@@ -65,10 +76,29 @@ export class ChipSearchBarComponent {
   public readonly draft = signal<string>('');
 
   /**
+   * The index of the chip currently being edited, or null if no chip is in edit mode.
+   */
+  public readonly editingIndex = signal<number | null>(null);
+
+  /**
+   * The draft text currently being edited inside the active chip.
+   */
+  public readonly editingText = signal<string>('');
+
+  /**
+   * Reference to the inline chip edit input element.
+   */
+  public readonly chipEditInput =
+    viewChild<ElementRef<HTMLInputElement>>('chipEditInput');
+
+  /**
    * Indicates whether any chips or draft text exist.
    */
   public readonly hasQuery = computed(
-    () => this.searchTerms().length > 0 || this.draft().trim().length > 0,
+    () =>
+      this.searchTerms().length > 0 ||
+      this.draft().trim().length > 0 ||
+      this.editingIndex() !== null,
   );
 
   /**
@@ -111,12 +141,131 @@ export class ChipSearchBarComponent {
   }
 
   /**
+   * Handles clicking on a chip to switch it into edit mode.
+   * @param index Index of the clicked chip.
+   * @param event The associated mouse click event.
+   */
+  onChipClick(index: number, event: MouseEvent) {
+    event.stopPropagation();
+    this.commitDraft();
+    this.startChipEdit(index);
+  }
+
+  /**
+   * Starts editing the chip at the specified index.
+   * @param index Index of the chip to edit.
+   */
+  public startChipEdit(index: number) {
+    if (index < 0 || index >= this.searchTerms().length) {
+      return;
+    }
+    if (this.editingIndex() !== null && this.editingIndex() !== index) {
+      const prevIndex = this.editingIndex()!;
+      const prevLen = this.searchTerms().length;
+      this.commitChipEdit();
+      if (prevIndex < index) {
+        index += this.searchTerms().length - prevLen;
+      }
+      if (index < 0 || index >= this.searchTerms().length) {
+        return;
+      }
+    }
+    this.editingIndex.set(index);
+    this.editingText.set(this.searchTerms()[index] ?? '');
+    setTimeout(() => {
+      const input = this.chipEditInput()?.nativeElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 0);
+  }
+
+  /**
+   * Handles user typing in the active chip edit input.
+   * @param value The raw string value from the input element.
+   */
+  onChipEditInput(value: string) {
+    this.editingText.set(value);
+  }
+
+  /**
+   * Commits the edited chip text back into searchTerms.
+   */
+  public commitChipEdit() {
+    const index = this.editingIndex();
+    if (index === null) {
+      return;
+    }
+    const segments = splitSearchTerms(this.editingText());
+    if (segments.length === 0) {
+      this.searchTerms.update((terms) => terms.filter((_, i) => i !== index));
+    } else {
+      this.searchTerms.update((terms) => [
+        ...terms.slice(0, index),
+        ...segments,
+        ...terms.slice(index + 1),
+      ]);
+    }
+    this.editingIndex.set(null);
+    this.editingText.set('');
+  }
+
+  /**
+   * Cancels the current chip edit and exits edit mode without modifying searchTerms.
+   */
+  public cancelChipEdit() {
+    this.editingIndex.set(null);
+    this.editingText.set('');
+  }
+
+  /**
+   * Handles keyboard navigation in the active chip edit input.
+   * @param event The keyboard event.
+   */
+  onChipEditKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.commitChipEdit();
+      this.focus();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelChipEdit();
+      this.focus();
+    }
+  }
+
+  /**
+   * Handles blur on the active chip edit input to commit changes.
+   * @param index Index of the chip reporting the blur event.
+   */
+  onChipEditBlur(index: number) {
+    if (this.editingIndex() !== index) {
+      return;
+    }
+    this.commitChipEdit();
+  }
+
+  /**
    * Removes a chip at the specified index.
    * @param index Index of the chip to remove.
    * @param event The associated mouse click event.
    */
   onRemoveChip(index: number, event: MouseEvent) {
     event.stopPropagation();
+    if (this.editingIndex() === index) {
+      this.editingIndex.set(null);
+      this.editingText.set('');
+    } else if (this.editingIndex() !== null && this.editingIndex()! > index) {
+      this.editingIndex.update((curr) => (curr !== null ? curr - 1 : null));
+      setTimeout(() => {
+        const input = this.chipEditInput()?.nativeElement;
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      }, 0);
+    }
     this.searchTerms.update((terms) => terms.filter((_, i) => i !== index));
   }
 
@@ -160,14 +309,7 @@ export class ChipSearchBarComponent {
       const combined =
         currentVal.slice(0, start) + pastedText + currentVal.slice(end);
 
-      const rawSegments = combined.split(/[|\r\n]+/);
-      const validSegments: string[] = [];
-      for (const seg of rawSegments) {
-        const trimmed = seg.trim();
-        if (trimmed) {
-          validSegments.push(trimmed);
-        }
-      }
+      const validSegments = splitSearchTerms(combined);
       if (validSegments.length > 0) {
         this.searchTerms.update((terms) => [...terms, ...validSegments]);
         this.draft.set('');
@@ -188,6 +330,8 @@ export class ChipSearchBarComponent {
    * Clears all chips and draft.
    */
   clearAll() {
+    this.editingIndex.set(null);
+    this.editingText.set('');
     this.searchTerms.set([]);
     this.draft.set('');
   }
