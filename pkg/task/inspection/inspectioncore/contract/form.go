@@ -35,6 +35,7 @@ func (f *FormTaskLabelOpt) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, TaskLabelKeyIsFormTask, true)
 	typedmap.Set(label, TaskLabelKeyFormFieldLabel, f.label)
 	typedmap.Set(label, TaskLabelKeyFormFieldDescription, f.description)
+	typedmap.Set(label, coretask.LabelKeyTaskDescription, f.description)
 }
 
 // NewFormTaskLabelOpt constructs a new instance of task.LabelOpt for form related tasks.
