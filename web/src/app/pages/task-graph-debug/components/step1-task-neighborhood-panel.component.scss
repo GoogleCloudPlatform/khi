@@ -1,0 +1,302 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$panel-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$panel-header-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$panel-border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$panel-title-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$title-icon-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 600);
+$ref-pill-bg-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 50);
+$ref-pill-text-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 800);
+$impl-pill-bg-color: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 50);
+$impl-pill-text-color: mat.m2-get-color-from-palette(
+  mat.$m2-purple-palette,
+  800
+);
+$output-type-pill-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  50
+);
+$output-type-pill-text-color: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  800
+);
+$output-type-pill-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  200
+);
+$close-btn-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$close-btn-hover-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  900
+);
+$close-btn-hover-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+$summary-bar-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 100);
+$summary-label-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
+$summary-upstream-color: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  800
+);
+$summary-center-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 800);
+$summary-downstream-color: mat.m2-get-color-from-palette(
+  mat.$m2-green-palette,
+  800
+);
+$summary-separator-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  400
+);
+$canvas-container-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  50
+);
+$empty-state-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 500);
+
+:host {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.neighborhood-panel-root {
+  display: grid;
+  grid-template:
+    'header' auto
+    'summary' auto
+    'canvas' 1fr
+    / 1fr;
+  height: 100%;
+  width: 100%;
+  background: $panel-bg-color;
+  overflow: hidden;
+}
+
+.panel-header {
+  grid-area: header;
+  display: grid;
+  grid-template:
+    'nav title close' 1fr
+    / auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: $panel-header-bg-color;
+  border-bottom: 1px solid $panel-border-color;
+}
+
+.history-nav {
+  grid-area: nav;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
+  .nav-btn {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+}
+
+.header-title-container {
+  grid-area: title;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .title-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: $title-icon-color;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: $panel-title-color;
+    letter-spacing: 0.2px;
+  }
+}
+
+.task-identity-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ref-pill {
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: $ref-pill-bg-color;
+  color: $ref-pill-text-color;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.impl-pill {
+  font-size: 11px;
+  font-family: monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: $impl-pill-bg-color;
+  color: $impl-pill-text-color;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.output-type-pill {
+  font-size: 11px;
+  font-family: monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: $output-type-pill-bg-color;
+  color: $output-type-pill-text-color;
+  border: 1px solid $output-type-pill-border-color;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-description-row {
+  font-size: 12px;
+  color: var(--mat-sys-on-surface-variant, #5f6368);
+  line-height: 1.35;
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+.close-btn {
+  grid-area: close;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  color: $close-btn-color;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover {
+    color: $close-btn-hover-color;
+    background: $close-btn-hover-bg;
+  }
+}
+
+.neighborhood-summary-bar {
+  grid-area: summary;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  background: $summary-bar-bg-color;
+  border-bottom: 1px solid $panel-border-color;
+  font-size: 11px;
+
+  .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: $summary-label-color;
+
+    mat-icon {
+      font-size: 15px;
+      width: 15px;
+      height: 15px;
+    }
+
+    &.upstream {
+      color: $summary-upstream-color;
+    }
+
+    &.center {
+      color: $summary-center-color;
+      font-weight: 500;
+    }
+
+    &.downstream {
+      color: $summary-downstream-color;
+    }
+  }
+
+  .summary-separator {
+    color: $summary-separator-color;
+  }
+
+  .summary-count {
+    font-weight: 700;
+  }
+}
+
+.panel-canvas-container {
+  grid-area: canvas;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: $canvas-container-bg-color;
+
+  .neighborhood-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 8px;
+    color: $empty-state-color;
+
+    mat-icon {
+      font-size: 36px;
+      width: 36px;
+      height: 36px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 13px;
+    }
+  }
+}

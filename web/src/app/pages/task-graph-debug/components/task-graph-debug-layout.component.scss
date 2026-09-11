@@ -1,0 +1,244 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$border-light: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+$surface-container: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 100);
+$surface-container-low: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$surface-color: #fff;
+$on-surface: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$on-surface-variant: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$primary-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500);
+$primary-bg: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 50);
+$error-bg: mat.m2-get-color-from-palette(mat.$m2-red-palette, 50);
+$error-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 700);
+$badge-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+$badge-active-bg: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
+$badge-active-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 700);
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.layout-container {
+  display: grid;
+  grid-template:
+    'header' auto
+    'loading' auto
+    'content' 1fr
+    / 1fr;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: $surface-container-low;
+}
+
+.debug-header {
+  grid-area: header;
+  display: grid;
+  grid-template:
+    'title nav' auto
+    / 1fr auto;
+  align-items: center;
+  padding: 12px 24px;
+  background-color: $surface-color;
+  border-bottom: 1px solid $border-color;
+  column-gap: 24px;
+}
+
+.header-left {
+  grid-area: title;
+  display: grid;
+  grid-template:
+    'icon text' auto
+    / auto 1fr;
+  align-items: center;
+  column-gap: 12px;
+}
+
+.header-icon {
+  grid-area: icon;
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  color: $primary-color;
+}
+
+.header-title-group {
+  grid-area: text;
+  display: grid;
+  grid-template:
+    'maintitle' auto
+    'subtitle' auto
+    / 1fr;
+}
+
+.header-title {
+  grid-area: maintitle;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: $on-surface;
+}
+
+.header-subtitle {
+  grid-area: subtitle;
+  font-size: 12px;
+  color: $on-surface-variant;
+}
+
+.step-nav {
+  grid-area: nav;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid $border-color;
+  border-radius: 20px;
+  background-color: $surface-color;
+  color: $on-surface-variant;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: $surface-container;
+  }
+
+  &.active {
+    background-color: $primary-bg;
+    color: $primary-color;
+    border-color: $primary-color;
+
+    .step-num {
+      background-color: $primary-color;
+      color: $surface-color;
+    }
+
+    .step-badge {
+      background-color: $badge-active-bg;
+      color: $badge-active-color;
+    }
+  }
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: $surface-container;
+  color: $on-surface-variant;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.step-text {
+  font-size: 13px;
+}
+
+.step-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background-color: $badge-bg;
+  color: $on-surface-variant;
+
+  &.active-type {
+    background-color: $primary-bg;
+    color: $primary-color;
+  }
+
+  &.error {
+    background-color: $error-bg;
+    color: $error-color;
+  }
+}
+
+.nav-arrow {
+  color: $on-surface-variant;
+  font-size: 14px;
+}
+
+.loading-bar {
+  grid-area: loading;
+  width: 100%;
+}
+
+.debug-content {
+  grid-area: content;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.resolution-error-banner {
+  display: grid;
+  grid-template:
+    'icon error' auto
+    / auto 1fr;
+  align-items: center;
+  column-gap: 16px;
+  margin: 24px;
+  padding: 16px;
+  background-color: $error-bg;
+  border: 1px solid $error-color;
+  border-radius: 8px;
+
+  mat-icon {
+    grid-area: icon;
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: $error-color;
+  }
+
+  .error-content {
+    grid-area: error;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: $error-color;
+    }
+
+    p {
+      margin: 0;
+      font-size: 13px;
+      color: $error-color;
+      font-family: monospace;
+    }
+  }
+}

@@ -1,0 +1,294 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$panel-bg: #fff;
+$panel-border: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$title-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$subtitle-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$section-title-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
+$divider-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+
+$prop-label-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$prop-value-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+
+$badge-direct-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 100);
+
+$tag-chip-bg: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 50);
+$tag-chip-text: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 900);
+$tag-chip-border: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 200);
+$tag-output-type-color: mat.m2-get-color-from-palette(
+  mat.$m2-purple-palette,
+  700
+);
+$tag-output-type-bg: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 100);
+
+$description-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$description-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 800);
+$description-border: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+
+$item-hover-bg: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 50);
+$item-border: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+$dep-output-type-color: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  700
+);
+$dep-output-type-bg: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 50);
+
+:host {
+  display: block;
+  width: 360px;
+  height: 100%;
+  background-color: $panel-bg;
+  border-left: 1px solid $panel-border;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.06);
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.detail-panel-container {
+  display: grid;
+  grid-template:
+    'header' auto
+    'body' 1fr
+    / 1fr;
+  height: 100%;
+
+  .panel-header {
+    grid-area: header;
+    display: grid;
+    grid-template:
+      'title-col close-col' auto
+      / 1fr auto;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid $divider-color;
+
+    .header-title-container {
+      grid-area: title-col;
+      overflow: hidden;
+
+      .panel-title {
+        margin: 0;
+        font-family: var(--font-family-code, monospace);
+        font-size: 15px;
+        font-weight: 600;
+        color: $title-color;
+        word-break: break-all;
+      }
+
+      .panel-subtitle {
+        font-family: var(--font-family-code, monospace);
+        font-size: 12px;
+        color: $subtitle-color;
+        word-break: break-all;
+      }
+    }
+
+    .close-btn {
+      grid-area: close-col;
+      color: $subtitle-color;
+    }
+  }
+
+  .panel-body {
+    grid-area: body;
+    padding: 16px;
+    overflow-y: auto;
+    display: grid;
+    grid-auto-rows: max-content;
+    gap: 20px;
+  }
+}
+
+.detail-section {
+  display: grid;
+  gap: 8px;
+
+  &.description-section {
+    padding: 10px 12px;
+    background-color: $description-bg;
+    border: 1px solid $description-border;
+    border-radius: 6px;
+
+    .description-text {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.45;
+      color: $description-color;
+      word-break: break-word;
+    }
+  }
+
+  .section-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: $section-title-color;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .empty-hint {
+    font-size: 12px;
+    font-style: italic;
+    color: $subtitle-color;
+  }
+}
+
+.properties-grid {
+  display: grid;
+  grid-template:
+    'lbl-0 val-0' auto
+    'lbl-1 val-1' auto
+    'lbl-2 val-2' auto
+    'lbl-3 val-3' auto
+    'lbl-4 val-4' auto
+    / 130px 1fr;
+  row-gap: 6px;
+  font-size: 13px;
+
+  .prop-label {
+    color: $prop-label-color;
+  }
+
+  .prop-value {
+    font-family: var(--font-family-code, monospace);
+    font-weight: 500;
+    color: $prop-value-color;
+  }
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-family: var(--font-family-code, monospace);
+    font-size: 11px;
+    font-weight: 500;
+    background-color: $tag-chip-bg;
+    color: $tag-chip-text;
+    border: 1px solid $tag-chip-border;
+
+    .tag-output-type {
+      font-size: 10px;
+      color: $tag-output-type-color;
+      background-color: $tag-output-type-bg;
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+  }
+}
+
+.labels-table {
+  display: grid;
+  gap: 6px;
+
+  .label-row {
+    display: grid;
+    grid-template:
+      'key val' auto
+      / 1fr auto;
+    gap: 8px;
+    padding: 4px 8px;
+    background-color: $badge-direct-bg;
+    border-radius: 4px;
+    font-family: var(--font-family-code, monospace);
+    font-size: 11px;
+
+    .label-key {
+      grid-area: key;
+      color: $prop-label-color;
+      word-break: break-all;
+    }
+
+    .label-val {
+      grid-area: val;
+      font-weight: 600;
+      color: $prop-value-color;
+    }
+  }
+}
+
+.dependency-list {
+  display: grid;
+  gap: 8px;
+}
+
+.dependency-item {
+  padding: 8px 12px;
+  border: 1px solid $item-border;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background-color: $item-hover-bg;
+  }
+}
+
+.dep-header {
+  display: grid;
+  grid-template:
+    'name type' auto
+    / 1fr auto;
+  align-items: center;
+  gap: 8px;
+
+  .dep-ref {
+    grid-area: name;
+    font-family: var(--font-family-code, monospace);
+    font-size: 12px;
+    font-weight: 600;
+    color: $title-color;
+    word-break: break-all;
+  }
+
+  .dep-output-type {
+    grid-area: type;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: var(--font-family-code, monospace);
+    font-size: 10px;
+    font-weight: 500;
+    background-color: $dep-output-type-bg;
+    color: $dep-output-type-color;
+  }
+}
+
+.dep-details {
+  margin-top: 4px;
+  display: grid;
+  grid-template:
+    'id' auto
+    / 1fr;
+  font-family: var(--font-family-code, monospace);
+  font-size: 11px;
+  color: $subtitle-color;
+
+  .dep-id {
+    grid-area: id;
+    word-break: break-all;
+  }
+}

@@ -1,0 +1,124 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="layout-container">
+  <header class="debug-header">
+    <div class="header-left">
+      <mat-icon class="header-icon">account_tree</mat-icon>
+      <div class="header-title-group">
+        <h1 class="header-title">Task Graph Diagnostics</h1>
+        <span class="header-subtitle"
+          >Inspect registration, filter compatibility, and resolved execution
+          DAG</span
+        >
+      </div>
+    </div>
+
+    <nav class="step-nav">
+      <button
+        type="button"
+        class="step-btn"
+        [class.active]="activeTab() === TaskGraphDebugTab.REGISTRY"
+        (click)="onTabClick(TaskGraphDebugTab.REGISTRY)"
+      >
+        <span class="step-num">1</span>
+        <span class="step-text">Task Registry</span>
+        <span class="step-badge">{{ taskGroups().length }}</span>
+      </button>
+
+      <span class="nav-arrow">→</span>
+
+      <button
+        type="button"
+        class="step-btn"
+        [class.active]="
+          activeTab() === TaskGraphDebugTab.INSPECTION_TYPE_FILTER
+        "
+        (click)="onTabClick(TaskGraphDebugTab.INSPECTION_TYPE_FILTER)"
+      >
+        <span class="step-num">2</span>
+        <span class="step-text">Type Filter & Features</span>
+        @if (selectedInspectionTypeId()) {
+          <span class="step-badge active-type">{{
+            selectedInspectionTypeId()
+          }}</span>
+        }
+      </button>
+
+      <span class="nav-arrow">→</span>
+
+      <button
+        type="button"
+        class="step-btn"
+        [class.active]="activeTab() === TaskGraphDebugTab.DAG_VIEWER"
+        (click)="onTabClick(TaskGraphDebugTab.DAG_VIEWER)"
+      >
+        <span class="step-num">3</span>
+        <span class="step-text">Resolved DAG</span>
+        @if (!isResolutionSuccess()) {
+          <span class="step-badge error">Failed</span>
+        } @else {
+          <span class="step-badge">{{ dagNodes().length }} nodes</span>
+        }
+      </button>
+    </nav>
+  </header>
+
+  @if (isLoading()) {
+    <mat-progress-bar
+      mode="indeterminate"
+      class="loading-bar"
+    ></mat-progress-bar>
+  }
+
+  <main class="debug-content">
+    @switch (activeTab()) {
+      @case (TaskGraphDebugTab.REGISTRY) {
+        <khi-step1-registry-table
+          [taskGroups]="taskGroups()"
+        ></khi-step1-registry-table>
+      }
+
+      @case (TaskGraphDebugTab.INSPECTION_TYPE_FILTER) {
+        <khi-step2-type-filter
+          [inspectionTypes]="inspectionTypes()"
+          [selectedInspectionTypeId]="selectedInspectionTypeId()"
+          [availableFeatures]="availableFeatures()"
+          [evaluations]="evaluations()"
+          (selectInspectionType)="onSelectInspectionType($event)"
+          (featureToggleChange)="onFeatureToggleChange($event)"
+        ></khi-step2-type-filter>
+      }
+
+      @case (TaskGraphDebugTab.DAG_VIEWER) {
+        @if (!isResolutionSuccess()) {
+          <div class="resolution-error-banner">
+            <mat-icon>error</mat-icon>
+            <div class="error-content">
+              <h3>Task Graph Resolution Failed</h3>
+              <p>{{ resolutionErrorMessage() }}</p>
+            </div>
+          </div>
+        } @else {
+          <khi-dag-canvas
+            [nodes]="dagNodes()"
+            [edges]="dagEdges()"
+          ></khi-dag-canvas>
+        }
+      }
+    }
+  </main>
+</div>

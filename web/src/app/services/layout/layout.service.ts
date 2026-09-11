@@ -41,6 +41,7 @@ import {
 } from 'src/app/services/menu/menu-manager.service';
 import { StyleOverrideSmartComponent } from 'src/app/dialogs/style-override/style-override-smart.component';
 import { isEventFromOverlay } from 'src/app/common/dom-util';
+import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 
 /**
  * Type identifiers for components managed by LayoutService.
@@ -456,19 +457,26 @@ export class LayoutService implements OnDestroy {
         this.loadTopologyAnalysisLayout();
       },
     });
-    this.menuManager.addItem('view', {
-      id: 'view-separator-2',
-      type: MenuItemType.Separator,
-      priority: 9,
-    });
-    this.menuManager.addItem('view', {
+    this.menuManager.addGroup('developer', 'Developer', 10, 'developer_mode');
+    this.menuManager.addItem('developer', {
       id: 'style-override',
       label: 'Style override Settings',
       type: MenuItemType.Button,
       icon: 'palette',
-      priority: 10,
+      priority: 1,
       action: () => {
         this.openStyleOverrideDialog();
+      },
+    });
+    this.menuManager.addItem('developer', {
+      id: 'task-graph-diagnostics',
+      label: 'Task Graph Diagnostics',
+      type: MenuItemType.Button,
+      icon: 'account_tree',
+      priority: 2,
+      action: () => {
+        const basePath = ApiPathUtil.getServerBasePath();
+        window.open(`${basePath}/debug/task-graph`, '_blank');
       },
     });
   }

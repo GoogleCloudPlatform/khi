@@ -1,0 +1,50 @@
+<!--
+  Copyright 2026 Google LLC
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<svg:path
+  class="edge-path"
+  [attr.d]="edge().pathD"
+  [attr.marker-end]="markerUrl()"
+/>
+@if (edge().tag) {
+  <svg:g class="edge-tag-group" [attr.transform]="tagTransform()">
+    <svg:title>{{ edge().tag }}</svg:title>
+    <svg:rect
+      class="tag-badge-bg"
+      [attr.x]="tagBadgeX()"
+      [attr.y]="tagBadgeY()"
+      [attr.width]="tagBadgeWidth()"
+      [attr.height]="tagBadgeHeight()"
+      [attr.rx]="tagBadgeRx()"
+    />
+    @if (tagDomain()) {
+      <svg:text class="tag-domain-text" text-anchor="middle" y="-3">
+        {{ tagDomain() }}
+      </svg:text>
+      <svg:text class="tag-name-text" text-anchor="middle" y="9">
+        {{ tagName() }}
+      </svg:text>
+    } @else {
+      <svg:text
+        class="tag-name-text single-line"
+        text-anchor="middle"
+        dominant-baseline="central"
+      >
+        {{ tagName() }}
+      </svg:text>
+    }
+  </svg:g>
+}

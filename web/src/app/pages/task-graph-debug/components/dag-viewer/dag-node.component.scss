@@ -1,0 +1,199 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$node-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$node-bg-hover-color: #fff;
+$node-stroke-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$node-accent-default: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 600);
+$node-accent-feature: mat.m2-get-color-from-palette(mat.$m2-teal-palette, 600);
+$node-bg-feature: mat.m2-get-color-from-palette(mat.$m2-teal-palette, 50);
+$node-stroke-feature: mat.m2-get-color-from-palette(mat.$m2-teal-palette, 200);
+$node-accent-input: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 700);
+$node-bg-input: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 50);
+$node-stroke-input: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 200);
+
+$node-selected-stroke: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  700
+);
+$node-highlighted-stroke: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  500
+);
+
+$domain-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$task-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$impl-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$output-type-text-color: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  700
+);
+
+$feature-badge-bg: mat.m2-get-color-from-palette(mat.$m2-teal-palette, 50);
+$feature-badge-stroke: mat.m2-get-color-from-palette(mat.$m2-teal-palette, 200);
+$feature-badge-text: mat.m2-get-color-from-palette(mat.$m2-teal-palette, 900);
+
+$input-badge-bg: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 50);
+$input-badge-stroke: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 300);
+$input-badge-text: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 900);
+
+$tag-badge-bg: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 50);
+$tag-badge-stroke: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 200);
+$tag-badge-text: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 800);
+
+:host {
+  cursor: pointer;
+  user-select: none;
+  transition:
+    transform 0.15s ease-out,
+    opacity 0.2s ease-in-out;
+
+  .node-card-bg {
+    fill: $node-bg-color;
+    stroke: $node-stroke-color;
+    stroke-width: 1.5px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06));
+    transition:
+      fill 0.15s,
+      stroke 0.15s,
+      stroke-width 0.15s;
+  }
+
+  .node-accent-bar {
+    fill: $node-accent-default;
+  }
+
+  &.feature {
+    .node-card-bg {
+      fill: $node-bg-feature;
+      stroke: $node-stroke-feature;
+    }
+
+    .node-accent-bar {
+      fill: $node-accent-feature;
+    }
+  }
+
+  &.form-task {
+    .node-card-bg {
+      fill: $node-bg-input;
+      stroke: $node-stroke-input;
+    }
+
+    .node-accent-bar {
+      fill: $node-accent-input;
+    }
+  }
+
+  &:hover .node-card-bg {
+    fill: $node-bg-hover-color;
+    stroke: $node-highlighted-stroke;
+    stroke-width: 2px;
+  }
+
+  &.selected .node-card-bg {
+    fill: $node-bg-hover-color;
+    stroke: $node-selected-stroke;
+    stroke-width: 2.5px;
+    filter: drop-shadow(0 3px 8px rgba(63, 81, 181, 0.25));
+  }
+
+  &.highlighted:not(.selected) .node-card-bg {
+    stroke: $node-highlighted-stroke;
+    stroke-width: 2px;
+  }
+
+  &.dimmed {
+    opacity: 0.2;
+  }
+
+  .node-domain-text {
+    font-family: var(--font-family-code, monospace);
+    font-size: 10px;
+    fill: $domain-text-color;
+  }
+
+  .node-task-text {
+    font-family: var(--font-family-code, monospace);
+    font-size: 13px;
+    font-weight: 600;
+    fill: $task-text-color;
+  }
+
+  .node-impl-text {
+    font-family: var(--font-family-code, monospace);
+    font-size: 11px;
+    fill: $impl-text-color;
+    text-anchor: end;
+  }
+
+  .node-output-type-text {
+    font-family: var(--font-family-code, monospace);
+    font-size: 11px;
+    fill: $output-type-text-color;
+  }
+
+  .badge-group {
+    .badge-bg {
+      stroke-width: 1px;
+    }
+
+    .badge-text {
+      font-family: var(--font-family-sans, sans-serif);
+      font-size: 10px;
+      font-weight: 600;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    &.feature-badge {
+      .badge-bg {
+        fill: $feature-badge-bg;
+        stroke: $feature-badge-stroke;
+      }
+
+      .badge-text {
+        fill: $feature-badge-text;
+      }
+    }
+
+    &.input-badge {
+      .badge-bg {
+        fill: $input-badge-bg;
+        stroke: $input-badge-stroke;
+      }
+
+      .badge-text {
+        fill: $input-badge-text;
+      }
+    }
+
+    &.tag-badge {
+      .badge-bg {
+        fill: $tag-badge-bg;
+        stroke: $tag-badge-stroke;
+      }
+
+      .badge-text {
+        font-family: var(--font-family-code, monospace);
+        font-size: 9.5px;
+        fill: $tag-badge-text;
+      }
+    }
+  }
+}

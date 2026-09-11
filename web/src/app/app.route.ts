@@ -28,10 +28,16 @@ import {
   SessionHostGuard,
 } from './app.route.guard';
 import { DiffComponent } from './pages/diff/diff.component';
+import { TaskGraphDebugSmartComponent } from 'src/app/pages/task-graph-debug/task-graph-debug-smart.component';
 import { PageType } from './extensions/extension-common/extension-types/lifecycle-hook';
 
 export const KHIRoutes: Routes = [
   { path: '', redirectTo: 'session/0', pathMatch: 'full' },
+  {
+    path: 'debug/task-graph',
+    component: TaskGraphDebugSmartComponent,
+    title: 'KHI - Task Graph Diagnostics',
+  },
   {
     path: 'session/:sessionId',
     component: AppComponent,

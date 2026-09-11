@@ -24,13 +24,15 @@ import {
   ViewContainerRef,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { of } from 'rxjs';
 import { LayoutService } from './layout.service';
 import { MenuManager } from 'src/app/services/menu/menu-manager.service';
 import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.component';
 import { LogSmartComponent } from 'src/app/log/log-smart.component';
 import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
 import { GraphSmartComponent } from 'src/app/graph/graph-smart.component';
+import { StyleOverrideSmartComponent } from 'src/app/dialogs/style-override/style-override-smart.component';
 
 @Component({
   template: `<div
@@ -53,7 +55,14 @@ describe('LayoutService', () => {
   let dialogSpy: jasmine.SpyObj<MatDialog>;
 
   beforeEach(async () => {
+    const dialogRefSpy = jasmine.createSpyObj<MatDialogRef<unknown>>([
+      'afterClosed',
+    ]);
+    dialogRefSpy.afterClosed.and.returnValue(of(undefined));
     dialogSpy = jasmine.createSpyObj('MatDialog', ['open']);
+    dialogSpy.open.and.returnValue(
+      dialogRefSpy as unknown as MatDialogRef<StyleOverrideSmartComponent>,
+    );
 
     await TestBed.configureTestingModule({
       imports: [TestHostComponent],
@@ -249,6 +258,60 @@ describe('LayoutService', () => {
       for (const ref of createdRefs) {
         expect((ref.destroy as jasmine.Spy).calls.count()).toBeGreaterThan(0);
       }
+    } finally {
+      hostEl.remove();
+    }
+  });
+
+  it('should register developer menu with style-override and task-graph-diagnostics', () => {
+    const hostEl = hostComponent.layoutContainer().nativeElement;
+    document.body.appendChild(hostEl);
+
+    try {
+      layoutService.init(hostEl, hostComponent.viewContainerRef);
+
+      const developerGroup = menuManager
+        .groups()
+        .find((g) => g.id === 'developer');
+      expect(developerGroup).toBeDefined();
+      expect(developerGroup?.label).toBe('Developer');
+      expect(developerGroup?.priority).toBe(10);
+      expect(developerGroup?.icon).toBe('developer_mode');
+
+      const styleOverrideItem = developerGroup?.items.find(
+        (item) => item.id === 'style-override',
+      );
+      expect(styleOverrideItem).toBeDefined();
+      expect(styleOverrideItem?.label).toBe('Style override Settings');
+      expect(styleOverrideItem?.priority).toBe(1);
+
+      // Verify action opens dialog
+      styleOverrideItem?.action();
+      expect(dialogSpy.open).toHaveBeenCalledWith(
+        StyleOverrideSmartComponent,
+        jasmine.any(Object),
+      );
+
+      const taskGraphItem = developerGroup?.items.find(
+        (item) => item.id === 'task-graph-diagnostics',
+      );
+      expect(taskGraphItem).toBeDefined();
+      expect(taskGraphItem?.label).toBe('Task Graph Diagnostics');
+      expect(taskGraphItem?.priority).toBe(2);
+
+      // Verify action opens task graph debug url in new tab
+      const windowOpenSpy = spyOn(window, 'open');
+      taskGraphItem?.action();
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        jasmine.stringMatching(/\/debug\/task-graph$/),
+        '_blank',
+      );
+
+      // Verify style-override is no longer in the view menu
+      const viewGroup = menuManager.groups().find((g) => g.id === 'view');
+      expect(
+        viewGroup?.items.find((item) => item.id === 'style-override'),
+      ).toBeUndefined();
     } finally {
       hostEl.remove();
     }
