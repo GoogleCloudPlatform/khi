@@ -1,0 +1,23 @@
+@let param = parameter();
+<div class="container">
+  <khi-new-inspection-parameter-header
+    [parameter]="param"
+  ></khi-new-inspection-parameter-header>
+  <div class="checkbox-container">
+    <mat-checkbox
+      [checked]="isChecked()"
+      [disabled]="param.readonly"
+      (change)="onToggle($event.checked)"
+      color="primary"
+    >
+      {{ param.label }}
+    </mat-checkbox>
+  </div>
+  @if (param.hintType !== ParameterHintType.None) {
+    <div class="hint">
+      <khi-new-inspection-parameter-hint
+        [parameter]="param"
+      ></khi-new-inspection-parameter-hint>
+    </div>
+  }
+</div>

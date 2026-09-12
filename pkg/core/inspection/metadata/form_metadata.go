@@ -36,6 +36,8 @@ const (
 	File ParameterInputType = "file"
 	// Set is a type of ParameterInputType. This represents the set type input field.
 	Set ParameterInputType = "set"
+	// Checkbox is a type of ParameterInputType. This represents the checkbox type input field.
+	Checkbox ParameterInputType = "checkbox"
 )
 
 // ParameterHintType represents the types of hint message shown at the bottom of parameter forms.
@@ -144,6 +146,15 @@ type FileParameterFormField struct {
 	Status upload.UploadStatus `json:"status"`
 }
 
+// CheckboxParameterFormField represents Checkbox type parameter specific data.
+type CheckboxParameterFormField struct {
+	ParameterFormFieldBase
+	// Readonly limits users to modify the field.
+	Readonly bool `json:"readonly"`
+	// Default is the default checked state of this field.
+	Default bool `json:"default"`
+}
+
 // FormFieldSetMetadata is a metadata type used in frontend to generate the form fields.
 type FormFieldSetMetadata struct {
 	fieldsLock sync.RWMutex
@@ -234,6 +245,8 @@ func GetParameterFormFieldBase(parameter ParameterFormField) ParameterFormFieldB
 	case SetParameterFormField:
 		return v.ParameterFormFieldBase
 	case FileParameterFormField:
+		return v.ParameterFormFieldBase
+	case CheckboxParameterFormField:
 		return v.ParameterFormFieldBase
 	default:
 		return ParameterFormFieldBase{}

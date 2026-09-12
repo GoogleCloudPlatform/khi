@@ -710,3 +710,98 @@ func TestInspectionServiceServer_RunInspection(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertFormFields_Checkbox(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input []inspectionmetadata.ParameterFormField
+		want  []*apiv1.FormField
+	}{
+		{
+			name: "converts checkbox form field",
+			input: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.CheckboxParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:          "checkbox-field",
+						Label:       "Enable feature",
+						Description: "Whether feature should be enabled",
+						Hint:        "Optional hint",
+						HintType:    inspectionmetadata.Info,
+						Priority:    1,
+					},
+					Readonly: false,
+					Default:  true,
+				},
+			},
+			want: []*apiv1.FormField{
+				{
+					Id:          proto.String("checkbox-field"),
+					Label:       proto.String("Enable feature"),
+					Description: proto.String("Whether feature should be enabled"),
+					Hint:        proto.String("Optional hint"),
+					HintType:    apiv1.ParameterHintType_PARAMETER_HINT_TYPE_INFO.Enum(),
+					Kind: &apiv1.FormField_Checkbox{
+						Checkbox: &apiv1.CheckboxFormField{
+							Readonly:     proto.Bool(false),
+							DefaultValue: proto.Bool(true),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := convertFormFields(tc.input)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("convertFormFields() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestConvertParametersToMap_Checkbox(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input *apiv1.InspectionParameters
+		want  map[string]any
+	}{
+		{
+			name: "converts checkbox parameter values",
+			input: &apiv1.InspectionParameters{
+				Parameters: []*apiv1.ParameterValue{
+					{
+						Id: proto.String("enabled"),
+						Value: &apiv1.ParameterValue_CheckboxValue{
+							CheckboxValue: &apiv1.CheckboxParameterValue{
+								Value: proto.Bool(true),
+							},
+						},
+					},
+					{
+						Id: proto.String("disabled"),
+						Value: &apiv1.ParameterValue_CheckboxValue{
+							CheckboxValue: &apiv1.CheckboxParameterValue{
+								Value: proto.Bool(false),
+							},
+						},
+					},
+				},
+			},
+			want: map[string]any{
+				"enabled":  true,
+				"disabled": false,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := convertParametersToMap(tc.input)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("convertParametersToMap() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

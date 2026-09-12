@@ -51,6 +51,11 @@
             [parameter]="parameter"
           ></khi-new-inspection-set-parameter>
         }
+        @case (ParameterInputType.Checkbox) {
+          <khi-new-inspection-checkbox-parameter
+            [parameter]="parameter"
+          ></khi-new-inspection-checkbox-parameter>
+        }
         @case (ParameterInputType.Group) {
           <khi-new-inspection-group-parameter
             [parameter]="parameter"

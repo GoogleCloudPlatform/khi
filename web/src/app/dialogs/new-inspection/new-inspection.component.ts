@@ -553,6 +553,9 @@ export class NewInspectionDialogComponent implements OnDestroy {
         case ParameterInputType.Set:
           result[parameter.id] = parameter.default;
           break;
+        case ParameterInputType.Checkbox:
+          result[parameter.id] = parameter.default;
+          break;
         case ParameterInputType.Group:
           result = {
             ...result,

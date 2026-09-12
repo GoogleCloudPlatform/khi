@@ -604,6 +604,13 @@ func convertFormFields(fields []inspectionmetadata.ParameterFormField) []*apiv1.
 					AllowRemoveAll:   proto.Bool(v.AllowRemoveAll),
 				},
 			}
+		case inspectionmetadata.CheckboxParameterFormField:
+			f.Kind = &apiv1.FormField_Checkbox{
+				Checkbox: &apiv1.CheckboxFormField{
+					Readonly:     proto.Bool(v.Readonly),
+					DefaultValue: proto.Bool(v.Default),
+				},
+			}
 		}
 		res = append(res, f)
 	}
@@ -665,6 +672,8 @@ func convertParametersToMap(params *apiv1.InspectionParameters) map[string]any {
 			values[id] = v.SetValue.GetValues()
 		case *apiv1.ParameterValue_FileValue:
 			values[id] = v.FileValue.GetToken()
+		case *apiv1.ParameterValue_CheckboxValue:
+			values[id] = v.CheckboxValue.GetValue()
 		}
 	}
 	if params.GetTimezoneShiftHours() != 0 {

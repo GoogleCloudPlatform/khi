@@ -21,6 +21,7 @@ import {
   TextFormField,
   FileFormField,
   SetFormField,
+  CheckboxFormField,
   ParameterHintType as ProtoParameterHintType,
   ValidationTiming as ProtoValidationTiming,
   UploadStatus as ProtoUploadStatus,
@@ -39,6 +40,7 @@ import {
   TextParameterFormField,
   FileParameterFormField,
   SetParameterFormField,
+  CheckboxParameterFormField,
   ParameterInputType,
   ParameterHintType,
   ParameterFormValidationTiming,
@@ -236,6 +238,20 @@ export function convertProtoFormFieldToParameterFormField(
       };
       return setResult;
     }
+    case 'checkbox': {
+      const cf: CheckboxFormField = field.kind.value;
+      const checkboxResult: CheckboxParameterFormField = {
+        id: commonId,
+        type: ParameterInputType.Checkbox,
+        label: commonLabel,
+        description: commonDesc,
+        hint: commonHint,
+        hintType: commonHintType,
+        readonly: cf.readonly,
+        default: cf.defaultValue,
+      };
+      return checkboxResult;
+    }
     default:
       return null;
   }
@@ -262,7 +278,17 @@ export function convertMapToParameterValues(
           },
         }),
       );
-    } else if (typeof val === 'number' || typeof val === 'boolean') {
+    } else if (typeof val === 'boolean') {
+      result.push(
+        create(ParameterValueSchema, {
+          id,
+          value: {
+            case: 'checkboxValue',
+            value: { value: val },
+          },
+        }),
+      );
+    } else if (typeof val === 'number') {
       result.push(
         create(ParameterValueSchema, {
           id,
