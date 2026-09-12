@@ -81,6 +81,7 @@ func (ftl *FeatureTaskLabelImpl) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, LabelKeyInspectionFeatureFlag, true)
 	typedmap.Set(label, LabelKeyFeatureTaskTitle, ftl.title)
 	typedmap.Set(label, LabelKeyFeatureTaskDescription, ftl.description)
+	typedmap.Set(label, coretask.LabelKeyTaskDescription, ftl.description)
 	typedmap.Set(label, LabelKeyFeatureTaskOrder, ftl.featureOrder)
 	typedmap.Set(label, LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
 }

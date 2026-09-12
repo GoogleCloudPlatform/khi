@@ -45,6 +45,9 @@ var LabelKeySubsequentTaskRefs = NewTaskLabelKey[[]taskid.UntypedTaskReference](
 // LabelKeyTaskResultRetention indicates whether the task result should be retained in the runner after all dependent tasks finish.
 var LabelKeyTaskResultRetention = NewTaskLabelKey[bool](KHISystemPrefix + "task-result-retention")
 
+// LabelKeyTaskDescription is the task label to record a human-readable description of the task.
+var LabelKeyTaskDescription = NewTaskLabelKey[string](KHISystemPrefix + "task-description")
+
 // UntypedTask represents a task in the DAG without compile-time result type information.
 type UntypedTask interface {
 	UntypedID() taskid.UntypedTaskImplementationID

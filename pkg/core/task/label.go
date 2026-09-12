@@ -147,3 +147,8 @@ func NewTaskResultRetentionLabel(retain bool) LabelOpt {
 		retain: retain,
 	}
 }
+
+// WithTaskDescription returns a LabelOpt to attach a human-readable description to the task.
+func WithTaskDescription(description string) LabelOpt {
+	return WithLabelValue(LabelKeyTaskDescription, description)
+}
