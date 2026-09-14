@@ -1,0 +1,140 @@
+<!--
+Copyright 2026 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<div class="dialog-container">
+  <!-- Dialog Header -->
+  <div class="dialog-header">
+    <div class="header-title-section">
+      <mat-icon class="header-icon">info</mat-icon>
+      <div class="header-titles">
+        <h2 class="dialog-title">Inspection Metadata</h2>
+        <span class="dialog-subtitle">{{
+          viewModel().overview.inspectionName
+        }}</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button
+        mat-icon-button
+        class="close-button"
+        (click)="closed.emit()"
+        matTooltip="Close"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toolbar with expand / collapse controls -->
+  <div class="dialog-toolbar">
+    <div class="toolbar-status">
+      <span class="toolbar-type-badge">{{
+        viewModel().overview.inspectionType
+      }}</span>
+    </div>
+    <div class="toolbar-actions">
+      <button mat-button class="toolbar-button" (click)="expandAll()">
+        <mat-icon class="button-icon">unfold_more</mat-icon>
+        <span>Expand All</span>
+      </button>
+      <button mat-button class="toolbar-button" (click)="collapseAll()">
+        <mat-icon class="button-icon">unfold_less</mat-icon>
+        <span>Collapse All</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Scrollable Content -->
+  <div class="dialog-content">
+    <mat-accordion #accordion="matAccordion" [multi]="true">
+      <!-- 1. Overview Panel -->
+      <mat-expansion-panel [expanded]="true">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon class="panel-icon">dashboard</mat-icon>
+            <span class="panel-title-text">Overview</span>
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <khi-metadata-overview [overview]="viewModel().overview" />
+      </mat-expansion-panel>
+
+      <!-- 2. Errors Panel (only shown if has errors) -->
+      @if (hasErrors()) {
+        <mat-expansion-panel [expanded]="true" class="error-expansion-panel">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <mat-icon class="panel-icon error-panel-icon">error</mat-icon>
+              <span class="panel-title-text error-title-text">Errors</span>
+            </mat-panel-title>
+            <mat-panel-description>
+              <span class="error-badge">{{ viewModel().errors.length }}</span>
+            </mat-panel-description>
+          </mat-expansion-panel-header>
+          <khi-metadata-errors [errors]="viewModel().errors" />
+        </mat-expansion-panel>
+      }
+
+      <!-- 3. Queries Panel -->
+      @if (viewModel().queries.length > 0) {
+        <mat-expansion-panel [expanded]="false">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <mat-icon class="panel-icon">database</mat-icon>
+              <span class="panel-title-text">Queries</span>
+            </mat-panel-title>
+            <mat-panel-description>
+              <span class="count-badge">{{ viewModel().queries.length }}</span>
+            </mat-panel-description>
+          </mat-expansion-panel-header>
+          <khi-metadata-queries [queries]="viewModel().queries" />
+        </mat-expansion-panel>
+      }
+
+      <!-- 4. Logs Panel -->
+      @if (viewModel().logs.length > 0) {
+        <mat-expansion-panel [expanded]="false">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <mat-icon class="panel-icon">terminal</mat-icon>
+              <span class="panel-title-text">Logs</span>
+            </mat-panel-title>
+            <mat-panel-description>
+              <span class="count-badge">{{ viewModel().logs.length }}</span>
+            </mat-panel-description>
+          </mat-expansion-panel-header>
+          <khi-metadata-logs [logs]="viewModel().logs" />
+        </mat-expansion-panel>
+      }
+
+      <!-- 5. Plan Panel -->
+      @if (viewModel().plan.taskGraph) {
+        <mat-expansion-panel [expanded]="false">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <mat-icon class="panel-icon">account_tree</mat-icon>
+              <span class="panel-title-text">Plan</span>
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+          <khi-metadata-plan [plan]="viewModel().plan" />
+        </mat-expansion-panel>
+      }
+    </mat-accordion>
+
+    @if (viewModel().jobCommand; as command) {
+      <khi-job-command [command]="command" />
+    }
+  </div>
+</div>

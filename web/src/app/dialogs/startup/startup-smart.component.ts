@@ -14,17 +14,26 @@
  * limitations under the License.
  */
 
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, InjectionToken } from '@angular/core';
 import {
   MatDialog,
   MatDialogRef,
   MatDialogConfig,
 } from '@angular/material/dialog';
-import { interval, startWith } from 'rxjs';
+import { interval, startWith, firstValueFrom, Observable } from 'rxjs';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
-import { InspectionMetadataDialogComponent } from '../inspection-metadata/inspection-metadata.component';
+import { openInspectionMetadataDialog } from '../inspection-metadata/inspection-metadata.component';
 import { openInspectionRunTaskGraphDialog } from 'src/app/dialogs/inspection-run-task-graph/inspection-run-task-graph-smart.component';
-import { openNewInspectionDialog } from '../new-inspection/new-inspection.component';
+import {
+  openNewInspectionDialog,
+  hasDryRunErrors,
+  NewInspectionDialogData,
+} from '../new-inspection/new-inspection.component';
+import { openJobCommandInputDialog } from '../job-command-input/job-command-input-smart.component';
+import {
+  EXTENSION_STORE,
+  ExtensionStore,
+} from 'src/app/extensions/extension-common/extension-store';
 import {
   BACKEND_API,
   BackendAPI,
@@ -71,6 +80,7 @@ export class StartupDialogSmartComponent {
   private readonly progress = inject<ProgressDialogStatusUpdator>(
     PROGRESS_DIALOG_STATUS_UPDATOR,
   );
+  private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
 
   /**
    * The interval to refresh the start time of each tasks written as `xx seconds ago`.
@@ -89,11 +99,7 @@ export class StartupDialogSmartComponent {
         BackendConnectionStatus.Connecting && this.inspections().length === 0,
   );
 
-  private readonly ticker = toSignal(
-    interval(StartupDialogSmartComponent.UI_TIME_REFRESH_INTERVAL).pipe(
-      startWith(0),
-    ),
-  );
+  private readonly ticker = toSignal(inject(STARTUP_TIME_REFRESH_OBSERVABLE));
 
   protected readonly vmTasks = computed(() => {
     this.ticker(); // register dependency
@@ -148,6 +154,59 @@ export class StartupDialogSmartComponent {
     this.openNewInspectionDialogInternal();
   }
 
+  /**
+   * Opens the Job Command Input dialog and starts an inspection from the parsed CLI command.
+   */
+  protected async startFromJobCommand(): Promise<void> {
+    const dialogRef = openJobCommandInputDialog(this.dialog);
+    const parsed = await firstValueFrom(dialogRef.afterClosed());
+    if (!parsed) {
+      return;
+    }
+
+    this.progress.show();
+    this.progress.updateProgress({
+      message: 'Validating job command parameters...',
+      percent: 0,
+      mode: 'indeterminate',
+    });
+
+    try {
+      const client = await firstValueFrom(
+        this.backendAPI.createInspection(parsed.inspectionType),
+      );
+      if (parsed.features.length > 0) {
+        const featureMap = Object.fromEntries(
+          parsed.features.map((f) => [f, true]),
+        );
+        await firstValueFrom(
+          this.backendAPI.setEnabledFeatures(client.inspectionID, featureMap),
+        );
+      }
+      const dryrunRes = await firstValueFrom(
+        client.dryrunDirect(parsed.parameters),
+      );
+      if (hasDryRunErrors(dryrunRes)) {
+        this.openNewInspectionDialogInternal({
+          initialInspectionTypeId: parsed.inspectionType,
+          initialFeatureIds: parsed.features,
+          initialParameters: parsed.parameters,
+        });
+        return;
+      }
+      await firstValueFrom(client.run(parsed.parameters));
+      this.extension.notifyLifecycleOnInspectionStart();
+    } catch {
+      this.openNewInspectionDialogInternal({
+        initialInspectionTypeId: parsed.inspectionType,
+        initialFeatureIds: parsed.features,
+        initialParameters: parsed.parameters,
+      });
+    } finally {
+      this.progress.dismiss();
+    }
+  }
+
   protected openKhiFile() {
     this.loader.uploadFromFile();
   }
@@ -165,10 +224,7 @@ export class StartupDialogSmartComponent {
 
   protected showMetadata(id: string) {
     this.backendAPI.getInspectionMetadata(id).subscribe((metadata) => {
-      this.dialog.open(InspectionMetadataDialogComponent, {
-        data: metadata,
-        maxHeight: 600,
-      });
+      openInspectionMetadataDialog(this.dialog, metadata);
     });
   }
 
@@ -210,8 +266,8 @@ export class StartupDialogSmartComponent {
     }
   }
 
-  private openNewInspectionDialogInternal() {
-    openNewInspectionDialog(this.dialog);
+  private openNewInspectionDialogInternal(data?: NewInspectionDialogData) {
+    openNewInspectionDialog(this.dialog, data);
   }
 }
 
@@ -233,3 +289,16 @@ export function openStartupDialog(
     ...config,
   });
 }
+
+/**
+ * Injection token for the observable that triggers UI time refreshes.
+ * Defaults to an interval matching UI_TIME_REFRESH_INTERVAL starting with 0.
+ */
+export const STARTUP_TIME_REFRESH_OBSERVABLE = new InjectionToken<
+  Observable<number>
+>('STARTUP_TIME_REFRESH_OBSERVABLE', {
+  factory: () =>
+    interval(StartupDialogSmartComponent.UI_TIME_REFRESH_INTERVAL).pipe(
+      startWith(0),
+    ),
+});

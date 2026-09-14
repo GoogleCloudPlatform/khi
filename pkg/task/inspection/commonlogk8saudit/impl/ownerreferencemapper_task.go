@@ -125,7 +125,7 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 		}
 		namespace := k8sFieldSet.Namespace
 		if _, ok := r.nonNamespacedOwnerTypes[fmt.Sprintf("%s#%s", apiVersion, kind)]; ok {
-			namespace = "cluster-scope"
+			namespace = commonlogk8saudit_contract.ClusterScopeNamespace
 		}
 
 		ownerIdentity := &commonlogk8saudit_contract.ResourceIdentity{

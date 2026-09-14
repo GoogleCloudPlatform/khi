@@ -51,6 +51,7 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 	commonlogk8saudit_contract.ChangeTargetGrouperTaskID.Ref(),
 	commonlogk8saudit_contract.K8sResourceMergeConfigTaskID.Ref(),
 	commonlogk8saudit_contract.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
+	commonlogk8saudit_contract.InitialResourceStateProviderRef,
 }, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceManifestLogGroupMap, error) {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{}, nil
@@ -58,6 +59,7 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 
 	logGroups := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ChangeTargetGrouperTaskID.Ref())
 	mergeConfigRegistry := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.K8sResourceMergeConfigTaskID.Ref())
+	initialStateProvider := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.InitialResourceStateProviderRef)
 	result := commonlogk8saudit_contract.ResourceManifestLogGroupMap{}
 	resultLock := sync.Mutex{}
 
@@ -87,6 +89,11 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 				mergeConfigRegistry: mergeConfigRegistry,
 				resourceName:        group.Resource.Name,
 				blockStore:          blockStore,
+			}
+			// Merging the first partial patch onto the state observed before the logs keeps the rendered
+			// manifest complete instead of showing only the patched fields.
+			if initialBody, found := initialStateProvider.InitialResourceState(group.Resource); found {
+				generator.prevRevisionReader = initialBody
 			}
 			for _, l := range group.Logs {
 				select {

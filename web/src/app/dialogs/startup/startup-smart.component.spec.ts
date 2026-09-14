@@ -15,37 +15,75 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { StartupDialogSmartComponent } from './startup-smart.component';
+import {
+  StartupDialogSmartComponent,
+  STARTUP_TIME_REFRESH_OBSERVABLE,
+} from './startup-smart.component';
 import { StartupDialogLayoutComponent } from 'src/app/dialogs/startup/components/startup-dialog-layout.component';
 import { signal } from '@angular/core';
-import { MatDialogRef } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
   BACKEND_API,
   BackendAPI,
 } from 'src/app/services/api/backend-api-interface';
+import { InspectionClient } from 'src/app/services/api/backend-api.service';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { ProgressDialogService } from 'src/app/services/progress/progress-dialog.service';
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
 import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
 import { InspectionListItem } from 'src/app/generated/api/v1/inspection_pb';
+import {
+  ParameterFormValidationTiming,
+  ParameterHintType,
+  ParameterInputType,
+} from 'src/app/common/schema/form-types';
 
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import {
   EXTENSION_STORE,
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
 import { By } from '@angular/platform-browser';
+import { NewInspectionDialogComponent } from 'src/app/dialogs/new-inspection/new-inspection.component';
+import { JobCommandInputSmartComponent } from 'src/app/dialogs/job-command-input/job-command-input-smart.component';
 
 describe('StartupDialogComponent', () => {
   let component: ComponentFixture<StartupDialogSmartComponent>;
 
   let backendAPISpy: jasmine.SpyObj<BackendAPI>;
+  let dialogSpy: jasmine.SpyObj<MatDialog>;
+  let mockInspectionClient: {
+    inspectionID: string;
+    dryrunDirect: jasmine.Spy;
+    run: jasmine.Spy;
+  };
 
   beforeEach(async () => {
     backendAPISpy = jasmine.createSpyObj<BackendAPI>('BackendAPIService', [
       'patchInspection',
+      'createInspection',
+      'setEnabledFeatures',
     ]);
     backendAPISpy.patchInspection.and.returnValue(of());
+    mockInspectionClient = {
+      inspectionID: 'test-inspection-id',
+      dryrunDirect: jasmine.createSpy('dryrunDirect').and.returnValue(
+        of({
+          metadata: {
+            form: [],
+            query: [],
+            plan: { tasks: [] },
+          },
+        }),
+      ),
+      run: jasmine.createSpy('run').and.returnValue(of(undefined)),
+    };
+    backendAPISpy.createInspection.and.returnValue(
+      of(mockInspectionClient as unknown as InspectionClient),
+    );
+    backendAPISpy.setEnabledFeatures.and.returnValue(of(undefined));
+
+    dialogSpy = jasmine.createSpyObj<MatDialog>('MatDialog', ['open']);
 
     TestBed.configureTestingModule({
       providers: [
@@ -53,6 +91,10 @@ describe('StartupDialogComponent', () => {
         {
           provide: MatDialogRef,
           useValue: {},
+        },
+        {
+          provide: MatDialog,
+          useValue: dialogSpy,
         },
         {
           provide: BACKEND_API,
@@ -73,10 +115,18 @@ describe('StartupDialogComponent', () => {
           provide: InspectionDataLoaderService,
           useClass: InspectionDataLoaderService,
         },
+        {
+          provide: STARTUP_TIME_REFRESH_OBSERVABLE,
+          useValue: of(0),
+        },
       ],
     });
     component = TestBed.createComponent(StartupDialogSmartComponent);
     component.detectChanges();
+  });
+
+  afterEach(() => {
+    component?.destroy();
   });
 
   it('should create', () => {
@@ -97,5 +147,191 @@ describe('StartupDialogComponent', () => {
         name: 'New Title',
       },
     );
+  });
+
+  function createJobCommandDialogRefSpy(result: unknown) {
+    return {
+      close: jasmine.createSpy('close'),
+      afterClosed: jasmine.createSpy('afterClosed').and.returnValue(of(result)),
+    };
+  }
+
+  function setupJobCommandDialogOpenSpy(parsedCommand: unknown) {
+    dialogSpy.open.and.callFake((componentClass: unknown) => {
+      if (componentClass === JobCommandInputSmartComponent) {
+        return createJobCommandDialogRefSpy(
+          parsedCommand,
+        ) as unknown as MatDialogRef<unknown>;
+      }
+      return {
+        close: jasmine.createSpy('close'),
+        afterClosed: jasmine
+          .createSpy('afterClosed')
+          .and.returnValue(of(undefined)),
+      } as unknown as MatDialogRef<unknown>;
+    });
+  }
+
+  function triggerStartFromJobCommand(
+    fixture: ComponentFixture<StartupDialogSmartComponent>,
+  ): Promise<void> {
+    return (
+      fixture.componentInstance as unknown as {
+        startFromJobCommand: () => Promise<void>;
+      }
+    ).startFromJobCommand();
+  }
+
+  it('should call startFromJobCommand when layout emits startFromJobCommand', () => {
+    spyOn(
+      component.componentInstance as unknown as {
+        startFromJobCommand: () => Promise<void>;
+      },
+      'startFromJobCommand',
+    );
+    const layoutEl = component.debugElement.query(
+      By.directive(StartupDialogLayoutComponent),
+    );
+    layoutEl.triggerEventHandler('startFromJobCommand', null);
+
+    expect(
+      (
+        component.componentInstance as unknown as {
+          startFromJobCommand: () => Promise<void>;
+        }
+      ).startFromJobCommand,
+    ).toHaveBeenCalled();
+  });
+
+  it('should do nothing when Job Command dialog is dismissed without input', async () => {
+    const dialogRefSpy = createJobCommandDialogRefSpy(undefined);
+    dialogSpy.open.and.returnValue(
+      dialogRefSpy as unknown as MatDialogRef<unknown>,
+    );
+
+    await triggerStartFromJobCommand(component);
+
+    expect(dialogSpy.open).toHaveBeenCalled();
+    expect(backendAPISpy.createInspection).not.toHaveBeenCalled();
+  });
+
+  it('should create, configure features, dryrun, and run inspection when dryrun has no errors', async () => {
+    const parsedCommand = {
+      inspectionType: 'gke',
+      features: ['feature-a'],
+      parameters: { cluster: 'my-cluster' },
+    };
+    setupJobCommandDialogOpenSpy(parsedCommand);
+
+    await triggerStartFromJobCommand(component);
+
+    expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
+    expect(backendAPISpy.setEnabledFeatures).toHaveBeenCalledWith(
+      'test-inspection-id',
+      { 'feature-a': true },
+    );
+    expect(mockInspectionClient.dryrunDirect).toHaveBeenCalledWith({
+      cluster: 'my-cluster',
+    });
+    expect(mockInspectionClient.run).toHaveBeenCalledWith({
+      cluster: 'my-cluster',
+    });
+  });
+
+  it('should fall back to opening NewInspectionDialogComponent when dryrun has errors', async () => {
+    const parsedCommand = {
+      inspectionType: 'gke',
+      features: ['feature-a'],
+      parameters: { cluster: 'my-cluster' },
+    };
+    setupJobCommandDialogOpenSpy(parsedCommand);
+
+    mockInspectionClient.dryrunDirect.and.returnValue(
+      of({
+        metadata: {
+          form: [
+            {
+              id: 'cluster',
+              type: ParameterInputType.Text,
+              label: 'Cluster',
+              description: '',
+              hint: 'Required',
+              hintType: ParameterHintType.Error,
+              default: '',
+              readonly: false,
+              suggestions: [],
+              validationTiming: ParameterFormValidationTiming.Blur,
+            },
+          ],
+          query: [],
+          plan: { tasks: [] },
+        },
+      }),
+    );
+
+    await triggerStartFromJobCommand(component);
+
+    expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
+    expect(mockInspectionClient.run).not.toHaveBeenCalled();
+    expect(dialogSpy.open).toHaveBeenCalledTimes(3);
+    expect(dialogSpy.open).toHaveBeenCalledWith(
+      NewInspectionDialogComponent,
+      jasmine.objectContaining({
+        data: {
+          initialInspectionTypeId: 'gke',
+          initialFeatureIds: ['feature-a'],
+          initialParameters: { cluster: 'my-cluster' },
+        },
+      }),
+    );
+  });
+
+  it('should fall back to opening NewInspectionDialogComponent when API call fails', async () => {
+    const parsedCommand = {
+      inspectionType: 'gke',
+      features: ['feature-a'],
+      parameters: { cluster: 'my-cluster' },
+    };
+    setupJobCommandDialogOpenSpy(parsedCommand);
+
+    backendAPISpy.createInspection.and.returnValue(
+      throwError(() => new Error('API error')),
+    );
+
+    await triggerStartFromJobCommand(component);
+
+    expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
+    expect(dialogSpy.open).toHaveBeenCalledTimes(3);
+    expect(dialogSpy.open).toHaveBeenCalledWith(
+      NewInspectionDialogComponent,
+      jasmine.objectContaining({
+        data: {
+          initialInspectionTypeId: 'gke',
+          initialFeatureIds: ['feature-a'],
+          initialParameters: { cluster: 'my-cluster' },
+        },
+      }),
+    );
+    expect(mockInspectionClient.run).not.toHaveBeenCalled();
+  });
+
+  it('should skip setEnabledFeatures when parsed command has no features', async () => {
+    const parsedCommand = {
+      inspectionType: 'gke',
+      features: [],
+      parameters: { cluster: 'my-cluster' },
+    };
+    setupJobCommandDialogOpenSpy(parsedCommand);
+
+    await triggerStartFromJobCommand(component);
+
+    expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
+    expect(backendAPISpy.setEnabledFeatures).not.toHaveBeenCalled();
+    expect(mockInspectionClient.dryrunDirect).toHaveBeenCalledWith({
+      cluster: 'my-cluster',
+    });
+    expect(mockInspectionClient.run).toHaveBeenCalledWith({
+      cluster: 'my-cluster',
+    });
   });
 });

@@ -35,6 +35,13 @@
       <p class="description">
         Collect and process cluster logs for visual analysis.
       </p>
+      <button
+        type="button"
+        class="job-command-link"
+        (click)="startFromJobCommand.emit()"
+      >
+        Or start from a job command
+      </button>
     </div>
 
     <div class="action-item">

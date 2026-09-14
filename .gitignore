@@ -20,6 +20,7 @@ __debug_bin*
 go-cover.html
 go-cover.output
 result.json
+coverage.out
 
 # Node dependencies
 node_modules/

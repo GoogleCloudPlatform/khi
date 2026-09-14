@@ -1,0 +1,114 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$error-bg-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 50);
+$error-border-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 300);
+$error-icon-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 700);
+$error-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$error-id-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 900);
+$link-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 700);
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.errors-container {
+  display: grid;
+  grid-template:
+    'error-item' auto
+    / 1fr;
+  gap: 12px;
+}
+
+.error-card {
+  display: grid;
+  grid-template:
+    'header' auto
+    'message' auto
+    'link' auto
+    / 1fr;
+  gap: 8px;
+
+  padding: 12px 16px;
+  background-color: $error-bg-color;
+  border: 1px solid $error-border-color;
+  border-left: 4px solid $error-icon-color;
+  border-radius: 6px;
+}
+
+.error-header {
+  grid-area: header;
+  display: grid;
+  grid-template:
+    'icon id' auto
+    / auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.error-icon {
+  grid-area: icon;
+  color: $error-icon-color;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.error-id {
+  grid-area: id;
+  font-weight: 600;
+  font-size: 13px;
+  color: $error-id-color;
+  font-family: 'Roboto Mono', 'Google Sans Code', monospace;
+}
+
+.error-message {
+  grid-area: message;
+  font-size: 13px;
+  line-height: 1.5;
+  color: $error-text-color;
+}
+
+.error-link-container {
+  grid-area: link;
+}
+
+.error-link {
+  display: inline-grid;
+  grid-template:
+    'label icon' auto
+    / auto auto;
+  align-items: center;
+  gap: 4px;
+  color: $link-color;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.link-icon {
+  grid-area: icon;
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}

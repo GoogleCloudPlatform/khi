@@ -38,6 +38,11 @@ var K8sAuditLogErrorExtractorRef = taskid.NewTaskReference[K8sAuditLogErrorExtra
 // K8sAuditLogParserTailRef is the task reference for the task to depend all enabled k8s audit log parsing sub tasks.
 var K8sAuditLogParserTailRef = taskid.NewTaskReference[struct{}](TaskIDPrefix + "k8s-auditlog-parser-tail")
 
+// InitialResourceStateProviderRef is the task reference for the task providing the resource state that
+// existed before the audit logs begin. Environments without a resource inventory fall back to the empty
+// implementation registered in this package.
+var InitialResourceStateProviderRef = taskid.NewTaskReference[InitialResourceStateProvider](TaskIDPrefix + "initial-resource-state-provider")
+
 // K8sAuditLogIngesterTaskID is the task ID for the task to serialize the k8s audit log.
 var K8sAuditLogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "k8s-auditlog-ingester")
 
@@ -46,9 +51,6 @@ var SuccessLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskI
 
 // NonSuccessLogFilterTaskID is the task ID for the task to filter non-success logs.
 var NonSuccessLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "non-success-log-filter")
-
-// LogSorterTaskID is the task ID for the task to sort logs by time.
-var LogSorterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-sorter")
 
 // LogSummaryGrouperTaskID is the task ID for the task to group logs for summary generation.
 var LogSummaryGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-summary-grouper")

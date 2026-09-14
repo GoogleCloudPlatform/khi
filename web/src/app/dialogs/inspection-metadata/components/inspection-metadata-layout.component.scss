@@ -1,0 +1,225 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$header-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 100);
+$toolbar-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$title-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$subtitle-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$header-icon-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 600);
+$panel-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$type-badge-bg: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
+$type-badge-text: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 800);
+$count-badge-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+$count-badge-text: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 800);
+$error-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 700);
+$error-badge-bg: mat.m2-get-color-from-palette(mat.$m2-red-palette, 100);
+$error-badge-text: mat.m2-get-color-from-palette(mat.$m2-red-palette, 800);
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dialog-container {
+  display: grid;
+  grid-template:
+    'header' auto
+    'toolbar' auto
+    'content' 1fr
+    / 1fr;
+
+  height: 100%;
+  max-height: 85vh;
+  box-sizing: border-box;
+  background-color: $bg-color;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dialog-header {
+  grid-area: header;
+  display: grid;
+  grid-template:
+    'titles actions' auto
+    / 1fr auto;
+  align-items: center;
+  padding: 12px 20px;
+  background-color: $header-bg-color;
+  border-bottom: 1px solid $border-color;
+}
+
+.header-title-section {
+  grid-area: titles;
+  display: grid;
+  grid-template:
+    'icon titles' auto
+    / auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  grid-area: icon;
+  color: $header-icon-color;
+  font-size: 26px;
+  width: 26px;
+  height: 26px;
+}
+
+.header-titles {
+  grid-area: titles;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: $title-color;
+  line-height: 1.2;
+}
+
+.dialog-subtitle {
+  font-size: 13px;
+  color: $subtitle-color;
+}
+
+.header-actions {
+  grid-area: actions;
+}
+
+.dialog-toolbar {
+  grid-area: toolbar;
+  display: grid;
+  grid-template:
+    'status actions' auto
+    / 1fr auto;
+  align-items: center;
+  padding: 8px 20px;
+  background-color: $toolbar-bg-color;
+  border-bottom: 1px solid $border-color;
+}
+
+.toolbar-status {
+  grid-area: status;
+}
+
+.toolbar-type-badge {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background-color: $type-badge-bg;
+  color: $type-badge-text;
+}
+
+.toolbar-actions {
+  grid-area: actions;
+  display: grid;
+  grid-template:
+    'expand collapse' auto
+    / auto auto;
+  gap: 8px;
+}
+
+.toolbar-button {
+  font-size: 12px;
+}
+
+.button-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+}
+
+.dialog-content {
+  grid-area: content;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+mat-accordion {
+  display: block;
+}
+
+mat-expansion-panel {
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+}
+
+mat-panel-title {
+  display: grid;
+  grid-template:
+    'icon text' auto
+    / auto 1fr;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.panel-icon {
+  grid-area: icon;
+  color: $panel-icon-color;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.panel-title-text {
+  grid-area: text;
+}
+
+.count-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: $count-badge-bg;
+  color: $count-badge-text;
+  font-weight: 600;
+}
+
+.error-title-text {
+  color: $error-color;
+}
+
+.error-panel-icon {
+  color: $error-color;
+}
+
+.error-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: $error-badge-bg;
+  color: $error-badge-text;
+  font-weight: 600;
+}
+
+khi-job-command {
+  display: block;
+  margin-top: 16px;
+}

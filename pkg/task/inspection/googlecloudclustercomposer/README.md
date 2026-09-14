@@ -26,14 +26,14 @@ The Composer inspection pipeline can be divided into four main phases:
 ### 3. Parsing & Mapping Pipelines
 
 Logs are filtered into specific component streams using extractors. Each stream typically follows the pattern of:
-`Filter` -> `[Sorter]` -> `Grouper` -> `Ingester` -> `Mapper`
+`Filter` -> `Grouper` -> `Ingester` -> `Mapper`
 
 - **Scheduler Pipeline**: Handles `airflow-scheduler` component logs.
   - Tasks: `AirflowSchedulerLogFilterTask`, `AirflowSchedulerLogGrouperTask`, `AirflowSchedulerLogIngesterTask`, `AirflowSchedulerLogToTimelineMapperTask`.
 - **Worker Pipeline**: Handles `airflow-worker` component logs.
   - Tasks: `AirflowWorkerLogFilterTask`, `AirflowWorkerLogGrouperTask`, `AirflowWorkerLogIngesterTask`, `AirflowWorkerLogToTimelineMapperTask`.
-- **Dag Processor Manager Pipeline**: Handles `airflow-dag-processor-manager` logs (requires sorting by time).
-  - Tasks: `AirflowDagProcessorManagerLogFilterTask`, `AirflowDagProcessorManagerLogSorterTask`, `AirflowDagProcessorManagerLogGrouperTask`, `AirflowDagProcessorManagerLogIngesterTask`, `AirflowDagProcessorManagerLogToTimelineMapperTask`.
+- **Dag Processor Manager Pipeline**: Handles `airflow-dag-processor-manager` logs.
+  - Tasks: `AirflowDagProcessorManagerLogFilterTask`, `AirflowDagProcessorManagerLogGrouperTask`, `AirflowDagProcessorManagerLogIngesterTask`, `AirflowDagProcessorManagerLogToTimelineMapperTask`.
 - **Other Pipeline (Fallback)**: Catches any component logs that do not match the above three (e.g., `webserver`, `triggerer`).
   - Tasks: `AirflowOtherLogFilterTask`, `AirflowOtherLogGrouperTask`, `AirflowOtherLogIngesterTask`, `AirflowOtherLogToTimelineMapperTask`.
 
@@ -114,8 +114,7 @@ graph TD
     WorkIngester --> WorkMapper[AirflowWorkerLogToTimelineMapperTask]:::pipeline
 
     LogQuery --> DpmFilter[AirflowDagProcessorManagerLogFilterTask]:::pipeline
-    DpmFilter --> DpmSorter[AirflowDagProcessorManagerLogSorterTask]:::pipeline
-    DpmSorter --> DpmGrouper[AirflowDagProcessorManagerLogGrouperTask]:::pipeline
+    DpmFilter --> DpmGrouper[AirflowDagProcessorManagerLogGrouperTask]:::pipeline
     DpmGrouper --> DpmIngester[AirflowDagProcessorManagerLogIngesterTask]:::pipeline
     DpmIngester --> DpmMapper[AirflowDagProcessorManagerLogToTimelineMapperTask]:::pipeline
 

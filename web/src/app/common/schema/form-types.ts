@@ -22,6 +22,7 @@ export enum ParameterInputType {
   Text = 'text',
   File = 'file',
   Set = 'set',
+  Checkbox = 'checkbox',
 }
 
 /**
@@ -207,8 +208,24 @@ export interface SetParameterFormField extends ParameterFormFieldBase {
   allowCustomValue: boolean;
 }
 
+/**
+ * Checkbox type parameter specific data.
+ */
+export interface CheckboxParameterFormField extends ParameterFormFieldBase {
+  readonly type: ParameterInputType.Checkbox;
+  /**
+   * Whether this checkbox input is read-only.
+   */
+  readonly readonly: boolean;
+  /**
+   * Default checked state.
+   */
+  readonly default: boolean;
+}
+
 export type ParameterFormField =
   | GroupParameterFormField
   | TextParameterFormField
   | FileParameterFormField
-  | SetParameterFormField;
+  | SetParameterFormField
+  | CheckboxParameterFormField;

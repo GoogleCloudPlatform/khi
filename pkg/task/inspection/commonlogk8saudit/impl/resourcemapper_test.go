@@ -22,6 +22,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -31,6 +32,32 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+// testInitialResourceStateProvider reports the same manifest for every resource, or reports no
+// coverage at all when body is nil.
+type testInitialResourceStateProvider struct {
+	body *structured.NodeReader
+}
+
+var _ commonlogk8saudit_contract.InitialResourceStateProvider = (*testInitialResourceStateProvider)(nil)
+
+func (p *testInitialResourceStateProvider) InitialResourceState(identity *commonlogk8saudit_contract.ResourceIdentity) (*structured.NodeReader, bool) {
+	return p.body, p.body != nil
+}
+
+// newTestInitialResourceStateProvider builds a provider reporting the given manifest. An empty
+// string means the inventory doesn't cover the resource.
+func newTestInitialResourceStateProvider(t *testing.T, bodyYAML string) commonlogk8saudit_contract.InitialResourceStateProvider {
+	t.Helper()
+	if bodyYAML == "" {
+		return &testInitialResourceStateProvider{}
+	}
+	node, err := structured.FromYAML(bodyYAML)
+	if err != nil {
+		t.Fatalf("failed to parse the initial resource state YAML: %v", err)
+	}
+	return &testInitialResourceStateProvider{body: structured.NewNodeReader(node)}
+}
 
 func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T) {
 	testTime := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
@@ -620,6 +647,7 @@ uid: "test-uid"`,
 			subresourcePath = builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "binding", Type: inspectioncore_contract.TimelineTypeSubresource})
 
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.InitialResourceStateProviderRef, newTestInitialResourceStateProvider(t, ""))
 
 			// Setup the Log and Mock Group Context dynamically for each test case.
 			logObj := testlog.NewMockLog(
@@ -731,7 +759,10 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 			bodyYAML string
 			time     time.Time
 		}
-		assert func(t *testing.T, changeSets []*khifilev6.TimelineChangeSet)
+		// initialStateYAML is the manifest the initial resource state provider reports. An empty string
+		// means the inventory does not cover the resource.
+		initialStateYAML string
+		assert           func(t *testing.T, changeSets []*khifilev6.TimelineChangeSet)
 	}{
 		{
 			name: "patch without creationTimestamp followed by patch and update with creationTimestamp",
@@ -919,11 +950,45 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 				}
 			},
 		},
+		{
+			name: "patch with an initial resource state reported by the inventory",
+			eventLogs: []struct {
+				verb     *pb.Verb
+				bodyYAML string
+				time     time.Time
+			}{
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					bodyYAML: `metadata:
+  name: "test"
+  creationTimestamp: "2023-10-26T09:50:00Z"`,
+					time: testTime1,
+				},
+			},
+			initialStateYAML: `metadata:
+  name: "test"`,
+			assert: func(t *testing.T, changeSets []*khifilev6.TimelineChangeSet) {
+				var existingLogNotFoundCount int
+				for _, cs := range changeSets {
+					cs.ForEachRevision(func(_ *khifilev6.TimelinePath, revs []*khifilev6.StagingRevision) {
+						for _, r := range revs {
+							if r.StateType == commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
+								existingLogNotFoundCount++
+							}
+						}
+					})
+				}
+				if existingLogNotFoundCount != 0 {
+					t.Errorf("expected no ExistingLogNotFound revision when the inventory covers the resource, got %d", existingLogNotFoundCount)
+				}
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.InitialResourceStateProviderRef, newTestInitialResourceStateProvider(t, tc.initialStateYAML))
 			mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSetting{}
 
 			targetResource := &commonlogk8saudit_contract.ResourceIdentity{

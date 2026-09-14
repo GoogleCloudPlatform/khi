@@ -1,0 +1,58 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.dialog-description {
+  margin-bottom: 16px;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 14px;
+}
+
+.command-textarea-field {
+  width: 100%;
+
+  textarea {
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    resize: vertical;
+  }
+}
+
+.error-callout {
+  display: grid;
+  grid-template:
+    'icon message' auto
+    / auto 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background-color: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  font-size: 13px;
+
+  mat-icon {
+    grid-area: icon;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  span {
+    grid-area: message;
+  }
+}

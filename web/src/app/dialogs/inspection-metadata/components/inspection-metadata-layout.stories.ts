@@ -1,0 +1,155 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { Meta, StoryObj } from '@storybook/angular';
+import { InspectionMetadataLayoutComponent } from './inspection-metadata-layout.component';
+
+const meta: Meta<InspectionMetadataLayoutComponent> = {
+  title: 'Dialogs/InspectionMetadata/InspectionMetadataLayout',
+  component: InspectionMetadataLayoutComponent,
+  tags: ['autodocs'],
+};
+
+export default meta;
+type Story = StoryObj<InspectionMetadataLayoutComponent>;
+
+export const Default: Story = {
+  args: {
+    viewModel: {
+      overview: {
+        inspectionType: 'gcp-gke',
+        inspectionName: 'Production GKE Cluster - Node Pool Failure',
+        inspectionTypeIconPath: '',
+        formattedStartTime: '2023-11-14T22:13:20+00:00',
+        formattedEndTime: '2023-11-15T00:13:20+00:00',
+        durationText: '2h',
+        suggestedFilename: 'prod-gke-cluster-node-pool-failure.khi',
+        fileSizeText: '14.8 MB',
+      },
+      queries: [
+        {
+          id: 'k8s-audit',
+          name: 'GKE Kubernetes Audit Logs',
+          query:
+            'resource.type="k8s_cluster"\nlogName="projects/test-project/logs/cloudaudit.googleapis.com%2Factivity"',
+        },
+        {
+          id: 'node-systemd',
+          name: 'Node systemd journals',
+          query: 'resource.type="k8s_node"\nlogName=~"systemd"',
+        },
+      ],
+      logs: [
+        {
+          id: 'fetch-audit',
+          name: 'AuditLogFetcherTask',
+          log: '[INFO] Initializing Google Cloud Logging client\n[INFO] Filter configured: resource.type="k8s_cluster"\n[INFO] Stream completed: 24500 entries received\n[INFO] Processed in 1.42s',
+        },
+        {
+          id: 'parse-k8s',
+          name: 'KubernetesEventParserTask',
+          log: '[INFO] Starting event parsing\n[INFO] Identified 12 namespaces, 84 pods, 16 nodes\n[INFO] Timeline graph constructed with 1042 revisions',
+        },
+      ],
+      plan: {
+        taskGraph:
+          'digraph G {\n  rankdir=LR;\n  node [shape=box];\n  "AuditLogFetcherTask" -> "KubernetesEventParserTask";\n  "KubernetesEventParserTask" -> "TimelineBuilderTask";\n}',
+      },
+      errors: [],
+    },
+  },
+};
+
+export const WithErrors: Story = {
+  args: {
+    viewModel: {
+      overview: {
+        inspectionType: 'gcp-gke',
+        inspectionName: 'Cluster Beta Partial Inspection',
+        inspectionTypeIconPath: '',
+        formattedStartTime: '2023-11-14T22:13:20+00:00',
+        formattedEndTime: '2023-11-14T23:13:20+00:00',
+        durationText: '1h',
+        suggestedFilename: 'cluster-beta-partial.khi',
+        fileSizeText: '2.1 MB',
+      },
+      queries: [
+        {
+          id: 'k8s-audit',
+          name: 'GKE Kubernetes Audit Logs',
+          query: 'resource.type="k8s_cluster"',
+        },
+      ],
+      logs: [
+        {
+          id: 'fetch-audit',
+          name: 'AuditLogFetcherTask',
+          log: '[ERROR] Request deadline exceeded while querying Cloud Logging API\n[WARN] Partial result returned',
+        },
+      ],
+      plan: {
+        taskGraph: 'digraph G { "Fetch" -> "Parse"; }',
+      },
+      errors: [
+        {
+          errorId: 'DEADLINE_EXCEEDED',
+          message:
+            'The query took too long and timed out before all entries were fetched. Try narrowing the inspection time range.',
+          link: 'https://cloud.google.com/logging/docs/reference/v2/rpc/google.logging.v2',
+        },
+        {
+          errorId: 'RATE_LIMIT_WARNING',
+          message:
+            'Logging API quota limit was approached during inspection execution.',
+          link: '',
+        },
+      ],
+    },
+  },
+};
+
+export const Minimal: Story = {
+  args: {
+    viewModel: {
+      overview: {
+        inspectionType: 'local-file',
+        inspectionName: 'Uploaded Archive',
+        inspectionTypeIconPath: '',
+        formattedStartTime: '2023-11-14T22:13:20+00:00',
+        formattedEndTime: '2023-11-14T22:23:20+00:00',
+        durationText: '10m',
+        suggestedFilename: 'uploaded-archive.khi',
+        fileSizeText: '840 KB',
+      },
+      queries: [],
+      logs: [],
+      plan: {
+        taskGraph: '',
+      },
+      errors: [],
+    },
+  },
+};
+
+export const WithJobCommand: Story = {
+  args: {
+    viewModel: {
+      ...Default.args!.viewModel!,
+      jobCommand:
+        './khi --job-mode --inspection-type gcp-gke --cluster my-cluster',
+    },
+  },
+};

@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commonlogk8saudit_impl
+package googlecloudcaik8s_contract
 
 import (
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 )
 
-// LogSorterTask is the task to sort logs by time.
-var LogSorterTask = inspectiontaskbase.NewLogSorterByTimeTask(
-	commonlogk8saudit_contract.LogSorterTaskID,
-	commonlogk8saudit_contract.SuccessLogFilterTaskID.Ref(),
+// The following block defines the registered timeline style LogTypes.
+var (
+	// LogTypeCAIResourceSnapshot represents the log type for existing cluster resources discovered from CAI.
+	LogTypeCAIResourceSnapshot = style.MustRegisterLogType("Asset Inventory", "Asset Inventory Resource Snapshot", style.Color{R: 0.2, G: 0.4, B: 0.6, A: 1.0}, style.ColorWhite)
 )

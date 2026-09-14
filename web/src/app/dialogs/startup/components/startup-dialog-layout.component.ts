@@ -54,6 +54,9 @@ export class StartupDialogLayoutComponent {
   /** Emitted when the user clicks the 'Open .khi file' button. */
   public readonly openKhiFile = output<void>();
 
+  /** Emitted when the user clicks the 'Start from Job Command' button. */
+  public readonly startFromJobCommand = output<void>();
+
   /** Emitted when an inspection result is opened. */
   public readonly openInspectionResult = output<string>();
 

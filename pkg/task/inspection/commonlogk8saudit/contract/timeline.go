@@ -102,7 +102,7 @@ func MustK8sClusterScopeResourceTimeline(ctx context.Context, kindTimeline *khif
 	}
 
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	clusterScopeNamespaceTimeline := MustK8sNamespaceTimeline(ctx, kindTimeline, "cluster-scope")
+	clusterScopeNamespaceTimeline := MustK8sNamespaceTimeline(ctx, kindTimeline, ClusterScopeNamespace)
 	return builder.TimelineAccumulator.GetPath(clusterScopeNamespaceTimeline, khifilev6.PathSegment{
 		Name: resourceName,
 		Type: inspectioncore_contract.TimelineTypeResource,

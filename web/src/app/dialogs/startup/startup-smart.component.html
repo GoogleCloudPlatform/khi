@@ -20,6 +20,7 @@
   [items]="vmTasks()"
   [isLoading]="isLoading()"
   (newInvestigation)="openNewInspectionDialog()"
+  (startFromJobCommand)="startFromJobCommand()"
   (openKhiFile)="openKhiFile()"
   (openInspectionResult)="openTaskResult($event)"
   (openInspectionMetadata)="showMetadata($event)"

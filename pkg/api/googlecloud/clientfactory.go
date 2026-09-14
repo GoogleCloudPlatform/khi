@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sync"
 
+	asset "cloud.google.com/go/asset/apiv1"
 	compute "cloud.google.com/go/compute/apiv1"
 	logging "cloud.google.com/go/logging/apiv2"
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
@@ -49,12 +50,14 @@ type ClientFactory struct {
 	RegionsClientOptions          []ClientFactoryOptionsModifiers
 	ComposerServiceOptions        []ClientFactoryOptionsModifiers
 	MonitoringMetricClientOptions []ClientFactoryOptionsModifiers
+	AssetClientOptions            []ClientFactoryOptionsModifiers
 
 	mu                           sync.Mutex
 	loggingClientsCache          map[string]*logging.Client
 	regionsClientsCache          map[string]*compute.RegionsClient
 	composerServicesCache        map[string]*composer.Service
 	monitoringMetricClientsCache map[string]*monitoring.MetricClient
+	assetClientsCache            map[string]*asset.Client
 }
 
 // NewClientFactory creates a new ClientFactory with the given options.
@@ -65,6 +68,7 @@ func NewClientFactory(options ...ClientFactoryOption) (*ClientFactory, error) {
 		regionsClientsCache:          make(map[string]*compute.RegionsClient),
 		composerServicesCache:        make(map[string]*composer.Service),
 		monitoringMetricClientsCache: make(map[string]*monitoring.MetricClient),
+		assetClientsCache:            make(map[string]*asset.Client),
 	}
 	for _, opt := range options {
 		err := opt(factory)
@@ -136,6 +140,11 @@ func (s *ClientFactory) MonitoringMetricClient(ctx context.Context, c ResourceCo
 	return getOrInitClient(s, ctx, c, s.monitoringMetricClientsCache, s.MonitoringMetricClientOptions, opts, monitoring.NewMetricClient)
 }
 
+// AssetClient returns the client for asset.googleapis.com from given context and the resource container.
+func (s *ClientFactory) AssetClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*asset.Client, error) {
+	return getOrInitClient(s, ctx, c, s.assetClientsCache, s.AssetClientOptions, opts, asset.NewClient)
+}
+
 // Close closes all cached API clients and releases their underlying connections.
 func (s *ClientFactory) Close() error {
 	s.mu.Lock()
@@ -163,6 +172,12 @@ func (s *ClientFactory) Close() error {
 			errs = append(errs, fmt.Errorf("failed to close monitoring metric client for %s: %w", k, err))
 		}
 		delete(s.monitoringMetricClientsCache, k)
+	}
+	for k, client := range s.assetClientsCache {
+		if err := client.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close asset client for %s: %w", k, err))
+		}
+		delete(s.assetClientsCache, k)
 	}
 
 	return errors.Join(errs...)

@@ -61,7 +61,7 @@ limitations under the License.
       </div>
     </mat-step>
     <!--Step2 : Select enabled features-->
-    <mat-step>
+    <mat-step [completed]="(featuresEnabled | async) ?? false">
       <ng-template matStepLabel>Select what you want to query</ng-template>
       <div class="features-page">
         <div class="features-wrapper">
