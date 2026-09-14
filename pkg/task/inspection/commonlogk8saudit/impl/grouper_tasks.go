@@ -54,7 +54,7 @@ var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 // 2. When a subresource is modified by the operation and its result contains its parent manifest, it uses the parent resource as the group key.
 var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspectionTask[commonlogk8saudit_contract.ResourceLogGroupMap](
 	commonlogk8saudit_contract.ChangeTargetGrouperTaskID,
-	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.LogSorterTaskID.Ref()},
+	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.SuccessLogFilterTaskID.Ref()},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceLogGroupMap, error) {
 		if taskMode != inspectioncore_contract.TaskModeRun {
 			return commonlogk8saudit_contract.ResourceLogGroupMap{}, nil
@@ -62,7 +62,7 @@ var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspection
 
 		progress.MarkIndeterminate()
 
-		logs := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.LogSorterTaskID.Ref())
+		logs := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.SuccessLogFilterTaskID.Ref())
 		result := commonlogk8saudit_contract.ResourceLogGroupMap{}
 		scanner := targetResourceScanner{
 			ctx:                                 ctx,

@@ -47,9 +47,6 @@ var SuccessLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskI
 // NonSuccessLogFilterTaskID is the task ID for the task to filter non-success logs.
 var NonSuccessLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "non-success-log-filter")
 
-// LogSorterTaskID is the task ID for the task to sort logs by time.
-var LogSorterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-sorter")
-
 // LogSummaryGrouperTaskID is the task ID for the task to group logs for summary generation.
 var LogSummaryGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-summary-grouper")
 

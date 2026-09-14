@@ -32,7 +32,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		K8sAuditLogIngesterTask,
 		SuccessLogFilterTask,
 		NonSuccessLogFilterTask,
-		LogSorterTask,
 		ChangeTargetGrouperTask,
 		ManifestGeneratorTask,
 		DefaultK8sResourceMergeConfigTask,

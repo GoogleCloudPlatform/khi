@@ -17,7 +17,6 @@ graph TD
     Serializer[K8sAuditLogSerializerTask]
     SuccessFilter[SuccessLogFilterTask]
     NonSuccessFilter[NonSuccessLogFilterTask]
-    LogSorter[LogSorterTask]
     
     %% Groupers
     LogSummaryGrouper[LogSummaryGrouperTask]
@@ -59,10 +58,8 @@ graph TD
     ResourceUIDDiscovery --> ResourceUIDPF
     ContainerIDDiscovery --> ContainerIDPF
     
-    SuccessFilter --> LogSorter
+    SuccessFilter --> ChangeTargetGrouper
     NonSuccessFilter --> NonSuccessGrouper
-    
-    LogSorter --> ChangeTargetGrouper
     
     ChangeTargetGrouper --> ManifestGenerator
     MergeConfig --> ManifestGenerator
@@ -107,7 +104,6 @@ graph TD
 - **`K8sAuditLogSerializerTask`**: Registers logs into the history data before relating them with any events or revisions.
 - **`SuccessLogFilterTask`**: Filters out non-success logs (e.g., error responses) to focus on successful operations that likely changed the cluster state.
 - **`NonSuccessLogFilterTask`**: Filters out success logs to focus on failed operations (errors, forbidden, etc.).
-- **`LogSorterTask`**: Sorts the successful logs by timestamp to ensure chronological processing.
 - **`LogSummaryGrouperTask`**: Groups logs by their resource path to generate a summary of operations on each resource.
 - **`NonSuccessLogGrouperTask`**: Groups non-success logs by their resource path.
 - **`ChangeTargetGrouperTask`**: Groups logs by the *target* resource being modified. It handles complex cases like subresources (e.g., `status`, `scale`) and delete collection operations, ensuring they are associated with the correct parent resource.

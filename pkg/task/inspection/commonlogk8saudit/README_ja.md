@@ -17,7 +17,6 @@ graph TD
     Serializer[K8sAuditLogSerializerTask]
     SuccessFilter[SuccessLogFilterTask]
     NonSuccessFilter[NonSuccessLogFilterTask]
-    LogSorter[LogSorterTask]
     
     %% グルーパー (Groupers)
     LogSummaryGrouper[LogSummaryGrouperTask]
@@ -59,10 +58,8 @@ graph TD
     ResourceUIDDiscovery --> ResourceUIDPF
     ContainerIDDiscovery --> ContainerIDPF
     
-    SuccessFilter --> LogSorter
+    SuccessFilter --> ChangeTargetGrouper
     NonSuccessFilter --> NonSuccessGrouper
-    
-    LogSorter --> ChangeTargetGrouper
     
     ChangeTargetGrouper --> ManifestGenerator
     MergeConfig --> ManifestGenerator
@@ -107,7 +104,6 @@ graph TD
 - **`K8sAuditLogSerializerTask`**: イベントやリビジョンの紐付け前に、ログデータを履歴データストアにシリアライズ・登録します。
 - **`SuccessLogFilterTask`**: クラスタ状態を変える正常成功レスポンスのログのみを抽出します。
 - **`NonSuccessLogFilterTask`**: エラーやアクセス権拒否など、非成功レスポンスのログのみを抽出します。
-- **`LogSorterTask`**: 正常ログをタイムスタンプ順にソートします。
 - **`LogSummaryGrouperTask`**: リソースパスごとにログをグループ化し、各リソースに対する操作サマリー生成用データを構築します。
 - **`NonSuccessLogGrouperTask`**: 非成功ログをリソースパスごとにグループ化します。
 - **`ChangeTargetGrouperTask`**: サブリソース（`status`, `scale` 等）の操作や一括削除（delete collection）操作を解決し、実際の変更対象リソースパスごとにログをグループ化します。
