@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
@@ -138,5 +139,8 @@ func convertTemporalAssetsToGKEResourceSnapshots(temporalAssets []*assetpb.Tempo
 			StartTime:     startTime,
 		})
 	}
+	slices.SortStableFunc(snapshots, func(a, b *googlecloudcaik8s_contract.GKEResourceSnapshot) int {
+		return a.StartTime.Compare(b.StartTime)
+	})
 	return snapshots
 }

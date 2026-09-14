@@ -224,6 +224,17 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	)
 
+	nodepoolCreatedDuringWindowLog := newGKECAILog(
+		nodepoolAssetName,
+		googlecloudcaik8s_contract.GKENodePoolAssetType,
+		queryStartTime.Add(30*time.Minute),
+		time.Time{},
+		false,
+		map[string]any{
+			"name": "default-pool",
+		},
+	)
+
 	deletedLog := newGKECAILog(
 		clusterAssetName,
 		googlecloudcaik8s_contract.GKEClusterAssetType,
@@ -426,6 +437,26 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  queryStartTime,
 						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
+						Principal:    "N/A",
+						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+					}, nodeCmpOpt)
+			},
+		},
+		{
+			name:         "creates 1 revision for nodepool created during inspection window",
+			inputLog:     nodepoolCreatedDuringWindowLog,
+			initialState: gkeTimelineMapperState{hasProcessedInitialSnapshot: false},
+			wantNil:      false,
+			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
+				revs := cs.GetRevisions(nodePoolTimeline)
+				if len(revs) != 1 {
+					t.Fatalf("len(revs) = %d, want 1", len(revs))
+				}
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
+						ChangedTime:  queryStartTime.Add(30 * time.Minute),
+						ResourceBody: extractResourceBody(nodepoolCreatedDuringWindowLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,

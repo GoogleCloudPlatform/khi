@@ -159,6 +159,15 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 			earliestWindowStartTime := assetWindowStartTime
 
 			switch {
+			case earliestWindowStartTime.After(queryStartTime):
+				// NodePool was created during the inspection time window.
+				cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+					ChangedTime:  observedTime,
+					ResourceBody: resourceBody,
+					Principal:    "N/A",
+					VerbType:     commonlogk8saudit_contract.VerbCreate,
+					StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+				})
 			case !clusterCreateTime.IsZero() && !earliestWindowStartTime.IsZero() && earliestWindowStartTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance:
 				// Stage 1: Undetermined existence between cluster creation and earliest recorded snapshot.
 				cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{

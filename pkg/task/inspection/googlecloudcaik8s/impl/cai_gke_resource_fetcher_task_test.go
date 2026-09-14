@@ -82,6 +82,44 @@ func TestConvertTemporalAssetsToGKEResourceSnapshots(t *testing.T) {
 			wantCount: 1,
 			wantTimes: []time.Time{time.Time{}},
 		},
+		{
+			name: "sorts assets ascending by window start time",
+			temporalAssets: []*assetpb.TemporalAsset{
+				{
+					Window: &assetpb.TimeWindow{
+						StartTime: timestamppb.New(now.Add(1 * time.Hour)),
+					},
+					Asset: &assetpb.Asset{
+						Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
+						AssetType: googlecloudcaik8s_contract.GKEClusterAssetType,
+					},
+				},
+				{
+					Window: &assetpb.TimeWindow{
+						StartTime: timestamppb.New(now),
+					},
+					Asset: &assetpb.Asset{
+						Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
+						AssetType: googlecloudcaik8s_contract.GKEClusterAssetType,
+					},
+				},
+				{
+					Window: &assetpb.TimeWindow{
+						StartTime: timestamppb.New(now.Add(-1 * time.Hour)),
+					},
+					Asset: &assetpb.Asset{
+						Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
+						AssetType: googlecloudcaik8s_contract.GKEClusterAssetType,
+					},
+				},
+			},
+			wantCount: 3,
+			wantTimes: []time.Time{
+				now.Add(-1 * time.Hour),
+				now,
+				now.Add(1 * time.Hour),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
