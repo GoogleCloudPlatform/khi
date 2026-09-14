@@ -37,7 +37,7 @@ describe('inspection-metadata.model', () => {
         error: { errorMessages: [] },
       };
 
-      const vm = convertToInspectionMetadataViewModel(emptyRaw);
+      const vm = convertToInspectionMetadataViewModel(emptyRaw, 0);
       expect(vm.overview.inspectionType).toBe('Unknown');
       expect(vm.overview.inspectionName).toBe('Untitled Inspection');
       expect(vm.overview.fileSizeText).toBe('0 B');
@@ -73,24 +73,28 @@ describe('inspection-metadata.model', () => {
       // 45 seconds duration
       const vm45s = convertToInspectionMetadataViewModel(
         createWithTimes(1000, 1045),
+        0,
       );
       expect(vm45s.overview.durationText).toBe('45s');
 
       // 1m 30s duration
       const vm90s = convertToInspectionMetadataViewModel(
         createWithTimes(1000, 1090),
+        0,
       );
       expect(vm90s.overview.durationText).toBe('1m 30s');
 
       // 1h 1m 5s duration
       const vm1h = convertToInspectionMetadataViewModel(
         createWithTimes(1000, 1000 + 3665),
+        0,
       );
       expect(vm1h.overview.durationText).toBe('1h 1m 5s');
 
       // Invalid or zero start time
       const vmZeroStart = convertToInspectionMetadataViewModel(
         createWithTimes(0, 100),
+        0,
       );
       expect(vmZeroStart.overview.durationText).toBe('0s');
       expect(vmZeroStart.overview.formattedStartTime).toBe('-');
@@ -98,6 +102,7 @@ describe('inspection-metadata.model', () => {
       // End time before start time
       const vmNegativeDuration = convertToInspectionMetadataViewModel(
         createWithTimes(1000, 900),
+        0,
       );
       expect(vmNegativeDuration.overview.durationText).toBe('0s');
     });
@@ -143,13 +148,13 @@ describe('inspection-metadata.model', () => {
         },
       };
 
-      const vm = convertToInspectionMetadataViewModel(raw);
+      const vm = convertToInspectionMetadataViewModel(raw, 9);
       expect(vm.overview.inspectionType).toBe('gcp-gke');
       expect(vm.overview.inspectionName).toBe('Cluster Audit');
       expect(vm.overview.durationText).toBe('1h');
       expect(vm.overview.fileSizeText).toBe('2.0 MB');
-      expect(vm.overview.formattedStartTime).not.toBe('-');
-      expect(vm.overview.formattedEndTime).not.toBe('-');
+      expect(vm.overview.formattedStartTime).toBe('2023-11-15T07:13:20+09:00');
+      expect(vm.overview.formattedEndTime).toBe('2023-11-15T08:13:20+09:00');
       expect(vm.overview.suggestedFilename).toBe('cluster-audit.khi');
       expect(vm.queries.length).toBe(1);
       expect(vm.queries[0].name).toBe('Audit Logs');

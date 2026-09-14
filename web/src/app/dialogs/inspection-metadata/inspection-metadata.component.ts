@@ -15,6 +15,7 @@
  */
 
 import { Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
   MAT_DIALOG_DATA,
   MatDialog,
@@ -22,6 +23,7 @@ import {
   MatDialogRef,
 } from '@angular/material/dialog';
 import { InspectionMetadataOfRunResult } from 'src/app/common/schema/api-types';
+import { ViewStateService } from 'src/app/services/view-state.service';
 import { convertToInspectionMetadataViewModel } from './types/inspection-metadata.model';
 import { InspectionMetadataLayoutComponent } from './components/inspection-metadata-layout.component';
 
@@ -35,15 +37,29 @@ import { InspectionMetadataLayoutComponent } from './components/inspection-metad
   imports: [InspectionMetadataLayoutComponent],
 })
 export class InspectionMetadataDialogComponent {
+  /** Service for accessing application view state. */
+  private readonly viewStateService = inject(ViewStateService);
+
   /** The raw metadata passed through dialog data. */
   readonly rawMetadata = inject<InspectionMetadataOfRunResult>(MAT_DIALOG_DATA);
 
   /** Reference to the dialog instance. */
   readonly dialogRef = inject(MatDialogRef<InspectionMetadataDialogComponent>);
 
+  /** Current timezone shift in hours from UTC. */
+  private readonly timezoneShiftHours = toSignal(
+    this.viewStateService.timezoneShift,
+    {
+      initialValue: -new Date().getTimezoneOffset() / 60,
+    },
+  );
+
   /** View model transformed for presentation. */
   readonly vm = computed(() =>
-    convertToInspectionMetadataViewModel(this.rawMetadata),
+    convertToInspectionMetadataViewModel(
+      this.rawMetadata,
+      this.timezoneShiftHours(),
+    ),
   );
 
   /** Closes the inspection metadata dialog. */

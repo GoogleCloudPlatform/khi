@@ -29,8 +29,8 @@ describe('InspectionMetadataLayoutComponent', () => {
       inspectionType: 'gcp-gke',
       inspectionName: 'Cluster Alpha Inspection',
       inspectionTypeIconPath: '',
-      formattedStartTime: '2023/11/14 22:13:20',
-      formattedEndTime: '2023/11/14 23:13:20',
+      formattedStartTime: '2023-11-14T22:13:20+00:00',
+      formattedEndTime: '2023-11-14T23:13:20+00:00',
       durationText: '1h',
       suggestedFilename: 'cluster-alpha.khi',
       fileSizeText: '5.2 MB',
@@ -40,7 +40,6 @@ describe('InspectionMetadataLayoutComponent', () => {
         id: 'q1',
         name: 'Audit logs query',
         query: 'resource.type="k8s_cluster"',
-        estimatedCount: 1500,
       },
     ],
     logs: [

@@ -16,6 +16,7 @@
 
 import { InspectionMetadataOfRunResult } from 'src/app/common/schema/api-types';
 import { formatBytes } from 'src/app/utils/byte-format-util';
+import { formatIsoTimestampSeconds } from 'src/app/utils/time-format-util';
 
 /**
  * View model representing the overview section of an inspection.
@@ -127,25 +128,14 @@ function formatDuration(durationSeconds: number): string {
 }
 
 /**
- * Formats a unix timestamp in seconds to an ISO-like or localized date string.
- * @param seconds Unix timestamp in seconds.
- * @returns A formatted date time string.
- */
-function formatTimestampSeconds(seconds: number): string {
-  if (seconds <= 0 || !Number.isFinite(seconds)) {
-    return '-';
-  }
-  const date = new Date(seconds * 1000);
-  return date.toLocaleString();
-}
-
-/**
  * Converts raw InspectionMetadataOfRunResult into an InspectionMetadataViewModel.
  * @param metadata The raw metadata response from the backend.
+ * @param timezoneShiftHours The timezone offset from UTC in hours.
  * @returns The converted view model ready for UI consumption.
  */
 export function convertToInspectionMetadataViewModel(
   metadata: InspectionMetadataOfRunResult,
+  timezoneShiftHours: number,
 ): InspectionMetadataViewModel {
   const header = metadata.header;
   const startSec = header.startTimeUnixSeconds;
@@ -156,8 +146,8 @@ export function convertToInspectionMetadataViewModel(
     inspectionType: header.inspectionType || 'Unknown',
     inspectionName: header.inspectionName || 'Untitled Inspection',
     inspectionTypeIconPath: header.inspectionTypeIconPath,
-    formattedStartTime: formatTimestampSeconds(startSec),
-    formattedEndTime: formatTimestampSeconds(endSec),
+    formattedStartTime: formatIsoTimestampSeconds(startSec, timezoneShiftHours),
+    formattedEndTime: formatIsoTimestampSeconds(endSec, timezoneShiftHours),
     durationText: formatDuration(durationSec),
     suggestedFilename: header.suggestedFilename || 'inspection.khi',
     fileSizeText: formatBytes(header.fileSize ?? 0),

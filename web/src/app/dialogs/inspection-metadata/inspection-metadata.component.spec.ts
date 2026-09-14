@@ -18,6 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { InspectionMetadataOfRunResult } from 'src/app/common/schema/api-types';
+import { ViewStateService } from 'src/app/services/view-state.service';
 import { InspectionMetadataDialogComponent } from './inspection-metadata.component';
 
 describe('InspectionMetadataDialogComponent', () => {
@@ -84,6 +85,9 @@ describe('InspectionMetadataDialogComponent', () => {
       ],
     }).compileComponents();
 
+    const viewStateService = TestBed.inject(ViewStateService);
+    viewStateService.setTimezoneShift(0);
+
     fixture = TestBed.createComponent(InspectionMetadataDialogComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -94,10 +98,30 @@ describe('InspectionMetadataDialogComponent', () => {
     const vm = component.vm();
     expect(vm.overview.inspectionName).toBe('Cluster Alpha');
     expect(vm.overview.inspectionType).toBe('gcp-gke');
+    expect(vm.overview.formattedStartTime).toBe('2023-11-14T22:13:20+00:00');
+    expect(vm.overview.formattedEndTime).toBe('2023-11-14T23:13:20+00:00');
     expect(vm.queries.length).toBe(1);
     expect(vm.logs.length).toBe(1);
     expect(vm.errors.length).toBe(1);
     expect(vm.plan.taskGraph).toBe('digraph G {}');
+  });
+
+  it('should reactively update view model times when timezone shift changes', () => {
+    const viewStateService = TestBed.inject(ViewStateService);
+    viewStateService.setTimezoneShift(0);
+    fixture.detectChanges();
+    expect(component.vm().overview.formattedStartTime).toBe(
+      '2023-11-14T22:13:20+00:00',
+    );
+
+    viewStateService.setTimezoneShift(9);
+    fixture.detectChanges();
+    expect(component.vm().overview.formattedStartTime).toBe(
+      '2023-11-15T07:13:20+09:00',
+    );
+    expect(component.vm().overview.formattedEndTime).toBe(
+      '2023-11-15T08:13:20+09:00',
+    );
   });
 
   it('should close dialog when close is invoked', () => {

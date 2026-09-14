@@ -26,8 +26,8 @@ describe('MetadataOverviewComponent', () => {
     inspectionType: 'gcp-gke',
     inspectionName: 'Test Cluster Inspection',
     inspectionTypeIconPath: '',
-    formattedStartTime: '2023/11/14 22:13:20',
-    formattedEndTime: '2023/11/14 23:13:20',
+    formattedStartTime: '2023-11-14T22:13:20+00:00',
+    formattedEndTime: '2023-11-14T23:13:20+00:00',
     durationText: '1h',
     suggestedFilename: 'cluster.khi',
     fileSizeText: '4.2 MB',
@@ -49,6 +49,8 @@ describe('MetadataOverviewComponent', () => {
     const element = fixture.nativeElement;
     expect(element.textContent).toContain('Test Cluster Inspection');
     expect(element.textContent).toContain('gcp-gke');
+    expect(element.textContent).toContain('2023-11-14T22:13:20+00:00');
+    expect(element.textContent).toContain('2023-11-14T23:13:20+00:00');
     expect(element.textContent).toContain('1h');
     expect(element.textContent).toContain('cluster.khi');
     expect(element.textContent).toContain('4.2 MB');

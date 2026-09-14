@@ -16,6 +16,7 @@
 
 import {
   formatDurationSeconds,
+  formatIsoTimestampSeconds,
   generateTimestampedFilename,
 } from './time-format-util';
 
@@ -76,6 +77,55 @@ describe('time-format-util', () => {
         fixedDate,
       );
       expect(filename).toBe('khi-graph-20260827-153045.svg');
+    });
+  });
+
+  describe('formatIsoTimestampSeconds', () => {
+    // 1700000000 is 2023-11-14T22:13:20Z
+    const timestampSeconds = 1700000000;
+
+    it('should format UTC timestamp when timezone shift is 0', () => {
+      expect(formatIsoTimestampSeconds(timestampSeconds, 0)).toBe(
+        '2023-11-14T22:13:20+00:00',
+      );
+    });
+
+    it('should format timestamp with positive integer timezone shift (+9 for JST)', () => {
+      expect(formatIsoTimestampSeconds(timestampSeconds, 9)).toBe(
+        '2023-11-15T07:13:20+09:00',
+      );
+    });
+
+    it('should format timestamp with negative integer timezone shift (-5 for EST)', () => {
+      expect(formatIsoTimestampSeconds(timestampSeconds, -5)).toBe(
+        '2023-11-14T17:13:20-05:00',
+      );
+    });
+
+    it('should format timestamp with positive fractional timezone shift (+5.5 for IST)', () => {
+      expect(formatIsoTimestampSeconds(timestampSeconds, 5.5)).toBe(
+        '2023-11-15T03:43:20+05:30',
+      );
+    });
+
+    it('should format timestamp with negative fractional timezone shift (-3.5 for NST)', () => {
+      expect(formatIsoTimestampSeconds(timestampSeconds, -3.5)).toBe(
+        '2023-11-14T18:43:20-03:30',
+      );
+    });
+
+    it('should zero-pad single-digit months, days, hours, minutes, and seconds', () => {
+      // 1704423845 is 2024-01-05T03:04:05Z
+      expect(formatIsoTimestampSeconds(1704423845, 0)).toBe(
+        '2024-01-05T03:04:05+00:00',
+      );
+    });
+
+    it('should return "-" for zero, negative, or non-finite timestamp values', () => {
+      expect(formatIsoTimestampSeconds(0, 9)).toBe('-');
+      expect(formatIsoTimestampSeconds(-1, 9)).toBe('-');
+      expect(formatIsoTimestampSeconds(NaN, 9)).toBe('-');
+      expect(formatIsoTimestampSeconds(Infinity, 9)).toBe('-');
     });
   });
 });
