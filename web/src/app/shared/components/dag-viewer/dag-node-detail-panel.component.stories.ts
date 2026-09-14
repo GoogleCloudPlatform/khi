@@ -15,8 +15,8 @@
  */
 
 import { Meta, StoryObj } from '@storybook/angular';
-import { DagNodeDetailPanelComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-node-detail-panel.component';
-import { DagViewerNode } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { DagNodeDetailPanelComponent } from 'src/app/shared/components/dag-viewer/dag-node-detail-panel.component';
+import { DagViewerNode } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 const mockNode: DagViewerNode = {
   id: 'khi.k8s.pod-parser#d9a4f2',

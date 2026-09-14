@@ -25,7 +25,7 @@ import {
 import {
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 import { TaskGraphDebugTab } from 'src/app/pages/task-graph-debug/types/task-graph-debug.model';
 import { TaskGraphDebugLayoutComponent } from './task-graph-debug-layout.component';
 

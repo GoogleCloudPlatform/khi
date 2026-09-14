@@ -16,7 +16,7 @@
 
 import { Component, computed, input } from '@angular/core';
 import { TaskDependencyCardinality } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { DagPositionedEdge } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { DagPositionedEdge } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 /**
  * Renders an individual directed dependency edge with arrow head and optional tag chip in SVG.

@@ -16,12 +16,12 @@
 
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { DagNodeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-node.component';
+import { DagNodeComponent } from 'src/app/shared/components/dag-viewer/dag-node.component';
 import { ProvidedTagInfo } from 'src/app/generated/api/v1/inspection_task_graph_pb';
 import {
   DagPositionedNode,
   TASK_DESCRIPTION_LABEL_KEY,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 @Component({
   standalone: true,

@@ -27,16 +27,16 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { DagEdgeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-edge.component';
-import { computeDagLayout } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-layout';
-import { DagNodeDetailPanelComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-node-detail-panel.component';
-import { DagNodeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-node.component';
+import { DagEdgeComponent } from 'src/app/shared/components/dag-viewer/dag-edge.component';
+import { computeDagLayout } from 'src/app/shared/components/dag-viewer/dag-layout';
+import { DagNodeDetailPanelComponent } from 'src/app/shared/components/dag-viewer/dag-node-detail-panel.component';
+import { DagNodeComponent } from 'src/app/shared/components/dag-viewer/dag-node.component';
 import {
   DagLayoutResult,
   DagPositionedNode,
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 
 const MIN_ZOOM = 0.15;

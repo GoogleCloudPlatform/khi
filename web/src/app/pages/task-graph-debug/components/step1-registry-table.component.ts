@@ -34,7 +34,7 @@ import {
 import {
   getTaskDescription,
   isFormTask,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 import { TaskLabelEntry } from 'src/app/pages/task-graph-debug/types/task-graph-debug.model';
 import { Step1TaskNeighborhoodPanelComponent } from 'src/app/pages/task-graph-debug/components/step1-task-neighborhood-panel.component';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';

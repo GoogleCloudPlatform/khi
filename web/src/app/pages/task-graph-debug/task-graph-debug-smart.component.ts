@@ -33,7 +33,7 @@ import {
   DagViewerEdge,
   DagViewerNode,
   isFormTask,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 import { TaskGraphDebugLayoutComponent } from 'src/app/pages/task-graph-debug/components/task-graph-debug-layout.component';
 import {
   FeatureToggleChangeEvent,

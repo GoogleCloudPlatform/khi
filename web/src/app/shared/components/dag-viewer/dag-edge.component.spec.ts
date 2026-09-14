@@ -17,8 +17,8 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TaskDependencyCardinality } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { DagEdgeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-edge.component';
-import { DagPositionedEdge } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { DagEdgeComponent } from 'src/app/shared/components/dag-viewer/dag-edge.component';
+import { DagPositionedEdge } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 @Component({
   standalone: true,

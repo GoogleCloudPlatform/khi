@@ -20,7 +20,7 @@ import {
   DagPositionedNode,
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 /**
  * Options configuring DAG layout spacing and sizing dimensions.

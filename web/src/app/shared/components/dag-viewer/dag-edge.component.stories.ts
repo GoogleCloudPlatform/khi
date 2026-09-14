@@ -16,8 +16,8 @@
 
 import { Meta, StoryObj, componentWrapperDecorator } from '@storybook/angular';
 import { TaskDependencyCardinality } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { DagEdgeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-edge.component';
-import { DagPositionedEdge } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { DagEdgeComponent } from 'src/app/shared/components/dag-viewer/dag-edge.component';
+import { DagPositionedEdge } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 const mockEdge: DagPositionedEdge = {
   id: 'task-a->task-b',

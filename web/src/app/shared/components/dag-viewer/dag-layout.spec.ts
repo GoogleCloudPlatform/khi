@@ -15,11 +15,11 @@
  */
 
 import { TaskDependencyCardinality } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { computeDagLayout } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-layout';
+import { computeDagLayout } from 'src/app/shared/components/dag-viewer/dag-layout';
 import {
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 describe('computeDagLayout', () => {
   const createMockNode = (

@@ -15,8 +15,8 @@
  */
 
 import { Meta, StoryObj, componentWrapperDecorator } from '@storybook/angular';
-import { DagNodeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-node.component';
-import { DagPositionedNode } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { DagNodeComponent } from 'src/app/shared/components/dag-viewer/dag-node.component';
+import { DagPositionedNode } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 const mockNode: DagPositionedNode = {
   id: 'khi.google.com/k8s/pod-parser#d9a4f2',

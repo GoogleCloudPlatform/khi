@@ -19,7 +19,7 @@ import {
   isFormTask,
   TASK_DESCRIPTION_LABEL_KEY,
   getTaskDescription,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 describe('dag-viewer.model', () => {
   describe('isFormTask', () => {

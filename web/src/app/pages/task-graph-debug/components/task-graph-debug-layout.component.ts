@@ -31,8 +31,8 @@ import {
 import {
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
-import { DagCanvasComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-canvas.component';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
+import { DagCanvasComponent } from 'src/app/shared/components/dag-viewer/dag-canvas.component';
 import { Step1RegistryTableComponent } from 'src/app/pages/task-graph-debug/components/step1-registry-table.component';
 import { Step2TypeFilterComponent } from 'src/app/pages/task-graph-debug/components/step2-type-filter.component';
 import {

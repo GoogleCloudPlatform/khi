@@ -16,11 +16,11 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TaskDependencyCardinality } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { DagCanvasComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-canvas.component';
+import { DagCanvasComponent } from 'src/app/shared/components/dag-viewer/dag-canvas.component';
 import {
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 describe('DagCanvasComponent', () => {
   let component: DagCanvasComponent;
