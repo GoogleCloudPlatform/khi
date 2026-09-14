@@ -842,7 +842,7 @@ describe('NewInspectionDialogTest', () => {
 
       const dialogData: NewInspectionDialogData = {
         initialInspectionTypeId: 'gke',
-        initialFeatures: ['feature-1', 'feature-2'],
+        initialFeatureIds: ['feature-1', 'feature-2'],
         initialParameters: { cluster: 'cluster-1' },
       };
 
@@ -892,6 +892,9 @@ describe('NewInspectionDialogTest', () => {
         'feature-1': true,
         'feature-2': true,
       });
+      expect(customComponent['stepper']?.selectedIndex).toBe(
+        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
+      );
     });
   });
 });

@@ -160,7 +160,7 @@ export class StartupDialogSmartComponent {
   /**
    * Opens the Job Command Input dialog and starts an inspection from the parsed CLI command.
    */
-  protected async handleStartFromJobCommand(): Promise<void> {
+  protected async startFromJobCommand(): Promise<void> {
     const dialogRef = openJobCommandInputDialog(this.dialog);
     const parsed = await firstValueFrom(dialogRef.afterClosed());
     if (!parsed) {
@@ -190,10 +190,9 @@ export class StartupDialogSmartComponent {
         client.dryrunDirect(parsed.parameters),
       );
       if (hasDryRunErrors(dryrunRes)) {
-        this.progress.dismiss();
         this.openNewInspectionDialogInternal({
           initialInspectionTypeId: parsed.inspectionType,
-          initialFeatures: parsed.features,
+          initialFeatureIds: parsed.features,
           initialParameters: parsed.parameters,
         });
         return;
@@ -203,7 +202,7 @@ export class StartupDialogSmartComponent {
     } catch {
       this.openNewInspectionDialogInternal({
         initialInspectionTypeId: parsed.inspectionType,
-        initialFeatures: parsed.features,
+        initialFeatureIds: parsed.features,
         initialParameters: parsed.parameters,
       });
     } finally {

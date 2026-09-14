@@ -236,7 +236,7 @@ export type InspectionMetadataOfRunResult = {
   /**
    * CLI command representation for headless job execution.
    */
-  jobCommand?: InspectionMetadataJobModeCommand;
+  readonly jobCommand?: InspectionMetadataJobModeCommand;
 };
 
 /**

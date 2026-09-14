@@ -35,12 +35,13 @@ import {
   ParameterInputType,
 } from 'src/app/common/schema/form-types';
 
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import {
   EXTENSION_STORE,
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
 import { By } from '@angular/platform-browser';
+import { NewInspectionDialogComponent } from 'src/app/dialogs/new-inspection/new-inspection.component';
 
 describe('StartupDialogComponent', () => {
   let component: ComponentFixture<StartupDialogSmartComponent>;
@@ -237,5 +238,86 @@ describe('StartupDialogComponent', () => {
     expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
     expect(mockInspectionClient.run).not.toHaveBeenCalled();
     expect(dialogSpy.open).toHaveBeenCalledTimes(2);
+    expect(dialogSpy.open).toHaveBeenCalledWith(
+      NewInspectionDialogComponent,
+      jasmine.objectContaining({
+        data: {
+          initialInspectionTypeId: 'gke',
+          initialFeatureIds: ['feature-a'],
+          initialParameters: { cluster: 'my-cluster' },
+        },
+      }),
+    );
+  });
+
+  it('should fall back to opening NewInspectionDialogComponent when API call fails', async () => {
+    const parsedCommand = {
+      inspectionType: 'gke',
+      features: ['feature-a'],
+      parameters: { cluster: 'my-cluster' },
+    };
+    const dialogRefSpy = {
+      afterClosed: jasmine
+        .createSpy('afterClosed')
+        .and.returnValue(of(parsedCommand)),
+    };
+    dialogSpy.open.and.returnValue(
+      dialogRefSpy as unknown as MatDialogRef<unknown>,
+    );
+
+    backendAPISpy.createInspection.and.returnValue(
+      throwError(() => new Error('API error')),
+    );
+
+    const layoutEl = component.debugElement.query(
+      By.directive(StartupDialogLayoutComponent),
+    );
+    layoutEl.triggerEventHandler('startFromJobCommand', null);
+    await component.whenStable();
+
+    expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
+    expect(dialogSpy.open).toHaveBeenCalledTimes(2);
+    expect(dialogSpy.open).toHaveBeenCalledWith(
+      NewInspectionDialogComponent,
+      jasmine.objectContaining({
+        data: {
+          initialInspectionTypeId: 'gke',
+          initialFeatureIds: ['feature-a'],
+          initialParameters: { cluster: 'my-cluster' },
+        },
+      }),
+    );
+    expect(mockInspectionClient.run).not.toHaveBeenCalled();
+  });
+
+  it('should skip setEnabledFeatures when parsed command has no features', async () => {
+    const parsedCommand = {
+      inspectionType: 'gke',
+      features: [],
+      parameters: { cluster: 'my-cluster' },
+    };
+    const dialogRefSpy = {
+      afterClosed: jasmine
+        .createSpy('afterClosed')
+        .and.returnValue(of(parsedCommand)),
+    };
+    dialogSpy.open.and.returnValue(
+      dialogRefSpy as unknown as MatDialogRef<unknown>,
+    );
+
+    const layoutEl = component.debugElement.query(
+      By.directive(StartupDialogLayoutComponent),
+    );
+    layoutEl.triggerEventHandler('startFromJobCommand', null);
+    await component.whenStable();
+
+    expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
+    expect(backendAPISpy.setEnabledFeatures).not.toHaveBeenCalled();
+    expect(mockInspectionClient.dryrunDirect).toHaveBeenCalledWith({
+      cluster: 'my-cluster',
+    });
+    expect(mockInspectionClient.run).toHaveBeenCalledWith({
+      cluster: 'my-cluster',
+    });
   });
 });

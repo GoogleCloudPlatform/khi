@@ -17,16 +17,17 @@
 import {
   Component,
   computed,
-  effect,
   inject,
   OnDestroy,
   signal,
   ViewChild,
 } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import {
   BehaviorSubject,
   Subject,
+  delay,
   filter,
   firstValueFrom,
   fromEvent,
@@ -35,9 +36,11 @@ import {
   switchMap,
   take,
   takeUntil,
+  tap,
   withLatestFrom,
 } from 'rxjs';
 import {
+  GetInspectionTypesResponse,
   InspectionDryRunResponse,
   InspectionMetadataInDryrun,
   InspectionType,
@@ -239,7 +242,7 @@ export interface NewInspectionDialogData {
   /** Initial inspection type ID to preselect. */
   readonly initialInspectionTypeId?: string;
   /** Initial feature IDs to enable. */
-  readonly initialFeatures?: readonly string[];
+  readonly initialFeatureIds?: readonly string[];
   /** Initial parameter values to prefill. */
   readonly initialParameters?: Record<string, unknown>;
 }
@@ -357,41 +360,47 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   constructor() {
     if (this.dialogData?.initialInspectionTypeId) {
-      const effectRef = effect(() => {
-        const types = this.inspectionTypes.value();
-        if (!types || this.currentInspectionType.value) {
-          return;
-        }
-        const matched = types.types.find(
-          (t) => t.id === this.dialogData!.initialInspectionTypeId,
-        );
-        if (matched) {
-          effectRef.destroy();
-          this.setInspectionType(matched);
-          if (this.dialogData?.initialParameters) {
-            this.store.setDefaultValues(this.dialogData.initialParameters);
+      toObservable(this.inspectionTypes.value)
+        .pipe(
+          filter(
+            (response): response is GetInspectionTypesResponse =>
+              !!response && response.types.length > 0,
+          ),
+          map((response) =>
+            response.types.find(
+              (t) => t.id === this.dialogData!.initialInspectionTypeId,
+            ),
+          ),
+          filter((matched): matched is InspectionType => !!matched),
+          take(1),
+          tap((matched) => {
+            this.setInspectionType(matched);
+            if (this.dialogData?.initialParameters) {
+              this.store.setDefaultValues(this.dialogData.initialParameters);
+            }
+          }),
+          switchMap(() => this.currentTaskClient.pipe(take(1))),
+          tap((client) => {
+            if (
+              this.dialogData?.initialFeatureIds &&
+              this.dialogData.initialFeatureIds.length > 0
+            ) {
+              const featureMap = Object.fromEntries(
+                this.dialogData.initialFeatureIds.map((f) => [f, true]),
+              );
+              client.setFeatures(featureMap);
+            }
+          }),
+          // Wait briefly for step 0 transition to settle before navigating to parameter input step.
+          delay(50),
+          takeUntil(this.destroyed),
+        )
+        .subscribe(() => {
+          if (this.stepper) {
+            this.stepper.selectedIndex =
+              NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT;
           }
-          this.currentTaskClient
-            .pipe(take(1), takeUntil(this.destroyed))
-            .subscribe((client) => {
-              if (
-                this.dialogData?.initialFeatures &&
-                this.dialogData.initialFeatures.length > 0
-              ) {
-                const featureMap = Object.fromEntries(
-                  this.dialogData.initialFeatures.map((f) => [f, true]),
-                );
-                client.setFeatures(featureMap);
-              }
-              setTimeout(() => {
-                if (this.stepper) {
-                  this.stepper.selectedIndex =
-                    NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT;
-                }
-              }, 50);
-            });
-        }
-      });
+        });
     }
 
     this.featureToggleRequest

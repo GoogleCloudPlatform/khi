@@ -85,11 +85,12 @@ export function openJobCommandInputDialog(
   dialog: MatDialog,
   config?: MatDialogConfig,
 ): MatDialogRef<JobCommandInputSmartComponent, ParsedJobCommand | null> {
-  return dialog.open<JobCommandInputSmartComponent, ParsedJobCommand | null>(
+  return dialog.open<
     JobCommandInputSmartComponent,
-    {
-      width: '640px',
-      ...config,
-    },
-  );
+    void,
+    ParsedJobCommand | null
+  >(JobCommandInputSmartComponent, {
+    width: '640px',
+    ...config,
+  });
 }
