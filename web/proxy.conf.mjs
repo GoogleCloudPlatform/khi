@@ -18,12 +18,16 @@
  * Angular Proxy Configuration
  *
  * This file defines the proxy configuration for the Angular development server.
- * During development, requests to the /api/ path are forwarded to localhost:8080.
+ * During development, requests to the /api/ path are forwarded to the backend server.
  */
+
+const backendPort = process.env.BACKEND_PORT || process.env.PORT || "8080";
+const rawHost = process.env.BACKEND_HOST || process.env.HOST || "127.0.0.1";
+const backendHost = rawHost === "0.0.0.0" ? "127.0.0.1" : rawHost;
 
 export default {
   "/api": {
-    target: "http://127.0.0.1:8080",
+    target: `http://${backendHost}:${backendPort}`,
     secure: false,
     changeOrigin: true,
     logLevel: "debug",

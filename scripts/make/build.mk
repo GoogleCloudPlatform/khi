@@ -2,9 +2,18 @@
 # This file contains make tasks for building.
 
 
+WEB_HOST ?= localhost
+WEB_PORT ?= 4200
+WEB_ALLOWED_HOSTS_FLAG ?= $(if $(filter 0.0.0.0,$(WEB_HOST)),--allowed-hosts,)
+STORYBOOK_HOST ?= localhost
+STORYBOOK_PORT ?= 6006
+KARMA_PORT ?= 9876
+BACKEND_PORT ?= $(or $(PORT),8080)
+BACKEND_HOST ?= $(if $(filter 0.0.0.0,$(HOST)),127.0.0.1,$(or $(HOST),127.0.0.1))
+
 .PHONY: watch-web
 watch-web: $(GENERATE_FRONTEND_DUMMY) ## Run frontend development server
-	cd web && npx ng serve -c dev
+	cd web && BACKEND_PORT=$(BACKEND_PORT) BACKEND_HOST=$(BACKEND_HOST) npx ng serve -c dev --host $(WEB_HOST) --port $(WEB_PORT) $(WEB_ALLOWED_HOSTS_FLAG)
 
 $(FRONTEND_ARTIFACT_FILES_DUMMY): $(GENERATE_FRONTEND_DUMMY) $(FRONTEND_SOURCE_FILES) $(FRONTEND_GENERATED_SRCS)## Build frontend for production
 	cd web && npx ng build --output-path ../pkg/server/dist -c prod
@@ -15,7 +24,7 @@ build-web: $(FRONTEND_ARTIFACT_FILES_DUMMY) ## Build frontend for production
 
 .PHONY: watch-storybook
 watch-storybook: $(GENERATE_FRONTEND_DUMMY) ## Run storybook development server
-	cd web && npm run storybook
+	cd web && npm run storybook -- --host $(STORYBOOK_HOST) --port $(STORYBOOK_PORT)
 
 .PHONY: build-storybook
 build-storybook: $(GENERATE_FRONTEND_DUMMY) ## Build storybook
@@ -23,7 +32,7 @@ build-storybook: $(GENERATE_FRONTEND_DUMMY) ## Build storybook
 
 .PHONY: watch-karma
 watch-karma: $(GENERATE_FRONTEND_DUMMY) ## Run karma test server
-	cd web && npm run test
+	cd web && KARMA_PORT=$(KARMA_PORT) npm run test
 
 khi: $(GENERATE_BACKEND_DUMMY) $(FRONTEND_ARTIFACT_FILES_DUMMY) $(BACKEND_SRCS)
 	CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./khi ./cmd/kubernetes-history-inspector/...
