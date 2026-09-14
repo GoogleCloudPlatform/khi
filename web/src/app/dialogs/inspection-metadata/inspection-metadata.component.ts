@@ -55,20 +55,20 @@ export class InspectionMetadataDialogComponent {
 /**
  * Opens the Inspection Metadata dialog with standard dimensions and configuration.
  * @param dialog MatDialog service instance.
- * @param data Inspection metadata result to display.
+ * @param metadata Inspection metadata result to display.
  * @param config Optional dialog configuration overrides.
  * @returns MatDialogRef for the opened dialog.
  */
 export function openInspectionMetadataDialog(
   dialog: MatDialog,
-  data: InspectionMetadataOfRunResult,
+  metadata: InspectionMetadataOfRunResult,
   config: Partial<MatDialogConfig> = {},
 ): MatDialogRef<InspectionMetadataDialogComponent> {
   return dialog.open(InspectionMetadataDialogComponent, {
     maxWidth: '95vw',
     width: '900px',
     maxHeight: '85vh',
-    data,
+    data: metadata,
     ...config,
   });
 }

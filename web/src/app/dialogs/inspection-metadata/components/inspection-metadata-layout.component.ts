@@ -15,7 +15,6 @@
  */
 
 import { Component, input, output, viewChild, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { MatAccordion, MatExpansionModule } from '@angular/material/expansion';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -35,7 +34,6 @@ import { MetadataPlanComponent } from './metadata-plan.component';
 @Component({
   selector: 'khi-inspection-metadata-layout',
   imports: [
-    CommonModule,
     MatExpansionModule,
     MatButtonModule,
     MatIconModule,
@@ -52,7 +50,7 @@ import { MetadataPlanComponent } from './metadata-plan.component';
 })
 export class InspectionMetadataLayoutComponent {
   /** The aggregated metadata view model. */
-  readonly data = input.required<InspectionMetadataViewModel>();
+  readonly viewModel = input.required<InspectionMetadataViewModel>();
 
   /** Emitted when the user clicks the dialog close button. */
   readonly closed = output<void>();
@@ -61,7 +59,9 @@ export class InspectionMetadataLayoutComponent {
   private readonly accordion = viewChild<MatAccordion>('accordion');
 
   /** Whether the error panel should be displayed. */
-  protected readonly hasErrors = computed(() => this.data().errors.length > 0);
+  protected readonly hasErrors = computed(
+    () => this.viewModel().errors.length > 0,
+  );
 
   /** Expands all accordion panels. */
   protected expandAll(): void {

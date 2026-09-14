@@ -15,7 +15,7 @@ limitations under the License.
 -->
 
 <div class="errors-container">
-  @for (error of errors(); track error.errorId) {
+  @for (error of errors(); track (error.errorId + '-' + $index)) {
     <div class="error-card">
       <div class="error-header">
         <mat-icon class="error-icon">error</mat-icon>

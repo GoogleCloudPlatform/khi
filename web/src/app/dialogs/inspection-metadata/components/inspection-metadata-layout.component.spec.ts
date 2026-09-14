@@ -16,6 +16,7 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { MatAccordion } from '@angular/material/expansion';
 import { InspectionMetadataLayoutComponent } from './inspection-metadata-layout.component';
 import { InspectionMetadataViewModel } from '../types/inspection-metadata.model';
 
@@ -68,7 +69,7 @@ describe('InspectionMetadataLayoutComponent', () => {
 
     fixture = TestBed.createComponent(InspectionMetadataLayoutComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('data', mockData);
+    fixture.componentRef.setInput('viewModel', mockData);
     fixture.detectChanges();
   });
 
@@ -98,7 +99,7 @@ describe('InspectionMetadataLayoutComponent', () => {
   });
 
   it('should not render error panel when errors list is empty', () => {
-    fixture.componentRef.setInput('data', {
+    fixture.componentRef.setInput('viewModel', {
       ...mockData,
       errors: [],
     });
@@ -111,15 +112,47 @@ describe('InspectionMetadataLayoutComponent', () => {
   });
 
   it('should expand and collapse all panels via toolbar actions', () => {
+    const accordion = (
+      component as unknown as { accordion: () => MatAccordion }
+    ).accordion();
+    spyOn(accordion, 'openAll');
+    spyOn(accordion, 'closeAll');
+
     const buttons = fixture.nativeElement.querySelectorAll('.toolbar-button');
     expect(buttons.length).toBe(2);
 
     // Click Expand All
     buttons[0].click();
-    fixture.detectChanges();
+    expect(accordion.openAll).toHaveBeenCalled();
 
     // Click Collapse All
     buttons[1].click();
+    expect(accordion.closeAll).toHaveBeenCalled();
+  });
+
+  it('should render queries, logs, and plan panels when data exists and omit them when empty', () => {
+    expect(
+      fixture.nativeElement.querySelector('khi-metadata-queries'),
+    ).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('khi-metadata-logs'),
+    ).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('khi-metadata-plan'),
+    ).toBeTruthy();
+
+    fixture.componentRef.setInput('viewModel', {
+      ...mockData,
+      queries: [],
+      logs: [],
+      plan: { taskGraph: '' },
+    });
     fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('khi-metadata-queries'),
+    ).toBeNull();
+    expect(fixture.nativeElement.querySelector('khi-metadata-logs')).toBeNull();
+    expect(fixture.nativeElement.querySelector('khi-metadata-plan')).toBeNull();
   });
 });

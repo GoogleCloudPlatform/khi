@@ -29,7 +29,7 @@ type Story = StoryObj<InspectionMetadataLayoutComponent>;
 
 export const Default: Story = {
   args: {
-    data: {
+    viewModel: {
       overview: {
         inspectionType: 'gcp-gke',
         inspectionName: 'Production GKE Cluster - Node Pool Failure',
@@ -82,7 +82,7 @@ export const Default: Story = {
 
 export const WithErrors: Story = {
   args: {
-    data: {
+    viewModel: {
       overview: {
         inspectionType: 'gcp-gke',
         inspectionName: 'Cluster Beta Partial Inspection',
@@ -131,7 +131,7 @@ export const WithErrors: Story = {
 
 export const Minimal: Story = {
   args: {
-    data: {
+    viewModel: {
       overview: {
         inspectionType: 'local-file',
         inspectionName: 'Uploaded Archive',

@@ -15,7 +15,6 @@
  */
 
 import { Component, input } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { MetadataCodeViewerComponent } from './metadata-code-viewer.component';
 import { MetadataQueryViewModel } from '../types/inspection-metadata.model';
 
@@ -24,7 +23,7 @@ import { MetadataQueryViewModel } from '../types/inspection-metadata.model';
  */
 @Component({
   selector: 'khi-metadata-queries',
-  imports: [CommonModule, MetadataCodeViewerComponent],
+  imports: [MetadataCodeViewerComponent],
   templateUrl: './metadata-queries.component.html',
   styleUrls: ['./metadata-queries.component.scss'],
 })

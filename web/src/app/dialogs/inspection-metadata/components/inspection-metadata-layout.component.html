@@ -22,7 +22,7 @@ limitations under the License.
       <div class="header-titles">
         <h2 class="dialog-title">Inspection Metadata</h2>
         <span class="dialog-subtitle">{{
-          data().overview.inspectionName
+          viewModel().overview.inspectionName
         }}</span>
       </div>
     </div>
@@ -42,7 +42,7 @@ limitations under the License.
   <div class="dialog-toolbar">
     <div class="toolbar-status">
       <span class="toolbar-type-badge">{{
-        data().overview.inspectionType
+        viewModel().overview.inspectionType
       }}</span>
     </div>
     <div class="toolbar-actions">
@@ -68,7 +68,7 @@ limitations under the License.
             <span class="panel-title-text">Overview</span>
           </mat-panel-title>
         </mat-expansion-panel-header>
-        <khi-metadata-overview [overview]="data().overview" />
+        <khi-metadata-overview [overview]="viewModel().overview" />
       </mat-expansion-panel>
 
       <!-- 2. Errors Panel (only shown if has errors) -->
@@ -80,15 +80,15 @@ limitations under the License.
               <span class="panel-title-text error-title-text">Errors</span>
             </mat-panel-title>
             <mat-panel-description>
-              <span class="error-badge">{{ data().errors.length }}</span>
+              <span class="error-badge">{{ viewModel().errors.length }}</span>
             </mat-panel-description>
           </mat-expansion-panel-header>
-          <khi-metadata-errors [errors]="data().errors" />
+          <khi-metadata-errors [errors]="viewModel().errors" />
         </mat-expansion-panel>
       }
 
       <!-- 3. Queries Panel -->
-      @if (data().queries.length > 0) {
+      @if (viewModel().queries.length > 0) {
         <mat-expansion-panel [expanded]="false">
           <mat-expansion-panel-header>
             <mat-panel-title>
@@ -96,15 +96,15 @@ limitations under the License.
               <span class="panel-title-text">Queries</span>
             </mat-panel-title>
             <mat-panel-description>
-              <span class="count-badge">{{ data().queries.length }}</span>
+              <span class="count-badge">{{ viewModel().queries.length }}</span>
             </mat-panel-description>
           </mat-expansion-panel-header>
-          <khi-metadata-queries [queries]="data().queries" />
+          <khi-metadata-queries [queries]="viewModel().queries" />
         </mat-expansion-panel>
       }
 
       <!-- 4. Logs Panel -->
-      @if (data().logs.length > 0) {
+      @if (viewModel().logs.length > 0) {
         <mat-expansion-panel [expanded]="false">
           <mat-expansion-panel-header>
             <mat-panel-title>
@@ -112,15 +112,15 @@ limitations under the License.
               <span class="panel-title-text">Logs</span>
             </mat-panel-title>
             <mat-panel-description>
-              <span class="count-badge">{{ data().logs.length }}</span>
+              <span class="count-badge">{{ viewModel().logs.length }}</span>
             </mat-panel-description>
           </mat-expansion-panel-header>
-          <khi-metadata-logs [logs]="data().logs" />
+          <khi-metadata-logs [logs]="viewModel().logs" />
         </mat-expansion-panel>
       }
 
       <!-- 5. Plan Panel -->
-      @if (data().plan.taskGraph) {
+      @if (viewModel().plan.taskGraph) {
         <mat-expansion-panel [expanded]="false">
           <mat-expansion-panel-header>
             <mat-panel-title>
@@ -128,7 +128,7 @@ limitations under the License.
               <span class="panel-title-text">Plan</span>
             </mat-panel-title>
           </mat-expansion-panel-header>
-          <khi-metadata-plan [plan]="data().plan" />
+          <khi-metadata-plan [plan]="viewModel().plan" />
         </mat-expansion-panel>
       }
     </mat-accordion>

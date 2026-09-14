@@ -15,7 +15,6 @@
  */
 
 import { Component, input } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { MetadataErrorViewModel } from '../types/inspection-metadata.model';
@@ -25,7 +24,7 @@ import { MetadataErrorViewModel } from '../types/inspection-metadata.model';
  */
 @Component({
   selector: 'khi-metadata-errors',
-  imports: [CommonModule, MatIconModule, KHIIconRegistrationModule],
+  imports: [MatIconModule, KHIIconRegistrationModule],
   templateUrl: './metadata-errors.component.html',
   styleUrls: ['./metadata-errors.component.scss'],
 })
