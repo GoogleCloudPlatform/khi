@@ -21,9 +21,6 @@ const meta: Meta<MetadataCodeViewerComponent> = {
   title: 'Dialogs/InspectionMetadata/MetadataCodeViewer',
   component: MetadataCodeViewerComponent,
   tags: ['autodocs'],
-  argTypes: {
-    contentCopied: { action: 'contentCopied' },
-  },
 };
 
 export default meta;

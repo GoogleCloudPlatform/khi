@@ -17,7 +17,6 @@
 import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
-import { MatChipsModule } from '@angular/material/chips';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { MetadataOverviewViewModel } from '../types/inspection-metadata.model';
 
@@ -26,12 +25,7 @@ import { MetadataOverviewViewModel } from '../types/inspection-metadata.model';
  */
 @Component({
   selector: 'khi-metadata-overview',
-  imports: [
-    CommonModule,
-    MatIconModule,
-    MatChipsModule,
-    KHIIconRegistrationModule,
-  ],
+  imports: [CommonModule, MatIconModule, KHIIconRegistrationModule],
   templateUrl: './metadata-overview.component.html',
   styleUrls: ['./metadata-overview.component.scss'],
 })

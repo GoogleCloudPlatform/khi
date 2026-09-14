@@ -67,9 +67,6 @@ limitations under the License.
             <mat-icon class="panel-icon">dashboard</mat-icon>
             <span class="panel-title-text">Overview</span>
           </mat-panel-title>
-          <mat-panel-description>
-            <span>{{ data().overview.durationText }}</span>
-          </mat-panel-description>
         </mat-expansion-panel-header>
         <khi-metadata-overview [overview]="data().overview" />
       </mat-expansion-panel>
@@ -130,9 +127,6 @@ limitations under the License.
               <mat-icon class="panel-icon">account_tree</mat-icon>
               <span class="panel-title-text">Plan</span>
             </mat-panel-title>
-            <mat-panel-description>
-              <span>Task Graph</span>
-            </mat-panel-description>
           </mat-expansion-panel-header>
           <khi-metadata-plan [plan]="data().plan" />
         </mat-expansion-panel>

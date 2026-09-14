@@ -27,12 +27,6 @@ export interface MetadataOverviewViewModel {
   readonly inspectionName: string;
   /** Optional icon path representing the inspection type. */
   readonly inspectionTypeIconPath: string;
-  /** Start time of the inspection data window in Unix seconds. */
-  readonly startTimeUnixSeconds: number;
-  /** End time of the inspection data window in Unix seconds. */
-  readonly endTimeUnixSeconds: number;
-  /** The time when the inspection was triggered in Unix seconds. */
-  readonly inspectTimeUnixSeconds: number;
   /** Formatted start time string. */
   readonly formattedStartTime: string;
   /** Formatted end time string. */
@@ -188,9 +182,6 @@ export function convertToInspectionMetadataViewModel(
     inspectionType: header?.inspectionType || 'Unknown',
     inspectionName: header?.inspectionName || 'Untitled Inspection',
     inspectionTypeIconPath: header?.inspectionTypeIconPath || '',
-    startTimeUnixSeconds: startSec,
-    endTimeUnixSeconds: endSec,
-    inspectTimeUnixSeconds: header?.inspectTimeUnixSeconds ?? 0,
     formattedStartTime: formatTimestampSeconds(startSec),
     formattedEndTime: formatTimestampSeconds(endSec),
     durationText: formatDuration(durationSec),

@@ -39,34 +39,34 @@ limitations under the License.
   </div>
 
   <!-- Start Time -->
-  <div class="overview-item">
+  <div class="overview-item start-item">
     <div class="item-label">Start Time</div>
     <div class="item-value">{{ overview().formattedStartTime }}</div>
   </div>
 
   <!-- End Time -->
-  <div class="overview-item">
+  <div class="overview-item end-item">
     <div class="item-label">End Time</div>
     <div class="item-value">{{ overview().formattedEndTime }}</div>
   </div>
 
   <!-- Duration -->
-  <div class="overview-item">
+  <div class="overview-item duration-item">
     <div class="item-label">Time Window Duration</div>
     <div class="item-value">{{ overview().durationText }}</div>
   </div>
 
+  <!-- File Size -->
+  <div class="overview-item size-item">
+    <div class="item-label">Inspection Data Size</div>
+    <div class="item-value">{{ overview().fileSizeText }}</div>
+  </div>
+
   <!-- Suggested Filename -->
-  <div class="overview-item">
+  <div class="overview-item filename-item">
     <div class="item-label">Suggested Filename</div>
     <div class="item-value monospace-text">
       {{ overview().suggestedFilename }}
     </div>
-  </div>
-
-  <!-- File Size -->
-  <div class="overview-item">
-    <div class="item-label">Inspection Data Size</div>
-    <div class="item-value">{{ overview().fileSizeText }}</div>
   </div>
 </div>

@@ -46,6 +46,26 @@ $icon-fallback-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 500);
   grid-area: type;
 }
 
+.start-item {
+  grid-area: start;
+}
+
+.end-item {
+  grid-area: end;
+}
+
+.duration-item {
+  grid-area: duration;
+}
+
+.size-item {
+  grid-area: size;
+}
+
+.filename-item {
+  grid-area: filename;
+}
+
 .overview-item {
   background-color: $card-bg-color;
   border: 1px solid $card-border-color;
