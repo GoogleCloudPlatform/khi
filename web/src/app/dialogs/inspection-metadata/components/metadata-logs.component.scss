@@ -15,5 +15,14 @@
  */
 
 :host {
-  display: contents;
+  display: block;
+  width: 100%;
+}
+
+.logs-container {
+  display: grid;
+  grid-template:
+    'log-item' auto
+    / 1fr;
+  gap: 12px;
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,61 @@
  * limitations under the License.
  */
 
-import { Component, inject } from '@angular/core';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { InspectionMetadataOfRunResult } from '../../common/schema/api-types';
-import { MatCardModule } from '@angular/material/card';
-import { JobCommandComponent } from 'src/app/dialogs/new-inspection/components/job-command.component';
+import { Component, computed, inject } from '@angular/core';
+import {
+  MAT_DIALOG_DATA,
+  MatDialog,
+  MatDialogConfig,
+  MatDialogRef,
+} from '@angular/material/dialog';
+import { InspectionMetadataOfRunResult } from 'src/app/common/schema/api-types';
+import { convertToInspectionMetadataViewModel } from './types/inspection-metadata.model';
+import { InspectionMetadataLayoutComponent } from './components/inspection-metadata-layout.component';
 
+/**
+ * Smart dialog component for displaying inspection metadata.
+ * Bridges raw backend metadata received via MAT_DIALOG_DATA to the layout component.
+ */
 @Component({
   templateUrl: './inspection-metadata.component.html',
   styleUrls: ['./inspection-metadata.component.scss'],
-  imports: [MatCardModule, JobCommandComponent],
+  imports: [InspectionMetadataLayoutComponent],
 })
 export class InspectionMetadataDialogComponent {
-  readonly data = inject<InspectionMetadataOfRunResult>(MAT_DIALOG_DATA);
+  /** The raw metadata passed through dialog data. */
+  readonly rawMetadata = inject<InspectionMetadataOfRunResult>(MAT_DIALOG_DATA);
+
+  /** Reference to the dialog instance. */
+  readonly dialogRef = inject(MatDialogRef<InspectionMetadataDialogComponent>);
+
+  /** View model transformed for presentation. */
+  readonly vm = computed(() =>
+    convertToInspectionMetadataViewModel(this.rawMetadata),
+  );
+
+  /** Closes the inspection metadata dialog. */
+  close(): void {
+    this.dialogRef.close();
+  }
+}
+
+/**
+ * Opens the Inspection Metadata dialog with standard dimensions and configuration.
+ * @param dialog MatDialog service instance.
+ * @param data Inspection metadata result to display.
+ * @param config Optional dialog configuration overrides.
+ * @returns MatDialogRef for the opened dialog.
+ */
+export function openInspectionMetadataDialog(
+  dialog: MatDialog,
+  data: InspectionMetadataOfRunResult,
+  config: Partial<MatDialogConfig> = {},
+): MatDialogRef<InspectionMetadataDialogComponent> {
+  return dialog.open(InspectionMetadataDialogComponent, {
+    maxWidth: '95vw',
+    width: '900px',
+    maxHeight: '85vh',
+    data,
+    ...config,
+  });
 }

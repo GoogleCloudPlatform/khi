@@ -15,5 +15,14 @@
  */
 
 :host {
-  display: contents;
+  display: block;
+  width: 100%;
+}
+
+.queries-container {
+  display: grid;
+  grid-template:
+    'query-item' auto
+    / 1fr;
+  gap: 12px;
 }

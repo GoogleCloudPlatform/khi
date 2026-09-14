@@ -14,5 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<khi-inspection-metadata-layout [data]="vm()" (closed)="close()" />
-
+<div class="queries-container">
+  @for (query of queries(); track query.id) {
+    <khi-metadata-code-viewer
+      [title]="query.name"
+      [badge]="getQueryBadge(query)"
+      [code]="query.query"
+      maxHeight="220px"
+    />
+  }
+</div>

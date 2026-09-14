@@ -22,7 +22,7 @@ import {
 } from '@angular/material/dialog';
 import { interval, startWith, firstValueFrom, Observable } from 'rxjs';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
-import { InspectionMetadataDialogComponent } from '../inspection-metadata/inspection-metadata.component';
+import { openInspectionMetadataDialog } from '../inspection-metadata/inspection-metadata.component';
 import {
   openNewInspectionDialog,
   hasDryRunErrors,
@@ -223,10 +223,7 @@ export class StartupDialogSmartComponent {
 
   protected showMetadata(id: string) {
     this.backendAPI.getInspectionMetadata(id).subscribe((metadata) => {
-      this.dialog.open(InspectionMetadataDialogComponent, {
-        data: metadata,
-        maxHeight: 600,
-      });
+      openInspectionMetadataDialog(this.dialog, metadata);
     });
   }
 

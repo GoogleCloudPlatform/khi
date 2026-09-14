@@ -14,5 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<khi-inspection-metadata-layout [data]="vm()" (closed)="close()" />
-
+<div class="logs-container">
+  @for (log of logs(); track log.id) {
+    <khi-metadata-code-viewer
+      [title]="log.name || log.id"
+      badge="Task Log"
+      [code]="log.log"
+      maxHeight="200px"
+    />
+  }
+</div>

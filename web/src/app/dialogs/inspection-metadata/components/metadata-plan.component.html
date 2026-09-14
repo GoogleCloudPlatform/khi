@@ -14,5 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<khi-inspection-metadata-layout [data]="vm()" (closed)="close()" />
-
+<div class="plan-container">
+  <khi-metadata-code-viewer
+    title="Task Execution Graph"
+    badge="Graphviz / DOT"
+    [code]="plan().taskGraph"
+    maxHeight="320px"
+  />
+</div>

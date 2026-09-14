@@ -15,5 +15,13 @@
  */
 
 :host {
-  display: contents;
+  display: block;
+  width: 100%;
+}
+
+.plan-container {
+  display: grid;
+  grid-template:
+    'plan-content' auto
+    / 1fr;
 }

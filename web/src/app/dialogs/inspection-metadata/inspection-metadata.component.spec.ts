@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,23 +15,72 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
-
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { InspectionMetadataOfRunResult } from 'src/app/common/schema/api-types';
 import { InspectionMetadataDialogComponent } from './inspection-metadata.component';
-import { provideHttpClient } from '@angular/common/http';
 
-describe('TaskMetadataViewDialogComponent', () => {
+describe('InspectionMetadataDialogComponent', () => {
   let component: InspectionMetadataDialogComponent;
   let fixture: ComponentFixture<InspectionMetadataDialogComponent>;
+  let mockDialogRef: jasmine.SpyObj<
+    MatDialogRef<InspectionMetadataDialogComponent>
+  >;
+
+  const mockMetadata: InspectionMetadataOfRunResult = {
+    header: {
+      inspectionType: 'gcp-gke',
+      inspectionName: 'Cluster Alpha',
+      inspectionTypeIconPath: '',
+      startTimeUnixSeconds: 1700000000,
+      endTimeUnixSeconds: 1700003600,
+      inspectTimeUnixSeconds: 1700003700,
+      suggestedFilename: 'cluster-alpha.khi',
+      fileSize: 1048576,
+    },
+    query: [
+      {
+        id: 'q1',
+        name: 'Audit query',
+        query: 'resource.type="k8s_cluster"',
+        estimatedCount: 50,
+      },
+    ],
+    log: [
+      {
+        id: 'l1',
+        name: 'AuditLogFetcherTask',
+        log: 'Logs fetched.',
+      },
+    ],
+    plan: {
+      taskGraph: 'digraph G {}',
+    },
+    error: {
+      errorMessages: [
+        {
+          errorId: 'ERR_1',
+          message: 'An error occurred',
+          link: 'https://example.com',
+        },
+      ],
+    },
+  };
 
   beforeEach(async () => {
+    mockDialogRef = jasmine.createSpyObj('MatDialogRef', ['close']);
+
     await TestBed.configureTestingModule({
+      imports: [InspectionMetadataDialogComponent, NoopAnimationsModule],
       providers: [
         {
           provide: MAT_DIALOG_DATA,
-          useValue: [],
+          useValue: mockMetadata,
         },
-        provideHttpClient(),
+        {
+          provide: MatDialogRef,
+          useValue: mockDialogRef,
+        },
       ],
     }).compileComponents();
 
@@ -40,8 +89,27 @@ describe('TaskMetadataViewDialogComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create and compute view model from dialog data', () => {
     expect(component).toBeTruthy();
+    const vm = component.vm();
+    expect(vm.overview.inspectionName).toBe('Cluster Alpha');
+    expect(vm.overview.inspectionType).toBe('gcp-gke');
+    expect(vm.queries.length).toBe(1);
+    expect(vm.logs.length).toBe(1);
+    expect(vm.errors.length).toBe(1);
+    expect(vm.plan.taskGraph).toBe('digraph G {}');
+  });
+
+  it('should close dialog when close is invoked', () => {
+    component.close();
+    expect(mockDialogRef.close).toHaveBeenCalled();
+  });
+
+  it('should render the layout component', () => {
+    const layoutEl = fixture.nativeElement.querySelector(
+      'khi-inspection-metadata-layout',
+    );
+    expect(layoutEl).toBeTruthy();
   });
 
   it('should render job command when jobCommand is provided', () => {
