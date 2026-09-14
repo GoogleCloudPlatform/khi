@@ -21,5 +21,5 @@ import (
 // The following block defines the registered timeline style LogTypes.
 var (
 	// LogTypeCAIResourceSnapshot represents the log type for existing cluster resources discovered from CAI.
-	LogTypeCAIResourceSnapshot = style.MustRegisterLogType("Asset Inventory", "Asset Inventory Resource Snapshot", style.MustForceConvertSRGBHex("#336699"), style.ColorWhite)
+	LogTypeCAIResourceSnapshot = style.MustRegisterLogType("Asset Inventory", "Asset Inventory Resource Snapshot", style.Color{R: 0.2, G: 0.4, B: 0.6, A: 1.0}, style.ColorWhite)
 )

@@ -33,8 +33,8 @@ func ConvertTemporalAssetToClusterResourceSnapshot(ta *assetpb.TemporalAsset) (*
 	}
 
 	var startTime time.Time
-	if ta.Window != nil && ta.Window.StartTime != nil {
-		startTime = ta.Window.StartTime.AsTime()
+	if st := ta.GetWindow().GetStartTime(); st != nil {
+		startTime = st.AsTime()
 	}
 
 	return &googlecloudcaik8s_contract.ClusterResourceSnapshot{

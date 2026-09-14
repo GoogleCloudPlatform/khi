@@ -79,7 +79,7 @@ var ClusterResourceFetcherTask = inspectiontaskbase.NewProgressReportableInspect
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*googlecloudcaik8s_contract.ClusterResourceSnapshot, error) {
 		cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 		factory := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
-		injector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
+		injector, _ := coretask.GetTaskResultOptional(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 		startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 		endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
 		kindFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputKindFilterTaskID.Ref())
