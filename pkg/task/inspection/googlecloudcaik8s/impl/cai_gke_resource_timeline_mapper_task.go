@@ -18,6 +18,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -78,10 +79,7 @@ func extractClusterCreateTimeFromSnapshots(snapshots []*googlecloudcaik8s_contra
 		if res := s.TemporalAsset.Asset.Resource; res != nil && res.Data != nil {
 			str := res.Data.GetFields()["createTime"].GetStringValue()
 			if str != "" {
-				if t, err := time.Parse(time.RFC3339Nano, str); err == nil {
-					return t
-				}
-				if t, err := time.Parse(time.RFC3339, str); err == nil {
+				if t, err := common.ParseTime(str); err == nil {
 					return t
 				}
 			}

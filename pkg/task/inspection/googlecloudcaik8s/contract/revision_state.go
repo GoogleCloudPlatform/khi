@@ -32,7 +32,7 @@ var (
 
 	// RevisionStateGKEClusterExistingFromCAI indicates the GKE cluster existed, discovered via CAI.
 	RevisionStateGKEClusterExistingFromCAI = style.MustRegisterRevisionState(
-		"Cluster Existing(Asset Inventory)",
+		"Cluster Existing (Asset Inventory)",
 		"deployed_code",
 		"The GKE cluster existed at the beginning of the inspection time range, discovered via Cloud Asset Inventory.",
 		style.Color{R: 0.35, G: 0.55, B: 0.95, A: 1.0},
@@ -41,7 +41,7 @@ var (
 
 	// RevisionStateGKENodePoolExistingFromCAI indicates the GKE node pool existed, discovered via CAI.
 	RevisionStateGKENodePoolExistingFromCAI = style.MustRegisterRevisionState(
-		"Node Pool Existing(Asset Inventory)",
+		"Node Pool Existing (Asset Inventory)",
 		"deployed_code",
 		"The GKE node pool existed at the beginning of the inspection time range, discovered via Cloud Asset Inventory.",
 		style.Color{R: 0.35, G: 0.55, B: 0.95, A: 1.0},
