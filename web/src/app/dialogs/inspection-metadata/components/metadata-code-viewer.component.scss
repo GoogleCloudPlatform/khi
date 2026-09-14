@@ -20,8 +20,6 @@ $container-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
 $container-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
 $header-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 800);
 $border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
-$badge-bg-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 700);
-$badge-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
 $copy-btn-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
 
 :host {
@@ -47,7 +45,7 @@ $copy-btn-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
   grid-area: header;
   display: grid;
   grid-template:
-    'title-area actions' auto
+    'title actions' auto
     / 1fr auto;
   align-items: center;
   padding: 4px 12px;
@@ -55,31 +53,11 @@ $copy-btn-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
   border-bottom: 1px solid $border-color;
 }
 
-.title-section {
-  grid-area: title-area;
-  display: grid;
-  grid-template:
-    'title badge' auto
-    / auto 1fr;
-  align-items: center;
-  gap: 8px;
-}
-
 .code-viewer-title {
   grid-area: title;
   font-weight: 500;
   font-size: 13px;
   font-family: 'Roboto Mono', 'Google Sans Code', monospace;
-}
-
-.code-viewer-badge {
-  grid-area: badge;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  background-color: $badge-bg-color;
-  color: $badge-text-color;
-  width: fit-content;
 }
 
 .actions-section {

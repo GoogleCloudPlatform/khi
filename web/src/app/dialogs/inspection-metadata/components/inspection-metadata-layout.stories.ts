@@ -15,7 +15,6 @@
  */
 
 import { Meta, StoryObj } from '@storybook/angular';
-import { EstimatedCountPreset } from 'src/app/common/schema/metadata-types';
 import { InspectionMetadataLayoutComponent } from './inspection-metadata-layout.component';
 
 const meta: Meta<InspectionMetadataLayoutComponent> = {
@@ -46,17 +45,11 @@ export const Default: Story = {
           name: 'GKE Kubernetes Audit Logs',
           query:
             'resource.type="k8s_cluster"\nlogName="projects/test-project/logs/cloudaudit.googleapis.com%2Factivity"',
-          estimatedCount: 24500,
-          pending: false,
-          incomplete: false,
         },
         {
           id: 'node-systemd',
           name: 'Node systemd journals',
           query: 'resource.type="k8s_node"\nlogName=~"systemd"',
-          estimatedCountPreset: EstimatedCountPreset.Few,
-          pending: false,
-          incomplete: false,
         },
       ],
       logs: [
@@ -98,7 +91,6 @@ export const WithErrors: Story = {
           id: 'k8s-audit',
           name: 'GKE Kubernetes Audit Logs',
           query: 'resource.type="k8s_cluster"',
-          incomplete: true,
         },
       ],
       logs: [

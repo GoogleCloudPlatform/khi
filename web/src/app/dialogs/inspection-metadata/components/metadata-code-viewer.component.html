@@ -15,16 +15,9 @@ limitations under the License.
 -->
 
 <div class="code-viewer-container">
-  @if (title() || badge()) {
+  @if (title()) {
     <div class="code-viewer-header">
-      <div class="title-section">
-        @if (title()) {
-          <span class="code-viewer-title">{{ title() }}</span>
-        }
-        @if (badge()) {
-          <span class="code-viewer-badge">{{ badge() }}</span>
-        }
-      </div>
+      <span class="code-viewer-title">{{ title() }}</span>
       <div class="actions-section">
         <button
           mat-icon-button

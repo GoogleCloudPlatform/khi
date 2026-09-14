@@ -44,15 +44,12 @@ describe('MetadataCodeViewerComponent', () => {
     expect(codeElement?.textContent).toContain('SELECT * FROM logs;');
   });
 
-  it('should render title and badge when provided', () => {
+  it('should render title when provided', () => {
     fixture.componentRef.setInput('title', 'Query 1');
-    fixture.componentRef.setInput('badge', 'Estimated: 50');
     fixture.detectChanges();
 
     const titleEl = fixture.nativeElement.querySelector('.code-viewer-title');
-    const badgeEl = fixture.nativeElement.querySelector('.code-viewer-badge');
     expect(titleEl?.textContent).toContain('Query 1');
-    expect(badgeEl?.textContent).toContain('Estimated: 50');
   });
 
   it('should toggle copy feedback icon on copy event', fakeAsync(() => {

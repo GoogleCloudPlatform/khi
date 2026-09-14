@@ -16,7 +16,6 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MetadataQueriesComponent } from './metadata-queries.component';
-import { EstimatedCountPreset } from 'src/app/common/schema/metadata-types';
 
 describe('MetadataQueriesComponent', () => {
   let component: MetadataQueriesComponent;
@@ -34,13 +33,11 @@ describe('MetadataQueriesComponent', () => {
         id: 'q1',
         name: 'GKE Audit Query',
         query: 'resource.type="k8s_cluster"',
-        estimatedCount: 1500,
       },
       {
         id: 'q2',
         name: 'Node System Query',
         query: 'resource.type="gce_instance"',
-        estimatedCountPreset: EstimatedCountPreset.Few,
       },
     ]);
     fixture.detectChanges();
@@ -51,30 +48,7 @@ describe('MetadataQueriesComponent', () => {
     const element = fixture.nativeElement;
     expect(element.textContent).toContain('GKE Audit Query');
     expect(element.textContent).toContain('resource.type="k8s_cluster"');
-    expect(element.textContent).toContain('Count: ~1,500');
     expect(element.textContent).toContain('Node System Query');
-    expect(element.textContent).toContain('Preset: few');
-  });
-
-  it('should return pending and incomplete badges when appropriate', () => {
-    fixture.componentRef.setInput('queries', [
-      {
-        id: 'q3',
-        name: 'Pending Query',
-        query: 'SELECT 1',
-        pending: true,
-      },
-      {
-        id: 'q4',
-        name: 'Incomplete Query',
-        query: 'SELECT 2',
-        incomplete: true,
-      },
-    ]);
-    fixture.detectChanges();
-
-    const element = fixture.nativeElement;
-    expect(element.textContent).toContain('Pending');
-    expect(element.textContent).toContain('Incomplete');
+    expect(element.textContent).toContain('resource.type="gce_instance"');
   });
 });

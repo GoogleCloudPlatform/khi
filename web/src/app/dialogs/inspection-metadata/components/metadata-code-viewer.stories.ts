@@ -29,7 +29,6 @@ type Story = StoryObj<MetadataCodeViewerComponent>;
 export const Default: Story = {
   args: {
     title: 'Audit Log Query',
-    badge: 'Estimated: 1,420',
     code: `SELECT
   timestamp,
   protoPayload.methodName,
@@ -58,7 +57,6 @@ export const WithoutHeader: Story = {
 export const LongLogOutput: Story = {
   args: {
     title: 'k8s.io/audit-log/query',
-    badge: 'Task Log',
     code: `2026/09/14 15:30:00 INFO [audit-log] Starting query execution
 2026/09/14 15:30:01 DEBUG [audit-log] Connecting to BigQuery client
 2026/09/14 15:30:03 INFO [audit-log] Query returned 1,420 rows

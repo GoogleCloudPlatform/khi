@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { EstimatedCountPreset } from 'src/app/common/schema/metadata-types';
 import { InspectionMetadataOfRunResult } from 'src/app/common/schema/api-types';
 import { formatBytes } from 'src/app/utils/byte-format-util';
 
@@ -50,14 +49,6 @@ export interface MetadataQueryViewModel {
   readonly name: string;
   /** The query string. */
   readonly query: string;
-  /** Estimated count of matched logs/events, if known. */
-  readonly estimatedCount?: number;
-  /** Coarse estimation preset if exact count is not available. */
-  readonly estimatedCountPreset?: EstimatedCountPreset;
-  /** Whether the query execution was incomplete. */
-  readonly incomplete?: boolean;
-  /** Whether the query is still pending. */
-  readonly pending?: boolean;
 }
 
 /**
@@ -176,10 +167,6 @@ export function convertToInspectionMetadataViewModel(
     id: q.id,
     name: q.name,
     query: q.query,
-    estimatedCount: q.estimatedCount,
-    estimatedCountPreset: q.estimatedCountPreset,
-    incomplete: q.incomplete,
-    pending: q.pending,
   }));
 
   const logs: MetadataLogViewModel[] = metadata.log.map((l) => ({

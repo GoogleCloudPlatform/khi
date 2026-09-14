@@ -16,7 +16,6 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { MetadataQueriesComponent } from './metadata-queries.component';
-import { EstimatedCountPreset } from 'src/app/common/schema/metadata-types';
 
 const meta: Meta<MetadataQueriesComponent> = {
   title: 'Dialogs/InspectionMetadata/MetadataQueries',
@@ -36,21 +35,18 @@ export const Default: Story = {
         query: `resource.type="k8s_cluster"
 logName="projects/test-project/logs/cloudaudit.googleapis.com%2Factivity"
 timestamp >= "2023-11-14T22:00:00Z" AND timestamp <= "2023-11-15T00:00:00Z"`,
-        estimatedCount: 3420,
       },
       {
         id: 'q2',
         name: 'Node System Log Query',
         query: `resource.type="gce_instance"
 logName=~"projects/test-project/logs/syslog"`,
-        estimatedCountPreset: EstimatedCountPreset.Few,
       },
       {
         id: 'q3',
         name: 'Container Startup Events',
         query: `resource.type="k8s_container"
 jsonPayload.reason="Started"`,
-        pending: false,
       },
     ],
   },
@@ -63,7 +59,6 @@ export const SingleQuery: Story = {
         id: 'q-single',
         name: 'Simple Event Query',
         query: 'SELECT * FROM `k8s.events` WHERE level="ERROR"',
-        estimatedCount: 15,
       },
     ],
   },

@@ -30,25 +30,4 @@ import { MetadataQueryViewModel } from '../types/inspection-metadata.model';
 export class MetadataQueriesComponent {
   /** List of queries to display. */
   readonly queries = input.required<readonly MetadataQueryViewModel[]>();
-
-  /**
-   * Computes the display badge for a given query based on count, preset, or status.
-   * @param query The query item.
-   * @returns Formatted badge text.
-   */
-  protected getQueryBadge(query: MetadataQueryViewModel): string {
-    if (query.estimatedCount !== undefined) {
-      return `Count: ~${query.estimatedCount.toLocaleString()}`;
-    }
-    if (query.estimatedCountPreset) {
-      return `Preset: ${query.estimatedCountPreset}`;
-    }
-    if (query.pending) {
-      return 'Pending';
-    }
-    if (query.incomplete) {
-      return 'Incomplete';
-    }
-    return '';
-  }
 }

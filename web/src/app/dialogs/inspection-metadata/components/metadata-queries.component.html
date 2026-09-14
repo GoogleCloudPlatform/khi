@@ -18,7 +18,6 @@ limitations under the License.
   @for (query of queries(); track query.id) {
     <khi-metadata-code-viewer
       [title]="query.name"
-      [badge]="getQueryBadge(query)"
       [code]="query.query"
       maxHeight="220px"
     />

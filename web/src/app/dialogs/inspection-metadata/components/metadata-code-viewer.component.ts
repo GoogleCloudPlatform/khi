@@ -40,9 +40,6 @@ export class MetadataCodeViewerComponent {
   /** Optional title shown in the header of the code block. */
   readonly title = input<string>('');
 
-  /** Optional badge text shown next to the title. */
-  readonly badge = input<string>('');
-
   /** The code or text content to display. */
   readonly code = input.required<string>();
 
