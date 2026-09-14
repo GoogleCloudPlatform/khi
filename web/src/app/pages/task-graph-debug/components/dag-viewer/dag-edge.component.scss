@@ -1,0 +1,87 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$edge-stroke-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
+$edge-fan-in-color: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 600);
+$edge-highlighted-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  600
+);
+$tag-background-color: mat.m2-get-color-from-palette(
+  mat.$m2-purple-palette,
+  50
+);
+$tag-border-color: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 300);
+$tag-text-color: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 800);
+
+:host {
+  transition: opacity 0.2s ease-in-out;
+
+  .edge-path {
+    fill: none;
+    stroke: $edge-stroke-color;
+    stroke-width: 2px;
+    stroke-linecap: round;
+    transition:
+      stroke 0.2s,
+      stroke-width 0.2s;
+  }
+
+  &.fan-in .edge-path {
+    stroke: $edge-fan-in-color;
+    stroke-dasharray: 6 3;
+  }
+
+  &.highlighted .edge-path {
+    stroke: $edge-highlighted-color;
+    stroke-width: 3px;
+  }
+
+  &.dimmed {
+    opacity: 0.15;
+  }
+
+  .edge-tag-group {
+    .tag-badge-bg {
+      fill: $tag-background-color;
+      stroke: $tag-border-color;
+      stroke-width: 1px;
+    }
+
+    .tag-domain-text {
+      font-family: var(--font-family-code, monospace);
+      font-size: 9px;
+      font-weight: 400;
+      fill: $tag-text-color;
+      opacity: 0.8;
+      user-select: none;
+    }
+
+    .tag-name-text {
+      font-family: var(--font-family-code, monospace);
+      font-size: 11px;
+      font-weight: 600;
+      fill: $tag-text-color;
+      user-select: none;
+
+      &.single-line {
+        font-weight: 500;
+      }
+    }
+  }
+}

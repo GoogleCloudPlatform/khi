@@ -17,6 +17,7 @@ package coretask
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -48,6 +49,9 @@ var LabelKeyTaskResultRetention = NewTaskLabelKey[bool](KHISystemPrefix + "task-
 // LabelKeyTaskDescription is the task label to record a human-readable description of the task.
 var LabelKeyTaskDescription = NewTaskLabelKey[string](KHISystemPrefix + "task-description")
 
+// LabelKeyTaskResultType is the task label to record the string representation of the task output type.
+var LabelKeyTaskResultType = NewTaskLabelKey[string](KHISystemPrefix + "task-result-type")
+
 // UntypedTask represents a task in the DAG without compile-time result type information.
 type UntypedTask interface {
 	UntypedID() taskid.UntypedTaskImplementationID
@@ -57,6 +61,9 @@ type UntypedTask interface {
 
 	// Dependencies returns the list of task dependencies. Task runner will wait for these dependencies before running this task.
 	Dependencies() []Dependency
+
+	// ResultType returns the reflection Type of the task output.
+	ResultType() reflect.Type
 
 	UntypedRun(ctx context.Context) (any, error)
 }
@@ -111,12 +118,19 @@ func (c *TaskImpl[TaskResult]) UntypedRun(ctx context.Context) (any, error) {
 	return c.Run(ctx)
 }
 
+// ResultType implements UntypedTask.
+func (c *TaskImpl[TaskResult]) ResultType() reflect.Type {
+	return reflect.TypeFor[TaskResult]()
+}
+
 var _ Task[any] = (*TaskImpl[any])(nil)
 
 // NewTask constructs a new Task with the given implementation ID, dependencies, execution function, and label options.
 func NewTask[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], dependencies []Dependency, runFunc func(ctx context.Context) (TaskResult, error), labelOpts ...LabelOpt) *TaskImpl[TaskResult] {
 	verifyTaskID(taskID)
 	verifyNonNilDependencies(taskID, dependencies)
+	resultType := reflect.TypeFor[TaskResult]()
+	labelOpts = append([]LabelOpt{WithLabelValue(LabelKeyTaskResultType, resultType.String())}, labelOpts...)
 	labels := NewLabelSet(labelOpts...)
 	verifyLabelKeys(taskID, labels)
 	return &TaskImpl[TaskResult]{
@@ -127,6 +141,32 @@ func NewTask[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], dep
 	}
 }
 
+// mergedPointToPointDescriptor wraps PointToPointDescriptor with an updated dependency scope.
+type mergedPointToPointDescriptor struct {
+	taskid.PointToPointDescriptor
+	scope taskid.DependencyScope
+}
+
+var _ taskid.PointToPointDescriptor = (*mergedPointToPointDescriptor)(nil)
+
+// DescriptorScope returns the merged dependency scope.
+func (m *mergedPointToPointDescriptor) DescriptorScope() taskid.DependencyScope {
+	return m.scope
+}
+
+// mergedFanInDescriptor wraps FanInDescriptor with an updated dependency scope.
+type mergedFanInDescriptor struct {
+	taskid.FanInDescriptor
+	scope taskid.DependencyScope
+}
+
+var _ taskid.FanInDescriptor = (*mergedFanInDescriptor)(nil)
+
+// DescriptorScope returns the merged dependency scope.
+func (m *mergedFanInDescriptor) DescriptorScope() taskid.DependencyScope {
+	return m.scope
+}
+
 // mergeDependencies combines two duplicate dependencies targeting the same task or tag,
 // selecting the broader scope (ScopeAll > ScopeActiveFeatures > ScopeActiveGraph).
 func mergeDependencies(a, b Dependency) Dependency {
@@ -134,17 +174,15 @@ func mergeDependencies(a, b Dependency) Dependency {
 
 	switch d := a.(type) {
 	case taskid.PointToPointDescriptor:
-		var opts []taskid.ReferenceOption
-		if scope != taskid.ScopeUnspecified {
-			opts = append(opts, scope)
+		return &mergedPointToPointDescriptor{
+			PointToPointDescriptor: d,
+			scope:                  scope,
 		}
-		return taskid.NewTaskReference[any](d.ReferenceID(), opts...)
 	case taskid.FanInDescriptor:
-		var opts []taskid.FanInOption
-		if scope != taskid.ScopeUnspecified {
-			opts = append(opts, scope)
+		return &mergedFanInDescriptor{
+			FanInDescriptor: d,
+			scope:           scope,
 		}
-		return NewTagReference[any](d.Tag(), opts...)
 	default:
 		return a
 	}

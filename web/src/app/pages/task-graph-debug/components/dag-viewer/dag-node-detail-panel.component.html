@@ -1,0 +1,153 @@
+<!--
+  Copyright 2026 Google LLC
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+@if (node(); as currentNode) {
+  <div class="detail-panel-container">
+    <div class="panel-header">
+      <div class="header-title-container">
+        <h3 class="panel-title">{{ currentNode.referenceId }}</h3>
+        <span class="panel-subtitle">{{ currentNode.id }}</span>
+      </div>
+      <button mat-icon-button class="close-btn" (click)="closePanel.emit()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="panel-body">
+      <!-- Section: Description -->
+      @if (taskDescription(); as desc) {
+        <div class="detail-section description-section">
+          <p class="description-text">{{ desc }}</p>
+        </div>
+      }
+
+      <!-- Section 1: Overview Properties -->
+      <div class="detail-section">
+        <h4 class="section-title">Properties</h4>
+        <div class="properties-grid">
+          <span class="prop-label">Topological Order</span>
+          <span class="prop-value">#{{ currentNode.topologicalOrder }}</span>
+
+          <span class="prop-label">Priority</span>
+          <span class="prop-value">{{ currentNode.priority }}</span>
+
+          <span class="prop-label">Output Type</span>
+          <span class="prop-value">{{ currentNode.outputType || "None" }}</span>
+
+          <span class="prop-label">Is Feature</span>
+          <span class="prop-value">{{
+            currentNode.isFeature ? "Yes" : "No"
+          }}</span>
+
+          <span class="prop-label">Is Form Input</span>
+          <span class="prop-value">{{
+            currentNode.isFormTask ? "Yes" : "No"
+          }}</span>
+        </div>
+      </div>
+
+      <!-- Section: Provided Tags -->
+      @if (providedTags().length > 0) {
+        <div class="detail-section">
+          <h4 class="section-title">
+            Provided Tags ({{ providedTags().length }})
+          </h4>
+          <div class="tags-list">
+            @for (item of providedTags(); track item.tag) {
+              <span class="tag-chip">
+                <span class="tag-name">#{{ item.tag }}</span>
+                @if (item.outputType) {
+                  <span class="tag-output-type">{{ item.outputType }}</span>
+                }
+              </span>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Section 2: Metadata Labels -->
+      <div class="detail-section">
+        <h4 class="section-title">Labels ({{ labelEntries().length }})</h4>
+        @if (labelEntries().length > 0) {
+          <div class="labels-table">
+            @for (entry of labelEntries(); track entry.key) {
+              <div class="label-row">
+                <span class="label-key">{{ entry.key }}</span>
+                <span class="label-val">{{ entry.value }}</span>
+              </div>
+            }
+          </div>
+        } @else {
+          <span class="empty-hint">No labels attached.</span>
+        }
+      </div>
+
+      <!-- Section 3: Upstream Dependencies (Inputs) -->
+      <div class="detail-section">
+        <h4 class="section-title">
+          Upstream Dependencies ({{ upstreamNodes().length }})
+        </h4>
+        @if (upstreamNodes().length > 0) {
+          <div class="dependency-list">
+            @for (up of upstreamNodes(); track up.id) {
+              <div class="dependency-item" (click)="selectNode.emit(up.id)">
+                <div class="dep-header">
+                  <span class="dep-ref">{{ up.referenceId }}</span>
+                  @if (up.outputType) {
+                    <span class="dep-output-type">{{ up.outputType }}</span>
+                  }
+                </div>
+                <div class="dep-details">
+                  <span class="dep-id">{{ up.id }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <span class="empty-hint"
+            >Initial task (no incoming dependencies).</span
+          >
+        }
+      </div>
+
+      <!-- Section 4: Downstream Consumers (Outputs) -->
+      <div class="detail-section">
+        <h4 class="section-title">
+          Downstream Consumers ({{ downstreamNodes().length }})
+        </h4>
+        @if (downstreamNodes().length > 0) {
+          <div class="dependency-list">
+            @for (down of downstreamNodes(); track down.id) {
+              <div class="dependency-item" (click)="selectNode.emit(down.id)">
+                <div class="dep-header">
+                  <span class="dep-ref">{{ down.referenceId }}</span>
+                  @if (down.outputType) {
+                    <span class="dep-output-type">{{ down.outputType }}</span>
+                  }
+                </div>
+                <div class="dep-details">
+                  <span class="dep-id">{{ down.id }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <span class="empty-hint">Leaf task (no downstream consumers).</span>
+        }
+      </div>
+    </div>
+  </div>
+}

@@ -16,6 +16,7 @@ package coretask
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -37,6 +38,10 @@ func (d *testTask) Run(ctx context.Context) (any, error) {
 
 func (d *testTask) UntypedRun(ctx context.Context) (any, error) {
 	return nil, nil
+}
+
+func (d *testTask) ResultType() reflect.Type {
+	return reflect.TypeFor[any]()
 }
 
 var _ Task[any] = (*testTask)(nil)

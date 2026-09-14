@@ -128,6 +128,7 @@ func TestProvidesTag(t *testing.T) {
 		opts         []ProvidesTagOption
 		wantVal      bool
 		wantPriority int
+		wantType     string
 		wantPrefix   string
 	}{
 		{
@@ -136,6 +137,7 @@ func TestProvidesTag(t *testing.T) {
 			opts:         nil,
 			wantVal:      true,
 			wantPriority: DefaultTagPriority,
+			wantType:     "[]string",
 			wantPrefix:   KHISystemPrefix + "provided-tag/",
 		},
 		{
@@ -144,6 +146,7 @@ func TestProvidesTag(t *testing.T) {
 			opts:         []ProvidesTagOption{WithTagPriority(10)},
 			wantVal:      true,
 			wantPriority: 10,
+			wantType:     "[]string",
 			wantPrefix:   KHISystemPrefix + "provided-tag/",
 		},
 		{
@@ -152,6 +155,7 @@ func TestProvidesTag(t *testing.T) {
 			opts:         []ProvidesTagOption{WithTagPriority(20), WithTagPriority(5)},
 			wantVal:      true,
 			wantPriority: 5,
+			wantType:     "[]string",
 			wantPrefix:   KHISystemPrefix + "provided-tag/",
 		},
 	}
@@ -184,6 +188,18 @@ func TestProvidesTag(t *testing.T) {
 			priorityKey := LabelKeyProvidedTagPriority(tc.tag.ID()).Key()
 			if !strings.HasPrefix(priorityKey, LabelKeyProvidedTagPriorityPrefix) {
 				t.Errorf("expected prefix %s, got %s", LabelKeyProvidedTagPriorityPrefix, priorityKey)
+			}
+
+			typeVal, typeFound := typedmap.Get(labels, LabelKeyProvidedTagType(tc.tag.ID()))
+			if !typeFound {
+				t.Errorf("expected provided-tag-type label to be found, but was not")
+			}
+			if typeVal != tc.wantType {
+				t.Errorf("type label value = %v, want %v", typeVal, tc.wantType)
+			}
+			typeKey := LabelKeyProvidedTagType(tc.tag.ID()).Key()
+			if !strings.HasPrefix(typeKey, LabelKeyProvidedTagTypePrefix) {
+				t.Errorf("expected prefix %s, got %s", LabelKeyProvidedTagTypePrefix, typeKey)
 			}
 		})
 	}

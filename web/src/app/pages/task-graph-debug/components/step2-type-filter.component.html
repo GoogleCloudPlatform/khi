@@ -1,0 +1,237 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="step2-container">
+  <div class="top-section">
+    <div class="inspection-type-picker">
+      <div class="picker-label">Inspection Type</div>
+      <mat-form-field appearance="outline" class="type-dropdown">
+        <mat-label>Select Inspection Type</mat-label>
+        <mat-select
+          [value]="selectedInspectionTypeId()"
+          (selectionChange)="onInspectionTypeSelect($event.value)"
+        >
+          @for (type of inspectionTypes(); track type.id) {
+            <mat-option [value]="type.id">
+              {{ type.name }} ({{ type.id }})
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    @if (currentInspectionType(); as itype) {
+      <div class="type-details-card">
+        <div class="type-header">
+          <span class="type-name">{{ itype.name }}</span>
+          <span class="type-id-badge">{{ itype.id }}</span>
+        </div>
+        <div class="type-desc">{{ itype.description }}</div>
+        @let inspectionLabels = getInspectionTypeLabels(itype);
+        @if (inspectionLabels.length > 0) {
+          <div class="req-section">
+            <span class="req-title">Labels:</span>
+            <div class="req-chips">
+              @for (label of inspectionLabels; track label.key) {
+                <span class="req-chip">
+                  <strong>{{ label.key }}</strong
+                  >: {{ label.value }}
+                </span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  @if (availableFeatures().length > 0) {
+    <div class="features-section">
+      <div class="section-heading">
+        <mat-icon>toggle_on</mat-icon>
+        <span>Toggleable Features ({{ availableFeatures().length }})</span>
+      </div>
+      <div class="features-grid">
+        @for (
+          feature of availableFeatures();
+          track feature.taskImplementationId
+        ) {
+          <div class="feature-card">
+            <mat-checkbox
+              [checked]="feature.enabled"
+              (change)="
+                onFeatureToggle(feature.taskImplementationId, $event.checked)
+              "
+            >
+              <div class="feature-info">
+                <span class="feature-label">{{ feature.label }}</span>
+                <span class="feature-impl-id">{{
+                  feature.taskImplementationId
+                }}</span>
+                @if (feature.description) {
+                  <span class="feature-desc">{{ feature.description }}</span>
+                }
+              </div>
+            </mat-checkbox>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <div class="evaluations-section">
+    <div class="eval-toolbar">
+      <div class="status-tabs">
+        <button
+          type="button"
+          class="status-tab"
+          [class.active]="statusFilter() === EvaluationStatusFilter.ALL"
+          (click)="setStatusFilter(EvaluationStatusFilter.ALL)"
+        >
+          All ({{ classifiedEvaluations().length }})
+        </button>
+        <button
+          type="button"
+          class="status-tab selected"
+          [class.active]="
+            statusFilter() === EvaluationStatusFilter.SELECTED_ONLY
+          "
+          (click)="setStatusFilter(EvaluationStatusFilter.SELECTED_ONLY)"
+        >
+          Selected ({{ selectedCount() }})
+        </button>
+        <button
+          type="button"
+          class="status-tab superseded"
+          [class.active]="
+            statusFilter() === EvaluationStatusFilter.SUPERSEDED_ONLY
+          "
+          (click)="setStatusFilter(EvaluationStatusFilter.SUPERSEDED_ONLY)"
+        >
+          Superseded ({{ supersededCount() }})
+        </button>
+        <button
+          type="button"
+          class="status-tab incompatible"
+          [class.active]="
+            statusFilter() === EvaluationStatusFilter.INCOMPATIBLE_ONLY
+          "
+          (click)="setStatusFilter(EvaluationStatusFilter.INCOMPATIBLE_ONLY)"
+        >
+          Incompatible ({{ incompatibleCount() }})
+        </button>
+      </div>
+
+      <div class="eval-search-box">
+        <mat-icon>search</mat-icon>
+        <input
+          type="text"
+          placeholder="Search evaluations..."
+          [value]="searchQuery()"
+          (input)="onSearchInput($event)"
+          class="eval-search-input"
+        />
+        @if (searchQuery()) {
+          <button mat-icon-button (click)="clearSearch()">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="evaluations-table">
+      <div class="table-header">
+        <span class="col-status">Status</span>
+        <span class="col-ref">Reference ID</span>
+        <span class="col-impl">Implementation ID</span>
+        <span class="col-priority">Priority</span>
+        <span class="col-details">Evaluation Details / Reason</span>
+      </div>
+
+      <div class="table-body">
+        @for (
+          item of filteredEvaluations();
+          track item.evaluation.taskImplementationId
+        ) {
+          <div
+            class="table-row"
+            [class.row-selected]="item.status === TaskFilterStatus.SELECTED"
+            [class.row-superseded]="item.status === TaskFilterStatus.SUPERSEDED"
+            [class.row-incompatible]="
+              item.status === TaskFilterStatus.INCOMPATIBLE
+            "
+          >
+            <div class="col-status">
+              @switch (item.status) {
+                @case (TaskFilterStatus.SELECTED) {
+                  <span class="status-badge status-selected">
+                    <mat-icon>check_circle</mat-icon>
+                    Selected
+                  </span>
+                }
+                @case (TaskFilterStatus.SUPERSEDED) {
+                  <span class="status-badge status-superseded">
+                    <mat-icon>remove_circle_outline</mat-icon>
+                    Superseded
+                  </span>
+                }
+                @case (TaskFilterStatus.INCOMPATIBLE) {
+                  <span class="status-badge status-incompatible">
+                    <mat-icon>cancel</mat-icon>
+                    Incompatible
+                  </span>
+                }
+              }
+            </div>
+            <div class="col-ref">
+              <span class="ref-code">{{
+                item.evaluation.taskReferenceId
+              }}</span>
+            </div>
+            <div class="col-impl">
+              <span class="impl-code">{{
+                item.evaluation.taskImplementationId
+              }}</span>
+            </div>
+            <div class="col-priority">
+              <span class="priority-num">{{ item.evaluation.priority }}</span>
+            </div>
+            <div class="col-details">
+              @if (item.status === TaskFilterStatus.SUPERSEDED) {
+                <span class="superseded-info">
+                  Superseded by
+                  <strong>{{
+                    item.evaluation.supersededByTaskImplementationId
+                  }}</strong>
+                </span>
+              }
+              @if (item.evaluation.matchReason) {
+                <span class="reason-text">{{
+                  item.evaluation.matchReason
+                }}</span>
+              }
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-evaluations">
+            <mat-icon>filter_list_off</mat-icon>
+            <p>No evaluations match the active filter.</p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

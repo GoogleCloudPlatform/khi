@@ -15,6 +15,7 @@
 package coretask
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -71,6 +72,9 @@ func TestTagReference(t *testing.T) {
 			if got := ref.GetZeroValue(); got != 0 {
 				t.Errorf("GetZeroValue() = %v, want 0", got)
 			}
+			if got := ref.ResultType(); got != reflect.TypeFor[int]() {
+				t.Errorf("ResultType() = %v, want %v", got, reflect.TypeFor[int]())
+			}
 		})
 	}
 }
@@ -83,6 +87,10 @@ func (c customDependency) DescriptorCardinality() taskid.EdgeCardinality {
 
 func (c customDependency) DescriptorScope() taskid.DependencyScope {
 	return taskid.ScopeAll
+}
+
+func (c customDependency) ResultType() reflect.Type {
+	return reflect.TypeFor[any]()
 }
 
 var _ taskid.DependencyDescriptor = (*customDependency)(nil)

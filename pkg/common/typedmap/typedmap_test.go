@@ -507,3 +507,54 @@ func TestTypedMap_Merge(t *testing.T) {
 		})
 	}
 }
+
+func TestToStringMap(t *testing.T) {
+	testCases := []struct {
+		name     string
+		setupMap func() ReadableTypedMap
+		want     map[string]string
+	}{
+		{
+			name: "empty map",
+			setupMap: func() ReadableTypedMap {
+				return NewTypedMap()
+			},
+			want: map[string]string{},
+		},
+		{
+			name: "mixed types in typed map",
+			setupMap: func() ReadableTypedMap {
+				m := NewTypedMap()
+				Set(m, NewTypedKey[string]("str"), "hello")
+				Set(m, NewTypedKey[int]("num"), 42)
+				Set(m, NewTypedKey[bool]("flag"), true)
+				return m
+			},
+			want: map[string]string{
+				"str":  "hello",
+				"num":  "42",
+				"flag": "true",
+			},
+		},
+		{
+			name: "readonly typed map",
+			setupMap: func() ReadableTypedMap {
+				m := NewTypedMap()
+				Set(m, NewTypedKey[string]("env"), "gke")
+				return m.AsReadonly()
+			},
+			want: map[string]string{
+				"env": "gke",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ToStringMap(tc.setupMap())
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ToStringMap() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

@@ -1,0 +1,216 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="step1-container" [class.panel-open]="selectedTaskId() !== null">
+  <div class="registry-main-column">
+    <div class="toolbar">
+      <div class="search-box">
+        <mat-icon>search</mat-icon>
+        <input
+          type="text"
+          placeholder="Filter by Reference ID or Implementation ID..."
+          [value]="searchQuery()"
+          (input)="onSearchInput($event)"
+          class="search-input"
+        />
+        @if (searchQuery()) {
+          <button mat-icon-button (click)="clearSearch()">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </div>
+      <div class="summary-chips">
+        <span class="chip">
+          <strong>{{ filteredTaskGroups().length }}</strong> /
+          {{ taskGroups().length }} Reference IDs
+        </span>
+        <span class="chip">
+          <strong>{{ totalImplementationsCount() }}</strong> Implementations
+          Registered
+        </span>
+      </div>
+    </div>
+
+    <div class="groups-list">
+      @for (group of filteredTaskGroups(); track group.taskReferenceId) {
+        <div class="group-card">
+          <div class="group-header">
+            <div class="ref-info">
+              <span class="ref-label">Reference ID</span>
+              <span class="ref-id">{{ group.taskReferenceId }}</span>
+            </div>
+            <span class="impl-count-badge">
+              {{ group.tasks.length }}
+              {{
+                group.tasks.length === 1 ? "implementation" : "implementations"
+              }}
+            </span>
+          </div>
+
+          <div class="implementations-list">
+            @for (task of group.tasks; track task.taskImplementationId) {
+              <div
+                class="task-impl-card"
+                [id]="'task-impl-' + task.taskImplementationId"
+                [class.selected]="
+                  selectedTaskId() === task.taskImplementationId
+                "
+                (click)="selectTask(task.taskImplementationId)"
+              >
+                <div class="impl-header">
+                  <div class="impl-title">
+                    <span class="impl-id">
+                      {{ task.taskImplementationId }}
+                    </span>
+                    @if (task.outputType) {
+                      <span
+                        class="badge badge-output-type"
+                        [title]="'Output: ' + task.outputType"
+                      >
+                        Output: {{ task.outputType }}
+                      </span>
+                    }
+                    @if (isFormTask(task.labels)) {
+                      <span class="badge badge-input">Input</span>
+                    }
+                    @if (task.isFeature) {
+                      <span class="badge badge-feature">Feature</span>
+                    }
+                    @if (task.isDefaultFeature) {
+                      <span class="badge badge-default-feature"
+                        >Default On</span
+                      >
+                    }
+                  </div>
+                  <div class="priority-badge">
+                    Priority: <strong>{{ task.priority }}</strong>
+                  </div>
+                </div>
+
+                @let taskDesc = getTaskDescription(task.labels);
+                @if (taskDesc) {
+                  <div class="task-description">
+                    {{ taskDesc }}
+                  </div>
+                }
+
+                @if (task.featureDescription) {
+                  <div class="feature-description">
+                    {{ task.featureDescription }}
+                  </div>
+                }
+
+                <div class="impl-body">
+                  @if (task.providedTags.length > 0) {
+                    <div class="impl-section">
+                      <span class="section-title"
+                        >Provided Tags ({{ task.providedTags.length }})</span
+                      >
+                      <div class="provided-tag-chips">
+                        @for (pt of task.providedTags; track pt.tag) {
+                          <span class="provided-tag-chip">
+                            <span class="tag-name">#{{ pt.tag }}</span>
+                            @if (pt.outputType) {
+                              <span class="tag-output-type">{{
+                                pt.outputType
+                              }}</span>
+                            }
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <div class="impl-section">
+                    <span class="section-title"
+                      >Dependencies ({{ task.dependencies.length }})</span
+                    >
+                    @if (task.dependencies.length === 0) {
+                      <span class="empty-hint">None</span>
+                    } @else {
+                      <div class="dep-chips">
+                        @for (dep of task.dependencies; track $index) {
+                          <div class="dep-chip">
+                            @if (
+                              dep.cardinality ===
+                              TaskDependencyCardinality.FAN_IN
+                            ) {
+                              <span class="dep-type fan-in"
+                                >Fan-in: #{{ dep.targetTag }}</span
+                              >
+                            } @else {
+                              <span class="dep-type p2p"
+                                >P2P: {{ dep.targetReferenceId }}</span
+                              >
+                            }
+                            @if (dep.outputType) {
+                              <span class="dep-output-type">{{
+                                dep.outputType
+                              }}</span>
+                            }
+                            <span class="dep-scope">{{
+                              getScopeLabel(dep.scope)
+                            }}</span>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+
+                  @let labelEntries = getLabelEntries(task);
+                  @if (labelEntries.length > 0) {
+                    <div class="impl-section">
+                      <span class="section-title">Labels</span>
+                      <div class="label-chips">
+                        @for (label of labelEntries; track label.key) {
+                          <span class="label-chip">
+                            <span class="label-key">{{ label.key }}</span
+                            >:
+                            <span class="label-value">{{ label.value }}</span>
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <mat-icon>search_off</mat-icon>
+          <p>No task groups match the filter query "{{ searchQuery() }}".</p>
+        </div>
+      }
+    </div>
+  </div>
+
+  @if (selectedTaskId(); as centerId) {
+    <aside class="neighborhood-panel-container">
+      <khi-step1-task-neighborhood-panel
+        [taskGroups]="taskGroups()"
+        [centerTaskId]="centerId"
+        [canGoBack]="canGoBack()"
+        [canGoForward]="canGoForward()"
+        (selectTask)="selectTask($event)"
+        (goBack)="goBack()"
+        (goForward)="goForward()"
+        (closePanel)="closePanel()"
+      />
+    </aside>
+  }
+</div>

@@ -1,0 +1,113 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="neighborhood-panel-root">
+  <header class="panel-header">
+    <div class="history-nav">
+      <button
+        mat-icon-button
+        class="nav-btn"
+        [disabled]="!canGoBack()"
+        (click)="onBackClick()"
+        title="Go back in history"
+      >
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        class="nav-btn"
+        [disabled]="!canGoForward()"
+        (click)="onForwardClick()"
+        title="Go forward in history"
+      >
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+    </div>
+
+    <div class="header-title-container">
+      <div class="title-row">
+        <mat-icon class="title-icon">hub</mat-icon>
+        <span class="panel-title">Neighborhood (3-Layer DAG)</span>
+      </div>
+      @if (centerTask(); as task) {
+        <div class="task-identity-row">
+          <span class="ref-pill">{{ task.taskReferenceId }}</span>
+          <span class="impl-pill">{{ task.taskImplementationId }}</span>
+          @if (task.outputType) {
+            <span
+              class="output-type-pill"
+              [title]="'Output: ' + task.outputType"
+            >
+              Output: {{ task.outputType }}
+            </span>
+          }
+        </div>
+        @if (centerTaskDescription(); as desc) {
+          <div class="task-description-row">
+            {{ desc }}
+          </div>
+        }
+      }
+    </div>
+
+    <button
+      mat-icon-button
+      class="close-btn"
+      (click)="onCloseClick()"
+      title="Close panel"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  @let graph = neighborhoodGraph();
+  <div class="neighborhood-summary-bar">
+    <div class="summary-item upstream">
+      <mat-icon>call_made</mat-icon>
+      <span class="summary-label">Parents:</span>
+      <strong class="summary-count">{{ graph.parentCount }}</strong>
+    </div>
+    <div class="summary-separator">|</div>
+    <div class="summary-item center">
+      <mat-icon>my_location</mat-icon>
+      <span class="summary-label">Focal Task</span>
+    </div>
+    <div class="summary-separator">|</div>
+    <div class="summary-item downstream">
+      <mat-icon>call_received</mat-icon>
+      <span class="summary-label">Children:</span>
+      <strong class="summary-count">{{ graph.childCount }}</strong>
+    </div>
+  </div>
+
+  <main class="panel-canvas-container">
+    @if (nodes().length > 0) {
+      <khi-dag-canvas
+        class="neighborhood-canvas"
+        [nodes]="nodes()"
+        [edges]="edges()"
+        [selectedNodeId]="centerTaskId()"
+        [showDetailPanel]="false"
+        (nodeClick)="onNodeClick($event)"
+      />
+    } @else {
+      <div class="empty-state">
+        <mat-icon>hub</mat-icon>
+        <p>No task selected or task metadata not found.</p>
+      </div>
+    }
+  </main>
+</div>

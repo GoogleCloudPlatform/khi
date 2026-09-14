@@ -184,7 +184,7 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 
 	filteredTasks := []coretask.UntypedTask{}
 	for _, task := range i.inspectionServer.RootTaskSet.GetAll() {
-		if isTaskCompatible(task, currentType) {
+		if compatible, _ := EvaluateTaskCompatibility(task, currentType); compatible {
 			filteredTasks = append(filteredTasks, task)
 		}
 	}
@@ -203,18 +203,6 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 	}
 	i.currentInspectionType = inspectionType
 	return i.SetFeatureList(defaultFeatureIds)
-}
-
-func isTaskCompatible(task coretask.UntypedTask, inspectionType *InspectionType) bool {
-	labels := task.Labels()
-
-	// 1. Evaluate with Label Selector if present.
-	if selector, ok := typedmap.Get(labels, inspectioncore_contract.LabelKeyInspectionTypeLabelSelector); ok {
-		return selector.Match(inspectionType.Labels)
-	}
-
-	// 2. Defaults to true if no selector is defined (global tasks).
-	return true
 }
 
 // deduplicateTasksByPriority retains only the task with the highest LabelKeyTaskSelectionPriority for each TaskRef, sorted by reference name.

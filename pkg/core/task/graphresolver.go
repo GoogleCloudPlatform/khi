@@ -317,6 +317,10 @@ func resolveTaskCandidateFanInEdges(
 
 		for _, p := range matchingProducers {
 			priority := typedmap.GetOrDefault(p.Labels(), LabelKeyProvidedTagPriority(tag), DefaultTagPriority)
+			tagType := typedmap.GetOrDefault(p.Labels(), LabelKeyProvidedTagType(tag), "")
+			if tagType == "" && p.ResultType() != nil {
+				tagType = p.ResultType().String()
+			}
 			taskEdges = append(taskEdges, taskid.TaskEdge{
 				SourceRefID:  p.UntypedID().ReferenceIDString(),
 				SourceImplID: p.UntypedID().String(),
@@ -324,6 +328,7 @@ func resolveTaskCandidateFanInEdges(
 				Cardinality:  taskid.CardinalityFanIn,
 				Tag:          tag,
 				Priority:     priority,
+				OutputType:   tagType,
 			})
 		}
 	}
@@ -396,11 +401,16 @@ func resolvePointToPointEdges(graphTaskMap map[string]UntypedTask) []taskid.Task
 				}
 				refID := ptp.ReferenceID()
 				if sourceTask, exists := graphTaskMap[refID]; exists {
+					outputType := ""
+					if sourceTask.ResultType() != nil {
+						outputType = sourceTask.ResultType().String()
+					}
 					rawEdges = append(rawEdges, taskid.TaskEdge{
 						SourceRefID:  refID,
 						SourceImplID: sourceTask.UntypedID().String(),
 						TargetImplID: t.UntypedID().String(),
 						Cardinality:  taskid.CardinalityPointToPoint,
+						OutputType:   outputType,
 					})
 				}
 			}
@@ -427,6 +437,9 @@ func deduplicateAndNormalizeEdges(rawEdges []taskid.TaskEdge) []taskid.TaskEdge 
 			}
 			if existing.Tag == "" && e.Tag != "" {
 				existing.Tag = e.Tag
+			}
+			if existing.OutputType == "" && e.OutputType != "" {
+				existing.OutputType = e.OutputType
 			}
 			if existing.Cardinality == taskid.CardinalityPointToPoint || e.Cardinality == taskid.CardinalityPointToPoint {
 				existing.Cardinality = taskid.CardinalityPointToPoint
