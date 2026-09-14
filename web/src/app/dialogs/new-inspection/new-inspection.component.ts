@@ -27,7 +27,6 @@ import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import {
   BehaviorSubject,
   Subject,
-  delay,
   filter,
   firstValueFrom,
   fromEvent,
@@ -374,7 +373,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
           filter((matched): matched is InspectionType => !!matched),
           take(1),
           tap((matched) => {
-            this.setInspectionType(matched);
+            this.currentInspectionType.next(matched);
             if (this.dialogData?.initialParameters) {
               this.store.setDefaultValues(this.dialogData.initialParameters);
             }
@@ -391,15 +390,12 @@ export class NewInspectionDialogComponent implements OnDestroy {
               client.setFeatures(featureMap);
             }
           }),
-          // Wait briefly for step 0 transition to settle before navigating to parameter input step.
-          delay(50),
           takeUntil(this.destroyed),
         )
         .subscribe(() => {
-          if (this.stepper) {
-            this.stepper.selectedIndex =
-              NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT;
-          }
+          this.navigateToStep(
+            NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
+          );
         });
     }
 
@@ -431,7 +427,31 @@ export class NewInspectionDialogComponent implements OnDestroy {
       });
   }
 
-  @ViewChild('stepper') private stepper!: MatStepper;
+  private _stepper?: MatStepper;
+
+  private pendingStepIndex: number | null = null;
+
+  @ViewChild('stepper')
+  private set stepper(stepper: MatStepper | undefined) {
+    this._stepper = stepper;
+    if (stepper && this.pendingStepIndex !== null) {
+      stepper.selectedIndex = this.pendingStepIndex;
+      this.pendingStepIndex = null;
+    }
+  }
+
+  private get stepper(): MatStepper | undefined {
+    return this._stepper;
+  }
+
+  private navigateToStep(stepIndex: number) {
+    if (this._stepper) {
+      this._stepper.selectedIndex = stepIndex;
+      this.pendingStepIndex = null;
+    } else {
+      this.pendingStepIndex = stepIndex;
+    }
+  }
 
   public inspectionTypes = this.backendSync.inspectionTypes;
 
@@ -518,7 +538,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
   public setInspectionType(inspectionType: InspectionType) {
     this.currentInspectionType.next(inspectionType);
     setTimeout(() => {
-      this.stepper.next();
+      this.stepper?.next();
     }, 10);
   }
 

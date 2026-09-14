@@ -61,6 +61,19 @@ describe('JobCommandInputLayoutComponent', () => {
     expect(submitBtn!.nativeElement.disabled).toBeFalse();
   });
 
+  it('should update command model signal when user types in textarea', () => {
+    fixture.detectChanges();
+    const textarea = fixture.debugElement.query(By.css('textarea'))
+      .nativeElement as HTMLTextAreaElement;
+    textarea.value = './khi --job-mode --job-inspection-type="gke"';
+    textarea.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(component.command()).toBe(
+      './khi --job-mode --job-inspection-type="gke"',
+    );
+  });
+
   it('should render error message when errorMessage is provided', () => {
     fixture.componentRef.setInput('errorMessage', 'Failed to parse command');
     fixture.detectChanges();

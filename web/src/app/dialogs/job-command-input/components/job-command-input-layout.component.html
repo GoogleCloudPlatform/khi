@@ -27,8 +27,7 @@
       matInput
       rows="10"
       placeholder='./khi --job-mode --job-inspection-type="..." --job-inspection-features="..." --job-inspection-values=&apos;{...}&apos;'
-      [ngModel]="command()"
-      (ngModelChange)="command.set($event)"
+      [(ngModel)]="command"
     ></textarea>
   </mat-form-field>
 

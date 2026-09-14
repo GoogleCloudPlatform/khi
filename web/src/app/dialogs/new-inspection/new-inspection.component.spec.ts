@@ -723,6 +723,8 @@ describe('NewInspectionDialogTest', () => {
             description: '',
             hint: '',
             hintType: ParameterHintType.None,
+            collapsible: false,
+            collapsedByDefault: false,
             children: [
               {
                 id: 'nested-field',
