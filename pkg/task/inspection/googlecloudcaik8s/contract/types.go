@@ -29,3 +29,13 @@ type ClusterResourceSnapshot struct {
 	// StartTime is the beginning of this temporal snapshot's validity window.
 	StartTime time.Time
 }
+
+// GKEResourceSnapshot represents a GKE Cluster or NodePool resource captured from CAI.
+type GKEResourceSnapshot struct {
+	// TemporalAsset holds the raw temporal asset response received from Cloud Asset Inventory.
+	// This payload is used directly as the log body.
+	TemporalAsset *assetpb.TemporalAsset
+
+	// StartTime is the beginning of this temporal snapshot's validity window.
+	StartTime time.Time
+}

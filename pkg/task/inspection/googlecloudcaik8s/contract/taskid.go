@@ -23,6 +23,9 @@ import (
 // TaskIDPrefix is the prefix for Google Cloud CAI K8s task IDs.
 const TaskIDPrefix = "cloud.google.com/cai/k8s/"
 
+// GKETaskIDPrefix is the prefix for Google Cloud CAI GKE task IDs.
+const GKETaskIDPrefix = "cloud.google.com/cai/gke/"
+
 // ClusterResourceFetcherTaskID is the task ID for fetching cluster resource snapshots from CAI.
 var ClusterResourceFetcherTaskID = taskid.NewDefaultImplementationID[[]*ClusterResourceSnapshot](TaskIDPrefix + "fetcher")
 
@@ -37,3 +40,18 @@ var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix
 
 // LogToTimelineMapperTaskID is the task ID for mapping CAI cluster resource snapshots to timeline revisions.
 var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "timeline-mapper")
+
+// GKEResourceFetcherTaskID is the task ID for fetching GKE cluster and nodepool snapshots from CAI.
+var GKEResourceFetcherTaskID = taskid.NewDefaultImplementationID[[]*GKEResourceSnapshot](GKETaskIDPrefix + "fetcher")
+
+// GKERawLogTaskID is the task ID for raw logs generated from CAI GKE resource snapshots.
+var GKERawLogTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKETaskIDPrefix + "raw-logs")
+
+// GKELogGrouperTaskID is the task ID for grouping CAI GKE resource snapshot logs.
+var GKELogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GKETaskIDPrefix + "grouper")
+
+// GKELogIngesterTaskID is the task ID for ingesting CAI GKE resource snapshot log metadata.
+var GKELogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](GKETaskIDPrefix + "log-ingester")
+
+// GKELogToTimelineMapperTaskID is the task ID for mapping CAI GKE resource snapshots to timeline revisions.
+var GKELogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](GKETaskIDPrefix + "timeline-mapper")

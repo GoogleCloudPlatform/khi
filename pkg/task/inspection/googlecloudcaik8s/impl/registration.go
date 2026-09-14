@@ -40,5 +40,10 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		LogGrouperTask,
 		LogIngesterTask,
 		LogToTimelineMapperTask,
+		GKEResourceFetcherTask,
+		GKERawLogTask,
+		GKELogGrouperTask,
+		GKELogIngesterTask,
+		GKELogToTimelineMapperTask,
 	)
 }

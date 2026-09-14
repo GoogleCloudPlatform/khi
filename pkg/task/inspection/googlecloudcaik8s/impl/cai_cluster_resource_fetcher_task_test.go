@@ -56,6 +56,7 @@ type mockCAIFetcher struct {
 	// A cluster resource lookup searches once per phase, so the entries are indexed by phase.
 	searchResultsPerCall [][]*assetpb.ResourceSearchResult
 	searchErr            error
+	searchErrPerCall     []error
 	batchAssets          []*assetpb.TemporalAsset
 	batchErr             error
 
@@ -78,6 +79,9 @@ var _ googlecloudcaik8s_contract.CAIFetcher = (*mockCAIFetcher)(nil)
 func (m *mockCAIFetcher) SearchResources(ctx context.Context, scope, query string, assetTypes []string) ([]*assetpb.ResourceSearchResult, error) {
 	callIndex := len(m.searchCalls)
 	m.searchCalls = append(m.searchCalls, recordedSearchCall{scope: scope, query: query, assetTypes: assetTypes})
+	if callIndex < len(m.searchErrPerCall) && m.searchErrPerCall[callIndex] != nil {
+		return nil, m.searchErrPerCall[callIndex]
+	}
 	if m.searchErr != nil {
 		return nil, m.searchErr
 	}
