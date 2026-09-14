@@ -23,6 +23,7 @@ import {
 import { interval, startWith } from 'rxjs';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionMetadataDialogComponent } from '../inspection-metadata/inspection-metadata.component';
+import { openInspectionRunTaskGraphDialog } from 'src/app/dialogs/inspection-run-task-graph/inspection-run-task-graph-smart.component';
 import { openNewInspectionDialog } from '../new-inspection/new-inspection.component';
 import {
   BACKEND_API,
@@ -168,6 +169,14 @@ export class StartupDialogSmartComponent {
         data: metadata,
         maxHeight: 600,
       });
+    });
+  }
+
+  protected showRunTaskGraph(id: string) {
+    const item = this.vmTasks().find((task) => task.id === id);
+    openInspectionRunTaskGraphDialog(this.dialog, {
+      inspectionId: id,
+      inspectionName: item?.label ?? id,
     });
   }
 

@@ -204,6 +204,20 @@ describe('InspectionListItemComponent', () => {
     );
   });
 
+  it('should emit openInspectionRunTaskGraph when the task graph button is clicked', () => {
+    const item = { ...mockItem, phase: 'RUNNING' as const };
+    fixture.componentRef.setInput('item', item);
+    fixture.detectChanges();
+
+    spyOn(component.openInspectionRunTaskGraph, 'emit');
+    const button = fixture.debugElement.query(By.css('.run-task-graph-button'));
+    button.nativeElement.click();
+
+    expect(component.openInspectionRunTaskGraph.emit).toHaveBeenCalledWith(
+      'test-task',
+    );
+  });
+
   it('should emit cancelInspection when cancel button is clicked', () => {
     const item = { ...mockItem, phase: 'RUNNING' as const };
     fixture.componentRef.setInput('item', item);
@@ -270,4 +284,9 @@ describe('InspectionListItemComponent', () => {
   checkButtonVisibilityForPhase('DONE', '.download-button', true);
   checkButtonVisibilityForPhase('ERROR', '.download-button', false);
   checkButtonVisibilityForPhase('CANCELLED', '.download-button', false);
+
+  checkButtonVisibilityForPhase('RUNNING', '.run-task-graph-button', true);
+  checkButtonVisibilityForPhase('DONE', '.run-task-graph-button', true);
+  checkButtonVisibilityForPhase('ERROR', '.run-task-graph-button', true);
+  checkButtonVisibilityForPhase('CANCELLED', '.run-task-graph-button', true);
 });

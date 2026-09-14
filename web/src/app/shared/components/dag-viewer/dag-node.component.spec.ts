@@ -16,12 +16,13 @@
 
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { DagNodeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-node.component';
+import { DagNodeComponent } from 'src/app/shared/components/dag-viewer/dag-node.component';
 import { ProvidedTagInfo } from 'src/app/generated/api/v1/inspection_task_graph_pb';
 import {
+  DagNodeRunPhase,
   DagPositionedNode,
   TASK_DESCRIPTION_LABEL_KEY,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 @Component({
   standalone: true,
@@ -61,6 +62,8 @@ const mockNode: DagPositionedNode = {
   labels: {},
   outputType: 'string',
   providedTags: [],
+  runPhase: DagNodeRunPhase.NONE,
+  runDurationMs: 0,
   x: 120,
   y: 80,
   width: 420,
@@ -309,6 +312,111 @@ describe('DagNodeComponent', () => {
     const titleEl = fixture.nativeElement.querySelector('title');
     expect(titleEl.textContent.trim()).toBe(
       'khi.google.com/test-task - Parses logs into timeline events.\nOutput: string',
+    );
+  });
+
+  const runPhaseCases: readonly {
+    readonly name: string;
+    readonly runPhase: DagNodeRunPhase;
+    readonly expectedAttribute: string | null;
+  }[] = [
+    {
+      name: 'omits the attribute when the node is not tied to a run',
+      runPhase: DagNodeRunPhase.NONE,
+      expectedAttribute: null,
+    },
+    {
+      name: 'marks waiting tasks',
+      runPhase: DagNodeRunPhase.WAITING,
+      expectedAttribute: 'WAITING',
+    },
+    {
+      name: 'marks running tasks',
+      runPhase: DagNodeRunPhase.RUNNING,
+      expectedAttribute: 'RUNNING',
+    },
+    {
+      name: 'marks finished tasks',
+      runPhase: DagNodeRunPhase.DONE,
+      expectedAttribute: 'DONE',
+    },
+    {
+      name: 'marks failed tasks',
+      runPhase: DagNodeRunPhase.ERROR,
+      expectedAttribute: 'ERROR',
+    },
+  ];
+
+  runPhaseCases.forEach((testCase) => {
+    it(`exposes the run phase as a host attribute: ${testCase.name}`, () => {
+      hostComponent.node = { ...mockNode, runPhase: testCase.runPhase };
+      fixture.detectChanges();
+
+      const group = fixture.nativeElement.querySelector('.dag-node-group');
+      expect(group.getAttribute('data-run-phase')).toBe(
+        testCase.expectedAttribute,
+      );
+    });
+  });
+
+  it('renders the formatted run duration when the duration is known', () => {
+    hostComponent.node = {
+      ...mockNode,
+      runPhase: DagNodeRunPhase.DONE,
+      runDurationMs: 4321,
+    };
+    fixture.detectChanges();
+
+    const durationText = fixture.nativeElement.querySelector(
+      '.node-run-duration-text',
+    );
+    expect(durationText.textContent.trim()).toBe('4.3s');
+    expect(durationText.getAttribute('x')).toBe('406');
+  });
+
+  it('omits the run duration when the duration is unknown', () => {
+    hostComponent.node = {
+      ...mockNode,
+      runPhase: DagNodeRunPhase.WAITING,
+      runDurationMs: 0,
+    };
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('.node-run-duration-text'),
+    ).toBeNull();
+  });
+
+  it('truncates output type earlier when run duration is displayed to avoid overlap', () => {
+    const fiftyCharOutputType =
+      'pkg/model/history/resourceinfo/TimelineResourceMap';
+    hostComponent.node = {
+      ...mockNode,
+      outputType: fiftyCharOutputType,
+      runPhase: DagNodeRunPhase.NONE,
+      runDurationMs: 0,
+    };
+    fixture.detectChanges();
+
+    const outputTextWithoutDuration = fixture.nativeElement
+      .querySelector('.node-output-type-text')
+      .textContent.trim();
+    expect(outputTextWithoutDuration).toBe(fiftyCharOutputType);
+
+    hostComponent.node = {
+      ...mockNode,
+      outputType: fiftyCharOutputType,
+      runPhase: DagNodeRunPhase.DONE,
+      runDurationMs: 12345,
+    };
+    fixture.detectChanges();
+
+    const outputTextWithDuration = fixture.nativeElement
+      .querySelector('.node-output-type-text')
+      .textContent.trim();
+    expect(outputTextWithDuration.endsWith('...')).toBeTrue();
+    expect(outputTextWithDuration.length).toBeLessThan(
+      fiftyCharOutputType.length,
     );
   });
 });

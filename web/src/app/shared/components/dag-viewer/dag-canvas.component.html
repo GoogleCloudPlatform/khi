@@ -106,6 +106,17 @@
           >
             <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#7b1fa2" />
           </marker>
+          <marker
+            id="arrow-marker-satisfied"
+            viewBox="0 0 10 10"
+            refX="6"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#388e3c" />
+          </marker>
         </defs>
 
         <g class="dag-content-group" [attr.transform]="transformString()">
@@ -117,6 +128,7 @@
                 [edge]="edge"
                 [isHighlighted]="isEdgeHighlighted(edge.id)"
                 [isDimmed]="isEdgeDimmed(edge.id)"
+                [isSatisfied]="isEdgeSatisfied(edge.id)"
               ></g>
             }
           </g>

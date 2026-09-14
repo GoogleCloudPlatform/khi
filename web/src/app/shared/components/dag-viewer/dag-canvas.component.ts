@@ -27,16 +27,17 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { DagEdgeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-edge.component';
-import { computeDagLayout } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-layout';
-import { DagNodeDetailPanelComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-node-detail-panel.component';
-import { DagNodeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-node.component';
+import { DagEdgeComponent } from 'src/app/shared/components/dag-viewer/dag-edge.component';
+import { computeDagLayout } from 'src/app/shared/components/dag-viewer/dag-layout';
+import { DagNodeDetailPanelComponent } from 'src/app/shared/components/dag-viewer/dag-node-detail-panel.component';
+import { DagNodeComponent } from 'src/app/shared/components/dag-viewer/dag-node.component';
 import {
   DagLayoutResult,
+  DagNodeRunPhase,
   DagPositionedNode,
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 
 const MIN_ZOOM = 0.15;
@@ -241,6 +242,21 @@ export class DagCanvasComponent implements AfterViewInit {
   });
 
   /**
+   * Set of satisfied edge IDs whose upstream source task completed successfully (DONE).
+   */
+  readonly satisfiedEdgeIds = computed<ReadonlySet<string>>(() => {
+    const nodeMap = this.nodeMap();
+    const set = new Set<string>();
+    for (const edge of this.edges()) {
+      const sourceNode = nodeMap.get(edge.sourceId);
+      if (sourceNode?.runPhase === DagNodeRunPhase.DONE) {
+        set.add(edge.id);
+      }
+    }
+    return set;
+  });
+
+  /**
    * Currently selected node object, or null.
    */
   readonly selectedNode = computed<DagViewerNode | null>(() => {
@@ -333,6 +349,13 @@ export class DagCanvasComponent implements AfterViewInit {
    */
   isEdgeDimmed(id: string): boolean {
     return this.activeNodeId() !== null && !this.highlightedEdgeIds().has(id);
+  }
+
+  /**
+   * Determines if a specific edge is satisfied (its upstream source task completed).
+   */
+  isEdgeSatisfied(id: string): boolean {
+    return this.satisfiedEdgeIds().has(id);
   }
 
   /**

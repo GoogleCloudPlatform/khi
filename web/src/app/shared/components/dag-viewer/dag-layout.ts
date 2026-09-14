@@ -20,7 +20,7 @@ import {
   DagPositionedNode,
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 /**
  * Options configuring DAG layout spacing and sizing dimensions.
@@ -37,19 +37,19 @@ export interface DagLayoutOptions {
   readonly nodeHeight?: number;
 
   /**
-   * Horizontal spacing between columns (layers) in pixels. Defaults to 80.
-   */
-  readonly horizontalSpacing?: number;
-
-  /**
-   * Horizontal spacing between columns that contain tag dependency edges in pixels. Defaults to 200.
-   */
-  readonly tagHorizontalSpacing?: number;
-
-  /**
-   * Vertical spacing between sibling nodes in the same column in pixels. Defaults to 28.
+   * Vertical spacing between rows (layers) in pixels. Defaults to 70.
    */
   readonly verticalSpacing?: number;
+
+  /**
+   * Vertical spacing between rows that contain tag dependency edges in pixels. Defaults to 110.
+   */
+  readonly tagVerticalSpacing?: number;
+
+  /**
+   * Horizontal spacing between sibling nodes in the same row in pixels. Defaults to 40.
+   */
+  readonly horizontalSpacing?: number;
 
   /**
    * Horizontal canvas padding in pixels. Defaults to 48.
@@ -64,14 +64,17 @@ export interface DagLayoutOptions {
 
 const DEFAULT_NODE_WIDTH = 420;
 const DEFAULT_NODE_HEIGHT = 104;
-const DEFAULT_HORIZONTAL_SPACING = 80;
-const DEFAULT_TAG_HORIZONTAL_SPACING = 200;
-const DEFAULT_VERTICAL_SPACING = 28;
+const DEFAULT_VERTICAL_SPACING = 70;
+const DEFAULT_TAG_VERTICAL_SPACING = 110;
+const DEFAULT_HORIZONTAL_SPACING = 40;
 const DEFAULT_PADDING_X = 48;
 const DEFAULT_PADDING_Y = 48;
 
 /**
  * Computes layered DAG coordinates and cubic Bezier edge curves for a set of nodes and directed edges.
+ *
+ * Positions nodes in a top-to-bottom layout where upstream dependencies appear in rows above
+ * downstream dependents.
  */
 export function computeDagLayout(
   nodes: readonly DagViewerNode[],
@@ -80,11 +83,11 @@ export function computeDagLayout(
 ): DagLayoutResult {
   const nodeWidth = options?.nodeWidth ?? DEFAULT_NODE_WIDTH;
   const nodeHeight = options?.nodeHeight ?? DEFAULT_NODE_HEIGHT;
+  const verticalSpacing = options?.verticalSpacing ?? DEFAULT_VERTICAL_SPACING;
+  const tagVerticalSpacing =
+    options?.tagVerticalSpacing ?? DEFAULT_TAG_VERTICAL_SPACING;
   const horizontalSpacing =
     options?.horizontalSpacing ?? DEFAULT_HORIZONTAL_SPACING;
-  const tagHorizontalSpacing =
-    options?.tagHorizontalSpacing ?? DEFAULT_TAG_HORIZONTAL_SPACING;
-  const verticalSpacing = options?.verticalSpacing ?? DEFAULT_VERTICAL_SPACING;
   const paddingX = options?.paddingX ?? DEFAULT_PADDING_X;
   const paddingY = options?.paddingY ?? DEFAULT_PADDING_Y;
 
@@ -118,7 +121,7 @@ export function computeDagLayout(
     (a, b) => a.topologicalOrder - b.topologicalOrder,
   );
 
-  // Compute longest-path topological depth (layer column index) for each node.
+  // Compute longest-path topological depth (layer row index) for each node.
   const layerMap = new Map<string, number>();
   for (const node of sortedNodes) {
     let maxIncomingLayer = -1;
@@ -132,7 +135,7 @@ export function computeDagLayout(
     layerMap.set(node.id, Math.max(0, maxIncomingLayer + 1));
   }
 
-  // Group nodes by their assigned layer column.
+  // Group nodes by their assigned layer row.
   const layers = new Map<number, DagViewerNode[]>();
   let maxLayer = 0;
   for (const node of sortedNodes) {
@@ -145,22 +148,21 @@ export function computeDagLayout(
     layers.set(layer, list);
   }
 
-  // Find the maximum column height to vertically center shorter columns.
-  let maxColCount = 0;
+  // Find the maximum row width to horizontally center shorter rows.
+  let maxRowWidth = 0;
   for (let l = 0; l <= maxLayer; l++) {
     const count = (layers.get(l) ?? []).length;
-    if (count > maxColCount) {
-      maxColCount = count;
+    const rowWidth =
+      count * nodeWidth + Math.max(0, count - 1) * horizontalSpacing;
+    if (rowWidth > maxRowWidth) {
+      maxRowWidth = rowWidth;
     }
   }
-
-  const maxColHeight =
-    maxColCount * nodeHeight + Math.max(0, maxColCount - 1) * verticalSpacing;
 
   // Determine spacing for each layer transition based on whether tag dependency edges cross it.
   const layerSpacing: number[] = [];
   for (let l = 0; l < maxLayer; l++) {
-    layerSpacing[l] = horizontalSpacing;
+    layerSpacing[l] = verticalSpacing;
   }
   for (const edge of validEdges) {
     if (!edge.tag) {
@@ -173,36 +175,36 @@ export function computeDagLayout(
     }
     if (destLayer > sourceLayer) {
       for (let l = sourceLayer; l < destLayer; l++) {
-        layerSpacing[l] = Math.max(layerSpacing[l], tagHorizontalSpacing);
+        layerSpacing[l] = Math.max(layerSpacing[l], tagVerticalSpacing);
       }
     }
   }
 
-  // Compute X coordinate for each layer column using cumulative spacing.
-  const layerX = new Map<number, number>();
-  let currentX = paddingX;
+  // Compute Y coordinate for each layer row using cumulative spacing.
+  const layerY = new Map<number, number>();
+  let currentY = paddingY;
   for (let l = 0; l <= maxLayer; l++) {
-    layerX.set(l, currentX);
+    layerY.set(l, currentY);
     if (l < maxLayer) {
-      currentX += nodeWidth + layerSpacing[l];
+      currentY += nodeHeight + layerSpacing[l];
     }
   }
 
-  // Position nodes within their respective layer columns.
+  // Position nodes within their respective layer rows.
   const positionedNodes: DagPositionedNode[] = [];
   const positionedNodeMap = new Map<string, DagPositionedNode>();
 
   for (let l = 0; l <= maxLayer; l++) {
-    const colNodes = layers.get(l) ?? [];
-    const colHeight =
-      colNodes.length * nodeHeight +
-      Math.max(0, colNodes.length - 1) * verticalSpacing;
-    const colStartY = paddingY + (maxColHeight - colHeight) / 2;
-    const colX = layerX.get(l) ?? paddingX;
+    const rowNodes = layers.get(l) ?? [];
+    const rowWidth =
+      rowNodes.length * nodeWidth +
+      Math.max(0, rowNodes.length - 1) * horizontalSpacing;
+    const rowStartX = paddingX + (maxRowWidth - rowWidth) / 2;
+    const rowY = layerY.get(l) ?? paddingY;
 
-    colNodes.forEach((node, idx) => {
-      const x = colX;
-      const y = colStartY + idx * (nodeHeight + verticalSpacing);
+    rowNodes.forEach((node, idx) => {
+      const x = rowStartX + idx * (nodeWidth + horizontalSpacing);
+      const y = rowY;
       const positioned: DagPositionedNode = {
         ...node,
         x,
@@ -216,7 +218,7 @@ export function computeDagLayout(
     });
   }
 
-  // Position edges and construct smooth cubic Bezier curves.
+  // Position edges and construct smooth cubic Bezier curves running top-to-bottom.
   const positionedEdges: DagPositionedEdge[] = [];
   for (const edge of validEdges) {
     const source = positionedNodeMap.get(edge.sourceId);
@@ -225,34 +227,34 @@ export function computeDagLayout(
       continue;
     }
 
-    const startX = source.x + source.width;
-    const startY = source.y + source.height / 2;
-    const endX = dest.x;
-    const endY = dest.y + dest.height / 2;
+    const startX = source.x + source.width / 2;
+    const startY = source.y + source.height;
+    const endX = dest.x + dest.width / 2;
+    const endY = dest.y;
 
     let pathD: string;
     let labelX: number;
     let labelY: number;
 
-    if (endX > startX) {
-      const dx = endX - startX;
-      const cx1 = startX + dx * 0.45;
-      const cy1 = startY;
-      const cx2 = endX - dx * 0.45;
-      const cy2 = endY;
+    if (endY > startY) {
+      const dy = endY - startY;
+      const cx1 = startX;
+      const cy1 = startY + dy * 0.45;
+      const cx2 = endX;
+      const cy2 = endY - dy * 0.45;
       pathD = `M ${startX} ${startY} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${endX} ${endY}`;
       labelX = (startX + endX) / 2;
       labelY = (startY + endY) / 2;
     } else {
-      // Loopback curve for backward edges or same-column connections.
-      const loopOffset = 50;
+      // Loopback curve for backward edges or same-layer connections.
+      const loopOffset = 60;
       const cx1 = startX + loopOffset;
-      const cy1 = startY - loopOffset;
-      const cx2 = endX - loopOffset;
+      const cy1 = startY + loopOffset;
+      const cx2 = endX + loopOffset;
       const cy2 = endY - loopOffset;
       pathD = `M ${startX} ${startY} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${endX} ${endY}`;
-      labelX = (startX + endX) / 2;
-      labelY = Math.min(startY, endY) - loopOffset;
+      labelX = Math.max(startX, endX) + loopOffset;
+      labelY = (startY + endY) / 2;
     }
 
     positionedEdges.push({
@@ -267,9 +269,9 @@ export function computeDagLayout(
     });
   }
 
-  const lastLayerX = layerX.get(maxLayer) ?? paddingX;
-  const totalWidth = lastLayerX + nodeWidth + paddingX;
-  const totalHeight = paddingY * 2 + maxColHeight;
+  const lastLayerY = layerY.get(maxLayer) ?? paddingY;
+  const totalWidth = paddingX * 2 + maxRowWidth;
+  const totalHeight = lastLayerY + nodeHeight + paddingY;
 
   return {
     nodes: positionedNodes,

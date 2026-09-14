@@ -25,7 +25,7 @@ import {
   Step1TaskNeighborhoodPanelComponent,
   computeTaskNeighborhoodGraph,
 } from 'src/app/pages/task-graph-debug/components/step1-task-neighborhood-panel.component';
-import { TASK_DESCRIPTION_LABEL_KEY } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { TASK_DESCRIPTION_LABEL_KEY } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 describe('Step1TaskNeighborhoodPanelComponent', () => {
   const mockTaskGroups: readonly RegisteredTaskGroupInfo[] = [

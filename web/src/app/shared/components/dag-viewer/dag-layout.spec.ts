@@ -15,11 +15,12 @@
  */
 
 import { TaskDependencyCardinality } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { computeDagLayout } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-layout';
+import { computeDagLayout } from 'src/app/shared/components/dag-viewer/dag-layout';
 import {
+  DagNodeRunPhase,
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 describe('computeDagLayout', () => {
   const createMockNode = (
@@ -36,6 +37,8 @@ describe('computeDagLayout', () => {
     labels: {},
     outputType: 'string',
     providedTags: [],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   });
 
   const createMockEdge = (
@@ -74,7 +77,7 @@ describe('computeDagLayout', () => {
     expect(result.height).toBeGreaterThan(0);
   });
 
-  it('layers linear dependency chain in sequential columns', () => {
+  it('layers linear dependency chain in sequential rows', () => {
     const nodeA = createMockNode('task-a', 'ref-a', 0);
     const nodeB = createMockNode('task-b', 'ref-b', 1);
     const nodeC = createMockNode('task-c', 'ref-c', 2);
@@ -93,8 +96,10 @@ describe('computeDagLayout', () => {
     expect(posB.layer).toBe(1);
     expect(posC.layer).toBe(2);
 
-    expect(posA.x).toBeLessThan(posB.x);
-    expect(posB.x).toBeLessThan(posC.x);
+    expect(posA.y).toBeLessThan(posB.y);
+    expect(posB.y).toBeLessThan(posC.y);
+    expect(posA.x).toBe(posB.x);
+    expect(posB.x).toBe(posC.x);
 
     expect(result.edges.length).toBe(2);
     expect(result.edges[0].pathD).toContain('M ');
@@ -127,9 +132,16 @@ describe('computeDagLayout', () => {
     expect(posC.layer).toBe(1);
     expect(posD.layer).toBe(2);
 
-    // Nodes B and C should have the same X but different Y coordinates.
-    expect(posB.x).toBe(posC.x);
-    expect(posB.y).not.toBe(posC.y);
+    // Nodes B and C should have the same Y but different X coordinates.
+    expect(posB.y).toBe(posC.y);
+    expect(posB.x).not.toBe(posC.x);
+    expect(posA.y).toBeLessThan(posB.y);
+    expect(posB.y).toBeLessThan(posD.y);
+
+    // Single-node rows A and D should be centered horizontally relative to row containing B and C.
+    expect(posA.x).toBe(posD.x);
+    expect(posA.x).toBeGreaterThan(posB.x);
+    expect(posA.x + posA.width).toBeLessThan(posC.x + posC.width);
 
     expect(result.edges.length).toBe(4);
   });
@@ -157,19 +169,19 @@ describe('computeDagLayout', () => {
     expect(result.edges[0].pathD).toContain(' C ');
   });
 
-  it('widens horizontal spacing between layers when edges have tags', () => {
+  it('widens vertical spacing between layers when edges have tags', () => {
     const nodeA = createMockNode('task-a', 'ref-a', 0);
     const nodeB = createMockNode('task-b', 'ref-b', 1);
 
-    // Standard edge without tag: spacing should be default 80
+    // Standard edge without tag: spacing should be default 70
     const edgeNoTag = createMockEdge('task-a', 'task-b');
     const resultNoTag = computeDagLayout([nodeA, nodeB], [edgeNoTag]);
     const posANoTag = resultNoTag.nodes.find((n) => n.id === 'task-a')!;
     const posBNoTag = resultNoTag.nodes.find((n) => n.id === 'task-b')!;
-    const spacingNoTag = posBNoTag.x - (posANoTag.x + posANoTag.width);
-    expect(spacingNoTag).toBe(80);
+    const spacingNoTag = posBNoTag.y - (posANoTag.y + posANoTag.height);
+    expect(spacingNoTag).toBe(70);
 
-    // Edge with tag: spacing should expand to default tagHorizontalSpacing 200
+    // Edge with tag: spacing should expand to default tagVerticalSpacing 110
     const edgeWithTag = createMockEdge(
       'task-a',
       'task-b',
@@ -179,7 +191,7 @@ describe('computeDagLayout', () => {
     const resultWithTag = computeDagLayout([nodeA, nodeB], [edgeWithTag]);
     const posAWithTag = resultWithTag.nodes.find((n) => n.id === 'task-a')!;
     const posBWithTag = resultWithTag.nodes.find((n) => n.id === 'task-b')!;
-    const spacingWithTag = posBWithTag.x - (posAWithTag.x + posAWithTag.width);
-    expect(spacingWithTag).toBe(200);
+    const spacingWithTag = posBWithTag.y - (posAWithTag.y + posAWithTag.height);
+    expect(spacingWithTag).toBe(110);
   });
 });

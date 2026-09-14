@@ -26,5 +26,6 @@ type TaskRunner interface {
 	Wait() <-chan interface{}
 	Result() (*typedmap.ReadonlyTypedMap, error)
 	Tasks() []UntypedTask
+	TaskRunStatuses() map[string]TaskRunStatus
 	AddInterceptor(interceptor Interceptor)
 }

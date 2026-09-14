@@ -15,8 +15,11 @@
  */
 
 import { Meta, StoryObj } from '@storybook/angular';
-import { DagNodeDetailPanelComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-node-detail-panel.component';
-import { DagViewerNode } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { DagNodeDetailPanelComponent } from 'src/app/shared/components/dag-viewer/dag-node-detail-panel.component';
+import {
+  DagNodeRunPhase,
+  DagViewerNode,
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 const mockNode: DagViewerNode = {
   id: 'khi.k8s.pod-parser#d9a4f2',
@@ -39,6 +42,8 @@ const mockNode: DagViewerNode = {
       outputType: '*parser.ParsedPod',
     },
   ],
+  runPhase: DagNodeRunPhase.NONE,
+  runDurationMs: 0,
 };
 
 const mockUpstream: DagViewerNode[] = [
@@ -52,6 +57,8 @@ const mockUpstream: DagViewerNode[] = [
     labels: {},
     outputType: '*reader.LogStream',
     providedTags: [],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
 ];
 
@@ -66,11 +73,13 @@ const mockDownstream: DagViewerNode[] = [
     labels: {},
     outputType: '*timeline.Timeline',
     providedTags: [],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
 ];
 
 const meta: Meta<DagNodeDetailPanelComponent> = {
-  title: 'TaskGraphDebug/DagViewer/DagNodeDetailPanel',
+  title: 'Shared/DagViewer/DagNodeDetailPanel',
   component: DagNodeDetailPanelComponent,
   tags: ['autodocs'],
   args: {

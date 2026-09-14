@@ -16,8 +16,8 @@
 
 import { Meta, StoryObj, componentWrapperDecorator } from '@storybook/angular';
 import { TaskDependencyCardinality } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { DagEdgeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-edge.component';
-import { DagPositionedEdge } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { DagEdgeComponent } from 'src/app/shared/components/dag-viewer/dag-edge.component';
+import { DagPositionedEdge } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 const mockEdge: DagPositionedEdge = {
   id: 'task-a->task-b',
@@ -38,7 +38,7 @@ const mockEdge: DagPositionedEdge = {
 };
 
 const meta: Meta<DagEdgeComponent> = {
-  title: 'TaskGraphDebug/DagViewer/DagEdge',
+  title: 'Shared/DagViewer/DagEdge',
   component: DagEdgeComponent,
   tags: ['autodocs'],
   decorators: [
@@ -55,6 +55,9 @@ const meta: Meta<DagEdgeComponent> = {
             <marker id="arrow-marker-fan-in" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
               <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#7d5260" />
             </marker>
+            <marker id="arrow-marker-satisfied" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#388e3c" />
+            </marker>
           </defs>
           ${story}
         </svg>
@@ -69,6 +72,7 @@ const meta: Meta<DagEdgeComponent> = {
         [edge]="edge"
         [isHighlighted]="isHighlighted"
         [isDimmed]="isDimmed"
+        [isSatisfied]="isSatisfied"
       ></g>
     `,
   }),
@@ -76,6 +80,7 @@ const meta: Meta<DagEdgeComponent> = {
     edge: mockEdge,
     isHighlighted: false,
     isDimmed: false,
+    isSatisfied: false,
   },
 };
 
@@ -84,6 +89,12 @@ type Story = StoryObj<DagEdgeComponent>;
 
 export const PointToPoint: Story = {
   args: {},
+};
+
+export const Satisfied: Story = {
+  args: {
+    isSatisfied: true,
+  },
 };
 
 export const Highlighted: Story = {

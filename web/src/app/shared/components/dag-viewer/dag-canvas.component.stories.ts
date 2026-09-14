@@ -16,11 +16,12 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { TaskDependencyCardinality } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { DagCanvasComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-canvas.component';
+import { DagCanvasComponent } from 'src/app/shared/components/dag-viewer/dag-canvas.component';
 import {
+  DagNodeRunPhase,
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 const sampleNodes: DagViewerNode[] = [
   {
@@ -33,6 +34,8 @@ const sampleNodes: DagViewerNode[] = [
     labels: { cluster: 'gke' },
     outputType: '*cluster.Info',
     providedTags: [],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
   {
     id: 'k8s/audit-log-collector#abc2',
@@ -44,6 +47,8 @@ const sampleNodes: DagViewerNode[] = [
     labels: { logType: 'audit' },
     outputType: '[]*audit.LogEntry',
     providedTags: [],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
   {
     id: 'k8s/container-log-collector#abc3',
@@ -55,6 +60,8 @@ const sampleNodes: DagViewerNode[] = [
     labels: { logType: 'container' },
     outputType: '[]*container.LogEntry',
     providedTags: [],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
   {
     id: 'k8s/pod-timeline-mapper#abc4',
@@ -73,6 +80,8 @@ const sampleNodes: DagViewerNode[] = [
         outputType: '[]*timeline.Fragment',
       },
     ],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
   {
     id: 'k8s/node-timeline-mapper#abc5',
@@ -91,6 +100,8 @@ const sampleNodes: DagViewerNode[] = [
         outputType: '[]*timeline.Fragment',
       },
     ],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
   {
     id: 'k8s/timeline-aggregator#abc6',
@@ -102,8 +113,29 @@ const sampleNodes: DagViewerNode[] = [
     labels: {},
     outputType: '*timeline.Timeline',
     providedTags: [],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
 ];
+
+const runPhaseByNodeId: ReadonlyMap<string, DagNodeRunPhase> = new Map([
+  ['k8s/cluster-info-reader#abc1', DagNodeRunPhase.DONE],
+  ['k8s/audit-log-collector#abc2', DagNodeRunPhase.DONE],
+  ['k8s/container-log-collector#abc3', DagNodeRunPhase.ERROR],
+  ['k8s/pod-timeline-mapper#abc4', DagNodeRunPhase.RUNNING],
+  ['k8s/node-timeline-mapper#abc5', DagNodeRunPhase.RUNNING],
+  ['k8s/timeline-aggregator#abc6', DagNodeRunPhase.WAITING],
+]);
+
+const runningSampleNodes: DagViewerNode[] = sampleNodes.map((node, index) => {
+  const runPhase = runPhaseByNodeId.get(node.id) ?? DagNodeRunPhase.WAITING;
+  return {
+    ...node,
+    runPhase,
+    runDurationMs:
+      runPhase === DagNodeRunPhase.WAITING ? 0 : 1200 * (index + 1),
+  };
+});
 
 const sampleEdges: DagViewerEdge[] = [
   {
@@ -169,7 +201,7 @@ const sampleEdges: DagViewerEdge[] = [
 ];
 
 const meta: Meta<DagCanvasComponent> = {
-  title: 'TaskGraphDebug/DagViewer/DagCanvas',
+  title: 'Shared/DagViewer/DagCanvas',
   component: DagCanvasComponent,
   tags: ['autodocs'],
   args: {
@@ -189,5 +221,11 @@ export const Empty: Story = {
   args: {
     nodes: [],
     edges: [],
+  },
+};
+
+export const RunInProgress: Story = {
+  args: {
+    nodes: runningSampleNodes,
   },
 };

@@ -22,7 +22,7 @@ import {
   TaskDependencyCardinality,
   TaskDependencyScope,
 } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { TASK_DESCRIPTION_LABEL_KEY } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { TASK_DESCRIPTION_LABEL_KEY } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 import { Step1RegistryTableComponent } from './step1-registry-table.component';
 
 describe('Step1RegistryTableComponent', () => {

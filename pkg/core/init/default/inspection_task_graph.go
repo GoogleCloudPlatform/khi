@@ -43,7 +43,11 @@ var InspectionTaskGraphInitializer = &coreinit.Initializer{
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
 
-		inspectionTaskGraphServer := serverapiv1.NewInspectionTaskGraphServer(inspectionServer)
+		inspectionTaskGraphServer := serverapiv1.NewInspectionTaskGraphServer(
+			inspectionServer,
+			serverapiv1.DefaultStreamCycleDuration,
+			serverapiv1.DefaultUpdateInterval,
+		)
 		servicePath, serviceHandler := apiv1connect.NewInspectionTaskGraphServiceHandler(inspectionTaskGraphServer)
 		coreinit.RegisterConnectServiceHandler(router, basePath, servicePath, serviceHandler)
 

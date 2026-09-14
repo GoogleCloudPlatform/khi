@@ -51,6 +51,11 @@ func (c *completedTaskRunner) Tasks() []coretask.UntypedTask {
 	return nil
 }
 
+// TaskRunStatuses returns nil because an imported inspection executes no task graph.
+func (c *completedTaskRunner) TaskRunStatuses() map[string]coretask.TaskRunStatus {
+	return nil
+}
+
 // AddInterceptor is a no-op for completed tasks.
 func (c *completedTaskRunner) AddInterceptor(interceptor coretask.Interceptor) {}
 

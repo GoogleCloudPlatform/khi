@@ -23,9 +23,10 @@ import {
   TaskFilterEvaluation,
 } from 'src/app/generated/api/v1/inspection_task_graph_pb';
 import {
+  DagNodeRunPhase,
   DagViewerEdge,
   DagViewerNode,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 import { TaskGraphDebugTab } from 'src/app/pages/task-graph-debug/types/task-graph-debug.model';
 import { TaskGraphDebugLayoutComponent } from './task-graph-debug-layout.component';
 
@@ -92,6 +93,8 @@ const mockNodes: DagViewerNode[] = [
     labels: {},
     outputType: '*config.ClusterConfig',
     providedTags: [],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
   {
     id: 'child-task-1',
@@ -103,6 +106,8 @@ const mockNodes: DagViewerNode[] = [
     labels: {},
     outputType: '[]*worker.TaskResult',
     providedTags: [],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
   {
     id: 'child-task-2',
@@ -114,6 +119,8 @@ const mockNodes: DagViewerNode[] = [
     labels: {},
     outputType: '[]*worker.TaskResult',
     providedTags: [],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   },
 ];
 

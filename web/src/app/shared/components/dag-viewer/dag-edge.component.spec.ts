@@ -17,8 +17,8 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TaskDependencyCardinality } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { DagEdgeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-edge.component';
-import { DagPositionedEdge } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { DagEdgeComponent } from 'src/app/shared/components/dag-viewer/dag-edge.component';
+import { DagPositionedEdge } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 @Component({
   standalone: true,
@@ -30,6 +30,7 @@ import { DagPositionedEdge } from 'src/app/pages/task-graph-debug/components/dag
         [edge]="edge"
         [isHighlighted]="isHighlighted"
         [isDimmed]="isDimmed"
+        [isSatisfied]="isSatisfied"
       ></g>
     </svg>
   `,
@@ -38,6 +39,7 @@ class TestHostComponent {
   edge: DagPositionedEdge = mockPointEdge;
   isHighlighted = false;
   isDimmed = false;
+  isSatisfied = false;
 }
 
 const mockPointEdge: DagPositionedEdge = {
@@ -152,5 +154,35 @@ describe('DagEdgeComponent', () => {
 
     const group = fixture.nativeElement.querySelector('.dag-edge-group');
     expect(group.classList.contains('dimmed')).toBeTrue();
+  });
+
+  it('applies satisfied class and satisfied marker URL when isSatisfied is true', () => {
+    hostComponent.edge = mockPointEdge;
+    hostComponent.isSatisfied = true;
+    fixture.detectChanges();
+
+    const group = fixture.nativeElement.querySelector('.dag-edge-group');
+    expect(group.classList.contains('satisfied')).toBeTrue();
+
+    const path = fixture.nativeElement.querySelector('.edge-path');
+    expect(path.getAttribute('marker-end')).toBe(
+      'url(#arrow-marker-satisfied)',
+    );
+  });
+
+  it('prioritizes highlighted marker over satisfied marker', () => {
+    hostComponent.edge = mockPointEdge;
+    hostComponent.isSatisfied = true;
+    hostComponent.isHighlighted = true;
+    fixture.detectChanges();
+
+    const group = fixture.nativeElement.querySelector('.dag-edge-group');
+    expect(group.classList.contains('satisfied')).toBeTrue();
+    expect(group.classList.contains('highlighted')).toBeTrue();
+
+    const path = fixture.nativeElement.querySelector('.edge-path');
+    expect(path.getAttribute('marker-end')).toBe(
+      'url(#arrow-marker-highlighted)',
+    );
   });
 });

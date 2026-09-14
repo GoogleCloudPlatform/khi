@@ -57,6 +57,10 @@ func (m *mockTaskRunner) Tasks() []coretask.UntypedTask {
 	return m.tasks
 }
 
+func (m *mockTaskRunner) TaskRunStatuses() map[string]coretask.TaskRunStatus {
+	panic("unimplemented")
+}
+
 var _ coretask.TaskRunner = (*mockTaskRunner)(nil)
 
 func TestInputLoggingFilterResourceNameTask(t *testing.T) {

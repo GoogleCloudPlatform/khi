@@ -40,6 +40,11 @@ import {
   PullInspectionsResponseSchema,
 } from 'src/app/generated/api/v1/inspection_pb';
 import {
+  InspectionRunTaskGraphSnapshotSchema,
+  InspectionTaskGraphService,
+  PullInspectionRunTaskGraphResponseSchema,
+} from 'src/app/generated/api/v1/inspection_task_graph_pb';
+import {
   PopupFormSchema,
   PopupService,
   PullPopupResponseSchema,
@@ -321,6 +326,56 @@ describe('LegacyPollingInterceptor', () => {
         WatchIndexProgressResponse_IndexState.BUILDING,
         WatchIndexProgressResponse_IndexState.READY,
       ]);
+    });
+
+    it('adapts WatchInspectionRunTaskGraph and terminates once the run finished', async () => {
+      let callCount = 0;
+      const mockTransport = createMockUnaryTransport((methodName) => {
+        if (methodName === 'PullInspectionRunTaskGraph') {
+          callCount++;
+          return create(PullInspectionRunTaskGraphResponseSchema, {
+            snapshot: create(InspectionRunTaskGraphSnapshotSchema, {
+              isRunFinished: callCount > 1,
+              snapshotTimeUnixNano: BigInt(callCount),
+            }),
+          });
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(InspectionTaskGraphService, clientTransport);
+      const finishedFlags: boolean[] = [];
+      for await (const res of client.watchInspectionRunTaskGraph({
+        inspectionId: 'inspection-1',
+      })) {
+        finishedFlags.push(res.snapshot?.isRunFinished ?? false);
+      }
+
+      expect(finishedFlags).toEqual([false, true]);
+    });
+
+    it('propagates non retryable failures of WatchInspectionRunTaskGraph', async () => {
+      const mockTransport = createMockUnaryTransport(() => {
+        throw new ConnectError('inspection not found', Code.NotFound);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(InspectionTaskGraphService, clientTransport);
+
+      const drainStream = async () => {
+        for await (const res of client.watchInspectionRunTaskGraph({
+          inspectionId: 'inspection-1',
+        })) {
+          fail(`Unexpected snapshot emitted: ${res.snapshot?.isRunFinished}`);
+        }
+      };
+
+      await expectAsync(drainStream()).toBeRejectedWithError(
+        /inspection not found/,
+      );
     });
 
     it('adapts OpenWorkbench and sends cancellation on abort', async () => {

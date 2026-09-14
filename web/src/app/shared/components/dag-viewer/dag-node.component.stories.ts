@@ -15,8 +15,11 @@
  */
 
 import { Meta, StoryObj, componentWrapperDecorator } from '@storybook/angular';
-import { DagNodeComponent } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-node.component';
-import { DagPositionedNode } from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+import { DagNodeComponent } from 'src/app/shared/components/dag-viewer/dag-node.component';
+import {
+  DagNodeRunPhase,
+  DagPositionedNode,
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 const mockNode: DagPositionedNode = {
   id: 'khi.google.com/k8s/pod-parser#d9a4f2',
@@ -30,6 +33,8 @@ const mockNode: DagPositionedNode = {
   },
   outputType: '*parser.ParsedPod',
   providedTags: [],
+  runPhase: DagNodeRunPhase.NONE,
+  runDurationMs: 0,
   x: 20,
   y: 20,
   width: 420,
@@ -38,7 +43,7 @@ const mockNode: DagPositionedNode = {
 };
 
 const meta: Meta<DagNodeComponent> = {
-  title: 'TaskGraphDebug/DagViewer/DagNode',
+  title: 'Shared/DagViewer/DagNode',
   component: DagNodeComponent,
   tags: ['autodocs'],
   decorators: [
@@ -147,6 +152,45 @@ export const WithProvidedTags: Story = {
         },
       ],
       labels: {},
+    },
+  },
+};
+
+export const RunPhaseWaiting: Story = {
+  args: {
+    node: {
+      ...mockNode,
+      runPhase: DagNodeRunPhase.WAITING,
+    },
+  },
+};
+
+export const RunPhaseRunning: Story = {
+  args: {
+    node: {
+      ...mockNode,
+      runPhase: DagNodeRunPhase.RUNNING,
+      runDurationMs: 4300,
+    },
+  },
+};
+
+export const RunPhaseDone: Story = {
+  args: {
+    node: {
+      ...mockNode,
+      runPhase: DagNodeRunPhase.DONE,
+      runDurationMs: 125000,
+    },
+  },
+};
+
+export const RunPhaseError: Story = {
+  args: {
+    node: {
+      ...mockNode,
+      runPhase: DagNodeRunPhase.ERROR,
+      runDurationMs: 820,
     },
   },
 };

@@ -30,10 +30,11 @@ import {
   TaskFilterEvaluation,
 } from 'src/app/generated/api/v1/inspection_task_graph_pb';
 import {
+  DagNodeRunPhase,
   DagViewerEdge,
   DagViewerNode,
   isFormTask,
-} from 'src/app/pages/task-graph-debug/components/dag-viewer/dag-viewer.model';
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 import { TaskGraphDebugLayoutComponent } from 'src/app/pages/task-graph-debug/components/task-graph-debug-layout.component';
 import {
   FeatureToggleChangeEvent,
@@ -57,6 +58,8 @@ function convertToDagViewerNodes(
     labels: n.labels,
     outputType: n.outputType,
     providedTags: n.providedTags,
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   }));
 }
 

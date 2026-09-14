@@ -15,6 +15,7 @@
  */
 
 import {
+  formatDurationMs,
   formatDurationSeconds,
   generateTimestampedFilename,
 } from './time-format-util';
@@ -37,6 +38,26 @@ describe('time-format-util', () => {
     it('should format fractional minutes with one decimal place', () => {
       expect(formatDurationSeconds(90)).toBe('90s (1.5m)');
       expect(formatDurationSeconds(100)).toBe('100s (1.7m)');
+    });
+  });
+
+  describe('formatDurationMs', () => {
+    it('should format sub second durations in milliseconds', () => {
+      expect(formatDurationMs(0)).toBe('0ms');
+      expect(formatDurationMs(12.4)).toBe('12ms');
+      expect(formatDurationMs(999)).toBe('999ms');
+    });
+
+    it('should format sub minute durations in seconds with one decimal place', () => {
+      expect(formatDurationMs(1000)).toBe('1.0s');
+      expect(formatDurationMs(4321)).toBe('4.3s');
+      expect(formatDurationMs(59999)).toBe('60.0s');
+    });
+
+    it('should format longer durations in minutes with zero padded seconds', () => {
+      expect(formatDurationMs(60000)).toBe('1m00s');
+      expect(formatDurationMs(125000)).toBe('2m05s');
+      expect(formatDurationMs(3600000)).toBe('60m00s');
     });
   });
 

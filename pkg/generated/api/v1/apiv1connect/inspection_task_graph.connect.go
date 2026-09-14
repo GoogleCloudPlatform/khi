@@ -54,6 +54,12 @@ const (
 	// InspectionTaskGraphServiceResolveInspectionTaskGraphProcedure is the fully-qualified name of the
 	// InspectionTaskGraphService's ResolveInspectionTaskGraph RPC.
 	InspectionTaskGraphServiceResolveInspectionTaskGraphProcedure = "/api.v1.InspectionTaskGraphService/ResolveInspectionTaskGraph"
+	// InspectionTaskGraphServiceWatchInspectionRunTaskGraphProcedure is the fully-qualified name of the
+	// InspectionTaskGraphService's WatchInspectionRunTaskGraph RPC.
+	InspectionTaskGraphServiceWatchInspectionRunTaskGraphProcedure = "/api.v1.InspectionTaskGraphService/WatchInspectionRunTaskGraph"
+	// InspectionTaskGraphServicePullInspectionRunTaskGraphProcedure is the fully-qualified name of the
+	// InspectionTaskGraphService's PullInspectionRunTaskGraph RPC.
+	InspectionTaskGraphServicePullInspectionRunTaskGraphProcedure = "/api.v1.InspectionTaskGraphService/PullInspectionRunTaskGraph"
 )
 
 // InspectionTaskGraphServiceClient is a client for the api.v1.InspectionTaskGraphService service.
@@ -63,6 +69,10 @@ type InspectionTaskGraphServiceClient interface {
 	// Resolves the inspection task graph for a given inspection type and feature configuration,
 	// returning step-by-step filtering results and the resolved execution DAG.
 	ResolveInspectionTaskGraph(context.Context, *connect.Request[v1.ResolveInspectionTaskGraphRequest]) (*connect.Response[v1.ResolveInspectionTaskGraphResponse], error)
+	// Streams progress snapshots of the task graph executed by an inspection run.
+	WatchInspectionRunTaskGraph(context.Context, *connect.Request[v1.WatchInspectionRunTaskGraphRequest]) (*connect.ServerStreamForClient[v1.WatchInspectionRunTaskGraphResponse], error)
+	// Returns a single progress snapshot of an inspection run for hosting environments without streaming support.
+	PullInspectionRunTaskGraph(context.Context, *connect.Request[v1.PullInspectionRunTaskGraphRequest]) (*connect.Response[v1.PullInspectionRunTaskGraphResponse], error)
 }
 
 // NewInspectionTaskGraphServiceClient constructs a client for the api.v1.InspectionTaskGraphService
@@ -88,13 +98,27 @@ func NewInspectionTaskGraphServiceClient(httpClient connect.HTTPClient, baseURL 
 			connect.WithSchema(inspectionTaskGraphServiceMethods.ByName("ResolveInspectionTaskGraph")),
 			connect.WithClientOptions(opts...),
 		),
+		watchInspectionRunTaskGraph: connect.NewClient[v1.WatchInspectionRunTaskGraphRequest, v1.WatchInspectionRunTaskGraphResponse](
+			httpClient,
+			baseURL+InspectionTaskGraphServiceWatchInspectionRunTaskGraphProcedure,
+			connect.WithSchema(inspectionTaskGraphServiceMethods.ByName("WatchInspectionRunTaskGraph")),
+			connect.WithClientOptions(opts...),
+		),
+		pullInspectionRunTaskGraph: connect.NewClient[v1.PullInspectionRunTaskGraphRequest, v1.PullInspectionRunTaskGraphResponse](
+			httpClient,
+			baseURL+InspectionTaskGraphServicePullInspectionRunTaskGraphProcedure,
+			connect.WithSchema(inspectionTaskGraphServiceMethods.ByName("PullInspectionRunTaskGraph")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // inspectionTaskGraphServiceClient implements InspectionTaskGraphServiceClient.
 type inspectionTaskGraphServiceClient struct {
-	getInspectionTaskRegistry  *connect.Client[v1.GetInspectionTaskRegistryRequest, v1.GetInspectionTaskRegistryResponse]
-	resolveInspectionTaskGraph *connect.Client[v1.ResolveInspectionTaskGraphRequest, v1.ResolveInspectionTaskGraphResponse]
+	getInspectionTaskRegistry   *connect.Client[v1.GetInspectionTaskRegistryRequest, v1.GetInspectionTaskRegistryResponse]
+	resolveInspectionTaskGraph  *connect.Client[v1.ResolveInspectionTaskGraphRequest, v1.ResolveInspectionTaskGraphResponse]
+	watchInspectionRunTaskGraph *connect.Client[v1.WatchInspectionRunTaskGraphRequest, v1.WatchInspectionRunTaskGraphResponse]
+	pullInspectionRunTaskGraph  *connect.Client[v1.PullInspectionRunTaskGraphRequest, v1.PullInspectionRunTaskGraphResponse]
 }
 
 // GetInspectionTaskRegistry calls api.v1.InspectionTaskGraphService.GetInspectionTaskRegistry.
@@ -107,6 +131,16 @@ func (c *inspectionTaskGraphServiceClient) ResolveInspectionTaskGraph(ctx contex
 	return c.resolveInspectionTaskGraph.CallUnary(ctx, req)
 }
 
+// WatchInspectionRunTaskGraph calls api.v1.InspectionTaskGraphService.WatchInspectionRunTaskGraph.
+func (c *inspectionTaskGraphServiceClient) WatchInspectionRunTaskGraph(ctx context.Context, req *connect.Request[v1.WatchInspectionRunTaskGraphRequest]) (*connect.ServerStreamForClient[v1.WatchInspectionRunTaskGraphResponse], error) {
+	return c.watchInspectionRunTaskGraph.CallServerStream(ctx, req)
+}
+
+// PullInspectionRunTaskGraph calls api.v1.InspectionTaskGraphService.PullInspectionRunTaskGraph.
+func (c *inspectionTaskGraphServiceClient) PullInspectionRunTaskGraph(ctx context.Context, req *connect.Request[v1.PullInspectionRunTaskGraphRequest]) (*connect.Response[v1.PullInspectionRunTaskGraphResponse], error) {
+	return c.pullInspectionRunTaskGraph.CallUnary(ctx, req)
+}
+
 // InspectionTaskGraphServiceHandler is an implementation of the api.v1.InspectionTaskGraphService
 // service.
 type InspectionTaskGraphServiceHandler interface {
@@ -115,6 +149,10 @@ type InspectionTaskGraphServiceHandler interface {
 	// Resolves the inspection task graph for a given inspection type and feature configuration,
 	// returning step-by-step filtering results and the resolved execution DAG.
 	ResolveInspectionTaskGraph(context.Context, *connect.Request[v1.ResolveInspectionTaskGraphRequest]) (*connect.Response[v1.ResolveInspectionTaskGraphResponse], error)
+	// Streams progress snapshots of the task graph executed by an inspection run.
+	WatchInspectionRunTaskGraph(context.Context, *connect.Request[v1.WatchInspectionRunTaskGraphRequest], *connect.ServerStream[v1.WatchInspectionRunTaskGraphResponse]) error
+	// Returns a single progress snapshot of an inspection run for hosting environments without streaming support.
+	PullInspectionRunTaskGraph(context.Context, *connect.Request[v1.PullInspectionRunTaskGraphRequest]) (*connect.Response[v1.PullInspectionRunTaskGraphResponse], error)
 }
 
 // NewInspectionTaskGraphServiceHandler builds an HTTP handler from the service implementation. It
@@ -136,12 +174,28 @@ func NewInspectionTaskGraphServiceHandler(svc InspectionTaskGraphServiceHandler,
 		connect.WithSchema(inspectionTaskGraphServiceMethods.ByName("ResolveInspectionTaskGraph")),
 		connect.WithHandlerOptions(opts...),
 	)
+	inspectionTaskGraphServiceWatchInspectionRunTaskGraphHandler := connect.NewServerStreamHandler(
+		InspectionTaskGraphServiceWatchInspectionRunTaskGraphProcedure,
+		svc.WatchInspectionRunTaskGraph,
+		connect.WithSchema(inspectionTaskGraphServiceMethods.ByName("WatchInspectionRunTaskGraph")),
+		connect.WithHandlerOptions(opts...),
+	)
+	inspectionTaskGraphServicePullInspectionRunTaskGraphHandler := connect.NewUnaryHandler(
+		InspectionTaskGraphServicePullInspectionRunTaskGraphProcedure,
+		svc.PullInspectionRunTaskGraph,
+		connect.WithSchema(inspectionTaskGraphServiceMethods.ByName("PullInspectionRunTaskGraph")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/api.v1.InspectionTaskGraphService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InspectionTaskGraphServiceGetInspectionTaskRegistryProcedure:
 			inspectionTaskGraphServiceGetInspectionTaskRegistryHandler.ServeHTTP(w, r)
 		case InspectionTaskGraphServiceResolveInspectionTaskGraphProcedure:
 			inspectionTaskGraphServiceResolveInspectionTaskGraphHandler.ServeHTTP(w, r)
+		case InspectionTaskGraphServiceWatchInspectionRunTaskGraphProcedure:
+			inspectionTaskGraphServiceWatchInspectionRunTaskGraphHandler.ServeHTTP(w, r)
+		case InspectionTaskGraphServicePullInspectionRunTaskGraphProcedure:
+			inspectionTaskGraphServicePullInspectionRunTaskGraphHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -157,4 +211,12 @@ func (UnimplementedInspectionTaskGraphServiceHandler) GetInspectionTaskRegistry(
 
 func (UnimplementedInspectionTaskGraphServiceHandler) ResolveInspectionTaskGraph(context.Context, *connect.Request[v1.ResolveInspectionTaskGraphRequest]) (*connect.Response[v1.ResolveInspectionTaskGraphResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.InspectionTaskGraphService.ResolveInspectionTaskGraph is not implemented"))
+}
+
+func (UnimplementedInspectionTaskGraphServiceHandler) WatchInspectionRunTaskGraph(context.Context, *connect.Request[v1.WatchInspectionRunTaskGraphRequest], *connect.ServerStream[v1.WatchInspectionRunTaskGraphResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.InspectionTaskGraphService.WatchInspectionRunTaskGraph is not implemented"))
+}
+
+func (UnimplementedInspectionTaskGraphServiceHandler) PullInspectionRunTaskGraph(context.Context, *connect.Request[v1.PullInspectionRunTaskGraphRequest]) (*connect.Response[v1.PullInspectionRunTaskGraphResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.InspectionTaskGraphService.PullInspectionRunTaskGraph is not implemented"))
 }

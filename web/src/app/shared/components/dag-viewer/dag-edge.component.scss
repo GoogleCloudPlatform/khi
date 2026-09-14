@@ -15,8 +15,10 @@
  */
 
 @use '@angular/material' as mat;
+@use './dag-run-phase-colors' as run-phase;
 
 $edge-stroke-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
+$edge-satisfied-color: run-phase.$done-accent;
 $edge-fan-in-color: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 600);
 $edge-highlighted-color: mat.m2-get-color-from-palette(
   mat.$m2-indigo-palette,
@@ -45,6 +47,10 @@ $tag-text-color: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 800);
   &.fan-in .edge-path {
     stroke: $edge-fan-in-color;
     stroke-dasharray: 6 3;
+  }
+
+  &.satisfied .edge-path {
+    stroke: $edge-satisfied-color;
   }
 
   &.highlighted .edge-path {

@@ -57,6 +57,9 @@ export class InspectionListComponent {
   /** Emits the ID of the inspection to open the metadata for. */
   public readonly openInspectionMetadata = output<string>();
 
+  /** Emits the ID of the inspection to open the run task graph for. */
+  public readonly openInspectionRunTaskGraph = output<string>();
+
   /** Emits the ID of the inspection to cancel. */
   public readonly cancelInspection = output<string>();
 
