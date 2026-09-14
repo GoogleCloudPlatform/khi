@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Code, ConnectError } from '@connectrpc/connect';
+import { Code } from '@connectrpc/connect';
 import { CancellationError } from 'src/app/store/domain/filter/types';
 
 /**
@@ -41,7 +41,7 @@ export const DEFAULT_CHUNK_MAX_RETRIES = 10;
  * Checks whether an error represents a transient failure that can be safely retried.
  *
  * Transient errors include:
- * - ConnectError with Code.Unavailable (covers HTTP 502, 503, 504 and network drops)
+ * - Objects with Code.Unavailable (e.g., ConnectError, HTTP 502, 503, 504 and network drops)
  * - Browser fetch network errors (TypeError with fetch message)
  *
  * Explicit cancellations (AbortError, Code.Canceled, CancellationError) are not retryable.
@@ -62,25 +62,18 @@ export function isRetryableError(error: unknown): boolean {
     return false;
   }
 
-  if (error instanceof ConnectError) {
-    if (error.code === Code.Canceled) {
-      return false;
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    if (typeof error.code === 'number') {
+      if (error.code === Code.Canceled) {
+        return false;
+      }
+      if (error.code === Code.Unavailable) {
+        return true;
+      }
+      if (error.code !== Code.Unknown) {
+        return false;
+      }
     }
-    if (error.code === Code.Unavailable) {
-      return true;
-    }
-    const message = error.message;
-    if (
-      message.includes('502') ||
-      message.includes('503') ||
-      message.includes('504') ||
-      message.includes('Bad Gateway') ||
-      message.includes('Service Unavailable') ||
-      message.includes('Gateway Timeout')
-    ) {
-      return true;
-    }
-    return false;
   }
 
   if (error instanceof TypeError) {
@@ -96,14 +89,15 @@ export function isRetryableError(error: unknown): boolean {
   }
 
   if (error instanceof Error) {
-    const message = error.message;
+    const message = error.message.toLowerCase();
     if (
       message.includes('502') ||
       message.includes('503') ||
       message.includes('504') ||
-      message.includes('Bad Gateway') ||
-      message.includes('Service Unavailable') ||
-      message.includes('Gateway Timeout')
+      message.includes('bad gateway') ||
+      message.includes('gateway timeout') ||
+      message.includes('service unavailable') ||
+      message.includes('[unavailable]')
     ) {
       return true;
     }

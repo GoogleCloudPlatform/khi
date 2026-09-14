@@ -54,7 +54,7 @@ const RECONNECT_DELAY_MS = 1000;
 /**
  * Number of consecutive stream failures tolerated before the dialog gives up observing.
  */
-const MAX_CONSECUTIVE_STREAM_ERRORS = 5;
+export const MAX_CONSECUTIVE_STREAM_ERRORS = 5;
 
 /**
  * Smart container observing the task graph progress of a single inspection run.
@@ -139,17 +139,10 @@ export class InspectionRunTaskGraphSmartComponent implements OnInit, OnDestroy {
     let consecutiveErrors = 0;
     while (!signal.aborted) {
       try {
-        for await (const res of this.connectClient.inspectionTaskGraphClient.watchInspectionRunTaskGraph(
-          { inspectionId: this.dialogData.inspectionId },
-          { signal },
-        )) {
-          if (!res.snapshot) {
-            continue;
-          }
+        await this.consumeStream(signal, () => {
           consecutiveErrors = 0;
-          this.snapshot.set(res.snapshot);
-          this.watchErrorMessage.set('');
-        }
+        });
+        consecutiveErrors = 0;
       } catch (err) {
         if (signal.aborted) {
           return;
@@ -171,6 +164,26 @@ export class InspectionRunTaskGraphSmartComponent implements OnInit, OnDestroy {
         return;
       }
       await delayWithSignal(RECONNECT_DELAY_MS, signal);
+    }
+  }
+
+  /**
+   * Consumes a single observation stream until it closes or fails.
+   */
+  private async consumeStream(
+    signal: AbortSignal,
+    onSnapshotReceived?: () => void,
+  ): Promise<void> {
+    for await (const res of this.connectClient.inspectionTaskGraphClient.watchInspectionRunTaskGraph(
+      { inspectionId: this.dialogData.inspectionId },
+      { signal },
+    )) {
+      if (!res.snapshot) {
+        continue;
+      }
+      onSnapshotReceived?.();
+      this.snapshot.set(res.snapshot);
+      this.watchErrorMessage.set('');
     }
   }
 }

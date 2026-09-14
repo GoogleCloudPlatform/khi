@@ -99,15 +99,52 @@ describe('retry-util', () => {
       expect(isRetryableError(typeErr)).toBeFalse();
     });
 
-    it('returns true for generic Error mentioning 502/503/504', () => {
+    it('returns true for duck-typed object with Code.Unavailable', () => {
+      expect(isRetryableError({ code: Code.Unavailable })).toBeTrue();
+    });
+
+    it('returns false for duck-typed object with Code.Canceled', () => {
+      expect(isRetryableError({ code: Code.Canceled })).toBeFalse();
+    });
+
+    it('returns false for duck-typed object with non-transient codes', () => {
+      expect(isRetryableError({ code: Code.NotFound })).toBeFalse();
+      expect(isRetryableError({ code: Code.InvalidArgument })).toBeFalse();
+    });
+
+    it('returns false for non-transient ConnectError even if message mentions unavailable', () => {
+      expect(
+        isRetryableError(
+          new ConnectError('Resource unavailable', Code.NotFound),
+        ),
+      ).toBeFalse();
+      expect(
+        isRetryableError(
+          new ConnectError('Feature unavailable', Code.InvalidArgument),
+        ),
+      ).toBeFalse();
+    });
+
+    it('returns true for generic Error mentioning 502/503/504 or gateway errors', () => {
       expect(
         isRetryableError(new Error('upstream server returned 502 Bad Gateway')),
       ).toBeTrue();
       expect(isRetryableError(new Error('503 Service Unavailable'))).toBeTrue();
+      expect(isRetryableError(new Error('504 Gateway Timeout'))).toBeTrue();
+      expect(
+        isRetryableError(new Error('[unavailable] backend unavailable')),
+      ).toBeTrue();
+      expect(isRetryableError(new Error('upstream bad gateway'))).toBeTrue();
+      expect(
+        isRetryableError(new Error('gateway timeout occurred')),
+      ).toBeTrue();
     });
 
-    it('returns false for generic unrelated Error', () => {
+    it('returns false for generic unrelated Error or generic unavailable error', () => {
       expect(isRetryableError(new Error('Syntax error'))).toBeFalse();
+      expect(
+        isRetryableError(new Error('Authentication token unavailable')),
+      ).toBeFalse();
     });
   });
 

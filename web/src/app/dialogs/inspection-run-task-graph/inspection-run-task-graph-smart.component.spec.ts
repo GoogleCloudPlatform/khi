@@ -18,6 +18,7 @@ import {
   ComponentFixture,
   TestBed,
   fakeAsync,
+  flushMicrotasks,
   tick,
 } from '@angular/core/testing';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
@@ -25,7 +26,10 @@ import { By } from '@angular/platform-browser';
 import { create } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { InspectionRunTaskGraphLayoutComponent } from 'src/app/dialogs/inspection-run-task-graph/components/inspection-run-task-graph-layout.component';
-import { InspectionRunTaskGraphSmartComponent } from 'src/app/dialogs/inspection-run-task-graph/inspection-run-task-graph-smart.component';
+import {
+  InspectionRunTaskGraphSmartComponent,
+  MAX_CONSECUTIVE_STREAM_ERRORS,
+} from 'src/app/dialogs/inspection-run-task-graph/inspection-run-task-graph-smart.component';
 import { InspectionRunTaskGraphViewModel } from 'src/app/dialogs/inspection-run-task-graph/types/inspection-run-task-graph.viewmodel';
 import {
   InspectionRunTaskGraphSnapshot,
@@ -44,10 +48,60 @@ const MILLI_IN_NANO = 1_000_000n;
 type StreamFactory = () => AsyncIterable<WatchInspectionRunTaskGraphResponse>;
 
 /**
- * Stream that stays open without ever emitting, mimicking an inspection that reports nothing yet.
+ * Stream factory that stays open without ever emitting, mimicking an inspection that reports nothing yet.
  */
-async function* pendingStream(): AsyncGenerator<WatchInspectionRunTaskGraphResponse> {
-  await new Promise<void>(() => {});
+const pendingStreamFactory: StreamFactory = () => ({
+  [Symbol.asyncIterator]() {
+    return {
+      next(): Promise<IteratorResult<WatchInspectionRunTaskGraphResponse>> {
+        return new Promise(() => {});
+      },
+    };
+  },
+});
+
+/**
+ * Creates a StreamFactory yielding an AsyncIterable stream that emits the given responses in order.
+ * If shouldStayOpen is true, the stream stays open without ending after emitting all responses.
+ */
+function createStreamFactory(
+  responses: WatchInspectionRunTaskGraphResponse[],
+  options?: { shouldStayOpen?: boolean },
+): StreamFactory {
+  return () => ({
+    [Symbol.asyncIterator]() {
+      let index = 0;
+      return {
+        next(): Promise<IteratorResult<WatchInspectionRunTaskGraphResponse>> {
+          if (index < responses.length) {
+            return Promise.resolve({ done: false, value: responses[index++] });
+          }
+          if (options?.shouldStayOpen) {
+            return new Promise(() => {});
+          }
+          return Promise.resolve({
+            done: true,
+            value: undefined as unknown as WatchInspectionRunTaskGraphResponse,
+          });
+        },
+      };
+    },
+  });
+}
+
+/**
+ * Creates a StreamFactory yielding an AsyncIterable stream that immediately fails with the given error upon iteration.
+ */
+function createErrorStreamFactory(error: unknown): StreamFactory {
+  return () => ({
+    [Symbol.asyncIterator]() {
+      return {
+        next(): Promise<IteratorResult<WatchInspectionRunTaskGraphResponse>> {
+          return Promise.reject(error);
+        },
+      };
+    },
+  });
 }
 
 function createSnapshot(
@@ -105,14 +159,24 @@ function createResponse(
 describe('InspectionRunTaskGraphSmartComponent', () => {
   let fixture: ComponentFixture<InspectionRunTaskGraphSmartComponent>;
   let streams: StreamFactory[];
+  let nextStreamIndex: number;
+  let lastCapturedInspectionId: string | undefined;
+  let lastCapturedSignal: AbortSignal | undefined;
 
   beforeEach(async () => {
     streams = [];
-    let nextStreamIndex = 0;
+    nextStreamIndex = 0;
+    lastCapturedInspectionId = undefined;
+    lastCapturedSignal = undefined;
     const connectClientMock = {
       inspectionTaskGraphClient: {
-        watchInspectionRunTaskGraph: () => {
-          const factory = streams[nextStreamIndex] ?? pendingStream;
+        watchInspectionRunTaskGraph: (
+          req: { inspectionId: string },
+          options?: { signal?: AbortSignal },
+        ) => {
+          lastCapturedInspectionId = req.inspectionId;
+          lastCapturedSignal = options?.signal;
+          const factory = streams[nextStreamIndex] ?? pendingStreamFactory;
           nextStreamIndex++;
           return factory();
         },
@@ -160,10 +224,12 @@ describe('InspectionRunTaskGraphSmartComponent', () => {
   }));
 
   it('counts terminal tasks and measures elapsed time against the snapshot time while running', fakeAsync(() => {
-    streams.push(async function* () {
-      yield createResponse(createSnapshot(false, 90n * MILLI_IN_NANO));
-      await new Promise<void>(() => {});
-    });
+    streams.push(
+      createStreamFactory(
+        [createResponse(createSnapshot(false, 90n * MILLI_IN_NANO))],
+        { shouldStayOpen: true },
+      ),
+    );
 
     fixture.detectChanges();
     tick();
@@ -178,9 +244,11 @@ describe('InspectionRunTaskGraphSmartComponent', () => {
   }));
 
   it('measures elapsed time against the last end time once the run finished', fakeAsync(() => {
-    streams.push(async function* () {
-      yield createResponse(createSnapshot(true, 900n * MILLI_IN_NANO));
-    });
+    streams.push(
+      createStreamFactory([
+        createResponse(createSnapshot(true, 900n * MILLI_IN_NANO)),
+      ]),
+    );
 
     fixture.detectChanges();
     tick();
@@ -194,12 +262,12 @@ describe('InspectionRunTaskGraphSmartComponent', () => {
 
   it('surfaces a stream failure and clears it once the reconnect delivers a snapshot', fakeAsync(() => {
     streams.push(
-      async function* () {
-        throw new ConnectError('backend unavailable', Code.Unavailable);
-      },
-      async function* () {
-        yield createResponse(createSnapshot(true, 900n * MILLI_IN_NANO));
-      },
+      createErrorStreamFactory(
+        new ConnectError('backend unavailable', Code.Unavailable),
+      ),
+      createStreamFactory([
+        createResponse(createSnapshot(true, 900n * MILLI_IN_NANO)),
+      ]),
     );
 
     fixture.detectChanges();
@@ -211,20 +279,45 @@ describe('InspectionRunTaskGraphSmartComponent', () => {
     );
 
     tick(1000);
+    flushMicrotasks();
     fixture.detectChanges();
 
     expect(currentViewModel().watchErrorMessage).toBe('');
     expect(currentViewModel().isRunFinished).toBeTrue();
   }));
 
+  it('does not reconnect when stream fails with a non-retryable error', fakeAsync(() => {
+    streams.push(
+      createErrorStreamFactory(
+        new ConnectError('permission denied', Code.PermissionDenied),
+      ),
+      createStreamFactory([
+        createResponse(createSnapshot(true, 900n * MILLI_IN_NANO)),
+      ]),
+    );
+
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(currentViewModel().watchErrorMessage).toContain('permission denied');
+
+    tick(2000);
+    tick();
+    fixture.detectChanges();
+
+    expect(currentViewModel().watchErrorMessage).toContain('permission denied');
+    expect(currentViewModel().isRunFinished).toBeFalse();
+  }));
+
   it('reconnects when the server closes the stream before the run finished', fakeAsync(() => {
     streams.push(
-      async function* () {
-        yield createResponse(createSnapshot(false, 90n * MILLI_IN_NANO));
-      },
-      async function* () {
-        yield createResponse(createSnapshot(true, 900n * MILLI_IN_NANO));
-      },
+      createStreamFactory([
+        createResponse(createSnapshot(false, 90n * MILLI_IN_NANO)),
+      ]),
+      createStreamFactory([
+        createResponse(createSnapshot(true, 900n * MILLI_IN_NANO)),
+      ]),
     );
 
     fixture.detectChanges();
@@ -234,9 +327,100 @@ describe('InspectionRunTaskGraphSmartComponent', () => {
     expect(currentViewModel().isRunFinished).toBeFalse();
 
     tick(1000);
+    flushMicrotasks();
     fixture.detectChanges();
 
     expect(currentViewModel().isRunFinished).toBeTrue();
     expect(currentViewModel().finishedTaskCount).toBe(3);
+  }));
+
+  it('passes inspectionId and abort signal to client, and aborts stream on destroy', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+
+    expect(lastCapturedInspectionId).toBe('inspection-1');
+    expect(lastCapturedSignal).toBeDefined();
+    expect(lastCapturedSignal?.aborted).toBeFalse();
+
+    fixture.destroy();
+
+    expect(lastCapturedSignal?.aborted).toBeTrue();
+  }));
+
+  it('stops reconnecting after exceeding MAX_CONSECUTIVE_STREAM_ERRORS', fakeAsync(() => {
+    for (let i = 0; i <= MAX_CONSECUTIVE_STREAM_ERRORS; i++) {
+      streams.push(
+        createErrorStreamFactory(
+          new ConnectError(`failure ${i + 1}`, Code.Unavailable),
+        ),
+      );
+    }
+
+    fixture.detectChanges();
+    tick();
+
+    for (let i = 0; i < MAX_CONSECUTIVE_STREAM_ERRORS; i++) {
+      tick(1000);
+      flushMicrotasks();
+      fixture.detectChanges();
+    }
+
+    expect(currentViewModel().watchErrorMessage).toContain(
+      `failure ${MAX_CONSECUTIVE_STREAM_ERRORS + 1}`,
+    );
+
+    tick(5000);
+    flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(nextStreamIndex).toBe(MAX_CONSECUTIVE_STREAM_ERRORS + 1);
+    expect(currentViewModel().isRunFinished).toBeFalse();
+  }));
+
+  it('resets consecutive error count when a snapshot is received', fakeAsync(() => {
+    streams.push(
+      createErrorStreamFactory(new ConnectError('error 1', Code.Unavailable)),
+      createErrorStreamFactory(new ConnectError('error 2', Code.Unavailable)),
+      createErrorStreamFactory(new ConnectError('error 3', Code.Unavailable)),
+      createStreamFactory([
+        createResponse(createSnapshot(false, 90n * MILLI_IN_NANO)),
+      ]),
+      createErrorStreamFactory(new ConnectError('error 4', Code.Unavailable)),
+      createStreamFactory([
+        createResponse(createSnapshot(true, 900n * MILLI_IN_NANO)),
+      ]),
+    );
+
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    expect(currentViewModel().watchErrorMessage).toContain('error 1');
+
+    tick(1000);
+    flushMicrotasks();
+    fixture.detectChanges();
+    expect(currentViewModel().watchErrorMessage).toContain('error 2');
+
+    tick(1000);
+    flushMicrotasks();
+    fixture.detectChanges();
+    expect(currentViewModel().watchErrorMessage).toContain('error 3');
+
+    tick(1000);
+    flushMicrotasks();
+    fixture.detectChanges();
+    expect(currentViewModel().watchErrorMessage).toBe('');
+    expect(currentViewModel().isRunFinished).toBeFalse();
+
+    tick(1000);
+    flushMicrotasks();
+    fixture.detectChanges();
+    expect(currentViewModel().watchErrorMessage).toContain('error 4');
+
+    tick(1000);
+    flushMicrotasks();
+    fixture.detectChanges();
+    expect(currentViewModel().watchErrorMessage).toBe('');
+    expect(currentViewModel().isRunFinished).toBeTrue();
   }));
 });
