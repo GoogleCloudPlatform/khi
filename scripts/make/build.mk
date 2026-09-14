@@ -61,12 +61,19 @@ build-go-binaries: $(GENERATE_BACKEND_DUMMY) $(BACKEND_SRCS) $(FRONTEND_ARTIFACT
 	$(call build_binary,darwin,arm64,)
 	$(call build_binary,darwin,amd64,)
 
+CONTAINER_CMD ?= $(shell command -v docker || command -v podman)
 BUILDER_IMAGE ?= gcr.io/kubernetes-history-inspector/builder:latest
 
 .PHONY: build-builder
 build-builder: ## Build CI builder docker image
-	docker build -t $(BUILDER_IMAGE) ./scripts/builder
+	@if [ -z "$(CONTAINER_CMD)" ]; then \
+		echo "build-builder requires docker or podman, but neither was found." >&2; exit 1; \
+	fi
+	$(CONTAINER_CMD) build -t $(BUILDER_IMAGE) ./scripts/builder
 
 .PHONY: push-builder
 push-builder: build-builder ## Push CI builder docker image
-	docker push $(BUILDER_IMAGE)
+	@if [ -z "$(CONTAINER_CMD)" ]; then \
+		echo "push-builder requires docker or podman, but neither was found." >&2; exit 1; \
+	fi
+	$(CONTAINER_CMD) push $(BUILDER_IMAGE)

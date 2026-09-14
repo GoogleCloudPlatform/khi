@@ -62,15 +62,16 @@ module.exports = function (config) {
     browsers: ['Chrome'],
     singleRun: false,
     restartOnFileChange: false,
-    captureTimeout: 60 * 60 * 1000,
-    browserDisconnectTimeout: 60 * 60 * 1000,
+    captureTimeout: 180 * 1000,
+    browserDisconnectTimeout: 180 * 1000,
     browserDisconnectTolerance: 1,
-    browserNoActivityTimeout: 60 * 60 * 1000,
+    browserNoActivityTimeout: 180 * 1000,
     customLaunchers: {
       ChromeHeadlessNoSandbox: {
         base: 'ChromeHeadless',
         flags: [
           '--no-sandbox',
+          '--disable-extensions',
           '--enable-unsafe-swiftshader',
           '--enable-webgl',
           '--disable-gpu',

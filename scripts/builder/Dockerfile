@@ -25,5 +25,12 @@ RUN apt-get update && apt-get install -y \
     make \
     git \
     curl \
+    chromium \
+    fonts-liberation \
+    libgl1 \
+    libegl1 \
+    libgles2 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+ENV CHROME_BIN=/usr/bin/chromium
