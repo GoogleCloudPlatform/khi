@@ -37,26 +37,27 @@ import (
 type gkeResourceIdentity struct {
 	ClusterName  string
 	NodePoolName string
-	IsNodePool   bool
+}
+
+// IsNodePool returns true if the asset identity corresponds to a node pool.
+func (i gkeResourceIdentity) IsNodePool() bool {
+	return i.NodePoolName != ""
 }
 
 // parseGKEAssetName parses a GKE full resource name into a gkeResourceIdentity.
 func parseGKEAssetName(name string) gkeResourceIdentity {
 	parts := strings.Split(name, "/")
 	var clusterName, nodePoolName string
-	var isNodePool bool
 	for i := 0; i < len(parts)-1; i++ {
 		if parts[i] == "clusters" {
 			clusterName = parts[i+1]
 		} else if parts[i] == "nodePools" {
 			nodePoolName = parts[i+1]
-			isNodePool = true
 		}
 	}
 	return gkeResourceIdentity{
 		ClusterName:  clusterName,
 		NodePoolName: nodePoolName,
-		IsNodePool:   isNodePool,
 	}
 }
 
@@ -134,7 +135,7 @@ func (i *caiGKEResourceLogIngester) ProcessLog(ctx context.Context, l *log.Log) 
 	cs.SetSeverity(inspectioncore_contract.SeverityInfo)
 
 	switch {
-	case identity.IsNodePool:
+	case identity.IsNodePool():
 		cs.SetSummary(fmt.Sprintf("CAI resource snapshot: NodePool/%s", identity.NodePoolName))
 	case identity.ClusterName != "":
 		cs.SetSummary(fmt.Sprintf("CAI resource snapshot: Cluster/%s", identity.ClusterName))
@@ -158,7 +159,7 @@ var GKELogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	func(ctx context.Context, l *log.Log) string {
 		assetName := l.NodeReader.ReadStringOrDefault(pathAssetName, "")
 		identity := parseGKEAssetName(assetName)
-		if identity.IsNodePool {
+		if identity.IsNodePool() {
 			return fmt.Sprintf("nodepool/%s/%s", identity.ClusterName, identity.NodePoolName)
 		} else if identity.ClusterName != "" {
 			return fmt.Sprintf("cluster/%s", identity.ClusterName)

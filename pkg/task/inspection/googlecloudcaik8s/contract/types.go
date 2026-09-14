@@ -20,6 +20,14 @@ import (
 	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
 )
 
+const (
+	// GKEClusterAssetType is the Cloud Asset Inventory asset type for GKE cluster resources.
+	GKEClusterAssetType = "container.googleapis.com/Cluster"
+
+	// GKENodePoolAssetType is the Cloud Asset Inventory asset type for GKE node pool resources.
+	GKENodePoolAssetType = "container.googleapis.com/NodePool"
+)
+
 // ClusterResourceSnapshot represents a Kubernetes resource captured from CAI.
 type ClusterResourceSnapshot struct {
 	// TemporalAsset holds the raw temporal asset response received from Cloud Asset Inventory.

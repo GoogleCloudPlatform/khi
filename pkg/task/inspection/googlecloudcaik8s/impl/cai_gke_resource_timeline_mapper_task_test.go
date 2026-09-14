@@ -53,7 +53,7 @@ func TestExtractClusterCreateTimeFromSnapshots(t *testing.T) {
 				{
 					TemporalAsset: &assetpb.TemporalAsset{
 						Asset: &assetpb.Asset{
-							AssetType: GKEClusterAssetType,
+							AssetType: googlecloudcaik8s_contract.GKEClusterAssetType,
 							Resource:  &assetpb.Resource{Data: data},
 						},
 					},
@@ -67,7 +67,7 @@ func TestExtractClusterCreateTimeFromSnapshots(t *testing.T) {
 				{
 					TemporalAsset: &assetpb.TemporalAsset{
 						Asset: &assetpb.Asset{
-							AssetType: GKENodePoolAssetType,
+							AssetType: googlecloudcaik8s_contract.GKENodePoolAssetType,
 							Resource:  &assetpb.Resource{Data: data},
 						},
 					},
@@ -108,7 +108,7 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	ctxWithBuilder := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctxWithBuilder, projectID)
 	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctxWithBuilder, projectTimeline, clusterName)
-	nodepoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctxWithBuilder, clusterTimeline, "default-pool")
+	nodePoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctxWithBuilder, clusterTimeline, "default-pool")
 
 	clusterCreateTime := time.Date(2025, 5, 1, 10, 0, 0, 0, time.UTC)
 	clusterData, _ := structpb.NewStruct(map[string]any{
@@ -119,7 +119,7 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		TemporalAsset: &assetpb.TemporalAsset{
 			Asset: &assetpb.Asset{
 				Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
-				AssetType: GKEClusterAssetType,
+				AssetType: googlecloudcaik8s_contract.GKEClusterAssetType,
 				Resource:  &assetpb.Resource{Data: clusterData},
 			},
 		},
@@ -157,7 +157,7 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	clusterInitialLog := newGKECAILog(
 		clusterAssetName,
-		GKEClusterAssetType,
+		googlecloudcaik8s_contract.GKEClusterAssetType,
 		queryStartTime.Add(-2*time.Hour),
 		time.Time{},
 		false,
@@ -169,7 +169,7 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	clusterCreatedRecentlyLog := newGKECAILog(
 		clusterAssetName,
-		GKEClusterAssetType,
+		googlecloudcaik8s_contract.GKEClusterAssetType,
 		queryStartTime,
 		time.Time{},
 		false,
@@ -181,7 +181,7 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	clusterUpdateLog := newGKECAILog(
 		clusterAssetName,
-		GKEClusterAssetType,
+		googlecloudcaik8s_contract.GKEClusterAssetType,
 		queryStartTime.Add(30*time.Minute),
 		time.Time{},
 		false,
@@ -193,7 +193,7 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	nodepoolEarliestTime := queryStartTime.Add(-10 * time.Hour)
 	nodepoolInitialLog := newGKECAILog(
 		nodepoolAssetName,
-		GKENodePoolAssetType,
+		googlecloudcaik8s_contract.GKENodePoolAssetType,
 		nodepoolEarliestTime,
 		time.Time{},
 		false,
@@ -204,7 +204,7 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	nodepoolCreatedWithClusterLog := newGKECAILog(
 		nodepoolAssetName,
-		GKENodePoolAssetType,
+		googlecloudcaik8s_contract.GKENodePoolAssetType,
 		clusterCreateTime.Add(200*time.Millisecond),
 		time.Time{},
 		false,
@@ -215,7 +215,7 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	nodepoolUpdateLog := newGKECAILog(
 		nodepoolAssetName,
-		GKENodePoolAssetType,
+		googlecloudcaik8s_contract.GKENodePoolAssetType,
 		queryStartTime.Add(45*time.Minute),
 		time.Time{},
 		false,
@@ -226,7 +226,7 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	deletedLog := newGKECAILog(
 		clusterAssetName,
-		GKEClusterAssetType,
+		googlecloudcaik8s_contract.GKEClusterAssetType,
 		queryStartTime.Add(-2*time.Hour),
 		time.Time{},
 		true,
@@ -235,7 +235,7 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	pastLog := newGKECAILog(
 		clusterAssetName,
-		GKEClusterAssetType,
+		googlecloudcaik8s_contract.GKEClusterAssetType,
 		queryStartTime.Add(-5*time.Hour),
 		queryStartTime.Add(-2*time.Hour),
 		false,
@@ -244,8 +244,17 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	futureLog := newGKECAILog(
 		clusterAssetName,
-		GKEClusterAssetType,
+		googlecloudcaik8s_contract.GKEClusterAssetType,
 		queryEndTime.Add(1*time.Hour),
+		time.Time{},
+		false,
+		map[string]any{},
+	)
+
+	unrecognizedLog := newGKECAILog(
+		"//compute.googleapis.com/projects/test-project/zones/us-central1-a/instances/test-instance",
+		"compute.googleapis.com/Instance",
+		queryStartTime.Add(-1*time.Hour),
 		time.Time{},
 		false,
 		map[string]any{},
@@ -261,11 +270,12 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	)
 
 	testCases := []struct {
-		name         string
-		inputLog     *log.Log
-		initialState gkeTimelineMapperState
-		wantNil      bool
-		assertResult func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState)
+		name                 string
+		inputLog             *log.Log
+		initialState         gkeTimelineMapperState
+		omitClusterSnapshots bool
+		wantNil              bool
+		assertResult         func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState)
 	}{
 		{
 			name:         "creates 2 revisions for existing cluster with prior createTime",
@@ -346,26 +356,26 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				if !finalState.hasProcessedInitialSnapshot {
 					t.Errorf("hasProcessedInitialSnapshot = false, want true")
 				}
-				revs := cs.GetRevisions(nodepoolTimeline)
+				revs := cs.GetRevisions(nodePoolTimeline)
 				if len(revs) != 3 {
 					t.Fatalf("len(revs) = %d, want 3", len(revs))
 				}
 				testchangeset.AssertTimeline(t, cs).
-					HasRevision(nodepoolTimeline, &khifilev6.StagingRevision{
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  clusterCreateTime,
 						ResourceBody: nil,
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUnknown,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
 					}, nodeCmpOpt).
-					HasRevision(nodepoolTimeline, &khifilev6.StagingRevision{
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  nodepoolEarliestTime,
 						ResourceBody: nil,
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbUpdate,
 						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
 					}, nodeCmpOpt).
-					HasRevision(nodepoolTimeline, &khifilev6.StagingRevision{
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  queryStartTime,
 						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
 						Principal:    "N/A",
@@ -380,23 +390,44 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			initialState: gkeTimelineMapperState{hasProcessedInitialSnapshot: false},
 			wantNil:      false,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
-				revs := cs.GetRevisions(nodepoolTimeline)
+				revs := cs.GetRevisions(nodePoolTimeline)
 				if len(revs) != 2 {
 					t.Fatalf("len(revs) = %d, want 2", len(revs))
 				}
 				testchangeset.AssertTimeline(t, cs).
-					HasRevision(nodepoolTimeline, &khifilev6.StagingRevision{
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  clusterCreateTime,
 						ResourceBody: nil,
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
 						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
 					}, nodeCmpOpt).
-					HasRevision(nodepoolTimeline, &khifilev6.StagingRevision{
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  queryStartTime,
 						ResourceBody: extractResourceBody(nodepoolCreatedWithClusterLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbUpdate,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+					}, nodeCmpOpt)
+			},
+		},
+		{
+			name:                 "creates 1 revision for nodepool when cluster createTime is unavailable",
+			inputLog:             nodepoolInitialLog,
+			initialState:         gkeTimelineMapperState{hasProcessedInitialSnapshot: false},
+			omitClusterSnapshots: true,
+			wantNil:              false,
+			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
+				revs := cs.GetRevisions(nodePoolTimeline)
+				if len(revs) != 1 {
+					t.Fatalf("len(revs) = %d, want 1", len(revs))
+				}
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
+						ChangedTime:  queryStartTime,
+						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
+						Principal:    "N/A",
+						VerbType:     commonlogk8saudit_contract.VerbCreate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
 					}, nodeCmpOpt)
 			},
@@ -407,12 +438,12 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			initialState: gkeTimelineMapperState{hasProcessedInitialSnapshot: true},
 			wantNil:      false,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
-				revs := cs.GetRevisions(nodepoolTimeline)
+				revs := cs.GetRevisions(nodePoolTimeline)
 				if len(revs) != 1 {
 					t.Fatalf("len(revs) = %d, want 1", len(revs))
 				}
 				testchangeset.AssertTimeline(t, cs).
-					HasRevision(nodepoolTimeline, &khifilev6.StagingRevision{
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  queryStartTime.Add(45 * time.Minute),
 						ResourceBody: extractResourceBody(nodepoolUpdateLog.NodeReader),
 						Principal:    "N/A",
@@ -439,6 +470,12 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			initialState: gkeTimelineMapperState{},
 			wantNil:      true,
 		},
+		{
+			name:         "skips unrecognized non-GKE log asset",
+			inputLog:     unrecognizedLog,
+			initialState: gkeTimelineMapperState{},
+			wantNil:      true,
+		},
 	}
 
 	mapper := &caiGKEResourceTimelineMapper{}
@@ -449,7 +486,11 @@ func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), clusterIdentity)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref(), queryStartTime)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref(), queryEndTime)
-			ctx = tasktest.WithTaskResult(ctx, googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref(), []*googlecloudcaik8s_contract.GKEResourceSnapshot{clusterSnapshot})
+			clusterSnapshots := []*googlecloudcaik8s_contract.GKEResourceSnapshot{clusterSnapshot}
+			if tc.omitClusterSnapshots {
+				clusterSnapshots = []*googlecloudcaik8s_contract.GKEResourceSnapshot{}
+			}
+			ctx = tasktest.WithTaskResult(ctx, googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref(), clusterSnapshots)
 
 			cs, finalState, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, tc.initialState)
 			if err != nil {

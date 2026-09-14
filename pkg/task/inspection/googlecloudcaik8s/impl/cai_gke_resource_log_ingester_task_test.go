@@ -15,7 +15,6 @@
 package googlecloudcaik8s_impl
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -36,9 +35,10 @@ import (
 
 func TestParseGKEAssetName(t *testing.T) {
 	testCases := []struct {
-		name      string
-		assetName string
-		want      gkeResourceIdentity
+		name           string
+		assetName      string
+		want           gkeResourceIdentity
+		wantIsNodePool bool
 	}{
 		{
 			name:      "regional cluster",
@@ -46,8 +46,8 @@ func TestParseGKEAssetName(t *testing.T) {
 			want: gkeResourceIdentity{
 				ClusterName:  "test-cluster",
 				NodePoolName: "",
-				IsNodePool:   false,
 			},
+			wantIsNodePool: false,
 		},
 		{
 			name:      "zonal cluster",
@@ -55,8 +55,8 @@ func TestParseGKEAssetName(t *testing.T) {
 			want: gkeResourceIdentity{
 				ClusterName:  "test-cluster",
 				NodePoolName: "",
-				IsNodePool:   false,
 			},
+			wantIsNodePool: false,
 		},
 		{
 			name:      "regional nodepool",
@@ -64,8 +64,8 @@ func TestParseGKEAssetName(t *testing.T) {
 			want: gkeResourceIdentity{
 				ClusterName:  "test-cluster",
 				NodePoolName: "default-pool",
-				IsNodePool:   true,
 			},
+			wantIsNodePool: true,
 		},
 		{
 			name:      "zonal nodepool",
@@ -73,8 +73,8 @@ func TestParseGKEAssetName(t *testing.T) {
 			want: gkeResourceIdentity{
 				ClusterName:  "test-cluster",
 				NodePoolName: "default-pool",
-				IsNodePool:   true,
 			},
+			wantIsNodePool: true,
 		},
 		{
 			name:      "non-gke asset name",
@@ -82,8 +82,8 @@ func TestParseGKEAssetName(t *testing.T) {
 			want: gkeResourceIdentity{
 				ClusterName:  "",
 				NodePoolName: "",
-				IsNodePool:   false,
 			},
+			wantIsNodePool: false,
 		},
 		{
 			name:      "empty asset name",
@@ -91,8 +91,8 @@ func TestParseGKEAssetName(t *testing.T) {
 			want: gkeResourceIdentity{
 				ClusterName:  "",
 				NodePoolName: "",
-				IsNodePool:   false,
 			},
+			wantIsNodePool: false,
 		},
 	}
 
@@ -101,6 +101,9 @@ func TestParseGKEAssetName(t *testing.T) {
 			got := parseGKEAssetName(tc.assetName)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("parseGKEAssetName(%q) mismatch (-want +got):\n%s", tc.assetName, diff)
+			}
+			if got.IsNodePool() != tc.wantIsNodePool {
+				t.Errorf("parseGKEAssetName(%q).IsNodePool() = %v, want %v", tc.assetName, got.IsNodePool(), tc.wantIsNodePool)
 			}
 		})
 	}
@@ -119,7 +122,7 @@ func TestGKERawLogTask(t *testing.T) {
 			},
 			Asset: &assetpb.Asset{
 				Name:      "//container.googleapis.com/projects/test-project/locations/us-central1/clusters/test-cluster",
-				AssetType: GKEClusterAssetType,
+				AssetType: googlecloudcaik8s_contract.GKEClusterAssetType,
 				Resource: &assetpb.Resource{
 					Data: clusterData,
 				},
@@ -181,14 +184,14 @@ func TestCaiGKEResourceLogIngester_ProcessLog(t *testing.T) {
 	clusterLog := newLogFromMap(t, generator, testTime, map[string]any{
 		"asset": map[string]any{
 			"name":      "//container.googleapis.com/projects/test-project/locations/us-central1/clusters/test-cluster",
-			"assetType": GKEClusterAssetType,
+			"assetType": googlecloudcaik8s_contract.GKEClusterAssetType,
 		},
 	})
 
-	nodepoolLog := newLogFromMap(t, generator, testTime, map[string]any{
+	nodePoolLog := newLogFromMap(t, generator, testTime, map[string]any{
 		"asset": map[string]any{
 			"name":      "//container.googleapis.com/projects/test-project/locations/us-central1/clusters/test-cluster/nodePools/default-pool",
-			"assetType": GKENodePoolAssetType,
+			"assetType": googlecloudcaik8s_contract.GKENodePoolAssetType,
 		},
 	})
 
@@ -216,7 +219,7 @@ func TestCaiGKEResourceLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			name:     "populates metadata for nodepool log",
-			inputLog: nodepoolLog,
+			inputLog: nodePoolLog,
 			assertLog: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
@@ -241,7 +244,7 @@ func TestCaiGKEResourceLogIngester_ProcessLog(t *testing.T) {
 	ingester := &caiGKEResourceLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cs, err := ingester.ProcessLog(context.Background(), tc.inputLog)
+			cs, err := ingester.ProcessLog(t.Context(), tc.inputLog)
 			if err != nil {
 				t.Fatalf("ProcessLog() unexpected error: %v", err)
 			}

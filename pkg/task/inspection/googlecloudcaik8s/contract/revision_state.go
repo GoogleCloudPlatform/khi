@@ -48,9 +48,9 @@ var (
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 
-	// RevisionStateGKENodePoolExistenceUnknown indicates the GKE node pool existence was undetermined before the first recorded snapshot.
-	RevisionStateGKENodePoolExistenceUnknown = style.MustRegisterRevisionState(
-		"Node pool existence is undetermined",
+	// RevisionStateGKENodePoolExistenceUndetermined indicates the GKE node pool existence was undetermined before the first recorded snapshot.
+	RevisionStateGKENodePoolExistenceUndetermined = style.MustRegisterRevisionState(
+		"Node Pool existence is undetermined",
 		"help_outline",
 		"The node pool may have existed because the parent cluster was active, but its existence is undetermined prior to the first recorded asset snapshot.",
 		style.MustForceConvertSRGBHex("#888899"),

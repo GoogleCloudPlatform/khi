@@ -72,7 +72,7 @@ func extractClusterCreateTimeFromSnapshots(snapshots []*googlecloudcaik8s_contra
 		if s == nil || s.TemporalAsset == nil || s.TemporalAsset.Asset == nil {
 			continue
 		}
-		if s.TemporalAsset.Asset.AssetType != GKEClusterAssetType {
+		if s.TemporalAsset.Asset.AssetType != googlecloudcaik8s_contract.GKEClusterAssetType {
 			continue
 		}
 		if res := s.TemporalAsset.Asset.Resource; res != nil && res.Data != nil {
@@ -118,7 +118,7 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, clusterIdentity.ClusterName)
 
 	var targetTimeline *khifilev6.TimelinePath
-	if identity.IsNodePool {
+	if identity.IsNodePool() {
 		targetTimeline = googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, identity.NodePoolName)
 	} else {
 		targetTimeline = clusterTimeline
@@ -135,7 +135,7 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	if !state.hasProcessedInitialSnapshot {
 		state.hasProcessedInitialSnapshot = true
 
-		if !identity.IsNodePool {
+		if !identity.IsNodePool() {
 			clusterCreateTime := l.NodeReader.ReadTimestampOrDefault(pathClusterCreateTime, time.Time{})
 			snapshotVerb := commonlogk8saudit_contract.VerbCreate
 			if !clusterCreateTime.IsZero() && observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
@@ -168,7 +168,7 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 					ResourceBody: nil,
 					Principal:    "N/A",
 					VerbType:     commonlogk8saudit_contract.VerbCreate,
-					StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUnknown,
+					StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
 				})
 
 				// Stage 2: Confirmed existence from earliest snapshot to query start time.
@@ -238,7 +238,7 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	}
 
 	stateType := googlecloudcaik8s_contract.RevisionStateGKEClusterExistingFromCAI
-	if identity.IsNodePool {
+	if identity.IsNodePool() {
 		stateType = googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI
 	}
 

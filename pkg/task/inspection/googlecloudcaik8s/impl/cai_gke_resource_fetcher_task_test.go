@@ -15,7 +15,6 @@
 package googlecloudcaik8s_impl
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -26,6 +25,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -43,7 +43,7 @@ func TestConvertTemporalAssetsToGKEResourceSnapshots(t *testing.T) {
 		},
 		Asset: &assetpb.Asset{
 			Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
-			AssetType: GKEClusterAssetType,
+			AssetType: googlecloudcaik8s_contract.GKEClusterAssetType,
 		},
 	}
 
@@ -75,7 +75,7 @@ func TestConvertTemporalAssetsToGKEResourceSnapshots(t *testing.T) {
 					Window: nil,
 					Asset: &assetpb.Asset{
 						Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
-						AssetType: GKEClusterAssetType,
+						AssetType: googlecloudcaik8s_contract.GKEClusterAssetType,
 					},
 				},
 			},
@@ -91,6 +91,9 @@ func TestConvertTemporalAssetsToGKEResourceSnapshots(t *testing.T) {
 				t.Fatalf("len(got) = %d, want %d", len(got), tc.wantCount)
 			}
 			for i, snapshot := range got {
+				if snapshot.TemporalAsset == nil {
+					t.Errorf("got[%d].TemporalAsset is nil, want non-nil", i)
+				}
 				if !snapshot.StartTime.Equal(tc.wantTimes[i]) {
 					t.Errorf("got[%d].StartTime = %v, want %v", i, snapshot.StartTime, tc.wantTimes[i])
 				}
@@ -131,20 +134,20 @@ func TestFetchGKEResourceSnapshots(t *testing.T) {
 			name: "successfully fetches cluster and nodepool snapshots",
 			searchResultsPerCall: [][]*assetpb.ResourceSearchResult{
 				{
-					{Name: matchedClusterName, AssetType: GKEClusterAssetType},
+					{Name: matchedClusterName, AssetType: googlecloudcaik8s_contract.GKEClusterAssetType},
 				},
 				{
-					{Name: nodePoolName, AssetType: GKENodePoolAssetType},
+					{Name: nodePoolName, AssetType: googlecloudcaik8s_contract.GKENodePoolAssetType},
 				},
 			},
 			batchAssets: []*assetpb.TemporalAsset{
 				{
 					Window: &assetpb.TimeWindow{StartTime: timestamppb.New(startTime)},
-					Asset:  &assetpb.Asset{Name: matchedClusterName, AssetType: GKEClusterAssetType},
+					Asset:  &assetpb.Asset{Name: matchedClusterName, AssetType: googlecloudcaik8s_contract.GKEClusterAssetType},
 				},
 				{
 					Window: &assetpb.TimeWindow{StartTime: timestamppb.New(startTime)},
-					Asset:  &assetpb.Asset{Name: nodePoolName, AssetType: GKENodePoolAssetType},
+					Asset:  &assetpb.Asset{Name: nodePoolName, AssetType: googlecloudcaik8s_contract.GKENodePoolAssetType},
 				},
 			},
 			wantCount:           2,
@@ -170,7 +173,7 @@ func TestFetchGKEResourceSnapshots(t *testing.T) {
 			name: "returns error when nodepool search fails",
 			searchResultsPerCall: [][]*assetpb.ResourceSearchResult{
 				{
-					{Name: matchedClusterName, AssetType: GKEClusterAssetType},
+					{Name: matchedClusterName, AssetType: googlecloudcaik8s_contract.GKEClusterAssetType},
 				},
 			},
 			searchErrPerCall:  []error{nil, errors.New("nodepool search failed")},
@@ -181,10 +184,10 @@ func TestFetchGKEResourceSnapshots(t *testing.T) {
 			name: "returns error when batch get assets history fails",
 			searchResultsPerCall: [][]*assetpb.ResourceSearchResult{
 				{
-					{Name: matchedClusterName, AssetType: GKEClusterAssetType},
+					{Name: matchedClusterName, AssetType: googlecloudcaik8s_contract.GKEClusterAssetType},
 				},
 				{
-					{Name: nodePoolName, AssetType: GKENodePoolAssetType},
+					{Name: nodePoolName, AssetType: googlecloudcaik8s_contract.GKENodePoolAssetType},
 				},
 			},
 			batchErr:            errors.New("batch get failed"),
@@ -205,7 +208,7 @@ func TestFetchGKEResourceSnapshots(t *testing.T) {
 			}
 			progress := &inspectionmetadata.TaskProgressMetadata{}
 
-			got, err := fetchGKEResourceSnapshots(context.Background(), fetcher, cluster, startTime, endTime, progress)
+			got, err := fetchGKEResourceSnapshots(t.Context(), fetcher, cluster, startTime, endTime, progress)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("fetchGKEResourceSnapshots() error = %v, wantErr %v", err, tc.wantErr)
 			}
@@ -285,8 +288,8 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 				nodePoolQuery,
 			},
 			wantSearchAssetTypes: [][]string{
-				{GKEClusterAssetType},
-				{GKENodePoolAssetType},
+				{googlecloudcaik8s_contract.GKEClusterAssetType},
+				{googlecloudcaik8s_contract.GKENodePoolAssetType},
 			},
 		},
 		{
@@ -299,7 +302,7 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 				clusterQuery,
 			},
 			wantSearchAssetTypes: [][]string{
-				{GKEClusterAssetType},
+				{googlecloudcaik8s_contract.GKEClusterAssetType},
 			},
 		},
 	}
@@ -309,10 +312,10 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 			mockServer := &mockAssetServer{
 				searchResultsByQuery: map[string][]*assetpb.ResourceSearchResult{
 					clusterQuery: {
-						{Name: clusterAssetName, AssetType: GKEClusterAssetType},
+						{Name: clusterAssetName, AssetType: googlecloudcaik8s_contract.GKEClusterAssetType},
 					},
 					nodePoolQuery: {
-						{Name: nodePoolAssetName, AssetType: GKENodePoolAssetType},
+						{Name: nodePoolAssetName, AssetType: googlecloudcaik8s_contract.GKENodePoolAssetType},
 					},
 				},
 				searchErr: tc.searchErr,
@@ -321,7 +324,7 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 						Window: &assetpb.TimeWindow{StartTime: timestamppb.New(startTime)},
 						Asset: &assetpb.Asset{
 							Name:      clusterAssetName,
-							AssetType: GKEClusterAssetType,
+							AssetType: googlecloudcaik8s_contract.GKEClusterAssetType,
 							Resource:  &assetpb.Resource{Data: clusterData},
 						},
 					},
@@ -329,7 +332,7 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 						Window: &assetpb.TimeWindow{StartTime: timestamppb.New(startTime)},
 						Asset: &assetpb.Asset{
 							Name:      nodePoolAssetName,
-							AssetType: GKENodePoolAssetType,
+							AssetType: googlecloudcaik8s_contract.GKENodePoolAssetType,
 							Resource:  &assetpb.Resource{Data: nodePoolData},
 						},
 					},

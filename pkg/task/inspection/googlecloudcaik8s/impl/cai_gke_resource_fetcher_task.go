@@ -32,12 +32,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// GKEClusterAssetType is the CAI asset type for GKE Cluster resources.
-const GKEClusterAssetType = "container.googleapis.com/Cluster"
-
-// GKENodePoolAssetType is the CAI asset type for GKE NodePool resources.
-const GKENodePoolAssetType = "container.googleapis.com/NodePool"
-
 // GKEResourceFetcherTask queries CAI for GKE Cluster and NodePool temporal asset snapshots.
 var GKEResourceFetcherTask = inspectiontaskbase.NewProgressReportableInspectionTask(
 	googlecloudcaik8s_contract.GKEResourceFetcherTaskID,
@@ -51,7 +45,7 @@ var GKEResourceFetcherTask = inspectiontaskbase.NewProgressReportableInspectionT
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*googlecloudcaik8s_contract.GKEResourceSnapshot, error) {
 		cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 		factory := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
-		injector, _ := coretask.GetTaskResultOptional(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
+		injector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 		startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 		endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
 
@@ -84,7 +78,7 @@ func fetchGKEResourceSnapshots(
 
 	candidates := clusterParentCandidates(cluster)
 	clusterQuery := fmt.Sprintf("name=%q OR name=%q", candidates[0], candidates[1])
-	clusterSearchResults, err := fetcher.SearchResources(ctx, scope, clusterQuery, []string{GKEClusterAssetType})
+	clusterSearchResults, err := fetcher.SearchResources(ctx, scope, clusterQuery, []string{googlecloudcaik8s_contract.GKEClusterAssetType})
 	if err != nil {
 		return nil, fmt.Errorf("failed to search GKE cluster from CAI: %w", err)
 	}
@@ -96,7 +90,7 @@ func fetchGKEResourceSnapshots(
 	progress.Message = "Searching GKE nodepools in Cloud Asset Inventory..."
 
 	nodePoolQuery := fmt.Sprintf("parentFullResourceName=%q", clusterAssetName)
-	nodePoolSearchResults, err := fetcher.SearchResources(ctx, scope, nodePoolQuery, []string{GKENodePoolAssetType})
+	nodePoolSearchResults, err := fetcher.SearchResources(ctx, scope, nodePoolQuery, []string{googlecloudcaik8s_contract.GKENodePoolAssetType})
 	if err != nil {
 		return nil, fmt.Errorf("failed to search GKE nodepools from CAI: %w", err)
 	}

@@ -20,26 +20,26 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
-// TaskIDPrefix is the prefix for Google Cloud CAI K8s task IDs.
-const TaskIDPrefix = "cloud.google.com/cai/k8s/"
+// K8sTaskIDPrefix is the prefix for Google Cloud CAI K8s task IDs.
+const K8sTaskIDPrefix = "cloud.google.com/cai/k8s/"
 
 // GKETaskIDPrefix is the prefix for Google Cloud CAI GKE task IDs.
 const GKETaskIDPrefix = "cloud.google.com/cai/gke/"
 
 // ClusterResourceFetcherTaskID is the task ID for fetching cluster resource snapshots from CAI.
-var ClusterResourceFetcherTaskID = taskid.NewDefaultImplementationID[[]*ClusterResourceSnapshot](TaskIDPrefix + "fetcher")
+var ClusterResourceFetcherTaskID = taskid.NewDefaultImplementationID[[]*ClusterResourceSnapshot](K8sTaskIDPrefix + "fetcher")
 
 // RawLogTaskID is the task ID for raw logs generated from CAI cluster resource snapshots.
-var RawLogTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "raw-logs")
+var RawLogTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sTaskIDPrefix + "raw-logs")
 
 // LogGrouperTaskID is the task ID for grouping CAI cluster resource snapshot logs.
-var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
+var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](K8sTaskIDPrefix + "grouper")
 
 // LogIngesterTaskID is the task ID for ingesting CAI cluster resource snapshot log metadata.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-ingester")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](K8sTaskIDPrefix + "log-ingester")
 
 // LogToTimelineMapperTaskID is the task ID for mapping CAI cluster resource snapshots to timeline revisions.
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](K8sTaskIDPrefix + "timeline-mapper")
 
 // GKEResourceFetcherTaskID is the task ID for fetching GKE cluster and nodepool snapshots from CAI.
 var GKEResourceFetcherTaskID = taskid.NewDefaultImplementationID[[]*GKEResourceSnapshot](GKETaskIDPrefix + "fetcher")
