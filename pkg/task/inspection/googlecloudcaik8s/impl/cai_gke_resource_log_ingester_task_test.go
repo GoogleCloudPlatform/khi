@@ -39,6 +39,7 @@ func TestParseGKEAssetName(t *testing.T) {
 		assetName      string
 		want           gkeResourceIdentity
 		wantIsNodePool bool
+		wantIsCluster  bool
 	}{
 		{
 			name:      "regional cluster",
@@ -48,6 +49,7 @@ func TestParseGKEAssetName(t *testing.T) {
 				NodePoolName: "",
 			},
 			wantIsNodePool: false,
+			wantIsCluster:  true,
 		},
 		{
 			name:      "zonal cluster",
@@ -57,6 +59,7 @@ func TestParseGKEAssetName(t *testing.T) {
 				NodePoolName: "",
 			},
 			wantIsNodePool: false,
+			wantIsCluster:  true,
 		},
 		{
 			name:      "regional nodepool",
@@ -66,6 +69,7 @@ func TestParseGKEAssetName(t *testing.T) {
 				NodePoolName: "default-pool",
 			},
 			wantIsNodePool: true,
+			wantIsCluster:  false,
 		},
 		{
 			name:      "zonal nodepool",
@@ -75,6 +79,7 @@ func TestParseGKEAssetName(t *testing.T) {
 				NodePoolName: "default-pool",
 			},
 			wantIsNodePool: true,
+			wantIsCluster:  false,
 		},
 		{
 			name:      "non-gke asset name",
@@ -84,6 +89,7 @@ func TestParseGKEAssetName(t *testing.T) {
 				NodePoolName: "",
 			},
 			wantIsNodePool: false,
+			wantIsCluster:  false,
 		},
 		{
 			name:      "empty asset name",
@@ -93,6 +99,7 @@ func TestParseGKEAssetName(t *testing.T) {
 				NodePoolName: "",
 			},
 			wantIsNodePool: false,
+			wantIsCluster:  false,
 		},
 	}
 
@@ -104,6 +111,9 @@ func TestParseGKEAssetName(t *testing.T) {
 			}
 			if got.IsNodePool() != tc.wantIsNodePool {
 				t.Errorf("parseGKEAssetName(%q).IsNodePool() = %v, want %v", tc.assetName, got.IsNodePool(), tc.wantIsNodePool)
+			}
+			if got.IsCluster() != tc.wantIsCluster {
+				t.Errorf("parseGKEAssetName(%q).IsCluster() = %v, want %v", tc.assetName, got.IsCluster(), tc.wantIsCluster)
 			}
 		})
 	}
@@ -297,6 +307,18 @@ func TestGKELogGrouperTask(t *testing.T) {
 			}
 			if len(got) != len(tc.wantKeys) {
 				t.Errorf("len(got) = %d, want %d", len(got), len(tc.wantKeys))
+			}
+			logPointerComparer := cmp.Comparer(func(a, b *log.Log) bool {
+				return a == b
+			})
+			if diff := cmp.Diff([]*log.Log{clusterLog}, got["cluster/test-cluster"].Logs, logPointerComparer); diff != "" {
+				t.Errorf("group cluster/test-cluster logs mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff([]*log.Log{nodepoolLog}, got["nodepool/test-cluster/default-pool"].Logs, logPointerComparer); diff != "" {
+				t.Errorf("group nodepool/test-cluster/default-pool logs mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff([]*log.Log{unknownLog}, got["unknown"].Logs, logPointerComparer); diff != "" {
+				t.Errorf("group unknown logs mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

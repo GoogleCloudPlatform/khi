@@ -142,7 +142,7 @@ func (i *caiGKEResourceLogIngester) ProcessLog(ctx context.Context, l *log.Log) 
 	switch {
 	case identity.IsNodePool():
 		cs.SetSummary(fmt.Sprintf("CAI resource snapshot: NodePool/%s", identity.NodePoolName))
-	case identity.ClusterName != "":
+	case identity.IsCluster():
 		cs.SetSummary(fmt.Sprintf("CAI resource snapshot: Cluster/%s", identity.ClusterName))
 	default:
 		cs.SetSummary("CAI resource snapshot: GKE resource")
@@ -166,7 +166,7 @@ var GKELogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 		identity := parseGKEAssetName(assetName)
 		if identity.IsNodePool() {
 			return fmt.Sprintf("nodepool/%s/%s", identity.ClusterName, identity.NodePoolName)
-		} else if identity.ClusterName != "" {
+		} else if identity.IsCluster() {
 			return fmt.Sprintf("cluster/%s", identity.ClusterName)
 		}
 		return "unknown"
