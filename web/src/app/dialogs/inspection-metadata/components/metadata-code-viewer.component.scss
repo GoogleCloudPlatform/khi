@@ -93,6 +93,10 @@ $copy-btn-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
     'spacer action' auto
     / 1fr auto;
   padding: 4px 8px;
+
+  .copy-button {
+    grid-area: action;
+  }
 }
 
 .copy-button {

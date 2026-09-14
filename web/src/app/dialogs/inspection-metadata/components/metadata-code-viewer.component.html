@@ -31,9 +31,9 @@ limitations under the License.
           class="copy-button"
           [cdkCopyToClipboard]="code()"
           (cdkCopyToClipboardCopied)="onCopied()"
-          [matTooltip]="copiedState() ? 'Copied!' : 'Copy to clipboard'"
+          [matTooltip]="isCopied() ? 'Copied!' : 'Copy to clipboard'"
         >
-          <mat-icon>{{ copiedState() ? "check" : "content_copy" }}</mat-icon>
+          <mat-icon>{{ isCopied() ? "check" : "content_copy" }}</mat-icon>
         </button>
       </div>
     </div>
@@ -44,9 +44,9 @@ limitations under the License.
         class="copy-button"
         [cdkCopyToClipboard]="code()"
         (cdkCopyToClipboardCopied)="onCopied()"
-        [matTooltip]="copiedState() ? 'Copied!' : 'Copy to clipboard'"
+        [matTooltip]="isCopied() ? 'Copied!' : 'Copy to clipboard'"
       >
-        <mat-icon>{{ copiedState() ? "check" : "content_copy" }}</mat-icon>
+        <mat-icon>{{ isCopied() ? "check" : "content_copy" }}</mat-icon>
       </button>
     </div>
   }

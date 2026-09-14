@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+  fakeAsync,
+  tick,
+} from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { MetadataCodeViewerComponent } from './metadata-code-viewer.component';
 
 describe('MetadataCodeViewerComponent', () => {
@@ -49,12 +55,18 @@ describe('MetadataCodeViewerComponent', () => {
     expect(badgeEl?.textContent).toContain('Estimated: 50');
   });
 
-  it('should emit contentCopied when onCopied is called', () => {
-    const spy = spyOn(component.contentCopied, 'emit');
-    const button = fixture.nativeElement.querySelector('.copy-button');
+  it('should toggle copy feedback icon on copy event', fakeAsync(() => {
+    const button = fixture.debugElement.query(By.css('.copy-button'));
     expect(button).toBeTruthy();
 
-    (component as unknown as { onCopied: () => void }).onCopied();
-    expect(spy).toHaveBeenCalled();
-  });
+    button.triggerEventHandler('cdkCopyToClipboardCopied', null);
+    fixture.detectChanges();
+
+    const icon = fixture.nativeElement.querySelector('mat-icon');
+    expect(icon.textContent).toContain('check');
+
+    tick(1500);
+    fixture.detectChanges();
+    expect(icon.textContent).toContain('content_copy');
+  }));
 });

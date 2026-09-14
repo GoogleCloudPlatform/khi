@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, input, output, signal } from '@angular/core';
+import { Component, DestroyRef, inject, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
@@ -51,18 +51,30 @@ export class MetadataCodeViewerComponent {
   /** Maximum height CSS value for the code block. */
   readonly maxHeight = input<string>('240px');
 
-  /** Emitted when the content is successfully copied. */
-  readonly contentCopied = output<void>();
-
   /** Internal state indicating recent copy action for visual feedback. */
-  protected readonly copiedState = signal(false);
+  protected readonly isCopied = signal(false);
+
+  private readonly destroyRef = inject(DestroyRef);
+  private copyTimerId: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      if (this.copyTimerId !== null) {
+        clearTimeout(this.copyTimerId);
+        this.copyTimerId = null;
+      }
+    });
+  }
 
   /** Handles the copy success event and displays temporary feedback. */
   protected onCopied(): void {
-    this.copiedState.set(true);
-    this.contentCopied.emit();
-    setTimeout(() => {
-      this.copiedState.set(false);
+    this.isCopied.set(true);
+    if (this.copyTimerId !== null) {
+      clearTimeout(this.copyTimerId);
+    }
+    this.copyTimerId = setTimeout(() => {
+      this.isCopied.set(false);
+      this.copyTimerId = null;
     }, 1500);
   }
 }
