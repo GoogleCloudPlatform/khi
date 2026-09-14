@@ -115,7 +115,7 @@ func (s *targetResourceScanner) scanTargetResource(l *log.Log) []*model.Kubernet
 
 	// Memorize all resources modified up to this point to handle delete collection methods
 	for _, resource := range targetResource {
-		if resource.Namespace == "cluster-scope" {
+		if resource.Namespace == commonlogk8saudit_contract.ClusterScopeNamespace {
 			continue
 		}
 		namespaceKindAPIVersions := fmt.Sprintf("%s/%s/%s", resource.APIVersion, resource.PluralKind, resource.Namespace)

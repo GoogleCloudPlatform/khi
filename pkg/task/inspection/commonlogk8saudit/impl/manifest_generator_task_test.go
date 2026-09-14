@@ -39,7 +39,10 @@ func TestGroupManifestGenerator(t *testing.T) {
 		desc         string
 		inputs       []*testGroupManifestGeneratorInput
 		resourceName string
-		wantBodies   []string
+		// initialStateYAML is the resource state observed before the logs. An empty string means the
+		// inventory does not cover the resource.
+		initialStateYAML string
+		wantBodies       []string
 	}{
 		{
 			desc: "update must override existing values",
@@ -577,6 +580,50 @@ metadata:
 `,
 			},
 		},
+		{
+			desc: "patch as the first log merges onto the initial resource state",
+			initialStateYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  labels:
+    foo: bar`,
+			inputs: []*testGroupManifestGeneratorInput{
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					requestYAML: `metadata:
+  labels:
+    qux: quux`,
+				},
+			},
+			wantBodies: []string{
+				`apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  labels:
+    foo: bar
+    qux: quux
+`,
+			},
+		},
+		{
+			desc: "patch as the first log without an initial resource state keeps only the patched fields",
+			inputs: []*testGroupManifestGeneratorInput{
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					requestYAML: `metadata:
+  labels:
+    qux: quux`,
+				},
+			},
+			wantBodies: []string{
+				`metadata:
+  labels:
+    qux: quux
+`,
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -616,6 +663,13 @@ metadata:
 				mergeConfigRegistry: config,
 				resourceName:        tc.resourceName,
 				blockStore:          structured.NewLazyJSONBlockStore(4, 8),
+			}
+			if tc.initialStateYAML != "" {
+				node, err := structured.FromYAML(tc.initialStateYAML)
+				if err != nil {
+					t.Fatalf("failed to parse the initial resource state YAML: %v", err)
+				}
+				groupManifestGenerator.prevRevisionReader = structured.NewNodeReader(node)
 			}
 			gotManifests := []string{}
 			for _, l := range logs {

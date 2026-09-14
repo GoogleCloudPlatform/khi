@@ -74,7 +74,7 @@ func (e *nonSuccessLogLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx cont
 	kind := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, api, strings.ToLower(commonlogk8saudit_contract.GetSingularKindName(fieldSet.PluralKind)))
 
 	var resPath *khifilev6.TimelinePath
-	if fieldSet.Namespace != "cluster-scope" && fieldSet.Namespace != "" {
+	if fieldSet.Namespace != commonlogk8saudit_contract.ClusterScopeNamespace && fieldSet.Namespace != "" {
 		ns := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kind, fieldSet.Namespace)
 		resPath = commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, ns, fieldSet.ResourceName)
 	} else {

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -58,7 +59,9 @@ type ResourceRevisionLogToTimelineMapperTaskSetting struct {
 
 // Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
 func (r *ResourceRevisionLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+	return []taskid.UntypedTaskReference{
+		commonlogk8saudit_contract.InitialResourceStateProviderRef,
+	}
 }
 
 // PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
@@ -343,17 +346,16 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx 
 	// For the initial observation of a resource without an explicit creation log (e.g. starting with patch),
 	// prepend an inferred creation revision indicating that the resource already existed prior to the logs.
 	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeCreation && k8sFieldSet.Verb != commonlogk8saudit_contract.VerbCreate {
-		if hasCreationTime {
+		// The provider side renders both the unknown period before the observed manifest and the manifest
+		// itself, so this body-less revision only covers the resources the inventory does not know.
+		initialStateProvider := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.InitialResourceStateProviderRef)
+		if _, hasInitialState := initialStateProvider.InitialResourceState(event.ResourceIdentity); !hasInitialState {
+			existenceStartTime := time.Unix(0, 0)
+			if hasCreationTime {
+				existenceStartTime = creationTime
+			}
 			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-				ChangedTime:  creationTime,
-				ResourceBody: nil,
-				Principal:    "N/A",
-				VerbType:     commonlogk8saudit_contract.VerbCreate,
-				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
-			})
-		} else {
-			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-				ChangedTime:  time.Unix(0, 0),
+				ChangedTime:  existenceStartTime,
 				ResourceBody: nil,
 				Principal:    "N/A",
 				VerbType:     commonlogk8saudit_contract.VerbCreate,

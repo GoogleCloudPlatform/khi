@@ -30,6 +30,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	)
 	return coretask.RegisterTasks(scoped,
 		K8sAuditLogIngesterTask,
+		EmptyInitialResourceStateProviderTask,
 		SuccessLogFilterTask,
 		NonSuccessLogFilterTask,
 		LogSorterTask,
