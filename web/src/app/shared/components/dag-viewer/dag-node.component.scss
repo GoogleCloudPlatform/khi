@@ -15,6 +15,7 @@
  */
 
 @use '@angular/material' as mat;
+@use './dag-run-phase-colors' as run-phase;
 
 $node-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
 $node-bg-hover-color: #fff;
@@ -55,6 +56,40 @@ $input-badge-text: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 900);
 $tag-badge-bg: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 50);
 $tag-badge-stroke: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 200);
 $tag-badge-text: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 800);
+
+$run-waiting-bg: run-phase.$waiting-bg;
+$run-waiting-accent: run-phase.$waiting-accent;
+$run-waiting-stroke: run-phase.$waiting-border;
+
+$run-running-bg: run-phase.$running-bg;
+$run-running-accent: run-phase.$running-accent;
+$run-running-stroke: run-phase.$running-border;
+
+$run-done-bg: run-phase.$done-bg;
+$run-done-accent: run-phase.$done-accent;
+$run-done-stroke: run-phase.$done-border;
+
+$run-error-bg: run-phase.$error-bg;
+$run-error-accent: run-phase.$error-accent;
+$run-error-stroke: run-phase.$error-border;
+
+$run-duration-text-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  700
+);
+
+@keyframes dag-node-running-pulse {
+  0%,
+  100% {
+    stroke-opacity: 1;
+    stroke-width: 3.5px;
+  }
+
+  50% {
+    stroke-opacity: 0.35;
+    stroke-width: 1.5px;
+  }
+}
 
 :host {
   cursor: pointer;
@@ -100,17 +135,29 @@ $tag-badge-text: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 800);
     }
   }
 
-  &:hover .node-card-bg {
+  &:not([data-run-phase]):hover .node-card-bg {
     fill: $node-bg-hover-color;
     stroke: $node-highlighted-stroke;
     stroke-width: 2px;
   }
 
-  &.selected .node-card-bg {
+  &:not([data-run-phase]).selected .node-card-bg {
     fill: $node-bg-hover-color;
     stroke: $node-selected-stroke;
     stroke-width: 2.5px;
     filter: drop-shadow(0 3px 8px rgba(63, 81, 181, 0.25));
+  }
+
+  &[data-run-phase]:hover .node-card-bg {
+    stroke: $node-highlighted-stroke;
+    stroke-width: 2.5px;
+    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.12));
+  }
+
+  &[data-run-phase].selected .node-card-bg {
+    stroke: $node-selected-stroke;
+    stroke-width: 3px;
+    filter: drop-shadow(0 3px 8px rgba(63, 81, 181, 0.3));
   }
 
   &.highlighted:not(.selected) .node-card-bg {
@@ -120,6 +167,56 @@ $tag-badge-text: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 800);
 
   &.dimmed {
     opacity: 0.2;
+  }
+
+  &[data-run-phase='WAITING'] {
+    .node-card-bg {
+      fill: $run-waiting-bg;
+      stroke: $run-waiting-stroke;
+      stroke-width: 2px;
+      stroke-dasharray: 4 3;
+    }
+
+    .node-accent-bar {
+      fill: $run-waiting-accent;
+    }
+  }
+
+  &[data-run-phase='RUNNING'] {
+    .node-card-bg {
+      fill: $run-running-bg;
+      stroke: $run-running-stroke;
+      stroke-width: 3.5px;
+      animation: dag-node-running-pulse 1.2s ease-in-out infinite;
+    }
+
+    .node-accent-bar {
+      fill: $run-running-accent;
+    }
+  }
+
+  &[data-run-phase='DONE'] {
+    .node-card-bg {
+      fill: $run-done-bg;
+      stroke: $run-done-stroke;
+      stroke-width: 2.5px;
+    }
+
+    .node-accent-bar {
+      fill: $run-done-accent;
+    }
+  }
+
+  &[data-run-phase='ERROR'] {
+    .node-card-bg {
+      fill: $run-error-bg;
+      stroke: $run-error-stroke;
+      stroke-width: 3px;
+    }
+
+    .node-accent-bar {
+      fill: $run-error-accent;
+    }
   }
 
   .node-domain-text {
@@ -146,6 +243,14 @@ $tag-badge-text: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 800);
     font-family: var(--font-family-code, monospace);
     font-size: 11px;
     fill: $output-type-text-color;
+  }
+
+  .node-run-duration-text {
+    font-family: var(--font-family-code, monospace);
+    font-size: 11px;
+    font-weight: 600;
+    fill: $run-duration-text-color;
+    text-anchor: end;
   }
 
   .badge-group {

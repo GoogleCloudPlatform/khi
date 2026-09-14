@@ -76,6 +76,9 @@ export class InspectionListItemComponent {
   /** Emitted when the user wants to open the inspection metadata. */
   public readonly openInspectionMetadata = output<string>();
 
+  /** Emitted when the user wants to open the task graph of the inspection run. */
+  public readonly openInspectionRunTaskGraph = output<string>();
+
   /** Emitted when the user wants to cancel the running inspection. */
   public readonly cancelInspection = output<string>();
 

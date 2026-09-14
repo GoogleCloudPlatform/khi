@@ -31,6 +31,25 @@ export function formatDurationSeconds(seconds: number): string {
 }
 
 /**
+ * Formats a duration in milliseconds into a compact display string such as "820ms", "4.3s", or "2m05s".
+ *
+ * @param durationMs - Duration in milliseconds.
+ * @returns Compact duration string.
+ */
+export function formatDurationMs(durationMs: number): string {
+  if (durationMs < 1000) {
+    return `${Math.round(durationMs)}ms`;
+  }
+  if (durationMs < 60000) {
+    return `${(durationMs / 1000).toFixed(1)}s`;
+  }
+  const totalSeconds = Math.floor(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m${seconds.toString().padStart(2, '0')}s`;
+}
+
+/**
  * Generates a timestamped filename formatted as `{prefix}-YYYYMMDD-HHmmss.{extension}`.
  *
  * @param prefix - Prefix string for the filename.

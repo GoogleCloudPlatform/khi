@@ -23,6 +23,7 @@ import {
   TaskFilterEvaluation,
 } from 'src/app/generated/api/v1/inspection_task_graph_pb';
 import {
+  DagNodeRunPhase,
   DagViewerEdge,
   DagViewerNode,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
@@ -81,6 +82,8 @@ describe('TaskGraphDebugLayoutComponent', () => {
       labels: {},
       outputType: 'string',
       providedTags: [],
+      runPhase: DagNodeRunPhase.NONE,
+      runDurationMs: 0,
     },
   ];
 

@@ -14,17 +14,4 @@
  limitations under the License.
 -->
 
-<khi-startup-dialog-layout
-  [version]="version"
-  [links]="links"
-  [items]="vmTasks()"
-  [isLoading]="isLoading()"
-  (newInvestigation)="openNewInspectionDialog()"
-  (openKhiFile)="openKhiFile()"
-  (openInspectionResult)="openTaskResult($event)"
-  (openInspectionMetadata)="showMetadata($event)"
-  (openInspectionRunTaskGraph)="showRunTaskGraph($event)"
-  (cancelInspection)="cancelTask($event)"
-  (downloadInspectionResult)="downloadInspectionResult($event)"
-  (changeInspectionTitle)="updateInspectionTitle($event)"
-></khi-startup-dialog-layout>
+<khi-inspection-run-task-graph-layout [viewModel]="viewModel()" />

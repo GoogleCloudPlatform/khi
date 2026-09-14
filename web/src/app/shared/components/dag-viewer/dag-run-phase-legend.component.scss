@@ -1,0 +1,86 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+@use './dag-run-phase-colors' as run-phase;
+
+$legend-label-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 800);
+
+@keyframes dag-run-phase-legend-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
+:host {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: start;
+  align-items: center;
+  gap: 14px;
+}
+
+.legend-item {
+  display: grid;
+  grid-template:
+    'swatch label' auto
+    / auto auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-swatch {
+  grid-area: swatch;
+  width: 16px;
+  height: 12px;
+  border-radius: 3px;
+  border-width: 2px;
+  border-style: solid;
+}
+
+.legend-label {
+  grid-area: label;
+  font-family: var(--font-family-sans, sans-serif);
+  font-size: 12px;
+  color: $legend-label-color;
+}
+
+.legend-item[data-run-phase='WAITING'] .legend-swatch {
+  background-color: run-phase.$waiting-bg;
+  border-color: run-phase.$waiting-border;
+  border-style: dashed;
+}
+
+.legend-item[data-run-phase='RUNNING'] .legend-swatch {
+  background-color: run-phase.$running-bg;
+  border-color: run-phase.$running-border;
+  animation: dag-run-phase-legend-pulse 1.2s ease-in-out infinite;
+}
+
+.legend-item[data-run-phase='DONE'] .legend-swatch {
+  background-color: run-phase.$done-bg;
+  border-color: run-phase.$done-border;
+}
+
+.legend-item[data-run-phase='ERROR'] .legend-swatch {
+  background-color: run-phase.$error-bg;
+  border-color: run-phase.$error-border;
+}

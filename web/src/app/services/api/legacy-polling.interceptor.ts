@@ -29,6 +29,12 @@ import {
   WatchInspectionsResponseSchema,
 } from 'src/app/generated/api/v1/inspection_pb';
 import {
+  InspectionTaskGraphService,
+  WatchInspectionRunTaskGraphRequest,
+  WatchInspectionRunTaskGraphResponse,
+  WatchInspectionRunTaskGraphResponseSchema,
+} from 'src/app/generated/api/v1/inspection_task_graph_pb';
+import {
   PopupService,
   WatchPopupResponse,
   WatchPopupResponseSchema,
@@ -216,6 +222,51 @@ async function* adaptWatchIndexProgress(
 }
 
 /**
+ * Adapts WatchInspectionRunTaskGraph streaming RPC to unary PullInspectionRunTaskGraph calls.
+ */
+async function* adaptWatchInspectionRunTaskGraph(
+  req: StreamRequest,
+  transport: Transport,
+): AsyncIterable<WatchInspectionRunTaskGraphResponse> {
+  const taskGraphClient = createClient(InspectionTaskGraphService, transport);
+  const input = (await getFirstMessage(
+    req.message,
+  )) as WatchInspectionRunTaskGraphRequest;
+  let consecutiveErrors = 0;
+  while (!req.signal.aborted) {
+    try {
+      const res = await taskGraphClient.pullInspectionRunTaskGraph(
+        { inspectionId: input.inspectionId },
+        { signal: req.signal },
+      );
+      consecutiveErrors = 0;
+      yield create(WatchInspectionRunTaskGraphResponseSchema, {
+        snapshot: res.snapshot,
+      });
+      if (res.snapshot?.isRunFinished) {
+        return;
+      }
+    } catch (err) {
+      if (req.signal.aborted) {
+        return;
+      }
+      consecutiveErrors++;
+      if (
+        consecutiveErrors > MAX_CONSECUTIVE_POLL_ERRORS ||
+        !isRetryableError(err)
+      ) {
+        throw err;
+      }
+      console.warn(
+        `[LegacyPolling] PullInspectionRunTaskGraph transient error (${consecutiveErrors}/${MAX_CONSECUTIVE_POLL_ERRORS}):`,
+        err,
+      );
+    }
+    await delayWithSignal(1000, req.signal);
+  }
+}
+
+/**
  * Adapts OpenWorkbench streaming RPC to OpenWorkbenchSync calls with cancellation support.
  */
 async function* adaptOpenWorkbench(
@@ -354,6 +405,7 @@ const STREAM_TO_POLL_ADAPTERS = new Map<string, StreamToPollAdapter>([
   ['WatchServerStat', adaptWatchServerStat],
   ['WatchInspections', adaptWatchInspections],
   ['WatchIndexProgress', adaptWatchIndexProgress],
+  ['WatchInspectionRunTaskGraph', adaptWatchInspectionRunTaskGraph],
   ['OpenWorkbench', adaptOpenWorkbench],
   ['FilterTimeline', adaptFilterTimeline],
 ]);

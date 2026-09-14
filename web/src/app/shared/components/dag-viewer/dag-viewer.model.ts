@@ -67,6 +67,36 @@ export function getTaskDescription(
 }
 
 /**
+ * Execution phase of a task node rendered in the DAG viewer.
+ */
+export enum DagNodeRunPhase {
+  /**
+   * The node belongs to a graph that is not tied to any run, so no decoration is applied.
+   */
+  NONE = 'NONE',
+
+  /**
+   * The task is registered in the run but has not started yet.
+   */
+  WAITING = 'WAITING',
+
+  /**
+   * The task is currently running.
+   */
+  RUNNING = 'RUNNING',
+
+  /**
+   * The task finished successfully.
+   */
+  DONE = 'DONE',
+
+  /**
+   * The task finished with an error.
+   */
+  ERROR = 'ERROR',
+}
+
+/**
  * Represents a node within the DAG viewer.
  */
 export interface DagViewerNode {
@@ -114,6 +144,17 @@ export interface DagViewerNode {
    * Tags provided by this task.
    */
   readonly providedTags: readonly ProvidedTagInfo[];
+
+  /**
+   * Execution phase used to decorate the node border.
+   */
+  readonly runPhase: DagNodeRunPhase;
+
+  /**
+   * Elapsed time for a running task or total duration for a finished task, in milliseconds.
+   * Zero means the duration is unknown and must not be rendered.
+   */
+  readonly runDurationMs: number;
 }
 
 /**

@@ -31,6 +31,7 @@ import { DagPositionedEdge } from 'src/app/shared/components/dag-viewer/dag-view
     '[class.highlighted]': 'isHighlighted()',
     '[class.dimmed]': 'isDimmed()',
     '[class.fan-in]': 'isFanIn()',
+    '[class.satisfied]': 'isSatisfied()',
   },
 })
 export class DagEdgeComponent {
@@ -55,6 +56,11 @@ export class DagEdgeComponent {
   readonly isDimmed = input<boolean>(false);
 
   /**
+   * Whether this dependency is satisfied (its upstream source task has completed).
+   */
+  readonly isSatisfied = input<boolean>(false);
+
+  /**
    * Whether this edge represents a fan-in tag aggregation.
    */
   readonly isFanIn = computed(
@@ -67,6 +73,9 @@ export class DagEdgeComponent {
   readonly markerUrl = computed(() => {
     if (this.isHighlighted()) {
       return 'url(#arrow-marker-highlighted)';
+    }
+    if (this.isSatisfied()) {
+      return 'url(#arrow-marker-satisfied)';
     }
     if (this.isFanIn()) {
       return 'url(#arrow-marker-fan-in)';

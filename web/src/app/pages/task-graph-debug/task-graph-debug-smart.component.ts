@@ -30,6 +30,7 @@ import {
   TaskFilterEvaluation,
 } from 'src/app/generated/api/v1/inspection_task_graph_pb';
 import {
+  DagNodeRunPhase,
   DagViewerEdge,
   DagViewerNode,
   isFormTask,
@@ -57,6 +58,8 @@ function convertToDagViewerNodes(
     labels: n.labels,
     outputType: n.outputType,
     providedTags: n.providedTags,
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   }));
 }
 

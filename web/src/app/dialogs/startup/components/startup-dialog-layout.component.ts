@@ -60,6 +60,9 @@ export class StartupDialogLayoutComponent {
   /** Emitted when inspection metadata is opened. */
   public readonly openInspectionMetadata = output<string>();
 
+  /** Emitted when the task graph of an inspection run is opened. */
+  public readonly openInspectionRunTaskGraph = output<string>();
+
   /** Emitted when an inspection is cancelled. */
   public readonly cancelInspection = output<string>();
 

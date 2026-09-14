@@ -14,17 +14,9 @@
  limitations under the License.
 -->
 
-<khi-startup-dialog-layout
-  [version]="version"
-  [links]="links"
-  [items]="vmTasks()"
-  [isLoading]="isLoading()"
-  (newInvestigation)="openNewInspectionDialog()"
-  (openKhiFile)="openKhiFile()"
-  (openInspectionResult)="openTaskResult($event)"
-  (openInspectionMetadata)="showMetadata($event)"
-  (openInspectionRunTaskGraph)="showRunTaskGraph($event)"
-  (cancelInspection)="cancelTask($event)"
-  (downloadInspectionResult)="downloadInspectionResult($event)"
-  (changeInspectionTitle)="updateInspectionTitle($event)"
-></khi-startup-dialog-layout>
+@for (item of items; track item.runPhase) {
+  <div class="legend-item" [attr.data-run-phase]="item.runPhase">
+    <span class="legend-swatch"></span>
+    <span class="legend-label">{{ item.label }}</span>
+  </div>
+}

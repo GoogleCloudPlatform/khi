@@ -38,7 +38,7 @@ const mockEdge: DagPositionedEdge = {
 };
 
 const meta: Meta<DagEdgeComponent> = {
-  title: 'TaskGraphDebug/DagViewer/DagEdge',
+  title: 'Shared/DagViewer/DagEdge',
   component: DagEdgeComponent,
   tags: ['autodocs'],
   decorators: [
@@ -55,6 +55,9 @@ const meta: Meta<DagEdgeComponent> = {
             <marker id="arrow-marker-fan-in" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
               <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#7d5260" />
             </marker>
+            <marker id="arrow-marker-satisfied" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#388e3c" />
+            </marker>
           </defs>
           ${story}
         </svg>
@@ -69,6 +72,7 @@ const meta: Meta<DagEdgeComponent> = {
         [edge]="edge"
         [isHighlighted]="isHighlighted"
         [isDimmed]="isDimmed"
+        [isSatisfied]="isSatisfied"
       ></g>
     `,
   }),
@@ -76,6 +80,7 @@ const meta: Meta<DagEdgeComponent> = {
     edge: mockEdge,
     isHighlighted: false,
     isDimmed: false,
+    isSatisfied: false,
   },
 };
 
@@ -84,6 +89,12 @@ type Story = StoryObj<DagEdgeComponent>;
 
 export const PointToPoint: Story = {
   args: {},
+};
+
+export const Satisfied: Story = {
+  args: {
+    isSatisfied: true,
+  },
 };
 
 export const Highlighted: Story = {

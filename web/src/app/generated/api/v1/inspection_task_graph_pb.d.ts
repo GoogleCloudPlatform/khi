@@ -704,6 +704,173 @@ export declare type ResolveInspectionTaskGraphResponse =
 export declare const ResolveInspectionTaskGraphResponseSchema: GenMessage<ResolveInspectionTaskGraphResponse>;
 
 /**
+ * TaskRunNodeStatus reports the execution state of a single task within a running inspection.
+ *
+ * @generated from message api.v1.TaskRunNodeStatus
+ */
+export declare type TaskRunNodeStatus = Message<'api.v1.TaskRunNodeStatus'> & {
+  /**
+   * Implementation identifier of the task this status belongs to.
+   *
+   * @generated from field: string task_implementation_id = 1;
+   */
+  taskImplementationId: string;
+
+  /**
+   * Current execution phase of the task.
+   *
+   * @generated from field: api.v1.TaskRunPhase phase = 2;
+   */
+  phase: TaskRunPhase;
+
+  /**
+   * Wall clock time the task started, or zero while the task is still waiting.
+   *
+   * @generated from field: int64 start_time_unix_nano = 3;
+   */
+  startTimeUnixNano: bigint;
+
+  /**
+   * Wall clock time the task reached a terminal phase, or zero while it is waiting or running.
+   *
+   * @generated from field: int64 end_time_unix_nano = 4;
+   */
+  endTimeUnixNano: bigint;
+};
+
+/**
+ * Describes the message api.v1.TaskRunNodeStatus.
+ * Use `create(TaskRunNodeStatusSchema)` to create a new message.
+ */
+export declare const TaskRunNodeStatusSchema: GenMessage<TaskRunNodeStatus>;
+
+/**
+ * InspectionRunTaskGraphSnapshot is a point-in-time view of an inspection run used to visualize its progress.
+ *
+ * @generated from message api.v1.InspectionRunTaskGraphSnapshot
+ */
+export declare type InspectionRunTaskGraphSnapshot =
+  Message<'api.v1.InspectionRunTaskGraphSnapshot'> & {
+    /**
+     * Execution graph the inspection run is currently processing.
+     *
+     * @generated from field: api.v1.TaskDAGInfo dag = 1;
+     */
+    dag?: TaskDAGInfo | undefined;
+
+    /**
+     * Execution state of every task in the graph, including tasks that have not started yet.
+     *
+     * @generated from field: repeated api.v1.TaskRunNodeStatus node_statuses = 2;
+     */
+    nodeStatuses: TaskRunNodeStatus[];
+
+    /**
+     * Whether the inspection run already reached its terminal state.
+     *
+     * @generated from field: bool is_run_finished = 3;
+     */
+    isRunFinished: boolean;
+
+    /**
+     * Server-side capture time, allowing clients to derive elapsed time without relying on their own clock.
+     *
+     * @generated from field: int64 snapshot_time_unix_nano = 4;
+     */
+    snapshotTimeUnixNano: bigint;
+  };
+
+/**
+ * Describes the message api.v1.InspectionRunTaskGraphSnapshot.
+ * Use `create(InspectionRunTaskGraphSnapshotSchema)` to create a new message.
+ */
+export declare const InspectionRunTaskGraphSnapshotSchema: GenMessage<InspectionRunTaskGraphSnapshot>;
+
+/**
+ * Request to observe the task graph progress of a single inspection run.
+ *
+ * @generated from message api.v1.WatchInspectionRunTaskGraphRequest
+ */
+export declare type WatchInspectionRunTaskGraphRequest =
+  Message<'api.v1.WatchInspectionRunTaskGraphRequest'> & {
+    /**
+     * Identifier of the inspection run to observe.
+     *
+     * @generated from field: string inspection_id = 1;
+     */
+    inspectionId: string;
+  };
+
+/**
+ * Describes the message api.v1.WatchInspectionRunTaskGraphRequest.
+ * Use `create(WatchInspectionRunTaskGraphRequestSchema)` to create a new message.
+ */
+export declare const WatchInspectionRunTaskGraphRequestSchema: GenMessage<WatchInspectionRunTaskGraphRequest>;
+
+/**
+ * Response streaming the latest progress snapshot of an inspection run.
+ *
+ * @generated from message api.v1.WatchInspectionRunTaskGraphResponse
+ */
+export declare type WatchInspectionRunTaskGraphResponse =
+  Message<'api.v1.WatchInspectionRunTaskGraphResponse'> & {
+    /**
+     * Latest snapshot of the inspection run.
+     *
+     * @generated from field: api.v1.InspectionRunTaskGraphSnapshot snapshot = 1;
+     */
+    snapshot?: InspectionRunTaskGraphSnapshot | undefined;
+  };
+
+/**
+ * Describes the message api.v1.WatchInspectionRunTaskGraphResponse.
+ * Use `create(WatchInspectionRunTaskGraphResponseSchema)` to create a new message.
+ */
+export declare const WatchInspectionRunTaskGraphResponseSchema: GenMessage<WatchInspectionRunTaskGraphResponse>;
+
+/**
+ * Request to fetch the current task graph progress of a single inspection run.
+ *
+ * @generated from message api.v1.PullInspectionRunTaskGraphRequest
+ */
+export declare type PullInspectionRunTaskGraphRequest =
+  Message<'api.v1.PullInspectionRunTaskGraphRequest'> & {
+    /**
+     * Identifier of the inspection run to read.
+     *
+     * @generated from field: string inspection_id = 1;
+     */
+    inspectionId: string;
+  };
+
+/**
+ * Describes the message api.v1.PullInspectionRunTaskGraphRequest.
+ * Use `create(PullInspectionRunTaskGraphRequestSchema)` to create a new message.
+ */
+export declare const PullInspectionRunTaskGraphRequestSchema: GenMessage<PullInspectionRunTaskGraphRequest>;
+
+/**
+ * Response carrying the current progress snapshot of an inspection run.
+ *
+ * @generated from message api.v1.PullInspectionRunTaskGraphResponse
+ */
+export declare type PullInspectionRunTaskGraphResponse =
+  Message<'api.v1.PullInspectionRunTaskGraphResponse'> & {
+    /**
+     * Current snapshot of the inspection run.
+     *
+     * @generated from field: api.v1.InspectionRunTaskGraphSnapshot snapshot = 1;
+     */
+    snapshot?: InspectionRunTaskGraphSnapshot | undefined;
+  };
+
+/**
+ * Describes the message api.v1.PullInspectionRunTaskGraphResponse.
+ * Use `create(PullInspectionRunTaskGraphResponseSchema)` to create a new message.
+ */
+export declare const PullInspectionRunTaskGraphResponseSchema: GenMessage<PullInspectionRunTaskGraphResponse>;
+
+/**
  * TaskDependencyScope defines the evaluation scope for finding upstream dependency providers.
  *
  * @generated from enum api.v1.TaskDependencyScope
@@ -763,6 +930,43 @@ export enum TaskDependencyCardinality {
 export declare const TaskDependencyCardinalitySchema: GenEnum<TaskDependencyCardinality>;
 
 /**
+ * TaskRunPhase represents the execution lifecycle state of a task within an inspection run.
+ *
+ * @generated from enum api.v1.TaskRunPhase
+ */
+export enum TaskRunPhase {
+  /**
+   * @generated from enum value: TASK_RUN_PHASE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: TASK_RUN_PHASE_WAITING = 1;
+   */
+  WAITING = 1,
+
+  /**
+   * @generated from enum value: TASK_RUN_PHASE_RUNNING = 2;
+   */
+  RUNNING = 2,
+
+  /**
+   * @generated from enum value: TASK_RUN_PHASE_DONE = 3;
+   */
+  DONE = 3,
+
+  /**
+   * @generated from enum value: TASK_RUN_PHASE_ERROR = 4;
+   */
+  ERROR = 4,
+}
+
+/**
+ * Describes the enum api.v1.TaskRunPhase.
+ */
+export declare const TaskRunPhaseSchema: GenEnum<TaskRunPhase>;
+
+/**
  * InspectionTaskGraphService provides diagnostic APIs to inspect task registration, filtering, and DAG resolution.
  *
  * @generated from service api.v1.InspectionTaskGraphService
@@ -788,5 +992,25 @@ export declare const InspectionTaskGraphService: GenService<{
     methodKind: 'unary';
     input: typeof ResolveInspectionTaskGraphRequestSchema;
     output: typeof ResolveInspectionTaskGraphResponseSchema;
+  };
+  /**
+   * Streams progress snapshots of the task graph executed by an inspection run.
+   *
+   * @generated from rpc api.v1.InspectionTaskGraphService.WatchInspectionRunTaskGraph
+   */
+  watchInspectionRunTaskGraph: {
+    methodKind: 'server_streaming';
+    input: typeof WatchInspectionRunTaskGraphRequestSchema;
+    output: typeof WatchInspectionRunTaskGraphResponseSchema;
+  };
+  /**
+   * Returns a single progress snapshot of an inspection run for hosting environments without streaming support.
+   *
+   * @generated from rpc api.v1.InspectionTaskGraphService.PullInspectionRunTaskGraph
+   */
+  pullInspectionRunTaskGraph: {
+    methodKind: 'unary';
+    input: typeof PullInspectionRunTaskGraphRequestSchema;
+    output: typeof PullInspectionRunTaskGraphResponseSchema;
   };
 }>;

@@ -22,13 +22,17 @@ import {
   output,
 } from '@angular/core';
 import {
+  DagNodeRunPhase,
   DagPositionedNode,
   getTaskDescription,
   ProvidedTagItem,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
+import { formatDurationMs } from 'src/app/utils/time-format-util';
 
 const CHAR_WIDTH_ESTIMATE_PX = 7.5;
 const NODE_HORIZONTAL_PADDING_PX = 28;
+const DURATION_CHAR_WIDTH_PX = 6.5;
+const DURATION_GAP_PX = 16;
 const FEATURE_BADGE_OFFSET_X = 62;
 const TAG_CHAR_WIDTH_PX = 6.2;
 const TAG_PADDING_PX = 14;
@@ -64,6 +68,7 @@ export interface TagBadge {
     '[class.dimmed]': 'isDimmed()',
     '[class.feature]': 'node().isFeature',
     '[class.form-task]': 'node().isFormTask',
+    '[attr.data-run-phase]': 'runPhaseAttribute()',
     '[attr.transform]': 'transform()',
     '(click)': 'onClick($event)',
   },
@@ -100,6 +105,22 @@ export class DagNodeComponent {
   readonly transform = computed(
     () => `translate(${this.node().x}, ${this.node().y})`,
   );
+
+  /**
+   * Run phase exposed as a host attribute, or null when the node is not tied to a run.
+   */
+  readonly runPhaseAttribute = computed(() => {
+    const runPhase = this.node().runPhase;
+    return runPhase === DagNodeRunPhase.NONE ? null : runPhase;
+  });
+
+  /**
+   * Formatted run duration label, or empty string when the duration is unknown.
+   */
+  readonly runDurationLabel = computed(() => {
+    const runDurationMs = this.node().runDurationMs;
+    return runDurationMs > 0 ? formatDurationMs(runDurationMs) : '';
+  });
 
   /**
    * Domain prefix extracted from the reference ID, such as "khi.google.com/".
@@ -147,19 +168,23 @@ export class DagNodeComponent {
   );
 
   /**
-   * Short display string for output type.
+   * Short display string for output type, truncated to avoid overlapping the run duration label.
    */
   readonly displayOutputType = computed(() => {
     const outputType = this.node().outputType;
     if (!outputType) {
       return '';
     }
+    const durationLabel = this.runDurationLabel();
+    const durationReservePx =
+      durationLabel.length > 0
+        ? durationLabel.length * DURATION_CHAR_WIDTH_PX + DURATION_GAP_PX
+        : 0;
+    const availableWidth =
+      this.node().width - NODE_HORIZONTAL_PADDING_PX - durationReservePx;
     const maxChars = Math.max(
       10,
-      Math.floor(
-        (this.node().width - NODE_HORIZONTAL_PADDING_PX) /
-          CHAR_WIDTH_ESTIMATE_PX,
-      ),
+      Math.floor(availableWidth / CHAR_WIDTH_ESTIMATE_PX),
     );
     if (outputType.length > maxChars) {
       return `${outputType.slice(0, maxChars - 3)}...`;

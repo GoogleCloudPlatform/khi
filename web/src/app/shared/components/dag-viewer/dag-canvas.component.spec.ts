@@ -18,6 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TaskDependencyCardinality } from 'src/app/generated/api/v1/inspection_task_graph_pb';
 import { DagCanvasComponent } from 'src/app/shared/components/dag-viewer/dag-canvas.component';
 import {
+  DagNodeRunPhase,
   DagViewerEdge,
   DagViewerNode,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
@@ -37,6 +38,8 @@ describe('DagCanvasComponent', () => {
       labels: {},
       outputType: 'string',
       providedTags: [],
+      runPhase: DagNodeRunPhase.NONE,
+      runDurationMs: 0,
     },
     {
       id: 'task-b',
@@ -48,6 +51,8 @@ describe('DagCanvasComponent', () => {
       labels: {},
       outputType: 'number',
       providedTags: [],
+      runPhase: DagNodeRunPhase.NONE,
+      runDurationMs: 0,
     },
     {
       id: 'task-c',
@@ -59,6 +64,8 @@ describe('DagCanvasComponent', () => {
       labels: {},
       outputType: 'boolean',
       providedTags: [],
+      runPhase: DagNodeRunPhase.NONE,
+      runDurationMs: 0,
     },
   ];
 
@@ -194,5 +201,24 @@ describe('DagCanvasComponent', () => {
 
     component.onNodeSelected('task-a');
     expect(clickedId).toBe('task-a');
+  });
+
+  it('identifies satisfied edges when source node runPhase is DONE', () => {
+    const nodesWithDone: DagViewerNode[] = [
+      { ...mockNodes[0], runPhase: DagNodeRunPhase.DONE },
+      { ...mockNodes[1], runPhase: DagNodeRunPhase.WAITING },
+      { ...mockNodes[2], runPhase: DagNodeRunPhase.WAITING },
+    ];
+    fixture.componentRef.setInput('nodes', nodesWithDone);
+    fixture.componentRef.setInput('edges', mockEdges);
+    fixture.detectChanges();
+
+    expect(component.isEdgeSatisfied('task-a->task-b')).toBeTrue();
+    expect(component.isEdgeSatisfied('task-b->task-c')).toBeFalse();
+
+    const renderedEdges =
+      fixture.nativeElement.querySelectorAll('g[khi-dag-edge]');
+    expect(renderedEdges[0].classList.contains('satisfied')).toBeTrue();
+    expect(renderedEdges[1].classList.contains('satisfied')).toBeFalse();
   });
 });

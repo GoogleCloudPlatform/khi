@@ -33,6 +33,7 @@ import { DagNodeDetailPanelComponent } from 'src/app/shared/components/dag-viewe
 import { DagNodeComponent } from 'src/app/shared/components/dag-viewer/dag-node.component';
 import {
   DagLayoutResult,
+  DagNodeRunPhase,
   DagPositionedNode,
   DagViewerEdge,
   DagViewerNode,
@@ -241,6 +242,21 @@ export class DagCanvasComponent implements AfterViewInit {
   });
 
   /**
+   * Set of satisfied edge IDs whose upstream source task completed successfully (DONE).
+   */
+  readonly satisfiedEdgeIds = computed<ReadonlySet<string>>(() => {
+    const nodeMap = this.nodeMap();
+    const set = new Set<string>();
+    for (const edge of this.edges()) {
+      const sourceNode = nodeMap.get(edge.sourceId);
+      if (sourceNode?.runPhase === DagNodeRunPhase.DONE) {
+        set.add(edge.id);
+      }
+    }
+    return set;
+  });
+
+  /**
    * Currently selected node object, or null.
    */
   readonly selectedNode = computed<DagViewerNode | null>(() => {
@@ -333,6 +349,13 @@ export class DagCanvasComponent implements AfterViewInit {
    */
   isEdgeDimmed(id: string): boolean {
     return this.activeNodeId() !== null && !this.highlightedEdgeIds().has(id);
+  }
+
+  /**
+   * Determines if a specific edge is satisfied (its upstream source task completed).
+   */
+  isEdgeSatisfied(id: string): boolean {
+    return this.satisfiedEdgeIds().has(id);
   }
 
   /**

@@ -19,6 +19,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ProvidedTagInfoSchema } from 'src/app/generated/api/v1/inspection_task_graph_pb';
 import { DagNodeDetailPanelComponent } from 'src/app/shared/components/dag-viewer/dag-node-detail-panel.component';
 import {
+  DagNodeRunPhase,
   DagViewerNode,
   TASK_DESCRIPTION_LABEL_KEY,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
@@ -45,6 +46,8 @@ describe('DagNodeDetailPanelComponent', () => {
         outputType: 'k8s.PodList',
       }),
     ],
+    runPhase: DagNodeRunPhase.NONE,
+    runDurationMs: 0,
   };
 
   const mockUpstream: DagViewerNode[] = [
@@ -58,6 +61,8 @@ describe('DagNodeDetailPanelComponent', () => {
       labels: {},
       outputType: 'io.Reader',
       providedTags: [],
+      runPhase: DagNodeRunPhase.NONE,
+      runDurationMs: 0,
     },
   ];
 
@@ -72,6 +77,8 @@ describe('DagNodeDetailPanelComponent', () => {
       labels: {},
       outputType: 'timeline.Timeline',
       providedTags: [],
+      runPhase: DagNodeRunPhase.NONE,
+      runDurationMs: 0,
     },
   ];
 

@@ -1,0 +1,176 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$dialog-background-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  50
+);
+$header-background-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  100
+);
+$header-border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$title-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$secondary-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
+$progress-track-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$progress-value-color: mat.m2-get-color-from-palette(
+  mat.$m2-light-green-palette,
+  700
+);
+$error-text-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 700);
+$error-background-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 50);
+
+:host {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.dialog-container {
+  display: grid;
+  grid-template:
+    'header' auto
+    'error' auto
+    'legend' auto
+    'canvas' 1fr
+    / 1fr;
+  min-height: 0;
+  background-color: $dialog-background-color;
+}
+
+.dialog-header {
+  grid-area: header;
+  display: grid;
+  grid-template:
+    'title' auto
+    'summary' auto
+    / 1fr;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: $header-background-color;
+  border-bottom: 1px solid $header-border-color;
+}
+
+.header-title {
+  grid-area: title;
+  display: grid;
+  grid-template:
+    'icon name state' auto
+    / auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon {
+  grid-area: icon;
+  color: $secondary-text-color;
+}
+
+.inspection-name {
+  grid-area: name;
+  margin: 0;
+  font-family: var(--font-family-sans, sans-serif);
+  font-size: 16px;
+  font-weight: 600;
+  color: $title-text-color;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-state {
+  grid-area: state;
+  font-family: var(--font-family-sans, sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: $secondary-text-color;
+}
+
+.header-summary {
+  grid-area: summary;
+  display: grid;
+  grid-template:
+    'count track elapsed' auto
+    / auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress-label {
+  grid-area: count;
+  font-family: var(--font-family-code, monospace);
+  font-size: 12px;
+  color: $secondary-text-color;
+}
+
+.progress-track {
+  grid-area: track;
+  height: 8px;
+  border-radius: 4px;
+  background-color: $progress-track-color;
+  overflow: hidden;
+}
+
+.progress-value {
+  height: 100%;
+  background-color: $progress-value-color;
+  transition: width 0.3s ease-out;
+}
+
+.elapsed-label {
+  grid-area: elapsed;
+  font-family: var(--font-family-code, monospace);
+  font-size: 12px;
+  color: $secondary-text-color;
+}
+
+.error-banner {
+  grid-area: error;
+  display: grid;
+  grid-template:
+    'icon message' auto
+    / auto 1fr;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 16px;
+  font-family: var(--font-family-sans, sans-serif);
+  font-size: 12px;
+  color: $error-text-color;
+  background-color: $error-background-color;
+}
+
+.error-icon {
+  grid-area: icon;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.legend-bar {
+  grid-area: legend;
+  padding: 8px 16px;
+  border-bottom: 1px solid $header-border-color;
+}
+
+.canvas-area {
+  grid-area: canvas;
+  display: grid;
+  min-height: 0;
+}

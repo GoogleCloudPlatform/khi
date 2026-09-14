@@ -56,6 +56,12 @@
   </svg:text>
 }
 
+@if (runDurationLabel()) {
+  <svg:text class="node-run-duration-text" [attr.x]="node().width - 14" y="50">
+    {{ runDurationLabel() }}
+  </svg:text>
+}
+
 <svg:g class="node-badges-group" transform="translate(14, 61)">
   @if (node().isFeature) {
     <svg:g class="badge-group feature-badge">

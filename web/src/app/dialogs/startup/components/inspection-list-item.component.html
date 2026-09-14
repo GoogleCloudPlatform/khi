@@ -150,6 +150,14 @@
         }
       </div>
       <div class="misc-buttons">
+        <button
+          class="run-task-graph-button"
+          mat-icon-button
+          matTooltip="Show the task graph of this inspection run"
+          (click)="openInspectionRunTaskGraph.emit(i.id)"
+        >
+          <mat-icon>account_tree</mat-icon>
+        </button>
         @if (isMetadataAvailable()) {
           <button
             class="metadata-button"
