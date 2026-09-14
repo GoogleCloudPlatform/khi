@@ -15,8 +15,16 @@
 package googlecloudk8scommon_impl
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -67,6 +75,65 @@ func TestFilterAndTrimPrefixFromClusterNames(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.expected, gotClusterNames); diff != "" {
 				t.Errorf("filterAndTrimPrefixFromClusterNames() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestClusterScopedAutocompleteTasks_IncompleteClusterIdentity(t *testing.T) {
+	testCases := []struct {
+		name     string
+		task     coretask.Task[*inspectioncore_contract.AutocompleteResult[string]]
+		cluster  googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		wantHint string
+	}{
+		{
+			name:     "AutocompleteNamespacesTask returns hint when project ID is missing",
+			task:     AutocompleteNamespacesTask,
+			cluster:  googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
+			wantHint: "Namespace names are suggested after the project ID, cluster name, and location are provided.",
+		},
+		{
+			name: "AutocompletePodNamesTask returns hint when cluster name is missing",
+			task: AutocompletePodNamesTask,
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID: "test-project",
+			},
+			wantHint: "Pod names are suggested after the project ID, cluster name, and location are provided.",
+		},
+		{
+			name: "AutocompleteNodeNamesTask returns hint when location is missing",
+			task: AutocompleteNodeNamesTask,
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				ClusterName: "test-cluster",
+			},
+			wantHint: "Node names are suggested after the project ID, cluster name, and location are provided.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+			got, err := tasktest.RunTask(ctx, tc.task,
+				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), tc.cluster),
+				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), time.Unix(1000, 0)),
+				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), time.Unix(2000, 0)),
+				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), nil),
+				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(), nil),
+				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref(), "test-metric"),
+				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.AutocompleteMetricsK8sNodeTaskID.Ref(), "test-metric"),
+			)
+			if err != nil {
+				t.Fatalf("RunTask() unexpected error: %v", err)
+			}
+			want := &inspectioncore_contract.AutocompleteResult[string]{
+				Values: []string{},
+				Error:  "",
+				Hint:   tc.wantHint,
+			}
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("RunTask() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
