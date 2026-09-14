@@ -92,7 +92,7 @@ func TestExtractClusterCreateTimeFromSnapshots(t *testing.T) {
 	}
 }
 
-func TestCaiGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	clusterName := "test-cluster"
 	projectID := "test-project"

@@ -177,7 +177,7 @@ func TestGKERawLogTask(t *testing.T) {
 	}
 }
 
-func TestCaiGKEResourceLogIngester_ProcessLog(t *testing.T) {
+func TestCAIGKEResourceLogIngester_ProcessLog(t *testing.T) {
 	testTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	generator := id.NewGenerator()
 

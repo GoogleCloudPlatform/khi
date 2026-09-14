@@ -111,17 +111,7 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 		return nil, state, nil
 	}
 
-	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
-	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, clusterIdentity.ProjectID)
-	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, clusterIdentity.ClusterName)
-
-	var targetTimeline *khifilev6.TimelinePath
-	if identity.IsNodePool() {
-		targetTimeline = googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, identity.NodePoolName)
-	} else {
-		targetTimeline = clusterTimeline
-	}
-
+	targetTimeline := m.resolveTargetTimeline(ctx, identity)
 	cs := khifilev6.NewTimelineChangeSet(l)
 	resourceBody := extractResourceBody(l.NodeReader)
 
@@ -132,113 +122,133 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 
 	if !state.hasProcessedInitialSnapshot {
 		state.hasProcessedInitialSnapshot = true
-
 		if !identity.IsNodePool() {
-			clusterCreateTime := l.NodeReader.ReadTimestampOrDefault(pathClusterCreateTime, time.Time{})
-			snapshotVerb := commonlogk8saudit_contract.VerbCreate
-			if !clusterCreateTime.IsZero() && observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
-				cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-					ChangedTime:  clusterCreateTime,
-					ResourceBody: nil,
-					Principal:    "N/A",
-					VerbType:     commonlogk8saudit_contract.VerbCreate,
-					StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExistingLogNotFound,
-				})
-				snapshotVerb = commonlogk8saudit_contract.VerbUpdate
-			}
+			m.stageClusterInitialRevisions(cs, targetTimeline, l, observedTime, resourceBody)
+		} else {
+			m.stageNodePoolInitialRevisions(ctx, cs, targetTimeline, assetWindowStartTime, observedTime, queryStartTime, resourceBody)
+		}
+		return cs, state, nil
+	}
+
+	m.stageSecondaryUpdate(cs, targetTimeline, identity, l, assetWindowStartTime, resourceBody)
+	return cs, state, nil
+}
+
+func (m *caiGKEResourceTimelineMapper) resolveTargetTimeline(ctx context.Context, identity gkeResourceIdentity) *khifilev6.TimelinePath {
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, clusterIdentity.ProjectID)
+	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, clusterIdentity.ClusterName)
+
+	if identity.IsNodePool() {
+		return googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, identity.NodePoolName)
+	}
+	return clusterTimeline
+}
+
+func (m *caiGKEResourceTimelineMapper) stageClusterInitialRevisions(cs *khifilev6.TimelineChangeSet, targetTimeline *khifilev6.TimelinePath, l *log.Log, observedTime time.Time, resourceBody structured.Node) {
+	clusterCreateTime := l.NodeReader.ReadTimestampOrDefault(pathClusterCreateTime, time.Time{})
+	snapshotVerb := commonlogk8saudit_contract.VerbCreate
+	if !clusterCreateTime.IsZero() && observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
+		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+			ChangedTime:  clusterCreateTime,
+			ResourceBody: nil,
+			Principal:    "N/A",
+			VerbType:     commonlogk8saudit_contract.VerbCreate,
+			StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExistingLogNotFound,
+		})
+		snapshotVerb = commonlogk8saudit_contract.VerbUpdate
+	}
+	cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+		ChangedTime:  observedTime,
+		ResourceBody: resourceBody,
+		Principal:    "N/A",
+		VerbType:     snapshotVerb,
+		StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterExistingFromCAI,
+	})
+}
+
+func (m *caiGKEResourceTimelineMapper) stageNodePoolInitialRevisions(ctx context.Context, cs *khifilev6.TimelineChangeSet, targetTimeline *khifilev6.TimelinePath, earliestWindowStartTime, observedTime, queryStartTime time.Time, resourceBody structured.Node) {
+	snapshots := coretask.GetTaskResult(ctx, googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref())
+	clusterCreateTime := extractClusterCreateTimeFromSnapshots(snapshots)
+
+	switch {
+	case earliestWindowStartTime.After(queryStartTime):
+		// NodePool was created during the inspection time window.
+		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+			ChangedTime:  observedTime,
+			ResourceBody: resourceBody,
+			Principal:    "N/A",
+			VerbType:     commonlogk8saudit_contract.VerbCreate,
+			StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+		})
+	case !clusterCreateTime.IsZero() && !earliestWindowStartTime.IsZero() && earliestWindowStartTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance:
+		// Stage 1: Undetermined existence between cluster creation and earliest recorded snapshot.
+		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+			ChangedTime:  clusterCreateTime,
+			ResourceBody: nil,
+			Principal:    "N/A",
+			VerbType:     commonlogk8saudit_contract.VerbCreate,
+			StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
+		})
+
+		// Stage 2: Confirmed existence from earliest snapshot to query start time.
+		if earliestWindowStartTime.Before(queryStartTime) {
+			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+				ChangedTime:  earliestWindowStartTime,
+				ResourceBody: nil,
+				Principal:    "N/A",
+				VerbType:     commonlogk8saudit_contract.VerbUpdate,
+				StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
+			})
+		}
+
+		// Stage 3: Initial manifest at query start time.
+		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+			ChangedTime:  observedTime,
+			ResourceBody: resourceBody,
+			Principal:    "N/A",
+			VerbType:     commonlogk8saudit_contract.VerbUpdate,
+			StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+		})
+	case !clusterCreateTime.IsZero() && (earliestWindowStartTime.IsZero() || earliestWindowStartTime.Sub(clusterCreateTime) < creationTimestampSkewTolerance):
+		// NodePool created alongside the cluster (within skew tolerance).
+		if observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
+			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+				ChangedTime:  clusterCreateTime,
+				ResourceBody: nil,
+				Principal:    "N/A",
+				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
+			})
 			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
 				ChangedTime:  observedTime,
 				ResourceBody: resourceBody,
 				Principal:    "N/A",
-				VerbType:     snapshotVerb,
-				StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterExistingFromCAI,
+				VerbType:     commonlogk8saudit_contract.VerbUpdate,
+				StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
 			})
 		} else {
-			snapshots := coretask.GetTaskResult(ctx, googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref())
-			clusterCreateTime := extractClusterCreateTimeFromSnapshots(snapshots)
-			earliestWindowStartTime := assetWindowStartTime
-
-			switch {
-			case earliestWindowStartTime.After(queryStartTime):
-				// NodePool was created during the inspection time window.
-				cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-					ChangedTime:  observedTime,
-					ResourceBody: resourceBody,
-					Principal:    "N/A",
-					VerbType:     commonlogk8saudit_contract.VerbCreate,
-					StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
-				})
-			case !clusterCreateTime.IsZero() && !earliestWindowStartTime.IsZero() && earliestWindowStartTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance:
-				// Stage 1: Undetermined existence between cluster creation and earliest recorded snapshot.
-				cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-					ChangedTime:  clusterCreateTime,
-					ResourceBody: nil,
-					Principal:    "N/A",
-					VerbType:     commonlogk8saudit_contract.VerbCreate,
-					StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
-				})
-
-				// Stage 2: Confirmed existence from earliest snapshot to query start time.
-				if earliestWindowStartTime.Before(queryStartTime) {
-					cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  earliestWindowStartTime,
-						ResourceBody: nil,
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
-					})
-				}
-
-				// Stage 3: Initial manifest at query start time.
-				cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-					ChangedTime:  observedTime,
-					ResourceBody: resourceBody,
-					Principal:    "N/A",
-					VerbType:     commonlogk8saudit_contract.VerbUpdate,
-					StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
-				})
-			case !clusterCreateTime.IsZero() && (earliestWindowStartTime.IsZero() || earliestWindowStartTime.Sub(clusterCreateTime) < creationTimestampSkewTolerance):
-				// NodePool created alongside the cluster (within skew tolerance).
-				if observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
-					cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  clusterCreateTime,
-						ResourceBody: nil,
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
-					})
-					cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  observedTime,
-						ResourceBody: resourceBody,
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
-					})
-				} else {
-					cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  observedTime,
-						ResourceBody: resourceBody,
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
-					})
-				}
-			default:
-				// Fallback when cluster creation time is not available.
-				cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-					ChangedTime:  observedTime,
-					ResourceBody: resourceBody,
-					Principal:    "N/A",
-					VerbType:     commonlogk8saudit_contract.VerbCreate,
-					StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
-				})
-			}
+			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+				ChangedTime:  observedTime,
+				ResourceBody: resourceBody,
+				Principal:    "N/A",
+				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+			})
 		}
-
-		return cs, state, nil
+	default:
+		// Fallback when cluster creation time is not available.
+		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+			ChangedTime:  observedTime,
+			ResourceBody: resourceBody,
+			Principal:    "N/A",
+			VerbType:     commonlogk8saudit_contract.VerbCreate,
+			StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+		})
 	}
+}
 
-	// Secondary updates within the inspection time window.
+func (m *caiGKEResourceTimelineMapper) stageSecondaryUpdate(cs *khifilev6.TimelineChangeSet, targetTimeline *khifilev6.TimelinePath, identity gkeResourceIdentity, l *log.Log, assetWindowStartTime time.Time, resourceBody structured.Node) {
 	updateTime := assetWindowStartTime
 	if updateTime.IsZero() {
 		updateTime = l.Timestamp
@@ -256,8 +266,6 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 		VerbType:     commonlogk8saudit_contract.VerbUpdate,
 		StateType:    stateType,
 	})
-
-	return cs, state, nil
 }
 
 // GKELogToTimelineMapperTask is the task that maps CAI GKE snapshots to timeline revisions.
