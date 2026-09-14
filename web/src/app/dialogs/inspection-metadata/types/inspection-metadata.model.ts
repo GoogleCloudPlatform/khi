@@ -157,22 +157,22 @@ export function convertToInspectionMetadataViewModel(
   metadata: InspectionMetadataOfRunResult,
 ): InspectionMetadataViewModel {
   const header = metadata.header;
-  const startSec = header?.startTimeUnixSeconds ?? 0;
-  const endSec = header?.endTimeUnixSeconds ?? 0;
+  const startSec = header.startTimeUnixSeconds;
+  const endSec = header.endTimeUnixSeconds;
   const durationSec = startSec > 0 && endSec > startSec ? endSec - startSec : 0;
 
   const overview: MetadataOverviewViewModel = {
-    inspectionType: header?.inspectionType || 'Unknown',
-    inspectionName: header?.inspectionName || 'Untitled Inspection',
-    inspectionTypeIconPath: header?.inspectionTypeIconPath || '',
+    inspectionType: header.inspectionType || 'Unknown',
+    inspectionName: header.inspectionName || 'Untitled Inspection',
+    inspectionTypeIconPath: header.inspectionTypeIconPath,
     formattedStartTime: formatTimestampSeconds(startSec),
     formattedEndTime: formatTimestampSeconds(endSec),
     durationText: formatDuration(durationSec),
-    suggestedFilename: header?.suggestedFilename || 'inspection.khi',
-    fileSizeText: formatBytes(header?.fileSize ?? 0),
+    suggestedFilename: header.suggestedFilename || 'inspection.khi',
+    fileSizeText: formatBytes(header.fileSize ?? 0),
   };
 
-  const queries: MetadataQueryViewModel[] = (metadata.query ?? []).map((q) => ({
+  const queries: MetadataQueryViewModel[] = metadata.query.map((q) => ({
     id: q.id,
     name: q.name,
     query: q.query,
@@ -182,23 +182,23 @@ export function convertToInspectionMetadataViewModel(
     pending: q.pending,
   }));
 
-  const logs: MetadataLogViewModel[] = (metadata.log ?? []).map((l) => ({
+  const logs: MetadataLogViewModel[] = metadata.log.map((l) => ({
     id: l.id,
     name: l.name,
     log: l.log,
   }));
 
   const plan: MetadataPlanViewModel = {
-    taskGraph: metadata.plan?.taskGraph || '',
+    taskGraph: metadata.plan.taskGraph,
   };
 
-  const errors: MetadataErrorViewModel[] = (
-    metadata.error?.errorMessages ?? []
-  ).map((e) => ({
-    errorId: e.errorId,
-    message: e.message,
-    link: e.link,
-  }));
+  const errors: MetadataErrorViewModel[] = metadata.error.errorMessages.map(
+    (e) => ({
+      errorId: e.errorId,
+      message: e.message,
+      link: e.link,
+    }),
+  );
 
   return {
     overview,
