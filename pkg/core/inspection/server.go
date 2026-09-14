@@ -17,6 +17,7 @@ package coreinspection
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -66,6 +67,7 @@ type InspectionTaskServer struct {
 	inspectionTypes []*InspectionType
 	// inspections are generated inspection task runers
 	inspections           map[string]*InspectionTaskRunner
+	inspectionsMu         sync.RWMutex
 	inspectionIDGenerator idgenerator.IDGenerator
 
 	ioConfig *inspectioncore_contract.IOConfig
@@ -133,12 +135,16 @@ func (s *InspectionTaskServer) CreateInspection(inspectionType string) (string, 
 	if err != nil {
 		return "", err
 	}
+	s.inspectionsMu.Lock()
 	s.inspections[inspectionRunner.ID] = inspectionRunner
+	s.inspectionsMu.Unlock()
 	return inspectionRunner.ID, nil
 }
 
 // Inspection returns an instance of an Inspection queried with given inspection ID.
 func (s *InspectionTaskServer) GetInspection(inspectionID string) *InspectionTaskRunner {
+	s.inspectionsMu.RLock()
+	defer s.inspectionsMu.RUnlock()
 	return s.inspections[inspectionID]
 }
 
@@ -156,6 +162,8 @@ func (s *InspectionTaskServer) GetInspectionType(inspectionTypeId string) *Inspe
 }
 
 func (s *InspectionTaskServer) GetAllRunners() []*InspectionTaskRunner {
+	s.inspectionsMu.RLock()
+	defer s.inspectionsMu.RUnlock()
 	inspections := []*InspectionTaskRunner{}
 	for _, value := range s.inspections {
 		inspections = append(inspections, value)
@@ -181,7 +189,9 @@ func (s *InspectionTaskServer) IOConfig() *inspectioncore_contract.IOConfig {
 // RegisterImportedInspection registers a completed imported inspection with the given ID, store, and metadata.
 func (s *InspectionTaskServer) RegisterImportedInspection(id string, store inspectioncore_contract.Store, metadata *typedmap.ReadonlyTypedMap) *InspectionTaskRunner {
 	runner := NewImportedInspectionRunner(s, s.ioConfig, id, store, metadata, s.runContextOptions...)
+	s.inspectionsMu.Lock()
 	s.inspections[id] = runner
+	s.inspectionsMu.Unlock()
 	return runner
 }
 

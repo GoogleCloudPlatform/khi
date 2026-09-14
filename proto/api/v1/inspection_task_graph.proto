@@ -33,6 +33,15 @@ enum TaskDependencyCardinality {
   TASK_DEPENDENCY_CARDINALITY_FAN_IN = 2;
 }
 
+// TaskRunPhase represents the execution lifecycle state of a task within an inspection run.
+enum TaskRunPhase {
+  TASK_RUN_PHASE_UNSPECIFIED = 0;
+  TASK_RUN_PHASE_WAITING = 1;
+  TASK_RUN_PHASE_RUNNING = 2;
+  TASK_RUN_PHASE_DONE = 3;
+  TASK_RUN_PHASE_ERROR = 4;
+}
+
 // TaskDependencyInfo contains metadata for an individual task dependency requirement.
 message TaskDependencyInfo {
   // Cardinality indicates whether this dependency connects a single task or fan-in candidates.
@@ -279,6 +288,60 @@ message ResolveInspectionTaskGraphResponse {
   repeated FeatureToggleInfo available_features = 3;
 }
 
+// TaskRunNodeStatus reports the execution state of a single task within a running inspection.
+message TaskRunNodeStatus {
+  // Implementation identifier of the task this status belongs to.
+  string task_implementation_id = 1;
+
+  // Current execution phase of the task.
+  TaskRunPhase phase = 2;
+
+  // Wall clock time the task started, or zero while the task is still waiting.
+  int64 start_time_unix_nano = 3;
+
+  // Wall clock time the task reached a terminal phase, or zero while it is waiting or running.
+  int64 end_time_unix_nano = 4;
+}
+
+// InspectionRunTaskGraphSnapshot is a point-in-time view of an inspection run used to visualize its progress.
+message InspectionRunTaskGraphSnapshot {
+  // Execution graph the inspection run is currently processing.
+  TaskDAGInfo dag = 1;
+
+  // Execution state of every task in the graph, including tasks that have not started yet.
+  repeated TaskRunNodeStatus node_statuses = 2;
+
+  // Whether the inspection run already reached its terminal state.
+  bool is_run_finished = 3;
+
+  // Server-side capture time, allowing clients to derive elapsed time without relying on their own clock.
+  int64 snapshot_time_unix_nano = 4;
+}
+
+// Request to observe the task graph progress of a single inspection run.
+message WatchInspectionRunTaskGraphRequest {
+  // Identifier of the inspection run to observe.
+  string inspection_id = 1;
+}
+
+// Response streaming the latest progress snapshot of an inspection run.
+message WatchInspectionRunTaskGraphResponse {
+  // Latest snapshot of the inspection run.
+  InspectionRunTaskGraphSnapshot snapshot = 1;
+}
+
+// Request to fetch the current task graph progress of a single inspection run.
+message PullInspectionRunTaskGraphRequest {
+  // Identifier of the inspection run to read.
+  string inspection_id = 1;
+}
+
+// Response carrying the current progress snapshot of an inspection run.
+message PullInspectionRunTaskGraphResponse {
+  // Current snapshot of the inspection run.
+  InspectionRunTaskGraphSnapshot snapshot = 1;
+}
+
 // InspectionTaskGraphService provides diagnostic APIs to inspect task registration, filtering, and DAG resolution.
 service InspectionTaskGraphService {
   // Returns all registered tasks in the server grouped by reference identifier, along with available inspection types.
@@ -287,4 +350,10 @@ service InspectionTaskGraphService {
   // Resolves the inspection task graph for a given inspection type and feature configuration,
   // returning step-by-step filtering results and the resolved execution DAG.
   rpc ResolveInspectionTaskGraph(ResolveInspectionTaskGraphRequest) returns (ResolveInspectionTaskGraphResponse);
+
+  // Streams progress snapshots of the task graph executed by an inspection run.
+  rpc WatchInspectionRunTaskGraph(WatchInspectionRunTaskGraphRequest) returns (stream WatchInspectionRunTaskGraphResponse);
+
+  // Returns a single progress snapshot of an inspection run for hosting environments without streaming support.
+  rpc PullInspectionRunTaskGraph(PullInspectionRunTaskGraphRequest) returns (PullInspectionRunTaskGraphResponse);
 }

@@ -103,7 +103,13 @@ type mockTaskRunner struct {
 	interceptors []coretask.Interceptor
 }
 
+var _ coretask.TaskRunner = (*mockTaskRunner)(nil)
+
 func (m *mockTaskRunner) Run(ctx context.Context) error {
+	return nil
+}
+
+func (m *mockTaskRunner) TaskRunStatuses() map[string]coretask.TaskRunStatus {
 	return nil
 }
 

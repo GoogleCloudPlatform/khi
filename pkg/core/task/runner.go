@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sync"
 	"time"
 
@@ -43,7 +44,8 @@ type LocalRunner struct {
 	stopped                     bool
 	taskWaiters                 *typedmap.ReadonlyTypedMap
 	waiter                      chan interface{}
-	taskStatuses                []*LocalRunnerTaskStat
+	taskRunStatuses             map[string]TaskRunStatus
+	taskRunStatusesMu           sync.RWMutex
 	interceptors                []Interceptor
 	remainingDependentsByImplID map[string]int
 	remainingDependentsMu       sync.Mutex
@@ -53,23 +55,43 @@ type LocalRunner struct {
 // LocalRunner implements task_interface.TaskRunner
 var _ TaskRunner = (*LocalRunner)(nil)
 
-// LocalRunnerTaskStat holds the status and metrics for a single task
-// executed by the LocalRunner.
-type LocalRunnerTaskStat struct {
-	Phase     string
-	Error     error
+// TaskRunPhase represents the execution phase of a single task in a task graph.
+type TaskRunPhase int
+
+const (
+	// TaskRunPhaseWaiting indicates that the task is waiting for its dependencies to complete.
+	TaskRunPhaseWaiting TaskRunPhase = iota
+	// TaskRunPhaseRunning indicates that the task is currently running.
+	TaskRunPhaseRunning
+	// TaskRunPhaseDone indicates that the task finished successfully.
+	TaskRunPhaseDone
+	// TaskRunPhaseError indicates that the task finished with an error.
+	TaskRunPhaseError
+)
+
+// String returns the human-readable name of the task run phase.
+func (p TaskRunPhase) String() string {
+	switch p {
+	case TaskRunPhaseWaiting:
+		return "Waiting"
+	case TaskRunPhaseRunning:
+		return "Running"
+	case TaskRunPhaseDone:
+		return "Done"
+	case TaskRunPhaseError:
+		return "Error"
+	default:
+		return fmt.Sprintf("TaskRunPhase(%d)", int(p))
+	}
+}
+
+// TaskRunStatus is an immutable snapshot of the execution state of a single task.
+// StartTime is zero while the task is waiting, and EndTime is zero until the task finishes.
+type TaskRunStatus struct {
+	Phase     TaskRunPhase
 	StartTime time.Time
 	EndTime   time.Time
 }
-
-const (
-	// LocalRunnerTaskStatPhaseWaiting indicates that the task is waiting for its dependencies to complete.
-	LocalRunnerTaskStatPhaseWaiting = "WAITING"
-	// LocalRunnerTaskStatPhaseRunning indicates that the task is currently running.
-	LocalRunnerTaskStatPhaseRunning = "RUNNING"
-	// LocalRunnerTaskStatPhaseStopped indicates that the task has finished its execution (either completed or failed).
-	LocalRunnerTaskStatPhaseStopped = "STOPPED"
-)
 
 // NewLocalRunner creates and initializes a new LocalRunner for a given TaskSet.
 // The TaskSet must be runnable (i.e., topologically sorted with all dependencies met).
@@ -78,7 +100,7 @@ func NewLocalRunner(taskSet *TaskSet) (*LocalRunner, error) {
 	if !taskSet.runnable {
 		return nil, fmt.Errorf("given taskset must be runnable")
 	}
-	taskStatuses := []*LocalRunnerTaskStat{}
+	taskRunStatuses := make(map[string]TaskRunStatus, len(taskSet.tasks))
 	taskWaiters := typedmap.NewTypedMap()
 	remainingDependentsByImplID := make(map[string]int)
 	taskByImplID := make(map[string]UntypedTask)
@@ -92,15 +114,13 @@ func NewLocalRunner(taskSet *TaskSet) (*LocalRunner, error) {
 			remainingDependentsByImplID[edge.SourceImplID]++
 		}
 	}
-	for i := 0; i < len(taskSet.tasks); i++ {
-		taskStatuses = append(taskStatuses, &LocalRunnerTaskStat{
-			Phase: LocalRunnerTaskStatPhaseWaiting,
-		})
+	for _, t := range taskSet.tasks {
+		taskRunStatuses[t.UntypedID().String()] = TaskRunStatus{Phase: TaskRunPhaseWaiting}
 
 		// lock the task waiter until its task finished.
 		waiter := sync.RWMutex{}
 		waiter.Lock()
-		typedmap.Set(taskWaiters, waiterKeyForImplID(taskSet.tasks[i].UntypedID().String()), &waiter)
+		typedmap.Set(taskWaiters, waiterKeyForImplID(t.UntypedID().String()), &waiter)
 	}
 	return &LocalRunner{
 		resolvedTaskSet:             taskSet,
@@ -110,7 +130,7 @@ func NewLocalRunner(taskSet *TaskSet) (*LocalRunner, error) {
 		stopped:                     false,
 		taskWaiters:                 taskWaiters.AsReadonly(),
 		waiter:                      make(chan interface{}),
-		taskStatuses:                taskStatuses,
+		taskRunStatuses:             taskRunStatuses,
 		remainingDependentsByImplID: remainingDependentsByImplID,
 		taskByImplID:                taskByImplID,
 	}, nil
@@ -188,11 +208,40 @@ func (r *LocalRunner) Result() (*typedmap.ReadonlyTypedMap, error) {
 	return r.resultVariable.AsReadonly(), nil
 }
 
-// TaskStatuses returns a slice of LocalRunnerTaskStat, providing the status
-// and execution details for each task in the runner's task set.
-// The order of statuses corresponds to the order of tasks in the resolved TaskSet.
-func (r *LocalRunner) TaskStatuses() []*LocalRunnerTaskStat {
-	return r.taskStatuses
+// TaskRunStatuses returns a snapshot of the execution state of every task in the runner's task set,
+// keyed by the task implementation ID. The returned map and its values are detached from the
+// runner, so they are safe to read while the task graph keeps running.
+func (r *LocalRunner) TaskRunStatuses() map[string]TaskRunStatus {
+	r.taskRunStatusesMu.RLock()
+	defer r.taskRunStatusesMu.RUnlock()
+	return maps.Clone(r.taskRunStatuses)
+}
+
+// markTaskRunning records that a task started its execution.
+func (r *LocalRunner) markTaskRunning(taskImplID string, startTime time.Time) {
+	r.taskRunStatusesMu.Lock()
+	defer r.taskRunStatusesMu.Unlock()
+	r.taskRunStatuses[taskImplID] = TaskRunStatus{
+		Phase:     TaskRunPhaseRunning,
+		StartTime: startTime,
+	}
+}
+
+// markTaskFinished records that a task finished its execution. The resulting phase is derived
+// from whether the task returned an error.
+func (r *LocalRunner) markTaskFinished(taskImplID string, endTime time.Time, taskErr error) {
+	r.taskRunStatusesMu.Lock()
+	defer r.taskRunStatusesMu.Unlock()
+	phase := TaskRunPhaseDone
+	if taskErr != nil {
+		phase = TaskRunPhaseError
+	}
+	previous := r.taskRunStatuses[taskImplID]
+	r.taskRunStatuses[taskImplID] = TaskRunStatus{
+		Phase:     phase,
+		StartTime: previous.StartTime,
+		EndTime:   endTime,
+	}
 }
 
 // runTask manages the entire lifecycle of a single task within the graph.
@@ -200,7 +249,7 @@ func (r *LocalRunner) TaskStatuses() []*LocalRunnerTaskStat {
 // records its status, and stores its result or handles any errors.
 func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error {
 	task := r.resolvedTaskSet.GetAll()[taskDefIndex]
-	taskStatus := r.taskStatuses[taskDefIndex]
+	taskImplID := task.UntypedID().String()
 	taskCtx := khictx.WithValue(graphCtx, core_contract.TaskImplementationIDContextKey, task.UntypedID())
 	taskCtx = khictx.WithValue(taskCtx, core_contract.TaskDependenciesContextKey, task.Dependencies())
 	taskCtx = khictx.WithValue(taskCtx, core_contract.TaskGraphMetadataContextKey, core_contract.TaskGraphMetadata(r.resolvedTaskSet))
@@ -213,8 +262,8 @@ func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error 
 		}
 	}
 
-	taskStatus.StartTime = time.Now()
-	taskStatus.Phase = LocalRunnerTaskStatPhaseRunning
+	startTime := time.Now()
+	r.markTaskRunning(taskImplID, startTime)
 	slog.DebugContext(taskCtx, fmt.Sprintf("task %s started", task.UntypedID()))
 
 	// Run the task with interceptors
@@ -233,10 +282,9 @@ func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error 
 
 	result, err := runFunc(taskCtx)
 
-	taskStatus.Phase = LocalRunnerTaskStatPhaseStopped
-	taskStatus.EndTime = time.Now()
-	slog.DebugContext(taskCtx, fmt.Sprintf("task %s stopped after %f sec", task.UntypedID(), taskStatus.EndTime.Sub(taskStatus.StartTime).Seconds()))
-	taskStatus.Error = err
+	endTime := time.Now()
+	r.markTaskFinished(taskImplID, endTime, err)
+	slog.DebugContext(taskCtx, fmt.Sprintf("task %s stopped after %f sec", task.UntypedID(), endTime.Sub(startTime).Seconds()))
 	if taskCtx.Err() == context.Canceled {
 		return context.Canceled
 	}

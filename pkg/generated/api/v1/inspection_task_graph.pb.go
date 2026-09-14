@@ -138,6 +138,62 @@ func (TaskDependencyCardinality) EnumDescriptor() ([]byte, []int) {
 	return file_api_v1_inspection_task_graph_proto_rawDescGZIP(), []int{1}
 }
 
+// TaskRunPhase represents the execution lifecycle state of a task within an inspection run.
+type TaskRunPhase int32
+
+const (
+	TaskRunPhase_TASK_RUN_PHASE_UNSPECIFIED TaskRunPhase = 0
+	TaskRunPhase_TASK_RUN_PHASE_WAITING     TaskRunPhase = 1
+	TaskRunPhase_TASK_RUN_PHASE_RUNNING     TaskRunPhase = 2
+	TaskRunPhase_TASK_RUN_PHASE_DONE        TaskRunPhase = 3
+	TaskRunPhase_TASK_RUN_PHASE_ERROR       TaskRunPhase = 4
+)
+
+// Enum value maps for TaskRunPhase.
+var (
+	TaskRunPhase_name = map[int32]string{
+		0: "TASK_RUN_PHASE_UNSPECIFIED",
+		1: "TASK_RUN_PHASE_WAITING",
+		2: "TASK_RUN_PHASE_RUNNING",
+		3: "TASK_RUN_PHASE_DONE",
+		4: "TASK_RUN_PHASE_ERROR",
+	}
+	TaskRunPhase_value = map[string]int32{
+		"TASK_RUN_PHASE_UNSPECIFIED": 0,
+		"TASK_RUN_PHASE_WAITING":     1,
+		"TASK_RUN_PHASE_RUNNING":     2,
+		"TASK_RUN_PHASE_DONE":        3,
+		"TASK_RUN_PHASE_ERROR":       4,
+	}
+)
+
+func (x TaskRunPhase) Enum() *TaskRunPhase {
+	p := new(TaskRunPhase)
+	*p = x
+	return p
+}
+
+func (x TaskRunPhase) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TaskRunPhase) Descriptor() protoreflect.EnumDescriptor {
+	return file_api_v1_inspection_task_graph_proto_enumTypes[2].Descriptor()
+}
+
+func (TaskRunPhase) Type() protoreflect.EnumType {
+	return &file_api_v1_inspection_task_graph_proto_enumTypes[2]
+}
+
+func (x TaskRunPhase) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TaskRunPhase.Descriptor instead.
+func (TaskRunPhase) EnumDescriptor() ([]byte, []int) {
+	return file_api_v1_inspection_task_graph_proto_rawDescGZIP(), []int{2}
+}
+
 // TaskDependencyInfo contains metadata for an individual task dependency requirement.
 type TaskDependencyInfo struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1296,6 +1352,336 @@ func (x *ResolveInspectionTaskGraphResponse) GetAvailableFeatures() []*FeatureTo
 	return nil
 }
 
+// TaskRunNodeStatus reports the execution state of a single task within a running inspection.
+type TaskRunNodeStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Implementation identifier of the task this status belongs to.
+	TaskImplementationId *string `protobuf:"bytes,1,opt,name=task_implementation_id,json=taskImplementationId" json:"task_implementation_id,omitempty"`
+	// Current execution phase of the task.
+	Phase *TaskRunPhase `protobuf:"varint,2,opt,name=phase,enum=api.v1.TaskRunPhase" json:"phase,omitempty"`
+	// Wall clock time the task started, or zero while the task is still waiting.
+	StartTimeUnixNano *int64 `protobuf:"varint,3,opt,name=start_time_unix_nano,json=startTimeUnixNano" json:"start_time_unix_nano,omitempty"`
+	// Wall clock time the task reached a terminal phase, or zero while it is waiting or running.
+	EndTimeUnixNano *int64 `protobuf:"varint,4,opt,name=end_time_unix_nano,json=endTimeUnixNano" json:"end_time_unix_nano,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *TaskRunNodeStatus) Reset() {
+	*x = TaskRunNodeStatus{}
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskRunNodeStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskRunNodeStatus) ProtoMessage() {}
+
+func (x *TaskRunNodeStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskRunNodeStatus.ProtoReflect.Descriptor instead.
+func (*TaskRunNodeStatus) Descriptor() ([]byte, []int) {
+	return file_api_v1_inspection_task_graph_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *TaskRunNodeStatus) GetTaskImplementationId() string {
+	if x != nil && x.TaskImplementationId != nil {
+		return *x.TaskImplementationId
+	}
+	return ""
+}
+
+func (x *TaskRunNodeStatus) GetPhase() TaskRunPhase {
+	if x != nil && x.Phase != nil {
+		return *x.Phase
+	}
+	return TaskRunPhase_TASK_RUN_PHASE_UNSPECIFIED
+}
+
+func (x *TaskRunNodeStatus) GetStartTimeUnixNano() int64 {
+	if x != nil && x.StartTimeUnixNano != nil {
+		return *x.StartTimeUnixNano
+	}
+	return 0
+}
+
+func (x *TaskRunNodeStatus) GetEndTimeUnixNano() int64 {
+	if x != nil && x.EndTimeUnixNano != nil {
+		return *x.EndTimeUnixNano
+	}
+	return 0
+}
+
+// InspectionRunTaskGraphSnapshot is a point-in-time view of an inspection run used to visualize its progress.
+type InspectionRunTaskGraphSnapshot struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Execution graph the inspection run is currently processing.
+	Dag *TaskDAGInfo `protobuf:"bytes,1,opt,name=dag" json:"dag,omitempty"`
+	// Execution state of every task in the graph, including tasks that have not started yet.
+	NodeStatuses []*TaskRunNodeStatus `protobuf:"bytes,2,rep,name=node_statuses,json=nodeStatuses" json:"node_statuses,omitempty"`
+	// Whether the inspection run already reached its terminal state.
+	IsRunFinished *bool `protobuf:"varint,3,opt,name=is_run_finished,json=isRunFinished" json:"is_run_finished,omitempty"`
+	// Server-side capture time, allowing clients to derive elapsed time without relying on their own clock.
+	SnapshotTimeUnixNano *int64 `protobuf:"varint,4,opt,name=snapshot_time_unix_nano,json=snapshotTimeUnixNano" json:"snapshot_time_unix_nano,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *InspectionRunTaskGraphSnapshot) Reset() {
+	*x = InspectionRunTaskGraphSnapshot{}
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectionRunTaskGraphSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectionRunTaskGraphSnapshot) ProtoMessage() {}
+
+func (x *InspectionRunTaskGraphSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectionRunTaskGraphSnapshot.ProtoReflect.Descriptor instead.
+func (*InspectionRunTaskGraphSnapshot) Descriptor() ([]byte, []int) {
+	return file_api_v1_inspection_task_graph_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *InspectionRunTaskGraphSnapshot) GetDag() *TaskDAGInfo {
+	if x != nil {
+		return x.Dag
+	}
+	return nil
+}
+
+func (x *InspectionRunTaskGraphSnapshot) GetNodeStatuses() []*TaskRunNodeStatus {
+	if x != nil {
+		return x.NodeStatuses
+	}
+	return nil
+}
+
+func (x *InspectionRunTaskGraphSnapshot) GetIsRunFinished() bool {
+	if x != nil && x.IsRunFinished != nil {
+		return *x.IsRunFinished
+	}
+	return false
+}
+
+func (x *InspectionRunTaskGraphSnapshot) GetSnapshotTimeUnixNano() int64 {
+	if x != nil && x.SnapshotTimeUnixNano != nil {
+		return *x.SnapshotTimeUnixNano
+	}
+	return 0
+}
+
+// Request to observe the task graph progress of a single inspection run.
+type WatchInspectionRunTaskGraphRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Identifier of the inspection run to observe.
+	InspectionId  *string `protobuf:"bytes,1,opt,name=inspection_id,json=inspectionId" json:"inspection_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchInspectionRunTaskGraphRequest) Reset() {
+	*x = WatchInspectionRunTaskGraphRequest{}
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchInspectionRunTaskGraphRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchInspectionRunTaskGraphRequest) ProtoMessage() {}
+
+func (x *WatchInspectionRunTaskGraphRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchInspectionRunTaskGraphRequest.ProtoReflect.Descriptor instead.
+func (*WatchInspectionRunTaskGraphRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_inspection_task_graph_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *WatchInspectionRunTaskGraphRequest) GetInspectionId() string {
+	if x != nil && x.InspectionId != nil {
+		return *x.InspectionId
+	}
+	return ""
+}
+
+// Response streaming the latest progress snapshot of an inspection run.
+type WatchInspectionRunTaskGraphResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Latest snapshot of the inspection run.
+	Snapshot      *InspectionRunTaskGraphSnapshot `protobuf:"bytes,1,opt,name=snapshot" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchInspectionRunTaskGraphResponse) Reset() {
+	*x = WatchInspectionRunTaskGraphResponse{}
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchInspectionRunTaskGraphResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchInspectionRunTaskGraphResponse) ProtoMessage() {}
+
+func (x *WatchInspectionRunTaskGraphResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchInspectionRunTaskGraphResponse.ProtoReflect.Descriptor instead.
+func (*WatchInspectionRunTaskGraphResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_inspection_task_graph_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *WatchInspectionRunTaskGraphResponse) GetSnapshot() *InspectionRunTaskGraphSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+// Request to fetch the current task graph progress of a single inspection run.
+type PullInspectionRunTaskGraphRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Identifier of the inspection run to read.
+	InspectionId  *string `protobuf:"bytes,1,opt,name=inspection_id,json=inspectionId" json:"inspection_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullInspectionRunTaskGraphRequest) Reset() {
+	*x = PullInspectionRunTaskGraphRequest{}
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullInspectionRunTaskGraphRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullInspectionRunTaskGraphRequest) ProtoMessage() {}
+
+func (x *PullInspectionRunTaskGraphRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullInspectionRunTaskGraphRequest.ProtoReflect.Descriptor instead.
+func (*PullInspectionRunTaskGraphRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_inspection_task_graph_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *PullInspectionRunTaskGraphRequest) GetInspectionId() string {
+	if x != nil && x.InspectionId != nil {
+		return *x.InspectionId
+	}
+	return ""
+}
+
+// Response carrying the current progress snapshot of an inspection run.
+type PullInspectionRunTaskGraphResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current snapshot of the inspection run.
+	Snapshot      *InspectionRunTaskGraphSnapshot `protobuf:"bytes,1,opt,name=snapshot" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullInspectionRunTaskGraphResponse) Reset() {
+	*x = PullInspectionRunTaskGraphResponse{}
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullInspectionRunTaskGraphResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullInspectionRunTaskGraphResponse) ProtoMessage() {}
+
+func (x *PullInspectionRunTaskGraphResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_inspection_task_graph_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullInspectionRunTaskGraphResponse.ProtoReflect.Descriptor instead.
+func (*PullInspectionRunTaskGraphResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_inspection_task_graph_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *PullInspectionRunTaskGraphResponse) GetSnapshot() *InspectionRunTaskGraphSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
 var File_api_v1_inspection_task_graph_proto protoreflect.FileDescriptor
 
 const file_api_v1_inspection_task_graph_proto_rawDesc = "" +
@@ -1406,7 +1792,25 @@ const file_api_v1_inspection_task_graph_proto_rawDesc = "" +
 	"\"ResolveInspectionTaskGraphResponse\x12Q\n" +
 	"\x15filtering_evaluations\x18\x01 \x03(\v2\x1c.api.v1.TaskFilterEvaluationR\x14filteringEvaluations\x12%\n" +
 	"\x03dag\x18\x02 \x01(\v2\x13.api.v1.TaskDAGInfoR\x03dag\x12H\n" +
-	"\x12available_features\x18\x03 \x03(\v2\x19.api.v1.FeatureToggleInfoR\x11availableFeatures*\xae\x01\n" +
+	"\x12available_features\x18\x03 \x03(\v2\x19.api.v1.FeatureToggleInfoR\x11availableFeatures\"\xd3\x01\n" +
+	"\x11TaskRunNodeStatus\x124\n" +
+	"\x16task_implementation_id\x18\x01 \x01(\tR\x14taskImplementationId\x12*\n" +
+	"\x05phase\x18\x02 \x01(\x0e2\x14.api.v1.TaskRunPhaseR\x05phase\x12/\n" +
+	"\x14start_time_unix_nano\x18\x03 \x01(\x03R\x11startTimeUnixNano\x12+\n" +
+	"\x12end_time_unix_nano\x18\x04 \x01(\x03R\x0fendTimeUnixNano\"\xe6\x01\n" +
+	"\x1eInspectionRunTaskGraphSnapshot\x12%\n" +
+	"\x03dag\x18\x01 \x01(\v2\x13.api.v1.TaskDAGInfoR\x03dag\x12>\n" +
+	"\rnode_statuses\x18\x02 \x03(\v2\x19.api.v1.TaskRunNodeStatusR\fnodeStatuses\x12&\n" +
+	"\x0fis_run_finished\x18\x03 \x01(\bR\risRunFinished\x125\n" +
+	"\x17snapshot_time_unix_nano\x18\x04 \x01(\x03R\x14snapshotTimeUnixNano\"I\n" +
+	"\"WatchInspectionRunTaskGraphRequest\x12#\n" +
+	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\"i\n" +
+	"#WatchInspectionRunTaskGraphResponse\x12B\n" +
+	"\bsnapshot\x18\x01 \x01(\v2&.api.v1.InspectionRunTaskGraphSnapshotR\bsnapshot\"H\n" +
+	"!PullInspectionRunTaskGraphRequest\x12#\n" +
+	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\"h\n" +
+	"\"PullInspectionRunTaskGraphResponse\x12B\n" +
+	"\bsnapshot\x18\x01 \x01(\v2&.api.v1.InspectionRunTaskGraphSnapshotR\bsnapshot*\xae\x01\n" +
 	"\x13TaskDependencyScope\x12%\n" +
 	"!TASK_DEPENDENCY_SCOPE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19TASK_DEPENDENCY_SCOPE_ALL\x10\x01\x12)\n" +
@@ -1415,10 +1819,18 @@ const file_api_v1_inspection_task_graph_proto_rawDesc = "" +
 	"\x19TaskDependencyCardinality\x12+\n" +
 	"'TASK_DEPENDENCY_CARDINALITY_UNSPECIFIED\x10\x00\x12.\n" +
 	"*TASK_DEPENDENCY_CARDINALITY_POINT_TO_POINT\x10\x01\x12&\n" +
-	"\"TASK_DEPENDENCY_CARDINALITY_FAN_IN\x10\x022\x83\x02\n" +
+	"\"TASK_DEPENDENCY_CARDINALITY_FAN_IN\x10\x02*\x99\x01\n" +
+	"\fTaskRunPhase\x12\x1e\n" +
+	"\x1aTASK_RUN_PHASE_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16TASK_RUN_PHASE_WAITING\x10\x01\x12\x1a\n" +
+	"\x16TASK_RUN_PHASE_RUNNING\x10\x02\x12\x17\n" +
+	"\x13TASK_RUN_PHASE_DONE\x10\x03\x12\x18\n" +
+	"\x14TASK_RUN_PHASE_ERROR\x10\x042\xf2\x03\n" +
 	"\x1aInspectionTaskGraphService\x12p\n" +
 	"\x19GetInspectionTaskRegistry\x12(.api.v1.GetInspectionTaskRegistryRequest\x1a).api.v1.GetInspectionTaskRegistryResponse\x12s\n" +
-	"\x1aResolveInspectionTaskGraph\x12).api.v1.ResolveInspectionTaskGraphRequest\x1a*.api.v1.ResolveInspectionTaskGraphResponseB?Z=github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1b\beditionsp\xe8\a"
+	"\x1aResolveInspectionTaskGraph\x12).api.v1.ResolveInspectionTaskGraphRequest\x1a*.api.v1.ResolveInspectionTaskGraphResponse\x12x\n" +
+	"\x1bWatchInspectionRunTaskGraph\x12*.api.v1.WatchInspectionRunTaskGraphRequest\x1a+.api.v1.WatchInspectionRunTaskGraphResponse0\x01\x12s\n" +
+	"\x1aPullInspectionRunTaskGraph\x12).api.v1.PullInspectionRunTaskGraphRequest\x1a*.api.v1.PullInspectionRunTaskGraphResponseB?Z=github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1b\beditionsp\xe8\a"
 
 var (
 	file_api_v1_inspection_task_graph_proto_rawDescOnce sync.Once
@@ -1432,60 +1844,76 @@ func file_api_v1_inspection_task_graph_proto_rawDescGZIP() []byte {
 	return file_api_v1_inspection_task_graph_proto_rawDescData
 }
 
-var file_api_v1_inspection_task_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_api_v1_inspection_task_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_api_v1_inspection_task_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_api_v1_inspection_task_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_api_v1_inspection_task_graph_proto_goTypes = []any{
-	(TaskDependencyScope)(0),                   // 0: api.v1.TaskDependencyScope
-	(TaskDependencyCardinality)(0),             // 1: api.v1.TaskDependencyCardinality
-	(*TaskDependencyInfo)(nil),                 // 2: api.v1.TaskDependencyInfo
-	(*ProvidedTagInfo)(nil),                    // 3: api.v1.ProvidedTagInfo
-	(*LabelSelectorRequirementInfo)(nil),       // 4: api.v1.LabelSelectorRequirementInfo
-	(*RegisteredTaskInfo)(nil),                 // 5: api.v1.RegisteredTaskInfo
-	(*RegisteredTaskGroupInfo)(nil),            // 6: api.v1.RegisteredTaskGroupInfo
-	(*RegisteredInspectionTypeInfo)(nil),       // 7: api.v1.RegisteredInspectionTypeInfo
-	(*GetInspectionTaskRegistryRequest)(nil),   // 8: api.v1.GetInspectionTaskRegistryRequest
-	(*GetInspectionTaskRegistryResponse)(nil),  // 9: api.v1.GetInspectionTaskRegistryResponse
-	(*ResolveInspectionTaskGraphRequest)(nil),  // 10: api.v1.ResolveInspectionTaskGraphRequest
-	(*TaskFilterEvaluation)(nil),               // 11: api.v1.TaskFilterEvaluation
-	(*TaskDAGNode)(nil),                        // 12: api.v1.TaskDAGNode
-	(*TaskDAGEdge)(nil),                        // 13: api.v1.TaskDAGEdge
-	(*TaskDAGInfo)(nil),                        // 14: api.v1.TaskDAGInfo
-	(*FeatureToggleInfo)(nil),                  // 15: api.v1.FeatureToggleInfo
-	(*ResolveInspectionTaskGraphResponse)(nil), // 16: api.v1.ResolveInspectionTaskGraphResponse
-	nil, // 17: api.v1.RegisteredTaskInfo.LabelsEntry
-	nil, // 18: api.v1.RegisteredInspectionTypeInfo.LabelsEntry
-	nil, // 19: api.v1.ResolveInspectionTaskGraphRequest.FeatureOverridesEntry
-	nil, // 20: api.v1.TaskDAGNode.LabelsEntry
+	(TaskDependencyScope)(0),                    // 0: api.v1.TaskDependencyScope
+	(TaskDependencyCardinality)(0),              // 1: api.v1.TaskDependencyCardinality
+	(TaskRunPhase)(0),                           // 2: api.v1.TaskRunPhase
+	(*TaskDependencyInfo)(nil),                  // 3: api.v1.TaskDependencyInfo
+	(*ProvidedTagInfo)(nil),                     // 4: api.v1.ProvidedTagInfo
+	(*LabelSelectorRequirementInfo)(nil),        // 5: api.v1.LabelSelectorRequirementInfo
+	(*RegisteredTaskInfo)(nil),                  // 6: api.v1.RegisteredTaskInfo
+	(*RegisteredTaskGroupInfo)(nil),             // 7: api.v1.RegisteredTaskGroupInfo
+	(*RegisteredInspectionTypeInfo)(nil),        // 8: api.v1.RegisteredInspectionTypeInfo
+	(*GetInspectionTaskRegistryRequest)(nil),    // 9: api.v1.GetInspectionTaskRegistryRequest
+	(*GetInspectionTaskRegistryResponse)(nil),   // 10: api.v1.GetInspectionTaskRegistryResponse
+	(*ResolveInspectionTaskGraphRequest)(nil),   // 11: api.v1.ResolveInspectionTaskGraphRequest
+	(*TaskFilterEvaluation)(nil),                // 12: api.v1.TaskFilterEvaluation
+	(*TaskDAGNode)(nil),                         // 13: api.v1.TaskDAGNode
+	(*TaskDAGEdge)(nil),                         // 14: api.v1.TaskDAGEdge
+	(*TaskDAGInfo)(nil),                         // 15: api.v1.TaskDAGInfo
+	(*FeatureToggleInfo)(nil),                   // 16: api.v1.FeatureToggleInfo
+	(*ResolveInspectionTaskGraphResponse)(nil),  // 17: api.v1.ResolveInspectionTaskGraphResponse
+	(*TaskRunNodeStatus)(nil),                   // 18: api.v1.TaskRunNodeStatus
+	(*InspectionRunTaskGraphSnapshot)(nil),      // 19: api.v1.InspectionRunTaskGraphSnapshot
+	(*WatchInspectionRunTaskGraphRequest)(nil),  // 20: api.v1.WatchInspectionRunTaskGraphRequest
+	(*WatchInspectionRunTaskGraphResponse)(nil), // 21: api.v1.WatchInspectionRunTaskGraphResponse
+	(*PullInspectionRunTaskGraphRequest)(nil),   // 22: api.v1.PullInspectionRunTaskGraphRequest
+	(*PullInspectionRunTaskGraphResponse)(nil),  // 23: api.v1.PullInspectionRunTaskGraphResponse
+	nil, // 24: api.v1.RegisteredTaskInfo.LabelsEntry
+	nil, // 25: api.v1.RegisteredInspectionTypeInfo.LabelsEntry
+	nil, // 26: api.v1.ResolveInspectionTaskGraphRequest.FeatureOverridesEntry
+	nil, // 27: api.v1.TaskDAGNode.LabelsEntry
 }
 var file_api_v1_inspection_task_graph_proto_depIdxs = []int32{
 	1,  // 0: api.v1.TaskDependencyInfo.cardinality:type_name -> api.v1.TaskDependencyCardinality
 	0,  // 1: api.v1.TaskDependencyInfo.scope:type_name -> api.v1.TaskDependencyScope
-	2,  // 2: api.v1.RegisteredTaskInfo.dependencies:type_name -> api.v1.TaskDependencyInfo
-	4,  // 3: api.v1.RegisteredTaskInfo.selector_requirements:type_name -> api.v1.LabelSelectorRequirementInfo
-	17, // 4: api.v1.RegisteredTaskInfo.labels:type_name -> api.v1.RegisteredTaskInfo.LabelsEntry
-	3,  // 5: api.v1.RegisteredTaskInfo.provided_tags:type_name -> api.v1.ProvidedTagInfo
-	5,  // 6: api.v1.RegisteredTaskGroupInfo.tasks:type_name -> api.v1.RegisteredTaskInfo
-	18, // 7: api.v1.RegisteredInspectionTypeInfo.labels:type_name -> api.v1.RegisteredInspectionTypeInfo.LabelsEntry
-	6,  // 8: api.v1.GetInspectionTaskRegistryResponse.task_groups:type_name -> api.v1.RegisteredTaskGroupInfo
-	7,  // 9: api.v1.GetInspectionTaskRegistryResponse.inspection_types:type_name -> api.v1.RegisteredInspectionTypeInfo
-	19, // 10: api.v1.ResolveInspectionTaskGraphRequest.feature_overrides:type_name -> api.v1.ResolveInspectionTaskGraphRequest.FeatureOverridesEntry
-	20, // 11: api.v1.TaskDAGNode.labels:type_name -> api.v1.TaskDAGNode.LabelsEntry
-	3,  // 12: api.v1.TaskDAGNode.provided_tags:type_name -> api.v1.ProvidedTagInfo
+	3,  // 2: api.v1.RegisteredTaskInfo.dependencies:type_name -> api.v1.TaskDependencyInfo
+	5,  // 3: api.v1.RegisteredTaskInfo.selector_requirements:type_name -> api.v1.LabelSelectorRequirementInfo
+	24, // 4: api.v1.RegisteredTaskInfo.labels:type_name -> api.v1.RegisteredTaskInfo.LabelsEntry
+	4,  // 5: api.v1.RegisteredTaskInfo.provided_tags:type_name -> api.v1.ProvidedTagInfo
+	6,  // 6: api.v1.RegisteredTaskGroupInfo.tasks:type_name -> api.v1.RegisteredTaskInfo
+	25, // 7: api.v1.RegisteredInspectionTypeInfo.labels:type_name -> api.v1.RegisteredInspectionTypeInfo.LabelsEntry
+	7,  // 8: api.v1.GetInspectionTaskRegistryResponse.task_groups:type_name -> api.v1.RegisteredTaskGroupInfo
+	8,  // 9: api.v1.GetInspectionTaskRegistryResponse.inspection_types:type_name -> api.v1.RegisteredInspectionTypeInfo
+	26, // 10: api.v1.ResolveInspectionTaskGraphRequest.feature_overrides:type_name -> api.v1.ResolveInspectionTaskGraphRequest.FeatureOverridesEntry
+	27, // 11: api.v1.TaskDAGNode.labels:type_name -> api.v1.TaskDAGNode.LabelsEntry
+	4,  // 12: api.v1.TaskDAGNode.provided_tags:type_name -> api.v1.ProvidedTagInfo
 	1,  // 13: api.v1.TaskDAGEdge.cardinality:type_name -> api.v1.TaskDependencyCardinality
-	12, // 14: api.v1.TaskDAGInfo.nodes:type_name -> api.v1.TaskDAGNode
-	13, // 15: api.v1.TaskDAGInfo.edges:type_name -> api.v1.TaskDAGEdge
-	11, // 16: api.v1.ResolveInspectionTaskGraphResponse.filtering_evaluations:type_name -> api.v1.TaskFilterEvaluation
-	14, // 17: api.v1.ResolveInspectionTaskGraphResponse.dag:type_name -> api.v1.TaskDAGInfo
-	15, // 18: api.v1.ResolveInspectionTaskGraphResponse.available_features:type_name -> api.v1.FeatureToggleInfo
-	8,  // 19: api.v1.InspectionTaskGraphService.GetInspectionTaskRegistry:input_type -> api.v1.GetInspectionTaskRegistryRequest
-	10, // 20: api.v1.InspectionTaskGraphService.ResolveInspectionTaskGraph:input_type -> api.v1.ResolveInspectionTaskGraphRequest
-	9,  // 21: api.v1.InspectionTaskGraphService.GetInspectionTaskRegistry:output_type -> api.v1.GetInspectionTaskRegistryResponse
-	16, // 22: api.v1.InspectionTaskGraphService.ResolveInspectionTaskGraph:output_type -> api.v1.ResolveInspectionTaskGraphResponse
-	21, // [21:23] is the sub-list for method output_type
-	19, // [19:21] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	13, // 14: api.v1.TaskDAGInfo.nodes:type_name -> api.v1.TaskDAGNode
+	14, // 15: api.v1.TaskDAGInfo.edges:type_name -> api.v1.TaskDAGEdge
+	12, // 16: api.v1.ResolveInspectionTaskGraphResponse.filtering_evaluations:type_name -> api.v1.TaskFilterEvaluation
+	15, // 17: api.v1.ResolveInspectionTaskGraphResponse.dag:type_name -> api.v1.TaskDAGInfo
+	16, // 18: api.v1.ResolveInspectionTaskGraphResponse.available_features:type_name -> api.v1.FeatureToggleInfo
+	2,  // 19: api.v1.TaskRunNodeStatus.phase:type_name -> api.v1.TaskRunPhase
+	15, // 20: api.v1.InspectionRunTaskGraphSnapshot.dag:type_name -> api.v1.TaskDAGInfo
+	18, // 21: api.v1.InspectionRunTaskGraphSnapshot.node_statuses:type_name -> api.v1.TaskRunNodeStatus
+	19, // 22: api.v1.WatchInspectionRunTaskGraphResponse.snapshot:type_name -> api.v1.InspectionRunTaskGraphSnapshot
+	19, // 23: api.v1.PullInspectionRunTaskGraphResponse.snapshot:type_name -> api.v1.InspectionRunTaskGraphSnapshot
+	9,  // 24: api.v1.InspectionTaskGraphService.GetInspectionTaskRegistry:input_type -> api.v1.GetInspectionTaskRegistryRequest
+	11, // 25: api.v1.InspectionTaskGraphService.ResolveInspectionTaskGraph:input_type -> api.v1.ResolveInspectionTaskGraphRequest
+	20, // 26: api.v1.InspectionTaskGraphService.WatchInspectionRunTaskGraph:input_type -> api.v1.WatchInspectionRunTaskGraphRequest
+	22, // 27: api.v1.InspectionTaskGraphService.PullInspectionRunTaskGraph:input_type -> api.v1.PullInspectionRunTaskGraphRequest
+	10, // 28: api.v1.InspectionTaskGraphService.GetInspectionTaskRegistry:output_type -> api.v1.GetInspectionTaskRegistryResponse
+	17, // 29: api.v1.InspectionTaskGraphService.ResolveInspectionTaskGraph:output_type -> api.v1.ResolveInspectionTaskGraphResponse
+	21, // 30: api.v1.InspectionTaskGraphService.WatchInspectionRunTaskGraph:output_type -> api.v1.WatchInspectionRunTaskGraphResponse
+	23, // 31: api.v1.InspectionTaskGraphService.PullInspectionRunTaskGraph:output_type -> api.v1.PullInspectionRunTaskGraphResponse
+	28, // [28:32] is the sub-list for method output_type
+	24, // [24:28] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_inspection_task_graph_proto_init() }
@@ -1498,8 +1926,8 @@ func file_api_v1_inspection_task_graph_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_inspection_task_graph_proto_rawDesc), len(file_api_v1_inspection_task_graph_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   19,
+			NumEnums:      3,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

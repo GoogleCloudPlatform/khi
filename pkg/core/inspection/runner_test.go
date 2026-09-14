@@ -16,6 +16,7 @@ package coreinspection
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -23,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -511,4 +513,125 @@ func TestInspectionTaskRunner_Cancel(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInspectionTaskRunner_TakeRunTaskGraphSnapshot(t *testing.T) {
+	logger.InitGlobalKHILogger()
+
+	testCases := []struct {
+		name              string
+		runInspection     bool
+		failTask          bool
+		wantErr           bool
+		wantIsRunFinished bool
+		wantPhase         coretask.TaskRunPhase
+	}{
+		{
+			name:          "fails before the task graph execution starts",
+			runInspection: false,
+			wantErr:       true,
+		},
+		{
+			name:              "reports done phase after a successful run",
+			runInspection:     true,
+			wantIsRunFinished: true,
+			wantPhase:         coretask.TaskRunPhaseDone,
+		},
+		{
+			name:              "reports error phase after a failed run",
+			runInspection:     true,
+			failTask:          true,
+			wantIsRunFinished: true,
+			wantPhase:         coretask.TaskRunPhaseError,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var taskErr error
+			if tc.failTask {
+				taskErr = fmt.Errorf("simulated failure")
+			}
+			server, inspectionID, taskImplID := newTestInspectionServer(t, taskErr)
+			runner := server.GetInspection(inspectionID)
+
+			if tc.runInspection {
+				req := &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}
+				if err := runner.Run(context.Background(), req); err != nil {
+					t.Fatalf("Run failed: %v", err)
+				}
+				<-runner.Wait()
+			}
+
+			snapshot, err := runner.TakeRunTaskGraphSnapshot()
+			if tc.wantErr {
+				if !errors.Is(err, ErrRunTaskGraphNotStarted) {
+					t.Fatalf("TakeRunTaskGraphSnapshot() error = %v, want ErrRunTaskGraphNotStarted", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("TakeRunTaskGraphSnapshot() failed: %v", err)
+			}
+			if snapshot.IsRunFinished != tc.wantIsRunFinished {
+				t.Errorf("IsRunFinished = %v, want %v", snapshot.IsRunFinished, tc.wantIsRunFinished)
+			}
+			if !containsTaskImplID(snapshot.DAG, taskImplID) {
+				t.Errorf("DAG does not contain %s", taskImplID)
+			}
+			status, found := snapshot.TaskRunStatuses[taskImplID]
+			if !found {
+				t.Fatalf("TaskRunStatuses has no entry for %s", taskImplID)
+			}
+			if status.Phase != tc.wantPhase {
+				t.Errorf("TaskRunStatuses[%s].Phase = %v, want %v", taskImplID, status.Phase, tc.wantPhase)
+			}
+		})
+	}
+}
+
+// containsTaskImplID reports whether the DAG holds a node with the given task implementation ID.
+func containsTaskImplID(dag *apiv1.TaskDAGInfo, taskImplID string) bool {
+	for _, node := range dag.GetNodes() {
+		if node.GetTaskImplementationId() == taskImplID {
+			return true
+		}
+	}
+	return false
+}
+
+// newTestInspectionServer registers an inspection type holding a single feature task and creates one
+// inspection for it. The registered task fails with taskErr when taskErr is not nil.
+// It returns the server, the created inspection ID, and the implementation ID of the registered task.
+func newTestInspectionServer(t *testing.T, taskErr error) (*InspectionTaskServer, string, string) {
+	t.Helper()
+	server, err := NewServer(&inspectioncore_contract.IOConfig{TemporaryFolder: t.TempDir()})
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+	inspectionType := InspectionType{Id: "test-inspection", Name: "Test Inspection"}
+	if err := server.AddInspectionType(inspectionType); err != nil {
+		t.Fatalf("AddInspectionType failed: %v", err)
+	}
+	dummyTaskID := taskid.NewDefaultImplementationID[any]("dummy-task")
+	dummyTask := coretask.NewTask(
+		dummyTaskID,
+		nil,
+		func(ctx context.Context) (any, error) {
+			if taskErr != nil {
+				return nil, taskErr
+			}
+			return "success", nil
+		},
+		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
+		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
+		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+	)
+	if err := server.AddTask(dummyTask); err != nil {
+		t.Fatalf("AddTask failed: %v", err)
+	}
+	inspectionID, err := server.CreateInspection(inspectionType.Id)
+	if err != nil {
+		t.Fatalf("CreateInspection failed: %v", err)
+	}
+	return server, inspectionID, dummyTaskID.String()
 }

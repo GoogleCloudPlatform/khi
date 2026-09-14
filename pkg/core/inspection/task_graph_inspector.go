@@ -256,18 +256,24 @@ func buildTaskDAGInfo(
 	availableTasks []coretask.UntypedTask,
 	disabledTasks []coretask.UntypedTask,
 ) *apiv1.TaskDAGInfo {
-	dagInfo := &apiv1.TaskDAGInfo{}
 	resolvedTaskSet, err := coretask.ResolveGraph(initialTasks, availableTasks, disabledTasks)
 	if err != nil {
-		dagInfo.IsSuccess = proto.Bool(false)
-		dagInfo.ErrorMessage = proto.String(err.Error())
-		dagInfo.Nodes = []*apiv1.TaskDAGNode{}
-		dagInfo.Edges = []*apiv1.TaskDAGEdge{}
-		return dagInfo
+		return &apiv1.TaskDAGInfo{
+			IsSuccess:    proto.Bool(false),
+			ErrorMessage: proto.String(err.Error()),
+			Nodes:        []*apiv1.TaskDAGNode{},
+			Edges:        []*apiv1.TaskDAGEdge{},
+		}
 	}
+	return buildTaskDAGInfoFromTaskSet(resolvedTaskSet)
+}
 
-	dagInfo.IsSuccess = proto.Bool(true)
-	dagInfo.ErrorMessage = proto.String("")
+// buildTaskDAGInfoFromTaskSet formats nodes and edges of an already resolved TaskSet for visualization.
+func buildTaskDAGInfoFromTaskSet(resolvedTaskSet *coretask.TaskSet) *apiv1.TaskDAGInfo {
+	dagInfo := &apiv1.TaskDAGInfo{
+		IsSuccess:    proto.Bool(true),
+		ErrorMessage: proto.String(""),
+	}
 
 	resolvedTasks := resolvedTaskSet.GetAll()
 	nodes := make([]*apiv1.TaskDAGNode, 0, len(resolvedTasks))

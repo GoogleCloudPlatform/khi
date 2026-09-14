@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
@@ -27,15 +28,30 @@ import (
 
 // InspectionTaskGraphServer implements the apiv1connect.InspectionTaskGraphServiceHandler interface.
 type InspectionTaskGraphServer struct {
-	inspectionServer *coreinspection.InspectionTaskServer
+	inspectionServer    *coreinspection.InspectionTaskServer
+	streamCycleDuration time.Duration
+	updateInterval      time.Duration
 }
 
 var _ apiv1connect.InspectionTaskGraphServiceHandler = (*InspectionTaskGraphServer)(nil)
 
-// NewInspectionTaskGraphServer creates a new InspectionTaskGraphServer with the given InspectionTaskServer.
-func NewInspectionTaskGraphServer(inspectionServer *coreinspection.InspectionTaskServer) *InspectionTaskGraphServer {
+const (
+	// DefaultStreamCycleDuration is the default duration before a watch stream closes and prompts the client to reconnect.
+	DefaultStreamCycleDuration = 30 * time.Second
+	// DefaultUpdateInterval is the default interval between task graph snapshot emissions.
+	DefaultUpdateInterval = 1 * time.Second
+)
+
+// NewInspectionTaskGraphServer creates a new InspectionTaskGraphServer with the given stream intervals.
+func NewInspectionTaskGraphServer(
+	inspectionServer *coreinspection.InspectionTaskServer,
+	streamCycleDuration time.Duration,
+	updateInterval time.Duration,
+) *InspectionTaskGraphServer {
 	return &InspectionTaskGraphServer{
-		inspectionServer: inspectionServer,
+		inspectionServer:    inspectionServer,
+		streamCycleDuration: streamCycleDuration,
+		updateInterval:      updateInterval,
 	}
 }
 
@@ -74,4 +90,86 @@ func (s *InspectionTaskGraphServer) ResolveInspectionTaskGraph(
 	}
 
 	return connect.NewResponse(resp), nil
+}
+
+// WatchInspectionRunTaskGraph streams progress snapshots of an inspection run. The stream closes when
+// the run reaches its terminal state, or after streamCycleDuration to prompt the client to reconnect.
+func (s *InspectionTaskGraphServer) WatchInspectionRunTaskGraph(
+	ctx context.Context,
+	req *connect.Request[apiv1.WatchInspectionRunTaskGraphRequest],
+	stream *connect.ServerStream[apiv1.WatchInspectionRunTaskGraphResponse],
+) error {
+	inspectionID := req.Msg.GetInspectionId()
+
+	// Send initial snapshot immediately upon connection.
+	snapshot, err := s.inspectRunTaskGraph(inspectionID)
+	if err != nil {
+		return err
+	}
+	if err := stream.Send(&apiv1.WatchInspectionRunTaskGraphResponse{Snapshot: snapshot}); err != nil {
+		return err
+	}
+	if snapshot.GetIsRunFinished() {
+		return nil
+	}
+
+	cycleTimer := time.NewTimer(s.streamCycleDuration)
+	defer cycleTimer.Stop()
+
+	ticker := time.NewTicker(s.updateInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-cycleTimer.C:
+			// Gracefully close stream after cycle duration expires to prompt client reconnect.
+			return nil
+		case <-ticker.C:
+			snapshot, err := s.inspectRunTaskGraph(inspectionID)
+			if err != nil {
+				return err
+			}
+			if err := stream.Send(&apiv1.WatchInspectionRunTaskGraphResponse{Snapshot: snapshot}); err != nil {
+				return err
+			}
+			if snapshot.GetIsRunFinished() {
+				return nil
+			}
+		}
+	}
+}
+
+// PullInspectionRunTaskGraph returns a single progress snapshot of an inspection run without opening a stream.
+func (s *InspectionTaskGraphServer) PullInspectionRunTaskGraph(
+	ctx context.Context,
+	req *connect.Request[apiv1.PullInspectionRunTaskGraphRequest],
+) (*connect.Response[apiv1.PullInspectionRunTaskGraphResponse], error) {
+	snapshot, err := s.inspectRunTaskGraph(req.Msg.GetInspectionId())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.PullInspectionRunTaskGraphResponse{
+		Snapshot: snapshot,
+	}), nil
+}
+
+// inspectRunTaskGraph builds a run snapshot and translates core errors into Connect error codes.
+func (s *InspectionTaskGraphServer) inspectRunTaskGraph(inspectionID string) (*apiv1.InspectionRunTaskGraphSnapshot, error) {
+	if inspectionID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("inspection_id must not be empty"))
+	}
+	snapshot, err := coreinspection.InspectRunTaskGraph(s.inspectionServer, inspectionID)
+	if err != nil {
+		switch {
+		case errors.Is(err, coreinspection.ErrInspectionNotFound):
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		case errors.Is(err, coreinspection.ErrRunTaskGraphNotStarted):
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		default:
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	return snapshot, nil
 }

@@ -548,3 +548,116 @@ func TestLocalRunner_AddInterceptor(t *testing.T) {
 		})
 	}
 }
+
+func TestLocalRunner_TaskRunStatuses(t *testing.T) {
+	task1ImplID := taskid.NewDefaultImplementationID[any]("task1").String()
+	task2ImplID := taskid.NewDefaultImplementationID[any]("task2").String()
+
+	testCases := []struct {
+		name       string
+		task1Error error
+		wantPhases map[string]TaskRunPhase
+	}{
+		{
+			name:       "every task finishes successfully",
+			task1Error: nil,
+			wantPhases: map[string]TaskRunPhase{
+				task1ImplID: TaskRunPhaseDone,
+				task2ImplID: TaskRunPhaseDone,
+			},
+		},
+		{
+			name:       "failed task is marked as error and leaves its dependent waiting",
+			task1Error: errors.New("task1 failure"),
+			wantPhases: map[string]TaskRunPhase{
+				task1ImplID: TaskRunPhaseError,
+				task2ImplID: TaskRunPhaseWaiting,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			task1 := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
+				if tc.task1Error != nil {
+					return nil, tc.task1Error
+				}
+				return "result1", nil
+			})
+			task2 := createMockRunnableTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
+				return "result2", nil
+			})
+
+			tasks := []UntypedTask{task1, task2}
+			runnableSet, err := ResolveGraph(tasks, tasks, nil)
+			if err != nil {
+				t.Fatalf("failed to resolve graph: %v", err)
+			}
+
+			runner, err := NewLocalRunner(runnableSet)
+			if err != nil {
+				t.Fatalf("failed to create runner: %v", err)
+			}
+
+			if err := runner.Run(context.Background()); err != nil {
+				t.Fatalf("failed to run task: %v", err)
+			}
+			<-runner.Wait()
+
+			statuses := runner.TaskRunStatuses()
+			gotPhases := make(map[string]TaskRunPhase, len(statuses))
+			for implID, status := range statuses {
+				gotPhases[implID] = status.Phase
+			}
+			if diff := cmp.Diff(tc.wantPhases, gotPhases); diff != "" {
+				t.Errorf("TaskRunStatuses() phases mismatch (-want +got):\n%s", diff)
+			}
+
+			task1Status := statuses[task1ImplID]
+			if task1Status.StartTime.IsZero() {
+				t.Errorf("TaskRunStatuses()[%q].StartTime is zero, want the actual start time", task1ImplID)
+			}
+			if task1Status.EndTime.IsZero() {
+				t.Errorf("TaskRunStatuses()[%q].EndTime is zero, want the actual end time", task1ImplID)
+			}
+		})
+	}
+}
+
+func TestLocalRunner_TaskRunStatusesReturnsDetachedSnapshot(t *testing.T) {
+	taskImplID := taskid.NewDefaultImplementationID[any]("task1").String()
+	taskStarted := make(chan struct{})
+	releaseTask := make(chan struct{})
+	task := createMockRunnableTask("task1", nil, func(ctx context.Context) (any, error) {
+		close(taskStarted)
+		<-releaseTask
+		return "result1", nil
+	})
+
+	tasks := []UntypedTask{task}
+	runnableSet, err := ResolveGraph(tasks, tasks, nil)
+	if err != nil {
+		t.Fatalf("failed to resolve graph: %v", err)
+	}
+
+	runner, err := NewLocalRunner(runnableSet)
+	if err != nil {
+		t.Fatalf("failed to create runner: %v", err)
+	}
+
+	if err := runner.Run(context.Background()); err != nil {
+		t.Fatalf("failed to run task: %v", err)
+	}
+
+	<-taskStarted
+	runningSnapshot := runner.TaskRunStatuses()
+	close(releaseTask)
+	<-runner.Wait()
+
+	if got := runningSnapshot[taskImplID].Phase; got != TaskRunPhaseRunning {
+		t.Errorf("snapshot phase = %v, want %v", got, TaskRunPhaseRunning)
+	}
+	if got := runner.TaskRunStatuses()[taskImplID].Phase; got != TaskRunPhaseDone {
+		t.Errorf("TaskRunStatuses()[%q].Phase = %v, want %v", taskImplID, got, TaskRunPhaseDone)
+	}
+}
