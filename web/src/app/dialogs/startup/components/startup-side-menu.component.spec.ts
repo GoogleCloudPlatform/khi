@@ -98,18 +98,15 @@ describe('StartupSideMenuComponent', () => {
     expect(emitSpy).toHaveBeenCalled();
   });
 
-  it('should emit startFromJobCommand when Start from Job Command button is clicked', () => {
+  it('should emit startFromJobCommand when job command link is clicked', () => {
     const emitSpy = spyOn(component.startFromJobCommand, 'emit');
 
-    const buttons = fixture.debugElement.queryAll(
-      By.css('button[mat-stroked-button]'),
+    const link = fixture.debugElement.query(By.css('.job-command-link'));
+    expect(link).toBeTruthy();
+    expect(link.nativeElement.textContent.trim()).toBe(
+      'Or start from a job command',
     );
-    const btn = buttons.find((b) =>
-      b.nativeElement.textContent.includes('Start from Job Command'),
-    );
-
-    expect(btn).toBeTruthy();
-    btn!.nativeElement.click();
+    link.nativeElement.click();
 
     expect(emitSpy).toHaveBeenCalled();
   });

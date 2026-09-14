@@ -35,6 +35,13 @@
       <p class="description">
         Collect and process cluster logs for visual analysis.
       </p>
+      <button
+        type="button"
+        class="job-command-link"
+        (click)="startFromJobCommand.emit()"
+      >
+        Or start from a job command
+      </button>
     </div>
 
     <div class="action-item">
@@ -43,14 +50,6 @@
         <mat-icon>folder</mat-icon>
       </button>
       <p class="description">Import a previously exported inspection file.</p>
-    </div>
-
-    <div class="action-item">
-      <button mat-stroked-button (click)="startFromJobCommand.emit()">
-        Start from Job Command
-        <mat-icon>terminal</mat-icon>
-      </button>
-      <p class="description">Run inspection from a Job Mode CLI command.</p>
     </div>
   </div>
 
