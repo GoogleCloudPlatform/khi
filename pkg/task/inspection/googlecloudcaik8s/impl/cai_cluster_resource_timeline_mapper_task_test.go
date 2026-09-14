@@ -209,11 +209,20 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				if revs[0].StateType != commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
 					t.Errorf("revs[0].StateType = %v, want %v", revs[0].StateType, commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound)
 				}
+				if revs[0].VerbType != commonlogk8saudit_contract.VerbCreate {
+					t.Errorf("revs[0].VerbType = %v, want %v", revs[0].VerbType, commonlogk8saudit_contract.VerbCreate)
+				}
 				if revs[0].ResourceBody != nil {
 					t.Errorf("revs[0].ResourceBody = %v, want nil", revs[0].ResourceBody)
 				}
 				if revs[1].ChangedTime != assetWindowStartTime {
 					t.Errorf("revs[1].ChangedTime = %v, want %v", revs[1].ChangedTime, assetWindowStartTime)
+				}
+				if revs[1].StateType != googlecloudcaik8s_contract.RevisionStateK8sResourceExistingFromCAI {
+					t.Errorf("revs[1].StateType = %v, want %v", revs[1].StateType, googlecloudcaik8s_contract.RevisionStateK8sResourceExistingFromCAI)
+				}
+				if revs[1].VerbType != commonlogk8saudit_contract.VerbUpdate {
+					t.Errorf("revs[1].VerbType = %v, want %v", revs[1].VerbType, commonlogk8saudit_contract.VerbUpdate)
 				}
 			},
 		},
@@ -225,6 +234,9 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				revs := cs.GetRevisions(targetPath)
 				if len(revs) != 1 {
 					t.Errorf("len(revs) = %d, want 1", len(revs))
+				}
+				if revs[0].VerbType != commonlogk8saudit_contract.VerbCreate {
+					t.Errorf("revs[0].VerbType = %v, want %v", revs[0].VerbType, commonlogk8saudit_contract.VerbCreate)
 				}
 			},
 		},

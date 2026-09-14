@@ -89,6 +89,7 @@ func (m *caiClusterResourceTimelineMapper) ProcessLogByGroup(ctx context.Context
 		observedTime = queryStartTime
 	}
 
+	snapshotVerb := commonlogk8saudit_contract.VerbCreate
 	// The content between the creation and the observed manifest is unknown, so it is rendered as a
 	// body-less revision the same way resources without any log are rendered.
 	if creationTime, found := extractCreationTimestamp(l.NodeReader); found && observedTime.Sub(creationTime) >= creationTimestampSkewTolerance {
@@ -99,13 +100,14 @@ func (m *caiClusterResourceTimelineMapper) ProcessLogByGroup(ctx context.Context
 			VerbType:     commonlogk8saudit_contract.VerbCreate,
 			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
 		})
+		snapshotVerb = commonlogk8saudit_contract.VerbUpdate
 	}
 
 	cs.AddRevision(targetPath, &khifilev6.StagingRevision{
 		ChangedTime:  observedTime,
 		ResourceBody: resourceBody,
 		Principal:    "N/A",
-		VerbType:     commonlogk8saudit_contract.VerbCreate,
+		VerbType:     snapshotVerb,
 		StateType:    googlecloudcaik8s_contract.RevisionStateK8sResourceExistingFromCAI,
 	})
 
