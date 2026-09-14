@@ -25,6 +25,7 @@ import { DataAssembler, ParserBlueprint } from 'src/app/parser/core/interfaces';
 import { BinaryReader } from 'src/app/parser/core/binary-reader';
 import { InspectionDataBuilder } from 'src/app/parser/core/builder';
 import { ProgressReporter } from 'src/app/services/progress/progress-interface';
+import { formatBytes } from 'src/app/utils/byte-format-util';
 
 /**
  * Orchestrator class responsible for streaming and parsing KHI inspection files.
@@ -180,20 +181,4 @@ export class KHIFileParser {
     progressReporter?.complete();
     return result;
   }
-}
-
-/**
- * Formats a number of bytes into a human-readable string with units (e.g., "1.50 MB").
- * @param bytes The number of bytes to format.
- * @returns The formatted string.
- */
-function formatBytes(bytes: number): string {
-  if (bytes <= 0) {
-    return '0 B';
-  }
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const formatted = (bytes / Math.pow(k, i)).toFixed(2);
-  return `${formatted} ${sizes[i]}`;
 }

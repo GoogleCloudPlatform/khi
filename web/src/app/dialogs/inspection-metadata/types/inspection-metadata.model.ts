@@ -16,6 +16,7 @@
 
 import { EstimatedCountPreset } from 'src/app/common/schema/metadata-types';
 import { InspectionMetadataOfRunResult } from 'src/app/common/schema/api-types';
+import { formatBytes } from 'src/app/utils/byte-format-util';
 
 /**
  * View model representing the overview section of an inspection.
@@ -108,29 +109,11 @@ export interface InspectionMetadataViewModel {
 }
 
 /**
- * Formats a byte size into a human readable string.
- * @param bytes The size in bytes.
- * @returns A formatted string such as '1.2 MB' or '450 KB'.
- */
-export function formatBytes(bytes: number): string {
-  if (bytes <= 0 || !Number.isFinite(bytes)) {
-    return '0 B';
-  }
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const digitGroup = Math.min(
-    Math.floor(Math.log10(bytes) / Math.log10(1024)),
-    units.length - 1,
-  );
-  const value = bytes / Math.pow(1024, digitGroup);
-  return `${value.toFixed(value >= 10 || digitGroup === 0 ? 0 : 1)} ${units[digitGroup]}`;
-}
-
-/**
  * Formats a duration in seconds into a human readable string.
  * @param durationSeconds The duration in seconds.
  * @returns A formatted string such as '1h 20m 30s' or '45s'.
  */
-export function formatDuration(durationSeconds: number): string {
+function formatDuration(durationSeconds: number): string {
   if (durationSeconds <= 0 || !Number.isFinite(durationSeconds)) {
     return '0s';
   }
@@ -157,7 +140,7 @@ export function formatDuration(durationSeconds: number): string {
  * @param seconds Unix timestamp in seconds.
  * @returns A formatted date time string.
  */
-export function formatTimestampSeconds(seconds: number): string {
+function formatTimestampSeconds(seconds: number): string {
   if (seconds <= 0 || !Number.isFinite(seconds)) {
     return '-';
   }
@@ -176,7 +159,7 @@ export function convertToInspectionMetadataViewModel(
   const header = metadata.header;
   const startSec = header?.startTimeUnixSeconds ?? 0;
   const endSec = header?.endTimeUnixSeconds ?? 0;
-  const durationSec = endSec > startSec ? endSec - startSec : 0;
+  const durationSec = startSec > 0 && endSec > startSec ? endSec - startSec : 0;
 
   const overview: MetadataOverviewViewModel = {
     inspectionType: header?.inspectionType || 'Unknown',
