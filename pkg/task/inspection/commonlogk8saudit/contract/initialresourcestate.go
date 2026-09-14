@@ -26,6 +26,9 @@ const ClusterScopeNamespace = "cluster-scope"
 // InitialResourceStateProvider supplies the resource manifest that existed before the audit logs begin.
 // An environment backed by a resource inventory can fill the gap between the resource creation and the
 // first audit log in the inspection window.
+//
+// Implementations of this interface must be thread-safe, as InitialResourceState may be called
+// concurrently from multiple goroutines.
 type InitialResourceStateProvider interface {
 	// InitialResourceState returns the manifest observed before the inspection window opened, and whether
 	// the inventory covered the resource.
