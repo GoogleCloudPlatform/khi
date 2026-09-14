@@ -176,7 +176,7 @@ describe('DagNodeComponent', () => {
 
     const taskText = fixture.nativeElement.querySelector('.node-task-text');
     expect(taskText.textContent.trim()).toBe(
-      'a-very-long-task-name-exceeding-card-width-limit-t...',
+      'a-very-long-task-name-exceeding-card-width-limit-...',
     );
   });
 

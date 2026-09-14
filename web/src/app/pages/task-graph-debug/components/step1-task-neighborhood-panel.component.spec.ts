@@ -148,6 +148,7 @@ describe('Step1TaskNeighborhoodPanelComponent', () => {
               targetTag: '',
             },
           ],
+          providedTags: [],
           labels: {},
         } as unknown as RegisteredTaskInfo,
       ],

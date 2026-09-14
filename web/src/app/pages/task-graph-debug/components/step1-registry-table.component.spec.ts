@@ -39,6 +39,7 @@ describe('Step1RegistryTableComponent', () => {
       featureLabel: '',
       featureDescription: '',
       dependencies: [],
+      providedTags: [],
       selectorRequirements: [],
       compatibleInspectionTypes: [],
       labels: {
@@ -57,6 +58,7 @@ describe('Step1RegistryTableComponent', () => {
       featureLabel: '',
       featureDescription: '',
       dependencies: [],
+      providedTags: [],
       selectorRequirements: [],
       compatibleInspectionTypes: [],
       labels: {
@@ -90,6 +92,7 @@ describe('Step1RegistryTableComponent', () => {
               targetTag: 'timeline-producer',
             },
           ],
+          providedTags: [],
           labels: {},
         } as unknown as RegisteredTaskInfo,
       ],
