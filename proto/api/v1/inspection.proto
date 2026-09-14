@@ -580,6 +580,9 @@ message GetInspectionMetadataResponse {
 
   // Errors encountered during execution, if any.
   InspectionErrorSet error = 5;
+
+  // CLI command representation for headless job execution.
+  InspectionJobCommand job_command = 6;
 }
 
 // Request to download a byte chunk of the generated .khi inspection archive.

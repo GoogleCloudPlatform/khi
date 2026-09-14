@@ -20,10 +20,19 @@ import {
   MatDialogRef,
   MatDialogConfig,
 } from '@angular/material/dialog';
-import { interval, startWith } from 'rxjs';
+import { interval, startWith, firstValueFrom } from 'rxjs';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionMetadataDialogComponent } from '../inspection-metadata/inspection-metadata.component';
-import { openNewInspectionDialog } from '../new-inspection/new-inspection.component';
+import {
+  openNewInspectionDialog,
+  hasDryRunErrors,
+  NewInspectionDialogData,
+} from '../new-inspection/new-inspection.component';
+import { openJobCommandInputDialog } from '../job-command-input/job-command-input-smart.component';
+import {
+  EXTENSION_STORE,
+  ExtensionStore,
+} from 'src/app/extensions/extension-common/extension-store';
 import {
   BACKEND_API,
   BackendAPI,
@@ -70,6 +79,7 @@ export class StartupDialogSmartComponent {
   private readonly progress = inject<ProgressDialogStatusUpdator>(
     PROGRESS_DIALOG_STATUS_UPDATOR,
   );
+  private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
 
   /**
    * The interval to refresh the start time of each tasks written as `xx seconds ago`.
@@ -147,6 +157,60 @@ export class StartupDialogSmartComponent {
     this.openNewInspectionDialogInternal();
   }
 
+  /**
+   * Opens the Job Command Input dialog and starts an inspection from the parsed CLI command.
+   */
+  protected async handleStartFromJobCommand(): Promise<void> {
+    const dialogRef = openJobCommandInputDialog(this.dialog);
+    const parsed = await firstValueFrom(dialogRef.afterClosed());
+    if (!parsed) {
+      return;
+    }
+
+    this.progress.show();
+    this.progress.updateProgress({
+      message: 'Validating job command parameters...',
+      percent: 0,
+      mode: 'indeterminate',
+    });
+
+    try {
+      const client = await firstValueFrom(
+        this.backendAPI.createInspection(parsed.inspectionType),
+      );
+      if (parsed.features.length > 0) {
+        const featureMap = Object.fromEntries(
+          parsed.features.map((f) => [f, true]),
+        );
+        await firstValueFrom(
+          this.backendAPI.setEnabledFeatures(client.inspectionID, featureMap),
+        );
+      }
+      const dryrunRes = await firstValueFrom(
+        client.dryrunDirect(parsed.parameters),
+      );
+      if (hasDryRunErrors(dryrunRes)) {
+        this.progress.dismiss();
+        this.openNewInspectionDialogInternal({
+          initialInspectionTypeId: parsed.inspectionType,
+          initialFeatures: parsed.features,
+          initialParameters: parsed.parameters,
+        });
+        return;
+      }
+      await firstValueFrom(client.run(parsed.parameters));
+      this.extension.notifyLifecycleOnInspectionStart();
+    } catch {
+      this.openNewInspectionDialogInternal({
+        initialInspectionTypeId: parsed.inspectionType,
+        initialFeatures: parsed.features,
+        initialParameters: parsed.parameters,
+      });
+    } finally {
+      this.progress.dismiss();
+    }
+  }
+
   protected openKhiFile() {
     this.loader.uploadFromFile();
   }
@@ -201,8 +265,8 @@ export class StartupDialogSmartComponent {
     }
   }
 
-  private openNewInspectionDialogInternal() {
-    openNewInspectionDialog(this.dialog);
+  private openNewInspectionDialogInternal(data?: NewInspectionDialogData) {
+    openNewInspectionDialog(this.dialog, data);
   }
 }
 

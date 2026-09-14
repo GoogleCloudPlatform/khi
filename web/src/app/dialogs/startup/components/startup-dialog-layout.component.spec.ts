@@ -33,6 +33,7 @@ class MockStartupSideMenuComponent {
   public readonly links = input.required<SidebarLink[]>();
   public readonly newInvestigation = output<void>();
   public readonly openKhiFile = output<void>();
+  public readonly startFromJobCommand = output<void>();
 }
 
 @Component({
@@ -172,6 +173,19 @@ describe('StartupDialogLayoutComponent', () => {
       sideMenuEl.componentInstance as MockStartupSideMenuComponent;
 
     sideMenu.openKhiFile.emit();
+
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should emit startFromJobCommand when side menu emits startFromJobCommand', () => {
+    const spy = spyOn(component.startFromJobCommand, 'emit');
+    const sideMenuEl = fixture.debugElement.query(
+      By.directive(MockStartupSideMenuComponent),
+    );
+    const sideMenu =
+      sideMenuEl.componentInstance as MockStartupSideMenuComponent;
+
+    sideMenu.startFromJobCommand.emit();
 
     expect(spy).toHaveBeenCalled();
   });

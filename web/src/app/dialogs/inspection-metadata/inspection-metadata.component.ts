@@ -18,11 +18,12 @@ import { Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { InspectionMetadataOfRunResult } from '../../common/schema/api-types';
 import { MatCardModule } from '@angular/material/card';
+import { JobCommandComponent } from 'src/app/dialogs/new-inspection/components/job-command.component';
 
 @Component({
   templateUrl: './inspection-metadata.component.html',
   styleUrls: ['./inspection-metadata.component.scss'],
-  imports: [MatCardModule],
+  imports: [MatCardModule, JobCommandComponent],
 })
 export class InspectionMetadataDialogComponent {
   readonly data = inject<InspectionMetadataOfRunResult>(MAT_DIALOG_DATA);

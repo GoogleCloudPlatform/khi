@@ -472,6 +472,7 @@ describe('inspection-converter', () => {
         error: {
           errorMessages: [{ errorId: 'ERR_1', message: 'err', link: 'link' }],
         },
+        jobCommand: { command: './khi --job-mode' },
       });
 
       const converted =
@@ -481,6 +482,7 @@ describe('inspection-converter', () => {
       expect(converted.log.length).toBe(1);
       expect(converted.log[0].log).toBe('Finished');
       expect(converted.error.errorMessages.length).toBe(1);
+      expect(converted.jobCommand?.command).toBe('./khi --job-mode');
     });
   });
 });

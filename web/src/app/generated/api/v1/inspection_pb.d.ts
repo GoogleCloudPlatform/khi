@@ -1509,6 +1509,13 @@ export declare type GetInspectionMetadataResponse =
      * @generated from field: api.v1.InspectionErrorSet error = 5;
      */
     error?: InspectionErrorSet | undefined;
+
+    /**
+     * CLI command representation for headless job execution.
+     *
+     * @generated from field: api.v1.InspectionJobCommand job_command = 6;
+     */
+    jobCommand?: InspectionJobCommand | undefined;
   };
 
 /**

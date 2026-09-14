@@ -546,13 +546,15 @@ func TestInspectionServiceServer_CancelInspection(t *testing.T) {
 func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 	estCount := int64(5000)
 	testCases := []struct {
-		name        string
-		header      *inspectionmetadata.HeaderMetadata
-		plan        *inspectionmetadata.InspectionPlanMetadata
-		queries     []*inspectionmetadata.QueryItem
-		wantHeader  *apiv1.InspectionHeader
-		wantPlan    *apiv1.InspectionPlan
-		wantQueries []*apiv1.InspectionQuery
+		name           string
+		header         *inspectionmetadata.HeaderMetadata
+		plan           *inspectionmetadata.InspectionPlanMetadata
+		queries        []*inspectionmetadata.QueryItem
+		jobCommand     *inspectionmetadata.JobModeCommandMetadata
+		wantHeader     *apiv1.InspectionHeader
+		wantPlan       *apiv1.InspectionPlan
+		wantQueries    []*apiv1.InspectionQuery
+		wantJobCommand *apiv1.InspectionJobCommand
 	}{
 		{
 			name: "returns inspection metadata",
@@ -583,6 +585,7 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 					Pending:    false,
 				},
 			},
+			jobCommand: inspectionmetadata.NewJobModeCommandMetadata("./khi --job-mode --job-inspection-type=\"gcp-gke\""),
 			wantHeader: &apiv1.InspectionHeader{
 				InspectionType:         proto.String("gcp-gke"),
 				InspectionName:         proto.String("Test Run"),
@@ -615,6 +618,9 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 					EstimatedCountPreset: apiv1.EstimatedCountPreset_ESTIMATED_COUNT_PRESET_FEW.Enum(),
 				},
 			},
+			wantJobCommand: &apiv1.InspectionJobCommand{
+				Command: proto.String("./khi --job-mode --job-inspection-type=\"gcp-gke\""),
+			},
 		},
 	}
 
@@ -634,6 +640,9 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 				queryMD.Queries = tc.queries
 				typedmap.Set(metadata, inspectionmetadata.QueryMetadataKey, queryMD)
 			}
+			if tc.jobCommand != nil {
+				typedmap.Set(metadata, inspectionmetadata.JobModeCommandMetadataKey, tc.jobCommand)
+			}
 			server.RegisterImportedInspection("metadata-test-1", store, metadata.AsReadonly())
 
 			res, err := client.GetInspectionMetadata(context.Background(), connect.NewRequest(&apiv1.GetInspectionMetadataRequest{
@@ -651,6 +660,9 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantQueries, res.Msg.GetQueries(), protocmp.Transform()); diff != "" {
 				t.Errorf("queries mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantJobCommand, res.Msg.GetJobCommand(), protocmp.Transform()); diff != "" {
+				t.Errorf("jobCommand mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

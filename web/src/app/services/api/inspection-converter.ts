@@ -466,5 +466,8 @@ export function convertProtoMetadataToInspectionMetadataOfRunResult(
         link: e.link,
       })),
     },
+    jobCommand: res.jobCommand
+      ? { command: res.jobCommand.command }
+      : undefined,
   };
 }

@@ -3175,7 +3175,9 @@ type GetInspectionMetadataResponse struct {
 	// Diagnostic logs from task execution.
 	Logs []*InspectionLog `protobuf:"bytes,4,rep,name=logs" json:"logs,omitempty"`
 	// Errors encountered during execution, if any.
-	Error         *InspectionErrorSet `protobuf:"bytes,5,opt,name=error" json:"error,omitempty"`
+	Error *InspectionErrorSet `protobuf:"bytes,5,opt,name=error" json:"error,omitempty"`
+	// CLI command representation for headless job execution.
+	JobCommand    *InspectionJobCommand `protobuf:"bytes,6,opt,name=job_command,json=jobCommand" json:"job_command,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3241,6 +3243,13 @@ func (x *GetInspectionMetadataResponse) GetLogs() []*InspectionLog {
 func (x *GetInspectionMetadataResponse) GetError() *InspectionErrorSet {
 	if x != nil {
 		return x.Error
+	}
+	return nil
+}
+
+func (x *GetInspectionMetadataResponse) GetJobCommand() *InspectionJobCommand {
+	if x != nil {
+		return x.JobCommand
 	}
 	return nil
 }
@@ -3548,13 +3557,15 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\"\x1a\n" +
 	"\x18CancelInspectionResponse\"C\n" +
 	"\x1cGetInspectionMetadataRequest\x12#\n" +
-	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\"\x8d\x02\n" +
+	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\"\xcc\x02\n" +
 	"\x1dGetInspectionMetadataResponse\x120\n" +
 	"\x06header\x18\x01 \x01(\v2\x18.api.v1.InspectionHeaderR\x06header\x12*\n" +
 	"\x04plan\x18\x02 \x01(\v2\x16.api.v1.InspectionPlanR\x04plan\x121\n" +
 	"\aqueries\x18\x03 \x03(\v2\x17.api.v1.InspectionQueryR\aqueries\x12)\n" +
 	"\x04logs\x18\x04 \x03(\v2\x15.api.v1.InspectionLogR\x04logs\x120\n" +
-	"\x05error\x18\x05 \x01(\v2\x1a.api.v1.InspectionErrorSetR\x05error\"\x8d\x01\n" +
+	"\x05error\x18\x05 \x01(\v2\x1a.api.v1.InspectionErrorSetR\x05error\x12=\n" +
+	"\vjob_command\x18\x06 \x01(\v2\x1c.api.v1.InspectionJobCommandR\n" +
+	"jobCommand\"\x8d\x01\n" +
 	"\x1dGetInspectionDataChunkRequest\x12#\n" +
 	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\x12!\n" +
 	"\foffset_bytes\x18\x02 \x01(\x03R\voffsetBytes\x12$\n" +
@@ -3718,37 +3729,38 @@ var file_api_v1_inspection_proto_depIdxs = []int32{
 	20, // 38: api.v1.GetInspectionMetadataResponse.queries:type_name -> api.v1.InspectionQuery
 	22, // 39: api.v1.GetInspectionMetadataResponse.logs:type_name -> api.v1.InspectionLog
 	11, // 40: api.v1.GetInspectionMetadataResponse.error:type_name -> api.v1.InspectionErrorSet
-	30, // 41: api.v1.InspectionService.GetInspectionTypes:input_type -> api.v1.GetInspectionTypesRequest
-	32, // 42: api.v1.InspectionService.GetInspections:input_type -> api.v1.GetInspectionsRequest
-	34, // 43: api.v1.InspectionService.WatchInspections:input_type -> api.v1.WatchInspectionsRequest
-	36, // 44: api.v1.InspectionService.PullInspections:input_type -> api.v1.PullInspectionsRequest
-	38, // 45: api.v1.InspectionService.CreateInspection:input_type -> api.v1.CreateInspectionRequest
-	40, // 46: api.v1.InspectionService.UpdateInspection:input_type -> api.v1.UpdateInspectionRequest
-	42, // 47: api.v1.InspectionService.GetInspectionFeatures:input_type -> api.v1.GetInspectionFeaturesRequest
-	44, // 48: api.v1.InspectionService.UpdateInspectionFeatures:input_type -> api.v1.UpdateInspectionFeaturesRequest
-	46, // 49: api.v1.InspectionService.DryRunInspection:input_type -> api.v1.DryRunInspectionRequest
-	48, // 50: api.v1.InspectionService.RunInspection:input_type -> api.v1.RunInspectionRequest
-	50, // 51: api.v1.InspectionService.CancelInspection:input_type -> api.v1.CancelInspectionRequest
-	52, // 52: api.v1.InspectionService.GetInspectionMetadata:input_type -> api.v1.GetInspectionMetadataRequest
-	54, // 53: api.v1.InspectionService.GetInspectionDataChunk:input_type -> api.v1.GetInspectionDataChunkRequest
-	31, // 54: api.v1.InspectionService.GetInspectionTypes:output_type -> api.v1.GetInspectionTypesResponse
-	33, // 55: api.v1.InspectionService.GetInspections:output_type -> api.v1.GetInspectionsResponse
-	35, // 56: api.v1.InspectionService.WatchInspections:output_type -> api.v1.WatchInspectionsResponse
-	37, // 57: api.v1.InspectionService.PullInspections:output_type -> api.v1.PullInspectionsResponse
-	39, // 58: api.v1.InspectionService.CreateInspection:output_type -> api.v1.CreateInspectionResponse
-	41, // 59: api.v1.InspectionService.UpdateInspection:output_type -> api.v1.UpdateInspectionResponse
-	43, // 60: api.v1.InspectionService.GetInspectionFeatures:output_type -> api.v1.GetInspectionFeaturesResponse
-	45, // 61: api.v1.InspectionService.UpdateInspectionFeatures:output_type -> api.v1.UpdateInspectionFeaturesResponse
-	47, // 62: api.v1.InspectionService.DryRunInspection:output_type -> api.v1.DryRunInspectionResponse
-	49, // 63: api.v1.InspectionService.RunInspection:output_type -> api.v1.RunInspectionResponse
-	51, // 64: api.v1.InspectionService.CancelInspection:output_type -> api.v1.CancelInspectionResponse
-	53, // 65: api.v1.InspectionService.GetInspectionMetadata:output_type -> api.v1.GetInspectionMetadataResponse
-	55, // 66: api.v1.InspectionService.GetInspectionDataChunk:output_type -> api.v1.GetInspectionDataChunkResponse
-	54, // [54:67] is the sub-list for method output_type
-	41, // [41:54] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	23, // 41: api.v1.GetInspectionMetadataResponse.job_command:type_name -> api.v1.InspectionJobCommand
+	30, // 42: api.v1.InspectionService.GetInspectionTypes:input_type -> api.v1.GetInspectionTypesRequest
+	32, // 43: api.v1.InspectionService.GetInspections:input_type -> api.v1.GetInspectionsRequest
+	34, // 44: api.v1.InspectionService.WatchInspections:input_type -> api.v1.WatchInspectionsRequest
+	36, // 45: api.v1.InspectionService.PullInspections:input_type -> api.v1.PullInspectionsRequest
+	38, // 46: api.v1.InspectionService.CreateInspection:input_type -> api.v1.CreateInspectionRequest
+	40, // 47: api.v1.InspectionService.UpdateInspection:input_type -> api.v1.UpdateInspectionRequest
+	42, // 48: api.v1.InspectionService.GetInspectionFeatures:input_type -> api.v1.GetInspectionFeaturesRequest
+	44, // 49: api.v1.InspectionService.UpdateInspectionFeatures:input_type -> api.v1.UpdateInspectionFeaturesRequest
+	46, // 50: api.v1.InspectionService.DryRunInspection:input_type -> api.v1.DryRunInspectionRequest
+	48, // 51: api.v1.InspectionService.RunInspection:input_type -> api.v1.RunInspectionRequest
+	50, // 52: api.v1.InspectionService.CancelInspection:input_type -> api.v1.CancelInspectionRequest
+	52, // 53: api.v1.InspectionService.GetInspectionMetadata:input_type -> api.v1.GetInspectionMetadataRequest
+	54, // 54: api.v1.InspectionService.GetInspectionDataChunk:input_type -> api.v1.GetInspectionDataChunkRequest
+	31, // 55: api.v1.InspectionService.GetInspectionTypes:output_type -> api.v1.GetInspectionTypesResponse
+	33, // 56: api.v1.InspectionService.GetInspections:output_type -> api.v1.GetInspectionsResponse
+	35, // 57: api.v1.InspectionService.WatchInspections:output_type -> api.v1.WatchInspectionsResponse
+	37, // 58: api.v1.InspectionService.PullInspections:output_type -> api.v1.PullInspectionsResponse
+	39, // 59: api.v1.InspectionService.CreateInspection:output_type -> api.v1.CreateInspectionResponse
+	41, // 60: api.v1.InspectionService.UpdateInspection:output_type -> api.v1.UpdateInspectionResponse
+	43, // 61: api.v1.InspectionService.GetInspectionFeatures:output_type -> api.v1.GetInspectionFeaturesResponse
+	45, // 62: api.v1.InspectionService.UpdateInspectionFeatures:output_type -> api.v1.UpdateInspectionFeaturesResponse
+	47, // 63: api.v1.InspectionService.DryRunInspection:output_type -> api.v1.DryRunInspectionResponse
+	49, // 64: api.v1.InspectionService.RunInspection:output_type -> api.v1.RunInspectionResponse
+	51, // 65: api.v1.InspectionService.CancelInspection:output_type -> api.v1.CancelInspectionResponse
+	53, // 66: api.v1.InspectionService.GetInspectionMetadata:output_type -> api.v1.GetInspectionMetadataResponse
+	55, // 67: api.v1.InspectionService.GetInspectionDataChunk:output_type -> api.v1.GetInspectionDataChunkResponse
+	55, // [55:68] is the sub-list for method output_type
+	42, // [42:55] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_inspection_proto_init() }

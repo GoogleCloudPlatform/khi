@@ -43,4 +43,17 @@ describe('TaskMetadataViewDialogComponent', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('should render job command when jobCommand is provided', () => {
+    const fixtureWithJob = TestBed.createComponent(
+      InspectionMetadataDialogComponent,
+    );
+    const comp = fixtureWithJob.componentInstance;
+    (comp as unknown as { data: unknown }).data = {
+      jobCommand: { command: './khi --job-mode' },
+    };
+    fixtureWithJob.detectChanges();
+    const compiled = fixtureWithJob.nativeElement as HTMLElement;
+    expect(compiled.querySelector('khi-job-command')).toBeTruthy();
+  });
 });

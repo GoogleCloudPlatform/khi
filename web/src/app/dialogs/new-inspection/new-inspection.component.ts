@@ -17,6 +17,7 @@
 import {
   Component,
   computed,
+  effect,
   inject,
   OnDestroy,
   signal,
@@ -37,11 +38,13 @@ import {
   withLatestFrom,
 } from 'rxjs';
 import {
+  InspectionDryRunResponse,
   InspectionMetadataInDryrun,
   InspectionType,
 } from 'src/app/common/schema/api-types';
 import { ReactiveFormsModule } from '@angular/forms';
 import {
+  MAT_DIALOG_DATA,
   MatDialog,
   MatDialogModule,
   MatDialogRef,
@@ -229,11 +232,73 @@ export interface ParameterPageViewModel {
   readonly totalEstimatedSummary?: TotalEstimatedLogsSummary;
 }
 
-export function openNewInspectionDialog(dialog: MatDialog) {
-  return dialog.open(NewInspectionDialogComponent, {
+/**
+ * Configuration data passed when opening NewInspectionDialogComponent.
+ */
+export interface NewInspectionDialogData {
+  /** Initial inspection type ID to preselect. */
+  readonly initialInspectionTypeId?: string;
+  /** Initial feature IDs to enable. */
+  readonly initialFeatures?: readonly string[];
+  /** Initial parameter values to prefill. */
+  readonly initialParameters?: Record<string, unknown>;
+}
+
+/**
+ * Recursively checks if any parameter field in the form has an error hint.
+ *
+ * @param fields The list of form fields to check.
+ * @returns True if at least one field has an error hint.
+ */
+export function hasFormErrors(fields: readonly ParameterFormField[]): boolean {
+  for (const field of fields) {
+    if (field.type === ParameterInputType.Group) {
+      if (hasFormErrors(field.children)) {
+        return true;
+      }
+    } else if (field.hintType === ParameterHintType.Error) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Checks if a dryrun response contains validation errors or incomplete queries.
+ *
+ * @param response The dryrun response to validate.
+ * @returns True if the dryrun result has errors or incomplete parameters.
+ */
+export function hasDryRunErrors(response: InspectionDryRunResponse): boolean {
+  if (hasFormErrors(response.metadata.form)) {
+    return true;
+  }
+  if (response.metadata.query?.some((q) => q.incomplete)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Opens the New Inspection dialog.
+ *
+ * @param dialog The Angular Material MatDialog service instance.
+ * @param data Optional prefilled configuration data.
+ * @returns Reference to the opened dialog.
+ */
+export function openNewInspectionDialog(
+  dialog: MatDialog,
+  data?: NewInspectionDialogData,
+) {
+  return dialog.open<
+    NewInspectionDialogComponent,
+    NewInspectionDialogData,
+    NewInspectionDialogResult
+  >(NewInspectionDialogComponent, {
     width: '80%',
     maxWidth: '1200px',
     height: '90%',
+    data,
   });
 }
 
@@ -269,6 +334,10 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   private readonly dialogRef =
     inject<MatDialogRef<object, NewInspectionDialogResult>>(MatDialogRef);
+  private readonly dialogData = inject<NewInspectionDialogData | null>(
+    MAT_DIALOG_DATA,
+    { optional: true },
+  );
   private readonly backendSync = inject<BackendSyncService>(BACKEND_SYNC);
   private readonly apiClient = inject<BackendAPI>(BACKEND_API);
   private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
@@ -287,6 +356,44 @@ export class NewInspectionDialogComponent implements OnDestroy {
   public hadRun = signal(false);
 
   constructor() {
+    if (this.dialogData?.initialInspectionTypeId) {
+      const effectRef = effect(() => {
+        const types = this.inspectionTypes.value();
+        if (!types || this.currentInspectionType.value) {
+          return;
+        }
+        const matched = types.types.find(
+          (t) => t.id === this.dialogData!.initialInspectionTypeId,
+        );
+        if (matched) {
+          effectRef.destroy();
+          this.setInspectionType(matched);
+          if (this.dialogData?.initialParameters) {
+            this.store.setDefaultValues(this.dialogData.initialParameters);
+          }
+          this.currentTaskClient
+            .pipe(take(1), takeUntil(this.destroyed))
+            .subscribe((client) => {
+              if (
+                this.dialogData?.initialFeatures &&
+                this.dialogData.initialFeatures.length > 0
+              ) {
+                const featureMap = Object.fromEntries(
+                  this.dialogData.initialFeatures.map((f) => [f, true]),
+                );
+                client.setFeatures(featureMap);
+              }
+              setTimeout(() => {
+                if (this.stepper) {
+                  this.stepper.selectedIndex =
+                    NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT;
+                }
+              }, 50);
+            });
+        }
+      });
+    }
+
     this.featureToggleRequest
       .pipe(
         takeUntil(this.destroyed),

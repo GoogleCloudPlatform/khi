@@ -44,6 +44,14 @@
       </button>
       <p class="description">Import a previously exported inspection file.</p>
     </div>
+
+    <div class="action-item">
+      <button mat-stroked-button (click)="startFromJobCommand.emit()">
+        Start from Job Command
+        <mat-icon>terminal</mat-icon>
+      </button>
+      <p class="description">Run inspection from a Job Mode CLI command.</p>
+    </div>
   </div>
 
   <div class="footer-links">

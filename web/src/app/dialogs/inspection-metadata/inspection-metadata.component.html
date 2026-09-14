@@ -73,4 +73,7 @@ limitations under the License.
       </mat-card-content>
     </mat-card>
   }
+  @if (data.jobCommand; as job) {
+    <khi-job-command [command]="job.command"></khi-job-command>
+  }
 </div>

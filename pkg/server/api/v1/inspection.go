@@ -361,6 +361,9 @@ func (s *InspectionServiceServer) GetInspectionMetadata(
 	if e, ok := md["error"].(*inspectionmetadata.ErrorMessageSetMetadata); ok && e != nil {
 		resp.Error = convertErrorSet(e)
 	}
+	if cmd, ok := md["jobCommand"].(*inspectionmetadata.JobModeCommandSerializable); ok && cmd != nil {
+		resp.JobCommand = &apiv1.InspectionJobCommand{Command: proto.String(cmd.Command)}
+	}
 	return connect.NewResponse(resp), nil
 }
 

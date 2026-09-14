@@ -15,8 +15,8 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialogRef } from '@angular/material/dialog';
-import { signal } from '@angular/core';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { signal, WritableSignal } from '@angular/core';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Observable, of, Subject } from 'rxjs';
 
@@ -24,6 +24,9 @@ import {
   NewInspectionDialogComponent,
   computeTotalEstimatedLogs,
   TotalEstimatedLogsSeverity,
+  hasFormErrors,
+  hasDryRunErrors,
+  NewInspectionDialogData,
 } from './new-inspection.component';
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
@@ -687,6 +690,208 @@ describe('NewInspectionDialogTest', () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
 
       expect(unsubscribed).toBe(true);
+    });
+  });
+
+  describe('hasFormErrors and hasDryRunErrors', () => {
+    it('hasFormErrors should return true if any field has error hint', () => {
+      expect(
+        hasFormErrors([
+          {
+            id: 'field1',
+            type: ParameterInputType.Text,
+            label: 'Field 1',
+            description: '',
+            hint: 'Error message',
+            hintType: ParameterHintType.Error,
+            default: '',
+            readonly: false,
+            suggestions: [],
+            validationTiming: ParameterFormValidationTiming.Blur,
+          },
+        ]),
+      ).toBe(true);
+    });
+
+    it('hasFormErrors should return true if nested group field has error hint', () => {
+      expect(
+        hasFormErrors([
+          {
+            id: 'group1',
+            type: ParameterInputType.Group,
+            label: 'Group 1',
+            description: '',
+            hint: '',
+            hintType: ParameterHintType.None,
+            children: [
+              {
+                id: 'nested-field',
+                type: ParameterInputType.Text,
+                label: 'Nested Field',
+                description: '',
+                hint: 'Nested error',
+                hintType: ParameterHintType.Error,
+                default: '',
+                readonly: false,
+                suggestions: [],
+                validationTiming: ParameterFormValidationTiming.Blur,
+              },
+            ],
+          },
+        ]),
+      ).toBe(true);
+    });
+
+    it('hasFormErrors should return false when no errors exist', () => {
+      expect(
+        hasFormErrors([
+          {
+            id: 'field1',
+            type: ParameterInputType.Text,
+            label: 'Field 1',
+            description: '',
+            hint: '',
+            hintType: ParameterHintType.None,
+            default: '',
+            readonly: false,
+            suggestions: [],
+            validationTiming: ParameterFormValidationTiming.Blur,
+          },
+        ]),
+      ).toBe(false);
+    });
+
+    it('hasDryRunErrors should return true when query is incomplete', () => {
+      const response: InspectionDryRunResponse = {
+        metadata: {
+          form: [],
+          query: [
+            {
+              id: 'q1',
+              name: 'Query 1',
+              query: 'q',
+              incomplete: true,
+            },
+          ],
+          plan: { taskGraph: '' },
+        },
+      };
+      expect(hasDryRunErrors(response)).toBe(true);
+    });
+
+    it('hasDryRunErrors should return false when valid', () => {
+      const response: InspectionDryRunResponse = {
+        metadata: {
+          form: [],
+          query: [
+            {
+              id: 'q1',
+              name: 'Query 1',
+              query: 'q',
+              incomplete: false,
+            },
+          ],
+          plan: { taskGraph: '' },
+        },
+      };
+      expect(hasDryRunErrors(response)).toBe(false);
+    });
+  });
+
+  describe('with NewInspectionDialogData', () => {
+    let customFixture: ComponentFixture<NewInspectionDialogComponent>;
+    let customComponent: NewInspectionDialogComponent;
+    let mockClient: {
+      features: unknown;
+      setFeatures: jasmine.Spy;
+      dryrunDirect: jasmine.Spy;
+      run: jasmine.Spy;
+    };
+    let inspectionTypesSignal: WritableSignal<{ types: InspectionType[] }>;
+
+    beforeEach(async () => {
+      mockClient = {
+        features: of([]),
+        setFeatures: jasmine.createSpy('setFeatures'),
+        dryrunDirect: jasmine.createSpy('dryrunDirect').and.returnValue(
+          of({
+            metadata: {
+              form: [],
+              query: [],
+              plan: { taskGraph: '' },
+            },
+          }),
+        ),
+        run: jasmine.createSpy('run'),
+      };
+      const mockApi = {
+        createInspection: jasmine
+          .createSpy('createInspection')
+          .and.returnValue(of(mockClient)),
+      };
+      inspectionTypesSignal = signal({
+        types: [
+          {
+            id: 'gke',
+            name: 'GKE Inspection',
+            icon: '',
+            description: '',
+          },
+        ],
+      });
+
+      const dialogData: NewInspectionDialogData = {
+        initialInspectionTypeId: 'gke',
+        initialFeatures: ['feature-1', 'feature-2'],
+        initialParameters: { cluster: 'cluster-1' },
+      };
+
+      await TestBed.configureTestingModule({
+        imports: [NoopAnimationsModule],
+        providers: [
+          {
+            provide: MatDialogRef,
+            useValue: null,
+          },
+          {
+            provide: MAT_DIALOG_DATA,
+            useValue: dialogData,
+          },
+          {
+            provide: BACKEND_API,
+            useValue: mockApi,
+          },
+          {
+            provide: BACKEND_SYNC,
+            useValue: {
+              inspectionTypes: {
+                value: inspectionTypesSignal,
+              },
+            },
+          },
+          {
+            provide: EXTENSION_STORE,
+            useValue: new ExtensionStore(),
+          },
+        ],
+      }).compileComponents();
+
+      customFixture = TestBed.createComponent(NewInspectionDialogComponent);
+      customComponent = customFixture.componentInstance;
+      customFixture.detectChanges();
+    });
+
+    it('should preselect inspection type, prefill parameters, and enable features', async () => {
+      await customFixture.whenStable();
+      const currentType = customComponent.currentInspectionType.getValue();
+      expect(currentType?.id).toBe('gke');
+
+      const store = customFixture.debugElement.injector.get(PARAMETER_STORE);
+      expect(store.currentParameters()['cluster']).toBe('cluster-1');
+      expect(mockClient.setFeatures).toHaveBeenCalledWith({
+        'feature-1': true,
+        'feature-2': true,
+      });
     });
   });
 });
