@@ -39,6 +39,11 @@ type gkeResourceIdentity struct {
 	NodePoolName string
 }
 
+// IsCluster returns true if the asset identity corresponds to a cluster.
+func (i gkeResourceIdentity) IsCluster() bool {
+	return i.ClusterName != "" && i.NodePoolName == ""
+}
+
 // IsNodePool returns true if the asset identity corresponds to a node pool.
 func (i gkeResourceIdentity) IsNodePool() bool {
 	return i.NodePoolName != ""

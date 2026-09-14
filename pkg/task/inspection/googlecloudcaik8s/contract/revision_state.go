@@ -30,20 +30,20 @@ var (
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 
-	// RevisionStateGKEClusterExistingFromCAI indicates the GKE cluster existed, discovered via CAI.
-	RevisionStateGKEClusterExistingFromCAI = style.MustRegisterRevisionState(
-		"Cluster Existing (Asset Inventory)",
+	// RevisionStateGKEClusterSnapshotFromCAI indicates the GKE cluster state discovered via CAI.
+	RevisionStateGKEClusterSnapshotFromCAI = style.MustRegisterRevisionState(
+		"Cluster Snapshot (Asset Inventory)",
 		"deployed_code",
-		"The GKE cluster existed at the beginning of the inspection time range, discovered via Cloud Asset Inventory.",
+		"The GKE cluster state discovered via Cloud Asset Inventory.",
 		style.Color{R: 0.35, G: 0.55, B: 0.95, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 
-	// RevisionStateGKENodePoolExistingFromCAI indicates the GKE node pool existed, discovered via CAI.
-	RevisionStateGKENodePoolExistingFromCAI = style.MustRegisterRevisionState(
-		"Node Pool Existing (Asset Inventory)",
+	// RevisionStateGKENodePoolSnapshotFromCAI indicates the GKE node pool state discovered via CAI.
+	RevisionStateGKENodePoolSnapshotFromCAI = style.MustRegisterRevisionState(
+		"Node Pool Snapshot (Asset Inventory)",
 		"deployed_code",
-		"The GKE node pool existed at the beginning of the inspection time range, discovered via Cloud Asset Inventory.",
+		"The GKE node pool state discovered via Cloud Asset Inventory.",
 		style.Color{R: 0.35, G: 0.55, B: 0.95, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)

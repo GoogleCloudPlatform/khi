@@ -122,7 +122,7 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 
 	if !state.hasProcessedInitialSnapshot {
 		state.hasProcessedInitialSnapshot = true
-		if !identity.IsNodePool() {
+		if identity.IsCluster() {
 			m.stageClusterInitialRevisions(cs, targetTimeline, l, observedTime, resourceBody)
 		} else {
 			snapshots := coretask.GetTaskResult(ctx, googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref())
@@ -165,7 +165,7 @@ func (m *caiGKEResourceTimelineMapper) stageClusterInitialRevisions(cs *khifilev
 		ResourceBody: resourceBody,
 		Principal:    "N/A",
 		VerbType:     snapshotVerb,
-		StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterExistingFromCAI,
+		StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterSnapshotFromCAI,
 	})
 }
 
@@ -214,14 +214,14 @@ func (m *caiGKEResourceTimelineMapper) stageNodePoolInitialRevisions(cs *khifile
 		ResourceBody: resourceBody,
 		Principal:    "N/A",
 		VerbType:     finalVerb,
-		StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+		StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 	})
 }
 
 func (m *caiGKEResourceTimelineMapper) stageSecondaryUpdate(cs *khifilev6.TimelineChangeSet, targetTimeline *khifilev6.TimelinePath, identity gkeResourceIdentity, updateTime time.Time, resourceBody structured.Node) {
-	stateType := googlecloudcaik8s_contract.RevisionStateGKEClusterExistingFromCAI
+	stateType := googlecloudcaik8s_contract.RevisionStateGKEClusterSnapshotFromCAI
 	if identity.IsNodePool() {
-		stateType = googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI
+		stateType = googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI
 	}
 
 	cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{

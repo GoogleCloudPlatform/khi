@@ -314,7 +314,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: extractResourceBody(clusterInitialLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterExistingFromCAI,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
 		},
@@ -334,7 +334,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: extractResourceBody(clusterCreatedRecentlyLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterExistingFromCAI,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
 		},
@@ -354,7 +354,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: extractResourceBody(clusterUpdateLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterExistingFromCAI,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
 		},
@@ -391,7 +391,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
 		},
@@ -418,7 +418,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: extractResourceBody(nodepoolCreatedWithClusterLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
 		},
@@ -439,7 +439,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
 		},
@@ -459,7 +459,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: extractResourceBody(nodepoolCreatedDuringWindowLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
 		},
@@ -479,7 +479,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: extractResourceBody(nodepoolUpdateLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistingFromCAI,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
 		},
