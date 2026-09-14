@@ -812,8 +812,12 @@ describe('NewInspectionDialogTest', () => {
     let inspectionTypesSignal: WritableSignal<{ types: InspectionType[] }>;
 
     beforeEach(async () => {
+      TestBed.resetTestingModule();
       mockClient = {
-        features: of([]),
+        features: of([
+          { id: 'feature-1', enabled: true },
+          { id: 'feature-2', enabled: true },
+        ]),
         setFeatures: jasmine.createSpy('setFeatures'),
         dryrunDirect: jasmine.createSpy('dryrunDirect').and.returnValue(
           of({
@@ -880,7 +884,16 @@ describe('NewInspectionDialogTest', () => {
 
       customFixture = TestBed.createComponent(NewInspectionDialogComponent);
       customComponent = customFixture.componentInstance;
+      spyOn(
+        customComponent as unknown as { startDryrunLoop: () => void },
+        'startDryrunLoop',
+      ).and.stub();
       customFixture.detectChanges();
+    });
+
+    afterEach(() => {
+      customFixture?.destroy();
+      TestBed.resetTestingModule();
     });
 
     it('should preselect inspection type, prefill parameters, and enable features', async () => {

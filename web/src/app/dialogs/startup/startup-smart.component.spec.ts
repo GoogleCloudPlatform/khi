@@ -15,7 +15,10 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { StartupDialogSmartComponent } from './startup-smart.component';
+import {
+  StartupDialogSmartComponent,
+  STARTUP_TIME_REFRESH_OBSERVABLE,
+} from './startup-smart.component';
 import { StartupDialogLayoutComponent } from 'src/app/dialogs/startup/components/startup-dialog-layout.component';
 import { signal } from '@angular/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
@@ -42,6 +45,7 @@ import {
 } from 'src/app/extensions/extension-common/extension-store';
 import { By } from '@angular/platform-browser';
 import { NewInspectionDialogComponent } from 'src/app/dialogs/new-inspection/new-inspection.component';
+import { JobCommandInputSmartComponent } from 'src/app/dialogs/job-command-input/job-command-input-smart.component';
 
 describe('StartupDialogComponent', () => {
   let component: ComponentFixture<StartupDialogSmartComponent>;
@@ -111,10 +115,18 @@ describe('StartupDialogComponent', () => {
           provide: InspectionDataLoaderService,
           useClass: InspectionDataLoaderService,
         },
+        {
+          provide: STARTUP_TIME_REFRESH_OBSERVABLE,
+          useValue: of(0),
+        },
       ],
     });
     component = TestBed.createComponent(StartupDialogSmartComponent);
     component.detectChanges();
+  });
+
+  afterEach(() => {
+    component?.destroy();
   });
 
   it('should create', () => {
@@ -137,21 +149,67 @@ describe('StartupDialogComponent', () => {
     );
   });
 
-  it('should do nothing when Job Command dialog is dismissed without input', async () => {
-    const dialogRefSpy = {
-      afterClosed: jasmine
-        .createSpy('afterClosed')
-        .and.returnValue(of(undefined)),
+  function createJobCommandDialogRefSpy(result: unknown) {
+    return {
+      close: jasmine.createSpy('close'),
+      afterClosed: jasmine.createSpy('afterClosed').and.returnValue(of(result)),
     };
-    dialogSpy.open.and.returnValue(
-      dialogRefSpy as unknown as MatDialogRef<unknown>,
-    );
+  }
 
+  function setupJobCommandDialogOpenSpy(parsedCommand: unknown) {
+    dialogSpy.open.and.callFake((componentClass: unknown) => {
+      if (componentClass === JobCommandInputSmartComponent) {
+        return createJobCommandDialogRefSpy(
+          parsedCommand,
+        ) as unknown as MatDialogRef<unknown>;
+      }
+      return {
+        close: jasmine.createSpy('close'),
+        afterClosed: jasmine
+          .createSpy('afterClosed')
+          .and.returnValue(of(undefined)),
+      } as unknown as MatDialogRef<unknown>;
+    });
+  }
+
+  function triggerStartFromJobCommand(
+    fixture: ComponentFixture<StartupDialogSmartComponent>,
+  ): Promise<void> {
+    return (
+      fixture.componentInstance as unknown as {
+        startFromJobCommand: () => Promise<void>;
+      }
+    ).startFromJobCommand();
+  }
+
+  it('should call startFromJobCommand when layout emits startFromJobCommand', () => {
+    spyOn(
+      component.componentInstance as unknown as {
+        startFromJobCommand: () => Promise<void>;
+      },
+      'startFromJobCommand',
+    );
     const layoutEl = component.debugElement.query(
       By.directive(StartupDialogLayoutComponent),
     );
     layoutEl.triggerEventHandler('startFromJobCommand', null);
-    await component.whenStable();
+
+    expect(
+      (
+        component.componentInstance as unknown as {
+          startFromJobCommand: () => Promise<void>;
+        }
+      ).startFromJobCommand,
+    ).toHaveBeenCalled();
+  });
+
+  it('should do nothing when Job Command dialog is dismissed without input', async () => {
+    const dialogRefSpy = createJobCommandDialogRefSpy(undefined);
+    dialogSpy.open.and.returnValue(
+      dialogRefSpy as unknown as MatDialogRef<unknown>,
+    );
+
+    await triggerStartFromJobCommand(component);
 
     expect(dialogSpy.open).toHaveBeenCalled();
     expect(backendAPISpy.createInspection).not.toHaveBeenCalled();
@@ -163,20 +221,9 @@ describe('StartupDialogComponent', () => {
       features: ['feature-a'],
       parameters: { cluster: 'my-cluster' },
     };
-    const dialogRefSpy = {
-      afterClosed: jasmine
-        .createSpy('afterClosed')
-        .and.returnValue(of(parsedCommand)),
-    };
-    dialogSpy.open.and.returnValue(
-      dialogRefSpy as unknown as MatDialogRef<unknown>,
-    );
+    setupJobCommandDialogOpenSpy(parsedCommand);
 
-    const layoutEl = component.debugElement.query(
-      By.directive(StartupDialogLayoutComponent),
-    );
-    layoutEl.triggerEventHandler('startFromJobCommand', null);
-    await component.whenStable();
+    await triggerStartFromJobCommand(component);
 
     expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
     expect(backendAPISpy.setEnabledFeatures).toHaveBeenCalledWith(
@@ -197,14 +244,7 @@ describe('StartupDialogComponent', () => {
       features: ['feature-a'],
       parameters: { cluster: 'my-cluster' },
     };
-    const dialogRefSpy = {
-      afterClosed: jasmine
-        .createSpy('afterClosed')
-        .and.returnValue(of(parsedCommand)),
-    };
-    dialogSpy.open.and.returnValue(
-      dialogRefSpy as unknown as MatDialogRef<unknown>,
-    );
+    setupJobCommandDialogOpenSpy(parsedCommand);
 
     mockInspectionClient.dryrunDirect.and.returnValue(
       of({
@@ -229,15 +269,11 @@ describe('StartupDialogComponent', () => {
       }),
     );
 
-    const layoutEl = component.debugElement.query(
-      By.directive(StartupDialogLayoutComponent),
-    );
-    layoutEl.triggerEventHandler('startFromJobCommand', null);
-    await component.whenStable();
+    await triggerStartFromJobCommand(component);
 
     expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
     expect(mockInspectionClient.run).not.toHaveBeenCalled();
-    expect(dialogSpy.open).toHaveBeenCalledTimes(2);
+    expect(dialogSpy.open).toHaveBeenCalledTimes(3);
     expect(dialogSpy.open).toHaveBeenCalledWith(
       NewInspectionDialogComponent,
       jasmine.objectContaining({
@@ -256,27 +292,16 @@ describe('StartupDialogComponent', () => {
       features: ['feature-a'],
       parameters: { cluster: 'my-cluster' },
     };
-    const dialogRefSpy = {
-      afterClosed: jasmine
-        .createSpy('afterClosed')
-        .and.returnValue(of(parsedCommand)),
-    };
-    dialogSpy.open.and.returnValue(
-      dialogRefSpy as unknown as MatDialogRef<unknown>,
-    );
+    setupJobCommandDialogOpenSpy(parsedCommand);
 
     backendAPISpy.createInspection.and.returnValue(
       throwError(() => new Error('API error')),
     );
 
-    const layoutEl = component.debugElement.query(
-      By.directive(StartupDialogLayoutComponent),
-    );
-    layoutEl.triggerEventHandler('startFromJobCommand', null);
-    await component.whenStable();
+    await triggerStartFromJobCommand(component);
 
     expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
-    expect(dialogSpy.open).toHaveBeenCalledTimes(2);
+    expect(dialogSpy.open).toHaveBeenCalledTimes(3);
     expect(dialogSpy.open).toHaveBeenCalledWith(
       NewInspectionDialogComponent,
       jasmine.objectContaining({
@@ -296,20 +321,9 @@ describe('StartupDialogComponent', () => {
       features: [],
       parameters: { cluster: 'my-cluster' },
     };
-    const dialogRefSpy = {
-      afterClosed: jasmine
-        .createSpy('afterClosed')
-        .and.returnValue(of(parsedCommand)),
-    };
-    dialogSpy.open.and.returnValue(
-      dialogRefSpy as unknown as MatDialogRef<unknown>,
-    );
+    setupJobCommandDialogOpenSpy(parsedCommand);
 
-    const layoutEl = component.debugElement.query(
-      By.directive(StartupDialogLayoutComponent),
-    );
-    layoutEl.triggerEventHandler('startFromJobCommand', null);
-    await component.whenStable();
+    await triggerStartFromJobCommand(component);
 
     expect(backendAPISpy.createInspection).toHaveBeenCalledWith('gke');
     expect(backendAPISpy.setEnabledFeatures).not.toHaveBeenCalled();

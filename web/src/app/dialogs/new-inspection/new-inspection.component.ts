@@ -15,6 +15,7 @@
  */
 
 import {
+  ChangeDetectorRef,
   Component,
   computed,
   inject,
@@ -427,6 +428,8 @@ export class NewInspectionDialogComponent implements OnDestroy {
       });
   }
 
+  private readonly cdr = inject(ChangeDetectorRef);
+
   private _stepper?: MatStepper;
 
   private pendingStepIndex: number | null = null;
@@ -435,6 +438,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
   private set stepper(stepper: MatStepper | undefined) {
     this._stepper = stepper;
     if (stepper && this.pendingStepIndex !== null) {
+      this.cdr.detectChanges();
       stepper.selectedIndex = this.pendingStepIndex;
       this.pendingStepIndex = null;
     }
@@ -446,6 +450,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   private navigateToStep(stepIndex: number) {
     if (this._stepper) {
+      this.cdr.detectChanges();
       this._stepper.selectedIndex = stepIndex;
       this.pendingStepIndex = null;
     } else {

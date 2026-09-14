@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, InjectionToken } from '@angular/core';
 import {
   MatDialog,
   MatDialogRef,
   MatDialogConfig,
 } from '@angular/material/dialog';
-import { interval, startWith, firstValueFrom } from 'rxjs';
+import { interval, startWith, firstValueFrom, Observable } from 'rxjs';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionMetadataDialogComponent } from '../inspection-metadata/inspection-metadata.component';
 import {
@@ -98,11 +98,7 @@ export class StartupDialogSmartComponent {
         BackendConnectionStatus.Connecting && this.inspections().length === 0,
   );
 
-  private readonly ticker = toSignal(
-    interval(StartupDialogSmartComponent.UI_TIME_REFRESH_INTERVAL).pipe(
-      startWith(0),
-    ),
-  );
+  private readonly ticker = toSignal(inject(STARTUP_TIME_REFRESH_OBSERVABLE));
 
   protected readonly vmTasks = computed(() => {
     this.ticker(); // register dependency
@@ -287,3 +283,16 @@ export function openStartupDialog(
     ...config,
   });
 }
+
+/**
+ * Injection token for the observable that triggers UI time refreshes.
+ * Defaults to an interval matching UI_TIME_REFRESH_INTERVAL starting with 0.
+ */
+export const STARTUP_TIME_REFRESH_OBSERVABLE = new InjectionToken<
+  Observable<number>
+>('STARTUP_TIME_REFRESH_OBSERVABLE', {
+  factory: () =>
+    interval(StartupDialogSmartComponent.UI_TIME_REFRESH_INTERVAL).pipe(
+      startWith(0),
+    ),
+});
