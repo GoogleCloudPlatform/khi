@@ -146,6 +146,9 @@ describe('inspection-metadata.model', () => {
             },
           ],
         },
+        jobCommand: {
+          command: './khi --job-mode',
+        },
       };
 
       const vm = convertToInspectionMetadataViewModel(raw, 9);
@@ -163,6 +166,7 @@ describe('inspection-metadata.model', () => {
       expect(vm.plan.taskGraph).toBe('digraph G { A -> B; }');
       expect(vm.errors.length).toBe(1);
       expect(vm.errors[0].errorId).toBe('ERR_PERMISSION');
+      expect(vm.jobCommand).toBe('./khi --job-mode');
     });
   });
 });

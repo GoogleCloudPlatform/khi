@@ -143,3 +143,13 @@ export const Minimal: Story = {
     },
   },
 };
+
+export const WithJobCommand: Story = {
+  args: {
+    viewModel: {
+      ...Default.args!.viewModel!,
+      jobCommand:
+        './khi --job-mode --inspection-type gcp-gke --cluster my-cluster',
+    },
+  },
+};

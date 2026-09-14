@@ -98,6 +98,8 @@ export interface InspectionMetadataViewModel {
   readonly plan: MetadataPlanViewModel;
   /** List of errors. */
   readonly errors: readonly MetadataErrorViewModel[];
+  /** CLI command representation for headless job execution. */
+  readonly jobCommand?: string;
 }
 
 /**
@@ -183,5 +185,6 @@ export function convertToInspectionMetadataViewModel(
     logs,
     plan,
     errors,
+    jobCommand: metadata.jobCommand?.command,
   };
 }

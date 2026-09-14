@@ -132,5 +132,9 @@ limitations under the License.
         </mat-expansion-panel>
       }
     </mat-accordion>
+
+    @if (viewModel().jobCommand; as command) {
+      <khi-job-command [command]="command" />
+    }
   </div>
 </div>

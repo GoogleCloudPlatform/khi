@@ -20,6 +20,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
+import { JobCommandComponent } from 'src/app/dialogs/new-inspection/components/job-command.component';
 import { InspectionMetadataViewModel } from '../types/inspection-metadata.model';
 import { MetadataOverviewComponent } from './metadata-overview.component';
 import { MetadataErrorsComponent } from './metadata-errors.component';
@@ -39,6 +40,7 @@ import { MetadataPlanComponent } from './metadata-plan.component';
     MatIconModule,
     MatTooltipModule,
     KHIIconRegistrationModule,
+    JobCommandComponent,
     MetadataOverviewComponent,
     MetadataErrorsComponent,
     MetadataQueriesComponent,

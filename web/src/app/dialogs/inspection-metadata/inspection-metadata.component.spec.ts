@@ -104,6 +104,7 @@ describe('InspectionMetadataDialogComponent', () => {
     expect(vm.logs.length).toBe(1);
     expect(vm.errors.length).toBe(1);
     expect(vm.plan.taskGraph).toBe('digraph G {}');
+    expect(vm.jobCommand).toBeUndefined();
   });
 
   it('should reactively update view model times when timezone shift changes', () => {
@@ -136,14 +137,27 @@ describe('InspectionMetadataDialogComponent', () => {
     expect(layoutEl).toBeTruthy();
   });
 
-  it('should render job command when jobCommand is provided', () => {
+  it('should render job command when jobCommand is provided in dialog data', async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [InspectionMetadataDialogComponent, NoopAnimationsModule],
+      providers: [
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+            ...mockMetadata,
+            jobCommand: { command: './khi --job-mode' },
+          },
+        },
+        {
+          provide: MatDialogRef,
+          useValue: mockDialogRef,
+        },
+      ],
+    }).compileComponents();
     const fixtureWithJob = TestBed.createComponent(
       InspectionMetadataDialogComponent,
     );
-    const comp = fixtureWithJob.componentInstance;
-    (comp as unknown as { data: unknown }).data = {
-      jobCommand: { command: './khi --job-mode' },
-    };
     fixtureWithJob.detectChanges();
     const compiled = fixtureWithJob.nativeElement as HTMLElement;
     expect(compiled.querySelector('khi-job-command')).toBeTruthy();

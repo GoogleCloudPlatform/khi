@@ -25,9 +25,12 @@ export function formatBytes(bytes: number): string {
     return '0 B';
   }
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const digitGroup = Math.min(
-    Math.floor(Math.log10(bytes) / Math.log10(1024)),
-    units.length - 1,
+  const digitGroup = Math.max(
+    0,
+    Math.min(
+      Math.floor(Math.log10(bytes) / Math.log10(1024)),
+      units.length - 1,
+    ),
   );
   const value = bytes / Math.pow(1024, digitGroup);
   return `${value.toFixed(value >= 10 || digitGroup === 0 ? 0 : 1)} ${units[digitGroup]}`;

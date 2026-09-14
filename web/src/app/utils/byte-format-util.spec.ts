@@ -30,6 +30,8 @@ describe('byte-format-util', () => {
     });
 
     it('should format small bytes as B', () => {
+      expect(formatBytes(0.5)).toBe('1 B');
+      expect(formatBytes(0.1)).toBe('0 B');
       expect(formatBytes(512)).toBe('512 B');
     });
 

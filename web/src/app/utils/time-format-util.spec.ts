@@ -108,6 +108,12 @@ describe('time-format-util', () => {
       );
     });
 
+    it('should handle floating point near-hour offsets without rounding minutes to 60', () => {
+      expect(
+        formatIsoTimestampSeconds(timestampSeconds, 5.999999999999999),
+      ).toBe('2023-11-15T04:13:20+06:00');
+    });
+
     it('should format timestamp with negative fractional timezone shift (-3.5 for NST)', () => {
       expect(formatIsoTimestampSeconds(timestampSeconds, -3.5)).toBe(
         '2023-11-14T18:43:20-03:30',

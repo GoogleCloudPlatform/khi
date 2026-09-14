@@ -69,15 +69,17 @@ export function formatIsoTimestampSeconds(
     return '-';
   }
   const sign = timezoneShiftHours >= 0 ? '+' : '-';
-  const absHours = Math.abs(timezoneShiftHours);
-  const shiftHour = Math.floor(absHours);
-  const shiftMinute = Math.round((absHours % 1) * 60);
+  const totalOffsetMinutes = Math.round(Math.abs(timezoneShiftHours) * 60);
+  const shiftHour = Math.floor(totalOffsetMinutes / 60);
+  const shiftMinute = totalOffsetMinutes % 60;
   const shiftHourStr = shiftHour.toString().padStart(2, '0');
   const shiftMinuteStr = shiftMinute.toString().padStart(2, '0');
   const offsetStr = `${sign}${shiftHourStr}:${shiftMinuteStr}`;
 
+  const signedOffsetMinutes =
+    timezoneShiftHours >= 0 ? totalOffsetMinutes : -totalOffsetMinutes;
   const shiftedDate = new Date(
-    (timestampSeconds + timezoneShiftHours * 3600) * 1000,
+    (timestampSeconds + signedOffsetMinutes * 60) * 1000,
   );
   const pad = (n: number): string => n.toString().padStart(2, '0');
   const yyyy = shiftedDate.getUTCFullYear();

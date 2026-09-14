@@ -15,6 +15,7 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatAccordion } from '@angular/material/expansion';
 import { InspectionMetadataLayoutComponent } from './inspection-metadata-layout.component';
@@ -111,9 +112,10 @@ describe('InspectionMetadataLayoutComponent', () => {
   });
 
   it('should expand and collapse all panels via toolbar actions', () => {
-    const accordion = (
-      component as unknown as { accordion: () => MatAccordion }
-    ).accordion();
+    const accordionDebugEl = fixture.debugElement.query(
+      By.directive(MatAccordion),
+    );
+    const accordion = accordionDebugEl.injector.get(MatAccordion);
     spyOn(accordion, 'openAll');
     spyOn(accordion, 'closeAll');
 
@@ -153,5 +155,18 @@ describe('InspectionMetadataLayoutComponent', () => {
     ).toBeNull();
     expect(fixture.nativeElement.querySelector('khi-metadata-logs')).toBeNull();
     expect(fixture.nativeElement.querySelector('khi-metadata-plan')).toBeNull();
+  });
+
+  it('should render job command when jobCommand is provided and omit when absent', () => {
+    expect(fixture.nativeElement.querySelector('khi-job-command')).toBeNull();
+
+    fixture.componentRef.setInput('viewModel', {
+      ...mockData,
+      jobCommand: './khi --job-mode',
+    });
+    fixture.detectChanges();
+
+    const jobCommandEl = fixture.nativeElement.querySelector('khi-job-command');
+    expect(jobCommandEl).toBeTruthy();
   });
 });
