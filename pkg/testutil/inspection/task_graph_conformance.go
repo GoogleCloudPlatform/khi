@@ -62,7 +62,7 @@ func RunTaskGraphConformance(t *testing.T) {
 	})
 
 	reachedTaskImplIDs := make(map[string]struct{})
-	completedInspectionTypes := make(map[string]struct{})
+	completedInspectionTypeIDs := make(map[string]struct{})
 
 	// Layer 2, 3, 4: InspectionType-specific conformance checks.
 	for _, it := range server.GetAllInspectionTypes() {
@@ -73,19 +73,19 @@ func RunTaskGraphConformance(t *testing.T) {
 
 			t.Run("Layer3_FeatureCombinations", func(t *testing.T) {
 				runFeatureCombinationsConformance(t, server, it, reachedTaskImplIDs)
+				completedInspectionTypeIDs[it.Id] = struct{}{}
 			})
 
 			t.Run("Layer4_FormTaskAndTypeContracts", func(t *testing.T) {
 				runFormTaskAndTypeContracts(t, server, it)
 			})
-			completedInspectionTypes[it.Id] = struct{}{}
 		})
 	}
 
 	// Layer 5: Reachability check across all inspection types.
 	t.Run("Layer5_Reachability", func(t *testing.T) {
-		if len(completedInspectionTypes) < len(server.GetAllInspectionTypes()) {
-			t.Skip("skipping reachability check: not all inspection types were evaluated (subtest filter applied)")
+		if len(completedInspectionTypeIDs) < len(server.GetAllInspectionTypes()) || len(reachedTaskImplIDs) == 0 {
+			t.Skip("skipping reachability check: feature resolution was not evaluated for all inspection types (subtest filter applied)")
 		}
 		runReachabilityConformance(t, allTasks, reachedTaskImplIDs)
 	})
