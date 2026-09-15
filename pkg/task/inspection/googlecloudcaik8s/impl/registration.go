@@ -41,6 +41,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		LogIngesterTask,
 		LogToTimelineMapperTask,
 		GKEResourceFetcherTask,
+		GKEInitialResourceStateProviderTask,
 		GKERawLogTask,
 		GKELogGrouperTask,
 		GKELogIngesterTask,

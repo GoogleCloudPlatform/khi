@@ -37,3 +37,6 @@ var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogG
 
 // LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
 var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](GKEAPIAuditLogTaskIDPrefix + "timeline-mapper")
+
+// InitialResourceStateProviderRef is the task reference for providing initial resource states.
+var InitialResourceStateProviderRef = taskid.NewTaskReference[InitialResourceStateProvider](GKEAPIAuditLogTaskIDPrefix + "initial-resource-state-provider")

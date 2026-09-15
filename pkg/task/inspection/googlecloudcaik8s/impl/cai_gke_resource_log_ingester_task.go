@@ -88,7 +88,7 @@ func snapshotToGKERawLog(idGen *id.Generator, s *googlecloudcaik8s_contract.GKER
 // GKERawLogTask converts fetched GKE resource snapshots into raw logs.
 var GKERawLogTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudcaik8s_contract.GKERawLogTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]*log.Log, error) {
@@ -121,8 +121,8 @@ func (i *caiGKEResourceLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log
 }
 
 // Dependencies returns additional task dependencies for log ingestion.
-func (i *caiGKEResourceLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+func (i *caiGKEResourceLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
 }
 
 // ProcessLog populates the metadata into LogChangeSet.

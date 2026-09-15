@@ -213,6 +213,17 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	)
 
+	nodepoolZeroStartTimeLog := newGKECAILog(
+		nodepoolAssetName,
+		googlecloudcaik8s_contract.GKENodePoolAssetType,
+		time.Time{},
+		time.Time{},
+		false,
+		map[string]any{
+			"name": "default-pool",
+		},
+	)
+
 	nodepoolUpdateLog := newGKECAILog(
 		nodepoolAssetName,
 		googlecloudcaik8s_contract.GKENodePoolAssetType,
@@ -283,20 +294,15 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testCases := []struct {
 		name                 string
 		inputLog             *log.Log
-		initialState         gkeTimelineMapperState
 		omitClusterSnapshots bool
 		wantNil              bool
-		assertResult         func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState)
+		assertResult         func(t *testing.T, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
-			name:         "creates 2 revisions for existing cluster with prior createTime",
-			inputLog:     clusterInitialLog,
-			initialState: gkeTimelineMapperState{hasProcessedInitialSnapshot: false},
-			wantNil:      false,
-			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
-				if !finalState.hasProcessedInitialSnapshot {
-					t.Errorf("hasProcessedInitialSnapshot = false, want true")
-				}
+			name:     "creates 2 revisions for existing cluster with prior createTime",
+			inputLog: clusterInitialLog,
+			wantNil:  false,
+			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(clusterTimeline)
 				if len(revs) != 2 {
 					t.Fatalf("len(revs) = %d, want 2", len(revs))
@@ -319,11 +325,10 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:         "creates 1 revision for cluster created within skew tolerance",
-			inputLog:     clusterCreatedRecentlyLog,
-			initialState: gkeTimelineMapperState{hasProcessedInitialSnapshot: false},
-			wantNil:      false,
-			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
+			name:     "creates 1 revision for cluster created within skew tolerance",
+			inputLog: clusterCreatedRecentlyLog,
+			wantNil:  false,
+			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(clusterTimeline)
 				if len(revs) != 1 {
 					t.Fatalf("len(revs) = %d, want 1", len(revs))
@@ -339,34 +344,15 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:         "stages update revision for secondary cluster snapshot",
-			inputLog:     clusterUpdateLog,
-			initialState: gkeTimelineMapperState{hasProcessedInitialSnapshot: true},
-			wantNil:      false,
-			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
-				revs := cs.GetRevisions(clusterTimeline)
-				if len(revs) != 1 {
-					t.Fatalf("len(revs) = %d, want 1", len(revs))
-				}
-				testchangeset.AssertTimeline(t, cs).
-					HasRevision(clusterTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  queryStartTime.Add(30 * time.Minute),
-						ResourceBody: extractResourceBody(clusterUpdateLog.NodeReader),
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterSnapshotFromCAI,
-					}, nodeCmpOpt)
-			},
+			name:     "skips secondary cluster snapshot not active at query start",
+			inputLog: clusterUpdateLog,
+			wantNil:  true,
 		},
 		{
-			name:         "creates 3 revisions for nodepool with undetermined existence period",
-			inputLog:     nodepoolInitialLog,
-			initialState: gkeTimelineMapperState{hasProcessedInitialSnapshot: false},
-			wantNil:      false,
-			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
-				if !finalState.hasProcessedInitialSnapshot {
-					t.Errorf("hasProcessedInitialSnapshot = false, want true")
-				}
+			name:     "creates 3 revisions for nodepool with undetermined existence period",
+			inputLog: nodepoolInitialLog,
+			wantNil:  false,
+			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(nodePoolTimeline)
 				if len(revs) != 3 {
 					t.Fatalf("len(revs) = %d, want 3", len(revs))
@@ -396,11 +382,10 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:         "creates 2 revisions for nodepool created alongside cluster",
-			inputLog:     nodepoolCreatedWithClusterLog,
-			initialState: gkeTimelineMapperState{hasProcessedInitialSnapshot: false},
-			wantNil:      false,
-			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
+			name:     "creates 2 revisions for nodepool created alongside cluster",
+			inputLog: nodepoolCreatedWithClusterLog,
+			wantNil:  false,
+			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(nodePoolTimeline)
 				if len(revs) != 2 {
 					t.Fatalf("len(revs) = %d, want 2", len(revs))
@@ -423,12 +408,37 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
+			name:     "creates 2 revisions with undetermined existence for nodepool when window startTime is zero",
+			inputLog: nodepoolZeroStartTimeLog,
+			wantNil:  false,
+			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
+				revs := cs.GetRevisions(nodePoolTimeline)
+				if len(revs) != 2 {
+					t.Fatalf("len(revs) = %d, want 2", len(revs))
+				}
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
+						ChangedTime:  clusterCreateTime,
+						ResourceBody: nil,
+						Principal:    "N/A",
+						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
+					}, nodeCmpOpt).
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
+						ChangedTime:  queryStartTime,
+						ResourceBody: extractResourceBody(nodepoolZeroStartTimeLog.NodeReader),
+						Principal:    "N/A",
+						VerbType:     commonlogk8saudit_contract.VerbUpdate,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
+					}, nodeCmpOpt)
+			},
+		},
+		{
 			name:                 "creates 1 revision for nodepool when cluster createTime is unavailable",
 			inputLog:             nodepoolInitialLog,
-			initialState:         gkeTimelineMapperState{hasProcessedInitialSnapshot: false},
 			omitClusterSnapshots: true,
 			wantNil:              false,
-			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
+			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(nodePoolTimeline)
 				if len(revs) != 1 {
 					t.Fatalf("len(revs) = %d, want 1", len(revs))
@@ -444,68 +454,34 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:         "creates 1 revision for nodepool created during inspection window",
-			inputLog:     nodepoolCreatedDuringWindowLog,
-			initialState: gkeTimelineMapperState{hasProcessedInitialSnapshot: false},
-			wantNil:      false,
-			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
-				revs := cs.GetRevisions(nodePoolTimeline)
-				if len(revs) != 1 {
-					t.Fatalf("len(revs) = %d, want 1", len(revs))
-				}
-				testchangeset.AssertTimeline(t, cs).
-					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  queryStartTime.Add(30 * time.Minute),
-						ResourceBody: extractResourceBody(nodepoolCreatedDuringWindowLog.NodeReader),
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
-					}, nodeCmpOpt)
-			},
+			name:     "skips nodepool created during inspection window",
+			inputLog: nodepoolCreatedDuringWindowLog,
+			wantNil:  true,
 		},
 		{
-			name:         "stages update revision for secondary nodepool snapshot",
-			inputLog:     nodepoolUpdateLog,
-			initialState: gkeTimelineMapperState{hasProcessedInitialSnapshot: true},
-			wantNil:      false,
-			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet, finalState gkeTimelineMapperState) {
-				revs := cs.GetRevisions(nodePoolTimeline)
-				if len(revs) != 1 {
-					t.Fatalf("len(revs) = %d, want 1", len(revs))
-				}
-				testchangeset.AssertTimeline(t, cs).
-					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  queryStartTime.Add(45 * time.Minute),
-						ResourceBody: extractResourceBody(nodepoolUpdateLog.NodeReader),
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
-					}, nodeCmpOpt)
-			},
+			name:     "skips secondary nodepool snapshot not active at query start",
+			inputLog: nodepoolUpdateLog,
+			wantNil:  true,
 		},
 		{
-			name:         "skips deleted snapshot",
-			inputLog:     deletedLog,
-			initialState: gkeTimelineMapperState{},
-			wantNil:      true,
+			name:     "skips deleted snapshot",
+			inputLog: deletedLog,
+			wantNil:  true,
 		},
 		{
-			name:         "skips snapshot that ended before query window",
-			inputLog:     pastLog,
-			initialState: gkeTimelineMapperState{},
-			wantNil:      true,
+			name:     "skips snapshot that ended before query window",
+			inputLog: pastLog,
+			wantNil:  true,
 		},
 		{
-			name:         "skips snapshot that started after query window",
-			inputLog:     futureLog,
-			initialState: gkeTimelineMapperState{},
-			wantNil:      true,
+			name:     "skips snapshot that started after query window",
+			inputLog: futureLog,
+			wantNil:  true,
 		},
 		{
-			name:         "skips unrecognized non-GKE log asset",
-			inputLog:     unrecognizedLog,
-			initialState: gkeTimelineMapperState{},
-			wantNil:      true,
+			name:     "skips unrecognized non-GKE log asset",
+			inputLog: unrecognizedLog,
+			wantNil:  true,
 		},
 	}
 
@@ -516,14 +492,13 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), clusterIdentity)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref(), queryStartTime)
-			ctx = tasktest.WithTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref(), queryEndTime)
 			clusterSnapshots := []*googlecloudcaik8s_contract.GKEResourceSnapshot{clusterSnapshot}
 			if tc.omitClusterSnapshots {
 				clusterSnapshots = []*googlecloudcaik8s_contract.GKEResourceSnapshot{}
 			}
 			ctx = tasktest.WithTaskResult(ctx, googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref(), clusterSnapshots)
 
-			cs, finalState, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, tc.initialState)
+			cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, struct{}{})
 			if err != nil {
 				t.Fatalf("ProcessLogByGroup() unexpected error: %v", err)
 			}
@@ -536,7 +511,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			if cs == nil {
 				t.Fatalf("ProcessLogByGroup() returned nil cs, want non-nil")
 			}
-			tc.assertResult(t, cs, finalState)
+			tc.assertResult(t, cs)
 		})
 	}
 }

@@ -34,6 +34,7 @@ type GCPOperationTracker struct {
 	startedOperations   map[string]struct{}
 	hasResourceRevision map[uint32]struct{}
 	lastManifest        string
+	currentManifest     structured.Node
 }
 
 // NewGCPOperationTracker creates a new GCPOperationTracker.
@@ -42,6 +43,16 @@ func NewGCPOperationTracker() *GCPOperationTracker {
 		startedOperations:   make(map[string]struct{}),
 		hasResourceRevision: make(map[uint32]struct{}),
 	}
+}
+
+// CurrentManifest returns the tracked current resource manifest node.
+func (t *GCPOperationTracker) CurrentManifest() structured.Node {
+	return t.currentManifest
+}
+
+// SetCurrentManifest updates the tracked current resource manifest node.
+func (t *GCPOperationTracker) SetCurrentManifest(manifest structured.Node) {
+	t.currentManifest = manifest
 }
 
 // HasStarted returns true if the operation start log for the given operation ID was observed.

@@ -25,7 +25,6 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -36,7 +35,7 @@ import (
 // GKEResourceFetcherTask queries CAI for GKE Cluster and NodePool temporal asset snapshots.
 var GKEResourceFetcherTask = inspectiontaskbase.NewProgressReportableInspectionTask(
 	googlecloudcaik8s_contract.GKEResourceFetcherTaskID,
-	[]taskid.UntypedTaskReference{
+	[]coretask.Dependency{
 		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 		googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
