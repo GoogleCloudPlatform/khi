@@ -25,7 +25,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -35,7 +35,7 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 	logger.InitGlobalKHILogger()
 
 	// Setup minimal server
-	ioConfig := &inspectioncore_contract.IOConfig{
+	ioConfig := &inspectioncore.IOConfig{
 		TemporaryFolder: t.TempDir(),
 	}
 	server, err := NewServer(ioConfig)
@@ -59,9 +59,9 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 		func(ctx context.Context) (any, error) {
 			return "success", nil
 		},
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
+		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	if err := server.AddTask(dummyTask); err != nil {
 		t.Fatalf("AddTask failed: %v", err)
@@ -76,13 +76,13 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 
 	// Add interceptors
 	executionOrder := []string{}
-	interceptor1 := func(ctx context.Context, req *inspectioncore_contract.InspectionRequest, next func(context.Context) error) error {
+	interceptor1 := func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
 		executionOrder = append(executionOrder, "interceptor1_start")
 		err := next(ctx)
 		executionOrder = append(executionOrder, "interceptor1_end")
 		return err
 	}
-	interceptor2 := func(ctx context.Context, req *inspectioncore_contract.InspectionRequest, next func(context.Context) error) error {
+	interceptor2 := func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
 		executionOrder = append(executionOrder, "interceptor2_start")
 		err := next(ctx)
 		executionOrder = append(executionOrder, "interceptor2_end")
@@ -92,7 +92,7 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 	runner.AddInterceptors(interceptor1, interceptor2)
 
 	// Run inspection
-	req := &inspectioncore_contract.InspectionRequest{
+	req := &inspectioncore.InspectionRequest{
 		Values: map[string]any{},
 	}
 	err = runner.Run(context.Background(), req)
@@ -123,7 +123,7 @@ func TestIsTaskCompatible(t *testing.T) {
 		{
 			name: "Selector matches target labels",
 			labelOpts: []coretask.LabelOpt{
-				inspectioncore_contract.InspectionTypeLabelSelector(inspectioncore_contract.LabelSelector{"platform": "gke"}),
+				inspectioncore.InspectionTypeLabelSelector(inspectioncore.LabelSelector{"platform": "gke"}),
 			},
 			inspectionType: &InspectionType{
 				Id:     "some-env",
@@ -134,7 +134,7 @@ func TestIsTaskCompatible(t *testing.T) {
 		{
 			name: "Selector does not match target labels due to value mismatch",
 			labelOpts: []coretask.LabelOpt{
-				inspectioncore_contract.InspectionTypeLabelSelector(inspectioncore_contract.LabelSelector{"platform": "gke"}),
+				inspectioncore.InspectionTypeLabelSelector(inspectioncore.LabelSelector{"platform": "gke"}),
 			},
 			inspectionType: &InspectionType{
 				Id:     "some-env",
@@ -145,7 +145,7 @@ func TestIsTaskCompatible(t *testing.T) {
 		{
 			name: "Selector does not match target labels due to missing key in target",
 			labelOpts: []coretask.LabelOpt{
-				inspectioncore_contract.InspectionTypeLabelSelector(inspectioncore_contract.LabelSelector{"platform": "gke"}),
+				inspectioncore.InspectionTypeLabelSelector(inspectioncore.LabelSelector{"platform": "gke"}),
 			},
 			inspectionType: &InspectionType{
 				Id:     "some-env",
@@ -156,7 +156,7 @@ func TestIsTaskCompatible(t *testing.T) {
 		{
 			name: "Multi-key selector matches when all keys match",
 			labelOpts: []coretask.LabelOpt{
-				inspectioncore_contract.InspectionTypeLabelSelector(inspectioncore_contract.LabelSelector{
+				inspectioncore.InspectionTypeLabelSelector(inspectioncore.LabelSelector{
 					"platform": "gke",
 					"provider": "google",
 				}),
@@ -170,7 +170,7 @@ func TestIsTaskCompatible(t *testing.T) {
 		{
 			name: "Multi-key selector fails when only some keys match",
 			labelOpts: []coretask.LabelOpt{
-				inspectioncore_contract.InspectionTypeLabelSelector(inspectioncore_contract.LabelSelector{
+				inspectioncore.InspectionTypeLabelSelector(inspectioncore.LabelSelector{
 					"platform": "gke",
 					"provider": "aws",
 				}),
@@ -318,7 +318,7 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 					taskid.NewImplementationID(taskid.NewTaskReference[any]("audit-log-parser"), "generic"),
 					nil,
 					func(ctx context.Context) (any, error) { return nil, nil },
-					inspectioncore_contract.FeatureTaskLabel("Generic Audit Logs", "Generic description", 100, true),
+					inspectioncore.FeatureTaskLabel("Generic Audit Logs", "Generic description", 100, true),
 					coretask.WithSelectionPriority(0),
 				),
 				// GKE specialized implementation with priority 100, default feature
@@ -326,8 +326,8 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 					taskid.NewImplementationID(taskid.NewTaskReference[any]("audit-log-parser"), "gke"),
 					nil,
 					func(ctx context.Context) (any, error) { return nil, nil },
-					inspectioncore_contract.FeatureTaskLabel("GKE Audit Logs", "GKE description", 100, true),
-					inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"platform": "gke"}),
+					inspectioncore.FeatureTaskLabel("GKE Audit Logs", "GKE description", 100, true),
+					inspectioncore.InspectionTypeLabelSelector(map[string]string{"platform": "gke"}),
 					coretask.WithSelectionPriority(100),
 				),
 			},
@@ -348,7 +348,7 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 					taskid.NewImplementationID(taskid.NewTaskReference[any]("custom-feature"), "generic"),
 					nil,
 					func(ctx context.Context) (any, error) { return nil, nil },
-					inspectioncore_contract.FeatureTaskLabel("Generic Feature", "Generic description", 100, true),
+					inspectioncore.FeatureTaskLabel("Generic Feature", "Generic description", 100, true),
 					coretask.WithSelectionPriority(0),
 				),
 				// GKE specialized implementation with priority 50, default feature = false
@@ -356,8 +356,8 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 					taskid.NewImplementationID(taskid.NewTaskReference[any]("custom-feature"), "gke"),
 					nil,
 					func(ctx context.Context) (any, error) { return nil, nil },
-					inspectioncore_contract.FeatureTaskLabel("GKE Feature", "GKE description", 100, false),
-					inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"platform": "gke"}),
+					inspectioncore.FeatureTaskLabel("GKE Feature", "GKE description", 100, false),
+					inspectioncore.InspectionTypeLabelSelector(map[string]string{"platform": "gke"}),
 					coretask.WithSelectionPriority(50),
 				),
 			},
@@ -369,7 +369,7 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			server, err := NewServer(&inspectioncore_contract.IOConfig{TemporaryFolder: t.TempDir()})
+			server, err := NewServer(&inspectioncore.IOConfig{TemporaryFolder: t.TempDir()})
 			if err != nil {
 				t.Fatalf("NewServer failed: %v", err)
 			}
@@ -449,7 +449,7 @@ func TestInspectionTaskRunner_Cancel(t *testing.T) {
 		{
 			name: "cancel after successful completion returns already finished error",
 			setupRun: func(t *testing.T, runner *InspectionTaskRunner) {
-				req := &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}
+				req := &inspectioncore.InspectionRequest{Values: map[string]any{}}
 				if err := runner.Run(context.Background(), req); err != nil {
 					t.Fatalf("Run failed: %v", err)
 				}
@@ -461,7 +461,7 @@ func TestInspectionTaskRunner_Cancel(t *testing.T) {
 			name:     "cancel after failed completion returns already finished error",
 			failTask: true,
 			setupRun: func(t *testing.T, runner *InspectionTaskRunner) {
-				req := &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}
+				req := &inspectioncore.InspectionRequest{Values: map[string]any{}}
 				_ = runner.Run(context.Background(), req)
 				<-runner.Wait()
 			},
@@ -471,7 +471,7 @@ func TestInspectionTaskRunner_Cancel(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			server, err := NewServer(&inspectioncore_contract.IOConfig{TemporaryFolder: t.TempDir()})
+			server, err := NewServer(&inspectioncore.IOConfig{TemporaryFolder: t.TempDir()})
 			if err != nil {
 				t.Fatalf("NewServer failed: %v", err)
 			}
@@ -489,9 +489,9 @@ func TestInspectionTaskRunner_Cancel(t *testing.T) {
 					}
 					return "success", nil
 				},
-				coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
-				coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
-				coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
+				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
+				coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 			)
 			if err := server.AddTask(dummyTask); err != nil {
 				t.Fatalf("AddTask failed: %v", err)
@@ -555,7 +555,7 @@ func TestInspectionTaskRunner_TakeRunTaskGraphSnapshot(t *testing.T) {
 			runner := server.GetInspection(inspectionID)
 
 			if tc.runInspection {
-				req := &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}
+				req := &inspectioncore.InspectionRequest{Values: map[string]any{}}
 				if err := runner.Run(context.Background(), req); err != nil {
 					t.Fatalf("Run failed: %v", err)
 				}
@@ -604,7 +604,7 @@ func containsTaskImplID(dag *apiv1.TaskDAGInfo, taskImplID string) bool {
 // It returns the server, the created inspection ID, and the implementation ID of the registered task.
 func newTestInspectionServer(t *testing.T, taskErr error) (*InspectionTaskServer, string, string) {
 	t.Helper()
-	server, err := NewServer(&inspectioncore_contract.IOConfig{TemporaryFolder: t.TempDir()})
+	server, err := NewServer(&inspectioncore.IOConfig{TemporaryFolder: t.TempDir()})
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
@@ -622,9 +622,9 @@ func newTestInspectionServer(t *testing.T, taskErr error) (*InspectionTaskServer
 			}
 			return "success", nil
 		},
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
+		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	if err := server.AddTask(dummyTask); err != nil {
 		t.Fatalf("AddTask failed: %v", err)

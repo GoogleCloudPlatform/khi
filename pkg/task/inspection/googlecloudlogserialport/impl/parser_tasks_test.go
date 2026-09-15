@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -43,8 +43,8 @@ func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
 			name: "successful log ingestion",
 			input: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityError,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityError,
 				},
 				googlecloudlogserialport_contract.GCESerialPortLogFieldSet{
 					Message:  "foo payload",
@@ -56,7 +56,7 @@ func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary("foo payload").
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityError).
+					HasSeverity(inspectioncore.SeverityError).
 					HasLogType(googlecloudlogserialport_contract.LogTypeSerialPort)
 			},
 		},
@@ -77,7 +77,7 @@ func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
 
 func TestSerialPortLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 	wantSerialPortPath := googlecloudlogserialport_contract.MustSerialPortTimeline(ctx, "test-cluster", "node-name-bar", "serial_port_output_qux")
 
 	testCases := []struct {
@@ -104,7 +104,7 @@ func TestSerialPortLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	mapper := &serialportLogToTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			})

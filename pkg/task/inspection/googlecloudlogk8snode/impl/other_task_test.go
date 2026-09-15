@@ -28,7 +28,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -139,7 +139,7 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			}
 
 			// 2. Setup context with SAME builder and mock tasks
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(), clusterIdent)
 
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})

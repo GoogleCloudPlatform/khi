@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // containerType is the type of the container.
@@ -360,7 +360,7 @@ func MustResolveContainerTimelinePath(ctx context.Context, clusterName, namespac
 		podPath = commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kind, podName)
 	}
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{
 		Name: containerName,
 		Type: commonlogk8saudit_contract.TimelineTypeContainer,

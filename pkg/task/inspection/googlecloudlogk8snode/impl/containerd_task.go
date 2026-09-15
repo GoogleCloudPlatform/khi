@@ -35,7 +35,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -53,8 +53,8 @@ var ContainerIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspectio
 	[]coretask.Dependency{
 		googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return nil, nil
 		}
 
@@ -130,8 +130,8 @@ var PodSandboxIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspecti
 	[]coretask.Dependency{
 		googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (patternfinder.PatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo], error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (patternfinder.PatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo], error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return nil, nil
 		}
 		logs := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref())

@@ -33,7 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -99,7 +99,7 @@ func TestStructuredListLogEntriesTask_DryRun_FallbackWhenNoClient(t *testing.T) 
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(InputStartTimeTaskID.Ref(), startTime),
 		tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
@@ -114,7 +114,7 @@ func TestStructuredListLogEntriesTask_DryRun_FallbackWhenNoClient(t *testing.T) 
 	}
 
 	// Verify QueryMetadata
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
 		t.Fatalf("QueryMetadata not found in run metadata")
@@ -223,7 +223,7 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			}
 
 			firstCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			_, _, err = inspectiontest.RunInspectionTask(firstCtx, task, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+			_, _, err = inspectiontest.RunInspectionTask(firstCtx, task, inspectioncore.TaskModeDryRun, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(InputStartTimeTaskID.Ref(), startTime),
 				tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 				tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
@@ -236,7 +236,7 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			}
 
 			nextCtx := inspectiontest.NextRunTaskContext(t.Context(), firstCtx)
-			gotLogs, _, err := inspectiontest.RunInspectionTask(nextCtx, task, inspectioncore_contract.TaskModeRun, map[string]any{},
+			gotLogs, _, err := inspectiontest.RunInspectionTask(nextCtx, task, inspectioncore.TaskModeRun, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(InputStartTimeTaskID.Ref(), startTime),
 				tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 				tasktest.NewTaskDependencyValuePair[LogFetcher](LoggingFetcherTaskID.Ref(), fetcher),
@@ -374,7 +374,7 @@ timestamp <= "2025-01-01T01:01:00+0000"`,
 				t.Fatalf("setStructuredQueryInfo returned error: %v", err)
 			}
 
-			metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+			metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 			queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 			if !found {
 				t.Fatalf("QueryMetadata not found")
@@ -415,7 +415,7 @@ func TestStructuredListLogEntriesTask_DryRun_EstimationCache(t *testing.T) {
 
 	// Run DryRun 1
 	firstCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	_, _, err = inspectiontest.RunInspectionTask(firstCtx, task, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+	_, _, err = inspectiontest.RunInspectionTask(firstCtx, task, inspectioncore.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(InputStartTimeTaskID.Ref(), startTime),
 		tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
@@ -426,7 +426,7 @@ func TestStructuredListLogEntriesTask_DryRun_EstimationCache(t *testing.T) {
 		t.Fatalf("first dryrun failed: %v", err)
 	}
 
-	sharedMap := khictx.MustGetValue(firstCtx, inspectioncore_contract.InspectionSharedMap)
+	sharedMap := khictx.MustGetValue(firstCtx, inspectioncore.InspectionSharedMap)
 	cachedEstimator, found := typedmap.Get(sharedMap, LogEstimatorCacheKey)
 	if !found || cachedEstimator == nil {
 		t.Fatalf("expected CachedStructuredLogEstimator to be stored in InspectionSharedMap")
@@ -434,7 +434,7 @@ func TestStructuredListLogEntriesTask_DryRun_EstimationCache(t *testing.T) {
 
 	// Run DryRun 2 in the same inspection session
 	nextCtx := inspectiontest.NextRunTaskContext(t.Context(), firstCtx)
-	_, _, err = inspectiontest.RunInspectionTask(nextCtx, task, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+	_, _, err = inspectiontest.RunInspectionTask(nextCtx, task, inspectioncore.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(InputStartTimeTaskID.Ref(), startTime),
 		tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
@@ -446,7 +446,7 @@ func TestStructuredListLogEntriesTask_DryRun_EstimationCache(t *testing.T) {
 	}
 
 	// Verify that the cached estimator instance was reused
-	nextSharedMap := khictx.MustGetValue(nextCtx, inspectioncore_contract.InspectionSharedMap)
+	nextSharedMap := khictx.MustGetValue(nextCtx, inspectioncore.InspectionSharedMap)
 	reusedEstimator, found := typedmap.Get(nextSharedMap, LogEstimatorCacheKey)
 	if !found || reusedEstimator != cachedEstimator {
 		t.Errorf("expected same CachedStructuredLogEstimator instance to be reused across dryruns")
@@ -499,7 +499,7 @@ func TestStructuredListLogEntriesTask_DryRun_Incomplete(t *testing.T) {
 			resourceNamesInput.UpdateDefaultResourceNamesForQuery("structured-test", tc.resourceNames)
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			_, _, err = inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+			_, _, err = inspectiontest.RunInspectionTask(ctx, task, inspectioncore.TaskModeDryRun, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(InputStartTimeTaskID.Ref(), startTime),
 				tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 				tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), clientFactory),
@@ -510,7 +510,7 @@ func TestStructuredListLogEntriesTask_DryRun_Incomplete(t *testing.T) {
 				t.Fatalf("dryrun failed: %v", err)
 			}
 
-			metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+			metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 			queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 			if !found {
 				t.Fatalf("QueryMetadata not found")
@@ -560,12 +560,12 @@ func TestStructuredListLogEntriesTask_DryRun_CallOptionInjector(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	_, _, err = inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeDryRun, map[string]any{}, deps...)
+	_, _, err = inspectiontest.RunInspectionTask(ctx, task, inspectioncore.TaskModeDryRun, map[string]any{}, deps...)
 	if err != nil {
 		t.Fatalf("dryrun failed: %v", err)
 	}
 
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	_, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
 		t.Fatalf("QueryMetadata not found")

@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typeddict"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // ResourceNamesInput is a container for resource names used in log queries.
@@ -84,7 +84,7 @@ func (r *ResourceNamesInput) ensureQueryID(queryID string) {
 }
 
 func (r *ResourceNamesInput) getResourceNamesFromInput(ctx context.Context, inputID string, defaultResourceNames []string) []string {
-	taskInput := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
+	taskInput := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
 
 	inputAny, found := taskInput[inputID]
 	if !found {

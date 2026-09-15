@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
@@ -119,7 +119,7 @@ var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOper
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](
 	googlecloudlogmulticloudapiaudit_contract.LogToTimelineMapperTaskID,
 	&multicloudAuditLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabel(`Multi-Cloud API Logs`,
+	inspectioncore.FeatureTaskLabel(`Multi-Cloud API Logs`,
 		`Gather Anthos Multi-Cloud audit logs to visualize cluster lifecycle events (creation, deletion, and upgrades) on timelines.`,
 		5000,
 		true,

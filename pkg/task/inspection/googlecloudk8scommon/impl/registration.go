@@ -17,16 +17,16 @@ package googlecloudk8scommon_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // Register registers all googlecloudk8scommon inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	scoped := coreinspection.NewScopedRegistry(
 		registry,
-		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
-			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		inspectioncore.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
 		}),
 	)
 

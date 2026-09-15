@@ -22,7 +22,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
@@ -31,7 +31,7 @@ func TestNodeNameDiscoveryTask(t *testing.T) {
 	tests := []struct {
 		name     string
 		logs     []*log.Log
-		taskMode inspectioncore_contract.InspectionTaskModeType
+		taskMode inspectioncore.InspectionTaskModeType
 		want     []string
 	}{
 		{
@@ -47,7 +47,7 @@ func TestNodeNameDiscoveryTask(t *testing.T) {
 					NodeName: "gke-test-cluster-default-pool-node-1",
 				}),
 			},
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			want: []string{
 				"gke-test-cluster-default-pool-node-1",
 				"gke-test-cluster-default-pool-node-2",
@@ -63,7 +63,7 @@ func TestNodeNameDiscoveryTask(t *testing.T) {
 					NodeName: "gke-test-cluster-default-pool-node-1",
 				}),
 			},
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			want: []string{
 				"gke-test-cluster-default-pool-node-1",
 			},
@@ -75,7 +75,7 @@ func TestNodeNameDiscoveryTask(t *testing.T) {
 					NodeName: "gke-test-cluster-default-pool-node-1",
 				}),
 			},
-			taskMode: inspectioncore_contract.TaskModeDryRun,
+			taskMode: inspectioncore.TaskModeDryRun,
 			want:     nil,
 		},
 	}

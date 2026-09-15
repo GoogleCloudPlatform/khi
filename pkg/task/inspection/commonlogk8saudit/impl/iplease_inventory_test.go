@@ -22,7 +22,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
@@ -203,7 +203,7 @@ endpoints:
 					},
 				},
 			}
-			got, _, err := inspectiontest.RunInspectionTask(ctx, IPLeaseHistoryDiscoveryTask, inspectioncore_contract.TaskModeRun, map[string]any{},
+			got, _, err := inspectiontest.RunInspectionTask(ctx, IPLeaseHistoryDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(), input),
 			)
 			if err != nil {

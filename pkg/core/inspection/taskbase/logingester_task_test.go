@@ -29,7 +29,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var mockLogIngesterPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester-prev")
@@ -92,7 +92,7 @@ func TestLogIngesterTask(t *testing.T) {
 
 	testCases := []struct {
 		desc          string
-		taskMode      inspectioncore_contract.InspectionTaskModeType
+		taskMode      inspectioncore.InspectionTaskModeType
 		prevLogs      []testLog
 		wantError     bool
 		cancelContext bool
@@ -100,7 +100,7 @@ func TestLogIngesterTask(t *testing.T) {
 	}{
 		{
 			desc:     "DryRun mode",
-			taskMode: inspectioncore_contract.TaskModeDryRun,
+			taskMode: inspectioncore.TaskModeDryRun,
 			prevLogs: []testLog{
 				{
 					yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`,
@@ -111,7 +111,7 @@ func TestLogIngesterTask(t *testing.T) {
 		},
 		{
 			desc:     "Normal execution with some skipped logs",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			prevLogs: []testLog{
 				{
 					yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`,
@@ -126,7 +126,7 @@ func TestLogIngesterTask(t *testing.T) {
 		},
 		{
 			desc:     "Execution with error",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			prevLogs: []testLog{
 				{
 					yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1", "error": true}`,
@@ -153,7 +153,7 @@ func TestLogIngesterTask(t *testing.T) {
 				cancel()
 			}
 
-			builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
 			var logs []*log.Log
 			shouldIngestMap := make(map[uint32]bool)

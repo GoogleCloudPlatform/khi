@@ -34,7 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // ChangeEventType is the type of the resource change event for mappers.
@@ -153,13 +153,13 @@ func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T
 		coretask.ProvidesTag(inspectiontaskbase.TagTimelineMapper),
 	}, labelOpts...)
 
-	return inspectiontaskbase.NewProgressReportableInspectionTask(setting.TaskID(), dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	return inspectiontaskbase.NewProgressReportableInspectionTask(setting.TaskID(), dependencies, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return struct{}{}, nil
 		}
 
-		builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+		builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 		groupedLogs := coretask.GetTaskResult(ctx, groupedLogTaskID)
 
 		tp.MarkIndeterminate()

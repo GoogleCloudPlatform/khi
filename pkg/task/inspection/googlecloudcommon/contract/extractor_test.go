@@ -20,7 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -185,12 +185,12 @@ func TestExtractGCPSeverity(t *testing.T) {
 			input: map[string]any{
 				"severity": "INFO",
 			},
-			want: inspectioncore_contract.SeverityInfo,
+			want: inspectioncore.SeverityInfo,
 		},
 		{
 			name:  "severity absent defaults to empty string which is Unknown",
 			input: map[string]any{},
-			want:  inspectioncore_contract.SeverityUnknown,
+			want:  inspectioncore.SeverityUnknown,
 		},
 	}
 
@@ -212,15 +212,15 @@ func TestExtractGCPSeverity(t *testing.T) {
 	}
 
 	t.Run("mock node returns mock severity", func(t *testing.T) {
-		reader := structured.NewNodeReader(structured.NewMockNode(inspectioncore_contract.DefaultSeverityFieldSet{
-			Severity: inspectioncore_contract.SeverityError,
+		reader := structured.NewNodeReader(structured.NewMockNode(inspectioncore.DefaultSeverityFieldSet{
+			Severity: inspectioncore.SeverityError,
 		}))
 		got, err := ExtractGCPSeverity(reader)
 		if err != nil {
 			t.Fatalf("ExtractGCPSeverity() error = %v", err)
 		}
-		if got != inspectioncore_contract.SeverityError {
-			t.Errorf("ExtractGCPSeverity() = %v, want %v", got, inspectioncore_contract.SeverityError)
+		if got != inspectioncore.SeverityError {
+			t.Errorf("ExtractGCPSeverity() = %v, want %v", got, inspectioncore.SeverityError)
 		}
 	})
 }

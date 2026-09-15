@@ -22,12 +22,12 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func TestLocationInput(t *testing.T) {
-	mockAutocompleteLocationsTask := coretask.NewTask(googlecloudcommon_contract.AutocompleteLocationTaskID, []coretask.Dependency{}, func(ctx context.Context) (*inspectioncore_contract.AutocompleteResult[string], error) {
-		return &inspectioncore_contract.AutocompleteResult[string]{
+	mockAutocompleteLocationsTask := coretask.NewTask(googlecloudcommon_contract.AutocompleteLocationTaskID, []coretask.Dependency{}, func(ctx context.Context) (*inspectioncore.AutocompleteResult[string], error) {
+		return &inspectioncore.AutocompleteResult[string]{
 			Values: []string{"asia-northeast1", "us-central1"},
 		}, nil
 	})

@@ -26,7 +26,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -482,7 +482,7 @@ status:
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			mapperSetting := &podPhaseLogToTimelineMapperTaskSetting{}
 
 			podResource := &commonlogk8saudit_contract.ResourceIdentity{

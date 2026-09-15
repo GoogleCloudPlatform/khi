@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -33,7 +33,7 @@ func TestRunContextOptionFromValue(t *testing.T) {
 
 	option := coreinspection.RunContextOptionFromValue(testKey, testValue)
 
-	ctx, err := option(context.Background(), inspectioncore_contract.TaskModeRun)
+	ctx, err := option(context.Background(), inspectioncore.TaskModeRun)
 	if err != nil {
 		t.Fatalf("option() failed: %v", err)
 	}
@@ -56,20 +56,20 @@ func TestRunContextOptionFromFunc(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		f         func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (string, error)
+		f         func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error)
 		wantValue string
 		wantErr   error
 	}{
 		{
 			name: "success",
-			f: func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (string, error) {
+			f: func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
 				return testValue, nil
 			},
 			wantValue: testValue,
 		},
 		{
 			name: "error",
-			f: func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (string, error) {
+			f: func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
 				return "", testErr
 			},
 			wantErr: testErr,
@@ -81,7 +81,7 @@ func TestRunContextOptionFromFunc(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			option := coreinspection.RunContextOptionFromFunc(testKey, tt.f)
-			ctx, err := option(context.Background(), inspectioncore_contract.TaskModeRun)
+			ctx, err := option(context.Background(), inspectioncore.TaskModeRun)
 
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("option() error = %v, wantErr %v", err, tt.wantErr)
@@ -140,7 +140,7 @@ func TestRunContextOptionArrayElementFromValue(t *testing.T) {
 			}
 
 			option := coreinspection.RunContextOptionArrayElementFromValue(testKey, tt.addValue)
-			ctx, err := option(ctx, inspectioncore_contract.TaskModeRun)
+			ctx, err := option(ctx, inspectioncore.TaskModeRun)
 
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("option() error = %v, wantErr %v", err, tt.wantErr)

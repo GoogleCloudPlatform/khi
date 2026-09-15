@@ -35,7 +35,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/grpc/codes"
@@ -61,7 +61,7 @@ func (s *mockListLogEntriesTaskSetting) Description() *ListLogEntriesTaskDescrip
 }
 
 // LogFilters implements ListLogEntriesTaskSetting.
-func (s *mockListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+func (s *mockListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
 	return s.logFilters, nil
 }
 
@@ -95,7 +95,7 @@ func TestNewListLogEntriesTask(t *testing.T) {
 		desc               string
 		setting            *mockListLogEntriesTaskSetting
 		fetcherFactory     func(t *testing.T) *mockLogFetcher
-		mode               inspectioncore_contract.InspectionTaskModeType
+		mode               inspectioncore.InspectionTaskModeType
 		inputResourceNames string
 		wantLogsString     []string
 		wantError          error
@@ -111,7 +111,7 @@ func TestNewListLogEntriesTask(t *testing.T) {
 			fetcherFactory: func(t *testing.T) *mockLogFetcher {
 				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{})
 			},
-			mode:           inspectioncore_contract.TaskModeDryRun, // DryRun mode should not call the fetcher
+			mode:           inspectioncore.TaskModeDryRun, // DryRun mode should not call the fetcher
 			wantLogsString: []string{},
 		},
 		{
@@ -125,7 +125,7 @@ func TestNewListLogEntriesTask(t *testing.T) {
 			fetcherFactory: func(t *testing.T) *mockLogFetcher {
 				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{})
 			},
-			mode:           inspectioncore_contract.TaskModeRun,
+			mode:           inspectioncore.TaskModeRun,
 			wantLogsString: []string{},
 		},
 		{
@@ -145,7 +145,7 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 					}),
 				})
 			},
-			mode:           inspectioncore_contract.TaskModeRun,
+			mode:           inspectioncore.TaskModeRun,
 			wantLogsString: []string{},
 		},
 		{
@@ -168,7 +168,7 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 					}),
 				})
 			},
-			mode: inspectioncore_contract.TaskModeRun,
+			mode: inspectioncore.TaskModeRun,
 			wantLogsString: []string{
 				"insertId: foo\nlogName: foo\n",
 				"insertId: bar\nlogName: bar\n",
@@ -200,7 +200,7 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 					}),
 				})
 			},
-			mode: inspectioncore_contract.TaskModeRun,
+			mode: inspectioncore.TaskModeRun,
 			wantLogsString: []string{
 				"insertId: foo\nlogName: foo\n",
 				"insertId: bar\nlogName: bar\n",
@@ -227,7 +227,7 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 					}),
 				})
 			},
-			mode:      inspectioncore_contract.TaskModeRun,
+			mode:      inspectioncore.TaskModeRun,
 			wantError: testErr,
 		},
 	}
@@ -240,14 +240,14 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			if task.ID().String() != "test#default" {
 				t.Errorf("Task ID mismatch: got %s, want %s", task.ID().String(), "test#default")
 			}
-			gotIsQueryTask, found := typedmap.Get(task.Labels(), inspectioncore_contract.TaskLabelKeyIsQueryTask)
+			gotIsQueryTask, found := typedmap.Get(task.Labels(), inspectioncore.TaskLabelKeyIsQueryTask)
 			if !found {
 				t.Errorf("isQueryTask label not found")
 			}
 			if !gotIsQueryTask {
 				t.Errorf("isQueryTask label is not true")
 			}
-			gotSampleQuery, found := typedmap.Get(task.Labels(), inspectioncore_contract.TaskLabelKeyQueryTaskSampleQuery)
+			gotSampleQuery, found := typedmap.Get(task.Labels(), inspectioncore.TaskLabelKeyQueryTaskSampleQuery)
 			if !found {
 				t.Errorf("sampleQuery label not found")
 			}
@@ -257,7 +257,7 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 
 			resourceNamesInput := NewResourceNamesInput()
 			firstCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			_, _, err := inspectiontest.RunInspectionTask(firstCtx, task, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+			_, _, err := inspectiontest.RunInspectionTask(firstCtx, task, inspectioncore.TaskModeDryRun, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(InputStartTimeTaskID.Ref(), startTime),
 				tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 				tasktest.NewTaskDependencyValuePair[LogFetcher](LoggingFetcherTaskID.Ref(), fetcher),
@@ -352,7 +352,7 @@ func TestSetQueryInfo(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			setQueryInfo(ctx, taskID, baseLogFilter, tt.logFilterIndex, tt.totalLogFilterCount, startTime, endTime, description)
 
-			metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+			metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 			errorMessageSet, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 			if !found {
 				t.Fatalf("query metadata not found")
@@ -393,7 +393,7 @@ func TestSetErrorMetadataForFetchLogError(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			setErrorMetadataForFetchLogError(ctx, tt.err)
 
-			metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+			metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 			errorMessageSet, found := typedmap.Get(metadata, inspectionmetadata.ErrorMessageSetMetadataKey)
 			if !found {
 				t.Fatalf("error message set metadata not found")

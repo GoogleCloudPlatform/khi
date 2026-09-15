@@ -30,7 +30,7 @@ import (
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -250,7 +250,7 @@ func (s *InspectionServiceServer) DryRunInspection(
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("inspection %s was not found", inspectionID))
 	}
 	values := convertParametersToMap(req.Msg.GetParameters())
-	result, err := task.DryRun(ctx, &inspectioncore_contract.InspectionRequest{
+	result, err := task.DryRun(ctx, &inspectioncore.InspectionRequest{
 		Values: values,
 	})
 	if err != nil {
@@ -290,7 +290,7 @@ func (s *InspectionServiceServer) RunInspection(
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("inspection %s was not found", inspectionID))
 	}
 	values := convertParametersToMap(req.Msg.GetParameters())
-	err := task.Run(ctx, &inspectioncore_contract.InspectionRequest{
+	err := task.Run(ctx, &inspectioncore.InspectionRequest{
 		Values: values,
 	})
 	if err != nil {
@@ -680,7 +680,7 @@ func convertParametersToMap(params *apiv1.InspectionParameters) map[string]any {
 		}
 	}
 	if params.GetTimezoneShiftHours() != 0 {
-		values[inspectioncore_contract.TaskInputKeyTimezoneShiftHours] = params.GetTimezoneShiftHours()
+		values[inspectioncore.TaskInputKeyTimezoneShiftHours] = params.GetTimezoneShiftHours()
 	}
 	return values
 }

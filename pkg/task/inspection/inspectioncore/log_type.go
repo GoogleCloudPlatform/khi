@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspectioncore_contract
+package inspectioncore
 
-type InspectionRequest struct {
-	Values map[string]any
-}
+import (
+	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
+)
+
+// The following block defines the registered timeline style LogTypes.
+// These are registered as package-level variables so they are initialized immediately
+// when this package is imported.
+var (
+	LogTypeUnknown = style.MustRegisterLogType("unknown", "Unknown Logs", style.ColorBlack, style.ColorWhite)
+)

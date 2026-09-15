@@ -30,7 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -203,7 +203,7 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 	}
 
 	var subProgressMu sync.Mutex
-	idGen, idErr := khictx.GetValue(ctx, inspectioncore_contract.IDGenerator)
+	idGen, idErr := khictx.GetValue(ctx, inspectioncore.IDGenerator)
 	if idErr != nil {
 		idGen = id.NewGenerator()
 	}

@@ -20,7 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustSerialPortTimeline returns the hierarchical timeline path for a serial port of a GCE node.
@@ -30,7 +30,7 @@ func MustSerialPortTimeline(ctx context.Context, clusterName, nodeName, port str
 	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
 	nodeTimeline := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindTimeline, nodeName)
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(nodeTimeline, khifilev6.PathSegment{
 		Name: port,
 		Type: TimelineTypeSerialPort,

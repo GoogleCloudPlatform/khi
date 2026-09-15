@@ -30,7 +30,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // containerLogIngester implements inspectiontaskbase.LogIngester.
@@ -209,7 +209,7 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 	bindingPath := commonlogk8saudit_contract.MustK8sSubresourceTimeline(ctx, podPath, "binding")
 
 	// Check if audit log has already written to the Pod or its binding timeline
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	hasPodRevision := builder.TimelineAccumulator.HasRevision(podPath)
 	hasBindingRevision := builder.TimelineAccumulator.HasRevision(bindingPath)
 
@@ -312,7 +312,7 @@ func mustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namesp
 	kind := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, api, "node")
 	nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kind, nodeName)
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(nodePath, khifilev6.PathSegment{
 		Name: fmt.Sprintf("%s/%s[%s]", namespace, podName, uid),
 		Type: commonlogk8saudit_contract.TimelineTypePodPhase,
@@ -335,7 +335,7 @@ var TailTask = coretask.NewTailTask(
 		googlecloudlogk8scontainer_contract.PodPhaseTimelineMapperTaskID.Ref(),
 		googlecloudlogk8scontainer_contract.NodeNameDiscoveryTaskID.Ref(),
 	},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		"Kubernetes Container Logs",
 		"Gather stdout/stderr logs of containers to visualize application runtime behaviors under associated Pod timelines. Note: The log volume can be very large if the cluster contains many Pods.",
 		4000,

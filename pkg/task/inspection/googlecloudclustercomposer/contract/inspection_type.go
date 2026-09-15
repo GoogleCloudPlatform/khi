@@ -19,7 +19,7 @@ import (
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // InspectionTypeID is the inspection type id for google cloud composer.
@@ -33,9 +33,9 @@ var ComposerInspectionType = coreinspection.InspectionType{
 	Icon:        "assets/icons/composer.webp",
 	Priority:    math.MaxInt - 10,
 	Labels: map[string]string{
-		inspectioncore_contract.InspectionTypeLabelKeyLogSource:      "cloud_logging",
-		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:    "googlecloud",
-		inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:   "kubernetes",
+		inspectioncore.InspectionTypeLabelKeyLogSource:               "cloud_logging",
+		inspectioncore.InspectionTypeLabelKeyEnvironment:             "googlecloud",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform:            "kubernetes",
 		googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
 		googlecloudcommon_contract.InspectionTypeLabelKeyProduct:     "composer",
 	},

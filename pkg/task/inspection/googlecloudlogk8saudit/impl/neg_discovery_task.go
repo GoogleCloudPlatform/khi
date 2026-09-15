@@ -24,7 +24,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var (
@@ -36,8 +36,8 @@ var (
 var AuditLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudlogk8saudit_contract.NEGToBackendServiceDiscoveryTaskID,
 	[]coretask.Dependency{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (googlecloudk8scommon_contract.NEGToBackendServiceMap, error) {
-		if taskMode != inspectioncore_contract.TaskModeRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (googlecloudk8scommon_contract.NEGToBackendServiceMap, error) {
+		if taskMode != inspectioncore.TaskModeRun {
 			return nil, nil
 		}
 

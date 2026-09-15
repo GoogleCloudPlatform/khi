@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LogIngesterTask is a task that ingests log metadata (timestamp, severity, summary, log type) into KHI v6 format.
@@ -48,7 +48,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcomputea
 
 // LogToTimelineMapperTask maps GCE API audit logs to timeline events and revisions in parallel.
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](googlecloudlogcomputeapiaudit_contract.LogToTimelineMapperTaskID, &gcpComputeAuditLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabel("Compute API Logs",
+	inspectioncore.FeatureTaskLabel("Compute API Logs",
 		"Gather Compute API audit logs to visualize the provisioning of infrastructure resources (e.g., GCE VM creation/deletion, Persistent Disk mounting) on associated timelines.",
 		6000,
 		true,

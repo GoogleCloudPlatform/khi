@@ -30,7 +30,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/importinspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 )
@@ -65,7 +65,7 @@ func setupTestServer(t *testing.T) (apiv1connect.ImportInspectionServiceClient, 
 	t.Helper()
 	tempDir := t.TempDir()
 	destDir := t.TempDir()
-	ioConfig := &inspectioncore_contract.IOConfig{
+	ioConfig := &inspectioncore.IOConfig{
 		TemporaryFolder: tempDir,
 		DataDestination: destDir,
 	}
@@ -379,7 +379,7 @@ func TestImportInspectionService_AsyncIndexingIntegration(t *testing.T) {
 			khiData := createTestBinaryKHIBytes(t, "Cluster-Test")
 			tempDir := t.TempDir()
 			destDir := t.TempDir()
-			ioConfig := &inspectioncore_contract.IOConfig{
+			ioConfig := &inspectioncore.IOConfig{
 				TemporaryFolder: tempDir,
 				DataDestination: destDir,
 			}

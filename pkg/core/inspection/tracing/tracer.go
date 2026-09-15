@@ -21,24 +21,24 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
 func NewInspectionTraceInterceptor(tracer trace.Tracer) coreinspection.InspectionInterceptor {
-	return func(ctx context.Context, req *inspectioncore_contract.InspectionRequest, next func(context.Context) error) error {
-		inspectionID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInspectionID)
-		runID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskRunID)
-		runner := khictx.MustGetValue(ctx, inspectioncore_contract.TaskRunner)
-		mode := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskMode)
-		ctx = khictx.WithValue(ctx, inspectioncore_contract.TracingActive, true)
+	return func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
+		inspectionID := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInspectionID)
+		runID := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskRunID)
+		runner := khictx.MustGetValue(ctx, inspectioncore.TaskRunner)
+		mode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
+		ctx = khictx.WithValue(ctx, inspectioncore.TracingActive, true)
 
 		ctx, span := tracer.Start(ctx, fmt.Sprintf("inspection-%s", inspectionID), trace.WithAttributes(
 			attribute.String("inspection_id", inspectionID),
 			attribute.String("run_id", runID),
-			attribute.String("mode", inspectioncore_contract.TaskModeToString(mode)),
+			attribute.String("mode", inspectioncore.TaskModeToString(mode)),
 		))
 		defer span.End()
 

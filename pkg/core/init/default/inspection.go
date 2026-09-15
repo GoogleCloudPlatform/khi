@@ -26,13 +26,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"go.opentelemetry.io/otel"
 )
 
 var (
 	// IOConfigKey stores the IOConfig instance.
-	IOConfigKey = typedmap.NewTypedKey[*inspectioncore_contract.IOConfig]("khi.google.com/init/io-config")
+	IOConfigKey = typedmap.NewTypedKey[*inspectioncore.IOConfig]("khi.google.com/init/io-config")
 
 	// InspectionTaskServerKey stores the InspectionTaskServer instance.
 	InspectionTaskServerKey = typedmap.NewTypedKey[*coreinspection.InspectionTaskServer]("khi.google.com/init/inspection-task-server")
@@ -54,7 +54,7 @@ var InspectionTaskServerInitializer = &coreinit.Initializer{
 		authParams := coreinit.MustGet(ctx, AuthParametersKey)
 		debugParams := coreinit.MustGet(ctx, DebugParametersKey)
 
-		ioconfig, err := inspectioncore_contract.NewIOConfigFromParameter(commonParams)
+		ioconfig, err := inspectioncore.NewIOConfigFromParameter(commonParams)
 		if err != nil {
 			return fmt.Errorf("failed to construct IOConfig: %w", err)
 		}

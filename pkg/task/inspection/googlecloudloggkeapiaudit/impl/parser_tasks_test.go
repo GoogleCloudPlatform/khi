@@ -28,7 +28,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -892,7 +892,7 @@ name: test-nodepool`).Node
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := testlog.NewMockLog(testTime, tc.inputAudit, tc.inputResource)
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 			provider := tc.initialStateProvider
 			if provider == nil {

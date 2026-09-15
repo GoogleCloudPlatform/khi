@@ -27,7 +27,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // KubernetesEventLogIngester handles log ingestion into the KHI v6 builder format.
@@ -142,7 +142,7 @@ var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*KubernetesEventTimeli
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogk8sevent_contract.LogToTimelineMapperTaskID,
 	&KubernetesEventTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		"Kubernetes Event Logs",
 		"Gather Kubernetes event logs to visualize cluster events on associated resource timelines.",
 		2000,

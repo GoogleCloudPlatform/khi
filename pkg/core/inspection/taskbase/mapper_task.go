@@ -31,7 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -90,13 +90,13 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}]
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(TagTimelineMapper),
 	}, labels...)
-	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return struct{}{}, nil
 		}
 
-		builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+		builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 		groupedLogs := coretask.GetTaskResult(ctx, groupedLogTaskID)
 
 		totalLogCount := 0
@@ -209,7 +209,7 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}]
 
 		slog.DebugContext(ctx, fmt.Sprintf("LogToTimelineMapperTask %s finished: processed %d logs (skipped %d logs)", tid.String(), totalLogCount, skippedLogCount.Load()))
 
-		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+		tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 		if tracingActive {
 			trace.SpanFromContext(ctx).SetAttributes(
 				attribute.String("log_count", fmt.Sprintf("%d", totalLogCount)),

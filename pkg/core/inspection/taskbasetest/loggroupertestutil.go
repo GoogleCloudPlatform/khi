@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
@@ -46,7 +46,7 @@ func AssertGrouperTask(t *testing.T, task coretask.Task[inspectiontaskbase.LogGr
 			}
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
-			result, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(sourceRef, []*log.Log{l}))
+			result, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(sourceRef, []*log.Log{l}))
 			if err != nil {
 				t.Fatalf("RunInspectionTask failed: %v", err)
 			}

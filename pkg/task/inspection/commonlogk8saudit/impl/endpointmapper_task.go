@@ -26,7 +26,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 type podIdentity struct {
@@ -397,7 +397,7 @@ func MustResolveServiceEndpointSliceTimelinePath(ctx context.Context, clusterNam
 	} else {
 		servicePath = commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kind, serviceName)
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(servicePath, khifilev6.PathSegment{
 		Name: endpointSliceName,
 		Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice,
@@ -416,7 +416,7 @@ func MustResolvePodEndpointSliceTimelinePath(ctx context.Context, clusterName, e
 	} else {
 		podPath = commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kind, podName)
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{
 		Name: fmt.Sprintf("%s(%s)", endpointSliceName, endpointSliceNamespace),
 		Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice,
@@ -434,7 +434,7 @@ func MustResolveEndpointSliceChildPodTimelinePath(ctx context.Context, clusterNa
 		segmentName = podName
 	}
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(endpointSlicePath, khifilev6.PathSegment{
 		Name: segmentName,
 		Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice,

@@ -19,7 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -42,7 +42,7 @@ func TestNewImportedInspectionRunner(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ioConfig := &inspectioncore_contract.IOConfig{
+			ioConfig := &inspectioncore.IOConfig{
 				TemporaryFolder: t.TempDir(),
 			}
 			server, err := NewServer(ioConfig)
@@ -50,7 +50,7 @@ func TestNewImportedInspectionRunner(t *testing.T) {
 				t.Fatalf("NewServer failed: %v", err)
 			}
 
-			dummyStore := inspectioncore_contract.NewFileSystemInspectionResultRepository(t.TempDir() + "/dummy.khi")
+			dummyStore := inspectioncore.NewFileSystemInspectionResultRepository(t.TempDir() + "/dummy.khi")
 			metadataMap := typedmap.NewTypedMap()
 			header := &inspectionmetadata.HeaderMetadata{
 				InspectionName: tc.inspectionName,

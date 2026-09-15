@@ -29,7 +29,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var (
@@ -106,7 +106,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 
 	testCases := []struct {
 		desc            string
-		taskMode        inspectioncore_contract.InspectionTaskModeType
+		taskMode        inspectioncore.InspectionTaskModeType
 		prevLogGroupMap []testGroup
 		passCount       int
 		cancelContext   bool
@@ -114,7 +114,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 	}{
 		{
 			desc:     "DryRun mode",
-			taskMode: inspectioncore_contract.TaskModeDryRun,
+			taskMode: inspectioncore.TaskModeDryRun,
 			prevLogGroupMap: []testGroup{
 				{
 					group: "group1",
@@ -131,7 +131,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 		},
 		{
 			desc:     "Normal execution with some skipped logs and 2 passes",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			prevLogGroupMap: []testGroup{
 				{
 					group: "group1",
@@ -152,7 +152,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 		},
 		{
 			desc:     "Execution with error in one log",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			prevLogGroupMap: []testGroup{
 				{
 					group: "group1",
@@ -173,7 +173,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 		},
 		{
 			desc:     "Execution with context cancelled",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			prevLogGroupMap: []testGroup{
 				{
 					group: "group1",
@@ -198,8 +198,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			ctx := context.Background()
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
 
-			idGen := khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator)
-			builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+			idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
+			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
 			prevGroupMap := make(LogGroupMap)
 			var shouldHaveItems bool

@@ -24,7 +24,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // CheckboxFormValidator validates whether the given boolean value is valid.
@@ -122,9 +122,9 @@ func (b *CheckboxFormTaskBuilder) WithHintFunc(hintFunc CheckboxFormHintGenerato
 // Build creates a DAG task instance from this builder definition.
 func (b *CheckboxFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask.Task[bool] {
 	return coretask.NewTask(b.id, b.dependencies, func(ctx context.Context) (bool, error) {
-		m := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
-		req := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
-		taskMode := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskMode)
+		m := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
+		req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
+		taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
 
 		readonly, err := b.readonlyProvider(ctx)
 		if err != nil {
@@ -168,7 +168,7 @@ func (b *CheckboxFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask
 		if validationErr != "" {
 			currentValue = defaultValue
 		}
-		if validationErr != "" && taskMode == inspectioncore_contract.TaskModeRun {
+		if validationErr != "" && taskMode == inspectioncore.TaskModeRun {
 			return false, fmt.Errorf("validator for task `%s` returned a validation error. All validations must be resolved before running: %s", b.id, validationErr)
 		}
 
@@ -196,7 +196,7 @@ func (b *CheckboxFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask
 			return false, fmt.Errorf("failed to configure the form metadata in task `%s`: %w", b.id, err)
 		}
 		return currentValue, nil
-	}, append(labelOpts, inspectioncore_contract.NewFormTaskLabelOpt(
+	}, append(labelOpts, inspectioncore.NewFormTaskLabelOpt(
 		b.label,
 		b.description,
 	))...)

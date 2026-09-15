@@ -27,7 +27,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
@@ -350,7 +350,7 @@ func TestGCPK8sAuditLogListLogEntriesTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, GCPK8sAuditLogListLogEntriesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, GCPK8sAuditLogListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
@@ -366,7 +366,7 @@ func TestGCPK8sAuditLogListLogEntriesTask_DryRun(t *testing.T) {
 		t.Errorf("DryRun should return 0 logs, got %d", len(gotLogs))
 	}
 
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
 		t.Fatalf("QueryMetadata not found in metadata")

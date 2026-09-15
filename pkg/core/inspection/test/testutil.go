@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // TestInspectionCreationTime is a fixed time used across tests to ensure deterministic behavior.
@@ -35,13 +35,13 @@ var TestInspectionCreationTime = time.Date(2025, time.January, 1, 1, 1, 1, 1, ti
 
 // WithDefaultTestInspectionTaskContext returns a new context used for running inspection task.
 func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.Context {
-	taskCtx := khictx.WithValue(baseContext, inspectioncore_contract.InspectionCreationTime, TestInspectionCreationTime)
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionTaskInspectionID, "fake-inspection-id")
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionTaskRunID, "fake-run-id")
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionContext, baseContext)
+	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionCreationTime, TestInspectionCreationTime)
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskInspectionID, "fake-inspection-id")
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskRunID, "fake-run-id")
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionContext, baseContext)
 
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.GlobalSharedMap, typedmap.NewTypedMap())
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionSharedMap, typedmap.NewTypedMap())
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.GlobalSharedMap, typedmap.NewTypedMap())
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionSharedMap, typedmap.NewTypedMap())
 
 	// If this context is used with the task runner, it should have the task result map. But if not, then this must complement the value with the default value.
 	_, err := khictx.GetValue(taskCtx, core_contract.TaskResultMapContextKey)
@@ -54,15 +54,15 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskImplementationIDContextKey, fakeTaskID.(taskid.UntypedTaskImplementationID))
 	}
 
-	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
+	ioConfig, err := inspectioncore.NewIOConfigForTest()
 	if err != nil {
 		panic("Failed to create test IOConfig: " + err.Error())
 	}
 	idGen := id.NewGenerator()
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.IDGenerator, idGen)
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.CurrentIOConfig, ioConfig)
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.Builder, khifilev6.NewTestBuilder(idGen))
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionRunMetadata, generateTestMetadata())
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.IDGenerator, idGen)
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.CurrentIOConfig, ioConfig)
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.Builder, khifilev6.NewTestBuilder(idGen))
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionRunMetadata, generateTestMetadata())
 	return taskCtx
 }
 
@@ -70,29 +70,29 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 func NextRunTaskContext(originalCtx context.Context, prevRunCtx context.Context) context.Context {
 	originalCtx = WithDefaultTestInspectionTaskContext(originalCtx)
 
-	globalSharedMap := khictx.MustGetValue(prevRunCtx, inspectioncore_contract.GlobalSharedMap)
-	inspectionSharedMap := khictx.MustGetValue(prevRunCtx, inspectioncore_contract.InspectionSharedMap)
+	globalSharedMap := khictx.MustGetValue(prevRunCtx, inspectioncore.GlobalSharedMap)
+	inspectionSharedMap := khictx.MustGetValue(prevRunCtx, inspectioncore.InspectionSharedMap)
 
-	originalCtx = khictx.WithValue(originalCtx, inspectioncore_contract.GlobalSharedMap, globalSharedMap)
-	return khictx.WithValue(originalCtx, inspectioncore_contract.InspectionSharedMap, inspectionSharedMap)
+	originalCtx = khictx.WithValue(originalCtx, inspectioncore.GlobalSharedMap, globalSharedMap)
+	return khictx.WithValue(originalCtx, inspectioncore.InspectionSharedMap, inspectionSharedMap)
 }
 
 // RunInspectionTask execute a single task with given context. Use WithDefaultTestInspectionTaskContext to get the context.
-func RunInspectionTask[T any](baseContext context.Context, task coretask.Task[T], mode inspectioncore_contract.InspectionTaskModeType, input map[string]any, taskDependencyValues ...tasktest.TaskDependencyValues) (T, *typedmap.ReadonlyTypedMap, error) {
-	taskCtx := khictx.WithValue(baseContext, inspectioncore_contract.InspectionTaskInput, input)
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionTaskMode, mode)
+func RunInspectionTask[T any](baseContext context.Context, task coretask.Task[T], mode inspectioncore.InspectionTaskModeType, input map[string]any, taskDependencyValues ...tasktest.TaskDependencyValues) (T, *typedmap.ReadonlyTypedMap, error) {
+	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionTaskInput, input)
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskMode, mode)
 
 	result, err := tasktest.RunTask(taskCtx, task, taskDependencyValues...)
-	metadata := khictx.MustGetValue(taskCtx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(taskCtx, inspectioncore.InspectionRunMetadata)
 	return result, metadata, err
 }
 
 // RunInspectionTaskWithDependency execute a task as a graph. Supply dependencies needed to be used with the mainTask.
-func RunInspectionTaskWithDependency[T any](baseContext context.Context, mainTask coretask.Task[T], dependencies []coretask.UntypedTask, mode inspectioncore_contract.InspectionTaskModeType, input map[string]any) (T, *typedmap.ReadonlyTypedMap, error) {
-	taskCtx := khictx.WithValue(baseContext, inspectioncore_contract.InspectionTaskInput, input)
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionTaskMode, mode)
+func RunInspectionTaskWithDependency[T any](baseContext context.Context, mainTask coretask.Task[T], dependencies []coretask.UntypedTask, mode inspectioncore.InspectionTaskModeType, input map[string]any) (T, *typedmap.ReadonlyTypedMap, error) {
+	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionTaskInput, input)
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskMode, mode)
 	result, err := tasktest.RunTaskWithDependency(taskCtx, mainTask, dependencies)
-	metadata := khictx.MustGetValue(taskCtx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(taskCtx, inspectioncore.InspectionRunMetadata)
 	return result, metadata, err
 }
 

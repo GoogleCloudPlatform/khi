@@ -17,7 +17,7 @@ package ossclusterk8s_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
@@ -29,10 +29,10 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 
 	scoped := coreinspection.NewScopedRegistry(
 		registry,
-		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore_contract.InspectionTypeLabelKeyLogSource:    "file",
-			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "oss",
-			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		inspectioncore.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore.InspectionTypeLabelKeyLogSource:    "file",
+			inspectioncore.InspectionTypeLabelKeyEnvironment:  "oss",
+			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
 		}),
 	)
 

@@ -18,7 +18,7 @@ import (
 	"math"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // InspectionTypeID is the unique identifier for the OSS Kubernetes log files inspection type.
@@ -32,8 +32,8 @@ var OSSKubernetesLogFilesInspectionType = coreinspection.InspectionType{
 	Icon:        "assets/icons/k8s.png",
 	Priority:    math.MaxInt - 1000,
 	Labels: map[string]string{
-		inspectioncore_contract.InspectionTypeLabelKeyLogSource:    "file",
-		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "oss",
-		inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		inspectioncore.InspectionTypeLabelKeyLogSource:    "file",
+		inspectioncore.InspectionTypeLabelKeyEnvironment:  "oss",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
 	},
 }

@@ -23,15 +23,15 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // InputDurationTask defines a form task to input the duration for log queries.
 var InputDurationTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputDurationTaskID, googlecloudcommon_contract.PriorityForQueryTimeGroup+4000, "Duration").
 	WithDependencies([]coretask.Dependency{
-		inspectioncore_contract.InspectionTimeTaskID.Ref(),
+		inspectioncore.InspectionTimeTaskID.Ref(),
 		googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
-		inspectioncore_contract.TimeZoneShiftInputTaskID.Ref(),
+		inspectioncore.TimeZoneShiftInputTaskID.Ref(),
 	}).
 	WithDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
 	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
@@ -42,9 +42,9 @@ var InputDurationTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contra
 		}
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		inspectionTime := coretask.GetTaskResult(ctx, inspectioncore_contract.InspectionTimeTaskID.Ref())
+		inspectionTime := coretask.GetTaskResult(ctx, inspectioncore.InspectionTimeTaskID.Ref())
 		endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
-		timezoneShift := coretask.GetTaskResult(ctx, inspectioncore_contract.TimeZoneShiftInputTaskID.Ref())
+		timezoneShift := coretask.GetTaskResult(ctx, inspectioncore.TimeZoneShiftInputTaskID.Ref())
 
 		duration := convertedValue.(time.Duration)
 		startTime := endTime.Add(-duration)

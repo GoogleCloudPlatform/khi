@@ -35,7 +35,7 @@ import (
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -334,7 +334,7 @@ labels.response_flag:("UH")`,
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			ctx = khictx.WithValue(ctx, inspectioncore_contract.InspectionTaskMode, inspectioncore_contract.TaskModeRun)
+			ctx = khictx.WithValue(ctx, inspectioncore.InspectionTaskMode, inspectioncore.TaskModeRun)
 			prefixPolicy, err := tasktest.RunTask(ctx, tc.prefixTask)
 			if err != nil {
 				t.Fatalf("unexpected error running prefix task: %v", err)
@@ -377,7 +377,7 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
@@ -393,7 +393,7 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 		t.Errorf("dry run should return 0 logs, got %d", len(gotLogs))
 	}
 
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
 		t.Fatalf("QueryMetadata not found in metadata")

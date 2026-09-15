@@ -29,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var (
@@ -503,7 +503,7 @@ func (c *conditionWalker) clampMinChangeTime(changeTime time.Time) time.Time {
 
 // MustK8sConditionTimeline resolves the timeline path of a resource condition.
 func MustK8sConditionTimeline(ctx context.Context, ownerPath *khifilev6.TimelinePath, conditionType string) *khifilev6.TimelinePath {
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(ownerPath, khifilev6.PathSegment{
 		Name: conditionType,
 		Type: commonlogk8saudit_contract.TimelineTypeResourceCondition,

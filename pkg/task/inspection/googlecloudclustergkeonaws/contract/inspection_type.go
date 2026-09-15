@@ -19,7 +19,7 @@ import (
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // InspectionTypeID is the unique identifier for the GKE on AWS inspection type.
@@ -33,9 +33,9 @@ var AnthosOnAWSInspectionType = coreinspection.InspectionType{
 	Icon:        "assets/icons/anthos.png",
 	Priority:    math.MaxInt - 2,
 	Labels: map[string]string{
-		inspectioncore_contract.InspectionTypeLabelKeyLogSource:         "cloud_logging",
-		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:       "googlecloud",
-		inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:      "kubernetes",
+		inspectioncore.InspectionTypeLabelKeyLogSource:                  "cloud_logging",
+		inspectioncore.InspectionTypeLabelKeyEnvironment:                "googlecloud",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform:               "kubernetes",
 		googlecloudcommon_contract.InspectionTypeLabelKeyClusterType:    "gke_multicloud",
 		googlecloudcommon_contract.InspectionTypeLabelKeyClusterSubType: "aws",
 	},

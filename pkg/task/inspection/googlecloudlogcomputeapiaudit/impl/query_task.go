@@ -29,12 +29,12 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // GenerateComputeAPIStructuredQuery generates a structured query slice for compute API logs.
-func GenerateComputeAPIStructuredQuery(taskMode inspectioncore_contract.InspectionTaskModeType, nodeNames []string) []*logestimator.StructuredLogQuery {
-	if taskMode == inspectioncore_contract.TaskModeDryRun {
+func GenerateComputeAPIStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, nodeNames []string) []*logestimator.StructuredLogQuery {
+	if taskMode == inspectioncore.TaskModeDryRun {
 		return []*logestimator.StructuredLogQuery{
 			{
 				ResourceTypes: []string{"gce_instance"},
@@ -90,12 +90,12 @@ func (c *computeAPIListLogEntriesTaskSetting) QueryName() string {
 
 // Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	taskMode, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskMode)
+	taskMode, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
 	if err != nil {
-		taskMode = inspectioncore_contract.TaskModeRun
+		taskMode = inspectioncore.TaskModeRun
 	}
 	var nodeNames []string
-	if taskMode == inspectioncore_contract.TaskModeRun {
+	if taskMode == inspectioncore.TaskModeRun {
 		nodeNames = coretask.GetTaskResult(ctx, commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref())
 	}
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref())

@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var TailTask = coretask.NewTailTask(
@@ -35,7 +35,7 @@ var TailTask = coretask.NewTailTask(
 		googlecloudlogk8scontrolplane_contract.HpaControllerLogToTimelineMapperTaskID.Ref(),
 		googlecloudlogk8scontrolplane_contract.OtherLogToTimelineMapperTaskID.Ref(),
 	},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		"Kubernetes Control Plane Component Logs",
 		"Gather logs from Kubernetes control plane components (e.g., kube-scheduler, kube-controller-manager, and kube-apiserver) to troubleshoot control plane behavior.",
 		9000,

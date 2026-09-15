@@ -31,7 +31,7 @@ import (
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -640,7 +640,7 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 
 	testCases := []struct {
 		name                 string
-		taskMode             inspectioncore_contract.InspectionTaskModeType
+		taskMode             inspectioncore.InspectionTaskModeType
 		cluster              googlecloudk8scommon_contract.GoogleCloudClusterIdentity
 		kindFilter           *gcpqueryutil.SetFilterParseResult
 		namespaceFilter      *gcpqueryutil.SetFilterParseResult
@@ -651,7 +651,7 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 	}{
 		{
 			name:            "returns empty on DryRun mode",
-			taskMode:        inspectioncore_contract.TaskModeDryRun,
+			taskMode:        inspectioncore.TaskModeDryRun,
 			cluster:         completeCluster,
 			kindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pod"}},
 			namespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
@@ -659,7 +659,7 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 		},
 		{
 			name:            "returns empty when cluster identity is incomplete",
-			taskMode:        inspectioncore_contract.TaskModeRun,
+			taskMode:        inspectioncore.TaskModeRun,
 			cluster:         incompleteCluster,
 			kindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pod"}},
 			namespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
@@ -667,7 +667,7 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 		},
 		{
 			name:            "returns empty without querying CAI when the kind filter matches no asset type",
-			taskMode:        inspectioncore_contract.TaskModeRun,
+			taskMode:        inspectioncore.TaskModeRun,
 			cluster:         completeCluster,
 			kindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{}},
 			namespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
@@ -675,7 +675,7 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 		},
 		{
 			name:                 "searches the cluster and its namespaces by exact parent resource name",
-			taskMode:             inspectioncore_contract.TaskModeRun,
+			taskMode:             inspectioncore.TaskModeRun,
 			cluster:              completeCluster,
 			kindFilter:           &gcpqueryutil.SetFilterParseResult{Additives: []string{"pod"}},
 			namespaceFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}},
@@ -685,7 +685,7 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 		},
 		{
 			name:                 "returns empty without an error when the CAI search fails",
-			taskMode:             inspectioncore_contract.TaskModeRun,
+			taskMode:             inspectioncore.TaskModeRun,
 			cluster:              completeCluster,
 			kindFilter:           &gcpqueryutil.SetFilterParseResult{Additives: []string{"pod"}},
 			namespaceFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}},

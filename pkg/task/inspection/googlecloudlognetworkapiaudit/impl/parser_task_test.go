@@ -32,7 +32,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -70,8 +70,8 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 			name: "successful audit log ingestion starting",
 			input: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
@@ -91,8 +91,8 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 			name: "successful audit log ingestion ending",
 			input: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
@@ -127,7 +127,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	// Define expected timeline paths.
-	wantNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGTimeline(khictx.WithValue(context.Background(), inspectioncore_contract.Builder, builder), "cluster", "test-ns", "test-neg")
+	wantNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGTimeline(khictx.WithValue(context.Background(), inspectioncore.Builder, builder), "cluster", "test-ns", "test-neg")
 
 	testCases := []struct {
 		name          string
@@ -1142,7 +1142,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), core_contract.TaskImplementationIDContextKey, googlecloudlognetworkapiaudit_contract.LogToTimelineMapperTaskID.(taskid.UntypedTaskImplementationID))
-			ctx = khictx.WithValue(ctx, inspectioncore_contract.Builder, builder)
+			ctx = khictx.WithValue(ctx, inspectioncore.Builder, builder)
 
 			// Provide default empty inventories.
 			clusterIdentity := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{

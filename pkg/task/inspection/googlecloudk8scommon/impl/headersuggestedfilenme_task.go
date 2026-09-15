@@ -27,7 +27,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // HeaderSuggestedFileNameTask is a task to supply the suggested file name of the KHI file generated.
@@ -36,8 +36,8 @@ var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(googleclo
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
-	metadataSet := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+}, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
+	metadataSet := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
 
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())

@@ -27,7 +27,7 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // sanitizeTaskReferenceForFileName converts a task reference ID into a valid file name.
@@ -81,8 +81,8 @@ func newRecordInspectionInterceptor(recordedTasks []taskid.UntypedTaskReference,
 	var mu sync.Mutex
 	recordedResults := make(map[string]any)
 
-	return func(ctx context.Context, req *inspectioncore_contract.InspectionRequest, next func(context.Context) error) error {
-		runner := khictx.MustGetValue(ctx, inspectioncore_contract.TaskRunner)
+	return func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
+		runner := khictx.MustGetValue(ctx, inspectioncore.TaskRunner)
 
 		runner.AddInterceptor(func(taskCtx context.Context, task coretask.UntypedTask, taskNext func(context.Context) (any, error)) (any, error) {
 			result, err := taskNext(taskCtx)

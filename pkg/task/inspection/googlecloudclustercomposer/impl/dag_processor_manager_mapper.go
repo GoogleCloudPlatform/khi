@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // AirflowDagProcessorManagerLogGrouperTask groups Airflow DAG processor manager logs.
@@ -92,7 +92,7 @@ func (i *dagProcessorManagerLogIngester) ProcessLogByGroup(ctx context.Context, 
 	cs.SetTimestamp(l.Timestamp)
 
 	// Default severity is Unknown and summary is empty
-	cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
+	cs.SetSeverity(inspectioncore.SeverityUnknown)
 	cs.SetSummary("")
 
 	rawLog, err := googlecloudcommon_contract.ExtractGCPMainMessage(l.NodeReader)
@@ -125,7 +125,7 @@ func (i *dagProcessorManagerLogIngester) ProcessLogByGroup(ctx context.Context, 
 	}
 
 	if res.Values[dagProcessorManagerColumnNumErrors] != "" && res.Values[dagProcessorManagerColumnNumErrors] != "0" {
-		cs.SetSeverity(inspectioncore_contract.SeverityError)
+		cs.SetSeverity(inspectioncore.SeverityError)
 	}
 
 	summaryText := fmt.Sprintf("File Path: %s PID: %s #DAGs: %s #Errors: %s", res.Values[dagProcessorManagerColumnFilePath], res.Values[dagProcessorManagerColumnPID], res.Values[dagProcessorManagerColumnNumDags], res.Values[dagProcessorManagerColumnNumErrors])

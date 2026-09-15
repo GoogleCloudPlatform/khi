@@ -17,7 +17,7 @@ package googlecloudclustercomposer_impl
 import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var ComposerLogsTailTask = coretask.NewTailTask(
@@ -28,7 +28,7 @@ var ComposerLogsTailTask = coretask.NewTailTask(
 		googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogToTimelineMapperTaskID.Ref(),
 		googlecloudclustercomposer_contract.AirflowOtherLogToTimelineMapperTaskID.Ref(),
 	},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		"Managed Service for Apache Airflow Logs",
 		"Gather Managed Service for Apache Airflow logs, including airflow-worker, airflow-scheduler, and airflow-dag-processor-manager, to visualize general environment operations on timelines.",
 		2500,

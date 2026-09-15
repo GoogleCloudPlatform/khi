@@ -28,7 +28,7 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // NewInventoryTask creates an inventory task that dynamically discovers and aggregates outputs
@@ -43,8 +43,8 @@ func NewInventoryTask[T any, R any](
 	return NewInspectionTask(
 		id,
 		[]coretask.Dependency{tagRef},
-		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (R, error) {
-			if taskMode == inspectioncore_contract.TaskModeDryRun {
+		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (R, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
 				var zero R
 				return zero, nil
 			}

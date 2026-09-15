@@ -20,7 +20,7 @@ import (
 
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // TimelineState tracks connection states across logs in a group.
@@ -68,7 +68,7 @@ func MapPodAndConnectionTimelines(
 		if IsConnectionLog(msg) {
 			state.ObservedConnections[pod.ConnectionKey()] = true
 			cs.AddRevision(connPath, &khifilev6.StagingRevision{
-				VerbType:     inspectioncore_contract.VerbUnknown,
+				VerbType:     inspectioncore.VerbUnknown,
 				StateType:    RevisionStateCSMCPConnectionConnected,
 				ResourceBody: nil,
 				Principal:    "csm-cp",
@@ -79,7 +79,7 @@ func MapPodAndConnectionTimelines(
 
 		if !state.ObservedConnections[pod.ConnectionKey()] {
 			cs.AddRevision(connPath, &khifilev6.StagingRevision{
-				VerbType:     inspectioncore_contract.VerbUnknown,
+				VerbType:     inspectioncore.VerbUnknown,
 				StateType:    RevisionStateCSMCPConnectionConnectedLogNotFound,
 				ResourceBody: nil,
 				Principal:    "csm-cp",
@@ -88,7 +88,7 @@ func MapPodAndConnectionTimelines(
 			state.ObservedConnections[pod.ConnectionKey()] = true
 		}
 		cs.AddRevision(connPath, &khifilev6.StagingRevision{
-			VerbType:     inspectioncore_contract.VerbUnknown,
+			VerbType:     inspectioncore.VerbUnknown,
 			StateType:    RevisionStateCSMCPConnectionTerminated,
 			ResourceBody: nil,
 			Principal:    "csm-cp",

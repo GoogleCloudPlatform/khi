@@ -26,7 +26,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LogFilterTask removes logs with empty message.
@@ -149,7 +149,7 @@ var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*serialportLogToTimeli
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogserialport_contract.LogToTimelineMapperTaskID,
 	&serialportLogToTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		"GCE Node Serial Port Logs",
 		`Gather serial port logs from GCE instances to troubleshoot VM bootstrapping and OS initialization issues.`,
 		10000,

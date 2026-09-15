@@ -24,7 +24,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -51,24 +51,24 @@ func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
 
 	k8sClusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: "test-cluster",
-		Type: inspectioncore_contract.TimelineTypeK8sCluster,
+		Type: inspectioncore.TimelineTypeK8sCluster,
 	})
 
 	apiVersionTimeline := builder.TimelineAccumulator.GetPath(k8sClusterTimeline, khifilev6.PathSegment{
 		Name: "core/v1",
-		Type: inspectioncore_contract.TimelineTypeAPIVersion,
+		Type: inspectioncore.TimelineTypeAPIVersion,
 	})
 	kindTimeline := builder.TimelineAccumulator.GetPath(apiVersionTimeline, khifilev6.PathSegment{
 		Name: "pod",
-		Type: inspectioncore_contract.TimelineTypeKind,
+		Type: inspectioncore.TimelineTypeKind,
 	})
 	namespaceTimeline := builder.TimelineAccumulator.GetPath(kindTimeline, khifilev6.PathSegment{
 		Name: "test-namespace",
-		Type: inspectioncore_contract.TimelineTypeNamespace,
+		Type: inspectioncore.TimelineTypeNamespace,
 	})
 	wantPodTimeline := builder.TimelineAccumulator.GetPath(namespaceTimeline, khifilev6.PathSegment{
 		Name: "test-pod",
-		Type: inspectioncore_contract.TimelineTypeResource,
+		Type: inspectioncore.TimelineTypeResource,
 	})
 
 	testCases := []struct {
@@ -118,7 +118,7 @@ func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			l := testlog.NewMockLog(tc.inputComponentField, tc.inputSchedulerFieldSet, tc.inputMessageField)
 			mapper := &SchedulerTimelineMapper{}
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})

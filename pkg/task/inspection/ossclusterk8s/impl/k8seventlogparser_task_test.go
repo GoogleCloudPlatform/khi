@@ -27,7 +27,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -52,7 +52,7 @@ func TestOSSK8sEventLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)).
-					HasSeverity(inspectioncore_contract.SeverityUnknown).
+					HasSeverity(inspectioncore.SeverityUnknown).
 					HasLogType(commonlogk8saudit_contract.LogTypeEvent).
 					HasSummary("【Scheduled】Successfully assigned default/test-pod to node-1")
 			},
@@ -119,7 +119,7 @@ func TestOSSK8sEventLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)).
-					HasSeverity(inspectioncore_contract.SeverityUnknown).
+					HasSeverity(inspectioncore.SeverityUnknown).
 					HasLogType(commonlogk8saudit_contract.LogTypeEvent).
 					HasSummary("【Scheduled】")
 			},
@@ -372,7 +372,7 @@ func TestOSSK8sEventTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			l := testlog.NewMockLog(tc.input)
 
 			// Set up context with the same Builder reference.
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			finder := patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
 			if tc.resourceIdentitiesByUID != nil {
 				for k, v := range tc.resourceIdentitiesByUID {

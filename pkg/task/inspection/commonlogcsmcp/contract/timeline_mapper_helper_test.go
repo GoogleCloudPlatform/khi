@@ -22,7 +22,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
 )
@@ -63,7 +63,7 @@ func TestMapPodAndConnectionTimelines(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    RevisionStateCSMCPConnectionConnected,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
@@ -88,7 +88,7 @@ func TestMapPodAndConnectionTimelines(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    RevisionStateCSMCPConnectionTerminated,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
@@ -114,14 +114,14 @@ func TestMapPodAndConnectionTimelines(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    RevisionStateCSMCPConnectionConnectedLogNotFound,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					}).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    RevisionStateCSMCPConnectionTerminated,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
@@ -146,14 +146,14 @@ func TestMapPodAndConnectionTimelines(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    RevisionStateCSMCPConnectionConnectedLogNotFound,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					}).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    RevisionStateCSMCPConnectionTerminated,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
@@ -209,7 +209,7 @@ func TestMapPodAndConnectionTimelines(t *testing.T) {
 			HasEvent(csmcpPodPath).
 			HasRevision(connPath, &khifilev6.StagingRevision{
 				ChangedTime:  termTime,
-				VerbType:     inspectioncore_contract.VerbUnknown,
+				VerbType:     inspectioncore.VerbUnknown,
 				StateType:    RevisionStateCSMCPConnectionTerminated,
 				ResourceBody: nil,
 				Principal:    "csm-cp",

@@ -27,7 +27,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -37,9 +37,9 @@ func TestSerializeTask(t *testing.T) {
 	testCases := []struct {
 		name     string
 		setup    func(ctx context.Context, b *khifilev6.Builder)
-		verify   func(t *testing.T, store *inspectioncore_contract.FileSystemStore)
+		verify   func(t *testing.T, store *inspectioncore.FileSystemStore)
 		wantErr  bool
-		taskMode inspectioncore_contract.InspectionTaskModeType
+		taskMode inspectioncore.InspectionTaskModeType
 	}{
 		{
 			name: "successfully serializes v6 format containing metadata chunks",
@@ -50,7 +50,7 @@ func TestSerializeTask(t *testing.T) {
 					InspectionName: "test-name",
 				})
 			},
-			verify: func(t *testing.T, store *inspectioncore_contract.FileSystemStore) {
+			verify: func(t *testing.T, store *inspectioncore.FileSystemStore) {
 				if store == nil {
 					t.Fatal("Store should not be nil.")
 				}
@@ -103,7 +103,7 @@ func TestSerializeTask(t *testing.T) {
 				}
 			},
 			wantErr:  false,
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 		},
 		{
 			name: "skips serialization and returns nil store in DryRun mode",
@@ -113,13 +113,13 @@ func TestSerializeTask(t *testing.T) {
 					InspectionName: "test-name",
 				})
 			},
-			verify: func(t *testing.T, store *inspectioncore_contract.FileSystemStore) {
+			verify: func(t *testing.T, store *inspectioncore.FileSystemStore) {
 				if store != nil {
 					t.Errorf("Expected nil store in DryRun mode, got %v.", store)
 				}
 			},
 			wantErr:  false,
-			taskMode: inspectioncore_contract.TaskModeDryRun,
+			taskMode: inspectioncore.TaskModeDryRun,
 		},
 	}
 
@@ -128,10 +128,10 @@ func TestSerializeTask(t *testing.T) {
 			ctx := context.Background()
 			taskCtx := inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
 
-			if tc.taskMode == inspectioncore_contract.TaskModeRun {
-				ioConfig := khictx.MustGetValue(taskCtx, inspectioncore_contract.CurrentIOConfig)
-				inspectionID := khictx.MustGetValue(taskCtx, inspectioncore_contract.InspectionTaskInspectionID)
-				store := inspectioncore_contract.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
+			if tc.taskMode == inspectioncore.TaskModeRun {
+				ioConfig := khictx.MustGetValue(taskCtx, inspectioncore.CurrentIOConfig)
+				inspectionID := khictx.MustGetValue(taskCtx, inspectioncore.InspectionTaskInspectionID)
+				store := inspectioncore.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
 				fw, err := store.GetWriter()
 				if err != nil {
 					t.Fatalf("failed to create file writer: %v", err)
@@ -141,13 +141,13 @@ func TestSerializeTask(t *testing.T) {
 					_ = fw.Close()
 					t.Fatalf("failed to create writer: %v", err)
 				}
-				idGen := khictx.MustGetValue(taskCtx, inspectioncore_contract.IDGenerator)
+				idGen := khictx.MustGetValue(taskCtx, inspectioncore.IDGenerator)
 				b := khifilev6.NewBuilder(idGen, w)
-				taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.Builder, b)
+				taskCtx = khictx.WithValue(taskCtx, inspectioncore.Builder, b)
 			}
 
 			// Obtain the builder from task context.
-			builder := khictx.MustGetValue(taskCtx, inspectioncore_contract.Builder)
+			builder := khictx.MustGetValue(taskCtx, inspectioncore.Builder)
 
 			if tc.setup != nil {
 				tc.setup(taskCtx, builder)

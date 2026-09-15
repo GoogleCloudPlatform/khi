@@ -23,7 +23,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -55,7 +55,7 @@ func TestEvaluateTaskCompatibility(t *testing.T) {
 	}{
 		{
 			name: "matches label selector",
-			task: createTestTask("task.a", "1", nil, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			task: createTestTask("task.a", "1", nil, inspectioncore.InspectionTypeLabelSelector(map[string]string{
 				"environment": "googlecloud",
 				"log_source":  "cloud_logging",
 			})),
@@ -64,7 +64,7 @@ func TestEvaluateTaskCompatibility(t *testing.T) {
 		},
 		{
 			name: "fails label selector with mismatched value",
-			task: createTestTask("task.a", "2", nil, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			task: createTestTask("task.a", "2", nil, inspectioncore.InspectionTypeLabelSelector(map[string]string{
 				"environment": "onprem",
 			})),
 			wantCompatible: false,
@@ -72,7 +72,7 @@ func TestEvaluateTaskCompatibility(t *testing.T) {
 		},
 		{
 			name: "fails label selector with missing key",
-			task: createTestTask("task.a", "3", nil, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			task: createTestTask("task.a", "3", nil, inspectioncore.InspectionTypeLabelSelector(map[string]string{
 				"cluster_type": "autopilot",
 			})),
 			wantCompatible: false,
@@ -130,7 +130,7 @@ func TestInspectRegistry(t *testing.T) {
 				depRef := taskid.NewTaskReference[any]("dep.ref")
 				task1 := createTestTask("group.ref", "impl1", []coretask.Dependency{depRef},
 					coretask.WithSelectionPriority(10),
-					inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"env": "test"}),
+					inspectioncore.InspectionTypeLabelSelector(map[string]string{"env": "test"}),
 				)
 				task2 := createTestTask("group.ref", "impl2", nil,
 					coretask.WithSelectionPriority(20),
@@ -236,9 +236,9 @@ func TestInspectRegistry(t *testing.T) {
 								},
 							},
 							Labels: map[string]string{
-								inspectioncore_contract.LabelKeyInspectionTypeLabelSelector.Key(): "map[env:test]",
-								coretask.LabelKeyTaskSelectionPriority.Key():                      "10",
-								coretask.LabelKeyTaskResultType.Key():                             "interface {}",
+								inspectioncore.LabelKeyInspectionTypeLabelSelector.Key(): "map[env:test]",
+								coretask.LabelKeyTaskSelectionPriority.Key():             "10",
+								coretask.LabelKeyTaskResultType.Key():                    "interface {}",
 							},
 							OutputType: proto.String("interface {}"),
 						},
@@ -302,20 +302,20 @@ func TestInspectResolution(t *testing.T) {
 
 				taskA1 := createTestTask("feature.a", "impl1", nil,
 					coretask.WithSelectionPriority(10),
-					inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"env": "gke"}),
-					inspectioncore_contract.FeatureTaskLabel("Feature A", "Description A", 1, true),
+					inspectioncore.InspectionTypeLabelSelector(map[string]string{"env": "gke"}),
+					inspectioncore.FeatureTaskLabel("Feature A", "Description A", 1, true),
 				)
 				taskA2 := createTestTask("feature.a", "impl2", nil,
 					coretask.WithSelectionPriority(20),
-					inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"env": "gke"}),
-					inspectioncore_contract.FeatureTaskLabel("Feature A", "Description A", 1, true),
+					inspectioncore.InspectionTypeLabelSelector(map[string]string{"env": "gke"}),
+					inspectioncore.FeatureTaskLabel("Feature A", "Description A", 1, true),
 				)
 				taskB := createTestTask("task.b", "impl1", nil,
-					inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"env": "onprem"}),
+					inspectioncore.InspectionTypeLabelSelector(map[string]string{"env": "onprem"}),
 				)
 				refA := taskid.NewTaskReference[any]("feature.a")
 				taskC := createTestTask("task.c", "impl1", []coretask.Dependency{refA},
-					inspectioncore_contract.FeatureTaskLabel("Feature C", "Description C", 2, true),
+					inspectioncore.FeatureTaskLabel("Feature C", "Description C", 2, true),
 				)
 
 				_ = server.AddTask(taskA1)
@@ -392,7 +392,7 @@ func TestInspectResolution(t *testing.T) {
 				refX := taskid.NewTaskReference[any]("task.x")
 
 				taskX := createTestTask("task.x", "impl", []coretask.Dependency{refY},
-					inspectioncore_contract.FeatureTaskLabel("Feature X", "Desc", 1, true),
+					inspectioncore.FeatureTaskLabel("Feature X", "Desc", 1, true),
 				)
 				taskY := createTestTask("task.y", "impl", []coretask.Dependency{refX})
 

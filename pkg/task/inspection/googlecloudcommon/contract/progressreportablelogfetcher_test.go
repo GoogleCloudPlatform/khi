@@ -29,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -539,7 +539,7 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			}()
 
 			testCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			idGen := khictx.MustGetValue(testCtx, inspectioncore_contract.IDGenerator)
+			idGen := khictx.MustGetValue(testCtx, inspectioncore.IDGenerator)
 			cancellableCtx, cancel := context.WithCancel(testCtx)
 			if tc.cancelAfter != 0 {
 				wg.Add(1)

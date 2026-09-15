@@ -26,7 +26,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // caiInitialResourceStateProvider serves the manifests Cloud Asset Inventory reported for the moment
@@ -97,7 +97,7 @@ var InitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
 		googlecloudcaik8s_contract.RawLogTaskID.Ref(),
 		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	},
-	func(ctx context.Context, _ inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.InitialResourceStateProvider, error) {
+	func(ctx context.Context, _ inspectioncore.InspectionTaskModeType) (commonlogk8saudit_contract.InitialResourceStateProvider, error) {
 		logs := coretask.GetTaskResult(ctx, googlecloudcaik8s_contract.RawLogTaskID.Ref())
 		queryStartTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 		return newCAIInitialResourceStateProvider(logs, queryStartTime), nil

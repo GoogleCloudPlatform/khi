@@ -17,26 +17,26 @@ package logutil
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 const OriginalMessageFieldKey = "@original"
 
 // commonSeverityStringNotation maps string notation of severity found in logs to the severity types used in KHI.
 var commonSeverityStringNotation = map[string]*pb.Severity{
-	"INFO":    inspectioncore_contract.SeverityInfo,
-	"info":    inspectioncore_contract.SeverityInfo,
-	"WARN":    inspectioncore_contract.SeverityWarning,
-	"warn":    inspectioncore_contract.SeverityWarning,
-	"WARNING": inspectioncore_contract.SeverityWarning,
-	"warning": inspectioncore_contract.SeverityWarning,
-	"ERROR":   inspectioncore_contract.SeverityError,
-	"error":   inspectioncore_contract.SeverityError,
-	"ERR":     inspectioncore_contract.SeverityError,
-	"err":     inspectioncore_contract.SeverityError,
-	"FATAL":   inspectioncore_contract.SeverityFatal,
-	"fatal":   inspectioncore_contract.SeverityFatal,
-	"panic":   inspectioncore_contract.SeverityFatal,
+	"INFO":    inspectioncore.SeverityInfo,
+	"info":    inspectioncore.SeverityInfo,
+	"WARN":    inspectioncore.SeverityWarning,
+	"warn":    inspectioncore.SeverityWarning,
+	"WARNING": inspectioncore.SeverityWarning,
+	"warning": inspectioncore.SeverityWarning,
+	"ERROR":   inspectioncore.SeverityError,
+	"error":   inspectioncore.SeverityError,
+	"ERR":     inspectioncore.SeverityError,
+	"err":     inspectioncore.SeverityError,
+	"FATAL":   inspectioncore.SeverityFatal,
+	"fatal":   inspectioncore.SeverityFatal,
+	"panic":   inspectioncore.SeverityFatal,
 }
 
 // MainMessageStructuredFieldKey is the key used to store the main log message in a structured log result.
@@ -67,10 +67,10 @@ func (p *ParseStructuredLogResult) MainMessage() (string, error) {
 // Severity returns the severity of the structured log, or an error if not found or not of type enum.Severity.
 func (p *ParseStructuredLogResult) Severity() (*pb.Severity, error) {
 	if value, found := p.Fields[SeverityStructuredFieldKey]; !found {
-		return inspectioncore_contract.SeverityUnknown, khierrors.ErrNotFound
+		return inspectioncore.SeverityUnknown, khierrors.ErrNotFound
 	} else {
 		if valueSeverity, ok := value.(*pb.Severity); !ok {
-			return inspectioncore_contract.SeverityUnknown, khierrors.ErrTypeConversionFailed
+			return inspectioncore.SeverityUnknown, khierrors.ErrTypeConversionFailed
 		} else {
 			return valueSeverity, nil
 		}

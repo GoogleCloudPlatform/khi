@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func ConformanceTestForInspectionTypes(t *testing.T) {
@@ -34,7 +34,7 @@ func ConformanceTestForInspectionTypes(t *testing.T) {
 	t.Cleanup(func() {
 		upload.DefaultUploadFileStore = oldStore
 	})
-	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
+	ioConfig, err := inspectioncore.NewIOConfigForTest()
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}

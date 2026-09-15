@@ -24,14 +24,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	googlecloudclustergke_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/taskrecord"
 )
 
 func setupAuditLogInspectionServer(t testing.TB) *coreinspection.InspectionTaskServer {
 	t.Helper()
 	logger.InitGlobalKHILogger()
-	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
+	ioConfig, err := inspectioncore.NewIOConfigForTest()
 	if err != nil {
 		t.Fatalf("failed to create ioConfig: %v", err)
 	}

@@ -31,7 +31,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -274,7 +274,7 @@ func TestContainerdIDDiscoveryTask(t *testing.T) {
 			}
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, PodSandboxIDDiscoveryTask, inspectioncore_contract.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(
+			got, _, err := inspectiontest.RunInspectionTask(ctx, PodSandboxIDDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(
 				googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref(), logs,
 			))
 			if err != nil {
@@ -456,7 +456,7 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				clusterIdent = *tc.inputClusterIdentity
 			}
 
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(), clusterIdent)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)

@@ -22,7 +22,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -30,7 +30,7 @@ func TestInventoryTask(t *testing.T) {
 	inventoryTag := coretask.NewTag[map[string]struct{}]("test-inventory-tag")
 	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test-merger")
 
-	nop := func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
+	nop := func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	}
 
@@ -44,7 +44,7 @@ func TestInventoryTask(t *testing.T) {
 	discovery1 := NewInspectionTask(
 		discovery1ID,
 		[]coretask.Dependency{discovery1ParentTaskID.Ref()},
-		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
+		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
 			return map[string]struct{}{"foo": {}}, nil
 		},
 		coretask.ProvidesTag(inventoryTag, coretask.WithTagPriority(10)),
@@ -54,7 +54,7 @@ func TestInventoryTask(t *testing.T) {
 	discovery2 := NewInspectionTask(
 		discovery2ID,
 		[]coretask.Dependency{discovery2ParentTaskID.Ref()},
-		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
+		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
 			return map[string]struct{}{"bar": {}}, nil
 		},
 		coretask.ProvidesTag(inventoryTag),
@@ -78,7 +78,7 @@ func TestInventoryTask(t *testing.T) {
 	cyclicDiscoveryTask := NewInspectionTask(
 		cyclicDiscoveryTaskID,
 		[]coretask.Dependency{mergerTaskID.Ref()},
-		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
+		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
 			return map[string]struct{}{"cyclic": {}}, nil
 		},
 		coretask.ProvidesTag(inventoryTag, coretask.WithTagPriority(100)),
@@ -137,7 +137,7 @@ func TestInventoryTask(t *testing.T) {
 			userTask := NewInspectionTask(
 				userTaskID,
 				tc.userTaskDeps,
-				func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (map[string]struct{}, error) {
+				func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
 					return coretask.GetTaskResult(ctx, mergerTaskID.Ref()), nil
 				},
 			)
@@ -147,7 +147,7 @@ func TestInventoryTask(t *testing.T) {
 				dryRunCtx,
 				userTask,
 				tc.availableTasks,
-				inspectioncore_contract.TaskModeDryRun,
+				inspectioncore.TaskModeDryRun,
 				map[string]any{},
 			)
 			if err != nil {
@@ -162,7 +162,7 @@ func TestInventoryTask(t *testing.T) {
 				runCtx,
 				userTask,
 				tc.availableTasks,
-				inspectioncore_contract.TaskModeRun,
+				inspectioncore.TaskModeRun,
 				map[string]any{},
 			)
 			if err != nil {

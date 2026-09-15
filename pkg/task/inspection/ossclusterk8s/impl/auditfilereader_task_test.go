@@ -23,7 +23,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 	"github.com/google/go-cmp/cmp"
 )
@@ -43,7 +43,7 @@ func (m *mockUploadStoreProvider) Read(token upload.UploadToken) (io.ReadCloser,
 func TestAuditLogFileReaderTask(t *testing.T) {
 	testCases := []struct {
 		name         string
-		taskMode     inspectioncore_contract.InspectionTaskModeType
+		taskMode     inspectioncore.InspectionTaskModeType
 		inputData    string
 		wantLogCount int
 		wantStages   []string
@@ -51,14 +51,14 @@ func TestAuditLogFileReaderTask(t *testing.T) {
 	}{
 		{
 			name:     "dry run mode returns empty list",
-			taskMode: inspectioncore_contract.TaskModeDryRun,
+			taskMode: inspectioncore.TaskModeDryRun,
 			inputData: `{"stage":"ResponseComplete","stageTimestamp":"2026-05-25T12:00:00.000000Z","verb":"get"}
 `,
 			wantLogCount: 0,
 		},
 		{
 			name:     "filters non-ResponseComplete stage and sorts by timestamp",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			inputData: `{"stage":"ResponseStarted","stageTimestamp":"2026-05-25T12:00:01.000000Z","verb":"get"}
 {"stage":"ResponseComplete","stageTimestamp":"2026-05-25T12:00:05.000000Z","verb":"create"}
 

@@ -30,7 +30,7 @@ import (
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
 )
@@ -69,7 +69,7 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}
 	manifestNode = structured.WithKeyOrder(manifestNode, k8s.K8sManifestKeyOrder...)
 
-	ctxWithBuilder := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctxWithBuilder := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 	targetPath := commonlogk8saudit_contract.MustResourceTimeline(ctxWithBuilder, clusterName, podIdent)
 
 	// The generator is shared by every log the closure builds so that each log gets a distinct

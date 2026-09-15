@@ -22,7 +22,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -37,14 +37,14 @@ func TestCachedTask(t *testing.T) {
 			name:   "caches across runs and across inspections in GlobalSharedMap",
 			taskID: taskid.NewDefaultImplementationID[string]("global-cache-test"),
 			run: func(ctx context.Context, task coretask.Task[string]) context.Context {
-				_, _, _ = inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{})
-				_, _, _ = inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{})
+				_, _, _ = inspectiontest.RunInspectionTask(ctx, task, inspectioncore.TaskModeRun, map[string]any{})
+				_, _, _ = inspectiontest.RunInspectionTask(ctx, task, inspectioncore.TaskModeRun, map[string]any{})
 
 				nextInspCtx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-				globalSharedMap := khictx.MustGetValue(ctx, inspectioncore_contract.GlobalSharedMap)
-				nextInspCtx = khictx.WithValue(nextInspCtx, inspectioncore_contract.GlobalSharedMap, globalSharedMap)
+				globalSharedMap := khictx.MustGetValue(ctx, inspectioncore.GlobalSharedMap)
+				nextInspCtx = khictx.WithValue(nextInspCtx, inspectioncore.GlobalSharedMap, globalSharedMap)
 
-				_, _, _ = inspectiontest.RunInspectionTask(nextInspCtx, task, inspectioncore_contract.TaskModeRun, map[string]any{})
+				_, _, _ = inspectiontest.RunInspectionTask(nextInspCtx, task, inspectioncore.TaskModeRun, map[string]any{})
 				return nextInspCtx
 			},
 			wantResult: []CacheableTaskResult[string]{
@@ -87,14 +87,14 @@ func TestInspectionCachedTask(t *testing.T) {
 			name:   "caches within same inspection but resets on new inspection in InspectionSharedMap",
 			taskID: taskid.NewDefaultImplementationID[string]("inspection-cache-test"),
 			run: func(ctx context.Context, task coretask.Task[string]) context.Context {
-				_, _, _ = inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{})
-				_, _, _ = inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{})
+				_, _, _ = inspectiontest.RunInspectionTask(ctx, task, inspectioncore.TaskModeRun, map[string]any{})
+				_, _, _ = inspectiontest.RunInspectionTask(ctx, task, inspectioncore.TaskModeRun, map[string]any{})
 
 				nextInspCtx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-				globalSharedMap := khictx.MustGetValue(ctx, inspectioncore_contract.GlobalSharedMap)
-				nextInspCtx = khictx.WithValue(nextInspCtx, inspectioncore_contract.GlobalSharedMap, globalSharedMap)
+				globalSharedMap := khictx.MustGetValue(ctx, inspectioncore.GlobalSharedMap)
+				nextInspCtx = khictx.WithValue(nextInspCtx, inspectioncore.GlobalSharedMap, globalSharedMap)
 
-				_, _, _ = inspectiontest.RunInspectionTask(nextInspCtx, task, inspectioncore_contract.TaskModeRun, map[string]any{})
+				_, _, _ = inspectiontest.RunInspectionTask(nextInspCtx, task, inspectioncore.TaskModeRun, map[string]any{})
 				return nextInspCtx
 			},
 			wantResult: []CacheableTaskResult[string]{

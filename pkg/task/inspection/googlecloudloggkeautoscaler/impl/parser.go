@@ -29,7 +29,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"gopkg.in/yaml.v3"
 )
 
@@ -62,13 +62,13 @@ func (i *autoscalerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*kh
 
 	switch {
 	case autoscalerFieldSet.DecisionLog != nil:
-		cs.SetSeverity(inspectioncore_contract.SeverityWarning)
+		cs.SetSeverity(inspectioncore.SeverityWarning)
 		cs.SetSummary(getDecisionSummary(autoscalerFieldSet.DecisionLog))
 	case autoscalerFieldSet.NoDecisionLog != nil:
-		cs.SetSeverity(inspectioncore_contract.SeverityInfo)
+		cs.SetSeverity(inspectioncore.SeverityInfo)
 		cs.SetSummary(getNoDecisionSummary(autoscalerFieldSet.NoDecisionLog))
 	case autoscalerFieldSet.ResultInfoLog != nil:
-		cs.SetSeverity(inspectioncore_contract.SeverityInfo)
+		cs.SetSeverity(inspectioncore.SeverityInfo)
 		cs.SetSummary(getResultInfoSummary(autoscalerFieldSet.ResultInfoLog))
 	}
 
@@ -149,7 +149,7 @@ var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*autoscalerTimelineMap
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudloggkeautoscaler_contract.LogToTimelineMapperTaskID,
 	&autoscalerTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		`GKE Autoscaler Logs`,
 		`Gather Cluster Autoscaler logs to visualize autoscaling decisions and actions on the timelines of the affected resources.`,
 		8000,

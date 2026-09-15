@@ -29,7 +29,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 
@@ -47,8 +47,8 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			name: "ingest compute API audit log - start",
 			input: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.insert",
@@ -67,8 +67,8 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			name: "ingest compute API audit log - finish succeeded",
 			input: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.insert",
@@ -88,8 +88,8 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			name: "ingest compute API audit log - finish failed",
 			input: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityError,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityError,
 				},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.insert",
@@ -110,8 +110,8 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			name: "ingest compute API audit log - immediate failed",
 			input: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityError,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityError,
 				},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.delete",
@@ -132,8 +132,8 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			name: "ingest compute API audit log - immediate succeeded",
 			input: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "compute.instances.delete",
@@ -173,7 +173,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	})
 
 	baseCtx := khictx.WithValue(t.Context(), core_contract.TaskResultMapContextKey, taskResults)
-	ctx := khictx.WithValue(baseCtx, inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(baseCtx, inspectioncore.Builder, builder)
 
 	// Independently build the expected paths segment-by-segment
 	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
@@ -353,7 +353,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	mapper := &gcpComputeAuditLogLogToTimelineMapperSetting{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			testCtx := khictx.WithValue(ctx, inspectioncore_contract.Builder, builder)
+			testCtx := khictx.WithValue(ctx, inspectioncore.Builder, builder)
 			cs, _, err := mapper.ProcessLogByGroup(testCtx, tc.inputLog, tc.state)
 			if err != nil {
 				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)

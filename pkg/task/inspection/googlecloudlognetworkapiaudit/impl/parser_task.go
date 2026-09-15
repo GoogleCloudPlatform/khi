@@ -31,7 +31,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"gopkg.in/yaml.v3"
 )
 
@@ -279,7 +279,7 @@ var _ inspectiontaskbase.LogToTimelineMapper[*perNEGHistoryModificationStatus] =
 
 // LogToTimelineMapperTask registers the mapper to resolve network status in timeline.
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(googlecloudlognetworkapiaudit_contract.LogToTimelineMapperTaskID, &networkAPITimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabel(`GCE Network Logs`,
+	inspectioncore.FeatureTaskLabel(`GCE Network Logs`,
 		`Gather GCE Network API logs to visualize the provisioning and status transitions of Network Endpoint Groups (NEGs) on timelines.`,
 		7000,
 		true,

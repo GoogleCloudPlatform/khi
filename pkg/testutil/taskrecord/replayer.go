@@ -28,7 +28,7 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LoadRecordedTaskResult loads the recorded fixture for a specific task reference and type T.
@@ -123,8 +123,8 @@ func newReplayInspectionInterceptor(
 	runningCount := 0
 	targetExecuting := false
 
-	return func(ctx context.Context, req *inspectioncore_contract.InspectionRequest, next func(context.Context) error) error {
-		runner := khictx.MustGetValue(ctx, inspectioncore_contract.TaskRunner)
+	return func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
+		runner := khictx.MustGetValue(ctx, inspectioncore.TaskRunner)
 
 		runner.AddInterceptor(func(taskCtx context.Context, task coretask.UntypedTask, taskNext func(context.Context) (any, error)) (any, error) {
 			currentRefID := task.UntypedID().GetUntypedReference().ReferenceIDString()

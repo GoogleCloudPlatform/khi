@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func TestParseGCPSeverity(t *testing.T) {
@@ -30,77 +30,77 @@ func TestParseGCPSeverity(t *testing.T) {
 		{
 			name:  "DEFAULT returns Info",
 			input: "DEFAULT",
-			want:  inspectioncore_contract.SeverityInfo,
+			want:  inspectioncore.SeverityInfo,
 		},
 		{
 			name:  "DEBUG returns Info",
 			input: "DEBUG",
-			want:  inspectioncore_contract.SeverityInfo,
+			want:  inspectioncore.SeverityInfo,
 		},
 		{
 			name:  "INFO returns Info",
 			input: "INFO",
-			want:  inspectioncore_contract.SeverityInfo,
+			want:  inspectioncore.SeverityInfo,
 		},
 		{
 			name:  "NOTICE returns Info",
 			input: "NOTICE",
-			want:  inspectioncore_contract.SeverityInfo,
+			want:  inspectioncore.SeverityInfo,
 		},
 		{
 			name:  "WARNING returns Warning",
 			input: "WARNING",
-			want:  inspectioncore_contract.SeverityWarning,
+			want:  inspectioncore.SeverityWarning,
 		},
 		{
 			name:  "ERROR returns Error",
 			input: "ERROR",
-			want:  inspectioncore_contract.SeverityError,
+			want:  inspectioncore.SeverityError,
 		},
 		{
 			name:  "CRITICAL returns Fatal",
 			input: "CRITICAL",
-			want:  inspectioncore_contract.SeverityFatal,
+			want:  inspectioncore.SeverityFatal,
 		},
 		{
 			name:  "ALERT returns Fatal",
 			input: "ALERT",
-			want:  inspectioncore_contract.SeverityFatal,
+			want:  inspectioncore.SeverityFatal,
 		},
 		{
 			name:  "EMERGENCY returns Fatal",
 			input: "EMERGENCY",
-			want:  inspectioncore_contract.SeverityFatal,
+			want:  inspectioncore.SeverityFatal,
 		},
 		{
 			name:  "UNKNOWN returns Unknown",
 			input: "UNKNOWN",
-			want:  inspectioncore_contract.SeverityUnknown,
+			want:  inspectioncore.SeverityUnknown,
 		},
 		{
 			name:  "invalid string returns Unknown",
 			input: "INVALID_SEVERITY",
-			want:  inspectioncore_contract.SeverityUnknown,
+			want:  inspectioncore.SeverityUnknown,
 		},
 		{
 			name:  "empty string returns Unknown",
 			input: "",
-			want:  inspectioncore_contract.SeverityUnknown,
+			want:  inspectioncore.SeverityUnknown,
 		},
 		{
 			name:  "case insensitive - lowercase info",
 			input: "info",
-			want:  inspectioncore_contract.SeverityInfo,
+			want:  inspectioncore.SeverityInfo,
 		},
 		{
 			name:  "case insensitive - mixed case warning",
 			input: "WaRnInG",
-			want:  inspectioncore_contract.SeverityWarning,
+			want:  inspectioncore.SeverityWarning,
 		},
 		{
 			name:  "surrounding spaces",
 			input: "  INFO  ",
-			want:  inspectioncore_contract.SeverityInfo,
+			want:  inspectioncore.SeverityInfo,
 		},
 	}
 

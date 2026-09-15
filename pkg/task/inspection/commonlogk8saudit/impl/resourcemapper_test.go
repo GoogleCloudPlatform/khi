@@ -26,7 +26,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -64,13 +64,13 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 
 	// 1. Set up the mock Builder and construct comparison paths hierarchically.
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-	ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
+	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+	ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
 
-	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test", Type: inspectioncore_contract.TimelineTypeResource})
-	subresourcePath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "binding", Type: inspectioncore_contract.TimelineTypeSubresource})
+	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test", Type: inspectioncore.TimelineTypeResource})
+	subresourcePath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "binding", Type: inspectioncore.TimelineTypeSubresource})
 
 	// Comparer for structured.Node using semantical YAML serializations to bypass unexported fields.
 	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
@@ -639,14 +639,14 @@ uid: "test-uid"`,
 		t.Run(tc.name, func(t *testing.T) {
 			// Clear comparison path builder states.
 			builder = khifilev6.NewTestBuilder(id.NewGenerator())
-			cluster = builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-			api = builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-			kind = builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-			ns = builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-			parentPath = builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test", Type: inspectioncore_contract.TimelineTypeResource})
-			subresourcePath = builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "binding", Type: inspectioncore_contract.TimelineTypeSubresource})
+			cluster = builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+			api = builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+			kind = builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+			ns = builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+			parentPath = builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test", Type: inspectioncore.TimelineTypeResource})
+			subresourcePath = builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "binding", Type: inspectioncore.TimelineTypeSubresource})
 
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.InitialResourceStateProviderRef, newTestInitialResourceStateProvider(t, ""))
 
 			// Setup the Log and Mock Group Context dynamically for each test case.
@@ -746,11 +746,11 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 	creationTimeUID1 := time.Date(2023, 10, 26, 9, 50, 0, 0, time.UTC)
 
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-	ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test", Type: inspectioncore_contract.TimelineTypeResource})
+	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+	ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test", Type: inspectioncore.TimelineTypeResource})
 
 	testCases := []struct {
 		name      string
@@ -987,7 +987,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.InitialResourceStateProviderRef, newTestInitialResourceStateProvider(t, tc.initialStateYAML))
 			mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSetting{}
 

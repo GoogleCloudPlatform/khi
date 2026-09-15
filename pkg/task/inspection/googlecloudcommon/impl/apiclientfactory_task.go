@@ -23,7 +23,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // APIClientFactoryTask is a task to inject googlecloud.ClientFactory to the later tasks. The instance is singleton in an inspection and the instance is cached on inspection cache after the first generation.
@@ -40,7 +40,7 @@ var APIClientFactoryTask = inspectiontaskbase.NewInspectionCachedTask(googleclou
 	if err != nil {
 		return inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory]{}, err
 	}
-	inspectionContext := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionContext)
+	inspectionContext := khictx.MustGetValue(ctx, inspectioncore.InspectionContext)
 	context.AfterFunc(inspectionContext, func() {
 		if err := clientFactory.Close(); err != nil {
 			slog.ErrorContext(inspectionContext, "failed to close client factory", "error", err)

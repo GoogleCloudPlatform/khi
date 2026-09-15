@@ -25,7 +25,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 )
@@ -75,7 +75,7 @@ func TestImportSessionManager_Lifecycle(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			destDir := t.TempDir()
-			ioConfig := &inspectioncore_contract.IOConfig{
+			ioConfig := &inspectioncore.IOConfig{
 				TemporaryFolder: tempDir,
 				DataDestination: destDir,
 			}
@@ -160,7 +160,7 @@ func TestImportSessionManager_ParallelAndOutOfOrder(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			destDir := t.TempDir()
-			ioConfig := &inspectioncore_contract.IOConfig{
+			ioConfig := &inspectioncore.IOConfig{
 				TemporaryFolder: tempDir,
 				DataDestination: destDir,
 			}
@@ -368,7 +368,7 @@ func TestImportSessionManager_Errors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			destDir := t.TempDir()
-			ioConfig := &inspectioncore_contract.IOConfig{
+			ioConfig := &inspectioncore.IOConfig{
 				TemporaryFolder: tempDir,
 				DataDestination: destDir,
 			}

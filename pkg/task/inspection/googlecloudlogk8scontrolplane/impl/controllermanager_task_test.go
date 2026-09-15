@@ -27,14 +27,14 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, "test-project")
 	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, "test-cluster")
@@ -138,7 +138,7 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			finder := patternfinder.NewRadixPatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
 

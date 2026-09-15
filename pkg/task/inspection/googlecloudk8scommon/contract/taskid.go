@@ -18,7 +18,7 @@ import (
 	queryutil "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // GoogleCloudCommonK8STaskIDPrefix is the prefix for common task used for K8s on Google Cloud related tasks  IDs.
@@ -31,19 +31,19 @@ var AutocompleteMetricsK8sContainerTaskID = taskid.NewDefaultImplementationID[st
 var AutocompleteMetricsK8sNodeTaskID = taskid.NewDefaultImplementationID[string](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/metrics/k8s_node")
 
 // AutocompleteLocationForClusterTaskID is the task ID for overriding the default location autocomplete by returning the location of the given cluster.
-var AutocompleteLocationForClusterTaskID taskid.TaskImplementationID[*inspectioncore_contract.AutocompleteResult[string]] = taskid.NewImplementationID(googlecloudcommon_contract.AutocompleteLocationTaskID.Ref(), "location-for-k8s-cluster")
+var AutocompleteLocationForClusterTaskID taskid.TaskImplementationID[*inspectioncore.AutocompleteResult[string]] = taskid.NewImplementationID(googlecloudcommon_contract.AutocompleteLocationTaskID.Ref(), "location-for-k8s-cluster")
 
 // AutocompleteClusterIdentityTaskID is the task ID for returning cluster name candidates as AutocompleteClusterNameList.
-var AutocompleteClusterIdentityTaskID = taskid.NewDefaultImplementationID[*inspectioncore_contract.AutocompleteResult[GoogleCloudClusterIdentity]](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/cluster-names")
+var AutocompleteClusterIdentityTaskID = taskid.NewDefaultImplementationID[*inspectioncore.AutocompleteResult[GoogleCloudClusterIdentity]](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/cluster-names")
 
 // AutocompleteNamespacesTaskID is the task ID for returning namespace candidates as AutocompleteResult.
-var AutocompleteNamespacesTaskID = taskid.NewDefaultImplementationID[*inspectioncore_contract.AutocompleteResult[string]](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/namespaces")
+var AutocompleteNamespacesTaskID = taskid.NewDefaultImplementationID[*inspectioncore.AutocompleteResult[string]](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/namespaces")
 
 // AutocompleteNodeNamesTaskID is the task ID for returning node name candidates as AutocompleteResult.
-var AutocompleteNodeNamesTaskID = taskid.NewDefaultImplementationID[*inspectioncore_contract.AutocompleteResult[string]](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/node-names")
+var AutocompleteNodeNamesTaskID = taskid.NewDefaultImplementationID[*inspectioncore.AutocompleteResult[string]](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/node-names")
 
 // AutocompletePodNamesTaskID is the task ID for returning pod name candidates as AutocompleteResult.
-var AutocompletePodNamesTaskID = taskid.NewDefaultImplementationID[*inspectioncore_contract.AutocompleteResult[string]](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/pod-names")
+var AutocompletePodNamesTaskID = taskid.NewDefaultImplementationID[*inspectioncore.AutocompleteResult[string]](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/pod-names")
 
 // HeaderSuggestedFileNameTaskID is the task ID for the suggested file name of the inspection file included in the header metadata. This name is used for the default name of downloaded file.
 var HeaderSuggestedFileNameTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudCommonK8STaskIDPrefix + "header-suggested-file-name")

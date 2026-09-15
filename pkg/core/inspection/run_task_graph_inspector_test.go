@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -72,7 +72,7 @@ func TestInspectRunTaskGraph(t *testing.T) {
 
 			if tc.runInspection {
 				runner := server.GetInspection(inspectionID)
-				req := &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}
+				req := &inspectioncore.InspectionRequest{Values: map[string]any{}}
 				if err := runner.Run(context.Background(), req); err != nil {
 					t.Fatalf("Run failed: %v", err)
 				}
@@ -128,7 +128,7 @@ func TestInspectRunTaskGraphSortsNodeStatusesByTaskImplementationID(t *testing.T
 
 	server, inspectionID, _ := newTestInspectionServer(t, nil)
 	runner := server.GetInspection(inspectionID)
-	if err := runner.Run(context.Background(), &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}); err != nil {
+	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
 	<-runner.Wait()

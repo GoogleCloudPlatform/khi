@@ -28,31 +28,31 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // JobModeCommandTaskID defines the unique ID of the JobModeCommandTask.
-var JobModeCommandTaskID = taskid.NewDefaultImplementationID[any](inspectioncore_contract.InspectionTaskPrefix + "job-command")
+var JobModeCommandTaskID = taskid.NewDefaultImplementationID[any](inspectioncore.InspectionTaskPrefix + "job-command")
 
 // JobModeCommandTask calculates the job mode command example and populates it into the metadata map.
 var JobModeCommandTask = inspectiontaskbase.NewInspectionTask(
 	JobModeCommandTaskID,
 	[]coretask.Dependency{},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (any, error) {
-		metadataSet := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (any, error) {
+		metadataSet := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 		jobMetadata, found := typedmap.Get(metadataSet, inspectionmetadata.JobModeCommandMetadataKey)
 		if !found {
 			return nil, fmt.Errorf("job command metadata not found")
 		}
 
-		enabledFeatures, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskEnabledFeatures)
+		enabledFeatures, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskEnabledFeatures)
 		if err != nil {
 			return nil, err
 		}
 
-		inspectionType := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskType)
+		inspectionType := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskType)
 
-		taskInput := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
+		taskInput := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
 
 		formFields, found := typedmap.Get(metadataSet, inspectionmetadata.FormFieldSetMetadataKey)
 		if !found {

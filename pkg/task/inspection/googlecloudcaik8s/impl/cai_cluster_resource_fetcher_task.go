@@ -29,7 +29,7 @@ import (
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -75,7 +75,7 @@ var ClusterResourceFetcherTask = inspectiontaskbase.NewProgressReportableInspect
 		googlecloudk8scommon_contract.InputKindFilterTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*googlecloudcaik8s_contract.ClusterResourceSnapshot, error) {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*googlecloudcaik8s_contract.ClusterResourceSnapshot, error) {
 		cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 		factory := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 		injector, _ := coretask.GetOptionalTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
@@ -84,7 +84,7 @@ var ClusterResourceFetcherTask = inspectiontaskbase.NewProgressReportableInspect
 		kindFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputKindFilterTaskID.Ref())
 		namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
 
-		if taskMode == inspectioncore_contract.TaskModeDryRun || !cluster.IsComplete() {
+		if taskMode == inspectioncore.TaskModeDryRun || !cluster.IsComplete() {
 			return []*googlecloudcaik8s_contract.ClusterResourceSnapshot{}, nil
 		}
 

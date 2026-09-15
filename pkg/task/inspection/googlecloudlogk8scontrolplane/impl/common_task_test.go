@@ -21,7 +21,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -38,8 +38,8 @@ func TestK8sControlPlaneLogIngester_ProcessLog(t *testing.T) {
 			name: "successful control plane log ingestion with all fields",
 			input: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSet{
 					Message: "scheduler starting",
@@ -48,7 +48,7 @@ func TestK8sControlPlaneLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(googlecloudlogk8scontrolplane_contract.LogTypeControlPlaneComponent).
 					HasSummary("scheduler starting")
 			},

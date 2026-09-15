@@ -25,13 +25,13 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // InputEndTimeTask defines a form task to input the end time for log queries.
 var InputEndTimeTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputEndTimeTaskID, googlecloudcommon_contract.PriorityForQueryTimeGroup+5000, "End time").
 	WithDependencies([]coretask.Dependency{
-		inspectioncore_contract.TimeZoneShiftInputTaskID.Ref(),
+		inspectioncore.TimeZoneShiftInputTaskID.Ref(),
 	}).
 	WithDescription(`The endtime of query. Please input it in the format of RFC3339
 (example: 2006-01-02T15:04:05-07:00)`).
@@ -42,13 +42,13 @@ var InputEndTimeTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contrac
 		if len(previousValues) > 0 {
 			return previousValues[0], nil
 		}
-		creationTime := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionCreationTime)
-		timezoneShift := coretask.GetTaskResult(ctx, inspectioncore_contract.TimeZoneShiftInputTaskID.Ref())
+		creationTime := khictx.MustGetValue(ctx, inspectioncore.InspectionCreationTime)
+		timezoneShift := coretask.GetTaskResult(ctx, inspectioncore.TimeZoneShiftInputTaskID.Ref())
 
 		return creationTime.In(timezoneShift).Format(time.RFC3339), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		creationTime := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionCreationTime)
+		creationTime := khictx.MustGetValue(ctx, inspectioncore.InspectionCreationTime)
 
 		specifiedTime := convertedValue.(time.Time)
 		if creationTime.Sub(specifiedTime) < 0 {

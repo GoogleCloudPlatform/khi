@@ -35,7 +35,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -53,7 +53,7 @@ func setupTestInspectionServer(
 	t.Cleanup(func() {
 		upload.DefaultUploadFileStore = oldStore
 	})
-	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
+	ioConfig, err := inspectioncore.NewIOConfigForTest()
 	if err != nil {
 		t.Fatalf("NewIOConfigForTest failed: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestInspectionServiceServer_CreateAndUpdateInspection(t *testing.T) {
 			if err := os.WriteFile(filePath, []byte("test data"), 0644); err != nil {
 				t.Fatalf("WriteFile failed: %v", err)
 			}
-			store := inspectioncore_contract.NewFileSystemInspectionResultRepository(filePath)
+			store := inspectioncore.NewFileSystemInspectionResultRepository(filePath)
 			metadata := typedmap.NewTypedMap()
 			header := &inspectionmetadata.HeaderMetadata{
 				InspectionType: tc.typeId,
@@ -285,7 +285,7 @@ func TestInspectionServiceServer_GetAndWatchInspections(t *testing.T) {
 			if err := os.WriteFile(filePath, []byte("test data"), 0644); err != nil {
 				t.Fatalf("WriteFile failed: %v", err)
 			}
-			store := inspectioncore_contract.NewFileSystemInspectionResultRepository(filePath)
+			store := inspectioncore.NewFileSystemInspectionResultRepository(filePath)
 			metadata := typedmap.NewTypedMap()
 			header := &inspectionmetadata.HeaderMetadata{
 				InspectionType: "gcp-gke",
@@ -400,7 +400,7 @@ func TestInspectionServiceServer_GetInspectionDataChunk(t *testing.T) {
 			if err := os.WriteFile(filePath, tc.data, 0644); err != nil {
 				t.Fatalf("WriteFile failed: %v", err)
 			}
-			store := inspectioncore_contract.NewFileSystemInspectionResultRepository(filePath)
+			store := inspectioncore.NewFileSystemInspectionResultRepository(filePath)
 			metadata := typedmap.NewTypedMap()
 			server.RegisterImportedInspection("data-test-1", store, metadata.AsReadonly())
 
@@ -631,7 +631,7 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 
 			filePath := filepath.Join(t.TempDir(), "result.khi")
 			_ = os.WriteFile(filePath, []byte("data"), 0644)
-			store := inspectioncore_contract.NewFileSystemInspectionResultRepository(filePath)
+			store := inspectioncore.NewFileSystemInspectionResultRepository(filePath)
 			metadata := typedmap.NewTypedMap()
 			typedmap.Set(metadata, inspectionmetadata.HeaderMetadataKey, tc.header)
 			typedmap.Set(metadata, inspectionmetadata.InspectionPlanMetadataKey, tc.plan)

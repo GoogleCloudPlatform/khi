@@ -31,7 +31,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
@@ -47,14 +47,14 @@ func TestGenerateComputeAPIStructuredQuery(t *testing.T) {
 
 	testCases := []struct {
 		name                   string
-		taskMode               inspectioncore_contract.InspectionTaskModeType
+		taskMode               inspectioncore.InspectionTaskModeType
 		nodeNames              []string
 		wantQueries            []string
 		wantSupportMetricsFlag bool
 	}{
 		{
 			name:      "DryRun mode",
-			taskMode:  inspectioncore_contract.TaskModeDryRun,
+			taskMode:  inspectioncore.TaskModeDryRun,
 			nodeNames: []string{},
 			wantQueries: []string{
 				`resource.type="gce_instance"
@@ -65,14 +65,14 @@ func TestGenerateComputeAPIStructuredQuery(t *testing.T) {
 		},
 		{
 			name:                   "Run mode with empty nodes",
-			taskMode:               inspectioncore_contract.TaskModeRun,
+			taskMode:               inspectioncore.TaskModeRun,
 			nodeNames:              []string{},
 			wantQueries:            []string{},
 			wantSupportMetricsFlag: false,
 		},
 		{
 			name:      "Run mode with a few nodes",
-			taskMode:  inspectioncore_contract.TaskModeRun,
+			taskMode:  inspectioncore.TaskModeRun,
 			nodeNames: []string{"node1", "node2"},
 			wantQueries: []string{
 				`resource.type="gce_instance"
@@ -83,7 +83,7 @@ protoPayload.resourceName:(instances/node1 OR instances/node2)`,
 		},
 		{
 			name:      "Run mode with >30 nodes chunked into multiple queries",
-			taskMode:  inspectioncore_contract.TaskModeRun,
+			taskMode:  inspectioncore.TaskModeRun,
 			nodeNames: generateNodes(32),
 			wantQueries: []string{
 				func() string {
@@ -122,17 +122,17 @@ protoPayload.resourceName:(instances/node-31 OR instances/node-32)`,
 func TestGenerateComputeAPIStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name      string
-		taskMode  inspectioncore_contract.InspectionTaskModeType
+		taskMode  inspectioncore.InspectionTaskModeType
 		nodeNames []string
 	}{
 		{
 			name:      "Valid Query in DryRun mode",
-			taskMode:  inspectioncore_contract.TaskModeDryRun,
+			taskMode:  inspectioncore.TaskModeDryRun,
 			nodeNames: []string{},
 		},
 		{
 			name:      "Valid Query in Run mode",
-			taskMode:  inspectioncore_contract.TaskModeRun,
+			taskMode:  inspectioncore.TaskModeRun,
 			nodeNames: []string{"gke-test-cluster-node-1"},
 		},
 	}
@@ -167,7 +167,7 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
@@ -182,7 +182,7 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 		t.Errorf("dry run should return 0 logs, got %d", len(gotLogs))
 	}
 
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
 		t.Fatalf("QueryMetadata not found in metadata")

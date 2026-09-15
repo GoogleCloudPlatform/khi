@@ -24,7 +24,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // GCPOperationLogIngester is a common LogIngester implementation for GCP Operation audit logs.
@@ -63,7 +63,7 @@ func (i *GCPOperationLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*
 	if severity, err := ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
 		cs.SetSeverity(severity)
 	} else {
-		cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
+		cs.SetSeverity(inspectioncore.SeverityUnknown)
 	}
 
 	cs.SetLogType(i.logType)

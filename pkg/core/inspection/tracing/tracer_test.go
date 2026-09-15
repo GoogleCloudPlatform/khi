@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -44,12 +44,12 @@ func TestNewInspectionTraceInterceptor(t *testing.T) {
 
 	// Create a context with the mock TaskRunner
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, inspectioncore_contract.TaskRunner, mockRunner)
-	ctx = context.WithValue(ctx, inspectioncore_contract.InspectionTaskInspectionID, "test-inspection-id")
-	ctx = context.WithValue(ctx, inspectioncore_contract.InspectionTaskRunID, "test-run-id")
-	ctx = context.WithValue(ctx, inspectioncore_contract.InspectionTaskMode, inspectioncore_contract.TaskModeRun)
+	ctx = context.WithValue(ctx, inspectioncore.TaskRunner, mockRunner)
+	ctx = context.WithValue(ctx, inspectioncore.InspectionTaskInspectionID, "test-inspection-id")
+	ctx = context.WithValue(ctx, inspectioncore.InspectionTaskRunID, "test-run-id")
+	ctx = context.WithValue(ctx, inspectioncore.InspectionTaskMode, inspectioncore.TaskModeRun)
 
-	req := &inspectioncore_contract.InspectionRequest{}
+	req := &inspectioncore.InspectionRequest{}
 
 	// Execute the interceptor
 	err := interceptor(ctx, req, func(ctx context.Context) error {

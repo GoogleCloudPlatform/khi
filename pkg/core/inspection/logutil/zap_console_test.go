@@ -17,7 +17,7 @@ package logutil
 import (
 	"testing"
 
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 )
@@ -35,7 +35,7 @@ func TestZapConsoleTextParser_TryParse(t *testing.T) {
 				Fields: map[string]any{
 					OriginalMessageFieldKey:       "2026-02-18T06:58:06.999Z\tinfo\tkubernetes/kubernetes.go:282\tUsing pod service account via in-cluster config\t{\"kind\": \"receiver\", \"name\": \"prometheus\", \"discovery\": \"kubernetes\"}",
 					MainMessageStructuredFieldKey: "Using pod service account via in-cluster config",
-					SeverityStructuredFieldKey:    inspectioncore_contract.SeverityInfo,
+					SeverityStructuredFieldKey:    inspectioncore.SeverityInfo,
 					ZapConsoleTimestampFieldKey:   "2026-02-18T06:58:06.999Z",
 					ZapConsoleCallerFieldKey:      "kubernetes/kubernetes.go:282",
 					"kind":                        "receiver",
@@ -50,7 +50,7 @@ func TestZapConsoleTextParser_TryParse(t *testing.T) {
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
 					OriginalMessageFieldKey:     "2026-02-18T06:58:06.999Z\tinfo\tkubernetes/kubernetes.go:282\t\t{\"kind\": \"receiver\"}",
-					SeverityStructuredFieldKey:  inspectioncore_contract.SeverityInfo,
+					SeverityStructuredFieldKey:  inspectioncore.SeverityInfo,
 					ZapConsoleTimestampFieldKey: "2026-02-18T06:58:06.999Z",
 					ZapConsoleCallerFieldKey:    "kubernetes/kubernetes.go:282",
 					"kind":                      "receiver",
@@ -64,7 +64,7 @@ func TestZapConsoleTextParser_TryParse(t *testing.T) {
 				Fields: map[string]any{
 					OriginalMessageFieldKey:       "2026-02-18T06:58:06.999Z\tinfo\tkubernetes/kubernetes.go:282\tUsing pod service account via in-cluster config",
 					MainMessageStructuredFieldKey: "Using pod service account via in-cluster config",
-					SeverityStructuredFieldKey:    inspectioncore_contract.SeverityInfo,
+					SeverityStructuredFieldKey:    inspectioncore.SeverityInfo,
 					ZapConsoleTimestampFieldKey:   "2026-02-18T06:58:06.999Z",
 					ZapConsoleCallerFieldKey:      "kubernetes/kubernetes.go:282",
 				},

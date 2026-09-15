@@ -28,7 +28,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -46,8 +46,8 @@ func NewLogFilterTask(tid taskid.TaskImplementationID[[]*log.Log], sourceLogs ta
 // containing only the logs that satisfy the filter function, with extra task dependencies.
 func NewLogFilterTaskWithDependencies(tid taskid.TaskImplementationID[[]*log.Log], sourceLogs taskid.TaskReference[[]*log.Log], extraDependencies []coretask.Dependency, logFilter LogFilterFunc) coretask.Task[[]*log.Log] {
 	dependencies := append([]coretask.Dependency{sourceLogs}, extraDependencies...)
-	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
-		if taskMode != inspectioncore_contract.TaskModeRun {
+	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
+		if taskMode != inspectioncore.TaskModeRun {
 			return []*log.Log{}, nil
 		}
 
@@ -107,7 +107,7 @@ func NewLogFilterTaskWithDependencies(tid taskid.TaskImplementationID[[]*log.Log
 			filteredLogs = append(filteredLogs, wr...)
 		}
 
-		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+		tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 		if tracingActive {
 			trace.SpanFromContext(ctx).SetAttributes(
 				attribute.String("log_count", fmt.Sprintf("%d -> %d", len(logs), len(filteredLogs))),

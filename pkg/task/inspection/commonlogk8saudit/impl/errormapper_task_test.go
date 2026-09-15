@@ -29,7 +29,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -37,13 +37,13 @@ import (
 func TestNonSuccessLogLogToTimelineMapperTaskSetting_ProcessLogByGroup(t *testing.T) {
 	// 1. Set up the mock Builder and construct comparison paths hierarchically.
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-	ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
+	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+	ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
 
-	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test-pod", Type: inspectioncore_contract.TimelineTypeResource})
-	otherSubresourcePath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "proxy", Type: inspectioncore_contract.TimelineTypeSubresource})
+	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test-pod", Type: inspectioncore.TimelineTypeResource})
+	otherSubresourcePath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "proxy", Type: inspectioncore.TimelineTypeSubresource})
 
 	testCases := []struct {
 		name            string
@@ -88,7 +88,7 @@ func TestNonSuccessLogLogToTimelineMapperTaskSetting_ProcessLogByGroup(t *testin
 					ClusterName:     "k8s",
 				},
 			)
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 			cs, _, err := mapperSetting.ProcessLogByGroup(ctx, logObj, struct{}{})
 			if err != nil {
@@ -117,7 +117,7 @@ func TestNonSuccessLogLogToTimelineMapperTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			idGen := khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator)
+			idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
 			logs := make([]*log.Log, 0, len(tc.logYamls))
 			for _, yml := range tc.logYamls {
 				l, err := log.NewLogFromYAMLString(idGen, yml)
@@ -127,7 +127,7 @@ func TestNonSuccessLogLogToTimelineMapperTask(t *testing.T) {
 				logs = append(logs, l)
 			}
 
-			builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 			for _, l := range logs {
 				severityID := uint32(1)
 				logTypeID := uint32(2)
@@ -159,7 +159,7 @@ func TestNonSuccessLogLogToTimelineMapperTask(t *testing.T) {
 			_, _, err := inspectiontest.RunInspectionTask(
 				ctx,
 				NonSuccessLogLogToTimelineMapperTask,
-				inspectioncore_contract.TaskModeRun,
+				inspectioncore.TaskModeRun,
 				map[string]any{},
 				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.NonSuccessLogGrouperTaskID.Ref(), logGroupMap),
 				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref(), struct{}{}),
@@ -169,11 +169,11 @@ func TestNonSuccessLogLogToTimelineMapperTask(t *testing.T) {
 				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
 			}
 
-			cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-			api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-			kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-			ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-			wantPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "pod-1", Type: inspectioncore_contract.TimelineTypeResource})
+			cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+			api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+			kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+			ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+			wantPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "pod-1", Type: inspectioncore.TimelineTypeResource})
 
 			if !builder.TimelineAccumulator.HasEvent(wantPath) {
 				t.Errorf("expected timeline %v to have events, but none found", wantPath)

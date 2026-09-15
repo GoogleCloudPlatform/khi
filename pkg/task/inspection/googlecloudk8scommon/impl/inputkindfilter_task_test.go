@@ -25,7 +25,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -38,7 +38,7 @@ var expectedLegacyDefaultKinds = func() []string {
 
 func TestInputKindFilterTask_Metadata(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-	_, metadata, err := inspectiontest.RunInspectionTask(ctx, InputKindFilterTask, inspectioncore_contract.TaskModeDryRun, nil)
+	_, metadata, err := inspectiontest.RunInspectionTask(ctx, InputKindFilterTask, inspectioncore.TaskModeDryRun, nil)
 	if err != nil {
 		t.Fatalf("unexpected error on DryRun mode: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestInputKindFilterTask_Run(t *testing.T) {
 				inputMap[googlecloudk8scommon_contract.InputKindFilterTaskID.ReferenceIDString()] = tc.inputValue
 			}
 
-			result, _, err := inspectiontest.RunInspectionTask(ctx, InputKindFilterTask, inspectioncore_contract.TaskModeRun, inputMap)
+			result, _, err := inspectiontest.RunInspectionTask(ctx, InputKindFilterTask, inspectioncore.TaskModeRun, inputMap)
 			if tc.wantErrSub != "" {
 				if err == nil {
 					t.Fatalf("expected error containing %q, got nil", tc.wantErrSub)

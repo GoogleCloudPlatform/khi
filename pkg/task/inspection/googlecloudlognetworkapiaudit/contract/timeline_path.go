@@ -24,7 +24,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustNEGTimeline returns the hierarchical timeline path for GKE NEGs under the cluster.
@@ -48,7 +48,7 @@ func MustNEGOperationTimeline(ctx context.Context, negPath *khifilev6.TimelinePa
 	if negPath == nil {
 		panic("negPath must not be nil")
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	shortMethodName := "unknown"
 	if methodName != "" {
 		methodNameSplitted := strings.Split(methodName, ".")
@@ -65,7 +65,7 @@ func MustNEGUnderResourceTimeline(ctx context.Context, parentPath *khifilev6.Tim
 	if parentPath == nil {
 		panic("parentPath must not be nil")
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{
 		Name: negName,
 		Type: TimelineTypeNetworkEndpointGroup,

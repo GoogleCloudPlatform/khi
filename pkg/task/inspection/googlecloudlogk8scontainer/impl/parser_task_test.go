@@ -30,7 +30,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -47,8 +47,8 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			name: "successful container log ingestion",
 			input: testlog.NewMockLog(
 				time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "test-namespace",
@@ -60,7 +60,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary("test message").
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer).
 					HasTimestamp(time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC))
 			},
@@ -69,8 +69,8 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			name: "container log with structured klog error",
 			input: testlog.NewMockLog(
 				time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "kube-system",
@@ -83,7 +83,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary("Failed to reconcile").
-					HasSeverity(inspectioncore_contract.SeverityError).
+					HasSeverity(inspectioncore.SeverityError).
 					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer)
 			},
 		},
@@ -91,8 +91,8 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			name: "container log with structured jsonl warning",
 			input: testlog.NewMockLog(
 				time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "app-namespace",
@@ -105,7 +105,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary("cache degraded").
-					HasSeverity(inspectioncore_contract.SeverityWarning).
+					HasSeverity(inspectioncore.SeverityWarning).
 					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer)
 			},
 		},
@@ -113,8 +113,8 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			name: "container log with istio envoy access log with error response flag",
 			input: testlog.NewMockLog(
 				time.Date(2026, 8, 10, 8, 50, 55, 0, time.UTC),
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "default",
@@ -127,7 +127,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary("【Upstream connection failure(UF)】503 GET http://10.4.0.5/").
-					HasSeverity(inspectioncore_contract.SeverityError).
+					HasSeverity(inspectioncore.SeverityError).
 					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer)
 			},
 		},
@@ -135,8 +135,8 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			name: "istio-proxy non-access-log control plane log",
 			input: testlog.NewMockLog(
 				time.Date(2026, 8, 20, 4, 46, 31, 353884563, time.UTC),
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
 					Namespace:     "default",
@@ -149,7 +149,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary("2026-08-20T04:46:31.353537Z\tinfo\txdsproxy\tconnected to upstream XDS server: meshconfig.googleapis.com:443").
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer).
 					HasTimestamp(time.Date(2026, 8, 20, 4, 46, 31, 353884563, time.UTC))
 			},
@@ -171,7 +171,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 // TestLogToTimelineMapper_ProcessLogByGroup tests the containerLogLogToTimelineMapper.ProcessLogByGroup function.
 func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
 	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
@@ -227,7 +227,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	mapper := &containerLogLogToTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8scontainer_contract.ClusterIdentityTaskID.Ref(), tc.cluster)
 
 			cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, struct{}{})
@@ -242,7 +242,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 // TestPodPhaseTimelineMapper_ProcessLogByGroup tests the containerLogPodPhaseTimelineMapper.ProcessLogByGroup function.
 func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
 	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
@@ -682,7 +682,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			if tc.setup != nil {
 				tc.setup()
 			}
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8scontainer_contract.ClusterIdentityTaskID.Ref(), tc.cluster)
 
 			var css []*khifilev6.TimelineChangeSet

@@ -25,7 +25,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
@@ -59,7 +59,7 @@ func (i *OSSK8sEventLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*k
 	}
 	finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
 	cs.SetSummary(commonlogk8saudit_contract.FormatEventSummary(event.Reason, event.Message, finder))
-	cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
+	cs.SetSeverity(inspectioncore.SeverityUnknown)
 
 	return cs, nil
 }
@@ -138,7 +138,7 @@ var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*OSSK8sEventTimelineMa
 var OSSK8sEventLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	ossclusterk8s_contract.OSSK8sEventLogToTimelineMapperTaskID,
 	&OSSK8sEventTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		"OSS Kubernetes Event Logs",
 		"Gather and parse Kubernetes event logs from OSS Kubernetes JSONL audit logs to visualize resource lifecycle and operational events.",
 		2000,

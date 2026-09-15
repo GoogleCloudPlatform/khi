@@ -19,12 +19,12 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustMultiCloudClusterTimeline returns the hierarchical timeline path for a MultiCloud Cluster.
 func MustMultiCloudClusterTimeline(ctx context.Context, parent *khifilev6.TimelinePath, clusterName string) *khifilev6.TimelinePath {
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(parent, khifilev6.PathSegment{
 		Name: clusterName,
 		Type: TimelineTypeMultiCloudCluster,
@@ -33,7 +33,7 @@ func MustMultiCloudClusterTimeline(ctx context.Context, parent *khifilev6.Timeli
 
 // MustMultiCloudNodepoolTimeline returns the hierarchical timeline path for a MultiCloud NodePool.
 func MustMultiCloudNodepoolTimeline(ctx context.Context, parent *khifilev6.TimelinePath, nodepoolName string) *khifilev6.TimelinePath {
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(parent, khifilev6.PathSegment{
 		Name: nodepoolName,
 		Type: TimelineTypeMultiCloudNodepool,
@@ -42,9 +42,9 @@ func MustMultiCloudNodepoolTimeline(ctx context.Context, parent *khifilev6.Timel
 
 // MustOperationTimeline returns the hierarchical timeline path for an operation on a resource.
 func MustOperationTimeline(ctx context.Context, parent *khifilev6.TimelinePath, shortMethodName string, operationID string) *khifilev6.TimelinePath {
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(parent, khifilev6.PathSegment{
 		Name: shortMethodName + "-" + operationID,
-		Type: inspectioncore_contract.TimelineTypeSubresource,
+		Type: inspectioncore.TimelineTypeSubresource,
 	})
 }

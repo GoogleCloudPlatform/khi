@@ -12,11 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspectioncore_contract
+package inspectioncore
 
-// AutocompleteResult is a list of cluster names/namespaces/node names/pod names for autocomplete.
-type AutocompleteResult[T any] struct {
-	Values []T
-	Error  string
-	Hint   string
+type InspectionTaskModeType int
+
+const (
+	TaskModeDryRun InspectionTaskModeType = 1
+	TaskModeRun    InspectionTaskModeType = 2
+)
+
+// TaskModeToString converts an InspectionTaskModeType to a string.
+func TaskModeToString(mode InspectionTaskModeType) string {
+	switch mode {
+	case TaskModeDryRun:
+		return "dry-run"
+	case TaskModeRun:
+		return "run"
+	default:
+		return "unknown"
+	}
 }

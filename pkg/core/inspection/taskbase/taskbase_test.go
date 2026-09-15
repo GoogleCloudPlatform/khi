@@ -21,12 +21,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func mustNewLogFromYAML(t *testing.T, ctx context.Context, yaml string) *log.Log {
 	t.Helper()
-	idGen, err := khictx.GetValue(ctx, inspectioncore_contract.IDGenerator)
+	idGen, err := khictx.GetValue(ctx, inspectioncore.IDGenerator)
 	if err != nil {
 		idGen = id.NewGenerator()
 	}

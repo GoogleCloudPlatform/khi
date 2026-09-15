@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // EnvoyAccessLogTimestampFieldKey is the key stored in Fields for the timestamp in an Envoy access log.
@@ -185,13 +185,13 @@ func buildEnvoyRequestURL(authority, path string) string {
 
 func parseEnvoySeverity(statusCode int, responseFlags EnvoyResponseFlags) *pb.Severity {
 	if statusCode >= 500 {
-		return inspectioncore_contract.SeverityError
+		return inspectioncore.SeverityError
 	}
 	if statusCode >= 400 {
-		return inspectioncore_contract.SeverityWarning
+		return inspectioncore.SeverityWarning
 	}
 	if responseFlags.HasError() {
-		return inspectioncore_contract.SeverityError
+		return inspectioncore.SeverityError
 	}
-	return inspectioncore_contract.SeverityInfo
+	return inspectioncore.SeverityInfo
 }

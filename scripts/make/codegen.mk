@@ -33,11 +33,15 @@ fontlist-gen: scripts/msdf-generator/zzz_generated_used_icons.json
 web/src/environments/version.*.ts: VERSION
 	./scripts/generate-version.sh
 
-$(GENERATE_BACKEND_DUMMY): $(GENERATE_PROTO_DUMMY) ## Generate backend source code
+BACKEND_CODEGEN_SRCS := $(shell find scripts/backend-codegen -name "*.go")
+
+$(GENERATE_BACKEND_DUMMY): $(GENERATE_PROTO_DUMMY) $(BACKEND_CODEGEN_SRCS) ## Generate backend source code
 	go run ./scripts/backend-codegen/
 	touch $(GENERATE_BACKEND_DUMMY)
 .PHONY: generate-backend
-generate-backend: $(GENERATE_BACKEND_DUMMY) ## Generate backend source code
+generate-backend: ## Generate backend source code
+	go run ./scripts/backend-codegen/
+	touch $(GENERATE_BACKEND_DUMMY)
 
 # TODO: eventually the following cp commands are not needed after we removed icon image dependency directly from the frontend.
 $(FRONTEND_GENERATED_ASSETS_DUMMY): scripts/msdf-generator/zzz_generated_used_icons.json scripts/msdf-generator/index.js $(MSDF_SETUP_DUMMY) ## Generate font atlas

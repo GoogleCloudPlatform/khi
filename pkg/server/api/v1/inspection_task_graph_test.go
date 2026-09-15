@@ -30,7 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -63,7 +63,7 @@ func TestInspectionTaskGraphServer_GetInspectionTaskRegistry(t *testing.T) {
 
 	task := createServerTestTask("my.ref", "impl1", nil,
 		coretask.WithSelectionPriority(10),
-		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
+		inspectioncore.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
 	)
 	if err := inspectionServer.AddTask(task); err != nil {
 		t.Fatalf("failed to add task: %v", err)
@@ -137,13 +137,13 @@ func TestInspectionTaskGraphServer_ResolveInspectionTaskGraph(t *testing.T) {
 	}
 
 	taskA := createServerTestTask("feature.a", "impl1", nil,
-		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
-		inspectioncore_contract.FeatureTaskLabel("Feature A", "Description A", 1, true),
+		inspectioncore.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
+		inspectioncore.FeatureTaskLabel("Feature A", "Description A", 1, true),
 	)
 	refA := taskid.NewTaskReference[any]("feature.a")
 	taskB := createServerTestTask("task.b", "impl1", []coretask.Dependency{refA},
-		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
-		inspectioncore_contract.FeatureTaskLabel("Feature B", "Description B", 2, true),
+		inspectioncore.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
+		inspectioncore.FeatureTaskLabel("Feature B", "Description B", 2, true),
 	)
 
 	if err := inspectionServer.AddTask(taskA); err != nil {
@@ -230,7 +230,7 @@ type runTaskGraphFixture struct {
 func newInspectionServerWithTask(t *testing.T, task coretask.UntypedTask) (*coreinspection.InspectionTaskServer, string) {
 	t.Helper()
 	logger.InitGlobalKHILogger()
-	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
+	ioConfig, err := inspectioncore.NewIOConfigForTest()
 	if err != nil {
 		t.Fatalf("NewIOConfigForTest failed: %v", err)
 	}
@@ -258,9 +258,9 @@ func newRunTaskGraphFixture(t *testing.T) runTaskGraphFixture {
 		func(ctx context.Context) (any, error) {
 			return "success", nil
 		},
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
+		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	inspectionServer, inspectionTypeID := newInspectionServerWithTask(t, dummyTask)
 
@@ -269,7 +269,7 @@ func newRunTaskGraphFixture(t *testing.T) runTaskGraphFixture {
 		t.Fatalf("CreateInspection failed: %v", err)
 	}
 	runner := inspectionServer.GetInspection(finishedInspectionID)
-	if err := runner.Run(context.Background(), &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}); err != nil {
+	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
 	<-runner.Wait()
@@ -489,9 +489,9 @@ func newBlockingRunInspection(t *testing.T) (*coreinspection.InspectionTaskServe
 				return nil, ctx.Err()
 			}
 		},
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
+		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	inspectionServer, inspectionTypeID := newInspectionServerWithTask(t, blockingTask)
 
@@ -500,7 +500,7 @@ func newBlockingRunInspection(t *testing.T) (*coreinspection.InspectionTaskServe
 		t.Fatalf("CreateInspection failed: %v", err)
 	}
 	runner := inspectionServer.GetInspection(inspectionID)
-	if err := runner.Run(context.Background(), &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}); err != nil {
+	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
 

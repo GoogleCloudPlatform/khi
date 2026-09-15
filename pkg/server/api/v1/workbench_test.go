@@ -29,13 +29,13 @@ import (
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"google.golang.org/protobuf/proto"
 )
 
 func createTestInspectionServerForWorkbench(t *testing.T) (*coreinspection.InspectionTaskServer, string) {
 	logger.InitGlobalKHILogger()
-	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
+	ioConfig, err := inspectioncore.NewIOConfigForTest()
 	if err != nil {
 		t.Fatalf("failed to create test IOConfig: %v", err)
 	}
@@ -62,9 +62,9 @@ func createTestInspectionServerForWorkbench(t *testing.T) (*coreinspection.Inspe
 		func(ctx context.Context) (any, error) {
 			return "success", nil
 		},
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
+		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	if err := server.AddTask(dummyTask); err != nil {
 		t.Fatalf("failed to add task: %v", err)
@@ -76,7 +76,7 @@ func createTestInspectionServerForWorkbench(t *testing.T) (*coreinspection.Inspe
 	}
 
 	runner := server.GetInspection(inspectionID)
-	if err := runner.Run(context.Background(), &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}); err != nil {
+	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
 		t.Fatalf("failed to run inspection: %v", err)
 	}
 	<-runner.Wait()

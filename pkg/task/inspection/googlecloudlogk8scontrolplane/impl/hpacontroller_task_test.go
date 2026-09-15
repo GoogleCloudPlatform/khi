@@ -24,7 +24,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -51,41 +51,41 @@ func TestHpaControllerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	k8sClusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: "test-cluster",
-		Type: inspectioncore_contract.TimelineTypeK8sCluster,
+		Type: inspectioncore.TimelineTypeK8sCluster,
 	})
 
 	autoscalingApiTimeline := builder.TimelineAccumulator.GetPath(k8sClusterTimeline, khifilev6.PathSegment{
 		Name: "autoscaling/v2",
-		Type: inspectioncore_contract.TimelineTypeAPIVersion,
+		Type: inspectioncore.TimelineTypeAPIVersion,
 	})
 	hpaKindTimeline := builder.TimelineAccumulator.GetPath(autoscalingApiTimeline, khifilev6.PathSegment{
 		Name: "horizontalpodautoscaler",
-		Type: inspectioncore_contract.TimelineTypeKind,
+		Type: inspectioncore.TimelineTypeKind,
 	})
 	hpaNamespaceTimeline := builder.TimelineAccumulator.GetPath(hpaKindTimeline, khifilev6.PathSegment{
 		Name: "gke-managed-cim",
-		Type: inspectioncore_contract.TimelineTypeNamespace,
+		Type: inspectioncore.TimelineTypeNamespace,
 	})
 	wantHpaTimeline := builder.TimelineAccumulator.GetPath(hpaNamespaceTimeline, khifilev6.PathSegment{
 		Name: "kube-state-metrics",
-		Type: inspectioncore_contract.TimelineTypeResource,
+		Type: inspectioncore.TimelineTypeResource,
 	})
 
 	appsApiTimeline := builder.TimelineAccumulator.GetPath(k8sClusterTimeline, khifilev6.PathSegment{
 		Name: "apps/v1",
-		Type: inspectioncore_contract.TimelineTypeAPIVersion,
+		Type: inspectioncore.TimelineTypeAPIVersion,
 	})
 	statefulSetKindTimeline := builder.TimelineAccumulator.GetPath(appsApiTimeline, khifilev6.PathSegment{
 		Name: "statefulset",
-		Type: inspectioncore_contract.TimelineTypeKind,
+		Type: inspectioncore.TimelineTypeKind,
 	})
 	statefulSetNamespaceTimeline := builder.TimelineAccumulator.GetPath(statefulSetKindTimeline, khifilev6.PathSegment{
 		Name: "gke-managed-cim",
-		Type: inspectioncore_contract.TimelineTypeNamespace,
+		Type: inspectioncore.TimelineTypeNamespace,
 	})
 	wantTargetTimeline := builder.TimelineAccumulator.GetPath(statefulSetNamespaceTimeline, khifilev6.PathSegment{
 		Name: "kube-state-metrics",
-		Type: inspectioncore_contract.TimelineTypeResource,
+		Type: inspectioncore.TimelineTypeResource,
 	})
 
 	testCases := []struct {
@@ -193,7 +193,7 @@ func TestHpaControllerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			l := testlog.NewMockLog(tc.inputComponentField, tc.inputHPAField)
 			mapper := &HpaControllerTimelineMapper{}
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})

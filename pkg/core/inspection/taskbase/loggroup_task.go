@@ -25,7 +25,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -53,8 +53,8 @@ func NewLogGrouperTask(taskID taskid.TaskImplementationID[LogGroupMap], logTask 
 func NewLogGrouperTaskWithDependencies(taskID taskid.TaskImplementationID[LogGroupMap], logTask taskid.TaskReference[[]*log.Log], extraDependencies []coretask.Dependency, grouper LogGrouperFunc) coretask.Task[LogGroupMap] {
 	dependencies := append([]coretask.Dependency{logTask}, extraDependencies...)
 	return NewProgressReportableInspectionTask(taskID, dependencies,
-		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (LogGroupMap, error) {
-			if taskMode != inspectioncore_contract.TaskModeRun {
+		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (LogGroupMap, error) {
+			if taskMode != inspectioncore.TaskModeRun {
 				return LogGroupMap{}, nil
 			}
 
@@ -82,7 +82,7 @@ func NewLogGrouperTaskWithDependencies(taskID taskid.TaskImplementationID[LogGro
 
 			progressUpdator.Done()
 
-			tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+			tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 			if tracingActive {
 				trace.SpanFromContext(ctx).SetAttributes(
 					attribute.String("log_count", fmt.Sprintf("%d", len(logs))),

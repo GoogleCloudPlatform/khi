@@ -23,7 +23,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -131,7 +131,7 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 				inputMap["foo-set"] = testCase.RequestValue
 			}
 
-			_, _, err := inspectiontest.RunInspectionTask(taskCtx, taskDef, inspectioncore_contract.TaskModeDryRun, inputMap)
+			_, _, err := inspectiontest.RunInspectionTask(taskCtx, taskDef, inspectioncore.TaskModeDryRun, inputMap)
 			if testCase.ExpectedError != "" {
 				if err == nil {
 					t.Errorf("task was expected to be end with an error. But the task finished without an error")
@@ -142,7 +142,7 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 				if err != nil {
 					t.Errorf("task was ended with unexpected error\n%s", err)
 				}
-				metadata := khictx.MustGetValue(taskCtx, inspectioncore_contract.InspectionRunMetadata)
+				metadata := khictx.MustGetValue(taskCtx, inspectioncore.InspectionRunMetadata)
 
 				fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 				if !found {
@@ -156,7 +156,7 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 			if testCase.ExpectedError == "" {
 				taskCtx := context.Background()
 				taskCtx = inspectiontest.WithDefaultTestInspectionTaskContext(taskCtx)
-				result, _, err := inspectiontest.RunInspectionTask(taskCtx, taskDef, inspectioncore_contract.TaskModeRun, inputMap)
+				result, _, err := inspectiontest.RunInspectionTask(taskCtx, taskDef, inspectioncore.TaskModeRun, inputMap)
 
 				if err != nil {
 					t.Errorf("task was ended with unexpected error\n%s", err)
@@ -164,7 +164,7 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 				if diff := cmp.Diff(testCase.ExpectedValue, result); diff != "" {
 					t.Errorf("the result is not matching with the expected value\n%s", diff)
 				}
-				metadata := khictx.MustGetValue(taskCtx, inspectioncore_contract.InspectionRunMetadata)
+				metadata := khictx.MustGetValue(taskCtx, inspectioncore.InspectionRunMetadata)
 
 				fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 				if !found {

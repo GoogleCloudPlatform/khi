@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var (
@@ -228,7 +228,7 @@ func ExtractGCPSeverity(reader *structured.NodeReader) (*pb.Severity, error) {
 	if cached, ok := structured.GetCache(reader, GCPSeverityCacheKey); ok {
 		return cached, nil
 	}
-	if mock, ok := structured.GetMock[inspectioncore_contract.DefaultSeverityFieldSet](reader); ok {
+	if mock, ok := structured.GetMock[inspectioncore.DefaultSeverityFieldSet](reader); ok {
 		return mock.Severity, nil
 	}
 	if mock, ok := structured.GetMock[*pb.Severity](reader); ok {

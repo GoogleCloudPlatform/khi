@@ -24,7 +24,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -52,7 +52,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary("component-A start").
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(googlecloudlogk8snode_contract.LogTypeNode)
 			},
 		},
@@ -73,7 +73,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary(`Generic (PLEG): container finished 【podname (Namespace: kube-system)】`).
-					HasSeverity(inspectioncore_contract.SeverityInfo)
+					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
 		{
@@ -100,7 +100,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary(`ContainerStart: Start container "【fluentbit-gke-init (Pod: podname, Namespace: kube-system)】"`).
-					HasSeverity(inspectioncore_contract.SeverityInfo)
+					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
 		{
@@ -113,7 +113,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary(`Syncing pod 【podname (Namespace: kube-system)】`).
-					HasSeverity(inspectioncore_contract.SeverityInfo)
+					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
 		{
@@ -126,7 +126,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary(`Killing container 【containername (Pod: podname, Namespace: kube-system)】`).
-					HasSeverity(inspectioncore_contract.SeverityInfo)
+					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
 		{
@@ -139,7 +139,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary(`Killing container(exitCode=137) 【containername (Pod: podname, Namespace: kube-system)】`).
-					HasSeverity(inspectioncore_contract.SeverityError)
+					HasSeverity(inspectioncore.SeverityError)
 			},
 		},
 		{
@@ -152,7 +152,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary(`log with multiple pods 【podname1 (Namespace: kube-system)】 【podname2 (Namespace: kube-system)】`).
-					HasSeverity(inspectioncore_contract.SeverityInfo)
+					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
 		{
@@ -173,7 +173,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary(`log with multiple pods 【podname1 (Namespace: kube-system, APIVersion: core/v1, Kind: pod)】`).
-					HasSeverity(inspectioncore_contract.SeverityInfo)
+					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
 		{
@@ -193,7 +193,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary(`RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id "【podname (Namespace: kube-system)】"`).
-					HasSeverity(inspectioncore_contract.SeverityInfo)
+					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
 		{
@@ -220,7 +220,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary(`CreateContainer within sandbox "【podname (Namespace: kube-system)】" for &ContainerMetadata{Name:fluentbit-gke-init,Attempt:0,} returns container id "【fluentbit-gke-init (Pod: podname, Namespace: kube-system)】"`).
-					HasSeverity(inspectioncore_contract.SeverityInfo)
+					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
 	}

@@ -26,12 +26,12 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func createTestInspectionServer(t *testing.T) (*coreinspection.InspectionTaskServer, string) {
 	logger.InitGlobalKHILogger()
-	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
+	ioConfig, err := inspectioncore.NewIOConfigForTest()
 	if err != nil {
 		t.Fatalf("failed to create test IOConfig: %v", err)
 	}
@@ -58,9 +58,9 @@ func createTestInspectionServer(t *testing.T) (*coreinspection.InspectionTaskSer
 		func(ctx context.Context) (any, error) {
 			return "success", nil
 		},
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, true),
-		coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
+		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
+		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	if err := server.AddTask(dummyTask); err != nil {
 		t.Fatalf("failed to add task: %v", err)
@@ -72,7 +72,7 @@ func createTestInspectionServer(t *testing.T) (*coreinspection.InspectionTaskSer
 	}
 
 	runner := server.GetInspection(inspectionID)
-	if err := runner.Run(context.Background(), &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}); err != nil {
+	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
 		t.Fatalf("failed to run inspection: %v", err)
 	}
 	<-runner.Wait()
@@ -263,7 +263,7 @@ func TestWorkbenchManager_ReopenDifferentInspection(t *testing.T) {
 		t.Fatalf("failed to create second inspection: %v", err)
 	}
 	runner := inspectionServer.GetInspection(validInspectionID2)
-	if err := runner.Run(context.Background(), &inspectioncore_contract.InspectionRequest{Values: map[string]any{}}); err != nil {
+	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
 		t.Fatalf("failed to run second inspection: %v", err)
 	}
 	<-runner.Wait()

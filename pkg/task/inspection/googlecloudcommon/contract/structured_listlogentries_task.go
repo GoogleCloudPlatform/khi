@@ -33,7 +33,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -78,7 +78,7 @@ func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSet
 	return inspectiontaskbase.NewProgressReportableInspectionTask(
 		taskID,
 		dependencies,
-		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
+		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 			startTime := coretask.GetTaskResult(ctx, InputStartTimeTaskID.Ref())
 			endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
 			resourceNames, err := handleResourceNames(ctx, taskID, &resourceNamesSettingAdapter{taskSetting: taskSetting})
@@ -101,7 +101,7 @@ func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSet
 			}
 
 			// In DryRun: perform volume estimation across all container groups and record query metadata.
-			if taskMode != inspectioncore_contract.TaskModeRun {
+			if taskMode != inspectioncore.TaskModeRun {
 				clientFactory := coretask.GetTaskResult(ctx, APIClientFactoryTaskID.Ref())
 				callOptionInjector, _ := coretask.GetOptionalTaskResult(ctx, APIClientCallOptionsInjectorTaskID.Ref())
 				return nil, estimateAndRecordQueries(ctx, taskID.String(), clientFactory, callOptionInjector, groups, queries, startTime, endTime, queryName)
@@ -140,7 +140,7 @@ func (a *resourceNamesSettingAdapter) DefaultResourceNames(ctx context.Context) 
 	return a.taskSetting.DefaultResourceNames(ctx)
 }
 
-func (a *resourceNamesSettingAdapter) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+func (a *resourceNamesSettingAdapter) LogFilters(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
 	return nil, nil
 }
 
@@ -161,7 +161,7 @@ var LogEstimatorCacheKey = typedmap.NewTypedKey[*logestimator.CachedStructuredLo
 
 // getOrInitLogEstimatorCache gets the cached estimator from InspectionSharedMap or initializes a new one.
 func getOrInitLogEstimatorCache(ctx context.Context) *logestimator.CachedStructuredLogEstimator {
-	sharedMap, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionSharedMap)
+	sharedMap, err := khictx.GetValue(ctx, inspectioncore.InspectionSharedMap)
 	if err != nil || sharedMap == nil {
 		return logestimator.NewCachedStructuredLogEstimator()
 	}
@@ -174,7 +174,7 @@ func getOrInitLogEstimatorCache(ctx context.Context) *logestimator.CachedStructu
 	newEstimator := logestimator.NewCachedStructuredLogEstimator()
 	typedmap.Set(sharedMap, LogEstimatorCacheKey, newEstimator)
 
-	inspectionContext, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionContext)
+	inspectionContext, err := khictx.GetValue(ctx, inspectioncore.InspectionContext)
 	if err == nil && inspectionContext != nil {
 		context.AfterFunc(inspectionContext, func() {
 			newEstimator.Close()
@@ -302,7 +302,7 @@ func fetchLogsForStructuredQueries(
 		return a.Timestamp.Compare(b.Timestamp)
 	})
 
-	tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+	tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 	if tracingActive {
 		trace.SpanFromContext(ctx).SetAttributes(
 			attribute.String("log_count", fmt.Sprintf("%d", len(allLogs))),
@@ -319,7 +319,7 @@ func setStructuredQueryInfo(ctx context.Context, taskID, baseLogFilter string, l
 
 // setStructuredQueryInfoWithPendingAndPreset records the generated Cloud Logging query details, estimated count, pending status, and preset into the inspection run metadata.
 func setStructuredQueryInfoWithPendingAndPreset(ctx context.Context, taskID, baseLogFilter string, logFilterIndex, totalLogFilterCount int, startTime, endTime time.Time, queryName string, estimatedCount *int64, incomplete bool, pending bool, preset logestimator.EstimatedCountPreset) error {
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	queryInfo, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
 		return fmt.Errorf("query metadata was not found")

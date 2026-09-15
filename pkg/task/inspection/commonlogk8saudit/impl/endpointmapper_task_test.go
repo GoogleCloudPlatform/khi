@@ -25,7 +25,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -164,24 +164,24 @@ endpoints:
 				},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
 
-				podApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				podKind := builder.TimelineAccumulator.GetPath(podApi, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-				podNs := builder.TimelineAccumulator.GetPath(podKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				podPath := builder.TimelineAccumulator.GetPath(podNs, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore_contract.TimelineTypeResource})
+				podApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				podKind := builder.TimelineAccumulator.GetPath(podApi, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+				podNs := builder.TimelineAccumulator.GetPath(podKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				podPath := builder.TimelineAccumulator.GetPath(podNs, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore.TimelineTypeResource})
 				expectedPodPath := builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{Name: "my-endpoint(default)", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
-				epsApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "discovery.k8s.io/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				epsKind := builder.TimelineAccumulator.GetPath(epsApi, khifilev6.PathSegment{Name: "endpointslice", Type: inspectioncore_contract.TimelineTypeKind})
-				epsNs := builder.TimelineAccumulator.GetPath(epsKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				epsPath := builder.TimelineAccumulator.GetPath(epsNs, khifilev6.PathSegment{Name: "my-endpoint", Type: inspectioncore_contract.TimelineTypeResource})
+				epsApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "discovery.k8s.io/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				epsKind := builder.TimelineAccumulator.GetPath(epsApi, khifilev6.PathSegment{Name: "endpointslice", Type: inspectioncore.TimelineTypeKind})
+				epsNs := builder.TimelineAccumulator.GetPath(epsKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				epsPath := builder.TimelineAccumulator.GetPath(epsNs, khifilev6.PathSegment{Name: "my-endpoint", Type: inspectioncore.TimelineTypeResource})
 				expectedEpsPath := builder.TimelineAccumulator.GetPath(epsPath, khifilev6.PathSegment{Name: "my-pod", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
-				svcApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				svcKind := builder.TimelineAccumulator.GetPath(svcApi, khifilev6.PathSegment{Name: "service", Type: inspectioncore_contract.TimelineTypeKind})
-				svcNs := builder.TimelineAccumulator.GetPath(svcKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				svcPath := builder.TimelineAccumulator.GetPath(svcNs, khifilev6.PathSegment{Name: "my-service", Type: inspectioncore_contract.TimelineTypeResource})
+				svcApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				svcKind := builder.TimelineAccumulator.GetPath(svcApi, khifilev6.PathSegment{Name: "service", Type: inspectioncore.TimelineTypeKind})
+				svcNs := builder.TimelineAccumulator.GetPath(svcKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				svcPath := builder.TimelineAccumulator.GetPath(svcNs, khifilev6.PathSegment{Name: "my-service", Type: inspectioncore.TimelineTypeResource})
 				expectedSvcPath := builder.TimelineAccumulator.GetPath(svcPath, khifilev6.PathSegment{Name: "my-endpoint", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
 				testchangeset.AssertTimeline(t, cs).
@@ -240,12 +240,12 @@ endpoints:
 				},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
 
-				podApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				podKind := builder.TimelineAccumulator.GetPath(podApi, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-				podNs := builder.TimelineAccumulator.GetPath(podKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				podPath := builder.TimelineAccumulator.GetPath(podNs, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore_contract.TimelineTypeResource})
+				podApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				podKind := builder.TimelineAccumulator.GetPath(podApi, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+				podNs := builder.TimelineAccumulator.GetPath(podKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				podPath := builder.TimelineAccumulator.GetPath(podNs, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore.TimelineTypeResource})
 				expectedPodPath := builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{Name: "my-endpoint(default)", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
 				testchangeset.AssertTimeline(t, cs).
@@ -290,12 +290,12 @@ endpoints:
 				},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
 
-				podApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				podKind := builder.TimelineAccumulator.GetPath(podApi, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-				podNs := builder.TimelineAccumulator.GetPath(podKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				podPath := builder.TimelineAccumulator.GetPath(podNs, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore_contract.TimelineTypeResource})
+				podApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				podKind := builder.TimelineAccumulator.GetPath(podApi, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+				podNs := builder.TimelineAccumulator.GetPath(podKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				podPath := builder.TimelineAccumulator.GetPath(podNs, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore.TimelineTypeResource})
 				expectedPodPath := builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{Name: "my-endpoint(default)", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
 				testchangeset.AssertTimeline(t, cs).
@@ -329,12 +329,12 @@ endpoints:
 				lastStates:   map[string]*pb.RevisionState{},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
 
-				svcApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				svcKind := builder.TimelineAccumulator.GetPath(svcApi, khifilev6.PathSegment{Name: "service", Type: inspectioncore_contract.TimelineTypeKind})
-				svcNs := builder.TimelineAccumulator.GetPath(svcKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				svcPath := builder.TimelineAccumulator.GetPath(svcNs, khifilev6.PathSegment{Name: "my-service", Type: inspectioncore_contract.TimelineTypeResource})
+				svcApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				svcKind := builder.TimelineAccumulator.GetPath(svcApi, khifilev6.PathSegment{Name: "service", Type: inspectioncore.TimelineTypeKind})
+				svcNs := builder.TimelineAccumulator.GetPath(svcKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				svcPath := builder.TimelineAccumulator.GetPath(svcNs, khifilev6.PathSegment{Name: "my-service", Type: inspectioncore.TimelineTypeResource})
 				expectedSvcPath := builder.TimelineAccumulator.GetPath(svcPath, khifilev6.PathSegment{Name: "my-endpoint", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
 				testchangeset.AssertTimeline(t, cs).
@@ -368,12 +368,12 @@ endpoints:
 				lastStates:   map[string]*pb.RevisionState{},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
 
-				svcApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				svcKind := builder.TimelineAccumulator.GetPath(svcApi, khifilev6.PathSegment{Name: "service", Type: inspectioncore_contract.TimelineTypeKind})
-				svcNs := builder.TimelineAccumulator.GetPath(svcKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				svcPath := builder.TimelineAccumulator.GetPath(svcNs, khifilev6.PathSegment{Name: "my-service", Type: inspectioncore_contract.TimelineTypeResource})
+				svcApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				svcKind := builder.TimelineAccumulator.GetPath(svcApi, khifilev6.PathSegment{Name: "service", Type: inspectioncore.TimelineTypeKind})
+				svcNs := builder.TimelineAccumulator.GetPath(svcKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				svcPath := builder.TimelineAccumulator.GetPath(svcNs, khifilev6.PathSegment{Name: "my-service", Type: inspectioncore.TimelineTypeResource})
 				expectedSvcPath := builder.TimelineAccumulator.GetPath(svcPath, khifilev6.PathSegment{Name: "my-endpoint", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
 				testchangeset.AssertTimeline(t, cs).
@@ -407,12 +407,12 @@ endpoints:
 				lastStates:   map[string]*pb.RevisionState{},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
 
-				svcApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				svcKind := builder.TimelineAccumulator.GetPath(svcApi, khifilev6.PathSegment{Name: "service", Type: inspectioncore_contract.TimelineTypeKind})
-				svcNs := builder.TimelineAccumulator.GetPath(svcKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				svcPath := builder.TimelineAccumulator.GetPath(svcNs, khifilev6.PathSegment{Name: "my-service", Type: inspectioncore_contract.TimelineTypeResource})
+				svcApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				svcKind := builder.TimelineAccumulator.GetPath(svcApi, khifilev6.PathSegment{Name: "service", Type: inspectioncore.TimelineTypeKind})
+				svcNs := builder.TimelineAccumulator.GetPath(svcKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				svcPath := builder.TimelineAccumulator.GetPath(svcNs, khifilev6.PathSegment{Name: "my-service", Type: inspectioncore.TimelineTypeResource})
 				expectedSvcPath := builder.TimelineAccumulator.GetPath(svcPath, khifilev6.PathSegment{Name: "my-endpoint", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
 				testchangeset.AssertTimeline(t, cs).
@@ -450,12 +450,12 @@ endpoints: []
 				lastStates: map[string]*pb.RevisionState{},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
 
-				podApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				podKind := builder.TimelineAccumulator.GetPath(podApi, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-				podNs := builder.TimelineAccumulator.GetPath(podKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				podPath := builder.TimelineAccumulator.GetPath(podNs, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore_contract.TimelineTypeResource})
+				podApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				podKind := builder.TimelineAccumulator.GetPath(podApi, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+				podNs := builder.TimelineAccumulator.GetPath(podKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				podPath := builder.TimelineAccumulator.GetPath(podNs, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore.TimelineTypeResource})
 				expectedPodPath := builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{Name: "my-endpoint(default)", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
 				testchangeset.AssertTimeline(t, cs).
@@ -494,18 +494,18 @@ metadata:
 				lastStates: map[string]*pb.RevisionState{},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+				clusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
 
-				podApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				podKind := builder.TimelineAccumulator.GetPath(podApi, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-				podNs := builder.TimelineAccumulator.GetPath(podKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				podPath := builder.TimelineAccumulator.GetPath(podNs, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore_contract.TimelineTypeResource})
+				podApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				podKind := builder.TimelineAccumulator.GetPath(podApi, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+				podNs := builder.TimelineAccumulator.GetPath(podKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				podPath := builder.TimelineAccumulator.GetPath(podNs, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore.TimelineTypeResource})
 				expectedPodPath := builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{Name: "my-endpoint(default)", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
-				svcApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-				svcKind := builder.TimelineAccumulator.GetPath(svcApi, khifilev6.PathSegment{Name: "service", Type: inspectioncore_contract.TimelineTypeKind})
-				svcNs := builder.TimelineAccumulator.GetPath(svcKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-				svcPath := builder.TimelineAccumulator.GetPath(svcNs, khifilev6.PathSegment{Name: "my-service", Type: inspectioncore_contract.TimelineTypeResource})
+				svcApi := builder.TimelineAccumulator.GetPath(clusterPath, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+				svcKind := builder.TimelineAccumulator.GetPath(svcApi, khifilev6.PathSegment{Name: "service", Type: inspectioncore.TimelineTypeKind})
+				svcNs := builder.TimelineAccumulator.GetPath(svcKind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+				svcPath := builder.TimelineAccumulator.GetPath(svcNs, khifilev6.PathSegment{Name: "my-service", Type: inspectioncore.TimelineTypeResource})
 				expectedSvcPath := builder.TimelineAccumulator.GetPath(svcPath, khifilev6.PathSegment{Name: "my-endpoint", Type: commonlogk8saudit_contract.TimelineTypeEndpointSlice})
 
 				testchangeset.AssertTimeline(t, cs).
@@ -577,7 +577,7 @@ endpoints:
 				lastStates: map[string]*pb.RevisionState{},
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
-				ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+				ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 				expectedPodPath := MustResolvePodEndpointSliceTimelinePath(ctx, "k8s", "default", "my-endpoint", "default", "my-pod")
 				testchangeset.AssertTimeline(t, cs).
 					HasNoRevision(expectedPodPath)
@@ -588,7 +588,7 @@ endpoints:
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 			var reader *structured.NodeReader
 			if tc.yaml != "" {

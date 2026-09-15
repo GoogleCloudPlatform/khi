@@ -21,15 +21,15 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustCSMCPPodLogTimeline returns the timeline path for a CSM CP Pod Log nested under a Pod.
 func MustCSMCPPodLogTimeline(ctx context.Context, podTimeline *khifilev6.TimelinePath) *khifilev6.TimelinePath {
-	if podTimeline == nil || podTimeline.Type.GetId() != inspectioncore_contract.TimelineTypeResource.GetId() {
+	if podTimeline == nil || podTimeline.Type.GetId() != inspectioncore.TimelineTypeResource.GetId() {
 		panic("parent timeline path must be Resource type")
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(podTimeline, khifilev6.PathSegment{
 		Name: "CSM CP",
 		Type: TimelineTypeCSMCPPodLog,
@@ -38,14 +38,14 @@ func MustCSMCPPodLogTimeline(ctx context.Context, podTimeline *khifilev6.Timelin
 
 // MustCSMCPConnectionTimeline returns the timeline path for a CSM CP Connection nested under a Pod.
 func MustCSMCPConnectionTimeline(ctx context.Context, podTimeline *khifilev6.TimelinePath, connectionID string) *khifilev6.TimelinePath {
-	if podTimeline == nil || podTimeline.Type.GetId() != inspectioncore_contract.TimelineTypeResource.GetId() {
+	if podTimeline == nil || podTimeline.Type.GetId() != inspectioncore.TimelineTypeResource.GetId() {
 		panic("parent timeline path must be Resource type")
 	}
 	if connectionID == "" {
 		connectionID = "unknown"
 		slog.WarnContext(ctx, "connectionID is empty, using unknown instead")
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(podTimeline, khifilev6.PathSegment{
 		Name: fmt.Sprintf("connection-%s", connectionID),
 		Type: TimelineTypeCSMCPConnection,

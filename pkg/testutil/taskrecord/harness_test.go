@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -48,7 +48,7 @@ type harnessTestContext struct {
 func setupTestServer(t *testing.T) *harnessTestContext {
 	t.Helper()
 	logger.InitGlobalKHILogger()
-	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
+	ioConfig, err := inspectioncore.NewIOConfigForTest()
 	if err != nil {
 		t.Fatalf("failed to create ioConfig: %v", err)
 	}
@@ -93,8 +93,8 @@ func setupTestServer(t *testing.T) *harnessTestContext {
 			}
 			return msgs, nil
 		},
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
-		inspectioncore_contract.FeatureTaskLabel("Downstream Task", "Downstream Task", 0, true),
+		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
+		inspectioncore.FeatureTaskLabel("Downstream Task", "Downstream Task", 0, true),
 	)
 
 	if err := server.AddTask(upstreamTask); err != nil {

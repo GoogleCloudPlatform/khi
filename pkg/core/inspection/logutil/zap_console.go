@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // ZapConsoleTimestampFieldKey is the key stored in Fields for the timestamp in a Zap console log.
@@ -127,9 +127,9 @@ func parseZapSeverity(s string) (*pb.Severity, bool) {
 	}
 	switch strings.ToLower(cleaned) {
 	case "debug":
-		return inspectioncore_contract.SeverityInfo, true
+		return inspectioncore.SeverityInfo, true
 	case "dpanic":
-		return inspectioncore_contract.SeverityError, true
+		return inspectioncore.SeverityError, true
 	}
 	return nil, false
 }

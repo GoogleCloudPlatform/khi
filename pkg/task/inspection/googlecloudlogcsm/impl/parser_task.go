@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // CSMTrafficLogLogIngester ingests CSM traffic logs.
@@ -151,7 +151,7 @@ var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*CSMTrafficLogLogToTim
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogcsm_contract.LogToTimelineMapperTaskID,
 	&CSMTrafficLogLogToTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		"CSM Traffic Logs",
 		"Gather CSM traffic logs to visualize network traffic flows and latency under client or server Pod timelines.",
 		10000,

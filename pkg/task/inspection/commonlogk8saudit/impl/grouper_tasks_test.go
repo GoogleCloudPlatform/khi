@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -403,7 +403,7 @@ textPayload: "error 1"`,
 			result, _, err := inspectiontest.RunInspectionTask(
 				ctx,
 				NonSuccessLogGrouperTask,
-				inspectioncore_contract.TaskModeRun,
+				inspectioncore.TaskModeRun,
 				map[string]any{},
 				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.NonSuccessLogFilterTaskID.Ref(), logs),
 				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.K8sAuditLogExtractorRef, mockExtractor),
@@ -467,7 +467,7 @@ func TestChangeTargetGrouperTask(t *testing.T) {
 			result, _, err := inspectiontest.RunInspectionTask(
 				ctx,
 				ChangeTargetGrouperTask,
-				inspectioncore_contract.TaskModeRun,
+				inspectioncore.TaskModeRun,
 				map[string]any{},
 				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.SuccessLogFilterTaskID.Ref(), logs),
 				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.K8sAuditLogExtractorRef, mockExtractor),

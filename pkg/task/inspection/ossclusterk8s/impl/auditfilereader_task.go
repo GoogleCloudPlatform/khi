@@ -29,7 +29,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
@@ -43,8 +43,8 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 	[]coretask.Dependency{
 		ossclusterk8s_contract.InputAuditLogFilesFormTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
 		result := coretask.GetTaskResult(ctx, ossclusterk8s_contract.InputAuditLogFilesFormTaskID.Ref())
@@ -62,7 +62,7 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 
 		logLines := strings.Split(string(logData), "\n")
 		var logs []*log.Log
-		idGen := khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator)
+		idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
 
 		blockStore := structured.NewDefaultLazyJSONBlockStore()
 		builder := blockStore.NewBuilder(100, 256*1024)
@@ -91,7 +91,7 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 		slices.SortFunc(logs, func(a, b *log.Log) int {
 			return a.Timestamp.Compare(b.Timestamp)
 		})
-		metadataSet := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+		metadataSet := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 		header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
 
 		if len(logs) > 0 {

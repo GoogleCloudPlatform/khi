@@ -20,7 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // getK8sNamespacedResourceTimeline constructs a standard namespaced resource timeline path using common K8s contract helpers.
@@ -35,7 +35,7 @@ func getK8sNamespacedResourceTimeline(ctx context.Context, clusterName string, a
 // MustCSMServerAccessTimeline returns the timeline path for CSM Server Access under a Pod.
 func MustCSMServerAccessTimeline(ctx context.Context, clusterName string, podNamespace string, podName string, containerName string) *khifilev6.TimelinePath {
 	podPath := getK8sNamespacedResourceTimeline(ctx, clusterName, "core/v1", "pod", podNamespace, podName)
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
 	suffix := "server"
 	if containerName != "" {
@@ -50,7 +50,7 @@ func MustCSMServerAccessTimeline(ctx context.Context, clusterName string, podNam
 // MustCSMClientAccessTimeline returns the timeline path for CSM Client Access under a Pod.
 func MustCSMClientAccessTimeline(ctx context.Context, clusterName string, podNamespace string, podName string) *khifilev6.TimelinePath {
 	podPath := getK8sNamespacedResourceTimeline(ctx, clusterName, "core/v1", "pod", podNamespace, podName)
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
 	return builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{
 		Name: "client",
@@ -61,7 +61,7 @@ func MustCSMClientAccessTimeline(ctx context.Context, clusterName string, podNam
 // MustCSMServiceServerAccessTimeline returns the timeline path for CSM Service Server Access.
 func MustCSMServiceServerAccessTimeline(ctx context.Context, clusterName string, serviceNamespace string, serviceName string) *khifilev6.TimelinePath {
 	servicePath := getK8sNamespacedResourceTimeline(ctx, clusterName, "core/v1", "service", serviceNamespace, serviceName)
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
 	return builder.TimelineAccumulator.GetPath(servicePath, khifilev6.PathSegment{
 		Name: "server",
@@ -72,7 +72,7 @@ func MustCSMServiceServerAccessTimeline(ctx context.Context, clusterName string,
 // MustCSMServiceClientAccessTimeline returns the timeline path for CSM Service Client Access.
 func MustCSMServiceClientAccessTimeline(ctx context.Context, clusterName string, serviceNamespace string, serviceName string) *khifilev6.TimelinePath {
 	servicePath := getK8sNamespacedResourceTimeline(ctx, clusterName, "core/v1", "service", serviceNamespace, serviceName)
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
 	return builder.TimelineAccumulator.GetPath(servicePath, khifilev6.PathSegment{
 		Name: "client",

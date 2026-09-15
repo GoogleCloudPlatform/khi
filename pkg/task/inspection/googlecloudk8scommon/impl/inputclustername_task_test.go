@@ -26,14 +26,14 @@ import (
 	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
 	googlecloudclustergkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/impl"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestClusterNameInput(t *testing.T) {
 	wantDescription := "The cluster name to gather logs."
 
-	mockClusterNamesTask1 := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(), &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+	mockClusterNamesTask1 := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(), &inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 		Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 			{
 				ClusterName: "foo-cluster",
@@ -45,7 +45,7 @@ func TestClusterNameInput(t *testing.T) {
 		Error: "",
 	}, nil)
 
-	mockAWSClusterNamesTask := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(), &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+	mockAWSClusterNamesTask := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(), &inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 		Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 			{
 				ClusterName: "foo-cluster",

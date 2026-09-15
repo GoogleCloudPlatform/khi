@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // GenerateCSMTrafficDirectorStructuredQuery generates a structured query for CSM Traffic Director logs.
@@ -88,11 +88,11 @@ func (s *CSMTrafficDirectorListLogEntryTaskSetting) QueryName() string {
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	fleetProjectID := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.InputFleetProjectIDTaskID.Ref())
 	clusterIdentifiers := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.CSMClusterIdentifierTaskID.Ref())
-	taskMode := inspectioncore_contract.TaskModeRun
-	if val, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskMode); err == nil {
+	taskMode := inspectioncore.TaskModeRun
+	if val, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode); err == nil {
 		taskMode = val
 	}
-	isDryRun := taskMode == inspectioncore_contract.TaskModeDryRun
+	isDryRun := taskMode == inspectioncore.TaskModeDryRun
 
 	sq := GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID, clusterIdentifiers, isDryRun)
 	if sq == nil {

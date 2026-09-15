@@ -25,7 +25,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 type taskProgressReporter struct {
@@ -39,22 +39,22 @@ func (t *taskProgressReporter) ReportProgress(percentage float32, status string)
 // SerializeTask is a subsequent task that must be included in the task graph after tasks like TimelineMapper and LogIngester.
 // It retrieves the Builder instance populated by its preceding tasks and serializes its accumulated contents into the final KHI file.
 var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(
-	inspectioncore_contract.SerializerTaskID,
+	inspectioncore.SerializerTaskID,
 	[]coretask.Dependency{
 		JobModeCommandTaskID.Ref(),
 		inspectiontaskbase.TagLogIngester.Ref(),
 		inspectiontaskbase.TagTimelineMapper.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (*inspectioncore_contract.FileSystemStore, error) {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (*inspectioncore.FileSystemStore, error) {
 
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
 			return nil, nil
 		}
-		inspectionID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInspectionID)
-		metadataSet := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
-		ioConfig := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentIOConfig)
-		builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+		inspectionID := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInspectionID)
+		metadataSet := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
+		ioConfig := khictx.MustGetValue(ctx, inspectioncore.CurrentIOConfig)
+		builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
 		// 1. Collect metadata to the v6 builder
 		for _, key := range metadataSet.Keys() {
@@ -68,7 +68,7 @@ var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(
 		}
 
 		// 2. Prepare Output File Store for size reporting
-		store := inspectioncore_contract.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
+		store := inspectioncore.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
 
 		// 3. Build KHI v6 format and flush remaining chunks
 		if err := builder.Build(&taskProgressReporter{progress: progress}); err != nil {

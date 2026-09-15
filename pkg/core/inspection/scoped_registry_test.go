@@ -21,7 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -29,20 +29,20 @@ func TestScopedRegistry(t *testing.T) {
 	tests := []struct {
 		name         string
 		scopeOptions []coretask.LabelOpt
-		wantSelector inspectioncore_contract.LabelSelector
+		wantSelector inspectioncore.LabelSelector
 	}{
 		{
 			name: "should inherit platform:gke label from scoped registry",
 			scopeOptions: []coretask.LabelOpt{
-				inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"platform": "gke"}),
+				inspectioncore.InspectionTypeLabelSelector(map[string]string{"platform": "gke"}),
 			},
-			wantSelector: inspectioncore_contract.LabelSelector{"platform": "gke"},
+			wantSelector: inspectioncore.LabelSelector{"platform": "gke"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ioConfig := &inspectioncore_contract.IOConfig{}
+			ioConfig := &inspectioncore.IOConfig{}
 			server, _ := NewServer(ioConfig)
 
 			scoped := NewScopedRegistry(server, tt.scopeOptions...)
@@ -63,7 +63,7 @@ func TestScopedRegistry(t *testing.T) {
 			}
 
 			labels := registeredTask.Labels()
-			gotSelector, ok := typedmap.Get(labels, inspectioncore_contract.LabelKeyInspectionTypeLabelSelector)
+			gotSelector, ok := typedmap.Get(labels, inspectioncore.LabelKeyInspectionTypeLabelSelector)
 			if !ok {
 				t.Fatalf("LabelKeyInspectionTypeLabelSelector not found")
 			}

@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var (
@@ -68,7 +68,7 @@ type ImportSessionManager struct {
 }
 
 // NewImportSessionManager creates a new ImportSessionManager instance.
-func NewImportSessionManager(server *coreinspection.InspectionTaskServer, ioConfig *inspectioncore_contract.IOConfig) *ImportSessionManager {
+func NewImportSessionManager(server *coreinspection.InspectionTaskServer, ioConfig *inspectioncore.IOConfig) *ImportSessionManager {
 	uploadDir := os.TempDir()
 	if ioConfig != nil && ioConfig.DataDestination != "" {
 		uploadDir = ioConfig.DataDestination
@@ -142,7 +142,7 @@ func (m *ImportSessionManager) CompleteSession(token string) (*FinalizedImport, 
 	_ = os.Remove(filepath.Join(destinationDir, inspectionID+".trigram"))
 	_ = os.Remove(filepath.Join(destinationDir, inspectionID+".trigram.tmp"))
 
-	store := inspectioncore_contract.NewFileSystemInspectionResultRepository(destinationPath)
+	store := inspectioncore.NewFileSystemInspectionResultRepository(destinationPath)
 	fileSize, err := store.GetInspectionResultSizeInBytes()
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain final inspection file size: %w", err)

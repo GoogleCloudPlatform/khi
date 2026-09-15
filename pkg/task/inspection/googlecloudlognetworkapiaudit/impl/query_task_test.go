@@ -29,7 +29,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
@@ -45,14 +45,14 @@ func TestGenerateGCPNetworkAPIStructuredQuery(t *testing.T) {
 
 	testCases := []struct {
 		name                   string
-		taskMode               inspectioncore_contract.InspectionTaskModeType
+		taskMode               inspectioncore.InspectionTaskModeType
 		negNames               []string
 		wantQueries            []string
 		wantSupportMetricsFlag bool
 	}{
 		{
 			name:     "DryRun mode",
-			taskMode: inspectioncore_contract.TaskModeDryRun,
+			taskMode: inspectioncore.TaskModeDryRun,
 			negNames: []string{},
 			wantQueries: []string{
 				`resource.type="gce_network"
@@ -63,14 +63,14 @@ func TestGenerateGCPNetworkAPIStructuredQuery(t *testing.T) {
 		},
 		{
 			name:                   "Run mode with empty NEGs",
-			taskMode:               inspectioncore_contract.TaskModeRun,
+			taskMode:               inspectioncore.TaskModeRun,
 			negNames:               []string{},
 			wantQueries:            []string{},
 			wantSupportMetricsFlag: false,
 		},
 		{
 			name:     "Run mode with single NEG",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			negNames: []string{"neg-1"},
 			wantQueries: []string{
 				`resource.type="gce_network"
@@ -81,7 +81,7 @@ protoPayload.resourceName:(networkEndpointGroups/neg-1)`,
 		},
 		{
 			name:     "Run mode with a few NEGs",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			negNames: []string{"neg-1", "neg-2"},
 			wantQueries: []string{
 				`resource.type="gce_network"
@@ -92,7 +92,7 @@ protoPayload.resourceName:(networkEndpointGroups/neg-1 OR networkEndpointGroups/
 		},
 		{
 			name:     "Run mode with >10 NEGs chunked into multiple queries",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			negNames: generateNEGs(12),
 			wantQueries: []string{
 				func() string {
@@ -131,17 +131,17 @@ protoPayload.resourceName:(networkEndpointGroups/neg-11 OR networkEndpointGroups
 func TestGenerateGCPNetworkAPIStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name     string
-		taskMode inspectioncore_contract.InspectionTaskModeType
+		taskMode inspectioncore.InspectionTaskModeType
 		negs     []string
 	}{
 		{
 			name:     "Valid Query in DryRun mode",
-			taskMode: inspectioncore_contract.TaskModeDryRun,
+			taskMode: inspectioncore.TaskModeDryRun,
 			negs:     []string{},
 		},
 		{
 			name:     "Valid Query in Run mode",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			negs:     []string{"neg-1", "neg-2"},
 		},
 	}
@@ -176,7 +176,7 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
@@ -191,7 +191,7 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 		t.Errorf("dry run should return 0 logs, got %d", len(gotLogs))
 	}
 
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
 		t.Fatalf("QueryMetadata not found in metadata")

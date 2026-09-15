@@ -26,7 +26,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -204,8 +204,8 @@ func resolveFeatureConfiguration(
 	availableTaskSet *coretask.TaskSet,
 	featureOverrides map[string]bool,
 ) ([]*apiv1.FeatureToggleInfo, []coretask.UntypedTask, []coretask.UntypedTask) {
-	featureSet := coretask.Subset(availableTaskSet, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionFeatureFlag, false))
-	defaultFeatures := coretask.Subset(availableTaskSet, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, false))
+	featureSet := coretask.Subset(availableTaskSet, filter.NewEnabledFilter(inspectioncore.LabelKeyInspectionFeatureFlag, false))
+	defaultFeatures := coretask.Subset(availableTaskSet, filter.NewEnabledFilter(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, false))
 
 	enabledFeatures := make(map[string]bool)
 	for _, task := range defaultFeatures.GetAll() {
@@ -217,8 +217,8 @@ func resolveFeatureConfiguration(
 
 	allFeatureTasks := featureSet.GetAll()
 	slices.SortFunc(allFeatureTasks, func(a, b coretask.UntypedTask) int {
-		orderA := typedmap.GetOrDefault(a.Labels(), inspectioncore_contract.LabelKeyFeatureTaskOrder, DefaultFeatureTaskOrder)
-		orderB := typedmap.GetOrDefault(b.Labels(), inspectioncore_contract.LabelKeyFeatureTaskOrder, DefaultFeatureTaskOrder)
+		orderA := typedmap.GetOrDefault(a.Labels(), inspectioncore.LabelKeyFeatureTaskOrder, DefaultFeatureTaskOrder)
+		orderB := typedmap.GetOrDefault(b.Labels(), inspectioncore.LabelKeyFeatureTaskOrder, DefaultFeatureTaskOrder)
 		if orderA != orderB {
 			return orderA - orderB
 		}
@@ -227,8 +227,8 @@ func resolveFeatureConfiguration(
 
 	availableFeatures := make([]*apiv1.FeatureToggleInfo, 0, len(allFeatureTasks))
 	for _, ft := range allFeatureTasks {
-		label := typedmap.GetOrDefault(ft.Labels(), inspectioncore_contract.LabelKeyFeatureTaskTitle, fmt.Sprintf("No label Set!(%s)", ft.UntypedID()))
-		description := typedmap.GetOrDefault(ft.Labels(), inspectioncore_contract.LabelKeyFeatureTaskDescription, "")
+		label := typedmap.GetOrDefault(ft.Labels(), inspectioncore.LabelKeyFeatureTaskTitle, fmt.Sprintf("No label Set!(%s)", ft.UntypedID()))
+		description := typedmap.GetOrDefault(ft.Labels(), inspectioncore.LabelKeyFeatureTaskDescription, "")
 		availableFeatures = append(availableFeatures, &apiv1.FeatureToggleInfo{
 			TaskImplementationId: proto.String(ft.UntypedID().String()),
 			Label:                proto.String(label),
@@ -280,7 +280,7 @@ func buildTaskDAGInfoFromTaskSet(resolvedTaskSet *coretask.TaskSet) *apiv1.TaskD
 	for idx, t := range resolvedTasks {
 		labels := t.Labels()
 		priority := int32(typedmap.GetOrDefault(labels, coretask.LabelKeyTaskSelectionPriority, 0))
-		isFeature := typedmap.GetOrDefault(labels, inspectioncore_contract.LabelKeyInspectionFeatureFlag, false)
+		isFeature := typedmap.GetOrDefault(labels, inspectioncore.LabelKeyInspectionFeatureFlag, false)
 		outputType := ""
 		if t.ResultType() != nil {
 			outputType = t.ResultType().String()
@@ -331,7 +331,7 @@ func buildTaskDAGInfoFromTaskSet(resolvedTaskSet *coretask.TaskSet) *apiv1.TaskD
 func EvaluateTaskCompatibility(task coretask.UntypedTask, currentType *InspectionType) (bool, string) {
 	labels := task.Labels()
 
-	if selector, ok := typedmap.Get(labels, inspectioncore_contract.LabelKeyInspectionTypeLabelSelector); ok {
+	if selector, ok := typedmap.Get(labels, inspectioncore.LabelKeyInspectionTypeLabelSelector); ok {
 		keys := make([]string, 0, len(selector))
 		for k := range selector {
 			keys = append(keys, k)
@@ -382,14 +382,14 @@ func extractProvidedTags(labels *typedmap.ReadonlyTypedMap) []*apiv1.ProvidedTag
 func convertToRegisteredTaskInfo(task coretask.UntypedTask) *apiv1.RegisteredTaskInfo {
 	labels := task.Labels()
 	priority := typedmap.GetOrDefault(labels, coretask.LabelKeyTaskSelectionPriority, 0)
-	isFeature := typedmap.GetOrDefault(labels, inspectioncore_contract.LabelKeyInspectionFeatureFlag, false)
-	isDefaultFeature := typedmap.GetOrDefault(labels, inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, false)
-	featureLabel := typedmap.GetOrDefault(labels, inspectioncore_contract.LabelKeyFeatureTaskTitle, "")
-	featureDesc := typedmap.GetOrDefault(labels, inspectioncore_contract.LabelKeyFeatureTaskDescription, "")
+	isFeature := typedmap.GetOrDefault(labels, inspectioncore.LabelKeyInspectionFeatureFlag, false)
+	isDefaultFeature := typedmap.GetOrDefault(labels, inspectioncore.LabelKeyInspectionDefaultFeatureFlag, false)
+	featureLabel := typedmap.GetOrDefault(labels, inspectioncore.LabelKeyFeatureTaskTitle, "")
+	featureDesc := typedmap.GetOrDefault(labels, inspectioncore.LabelKeyFeatureTaskDescription, "")
 
 	dependencies := convertTaskDependencies(task.Dependencies())
 
-	selector, hasSelector := typedmap.Get(labels, inspectioncore_contract.LabelKeyInspectionTypeLabelSelector)
+	selector, hasSelector := typedmap.Get(labels, inspectioncore.LabelKeyInspectionTypeLabelSelector)
 	var selectorRequirements []*apiv1.LabelSelectorRequirementInfo
 	if hasSelector {
 		selectorRequirements = convertSelectorRequirements(selector)
@@ -437,7 +437,7 @@ func convertTaskDependencies(deps []coretask.Dependency) []*apiv1.TaskDependency
 	return dependencies
 }
 
-func convertSelectorRequirements(selector inspectioncore_contract.LabelSelector) []*apiv1.LabelSelectorRequirementInfo {
+func convertSelectorRequirements(selector inspectioncore.LabelSelector) []*apiv1.LabelSelectorRequirementInfo {
 	keys := make([]string, 0, len(selector))
 	for k := range selector {
 		keys = append(keys, k)
@@ -454,7 +454,7 @@ func convertSelectorRequirements(selector inspectioncore_contract.LabelSelector)
 	return requirements
 }
 
-func formatSelectorString(selector inspectioncore_contract.LabelSelector) string {
+func formatSelectorString(selector inspectioncore.LabelSelector) string {
 	keys := make([]string, 0, len(selector))
 	for k := range selector {
 		keys = append(keys, k)

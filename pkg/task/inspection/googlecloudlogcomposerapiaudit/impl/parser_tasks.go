@@ -30,7 +30,7 @@ import (
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LogIngesterTask ingests Cloud Composer audit logs into KHI v6 format.
@@ -57,7 +57,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](
 	googlecloudlogcomposerapiaudit_contract.LogToTimelineMapperTaskID,
 	&composerAuditLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		"Managed Airflow API Logs",
 		"Gather Managed Airflow API audit logs to visualize environment operations (creation, update, and deletion) on timelines.",
 		5500,

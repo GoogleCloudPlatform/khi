@@ -27,7 +27,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -140,27 +140,27 @@ func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 			assert: func(t *testing.T, builder *khifilev6.Builder, cs *khifilev6.TimelineChangeSet) {
 				wantGatewayPath := builder.TimelineAccumulator.GetPath(nil,
-					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore_contract.TimelineTypeK8sCluster},
-					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion},
-					khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind},
-					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
-					khifilev6.PathSegment{Name: "istio-ingressgateway", Type: inspectioncore_contract.TimelineTypeResource},
+					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore.TimelineTypeK8sCluster},
+					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion},
+					khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind},
+					khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace},
+					khifilev6.PathSegment{Name: "istio-ingressgateway", Type: inspectioncore.TimelineTypeResource},
 					khifilev6.PathSegment{Name: "client", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 				wantProductpagePath := builder.TimelineAccumulator.GetPath(nil,
-					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore_contract.TimelineTypeK8sCluster},
-					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion},
-					khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind},
-					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
-					khifilev6.PathSegment{Name: "productpage-v1", Type: inspectioncore_contract.TimelineTypeResource},
+					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore.TimelineTypeK8sCluster},
+					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion},
+					khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind},
+					khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace},
+					khifilev6.PathSegment{Name: "productpage-v1", Type: inspectioncore.TimelineTypeResource},
 					khifilev6.PathSegment{Name: "server:istio-proxy", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 				wantServicePath := builder.TimelineAccumulator.GetPath(nil,
-					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore_contract.TimelineTypeK8sCluster},
-					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion},
-					khifilev6.PathSegment{Name: "service", Type: inspectioncore_contract.TimelineTypeKind},
-					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
-					khifilev6.PathSegment{Name: "productpage", Type: inspectioncore_contract.TimelineTypeResource},
+					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore.TimelineTypeK8sCluster},
+					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion},
+					khifilev6.PathSegment{Name: "service", Type: inspectioncore.TimelineTypeKind},
+					khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace},
+					khifilev6.PathSegment{Name: "productpage", Type: inspectioncore.TimelineTypeResource},
 					khifilev6.PathSegment{Name: "server", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 
@@ -191,27 +191,27 @@ func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 			assert: func(t *testing.T, builder *khifilev6.Builder, cs *khifilev6.TimelineChangeSet) {
 				wantDetailsPath := builder.TimelineAccumulator.GetPath(nil,
-					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore_contract.TimelineTypeK8sCluster},
-					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion},
-					khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind},
-					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
-					khifilev6.PathSegment{Name: "details-v1", Type: inspectioncore_contract.TimelineTypeResource},
+					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore.TimelineTypeK8sCluster},
+					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion},
+					khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind},
+					khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace},
+					khifilev6.PathSegment{Name: "details-v1", Type: inspectioncore.TimelineTypeResource},
 					khifilev6.PathSegment{Name: "server", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 				wantProductpagePath := builder.TimelineAccumulator.GetPath(nil,
-					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore_contract.TimelineTypeK8sCluster},
-					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion},
-					khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind},
-					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
-					khifilev6.PathSegment{Name: "productpage-v1", Type: inspectioncore_contract.TimelineTypeResource},
+					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore.TimelineTypeK8sCluster},
+					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion},
+					khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind},
+					khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace},
+					khifilev6.PathSegment{Name: "productpage-v1", Type: inspectioncore.TimelineTypeResource},
 					khifilev6.PathSegment{Name: "client", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 				wantDetailsServicePath := builder.TimelineAccumulator.GetPath(nil,
-					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore_contract.TimelineTypeK8sCluster},
-					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion},
-					khifilev6.PathSegment{Name: "service", Type: inspectioncore_contract.TimelineTypeKind},
-					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
-					khifilev6.PathSegment{Name: "details", Type: inspectioncore_contract.TimelineTypeResource},
+					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore.TimelineTypeK8sCluster},
+					khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion},
+					khifilev6.PathSegment{Name: "service", Type: inspectioncore.TimelineTypeKind},
+					khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace},
+					khifilev6.PathSegment{Name: "details", Type: inspectioncore.TimelineTypeResource},
 					khifilev6.PathSegment{Name: "client", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 
@@ -227,7 +227,7 @@ func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			})

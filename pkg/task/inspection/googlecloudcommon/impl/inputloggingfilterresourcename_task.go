@@ -27,28 +27,28 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var resourceNamesInputKey = typedmap.NewTypedKey[*googlecloudcommon_contract.ResourceNamesInput]("query-resource-names")
 
 // InputLoggingFilterResourceNameTask defines an inspection task that creates a form group
 // for overriding log filter resource names for advanced users.
-var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID, []coretask.Dependency{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*googlecloudcommon_contract.ResourceNamesInput, error) {
+var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID, []coretask.Dependency{}, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (*googlecloudcommon_contract.ResourceNamesInput, error) {
 	// Tasks requiring active resource names can change, so we always retrieve current tasks that need resource names from the task graph.
-	taskRunner := khictx.MustGetValue(ctx, inspectioncore_contract.TaskRunner)
+	taskRunner := khictx.MustGetValue(ctx, inspectioncore.TaskRunner)
 	currentActiveResourceNameInputRequests := getCurrentActiveQueryIDsForResourceName(taskRunner)
 	// Since the default resource names registered by the tasks actually used are not known until those tasks are executed, we store them in sharedMap and have the actual tasks update them.
-	sharedMap := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionSharedMap)
+	sharedMap := khictx.MustGetValue(ctx, inspectioncore.InspectionSharedMap)
 	resourceNamesInput := typedmap.GetOrSetFunc(sharedMap, resourceNamesInputKey, googlecloudcommon_contract.NewResourceNamesInput)
 
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	formFields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 	if !found {
 		return nil, fmt.Errorf("failed to get form fields from run metadata")
 	}
 
-	requestInput := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
+	requestInput := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
 
 	queryForms := []inspectionmetadata.ParameterFormField{}
 	for _, request := range currentActiveResourceNameInputRequests {

@@ -27,7 +27,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/api/option"
@@ -121,7 +121,7 @@ func TestAutocompleteComposerEnvironmentIdentityTask(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
 	inspectionTask := AutocompleteComposerEnvironmentIdentityTask
 
-	result, _, err := inspectiontest.RunInspectionTask(ctx, inspectionTask, inspectioncore_contract.TaskModeDryRun, nil,
+	result, _, err := inspectiontest.RunInspectionTask(ctx, inspectionTask, inspectioncore.TaskModeDryRun, nil,
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputProjectIdTaskID.Ref(), "test-project"),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
@@ -157,18 +157,18 @@ func TestAutocompleteLocationForComposerEnvironmentTask(t *testing.T) {
 		desc      string
 		projectID string
 		envName   string
-		input     *inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]
-		want      *inspectioncore_contract.AutocompleteResult[string]
+		input     *inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]
+		want      *inspectioncore.AutocompleteResult[string]
 	}{
 		{
 			desc:      "project id is empty",
 			projectID: "",
-			input: &inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
+			input: &inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
 				Values: []googlecloudclustercomposer_contract.ComposerEnvironmentIdentity{},
 				Error:  "",
 				Hint:   "",
 			},
-			want: &inspectioncore_contract.AutocompleteResult[string]{
+			want: &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
 				Error:  "",
 				Hint:   "Locations are suggested after the project ID is provided.",
@@ -178,12 +178,12 @@ func TestAutocompleteLocationForComposerEnvironmentTask(t *testing.T) {
 			desc:      "identities with error",
 			projectID: "foo-project",
 			envName:   "foo-env",
-			input: &inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
+			input: &inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
 				Values: []googlecloudclustercomposer_contract.ComposerEnvironmentIdentity{},
 				Error:  "some error",
 				Hint:   "some hint",
 			},
-			want: &inspectioncore_contract.AutocompleteResult[string]{
+			want: &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
 				Error:  "some error",
 				Hint:   "some hint",
@@ -193,14 +193,14 @@ func TestAutocompleteLocationForComposerEnvironmentTask(t *testing.T) {
 			desc:      "environment name is empty",
 			projectID: "foo-project",
 			envName:   "",
-			input: &inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
+			input: &inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
 				Values: []googlecloudclustercomposer_contract.ComposerEnvironmentIdentity{
 					{ProjectID: "foo-project", Location: "us-central1", EnvironmentName: "env1"},
 				},
 				Error: "",
 				Hint:  "",
 			},
-			want: &inspectioncore_contract.AutocompleteResult[string]{
+			want: &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
 				Error:  "",
 				Hint:   "Locations are suggested after the environment name is provided.",
@@ -210,7 +210,7 @@ func TestAutocompleteLocationForComposerEnvironmentTask(t *testing.T) {
 			desc:      "filter by environment name",
 			projectID: "foo-project",
 			envName:   "env1",
-			input: &inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
+			input: &inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
 				Values: []googlecloudclustercomposer_contract.ComposerEnvironmentIdentity{
 					{ProjectID: "foo-project", Location: "us-central1", EnvironmentName: "env1"},
 					{ProjectID: "foo-project", Location: "asia-northeast1", EnvironmentName: "env3"},
@@ -218,7 +218,7 @@ func TestAutocompleteLocationForComposerEnvironmentTask(t *testing.T) {
 				Error: "",
 				Hint:  "",
 			},
-			want: &inspectioncore_contract.AutocompleteResult[string]{
+			want: &inspectioncore.AutocompleteResult[string]{
 				Values: []string{"us-central1"},
 				Error:  "",
 				Hint:   "",
@@ -228,14 +228,14 @@ func TestAutocompleteLocationForComposerEnvironmentTask(t *testing.T) {
 			desc:      "filter by environment name mismatch",
 			projectID: "foo-project",
 			envName:   "env", // Partial match but not exact
-			input: &inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
+			input: &inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
 				Values: []googlecloudclustercomposer_contract.ComposerEnvironmentIdentity{
 					{ProjectID: "foo-project", Location: "us-central1", EnvironmentName: "env1"},
 				},
 				Error: "",
 				Hint:  "",
 			},
-			want: &inspectioncore_contract.AutocompleteResult[string]{
+			want: &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
 				Error:  "",
 				Hint:   "",
@@ -253,7 +253,7 @@ func TestAutocompleteLocationForComposerEnvironmentTask(t *testing.T) {
 			endTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), time.Now())
 			identitiesInput := tasktest.NewTaskDependencyValuePair(googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref(), tc.input)
 
-			result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteLocationForComposerEnvironmentTask, inspectioncore_contract.TaskModeDryRun, map[string]any{}, projectIDInput, envNameInput, startTimeInput, endTimeInput, identitiesInput)
+			result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteLocationForComposerEnvironmentTask, inspectioncore.TaskModeDryRun, map[string]any{}, projectIDInput, envNameInput, startTimeInput, endTimeInput, identitiesInput)
 			if err != nil {
 				t.Fatalf("failed to run inspection task: %v", err)
 			}

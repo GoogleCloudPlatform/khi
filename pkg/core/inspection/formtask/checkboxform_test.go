@@ -24,7 +24,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -184,7 +184,7 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 
 			// DryRun mode execution
 			dryRunCtx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			_, _, dryRunErr := inspectiontest.RunInspectionTask(dryRunCtx, taskDef, inspectioncore_contract.TaskModeDryRun, inputs)
+			_, _, dryRunErr := inspectiontest.RunInspectionTask(dryRunCtx, taskDef, inspectioncore.TaskModeDryRun, inputs)
 
 			if tc.expectedError != "" {
 				if dryRunErr == nil {
@@ -200,7 +200,7 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 				t.Fatalf("dry run unexpected error: %v", dryRunErr)
 			}
 
-			metadata := khictx.MustGetValue(dryRunCtx, inspectioncore_contract.InspectionRunMetadata)
+			metadata := khictx.MustGetValue(dryRunCtx, inspectioncore.InspectionRunMetadata)
 			fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 			if !found {
 				t.Fatal("form field set metadata not found")
@@ -230,7 +230,7 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 
 			// Run mode execution
 			runCtx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			runResult, _, runErr := inspectiontest.RunInspectionTask(runCtx, taskDef, inspectioncore_contract.TaskModeRun, inputs)
+			runResult, _, runErr := inspectiontest.RunInspectionTask(runCtx, taskDef, inspectioncore.TaskModeRun, inputs)
 
 			if checkboxField.HintType == inspectionmetadata.Error {
 				if runErr == nil {

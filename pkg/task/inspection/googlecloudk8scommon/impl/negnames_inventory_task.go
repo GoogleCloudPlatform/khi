@@ -21,7 +21,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func mergeNEGNames(results []googlecloudk8scommon_contract.NEGNameToResourceIdentityMap) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
@@ -45,8 +45,8 @@ var NEGNamesDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	[]coretask.Dependency{
 		commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return nil, nil
 		}
 		result := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{}

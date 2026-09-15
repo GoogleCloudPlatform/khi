@@ -19,7 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // completedTaskRunner implements coretask.TaskRunner for pre-computed / imported results.
@@ -60,12 +60,12 @@ func (c *completedTaskRunner) TaskRunStatuses() map[string]coretask.TaskRunStatu
 func (c *completedTaskRunner) AddInterceptor(interceptor coretask.Interceptor) {}
 
 // NewImportedInspectionRunner creates an InspectionTaskRunner initialized in completed state with imported data.
-func NewImportedInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_contract.IOConfig, id string, store inspectioncore_contract.Store, metadata *typedmap.ReadonlyTypedMap, options ...RunContextOption) *InspectionTaskRunner {
+func NewImportedInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore.IOConfig, id string, store inspectioncore.Store, metadata *typedmap.ReadonlyTypedMap, options ...RunContextOption) *InspectionTaskRunner {
 	runner := NewInspectionRunner(server, ioConfig, id, options...)
 	close(runner.runComplete)
 
 	resultMap := typedmap.NewTypedMap()
-	typedmap.Set(resultMap, typedmap.NewTypedKey[inspectioncore_contract.Store](inspectioncore_contract.SerializerTaskID.ReferenceIDString()), store)
+	typedmap.Set(resultMap, typedmap.NewTypedKey[inspectioncore.Store](inspectioncore.SerializerTaskID.ReferenceIDString()), store)
 	runner.runner = &completedTaskRunner{
 		result: resultMap.AsReadonly(),
 	}

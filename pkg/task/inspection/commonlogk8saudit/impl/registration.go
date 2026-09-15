@@ -17,15 +17,15 @@ package commonlogk8saudit_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // Registers all commonlogk8saudit inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	scoped := coreinspection.NewScopedRegistry(
 		registry,
-		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		inspectioncore.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
 		}),
 	)
 	return coretask.RegisterTasks(scoped,

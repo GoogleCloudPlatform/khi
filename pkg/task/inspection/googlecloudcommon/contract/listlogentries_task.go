@@ -36,7 +36,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -67,7 +67,7 @@ type ListLogEntriesTaskSetting interface {
 	// LogFilters returns the list of log filters for the Cloud Logging list log entries task.
 	// When generated logging filter can exceed the 20,000 character maximum limit in Cloud Logging, return multiple subset query.
 	// Result includes the logs for all log filters.
-	LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error)
+	LogFilters(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error)
 
 	// TimePartitionCount returns the number of time partitions for the Cloud Logging list log entries task.
 	// ListLogEntriesTask split the duration into the number of partition count to gather logs in parallel.
@@ -144,7 +144,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 	return inspectiontaskbase.NewProgressReportableInspectionTask(
 		taskID,
 		dependencies,
-		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
+		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 			startTime := coretask.GetTaskResult(ctx, InputStartTimeTaskID.Ref())
 			endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
 			resourceNames, err := handleResourceNames(ctx, taskID, taskSetting)
@@ -178,7 +178,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 				}
 
 				// Don't run logging filter except the run mode
-				if taskMode != inspectioncore_contract.TaskModeRun {
+				if taskMode != inspectioncore.TaskModeRun {
 					continue
 				}
 
@@ -213,7 +213,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 				return a.Timestamp.Compare(b.Timestamp)
 			})
 
-			tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+			tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 			if tracingActive {
 				trace.SpanFromContext(ctx).SetAttributes(
 					attribute.String("log_count", fmt.Sprintf("%d", len(allLogs))),
@@ -221,7 +221,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 			}
 
 			return allLogs, nil
-		}, inspectioncore_contract.NewQueryTaskLabelOpt(description.ExampleQuery),
+		}, inspectioncore.NewQueryTaskLabelOpt(description.ExampleQuery),
 		coretask.WithLabelValue(RequestOptionalInputResourceNameTaskLabel, taskID.ReferenceIDString()),
 	)
 }
@@ -243,7 +243,7 @@ func handleResourceNames(ctx context.Context, taskID taskid.TaskImplementationID
 
 // setQueryInfo records the generated Cloud Logging query details into the inspection run metadata.
 func setQueryInfo(ctx context.Context, taskID, baseLogFilter string, logFilterIndex, totalLogFilterCount int, startTime, endTime time.Time, description *ListLogEntriesTaskDescription) error {
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	queryInfo, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
 		return fmt.Errorf("query metadata was not found")
@@ -264,7 +264,7 @@ func setQueryInfo(ctx context.Context, taskID, baseLogFilter string, logFilterIn
 
 // setErrorMetadataForFetchLogError extracts error information from a log fetching operation and adds it to the inspection run's error message set metadata.
 func setErrorMetadataForFetchLogError(ctx context.Context, err error) error {
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	errorMessageSet, found := typedmap.Get(metadata, inspectionmetadata.ErrorMessageSetMetadataKey)
 	if !found {
 		return fmt.Errorf("error message set metadata was not found. originalError=%w", err)

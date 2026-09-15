@@ -19,14 +19,14 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // GoogleCloudCommonTaskIDPrefix is the prefix for Google Cloud common task IDs.
 var GoogleCloudCommonTaskIDPrefix = "cloud.google.com/common/"
 
 // AutocompleteLocationTaskID is the task ID for the location autocomplete.
-var AutocompleteLocationTaskID taskid.TaskImplementationID[*inspectioncore_contract.AutocompleteResult[string]] = taskid.NewDefaultImplementationID[*inspectioncore_contract.AutocompleteResult[string]](GoogleCloudCommonTaskIDPrefix + "autocomplete-location")
+var AutocompleteLocationTaskID taskid.TaskImplementationID[*inspectioncore.AutocompleteResult[string]] = taskid.NewDefaultImplementationID[*inspectioncore.AutocompleteResult[string]](GoogleCloudCommonTaskIDPrefix + "autocomplete-location")
 
 // Common forms over Google Cloud related packages.
 

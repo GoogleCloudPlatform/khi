@@ -17,7 +17,7 @@ package logutil
 import (
 	"testing"
 
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -74,7 +74,7 @@ func TestLogfmtTextParserWorker_Parse(t *testing.T) {
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
 					MainMessageStructuredFieldKey: "Main message",
-					SeverityStructuredFieldKey:    inspectioncore_contract.SeverityInfo,
+					SeverityStructuredFieldKey:    inspectioncore.SeverityInfo,
 					"msg":                         "Main message",
 					"severity":                    "info",
 					"fieldWithQuotes":             "foo",

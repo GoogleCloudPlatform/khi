@@ -25,7 +25,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -66,8 +66,8 @@ func TestAPIClientFactoryOptionsTask(t *testing.T) {
 			prepareContext: func(ctx context.Context) context.Context {
 				opt1 := coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, option1)
 				opt2 := coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, option2)
-				ctx, _ = opt1(ctx, inspectioncore_contract.TaskModeRun)
-				ctx, _ = opt2(ctx, inspectioncore_contract.TaskModeRun)
+				ctx, _ = opt1(ctx, inspectioncore.TaskModeRun)
+				ctx, _ = opt2(ctx, inspectioncore.TaskModeRun)
 				return ctx
 			},
 			disabled:  false,
@@ -93,7 +93,7 @@ func TestAPIClientFactoryOptionsTask(t *testing.T) {
 
 			ctx := tc.prepareContext(context.Background())
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
-			gotOptions, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryOptionsTask, inspectioncore_contract.TaskModeRun, map[string]any{})
+			gotOptions, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryOptionsTask, inspectioncore.TaskModeRun, map[string]any{})
 			if err != nil {
 				t.Fatalf("APIClientFactoryOptionsTask failed: %v", err)
 			}
@@ -126,8 +126,8 @@ func TestAPICallOptionsInjectorTask(t *testing.T) {
 			prepareContext: func(ctx context.Context) context.Context {
 				opt1 := coreinspection.RunContextOptionArrayElementFromValue[googlecloud.CallOptionInjectorOption](googlecloudcommon_contract.APICallOptionsInjectorContextKey, option1)
 				opt2 := coreinspection.RunContextOptionArrayElementFromValue[googlecloud.CallOptionInjectorOption](googlecloudcommon_contract.APICallOptionsInjectorContextKey, option2)
-				ctx, _ = opt1(ctx, inspectioncore_contract.TaskModeRun)
-				ctx, _ = opt2(ctx, inspectioncore_contract.TaskModeRun)
+				ctx, _ = opt1(ctx, inspectioncore.TaskModeRun)
+				ctx, _ = opt2(ctx, inspectioncore.TaskModeRun)
 				return ctx
 			},
 			wantCallOptionsInjector: googlecloud.NewCallOptionInjector(option1, option2),
@@ -137,7 +137,7 @@ func TestAPICallOptionsInjectorTask(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := tc.prepareContext(context.Background())
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
-			gotCallOptionsInjector, _, err := inspectiontest.RunInspectionTask(ctx, APICallOptionsInjectorTask, inspectioncore_contract.TaskModeRun, map[string]any{})
+			gotCallOptionsInjector, _, err := inspectiontest.RunInspectionTask(ctx, APICallOptionsInjectorTask, inspectioncore.TaskModeRun, map[string]any{})
 			if err != nil {
 				t.Fatalf("APICallOptionsInjectorTask failed: %v", err)
 			}

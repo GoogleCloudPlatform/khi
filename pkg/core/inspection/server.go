@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
 	"golang.org/x/exp/slices"
 )
@@ -56,7 +56,7 @@ type InspectionDryRunResult struct {
 
 type InspectionRunResult struct {
 	Metadata    interface{}
-	ResultStore inspectioncore_contract.Store
+	ResultStore inspectioncore.Store
 }
 
 // InspectionTaskServer manages tasks and provides apis to get task related information in JSON convertible type.
@@ -70,13 +70,13 @@ type InspectionTaskServer struct {
 	inspectionsMu         sync.RWMutex
 	inspectionIDGenerator idgenerator.IDGenerator
 
-	ioConfig *inspectioncore_contract.IOConfig
+	ioConfig *inspectioncore.IOConfig
 
 	runContextOptions      []RunContextOption
 	inspectionIntercepters []InspectionInterceptor
 }
 
-func NewServer(ioConfig *inspectioncore_contract.IOConfig) (*InspectionTaskServer, error) {
+func NewServer(ioConfig *inspectioncore.IOConfig) (*InspectionTaskServer, error) {
 	ns, err := coretask.NewTaskSet([]coretask.UntypedTask{})
 	if err != nil {
 		return nil, err
@@ -182,12 +182,12 @@ func (s *InspectionTaskServer) AddRunContextOption(option RunContextOption) {
 }
 
 // IOConfig returns the IOConfig associated with the server.
-func (s *InspectionTaskServer) IOConfig() *inspectioncore_contract.IOConfig {
+func (s *InspectionTaskServer) IOConfig() *inspectioncore.IOConfig {
 	return s.ioConfig
 }
 
 // RegisterImportedInspection registers a completed imported inspection with the given ID, store, and metadata.
-func (s *InspectionTaskServer) RegisterImportedInspection(id string, store inspectioncore_contract.Store, metadata *typedmap.ReadonlyTypedMap) *InspectionTaskRunner {
+func (s *InspectionTaskServer) RegisterImportedInspection(id string, store inspectioncore.Store, metadata *typedmap.ReadonlyTypedMap) *InspectionTaskRunner {
 	runner := NewImportedInspectionRunner(s, s.ioConfig, id, store, metadata, s.runContextOptions...)
 	s.inspectionsMu.Lock()
 	s.inspections[id] = runner

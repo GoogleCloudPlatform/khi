@@ -27,7 +27,7 @@ import (
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogcsmcp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsmcp/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -125,7 +125,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnected,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
@@ -145,7 +145,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  customTime,
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnected,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
@@ -164,7 +164,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnected,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
@@ -186,7 +186,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionTerminated,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
@@ -209,14 +209,14 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnectedLogNotFound,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					}).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionTerminated,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
@@ -238,14 +238,14 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnectedLogNotFound,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					}).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
-						VerbType:     inspectioncore_contract.VerbUnknown,
+						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionTerminated,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
@@ -377,7 +377,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T
 		HasEvent(csmcpPodPath).
 		HasRevision(connPath, &khifilev6.StagingRevision{
 			ChangedTime:  testTime1,
-			VerbType:     inspectioncore_contract.VerbUnknown,
+			VerbType:     inspectioncore.VerbUnknown,
 			StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnected,
 			ResourceBody: nil,
 			Principal:    "csm-cp",
@@ -401,7 +401,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T
 		HasEvent(csmcpPodPath).
 		HasRevision(connPath, &khifilev6.StagingRevision{
 			ChangedTime:  testTime2,
-			VerbType:     inspectioncore_contract.VerbUnknown,
+			VerbType:     inspectioncore.VerbUnknown,
 			StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionTerminated,
 			ResourceBody: nil,
 			Principal:    "csm-cp",

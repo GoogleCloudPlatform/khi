@@ -30,7 +30,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var (
@@ -65,7 +65,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeapiau
 
 // LogToTimelineMapperTask is a task that maps GKE audit logs to timeline elements.
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](googlecloudloggkeapiaudit_contract.LogToTimelineMapperTaskID, &gkeAuditLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabel(`GKE Audit Logs`,
+	inspectioncore.FeatureTaskLabel(`GKE Audit Logs`,
 		`Gather GKE audit logs to visualize the creation, upgrade, and deletion of clusters and node pools on timelines.`,
 		5000,
 		true),

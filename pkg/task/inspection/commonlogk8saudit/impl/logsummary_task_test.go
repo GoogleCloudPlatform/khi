@@ -21,7 +21,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -51,7 +51,7 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(commonlogk8saudit_contract.LogTypeAudit).
 					HasSummary("Create /api/v1/namespaces/default/pods/test-pod")
 			},
@@ -75,7 +75,7 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityError).
+					HasSeverity(inspectioncore.SeverityError).
 					HasLogType(commonlogk8saudit_contract.LogTypeAudit).
 					HasSummary("【Conflict(409)】Create /api/v1/namespaces/default/pods/test-pod")
 			},
@@ -98,7 +98,7 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(commonlogk8saudit_contract.LogTypeAudit).
 					HasSummary("【DryRun】Create /api/v1/namespaces/default/pods/test-pod")
 			},
@@ -123,7 +123,7 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityError).
+					HasSeverity(inspectioncore.SeverityError).
 					HasLogType(commonlogk8saudit_contract.LogTypeAudit).
 					HasSummary("【DryRun】【Conflict(409)】Create /api/v1/namespaces/default/pods/test-pod")
 			},

@@ -20,7 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustAutoscalerTimeline returns the timeline path for GKE cluster autoscaler under the Kubernetes Cluster timeline.
@@ -28,7 +28,7 @@ func MustAutoscalerTimeline(ctx context.Context, clusterTimeline *khifilev6.Time
 	if clusterTimeline == nil || clusterTimeline.Type.GetId() != googlecloudcommon_contract.TimelineTypeGKE.GetId() {
 		panic("parent timeline path must be GKE type")
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
 		Name: "cluster-autoscaler",
 		Type: TimelineTypeAutoscaler,
@@ -40,7 +40,7 @@ func MustMigTimeline(ctx context.Context, nodepoolTimeline *khifilev6.TimelinePa
 	if nodepoolTimeline == nil || nodepoolTimeline.Type.GetId() != googlecloudcommon_contract.TimelineTypeGKENodePool.GetId() {
 		panic("parent timeline path must be GKENodePool type")
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(nodepoolTimeline, khifilev6.PathSegment{
 		Name: migName,
 		Type: TimelineTypeManagedInstanceGroup,

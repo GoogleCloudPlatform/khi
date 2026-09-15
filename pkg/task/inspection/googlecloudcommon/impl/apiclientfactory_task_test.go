@@ -22,7 +22,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func TestAPIClientFactoryTask(t *testing.T) {
@@ -62,7 +62,7 @@ func TestAPIClientFactoryTask(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			mockOptionCalledCount = 0
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			clientFactory, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryTask, inspectioncore_contract.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryOptionsTaskID.Ref(), tc.options))
+			clientFactory, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryTask, inspectioncore.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryOptionsTaskID.Ref(), tc.options))
 			if !tc.wantErr && err != nil {
 				t.Errorf("APIClientFactoryTask failed: %v", err)
 			}
@@ -76,7 +76,7 @@ func TestAPIClientFactoryTask(t *testing.T) {
 				t.Errorf("APIClientFactoryTask returned nil")
 			}
 
-			clientFactory2, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryTask, inspectioncore_contract.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryOptionsTaskID.Ref(), tc.options))
+			clientFactory2, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryTask, inspectioncore.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryOptionsTaskID.Ref(), tc.options))
 			if err != nil {
 				t.Errorf("APIClientFactoryTask failed on the second time: %v", err)
 			}

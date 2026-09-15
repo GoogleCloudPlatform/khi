@@ -27,7 +27,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // CSMTrafficDirectorLogIngesterTask is a task that ingests CSM Traffic Director logs.
@@ -148,7 +148,7 @@ var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOper
 var CSMTrafficDirectorLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogcsm_contract.CSMTrafficDirectorLogToTimelineMapperTaskID,
 	&CSMTrafficDirectorLogToTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		"CSM Resource Audit Logs",
 		"Gather audit logs for Traffic Director resources created by the TD-based CSM to map them to timelines alongside associated Kubernetes resource logs.",
 		10100,

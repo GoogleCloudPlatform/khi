@@ -28,7 +28,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -60,7 +60,7 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 				},
 			},
 			wantSummary:  "Scaling up nodepools by autoscaler: default-pool (requested: 1 in total)",
-			wantSeverity: inspectioncore_contract.SeverityWarning,
+			wantSeverity: inspectioncore.SeverityWarning,
 		},
 		{
 			name: "scale down",
@@ -82,7 +82,7 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 				},
 			},
 			wantSummary:  "Scaling down nodepools by autoscaler: default-pool (Removing 1 nodes in total)",
-			wantSeverity: inspectioncore_contract.SeverityWarning,
+			wantSeverity: inspectioncore.SeverityWarning,
 		},
 		{
 			name: "nodepool created",
@@ -98,7 +98,7 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 				},
 			},
 			wantSummary:  "Nodepool created by node auto provisioner: nap-n1-standard-1-1kwag2qv",
-			wantSeverity: inspectioncore_contract.SeverityWarning,
+			wantSeverity: inspectioncore.SeverityWarning,
 		},
 		{
 			name: "nodepool deleted",
@@ -112,7 +112,7 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 				},
 			},
 			wantSummary:  "Nodepool deleted by node auto provisioner: nap-n1-highcpu-8-ydj4ewil",
-			wantSeverity: inspectioncore_contract.SeverityWarning,
+			wantSeverity: inspectioncore.SeverityWarning,
 		},
 		{
 			name: "no scale up",
@@ -122,7 +122,7 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 				},
 			},
 			wantSummary:  "autoscaler decided not to scale up",
-			wantSeverity: inspectioncore_contract.SeverityInfo,
+			wantSeverity: inspectioncore.SeverityInfo,
 		},
 		{
 			name: "no scale down with param",
@@ -137,7 +137,7 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 				},
 			},
 			wantSummary:  "autoscaler decided not to scale down: no.scale.down.in.backoff(param1,param2)",
-			wantSeverity: inspectioncore_contract.SeverityInfo,
+			wantSeverity: inspectioncore.SeverityInfo,
 		},
 		{
 			name: "no scale down without param",
@@ -151,7 +151,7 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 				},
 			},
 			wantSummary:  "autoscaler decided not to scale down: no.scale.down.in.backoff",
-			wantSeverity: inspectioncore_contract.SeverityInfo,
+			wantSeverity: inspectioncore.SeverityInfo,
 		},
 		{
 			name: "result info success",
@@ -165,7 +165,7 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 				},
 			},
 			wantSummary:  "autoscaler finished events: 2fca91cd-7345-47fc-9770-838e05e28b17(Success)",
-			wantSeverity: inspectioncore_contract.SeverityInfo,
+			wantSeverity: inspectioncore.SeverityInfo,
 		},
 		{
 			name: "result info error",
@@ -183,7 +183,7 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 				},
 			},
 			wantSummary:  "autoscaler finished events: ea2e964c-49b8-4cd7-8fa9-fefb0827f9a6(Error:scale.down.error.failed.to.delete.node.min.size.reached(test-cluster-default-pool-5c90f485-nk80))",
-			wantSeverity: inspectioncore_contract.SeverityInfo,
+			wantSeverity: inspectioncore.SeverityInfo,
 		},
 	}
 
@@ -227,7 +227,7 @@ func TestAutoscalerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	// 2. Resolve comparative path instances using the Builder's accumulator.
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, "test-project")
 	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, "test-cluster")
@@ -526,7 +526,7 @@ results:
 		t.Run(tc.name, func(t *testing.T) {
 			tc.input.ProjectID = "test-project"
 			tc.input.ClusterName = "test-cluster"
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 			l := testlog.NewMockLog(
 				testTime,

@@ -34,7 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -52,8 +52,8 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 	commonlogk8saudit_contract.K8sResourceMergeConfigTaskID.Ref(),
 	commonlogk8saudit_contract.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
 	commonlogk8saudit_contract.InitialResourceStateProviderRef,
-}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceManifestLogGroupMap, error) {
-	if taskMode == inspectioncore_contract.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceManifestLogGroupMap, error) {
+	if taskMode == inspectioncore.TaskModeDryRun {
 		return map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{}, nil
 	}
 

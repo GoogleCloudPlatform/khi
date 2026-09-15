@@ -29,13 +29,13 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 const MaxNodesPerQuery = 30
 
 // GenerateSerialPortStructuredQuery generates structured log queries for serial port logs.
-func GenerateSerialPortStructuredQuery(taskMode inspectioncore_contract.InspectionTaskModeType, foundNodeNames []string, nodeNameSubstrings []string) []*logestimator.StructuredLogQuery {
+func GenerateSerialPortStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, foundNodeNames []string, nodeNameSubstrings []string) []*logestimator.StructuredLogQuery {
 	logIDFilter := logestimator.LogID(logestimator.OneOf(
 		"serialconsole.googleapis.com/serial_port_1_output",
 		"serialconsole.googleapis.com/serial_port_2_output",
@@ -48,7 +48,7 @@ func GenerateSerialPortStructuredQuery(taskMode inspectioncore_contract.Inspecti
 		subFilter = logestimator.CustomFilter(fmt.Sprintf(`labels."compute.googleapis.com/resource_name":(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(nodeNameSubstrings), " OR ")))
 	}
 
-	if taskMode == inspectioncore_contract.TaskModeDryRun {
+	if taskMode == inspectioncore.TaskModeDryRun {
 		filters := []logestimator.LoggingMonitoringMatcher{
 			logIDFilter,
 			logestimator.Comment("instance name filters to be determined after node name discovery"),
@@ -104,8 +104,8 @@ func (s *serialPortLoggingFilterTaskSetting) Queries(ctx context.Context) ([]*lo
 	nodeNames := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref())
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref())
-	taskMode := inspectioncore_contract.TaskModeRun
-	if val, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskMode); err == nil {
+	taskMode := inspectioncore.TaskModeRun
+	if val, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode); err == nil {
 		taskMode = val
 	}
 	queries := GenerateSerialPortStructuredQuery(taskMode, nodeNames, nodeNameSubstrings)

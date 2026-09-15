@@ -19,7 +19,7 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
@@ -62,5 +62,5 @@ var OSSK8sAuditLogParserTailTask = coretask.NewTailTask(
 		commonlogk8saudit_contract.ContainerIDDiscoveryTaskID.Ref(),
 		commonlogk8saudit_contract.IPLeaseHistoryDiscoveryTaskID.Ref(),
 	},
-	inspectioncore_contract.FeatureTaskLabel("Kubernetes Audit Logs", `Gather Kubernetes audit logs to visualize resource modifications and API call histories on associated timelines.`, 1001, true),
+	inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", `Gather Kubernetes audit logs to visualize resource modifications and API call histories on associated timelines.`, 1001, true),
 )

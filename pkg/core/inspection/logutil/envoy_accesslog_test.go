@@ -17,7 +17,7 @@ package logutil
 import (
 	"testing"
 
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 )
@@ -35,7 +35,7 @@ func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {
 				Fields: map[string]any{
 					OriginalMessageFieldKey:                       `[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - "-" 0 0 6 5 "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "136.68.163.124" "136.68.163.124:80" PassthroughCluster 10.4.1.8:33606 136.68.163.124:80 10.4.1.8:59778 - allow_any`,
 					MainMessageStructuredFieldKey:                 "502 HEAD http://136.68.163.124/",
-					SeverityStructuredFieldKey:                    inspectioncore_contract.SeverityError,
+					SeverityStructuredFieldKey:                    inspectioncore.SeverityError,
 					EnvoyAccessLogTimestampFieldKey:               "2026-08-10T08:50:55.958Z",
 					EnvoyAccessLogMethodFieldKey:                  "HEAD",
 					EnvoyAccessLogPathFieldKey:                    "/",
@@ -62,7 +62,7 @@ func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {
 				Fields: map[string]any{
 					OriginalMessageFieldKey:                       `[2026-08-10T08:50:55.958Z] "GET / HTTP/1.1" 503 UF - - "-" 0 0 6 - "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "10.4.0.5" "10.4.0.5:80" outbound|80||foo.default.svc.cluster.local - - 10.4.1.8:59778 - -`,
 					MainMessageStructuredFieldKey:                 "【Upstream connection failure(UF)】503 GET http://10.4.0.5/",
-					SeverityStructuredFieldKey:                    inspectioncore_contract.SeverityError,
+					SeverityStructuredFieldKey:                    inspectioncore.SeverityError,
 					EnvoyAccessLogTimestampFieldKey:               "2026-08-10T08:50:55.958Z",
 					EnvoyAccessLogMethodFieldKey:                  "GET",
 					EnvoyAccessLogPathFieldKey:                    "/",
@@ -86,7 +86,7 @@ func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {
 				Fields: map[string]any{
 					OriginalMessageFieldKey:                       `[2026-08-10T08:50:55.958Z] "GET /api/v1/users HTTP/1.1" 200 - - - "-" 100 200 10 9 "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "example.com" "10.4.0.5:80" outbound|80||foo.default.svc.cluster.local 10.4.1.8:33606 10.4.0.5:80 10.4.1.8:59778 - default`,
 					MainMessageStructuredFieldKey:                 "200 GET http://example.com/api/v1/users",
-					SeverityStructuredFieldKey:                    inspectioncore_contract.SeverityInfo,
+					SeverityStructuredFieldKey:                    inspectioncore.SeverityInfo,
 					EnvoyAccessLogTimestampFieldKey:               "2026-08-10T08:50:55.958Z",
 					EnvoyAccessLogMethodFieldKey:                  "GET",
 					EnvoyAccessLogPathFieldKey:                    "/api/v1/users",
@@ -113,7 +113,7 @@ func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {
 				Fields: map[string]any{
 					OriginalMessageFieldKey:                       `[2026-08-10T08:50:55.958Z] "POST /invalid HTTP/1.1" 404 NR - - "-" 0 0 1 - "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "example.com" "-" - - - 10.4.1.8:59778 - -`,
 					MainMessageStructuredFieldKey:                 "【No route found(NR)】404 POST http://example.com/invalid",
-					SeverityStructuredFieldKey:                    inspectioncore_contract.SeverityWarning,
+					SeverityStructuredFieldKey:                    inspectioncore.SeverityWarning,
 					EnvoyAccessLogTimestampFieldKey:               "2026-08-10T08:50:55.958Z",
 					EnvoyAccessLogMethodFieldKey:                  "POST",
 					EnvoyAccessLogPathFieldKey:                    "/invalid",
@@ -135,7 +135,7 @@ func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {
 				Fields: map[string]any{
 					OriginalMessageFieldKey:                       `[2026-08-17T04:59:08.906Z] "GET / HTTP/1.1" 503 UF upstream_reset_before_response_started{remote_connection_failure,delayed_connect_error:_111} - "delayed_connect_error:_111" 0 152 0 - "-" "GoogleHC/1.0" "b8b3448c-05f3-4f65-aed2-9e63c89cc662" "10.4.0.5" "10.4.0.5:8080" inbound|8080|| - 10.4.0.5:8080 35.191.227.195:48158 - default`,
 					MainMessageStructuredFieldKey:                 "【Upstream connection failure(UF)】503 GET http://10.4.0.5/",
-					SeverityStructuredFieldKey:                    inspectioncore_contract.SeverityError,
+					SeverityStructuredFieldKey:                    inspectioncore.SeverityError,
 					EnvoyAccessLogTimestampFieldKey:               "2026-08-17T04:59:08.906Z",
 					EnvoyAccessLogMethodFieldKey:                  "GET",
 					EnvoyAccessLogPathFieldKey:                    "/",
@@ -161,7 +161,7 @@ func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {
 				Fields: map[string]any{
 					OriginalMessageFieldKey:                       `[2026-08-10T08:50:55.958Z] "GET /productpage HTTP/1.1" 503 UH,URX - - "-" 0 0 10 - "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "example.com" "10.4.0.5:80" outbound|80||foo.default.svc.cluster.local - - 10.4.1.8:59778 - default`,
 					MainMessageStructuredFieldKey:                 "【No healthy upstream, Upstream retry limit exceeded(UH,URX)】503 GET http://example.com/productpage",
-					SeverityStructuredFieldKey:                    inspectioncore_contract.SeverityError,
+					SeverityStructuredFieldKey:                    inspectioncore.SeverityError,
 					EnvoyAccessLogTimestampFieldKey:               "2026-08-10T08:50:55.958Z",
 					EnvoyAccessLogMethodFieldKey:                  "GET",
 					EnvoyAccessLogPathFieldKey:                    "/productpage",

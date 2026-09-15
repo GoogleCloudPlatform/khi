@@ -19,7 +19,7 @@ import (
 	"time"
 
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // TestTimeZoneShiftInputTask verifies that TimeZoneShiftInputTask parses the timezone offset
@@ -36,7 +36,7 @@ func TestTimeZoneShiftInputTask(t *testing.T) {
 		{
 			name: "positive offset +9 hours",
 			input: map[string]any{
-				inspectioncore_contract.TaskInputKeyTimezoneShiftHours: float64(9),
+				inspectioncore.TaskInputKeyTimezoneShiftHours: float64(9),
 			},
 			wantZoneName:      "Unknown",
 			wantOffsetSeconds: 9 * 3600,
@@ -45,7 +45,7 @@ func TestTimeZoneShiftInputTask(t *testing.T) {
 		{
 			name: "negative offset -7 hours",
 			input: map[string]any{
-				inspectioncore_contract.TaskInputKeyTimezoneShiftHours: float64(-7),
+				inspectioncore.TaskInputKeyTimezoneShiftHours: float64(-7),
 			},
 			wantZoneName:      "Unknown",
 			wantOffsetSeconds: -7 * 3600,
@@ -54,7 +54,7 @@ func TestTimeZoneShiftInputTask(t *testing.T) {
 		{
 			name: "zero offset falls back to UTC",
 			input: map[string]any{
-				inspectioncore_contract.TaskInputKeyTimezoneShiftHours: float64(0),
+				inspectioncore.TaskInputKeyTimezoneShiftHours: float64(0),
 			},
 			wantZoneName:      "UTC",
 			wantOffsetSeconds: 0,
@@ -70,7 +70,7 @@ func TestTimeZoneShiftInputTask(t *testing.T) {
 		{
 			name: "non float64 value defaults to UTC",
 			input: map[string]any{
-				inspectioncore_contract.TaskInputKeyTimezoneShiftHours: "9",
+				inspectioncore.TaskInputKeyTimezoneShiftHours: "9",
 			},
 			wantZoneName:      "UTC",
 			wantOffsetSeconds: 0,
@@ -81,7 +81,7 @@ func TestTimeZoneShiftInputTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, TimeZoneShiftInputTask, inspectioncore_contract.TaskModeRun, tc.input)
+			got, _, err := inspectiontest.RunInspectionTask(ctx, TimeZoneShiftInputTask, inspectioncore.TaskModeRun, tc.input)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

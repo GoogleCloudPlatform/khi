@@ -24,7 +24,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -83,7 +83,7 @@ func TestFilterAndTrimPrefixFromClusterNames(t *testing.T) {
 func TestClusterScopedAutocompleteTasks_IncompleteClusterIdentity(t *testing.T) {
 	testCases := []struct {
 		name     string
-		task     coretask.Task[*inspectioncore_contract.AutocompleteResult[string]]
+		task     coretask.Task[*inspectioncore.AutocompleteResult[string]]
 		cluster  googlecloudk8scommon_contract.GoogleCloudClusterIdentity
 		wantHint string
 	}{
@@ -127,7 +127,7 @@ func TestClusterScopedAutocompleteTasks_IncompleteClusterIdentity(t *testing.T) 
 			if err != nil {
 				t.Fatalf("RunTask() unexpected error: %v", err)
 			}
-			want := &inspectioncore_contract.AutocompleteResult[string]{
+			want := &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
 				Error:  "",
 				Hint:   tc.wantHint,

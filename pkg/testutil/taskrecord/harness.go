@@ -29,7 +29,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // JobTestConfig specifies parameters and target tasks for running an inspection Job test.
@@ -195,7 +195,7 @@ func (h *JobTestHarness) Record(ctx context.Context) (*JobTestResult, error) {
 	)
 	runner.AddInterceptors(recordInterceptor)
 
-	req := &inspectioncore_contract.InspectionRequest{
+	req := &inspectioncore.InspectionRequest{
 		Values: h.cfg.InspectionValues,
 	}
 
@@ -286,7 +286,7 @@ func (h *JobTestHarness) Replay(ctx context.Context) (*JobTestResult, error) {
 	)
 	runner.AddInterceptors(replayInterceptor)
 
-	req := &inspectioncore_contract.InspectionRequest{
+	req := &inspectioncore.InspectionRequest{
 		Values: h.cfg.InspectionValues,
 	}
 

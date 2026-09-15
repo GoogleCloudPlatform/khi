@@ -31,7 +31,7 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
@@ -39,7 +39,7 @@ import (
 func TestGenerateSerialPortStructuredQuery(t *testing.T) {
 	testCases := []struct {
 		name                   string
-		taskMode               inspectioncore_contract.InspectionTaskModeType
+		taskMode               inspectioncore.InspectionTaskModeType
 		nodeNames              []string
 		nodeNameSubstrings     []string
 		wantQueries            []string
@@ -47,7 +47,7 @@ func TestGenerateSerialPortStructuredQuery(t *testing.T) {
 	}{
 		{
 			name:               "dryrun with no substrings",
-			taskMode:           inspectioncore_contract.TaskModeDryRun,
+			taskMode:           inspectioncore.TaskModeDryRun,
 			nodeNames:          []string{"node-1", "node-2"},
 			nodeNameSubstrings: []string{},
 			wantQueries: []string{
@@ -58,7 +58,7 @@ func TestGenerateSerialPortStructuredQuery(t *testing.T) {
 		},
 		{
 			name:               "dryrun with substrings",
-			taskMode:           inspectioncore_contract.TaskModeDryRun,
+			taskMode:           inspectioncore.TaskModeDryRun,
 			nodeNames:          []string{"node-1"},
 			nodeNameSubstrings: []string{"sub-a", "sub-b"},
 			wantQueries: []string{
@@ -70,7 +70,7 @@ labels."compute.googleapis.com/resource_name":("sub-a" OR "sub-b")`,
 		},
 		{
 			name:                   "run mode with 0 nodes",
-			taskMode:               inspectioncore_contract.TaskModeRun,
+			taskMode:               inspectioncore.TaskModeRun,
 			nodeNames:              []string{},
 			nodeNameSubstrings:     []string{},
 			wantQueries:            []string{},
@@ -78,7 +78,7 @@ labels."compute.googleapis.com/resource_name":("sub-a" OR "sub-b")`,
 		},
 		{
 			name:               "run mode with single node",
-			taskMode:           inspectioncore_contract.TaskModeRun,
+			taskMode:           inspectioncore.TaskModeRun,
 			nodeNames:          []string{"node-1"},
 			nodeNameSubstrings: []string{},
 			wantQueries: []string{
@@ -89,7 +89,7 @@ labels."compute.googleapis.com/resource_name"=("node-1")`,
 		},
 		{
 			name:               "run mode with multiple nodes",
-			taskMode:           inspectioncore_contract.TaskModeRun,
+			taskMode:           inspectioncore.TaskModeRun,
 			nodeNames:          []string{"node-1", "node-2", "node-3"},
 			nodeNameSubstrings: []string{},
 			wantQueries: []string{
@@ -100,7 +100,7 @@ labels."compute.googleapis.com/resource_name"=("node-1" OR "node-2" OR "node-3")
 		},
 		{
 			name:               "run mode with multiple nodes and substring",
-			taskMode:           inspectioncore_contract.TaskModeRun,
+			taskMode:           inspectioncore.TaskModeRun,
 			nodeNames:          []string{"node-1", "node-2", "node-3"},
 			nodeNameSubstrings: []string{"node-1"},
 			wantQueries: []string{
@@ -112,7 +112,7 @@ labels."compute.googleapis.com/resource_name":("node-1")`,
 		},
 		{
 			name:               "run mode with multiple nodes and multiple substrings",
-			taskMode:           inspectioncore_contract.TaskModeRun,
+			taskMode:           inspectioncore.TaskModeRun,
 			nodeNames:          []string{"node-1", "node-2"},
 			nodeNameSubstrings: []string{"sub-1", "sub-2"},
 			wantQueries: []string{
@@ -154,7 +154,7 @@ func TestMaximumNodeCountNotHittingQueryLengthLimit(t *testing.T) {
 	for i := 0; i < MaxNodesPerQuery*2+1; i++ { // This query must be split into 3 sub groups.
 		nodeNames = append(nodeNames, fmt.Sprintf(`gke-%s-%s-%s`, idg46.Generate(), idg8.Generate(), idg4.Generate()))
 	}
-	sqs := GenerateSerialPortStructuredQuery(inspectioncore_contract.TaskModeRun, nodeNames, []string{})
+	sqs := GenerateSerialPortStructuredQuery(inspectioncore.TaskModeRun, nodeNames, []string{})
 	if len(sqs) != 3 {
 		t.Errorf("len(GenerateSerialPortStructuredQuery())=%d, want %d", len(sqs), 3)
 	}
@@ -184,7 +184,7 @@ func TestLogQueryTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, LogQueryTask, inspectioncore_contract.TaskModeDryRun, map[string]any{},
+	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, LogQueryTask, inspectioncore.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
@@ -200,7 +200,7 @@ func TestLogQueryTask_DryRun(t *testing.T) {
 		t.Errorf("dry run should return 0 logs, got %d", len(gotLogs))
 	}
 
-	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 	queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
 		t.Fatalf("QueryMetadata not found in metadata")

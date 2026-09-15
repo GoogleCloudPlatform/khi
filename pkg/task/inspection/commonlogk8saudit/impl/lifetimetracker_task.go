@@ -30,7 +30,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 type lifeTimeTrackerGroupState struct {
@@ -176,8 +176,8 @@ var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspec
 		commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(),
 		commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceManifestLogGroupMap, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceManifestLogGroupMap, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return commonlogk8saudit_contract.ResourceManifestLogGroupMap{}, nil
 		}

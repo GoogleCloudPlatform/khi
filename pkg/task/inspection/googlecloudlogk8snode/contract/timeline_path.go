@@ -19,19 +19,19 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustNodeComponentTimeline returns the timeline path for a node component (e.g., containerd, kubelet).
 func MustNodeComponentTimeline(ctx context.Context, nodeTimeline *khifilev6.TimelinePath, componentName string) *khifilev6.TimelinePath {
-	if nodeTimeline == nil || nodeTimeline.Type.GetId() != inspectioncore_contract.TimelineTypeResource.GetId() {
+	if nodeTimeline == nil || nodeTimeline.Type.GetId() != inspectioncore.TimelineTypeResource.GetId() {
 		panic("parent timeline path must be Resource type")
 	}
 	if componentName == "" {
 		componentName = "unknown"
 	}
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(nodeTimeline, khifilev6.PathSegment{
 		Name: componentName,
 		Type: TimelineTypeNodeComponent,

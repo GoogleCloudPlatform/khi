@@ -24,7 +24,7 @@ import (
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // AutocompleteComposerClusterNamesTask is an implementation for googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID
@@ -37,7 +37,7 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewGlobalCachedTas
 	googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]], error) {
 
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	environment := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
@@ -50,9 +50,9 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewGlobalCachedTas
 	// when the user is inputing these information, abort
 	isWIP := projectID == "" || environment == ""
 	if isWIP {
-		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
 			DependencyDigest: dependencyDigest,
-			Value: &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+			Value: &inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 				Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
 				Error:  "Project ID or Composer environment name is empty",
 			},
@@ -60,9 +60,9 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewGlobalCachedTas
 	}
 
 	if location == "" {
-		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
 			DependencyDigest: dependencyDigest,
-			Value: &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+			Value: &inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 				Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
 				Error:  "",
 				Hint:   "Cluster names are suggested after the location is provided.",
@@ -78,18 +78,18 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewGlobalCachedTas
 	clusterNames, err := clusterFinder.GetGKEClusterNames(ctx, projectID, location, environment, startTime, endTime)
 	if err != nil {
 		if errors.Is(err, googlecloudclustercomposer_contract.ErrEnvironmentClusterNotFound) {
-			return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
+			return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
 				DependencyDigest: dependencyDigest,
-				Value: &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+				Value: &inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 					Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
 					Error: `Not found. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.
 Note: Composer 3 is not running on your GKE cluster. Please remove all Kubernetes/GKE queries from the previous section.`,
 				},
 			}, nil
 		}
-		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
 			DependencyDigest: dependencyDigest,
-			Value: &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+			Value: &inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 				Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
 				Error:  "Failed to fetch the list GKE cluster. Please confirm if the Project ID is correct, or retry later",
 			},
@@ -105,9 +105,9 @@ Note: Composer 3 is not running on your GKE cluster. Please remove all Kubernete
 		}
 	}
 
-	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
+	return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
 		DependencyDigest: dependencyDigest,
-		Value: &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+		Value: &inspectioncore.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 			Values: identities,
 		},
 	}, nil

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspectioncore_contract
+package inspectioncore
 
-import coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-
-const InspectionTaskPrefix = coretask.KHISystemPrefix + "inspection/"
+type InspectionRequest struct {
+	Values map[string]any
+}

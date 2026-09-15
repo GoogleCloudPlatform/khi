@@ -21,7 +21,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // NodeNameInventoryTask provides list of node name found in this inspection for later task usage.
@@ -51,8 +51,8 @@ func mergeNodeNames(results [][]string) ([]string, error) {
 var NodeNameDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	commonlogk8saudit_contract.NodeNameDiscoveryTaskID,
 	[]coretask.Dependency{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return nil, nil
 		}
 

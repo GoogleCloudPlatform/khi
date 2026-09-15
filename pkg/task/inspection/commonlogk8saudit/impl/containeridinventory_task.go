@@ -24,7 +24,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var ContainerIDInventoryTask = inspectiontaskbase.NewInventoryTask(
@@ -52,8 +52,8 @@ var ContainerIDPatternFinderTask = inspectiontaskbase.NewProgressReportableInspe
 	[]coretask.Dependency{
 		commonlogk8saudit_contract.ContainerIDInventoryTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (patternfinder.PatternFinder[*commonlogk8saudit_contract.ContainerIdentity], error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (patternfinder.PatternFinder[*commonlogk8saudit_contract.ContainerIdentity], error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return nil, nil
 		}
 
@@ -79,8 +79,8 @@ var ContainerIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	[]coretask.Dependency{
 		commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return nil, nil
 		}
 

@@ -24,7 +24,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // K8sAuditLogIngesterTask is the task to serialize and ingest k8s audit logs.
@@ -64,10 +64,10 @@ func (i *k8sAuditLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khif
 
 	var summary string
 	if k8sFieldSet.IsError {
-		cs.SetSeverity(inspectioncore_contract.SeverityError)
+		cs.SetSeverity(inspectioncore.SeverityError)
 		summary = fmt.Sprintf("【%s(%d)】%s %s", k8sFieldSet.StatusMessage, k8sFieldSet.StatusCode, k8sFieldSet.VerbString(), k8sFieldSet.RequestURI)
 	} else {
-		cs.SetSeverity(inspectioncore_contract.SeverityInfo)
+		cs.SetSeverity(inspectioncore.SeverityInfo)
 		summary = fmt.Sprintf("%s %s", k8sFieldSet.VerbString(), k8sFieldSet.RequestURI)
 	}
 	if k8sFieldSet.IsDryRun {

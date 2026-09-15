@@ -21,7 +21,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // AutocompleteLocationTask is a task that provides a list of available locations for autocomplete.
@@ -33,7 +33,7 @@ var AutocompleteLocationTask = inspectiontaskbase.NewGlobalCachedTask(googleclou
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(), // for API restriction
 		googlecloudcommon_contract.LocationFetcherTaskID.Ref(),
 	},
-	func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
+	func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]], error) {
 		projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 		dependencyDigest := fmt.Sprintf("location-%s", projectID)
 
@@ -41,9 +41,9 @@ var AutocompleteLocationTask = inspectiontaskbase.NewGlobalCachedTask(googleclou
 			return prevValue, nil
 		}
 
-		defaultResult := inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
+		defaultResult := inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]{
 			DependencyDigest: dependencyDigest,
-			Value: &inspectioncore_contract.AutocompleteResult[string]{
+			Value: &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
 				Error:  "",
 				Hint:   "",

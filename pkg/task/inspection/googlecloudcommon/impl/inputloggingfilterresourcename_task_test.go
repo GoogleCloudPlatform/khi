@@ -25,7 +25,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -71,14 +71,14 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 	nonRelatedTask := coretask.NewTask(taskid.NewDefaultImplementationID[struct{}]("not-related"), nil, nil)
 	testCases := []struct {
 		desc       string
-		taskMode   inspectioncore_contract.InspectionTaskModeType
+		taskMode   inspectioncore.InspectionTaskModeType
 		inputValue string
 		tasks      []coretask.UntypedTask
 		wantForm   inspectionmetadata.GroupParameterFormField
 	}{
 		{
 			desc:       "basic input",
-			taskMode:   inspectioncore_contract.TaskModeDryRun,
+			taskMode:   inspectioncore.TaskModeDryRun,
 			inputValue: "projects/foo",
 			tasks:      []coretask.UntypedTask{t1, nonRelatedTask},
 			wantForm: inspectionmetadata.GroupParameterFormField{
@@ -110,7 +110,7 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 		},
 		{
 			desc:       "invalid input",
-			taskMode:   inspectioncore_contract.TaskModeDryRun,
+			taskMode:   inspectioncore.TaskModeDryRun,
 			inputValue: "invalid-resource-name",
 			tasks:      []coretask.UntypedTask{t1, nonRelatedTask},
 			wantForm: inspectionmetadata.GroupParameterFormField{
@@ -143,7 +143,7 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 		},
 		{
 			desc:       "basic input for run mode",
-			taskMode:   inspectioncore_contract.TaskModeRun,
+			taskMode:   inspectioncore.TaskModeRun,
 			inputValue: "projects/foo",
 			tasks:      []coretask.UntypedTask{t1, nonRelatedTask},
 			wantForm: inspectionmetadata.GroupParameterFormField{
@@ -175,7 +175,7 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 		},
 		{
 			desc:       "shouldn't populate inputs when the task requesting the resource name wasn't included in the graph even it already has the default value updated",
-			taskMode:   inspectioncore_contract.TaskModeRun,
+			taskMode:   inspectioncore.TaskModeRun,
 			inputValue: "projects/foo",
 			tasks:      []coretask.UntypedTask{nonRelatedTask},
 			wantForm: inspectionmetadata.GroupParameterFormField{
@@ -197,8 +197,8 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			ctx = khictx.WithValue[coretask.TaskRunner](ctx, inspectioncore_contract.TaskRunner, &mockTaskRunner{tasks: tc.tasks})
-			resourceNames, _, err := inspectiontest.RunInspectionTask(ctx, InputLoggingFilterResourceNameTask, inspectioncore_contract.TaskModeDryRun, map[string]any{})
+			ctx = khictx.WithValue[coretask.TaskRunner](ctx, inspectioncore.TaskRunner, &mockTaskRunner{tasks: tc.tasks})
+			resourceNames, _, err := inspectiontest.RunInspectionTask(ctx, InputLoggingFilterResourceNameTask, inspectioncore.TaskModeDryRun, map[string]any{})
 			if err != nil {
 				t.Fatalf("Failed to call InputLoggingFilterResourceNameTask at 1st time:%v", err)
 			}
@@ -206,7 +206,7 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 				QueryID: "test",
 			}
 			newCtx := inspectiontest.NextRunTaskContext(t.Context(), ctx)
-			newCtx = khictx.WithValue[coretask.TaskRunner](newCtx, inspectioncore_contract.TaskRunner, &mockTaskRunner{tasks: tc.tasks})
+			newCtx = khictx.WithValue[coretask.TaskRunner](newCtx, inspectioncore.TaskRunner, &mockTaskRunner{tasks: tc.tasks})
 			resourceNames.UpdateDefaultResourceNamesForQuery("test", defaultNames)
 			_, metadata, err := inspectiontest.RunInspectionTask(newCtx, InputLoggingFilterResourceNameTask, tc.taskMode, map[string]any{
 				resourceName.GetInputID(): tc.inputValue,

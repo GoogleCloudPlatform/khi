@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
@@ -33,7 +33,7 @@ func TestEventLogNEGDiscoveryTask(t *testing.T) {
 	tests := []struct {
 		name     string
 		logs     []*log.Log
-		taskMode inspectioncore_contract.InspectionTaskModeType
+		taskMode inspectioncore.InspectionTaskModeType
 		want     googlecloudk8scommon_contract.NEGToBackendServiceMap
 	}{
 		{
@@ -44,7 +44,7 @@ func TestEventLogNEGDiscoveryTask(t *testing.T) {
 				}),
 				testlog.NewMockLog(time.Now()), // no fieldset
 			},
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			want: googlecloudk8scommon_contract.NEGToBackendServiceMap{
 				"k8s1-event": "bs-event",
 			},
@@ -56,7 +56,7 @@ func TestEventLogNEGDiscoveryTask(t *testing.T) {
 					Message: `Pod has become Healthy in NEG "Key{\"k8s1-event\", zone: \"asia-northeast1-b\"}" attached to BackendService "Key{\"bs-event\"}". Marking condition "cloud.google.com/load-balancer-neg-ready" to True.`,
 				}),
 			},
-			taskMode: inspectioncore_contract.TaskModeDryRun,
+			taskMode: inspectioncore.TaskModeDryRun,
 			want:     nil,
 		},
 	}

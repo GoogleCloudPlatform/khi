@@ -29,7 +29,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -263,7 +263,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			l := testlog.NewMockLog(tc.input)
 
 			// Set up context with the same Builder reference.
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			finder := patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
 			if tc.resourceIdentitiesByUID != nil {
 				for k, v := range tc.resourceIdentitiesByUID {
@@ -294,8 +294,8 @@ func TestKubernetesEventLogIngester_ProcessLog(t *testing.T) {
 			desc: "successful event log ingestion without UID",
 			input: testlog.NewMockLog(
 				time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC),
-				inspectioncore_contract.DefaultSeverityFieldSet{
-					Severity: inspectioncore_contract.SeverityInfo,
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
 				},
 				googlecloudlogk8sevent_contract.KubernetesEventFieldSet{
 					Reason:  "Scheduled",
@@ -305,7 +305,7 @@ func TestKubernetesEventLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)).
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(commonlogk8saudit_contract.LogTypeEvent).
 					HasSummary("【Scheduled】Successfully assigned default/test-pod to node-1")
 			},
@@ -372,7 +372,7 @@ func TestKubernetesEventLogIngester_ProcessLog(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)).
-					HasSeverity(inspectioncore_contract.SeverityUnknown).
+					HasSeverity(inspectioncore.SeverityUnknown).
 					HasLogType(commonlogk8saudit_contract.LogTypeEvent).
 					HasSummary("【Scheduled】")
 			},

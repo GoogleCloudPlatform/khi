@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -39,14 +39,14 @@ func TestNwewLogGrouperTask(t *testing.T) {
 	}
 	testCases := []struct {
 		name         string
-		taskMode     inspectioncore_contract.InspectionTaskModeType
+		taskMode     inspectioncore.InspectionTaskModeType
 		logYamls     []string
 		logGrouper   LogGrouperFunc
 		resultLogIDs map[string][]string
 	}{
 		{
 			name:     "should return an empty map for empty log input on task run mode",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			logYamls: []string{},
 			logGrouper: func(ctx context.Context, l *log.Log) string {
 				return l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
@@ -55,7 +55,7 @@ func TestNwewLogGrouperTask(t *testing.T) {
 		},
 		{
 			name:     "should group logs correctly based on the provided function on task run mode",
-			taskMode: inspectioncore_contract.TaskModeRun,
+			taskMode: inspectioncore.TaskModeRun,
 			logYamls: sourceLogs,
 			logGrouper: func(ctx context.Context, l *log.Log) string {
 				return l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
@@ -68,7 +68,7 @@ func TestNwewLogGrouperTask(t *testing.T) {
 		},
 		{
 			name:     "should return an empty map on task dry run mode",
-			taskMode: inspectioncore_contract.TaskModeDryRun,
+			taskMode: inspectioncore.TaskModeDryRun,
 			logYamls: sourceLogs,
 			logGrouper: func(ctx context.Context, l *log.Log) string {
 				return l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
@@ -158,7 +158,7 @@ func TestNewLogGrouperTaskWithDependencies(t *testing.T) {
 			result, _, err := inspectiontest.RunInspectionTask(
 				ctx,
 				task,
-				inspectioncore_contract.TaskModeRun,
+				inspectioncore.TaskModeRun,
 				map[string]any{},
 				tasktest.NewTaskDependencyValuePair(testSourceTaskID.Ref(), logs),
 				tasktest.NewTaskDependencyValuePair(testExtraTaskID.Ref(), tc.extraValue),

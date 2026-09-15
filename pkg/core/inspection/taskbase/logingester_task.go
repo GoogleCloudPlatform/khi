@@ -31,7 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -53,12 +53,12 @@ func NewLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], ingester L
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(TagLogIngester),
 	}, labels...)
-	return NewProgressReportableInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	return NewProgressReportableInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return struct{}{}, nil
 		}
 		logs := coretask.GetTaskResult(ctx, rawLogTaskID)
-		builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+		builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
 		if err := ctx.Err(); err != nil {
 			return struct{}{}, err
@@ -145,7 +145,7 @@ func NewLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], ingester L
 
 		slog.DebugContext(ctx, fmt.Sprintf("LogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), len(logs), skippedLogCount.Load()))
 
-		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+		tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 		if tracingActive {
 			trace.SpanFromContext(ctx).SetAttributes(
 				attribute.String("log_count", fmt.Sprintf("%d", len(logs))),

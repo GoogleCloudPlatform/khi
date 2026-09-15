@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
@@ -1026,7 +1026,7 @@ metadata:
 			result, _, err := inspectiontest.RunInspectionTask(
 				ctx,
 				ManifestGeneratorTask,
-				inspectioncore_contract.TaskModeRun,
+				inspectioncore.TaskModeRun,
 				map[string]any{},
 				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.ChangeTargetGrouperTaskID.Ref(), logGroups),
 				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.K8sResourceMergeConfigTaskID.Ref(), mergeConfigRegistry),

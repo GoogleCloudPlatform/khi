@@ -25,7 +25,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // AutocompleteComposerEnvironmentIdentityTask is the task that autocompletes composer environment identities.
@@ -35,7 +35,7 @@ var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewGlobalCa
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]], error) {
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
@@ -47,8 +47,8 @@ var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewGlobalCa
 		return prevValue, nil
 	}
 	if projectID == "" {
-		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]]{
-			Value: &inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]]{
+			Value: &inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
 				Values: []googlecloudclustercomposer_contract.ComposerEnvironmentIdentity{},
 				Error:  "",
 				Hint:   "Composer environments are suggested after the project ID is provided.",
@@ -94,9 +94,9 @@ var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewGlobalCa
 		}
 	}
 
-	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]]{
+	return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]]{
 		DependencyDigest: currentDigest,
-		Value: &inspectioncore_contract.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
+		Value: &inspectioncore.AutocompleteResult[googlecloudclustercomposer_contract.ComposerEnvironmentIdentity]{
 			Values: identities,
 			Error:  errorString,
 			Hint:   hintString,
@@ -110,7 +110,7 @@ var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewGloba
 	googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]], error) {
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
@@ -123,8 +123,8 @@ var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewGloba
 	}
 
 	if projectID == "" {
-		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
-			Value: &inspectioncore_contract.AutocompleteResult[string]{
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]{
+			Value: &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
 				Error:  "",
 				Hint:   "Locations are suggested after the project ID is provided.",
@@ -134,8 +134,8 @@ var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewGloba
 	}
 
 	if environmentName == "" {
-		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
-			Value: &inspectioncore_contract.AutocompleteResult[string]{
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]{
+			Value: &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
 				Error:  "",
 				Hint:   "Locations are suggested after the environment name is provided.",
@@ -145,8 +145,8 @@ var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewGloba
 	}
 
 	if identities.Error != "" {
-		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
-			Value: &inspectioncore_contract.AutocompleteResult[string]{
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]{
+			Value: &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
 				Error:  identities.Error,
 				Hint:   identities.Hint,
@@ -167,8 +167,8 @@ var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewGloba
 		locations = append(locations, location)
 	}
 
-	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
-		Value: &inspectioncore_contract.AutocompleteResult[string]{
+	return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]{
+		Value: &inspectioncore.AutocompleteResult[string]{
 			Values: locations,
 			Error:  "",
 			Hint:   identities.Hint,
@@ -186,7 +186,7 @@ var AutocompleteComposerComponentsTask = inspectiontaskbase.NewGlobalCachedTask(
 	googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]], error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
 	projectID := clusterIdentity.ProjectID
 	location := clusterIdentity.Location
@@ -203,8 +203,8 @@ var AutocompleteComposerComponentsTask = inspectiontaskbase.NewGlobalCachedTask(
 	}
 
 	if projectID == "" || environmentName == "" || location == "" {
-		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
-			Value: &inspectioncore_contract.AutocompleteResult[string]{
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]{
+			Value: &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
 				Hint:   "Components are suggested after the project ID, location, and environment name are provided.",
 			},
@@ -245,9 +245,9 @@ var AutocompleteComposerComponentsTask = inspectiontaskbase.NewGlobalCachedTask(
 		hintString = "No components found for the specified environment and time range."
 	}
 
-	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
+	return inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]{
 		DependencyDigest: currentDigest,
-		Value: &inspectioncore_contract.AutocompleteResult[string]{
+		Value: &inspectioncore.AutocompleteResult[string]{
 			Values: components,
 			Error:  errorString,
 			Hint:   hintString,

@@ -26,7 +26,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
 )
@@ -34,7 +34,7 @@ import (
 func TestGCPOperationTracker_ProcessOperationLog(t *testing.T) {
 	testTime := time.Date(2026, 6, 24, 10, 0, 0, 0, time.UTC)
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 	parentPath := MustGCPProjectTimeline(ctx, "test-project")
 	targetPath := MustGCPOperationTimeline(ctx, parentPath, "insert", "op-1")
@@ -170,7 +170,7 @@ func TestGCPOperationTracker_ProcessOperationLog(t *testing.T) {
 func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 	testTime := time.Date(2026, 6, 24, 10, 0, 0, 0, time.UTC)
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 	parentPath := MustGCPProjectTimeline(ctx, "test-project")
 	targetTimeline := MustGKEClusterTimeline(ctx, parentPath, "test-cluster")

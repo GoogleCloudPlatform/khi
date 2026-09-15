@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var (
@@ -60,8 +60,8 @@ var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspection
 		commonlogk8saudit_contract.SuccessLogFilterTaskID.Ref(),
 		commonlogk8saudit_contract.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceLogGroupMap, error) {
-		if taskMode != inspectioncore_contract.TaskModeRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceLogGroupMap, error) {
+		if taskMode != inspectioncore.TaskModeRun {
 			return commonlogk8saudit_contract.ResourceLogGroupMap{}, nil
 		}
 

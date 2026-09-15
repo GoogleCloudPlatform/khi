@@ -29,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // RunTaskGraphConformance runs the full suite of automated conformance tests across all registered tasks.
@@ -41,7 +41,7 @@ func RunTaskGraphConformance(t *testing.T) {
 		upload.DefaultUploadFileStore = oldStore
 	})
 
-	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
+	ioConfig, err := inspectioncore.NewIOConfigForTest()
 	if err != nil {
 		t.Fatalf("unexpected error creating IOConfig: %v", err)
 	}
@@ -258,7 +258,7 @@ func runFeatureCombinationsConformance(
 		availableTasks := getAvailableTasksForInspectionType(server, it)
 		var defaultIDs []string
 		for _, task := range availableTasks {
-			if typedmap.GetOrDefault(task.Labels(), inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, false) {
+			if typedmap.GetOrDefault(task.Labels(), inspectioncore.LabelKeyInspectionDefaultFeatureFlag, false) {
 				defaultIDs = append(defaultIDs, task.UntypedID().String())
 			}
 		}
@@ -332,8 +332,8 @@ func runFormTaskAndTypeContracts(t *testing.T, server *coreinspection.Inspection
 	t.Run("FormFieldLabelUniqueness", func(t *testing.T) {
 		formFieldsByLabel := make(map[string]coretask.UntypedTask)
 		for _, task := range availableTasks {
-			if isFormTask := typedmap.GetOrDefault(task.Labels(), inspectioncore_contract.TaskLabelKeyIsFormTask, false); isFormTask {
-				label := typedmap.GetOrDefault(task.Labels(), inspectioncore_contract.TaskLabelKeyFormFieldLabel, "")
+			if isFormTask := typedmap.GetOrDefault(task.Labels(), inspectioncore.TaskLabelKeyIsFormTask, false); isFormTask {
+				label := typedmap.GetOrDefault(task.Labels(), inspectioncore.TaskLabelKeyFormFieldLabel, "")
 				if label == "" {
 					t.Errorf("form task %q is missing a form field label", task.UntypedID().String())
 					continue

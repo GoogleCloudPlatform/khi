@@ -21,7 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustManagedAirflowEnvironmentTimeline returns the timeline path for a Cloud Composer Environment under a GCP Project.
@@ -34,7 +34,7 @@ func MustManagedAirflowEnvironmentTimeline(ctx context.Context, projectPath *khi
 		slog.WarnContext(ctx, "environmentName is empty, using unknown instead")
 	}
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(projectPath, khifilev6.PathSegment{
 		Name: environmentName,
 		Type: TimelineTypeManagedAirflowEnvironment,
@@ -51,7 +51,7 @@ func MustGKEClusterTimeline(ctx context.Context, projectPath *khifilev6.Timeline
 		slog.WarnContext(ctx, "clusterName is empty, using unknown instead")
 	}
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(projectPath, khifilev6.PathSegment{
 		Name: clusterName,
 		Type: TimelineTypeGKE,
@@ -68,7 +68,7 @@ func MustGKENodePoolTimeline(ctx context.Context, gkeClusterTimeline *khifilev6.
 		slog.WarnContext(ctx, "nodePoolName is empty, using unknown instead")
 	}
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	nodePoolsTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
 		Name: "nodepools",
 		Type: TimelineTypeGKENodePools,
@@ -94,7 +94,7 @@ func MustGCPOperationTimeline(ctx context.Context, parentTimeline *khifilev6.Tim
 		slog.WarnContext(ctx, "operationID is empty, using unknown instead")
 	}
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(parentTimeline, khifilev6.PathSegment{
 		Name: fmt.Sprintf("%s-%s", shortMethodName, operationID),
 		Type: TimelineTypeOperation,
@@ -107,7 +107,7 @@ func MustGCPProjectTimeline(ctx context.Context, projectID string) *khifilev6.Ti
 		projectID = "unknown"
 		slog.WarnContext(ctx, "projectID is empty, using unknown instead")
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: projectID,
 		Type: TimelineTypeGCPProject,
@@ -123,7 +123,7 @@ func MustGCPResourceTypeTimeline(ctx context.Context, projectPath *khifilev6.Tim
 		resourceType = "unknown"
 		slog.WarnContext(ctx, "resourceType is empty, using unknown instead")
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(projectPath, khifilev6.PathSegment{
 		Name: resourceType,
 		Type: TimelineTypeGCPResourceType,
@@ -139,7 +139,7 @@ func MustGCPResourceTimeline(ctx context.Context, resourceTypePath *khifilev6.Ti
 		resourceName = "unknown"
 		slog.WarnContext(ctx, "resourceName is empty, using unknown instead")
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(resourceTypePath, khifilev6.PathSegment{
 		Name: resourceName,
 		Type: TimelineTypeGCPResource,

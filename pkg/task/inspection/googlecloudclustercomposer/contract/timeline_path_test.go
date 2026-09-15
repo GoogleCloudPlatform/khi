@@ -21,13 +21,13 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestMustAirflowTimeline(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 	testCases := []struct {
 		name            string
@@ -67,7 +67,7 @@ func TestMustAirflowTimeline(t *testing.T) {
 
 func TestMustAirflowDAGTimeline(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 	envPath := MustAirflowTimeline(ctx, "my-env")
 
 	testCases := []struct {
@@ -102,7 +102,7 @@ func TestMustAirflowDAGTimeline(t *testing.T) {
 
 func TestMustAirflowDAGRunTimeline(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 	envPath := MustAirflowTimeline(ctx, "my-env")
 
 	testCases := []struct {
@@ -163,7 +163,7 @@ func TestMustAirflowDAGRunTimeline(t *testing.T) {
 
 func TestMustAirflowTaskInstanceTimeline(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 	envPath := MustAirflowTimeline(ctx, "my-env")
 	runPath := MustAirflowDAGRunTimeline(ctx, envPath, "my-dag", "my-run")
 
@@ -199,7 +199,7 @@ func TestMustAirflowTaskInstanceTimeline(t *testing.T) {
 
 func TestMustAirflowComponentTimeline(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 	envPath := MustAirflowTimeline(ctx, "my-env")
 
 	testCases := []struct {
@@ -237,7 +237,7 @@ func TestMustAirflowComponentTimeline(t *testing.T) {
 
 func TestMustAirflowDAGFileTimeline(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 	envPath := MustAirflowTimeline(ctx, "my-env")
 
 	testCases := []struct {
@@ -282,7 +282,7 @@ func TestMustAirflowDAGFileTimeline(t *testing.T) {
 
 func TestMustAirflowDAGProcessorManagerInstanceTimeline(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 	envPath := MustAirflowTimeline(ctx, "my-env")
 
 	testCases := []struct {

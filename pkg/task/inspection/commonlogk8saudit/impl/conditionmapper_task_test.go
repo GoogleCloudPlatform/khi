@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -33,14 +33,14 @@ import (
 
 func TestConditionWalker(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-	ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+	ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
 	conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
 
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 	baseTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
@@ -275,14 +275,14 @@ func TestConditionLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 
 	t.Run("PreProcessLog and ProcessLog standard lifecycle", func(t *testing.T) {
 		builder := khifilev6.NewTestBuilder(id.NewGenerator())
-		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
 		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
 
-		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 		logObj := testlog.NewMockLog(
 			time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -369,14 +369,14 @@ status:
 
 	t.Run("PreProcessLog and ProcessLog inferred creation", func(t *testing.T) {
 		builder := khifilev6.NewTestBuilder(id.NewGenerator())
-		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
 		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
 
-		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 		logObj := testlog.NewMockLog(
 			time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -450,14 +450,14 @@ status:
 
 	t.Run("PreProcessLog and ProcessLog inferred creation with UID tracking", func(t *testing.T) {
 		builder := khifilev6.NewTestBuilder(id.NewGenerator())
-		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
 		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
 
-		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 		// Log 1: update event at t=10s, contains UID and creationTimestamp
 		logObj1 := testlog.NewMockLog(
@@ -558,14 +558,14 @@ status:
 
 	t.Run("PreProcessLog and ProcessLog deletion", func(t *testing.T) {
 		builder := khifilev6.NewTestBuilder(id.NewGenerator())
-		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
 		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
 
-		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 		logObj := testlog.NewMockLog(
 			time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -633,14 +633,14 @@ status:
 
 	t.Run("DryRun log should be ignored", func(t *testing.T) {
 		builder := khifilev6.NewTestBuilder(id.NewGenerator())
-		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
 		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
 
-		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 		logObj := testlog.NewMockLog(
 			time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -705,14 +705,14 @@ status:
 
 	t.Run("Truncated log maintains unchanged condition status without gap", func(t *testing.T) {
 		builder := khifilev6.NewTestBuilder(id.NewGenerator())
-		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
 		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
 
-		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 		// Log 1 (t=10s): Initial update with Ready=True
 		logObj1 := testlog.NewMockLog(
@@ -819,14 +819,14 @@ status:
 
 	t.Run("Truncated log with condition transition occurred during truncated period", func(t *testing.T) {
 		builder := khifilev6.NewTestBuilder(id.NewGenerator())
-		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
 		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
 
-		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 		// Log 1 (t=10s): Ready=True
 		logObj1 := testlog.NewMockLog(
@@ -939,14 +939,14 @@ status:
 
 	t.Run("Truncated log with timezone offset in lastTransitionTime correctly normalizes and complements", func(t *testing.T) {
 		builder := khifilev6.NewTestBuilder(id.NewGenerator())
-		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
-		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
-		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
-		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
-		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
 		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
 
-		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 		// Log 1 (t=10s): Ready=True with UTC timezone
 		logObj1 := testlog.NewMockLog(

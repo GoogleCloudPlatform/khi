@@ -18,7 +18,7 @@ import (
 	"strings"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // ParseGCPSeverity converts a GCP Cloud Logging severity string into a timeline style Severity.
@@ -28,14 +28,14 @@ func ParseGCPSeverity(gcpSeverity string) *pb.Severity {
 	gcpSeverity = strings.ToUpper(strings.TrimSpace(gcpSeverity))
 	switch gcpSeverity {
 	case "DEFAULT", "DEBUG", "INFO", "NOTICE":
-		return inspectioncore_contract.SeverityInfo
+		return inspectioncore.SeverityInfo
 	case "WARNING":
-		return inspectioncore_contract.SeverityWarning
+		return inspectioncore.SeverityWarning
 	case "ERROR":
-		return inspectioncore_contract.SeverityError
+		return inspectioncore.SeverityError
 	case "CRITICAL", "ALERT", "EMERGENCY":
-		return inspectioncore_contract.SeverityFatal
+		return inspectioncore.SeverityFatal
 	default:
-		return inspectioncore_contract.SeverityUnknown
+		return inspectioncore.SeverityUnknown
 	}
 }

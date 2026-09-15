@@ -28,12 +28,12 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // GenerateGCPNetworkAPIStructuredQuery generates a structured query slice for network API logs.
-func GenerateGCPNetworkAPIStructuredQuery(taskMode inspectioncore_contract.InspectionTaskModeType, negNames []string) []*logestimator.StructuredLogQuery {
-	if taskMode == inspectioncore_contract.TaskModeDryRun {
+func GenerateGCPNetworkAPIStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, negNames []string) []*logestimator.StructuredLogQuery {
+	if taskMode == inspectioncore.TaskModeDryRun {
 		return []*logestimator.StructuredLogQuery{
 			{
 				ResourceTypes: []string{"gce_network"},
@@ -87,12 +87,12 @@ func (n *networkAPIListLogEntriesTaskSetting) QueryName() string {
 
 // Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (n *networkAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	taskMode, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskMode)
+	taskMode, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
 	if err != nil {
-		taskMode = inspectioncore_contract.TaskModeRun
+		taskMode = inspectioncore.TaskModeRun
 	}
 	var negNames []string
-	if taskMode == inspectioncore_contract.TaskModeRun {
+	if taskMode == inspectioncore.TaskModeRun {
 		negs := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref())
 		for negName := range negs {
 			negNames = append(negNames, negName)

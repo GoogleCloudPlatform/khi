@@ -21,7 +21,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(googlecloudk8scommon_contract.ClusterIdentityTaskID, []coretask.Dependency{
@@ -29,7 +29,7 @@ var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(googlecloudk8scom
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudcommon_contract.InputLocationsTaskID.Ref(),
 	googlecloudk8scommon_contract.ClusterNamePrefixTaskRef,
-}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (googlecloudk8scommon_contract.GoogleCloudClusterIdentity, error) {
+}, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (googlecloudk8scommon_contract.GoogleCloudClusterIdentity, error) {
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	location := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputLocationsTaskID.Ref())

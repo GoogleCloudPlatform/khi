@@ -22,7 +22,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var ResourceUIDInventoryTask = inspectiontaskbase.NewInventoryTask(
@@ -44,8 +44,8 @@ func mergeResourceUIDs(results []commonlogk8saudit_contract.UIDToResourceIdentit
 var ResourceUIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	commonlogk8saudit_contract.ResourceUIDDiscoveryTaskID,
 	[]coretask.Dependency{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.UIDToResourceIdentity, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (commonlogk8saudit_contract.UIDToResourceIdentity, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return commonlogk8saudit_contract.UIDToResourceIdentity{}, nil
 		}
 		result := commonlogk8saudit_contract.UIDToResourceIdentity{}
@@ -73,8 +73,8 @@ var ResourceUIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 var UIDPatternFinderTask = inspectiontaskbase.NewProgressReportableInspectionTask(
 	commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID,
 	[]coretask.Dependency{commonlogk8saudit_contract.ResourceUIDInventoryTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (patternfinder.PatternFinder[*commonlogk8saudit_contract.ResourceIdentity], error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (patternfinder.PatternFinder[*commonlogk8saudit_contract.ResourceIdentity], error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return nil, nil
 		}
 		uidMap := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDInventoryTaskID.Ref())

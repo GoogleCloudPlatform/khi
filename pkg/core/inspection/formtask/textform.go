@@ -23,7 +23,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // TextFormValidator is a function to check if the given value is valid or not.
@@ -159,10 +159,10 @@ func (b *TextFormTaskBuilder[T]) WithValidatingTiming(timing inspectionmetadata.
 
 func (b *TextFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.Task[T] {
 	return coretask.NewTask(b.id, b.dependencies, func(ctx context.Context) (T, error) {
-		m := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
-		req := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
-		taskMode := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskMode)
-		globalSharedMap := khictx.MustGetValue(ctx, inspectioncore_contract.GlobalSharedMap)
+		m := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
+		req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
+		taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
+		globalSharedMap := khictx.MustGetValue(ctx, inspectioncore.GlobalSharedMap)
 
 		previousValueStoreKey := typedmap.NewTypedKey[[]string](fmt.Sprintf("text-form-pv-%s", b.id))
 		prevValue := typedmap.GetOrDefault(globalSharedMap, previousValueStoreKey, []string{})
@@ -213,7 +213,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.
 				return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
 			}
 		}
-		if validationErr != "" && taskMode == inspectioncore_contract.TaskModeRun {
+		if validationErr != "" && taskMode == inspectioncore.TaskModeRun {
 			return *new(T), fmt.Errorf("validator for task `%s` returned a validation error. But this task was executed as a Run mode not in DryRun. All validations must be resolved before running.\n%v", b.id, validationErr)
 		}
 
@@ -234,7 +234,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.
 			}
 			field.Hint = hint
 			field.HintType = hintType
-			if taskMode == inspectioncore_contract.TaskModeRun {
+			if taskMode == inspectioncore.TaskModeRun {
 				newValueHistory := append([]string{currentValue}, prevValue...)
 				typedmap.Set(globalSharedMap, previousValueStoreKey, newValueHistory)
 			}
@@ -248,7 +248,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.
 			return *new(T), fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
 		}
 		return convertedValue, nil
-	}, append(labelOpts, inspectioncore_contract.NewFormTaskLabelOpt(
+	}, append(labelOpts, inspectioncore.NewFormTaskLabelOpt(
 		b.label,
 		b.description,
 	))...)

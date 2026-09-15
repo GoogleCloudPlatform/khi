@@ -25,7 +25,7 @@ import (
 
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // InitializerIDJobRunner executes batch inspection tasks in job mode.
@@ -74,7 +74,7 @@ var JobRunnerInitializer = &coreinit.Initializer{
 			if err := t.SetFeatureList(features); err != nil {
 				return fmt.Errorf("failed to set features: %w", err)
 			}
-			if err := t.Run(runCtx, &inspectioncore_contract.InspectionRequest{Values: values}); err != nil {
+			if err := t.Run(runCtx, &inspectioncore.InspectionRequest{Values: values}); err != nil {
 				return fmt.Errorf("failed to run inspection task: %w", err)
 			}
 			<-t.Wait()

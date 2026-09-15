@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -77,7 +77,7 @@ func TestCAIClusterResourceLogIngester_ProcessLog(t *testing.T) {
 			assertLog: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(googlecloudcaik8s_contract.LogTypeCAIResourceSnapshot).
 					HasSummary("CAI resource snapshot: pod/pod-1")
 			},
@@ -88,7 +88,7 @@ func TestCAIClusterResourceLogIngester_ProcessLog(t *testing.T) {
 			assertLog: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(googlecloudcaik8s_contract.LogTypeCAIResourceSnapshot).
 					HasSummary("CAI resource snapshot: /")
 			},
@@ -261,7 +261,7 @@ func TestRawLogTask(t *testing.T) {
 
 	testCases := []struct {
 		name                   string
-		taskMode               inspectioncore_contract.InspectionTaskModeType
+		taskMode               inspectioncore.InspectionTaskModeType
 		snapshots              []*googlecloudcaik8s_contract.ClusterResourceSnapshot
 		wantCount              int
 		wantIdentity           *commonlogk8saudit_contract.ResourceIdentity
@@ -275,13 +275,13 @@ func TestRawLogTask(t *testing.T) {
 	}{
 		{
 			name:      "returns empty slice in dry run mode",
-			taskMode:  inspectioncore_contract.TaskModeDryRun,
+			taskMode:  inspectioncore.TaskModeDryRun,
 			snapshots: []*googlecloudcaik8s_contract.ClusterResourceSnapshot{snapshotWithResourceData},
 			wantCount: 0,
 		},
 		{
 			name:                "converts snapshots to raw logs in run mode",
-			taskMode:            inspectioncore_contract.TaskModeRun,
+			taskMode:            inspectioncore.TaskModeRun,
 			snapshots:           []*googlecloudcaik8s_contract.ClusterResourceSnapshot{snapshotWithResourceData},
 			wantCount:           1,
 			wantIdentity:        podSampleIdentity,
@@ -289,7 +289,7 @@ func TestRawLogTask(t *testing.T) {
 		},
 		{
 			name:                   "restores missing apiVersion and kind into resource body",
-			taskMode:               inspectioncore_contract.TaskModeRun,
+			taskMode:               inspectioncore.TaskModeRun,
 			snapshots:              []*googlecloudcaik8s_contract.ClusterResourceSnapshot{snapshotWithoutTypeMeta},
 			wantCount:              1,
 			wantIdentity:           podRestoredIdentity,
@@ -299,7 +299,7 @@ func TestRawLogTask(t *testing.T) {
 		},
 		{
 			name:                "decodes managedFields base64 fieldsV1 and strips empty default fields in metadata",
-			taskMode:            inspectioncore_contract.TaskModeRun,
+			taskMode:            inspectioncore.TaskModeRun,
 			snapshots:           []*googlecloudcaik8s_contract.ClusterResourceSnapshot{snapshotWithEncodedMetadata},
 			wantCount:           1,
 			wantIdentity:        podMetadataIdentity,
@@ -320,7 +320,7 @@ func TestRawLogTask(t *testing.T) {
 		},
 		{
 			name:                "resolves identity from the asset name when the manifest is absent",
-			taskMode:            inspectioncore_contract.TaskModeRun,
+			taskMode:            inspectioncore.TaskModeRun,
 			snapshots:           []*googlecloudcaik8s_contract.ClusterResourceSnapshot{snapshotWithoutResourceData},
 			wantCount:           1,
 			wantIdentity:        podAssetIdentity,
@@ -328,7 +328,7 @@ func TestRawLogTask(t *testing.T) {
 		},
 		{
 			name:                "serializes the validity window and tombstone flag readable by the log extractors",
-			taskMode:            inspectioncore_contract.TaskModeRun,
+			taskMode:            inspectioncore.TaskModeRun,
 			snapshots:           []*googlecloudcaik8s_contract.ClusterResourceSnapshot{deletedSnapshotWithWindow},
 			wantCount:           1,
 			wantIdentity:        podDeletedIdentity,
@@ -455,7 +455,7 @@ func TestLogGrouperTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			groups, _, err := inspectiontest.RunInspectionTask(ctx, LogGrouperTask, inspectioncore_contract.TaskModeRun, map[string]any{},
+			groups, _, err := inspectiontest.RunInspectionTask(ctx, LogGrouperTask, inspectioncore.TaskModeRun, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(googlecloudcaik8s_contract.RawLogTaskID.Ref(), tc.inputLogs),
 			)
 			if err != nil {

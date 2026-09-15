@@ -22,7 +22,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // KLogTextParser parses given klog formatted string.
@@ -108,15 +108,15 @@ func (w *klogTextParserWorker) parse(message string) *ParseStructuredLogResult {
 func (w *klogTextParserWorker) parseSeverity(severityStr string) (*pb.Severity, error) {
 	switch severityStr {
 	case "I":
-		return inspectioncore_contract.SeverityInfo, nil
+		return inspectioncore.SeverityInfo, nil
 	case "W":
-		return inspectioncore_contract.SeverityWarning, nil
+		return inspectioncore.SeverityWarning, nil
 	case "E":
-		return inspectioncore_contract.SeverityError, nil
+		return inspectioncore.SeverityError, nil
 	case "F":
-		return inspectioncore_contract.SeverityFatal, nil
+		return inspectioncore.SeverityFatal, nil
 	default:
-		return inspectioncore_contract.SeverityUnknown, khierrors.ErrInvalidInput
+		return inspectioncore.SeverityUnknown, khierrors.ErrInvalidInput
 	}
 }
 

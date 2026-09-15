@@ -24,7 +24,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var (
@@ -51,8 +51,8 @@ var IPLeaseHistoryInventoryTask = inspectiontaskbase.NewInventoryTask(
 var IPLeaseHistoryDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	commonlogk8saudit_contract.IPLeaseHistoryDiscoveryTaskID,
 	[]coretask.Dependency{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.IPLeaseHistory, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (commonlogk8saudit_contract.IPLeaseHistory, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return nil, nil
 		}
 		resourceLogs := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref())

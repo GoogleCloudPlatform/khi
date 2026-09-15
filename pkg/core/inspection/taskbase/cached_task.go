@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // CacheableTaskResult is the combination of the cached value and a digest of its dependency.
@@ -36,18 +36,18 @@ type CacheableTaskResult[T any] struct {
 
 // NewGlobalCachedTask generates a task which can reuse the value from previous runs stored in GlobalSharedMap.
 func NewGlobalCachedTask[T any](taskID taskid.TaskImplementationID[T], dependencies []coretask.Dependency, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
-	return newCachedTaskWithSharedMapKey(inspectioncore_contract.GlobalSharedMap, taskID, dependencies, f, labelOpt...)
+	return newCachedTaskWithSharedMapKey(inspectioncore.GlobalSharedMap, taskID, dependencies, f, labelOpt...)
 }
 
 // NewInspectionCachedTask generates a task which can reuse the value from previous runs within the same inspection stored in InspectionSharedMap.
 // To clean up resources after inspection, use context.AfterFunc as below:
 //
-//	inspectionContext := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionContext)
+//	inspectionContext := khictx.MustGetValue(ctx, inspectioncore.InspectionContext)
 //	context.AfterFunc(inspectionContext, func() {
 //		// Dispose allocated resource here.
 //	})
 func NewInspectionCachedTask[T any](taskID taskid.TaskImplementationID[T], dependencies []coretask.Dependency, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
-	return newCachedTaskWithSharedMapKey(inspectioncore_contract.InspectionSharedMap, taskID, dependencies, f, labelOpt...)
+	return newCachedTaskWithSharedMapKey(inspectioncore.InspectionSharedMap, taskID, dependencies, f, labelOpt...)
 }
 
 func newCachedTaskWithSharedMapKey[T any](sharedMapKey typedmap.TypedKey[*typedmap.TypedMap], taskID taskid.TaskImplementationID[T], dependencies []coretask.Dependency, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {

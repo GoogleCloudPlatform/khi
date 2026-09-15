@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 type FileFormTaskBuilder struct {
@@ -55,9 +55,9 @@ func (b *FileFormTaskBuilder) WithDescription(description string) *FileFormTaskB
 
 func (b *FileFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask.Task[upload.UploadResult] {
 	return coretask.NewTask(b.FormTaskBuilderBase.id, b.FormTaskBuilderBase.dependencies, func(ctx context.Context) (upload.UploadResult, error) {
-		metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+		metadata := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 
-		req := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
+		req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
 
 		fieldID := b.FormTaskBuilderBase.id.ReferenceIDString()
 		token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, fieldID), b.verifier, fieldID)
@@ -87,7 +87,7 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask.Tas
 		}
 
 		return uploadResult, nil
-	}, append(labelOpts, inspectioncore_contract.NewFormTaskLabelOpt(b.label, b.description))...)
+	}, append(labelOpts, inspectioncore.NewFormTaskLabelOpt(b.label, b.description))...)
 }
 
 // setFormHintsFromUploadResult sets the appropriate hint and hint type on a form field
@@ -113,7 +113,7 @@ func setFormHintsFromUploadResult(result upload.UploadResult, field inspectionme
 
 // GenerateUploadIDWithTaskContext generates the upload ID from form ID and task ID.
 func GenerateUploadIDWithTaskContext(ctx context.Context, formId string) string {
-	inspectionID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInspectionID)
+	inspectionID := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInspectionID)
 	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
 	return strings.ReplaceAll(fmt.Sprintf("%s_%s_%s", inspectionID, taskID.ReferenceIDString(), formId), "/", "_")
 }

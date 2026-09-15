@@ -27,7 +27,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 const (
@@ -333,7 +333,7 @@ func MustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namesp
 	kind := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, api, "node")
 	nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kind, nodeName)
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(nodePath, khifilev6.PathSegment{
 		Name: fmt.Sprintf("%s/%s[%s]", namespace, podName, uid),
 		Type: commonlogk8saudit_contract.TimelineTypePodPhase,

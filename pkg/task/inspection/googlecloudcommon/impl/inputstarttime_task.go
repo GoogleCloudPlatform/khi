@@ -25,7 +25,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // InputStartTimeTask defines an inspection task that calculates the start time of a query
@@ -33,12 +33,12 @@ import (
 var InputStartTimeTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputStartTimeTaskID, []coretask.Dependency{
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputDurationTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (time.Time, error) {
+}, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (time.Time, error) {
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
 	duration := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputDurationTaskID.Ref())
 	startTime := endTime.Add(-duration)
 	// Add starttime and endtime on the header metadata
-	metadataSet := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	metadataSet := khictx.MustGetValue(ctx, inspectioncore.InspectionRunMetadata)
 
 	header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey)
 	if !found {

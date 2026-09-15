@@ -21,7 +21,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // emptyInitialResourceStateProvider reports no initial state at all. It backs the environments that have
@@ -40,7 +40,7 @@ func (p *emptyInitialResourceStateProvider) InitialResourceState(*commonlogk8sau
 var EmptyInitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
 	taskid.NewImplementationID(commonlogk8saudit_contract.InitialResourceStateProviderRef, "empty"),
 	nil,
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.InitialResourceStateProvider, error) {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (commonlogk8saudit_contract.InitialResourceStateProvider, error) {
 		return &emptyInitialResourceStateProvider{}, nil
 	},
 )

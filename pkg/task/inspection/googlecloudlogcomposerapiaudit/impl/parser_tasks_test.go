@@ -28,7 +28,7 @@ import (
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -300,7 +300,7 @@ config:
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 			projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, tc.inputResource.ProjectID)
 			envTimeline := googlecloudcommon_contract.MustManagedAirflowEnvironmentTimeline(ctx, projectTimeline, tc.inputResource.EnvironmentName)
@@ -352,7 +352,7 @@ func TestComposerAuditLogIngester(t *testing.T) {
 			desc: "operation start log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityInfo},
+				inspectioncore.DefaultSeverityFieldSet{Severity: inspectioncore.SeverityInfo},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
 					OperationFirst: true,
@@ -369,7 +369,7 @@ func TestComposerAuditLogIngester(t *testing.T) {
 			desc: "operation succeeded log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityInfo},
+				inspectioncore.DefaultSeverityFieldSet{Severity: inspectioncore.SeverityInfo},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
 					OperationFirst: false,
@@ -386,7 +386,7 @@ func TestComposerAuditLogIngester(t *testing.T) {
 			desc: "operation failed log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				inspectioncore_contract.DefaultSeverityFieldSet{Severity: inspectioncore_contract.SeverityError},
+				inspectioncore.DefaultSeverityFieldSet{Severity: inspectioncore.SeverityError},
 				googlecloudcommon_contract.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
 					OperationFirst: false,

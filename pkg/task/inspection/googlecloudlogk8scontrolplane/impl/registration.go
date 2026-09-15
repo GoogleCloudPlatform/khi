@@ -18,7 +18,7 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // Register registers all googlecloudlogk8scontrolplane inspection tasks to the registry.
@@ -37,10 +37,10 @@ flowchart TD
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	scopedWithLogSource := coreinspection.NewScopedRegistry(
 		registry,
-		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore_contract.InspectionTypeLabelKeyLogSource:      "cloud_logging",
-			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:    "googlecloud",
-			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:   "kubernetes",
+		inspectioncore.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore.InspectionTypeLabelKeyLogSource:               "cloud_logging",
+			inspectioncore.InspectionTypeLabelKeyEnvironment:             "googlecloud",
+			inspectioncore.InspectionTypeLabelKeyBasePlatform:            "kubernetes",
 			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
 		}),
 	)
@@ -50,9 +50,9 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 
 	scoped := coreinspection.NewScopedRegistry(
 		registry,
-		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:    "googlecloud",
-			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:   "kubernetes",
+		inspectioncore.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore.InspectionTypeLabelKeyEnvironment:             "googlecloud",
+			inspectioncore.InspectionTypeLabelKeyBasePlatform:            "kubernetes",
 			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
 		}),
 	)

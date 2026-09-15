@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // K8sNodeLogIngester implements LogIngester for GKE Node component logs.
@@ -66,7 +66,7 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 	if err == nil {
 		cs.SetSeverity(severity)
 	} else {
-		cs.SetSeverity(inspectioncore_contract.SeverityInfo)
+		cs.SetSeverity(inspectioncore.SeverityInfo)
 	}
 
 	raw := nodeLogFS.Message.Raw()
@@ -113,9 +113,9 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 		klogExitCode, err := nodeLogFS.Message.StringField("exitCode")
 		if err == nil && klogExitCode != "" && klogExitCode != "0" {
 			if klogExitCode == "137" {
-				cs.SetSeverity(inspectioncore_contract.SeverityError)
+				cs.SetSeverity(inspectioncore.SeverityError)
 			} else {
-				cs.SetSeverity(inspectioncore_contract.SeverityWarning)
+				cs.SetSeverity(inspectioncore.SeverityWarning)
 			}
 		}
 
@@ -178,7 +178,7 @@ var TailTask = coretask.NewTailTask(
 		googlecloudlogk8snode_contract.ContainerIDDiscoveryTaskID.Ref(),
 		googlecloudlogk8snode_contract.NodeNameDiscoveryTaskID.Ref(),
 	},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore.FeatureTaskLabel(
 		"Kubernetes Node Logs",
 		"Gather logs from Kubernetes node components (e.g., Docker, containerd, or Kubelet) to troubleshoot node-level issues. Note: The log volume can be very large if the cluster contains many nodes.",
 		3000,

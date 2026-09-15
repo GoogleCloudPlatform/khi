@@ -12,14 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspectioncore_contract
+package inspectioncore
 
-import (
-	"time"
+import coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-)
-
-var InspectionTimeTaskID = taskid.NewDefaultImplementationID[time.Time](InspectionTaskPrefix + "task/time")
-var TimeZoneShiftInputTaskID = taskid.NewDefaultImplementationID[*time.Location](InspectionTaskPrefix + "input-timezone-shift")
-var SerializerTaskID = taskid.NewDefaultImplementationID[*FileSystemStore](InspectionTaskPrefix + "serialize")
+const InspectionTaskPrefix = coretask.KHISystemPrefix + "inspection/"

@@ -27,7 +27,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -143,7 +143,7 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
 			rawLogs := tc.rawLogs(ctx)
 			groups := tc.groups(ctx, rawLogs)
@@ -172,7 +172,7 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 			_, _, err := inspectiontest.RunInspectionTask(
 				ctx,
 				task,
-				inspectioncore_contract.TaskModeRun,
+				inspectioncore.TaskModeRun,
 				map[string]any{},
 				tasktest.NewTaskDependencyValuePair(mockGroupedRawTaskID.Ref(), rawLogs),
 				tasktest.NewTaskDependencyValuePair(mockGroupedLogTaskID.Ref(), groups),
@@ -233,7 +233,7 @@ func TestNewGroupedLogIngesterTask_ErrorHandling(t *testing.T) {
 	_, _, err := inspectiontest.RunInspectionTask(
 		ctx,
 		task,
-		inspectioncore_contract.TaskModeRun,
+		inspectioncore.TaskModeRun,
 		map[string]any{},
 		tasktest.NewTaskDependencyValuePair(mockGroupedRawTaskID.Ref(), rawLogs),
 		tasktest.NewTaskDependencyValuePair(mockGroupedLogTaskID.Ref(), groups),
