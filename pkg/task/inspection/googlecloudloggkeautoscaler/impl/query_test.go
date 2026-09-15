@@ -85,11 +85,6 @@ LOG_ID("container.googleapis.com/cluster-autoscaler-visibility")
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
 
-			legacyQuery := generateAutoscalerQuery(tc.cluster, tc.excludeStatus)
-			if diff := cmp.Diff(gotQuery, legacyQuery); diff != "" {
-				t.Errorf("generateAutoscalerQuery() mismatch (-want +got):\n%s", diff)
-			}
-
 			gotMetrics := sq.GenerateMonitoringMetricFilters()
 			if diff := cmp.Diff(tc.wantMetricFilters, gotMetrics); diff != "" {
 				t.Errorf("GenerateMonitoringMetricFilters() mismatch (-want +got):\n%s", diff)
@@ -102,7 +97,7 @@ LOG_ID("container.googleapis.com/cluster-autoscaler-visibility")
 	}
 }
 
-func TestGeneratedAutoscalerQueryIsValid(t *testing.T) {
+func TestGenerateAutoscalerStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name          string
 		cluster       googlecloudk8scommon_contract.GoogleCloudClusterIdentity
@@ -129,7 +124,7 @@ func TestGeneratedAutoscalerQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			query := generateAutoscalerQuery(tc.cluster, tc.excludeStatus)
+			query := GenerateAutoscalerStructuredQuery(tc.cluster, tc.excludeStatus).GenerateCloudLoggingQuery()
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("IsValidLogQuery error: %s", err.Error())

@@ -64,16 +64,6 @@ func GenerateGCPNetworkAPIStructuredQuery(taskMode inspectioncore_contract.Inspe
 	return result
 }
 
-// GenerateGCPNetworkAPIQuery generates a query for network API logs.
-func GenerateGCPNetworkAPIQuery(taskMode inspectioncore_contract.InspectionTaskModeType, negNames []string) []string {
-	structuredQueries := GenerateGCPNetworkAPIStructuredQuery(taskMode, negNames)
-	result := make([]string, 0, len(structuredQueries))
-	for _, sq := range structuredQueries {
-		result = append(result, sq.GenerateCloudLoggingQuery())
-	}
-	return result
-}
-
 type networkAPIListLogEntriesTaskSetting struct{}
 
 // DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.

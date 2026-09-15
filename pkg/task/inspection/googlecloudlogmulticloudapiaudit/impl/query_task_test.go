@@ -98,11 +98,6 @@ protoPayload.resourceName:"azureClusters/test-cluster"`,
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
 
-			legacyQuery := generateQuery(tc.cluster)
-			if diff := cmp.Diff(gotQuery, legacyQuery); diff != "" {
-				t.Errorf("generateQuery() mismatch (-want +got):\n%s", diff)
-			}
-
 			gotMetrics := sq.GenerateMonitoringMetricFilters()
 			if diff := cmp.Diff(tc.wantMetricFilters, gotMetrics); diff != "" {
 				t.Errorf("GenerateMonitoringMetricFilters() mismatch (-want +got):\n%s", diff)
@@ -115,7 +110,7 @@ protoPayload.resourceName:"azureClusters/test-cluster"`,
 	}
 }
 
-func TestGenerateMultiCloudAPIQueryIsValid(t *testing.T) {
+func TestGenerateMultiCloudAPIStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name    string
 		cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity
@@ -137,7 +132,7 @@ func TestGenerateMultiCloudAPIQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			query := generateQuery(tc.cluster)
+			query := GenerateMultiCloudAPIStructuredQuery(tc.cluster).GenerateCloudLoggingQuery()
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("%s", err.Error())

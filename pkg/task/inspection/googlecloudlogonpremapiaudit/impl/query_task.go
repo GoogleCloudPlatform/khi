@@ -42,15 +42,6 @@ func GenerateOnPremAPIStructuredQuery(clusterIdentity googlecloudk8scommon_contr
 	}
 }
 
-// GenerateOnPremAPIQuery generates a query for OnPrem API audit logs.
-func GenerateOnPremAPIQuery(clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
-	return GenerateOnPremAPIStructuredQuery(clusterIdentity).GenerateCloudLoggingQuery()
-}
-
-func generateQuery(clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
-	return GenerateOnPremAPIQuery(clusterIdentity)
-}
-
 type onpremAPIListLogEntriesTaskSetting struct {
 }
 

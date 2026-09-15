@@ -53,11 +53,6 @@ func GenerateCSMTrafficLogsStructuredQuery(cluster googlecloudk8scommon_contract
 	}
 }
 
-// GenerateCSMTrafficLogsQuery generates a query for CSM Traffic logs.
-func GenerateCSMTrafficLogsQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, responseFlagsSetFilter *gcpqueryutil.SetFilterParseResult, namespaceSetFilter *gcpqueryutil.SetFilterParseResult) string {
-	return GenerateCSMTrafficLogsStructuredQuery(cluster, responseFlagsSetFilter, namespaceSetFilter).GenerateCloudLoggingQuery()
-}
-
 func responseFlagsStructuredMatcher(responseFlagsFilter *gcpqueryutil.SetFilterParseResult) logestimator.LoggingMonitoringMatcher {
 	if responseFlagsFilter == nil {
 		return nil

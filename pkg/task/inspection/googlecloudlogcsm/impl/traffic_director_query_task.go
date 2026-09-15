@@ -63,15 +63,6 @@ func GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID string, clusterIde
 	}
 }
 
-// GenerateCSMTrafficDirectorQuery generates a query for CSM Traffic Director logs.
-func GenerateCSMTrafficDirectorQuery(fleetProjectID string, clusterIdentifiers []string, isDryRun bool) string {
-	sq := GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID, clusterIdentifiers, isDryRun)
-	if sq == nil {
-		return ""
-	}
-	return sq.GenerateCloudLoggingQuery()
-}
-
 type CSMTrafficDirectorListLogEntryTaskSetting struct{}
 
 // DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.

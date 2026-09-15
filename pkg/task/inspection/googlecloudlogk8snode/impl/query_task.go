@@ -47,11 +47,6 @@ func GenerateK8sNodeStructuredQuery(cluster googlecloudk8scommon_contract.Google
 	}
 }
 
-// GenerateK8sNodeLogQuery generates a query for GKE node logs.
-func GenerateK8sNodeLogQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, nodeNameSubstrings []string) string {
-	return GenerateK8sNodeStructuredQuery(cluster, nodeNameSubstrings).GenerateCloudLoggingQuery()
-}
-
 type k8snodeListLogEntriesTaskSetting struct{}
 
 // DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.

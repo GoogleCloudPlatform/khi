@@ -42,15 +42,6 @@ func GenerateMultiCloudAPIStructuredQuery(clusterIdentity googlecloudk8scommon_c
 	}
 }
 
-// GenerateMultiCloudAPIQuery generates a query for multicloud API logs.
-func GenerateMultiCloudAPIQuery(clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
-	return GenerateMultiCloudAPIStructuredQuery(clusterIdentity).GenerateCloudLoggingQuery()
-}
-
-func generateQuery(clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
-	return GenerateMultiCloudAPIQuery(clusterIdentity)
-}
-
 type multicloudAPIListLogEntriesTaskSetting struct {
 }
 

@@ -100,12 +100,6 @@ func GenerateK8sAuditStructuredQuery(cluster googlecloudk8scommon_contract.Googl
 	}
 }
 
-// GenerateK8sAuditQuery constructs a Google Cloud Logging query string for fetching
-// Kubernetes audit logs based on cluster name, kind filters, and namespace filters.
-func GenerateK8sAuditQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, auditKindFilter *gcpqueryutil.SetFilterParseResult, namespaceFilter *gcpqueryutil.SetFilterParseResult) string {
-	return GenerateK8sAuditStructuredQuery(cluster, auditKindFilter, namespaceFilter).GenerateCloudLoggingQuery()
-}
-
 // generateAuditKindFilter creates a log filter snippet for Kubernetes resource kinds
 // based on the parsed filter result.
 func generateAuditKindFilter(filter *gcpqueryutil.SetFilterParseResult) logestimator.LoggingMonitoringMatcher {

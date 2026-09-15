@@ -50,11 +50,6 @@ func GenerateComposerAuditStructuredQuery(projectID, location, environmentName s
 	}
 }
 
-// GenerateComposerAuditQuery generates a Cloud Logging filter string for Cloud Composer audit logs.
-func GenerateComposerAuditQuery(projectID, location, environmentName string) string {
-	return GenerateComposerAuditStructuredQuery(projectID, location, environmentName).GenerateCloudLoggingQuery()
-}
-
 type composerAPIListLogEntriesTaskSetting struct{}
 
 // DefaultResourceNames returns the resource name for Cloud Logging queries.

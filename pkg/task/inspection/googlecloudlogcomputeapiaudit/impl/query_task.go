@@ -66,16 +66,6 @@ func GenerateComputeAPIStructuredQuery(taskMode inspectioncore_contract.Inspecti
 	return result
 }
 
-// GenerateComputeAPIQuery generates a query for compute API logs.
-func GenerateComputeAPIQuery(taskMode inspectioncore_contract.InspectionTaskModeType, nodeNames []string) []string {
-	structuredQueries := GenerateComputeAPIStructuredQuery(taskMode, nodeNames)
-	result := make([]string, 0, len(structuredQueries))
-	for _, sq := range structuredQueries {
-		result = append(result, sq.GenerateCloudLoggingQuery())
-	}
-	return result
-}
-
 type computeAPIListLogEntriesTaskSetting struct {
 }
 

@@ -142,11 +142,6 @@ labels."compute.googleapis.com/resource_name":("sub-1" OR "sub-2")`,
 			if diff := cmp.Diff(tc.wantQueries, gotQueries); diff != "" {
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
-
-			legacyQueries := GenerateSerialPortQuery(tc.taskMode, tc.nodeNames, tc.nodeNameSubstrings)
-			if diff := cmp.Diff(gotQueries, legacyQueries); diff != "" {
-				t.Errorf("GenerateSerialPortQuery() mismatch (-want +got):\n%s", diff)
-			}
 		})
 	}
 }
@@ -159,12 +154,12 @@ func TestMaximumNodeCountNotHittingQueryLengthLimit(t *testing.T) {
 	for i := 0; i < MaxNodesPerQuery*2+1; i++ { // This query must be split into 3 sub groups.
 		nodeNames = append(nodeNames, fmt.Sprintf(`gke-%s-%s-%s`, idg46.Generate(), idg8.Generate(), idg4.Generate()))
 	}
-	query := GenerateSerialPortQuery(inspectioncore_contract.TaskModeRun, nodeNames, []string{})
-	if len(query) != 3 {
-		t.Errorf("len(GenerateSerialPortQuery())=%d, want %d", len(query), 3)
+	sqs := GenerateSerialPortStructuredQuery(inspectioncore_contract.TaskModeRun, nodeNames, []string{})
+	if len(sqs) != 3 {
+		t.Errorf("len(GenerateSerialPortStructuredQuery())=%d, want %d", len(sqs), 3)
 	}
-	for _, subquery := range query {
-		err := gcp_test.IsValidLogQuery(t, subquery)
+	for _, sq := range sqs {
+		err := gcp_test.IsValidLogQuery(t, sq.GenerateCloudLoggingQuery())
 		if err != nil {
 			t.Errorf("the generated query is invalid. error:%v", err)
 		}

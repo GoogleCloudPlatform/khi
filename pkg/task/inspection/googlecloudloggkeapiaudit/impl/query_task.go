@@ -43,11 +43,6 @@ func GenerateGKEAuditStructuredQuery(cluster googlecloudk8scommon_contract.Googl
 	}
 }
 
-// GenerateGKEAuditQuery generates a query for GKE API audit logs.
-func GenerateGKEAuditQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
-	return GenerateGKEAuditStructuredQuery(cluster).GenerateCloudLoggingQuery()
-}
-
 type gkeAPIListLogEntriesTaskSetting struct {
 }
 

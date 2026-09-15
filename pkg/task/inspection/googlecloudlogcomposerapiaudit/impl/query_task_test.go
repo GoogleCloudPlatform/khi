@@ -98,11 +98,6 @@ protoPayload.serviceName="composer.googleapis.com"`,
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
 
-			legacyQuery := GenerateComposerAuditQuery(tc.projectID, tc.location, tc.environmentName)
-			if diff := cmp.Diff(gotQuery, legacyQuery); diff != "" {
-				t.Errorf("GenerateComposerAuditQuery() mismatch (-want +got):\n%s", diff)
-			}
-
 			gotMetrics := sq.GenerateMonitoringMetricFilters()
 			if diff := cmp.Diff(tc.wantMetricFilters, gotMetrics); diff != "" {
 				t.Errorf("GenerateMonitoringMetricFilters() mismatch (-want +got):\n%s", diff)
@@ -115,7 +110,7 @@ protoPayload.serviceName="composer.googleapis.com"`,
 	}
 }
 
-func TestGenerateComposerAuditQueryIsValid(t *testing.T) {
+func TestGenerateComposerAuditStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name            string
 		projectID       string
@@ -137,7 +132,7 @@ func TestGenerateComposerAuditQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			query := GenerateComposerAuditQuery(tc.projectID, tc.location, tc.environmentName)
+			query := GenerateComposerAuditStructuredQuery(tc.projectID, tc.location, tc.environmentName).GenerateCloudLoggingQuery()
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("IsValidLogQuery error: %s", err.Error())

@@ -276,11 +276,6 @@ labels.response_flag:("UH")`,
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
 
-			legacyQuery := GenerateCSMTrafficLogsQuery(tc.cluster, tc.responseFlagsFilter, tc.namespaceFilter)
-			if diff := cmp.Diff(gotQuery, legacyQuery); diff != "" {
-				t.Errorf("GenerateCSMTrafficLogsQuery() mismatch (-want +got):\n%s", diff)
-			}
-
 			if sq.AllFiltersSupportMetrics() != tc.wantSupportMetricsFlag {
 				t.Errorf("AllFiltersSupportMetrics() = %v, want %v", sq.AllFiltersSupportMetrics(), tc.wantSupportMetricsFlag)
 			}
@@ -355,10 +350,10 @@ labels.response_flag:("UH")`,
 				t.Fatalf("unexpected error running cluster identity task: %v", err)
 			}
 
-			got := GenerateCSMTrafficLogsQuery(idRes, &gcpqueryutil.SetFilterParseResult{Additives: []string{"UH"}}, &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}})
+			got := GenerateCSMTrafficLogsStructuredQuery(idRes, &gcpqueryutil.SetFilterParseResult{Additives: []string{"UH"}}, &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}}).GenerateCloudLoggingQuery()
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("GenerateCSMTrafficLogsQuery() mismatch (-want +got):\n%s", diff)
+				t.Errorf("GenerateCSMTrafficLogsStructuredQuery().GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

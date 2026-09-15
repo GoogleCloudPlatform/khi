@@ -101,11 +101,6 @@ resource.labels.node_name:("node-1" OR "node-2")`,
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
 
-			legacyQuery := GenerateK8sNodeLogQuery(tc.cluster, tc.nodeNameSubstrings)
-			if diff := cmp.Diff(gotQuery, legacyQuery); diff != "" {
-				t.Errorf("GenerateK8sNodeLogQuery() mismatch (-want +got):\n%s", diff)
-			}
-
 			gotMetrics := sq.GenerateMonitoringMetricFilters()
 			if diff := cmp.Diff(tc.wantMetricFilters, gotMetrics); diff != "" {
 				t.Errorf("GenerateMonitoringMetricFilters() mismatch (-want +got):\n%s", diff)
@@ -118,7 +113,7 @@ resource.labels.node_name:("node-1" OR "node-2")`,
 	}
 }
 
-func TestGenerateK8sNodeQueryIsValid(t *testing.T) {
+func TestGenerateK8sNodeStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name               string
 		cluster            googlecloudk8scommon_contract.GoogleCloudClusterIdentity
@@ -154,7 +149,7 @@ func TestGenerateK8sNodeQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			query := GenerateK8sNodeLogQuery(tc.cluster, tc.nodeNameSubstrings)
+			query := GenerateK8sNodeStructuredQuery(tc.cluster, tc.nodeNameSubstrings).GenerateCloudLoggingQuery()
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("IsValidLogQuery error: %s", err.Error())

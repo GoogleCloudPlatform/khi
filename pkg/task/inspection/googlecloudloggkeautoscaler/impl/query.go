@@ -46,15 +46,6 @@ func GenerateAutoscalerStructuredQuery(cluster googlecloudk8scommon_contract.Goo
 	}
 }
 
-// GenerateAutoscalerQuery generates a query for GKE cluster autoscaler logs.
-func GenerateAutoscalerQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, excludeStatus bool) string {
-	return GenerateAutoscalerStructuredQuery(cluster, excludeStatus).GenerateCloudLoggingQuery()
-}
-
-func generateAutoscalerQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, excludeStatus bool) string {
-	return GenerateAutoscalerQuery(cluster, excludeStatus)
-}
-
 type autoscalerListLogEntriesTaskSetting struct{}
 
 // DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.

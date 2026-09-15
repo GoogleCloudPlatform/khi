@@ -96,20 +96,11 @@ protoPayload.resourceName:"gsmrsvd-dummy" -- The actual resource name selector w
 				if tc.wantQuery != "" {
 					t.Errorf("GenerateCSMTrafficDirectorStructuredQuery() = nil, want %q", tc.wantQuery)
 				}
-				legacyQuery := GenerateCSMTrafficDirectorQuery(tc.fleetProjectID, tc.clusterIdentifiers, tc.isDryRun)
-				if diff := cmp.Diff(tc.wantQuery, legacyQuery); diff != "" {
-					t.Errorf("GenerateCSMTrafficDirectorQuery() mismatch (-want +got):\n%s", diff)
-				}
 				return
 			}
 			gotQuery := sq.GenerateCloudLoggingQuery()
 			if diff := cmp.Diff(tc.wantQuery, gotQuery); diff != "" {
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
-			}
-
-			legacyQuery := GenerateCSMTrafficDirectorQuery(tc.fleetProjectID, tc.clusterIdentifiers, tc.isDryRun)
-			if diff := cmp.Diff(gotQuery, legacyQuery); diff != "" {
-				t.Errorf("GenerateCSMTrafficDirectorQuery() mismatch (-want +got):\n%s", diff)
 			}
 
 			if sq.AllFiltersSupportMetrics() != tc.wantSupportMetricsFlag {

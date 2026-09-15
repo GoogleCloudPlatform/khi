@@ -82,16 +82,6 @@ func GenerateSerialPortStructuredQuery(taskMode inspectioncore_contract.Inspecti
 	return result
 }
 
-// GenerateSerialPortQuery generates query strings for serial port logs.
-func GenerateSerialPortQuery(taskMode inspectioncore_contract.InspectionTaskModeType, foundNodeNames []string, nodeNameSubstrings []string) []string {
-	sqs := GenerateSerialPortStructuredQuery(taskMode, foundNodeNames, nodeNameSubstrings)
-	res := make([]string, len(sqs))
-	for i, sq := range sqs {
-		res[i] = sq.GenerateCloudLoggingQuery()
-	}
-	return res
-}
-
 type serialPortLoggingFilterTaskSetting struct {
 }
 

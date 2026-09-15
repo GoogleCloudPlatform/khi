@@ -124,16 +124,11 @@ protoPayload.resourceName:(networkEndpointGroups/neg-11 OR networkEndpointGroups
 			if diff := cmp.Diff(tc.wantQueries, gotQueries); diff != "" {
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
-
-			legacyQueries := GenerateGCPNetworkAPIQuery(tc.taskMode, tc.negNames)
-			if diff := cmp.Diff(gotQueries, legacyQueries); diff != "" {
-				t.Errorf("GenerateGCPNetworkAPIQuery() mismatch (-want +got):\n%s", diff)
-			}
 		})
 	}
 }
 
-func TestGenerateGCPNetworkAPIQueryIsValid(t *testing.T) {
+func TestGenerateGCPNetworkAPIStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name     string
 		taskMode inspectioncore_contract.InspectionTaskModeType
@@ -152,9 +147,9 @@ func TestGenerateGCPNetworkAPIQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			queries := GenerateGCPNetworkAPIQuery(tc.taskMode, tc.negs)
-			for _, query := range queries {
-				err := gcp_test.IsValidLogQuery(t, query)
+			sqs := GenerateGCPNetworkAPIStructuredQuery(tc.taskMode, tc.negs)
+			for _, sq := range sqs {
+				err := gcp_test.IsValidLogQuery(t, sq.GenerateCloudLoggingQuery())
 				if err != nil {
 					t.Errorf("IsValidLogQuery error: %v", err)
 				}

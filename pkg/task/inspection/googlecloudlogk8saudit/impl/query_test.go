@@ -241,11 +241,6 @@ protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")`,
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
 
-			legacyQuery := GenerateK8sAuditQuery(tc.cluster, tc.kindFilter, tc.namespaceFilter)
-			if diff := cmp.Diff(gotQuery, legacyQuery); diff != "" {
-				t.Errorf("GenerateK8sAuditQuery() mismatch (-want +got):\n%s", diff)
-			}
-
 			gotMetrics := sq.GenerateMonitoringMetricFilters()
 			if diff := cmp.Diff(tc.wantMetricFilters, gotMetrics); diff != "" {
 				t.Errorf("GenerateMonitoringMetricFilters() mismatch (-want +got):\n%s", diff)
@@ -258,7 +253,7 @@ protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")`,
 	}
 }
 
-func TestGenerateK8sAuditQueryIsValid(t *testing.T) {
+func TestGenerateK8sAuditStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		Name            string
 		Cluster         googlecloudk8scommon_contract.GoogleCloudClusterIdentity
@@ -328,7 +323,7 @@ func TestGenerateK8sAuditQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			query := GenerateK8sAuditQuery(tc.Cluster, tc.KindFilter, tc.NamespaceFilter)
+			query := GenerateK8sAuditStructuredQuery(tc.Cluster, tc.KindFilter, tc.NamespaceFilter).GenerateCloudLoggingQuery()
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("IsValidLogQuery error: %s", err.Error())

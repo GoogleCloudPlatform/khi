@@ -68,11 +68,6 @@ protoPayload.serviceName="container.googleapis.com"`,
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
 
-			legacyQuery := GenerateGKEAuditQuery(tc.cluster)
-			if diff := cmp.Diff(gotQuery, legacyQuery); diff != "" {
-				t.Errorf("GenerateGKEAuditQuery() mismatch (-want +got):\n%s", diff)
-			}
-
 			gotMetrics := sq.GenerateMonitoringMetricFilters()
 			if diff := cmp.Diff(tc.wantMetricFilters, gotMetrics); diff != "" {
 				t.Errorf("GenerateMonitoringMetricFilters() mismatch (-want +got):\n%s", diff)
@@ -85,7 +80,7 @@ protoPayload.serviceName="container.googleapis.com"`,
 	}
 }
 
-func TestGeneratedGKEAuditQueryIsValid(t *testing.T) {
+func TestGenerateGKEAuditStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name            string
 		clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity
@@ -101,7 +96,7 @@ func TestGeneratedGKEAuditQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			query := GenerateGKEAuditQuery(tc.clusterIdentity)
+			query := GenerateGKEAuditStructuredQuery(tc.clusterIdentity).GenerateCloudLoggingQuery()
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("IsValidLogQuery error: %s", err.Error())

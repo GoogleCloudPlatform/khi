@@ -115,16 +115,11 @@ protoPayload.resourceName:(instances/node-31 OR instances/node-32)`,
 			if diff := cmp.Diff(tc.wantQueries, gotQueries); diff != "" {
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
 			}
-
-			legacyQueries := GenerateComputeAPIQuery(tc.taskMode, tc.nodeNames)
-			if diff := cmp.Diff(gotQueries, legacyQueries); diff != "" {
-				t.Errorf("GenerateComputeAPIQuery() mismatch (-want +got):\n%s", diff)
-			}
 		})
 	}
 }
 
-func TestGenerateComputeAPIQueryIsValid(t *testing.T) {
+func TestGenerateComputeAPIStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name      string
 		taskMode  inspectioncore_contract.InspectionTaskModeType
@@ -143,9 +138,9 @@ func TestGenerateComputeAPIQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			queries := GenerateComputeAPIQuery(tc.taskMode, tc.nodeNames)
-			for _, query := range queries {
-				err := gcp_test.IsValidLogQuery(t, query)
+			sqs := GenerateComputeAPIStructuredQuery(tc.taskMode, tc.nodeNames)
+			for _, sq := range sqs {
+				err := gcp_test.IsValidLogQuery(t, sq.GenerateCloudLoggingQuery())
 				if err != nil {
 					t.Errorf("IsValidLogQuery error: %s", err.Error())
 				}
