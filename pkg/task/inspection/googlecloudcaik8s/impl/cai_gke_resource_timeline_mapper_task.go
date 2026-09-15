@@ -105,7 +105,7 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	resourceBody := extractResourceBody(l.NodeReader)
 
 	observedTime := assetWindowStartTime
-	if observedTime.IsZero() || observedTime.Before(queryStartTime) {
+	if observedTime.IsZero() {
 		observedTime = queryStartTime
 	}
 
@@ -114,7 +114,7 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	} else {
 		snapshots := coretask.GetTaskResult(ctx, googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref())
 		clusterCreateTime := extractClusterCreateTimeFromSnapshots(snapshots)
-		m.stageNodePoolInitialRevisions(cs, targetTimeline, clusterCreateTime, assetWindowStartTime, queryStartTime, resourceBody)
+		m.stageNodePoolInitialRevisions(cs, targetTimeline, clusterCreateTime, observedTime, resourceBody)
 	}
 	return cs, struct{}{}, nil
 }
@@ -152,49 +152,17 @@ func (m *caiGKEResourceTimelineMapper) stageClusterInitialRevisions(cs *khifilev
 	})
 }
 
-func (m *caiGKEResourceTimelineMapper) stageNodePoolInitialRevisions(cs *khifilev6.TimelineChangeSet, targetTimeline *khifilev6.TimelinePath, clusterCreateTime, earliestWindowStartTime, queryStartTime time.Time, resourceBody structured.Node) {
-	observedTime := earliestWindowStartTime
-	if observedTime.IsZero() || observedTime.Before(queryStartTime) {
-		observedTime = queryStartTime
-	}
-
+func (m *caiGKEResourceTimelineMapper) stageNodePoolInitialRevisions(cs *khifilev6.TimelineChangeSet, targetTimeline *khifilev6.TimelinePath, clusterCreateTime, observedTime time.Time, resourceBody structured.Node) {
 	snapshotVerb := commonlogk8saudit_contract.VerbCreate
-	switch {
-	case !clusterCreateTime.IsZero() && !earliestWindowStartTime.IsZero() && earliestWindowStartTime.Sub(clusterCreateTime) < creationTimestampSkewTolerance:
-		// NodePool created alongside the cluster (within skew tolerance).
-		if observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
-			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-				ChangedTime:  clusterCreateTime,
-				ResourceBody: nil,
-				Principal:    "N/A",
-				VerbType:     commonlogk8saudit_contract.VerbCreate,
-				StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
-			})
-			snapshotVerb = commonlogk8saudit_contract.VerbUpdate
-		}
-	case !clusterCreateTime.IsZero():
-		// NodePool existence prior to earliestWindowStartTime (or observedTime if earliestWindowStartTime is zero) is undetermined.
-		if observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
-			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-				ChangedTime:  clusterCreateTime,
-				ResourceBody: nil,
-				Principal:    "N/A",
-				VerbType:     commonlogk8saudit_contract.VerbCreate,
-				StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
-			})
-
-			// Confirmed existence from earliest snapshot to query start time.
-			if !earliestWindowStartTime.IsZero() && earliestWindowStartTime.Before(queryStartTime) {
-				cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-					ChangedTime:  earliestWindowStartTime,
-					ResourceBody: nil,
-					Principal:    "N/A",
-					VerbType:     commonlogk8saudit_contract.VerbUpdate,
-					StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
-				})
-			}
-			snapshotVerb = commonlogk8saudit_contract.VerbUpdate
-		}
+	if !clusterCreateTime.IsZero() && observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
+		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+			ChangedTime:  clusterCreateTime,
+			ResourceBody: nil,
+			Principal:    "N/A",
+			VerbType:     commonlogk8saudit_contract.VerbCreate,
+			StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
+		})
+		snapshotVerb = commonlogk8saudit_contract.VerbUpdate
 	}
 
 	cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{

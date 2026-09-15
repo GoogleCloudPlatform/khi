@@ -316,7 +316,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExistingLogNotFound,
 					}, nodeCmpOpt).
 					HasRevision(clusterTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  queryStartTime,
+						ChangedTime:  queryStartTime.Add(-2 * time.Hour),
 						ResourceBody: extractResourceBody(clusterInitialLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbUpdate,
@@ -349,41 +349,8 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			wantNil:  true,
 		},
 		{
-			name:     "creates 3 revisions for nodepool with undetermined existence period",
+			name:     "creates 2 revisions for nodepool with undetermined existence period",
 			inputLog: nodepoolInitialLog,
-			wantNil:  false,
-			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
-				revs := cs.GetRevisions(nodePoolTimeline)
-				if len(revs) != 3 {
-					t.Fatalf("len(revs) = %d, want 3", len(revs))
-				}
-				testchangeset.AssertTimeline(t, cs).
-					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  clusterCreateTime,
-						ResourceBody: nil,
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
-					}, nodeCmpOpt).
-					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  nodepoolEarliestTime,
-						ResourceBody: nil,
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
-					}, nodeCmpOpt).
-					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  queryStartTime,
-						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
-					}, nodeCmpOpt)
-			},
-		},
-		{
-			name:     "creates 2 revisions for nodepool created alongside cluster",
-			inputLog: nodepoolCreatedWithClusterLog,
 			wantNil:  false,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(nodePoolTimeline)
@@ -396,13 +363,32 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: nil,
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
 					}, nodeCmpOpt).
 					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  queryStartTime,
-						ResourceBody: extractResourceBody(nodepoolCreatedWithClusterLog.NodeReader),
+						ChangedTime:  nodepoolEarliestTime,
+						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbUpdate,
+						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
+					}, nodeCmpOpt)
+			},
+		},
+		{
+			name:     "creates 1 revision for nodepool created alongside cluster",
+			inputLog: nodepoolCreatedWithClusterLog,
+			wantNil:  false,
+			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
+				revs := cs.GetRevisions(nodePoolTimeline)
+				if len(revs) != 1 {
+					t.Fatalf("len(revs) = %d, want 1", len(revs))
+				}
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
+						ChangedTime:  clusterCreateTime.Add(200 * time.Millisecond),
+						ResourceBody: extractResourceBody(nodepoolCreatedWithClusterLog.NodeReader),
+						Principal:    "N/A",
+						VerbType:     commonlogk8saudit_contract.VerbCreate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
@@ -445,7 +431,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				}
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  queryStartTime,
+						ChangedTime:  nodepoolEarliestTime,
 						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
