@@ -43,7 +43,8 @@ func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 		callOptionInjector: googlecloud.NewCallOptionInjector(),
 	}
 
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithTimeout(t.Context(), 1*time.Minute)
+	defer cancel()
 	destChan := make(chan *loggingpb.LogEntry)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -52,9 +53,8 @@ func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 		defer wg.Done()
 		defer cancel()
 		select {
-		// Test time out is 30 sec by default and getting a single log for 20 sec timeout must be fine.
-		case <-time.After(20 * time.Second):
-			t.Errorf("no logs returned for the first 20 sec")
+		case <-ctx.Done():
+			t.Errorf("no logs returned before context timeout: %v", ctx.Err())
 		case _, ok := <-destChan:
 			if !ok {
 				t.Errorf("channel closed before receiving any response")
@@ -63,8 +63,8 @@ func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 	}()
 
 	err = fetcher.FetchLogs(destChan, ctx, "", googlecloud.Project("kubernetes-history-inspector"), []string{"projects/kubernetes-history-inspector"})
-	if err != nil && !errors.Is(err, context.Canceled) {
-		t.Errorf("failed to fetch logs:%v", err)
+	if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("failed to fetch logs: %v", err)
 	}
 	wg.Wait()
 }
