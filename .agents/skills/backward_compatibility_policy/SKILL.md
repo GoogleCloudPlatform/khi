@@ -187,15 +187,15 @@ type InternalLogPayload struct {
 
 ### Anti-Pattern 6: Task DAG Optional Dependencies & Feature Flags
 
-When modifying the KHI Task DAG, do not use `coretask.GetTaskResultOptional` or add flags like `useLegacyMode` to support older, obsolete task graphs. All task definitions and registration points are maintained in the repository.
+When modifying the KHI Task DAG, do not use `coretask.GetOptionalTaskResult` or add flags like `useLegacyMode` to support older, obsolete task graphs. All task definitions and registration points are maintained in the repository.
 
 **Bad:**
 
 ```go
 // BAD: Falls back to legacy logic if an upstream task is missing from the graph.
 func MyTaskFunc(ctx context.Context, mode contract.InspectionTaskModeType) (*MyResult, error) {
- upstream := coretask.GetTaskResultOptional(ctx, UpstreamTaskID.Ref())
- if upstream == nil {
+ upstream, ok := coretask.GetOptionalTaskResult(ctx, UpstreamTaskID.Ref())
+ if !ok {
   return runLegacyFallbackLogic(ctx)
  }
  return runCurrentLogic(ctx, upstream)

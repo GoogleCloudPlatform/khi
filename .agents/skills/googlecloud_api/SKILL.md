@@ -30,7 +30,7 @@ Inspection tasks under `pkg/task/` that interact with Google Cloud APIs must ret
    Include `googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref()` in the task's dependency list.
 
 2. **Retrieve Injector:**
-   In the task body, retrieve the injector using `coretask.GetTaskResult` (or `coretask.GetTaskResultOptional` when the injector is optional).
+   In the task body, retrieve the injector using `coretask.GetTaskResult` (or `coretask.GetOptionalTaskResult` when the injector is optional).
 
 3. **Inject Options Before Calling APIs:**
    Call `InjectToCallContext` on `ctx` for the target container, and pass the resulting context to client initialization and API calls.
