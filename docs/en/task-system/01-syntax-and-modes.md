@@ -120,7 +120,7 @@ When using fan-in aggregation, circular dependencies (cycles) can arise under th
    - `coretask.WithTagPriority(priority)` (default: `DefaultTagPriority = 100`, where lower numbers indicate higher precedence) lets producers declare the certainty and priority of their contribution.
    - The graph resolver deterministically prunes candidate fan-in edges that form cycles, consistently producing a safe, unique, and stable single-stage DAG.
 
-For architectural details, see [Concept Guide: 6. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority](../khi-task-system-concept.md#6-prerequisites-of-fan-in-cycles-and-graph-stabilization-via-priority).
+For architectural details, see [Concept Guide: 5. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority](../khi-task-system-concept.md#5-prerequisites-of-fan-in-cycles-and-graph-stabilization-via-priority).
 
 ### 3.4 Explicit Dependency Scope Specification (`taskid.Scope*`)
 

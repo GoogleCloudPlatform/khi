@@ -23,7 +23,7 @@ flowchart LR
 ```
 
 1. **[タスクシステムの基本文法と実行モード](./task-system/01-syntax-and-modes.md)**
-   - DAG の基本形式、タスクの型 (`Task[T]`) の宣言、依存関係モデル (`Dependency`: ポイント・ツー・ポイントおよびタグによるファンイン、必須/オプショナル、データ/順序制御、スコープ)、依存関係からの値の取得 (`GetTaskResult`, `GetOptionalTaskResult`, `GetTaskResultsWithTag`)、構造化ログ (`slog`)、パッケージ構成と命名規約 (`_contract`/`_impl`)、**インスペクション実行モード (`Run` と `DryRun`)**、**単体テスト (`tasktest`)** を収録しています。
+   - DAG の基本形式、タスクの型 (`Task[T]`) の宣言、依存関係モデル (`Dependency`: ポイント・ツー・ポイントおよびタグによるファンイン、必須/オプショナル、スコープ)、依存関係からの値の取得 (`GetTaskResult`, `GetOptionalTaskResult`, `GetTaskResultsWithTag`)、構造化ログ (`slog`)、パッケージ構成と命名規約 (`_contract`/`_impl`)、**インスペクション実行モード (`Run` と `DryRun`)**、**単体テスト (`tasktest`)** を収録しています。
 2. **[ログ解析のためのタスク実装パターン (実践ガイド)](./task-system/02-log-processing-cookbook.md)**
    - ログ解析パイプラインの全体像と、**4 種類の主要タスク作成ユーティリティ (`LogFilterTask`, `LogGrouperTask`, `LogIngesterTask`, `LogToTimelineMapperTask`)** の実践レシピ、および最新の `*khifilev6.TimelinePath` と `testchangeset.AssertTimeline` を用いたタイムライン変換を収録しています。
 3. **[高度なタスクパターンとユーティリティ](./task-system/03-advanced-and-form-tasks.md)**
@@ -109,26 +109,19 @@ KHI では、DAG 内のタスク間の接続（エッジ）は `Dependency` イ�
 #### 1. カーディナリティ: ポイント・ツー・ポイント vs タグによるファンイン (Fan-In)
 
 - **ポイント・ツー・ポイント (`TaskReference[T]`)**:
-  特定のタスク参照に対する直接的な 1 対 1 の依存関係 (`taskID.Ref()`) を表します。後続のタスクは `coretask.GetTaskResult(ctx, ref)` を使用して先行タスクの型付きの戻り値を取得します。
+  特定のタスク参照に対する直接的な 1 対 1 の依存関係 (`taskID.Ref()`) を表します。後続のタスクは `coretask.GetTaskResult(ctx, ref)` を使用して先行タスクの型付きの戻り値を取得します。なお、戻り値データを消費せず実行順序のみを同期したい場合は、単に依存関係に含めて結果を取得しないか、`coretask.NewTailTask(taskID, dependencies)` などのバリアタスクを利用します。
 - **タグによるファンイン (`TagReference[T]`)**:
   1 対 N の集約的な依存関係を表します。プロデューサタスクは `coretask.ProvidesTag(tag, opts...)` ラベルオプションを使用して提供するタグを宣言します。オプションとして `coretask.WithTagPriority(priority)` を指定することで、プロデューサごとの寄与度や優先度を付与できます。デフォルト値は 100 であり、数値が小さいほど高優先度として扱われます。コンシューマタスクは `tag.Ref()` を指定してタグに依存します。実行時、コンシューマは `coretask.GetTaskResultsWithTag(ctx, tag.Ref())` を呼び出すことで、バインドされたすべてのプロデューサタスクの結果のスライス (`[]T`) をまとめて取得します。これにより、ダウンストリームのタスクを変更することなく、新しいログパーサーやメタデータプロデューサを追加できます。
-  また、クロスインベントリ依存など複数のプロデューサ間で相互依存が生じる場合、グラフリゾルバはサイクルを構成するファンインエッジを決定論的に除外することで、単一ステージで循環依存を自動解消します。詳細な前提条件と解決メカニズムは「[6. ファンインにおける循環依存の前提条件と Priority によるグラフ安定化](#6-ファンインにおける循環依存の前提条件と-priority-によるグラフ安定化)」を参照してください。
+  また、クロスインベントリ依存など複数のプロデューサ間で相互依存が生じる場合、グラフリゾルバはサイクルを構成するファンインエッジを決定論的に除外することで、単一ステージで循環依存を自動解消します。詳細な前提条件と解決メカニズムは「[5. ファンインにおける循環依存の前提条件と Priority によるグラフ安定化](#5-ファンインにおける循環依存の前提条件と-priority-によるグラフ安定化)」を参照してください。
 
-#### 2. エッジ種別: データエッジ vs 順序制御エッジ (Order-Only)
-
-- **データエッジ (`taskid.EdgeKindData`)**:
-  デフォルトの種別です。先行タスクから後続タスクへと型付きの実行結果データを渡します。
-- **順序制御エッジ (`taskid.EdgeKindOrderOnly`)**:
-  データの受け渡しを行わず、タスクの実行順序（先行タスクが完了してから後続タスクを実行する）のみを制御します。`taskid.OrderOnly` オプションや `coretask.ToOrderOnly(dep)`、または `coretask.NewTailTask(id, dependencies)` のようなバリアタスクで使用されます。
-
-#### 3. 実行条件: 必須 (Required) vs オプショナル (Optional)
+#### 2. 実行条件: 必須 (Required) vs オプショナル (Optional)
 
 - **必須 (`taskid.ConditionRequired`)**:
   デフォルトの条件です。依存タスクがタスクグラフ内に解決され、正常に完了していなければなりません。
 - **オプショナル (`taskid.ConditionOptional`)**:
   `taskid.Optional` オプションで指定します。依存先タスクがタスクグラフに含まれていない場合（ユーザーによって機能が無効化されている場合など）でも、依存元タスクはスキップされずに実行されます。コンシューマは `coretask.GetOptionalTaskResult(ctx, ref)` を呼び出し、`(T, bool)` で結果の存在を確認しながら安全に取得します。
 
-#### 4. スコープ: 依存関係の解決境界 (`DependencyScope`)
+#### 3. スコープ: 依存関係の解決境界 (`DependencyScope`)
 
 ##### なぜスコープが必要なのか (Why Scopes Exist)
 
@@ -168,15 +161,14 @@ KHI は、多数のクラウドプロバイダ、ログ種別、分析パーサ�
 - **オプショナルのポイント・ツー・ポイント依存 (`taskID.Ref(taskid.Optional)`)**: `ScopeActiveGraph`（他で有効化されている場合のみ受け取る）。
 - **タグによるファンイン依存 (`tag.Ref()`)**: `ScopeActiveGraph`（アクティブになっているプロデューサのみを集約する）。
 
-#### 5. 依存関係の重複排除と自動マージ
+#### 4. 依存関係の重複排除と自動マージ
 
 1 つのタスクが同一のタスク参照またはタグに対して複数の依存関係を受け取った場合（直接の宣言や共通定義を経由する場合など）、KHI は自動的にそれらを 1 つのエッジにマージします:
 
-- **エッジ種別**: `Data` が `Order-Only` よりも優先されます。
 - **実行条件**: `Required` が `Optional` よりも優先されます。
 - **スコープ**: より広いスコープが優先されます (`ScopeAll` > `ScopeActiveFeatures` > `ScopeActiveGraph`)。
 
-#### 6. ファンインにおける循環依存の前提条件と Priority によるグラフ安定化
+#### 5. ファンインにおける循環依存の前提条件と Priority によるグラフ安定化
 
 ##### なぜファンインで循環参照が生じるのか
 

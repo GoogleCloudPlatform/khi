@@ -23,7 +23,7 @@ flowchart LR
 ```
 
 1. **[Task System Syntax and Execution Modes](./task-system/01-syntax-and-modes.md)**
-   - Covers DAG basics, task type (`Task[T]`) declarations, dependency model (`Dependency`: point-to-point and tag fan-in, required/optional, data/order-only, scopes), reading values from dependencies (`GetTaskResult`, `GetOptionalTaskResult`, `GetTaskResultsWithTag`), structured logging (`slog`), package structures and naming conventions (`_contract`/`_impl`), **inspection execution modes (`Run` and `DryRun`)**, and **unit testing (`tasktest`)**.
+   - Covers DAG basics, task type (`Task[T]`) declarations, dependency model (`Dependency`: point-to-point and tag fan-in, required/optional, scopes), reading values from dependencies (`GetTaskResult`, `GetOptionalTaskResult`, `GetTaskResultsWithTag`), structured logging (`slog`), package structures and naming conventions (`_contract`/`_impl`), **inspection execution modes (`Run` and `DryRun`)**, and **unit testing (`tasktest`)**.
 2. **[Log Processing Task Implementation Patterns (Cookbook)](./task-system/02-log-processing-cookbook.md)**
    - Covers the overall log processing pipeline, practical recipes for the **4 major task creation utilities (`LogFilterTask`, `LogGrouperTask`, `LogIngesterTask`, `LogToTimelineMapperTask`)**, and timeline mapping using modern `*khifilev6.TimelinePath` and `testchangeset.AssertTimeline` objects.
 3. **[Advanced Task Patterns and Utilities](./task-system/03-advanced-and-form-tasks.md)**
@@ -109,26 +109,19 @@ In KHI, connections (edges) between tasks in the DAG are represented by the `Dep
 #### 1. Cardinality: Point-to-Point vs Tag Fan-In
 
 - **Point-to-Point (`TaskReference[T]`)**:
-  Represents a direct 1-to-1 dependency on a specific task reference (`taskID.Ref()`). Downstream tasks read the upstream task's return value using `coretask.GetTaskResult(ctx, ref)`.
+  Represents a direct 1-to-1 dependency on a specific task reference (`taskID.Ref()`). Downstream tasks read the upstream task's return value using `coretask.GetTaskResult(ctx, ref)`. If a task only needs to enforce execution order without consuming return data, it can declare the dependency without calling `GetTaskResult`, or use barrier tasks such as `coretask.NewTailTask(taskID, dependencies)`.
 - **Tag Fan-In (`TagReference[T]`)**:
   Represents a 1-to-N aggregated dependency. Producer tasks declare the tags they provide using the `coretask.ProvidesTag(tag, opts...)` label option. You can optionally specify `coretask.WithTagPriority(priority)` to assign precedence to the producer's contribution (default: 100, where lower numerical values indicate higher precedence). A consumer task declares a dependency on the tag using `tag.Ref()`. During execution, the consumer retrieves a combined slice of results (`[]T`) from all active producer tasks using `coretask.GetTaskResultsWithTag(ctx, tag.Ref())`. This allows new log parsers or metadata producers to be added without modifying downstream consumer tasks.
-  When cross-inventory dependencies between multiple producers cause circular dependencies, the graph resolver deterministically prunes candidate fan-in edges that form cycles, automatically resolving the circular dependency into a single-stage DAG. For details on prerequisites and resolution mechanisms, see [6. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority](#6-prerequisites-of-fan-in-cycles-and-graph-stabilization-via-priority).
+  When cross-inventory dependencies between multiple producers cause circular dependencies, the graph resolver deterministically prunes candidate fan-in edges that form cycles, automatically resolving the circular dependency into a single-stage DAG. For details on prerequisites and resolution mechanisms, see [5. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority](#5-prerequisites-of-fan-in-cycles-and-graph-stabilization-via-priority).
 
-#### 2. Edge Kind: Data vs Order-Only
-
-- **Data Edge (`taskid.EdgeKindData`)**:
-  The default kind. The dependency passes typed data results from upstream to downstream.
-- **Order-Only Edge (`taskid.EdgeKindOrderOnly`)**:
-  Enforces execution order (the upstream task must complete before the downstream task starts) without passing data results. Created with `taskid.OrderOnly`, `coretask.ToOrderOnly(dep)`, or barrier tasks such as `coretask.NewTailTask(id, dependencies)`.
-
-#### 3. Condition: Required vs Optional
+#### 2. Condition: Required vs Optional
 
 - **Required (`taskid.ConditionRequired`)**:
   The default condition. The dependency must be present in the task graph and execute successfully; otherwise, the dependent task cannot run.
 - **Optional (`taskid.ConditionOptional`)**:
   Specified with `taskid.Optional`. If the dependency task is not present in the resolved graph (e.g., when an optional log feature is disabled by the user), the dependent task still executes. The consumer checks for presence using `coretask.GetOptionalTaskResult(ctx, ref)`, which returns `(T, bool)`.
 
-#### 4. Scope: Resolution Boundaries (`DependencyScope`)
+#### 3. Scope: Resolution Boundaries (`DependencyScope`)
 
 ##### Why Scopes Exist
 
@@ -168,15 +161,14 @@ When a dependency does not explicitly specify a scope (`ScopeUnspecified`), KHI 
 - **Optional Point-to-Point (`taskID.Ref(taskid.Optional)`)**: `ScopeActiveGraph` (only receives data if the task was activated elsewhere).
 - **Tag Fan-In (`tag.Ref()`)**: `ScopeActiveGraph` (aggregates only from producers that are active in the current inspection).
 
-#### 5. Automatic Dependency Deduplication and Merging
+#### 4. Automatic Dependency Deduplication and Merging
 
 When a task declares multiple dependencies targeting the same task reference or tag (either directly or via shared definitions), KHI automatically merges them into a single edge:
 
-- **Kind**: `Data` is preferred over `Order-Only`.
 - **Condition**: `Required` is preferred over `Optional`.
 - **Scope**: The broader scope is preferred (`ScopeAll` > `ScopeActiveFeatures` > `ScopeActiveGraph`).
 
-#### 6. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority
+#### 5. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority
 
 ##### Why Fan-In Cycles Occur (Prerequisites of Cycles)
 
