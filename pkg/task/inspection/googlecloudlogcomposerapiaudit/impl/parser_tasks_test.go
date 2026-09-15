@@ -25,8 +25,9 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -90,7 +91,7 @@ func TestComposerAuditLogToTimelineMapper(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
 						VerbType:    k8saudit.VerbCreate,
-						StateType:   googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentProvisioning,
+						StateType:   composercluster.RevisionStateManagedAirflowEnvironmentProvisioning,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `name: projects/test-project/locations/us-central1/environments/test-environment
@@ -135,7 +136,7 @@ config:
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbCreate,
-						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentExisting,
+						StateType:    composercluster.RevisionStateManagedAirflowEnvironmentExisting,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
 						ResourceBody: nil,
@@ -169,14 +170,14 @@ config:
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbCreate,
-						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentProvisioningLogNotFound,
+						StateType:    composercluster.RevisionStateManagedAirflowEnvironmentProvisioningLogNotFound,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
 					}, compareNodeOption).
 					HasRevision(envPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbCreate,
-						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentExisting,
+						StateType:    composercluster.RevisionStateManagedAirflowEnvironmentExisting,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
 						ResourceBody: nil,
@@ -215,14 +216,14 @@ config:
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbCreate,
-						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentExistingLogNotFound,
+						StateType:    composercluster.RevisionStateManagedAirflowEnvironmentExistingLogNotFound,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
 					}, compareNodeOption).
 					HasRevision(envPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbDelete,
-						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentDeleting,
+						StateType:    composercluster.RevisionStateManagedAirflowEnvironmentDeleting,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
 						ResourceBody: nil,
@@ -259,7 +260,7 @@ config:
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbDelete,
-						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentDeleted,
+						StateType:    composercluster.RevisionStateManagedAirflowEnvironmentDeleted,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
 						ResourceBody: nil,

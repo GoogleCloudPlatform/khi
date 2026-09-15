@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated"
-	googlecloudclustergke_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/contract"
+	gkecluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gke"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/taskrecord"
@@ -47,7 +47,7 @@ func setupAuditLogInspectionServer(t testing.TB) *coreinspection.InspectionTaskS
 
 func getAuditLogJobTestConfig() *taskrecord.JobTestConfig {
 	return &taskrecord.JobTestConfig{
-		InspectionType: googlecloudclustergke_contract.InspectionTypeID,
+		InspectionType: gkecluster.InspectionTypeID,
 		InspectionFeatures: []string{
 			"khi.google.com/k8s-common-auditlog/k8s-auditlog-parser-tail#gcp",
 		},

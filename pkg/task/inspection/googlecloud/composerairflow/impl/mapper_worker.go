@@ -1,0 +1,154 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package composerairflow_impl
+
+import (
+	"context"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+)
+
+// AirflowWorkerLogGrouperTask groups Airflow worker logs.
+var AirflowWorkerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+	composerairflow.AirflowWorkerLogGrouperTaskID,
+	composerairflow.AirflowWorkerLogFilterTaskID.Ref(),
+	func(ctx context.Context, l *log.Log) string {
+		return ""
+	},
+)
+
+type workerLogIngester struct{}
+
+// RawLogTask returns the task reference that provides the raw logs to ingest.
+func (i *workerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
+	return composerairflow.AirflowWorkerLogFilterTaskID.Ref()
+}
+
+// Dependencies returns additional task dependencies of the ingester.
+func (i *workerLogIngester) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{}
+}
+
+// ProcessLog is called for each log entry to customize log metadata (summary, severity, timestamp, etc.).
+func (i *workerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+	cs, err := khifilev6.NewLogChangeSet(l)
+	if err != nil {
+		return nil, err
+	}
+	cs.SetLogType(composerairflow.LogTypeManagedAirflowEnvironment)
+	cs.SetTimestamp(l.Timestamp)
+
+	if severity, err := gcpcommon.ExtractGCPSeverity(l.NodeReader); err == nil {
+		cs.SetSeverity(severity)
+	}
+
+	if message, err := gcpcommon.ExtractGCPMainMessage(l.NodeReader); err == nil {
+		cs.SetSummary(message)
+	}
+
+	return cs, nil
+}
+
+var _ inspectiontaskbase.LogIngester = (*workerLogIngester)(nil)
+
+// AirflowWorkerLogIngesterTask is the task that ingests Airflow worker logs.
+var AirflowWorkerLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+	composerairflow.AirflowWorkerLogIngesterTaskID,
+	&workerLogIngester{},
+)
+
+type workerLogToTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
+}
+
+// LogIngesterTask returns a reference to the ingester task.
+func (m *workerLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
+	return composerairflow.AirflowWorkerLogIngesterTaskID.Ref()
+}
+
+// Dependencies returns additional task dependencies of the mapper.
+func (m *workerLogToTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
+		composercluster.InputComposerEnvironmentNameTaskID.Ref(),
+	}
+}
+
+// GroupedLogTask returns a reference to the task that provides the grouped logs.
+func (m *workerLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+	return composerairflow.AirflowWorkerLogGrouperTaskID.Ref()
+}
+
+// ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
+func (m *workerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	environmentName := coretask.GetTaskResult(ctx, composercluster.InputComposerEnvironmentNameTaskID.Ref())
+	envPath := composerairflow.MustAirflowTimeline(ctx, environmentName)
+
+	workerField, err := composerairflow.ExtractComposer(l.NodeReader)
+	cs := khifilev6.NewTimelineChangeSet(l)
+
+	if err == nil {
+		if workerField.WorkerID != "" {
+			workerTimelinePath := composerairflow.MustAirflowComponentTimeline(ctx, envPath, workerField.WorkerID)
+			cs.AddEvent(workerTimelinePath)
+		}
+	}
+
+	workerTiField, err := composerairflow.ExtractComposerWorkerTaskInstance(l.NodeReader)
+	if err != nil || workerTiField.TaskInstance == nil {
+		return cs, struct{}{}, nil
+	}
+	ti := workerTiField.TaskInstance
+	var detail = ti.TaskId()
+	if ti.MapIndex() != "-1" {
+		detail += "+" + ti.MapIndex()
+	}
+	runPath := composerairflow.MustAirflowDAGRunTimeline(ctx, envPath, ti.DagId(), ti.RunId())
+	timelinePath := composerairflow.MustAirflowTaskInstanceTimeline(ctx, runPath, detail)
+
+	if ti.Status() == composerairflow.TASKINSTANCE_NONE {
+		cs.AddEvent(timelinePath)
+	} else {
+		verb, state := tiStatusToVerb(ti)
+		node, err := structured.FromYAML(ti.ToYaml())
+		if err != nil {
+			node = structured.NewStandardScalarNode(ti.ToYaml())
+		}
+		cs.AddRevision(timelinePath, &khifilev6.StagingRevision{
+			ChangedTime:  l.Timestamp,
+			ResourceBody: node,
+			Principal:    "airflow-worker",
+			VerbType:     verb,
+			StateType:    state,
+		})
+	}
+
+	return cs, struct{}{}, nil
+}
+
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*workerLogToTimelineMapper)(nil)
+
+// AirflowWorkerLogToTimelineMapperTask is the task that maps Airflow worker logs to timeline events.
+var AirflowWorkerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+	composerairflow.AirflowWorkerLogToTimelineMapperTaskID,
+	&workerLogToTimelineMapper{},
+)

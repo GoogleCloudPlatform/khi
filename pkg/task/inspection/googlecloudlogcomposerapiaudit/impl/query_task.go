@@ -22,8 +22,9 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
 )
 
@@ -62,7 +63,7 @@ func (s *composerAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.
 func (s *composerAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		googlecloudlogcomposerapiaudit_contract.ClusterIdentityTaskID.Ref(),
-		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
+		composercluster.InputComposerEnvironmentNameTaskID.Ref(),
 	}
 }
 
@@ -74,7 +75,7 @@ func (s *composerAPIListLogEntriesTaskSetting) QueryName() string {
 // Queries returns the list of structured log queries for estimation and execution.
 func (s *composerAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogcomposerapiaudit_contract.ClusterIdentityTaskID.Ref())
-	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
+	environmentName := coretask.GetTaskResult(ctx, composercluster.InputComposerEnvironmentNameTaskID.Ref())
 	return []*logestimator.StructuredLogQuery{GenerateComposerAuditStructuredQuery(clusterIdentity.ProjectID, clusterIdentity.Location, environmentName)}, nil
 }
 

@@ -27,8 +27,9 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -138,7 +139,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 		if auditFieldSet.Ending() && !tracker.HasStarted(auditFieldSet.OperationID) {
 			cs.AddRevision(envTimeline, &khifilev6.StagingRevision{
 				VerbType:     k8saudit.VerbCreate,
-				StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentProvisioningLogNotFound,
+				StateType:    composercluster.RevisionStateManagedAirflowEnvironmentProvisioningLogNotFound,
 				Principal:    auditFieldSet.PrincipalEmail,
 				ChangedTime:  time.Unix(0, 0),
 				ResourceBody: nil,
@@ -148,9 +149,9 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 
 		var state *pb.RevisionState
 		if auditFieldSet.Ending() {
-			state = googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentExisting
+			state = composercluster.RevisionStateManagedAirflowEnvironmentExisting
 		} else {
-			state = googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentProvisioning
+			state = composercluster.RevisionStateManagedAirflowEnvironmentProvisioning
 		}
 
 		cs.AddRevision(envTimeline, &khifilev6.StagingRevision{
@@ -166,7 +167,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 		if !auditFieldSet.Ending() && !tracker.HasResourceRevision(envTimeline) {
 			cs.AddRevision(envTimeline, &khifilev6.StagingRevision{
 				VerbType:     k8saudit.VerbCreate,
-				StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentExistingLogNotFound,
+				StateType:    composercluster.RevisionStateManagedAirflowEnvironmentExistingLogNotFound,
 				Principal:    auditFieldSet.PrincipalEmail,
 				ChangedTime:  time.Unix(0, 0),
 				ResourceBody: nil,
@@ -177,7 +178,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 		if auditFieldSet.Ending() && !tracker.HasStarted(auditFieldSet.OperationID) {
 			cs.AddRevision(envTimeline, &khifilev6.StagingRevision{
 				VerbType:     k8saudit.VerbDelete,
-				StateType:    googlecloudclustercomposer_contract.RevisionManagedAirflowEnvironmentDeletingLogNotFound,
+				StateType:    composercluster.RevisionManagedAirflowEnvironmentDeletingLogNotFound,
 				Principal:    auditFieldSet.PrincipalEmail,
 				ChangedTime:  time.Unix(0, 0),
 				ResourceBody: nil,
@@ -187,9 +188,9 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 
 		var state *pb.RevisionState
 		if auditFieldSet.Ending() {
-			state = googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentDeleted
+			state = composercluster.RevisionStateManagedAirflowEnvironmentDeleted
 		} else {
-			state = googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentDeleting
+			state = composercluster.RevisionStateManagedAirflowEnvironmentDeleting
 		}
 
 		cs.AddRevision(envTimeline, &khifilev6.StagingRevision{

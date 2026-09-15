@@ -1,0 +1,56 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package composerairflow_impl
+
+import (
+	"context"
+
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
+)
+
+func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source taskid.TaskReference[[]*log.Log], componentName string) coretask.Task[[]*log.Log] {
+	return inspectiontaskbase.NewLogFilterTask(
+		taskID,
+		source,
+		func(ctx context.Context, l *log.Log) bool {
+			component, err := composerairflow.ExtractComposerComponent(l.NodeReader)
+			if err != nil {
+				return false
+			}
+			return component == componentName
+		},
+	)
+}
+
+var AirflowWorkerLogFilterTask = componentFilterTask(composerairflow.AirflowWorkerLogFilterTaskID, composerairflow.ComposerLogsQueryTaskID.Ref(), "airflow-worker")
+var AirflowSchedulerLogFilterTask = componentFilterTask(composerairflow.AirflowSchedulerLogFilterTaskID, composerairflow.ComposerLogsQueryTaskID.Ref(), "airflow-scheduler")
+var AirflowDagProcessorManagerLogFilterTask = componentFilterTask(composerairflow.AirflowDagProcessorManagerLogFilterTaskID, composerairflow.ComposerLogsQueryTaskID.Ref(), "dag-processor-manager")
+
+var AirflowOtherLogFilterTask = inspectiontaskbase.NewLogFilterTask(
+	composerairflow.AirflowOtherLogFilterTaskID,
+	composerairflow.ComposerLogsQueryTaskID.Ref(),
+	func(ctx context.Context, l *log.Log) bool {
+		component, err := composerairflow.ExtractComposerComponent(l.NodeReader)
+		if err != nil {
+			return false
+		}
+		// If it's none of the specific components we support parsing, it goes to "Other"
+		return component != "airflow-worker" && component != "airflow-scheduler" && component != "dag-processor-manager"
+	},
+)

@@ -24,9 +24,10 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
-	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
@@ -165,7 +166,7 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
 		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
 		tasktest.NewTaskDependencyValuePair(googlecloudlogcomposerapiaudit_contract.ClusterIdentityTaskID.Ref(), cluster),
-		tasktest.NewTaskDependencyValuePair(googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(), "test-env"),
+		tasktest.NewTaskDependencyValuePair(composercluster.InputComposerEnvironmentNameTaskID.Ref(), "test-env"),
 	)
 	if err != nil {
 		t.Fatalf("dry run returned unexpected error: %v", err)

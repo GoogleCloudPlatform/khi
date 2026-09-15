@@ -1,0 +1,200 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package composercluster_impl
+
+import (
+	"context"
+	"fmt"
+	"testing"
+	"time"
+
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/google/go-cmp/cmp"
+)
+
+type mockComposerClusterFinder struct {
+	clusterMapping map[string][]string // {projectID}/{location}/{environment} -> []string
+	wantError      bool
+}
+
+// GetGKEClusterNames implements googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinder.
+func (m *mockComposerClusterFinder) GetGKEClusterNames(ctx context.Context, projectID, location, environment string, startTime, endTime time.Time) ([]string, error) {
+	if m.wantError {
+		return nil, fmt.Errorf("test error")
+	}
+	key := fmt.Sprintf("%s/%s/%s", projectID, location, environment)
+	if clusterNames, ok := m.clusterMapping[key]; ok {
+		if len(clusterNames) == 0 {
+			return nil, composercluster.ErrEnvironmentClusterNotFound
+		}
+		return clusterNames, nil
+	}
+	return nil, composercluster.ErrEnvironmentClusterNotFound
+}
+
+var _ composercluster.ComposerEnvironmentClusterFinder = (*mockComposerClusterFinder)(nil)
+
+func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
+	testCases := []struct {
+		desc           string
+		clusterMapping map[string][]string
+		finderError    bool
+		projectIDs     []string
+		environments   []string
+		locations      []string
+		want           []*inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]
+	}{
+		{
+			desc:           "project id is empty",
+			clusterMapping: map[string][]string{},
+			finderError:    false,
+			projectIDs:     []string{""},
+			environments:   []string{"env1"},
+			locations:      []string{"us-central1"},
+			want: []*inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]{{
+				Values: []k8scommon.GoogleCloudClusterIdentity{},
+				Error:  "Project ID or Composer environment name is empty",
+			}},
+		},
+		{
+			desc:           "environment name is empty",
+			clusterMapping: map[string][]string{},
+			finderError:    false,
+			projectIDs:     []string{"foo-project"},
+			environments:   []string{""},
+			locations:      []string{"us-central1"},
+			want: []*inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]{
+				{
+					Values: []k8scommon.GoogleCloudClusterIdentity{},
+					Error:  "Project ID or Composer environment name is empty",
+				},
+			},
+		},
+		{
+			desc:           "location is empty returns hint",
+			clusterMapping: map[string][]string{},
+			finderError:    false,
+			projectIDs:     []string{"foo-project"},
+			environments:   []string{"env1"},
+			locations:      []string{""},
+			want: []*inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]{
+				{
+					Values: []k8scommon.GoogleCloudClusterIdentity{},
+					Error:  "",
+					Hint:   "Cluster names are suggested after the location is provided.",
+				},
+			},
+		},
+		{
+			desc:           "using cache with multiple clusters",
+			clusterMapping: map[string][]string{"foo-project/us-central1/env1": {"cluster1", "cluster2"}},
+			finderError:    false,
+			projectIDs:     []string{"foo-project", "foo-project"},
+			environments:   []string{"env1", "env1"},
+			locations:      []string{"us-central1", "us-central1"},
+			want: []*inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]{
+				{
+					Values: []k8scommon.GoogleCloudClusterIdentity{
+						{
+							ClusterName: "cluster1",
+							ProjectID:   "foo-project",
+							Location:    "us-central1",
+						},
+						{
+							ClusterName: "cluster2",
+							ProjectID:   "foo-project",
+							Location:    "us-central1",
+						},
+					},
+				},
+				{
+					Values: []k8scommon.GoogleCloudClusterIdentity{
+						{
+							ClusterName: "cluster1",
+							ProjectID:   "foo-project",
+							Location:    "us-central1",
+						},
+						{
+							ClusterName: "cluster2",
+							ProjectID:   "foo-project",
+							Location:    "us-central1",
+						},
+					},
+				},
+			},
+		},
+		{
+			desc:           "with error",
+			clusterMapping: map[string][]string{},
+			finderError:    true,
+			projectIDs:     []string{"foo-project"},
+			environments:   []string{"env1"},
+			locations:      []string{"us-central1"},
+			want: []*inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]{{
+				Values: []k8scommon.GoogleCloudClusterIdentity{},
+				Error:  "Failed to fetch the list GKE cluster. Please confirm if the Project ID is correct, or retry later",
+			}},
+		},
+		{
+			desc:           "environment not found",
+			clusterMapping: map[string][]string{},
+			finderError:    false,
+			projectIDs:     []string{"foo-project"},
+			environments:   []string{"non-existent-env"},
+			locations:      []string{"us-central1"},
+			want: []*inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]{{
+				Values: []k8scommon.GoogleCloudClusterIdentity{},
+				Error: `Not found. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.
+Note: Composer 3 is not running on your GKE cluster. Please remove all Kubernetes/GKE queries from the previous section.`,
+			}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+
+			mockComposerClusterFinderInput := tasktest.NewTaskDependencyValuePair[composercluster.ComposerEnvironmentClusterFinder](
+				composercluster.ComposerEnvironmentClusterFinderTaskID.Ref(),
+				&mockComposerClusterFinder{
+					clusterMapping: tc.clusterMapping,
+					wantError:      tc.finderError,
+				},
+			)
+
+			for i := 0; i < len(tc.projectIDs); i++ {
+				projectIDInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputProjectIdTaskID.Ref(), tc.projectIDs[i])
+				environmentNameInput := tasktest.NewTaskDependencyValuePair(composercluster.InputComposerEnvironmentNameTaskID.Ref(), tc.environments[i])
+				locationInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputLocationsTaskID.Ref(), tc.locations[i])
+				startTimeInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), time.Unix(1700000000, 0))
+				endTimeInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), time.Unix(1700003600, 0))
+				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteComposerClusterNamesTask, inspectioncore.TaskModeDryRun, map[string]any{}, projectIDInput, environmentNameInput, locationInput, startTimeInput, endTimeInput, mockComposerClusterFinderInput)
+				if err != nil {
+					t.Fatalf("failed to run inspection task in loop %d: %v", i, err)
+				}
+
+				if diff := cmp.Diff(tc.want[i], result); diff != "" {
+					t.Errorf("result of AutocompleteComposerClusterNamesTask mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
