@@ -94,6 +94,13 @@ describe('GroupParameterComponent', () => {
           hintType: ParameterHintType.None,
         },
         {
+          type: ParameterInputType.Checkbox,
+          label: 'checkbox-form-1',
+          hintType: ParameterHintType.None,
+          readonly: false,
+          default: false,
+        },
+        {
           type: ParameterInputType.Group,
           label: 'child-group',
           hintType: ParameterHintType.None,

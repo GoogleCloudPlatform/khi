@@ -52,7 +52,6 @@ var LabelKeyTaskDescription = NewTaskLabelKey[string](KHISystemPrefix + "task-de
 // LabelKeyTaskResultType is the task label to record the string representation of the task output type.
 var LabelKeyTaskResultType = NewTaskLabelKey[string](KHISystemPrefix + "task-result-type")
 
-// UntypedTask represents a task in the DAG without compile-time result type information.
 type UntypedTask interface {
 	UntypedID() taskid.UntypedTaskImplementationID
 	// Labels returns KHITaskLabelSet assigned to this task unit.

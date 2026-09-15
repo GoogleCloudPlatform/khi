@@ -1,0 +1,128 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$card-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$card-border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+$label-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$value-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$icon-fallback-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 500);
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template:
+    'name type' auto
+    'start end' auto
+    'duration size' auto
+    'filename filename' auto
+    / 1fr 1fr;
+  gap: 12px;
+}
+
+.name-item {
+  grid-area: name;
+}
+
+.type-item {
+  grid-area: type;
+}
+
+.start-item {
+  grid-area: start;
+}
+
+.end-item {
+  grid-area: end;
+}
+
+.duration-item {
+  grid-area: duration;
+}
+
+.size-item {
+  grid-area: size;
+}
+
+.filename-item {
+  grid-area: filename;
+}
+
+.overview-item {
+  background-color: $card-bg-color;
+  border: 1px solid $card-border-color;
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+.item-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: $label-color;
+  margin-bottom: 4px;
+}
+
+.item-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: $value-color;
+  word-break: break-word;
+}
+
+.name-value {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.type-value {
+  display: grid;
+  grid-template:
+    'icon text' auto
+    / auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.type-icon {
+  grid-area: icon;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.type-icon-fallback {
+  grid-area: icon;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: $icon-fallback-color;
+}
+
+.type-text {
+  grid-area: text;
+}
+
+.monospace-text {
+  font-family: 'Roboto Mono', 'Google Sans Code', monospace;
+  font-size: 12px;
+}

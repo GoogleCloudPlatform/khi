@@ -469,7 +469,7 @@ func TestChangeTargetGrouperTask(t *testing.T) {
 				ChangeTargetGrouperTask,
 				inspectioncore_contract.TaskModeRun,
 				map[string]any{},
-				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.LogSorterTaskID.Ref(), logs),
+				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.SuccessLogFilterTaskID.Ref(), logs),
 				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.K8sAuditLogExtractorRef, mockExtractor),
 			)
 			if err != nil {

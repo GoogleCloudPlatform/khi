@@ -270,6 +270,15 @@ message SetFormField {
   bool allow_remove_all = 5;
 }
 
+// CheckboxFormField configures a toggleable boolean checkbox input field.
+message CheckboxFormField {
+  // Whether this checkbox input is read-only.
+  bool readonly = 1;
+
+  // Default checked state.
+  bool default_value = 2;
+}
+
 // FormField defines a single input field or group within the dynamic inspection parameter form.
 message FormField {
   // Unique identifier for the form field.
@@ -300,6 +309,9 @@ message FormField {
 
     // Multi-select option set field.
     SetFormField set = 9;
+
+    // Checkbox toggle input field.
+    CheckboxFormField checkbox = 10;
   }
 }
 
@@ -378,6 +390,12 @@ message FileParameterValue {
   string token = 1;
 }
 
+// CheckboxParameterValue holds a boolean value for a checkbox form field.
+message CheckboxParameterValue {
+  // Boolean value selected by the user.
+  bool value = 1;
+}
+
 // ParameterValue represents a single typed parameter argument submitted for dry-run or execution.
 message ParameterValue {
   // Form field ID this value corresponds to.
@@ -393,6 +411,9 @@ message ParameterValue {
 
     // File token parameter value.
     FileParameterValue file_value = 4;
+
+    // Checkbox boolean parameter value.
+    CheckboxParameterValue checkbox_value = 5;
   }
 }
 
@@ -559,6 +580,9 @@ message GetInspectionMetadataResponse {
 
   // Errors encountered during execution, if any.
   InspectionErrorSet error = 5;
+
+  // CLI command representation for headless job execution.
+  InspectionJobCommand job_command = 6;
 }
 
 // Request to download a byte chunk of the generated .khi inspection archive.

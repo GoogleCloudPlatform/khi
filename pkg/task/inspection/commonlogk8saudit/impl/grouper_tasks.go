@@ -57,7 +57,7 @@ var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTaskWithDependenc
 var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspectionTask[commonlogk8saudit_contract.ResourceLogGroupMap](
 	commonlogk8saudit_contract.ChangeTargetGrouperTaskID,
 	[]coretask.Dependency{
-		commonlogk8saudit_contract.LogSorterTaskID.Ref(),
+		commonlogk8saudit_contract.SuccessLogFilterTaskID.Ref(),
 		commonlogk8saudit_contract.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ResourceLogGroupMap, error) {
@@ -67,7 +67,7 @@ var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspection
 
 		progress.MarkIndeterminate()
 
-		logs := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.LogSorterTaskID.Ref())
+		logs := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.SuccessLogFilterTaskID.Ref())
 		result := commonlogk8saudit_contract.ResourceLogGroupMap{}
 		scanner := targetResourceScanner{
 			ctx:                                 ctx,
@@ -120,7 +120,7 @@ func (s *targetResourceScanner) scanTargetResource(l *log.Log) []*model.Kubernet
 
 	// Memorize all resources modified up to this point to handle delete collection methods
 	for _, resource := range targetResource {
-		if resource.Namespace == "cluster-scope" {
+		if resource.Namespace == commonlogk8saudit_contract.ClusterScopeNamespace {
 			continue
 		}
 		namespaceKindAPIVersions := fmt.Sprintf("%s/%s/%s", resource.APIVersion, resource.PluralKind, resource.Namespace)

@@ -232,6 +232,11 @@ export type InspectionMetadataOfRunResult = {
    * Set of error logs for this inspection.
    */
   error: InspectionMetadataErrorSet;
+
+  /**
+   * CLI command representation for headless job execution.
+   */
+  readonly jobCommand?: InspectionMetadataJobModeCommand;
 };
 
 /**

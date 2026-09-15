@@ -546,6 +546,33 @@ export declare type SetFormField = Message<'api.v1.SetFormField'> & {
 export declare const SetFormFieldSchema: GenMessage<SetFormField>;
 
 /**
+ * CheckboxFormField configures a toggleable boolean checkbox input field.
+ *
+ * @generated from message api.v1.CheckboxFormField
+ */
+export declare type CheckboxFormField = Message<'api.v1.CheckboxFormField'> & {
+  /**
+   * Whether this checkbox input is read-only.
+   *
+   * @generated from field: bool readonly = 1;
+   */
+  readonly: boolean;
+
+  /**
+   * Default checked state.
+   *
+   * @generated from field: bool default_value = 2;
+   */
+  defaultValue: boolean;
+};
+
+/**
+ * Describes the message api.v1.CheckboxFormField.
+ * Use `create(CheckboxFormFieldSchema)` to create a new message.
+ */
+export declare const CheckboxFormFieldSchema: GenMessage<CheckboxFormField>;
+
+/**
  * FormField defines a single input field or group within the dynamic inspection parameter form.
  *
  * @generated from message api.v1.FormField
@@ -627,6 +654,15 @@ export declare type FormField = Message<'api.v1.FormField'> & {
          */
         value: SetFormField;
         case: 'set';
+      }
+    | {
+        /**
+         * Checkbox toggle input field.
+         *
+         * @generated from field: api.v1.CheckboxFormField checkbox = 10;
+         */
+        value: CheckboxFormField;
+        case: 'checkbox';
       }
     | { case: undefined; value?: undefined };
 };
@@ -837,6 +873,27 @@ export declare type FileParameterValue =
 export declare const FileParameterValueSchema: GenMessage<FileParameterValue>;
 
 /**
+ * CheckboxParameterValue holds a boolean value for a checkbox form field.
+ *
+ * @generated from message api.v1.CheckboxParameterValue
+ */
+export declare type CheckboxParameterValue =
+  Message<'api.v1.CheckboxParameterValue'> & {
+    /**
+     * Boolean value selected by the user.
+     *
+     * @generated from field: bool value = 1;
+     */
+    value: boolean;
+  };
+
+/**
+ * Describes the message api.v1.CheckboxParameterValue.
+ * Use `create(CheckboxParameterValueSchema)` to create a new message.
+ */
+export declare const CheckboxParameterValueSchema: GenMessage<CheckboxParameterValue>;
+
+/**
  * ParameterValue represents a single typed parameter argument submitted for dry-run or execution.
  *
  * @generated from message api.v1.ParameterValue
@@ -881,6 +938,15 @@ export declare type ParameterValue = Message<'api.v1.ParameterValue'> & {
          */
         value: FileParameterValue;
         case: 'fileValue';
+      }
+    | {
+        /**
+         * Checkbox boolean parameter value.
+         *
+         * @generated from field: api.v1.CheckboxParameterValue checkbox_value = 5;
+         */
+        value: CheckboxParameterValue;
+        case: 'checkboxValue';
       }
     | { case: undefined; value?: undefined };
 };
@@ -1443,6 +1509,13 @@ export declare type GetInspectionMetadataResponse =
      * @generated from field: api.v1.InspectionErrorSet error = 5;
      */
     error?: InspectionErrorSet | undefined;
+
+    /**
+     * CLI command representation for headless job execution.
+     *
+     * @generated from field: api.v1.InspectionJobCommand job_command = 6;
+     */
+    jobCommand?: InspectionJobCommand | undefined;
   };
 
 /**

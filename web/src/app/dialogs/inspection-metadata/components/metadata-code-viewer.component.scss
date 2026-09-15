@@ -1,0 +1,94 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$container-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$container-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$header-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 800);
+$border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
+$copy-btn-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.code-viewer-container {
+  display: grid;
+  grid-template:
+    'header' auto
+    'code' 1fr
+    / 1fr;
+
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: $container-bg-color;
+  color: $container-text-color;
+}
+
+.code-viewer-header {
+  grid-area: header;
+  display: grid;
+  grid-template:
+    'title actions' auto
+    / 1fr auto;
+  align-items: center;
+  padding: 4px 12px;
+  background-color: $header-bg-color;
+  border-bottom: 1px solid $border-color;
+}
+
+.code-viewer-title {
+  grid-area: title;
+  font-weight: 500;
+  font-size: 13px;
+  font-family: 'Roboto Mono', 'Google Sans Code', monospace;
+}
+
+.actions-section {
+  grid-area: actions;
+}
+
+.floating-header {
+  grid-area: header;
+  display: grid;
+  grid-template:
+    'spacer action' auto
+    / 1fr auto;
+  padding: 4px 8px;
+
+  .copy-button {
+    grid-area: action;
+  }
+}
+
+.copy-button {
+  color: $copy-btn-color;
+}
+
+.code-content {
+  grid-area: code;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  font-family: 'Roboto Mono', 'Google Sans Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

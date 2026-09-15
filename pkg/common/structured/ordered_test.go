@@ -109,12 +109,12 @@ func TestWithKeyOrderNested(t *testing.T) {
 	ordered1 := WithKeyOrder(node, "b")
 	ordered2 := WithKeyOrder(ordered1, "c")
 
-	orderedMap, ok := ordered2.(*orderedMapNode)
+	orderedMap, ok := ordered2.(*OrderedMapNode)
 	if !ok {
-		t.Fatalf("expected *orderedMapNode, got %T", ordered2)
+		t.Fatalf("expected *OrderedMapNode, got %T", ordered2)
 	}
-	if _, isNested := orderedMap.inner.(*orderedMapNode); isNested {
-		t.Errorf("expected inner node not to be *orderedMapNode, but got nested *orderedMapNode")
+	if _, isNested := orderedMap.inner.(*OrderedMapNode); isNested {
+		t.Errorf("expected inner node not to be *OrderedMapNode, but got nested *OrderedMapNode")
 	}
 
 	var gotKeys []string

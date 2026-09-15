@@ -22,6 +22,7 @@ import {
 import { TextParameterComponent } from './text-parameter.component';
 import { FileParameterComponent } from './file-parameter.component';
 import { SetParameterComponent } from './set-parameter.component';
+import { CheckboxParameterComponent } from './checkbox-parameter.component';
 import { ParameterHeaderComponent } from './parameter-header.component';
 import { ParameterHintComponent } from './parameter-hint.component';
 import { CommonModule } from '@angular/common';
@@ -49,6 +50,7 @@ import {
     TextParameterComponent,
     FileParameterComponent,
     SetParameterComponent,
+    CheckboxParameterComponent,
     ParameterHeaderComponent,
     ParameterHintComponent,
   ],
@@ -88,7 +90,10 @@ import {
   ],
 })
 export class GroupParameterComponent {
-  readonly ParameterInputType = ParameterInputType;
+  /**
+   * Exposes ParameterInputType enum to the template.
+   */
+  protected readonly ParameterInputType = ParameterInputType;
   /**
    * The setting of this group type form field.
    */

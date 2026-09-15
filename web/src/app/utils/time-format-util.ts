@@ -72,3 +72,41 @@ export function generateTimestampedFilename(
   const sanitizedExtension = extension.replace(/^\./, '');
   return `${prefix}-${yyyy}${mm}${dd}-${hh}${min}${ss}.${sanitizedExtension}`;
 }
+
+/**
+ * Formats a unix timestamp in seconds to an ISO 8601 string taking timezone shift into account.
+ *
+ * @param timestampSeconds - Unix timestamp in seconds.
+ * @param timezoneShiftHours - Timezone offset from UTC in hours (e.g. 9 for UTC+09:00).
+ * @returns Formatted ISO 8601 string, or '-' if timestamp is non-positive or non-finite.
+ */
+export function formatIsoTimestampSeconds(
+  timestampSeconds: number,
+  timezoneShiftHours: number,
+): string {
+  if (timestampSeconds <= 0 || !Number.isFinite(timestampSeconds)) {
+    return '-';
+  }
+  const sign = timezoneShiftHours >= 0 ? '+' : '-';
+  const totalOffsetMinutes = Math.round(Math.abs(timezoneShiftHours) * 60);
+  const shiftHour = Math.floor(totalOffsetMinutes / 60);
+  const shiftMinute = totalOffsetMinutes % 60;
+  const shiftHourStr = shiftHour.toString().padStart(2, '0');
+  const shiftMinuteStr = shiftMinute.toString().padStart(2, '0');
+  const offsetStr = `${sign}${shiftHourStr}:${shiftMinuteStr}`;
+
+  const signedOffsetMinutes =
+    timezoneShiftHours >= 0 ? totalOffsetMinutes : -totalOffsetMinutes;
+  const shiftedDate = new Date(
+    (timestampSeconds + signedOffsetMinutes * 60) * 1000,
+  );
+  const pad = (n: number): string => n.toString().padStart(2, '0');
+  const yyyy = shiftedDate.getUTCFullYear();
+  const mm = pad(shiftedDate.getUTCMonth() + 1);
+  const dd = pad(shiftedDate.getUTCDate());
+  const hh = pad(shiftedDate.getUTCHours());
+  const min = pad(shiftedDate.getUTCMinutes());
+  const ss = pad(shiftedDate.getUTCSeconds());
+
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}${offsetStr}`;
+}

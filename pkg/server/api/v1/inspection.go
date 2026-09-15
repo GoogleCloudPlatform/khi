@@ -361,6 +361,9 @@ func (s *InspectionServiceServer) GetInspectionMetadata(
 	if e, ok := md["error"].(*inspectionmetadata.ErrorMessageSetMetadata); ok && e != nil {
 		resp.Error = convertErrorSet(e)
 	}
+	if cmd, ok := md["jobCommand"].(*inspectionmetadata.JobModeCommandSerializable); ok && cmd != nil {
+		resp.JobCommand = &apiv1.InspectionJobCommand{Command: proto.String(cmd.Command)}
+	}
 	return connect.NewResponse(resp), nil
 }
 
@@ -604,6 +607,13 @@ func convertFormFields(fields []inspectionmetadata.ParameterFormField) []*apiv1.
 					AllowRemoveAll:   proto.Bool(v.AllowRemoveAll),
 				},
 			}
+		case inspectionmetadata.CheckboxParameterFormField:
+			f.Kind = &apiv1.FormField_Checkbox{
+				Checkbox: &apiv1.CheckboxFormField{
+					Readonly:     proto.Bool(v.Readonly),
+					DefaultValue: proto.Bool(v.Default),
+				},
+			}
 		}
 		res = append(res, f)
 	}
@@ -665,6 +675,8 @@ func convertParametersToMap(params *apiv1.InspectionParameters) map[string]any {
 			values[id] = v.SetValue.GetValues()
 		case *apiv1.ParameterValue_FileValue:
 			values[id] = v.FileValue.GetToken()
+		case *apiv1.ParameterValue_CheckboxValue:
+			values[id] = v.CheckboxValue.GetValue()
 		}
 	}
 	if params.GetTimezoneShiftHours() != 0 {

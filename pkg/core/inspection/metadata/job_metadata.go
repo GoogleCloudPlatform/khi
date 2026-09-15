@@ -33,7 +33,7 @@ type JobModeCommandSerializable struct {
 
 // Labels implements Metadata.
 func (*JobModeCommandMetadata) Labels() *typedmap.ReadonlyTypedMap {
-	return NewLabelSet(IncludeInDryRunResult())
+	return NewLabelSet(IncludeInDryRunResult(), IncludeInRunResult())
 }
 
 // ToSerializable implements Metadata.

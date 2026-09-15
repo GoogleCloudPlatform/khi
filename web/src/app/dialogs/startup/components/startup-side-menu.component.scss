@@ -17,6 +17,8 @@
 // Color variables based on the design image
 $sidebar-bg-color: #f5f6f9;
 $primary-blue: #2f54eb;
+$job-command-link-color: $primary-blue;
+$job-command-link-hover-color: #1d39c4;
 $text-dark: #1f2329;
 $text-muted: #64748b;
 $white: #fff;
@@ -123,6 +125,26 @@ $icon-bg-alpha: rgba(255, 255, 255, 0.2);
   font-size: 12px;
   color: $text-muted;
   line-height: 1.5;
+}
+
+.job-command-link {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+
+  font-size: 12px;
+  color: $job-command-link-color;
+  text-align: left;
+  text-decoration: underline;
+
+  transition: color 0.2s;
+
+  &:hover {
+    color: $job-command-link-hover-color;
+  }
 }
 
 .footer-links {

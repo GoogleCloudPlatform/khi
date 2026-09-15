@@ -24,6 +24,7 @@ const meta: Meta<StartupSideMenuComponent> = {
   argTypes: {
     newInvestigation: { action: 'newInvestigation' },
     openKhiFile: { action: 'openKhiFile' },
+    startFromJobCommand: { action: 'startFromJobCommand' },
   },
 };
 

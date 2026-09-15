@@ -14,8 +14,8 @@
 
 package structured
 
-// orderedMapNode wraps a map Node and customizes its Children() iteration order.
-type orderedMapNode struct {
+// OrderedMapNode wraps a map Node and customizes its Children() iteration order.
+type OrderedMapNode struct {
 	inner        Node
 	priorityKeys []string
 }
@@ -28,40 +28,40 @@ func WithKeyOrder(node Node, priorityKeys ...string) Node {
 	if node == nil || node.Type() != MapNodeType || len(priorityKeys) == 0 {
 		return node
 	}
-	if ordered, ok := node.(*orderedMapNode); ok {
-		return &orderedMapNode{
+	if ordered, ok := node.(*OrderedMapNode); ok {
+		return &OrderedMapNode{
 			inner:        ordered.inner,
 			priorityKeys: priorityKeys,
 		}
 	}
-	return &orderedMapNode{
+	return &OrderedMapNode{
 		inner:        node,
 		priorityKeys: priorityKeys,
 	}
 }
 
 // Type implements Node.
-func (o *orderedMapNode) Type() NodeType {
+func (o *OrderedMapNode) Type() NodeType {
 	return o.inner.Type()
 }
 
 // NodeScalarValue implements Node.
-func (o *orderedMapNode) NodeScalarValue() (any, error) {
+func (o *OrderedMapNode) NodeScalarValue() (any, error) {
 	return o.inner.NodeScalarValue()
 }
 
 // Len implements Node.
-func (o *orderedMapNode) Len() int {
+func (o *OrderedMapNode) Len() int {
 	return o.inner.Len()
 }
 
 // GetChildByKey implements Node.
-func (o *orderedMapNode) GetChildByKey(key string) (Node, bool) {
+func (o *OrderedMapNode) GetChildByKey(key string) (Node, bool) {
 	return o.inner.GetChildByKey(key)
 }
 
 // Children implements Node.
-func (o *orderedMapNode) Children() NodeChildrenIterator {
+func (o *OrderedMapNode) Children() NodeChildrenIterator {
 	return func(callback func(key NodeChildrenKey, value Node) bool) {
 		type entry struct {
 			key   NodeChildrenKey
@@ -99,8 +99,8 @@ func (o *orderedMapNode) Children() NodeChildrenIterator {
 }
 
 // Unwrap returns the inner wrapped Node.
-func (o *orderedMapNode) Unwrap() Node {
+func (o *OrderedMapNode) Unwrap() Node {
 	return o.inner
 }
 
-var _ Node = (*orderedMapNode)(nil)
+var _ Node = (*OrderedMapNode)(nil)

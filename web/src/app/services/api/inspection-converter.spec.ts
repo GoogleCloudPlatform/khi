@@ -35,6 +35,7 @@ import {
   TextParameterFormField,
   FileParameterFormField,
   SetParameterFormField,
+  CheckboxParameterFormField,
 } from 'src/app/common/schema/form-types';
 import { EstimatedCountPreset } from 'src/app/common/schema/metadata-types';
 import {
@@ -258,6 +259,33 @@ describe('inspection-converter', () => {
       expect(converted.allowRemoveAll).toBeFalse();
       expect(converted.allowCustomValue).toBeTrue();
     });
+
+    it('converts checkbox field', () => {
+      const field = create(FormFieldSchema, {
+        id: 'checkbox-1',
+        label: 'Checkbox 1',
+        description: 'Checkbox desc',
+        hint: 'Toggle setting',
+        hintType: ProtoParameterHintType.INFO,
+        kind: {
+          case: 'checkbox',
+          value: {
+            readonly: false,
+            defaultValue: true,
+          },
+        },
+      });
+
+      const converted = convertProtoFormFieldToParameterFormField(
+        field,
+      ) as CheckboxParameterFormField;
+      expect(converted).not.toBeNull();
+      expect(converted.id).toBe('checkbox-1');
+      expect(converted.type).toBe(ParameterInputType.Checkbox);
+      expect(converted.readonly).toBeFalse();
+      expect(converted.default).toBeTrue();
+      expect(converted.hintType).toBe(ParameterHintType.Info);
+    });
   });
 
   describe('convertMapToParameterValues', () => {
@@ -288,9 +316,9 @@ describe('inspection-converter', () => {
       }
 
       const boolVal = result.find((p) => p.id === 'enabled');
-      expect(boolVal?.value.case).toBe('textValue');
-      if (boolVal?.value.case === 'textValue') {
-        expect(boolVal.value.value.value).toBe('true');
+      expect(boolVal?.value.case).toBe('checkboxValue');
+      if (boolVal?.value.case === 'checkboxValue') {
+        expect(boolVal.value.value.value).toBeTrue();
       }
 
       const tagsVal = result.find((p) => p.id === 'tags');
@@ -444,6 +472,7 @@ describe('inspection-converter', () => {
         error: {
           errorMessages: [{ errorId: 'ERR_1', message: 'err', link: 'link' }],
         },
+        jobCommand: { command: './khi --job-mode' },
       });
 
       const converted =
@@ -453,6 +482,7 @@ describe('inspection-converter', () => {
       expect(converted.log.length).toBe(1);
       expect(converted.log[0].log).toBe('Finished');
       expect(converted.error.errorMessages.length).toBe(1);
+      expect(converted.jobCommand?.command).toBe('./khi --job-mode');
     });
   });
 });

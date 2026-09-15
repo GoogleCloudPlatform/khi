@@ -15,6 +15,7 @@
  */
 
 import {
+  ChangeDetectorRef,
   Component,
   computed,
   inject,
@@ -22,6 +23,7 @@ import {
   signal,
   ViewChild,
 } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import {
   BehaviorSubject,
@@ -34,14 +36,18 @@ import {
   switchMap,
   take,
   takeUntil,
+  tap,
   withLatestFrom,
 } from 'rxjs';
 import {
+  GetInspectionTypesResponse,
+  InspectionDryRunResponse,
   InspectionMetadataInDryrun,
   InspectionType,
 } from 'src/app/common/schema/api-types';
 import { ReactiveFormsModule } from '@angular/forms';
 import {
+  MAT_DIALOG_DATA,
   MatDialog,
   MatDialogModule,
   MatDialogRef,
@@ -229,11 +235,73 @@ export interface ParameterPageViewModel {
   readonly totalEstimatedSummary?: TotalEstimatedLogsSummary;
 }
 
-export function openNewInspectionDialog(dialog: MatDialog) {
-  return dialog.open(NewInspectionDialogComponent, {
+/**
+ * Configuration data passed when opening NewInspectionDialogComponent.
+ */
+export interface NewInspectionDialogData {
+  /** Initial inspection type ID to preselect. */
+  readonly initialInspectionTypeId?: string;
+  /** Initial feature IDs to enable. */
+  readonly initialFeatureIds?: readonly string[];
+  /** Initial parameter values to prefill. */
+  readonly initialParameters?: Record<string, unknown>;
+}
+
+/**
+ * Recursively checks if any parameter field in the form has an error hint.
+ *
+ * @param fields The list of form fields to check.
+ * @returns True if at least one field has an error hint.
+ */
+export function hasFormErrors(fields: readonly ParameterFormField[]): boolean {
+  for (const field of fields) {
+    if (field.type === ParameterInputType.Group) {
+      if (hasFormErrors(field.children)) {
+        return true;
+      }
+    } else if (field.hintType === ParameterHintType.Error) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Checks if a dryrun response contains validation errors or incomplete queries.
+ *
+ * @param response The dryrun response to validate.
+ * @returns True if the dryrun result has errors or incomplete parameters.
+ */
+export function hasDryRunErrors(response: InspectionDryRunResponse): boolean {
+  if (hasFormErrors(response.metadata.form)) {
+    return true;
+  }
+  if (response.metadata.query?.some((q) => q.incomplete)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Opens the New Inspection dialog.
+ *
+ * @param dialog The Angular Material MatDialog service instance.
+ * @param data Optional prefilled configuration data.
+ * @returns Reference to the opened dialog.
+ */
+export function openNewInspectionDialog(
+  dialog: MatDialog,
+  data?: NewInspectionDialogData,
+) {
+  return dialog.open<
+    NewInspectionDialogComponent,
+    NewInspectionDialogData,
+    NewInspectionDialogResult
+  >(NewInspectionDialogComponent, {
     width: '80%',
     maxWidth: '1200px',
     height: '90%',
+    data,
   });
 }
 
@@ -269,6 +337,10 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   private readonly dialogRef =
     inject<MatDialogRef<object, NewInspectionDialogResult>>(MatDialogRef);
+  private readonly dialogData = inject<NewInspectionDialogData | null>(
+    MAT_DIALOG_DATA,
+    { optional: true },
+  );
   private readonly backendSync = inject<BackendSyncService>(BACKEND_SYNC);
   private readonly apiClient = inject<BackendAPI>(BACKEND_API);
   private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
@@ -287,6 +359,47 @@ export class NewInspectionDialogComponent implements OnDestroy {
   public hadRun = signal(false);
 
   constructor() {
+    if (this.dialogData?.initialInspectionTypeId) {
+      toObservable(this.inspectionTypes.value)
+        .pipe(
+          filter(
+            (response): response is GetInspectionTypesResponse =>
+              !!response && response.types.length > 0,
+          ),
+          map((response) =>
+            response.types.find(
+              (t) => t.id === this.dialogData!.initialInspectionTypeId,
+            ),
+          ),
+          filter((matched): matched is InspectionType => !!matched),
+          take(1),
+          tap((matched) => {
+            this.currentInspectionType.next(matched);
+            if (this.dialogData?.initialParameters) {
+              this.store.setDefaultValues(this.dialogData.initialParameters);
+            }
+          }),
+          switchMap(() => this.currentTaskClient.pipe(take(1))),
+          tap((client) => {
+            if (
+              this.dialogData?.initialFeatureIds &&
+              this.dialogData.initialFeatureIds.length > 0
+            ) {
+              const featureMap = Object.fromEntries(
+                this.dialogData.initialFeatureIds.map((f) => [f, true]),
+              );
+              client.setFeatures(featureMap);
+            }
+          }),
+          takeUntil(this.destroyed),
+        )
+        .subscribe(() => {
+          this.navigateToStep(
+            NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
+          );
+        });
+    }
+
     this.featureToggleRequest
       .pipe(
         takeUntil(this.destroyed),
@@ -315,7 +428,35 @@ export class NewInspectionDialogComponent implements OnDestroy {
       });
   }
 
-  @ViewChild('stepper') private stepper!: MatStepper;
+  private readonly cdr = inject(ChangeDetectorRef);
+
+  private _stepper?: MatStepper;
+
+  private pendingStepIndex: number | null = null;
+
+  @ViewChild('stepper')
+  private set stepper(stepper: MatStepper | undefined) {
+    this._stepper = stepper;
+    if (stepper && this.pendingStepIndex !== null) {
+      this.cdr.detectChanges();
+      stepper.selectedIndex = this.pendingStepIndex;
+      this.pendingStepIndex = null;
+    }
+  }
+
+  private get stepper(): MatStepper | undefined {
+    return this._stepper;
+  }
+
+  private navigateToStep(stepIndex: number) {
+    if (this._stepper) {
+      this.cdr.detectChanges();
+      this._stepper.selectedIndex = stepIndex;
+      this.pendingStepIndex = null;
+    } else {
+      this.pendingStepIndex = stepIndex;
+    }
+  }
 
   public inspectionTypes = this.backendSync.inspectionTypes;
 
@@ -402,7 +543,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
   public setInspectionType(inspectionType: InspectionType) {
     this.currentInspectionType.next(inspectionType);
     setTimeout(() => {
-      this.stepper.next();
+      this.stepper?.next();
     }, 10);
   }
 
@@ -551,6 +692,9 @@ export class NewInspectionDialogComponent implements OnDestroy {
           result[parameter.id] = parameter.default;
           break;
         case ParameterInputType.Set:
+          result[parameter.id] = parameter.default;
+          break;
+        case ParameterInputType.Checkbox:
           result[parameter.id] = parameter.default;
           break;
         case ParameterInputType.Group:

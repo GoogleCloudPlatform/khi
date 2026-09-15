@@ -50,3 +50,103 @@ func TestFormFieldSetShouldSortOnAddingNewField(t *testing.T) {
 		t.Errorf("FieldSet has fields in unexpected shape\n%v", diff)
 	}
 }
+
+func TestGetParameterFormFieldBase(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input ParameterFormField
+		want  ParameterFormFieldBase
+	}{
+		{
+			name: "group field",
+			input: GroupParameterFormField{
+				ParameterFormFieldBase: ParameterFormFieldBase{
+					ID:    "group-1",
+					Label: "Group 1",
+					Type:  Group,
+				},
+			},
+			want: ParameterFormFieldBase{
+				ID:    "group-1",
+				Label: "Group 1",
+				Type:  Group,
+			},
+		},
+		{
+			name: "text field",
+			input: TextParameterFormField{
+				ParameterFormFieldBase: ParameterFormFieldBase{
+					ID:    "text-1",
+					Label: "Text 1",
+					Type:  Text,
+				},
+			},
+			want: ParameterFormFieldBase{
+				ID:    "text-1",
+				Label: "Text 1",
+				Type:  Text,
+			},
+		},
+		{
+			name: "set field",
+			input: SetParameterFormField{
+				ParameterFormFieldBase: ParameterFormFieldBase{
+					ID:    "set-1",
+					Label: "Set 1",
+					Type:  Set,
+				},
+			},
+			want: ParameterFormFieldBase{
+				ID:    "set-1",
+				Label: "Set 1",
+				Type:  Set,
+			},
+		},
+		{
+			name: "file field",
+			input: FileParameterFormField{
+				ParameterFormFieldBase: ParameterFormFieldBase{
+					ID:    "file-1",
+					Label: "File 1",
+					Type:  File,
+				},
+			},
+			want: ParameterFormFieldBase{
+				ID:    "file-1",
+				Label: "File 1",
+				Type:  File,
+			},
+		},
+		{
+			name: "checkbox field",
+			input: CheckboxParameterFormField{
+				ParameterFormFieldBase: ParameterFormFieldBase{
+					ID:    "checkbox-1",
+					Label: "Checkbox 1",
+					Type:  Checkbox,
+				},
+				Default:  true,
+				Readonly: false,
+			},
+			want: ParameterFormFieldBase{
+				ID:    "checkbox-1",
+				Label: "Checkbox 1",
+				Type:  Checkbox,
+			},
+		},
+		{
+			name:  "unknown field",
+			input: struct{}{},
+			want:  ParameterFormFieldBase{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := GetParameterFormFieldBase(tc.input)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GetParameterFormFieldBase() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

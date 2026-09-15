@@ -31,16 +31,10 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// AirflowDagProcessorManagerLogSorterTask sorts Airflow DAG processor manager logs.
-var AirflowDagProcessorManagerLogSorterTask = inspectiontaskbase.NewLogSorterByTimeTask(
-	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogSorterTaskID,
-	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogFilterTaskID.Ref(),
-)
-
 // AirflowDagProcessorManagerLogGrouperTask groups Airflow DAG processor manager logs.
 var AirflowDagProcessorManagerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogGrouperTaskID,
-	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogSorterTaskID.Ref(),
+	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
 		fs, err := googlecloudclustercomposer_contract.ExtractComposer(l.NodeReader)
 		if err != nil {
@@ -74,7 +68,7 @@ type dagProcessorManagerLogIngester struct {
 
 // RawLogTask returns the task reference that provides the raw logs to ingest.
 func (i *dagProcessorManagerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogSorterTaskID.Ref()
+	return googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogFilterTaskID.Ref()
 }
 
 // GroupedLogTask returns a reference to the task that provides the grouped logs.

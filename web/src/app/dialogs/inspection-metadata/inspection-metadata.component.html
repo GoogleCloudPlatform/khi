@@ -1,11 +1,11 @@
 <!--
-Copyright 2024 Google LLC
+Copyright 2026 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,63 +14,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<div>
-  <!--Header-->
-  @if (data.header; as header) {
-    <mat-card>
-      <mat-card-header>
-        <mat-card-title>{{ header.inspectionType }}</mat-card-title>
-      </mat-card-header>
-    </mat-card>
-  }
-
-  @if (data.query; as queries) {
-    <mat-card>
-      <mat-card-header>
-        <mat-card-title>Query</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        @for (query of queries; track query) {
-          <mat-card>
-            <mat-card-header>
-              <mat-card-title>{{ query.name }}</mat-card-title>
-            </mat-card-header>
-            <mat-card-content>
-              <pre>{{ query.query }}</pre>
-            </mat-card-content>
-          </mat-card>
-        }
-      </mat-card-content>
-    </mat-card>
-  }
-
-  @if (data.log; as logs) {
-    <mat-card>
-      <mat-card-header>
-        <mat-card-title>Logs</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        @for (log of logs; track log) {
-          <mat-card>
-            <mat-card-header>
-              <mat-card-title>{{ log.name }}</mat-card-title>
-            </mat-card-header>
-            <mat-card-content>
-              <pre class="limit-pre-max-height">{{ log.log }}</pre>
-            </mat-card-content>
-          </mat-card>
-        }
-      </mat-card-content>
-    </mat-card>
-  }
-  @if (data.plan; as plan) {
-    <mat-card>
-      <mat-card-header>
-        <mat-card-title>Plan</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <pre class="limit-pre-max-height">{{ plan.taskGraph }}</pre>
-      </mat-card-content>
-    </mat-card>
-  }
-</div>
+<khi-inspection-metadata-layout [viewModel]="vm()" (closed)="close()" />
