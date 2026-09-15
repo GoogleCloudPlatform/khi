@@ -32,16 +32,6 @@ type InspectionTaskPackage struct {
 	PackageNamePrefix string
 }
 
-// ContractPackageName returns the package name for the contract part of the task.
-func (p *InspectionTaskPackage) ContractPackageName() string {
-	return fmt.Sprintf("%s_contract", p.PackageNamePrefix)
-}
-
-// ContractPackageImportPath returns the full Go import path for the contract package.
-func (p *InspectionTaskPackage) ContractPackageImportPath() string {
-	return fmt.Sprintf("%s/contract", p.PackageImportPathBase)
-}
-
 // ImplPackageName returns the package alias name for the implementation part of the task.
 func (p *InspectionTaskPackage) ImplPackageName() string {
 	return fmt.Sprintf("%s_impl", p.PackageNamePrefix)
@@ -61,8 +51,6 @@ var DoNotRegisterPackagePaths = map[string]struct{}{
 // InspectionTaskPackageFinder is responsible for finding inspection task packages
 // within the project structure.
 type InspectionTaskPackageFinder struct {
-	// PackageRootFilePath is the root directory of the project's Go packages (e.g., "pkg").
-	PackageRootFilePath string
 	// InspectionTaskPackageRootFilePath is the specific directory where inspection task packages reside.
 	InspectionTaskPackageRootFilePath string
 	// RepositoryPackageName is the Go module name for the repository (e.g., "github.com/GoogleCloudPlatform/khi").
