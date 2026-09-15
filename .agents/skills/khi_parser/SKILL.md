@@ -188,7 +188,7 @@ func ExtractK8sAuditLog(ctx context.Context, reader *structured.NodeReader) (K8s
  if mock, ok := structured.GetMock[K8sAuditLogFieldSet](reader); ok {
   return mock, nil
  }
- if extractor, found := coretask.GetTaskResultOptional(ctx, K8sAuditLogExtractorRef); found && extractor != nil {
+ if extractor, found := coretask.GetOptionalTaskResult(ctx, K8sAuditLogExtractorRef); found && extractor != nil {
   return extractor(reader)
  }
  return K8sAuditLogFieldSet{}, nil
