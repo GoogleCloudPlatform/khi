@@ -23,9 +23,9 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	gkecluster_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gke/impl"
+	gkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gkeonaws/impl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
-	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gke/impl"
-	googlecloudclustergkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gkeonaws/impl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
@@ -77,7 +77,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "with valid cluster name under GKE prefix task",
 			Input:         "foo-cluster",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, googlecloudclustergke_impl.GKEClusterNamePrefixTask},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, gkecluster_impl.GKEClusterNamePrefixTask},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          k8scommon.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -95,7 +95,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "with valid cluster name under AWS prefix task",
 			Input:         "foo-cluster",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockAWSClusterNamesTask, googlecloudclustergkeonaws_impl.AnthosOnAWSClusterNamePrefixTask},
+			Dependencies:  []coretask.UntypedTask{mockAWSClusterNamesTask, gkeonaws_impl.AnthosOnAWSClusterNamePrefixTask},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          k8scommon.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -114,7 +114,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "spaces around cluster name must be trimmed",
 			Input:         "  foo-cluster   ",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, googlecloudclustergke_impl.GKEClusterNamePrefixTask},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, gkecluster_impl.GKEClusterNamePrefixTask},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          k8scommon.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -132,7 +132,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "invalid cluster name",
 			Input:         "An invalid cluster name",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, googlecloudclustergke_impl.GKEClusterNamePrefixTask},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, gkecluster_impl.GKEClusterNamePrefixTask},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          k8scommon.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -151,7 +151,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "non existing cluster should show a hint",
 			Input:         "nonexisting-cluster",
 			ExpectedValue: "nonexisting-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, googlecloudclustergke_impl.GKEClusterNamePrefixTask},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, gkecluster_impl.GKEClusterNamePrefixTask},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          k8scommon.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",

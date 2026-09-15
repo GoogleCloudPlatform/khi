@@ -25,26 +25,26 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // caiGKEInitialResourceStateProvider serves initial states of GKE clusters and node pools from CAI.
 type caiGKEInitialResourceStateProvider struct {
-	clusters  map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState
-	nodePools map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState
+	clusters  map[string]*gkeapiaudit.InitialResourceState
+	nodePools map[string]*gkeapiaudit.InitialResourceState
 }
 
-var _ googlecloudloggkeapiaudit_contract.InitialResourceStateProvider = (*caiGKEInitialResourceStateProvider)(nil)
+var _ gkeapiaudit.InitialResourceStateProvider = (*caiGKEInitialResourceStateProvider)(nil)
 
-// ClusterInitialState implements googlecloudloggkeapiaudit_contract.InitialResourceStateProvider.
-func (p *caiGKEInitialResourceStateProvider) ClusterInitialState(clusterName string) (*googlecloudloggkeapiaudit_contract.InitialResourceState, bool) {
+// ClusterInitialState implements gkeapiaudit.InitialResourceStateProvider.
+func (p *caiGKEInitialResourceStateProvider) ClusterInitialState(clusterName string) (*gkeapiaudit.InitialResourceState, bool) {
 	state, found := p.clusters[clusterName]
 	return state, found
 }
 
-// NodePoolInitialState implements googlecloudloggkeapiaudit_contract.InitialResourceStateProvider.
-func (p *caiGKEInitialResourceStateProvider) NodePoolInitialState(clusterName, nodePoolName string) (*googlecloudloggkeapiaudit_contract.InitialResourceState, bool) {
+// NodePoolInitialState implements gkeapiaudit.InitialResourceStateProvider.
+func (p *caiGKEInitialResourceStateProvider) NodePoolInitialState(clusterName, nodePoolName string) (*gkeapiaudit.InitialResourceState, bool) {
 	state, found := p.nodePools[nodePoolKey(clusterName, nodePoolName)]
 	return state, found
 }
@@ -55,8 +55,8 @@ func nodePoolKey(clusterName, nodePoolName string) string {
 
 // newCAIGKEInitialResourceStateProvider extracts active cluster and nodepool initial states at queryStartTime.
 func newCAIGKEInitialResourceStateProvider(snapshots []*caik8s.GKEResourceSnapshot, queryStartTime time.Time) *caiGKEInitialResourceStateProvider {
-	clusters := map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{}
-	nodePools := map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{}
+	clusters := map[string]*gkeapiaudit.InitialResourceState{}
+	nodePools := map[string]*gkeapiaudit.InitialResourceState{}
 
 	for _, s := range snapshots {
 		if s == nil || s.TemporalAsset == nil || s.TemporalAsset.Asset == nil {
@@ -95,7 +95,7 @@ func newCAIGKEInitialResourceStateProvider(snapshots []*caik8s.GKEResourceSnapsh
 			continue
 		}
 
-		initialState := &googlecloudloggkeapiaudit_contract.InitialResourceState{
+		initialState := &gkeapiaudit.InitialResourceState{
 			ResourceBody: resourceBody,
 		}
 
@@ -114,16 +114,16 @@ func newCAIGKEInitialResourceStateProvider(snapshots []*caik8s.GKEResourceSnapsh
 
 // GKEInitialResourceStateProviderTask supplies initial GKE resource manifests to the audit log parser.
 var GKEInitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
-	taskid.NewImplementationID(googlecloudloggkeapiaudit_contract.InitialResourceStateProviderRef, "cai"),
+	taskid.NewImplementationID(gkeapiaudit.InitialResourceStateProviderRef, "cai"),
 	[]coretask.Dependency{
 		caik8s.GKEResourceFetcherTaskID.Ref(),
 		gcpcommon.InputStartTimeTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (googlecloudloggkeapiaudit_contract.InitialResourceStateProvider, error) {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (gkeapiaudit.InitialResourceStateProvider, error) {
 		if taskMode == inspectioncore.TaskModeDryRun {
 			return &caiGKEInitialResourceStateProvider{
-				clusters:  map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{},
-				nodePools: map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{},
+				clusters:  map[string]*gkeapiaudit.InitialResourceState{},
+				nodePools: map[string]*gkeapiaudit.InitialResourceState{},
 			}, nil
 		}
 		snapshots := coretask.GetTaskResult(ctx, caik8s.GKEResourceFetcherTaskID.Ref())

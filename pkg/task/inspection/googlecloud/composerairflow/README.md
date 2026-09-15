@@ -1,6 +1,6 @@
-# Cloud Composer Inspection Tasks
+# Cloud Composer Airflow Inspection Tasks
 
-This package (`googlecloudclustercomposer`) contains the tasks for inspecting Google Cloud Composer environments. It performs environment discovery, log fetching, filtering, parsing, and mapping into Kubernetes History Inspector (KHI) timeline events.
+This package (`googlecloud/composerairflow`) and its cluster definition counterpart (`googlecloud/cluster/composer`) contain the tasks for inspecting Google Cloud Composer environments. It performs environment discovery, log fetching, filtering, parsing, and mapping into Kubernetes History Inspector (KHI) timeline events.
 
 ## Task Overview
 

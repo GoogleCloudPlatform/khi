@@ -73,15 +73,15 @@ var _ inspectiontaskbase.LogIngester = (*MyLogIngester)(nil)
 > [!IMPORTANT]
 > **Package Boundaries:**
 >
-> - **TaskID** definitions (e.g., `LogIngesterTaskIDV2`) MUST be defined in the `contract` package.
-> - **Task Implementation** instantiations (e.g., `NewLogIngesterTask`) MUST be placed in the `impl` package.
+> - **TaskID** definitions (e.g., `LogIngesterTaskID`) MUST be defined in the feature root package (`pkg/task/inspection/<provider>/<feature>`).
+> - **Task Implementation** instantiations (e.g., `NewLogIngesterTask`) MUST be placed in the `impl` subpackage (`pkg/task/inspection/<provider>/<feature>/impl`).
 
 ```go
-// Defined in 'contract' package:
+// Defined in feature root package (e.g. package myfeature):
 var MyLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("my-log-ingester")
 
-// Instantiated in 'impl' package:
-task := NewLogIngesterTask(mycontract.MyLogIngesterTaskID, &MyLogIngester{})
+// Instantiated in 'impl' package (e.g. package myfeature_impl):
+task := NewLogIngesterTask(myfeature.MyLogIngesterTaskID, &MyLogIngester{})
 // Register task to core runner...
 ```
 
@@ -112,18 +112,18 @@ func (m *ComplexMapper) PreProcessLogByGroup(ctx context.Context, passIndex int,
 
 func (m *ComplexMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData MyState) (*khifilev6.TimelineChangeSet, MyState, error) {
  // 1. Retrieve field data using extractor function.
- customSet, err := mycontract.ExtractCustom(l.NodeReader)
+ customSet, err := myfeature.ExtractCustom(l.NodeReader)
  if err != nil {
   return nil, prevGroupData, err
  }
 
  // 2. Retrieve the Builder from context.
- builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+ builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
  // 3. Resolve target path dynamically using the accumulator facade.
  targetPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
   Name: "complex-timeline",
-  Type: mycontract.TimelineTypeComplex, // Timeline styles should be imported from contract package
+  Type: myfeature.TimelineTypeComplex, // Timeline styles should be imported from feature root package
  })
 
  cs := khifilev6.NewTimelineChangeSet(l)
@@ -134,7 +134,7 @@ func (m *ComplexMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevG
    ChangedTime:  l.Timestamp,
    ResourceBody: customSet.Body,
    Principal:    customSet.Principal,
-   VerbType:     mycontract.VerbCreate,
+   VerbType:     myfeature.VerbCreate,
   })
  }
 
@@ -160,7 +160,7 @@ type StateTrackingMapper struct {
 
 func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData MyState) (*khifilev6.TimelineChangeSet, MyState, error) {
  // 1. Retrieve field data using extractor function.
- customSet, err := mycontract.ExtractCustom(l.NodeReader)
+ customSet, err := myfeature.ExtractCustom(l.NodeReader)
  if err != nil {
   return nil, prevGroupData, err
  }
@@ -169,12 +169,12 @@ func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
  nextState := updateState(prevGroupData, customSet)
 
  // 3. Retrieve the Builder from context.
- builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+ builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
  // 4. Resolve target path dynamically using the accumulator facade.
  targetPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
   Name: "stateful-revision-timeline",
-  Type: mycontract.TimelineTypeStateful,
+  Type: myfeature.TimelineTypeStateful,
  })
 
  cs := khifilev6.NewTimelineChangeSet(l)
@@ -184,7 +184,7 @@ func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
   ChangedTime:  l.Timestamp,
   ResourceBody: customSet.Body,
   Principal:    customSet.Principal,
-  VerbType:     mycontract.VerbUpdate,
+  VerbType:     myfeature.VerbUpdate,
  })
 
  return cs, nextState, nil
@@ -209,12 +209,12 @@ type SimpleEventMapper struct {
 
 func (m *SimpleEventMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
  // 1. Retrieve the Builder from context.
- builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+ builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
  // 2. Resolve target path dynamically.
  targetPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
   Name: "simple-event-timeline",
-  Type: mycontract.TimelineTypeEvent,
+  Type: myfeature.TimelineTypeEvent,
  })
 
  cs := khifilev6.NewTimelineChangeSet(l)
@@ -234,15 +234,15 @@ var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*SimpleEventMapper)(ni
 > [!IMPORTANT]
 > **Package Boundaries:**
 >
-> - **TaskID** definitions (e.g., `LogToTimelineMapperTaskIDV2`) MUST be defined in the `contract` package.
-> - **Task Implementation** instantiations (e.g., `NewLogToTimelineMapperTask`) MUST be placed in the `impl` package.
+> - **TaskID** definitions (e.g., `LogToTimelineMapperTaskID`) MUST be defined in the feature root package.
+> - **Task Implementation** instantiations (e.g., `NewLogToTimelineMapperTask`) MUST be placed in the `impl` subpackage.
 
 ```go
-// Defined in 'contract' package:
+// Defined in feature root package:
 var MyTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}]("my-timeline-mapper")
 
 // Instantiated in 'impl' package:
-task := NewLogToTimelineMapperTask(mycontract.MyTimelineMapperTaskID, &SimpleEventMapper{})
+task := NewLogToTimelineMapperTask(myfeature.MyTimelineMapperTaskID, &SimpleEventMapper{})
 // Register task to core runner...
 ```
 
@@ -313,10 +313,10 @@ func TestMyTimelineMapper_ProcessLogByGroup(t *testing.T) {
  builder := khifilev6.NewBuilder()
 
  // 2. Resolve comparative path instances using the Builder's accumulator.
- // TimelineTypes must be imported from the contract package.
+ // TimelineTypes must be imported from the feature root package.
  resourceTimelinePath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
   Name: "resource-timeline",
-  Type: mycontract.TimelineTypeResource,
+  Type: myfeature.TimelineTypeResource,
  })
 
  testCases := []struct {
@@ -338,7 +338,7 @@ func TestMyTimelineMapper_ProcessLogByGroup(t *testing.T) {
     testchangeset.AssertTimeline(t, cs).
      HasEvent(resourceTimelinePath).
      HasRevision(resourceTimelinePath, &khifilev6.StagingRevision{
-      VerbType: mycontract.VerbCreate,
+      VerbType: myfeature.VerbCreate,
      })
    },
   },
@@ -363,7 +363,7 @@ func TestMyTimelineMapper_ProcessLogByGroup(t *testing.T) {
  for _, tc := range testCases {
   t.Run(tc.name, func(t *testing.T) {
    // 3. Set up the context using t.Context() and SAME builder instance.
-   ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+   ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
    cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, tc.prevState)
    if err != nil {

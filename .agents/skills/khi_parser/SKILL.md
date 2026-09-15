@@ -13,21 +13,21 @@ This guide outlines the patterns, package boundaries, implementation steps, and 
 
 When implementing a new log parser or modifying an existing one, you MUST separate the **contract** (IDs, public types, and configurations) from the **implementation** (the actual task logic). This guarantees that task IDs are fully initialized before implementation and prevents circular import dependencies.
 
-The parser package must reside under `pkg/task/inspection/` and adhere to the following structure:
+The parser package must reside under `pkg/task/inspection/<provider>/<feature>/` (e.g., `pkg/task/inspection/googlecloud/k8snode/`) and adhere to the following structure:
 
 ```plaintext
-pkg/task/inspection/<log_type_name>/
-├── contract/
-│   ├── taskid.go          // Defines all TaskIDs and TaskReferences.
-│   ├── extractor.go       // (Optional) Defines field extraction functions and strongly-typed data structs.
-│   ├── timeline_type.go   // (Optional) Defines timeline types and verb types.
-│   ├── timeline_path.go   // (Optional) Helper functions to build hierarchical paths.
-│   └── log_type.go        // (Optional) Defines log-specific types or constants.
-└── impl/
-    ├── form_task.go       // (Optional) Implements form-related parameter tasks.
-    ├── query_task.go      // (Optional) Implements log query/filter tasks.
-    ├── ingester_task.go   // (Optional) Implements the LogIngester task.
-    ├── <name>_mapper.go   // (Optional) Implements LogToTimelineMapper tasks (can be multiple).
+pkg/task/inspection/<provider>/<feature>/
+├── taskid.go          // Defines all TaskIDs and TaskReferences (package <feature>).
+├── extractor.go       // (Optional) Defines field extraction functions and strongly-typed data structs.
+├── timeline_type.go   // (Optional) Defines timeline types and verb types.
+├── timeline_path.go   // (Optional) Helper functions to build hierarchical paths.
+├── log_type.go        // (Optional) Defines log-specific types or constants.
+└── impl/              // Package <feature>_impl
+    ├── form.go            // (Optional) Implements form-related parameter tasks.
+    ├── query.go           // (Optional) Implements log query/filter tasks.
+    ├── ingester.go        // (Optional) Implements the LogIngester task.
+    ├── grouper.go         // (Optional) Implements the LogGrouper task.
+    ├── mapper.go          // (Optional) Implements LogToTimelineMapper tasks (or mapper_<target>.go).
     └── registration.go    // Implements task registration to the KHI registry.
 ```
 
@@ -35,9 +35,10 @@ pkg/task/inspection/<log_type_name>/
 
 > [!IMPORTANT]
 >
-> - **Contract Package (`contract/`)**: MUST NOT import the `impl` package. External packages can freely import the `contract` package to depend on parser task IDs, Extractor functions, or TimelineType constants.
-> - **Implementation Package (`impl/`)**: Implements the actual tasks. It imports the `contract` package. **External packages MUST NOT import the `impl` package.**
-> - **Registration**: Tasks inside the `impl` package are registered through `impl/registration.go`. There is no root-level `registration.go` file in this directory.
+> - **Contract / Root Package (`pkg/task/inspection/<provider>/<feature>`)**: Uses `package <feature>` (no `_contract` suffix). MUST NOT import the `impl` package. External packages can freely import the root package to depend on parser task IDs, Extractor functions, or TimelineType constants.
+> - **Implementation Package (`impl/`)**: Uses `package <feature>_impl`. Implements the actual tasks and imports the parent contract package. **External packages MUST NOT import the `impl` package.**
+> - **File Naming**: Do NOT append redundant `_task.go` or `_tasks.go` suffixes to filenames in `impl/`. Name files strictly by their DAG pipeline role (`form.go`, `query.go`, `ingester.go`, `grouper.go`, `mapper.go` or `mapper_<target>.go`, `registration.go`).
+> - **Registration**: Tasks inside the `impl` package are registered through `impl/registration.go`.
 
 ---
 
@@ -64,7 +65,7 @@ Exposes interactive input fields (e.g., text boxes, multi-select checkboxes) to 
 
 Queries logs from the data source (e.g., Google Cloud Logging or local files) using parameters provided by the Form tasks.
 
-- **Utility:** `googlecloudcommon_contract.NewListLogEntriesTask` (for any logs on Cloud Logging) or `inspection_task.NewInspectionTask`.
+- **Utility:** `gcpcommon.NewListLogEntriesTask` (for any logs on Cloud Logging) or `inspection_task.NewInspectionTask`.
 - **Google Cloud API Calling:** When calling Google Cloud APIs directly or through fetchers, refer to [googlecloud-api](skill://googlecloud-api) for mandatory `CallOptionInjector` usage and client configuration.
 
 ### Step 3: Log Ingestion Tasks
@@ -84,16 +85,16 @@ Extracts information directly from the log's `NodeReader` using Extractor functi
 
 ## 3. Step-by-Step Implementation Code Samples
 
-Let's look at a concrete example of supporting a custom log type called `customapp`.
+Let's look at a concrete example of supporting a custom log type called `customapp` under `pkg/task/inspection/googlecloud/customapp/`.
 
-### A. The Contract Package (`pkg/task/inspection/customapp/contract/`)
+### A. The Contract Package (`pkg/task/inspection/googlecloud/customapp/`)
 
 #### `taskid.go`
 
 Defines the TaskIDs and TaskReferences for the pipeline steps.
 
 ```go
-package customapp_contract
+package customapp
 
 import (
  inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
@@ -132,7 +133,7 @@ Defines the strongly-typed data structures and extraction functions.
 Used when the log format is fixed to a single ingest format (e.g., GKE Autoscaler, serial port, K8s control plane).
 
 ```go
-package customapp_contract
+package customapp
 
 import (
  "github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -171,7 +172,7 @@ Used when the same log entity can originate from different sources with distinct
 The common contract defines an extractor function type and a wrapper function that retrieves the task-injected extractor from context:
 
 ```go
-package commonlogk8saudit_contract
+package k8saudit
 
 import (
  "context"
@@ -200,7 +201,7 @@ func ExtractK8sAuditLog(ctx context.Context, reader *structured.NodeReader) (K8s
 Defines custom timeline types and resource verbs.
 
 ```go
-package customapp_contract
+package customapp
 
 import (
  "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
@@ -231,7 +232,7 @@ var (
 Defines custom log types.
 
 ```go
-package customapp_contract
+package customapp
 
 import (
  "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
@@ -252,26 +253,26 @@ var (
 
 Defines helper functions to build hierarchical timeline paths.
 
-For custom application timelines, you can define helpers to construct paths consistently. If your custom application runs as part of a Kubernetes Pod, you can build a sub-timeline path nested directly under the standard Kubernetes Pod timeline by referencing standard K8s timeline types from `inspectioncore_contract`.
+For custom application timelines, you can define helpers to construct paths consistently. If your custom application runs as part of a Kubernetes Pod, you can build a sub-timeline path nested directly under the standard Kubernetes Pod timeline by referencing standard K8s timeline types from `inspectioncore`.
 
 - MustXXXTimeline func must receive the context as its first argument.
 - If the MustXXXTimeline func isn't for a root timeline, it must receive the parent timeline path as its second argument.
 
 ```go
-package customapp_contract
+package customapp
 
 import (
  "context"
 
  "github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
  khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
- inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustCustomAppTimeline returns the hierarchical timeline path for a standalone Custom App.
 // Constructs a path like: customapp/<appName>
 func MustCustomAppTimeline(ctx context.Context, appName string) *khifilev6.TimelinePath {
- builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+ builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
  return builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
   Name: appName,
   Type: TimelineTypeCustomApp,
@@ -281,11 +282,11 @@ func MustCustomAppTimeline(ctx context.Context, appName string) *khifilev6.Timel
 // MustCustomAppPodTimeline returns the hierarchical timeline path for Custom App logs nested under a Pod.
 // Constructs a path like: <apiVersion>/<kind>/<namespace>/<podName>/customapp
 func MustCustomAppPodTimeline(ctx context.Context, podTimelinePath *khifilev6.TimelinePath) *khifilev6.TimelinePath {
-  if podTimelinePath == nil || podTimelinePath.Type.GetId() != inspectioncore_contract.TimelineTypeResource.GetId() {
+  if podTimelinePath == nil || podTimelinePath.Type.GetId() != inspectioncore.TimelineTypeResource.GetId() {
   panic("parent timeline path must be Resource type")
  }
 
- builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+ builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
  return builder.TimelineAccumulator.GetPath(podTimelinePath, khifilev6.PathSegment{
   Name: "customapp",
   Type: TimelineTypeCustomApp,
@@ -295,9 +296,9 @@ func MustCustomAppPodTimeline(ctx context.Context, podTimelinePath *khifilev6.Ti
 
 ---
 
-### B. The Implementation Package (`pkg/task/inspection/customapp/impl/`)
+### B. The Implementation Package (`pkg/task/inspection/googlecloud/customapp/impl/`)
 
-#### `form_task.go` (Step 1)
+#### `form.go` (Step 1)
 
 Implements form tasks to get user-defined input.
 
@@ -308,15 +309,15 @@ import (
  "context"
 
  "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
- customapp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/customapp/contract"
- googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/customapp"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
-const formPriority = googlecloudcommon_contract.FormBasePriority + 5000
+const formPriority = gcpcommon.FormBasePriority + 5000
 
 // InputFilterKeywordTask defines a text input form task for filtering logs.
 var InputFilterKeywordTask = formtask.NewTextFormTaskBuilder(
- customapp_contract.InputFilterKeywordTaskID,
+ customapp.InputFilterKeywordTaskID,
  formPriority,
  "Filter Keyword",
 ).
@@ -330,7 +331,7 @@ var InputFilterKeywordTask = formtask.NewTextFormTaskBuilder(
  Build()
 ```
 
-#### `query_task.go` (Step 2)
+#### `query.go` (Step 2)
 
 Implements querying logs from Google Cloud Logging based on parameters.
 
@@ -345,44 +346,44 @@ import (
  "github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 
  "github.com/GoogleCloudPlatform/khi/pkg/model/log"
- googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
- googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
- customapp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/customapp/contract"
- inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/customapp"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LogQueryTask executes Cloud Logging filter to fetch logs.
-var LogQueryTask = googlecloudcommon_contract.NewListLogEntriesTask(&customAppLogQueryTaskSetting{})
+var LogQueryTask = gcpcommon.NewListLogEntriesTask(&customAppLogQueryTaskSetting{})
 
 type customAppLogQueryTaskSetting struct{}
 
 func (s *customAppLogQueryTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
- return customapp_contract.LogQueryTaskID
+ return customapp.LogQueryTaskID
 }
 
 func (s *customAppLogQueryTaskSetting) Dependencies() []taskid.UntypedTaskReference {
  return []taskid.UntypedTaskReference{
-  googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
-  customapp_contract.InputFilterKeywordTaskID.Ref(),
+  k8scommon.ClusterIdentityTaskID.Ref(),
+  customapp.InputFilterKeywordTaskID.Ref(),
  }
 }
 
-func (s *customAppLogQueryTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
- return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
+func (s *customAppLogQueryTaskSetting) Description() *gcpcommon.ListLogEntriesTaskDescription {
+ return &gcpcommon.ListLogEntriesTaskDescription{
 
   QueryName:      "Custom App logs",
   ExampleQuery:   `resource.type="gke_cluster" AND log_id("custom-app")`,
  }
 }
 
-func (s *customAppLogQueryTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
- keyword := coretask.GetTaskResult(ctx, customapp_contract.InputFilterKeywordTaskID.Ref())
+func (s *customAppLogQueryTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
+ keyword := coretask.GetTaskResult(ctx, customapp.InputFilterKeywordTaskID.Ref())
  query := fmt.Sprintf(`resource.type="gke_cluster" AND log_id("custom-app") AND textPayload:"%s"`, keyword)
  return []string{query}, nil
 }
 
 func (s *customAppLogQueryTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
- clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
+ clusterIdentity := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
  return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
@@ -390,10 +391,10 @@ func (s *customAppLogQueryTaskSetting) TimePartitionCount(ctx context.Context) (
  return 5, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*customAppLogQueryTaskSetting)(nil)
+var _ gcpcommon.ListLogEntriesTaskSetting = (*customAppLogQueryTaskSetting)(nil)
 ```
 
-#### `parser_tasks.go` (Steps 3, 4)
+#### `mapper.go` (Steps 3, 4)
 
 Defines log ingestion, log grouping, and timeline mapping.
 
@@ -410,16 +411,15 @@ import (
  khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 
  "github.com/GoogleCloudPlatform/khi/pkg/model/log"
- customapp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/customapp/contract"
- googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
- inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/customapp"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // CustomAppLogIngester V2 LogIngester (Step 3).
 type CustomAppLogIngester struct{}
 
 func (i *CustomAppLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
- return customapp_contract.LogQueryTaskID.Ref()
+ return customapp.LogQueryTaskID.Ref()
 }
 
 func (i *CustomAppLogIngester) Dependencies() []taskid.UntypedTaskReference {
@@ -432,13 +432,13 @@ func (i *CustomAppLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
   return nil, err
  }
 
- cs.SetLogType(customapp_contract.LogTypeCustomApp)
+ cs.SetLogType(customapp.LogTypeCustomApp)
  // Usually l.Timestamp from ingestion is used. However, if the log contains its own
  // custom payload field with a more precise timestamp, extract and set that instead.
  cs.SetTimestamp(l.Timestamp)
 
  // Extract custom fields to generate summary.
- if customFS, err := customapp_contract.ExtractCustomApp(l.NodeReader); err == nil {
+ if customFS, err := customapp.ExtractCustomApp(l.NodeReader); err == nil {
   cs.SetSummary(fmt.Sprintf("[%s] %s", customFS.AppName, customFS.Payload))
  }
 
@@ -446,16 +446,16 @@ func (i *CustomAppLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
 }
 
 var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
- customapp_contract.LogIngesterTaskID,
+ customapp.LogIngesterTaskID,
  &CustomAppLogIngester{},
 )
 
 // LogGrouperTask groups logs by AppName (helper for Step 4).
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
- customapp_contract.LogGrouperTaskID,
- customapp_contract.LogQueryTaskID.Ref(),
+ customapp.LogGrouperTaskID,
+ customapp.LogQueryTaskID.Ref(),
  func(ctx context.Context, l *log.Log) string {
-  if customFS, err := customapp_contract.ExtractCustomApp(l.NodeReader); err == nil {
+  if customFS, err := customapp.ExtractCustomApp(l.NodeReader); err == nil {
    return customFS.AppName
   }
   return "unknown-app"
@@ -468,7 +468,7 @@ type CustomAppTimelineMapper struct {
 }
 
 func (m *CustomAppTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
- return customapp_contract.LogIngesterTaskID.Ref()
+ return customapp.LogIngesterTaskID.Ref()
 }
 
 func (m *CustomAppTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
@@ -476,19 +476,19 @@ func (m *CustomAppTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 }
 
 func (m *CustomAppTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
- return customapp_contract.LogGrouperTaskID.Ref()
+ return customapp.LogGrouperTaskID.Ref()
 }
 
 func (m *CustomAppTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
- customFS, err := customapp_contract.ExtractCustomApp(l.NodeReader)
+ customFS, err := customapp.ExtractCustomApp(l.NodeReader)
  if err != nil {
   return nil, struct{}{}, err
  }
 
- builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentV6Builder)
+ builder := khictx.MustGetValue(ctx, inspectioncore.CurrentV6Builder)
  targetPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
   Name: customFS.AppName,
-  Type: customapp_contract.TimelineTypeCustomApp,
+  Type: customapp.TimelineTypeCustomApp,
  })
 
  cs := khifilev6.NewTimelineChangeSet(l)
@@ -497,16 +497,16 @@ func (m *CustomAppTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.
  cs.AddRevision(targetPath, &khifilev6.StagingRevision{
   ChangedTime:  l.Timestamp,
   ResourceBody: customFS.Payload,
-  VerbType:     customapp_contract.VerbCustomAppProcess,
+  VerbType:     customapp.VerbCustomAppProcess,
  })
 
  return cs, struct{}{}, nil
 }
 
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
- customapp_contract.LogToTimelineMapperTaskID,
+ customapp.LogToTimelineMapperTaskID,
  &CustomAppTimelineMapper{},
- inspectioncore_contract.FeatureTaskLabel(
+ inspectioncore.FeatureTaskLabel(
   "Custom App Logs",
   "Parser and timeline mapping for Custom App logs.",
   9000,
@@ -543,7 +543,7 @@ import (
  pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
  khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
  "github.com/GoogleCloudPlatform/khi/pkg/model/log"
- commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
 type MyState struct {
@@ -552,7 +552,7 @@ type MyState struct {
 
 type MyManifestMapper struct {
  // Embeds single pass helper.
- commonlogk8saudit_contract.ManifestSinglePassMapperBase[*MyState]
+ k8saudit.ManifestSinglePassMapperBase[*MyState]
 }
 
 func (m *MyManifestMapper) TaskID() taskid.TaskImplementationID[struct{}] {
@@ -560,11 +560,11 @@ func (m *MyManifestMapper) TaskID() taskid.TaskImplementationID[struct{}] {
 }
 
 func (m *MyManifestMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
- return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
+ return k8saudit.K8sAuditLogIngesterTaskID.Ref()
 }
 
-func (m *MyManifestMapper) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
- return commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID.Ref()
+func (m *MyManifestMapper) GroupedLogTask() taskid.TaskReference[k8saudit.ResourceManifestLogGroupMap] {
+ return k8saudit.ResourceLifetimeTrackerTaskID.Ref()
 }
 
 func (m *MyManifestMapper) Dependencies() []taskid.UntypedTaskReference {
@@ -572,13 +572,13 @@ func (m *MyManifestMapper) Dependencies() []taskid.UntypedTaskReference {
 }
 
 // ResolveRelatedGroupSets groups a parent resource (source) and its subresource (target) together.
-func (m *MyManifestMapper) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
- result := []commonlogk8saudit_contract.RelatedGroupSet{}
+func (m *MyManifestMapper) ResolveRelatedGroupSets(ctx context.Context, groupedLogs k8saudit.ResourceManifestLogGroupMap) ([]k8saudit.RelatedGroupSet, error) {
+ result := []k8saudit.RelatedGroupSet{}
  for _, group := range groupedLogs {
-  if group.Resource.Type() == commonlogk8saudit_contract.Subresource {
+  if group.Resource.Type() == k8saudit.Subresource {
    parentGroup := groupedLogs[group.Resource.ParentIdentity().ResourcePathString()]
-   result = append(result, commonlogk8saudit_contract.RelatedGroupSet{
-    Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+   result = append(result, k8saudit.RelatedGroupSet{
+    Roles: map[string]*k8saudit.ResourceManifestLogGroup{
      "source": parentGroup,
      "target": group,
     },
@@ -589,7 +589,7 @@ func (m *MyManifestMapper) ResolveRelatedGroupSets(ctx context.Context, groupedL
 }
 
 // ProcessLog processes chronologically merged events.
-func (m *MyManifestMapper) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state *MyState) (*khifilev6.TimelineChangeSet, *MyState, error) {
+func (m *MyManifestMapper) ProcessLog(ctx context.Context, event k8saudit.MultiGroupLogEvent, state *MyState) (*khifilev6.TimelineChangeSet, *MyState, error) {
  if state == nil {
   state = &MyState{}
  }
@@ -597,13 +597,13 @@ func (m *MyManifestMapper) ProcessLog(ctx context.Context, event commonlogk8saud
  cs := khifilev6.NewTimelineChangeSet(event.Log)
 
  // Handle parent deletion event to propagate deletion to the subresource.
- if event.GroupRole == "source" && event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
+ if event.GroupRole == "source" && event.EventType == k8saudit.ChangeEventTypeDeletion {
   targetGroup := event.GroupSet.Roles["target"]
   targetPath := MustResolveTimelinePath(ctx, targetGroup.Resource)
 
   cs.AddRevision(targetPath, &khifilev6.StagingRevision{
    ChangedTime: time.Now(),
-   StateType:   commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+   StateType:   k8saudit.RevisionStateK8sResourceIsDeleted,
   })
   state.WasDeleted = true
  }
@@ -611,7 +611,7 @@ func (m *MyManifestMapper) ProcessLog(ctx context.Context, event commonlogk8saud
  return cs, state, nil
 }
 
-var _ commonlogk8saudit_contract.ManifestLogToTimelineMapper[*MyState] = (*MyManifestMapper)(nil)
+var _ k8saudit.ManifestLogToTimelineMapper[*MyState] = (*MyManifestMapper)(nil)
 ```
 
 #### `registration.go`
@@ -747,7 +747,7 @@ To unit test a concrete mapper task implementing `ManifestLogToTimelineMapper[T]
 The test setup requires:
 
 1. **v6 Builder Initialization**: Instantiate a `khifilev6.Builder` and construct the expected `TimelinePath` instances.
-2. **Context Injection**: Inject the builder into the test context utilizing `khictx.WithValue` and the key `inspectioncore_contract.Builder`.
+2. **Context Injection**: Inject the builder into the test context utilizing `khictx.WithValue` and the key `inspectioncore.Builder`.
 3. **Mock Event Construction**: Manually instantiate a `MultiGroupLogEvent` with mock logs and roles, and supply a mock `RelatedGroupSet` if testing body-reference lookups.
 4. **Fluent ChangeSet Assertions**: Verify the generated timelines using the fluent asserter utility `testchangeset.AssertTimeline`.
 
@@ -759,11 +759,11 @@ This example isolates and tests the `MyManifestMapper` defined in Section 3.C.
 func TestMyManifestMapper_ProcessLog(t *testing.T) {
  // 1. Set up the mock Builder and construct comparison paths hierarchically.
  builder := khifilev6.NewBuilder()
- cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
- api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
- kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
- ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
- pod := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore_contract.TimelineTypeResource})
+ cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+ api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+ kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+ ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+ pod := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore.TimelineTypeResource})
  targetPath := builder.TimelineAccumulator.GetPath(pod, khifilev6.PathSegment{Name: "binding", Type: TimelineTypeSubresource})
 
  testCases := []struct {
@@ -797,7 +797,7 @@ func TestMyManifestMapper_ProcessLog(t *testing.T) {
     // Verify the generated staged revisions using fluent assertions.
     testchangeset.AssertTimeline(t, cs).
      HasRevision(targetPath, &khifilev6.StagingRevision{
-      StateType: commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+      StateType: k8saudit.RevisionStateK8sResourceIsDeleted,
      })
 
     // Verify that state changes are correctly tracked.
@@ -812,7 +812,7 @@ func TestMyManifestMapper_ProcessLog(t *testing.T) {
  for _, tc := range testCases {
   t.Run(tc.name, func(t *testing.T) {
    // 2. Inject the SAME Builder instance into context.
-   ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+   ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
    // 3. Call ProcessLog directly.
    cs, nextState, err := mapper.ProcessLog(ctx, tc.event, tc.prevState)

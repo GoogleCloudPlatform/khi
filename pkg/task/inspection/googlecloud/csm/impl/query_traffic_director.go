@@ -1,0 +1,120 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package csm_impl
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"strings"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+)
+
+// GenerateCSMTrafficDirectorStructuredQuery generates a structured query for CSM Traffic Director logs.
+func GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID string, clusterIdentifiers []string, isDryRun bool) *logestimator.StructuredLogQuery {
+	if isDryRun {
+		clusterIdentifiers = []string{"dummy"}
+	}
+	if len(clusterIdentifiers) == 0 {
+		return nil
+	}
+
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(fleetProjectID)),
+		logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
+	}
+
+	switch {
+	case isDryRun:
+		filters = append(filters, logestimator.CustomFilter(`protoPayload.resourceName:"gsmrsvd-dummy" -- The actual resource name selector will be generated from other logs in the middle of the pipeline.`))
+	case len(clusterIdentifiers) == 1:
+		filters = append(filters, logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"gsmrsvd-%s"`, clusterIdentifiers[0])))
+	default:
+		quotedIdentifiers := make([]string, len(clusterIdentifiers))
+		for i, id := range clusterIdentifiers {
+			quotedIdentifiers[i] = fmt.Sprintf(`"gsmrsvd-%s"`, id)
+		}
+		filters = append(filters, logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:(%s)`, strings.Join(quotedIdentifiers, " OR "))))
+	}
+
+	return &logestimator.StructuredLogQuery{
+		Incomplete: fleetProjectID == "",
+		Filters:    filters,
+	}
+}
+
+type CSMTrafficDirectorListLogEntryTaskSetting struct{}
+
+// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (s *CSMTrafficDirectorListLogEntryTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	fleetProjectID := coretask.GetTaskResult(ctx, csm.InputFleetProjectIDTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", fleetProjectID)}, nil
+}
+
+// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (s *CSMTrafficDirectorListLogEntryTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
+		csm.InputFleetProjectIDTaskID.Ref(),
+		csm.CSMClusterIdentifierTaskID.Ref(),
+	}
+}
+
+// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (s *CSMTrafficDirectorListLogEntryTaskSetting) QueryName() string {
+	return "CSM Traffic Director logs"
+}
+
+// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (s *CSMTrafficDirectorListLogEntryTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+	fleetProjectID := coretask.GetTaskResult(ctx, csm.InputFleetProjectIDTaskID.Ref())
+	clusterIdentifiers := coretask.GetTaskResult(ctx, csm.CSMClusterIdentifierTaskID.Ref())
+	taskMode := inspectioncore.TaskModeRun
+	if val, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode); err == nil {
+		taskMode = val
+	}
+	isDryRun := taskMode == inspectioncore.TaskModeDryRun
+
+	sq := GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID, clusterIdentifiers, isDryRun)
+	if sq == nil {
+		if !isDryRun {
+			slog.InfoContext(ctx, "No CSM BackendServices found in inventory. Skipping Traffic Director log query.")
+		}
+		return nil, nil
+	}
+
+	return []*logestimator.StructuredLogQuery{sq}, nil
+}
+
+// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (s *CSMTrafficDirectorListLogEntryTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+	return csm.ListCSMTrafficDirectorLogEntriesTaskID
+}
+
+// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (s *CSMTrafficDirectorListLogEntryTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+	return 1, nil
+}
+
+var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*CSMTrafficDirectorListLogEntryTaskSetting)(nil)
+
+var ListCSMTrafficDirectorLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&CSMTrafficDirectorListLogEntryTaskSetting{})

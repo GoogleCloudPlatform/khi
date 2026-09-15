@@ -43,18 +43,15 @@ We follow Google's Go coding standards and the conventions outlined in the root 
 - **Interfaces**: Interface names should end with `-er` or `-or` (e.g., `Reader`, `Inspector`) or be named to reflect their purpose without a specific suffix if the implementation is not important to the caller.
 - **Structs**: Structs that implement an interface should be named logically. For example, the implementation for a `Reader` interface might be `fileReader` or `gcsReader`.
 - **Packages**:
-  - Packages under `pkg/task/inspection` should follow the naming convention `[provider][resource_type]` (e.g., `googlecloudclustergke`, `ossclusterk8s`).
-    - `resource_type` should be `log[log_type]` if the task is not specific to cluster type but commonly used by multiple cluster types.
-    - `resource_type` should be `cluster[cluster_type]` if the task is specific to cluster type.
-    - Folders directly under `pkg/task/inspection` contains `impl` and `contract` folders.
-    - `impl` folder should contain the implementation of the task.
-    - `contract` folder should contain the contract of the task(Task ID and types used as results in the task).
-      - `contract` folder should not depend on `impl` folder.
-    - `contract` folder package name is `[provider][resource_type]_contract`.
-    - `impl` folder package name is `[provider][resource_type]_impl`.
-- **Task Implementation**:
-  - Task implementation files should end with `_task.go`.
-  - Task IDs should be defined in `contract/taskid.go`.
+  - Packages under `pkg/task/inspection` are grouped hierarchically by provider/domain: `pkg/task/inspection/<provider>/<feature>` (e.g., `pkg/task/inspection/googlecloud/k8snode`, `pkg/task/inspection/googlecloud/cluster/gke`, `pkg/task/inspection/common/k8saudit`, `pkg/task/inspection/oss/k8s`).
+  - The feature root directory (`pkg/task/inspection/<provider>/<feature>`) contains the contract (Task IDs, public types, extractors, timeline path helpers).
+    - Root package name is `<feature>` (e.g., `package k8snode`, `package gkecluster`).
+    - Root package must not depend on the `impl` subpackage.
+  - The `impl` subdirectory (`pkg/task/inspection/<provider>/<feature>/impl`) contains the concrete task implementations and `registration.go`.
+    - `impl` package name is `<feature>_impl` (e.g., `package k8snode_impl`, `package gkecluster_impl`).
+- **Task Implementation & File Naming**:
+  - Task implementation files in `impl/` use `snake_case` named by their DAG pipeline role without redundant `_task.go` / `_tasks.go` suffixes (e.g., `registration.go`, `form.go`, `query.go`, `ingester.go`, `grouper.go`, `mapper.go`, `mapper_<target>.go`, `discovery_<target>.go`, `inventory_<target>.go`).
+  - Task IDs should be defined in `taskid.go` at the feature package root.
 
 ## 3. Testing Strategy
 
@@ -64,7 +61,7 @@ We follow Google's Go coding standards and the conventions outlined in the root 
 - **Prefer Table-Driven Tests**: Structure tests as table-driven tests. Define a test case struct within the test function and iterate over a slice of test cases, calling `t.Run()` for each one.
   - **ChangeSet Comparison**: When testing `history.ChangeSet`, use `testchangeset.ChangeSetAsserter` and its implementations (e.g., `HasRevision`, `HasEvent`) from `pkg/testutil/testchangeset`.
 - **Test Utilities**: Use the `testutil` package for common test setup and helper functions. Avoid duplicating test logic.
-  - **Task Testing**: Use `tasktest` and `inspectiontest` packages for testing tasks. See `pkg/task/inspection/googlecloudclustergke/impl/autocompletegkeclusternames_task_test.go` for a reference implementation.
+  - **Task Testing**: Use `tasktest` and `inspectiontest` packages for testing tasks. See `pkg/task/inspection/googlecloud/k8scommon/impl/form_cluster_name_test.go` for a reference implementation.
 - **Mocks**: When testing interactions between packages, use interfaces and mock implementations.
 
 ## 4. Dependency Management

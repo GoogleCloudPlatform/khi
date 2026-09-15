@@ -1,0 +1,80 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package networkapiaudit defines the timeline path builders.
+package networkapiaudit
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+)
+
+// MustNEGTimeline returns the hierarchical timeline path for GKE NEGs under the cluster.
+// The NEG is an API resource with apiVersion "networking.gke.io/v1beta1", kind "servicenetworkendpointgroup".
+func MustNEGTimeline(ctx context.Context, clusterName string, namespace string, negName string) *khifilev6.TimelinePath {
+	if namespace == "" {
+		namespace = "unknown"
+	}
+	if negName == "" {
+		negName = "unknown"
+	}
+	clusterPath := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "networking.gke.io/v1beta1")
+	kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "servicenetworkendpointgroup")
+	nsPath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, namespace)
+	return k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsPath, negName)
+}
+
+// MustNEGOperationTimeline returns the timeline path for the GCE operation under a NEG.
+func MustNEGOperationTimeline(ctx context.Context, negPath *khifilev6.TimelinePath, methodName string, operationID string) *khifilev6.TimelinePath {
+	if negPath == nil {
+		panic("negPath must not be nil")
+	}
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+	shortMethodName := "unknown"
+	if methodName != "" {
+		methodNameSplitted := strings.Split(methodName, ".")
+		shortMethodName = methodNameSplitted[len(methodNameSplitted)-1]
+	}
+	return builder.TimelineAccumulator.GetPath(negPath, khifilev6.PathSegment{
+		Name: fmt.Sprintf("%s-%s", shortMethodName, operationID),
+		Type: gcpcommon.TimelineTypeOperation,
+	})
+}
+
+// MustNEGUnderResourceTimeline returns the timeline path for a NEG subresource nested under a parent timeline.
+func MustNEGUnderResourceTimeline(ctx context.Context, parentPath *khifilev6.TimelinePath, negName string) *khifilev6.TimelinePath {
+	if parentPath == nil {
+		panic("parentPath must not be nil")
+	}
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+	return builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{
+		Name: negName,
+		Type: TimelineTypeNetworkEndpointGroup,
+	})
+}
+
+// MustGCPResourceTimeline returns the timeline path for a generic GCP resource.
+func MustGCPResourceTimeline(ctx context.Context, projectID string, resourceType string, resourceName string) *khifilev6.TimelinePath {
+	projectPath := gcpcommon.MustGCPProjectTimeline(ctx, projectID)
+	resourceTypePath := gcpcommon.MustGCPResourceTypeTimeline(ctx, projectPath, resourceType)
+	return gcpcommon.MustGCPResourceTimeline(ctx, resourceTypePath, resourceName)
+}
