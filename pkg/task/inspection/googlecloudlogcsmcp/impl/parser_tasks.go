@@ -27,8 +27,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scontainer"
 	googlecloudlogcsmcp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsmcp/contract"
-	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 )
 
 var (
@@ -39,7 +39,7 @@ var (
 // IstiodLogFilterTask filters container logs to Istiod discovery logs.
 var IstiodLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 	googlecloudlogcsmcp_contract.IstiodLogFilterTaskID,
-	googlecloudlogk8scontainer_contract.ListLogEntriesTaskID.Ref(),
+	k8scontainer.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
 		return l.NodeReader.ReadStringOrDefault(pathContainerName, "") == "discovery" &&
 			strings.Contains(l.NodeReader.ReadStringOrDefault(pathPodName, ""), "istiod")
@@ -61,7 +61,7 @@ type csmcpTimelineMapper struct {
 
 // LogIngesterTask returns the task reference for log ingestion.
 func (m *csmcpTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return googlecloudlogk8scontainer_contract.LogIngesterTaskID.Ref()
+	return k8scontainer.LogIngesterTaskID.Ref()
 }
 
 // Dependencies returns dependencies needed for mapping.

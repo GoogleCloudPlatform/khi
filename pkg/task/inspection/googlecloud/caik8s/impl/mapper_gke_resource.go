@@ -1,0 +1,180 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package caik8s_impl
+
+import (
+	"context"
+	"time"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+)
+
+var (
+	pathClusterCreateTime = structured.CompileFieldPath("asset.resource.data.createTime")
+)
+
+// caiGKEResourceTimelineMapper maps CAI GKE cluster and nodepool snapshot logs to timeline revisions.
+type caiGKEResourceTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
+}
+
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*caiGKEResourceTimelineMapper)(nil)
+
+// LogIngesterTask returns the prerequisite log ingester task reference.
+func (m *caiGKEResourceTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
+	return caik8s.GKELogIngesterTaskID.Ref()
+}
+
+// GroupedLogTask returns the reference to the task providing grouped CAI GKE logs.
+func (m *caiGKEResourceTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+	return caik8s.GKELogGrouperTaskID.Ref()
+}
+
+// Dependencies returns additional task dependencies for timeline mapping.
+func (m *caiGKEResourceTimelineMapper) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
+		k8scommon.ClusterIdentityTaskID.Ref(),
+		gcpcommon.InputStartTimeTaskID.Ref(),
+		caik8s.GKEResourceFetcherTaskID.Ref(),
+	}
+}
+
+// extractClusterCreateTimeFromSnapshots extracts the creation timestamp of the GKE Cluster from snapshots.
+func extractClusterCreateTimeFromSnapshots(snapshots []*caik8s.GKEResourceSnapshot) time.Time {
+	for _, s := range snapshots {
+		if s == nil || s.TemporalAsset == nil || s.TemporalAsset.Asset == nil {
+			continue
+		}
+		if s.TemporalAsset.Asset.AssetType != caik8s.GKEClusterAssetType {
+			continue
+		}
+		if data := s.TemporalAsset.Asset.GetResource().GetData(); data != nil {
+			if rawCreateTime := data.GetFields()["createTime"].GetStringValue(); rawCreateTime != "" {
+				if t, err := common.ParseTime(rawCreateTime); err == nil {
+					return t
+				}
+			}
+		}
+	}
+	return time.Time{}
+}
+
+// ProcessLogByGroup processes a log entry and stages a timeline revision for GKE cluster or nodepool.
+func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	assetName := l.NodeReader.ReadStringOrDefault(pathAssetName, "")
+	identity := parseGKEAssetName(assetName)
+	if identity.ClusterName == "" && identity.NodePoolName == "" {
+		return nil, struct{}{}, nil
+	}
+
+	assetWindowStartTime, assetWindowEndTime, isDeleted := extractTimeWindow(l.NodeReader)
+	if isDeleted {
+		return nil, struct{}{}, nil
+	}
+
+	queryStartTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
+	if !isActiveAt(assetWindowStartTime, assetWindowEndTime, queryStartTime) {
+		return nil, struct{}{}, nil
+	}
+
+	targetTimeline := m.resolveTargetTimeline(ctx, identity)
+	cs := khifilev6.NewTimelineChangeSet(l)
+	resourceBody := extractResourceBody(l.NodeReader)
+
+	observedTime := assetWindowStartTime
+	if observedTime.IsZero() {
+		observedTime = queryStartTime
+	}
+
+	if identity.IsCluster() {
+		m.stageClusterInitialRevisions(cs, targetTimeline, l, observedTime, resourceBody)
+	} else {
+		snapshots := coretask.GetTaskResult(ctx, caik8s.GKEResourceFetcherTaskID.Ref())
+		clusterCreateTime := extractClusterCreateTimeFromSnapshots(snapshots)
+		m.stageNodePoolInitialRevisions(cs, targetTimeline, clusterCreateTime, observedTime, resourceBody)
+	}
+	return cs, struct{}{}, nil
+}
+
+func (m *caiGKEResourceTimelineMapper) resolveTargetTimeline(ctx context.Context, identity gkeResourceIdentity) *khifilev6.TimelinePath {
+	clusterIdentity := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, clusterIdentity.ProjectID)
+	clusterTimeline := gcpcommon.MustGKEClusterTimeline(ctx, projectTimeline, clusterIdentity.ClusterName)
+
+	if identity.IsNodePool() {
+		return gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, identity.NodePoolName)
+	}
+	return clusterTimeline
+}
+
+func (m *caiGKEResourceTimelineMapper) stageClusterInitialRevisions(cs *khifilev6.TimelineChangeSet, targetTimeline *khifilev6.TimelinePath, l *log.Log, observedTime time.Time, resourceBody structured.Node) {
+	clusterCreateTime := l.NodeReader.ReadTimestampOrDefault(pathClusterCreateTime, time.Time{})
+	snapshotVerb := k8saudit.VerbCreate
+	if !clusterCreateTime.IsZero() && observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
+		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+			ChangedTime:  clusterCreateTime,
+			ResourceBody: nil,
+			Principal:    "N/A",
+			VerbType:     k8saudit.VerbCreate,
+			StateType:    k8saudit.RevisionStateK8sClusterExistingLogNotFound,
+		})
+		snapshotVerb = k8saudit.VerbUpdate
+	}
+	cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+		ChangedTime:  observedTime,
+		ResourceBody: resourceBody,
+		Principal:    "N/A",
+		VerbType:     snapshotVerb,
+		StateType:    caik8s.RevisionStateGKEClusterSnapshotFromCAI,
+	})
+}
+
+func (m *caiGKEResourceTimelineMapper) stageNodePoolInitialRevisions(cs *khifilev6.TimelineChangeSet, targetTimeline *khifilev6.TimelinePath, clusterCreateTime, observedTime time.Time, resourceBody structured.Node) {
+	snapshotVerb := k8saudit.VerbCreate
+	if !clusterCreateTime.IsZero() && observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
+		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+			ChangedTime:  clusterCreateTime,
+			ResourceBody: nil,
+			Principal:    "N/A",
+			VerbType:     k8saudit.VerbCreate,
+			StateType:    caik8s.RevisionStateGKENodePoolExistenceUndetermined,
+		})
+		snapshotVerb = k8saudit.VerbUpdate
+	}
+
+	cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+		ChangedTime:  observedTime,
+		ResourceBody: resourceBody,
+		Principal:    "N/A",
+		VerbType:     snapshotVerb,
+		StateType:    caik8s.RevisionStateGKENodePoolSnapshotFromCAI,
+	})
+}
+
+// GKELogToTimelineMapperTask is the task that maps CAI GKE snapshots to timeline revisions.
+var GKELogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+	caik8s.GKELogToTimelineMapperTaskID,
+	&caiGKEResourceTimelineMapper{},
+)

@@ -1,0 +1,150 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package k8scontainer_impl
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scontainer"
+)
+
+// GenerateK8sContainerStructuredQuery constructs a StructuredLogQuery for Kubernetes container logs.
+func GenerateK8sContainerStructuredQuery(
+	cluster k8scommon.GoogleCloudClusterIdentity,
+	namespacesFilter *gcpqueryutil.SetFilterParseResult,
+	podNamesFilter *gcpqueryutil.SetFilterParseResult,
+) *logestimator.StructuredLogQuery {
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
+		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
+		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(k8scommon.ClusterNameUsageK8sCluster))),
+		logestimator.LogID(logestimator.NoneOf("server-accesslog-stackdriver", "client-accesslog-stackdriver")),
+	}
+
+	if nsMatcher := generateNamespacesFilter(namespacesFilter); nsMatcher != nil {
+		filters = append(filters, nsMatcher)
+	}
+
+	if podMatcher := generatePodNamesFilter(podNamesFilter); podMatcher != nil {
+		filters = append(filters, podMatcher)
+	}
+
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    !cluster.IsComplete(),
+		ResourceTypes: []string{"k8s_container"},
+		Filters:       filters,
+	}
+}
+
+// GenerateK8sContainerQuery generates a Cloud Logging query for Kubernetes container logs.
+func GenerateK8sContainerQuery(cluster k8scommon.GoogleCloudClusterIdentity, namespacesFilter *gcpqueryutil.SetFilterParseResult, podNamesFilter *gcpqueryutil.SetFilterParseResult) string {
+	return GenerateK8sContainerStructuredQuery(cluster, namespacesFilter, podNamesFilter).GenerateCloudLoggingQuery()
+}
+
+func generateNamespacesFilter(namespacesFilter *gcpqueryutil.SetFilterParseResult) logestimator.LoggingMonitoringMatcher {
+	if namespacesFilter == nil {
+		return nil
+	}
+	if namespacesFilter.ValidationError != "" {
+		return logestimator.Comment(fmt.Sprintf(`Failed to generate namespaces filter due to the validation error "%s"`, namespacesFilter.ValidationError))
+	}
+	if namespacesFilter.SubtractMode {
+		if len(namespacesFilter.Subtractives) == 0 {
+			return nil
+		}
+		return logestimator.ResourceLabel("namespace_name", logestimator.NoneOf(namespacesFilter.Subtractives...))
+	}
+
+	if len(namespacesFilter.Additives) == 0 {
+		return logestimator.Comment("Invalid: none of the resources will be selected. Ignoring namespace filter.")
+	}
+	return logestimator.ResourceLabel("namespace_name", logestimator.OneOf(namespacesFilter.Additives...))
+}
+
+func generatePodNamesFilter(podNamesFilter *gcpqueryutil.SetFilterParseResult) logestimator.LoggingMonitoringMatcher {
+	if podNamesFilter == nil {
+		return nil
+	}
+	if podNamesFilter.ValidationError != "" {
+		return logestimator.Comment(fmt.Sprintf(`Failed to generate pod name filter due to the validation error "%s"`, podNamesFilter.ValidationError))
+	}
+	if podNamesFilter.SubtractMode {
+		if len(podNamesFilter.Subtractives) == 0 {
+			return nil
+		}
+		return logestimator.ResourceLabel("pod_name", logestimator.NotContainsAny(podNamesFilter.Subtractives...))
+	}
+
+	if len(podNamesFilter.Additives) == 0 {
+		return logestimator.Comment("Invalid: none of the resources will be selected. Ignoring pod name filter.")
+	}
+	return logestimator.ResourceLabel("pod_name", logestimator.ContainsAny(podNamesFilter.Additives...))
+}
+
+type containerListLogEntriesTaskSetting struct {
+}
+
+// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	cluster := coretask.GetTaskResult(ctx, k8scontainer.ClusterIdentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
+}
+
+// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
+		k8scontainer.ClusterIdentityTaskID.Ref(),
+		k8scontainer.InputContainerQueryNamespacesTaskID.Ref(),
+		k8scontainer.InputContainerQueryPodNamesTaskID.Ref(),
+	}
+}
+
+// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) QueryName() string {
+	return "K8s container logs"
+}
+
+// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+	cluster := coretask.GetTaskResult(ctx, k8scontainer.ClusterIdentityTaskID.Ref())
+	namespacesFilter := coretask.GetTaskResult(ctx, k8scontainer.InputContainerQueryNamespacesTaskID.Ref())
+	podNamesFilter := coretask.GetTaskResult(ctx, k8scontainer.InputContainerQueryPodNamesTaskID.Ref())
+
+	return []*logestimator.StructuredLogQuery{
+		GenerateK8sContainerStructuredQuery(cluster, namespacesFilter, podNamesFilter),
+	}, nil
+}
+
+// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+	return k8scontainer.ListLogEntriesTaskID
+}
+
+// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+	return 10, nil
+}
+
+var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*containerListLogEntriesTaskSetting)(nil)
+
+var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&containerListLogEntriesTaskSetting{})

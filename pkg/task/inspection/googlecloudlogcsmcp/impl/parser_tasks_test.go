@@ -25,8 +25,8 @@ import (
 	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scontainer"
 	googlecloudlogcsmcp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsmcp/contract"
-	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -80,7 +80,7 @@ resource:
 		},
 	}
 
-	inspectiontaskbasetest.AssertFilterTask(t, IstiodLogFilterTask, googlecloudlogk8scontainer_contract.ListLogEntriesTaskID.Ref(), testCases)
+	inspectiontaskbasetest.AssertFilterTask(t, IstiodLogFilterTask, k8scontainer.ListLogEntriesTaskID.Ref(), testCases)
 }
 
 func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {

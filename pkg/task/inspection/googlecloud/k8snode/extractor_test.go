@@ -1,0 +1,190 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package k8snode
+
+import (
+	"testing"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
+	"github.com/google/go-cmp/cmp"
+)
+
+func TestExtractK8sNodeLogCommon(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		input string
+		mock  *K8sNodeLogCommonFieldSet
+		want  K8sNodeLogCommonFieldSet
+	}{
+		{
+			desc: "with all parameters",
+			input: `jsonPayload:
+  MESSAGE: "test message"
+  SYSLOG_IDENTIFIER: "test-identifier"
+resource:
+  labels:
+    node_name: node-foo`,
+			want: K8sNodeLogCommonFieldSet{
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey:       "test message",
+					logutil.MainMessageStructuredFieldKey: "test message",
+				}},
+				Component: "test-identifier",
+				NodeName:  "node-foo",
+			},
+		},
+		{
+			desc: "with component name surrounded by ()",
+			input: `jsonPayload:
+  MESSAGE: "test message"
+  SYSLOG_IDENTIFIER: "(dockerd)"
+resource:
+  labels:
+    node_name: node-foo`,
+			want: K8sNodeLogCommonFieldSet{
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey:       "test message",
+					logutil.MainMessageStructuredFieldKey: "test message",
+				}}, Component: "dockerd",
+				NodeName: "node-foo",
+			},
+		},
+		{
+			desc: "kube-proxy logs",
+			input: `jsonPayload:
+  MESSAGE: "test message"
+logName: projects/test-project/logs/kube-proxy
+resource:
+  labels:
+    node_name: node-foo`,
+			want: K8sNodeLogCommonFieldSet{
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey:       "test message",
+					logutil.MainMessageStructuredFieldKey: "test message",
+				}}, Component: "kube-proxy",
+				NodeName: "node-foo",
+			},
+		},
+		{
+			desc:  "without jsonPayload",
+			input: `{}`,
+			want: K8sNodeLogCommonFieldSet{
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey:       "",
+					logutil.MainMessageStructuredFieldKey: "",
+				}}, Component: "",
+			},
+		},
+		{
+			desc: "from mock",
+			mock: &K8sNodeLogCommonFieldSet{
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey: "mock-message",
+				}},
+				Component: "mock-comp",
+				NodeName:  "mock-node",
+			},
+			want: K8sNodeLogCommonFieldSet{
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey: "mock-message",
+				}},
+				Component: "mock-comp",
+				NodeName:  "mock-node",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			var l *log.Log
+			if tc.mock != nil {
+				l = testlog.NewMockLog(*tc.mock)
+			} else {
+				l = testlog.MustLogFromYAML(tc.input)
+			}
+
+			got, err := ExtractK8sNodeLogCommon(l.NodeReader, nil)
+			if err != nil {
+				t.Fatalf("ExtractK8sNodeLogCommon() returned unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractK8sNodeLogCommon() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestExtractK8sNodeParserType(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		input string
+		want  K8sNodeParserType
+	}{
+		{
+			desc: "containerd from syslog identifier",
+			input: `jsonPayload:
+  SYSLOG_IDENTIFIER: "containerd"`,
+			want: Containerd,
+		},
+		{
+			desc: "kubelet with parenthesis from syslog identifier",
+			input: `jsonPayload:
+  SYSLOG_IDENTIFIER: "(kubelet)"`,
+			want: Kubelet,
+		},
+		{
+			desc:  "kubelet from logName fallback",
+			input: `logName: projects/test-project/logs/kubelet`,
+			want:  Kubelet,
+		},
+		{
+			desc: "other component",
+			input: `jsonPayload:
+  SYSLOG_IDENTIFIER: "dockerd"`,
+			want: Other,
+		},
+		{
+			desc:  "empty log",
+			input: `{}`,
+			want:  Other,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			nodeLog := testlog.MustLogFromYAML(tc.input)
+			got, err := ExtractK8sNodeParserType(nodeLog.NodeReader)
+			if err != nil {
+				t.Fatalf("ExtractK8sNodeParserType() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractK8sNodeParserType() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+
+	t.Run("from mock", func(t *testing.T) {
+		mockLog := testlog.NewMockLog(Containerd)
+		got, err := ExtractK8sNodeParserType(mockLog.NodeReader)
+		if err != nil {
+			t.Fatalf("ExtractK8sNodeParserType() unexpected error: %v", err)
+		}
+		if diff := cmp.Diff(Containerd, got); diff != "" {
+			t.Errorf("ExtractK8sNodeParserType() mismatch (-want +got):\n%s", diff)
+		}
+	})
+}

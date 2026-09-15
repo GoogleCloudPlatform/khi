@@ -1,0 +1,90 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package k8snode_impl
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8snode"
+)
+
+// GenerateK8sNodeStructuredQuery generates a structured query for GKE node logs.
+func GenerateK8sNodeStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, nodeNameSubstrings []string) *logestimator.StructuredLogQuery {
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
+		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
+		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(k8scommon.ClusterNameUsageK8sCluster))),
+		logestimator.LogID(logestimator.NoneOf("events")),
+	}
+
+	if len(nodeNameSubstrings) > 0 {
+		filters = append(filters, logestimator.ResourceLabel("node_name", logestimator.ContainsAny(nodeNameSubstrings...)))
+	}
+
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    !cluster.IsComplete(),
+		ResourceTypes: []string{"k8s_node"},
+		Filters:       filters,
+	}
+}
+
+type k8snodeListLogEntriesTaskSetting struct{}
+
+// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *k8snodeListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	cluster := coretask.GetTaskResult(ctx, k8snode.ClusterIdentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
+}
+
+// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *k8snodeListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
+	return []coretask.Dependency{
+		k8snode.ClusterIdentityTaskID.Ref(),
+		k8scommon.InputNodeNameFilterTaskID.Ref(),
+	}
+}
+
+// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *k8snodeListLogEntriesTaskSetting) QueryName() string {
+	return "Kubernetes node logs"
+}
+
+// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *k8snodeListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+	cluster := coretask.GetTaskResult(ctx, k8snode.ClusterIdentityTaskID.Ref())
+	nodeNameSubstrings := coretask.GetTaskResult(ctx, k8scommon.InputNodeNameFilterTaskID.Ref())
+	return []*logestimator.StructuredLogQuery{GenerateK8sNodeStructuredQuery(cluster, nodeNameSubstrings)}, nil
+}
+
+// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (c *k8snodeListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+	return k8snode.ListLogEntriesTaskID
+}
+
+// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
+func (k *k8snodeListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+	return 10, nil
+}
+
+var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*k8snodeListLogEntriesTaskSetting)(nil)
+
+var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&k8snodeListLogEntriesTaskSetting{})
