@@ -26,7 +26,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogcsmcp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsmcp/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 )
@@ -67,7 +67,7 @@ func (m *csmcpTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
 // Dependencies returns dependencies needed for mapping.
 func (m *csmcpTimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
-		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
+		k8scommon.ClusterIdentityTaskID.Ref(),
 	}
 }
 
@@ -78,7 +78,7 @@ func (m *csmcpTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectionta
 
 // ProcessLogByGroup maps a log entry to its corresponding timeline paths.
 func (m *csmcpTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *commoncsmcp.TimelineState) (*khifilev6.TimelineChangeSet, *commoncsmcp.TimelineState, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
+	clusterIdentity := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
 
 	fs, err := googlecloudlogcsmcp_contract.Extract(l.NodeReader)
 	if err != nil {

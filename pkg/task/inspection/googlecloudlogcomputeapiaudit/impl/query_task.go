@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -69,13 +69,13 @@ func GenerateComputeAPIStructuredQuery(taskMode inspectioncore.InspectionTaskMod
 type computeAPIListLogEntriesTaskSetting struct {
 }
 
-// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
-// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		k8saudit.NodeNameInventoryTaskID.Ref(),
@@ -83,12 +83,12 @@ func (c *computeAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependen
 	}
 }
 
-// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) QueryName() string {
 	return "Compute API Audit log"
 }
 
-// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	taskMode, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
 	if err != nil {
@@ -108,16 +108,16 @@ func (c *computeAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*l
 	return queries, nil
 }
 
-// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlogcomputeapiaudit_contract.ListLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 10, nil
 }
 
-var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*computeAPIListLogEntriesTaskSetting)(nil)
+var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*computeAPIListLogEntriesTaskSetting)(nil)
 
-var ListLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&computeAPIListLogEntriesTaskSetting{})
+var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&computeAPIListLogEntriesTaskSetting{})

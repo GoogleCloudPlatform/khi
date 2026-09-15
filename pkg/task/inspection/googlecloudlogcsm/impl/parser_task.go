@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -50,7 +50,7 @@ func (i *CSMTrafficLogLogIngester) ProcessLog(ctx context.Context, l *log.Log) (
 
 	cs.SetTimestamp(l.Timestamp)
 
-	gcpCommonAccessLog, err := googlecloudcommon_contract.ExtractGCPAccessLog(l.NodeReader)
+	gcpCommonAccessLog, err := gcpcommon.ExtractGCPAccessLog(l.NodeReader)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (i *CSMTrafficLogLogIngester) ProcessLog(ctx context.Context, l *log.Log) (
 	cs.SetSummary(summary)
 	cs.SetLogType(googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
 
-	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
+	if severity, err := gcpcommon.ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
 		cs.SetSeverity(severity)
 	}
 

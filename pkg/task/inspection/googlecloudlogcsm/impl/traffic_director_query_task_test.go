@@ -24,7 +24,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
@@ -115,7 +115,7 @@ func TestListCSMTrafficDirectorLogEntriesTask_DryRun(t *testing.T) {
 	startTime := time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
 
-	resourceNamesInput := googlecloudcommon_contract.NewResourceNamesInput()
+	resourceNamesInput := gcpcommon.NewResourceNamesInput()
 	clientFactory, err := googlecloud.NewClientFactory()
 	if err != nil {
 		t.Fatalf("failed to create ClientFactory: %v", err)
@@ -123,10 +123,10 @@ func TestListCSMTrafficDirectorLogEntriesTask_DryRun(t *testing.T) {
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListCSMTrafficDirectorLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
 		tasktest.NewTaskDependencyValuePair(googlecloudlogcsm_contract.InputFleetProjectIDTaskID.Ref(), "fleet-project"),
 		tasktest.NewTaskDependencyValuePair(googlecloudlogcsm_contract.CSMClusterIdentifierTaskID.Ref(), []string{}),
 	)

@@ -23,8 +23,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -66,7 +66,7 @@ func (i *serialPortLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*kh
 	cs.SetLogType(googlecloudlogserialport_contract.LogTypeSerialPort)
 	cs.SetTimestamp(l.Timestamp)
 
-	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil {
+	if severity, err := gcpcommon.ExtractGCPSeverity(l.NodeReader); err == nil {
 		cs.SetSeverity(severity)
 	}
 
@@ -117,7 +117,7 @@ func (s *serialportLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[in
 // Dependencies implements the LogToTimelineMapper interface.
 func (s *serialportLogToTimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
-		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
+		k8scommon.ClusterIdentityTaskID.Ref(),
 	}
 }
 
@@ -128,7 +128,7 @@ func (s *serialportLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l
 		return nil, struct{}{}, err
 	}
 
-	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
+	clusterIdentity := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
 
 	targetPath := googlecloudlogserialport_contract.MustSerialPortTimeline(
 		ctx,

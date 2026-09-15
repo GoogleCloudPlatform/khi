@@ -26,11 +26,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 )
 
-const priorityForCSMGroup = googlecloudcommon_contract.FormBasePriority + 10000
+const priorityForCSMGroup = gcpcommon.FormBasePriority + 10000
 
 var InputFleetProjectIDTask = formtask.NewTextFormTaskBuilder(googlecloudlogcsm_contract.InputFleetProjectIDTaskID, priorityForCSMGroup+500, "Fleet project ID").
 	WithDependencies([]coretask.Dependency{

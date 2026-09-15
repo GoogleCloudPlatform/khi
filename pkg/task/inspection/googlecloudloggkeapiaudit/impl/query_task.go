@@ -22,13 +22,13 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 )
 
 // GenerateGKEAuditStructuredQuery generates a structured query for GKE API audit logs.
-func GenerateGKEAuditStructuredQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
+func GenerateGKEAuditStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
 	return &logestimator.StructuredLogQuery{
 		Incomplete:                !cluster.IsComplete(),
 		ResourceTypes:             []string{"gke_cluster", "gke_nodepool"},
@@ -46,40 +46,40 @@ func GenerateGKEAuditStructuredQuery(cluster googlecloudk8scommon_contract.Googl
 type gkeAPIListLogEntriesTaskSetting struct {
 }
 
-// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
-// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID.Ref(),
 	}
 }
 
-// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) QueryName() string {
 	return "GKE Audit logs"
 }
 
-// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID.Ref())
 	return []*logestimator.StructuredLogQuery{GenerateGKEAuditStructuredQuery(cluster)}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudloggkeapiaudit_contract.ListLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 1, nil
 }
 
-var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*gkeAPIListLogEntriesTaskSetting)(nil)
+var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*gkeAPIListLogEntriesTaskSetting)(nil)
 
-var ListLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&gkeAPIListLogEntriesTaskSetting{})
+var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&gkeAPIListLogEntriesTaskSetting{})

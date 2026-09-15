@@ -28,7 +28,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -56,7 +56,7 @@ func (i *containerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
 	cs.SetLogType(googlecloudlogk8scontainer_contract.LogTypeContainer)
 	cs.SetTimestamp(l.Timestamp)
 
-	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil {
+	if severity, err := gcpcommon.ExtractGCPSeverity(l.NodeReader); err == nil {
 		cs.SetSeverity(severity)
 	}
 

@@ -25,13 +25,13 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // CSMTrafficDirectorLogIngesterTask is a task that ingests CSM Traffic Director logs.
-var CSMTrafficDirectorLogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
+var CSMTrafficDirectorLogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
 	googlecloudlogcsm_contract.CSMTrafficDirectorLogIngesterTaskID,
 	googlecloudlogcsm_contract.ListCSMTrafficDirectorLogEntriesTaskID.Ref(),
 	googlecloudlogcsm_contract.LogTypeCSMTrafficLog,
@@ -42,7 +42,7 @@ var CSMTrafficDirectorLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudlogcsm_contract.CSMTrafficDirectorLogGrouperTaskID,
 	googlecloudlogcsm_contract.ListCSMTrafficDirectorLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+		audit, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
 		if err != nil {
 			return "unknown"
 		}
@@ -52,7 +52,7 @@ var CSMTrafficDirectorLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 
 // CSMTrafficDirectorLogToTimelineMapper maps CSM Traffic Director logs to resource timelines.
 type CSMTrafficDirectorLogToTimelineMapper struct {
-	inspectiontaskbase.SinglePassMapperBase[*googlecloudcommon_contract.GCPOperationTracker]
+	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
 
 // LogIngesterTask returns a reference to the task that provides ingested logs.
@@ -73,11 +73,11 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) GroupedLogTask() taskid.TaskRefe
 }
 
 // ProcessLogByGroup maps each log inside a group to one or more timeline events or revisions.
-func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *googlecloudcommon_contract.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *googlecloudcommon_contract.GCPOperationTracker, error) {
+func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	if tracker == nil {
-		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
+		tracker = gcpcommon.NewGCPOperationTracker()
 	}
-	audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+	audit, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -87,14 +87,14 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 	verb := guessRevisionVerb(audit.MethodName)
 
 	resourceType, resourceName := parseGCPResource(audit.ResourceName)
-	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, audit.ProjectID)
-	typeTimeline := googlecloudcommon_contract.MustGCPResourceTypeTimeline(ctx, projectTimeline, resourceType)
-	resourceTimelinePath := googlecloudcommon_contract.MustGCPResourceTimeline(ctx, typeTimeline, resourceName)
+	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, audit.ProjectID)
+	typeTimeline := gcpcommon.MustGCPResourceTypeTimeline(ctx, projectTimeline, resourceType)
+	resourceTimelinePath := gcpcommon.MustGCPResourceTimeline(ctx, typeTimeline, resourceName)
 
 	if !audit.ImmediateOperation() {
 		methodNameParts := strings.Split(audit.MethodName, ".")
 		shortMethodName := methodNameParts[len(methodNameParts)-1]
-		operationTimelinePath := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, resourceTimelinePath, shortMethodName, audit.OperationID)
+		operationTimelinePath := gcpcommon.MustGCPOperationTimeline(ctx, resourceTimelinePath, shortMethodName, audit.OperationID)
 		tracker.ProcessOperationLog(ctx, cs, operationTimelinePath, &audit, l.Timestamp)
 	}
 
@@ -142,7 +142,7 @@ func parseGCPResource(resourceName string) (string, string) {
 	return resourceType, name
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*CSMTrafficDirectorLogToTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*CSMTrafficDirectorLogToTimelineMapper)(nil)
 
 // CSMTrafficDirectorLogToTimelineMapperTask maps CSM Traffic Director logs to timelines.
 var CSMTrafficDirectorLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(

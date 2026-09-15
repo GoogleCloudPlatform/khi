@@ -25,8 +25,8 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
@@ -34,7 +34,7 @@ import (
 )
 
 func TestGenerateK8sEventStructuredQuery(t *testing.T) {
-	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	cluster := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
 		Location:    "us-central1-a",
 		ProjectID:   "test-project",
@@ -42,7 +42,7 @@ func TestGenerateK8sEventStructuredQuery(t *testing.T) {
 
 	testCases := []struct {
 		name                   string
-		cluster                googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster                k8scommon.GoogleCloudClusterIdentity
 		namespaceFilter        *gcpqueryutil.SetFilterParseResult
 		wantQuery              string
 		wantMetricFilters      []string
@@ -232,14 +232,14 @@ LOG_ID("events")`,
 }
 
 func TestGenerateK8sEventQueryIsValid(t *testing.T) {
-	testCluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	testCluster := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
 		Location:    "us-central1-a",
 		ProjectID:   "test-project",
 	}
 	testCases := []struct {
 		name            string
-		cluster         googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster         k8scommon.GoogleCloudClusterIdentity
 		namespaceFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
@@ -289,13 +289,13 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 	startTime := time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
 
-	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	cluster := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
 		ProjectID:   "test-project",
 		Location:    "us-central1-a",
 	}
 
-	resourceNamesInput := googlecloudcommon_contract.NewResourceNamesInput()
+	resourceNamesInput := gcpcommon.NewResourceNamesInput()
 	clientFactory, err := googlecloud.NewClientFactory()
 	if err != nil {
 		t.Fatalf("failed to create ClientFactory: %v", err)
@@ -303,12 +303,12 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
 		tasktest.NewTaskDependencyValuePair(googlecloudlogk8sevent_contract.ClusterIdentityTaskID.Ref(), cluster),
-		tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(), &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "#namespaced"}}),
+		tasktest.NewTaskDependencyValuePair(k8scommon.InputNamespaceFilterTaskID.Ref(), &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "#namespaced"}}),
 	)
 	if err != nil {
 		t.Fatalf("dry run returned unexpected error: %v", err)

@@ -29,8 +29,8 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -46,19 +46,19 @@ func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
 	logsCase1 := []*log.Log{
 		testlog.NewMockLog(
 			timestamp2,
-			googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "DAG_PROCESSOR_MANAGER_LOG: =========== DAG File Processing Stats ============"},
+			gcpcommon.GCPMainMessageFieldSet{MainMessage: "DAG_PROCESSOR_MANAGER_LOG: =========== DAG File Processing Stats ============"},
 		),
 		testlog.NewMockLog(
 			timestamp3,
-			googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "DAG_PROCESSOR_MANAGER_LOG: File Path                                           PID    Runtime      # DAGs    # Errors  Last Runtime    Last Run"},
+			gcpcommon.GCPMainMessageFieldSet{MainMessage: "DAG_PROCESSOR_MANAGER_LOG: File Path                                           PID    Runtime      # DAGs    # Errors  Last Runtime    Last Run"},
 		),
 		testlog.NewMockLog(
 			timestamp4,
-			googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "DAG_PROCESSOR_MANAGER_LOG: --------------------------------------------------  -----  ---------  --------  ----------  --------------  -------------------"},
+			gcpcommon.GCPMainMessageFieldSet{MainMessage: "DAG_PROCESSOR_MANAGER_LOG: --------------------------------------------------  -----  ---------  --------  ----------  --------------  -------------------"},
 		),
 		testlog.NewMockLog(
 			timestamp5,
-			googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "DAG_PROCESSOR_MANAGER_LOG: /home/airflow/gcs/dags/airflow_monitoring.py                                 1           0  0.36s           2026-03-08T04:49:37"},
+			gcpcommon.GCPMainMessageFieldSet{MainMessage: "DAG_PROCESSOR_MANAGER_LOG: /home/airflow/gcs/dags/airflow_monitoring.py                                 1           0  0.36s           2026-03-08T04:49:37"},
 		),
 	}
 
@@ -193,7 +193,7 @@ func TestDagProcessorLogIngester_ProcessLog(t *testing.T) {
 			for _, msg := range tc.messages {
 				inputLog := testlog.NewMockLog(
 					timestamp,
-					googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: msg},
+					gcpcommon.GCPMainMessageFieldSet{MainMessage: msg},
 				)
 				cs, nextState, err := ingester.ProcessLogByGroup(context.Background(), inputLog, state)
 				if err != nil {

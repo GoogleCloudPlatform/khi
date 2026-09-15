@@ -24,8 +24,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -35,13 +35,13 @@ import (
 func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 	testCases := []struct {
 		desc                string
-		inputGCPAccessLog   *googlecloudcommon_contract.GCPAccessLogFieldSet
+		inputGCPAccessLog   *gcpcommon.GCPAccessLogFieldSet
 		inputIstioAccessLog *googlecloudlogcsm_contract.IstioAccessLogFieldSet
 		wantSummary         string
 	}{
 		{
 			desc: "server access log with normal response",
-			inputGCPAccessLog: &googlecloudcommon_contract.GCPAccessLogFieldSet{
+			inputGCPAccessLog: &gcpcommon.GCPAccessLogFieldSet{
 				Status:     200,
 				Method:     "GET",
 				RequestURL: "/productpage",
@@ -54,7 +54,7 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			desc: "server access log with missing response flags",
-			inputGCPAccessLog: &googlecloudcommon_contract.GCPAccessLogFieldSet{
+			inputGCPAccessLog: &gcpcommon.GCPAccessLogFieldSet{
 				Status:     200,
 				Method:     "GET",
 				RequestURL: "/productpage",
@@ -67,7 +67,7 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			desc: "server access log with error response",
-			inputGCPAccessLog: &googlecloudcommon_contract.GCPAccessLogFieldSet{
+			inputGCPAccessLog: &gcpcommon.GCPAccessLogFieldSet{
 				Status:     503,
 				Method:     "GET",
 				RequestURL: "/productpage",
@@ -80,7 +80,7 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			desc: "server access log with multiple error response flags",
-			inputGCPAccessLog: &googlecloudcommon_contract.GCPAccessLogFieldSet{
+			inputGCPAccessLog: &gcpcommon.GCPAccessLogFieldSet{
 				Status:     503,
 				Method:     "GET",
 				RequestURL: "/productpage",
@@ -115,13 +115,13 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testCases := []struct {
 		desc                string
-		inputGCPAccessLog   *googlecloudcommon_contract.GCPAccessLogFieldSet
+		inputGCPAccessLog   *gcpcommon.GCPAccessLogFieldSet
 		inputIstioAccessLog *googlecloudlogcsm_contract.IstioAccessLogFieldSet
 		assert              func(t *testing.T, builder *khifilev6.Builder, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
 			desc: "server access log with client and service",
-			inputGCPAccessLog: &googlecloudcommon_contract.GCPAccessLogFieldSet{
+			inputGCPAccessLog: &gcpcommon.GCPAccessLogFieldSet{
 				Status:     200,
 				Method:     "GET",
 				RequestURL: "/productpage",
@@ -172,7 +172,7 @@ func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			desc: "client access log with destination and service",
-			inputGCPAccessLog: &googlecloudcommon_contract.GCPAccessLogFieldSet{
+			inputGCPAccessLog: &gcpcommon.GCPAccessLogFieldSet{
 				Status:     200,
 				Method:     "GET",
 				RequestURL: "/details",
@@ -228,7 +228,7 @@ func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			ctx = tasktest.WithTaskResult(ctx, googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			})
 

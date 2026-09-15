@@ -28,15 +28,15 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"gopkg.in/yaml.v3"
 )
 
 // LogIngesterTask is the task id to finalize the logs to be included in the final output.
-var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
+var LogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
 	googlecloudlognetworkapiaudit_contract.LogIngesterTaskID,
 	googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI,
@@ -45,7 +45,7 @@ var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 // LogGrouperTask groups logs by the NEG resource name.
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlognetworkapiaudit_contract.LogGrouperTaskID, googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+		audit, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
 		if err != nil {
 			return "unknown"
 		}
@@ -70,7 +70,7 @@ type pendingNEGOperation struct {
 
 type perNEGHistoryModificationStatus struct {
 	PendingOperations map[string]*pendingNEGOperation
-	OperationTracker  *googlecloudcommon_contract.GCPOperationTracker
+	OperationTracker  *gcpcommon.GCPOperationTracker
 	KnownEndpoints    map[string]bool
 }
 
@@ -86,10 +86,10 @@ func (m *networkAPITimelineMapper) LogIngesterTask() taskid.TaskReference[struct
 // Dependencies are the additional references used in timeline mapper.
 func (m *networkAPITimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
-		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
-		googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(),
+		k8scommon.ClusterIdentityTaskID.Ref(),
+		k8scommon.NEGNamesInventoryTaskID.Ref(),
 		k8saudit.IPLeaseHistoryInventoryTaskID.Ref(),
-		googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(),
+		k8scommon.NEGToBackendServiceInventoryTaskID.Ref(),
 	}
 }
 
@@ -100,20 +100,20 @@ func (m *networkAPITimelineMapper) GroupedLogTask() taskid.TaskReference[inspect
 
 // ProcessLogByGroup maps the NEG audit log to resource timelines as state revisions.
 func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *perNEGHistoryModificationStatus) (*khifilev6.TimelineChangeSet, *perNEGHistoryModificationStatus, error) {
-	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+	auditFieldSet, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, prevGroupData, err
 	}
 	if prevGroupData == nil {
 		prevGroupData = &perNEGHistoryModificationStatus{
 			PendingOperations: make(map[string]*pendingNEGOperation),
-			OperationTracker:  googlecloudcommon_contract.NewGCPOperationTracker(),
+			OperationTracker:  gcpcommon.NewGCPOperationTracker(),
 			KnownEndpoints:    make(map[string]bool),
 		}
 	}
 
-	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
-	negs := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref())
+	clusterIdentity := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+	negs := coretask.GetTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref())
 	var negResourcePath *khifilev6.TimelinePath
 	negName := getNegNameFromResourceName(auditFieldSet.ResourceName)
 
@@ -209,16 +209,16 @@ func (m *networkAPITimelineMapper) processEndpointRevisions(
 	ctx context.Context,
 	cs *khifilev6.TimelineChangeSet,
 	l *log.Log,
-	auditFieldSet *googlecloudcommon_contract.GCPAuditLogFieldSet,
+	auditFieldSet *gcpcommon.GCPAuditLogFieldSet,
 	prevGroupData *perNEGHistoryModificationStatus,
-	clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity,
+	clusterIdentity k8scommon.GoogleCloudClusterIdentity,
 	negName string,
 	shortMethodName string,
 	negRequest *negAttachOrDetachRequest,
 	verb *pb.Verb,
 	state *pb.RevisionState,
 ) {
-	negToBS := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref())
+	negToBS := coretask.GetTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref())
 	ipLeases := coretask.GetTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref())
 
 	for _, endpoint := range negRequest.NetworkEndpoints {
@@ -310,7 +310,7 @@ func getShortMethodNameFromMethodName(methodName string) string {
 	return methodName[lastDotIndex+1:]
 }
 
-func parseNEGAttachOrDetachRequest(auditFieldSet *googlecloudcommon_contract.GCPAuditLogFieldSet) (*negAttachOrDetachRequest, error) {
+func parseNEGAttachOrDetachRequest(auditFieldSet *gcpcommon.GCPAuditLogFieldSet) (*negAttachOrDetachRequest, error) {
 	requestBody, err := auditFieldSet.RequestString()
 	if err != nil {
 		return nil, err

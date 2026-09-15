@@ -24,9 +24,9 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
@@ -186,13 +186,13 @@ func TestComposerLogsQueryTask_DryRun(t *testing.T) {
 	startTime := time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
 
-	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	cluster := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
 		ProjectID:   "test-project",
 		Location:    "us-central1",
 	}
 
-	resourceNamesInput := googlecloudcommon_contract.NewResourceNamesInput()
+	resourceNamesInput := gcpcommon.NewResourceNamesInput()
 	clientFactory, err := googlecloud.NewClientFactory()
 	if err != nil {
 		t.Fatalf("failed to create ClientFactory: %v", err)
@@ -200,10 +200,10 @@ func TestComposerLogsQueryTask_DryRun(t *testing.T) {
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ComposerLogsQueryTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
 		tasktest.NewTaskDependencyValuePair(googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(), cluster),
 		tasktest.NewTaskDependencyValuePair(googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(), "test-env"),
 		tasktest.NewTaskDependencyValuePair(googlecloudclustercomposer_contract.InputComposerComponentsTaskID.Ref(), []string{"scheduler"}),

@@ -26,9 +26,9 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -144,7 +144,7 @@ func TestFetchGKEResourceSnapshots(t *testing.T) {
 	startTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	endTime := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
 
-	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	cluster := k8scommon.GoogleCloudClusterIdentity{
 		ProjectID:   "test-project",
 		ClusterName: "test-cluster",
 		Location:    "us-central1-a",
@@ -270,13 +270,13 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 	startTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	endTime := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
 
-	completeCluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	completeCluster := k8scommon.GoogleCloudClusterIdentity{
 		ProjectID:   "test-project",
 		ClusterName: "test-cluster",
 		Location:    "us-central1-a",
 	}
 
-	incompleteCluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	incompleteCluster := k8scommon.GoogleCloudClusterIdentity{
 		ProjectID:   "test-project",
 		ClusterName: "",
 		Location:    "us-central1-a",
@@ -297,8 +297,8 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 
 	testCases := []struct {
 		name                 string
-		taskMode             inspectioncore_contract.InspectionTaskModeType
-		cluster              googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		taskMode             inspectioncore.InspectionTaskModeType
+		cluster              k8scommon.GoogleCloudClusterIdentity
 		searchErr            error
 		wantCount            int
 		wantSearchQueries    []string
@@ -306,19 +306,19 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 	}{
 		{
 			name:      "returns empty on DryRun mode",
-			taskMode:  inspectioncore_contract.TaskModeDryRun,
+			taskMode:  inspectioncore.TaskModeDryRun,
 			cluster:   completeCluster,
 			wantCount: 0,
 		},
 		{
 			name:      "returns empty when cluster identity is incomplete",
-			taskMode:  inspectioncore_contract.TaskModeRun,
+			taskMode:  inspectioncore.TaskModeRun,
 			cluster:   incompleteCluster,
 			wantCount: 0,
 		},
 		{
 			name:      "fetches cluster and nodepool temporal assets successfully",
-			taskMode:  inspectioncore_contract.TaskModeRun,
+			taskMode:  inspectioncore.TaskModeRun,
 			cluster:   completeCluster,
 			wantCount: 2,
 			wantSearchQueries: []string{
@@ -332,7 +332,7 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 		},
 		{
 			name:      "returns empty without error when CAI search fails",
-			taskMode:  inspectioncore_contract.TaskModeRun,
+			taskMode:  inspectioncore.TaskModeRun,
 			cluster:   completeCluster,
 			searchErr: errors.New("permission denied"),
 			wantCount: 0,
@@ -380,11 +380,11 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			got, _, err := inspectiontest.RunInspectionTask(ctx, GKEResourceFetcherTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), factory),
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
-				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), tc.cluster),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), factory),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+				tasktest.NewTaskDependencyValuePair(k8scommon.ClusterIdentityTaskID.Ref(), tc.cluster),
 			)
 			if err != nil {
 				t.Fatalf("GKEResourceFetcherTask unexpected error: %v", err)

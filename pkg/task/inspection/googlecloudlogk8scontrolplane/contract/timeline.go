@@ -20,19 +20,19 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustControlPlaneComponentTimeline returns the timeline path for a Kubernetes control plane component under a GKE cluster.
 func MustControlPlaneComponentTimeline(ctx context.Context, gkeTimeline *khifilev6.TimelinePath, componentName string) *khifilev6.TimelinePath {
-	if gkeTimeline == nil || gkeTimeline.Type.GetId() != googlecloudcommon_contract.TimelineTypeGKE.GetId() {
+	if gkeTimeline == nil || gkeTimeline.Type.GetId() != gcpcommon.TimelineTypeGKE.GetId() {
 		panic("parent timeline path must be GKE type")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	controlPlanesTimeline := builder.TimelineAccumulator.GetPath(gkeTimeline, khifilev6.PathSegment{
 		Name: "controlplanes",
-		Type: googlecloudcommon_contract.TimelineTypeGKEControlPlanes,
+		Type: gcpcommon.TimelineTypeGKEControlPlanes,
 	})
 	return builder.TimelineAccumulator.GetPath(controlPlanesTimeline, khifilev6.PathSegment{
 		Name: componentName,

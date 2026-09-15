@@ -19,20 +19,20 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustEventExporterTimeline returns the timeline path for the GKE Event Exporter.
 // It panics if the given cluster timeline is nil or not of GKE type.
 func MustEventExporterTimeline(ctx context.Context, clusterTimeline *khifilev6.TimelinePath) *khifilev6.TimelinePath {
-	if clusterTimeline == nil || clusterTimeline.Type.GetId() != googlecloudcommon_contract.TimelineTypeGKE.GetId() {
+	if clusterTimeline == nil || clusterTimeline.Type.GetId() != gcpcommon.TimelineTypeGKE.GetId() {
 		panic("parent timeline path must be GKE type")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	otherGKEResourcesTimeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
 		Name: "other",
-		Type: googlecloudcommon_contract.TimelineTypeOtherGKEResources,
+		Type: gcpcommon.TimelineTypeOtherGKEResources,
 	})
 	return builder.TimelineAccumulator.GetPath(otherGKEResourcesTimeline, khifilev6.PathSegment{
 		Name: "event-exporter",

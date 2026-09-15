@@ -16,11 +16,11 @@ package googlecloudclustergdcbaremetal_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
 // ClusterGDCBaremetalCommonTaskPrefix is the common task id prefix for GDC Baremetal clusters.
-var ClusterGDCBaremetalCommonTaskPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "gdc-baremetal"
+var ClusterGDCBaremetalCommonTaskPrefix = k8scommon.GoogleCloudCommonK8STaskIDPrefix + "gdc-baremetal"
 
 // ClusterNamePrefixTaskIDForGDCVForBaremetal is the task ID for the GDCV for Baremetal cluster name prefix.
-var ClusterNamePrefixTaskIDForGDCVForBaremetal = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "gdcv-for-baremetal")
+var ClusterNamePrefixTaskIDForGDCVForBaremetal = taskid.NewImplementationID(k8scommon.ClusterNamePrefixTaskRef, "gdcv-for-baremetal")

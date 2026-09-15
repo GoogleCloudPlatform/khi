@@ -24,15 +24,15 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestGenerateAutoscalerStructuredQuery(t *testing.T) {
-	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	cluster := k8scommon.GoogleCloudClusterIdentity{
 		ProjectID:   "my-project",
 		Location:    "my-location",
 		ClusterName: "my-cluster",
@@ -40,7 +40,7 @@ func TestGenerateAutoscalerStructuredQuery(t *testing.T) {
 
 	testCases := []struct {
 		name                   string
-		cluster                googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster                k8scommon.GoogleCloudClusterIdentity
 		excludeStatus          bool
 		wantQuery              string
 		wantMetricFilters      []string
@@ -100,12 +100,12 @@ LOG_ID("container.googleapis.com/cluster-autoscaler-visibility")
 func TestGenerateAutoscalerStructuredQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name          string
-		cluster       googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster       k8scommon.GoogleCloudClusterIdentity
 		excludeStatus bool
 	}{
 		{
 			name: "Valid Query",
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ProjectID:   "gcp-project-id",
 				Location:    "gcp-location",
 				ClusterName: "gcp-cluster-name",
@@ -114,7 +114,7 @@ func TestGenerateAutoscalerStructuredQueryIsValid(t *testing.T) {
 		},
 		{
 			name: "Valid Query with Exclude Status",
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ProjectID:   "gcp-project-id",
 				Location:    "gcp-location",
 				ClusterName: "gcp-cluster-name",
@@ -138,13 +138,13 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 	startTime := time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
 
-	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	cluster := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
 		ProjectID:   "test-project",
 		Location:    "us-central1-a",
 	}
 
-	resourceNamesInput := googlecloudcommon_contract.NewResourceNamesInput()
+	resourceNamesInput := gcpcommon.NewResourceNamesInput()
 	clientFactory, err := googlecloud.NewClientFactory()
 	if err != nil {
 		t.Fatalf("failed to create ClientFactory: %v", err)
@@ -152,11 +152,11 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
-		tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), cluster),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(k8scommon.ClusterIdentityTaskID.Ref(), cluster),
 	)
 	if err != nil {
 		t.Fatalf("dry run returned unexpected error: %v", err)

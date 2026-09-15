@@ -23,17 +23,17 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
 
 // GenerateK8sControlPlaneStructuredQuery generates a structured query for Kubernetes control plane logs.
-func GenerateK8sControlPlaneStructuredQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, controlplaneComponentFilter *gcpqueryutil.SetFilterParseResult) *logestimator.StructuredLogQuery {
+func GenerateK8sControlPlaneStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, controlplaneComponentFilter *gcpqueryutil.SetFilterParseResult) *logestimator.StructuredLogQuery {
 	filters := []logestimator.LoggingMonitoringMatcher{
 		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
 		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
-		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster))),
+		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(k8scommon.ClusterNameUsageK8sCluster))),
 	}
 
 	if controlplaneComponentFilter != nil {
@@ -61,14 +61,14 @@ func GenerateK8sControlPlaneStructuredQuery(cluster googlecloudk8scommon_contrac
 }
 
 // GenerateK8sControlPlaneQuery generates a query for Kubernetes control plane logs.
-func GenerateK8sControlPlaneQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, controlplaneComponentFilter *gcpqueryutil.SetFilterParseResult) string {
+func GenerateK8sControlPlaneQuery(cluster k8scommon.GoogleCloudClusterIdentity, controlplaneComponentFilter *gcpqueryutil.SetFilterParseResult) string {
 	return GenerateK8sControlPlaneStructuredQuery(cluster, controlplaneComponentFilter).GenerateCloudLoggingQuery()
 }
 
 type controlPlaneListLogEntriesTaskSetting struct {
 }
 
-// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		googlecloudlogk8scontrolplane_contract.ClusterIdentityTaskID.Ref(),
@@ -76,34 +76,34 @@ func (c *controlPlaneListLogEntriesTaskSetting) Dependencies() []coretask.Depend
 	}
 }
 
-// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudlogk8scontrolplane_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
-// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) QueryName() string {
 	return "K8s control plane logs"
 }
 
-// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudlogk8scontrolplane_contract.ClusterIdentityTaskID.Ref())
 	controlplaneComponentNameFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontrolplane_contract.InputControlPlaneComponentNameFilterTaskID.Ref())
 	return []*logestimator.StructuredLogQuery{GenerateK8sControlPlaneStructuredQuery(cluster, controlplaneComponentNameFilter)}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlogk8scontrolplane_contract.ListLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 10, nil
 }
 
-var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*controlPlaneListLogEntriesTaskSetting)(nil)
+var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*controlPlaneListLogEntriesTaskSetting)(nil)
 
-var ListLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&controlPlaneListLogEntriesTaskSetting{})
+var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&controlPlaneListLogEntriesTaskSetting{})

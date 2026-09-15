@@ -19,13 +19,13 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustAutoscalerTimeline returns the timeline path for GKE cluster autoscaler under the Kubernetes Cluster timeline.
 func MustAutoscalerTimeline(ctx context.Context, clusterTimeline *khifilev6.TimelinePath) *khifilev6.TimelinePath {
-	if clusterTimeline == nil || clusterTimeline.Type.GetId() != googlecloudcommon_contract.TimelineTypeGKE.GetId() {
+	if clusterTimeline == nil || clusterTimeline.Type.GetId() != gcpcommon.TimelineTypeGKE.GetId() {
 		panic("parent timeline path must be GKE type")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
@@ -37,7 +37,7 @@ func MustAutoscalerTimeline(ctx context.Context, clusterTimeline *khifilev6.Time
 
 // MustMigTimeline returns the timeline path for a Managed Instance Group (MIG) under a nodepool timeline.
 func MustMigTimeline(ctx context.Context, nodepoolTimeline *khifilev6.TimelinePath, migName string) *khifilev6.TimelinePath {
-	if nodepoolTimeline == nil || nodepoolTimeline.Type.GetId() != googlecloudcommon_contract.TimelineTypeGKENodePool.GetId() {
+	if nodepoolTimeline == nil || nodepoolTimeline.Type.GetId() != gcpcommon.TimelineTypeGKENodePool.GetId() {
 		panic("parent timeline path must be GKENodePool type")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)

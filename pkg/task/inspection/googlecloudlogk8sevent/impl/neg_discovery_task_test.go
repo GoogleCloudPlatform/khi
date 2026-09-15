@@ -23,7 +23,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -34,7 +34,7 @@ func TestEventLogNEGDiscoveryTask(t *testing.T) {
 		name     string
 		logs     []*log.Log
 		taskMode inspectioncore.InspectionTaskModeType
-		want     googlecloudk8scommon_contract.NEGToBackendServiceMap
+		want     k8scommon.NEGToBackendServiceMap
 	}{
 		{
 			name: "valid event log",
@@ -45,7 +45,7 @@ func TestEventLogNEGDiscoveryTask(t *testing.T) {
 				testlog.NewMockLog(time.Now()), // no fieldset
 			},
 			taskMode: inspectioncore.TaskModeRun,
-			want: googlecloudk8scommon_contract.NEGToBackendServiceMap{
+			want: k8scommon.NEGToBackendServiceMap{
 				"k8s1-event": "bs-event",
 			},
 		},

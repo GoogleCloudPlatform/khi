@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func TestEmptyInitialResourceStateProviderTask(t *testing.T) {
@@ -41,7 +41,7 @@ func TestEmptyInitialResourceStateProviderTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			provider, _, err := inspectiontest.RunInspectionTask(ctx, EmptyInitialResourceStateProviderTask, inspectioncore_contract.TaskModeRun, map[string]any{})
+			provider, _, err := inspectiontest.RunInspectionTask(ctx, EmptyInitialResourceStateProviderTask, inspectioncore.TaskModeRun, map[string]any{})
 			if err != nil {
 				t.Fatalf("unexpected error running task: %v", err)
 			}

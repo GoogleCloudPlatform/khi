@@ -16,11 +16,11 @@ package googlecloudclustergdcvmware_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
 // ClusterGDCVMWareCommonTaskPrefix is the common task id prefix for GDC Vmware cluster related tasks.
-var ClusterGDCVMWareCommonTaskPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "gdc-vmware"
+var ClusterGDCVMWareCommonTaskPrefix = k8scommon.GoogleCloudCommonK8STaskIDPrefix + "gdc-vmware"
 
 // ClusterNamePrefixTaskIDForGDCVForVMWare is the task ID for the GDCV for VMWare cluster name prefix.
-var ClusterNamePrefixTaskIDForGDCVForVMWare = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "gdcv-for-vmware")
+var ClusterNamePrefixTaskIDForGDCVForVMWare = taskid.NewImplementationID(k8scommon.ClusterNamePrefixTaskRef, "gdcv-for-vmware")

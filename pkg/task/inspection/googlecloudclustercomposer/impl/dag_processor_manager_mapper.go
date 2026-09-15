@@ -26,8 +26,8 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -95,7 +95,7 @@ func (i *dagProcessorManagerLogIngester) ProcessLogByGroup(ctx context.Context, 
 	cs.SetSeverity(inspectioncore.SeverityUnknown)
 	cs.SetSummary("")
 
-	rawLog, err := googlecloudcommon_contract.ExtractGCPMainMessage(l.NodeReader)
+	rawLog, err := gcpcommon.ExtractGCPMainMessage(l.NodeReader)
 	if err != nil || rawLog == "" {
 		return cs, prevGroupData, nil
 	}
@@ -170,7 +170,7 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
 	envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, environmentName)
 
-	rawLog, err := googlecloudcommon_contract.ExtractGCPMainMessage(l.NodeReader)
+	rawLog, err := gcpcommon.ExtractGCPMainMessage(l.NodeReader)
 	if err != nil || rawLog == "" {
 		return nil, prevGroupData, nil
 	}

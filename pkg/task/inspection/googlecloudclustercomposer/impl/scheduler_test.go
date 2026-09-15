@@ -28,8 +28,8 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -48,7 +48,7 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 			name: "Scheduler basic identification and TaskInstance extraction",
 			input: testlog.NewMockLog(
 				timestamp,
-				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Processing /app/models.py"},
+				gcpcommon.GCPMainMessageFieldSet{MainMessage: "Processing /app/models.py"},
 				googlecloudclustercomposer_contract.ComposerFieldSet{
 					SchedulerID: "airflow-scheduler-7b5f",
 				},
@@ -87,7 +87,7 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 			name: "Zombie task adds event to worker",
 			input: testlog.NewMockLog(
 				timestamp,
-				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Detected zombie task"},
+				gcpcommon.GCPMainMessageFieldSet{MainMessage: "Detected zombie task"},
 				googlecloudclustercomposer_contract.ComposerFieldSet{
 					SchedulerID: "airflow-scheduler-7b5f",
 				},
@@ -128,7 +128,7 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 			name: "Scheduler log without TaskInstance",
 			input: testlog.NewMockLog(
 				timestamp,
-				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Heartbeat"},
+				gcpcommon.GCPMainMessageFieldSet{MainMessage: "Heartbeat"},
 				googlecloudclustercomposer_contract.ComposerFieldSet{
 					SchedulerID: "airflow-scheduler-7b5f",
 				},

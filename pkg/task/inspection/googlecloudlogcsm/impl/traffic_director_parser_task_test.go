@@ -27,8 +27,8 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -39,12 +39,12 @@ import (
 func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 	testCases := []struct {
 		desc        string
-		inputAudit  *googlecloudcommon_contract.GCPAuditLogFieldSet
+		inputAudit  *gcpcommon.GCPAuditLogFieldSet
 		wantSummary string
 	}{
 		{
 			desc: "immediate operation CreateMesh",
-			inputAudit: &googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: &gcpcommon.GCPAuditLogFieldSet{
 				MethodName:     "google.cloud.networkservices.v1.NetworkServices.CreateMesh",
 				OperationFirst: true,
 				OperationLast:  true,
@@ -53,7 +53,7 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			desc: "long running operation CreateMesh started",
-			inputAudit: &googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: &gcpcommon.GCPAuditLogFieldSet{
 				MethodName:     "google.cloud.networkservices.v1.NetworkServices.CreateMesh",
 				OperationFirst: true,
 				OperationLast:  false,
@@ -62,7 +62,7 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 		},
 		{
 			desc: "long running operation CreateMesh finished",
-			inputAudit: &googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: &gcpcommon.GCPAuditLogFieldSet{
 				MethodName:     "google.cloud.networkservices.v1.NetworkServices.CreateMesh",
 				OperationFirst: false,
 				OperationLast:  true,
@@ -71,7 +71,7 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogcsm_contract.ListCSMTrafficDirectorLogEntriesTaskID.Ref(), googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
+	ingester := gcpcommon.NewGCPOperationLogIngester(googlecloudlogcsm_contract.ListCSMTrafficDirectorLogEntriesTaskID.Ref(), googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := testlog.NewMockLog(
@@ -105,12 +105,12 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		auditFieldSets []*googlecloudcommon_contract.GCPAuditLogFieldSet
+		auditFieldSets []*gcpcommon.GCPAuditLogFieldSet
 		assert         func(t *testing.T, builder *khifilev6.Builder, results []*khifilev6.TimelineChangeSet)
 	}{
 		{
 			name: "Mesh creation log",
-			auditFieldSets: []*googlecloudcommon_contract.GCPAuditLogFieldSet{
+			auditFieldSets: []*gcpcommon.GCPAuditLogFieldSet{
 				{
 					ProjectID:      "test-project",
 					MethodName:     "google.cloud.networkservices.v1.NetworkServices.CreateMesh",
@@ -123,9 +123,9 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 			assert: func(t *testing.T, builder *khifilev6.Builder, results []*khifilev6.TimelineChangeSet) {
 				wantMeshPath := builder.TimelineAccumulator.GetPath(nil,
-					khifilev6.PathSegment{Name: "test-project", Type: googlecloudcommon_contract.TimelineTypeGCPProject},
-					khifilev6.PathSegment{Name: "meshes", Type: googlecloudcommon_contract.TimelineTypeGCPResourceType},
-					khifilev6.PathSegment{Name: "test-mesh", Type: googlecloudcommon_contract.TimelineTypeGCPResource},
+					khifilev6.PathSegment{Name: "test-project", Type: gcpcommon.TimelineTypeGCPProject},
+					khifilev6.PathSegment{Name: "meshes", Type: gcpcommon.TimelineTypeGCPResourceType},
+					khifilev6.PathSegment{Name: "test-mesh", Type: gcpcommon.TimelineTypeGCPResource},
 				)
 
 				testchangeset.AssertTimeline(t, results[0]).
@@ -134,7 +134,7 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 		{
 			name: "Long running operation sequence",
-			auditFieldSets: []*googlecloudcommon_contract.GCPAuditLogFieldSet{
+			auditFieldSets: []*gcpcommon.GCPAuditLogFieldSet{
 				{
 					ProjectID:      "p",
 					OperationID:    "op1",
@@ -157,15 +157,15 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 			assert: func(t *testing.T, builder *khifilev6.Builder, results []*khifilev6.TimelineChangeSet) {
 				wantMeshPath := builder.TimelineAccumulator.GetPath(nil,
-					khifilev6.PathSegment{Name: "p", Type: googlecloudcommon_contract.TimelineTypeGCPProject},
-					khifilev6.PathSegment{Name: "meshes", Type: googlecloudcommon_contract.TimelineTypeGCPResourceType},
-					khifilev6.PathSegment{Name: "m1", Type: googlecloudcommon_contract.TimelineTypeGCPResource},
+					khifilev6.PathSegment{Name: "p", Type: gcpcommon.TimelineTypeGCPProject},
+					khifilev6.PathSegment{Name: "meshes", Type: gcpcommon.TimelineTypeGCPResourceType},
+					khifilev6.PathSegment{Name: "m1", Type: gcpcommon.TimelineTypeGCPResource},
 				)
 				wantOpPath := builder.TimelineAccumulator.GetPath(nil,
-					khifilev6.PathSegment{Name: "p", Type: googlecloudcommon_contract.TimelineTypeGCPProject},
-					khifilev6.PathSegment{Name: "meshes", Type: googlecloudcommon_contract.TimelineTypeGCPResourceType},
-					khifilev6.PathSegment{Name: "m1", Type: googlecloudcommon_contract.TimelineTypeGCPResource},
-					khifilev6.PathSegment{Name: "CreateMesh-op1", Type: googlecloudcommon_contract.TimelineTypeOperation},
+					khifilev6.PathSegment{Name: "p", Type: gcpcommon.TimelineTypeGCPProject},
+					khifilev6.PathSegment{Name: "meshes", Type: gcpcommon.TimelineTypeGCPResourceType},
+					khifilev6.PathSegment{Name: "m1", Type: gcpcommon.TimelineTypeGCPResource},
+					khifilev6.PathSegment{Name: "CreateMesh-op1", Type: gcpcommon.TimelineTypeOperation},
 				)
 
 				reqNode := createReader(t, map[string]any{"description": "init"}).Node
@@ -186,8 +186,8 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						unique.Handle[string]{},
 					)).
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
-						VerbType:     googlecloudcommon_contract.VerbOperationStart,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:     gcpcommon.VerbOperationStart,
+						StateType:    gcpcommon.RevisionStateOperationStarted,
 						Principal:    "u@e.c",
 						ResourceBody: reqNode,
 						ChangedTime:  now,
@@ -203,8 +203,8 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				testchangeset.AssertTimeline(t, results[1]).
 					HasNoRevision(wantMeshPath).
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
-						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:     gcpcommon.VerbOperationFinish,
+						StateType:    gcpcommon.RevisionStateOperationSucceed,
 						Principal:    "u@e.c",
 						ResourceBody: nil,
 						ChangedTime:  now.Add(time.Second),
@@ -218,11 +218,11 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			ctx = tasktest.WithTaskResult(ctx, googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			})
 
-			tracker := googlecloudcommon_contract.NewGCPOperationTracker()
+			tracker := gcpcommon.NewGCPOperationTracker()
 			var results []*khifilev6.TimelineChangeSet
 
 			for i, auditFieldSet := range tc.auditFieldSets {

@@ -27,20 +27,20 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	k8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon/impl"
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
 	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
 	googlecloudclustergkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/impl"
 	googlecloudclustergkeonazure_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/impl"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestGenerateCSMTrafficLogsStructuredQuery(t *testing.T) {
-	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	cluster := k8scommon.GoogleCloudClusterIdentity{
 		ProjectID:   "test-project",
 		Location:    "test-location",
 		ClusterName: "test-cluster",
@@ -48,7 +48,7 @@ func TestGenerateCSMTrafficLogsStructuredQuery(t *testing.T) {
 
 	testCases := []struct {
 		desc                   string
-		cluster                googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster                k8scommon.GoogleCloudClusterIdentity
 		responseFlagsFilter    *gcpqueryutil.SetFilterParseResult
 		namespaceFilter        *gcpqueryutil.SetFilterParseResult
 		wantQuery              string
@@ -286,7 +286,7 @@ labels.response_flag:("UH")`,
 func TestCSMQueryTaskPrefixResolution(t *testing.T) {
 	testCases := []struct {
 		name       string
-		prefixTask coretask.Task[googlecloudk8scommon_contract.ClusterPrefixPolicy]
+		prefixTask coretask.Task[k8scommon.ClusterPrefixPolicy]
 		want       string
 	}{
 		{
@@ -340,11 +340,11 @@ labels.response_flag:("UH")`,
 				t.Fatalf("unexpected error running prefix task: %v", err)
 			}
 
-			idRes, err := tasktest.RunTask(ctx, googlecloudk8scommon_impl.ClusterIdentityTask,
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputProjectIdTaskID.Ref(), "test-project"),
-				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), "test-cluster"),
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLocationsTaskID.Ref(), "test-location"),
-				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, prefixPolicy),
+			idRes, err := tasktest.RunTask(ctx, k8scommon_impl.ClusterIdentityTask,
+				tasktest.NewTaskDependencyValuePair(gcpcommon.InputProjectIdTaskID.Ref(), "test-project"),
+				tasktest.NewTaskDependencyValuePair(k8scommon.InputClusterNameTaskID.Ref(), "test-cluster"),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.InputLocationsTaskID.Ref(), "test-location"),
+				tasktest.NewTaskDependencyValuePair(k8scommon.ClusterNamePrefixTaskRef, prefixPolicy),
 			)
 			if err != nil {
 				t.Fatalf("unexpected error running cluster identity task: %v", err)
@@ -364,13 +364,13 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 	startTime := time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
 
-	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	cluster := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
 		ProjectID:   "test-project",
 		Location:    "test-location",
 	}
 
-	resourceNamesInput := googlecloudcommon_contract.NewResourceNamesInput()
+	resourceNamesInput := gcpcommon.NewResourceNamesInput()
 	clientFactory, err := googlecloud.NewClientFactory()
 	if err != nil {
 		t.Fatalf("failed to create ClientFactory: %v", err)
@@ -378,12 +378,12 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
 		tasktest.NewTaskDependencyValuePair(googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(), cluster),
-		tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(), &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}}),
+		tasktest.NewTaskDependencyValuePair(k8scommon.InputNamespaceFilterTaskID.Ref(), &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}}),
 		tasktest.NewTaskDependencyValuePair(googlecloudlogcsm_contract.InputCSMResponseFlagsTaskID.Ref(), &gcpqueryutil.SetFilterParseResult{Additives: []string{"UH"}}),
 	)
 	if err != nil {

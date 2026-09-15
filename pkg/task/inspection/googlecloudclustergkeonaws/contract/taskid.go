@@ -16,11 +16,11 @@ package googlecloudclustergkeonaws_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
 // ClusterGKEOnAWSTaskCommonPrefix is the task id prefix defined in googlecloudclustergkeonaws.
-var ClusterGKEOnAWSTaskCommonPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "cluster/gke-on-aws/"
+var ClusterGKEOnAWSTaskCommonPrefix = k8scommon.GoogleCloudCommonK8STaskIDPrefix + "cluster/gke-on-aws/"
 
 // ClusterNamePrefixTaskID is the task ID for the GKE on AWS cluster name prefix.
-var ClusterNamePrefixTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "gke-on-aws")
+var ClusterNamePrefixTaskID = taskid.NewImplementationID(k8scommon.ClusterNamePrefixTaskRef, "gke-on-aws")

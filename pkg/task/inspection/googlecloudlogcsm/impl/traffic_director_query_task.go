@@ -25,7 +25,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -65,13 +65,13 @@ func GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID string, clusterIde
 
 type CSMTrafficDirectorListLogEntryTaskSetting struct{}
 
-// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	fleetProjectID := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.InputFleetProjectIDTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", fleetProjectID)}, nil
 }
 
-// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		googlecloudlogcsm_contract.InputFleetProjectIDTaskID.Ref(),
@@ -79,12 +79,12 @@ func (s *CSMTrafficDirectorListLogEntryTaskSetting) Dependencies() []coretask.De
 	}
 }
 
-// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) QueryName() string {
 	return "CSM Traffic Director logs"
 }
 
-// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	fleetProjectID := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.InputFleetProjectIDTaskID.Ref())
 	clusterIdentifiers := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.CSMClusterIdentifierTaskID.Ref())
@@ -105,16 +105,16 @@ func (s *CSMTrafficDirectorListLogEntryTaskSetting) Queries(ctx context.Context)
 	return []*logestimator.StructuredLogQuery{sq}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlogcsm_contract.ListCSMTrafficDirectorLogEntriesTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 1, nil
 }
 
-var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*CSMTrafficDirectorListLogEntryTaskSetting)(nil)
+var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*CSMTrafficDirectorListLogEntryTaskSetting)(nil)
 
-var ListCSMTrafficDirectorLogEntriesTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&CSMTrafficDirectorListLogEntryTaskSetting{})
+var ListCSMTrafficDirectorLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&CSMTrafficDirectorListLogEntryTaskSetting{})

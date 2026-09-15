@@ -24,13 +24,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
-var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
+var LogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
 	googlecloudlogmulticloudapiaudit_contract.LogIngesterTaskID,
 	googlecloudlogmulticloudapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudlogmulticloudapiaudit_contract.LogTypeMulticloudAPI,
@@ -54,7 +54,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 )
 
 type multicloudAuditLogLogToTimelineMapperSetting struct {
-	inspectiontaskbase.SinglePassMapperBase[*googlecloudcommon_contract.GCPOperationTracker]
+	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
 
 // Dependencies implements LogToTimelineMapper.
@@ -73,11 +73,11 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.
 }
 
 // ProcessLogByGroup maps grouped logs to resource timelines and operations in KHI V6 format.
-func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *googlecloudcommon_contract.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *googlecloudcommon_contract.GCPOperationTracker, error) {
+func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	if tracker == nil {
-		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
+		tracker = gcpcommon.NewGCPOperationTracker()
 	}
-	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+	auditFieldSet, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -86,7 +86,7 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 		return nil, tracker, err
 	}
 
-	projectPath := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, auditFieldSet.ProjectID)
+	projectPath := gcpcommon.MustGCPProjectTimeline(ctx, auditFieldSet.ProjectID)
 	clusterPath := googlecloudlogmulticloudapiaudit_contract.MustMultiCloudClusterTimeline(ctx, projectPath, resourceFieldSet.ClusterName)
 
 	var targetPath *khifilev6.TimelinePath
@@ -108,15 +108,15 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 	shortMethodName = strings.ReplaceAll(shortMethodName, clusterTypeToFragmentInMethodNameMapping[resourceFieldSet.ClusterType], "") // Remove type specific part.
 
 	opPath := googlecloudlogmulticloudapiaudit_contract.MustOperationTimeline(ctx, targetPath, shortMethodName, auditFieldSet.OperationID)
-	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetPath, opPath, &auditFieldSet, l.Timestamp, shortMethodName, resourceFieldSet.IsCluster())
+	gcpcommon.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetPath, opPath, &auditFieldSet, l.Timestamp, shortMethodName, resourceFieldSet.IsCluster())
 
 	return cs, tracker, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*multicloudAuditLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*multicloudAuditLogLogToTimelineMapperSetting)(nil)
 
 // LogToTimelineMapperTask is a task that adds revisions/events regarding logs.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*gcpcommon.GCPOperationTracker](
 	googlecloudlogmulticloudapiaudit_contract.LogToTimelineMapperTaskID,
 	&multicloudAuditLogLogToTimelineMapperSetting{},
 	inspectioncore.FeatureTaskLabel(`Multi-Cloud API Logs`,

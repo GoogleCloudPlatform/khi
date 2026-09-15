@@ -26,7 +26,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
 
@@ -63,7 +63,7 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.Task
 // ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref())
-	clusterName := clusterIdentity.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster)
+	clusterName := clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sCluster)
 	componentFieldSet, err := googlecloudlogk8snode_contract.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil {
 		return nil, struct{}{}, err

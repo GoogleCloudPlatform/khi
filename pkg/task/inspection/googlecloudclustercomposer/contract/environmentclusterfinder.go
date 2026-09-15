@@ -23,7 +23,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
 var ErrEnvironmentClusterNotFound = errors.New("not found")
@@ -36,8 +36,8 @@ type EnvironmentClusterFinderImpl struct{}
 
 // GetGKEClusterNames implements ComposerEnvironmentClusterFinder.
 func (e *EnvironmentClusterFinderImpl) GetGKEClusterNames(ctx context.Context, projectID, location, environment string, startTime, endTime time.Time) ([]string, error) {
-	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
-	injector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
+	cf := coretask.GetTaskResult(ctx, gcpcommon.APIClientFactoryTaskID.Ref())
+	injector := coretask.GetTaskResult(ctx, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
 
 	client, err := cf.MonitoringMetricClient(ctx, googlecloud.Project(projectID))
 	if err != nil {

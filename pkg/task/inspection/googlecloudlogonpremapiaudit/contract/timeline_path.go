@@ -19,13 +19,13 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // MustOnPremClusterTimeline returns the hierarchical timeline path for an On-Prem Cluster under a Project.
 func MustOnPremClusterTimeline(ctx context.Context, projectPath *khifilev6.TimelinePath, clusterName string) *khifilev6.TimelinePath {
-	if projectPath == nil || projectPath.Type.GetId() != googlecloudcommon_contract.TimelineTypeGCPProject.GetId() {
+	if projectPath == nil || projectPath.Type.GetId() != gcpcommon.TimelineTypeGCPProject.GetId() {
 		panic("parent timeline path must be GCP Project type")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)

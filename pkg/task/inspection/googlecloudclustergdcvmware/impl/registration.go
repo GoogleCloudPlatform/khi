@@ -17,8 +17,8 @@ package googlecloudclustergdcvmware_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -31,10 +31,10 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	scoped := coreinspection.NewScopedRegistry(
 		registry,
 		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyEnvironment:                "googlecloud",
-			inspectioncore.InspectionTypeLabelKeyBasePlatform:               "kubernetes",
-			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType:    "gdc",
-			googlecloudcommon_contract.InspectionTypeLabelKeyClusterSubType: "vmware",
+			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+			gcpcommon.InspectionTypeLabelKeyClusterType:       "gdc",
+			gcpcommon.InspectionTypeLabelKeyClusterSubType:    "vmware",
 		}),
 	)
 

@@ -26,7 +26,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -88,39 +88,39 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 	// 2. Set up expected path references.
 	wantProjectPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: "test-project",
-		Type: googlecloudcommon_contract.TimelineTypeGCPProject,
+		Type: gcpcommon.TimelineTypeGCPProject,
 	})
 	wantClusterPath := builder.TimelineAccumulator.GetPath(wantProjectPath, khifilev6.PathSegment{
 		Name: "test-cluster",
-		Type: googlecloudcommon_contract.TimelineTypeGKE,
+		Type: gcpcommon.TimelineTypeGKE,
 	})
 	wantNodepoolsPath := builder.TimelineAccumulator.GetPath(wantClusterPath, khifilev6.PathSegment{
 		Name: "nodepools",
-		Type: googlecloudcommon_contract.TimelineTypeGKENodePools,
+		Type: gcpcommon.TimelineTypeGKENodePools,
 	})
 	wantNodepoolPath := builder.TimelineAccumulator.GetPath(wantNodepoolsPath, khifilev6.PathSegment{
 		Name: "test-nodepool",
-		Type: googlecloudcommon_contract.TimelineTypeGKENodePool,
+		Type: gcpcommon.TimelineTypeGKENodePool,
 	})
 	wantClusterOpPath := builder.TimelineAccumulator.GetPath(wantClusterPath, khifilev6.PathSegment{
 		Name: "CreateCluster-op-1",
-		Type: googlecloudcommon_contract.TimelineTypeOperation,
+		Type: gcpcommon.TimelineTypeOperation,
 	})
 	wantNodepoolOp1Path := builder.TimelineAccumulator.GetPath(wantNodepoolPath, khifilev6.PathSegment{
 		Name: "CreateNodePool-op-2",
-		Type: googlecloudcommon_contract.TimelineTypeOperation,
+		Type: gcpcommon.TimelineTypeOperation,
 	})
 	wantNodepoolOp2Path := builder.TimelineAccumulator.GetPath(wantNodepoolPath, khifilev6.PathSegment{
 		Name: "DeleteNodePool-op-2",
-		Type: googlecloudcommon_contract.TimelineTypeOperation,
+		Type: gcpcommon.TimelineTypeOperation,
 	})
 	wantClusterOpUpdatePath := builder.TimelineAccumulator.GetPath(wantClusterPath, khifilev6.PathSegment{
 		Name: "UpdateCluster-op-3",
-		Type: googlecloudcommon_contract.TimelineTypeOperation,
+		Type: gcpcommon.TimelineTypeOperation,
 	})
 	wantNodepoolOpUpdatePath := builder.TimelineAccumulator.GetPath(wantNodepoolPath, khifilev6.PathSegment{
 		Name: "UpdateNodePool-op-3",
-		Type: googlecloudcommon_contract.TimelineTypeOperation,
+		Type: gcpcommon.TimelineTypeOperation,
 	})
 
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
@@ -128,11 +128,11 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 	testCases := []struct {
 		desc                 string
 		inputResource        googlecloudloggkeapiaudit_contract.GKEAuditLogResourceFieldSet
-		inputAudit           googlecloudcommon_contract.GCPAuditLogFieldSet
-		inputTracker         *googlecloudcommon_contract.GCPOperationTracker
+		inputAudit           gcpcommon.GCPAuditLogFieldSet
+		inputTracker         *gcpcommon.GCPOperationTracker
 		initialStateProvider googlecloudloggkeapiaudit_contract.InitialResourceStateProvider
 		assert               func(t *testing.T, cs *khifilev6.TimelineChangeSet)
-		assertTracker        func(t *testing.T, tracker *googlecloudcommon_contract.GCPOperationTracker)
+		assertTracker        func(t *testing.T, tracker *gcpcommon.GCPOperationTracker)
 	}{
 		{
 			desc: "cluster create started",
@@ -140,7 +140,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				ClusterName:  "test-cluster",
 				NodepoolName: "",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-1",
 				OperationFirst: true,
@@ -151,7 +151,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
   initialNodeCount: 1
   name: test-cluster`),
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				var bodyNode structured.Node
 				if subReader, err := testReaderFromYAML(t, `cluster:
@@ -169,8 +169,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 						ResourceBody: bodyNode,
 					}, compareNodeOption).
 					HasRevision(wantClusterOpPath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationStart,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:    gcpcommon.VerbOperationStart,
+						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `cluster:
@@ -185,7 +185,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				ClusterName:  "test-cluster",
 				NodepoolName: "",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-1",
 				OperationFirst: false,
@@ -194,7 +194,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
@@ -204,8 +204,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 						ChangedTime: testTime,
 					}, compareNodeOption).
 					HasRevision(wantClusterOpPath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -217,7 +217,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: true,
@@ -228,7 +228,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
   initialNodeCount: 1
   name: test-nodepool`),
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				var bodyNode structured.Node
 				if subReader, err := testReaderFromYAML(t, `nodePool:
@@ -246,8 +246,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 						ResourceBody: bodyNode,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolOp1Path, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationStart,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:    gcpcommon.VerbOperationStart,
+						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `nodePool:
@@ -262,7 +262,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: false,
@@ -271,7 +271,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
@@ -287,8 +287,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 						ChangedTime: testTime,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolOp1Path, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -300,7 +300,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: false,
@@ -309,7 +309,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
@@ -325,8 +325,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 						ChangedTime: testTime,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolOp2Path, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -338,7 +338,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: true,
@@ -347,7 +347,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantNodepoolPath)
@@ -359,7 +359,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				ClusterName:  "test-cluster",
 				NodepoolName: "",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-3",
 				OperationFirst: false,
@@ -369,7 +369,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				Request: testReaderFromYAML(t, `update:
   desiredNodePoolId: np-1`),
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			initialStateProvider: &mockInitialResourceStateProvider{
 				clusterStates: map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{
 					"test-cluster": {
@@ -384,15 +384,15 @@ desiredNodePoolId: np-1`).Node
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
+						VerbType:     k8saudit.VerbUpdate,
+						StateType:    k8saudit.RevisionStateK8sClusterExisting,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: wantBody,
 					}, compareNodeOption).
 					HasRevision(wantClusterOpUpdatePath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `update:
@@ -406,7 +406,7 @@ desiredNodePoolId: np-1`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-3",
 				OperationFirst: false,
@@ -416,7 +416,7 @@ desiredNodePoolId: np-1`).Node
 				Request: testReaderFromYAML(t, `update:
   desiredNodePoolId: np-1`),
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				var patchBody structured.Node
 				if subReader, err := testReaderFromYAML(t, `update:
@@ -426,22 +426,22 @@ desiredNodePoolId: np-1`).Node
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExistingLogNotFound,
+						VerbType:     k8saudit.VerbCreate,
+						StateType:    k8saudit.RevisionStateK8sClusterExistingLogNotFound,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
 					}, compareNodeOption).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
+						VerbType:     k8saudit.VerbUpdate,
+						StateType:    k8saudit.RevisionStateK8sClusterExisting,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: patchBody,
 					}, compareNodeOption).
 					HasRevision(wantClusterOpUpdatePath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `update:
@@ -455,7 +455,7 @@ desiredNodePoolId: np-1`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-3",
 				OperationFirst: false,
@@ -465,7 +465,7 @@ desiredNodePoolId: np-1`).Node
 				Request: testReaderFromYAML(t, `nodePool:
   initialNodeCount: 5`),
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			initialStateProvider: &mockInitialResourceStateProvider{
 				nodePoolStates: map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{
 					"test-cluster/test-nodepool": {
@@ -479,15 +479,15 @@ name: test-nodepool`).Node
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting,
+						VerbType:     k8saudit.VerbUpdate,
+						StateType:    k8saudit.RevisionStateK8sNodepoolExisting,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: wantBody,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolOpUpdatePath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `nodePool:
@@ -501,7 +501,7 @@ name: test-nodepool`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-3",
 				OperationFirst: false,
@@ -511,7 +511,7 @@ name: test-nodepool`).Node
 				Request: testReaderFromYAML(t, `nodePool:
   initialNodeCount: 5`),
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				var patchBody structured.Node
 				if subReader, err := testReaderFromYAML(t, `nodePool:
@@ -521,22 +521,22 @@ name: test-nodepool`).Node
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound,
+						VerbType:     k8saudit.VerbCreate,
+						StateType:    k8saudit.RevisionStateK8sNodepoolExistingLogNotFound,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting,
+						VerbType:     k8saudit.VerbUpdate,
+						StateType:    k8saudit.RevisionStateK8sNodepoolExisting,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: patchBody,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolOpUpdatePath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `nodePool:
@@ -550,7 +550,7 @@ name: test-nodepool`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: true,
@@ -559,7 +559,7 @@ name: test-nodepool`).Node
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			initialStateProvider: &mockInitialResourceStateProvider{
 				nodePoolStates: map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{
 					"test-cluster/test-nodepool": {
@@ -574,14 +574,14 @@ name: test-nodepool`).Node
 				}
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleting,
+						VerbType:    k8saudit.VerbDelete,
+						StateType:   k8saudit.RevisionStateK8sNodepoolDeleting,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolOp2Path, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationStart,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:    gcpcommon.VerbOperationStart,
+						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -593,7 +593,7 @@ name: test-nodepool`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-1",
 				OperationFirst: true,
@@ -604,8 +604,8 @@ name: test-nodepool`).Node
   initialNodeCount: 1
   name: test-cluster`),
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
-			assertTracker: func(t *testing.T, tracker *googlecloudcommon_contract.GCPOperationTracker) {
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
+			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				wantManifest := testReaderFromYAML(t, `initialNodeCount: 1
 name: test-cluster`).Node
 				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), compareNodeOption); diff != "" {
@@ -619,7 +619,7 @@ name: test-cluster`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-1",
 				OperationFirst: false,
@@ -630,21 +630,21 @@ name: test-cluster`).Node
   initialNodeCount: 1
   name: test-cluster`),
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				wantBody := testReaderFromYAML(t, `initialNodeCount: 1
 name: test-cluster`).Node
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
+						VerbType:     k8saudit.VerbCreate,
+						StateType:    k8saudit.RevisionStateK8sClusterExisting,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: wantBody,
 					}, compareNodeOption).
 					HasRevision(wantClusterOpPath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `cluster:
@@ -652,7 +652,7 @@ name: test-cluster`).Node
   name: test-cluster`).Node,
 					}, compareNodeOption)
 			},
-			assertTracker: func(t *testing.T, tracker *googlecloudcommon_contract.GCPOperationTracker) {
+			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				wantManifest := testReaderFromYAML(t, `initialNodeCount: 1
 name: test-cluster`).Node
 				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), compareNodeOption); diff != "" {
@@ -666,7 +666,7 @@ name: test-cluster`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: true,
@@ -677,8 +677,8 @@ name: test-cluster`).Node
   initialNodeCount: 2
   name: test-nodepool`),
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
-			assertTracker: func(t *testing.T, tracker *googlecloudcommon_contract.GCPOperationTracker) {
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
+			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				wantManifest := testReaderFromYAML(t, `initialNodeCount: 2
 name: test-nodepool`).Node
 				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), compareNodeOption); diff != "" {
@@ -692,7 +692,7 @@ name: test-nodepool`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: false,
@@ -703,21 +703,21 @@ name: test-nodepool`).Node
   initialNodeCount: 2
   name: test-nodepool`),
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				wantBody := testReaderFromYAML(t, `initialNodeCount: 2
 name: test-nodepool`).Node
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting,
+						VerbType:     k8saudit.VerbCreate,
+						StateType:    k8saudit.RevisionStateK8sNodepoolExisting,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: wantBody,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolOp1Path, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `nodePool:
@@ -725,7 +725,7 @@ name: test-nodepool`).Node
   name: test-nodepool`).Node,
 					}, compareNodeOption)
 			},
-			assertTracker: func(t *testing.T, tracker *googlecloudcommon_contract.GCPOperationTracker) {
+			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				wantManifest := testReaderFromYAML(t, `initialNodeCount: 2
 name: test-nodepool`).Node
 				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), compareNodeOption); diff != "" {
@@ -739,7 +739,7 @@ name: test-nodepool`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: false,
@@ -748,27 +748,27 @@ name: test-nodepool`).Node
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
-			inputTracker: func() *googlecloudcommon_contract.GCPOperationTracker {
-				tr := googlecloudcommon_contract.NewGCPOperationTracker()
+			inputTracker: func() *gcpcommon.GCPOperationTracker {
+				tr := gcpcommon.NewGCPOperationTracker()
 				tr.SetCurrentManifest(testReaderFromYAML(t, `name: test-nodepool`).Node)
 				return tr
 			}(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleted,
+						VerbType:    k8saudit.VerbDelete,
+						StateType:   k8saudit.RevisionStateK8sNodepoolDeleted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolOp2Path, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption)
 			},
-			assertTracker: func(t *testing.T, tracker *googlecloudcommon_contract.GCPOperationTracker) {
+			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				if tracker.CurrentManifest() != nil {
 					t.Errorf("tracker.CurrentManifest() got non-nil, want nil after deletion finished")
 				}
@@ -780,7 +780,7 @@ name: test-nodepool`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-3",
 				OperationFirst: true,
@@ -789,7 +789,7 @@ name: test-nodepool`).Node
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			initialStateProvider: &mockInitialResourceStateProvider{
 				clusterStates: map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{
 					"test-cluster": {
@@ -800,8 +800,8 @@ name: test-nodepool`).Node
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterOpUpdatePath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationStart,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:    gcpcommon.VerbOperationStart,
+						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).
@@ -814,7 +814,7 @@ name: test-nodepool`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-3",
 				OperationFirst: true,
@@ -823,7 +823,7 @@ name: test-nodepool`).Node
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
-			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+			inputTracker: gcpcommon.NewGCPOperationTracker(),
 			initialStateProvider: &mockInitialResourceStateProvider{
 				nodePoolStates: map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{
 					"test-cluster/test-nodepool": {
@@ -834,8 +834,8 @@ name: test-nodepool`).Node
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolOpUpdatePath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationStart,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:    gcpcommon.VerbOperationStart,
+						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).
@@ -848,7 +848,7 @@ name: test-nodepool`).Node
 				ClusterName:  "test-cluster",
 				NodepoolName: "test-nodepool",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-3",
 				OperationFirst: false,
@@ -859,8 +859,8 @@ name: test-nodepool`).Node
 				Request: testReaderFromYAML(t, `nodePool:
   initialNodeCount: 5`),
 			},
-			inputTracker: func() *googlecloudcommon_contract.GCPOperationTracker {
-				tr := googlecloudcommon_contract.NewGCPOperationTracker()
+			inputTracker: func() *gcpcommon.GCPOperationTracker {
+				tr := gcpcommon.NewGCPOperationTracker()
 				tr.MarkStarted("op-3")
 				tr.MarkResourceRevision(wantNodepoolPath)
 				tr.SetCurrentManifest(testReaderFromYAML(t, "initialNodeCount: 3\nname: test-nodepool").Node)
@@ -869,8 +869,8 @@ name: test-nodepool`).Node
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolOpUpdatePath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationFailed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationFailed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `nodePool:
@@ -878,7 +878,7 @@ name: test-nodepool`).Node
 					}, compareNodeOption).
 					HasNoRevision(wantNodepoolPath)
 			},
-			assertTracker: func(t *testing.T, tracker *googlecloudcommon_contract.GCPOperationTracker) {
+			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				wantManifest := testReaderFromYAML(t, "initialNodeCount: 3\nname: test-nodepool").Node
 				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), compareNodeOption); diff != "" {
 					t.Errorf("tracker.CurrentManifest() mismatch (-want +got):\n%s", diff)

@@ -16,11 +16,11 @@ package googlecloudclustercomposer_impl
 
 import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 var ClusterIdentityAliasTask = coretask.NewAliasTask(
 	googlecloudclustercomposer_contract.ClusterIdentityTaskID,
-	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
+	k8scommon.ClusterIdentityTaskID.Ref(),
 )

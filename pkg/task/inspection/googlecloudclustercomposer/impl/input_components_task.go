@@ -20,11 +20,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-var InputComposerComponentsTask = formtask.NewSetFormTaskBuilder(googlecloudclustercomposer_contract.InputComposerComponentsTaskID, googlecloudcommon_contract.FormBasePriority+3000, "Composer Components").
+var InputComposerComponentsTask = formtask.NewSetFormTaskBuilder(googlecloudclustercomposer_contract.InputComposerComponentsTaskID, gcpcommon.FormBasePriority+3000, "Composer Components").
 	WithDependencies([]coretask.Dependency{googlecloudclustercomposer_contract.AutocompleteComposerComponentsTaskID.Ref()}).
 	WithDefaultValueConstant([]string{"@any"}, true).
 	WithAllowAddAll(false).

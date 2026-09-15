@@ -25,7 +25,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -54,7 +54,7 @@ func (i *KubernetesEventLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 	cs.SetLogType(k8saudit.LogTypeEvent)
 	cs.SetTimestamp(l.Timestamp)
 
-	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
+	if severity, err := gcpcommon.ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
 		cs.SetSeverity(severity)
 	}
 
@@ -153,8 +153,8 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 // MustResolveK8sResourceTimelinePath resolves a KubernetesEventFieldSet to a *khifilev6.TimelinePath.
 func MustResolveK8sResourceTimelinePath(ctx context.Context, event *googlecloudlogk8sevent_contract.KubernetesEventFieldSet) *khifilev6.TimelinePath {
 	if event.Resource == "" {
-		projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, event.ProjectID)
-		gkeTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, event.ClusterName)
+		projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, event.ProjectID)
+		gkeTimeline := gcpcommon.MustGKEClusterTimeline(ctx, projectTimeline, event.ClusterName)
 		return googlecloudlogk8sevent_contract.MustEventExporterTimeline(ctx, gkeTimeline)
 	}
 

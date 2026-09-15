@@ -27,14 +27,14 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LogIngesterTask ingests Cloud Composer audit logs into KHI v6 format.
-var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
+var LogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
 	googlecloudlogcomposerapiaudit_contract.LogIngesterTaskID,
 	googlecloudlogcomposerapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudlogcomposerapiaudit_contract.LogTypeManagedAirflowAPI,
@@ -54,7 +54,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 )
 
 // LogToTimelineMapperTask maps Cloud Composer audit logs to timeline events and operation revisions.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*gcpcommon.GCPOperationTracker](
 	googlecloudlogcomposerapiaudit_contract.LogToTimelineMapperTaskID,
 	&composerAuditLogLogToTimelineMapperSetting{},
 	inspectioncore.FeatureTaskLabel(
@@ -66,7 +66,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*goo
 )
 
 type composerAuditLogLogToTimelineMapperSetting struct {
-	inspectiontaskbase.SinglePassMapperBase[*googlecloudcommon_contract.GCPOperationTracker]
+	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
 
 // Dependencies returns additional task dependencies.
@@ -90,12 +90,12 @@ var pathEnvironment = structured.CompileFieldPath("environment")
 func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 	ctx context.Context,
 	l *log.Log,
-	tracker *googlecloudcommon_contract.GCPOperationTracker,
-) (*khifilev6.TimelineChangeSet, *googlecloudcommon_contract.GCPOperationTracker, error) {
+	tracker *gcpcommon.GCPOperationTracker,
+) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	if tracker == nil {
-		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
+		tracker = gcpcommon.NewGCPOperationTracker()
 	}
-	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+	auditFieldSet, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -109,8 +109,8 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 		projectID = resourceFieldSet.ProjectID
 	}
 
-	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, projectID)
-	envTimeline := googlecloudcommon_contract.MustManagedAirflowEnvironmentTimeline(ctx, projectTimeline, resourceFieldSet.EnvironmentName)
+	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, projectID)
+	envTimeline := gcpcommon.MustManagedAirflowEnvironmentTimeline(ctx, projectTimeline, resourceFieldSet.EnvironmentName)
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
@@ -122,7 +122,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 		return cs, tracker, nil
 	}
 
-	operationTimeline := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, envTimeline, shortMethodName, auditFieldSet.OperationID)
+	operationTimeline := gcpcommon.MustGCPOperationTimeline(ctx, envTimeline, shortMethodName, auditFieldSet.OperationID)
 
 	switch shortMethodName {
 	case "CreateEnvironment":
@@ -207,4 +207,4 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 	return cs, tracker, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*composerAuditLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*composerAuditLogLogToTimelineMapperSetting)(nil)

@@ -22,7 +22,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	commonk8saudit "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -36,13 +36,13 @@ var (
 var AuditLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudlogk8saudit_contract.NEGToBackendServiceDiscoveryTaskID,
 	[]coretask.Dependency{commonk8saudit.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (googlecloudk8scommon_contract.NEGToBackendServiceMap, error) {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.NEGToBackendServiceMap, error) {
 		if taskMode != inspectioncore.TaskModeRun {
 			return nil, nil
 		}
 
 		groups := coretask.GetTaskResult(ctx, commonk8saudit.ManifestGeneratorTaskID.Ref())
-		result := make(googlecloudk8scommon_contract.NEGToBackendServiceMap)
+		result := make(k8scommon.NEGToBackendServiceMap)
 
 		for _, group := range groups {
 			if group.Resource == nil || strings.ToLower(group.Resource.Kind) != "pod" {
@@ -56,7 +56,7 @@ var AuditLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 				if err == nil {
 					conditionsReader.Children()(func(_ structured.NodeChildrenKey, conditionReader structured.NodeReader) bool {
 						message := conditionReader.ReadStringOrDefault(pathMessage, "")
-						neg, bs := googlecloudk8scommon_contract.ExtractNEGToBackendService(message)
+						neg, bs := k8scommon.ExtractNEGToBackendService(message)
 						if neg != "" && bs != "" {
 							result[neg] = bs
 						}
@@ -67,5 +67,5 @@ var AuditLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 		}
 		return result, nil
 	},
-	coretask.ProvidesTag(googlecloudk8scommon_contract.TagNEGToBackendServiceDiscovery),
+	coretask.ProvidesTag(k8scommon.TagNEGToBackendServiceDiscovery),
 )

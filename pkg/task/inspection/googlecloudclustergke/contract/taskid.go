@@ -16,18 +16,18 @@ package googlecloudclustergke_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
 // ClusterGKETaskCommonPrefix is the task id prefix originally defined in googlecloudclustergke.
-var ClusterGKETaskCommonPrefix = googlecloudcommon_contract.GoogleCloudCommonTaskIDPrefix + "cluster/gke/"
+var ClusterGKETaskCommonPrefix = gcpcommon.GoogleCloudCommonTaskIDPrefix + "cluster/gke/"
 
 // ClusterNamePrefixTaskIDForGKE is the task ID for the GKE cluster name prefix(it's "" for GKE)
-var ClusterNamePrefixTaskIDForGKE = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "gke")
+var ClusterNamePrefixTaskIDForGKE = taskid.NewImplementationID(k8scommon.ClusterNamePrefixTaskRef, "gke")
 
 // AutocompleteMetricsK8sContainerTaskIDForGKE is the task ID for the metrics type used for autocomplete cluster names in GKE.
-var AutocompleteMetricsK8sContainerTaskIDForGKE = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref(), "gke")
+var AutocompleteMetricsK8sContainerTaskIDForGKE = taskid.NewImplementationID(k8scommon.AutocompleteMetricsK8sContainerTaskID.Ref(), "gke")
 
 // AutocompleteMetricsK8sNodeTaskIDForGKE is the task ID for the metrics type used for autocomplete cluster names in GKE.
-var AutocompleteMetricsK8sNodeTaskIDForGKE = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteMetricsK8sNodeTaskID.Ref(), "gke")
+var AutocompleteMetricsK8sNodeTaskIDForGKE = taskid.NewImplementationID(k8scommon.AutocompleteMetricsK8sNodeTaskID.Ref(), "gke")

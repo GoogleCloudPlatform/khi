@@ -18,15 +18,15 @@ import (
 	"context"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
 // ComposerEnvironmentClusterFinderTask injects ComposerEnvironmentClusterFinder implementation.
 var ComposerEnvironmentClusterFinderTask = coretask.NewTask(
 	googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinderTaskID,
 	[]coretask.Dependency{
-		googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
+		gcpcommon.APIClientFactoryTaskID.Ref(),
 	},
 	func(ctx context.Context) (googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinder, error) {
 		return &googlecloudclustercomposer_contract.EnvironmentClusterFinderImpl{}, nil

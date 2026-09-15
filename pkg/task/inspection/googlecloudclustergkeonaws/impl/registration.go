@@ -17,8 +17,8 @@ package googlecloudclustergkeonaws_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustergkeonaws_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -31,10 +31,10 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	scoped := coreinspection.NewScopedRegistry(
 		registry,
 		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyEnvironment:                "googlecloud",
-			inspectioncore.InspectionTypeLabelKeyBasePlatform:               "kubernetes",
-			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType:    "gke_multicloud",
-			googlecloudcommon_contract.InspectionTypeLabelKeyClusterSubType: "aws",
+			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+			gcpcommon.InspectionTypeLabelKeyClusterType:       "gke_multicloud",
+			gcpcommon.InspectionTypeLabelKeyClusterSubType:    "aws",
 		}),
 	)
 

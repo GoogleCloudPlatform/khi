@@ -24,9 +24,9 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 // caiClusterResourceTimelineMapper maps CAI cluster resource snapshot logs to timeline revisions.
@@ -49,8 +49,8 @@ func (m *caiClusterResourceTimelineMapper) GroupedLogTask() taskid.TaskReference
 // Dependencies returns additional task dependencies for timeline mapping.
 func (m *caiClusterResourceTimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
-		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
-		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
+		k8scommon.ClusterIdentityTaskID.Ref(),
+		gcpcommon.InputStartTimeTaskID.Ref(),
 	}
 }
 
@@ -67,7 +67,7 @@ func (m *caiClusterResourceTimelineMapper) ProcessLogByGroup(ctx context.Context
 		return nil, struct{}{}, nil
 	}
 
-	queryStartTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
+	queryStartTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
 	if !isActiveAt(assetWindowStartTime, assetWindowEndTime, queryStartTime) {
 		return nil, struct{}{}, nil
 	}
@@ -76,7 +76,7 @@ func (m *caiClusterResourceTimelineMapper) ProcessLogByGroup(ctx context.Context
 	if identity.Kind == "" || identity.Name == "" {
 		return nil, struct{}{}, nil
 	}
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
 	targetPath := k8saudit.MustResourceTimeline(ctx, cluster.ClusterName, identity)
 
 	cs := khifilev6.NewTimelineChangeSet(l)

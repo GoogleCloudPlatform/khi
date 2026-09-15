@@ -19,13 +19,13 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
 var GKEK8sEventLogTaskIDPrefix = "cloud.google.com/log/k8s-event/"
 
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.
-var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](GKEK8sEventLogTaskIDPrefix + "cluster-identity")
+var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[k8scommon.GoogleCloudClusterIdentity](GKEK8sEventLogTaskIDPrefix + "cluster-identity")
 
 // ListLogEntriesTaskID is the task id for the task that queries k8s event API logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sEventLogTaskIDPrefix + "query")
@@ -40,4 +40,4 @@ var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogG
 var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](GKEK8sEventLogTaskIDPrefix + "timeline-mapper")
 
 // NEGToBackendServiceDiscoveryTaskID is the task ID for the discovery task that extracts NEG to BackendService mappings from Kubernetes Event logs.
-var NEGToBackendServiceDiscoveryTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.NEGToBackendServiceMap](GKEK8sEventLogTaskIDPrefix + "neg-discovery")
+var NEGToBackendServiceDiscoveryTaskID = taskid.NewDefaultImplementationID[k8scommon.NEGToBackendServiceMap](GKEK8sEventLogTaskIDPrefix + "neg-discovery")

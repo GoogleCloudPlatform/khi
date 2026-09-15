@@ -24,8 +24,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -95,11 +95,11 @@ var InitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
 	taskid.NewImplementationID(k8saudit.InitialResourceStateProviderRef, "cai"),
 	[]coretask.Dependency{
 		googlecloudcaik8s_contract.RawLogTaskID.Ref(),
-		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
+		gcpcommon.InputStartTimeTaskID.Ref(),
 	},
 	func(ctx context.Context, _ inspectioncore.InspectionTaskModeType) (k8saudit.InitialResourceStateProvider, error) {
 		logs := coretask.GetTaskResult(ctx, googlecloudcaik8s_contract.RawLogTaskID.Ref())
-		queryStartTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
+		queryStartTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
 		return newCAIInitialResourceStateProvider(logs, queryStartTime), nil
 	},
 	coretask.WithSelectionPriority(1000),

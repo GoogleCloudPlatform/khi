@@ -24,13 +24,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LogIngesterTask is a task that ingests log metadata (timestamp, severity, summary, log type) into KHI v6 format.
-var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
+var LogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
 	googlecloudlogcomputeapiaudit_contract.LogIngesterTaskID,
 	googlecloudlogcomputeapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi,
@@ -39,7 +39,7 @@ var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 // LogGrouperTask groups GCE API audit logs by node resource name for parallel mapper processing.
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcomputeapiaudit_contract.LogGrouperTaskID, googlecloudlogcomputeapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+		audit, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
 		if err != nil {
 			return "unknown"
 		}
@@ -47,7 +47,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcomputea
 	})
 
 // LogToTimelineMapperTask maps GCE API audit logs to timeline events and revisions in parallel.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](googlecloudlogcomputeapiaudit_contract.LogToTimelineMapperTaskID, &gcpComputeAuditLogLogToTimelineMapperSetting{},
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*gcpcommon.GCPOperationTracker](googlecloudlogcomputeapiaudit_contract.LogToTimelineMapperTaskID, &gcpComputeAuditLogLogToTimelineMapperSetting{},
 	inspectioncore.FeatureTaskLabel("Compute API Logs",
 		"Gather Compute API audit logs to visualize the provisioning of infrastructure resources (e.g., GCE VM creation/deletion, Persistent Disk mounting) on associated timelines.",
 		6000,
@@ -56,7 +56,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*goo
 )
 
 type gcpComputeAuditLogLogToTimelineMapperSetting struct {
-	inspectiontaskbase.SinglePassMapperBase[*googlecloudcommon_contract.GCPOperationTracker]
+	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
 
 // LogIngesterTask returns a reference to the log ingester task.
@@ -77,11 +77,11 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.T
 }
 
 // ProcessLogByGroup translates a single GCE API audit log into timeline event/revision changesets.
-func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *googlecloudcommon_contract.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *googlecloudcommon_contract.GCPOperationTracker, error) {
+func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	if tracker == nil {
-		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
+		tracker = gcpcommon.NewGCPOperationTracker()
 	}
-	audit, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+	audit, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -98,7 +98,7 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 		if len(methodNameSplitted) > 0 {
 			shortMethodName = methodNameSplitted[len(methodNameSplitted)-1]
 		}
-		targetPath = googlecloudcommon_contract.MustGCPOperationTimeline(ctx, nodeTimelinePath, shortMethodName, audit.OperationID)
+		targetPath = gcpcommon.MustGCPOperationTimeline(ctx, nodeTimelinePath, shortMethodName, audit.OperationID)
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
@@ -108,7 +108,7 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 }
 
 // Explicit interface compliance assertion.
-var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*gcpComputeAuditLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*gcpComputeAuditLogLogToTimelineMapperSetting)(nil)
 
 func getInstanceNameFromResourceName(resourceName string) string {
 	resourceNameSplitted := strings.Split(resourceName, "/")

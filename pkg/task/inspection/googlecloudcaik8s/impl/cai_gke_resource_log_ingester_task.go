@@ -29,7 +29,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -91,12 +91,12 @@ var GKERawLogTask = inspectiontaskbase.NewInspectionTask(
 	[]coretask.Dependency{
 		googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]*log.Log, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*log.Log, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
 		snapshots := coretask.GetTaskResult(ctx, googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref())
-		idGen := khictx.MustGetValue(ctx, inspectioncore_contract.IDGenerator)
+		idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
 
 		logs := make([]*log.Log, 0, len(snapshots))
 		for _, s := range snapshots {
@@ -137,7 +137,7 @@ func (i *caiGKEResourceLogIngester) ProcessLog(ctx context.Context, l *log.Log) 
 
 	cs.SetTimestamp(l.Timestamp)
 	cs.SetLogType(googlecloudcaik8s_contract.LogTypeCAIResourceSnapshot)
-	cs.SetSeverity(inspectioncore_contract.SeverityInfo)
+	cs.SetSeverity(inspectioncore.SeverityInfo)
 
 	switch {
 	case identity.IsNodePool():

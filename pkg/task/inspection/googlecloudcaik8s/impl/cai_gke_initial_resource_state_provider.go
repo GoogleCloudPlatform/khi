@@ -24,9 +24,9 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // caiGKEInitialResourceStateProvider serves initial states of GKE clusters and node pools from CAI.
@@ -117,17 +117,17 @@ var GKEInitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
 	taskid.NewImplementationID(googlecloudloggkeapiaudit_contract.InitialResourceStateProviderRef, "cai"),
 	[]coretask.Dependency{
 		googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref(),
-		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
+		gcpcommon.InputStartTimeTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (googlecloudloggkeapiaudit_contract.InitialResourceStateProvider, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (googlecloudloggkeapiaudit_contract.InitialResourceStateProvider, error) {
+		if taskMode == inspectioncore.TaskModeDryRun {
 			return &caiGKEInitialResourceStateProvider{
 				clusters:  map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{},
 				nodePools: map[string]*googlecloudloggkeapiaudit_contract.InitialResourceState{},
 			}, nil
 		}
 		snapshots := coretask.GetTaskResult(ctx, googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref())
-		queryStartTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
+		queryStartTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
 		return newCAIGKEInitialResourceStateProvider(snapshots, queryStartTime), nil
 	},
 	coretask.WithSelectionPriority(1000),

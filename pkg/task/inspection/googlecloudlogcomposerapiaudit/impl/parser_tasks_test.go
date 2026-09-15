@@ -25,8 +25,8 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -61,8 +61,8 @@ func TestComposerAuditLogToTimelineMapper(t *testing.T) {
 	testCases := []struct {
 		desc          string
 		inputResource googlecloudlogcomposerapiaudit_contract.ComposerAuditLogResourceFieldSet
-		inputAudit    googlecloudcommon_contract.GCPAuditLogFieldSet
-		setupTracker  func(tracker *googlecloudcommon_contract.GCPOperationTracker, envPath *khifilev6.TimelinePath)
+		inputAudit    gcpcommon.GCPAuditLogFieldSet
+		setupTracker  func(tracker *gcpcommon.GCPOperationTracker, envPath *khifilev6.TimelinePath)
 		assert        func(t *testing.T, cs *khifilev6.TimelineChangeSet, envPath *khifilev6.TimelinePath, opPath *khifilev6.TimelinePath)
 	}{
 		{
@@ -72,7 +72,7 @@ func TestComposerAuditLogToTimelineMapper(t *testing.T) {
 				Location:        "us-central1",
 				ProjectID:       "test-project",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-create-1",
 				OperationFirst: true,
@@ -85,7 +85,7 @@ func TestComposerAuditLogToTimelineMapper(t *testing.T) {
     softwareConfig:
       imageVersion: composer-3-airflow-2`),
 			},
-			setupTracker: func(tracker *googlecloudcommon_contract.GCPOperationTracker, envPath *khifilev6.TimelinePath) {},
+			setupTracker: func(tracker *gcpcommon.GCPOperationTracker, envPath *khifilev6.TimelinePath) {},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, envPath *khifilev6.TimelinePath, opPath *khifilev6.TimelinePath) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
@@ -99,8 +99,8 @@ config:
     imageVersion: composer-3-airflow-2`).Node,
 					}, compareNodeOption).
 					HasRevision(opPath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationStart,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:    gcpcommon.VerbOperationStart,
+						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `environment:
@@ -118,7 +118,7 @@ config:
 				Location:        "us-central1",
 				ProjectID:       "test-project",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-create-1",
 				OperationFirst: false,
@@ -127,7 +127,7 @@ config:
 				PrincipalEmail: "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 				Status:         0,
 			},
-			setupTracker: func(tracker *googlecloudcommon_contract.GCPOperationTracker, envPath *khifilev6.TimelinePath) {
+			setupTracker: func(tracker *gcpcommon.GCPOperationTracker, envPath *khifilev6.TimelinePath) {
 				tracker.MarkStarted("op-create-1")
 				tracker.MarkResourceRevision(envPath)
 			},
@@ -141,8 +141,8 @@ config:
 						ResourceBody: nil,
 					}, compareNodeOption).
 					HasRevision(opPath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -155,7 +155,7 @@ config:
 				Location:        "us-central1",
 				ProjectID:       "test-project",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-create-missing-start",
 				OperationFirst: false,
@@ -164,7 +164,7 @@ config:
 				PrincipalEmail: "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 				Status:         0,
 			},
-			setupTracker: func(tracker *googlecloudcommon_contract.GCPOperationTracker, envPath *khifilev6.TimelinePath) {},
+			setupTracker: func(tracker *gcpcommon.GCPOperationTracker, envPath *khifilev6.TimelinePath) {},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, envPath *khifilev6.TimelinePath, opPath *khifilev6.TimelinePath) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
@@ -182,14 +182,14 @@ config:
 						ResourceBody: nil,
 					}, compareNodeOption).
 					HasRevision(opPath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationStart,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationStartedLogNotFound,
+						VerbType:    gcpcommon.VerbOperationStart,
+						StateType:   gcpcommon.RevisionStateOperationStartedLogNotFound,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: time.Unix(0, 0),
 					}, compareNodeOption).
 					HasRevision(opPath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -202,7 +202,7 @@ config:
 				Location:        "us-central1",
 				ProjectID:       "test-project",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-delete-1",
 				OperationFirst: true,
@@ -210,7 +210,7 @@ config:
 				MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.DeleteEnvironment",
 				PrincipalEmail: "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 			},
-			setupTracker: func(tracker *googlecloudcommon_contract.GCPOperationTracker, envPath *khifilev6.TimelinePath) {},
+			setupTracker: func(tracker *gcpcommon.GCPOperationTracker, envPath *khifilev6.TimelinePath) {},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, envPath *khifilev6.TimelinePath, opPath *khifilev6.TimelinePath) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
@@ -228,8 +228,8 @@ config:
 						ResourceBody: nil,
 					}, compareNodeOption).
 					HasRevision(opPath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationStart,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:    gcpcommon.VerbOperationStart,
+						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -242,7 +242,7 @@ config:
 				Location:        "us-central1",
 				ProjectID:       "test-project",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "op-delete-1",
 				OperationFirst: false,
@@ -251,7 +251,7 @@ config:
 				PrincipalEmail: "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 				Status:         0,
 			},
-			setupTracker: func(tracker *googlecloudcommon_contract.GCPOperationTracker, envPath *khifilev6.TimelinePath) {
+			setupTracker: func(tracker *gcpcommon.GCPOperationTracker, envPath *khifilev6.TimelinePath) {
 				tracker.MarkStarted("op-delete-1")
 				tracker.MarkResourceRevision(envPath)
 			},
@@ -265,8 +265,8 @@ config:
 						ResourceBody: nil,
 					}, compareNodeOption).
 					HasRevision(opPath, &khifilev6.StagingRevision{
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -279,7 +279,7 @@ config:
 				Location:        "us-central1",
 				ProjectID:       "test-project",
 			},
-			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			inputAudit: gcpcommon.GCPAuditLogFieldSet{
 				ProjectID:      "test-project",
 				OperationID:    "",
 				OperationFirst: false,
@@ -287,7 +287,7 @@ config:
 				MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.GetEnvironment",
 				PrincipalEmail: "user@example.com",
 			},
-			setupTracker: func(tracker *googlecloudcommon_contract.GCPOperationTracker, envPath *khifilev6.TimelinePath) {},
+			setupTracker: func(tracker *gcpcommon.GCPOperationTracker, envPath *khifilev6.TimelinePath) {},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, envPath *khifilev6.TimelinePath, opPath *khifilev6.TimelinePath) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(envPath)
@@ -302,18 +302,18 @@ config:
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-			projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, tc.inputResource.ProjectID)
-			envTimeline := googlecloudcommon_contract.MustManagedAirflowEnvironmentTimeline(ctx, projectTimeline, tc.inputResource.EnvironmentName)
+			projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, tc.inputResource.ProjectID)
+			envTimeline := gcpcommon.MustManagedAirflowEnvironmentTimeline(ctx, projectTimeline, tc.inputResource.EnvironmentName)
 
 			var opTimeline *khifilev6.TimelinePath
 			if !tc.inputAudit.ImmediateOperation() {
-				opTimeline = googlecloudcommon_contract.MustGCPOperationTimeline(ctx, envTimeline, "CreateEnvironment", tc.inputAudit.OperationID)
+				opTimeline = gcpcommon.MustGCPOperationTimeline(ctx, envTimeline, "CreateEnvironment", tc.inputAudit.OperationID)
 				if tc.inputAudit.MethodName == "google.cloud.orchestration.airflow.service.v1.Environments.DeleteEnvironment" {
-					opTimeline = googlecloudcommon_contract.MustGCPOperationTimeline(ctx, envTimeline, "DeleteEnvironment", tc.inputAudit.OperationID)
+					opTimeline = gcpcommon.MustGCPOperationTimeline(ctx, envTimeline, "DeleteEnvironment", tc.inputAudit.OperationID)
 				}
 			}
 
-			tracker := googlecloudcommon_contract.NewGCPOperationTracker()
+			tracker := gcpcommon.NewGCPOperationTracker()
 			tc.setupTracker(tracker, envTimeline)
 
 			l := testlog.NewMockLog(testTime, tc.inputAudit, tc.inputResource)
@@ -323,10 +323,10 @@ config:
 				t.Fatalf("ProcessLogByGroup() error = %v", err)
 			}
 
-			if envTimeline.Parent == nil || envTimeline.Parent.Type.GetId() != googlecloudcommon_contract.TimelineTypeGCPProject.GetId() {
+			if envTimeline.Parent == nil || envTimeline.Parent.Type.GetId() != gcpcommon.TimelineTypeGCPProject.GetId() {
 				t.Errorf("expected envTimeline parent to be GCPProject timeline, got %v", envTimeline.Parent)
 			}
-			if diff := cmp.Diff(googlecloudcommon_contract.TimelineTypeManagedAirflowEnvironment.GetId(), envTimeline.Type.GetId()); diff != "" {
+			if diff := cmp.Diff(gcpcommon.TimelineTypeManagedAirflowEnvironment.GetId(), envTimeline.Type.GetId()); diff != "" {
 				t.Errorf("expected envTimeline type to be ComposerEnvironment, diff (-want +got):\n%s", diff)
 			}
 
@@ -337,7 +337,7 @@ config:
 
 func TestComposerAuditLogIngester(t *testing.T) {
 	testTime := time.Date(2026, time.August, 10, 0, 23, 12, 0, time.UTC)
-	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(
+	ingester := gcpcommon.NewGCPOperationLogIngester(
 		googlecloudlogcomposerapiaudit_contract.ListLogEntriesTaskID.Ref(),
 		googlecloudlogcomposerapiaudit_contract.LogTypeManagedAirflowAPI,
 	)
@@ -353,7 +353,7 @@ func TestComposerAuditLogIngester(t *testing.T) {
 			inputLog: testlog.NewMockLog(
 				testTime,
 				inspectioncore.DefaultSeverityFieldSet{Severity: inspectioncore.SeverityInfo},
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
 					OperationFirst: true,
 					OperationLast:  false,
@@ -370,7 +370,7 @@ func TestComposerAuditLogIngester(t *testing.T) {
 			inputLog: testlog.NewMockLog(
 				testTime,
 				inspectioncore.DefaultSeverityFieldSet{Severity: inspectioncore.SeverityInfo},
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
 					OperationFirst: false,
 					OperationLast:  true,
@@ -387,7 +387,7 @@ func TestComposerAuditLogIngester(t *testing.T) {
 			inputLog: testlog.NewMockLog(
 				testTime,
 				inspectioncore.DefaultSeverityFieldSet{Severity: inspectioncore.SeverityError},
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
 					OperationFirst: false,
 					OperationLast:  true,

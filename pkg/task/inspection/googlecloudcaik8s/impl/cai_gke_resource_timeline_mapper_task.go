@@ -25,10 +25,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
 var (
@@ -55,8 +55,8 @@ func (m *caiGKEResourceTimelineMapper) GroupedLogTask() taskid.TaskReference[ins
 // Dependencies returns additional task dependencies for timeline mapping.
 func (m *caiGKEResourceTimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
-		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
-		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
+		k8scommon.ClusterIdentityTaskID.Ref(),
+		gcpcommon.InputStartTimeTaskID.Ref(),
 		googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref(),
 	}
 }
@@ -94,7 +94,7 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 		return nil, struct{}{}, nil
 	}
 
-	queryStartTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
+	queryStartTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
 	if !isActiveAt(assetWindowStartTime, assetWindowEndTime, queryStartTime) {
 		return nil, struct{}{}, nil
 	}
@@ -119,28 +119,28 @@ func (m *caiGKEResourceTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 }
 
 func (m *caiGKEResourceTimelineMapper) resolveTargetTimeline(ctx context.Context, identity gkeResourceIdentity) *khifilev6.TimelinePath {
-	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
-	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, clusterIdentity.ProjectID)
-	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, clusterIdentity.ClusterName)
+	clusterIdentity := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, clusterIdentity.ProjectID)
+	clusterTimeline := gcpcommon.MustGKEClusterTimeline(ctx, projectTimeline, clusterIdentity.ClusterName)
 
 	if identity.IsNodePool() {
-		return googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, identity.NodePoolName)
+		return gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, identity.NodePoolName)
 	}
 	return clusterTimeline
 }
 
 func (m *caiGKEResourceTimelineMapper) stageClusterInitialRevisions(cs *khifilev6.TimelineChangeSet, targetTimeline *khifilev6.TimelinePath, l *log.Log, observedTime time.Time, resourceBody structured.Node) {
 	clusterCreateTime := l.NodeReader.ReadTimestampOrDefault(pathClusterCreateTime, time.Time{})
-	snapshotVerb := commonlogk8saudit_contract.VerbCreate
+	snapshotVerb := k8saudit.VerbCreate
 	if !clusterCreateTime.IsZero() && observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
 		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
 			ChangedTime:  clusterCreateTime,
 			ResourceBody: nil,
 			Principal:    "N/A",
-			VerbType:     commonlogk8saudit_contract.VerbCreate,
-			StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExistingLogNotFound,
+			VerbType:     k8saudit.VerbCreate,
+			StateType:    k8saudit.RevisionStateK8sClusterExistingLogNotFound,
 		})
-		snapshotVerb = commonlogk8saudit_contract.VerbUpdate
+		snapshotVerb = k8saudit.VerbUpdate
 	}
 	cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
 		ChangedTime:  observedTime,
@@ -152,16 +152,16 @@ func (m *caiGKEResourceTimelineMapper) stageClusterInitialRevisions(cs *khifilev
 }
 
 func (m *caiGKEResourceTimelineMapper) stageNodePoolInitialRevisions(cs *khifilev6.TimelineChangeSet, targetTimeline *khifilev6.TimelinePath, clusterCreateTime, observedTime time.Time, resourceBody structured.Node) {
-	snapshotVerb := commonlogk8saudit_contract.VerbCreate
+	snapshotVerb := k8saudit.VerbCreate
 	if !clusterCreateTime.IsZero() && observedTime.Sub(clusterCreateTime) >= creationTimestampSkewTolerance {
 		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
 			ChangedTime:  clusterCreateTime,
 			ResourceBody: nil,
 			Principal:    "N/A",
-			VerbType:     commonlogk8saudit_contract.VerbCreate,
+			VerbType:     k8saudit.VerbCreate,
 			StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
 		})
-		snapshotVerb = commonlogk8saudit_contract.VerbUpdate
+		snapshotVerb = k8saudit.VerbUpdate
 	}
 
 	cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{

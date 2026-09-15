@@ -26,9 +26,9 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -36,20 +36,20 @@ import (
 var GKEResourceFetcherTask = inspectiontaskbase.NewProgressReportableInspectionTask(
 	googlecloudcaik8s_contract.GKEResourceFetcherTaskID,
 	[]coretask.Dependency{
-		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
-		googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
-		googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
-		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
-		googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
+		k8scommon.ClusterIdentityTaskID.Ref(),
+		gcpcommon.APIClientFactoryTaskID.Ref(),
+		gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(),
+		gcpcommon.InputStartTimeTaskID.Ref(),
+		gcpcommon.InputEndTimeTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*googlecloudcaik8s_contract.GKEResourceSnapshot, error) {
-		cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
-		factory := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
-		injector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
-		startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
-		endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*googlecloudcaik8s_contract.GKEResourceSnapshot, error) {
+		cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+		factory := coretask.GetTaskResult(ctx, gcpcommon.APIClientFactoryTaskID.Ref())
+		injector := coretask.GetTaskResult(ctx, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
+		startTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
+		endTime := coretask.GetTaskResult(ctx, gcpcommon.InputEndTimeTaskID.Ref())
 
-		if taskMode == inspectioncore_contract.TaskModeDryRun || !cluster.IsComplete() {
+		if taskMode == inspectioncore.TaskModeDryRun || !cluster.IsComplete() {
 			return []*googlecloudcaik8s_contract.GKEResourceSnapshot{}, nil
 		}
 
@@ -68,7 +68,7 @@ var GKEResourceFetcherTask = inspectiontaskbase.NewProgressReportableInspectionT
 func fetchGKEResourceSnapshots(
 	ctx context.Context,
 	fetcher googlecloudcaik8s_contract.CAIFetcher,
-	cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity,
+	cluster k8scommon.GoogleCloudClusterIdentity,
 	startTime, endTime time.Time,
 	progress *inspectionmetadata.TaskProgressMetadata,
 ) ([]*googlecloudcaik8s_contract.GKEResourceSnapshot, error) {

@@ -26,11 +26,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -99,16 +99,16 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	queryStartTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	queryEndTime := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 
-	clusterIdentity := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	clusterIdentity := k8scommon.GoogleCloudClusterIdentity{
 		ProjectID:   projectID,
 		ClusterName: clusterName,
 		Location:    "us-central1-a",
 	}
 
-	ctxWithBuilder := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctxWithBuilder, projectID)
-	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctxWithBuilder, projectTimeline, clusterName)
-	nodePoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctxWithBuilder, clusterTimeline, "default-pool")
+	ctxWithBuilder := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
+	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctxWithBuilder, projectID)
+	clusterTimeline := gcpcommon.MustGKEClusterTimeline(ctxWithBuilder, projectTimeline, clusterName)
+	nodePoolTimeline := gcpcommon.MustGKENodePoolTimeline(ctxWithBuilder, clusterTimeline, "default-pool")
 
 	clusterCreateTime := time.Date(2025, 5, 1, 10, 0, 0, 0, time.UTC)
 	clusterData, _ := structpb.NewStruct(map[string]any{
@@ -312,14 +312,14 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  clusterCreateTime,
 						ResourceBody: nil,
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExistingLogNotFound,
+						VerbType:     k8saudit.VerbCreate,
+						StateType:    k8saudit.RevisionStateK8sClusterExistingLogNotFound,
 					}, nodeCmpOpt).
 					HasRevision(clusterTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  queryStartTime.Add(-2 * time.Hour),
 						ResourceBody: extractResourceBody(clusterInitialLog.NodeReader),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
+						VerbType:     k8saudit.VerbUpdate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
@@ -338,7 +338,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  queryStartTime,
 						ResourceBody: extractResourceBody(clusterCreatedRecentlyLog.NodeReader),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						VerbType:     k8saudit.VerbCreate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKEClusterSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
@@ -362,14 +362,14 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  clusterCreateTime,
 						ResourceBody: nil,
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						VerbType:     k8saudit.VerbCreate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
 					}, nodeCmpOpt).
 					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  nodepoolEarliestTime,
 						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
+						VerbType:     k8saudit.VerbUpdate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
@@ -388,7 +388,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  clusterCreateTime.Add(200 * time.Millisecond),
 						ResourceBody: extractResourceBody(nodepoolCreatedWithClusterLog.NodeReader),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						VerbType:     k8saudit.VerbCreate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
@@ -407,14 +407,14 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  clusterCreateTime,
 						ResourceBody: nil,
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						VerbType:     k8saudit.VerbCreate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolExistenceUndetermined,
 					}, nodeCmpOpt).
 					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  queryStartTime,
 						ResourceBody: extractResourceBody(nodepoolZeroStartTimeLog.NodeReader),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUpdate,
+						VerbType:     k8saudit.VerbUpdate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
@@ -434,7 +434,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  nodepoolEarliestTime,
 						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						VerbType:     k8saudit.VerbCreate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
@@ -475,9 +475,9 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), clusterIdentity)
-			ctx = tasktest.WithTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref(), queryStartTime)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
+			ctx = tasktest.WithTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref(), clusterIdentity)
+			ctx = tasktest.WithTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime)
 			clusterSnapshots := []*googlecloudcaik8s_contract.GKEResourceSnapshot{clusterSnapshot}
 			if tc.omitClusterSnapshots {
 				clusterSnapshots = []*googlecloudcaik8s_contract.GKEResourceSnapshot{}

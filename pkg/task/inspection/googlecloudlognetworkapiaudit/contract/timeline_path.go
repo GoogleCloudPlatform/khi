@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -56,7 +56,7 @@ func MustNEGOperationTimeline(ctx context.Context, negPath *khifilev6.TimelinePa
 	}
 	return builder.TimelineAccumulator.GetPath(negPath, khifilev6.PathSegment{
 		Name: fmt.Sprintf("%s-%s", shortMethodName, operationID),
-		Type: googlecloudcommon_contract.TimelineTypeOperation,
+		Type: gcpcommon.TimelineTypeOperation,
 	})
 }
 
@@ -74,7 +74,7 @@ func MustNEGUnderResourceTimeline(ctx context.Context, parentPath *khifilev6.Tim
 
 // MustGCPResourceTimeline returns the timeline path for a generic GCP resource.
 func MustGCPResourceTimeline(ctx context.Context, projectID string, resourceType string, resourceName string) *khifilev6.TimelinePath {
-	projectPath := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, projectID)
-	resourceTypePath := googlecloudcommon_contract.MustGCPResourceTypeTimeline(ctx, projectPath, resourceType)
-	return googlecloudcommon_contract.MustGCPResourceTimeline(ctx, resourceTypePath, resourceName)
+	projectPath := gcpcommon.MustGCPProjectTimeline(ctx, projectID)
+	resourceTypePath := gcpcommon.MustGCPResourceTypeTimeline(ctx, projectPath, resourceType)
+	return gcpcommon.MustGCPResourceTimeline(ctx, resourceTypePath, resourceName)
 }

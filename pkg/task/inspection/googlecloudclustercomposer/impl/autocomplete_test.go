@@ -25,8 +25,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -122,11 +122,11 @@ func TestAutocompleteComposerEnvironmentIdentityTask(t *testing.T) {
 	inspectionTask := AutocompleteComposerEnvironmentIdentityTask
 
 	result, _, err := inspectiontest.RunInspectionTask(ctx, inspectionTask, inspectioncore.TaskModeDryRun, nil,
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputProjectIdTaskID.Ref(), "test-project"),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), factory),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(), injector),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputProjectIdTaskID.Ref(), "test-project"),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), factory),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), injector),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -247,10 +247,10 @@ func TestAutocompleteLocationForComposerEnvironmentTask(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
-			projectIDInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputProjectIdTaskID.Ref(), tc.projectID)
+			projectIDInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputProjectIdTaskID.Ref(), tc.projectID)
 			envNameInput := tasktest.NewTaskDependencyValuePair(googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(), tc.envName)
-			startTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), time.Now())
-			endTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), time.Now())
+			startTimeInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), time.Now())
+			endTimeInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), time.Now())
 			identitiesInput := tasktest.NewTaskDependencyValuePair(googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref(), tc.input)
 
 			result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteLocationForComposerEnvironmentTask, inspectioncore.TaskModeDryRun, map[string]any{}, projectIDInput, envNameInput, startTimeInput, endTimeInput, identitiesInput)

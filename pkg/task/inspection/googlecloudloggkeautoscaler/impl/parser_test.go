@@ -26,7 +26,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -229,11 +229,11 @@ func TestAutoscalerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	// 2. Resolve comparative path instances using the Builder's accumulator.
 	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, "test-project")
-	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, "test-cluster")
+	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, "test-project")
+	gkeClusterTimeline := gcpcommon.MustGKEClusterTimeline(ctx, projectTimeline, "test-cluster")
 	k8sClusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
 	autoscalerPath := googlecloudloggkeautoscaler_contract.MustAutoscalerTimeline(ctx, gkeClusterTimeline)
-	nodepoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "default-pool")
+	nodepoolTimeline := gcpcommon.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "default-pool")
 	migPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolTimeline, "test-cluster-default-pool-a0c72690-grp")
 
 	apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, k8sClusterTimeline, "core/v1")
@@ -251,14 +251,14 @@ func TestAutoscalerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "test-cluster-default-pool-c47ef39f-p395")
 
 	// Node auto provisioning creation
-	napNodepoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "nap-n1-standard-1-1kwag2qv")
+	napNodepoolTimeline := gcpcommon.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "nap-n1-standard-1-1kwag2qv")
 	napMigPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, napNodepoolTimeline, "test-cluster-nap-n1-standard--b4fcc348-grp")
 
 	// Node auto provisioning deletion
-	napDeletedNodepoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "nap-n1-highcpu-8-ydj4ewil")
+	napDeletedNodepoolTimeline := gcpcommon.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "nap-n1-highcpu-8-ydj4ewil")
 
 	// No scale up
-	skippedNodepoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "nap-n1-highmem-4-1cywzhvf")
+	skippedNodepoolTimeline := gcpcommon.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "nap-n1-highmem-4-1cywzhvf")
 	skippedMigPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, skippedNodepoolTimeline, "test-cluster-nap-n1-highmem-4-fbdca585-grp")
 
 	unhandledPodNamespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "autoscaling-1661")

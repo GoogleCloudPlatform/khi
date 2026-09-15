@@ -1,0 +1,64 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package k8scommon_impl
+
+import (
+	"context"
+	"strings"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+)
+
+var inputKindsAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]string{
+	"legacy_default": strings.Split("pods replicasets daemonsets nodes deployments namespaces statefulsets services servicenetworkendpointgroups ingresses poddisruptionbudgets jobs cronjobs endpointslices persistentvolumes persistentvolumeclaims storageclasses horizontalpodautoscalers verticalpodautoscalers multidimpodautoscalers", " "),
+}
+
+// InputKindFilterTask is a form task for inputting the kind filter.
+var InputKindFilterTask = formtask.NewSetFormTaskBuilder(k8scommon.InputKindFilterTaskID, gcpcommon.PriorityForK8sResourceFilterGroup+5000, "Kind").
+	WithDefaultValueConstant([]string{"@any", "-leases"}, true).
+	WithDescription("The kinds of resources to gather logs. Specify `@any` to query all kinds of resources, or prefix with `-` to exclude specific kinds (e.g., `-leases`). `@legacy_default` matches a set of kinds frequently queried in legacy KHI versions.").
+	WithAllowAddAll(false).
+	WithAllowRemoveAll(false).
+	WithAllowCustomValue(true).
+	WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+		return []inspectionmetadata.SetParameterFormFieldOptionItem{
+			{ID: "@any", Description: "[Alias] An alias matches any of the kinds"},
+			{ID: "@legacy_default", Description: "[Alias] An alias matches a set of kinds frequently queried in legacy KHI versions."},
+		}, nil
+	}).
+	WithValidator(func(ctx context.Context, value []string) (string, error) {
+		if len(value) == 0 {
+			return "kind filter can't be empty", nil
+		}
+		filterInStr := strings.Join(value, " ")
+		result, err := gcpqueryutil.ParseSetFilter(filterInStr, inputKindsAliasMap, true, true, true)
+		if err != nil {
+			return "", err
+		}
+		return result.ValidationError, nil
+	}).
+	WithConverter(func(ctx context.Context, value []string) (*gcpqueryutil.SetFilterParseResult, error) {
+		filterInStr := strings.Join(value, " ")
+		result, err := gcpqueryutil.ParseSetFilter(filterInStr, inputKindsAliasMap, true, true, true)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	}).
+	Build()

@@ -18,14 +18,14 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
 // ComposerAPIAuditLogTaskIDPrefix is the task ID prefix for Composer API audit log tasks.
 var ComposerAPIAuditLogTaskIDPrefix = "cloud.google.com/log/composer-api/"
 
 // ClusterIdentityTaskID is the task ID for aliasing the cluster/project identity.
-var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](ComposerAPIAuditLogTaskIDPrefix + "cluster-identity")
+var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[k8scommon.GoogleCloudClusterIdentity](ComposerAPIAuditLogTaskIDPrefix + "cluster-identity")
 
 // ListLogEntriesTaskID is the task ID for the task that queries Composer API audit logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComposerAPIAuditLogTaskIDPrefix + "query")

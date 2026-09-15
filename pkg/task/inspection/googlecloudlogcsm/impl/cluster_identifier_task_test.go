@@ -22,25 +22,25 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
 func TestCSMClusterIdentifierTask(t *testing.T) {
 	tests := []struct {
 		name      string
-		inventory googlecloudk8scommon_contract.NEGToBackendServiceMap
+		inventory k8scommon.NEGToBackendServiceMap
 		want      []string
 	}{
 		{
 			name: "single backend",
-			inventory: googlecloudk8scommon_contract.NEGToBackendServiceMap{
+			inventory: k8scommon.NEGToBackendServiceMap{
 				"neg1": "gsmrsvd-cluster1-neg1",
 			},
 			want: []string{"cluster1"},
 		},
 		{
 			name: "multiple backends same cluster",
-			inventory: googlecloudk8scommon_contract.NEGToBackendServiceMap{
+			inventory: k8scommon.NEGToBackendServiceMap{
 				"neg1": "gsmrsvd-cluster1-neg1",
 				"neg2": "gsmrsvd-cluster1-neg2",
 			},
@@ -48,7 +48,7 @@ func TestCSMClusterIdentifierTask(t *testing.T) {
 		},
 		{
 			name: "multiple clusters",
-			inventory: googlecloudk8scommon_contract.NEGToBackendServiceMap{
+			inventory: k8scommon.NEGToBackendServiceMap{
 				"neg1": "gsmrsvd-cluster1-neg1",
 				"neg2": "gsmrsvd-cluster2-neg2",
 			},
@@ -56,14 +56,14 @@ func TestCSMClusterIdentifierTask(t *testing.T) {
 		},
 		{
 			name: "no gsmrsvd backends",
-			inventory: googlecloudk8scommon_contract.NEGToBackendServiceMap{
+			inventory: k8scommon.NEGToBackendServiceMap{
 				"neg1": "other-backend",
 			},
 			want: []string{},
 		},
 		{
 			name: "malformed name",
-			inventory: googlecloudk8scommon_contract.NEGToBackendServiceMap{
+			inventory: k8scommon.NEGToBackendServiceMap{
 				"neg1": "gsmrsvd-clusteronly",
 			},
 			want: []string{},
@@ -74,7 +74,7 @@ func TestCSMClusterIdentifierTask(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			result, err := tasktest.RunTask(ctx, CSMClusterIdentifierTask,
-				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), tc.inventory),
+				tasktest.NewTaskDependencyValuePair(k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), tc.inventory),
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

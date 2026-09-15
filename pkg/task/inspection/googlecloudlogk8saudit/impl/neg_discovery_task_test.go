@@ -23,7 +23,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	commonk8saudit "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -48,7 +48,7 @@ func TestAuditLogNEGDiscoveryTask(t *testing.T) {
 		name     string
 		groupMap commonk8saudit.ResourceManifestLogGroupMap
 		taskMode inspectioncore.InspectionTaskModeType
-		want     googlecloudk8scommon_contract.NEGToBackendServiceMap
+		want     k8scommon.NEGToBackendServiceMap
 	}{
 		{
 			name: "valid audit log",
@@ -65,7 +65,7 @@ func TestAuditLogNEGDiscoveryTask(t *testing.T) {
 				},
 			},
 			taskMode: inspectioncore.TaskModeRun,
-			want: googlecloudk8scommon_contract.NEGToBackendServiceMap{
+			want: k8scommon.NEGToBackendServiceMap{
 				"k8s1-audit": "bs-audit",
 			},
 		},
@@ -84,7 +84,7 @@ func TestAuditLogNEGDiscoveryTask(t *testing.T) {
 				},
 			},
 			taskMode: inspectioncore.TaskModeRun,
-			want:     googlecloudk8scommon_contract.NEGToBackendServiceMap{},
+			want:     k8scommon.NEGToBackendServiceMap{},
 		},
 	}
 

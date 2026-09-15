@@ -26,9 +26,9 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -67,22 +67,22 @@ var defaultSupportedKindsToAssetTypes = map[string]string{
 var ClusterResourceFetcherTask = inspectiontaskbase.NewProgressReportableInspectionTask(
 	googlecloudcaik8s_contract.ClusterResourceFetcherTaskID,
 	[]coretask.Dependency{
-		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
-		googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
-		googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
-		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
-		googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
-		googlecloudk8scommon_contract.InputKindFilterTaskID.Ref(),
-		googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
+		k8scommon.ClusterIdentityTaskID.Ref(),
+		gcpcommon.APIClientFactoryTaskID.Ref(),
+		gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(),
+		gcpcommon.InputStartTimeTaskID.Ref(),
+		gcpcommon.InputEndTimeTaskID.Ref(),
+		k8scommon.InputKindFilterTaskID.Ref(),
+		k8scommon.InputNamespaceFilterTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*googlecloudcaik8s_contract.ClusterResourceSnapshot, error) {
-		cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
-		factory := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
-		injector, _ := coretask.GetOptionalTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
-		startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
-		endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
-		kindFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputKindFilterTaskID.Ref())
-		namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
+		cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+		factory := coretask.GetTaskResult(ctx, gcpcommon.APIClientFactoryTaskID.Ref())
+		injector, _ := coretask.GetOptionalTaskResult(ctx, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
+		startTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
+		endTime := coretask.GetTaskResult(ctx, gcpcommon.InputEndTimeTaskID.Ref())
+		kindFilter := coretask.GetTaskResult(ctx, k8scommon.InputKindFilterTaskID.Ref())
+		namespaceFilter := coretask.GetTaskResult(ctx, k8scommon.InputNamespaceFilterTaskID.Ref())
 
 		if taskMode == inspectioncore.TaskModeDryRun || !cluster.IsComplete() {
 			return []*googlecloudcaik8s_contract.ClusterResourceSnapshot{}, nil
@@ -143,7 +143,7 @@ const (
 // CAI names regional clusters under "/locations/" and zonal clusters under "/zones/", and the
 // inspection input carries a single location string that does not tell the two apart, so both
 // forms are searched. Only the form that exists returns results.
-func clusterParentCandidates(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity) []string {
+func clusterParentCandidates(cluster k8scommon.GoogleCloudClusterIdentity) []string {
 	return []string{
 		fmt.Sprintf("//container.googleapis.com/projects/%s/locations/%s/clusters/%s", cluster.ProjectID, cluster.Location, cluster.ClusterName),
 		fmt.Sprintf("//container.googleapis.com/projects/%s/zones/%s/clusters/%s", cluster.ProjectID, cluster.Location, cluster.ClusterName),

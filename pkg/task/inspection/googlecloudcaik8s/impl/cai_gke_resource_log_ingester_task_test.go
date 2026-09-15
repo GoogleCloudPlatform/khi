@@ -26,7 +26,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -142,19 +142,19 @@ func TestGKERawLogTask(t *testing.T) {
 
 	testCases := []struct {
 		name      string
-		taskMode  inspectioncore_contract.InspectionTaskModeType
+		taskMode  inspectioncore.InspectionTaskModeType
 		snapshots []*googlecloudcaik8s_contract.GKEResourceSnapshot
 		wantCount int
 	}{
 		{
 			name:      "returns empty on DryRun mode",
-			taskMode:  inspectioncore_contract.TaskModeDryRun,
+			taskMode:  inspectioncore.TaskModeDryRun,
 			snapshots: []*googlecloudcaik8s_contract.GKEResourceSnapshot{snapshot},
 			wantCount: 0,
 		},
 		{
 			name:      "converts snapshots to raw logs",
-			taskMode:  inspectioncore_contract.TaskModeRun,
+			taskMode:  inspectioncore.TaskModeRun,
 			snapshots: []*googlecloudcaik8s_contract.GKEResourceSnapshot{snapshot},
 			wantCount: 1,
 		},
@@ -163,7 +163,7 @@ func TestGKERawLogTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			ctx = khictx.WithValue(ctx, inspectioncore_contract.IDGenerator, id.NewGenerator())
+			ctx = khictx.WithValue(ctx, inspectioncore.IDGenerator, id.NewGenerator())
 
 			got, _, err := inspectiontest.RunInspectionTask(ctx, GKERawLogTask, tc.taskMode, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref(), tc.snapshots),
@@ -222,7 +222,7 @@ func TestCAIGKEResourceLogIngester_ProcessLog(t *testing.T) {
 			assertLog: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(googlecloudcaik8s_contract.LogTypeCAIResourceSnapshot).
 					HasSummary("CAI resource snapshot: Cluster/test-cluster")
 			},
@@ -233,7 +233,7 @@ func TestCAIGKEResourceLogIngester_ProcessLog(t *testing.T) {
 			assertLog: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(googlecloudcaik8s_contract.LogTypeCAIResourceSnapshot).
 					HasSummary("CAI resource snapshot: NodePool/default-pool")
 			},
@@ -244,7 +244,7 @@ func TestCAIGKEResourceLogIngester_ProcessLog(t *testing.T) {
 			assertLog: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(testTime).
-					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasSeverity(inspectioncore.SeverityInfo).
 					HasLogType(googlecloudcaik8s_contract.LogTypeCAIResourceSnapshot).
 					HasSummary("CAI resource snapshot: GKE resource")
 			},
@@ -294,7 +294,7 @@ func TestGKELogGrouperTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, GKELogGrouperTask, inspectioncore_contract.TaskModeRun, map[string]any{},
+			got, _, err := inspectiontest.RunInspectionTask(ctx, GKELogGrouperTask, inspectioncore.TaskModeRun, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(googlecloudcaik8s_contract.GKERawLogTaskID.Ref(), tc.rawLogs),
 			)
 			if err != nil {

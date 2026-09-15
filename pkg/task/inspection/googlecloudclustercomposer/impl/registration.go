@@ -17,8 +17,8 @@ package googlecloudclustercomposer_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -31,11 +31,11 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	scopedCloudLogging := coreinspection.NewScopedRegistry(
 		registry,
 		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyLogSource:               "cloud_logging",
-			inspectioncore.InspectionTypeLabelKeyEnvironment:             "googlecloud",
-			inspectioncore.InspectionTypeLabelKeyBasePlatform:            "kubernetes",
-			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
-			googlecloudcommon_contract.InspectionTypeLabelKeyProduct:     "composer",
+			inspectioncore.InspectionTypeLabelKeyLogSource:    "cloud_logging",
+			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+			gcpcommon.InspectionTypeLabelKeyClusterType:       "gke",
+			gcpcommon.InspectionTypeLabelKeyProduct:           "composer",
 		}),
 	)
 
@@ -46,10 +46,10 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	scopedAll := coreinspection.NewScopedRegistry(
 		registry,
 		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyEnvironment:             "googlecloud",
-			inspectioncore.InspectionTypeLabelKeyBasePlatform:            "kubernetes",
-			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
-			googlecloudcommon_contract.InspectionTypeLabelKeyProduct:     "composer",
+			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+			gcpcommon.InspectionTypeLabelKeyClusterType:       "gke",
+			gcpcommon.InspectionTypeLabelKeyProduct:           "composer",
 		}),
 	)
 

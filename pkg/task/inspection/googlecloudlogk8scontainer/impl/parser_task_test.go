@@ -28,7 +28,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -183,7 +183,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testCases := []struct {
 		name     string
 		inputLog *log.Log
-		cluster  googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster  k8scommon.GoogleCloudClusterIdentity
 		assert   func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -196,7 +196,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					Message:       "test message",
 				},
 			),
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -214,7 +214,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					Message:       "",
 				},
 			),
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -318,7 +318,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testCases := []struct {
 		name      string
 		inputLogs []*log.Log
-		cluster   googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster   k8scommon.GoogleCloudClusterIdentity
 		setup     func()
 		assert    func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet)
 	}{
@@ -337,7 +337,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
 			},
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
@@ -361,7 +361,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
 			},
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
@@ -404,7 +404,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
 			},
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
 			setup: func() {
@@ -432,7 +432,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
 				),
 			},
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
 			setup: func() {
@@ -472,7 +472,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
 				),
 			},
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
@@ -538,7 +538,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
 				),
 			},
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
@@ -615,7 +615,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
 				),
 			},
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {

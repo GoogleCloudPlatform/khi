@@ -18,7 +18,7 @@ import (
 	"math"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -33,10 +33,10 @@ var ComposerInspectionType = coreinspection.InspectionType{
 	Icon:        "assets/icons/composer.webp",
 	Priority:    math.MaxInt - 10,
 	Labels: map[string]string{
-		inspectioncore.InspectionTypeLabelKeyLogSource:               "cloud_logging",
-		inspectioncore.InspectionTypeLabelKeyEnvironment:             "googlecloud",
-		inspectioncore.InspectionTypeLabelKeyBasePlatform:            "kubernetes",
-		googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
-		googlecloudcommon_contract.InspectionTypeLabelKeyProduct:     "composer",
+		inspectioncore.InspectionTypeLabelKeyLogSource:    "cloud_logging",
+		inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		gcpcommon.InspectionTypeLabelKeyClusterType:       "gke",
+		gcpcommon.InspectionTypeLabelKeyProduct:           "composer",
 	},
 }

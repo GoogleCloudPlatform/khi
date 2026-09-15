@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/tracing"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"go.opentelemetry.io/otel"
 )
@@ -68,18 +68,18 @@ var InspectionTaskServerInitializer = &coreinit.Initializer{
 		}
 		style.LockRegistry()
 		inspectionServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(
-			googlecloudcommon_contract.APIClientFactoryOptionsContextKey,
+			gcpcommon.APIClientFactoryOptionsContextKey,
 			options.GRPCConnPool(*authParams.GRPCConnPool),
 		))
 		if *authParams.QuotaProjectID != "" {
 			inspectionServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(
-				googlecloudcommon_contract.APIClientFactoryOptionsContextKey,
+				gcpcommon.APIClientFactoryOptionsContextKey,
 				options.QuotaProject(*authParams.QuotaProjectID),
 			))
 		}
 		if *authParams.AccessToken != "" {
 			inspectionServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(
-				googlecloudcommon_contract.APIClientFactoryOptionsContextKey,
+				gcpcommon.APIClientFactoryOptionsContextKey,
 				options.TokenSource(legacy.NewRawTokenTokenSource(*authParams.AccessToken)),
 			))
 		}

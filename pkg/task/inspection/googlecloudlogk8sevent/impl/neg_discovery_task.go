@@ -19,7 +19,7 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -28,18 +28,18 @@ import (
 var EventLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudlogk8sevent_contract.NEGToBackendServiceDiscoveryTaskID,
 	[]coretask.Dependency{googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (googlecloudk8scommon_contract.NEGToBackendServiceMap, error) {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.NEGToBackendServiceMap, error) {
 		if taskMode != inspectioncore.TaskModeRun {
 			return nil, nil
 		}
 
 		logs := coretask.GetTaskResult(ctx, googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref())
-		result := make(googlecloudk8scommon_contract.NEGToBackendServiceMap)
+		result := make(k8scommon.NEGToBackendServiceMap)
 
 		for _, l := range logs {
 			fs, err := googlecloudlogk8sevent_contract.ExtractKubernetesEvent(l.NodeReader)
 			if err == nil {
-				neg, bs := googlecloudk8scommon_contract.ExtractNEGToBackendService(fs.Message)
+				neg, bs := k8scommon.ExtractNEGToBackendService(fs.Message)
 				if neg != "" && bs != "" {
 					result[neg] = bs
 				}
@@ -47,5 +47,5 @@ var EventLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 		}
 		return result, nil
 	},
-	coretask.ProvidesTag(googlecloudk8scommon_contract.TagNEGToBackendServiceDiscovery),
+	coretask.ProvidesTag(k8scommon.TagNEGToBackendServiceDiscovery),
 )

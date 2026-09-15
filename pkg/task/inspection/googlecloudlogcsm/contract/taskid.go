@@ -19,13 +19,13 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
 const TaskIDPrefix = "cloud.google.com/log/csm-trafficlog/"
 
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.
-var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](TaskIDPrefix + "cluster-identity")
+var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[k8scommon.GoogleCloudClusterIdentity](TaskIDPrefix + "cluster-identity")
 
 // InputCSMResponseFlagsTaskID is the task ID for the form input that specifies which Envoy response flags to filter CSM traffic logs by.
 var InputCSMResponseFlagsTaskID = taskid.NewDefaultImplementationID[*gcpqueryutil.SetFilterParseResult](TaskIDPrefix + "input/response-flags")

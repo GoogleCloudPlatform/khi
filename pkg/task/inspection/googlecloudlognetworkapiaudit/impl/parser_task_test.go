@@ -29,8 +29,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -73,7 +73,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 				inspectioncore.DefaultSeverityFieldSet{
 					Severity: inspectioncore.SeverityInfo,
 				},
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					OperationID:    "op-1",
 					OperationFirst: true,
@@ -94,7 +94,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 				inspectioncore.DefaultSeverityFieldSet{
 					Severity: inspectioncore.SeverityInfo,
 				},
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					OperationID:    "op-1",
 					OperationFirst: false,
@@ -110,7 +110,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref(), googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI)
+	ingester := gcpcommon.NewGCPOperationLogIngester(googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref(), googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
@@ -141,7 +141,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "attachNetworkEndpoints for Pod endpoint (GCE_VM_IP_PORT) start log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-1",
@@ -172,7 +172,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
@@ -184,12 +184,12 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					Namespace: "test-ns",
 					Name:      "test-pod",
 				})
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
 				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -198,8 +198,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						Principal:    "test-user@google.com",
-						VerbType:     googlecloudcommon_contract.VerbOperationStart,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:     gcpcommon.VerbOperationStart,
+						StateType:    gcpcommon.RevisionStateOperationStarted,
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: test-node\n  ipAddress: 10.0.0.1\n  port: \"80\"").Node,
 					}, nodeTransformer)
 
@@ -234,7 +234,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "attachNetworkEndpoints for Pod endpoint (GCE_VM_IP_PORT) finish log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-1",
@@ -244,7 +244,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
-				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				OperationTracker: gcpcommon.NewGCPOperationTracker(),
 				PendingOperations: map[string]*pendingNEGOperation{
 					"op-1": {
 						Method: "attachNetworkEndpoints",
@@ -265,7 +265,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
@@ -277,12 +277,12 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					Namespace: "test-ns",
 					Name:      "test-pod",
 				})
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
 				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -291,8 +291,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 					}, nodeTransformer)
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
@@ -326,7 +326,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "attachNetworkEndpoints for Node endpoint (GCE_VM_IP) start log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-2",
@@ -356,17 +356,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
 					},
 				}
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -375,8 +375,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						Principal:    "test-user@google.com",
-						VerbType:     googlecloudcommon_contract.VerbOperationStart,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:     gcpcommon.VerbOperationStart,
+						StateType:    gcpcommon.RevisionStateOperationStarted,
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13").Node,
 					}, nodeTransformer)
 
@@ -410,7 +410,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "attachNetworkEndpoints for Node endpoint (GCE_VM_IP) finish log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-2",
@@ -420,7 +420,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
-				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				OperationTracker: gcpcommon.NewGCPOperationTracker(),
 				PendingOperations: map[string]*pendingNEGOperation{
 					"op-2": {
 						Method: "attachNetworkEndpoints",
@@ -440,17 +440,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
 					},
 				}
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -459,8 +459,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 					}, nodeTransformer)
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
@@ -493,7 +493,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "detachNetworkEndpoints for Node endpoint (GCE_VM_IP) start log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-3",
@@ -523,17 +523,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
 					},
 				}
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -542,8 +542,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						Principal:    "test-user@google.com",
-						VerbType:     googlecloudcommon_contract.VerbOperationStart,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:     gcpcommon.VerbOperationStart,
+						StateType:    gcpcommon.RevisionStateOperationStarted,
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13").Node,
 					}, nodeTransformer)
 
@@ -589,7 +589,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "detachNetworkEndpoints for Node endpoint (GCE_VM_IP) finish log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-3",
@@ -599,7 +599,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
-				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				OperationTracker: gcpcommon.NewGCPOperationTracker(),
 				PendingOperations: map[string]*pendingNEGOperation{
 					"op-3": {
 						Method: "detachNetworkEndpoints",
@@ -619,17 +619,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
 					},
 				}
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -638,8 +638,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 					}, nodeTransformer)
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
@@ -672,7 +672,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "detachNetworkEndpoints for Pod endpoint (GCE_VM_IP_PORT) start log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-4",
@@ -703,7 +703,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
@@ -715,12 +715,12 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					Namespace: "test-ns",
 					Name:      "test-pod",
 				})
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
 				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -729,8 +729,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						Principal:    "test-user@google.com",
-						VerbType:     googlecloudcommon_contract.VerbOperationStart,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:     gcpcommon.VerbOperationStart,
+						StateType:    gcpcommon.RevisionStateOperationStarted,
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: test-node\n  ipAddress: 10.0.0.1\n  port: \"80\"").Node,
 					}, nodeTransformer)
 
@@ -777,7 +777,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "detachNetworkEndpoints for Pod endpoint (GCE_VM_IP_PORT) finish log",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-4",
@@ -787,7 +787,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
-				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				OperationTracker: gcpcommon.NewGCPOperationTracker(),
 				KnownEndpoints:   make(map[string]bool),
 				PendingOperations: map[string]*pendingNEGOperation{
 					"op-4": {
@@ -808,7 +808,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
@@ -820,12 +820,12 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					Namespace: "test-ns",
 					Name:      "test-pod",
 				})
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
 				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -834,8 +834,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 					}, nodeTransformer)
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
@@ -869,7 +869,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "concurrent operations on same NEG are tracked independently",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-detach",
@@ -879,7 +879,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
-				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				OperationTracker: gcpcommon.NewGCPOperationTracker(),
 				KnownEndpoints:   make(map[string]bool),
 				PendingOperations: map[string]*pendingNEGOperation{
 					"op-attach": {
@@ -922,17 +922,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
 					},
 				}
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -955,7 +955,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "missing start log for detach only creates operation log not found and succeed revisions",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-missing",
@@ -969,13 +969,13 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
 					},
 				}
-				return tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+				return tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := googlecloudlognetworkapiaudit_contract.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-missing")
@@ -983,14 +983,14 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime: time.Unix(0, 0),
 						Principal:   "test-user@google.com",
-						VerbType:    googlecloudcommon_contract.VerbOperationStart,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationStartedLogNotFound,
+						VerbType:    gcpcommon.VerbOperationStart,
+						StateType:   gcpcommon.RevisionStateOperationStartedLogNotFound,
 					}, nodeTransformer).
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationSucceed,
 					}, nodeTransformer)
 			},
 		},
@@ -998,7 +998,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "operation failure does not emit success revision on endpoint",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-fail",
@@ -1009,7 +1009,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
-				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+				OperationTracker: gcpcommon.NewGCPOperationTracker(),
 				KnownEndpoints:   make(map[string]bool),
 				PendingOperations: map[string]*pendingNEGOperation{
 					"op-fail": {
@@ -1029,17 +1029,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
 					},
 				}
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -1048,8 +1048,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationFailed,
+						VerbType:    gcpcommon.VerbOperationFinish,
+						StateType:   gcpcommon.RevisionStateOperationFailed,
 					}, nodeTransformer)
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
@@ -1067,7 +1067,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "detachNetworkEndpoints when endpoint was already known does not emit ExistingLogNotFound",
 			inputLog: testlog.NewMockLog(
 				testTime,
-				googlecloudcommon_contract.GCPAuditLogFieldSet{
+				gcpcommon.GCPAuditLogFieldSet{
 					MethodName:     "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints",
 					ResourceName:   "projects/test-project/zones/us-central1-a/networkEndpointGroups/test-neg",
 					OperationID:    "op-detach-known",
@@ -1078,7 +1078,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
-				OperationTracker:  googlecloudcommon_contract.NewGCPOperationTracker(),
+				OperationTracker:  gcpcommon.NewGCPOperationTracker(),
 				PendingOperations: map[string]*pendingNEGOperation{},
 				KnownEndpoints: map[string]bool{
 					"node:test-node": true,
@@ -1103,17 +1103,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			setupContext: func(ctx context.Context) context.Context {
-				negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{
+				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
 					},
 				}
-				negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{
+				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
+				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -1145,18 +1145,18 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			ctx = khictx.WithValue(ctx, inspectioncore.Builder, builder)
 
 			// Provide default empty inventories.
-			clusterIdentity := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			clusterIdentity := k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "cluster",
 				ProjectID:   "test-project",
 			}
-			negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{}
+			negs := k8scommon.NEGNameToResourceIdentityMap{}
 			ipLeases := resourcelease.NewResourceLeaseHistory[*k8saudit.ResourceIdentity]()
-			negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{}
+			negToBS := k8scommon.NEGToBackendServiceMap{}
 
-			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), clusterIdentity)
-			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
+			ctx = tasktest.WithTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref(), clusterIdentity)
+			ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
 			ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
-			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
+			ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 			if tc.setupContext != nil {
 				ctx = tc.setupContext(ctx)
 			}

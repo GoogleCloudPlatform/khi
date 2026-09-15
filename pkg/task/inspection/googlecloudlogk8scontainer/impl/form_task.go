@@ -23,12 +23,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 )
 
-const priorityForContainerGroup = googlecloudcommon_contract.FormBasePriority + 20000
+const priorityForContainerGroup = gcpcommon.FormBasePriority + 20000
 
 const maxNamespaceFilterOptions = 500
 const maxPodNameFilterOptions = 500
@@ -39,7 +39,7 @@ var inputNamespacesAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][
 
 // InputContainerQueryNamespaceFilterTask is a form task that allows users to specify which namespaces to query for container logs.
 var InputContainerQueryNamespaceFilterTask = formtask.NewSetFormTaskBuilder(googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
-	WithDependencies([]coretask.Dependency{googlecloudk8scommon_contract.AutocompleteNamespacesTaskID.Ref()}).
+	WithDependencies([]coretask.Dependency{k8scommon.AutocompleteNamespacesTaskID.Ref()}).
 	WithDefaultValueConstant([]string{"@managed"}, true).
 	WithAllowAddAll(false).
 	WithAllowRemoveAll(false).
@@ -48,7 +48,7 @@ var InputContainerQueryNamespaceFilterTask = formtask.NewSetFormTaskBuilder(goog
 Specify the space splitted namespace lists to query container logs only in the specific namespaces.`).
 	WithOptionsFunc(func(ctx context.Context, value []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 		result := []inspectionmetadata.SetParameterFormFieldOptionItem{}
-		namespaces := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteNamespacesTaskID.Ref())
+		namespaces := coretask.GetTaskResult(ctx, k8scommon.AutocompleteNamespacesTaskID.Ref())
 		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{
 			ID:          "@managed",
 			Description: "[Alias] An alias matches the managed namespaces(e.g kube-system,gke-system,...etc).",
@@ -67,7 +67,7 @@ Specify the space splitted namespace lists to query container logs only in the s
 		return result, nil
 	}).
 	WithHintFunc(func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		namespaces := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteNamespacesTaskID.Ref())
+		namespaces := coretask.GetTaskResult(ctx, k8scommon.AutocompleteNamespacesTaskID.Ref())
 		if len(namespaces.Values) > maxNamespaceFilterOptions {
 			return fmt.Sprintf("Some namespaces are not shown on the suggestion list because the number of namespaces is %d, which is more than %d.", len(namespaces.Values), maxNamespaceFilterOptions), inspectionmetadata.Warning, nil
 		}
@@ -95,7 +95,7 @@ var inputPodNamesAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]s
 
 // InputContainerQueryPodNamesFilterMask is a form task that allows users to specify which pod names to query for container logs.
 var InputContainerQueryPodNamesFilterMask = formtask.NewSetFormTaskBuilder(googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
-	WithDependencies([]coretask.Dependency{googlecloudk8scommon_contract.AutocompletePodNamesTaskID.Ref()}).
+	WithDependencies([]coretask.Dependency{k8scommon.AutocompletePodNamesTaskID.Ref()}).
 	WithDefaultValueConstant([]string{"@any"}, true).
 	WithAllowAddAll(false).
 	WithAllowRemoveAll(false).
@@ -105,7 +105,7 @@ var InputContainerQueryPodNamesFilterMask = formtask.NewSetFormTaskBuilder(googl
 	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.`).
 	WithOptionsFunc(func(ctx context.Context, value []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 		result := []inspectionmetadata.SetParameterFormFieldOptionItem{}
-		podNames := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompletePodNamesTaskID.Ref())
+		podNames := coretask.GetTaskResult(ctx, k8scommon.AutocompletePodNamesTaskID.Ref())
 		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{
 			ID:          "@any",
 			Description: "[Alias] An alias matches any pod names.",
@@ -121,7 +121,7 @@ var InputContainerQueryPodNamesFilterMask = formtask.NewSetFormTaskBuilder(googl
 		return result, nil
 	}).
 	WithHintFunc(func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		podNames := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompletePodNamesTaskID.Ref())
+		podNames := coretask.GetTaskResult(ctx, k8scommon.AutocompletePodNamesTaskID.Ref())
 		if len(podNames.Values) > maxPodNameFilterOptions {
 			return fmt.Sprintf("Some pod names are not shown on the suggestion list because the number of pod names is %d, which is more than %d.", len(podNames.Values), maxPodNameFilterOptions), inspectionmetadata.Warning, nil
 		}

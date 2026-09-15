@@ -24,8 +24,8 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -261,19 +261,19 @@ func TestGKEInitialResourceStateProviderTask(t *testing.T) {
 
 	testCases := []struct {
 		name        string
-		mode        inspectioncore_contract.InspectionTaskModeType
+		mode        inspectioncore.InspectionTaskModeType
 		snapshots   []*googlecloudcaik8s_contract.GKEResourceSnapshot
 		wantCluster bool
 	}{
 		{
 			name:        "DryRun mode returns empty provider",
-			mode:        inspectioncore_contract.TaskModeDryRun,
+			mode:        inspectioncore.TaskModeDryRun,
 			snapshots:   nil,
 			wantCluster: false,
 		},
 		{
 			name: "Run mode resolves snapshots and returns populated provider",
-			mode: inspectioncore_contract.TaskModeRun,
+			mode: inspectioncore.TaskModeRun,
 			snapshots: []*googlecloudcaik8s_contract.GKEResourceSnapshot{
 				newTestGKESnapshot(t, gkeSnapshotParams{
 					assetName:       clusterAssetName,
@@ -293,7 +293,7 @@ func TestGKEInitialResourceStateProviderTask(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			provider, _, err := inspectiontest.RunInspectionTask(ctx, GKEInitialResourceStateProviderTask, tc.mode, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(googlecloudcaik8s_contract.GKEResourceFetcherTaskID.Ref(), tc.snapshots),
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), queryStartTime),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
 			)
 			if err != nil {
 				t.Fatalf("unexpected error running task: %v", err)

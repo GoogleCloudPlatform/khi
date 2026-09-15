@@ -27,7 +27,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"gopkg.in/yaml.v3"
@@ -119,8 +119,8 @@ func (m *autoscalerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
-	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, autoscalerFieldSet.ProjectID)
-	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, clusterName)
+	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, autoscalerFieldSet.ProjectID)
+	clusterTimeline := gcpcommon.MustGKEClusterTimeline(ctx, projectTimeline, clusterName)
 
 	if autoscalerFieldSet.DecisionLog != nil {
 		err := mapDecision(ctx, clusterName, clusterTimeline, autoscalerFieldSet.DecisionLog, cs)
@@ -242,7 +242,7 @@ func mapDecision(ctx context.Context, clusterName string, clusterTimeline *khifi
 	if decision.ScaleUp != nil {
 		scaleUp := decision.ScaleUp
 		for _, mig := range scaleUp.IncreasedMigs {
-			nodepoolPath := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, mig.Mig.Nodepool)
+			nodepoolPath := gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, mig.Mig.Nodepool)
 			migPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolPath, mig.Mig.Name)
 			cs.AddEvent(migPath)
 		}
@@ -256,7 +256,7 @@ func mapDecision(ctx context.Context, clusterName string, clusterTimeline *khifi
 		for _, nodeToBeRemoved := range scaleDown.NodesToBeRemoved {
 			nodePath := getNodeTimeline(ctx, clusterName, nodeToBeRemoved.Node.Name)
 			cs.AddEvent(nodePath)
-			nodepoolPath := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, nodeToBeRemoved.Node.Mig.Nodepool)
+			nodepoolPath := gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, nodeToBeRemoved.Node.Mig.Nodepool)
 			migPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolPath, nodeToBeRemoved.Node.Mig.Name)
 			cs.AddEvent(migPath)
 			for _, pod := range nodeToBeRemoved.EvictedPods {
@@ -268,7 +268,7 @@ func mapDecision(ctx context.Context, clusterName string, clusterTimeline *khifi
 	if decision.NodePoolCreated != nil {
 		nodePoolCreated := decision.NodePoolCreated
 		for _, nodepool := range nodePoolCreated.NodePools {
-			nodepoolPath := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, nodepool.Name)
+			nodepoolPath := gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, nodepool.Name)
 			cs.AddEvent(nodepoolPath)
 			for _, mig := range nodepool.Migs {
 				migPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolPath, mig.Name)
@@ -279,7 +279,7 @@ func mapDecision(ctx context.Context, clusterName string, clusterTimeline *khifi
 	if decision.NodePoolDeleted != nil {
 		nodepoolDeleted := decision.NodePoolDeleted
 		for _, nodepool := range nodepoolDeleted.NodePoolNames {
-			nodepoolPath := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, nodepool)
+			nodepoolPath := gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, nodepool)
 			cs.AddEvent(nodepoolPath)
 		}
 	}
@@ -292,7 +292,7 @@ func mapNoDecision(ctx context.Context, clusterName string, clusterTimeline *khi
 	if noDecision.NoScaleUp != nil {
 		noScaleUp := noDecision.NoScaleUp
 		for _, mig := range noScaleUp.SkippedMigs {
-			nodepoolPath := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, mig.Mig.Nodepool)
+			nodepoolPath := gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, mig.Mig.Nodepool)
 			migPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolPath, mig.Mig.Name)
 			cs.AddEvent(migPath)
 		}
@@ -300,7 +300,7 @@ func mapNoDecision(ctx context.Context, clusterName string, clusterTimeline *khi
 			podPath := getPodTimeline(ctx, clusterName, groupItem.PodGroup.SamplePod.Namespace, groupItem.PodGroup.SamplePod.Name)
 			cs.AddEvent(podPath)
 			for _, rejectedMig := range groupItem.RejectedMigs {
-				nodepoolPath := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, rejectedMig.Mig.Nodepool)
+				nodepoolPath := gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, rejectedMig.Mig.Nodepool)
 				migPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolPath, rejectedMig.Mig.Name)
 				cs.AddEvent(migPath)
 			}
@@ -316,7 +316,7 @@ func mapNoDecision(ctx context.Context, clusterName string, clusterTimeline *khi
 			migs[node.Node.Mig.Id()] = node.Node.Mig
 		}
 		for _, mig := range migs {
-			nodepoolPath := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, mig.Nodepool)
+			nodepoolPath := gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, mig.Nodepool)
 			migPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolPath, mig.Name)
 			cs.AddEvent(migPath)
 		}

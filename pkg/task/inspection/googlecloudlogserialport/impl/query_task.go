@@ -26,8 +26,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -85,24 +85,24 @@ func GenerateSerialPortStructuredQuery(taskMode inspectioncore.InspectionTaskMod
 type serialPortLoggingFilterTaskSetting struct {
 }
 
-// Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref(),
-		googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
+		k8scommon.InputNodeNameFilterTaskID.Ref(),
 		k8saudit.NodeNameInventoryTaskID.Ref(),
 	}
 }
 
-// QueryName implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) QueryName() string {
 	return "Serial port log"
 }
 
-// Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	nodeNames := coretask.GetTaskResult(ctx, k8saudit.NodeNameInventoryTaskID.Ref())
-	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())
+	nodeNameSubstrings := coretask.GetTaskResult(ctx, k8scommon.InputNodeNameFilterTaskID.Ref())
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref())
 	taskMode := inspectioncore.TaskModeRun
 	if val, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode); err == nil {
@@ -117,22 +117,22 @@ func (s *serialPortLoggingFilterTaskSetting) Queries(ctx context.Context) ([]*lo
 	return queries, nil
 }
 
-// DefaultResourceNames implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
-// TaskID implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlogserialport_contract.LogQueryTaskID
 }
 
-// TimePartitionCount implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
+// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 10, nil
 }
 
-var _ googlecloudcommon_contract.StructuredListLogEntriesTaskSetting = (*serialPortLoggingFilterTaskSetting)(nil)
+var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*serialPortLoggingFilterTaskSetting)(nil)
 
-var LogQueryTask = googlecloudcommon_contract.NewStructuredListLogEntriesTask(&serialPortLoggingFilterTaskSetting{})
+var LogQueryTask = gcpcommon.NewStructuredListLogEntriesTask(&serialPortLoggingFilterTaskSetting{})

@@ -27,8 +27,8 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -43,7 +43,7 @@ var (
 )
 
 // LogIngesterTask is a task that serializes GKE audit logs for storage in the history builder.
-var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
+var LogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
 	googlecloudloggkeapiaudit_contract.LogIngesterTaskID,
 	googlecloudloggkeapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudloggkeapiaudit_contract.LogTypeGkeAudit,
@@ -64,7 +64,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeapiau
 )
 
 // LogToTimelineMapperTask is a task that maps GKE audit logs to timeline elements.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](googlecloudloggkeapiaudit_contract.LogToTimelineMapperTaskID, &gkeAuditLogLogToTimelineMapperSetting{},
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*gcpcommon.GCPOperationTracker](googlecloudloggkeapiaudit_contract.LogToTimelineMapperTaskID, &gkeAuditLogLogToTimelineMapperSetting{},
 	inspectioncore.FeatureTaskLabel(`GKE Audit Logs`,
 		`Gather GKE audit logs to visualize the creation, upgrade, and deletion of clusters and node pools on timelines.`,
 		5000,
@@ -73,7 +73,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*goo
 
 // gkeAuditLogLogToTimelineMapperSetting implements the LogToTimelineMapper interface for GKE audit logs.
 type gkeAuditLogLogToTimelineMapperSetting struct {
-	inspectiontaskbase.SinglePassMapperBase[*googlecloudcommon_contract.GCPOperationTracker]
+	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
 
 // Dependencies returns additional task dependencies used in timeline mapper.
@@ -94,11 +94,11 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskRef
 }
 
 // ProcessLogByGroup maps GKE audit log resource updates to timeline events/revisions.
-func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *googlecloudcommon_contract.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *googlecloudcommon_contract.GCPOperationTracker, error) {
+func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	if tracker == nil {
-		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
+		tracker = gcpcommon.NewGCPOperationTracker()
 	}
-	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+	auditFieldSet, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -107,14 +107,14 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 		return nil, tracker, err
 	}
 
-	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, auditFieldSet.ProjectID)
-	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, resourceFieldSet.ClusterName)
+	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, auditFieldSet.ProjectID)
+	clusterTimeline := gcpcommon.MustGKEClusterTimeline(ctx, projectTimeline, resourceFieldSet.ClusterName)
 
 	var targetTimeline *khifilev6.TimelinePath
 	if resourceFieldSet.IsCluster() {
 		targetTimeline = clusterTimeline
 	} else {
-		targetTimeline = googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, clusterTimeline, resourceFieldSet.NodepoolName)
+		targetTimeline = gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, resourceFieldSet.NodepoolName)
 	}
 
 	initialStateProvider := coretask.GetTaskResult(ctx, googlecloudloggkeapiaudit_contract.InitialResourceStateProviderRef)
@@ -131,7 +131,7 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 	methodNameParts := strings.Split(auditFieldSet.MethodName, ".")
 	shortMethodName := methodNameParts[len(methodNameParts)-1]
 
-	operationTimeline := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetTimeline, shortMethodName, auditFieldSet.OperationID)
+	operationTimeline := gcpcommon.MustGCPOperationTimeline(ctx, targetTimeline, shortMethodName, auditFieldSet.OperationID)
 
 	isCreate := strings.HasPrefix(shortMethodName, "Create") || strings.HasPrefix(shortMethodName, "Enroll")
 	isDelete := strings.HasPrefix(shortMethodName, "Delete") || strings.HasPrefix(shortMethodName, "Unenroll")
@@ -143,7 +143,7 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 	if !isCreate && !isDelete && !auditFieldSet.ImmediateOperation() {
 		g.processUpdateOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, &auditFieldSet, l.Timestamp, resourceFieldSet.IsCluster(), initialState)
 	} else {
-		googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, &auditFieldSet, l.Timestamp, shortMethodName, resourceFieldSet.IsCluster())
+		gcpcommon.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, &auditFieldSet, l.Timestamp, shortMethodName, resourceFieldSet.IsCluster())
 		if isCreate && auditFieldSet.Request != nil {
 			resourceBodyField := pathNodePool
 			if resourceFieldSet.IsCluster() {
@@ -166,10 +166,10 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 func (g *gkeAuditLogLogToTimelineMapperSetting) processUpdateOperationLog(
 	ctx context.Context,
 	cs *khifilev6.TimelineChangeSet,
-	tracker *googlecloudcommon_contract.GCPOperationTracker,
+	tracker *gcpcommon.GCPOperationTracker,
 	targetTimeline *khifilev6.TimelinePath,
 	operationTimeline *khifilev6.TimelinePath,
-	audit *googlecloudcommon_contract.GCPAuditLogFieldSet,
+	audit *gcpcommon.GCPAuditLogFieldSet,
 	logTimestamp time.Time,
 	isCluster bool,
 	initialState *googlecloudloggkeapiaudit_contract.InitialResourceState,
@@ -182,12 +182,12 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) processUpdateOperationLog(
 	if !tracker.HasResourceRevision(targetTimeline) {
 		var stateNotFound *pb.RevisionState
 		if isCluster {
-			stateNotFound = commonlogk8saudit_contract.RevisionStateK8sClusterExistingLogNotFound
+			stateNotFound = k8saudit.RevisionStateK8sClusterExistingLogNotFound
 		} else {
-			stateNotFound = commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound
+			stateNotFound = k8saudit.RevisionStateK8sNodepoolExistingLogNotFound
 		}
 		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-			VerbType:     commonlogk8saudit_contract.VerbCreate,
+			VerbType:     k8saudit.VerbCreate,
 			StateType:    stateNotFound,
 			Principal:    audit.PrincipalEmail,
 			ChangedTime:  time.Unix(0, 0),
@@ -199,9 +199,9 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) processUpdateOperationLog(
 	if audit.Ending() && audit.Status <= 0 {
 		var state *pb.RevisionState
 		if isCluster {
-			state = commonlogk8saudit_contract.RevisionStateK8sClusterExisting
+			state = k8saudit.RevisionStateK8sClusterExisting
 		} else {
-			state = commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting
+			state = k8saudit.RevisionStateK8sNodepoolExisting
 		}
 
 		var patchNode structured.Node
@@ -239,7 +239,7 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) processUpdateOperationLog(
 		tracker.SetCurrentManifest(bodyNode)
 
 		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-			VerbType:     commonlogk8saudit_contract.VerbUpdate,
+			VerbType:     k8saudit.VerbUpdate,
 			StateType:    state,
 			Principal:    audit.PrincipalEmail,
 			ChangedTime:  logTimestamp,
@@ -251,4 +251,4 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) processUpdateOperationLog(
 	tracker.ProcessOperationLog(ctx, cs, operationTimeline, audit, logTimestamp)
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*gkeAuditLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*gkeAuditLogLogToTimelineMapperSetting)(nil)

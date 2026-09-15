@@ -22,8 +22,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
 // AirflowOtherLogGrouperTask groups other Airflow logs.
@@ -56,11 +56,11 @@ func (i *otherLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifile
 	cs.SetLogType(googlecloudclustercomposer_contract.LogTypeManagedAirflowEnvironment)
 	cs.SetTimestamp(l.Timestamp)
 
-	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil {
+	if severity, err := gcpcommon.ExtractGCPSeverity(l.NodeReader); err == nil {
 		cs.SetSeverity(severity)
 	}
 
-	if message, err := googlecloudcommon_contract.ExtractGCPMainMessage(l.NodeReader); err == nil {
+	if message, err := gcpcommon.ExtractGCPMainMessage(l.NodeReader); err == nil {
 		cs.SetSummary(message)
 	}
 

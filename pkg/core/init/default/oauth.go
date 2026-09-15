@@ -19,7 +19,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/options"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
 // InitializerIDOAuth initializes OAuth authentication handlers if enabled.
@@ -46,7 +46,7 @@ var OAuthInitializer = &coreinit.Initializer{
 
 		oauthServer := oauth.NewOAuthServer(engine, authParams.GetOAuthConfig(), *authParams.OAuthRedirectTargetServingPath, *authParams.OAuthStateSuffix)
 		taskServer.AddRunContextOption(
-			coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, options.OAuth(oauthServer)),
+			coreinspection.RunContextOptionArrayElementFromValue(gcpcommon.APIClientFactoryOptionsContextKey, options.OAuth(oauthServer)),
 		)
 		return nil
 	},

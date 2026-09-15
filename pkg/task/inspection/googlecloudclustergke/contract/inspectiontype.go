@@ -18,7 +18,7 @@ import (
 	"math"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -33,9 +33,9 @@ var GKEInspectionType = coreinspection.InspectionType{
 	Icon:        "assets/icons/gke.png",
 	Priority:    math.MaxInt,
 	Labels: map[string]string{
-		inspectioncore.InspectionTypeLabelKeyLogSource:               "cloud_logging",
-		inspectioncore.InspectionTypeLabelKeyEnvironment:             "googlecloud",
-		inspectioncore.InspectionTypeLabelKeyBasePlatform:            "kubernetes",
-		googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
+		inspectioncore.InspectionTypeLabelKeyLogSource:    "cloud_logging",
+		inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		gcpcommon.InspectionTypeLabelKeyClusterType:       "gke",
 	},
 }

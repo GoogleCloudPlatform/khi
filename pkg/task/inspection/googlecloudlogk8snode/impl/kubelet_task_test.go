@@ -27,7 +27,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -44,7 +44,7 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		desc                 string
 		inputMessage         string
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
-		inputClusterIdentity *googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		inputClusterIdentity *k8scommon.GoogleCloudClusterIdentity
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
 		inputContainerIDInfo map[string]*k8saudit.ContainerIdentity
 		inputResourceUIDInfo map[string]*k8saudit.ResourceIdentity
@@ -145,12 +145,12 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				Component: "kubelet",
 				NodeName:  "node-1",
 			},
-			inputClusterIdentity: &googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			inputClusterIdentity: &k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
-				PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
+				PrefixPolicy: k8scommon.ClusterPrefixPolicy{
 					Prefix: "awsClusters/",
-					RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
-						googlecloudk8scommon_contract.ClusterNameUsageK8sCluster,
+					RequiredUsages: []k8scommon.ClusterNameUsage{
+						k8scommon.ClusterNameUsageK8sCluster,
 					},
 				},
 			},
@@ -185,7 +185,7 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				}
 			}
 
-			clusterIdent := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			clusterIdent := k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			}
 			if tc.inputClusterIdentity != nil {

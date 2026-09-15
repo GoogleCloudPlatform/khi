@@ -20,7 +20,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // emptyInitialResourceStateProvider reports no initial state. It is used when no inventory is available.
@@ -42,7 +42,7 @@ func (p *emptyInitialResourceStateProvider) NodePoolInitialState(clusterName, no
 var EmptyInitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
 	taskid.NewImplementationID(googlecloudloggkeapiaudit_contract.InitialResourceStateProviderRef, "empty"),
 	nil,
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (googlecloudloggkeapiaudit_contract.InitialResourceStateProvider, error) {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (googlecloudloggkeapiaudit_contract.InitialResourceStateProvider, error) {
 		return &emptyInitialResourceStateProvider{}, nil
 	},
 )

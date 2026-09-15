@@ -25,8 +25,8 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
@@ -34,7 +34,7 @@ import (
 )
 
 func TestGenerateK8sControlPlaneStructuredQuery(t *testing.T) {
-	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	cluster := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "foo-cluster",
 		ProjectID:   "foo-project",
 		Location:    "foo-location",
@@ -42,7 +42,7 @@ func TestGenerateK8sControlPlaneStructuredQuery(t *testing.T) {
 
 	testCases := []struct {
 		name                   string
-		cluster                googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster                k8scommon.GoogleCloudClusterIdentity
 		componentFilter        *gcpqueryutil.SetFilterParseResult
 		wantQuery              string
 		wantMetricFilters      []string
@@ -196,12 +196,12 @@ resource.labels.cluster_name="foo-cluster"
 func TestGenerateK8sControlPlaneQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		name                                 string
-		cluster                              googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster                              k8scommon.GoogleCloudClusterIdentity
 		inputControlplaneComponentNameFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
 			name: "All components",
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "foo-cluster",
 				ProjectID:   "foo-project",
 				Location:    "foo-location",
@@ -210,7 +210,7 @@ func TestGenerateK8sControlPlaneQueryIsValid(t *testing.T) {
 		},
 		{
 			name: "Specific components (inclusive)",
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "foo-cluster",
 				ProjectID:   "foo-project",
 				Location:    "foo-location",
@@ -219,7 +219,7 @@ func TestGenerateK8sControlPlaneQueryIsValid(t *testing.T) {
 		},
 		{
 			name: "Specific components (exclusive)",
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "foo-cluster",
 				ProjectID:   "foo-project",
 				Location:    "foo-location",
@@ -243,13 +243,13 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 	startTime := time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
 
-	cluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	cluster := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
 		ProjectID:   "test-project",
 		Location:    "us-central1-a",
 	}
 
-	resourceNamesInput := googlecloudcommon_contract.NewResourceNamesInput()
+	resourceNamesInput := gcpcommon.NewResourceNamesInput()
 	clientFactory, err := googlecloud.NewClientFactory()
 	if err != nil {
 		t.Fatalf("failed to create ClientFactory: %v", err)
@@ -257,10 +257,10 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
 		tasktest.NewTaskDependencyValuePair(googlecloudlogk8scontrolplane_contract.ClusterIdentityTaskID.Ref(), cluster),
 		tasktest.NewTaskDependencyValuePair(googlecloudlogk8scontrolplane_contract.InputControlPlaneComponentNameFilterTaskID.Ref(), &gcpqueryutil.SetFilterParseResult{SubtractMode: true}),
 	)

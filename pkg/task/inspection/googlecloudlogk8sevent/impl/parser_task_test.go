@@ -27,7 +27,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -102,11 +102,11 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				Message:      "Event exporter started watching.",
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, "test-project")
-				clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, "test-cluster")
+				projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, "test-project")
+				clusterTimeline := gcpcommon.MustGKEClusterTimeline(ctx, projectTimeline, "test-cluster")
 				otherTimeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
 					Name: "other",
-					Type: googlecloudcommon_contract.TimelineTypeOtherGKEResources,
+					Type: gcpcommon.TimelineTypeOtherGKEResources,
 				})
 				expectedPath := builder.TimelineAccumulator.GetPath(otherTimeline, khifilev6.PathSegment{
 					Name: "event-exporter",

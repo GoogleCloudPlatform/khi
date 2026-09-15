@@ -16,11 +16,11 @@ package googlecloudlogcsm_impl
 
 import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 )
 
 var ClusterIdentityAliasTask = coretask.NewAliasTask(
 	googlecloudlogcsm_contract.ClusterIdentityTaskID,
-	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
+	k8scommon.ClusterIdentityTaskID.Ref(),
 )

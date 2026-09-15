@@ -24,13 +24,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudlogonpremapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
-var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
+var LogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
 	googlecloudlogonpremapiaudit_contract.LogIngesterTaskID,
 	googlecloudlogonpremapiaudit_contract.ListLogEntriesTaskID.Ref(),
 	googlecloudlogonpremapiaudit_contract.LogTypeOnPremAPI,
@@ -52,7 +52,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 
 // OnPremAPIAuditTimelineMapper maps On-Prem API audit logs to timeline elements.
 type OnPremAPIAuditTimelineMapper struct {
-	inspectiontaskbase.SinglePassMapperBase[*googlecloudcommon_contract.GCPOperationTracker]
+	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
 
 // LogIngesterTask returns the task reference providing the ingested logs.
@@ -71,11 +71,11 @@ func (m *OnPremAPIAuditTimelineMapper) GroupedLogTask() taskid.TaskReference[ins
 }
 
 // ProcessLogByGroup maps log entries to timeline elements.
-func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *googlecloudcommon_contract.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *googlecloudcommon_contract.GCPOperationTracker, error) {
+func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	if tracker == nil {
-		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
+		tracker = gcpcommon.NewGCPOperationTracker()
 	}
-	auditFieldSet, err := googlecloudcommon_contract.ExtractGCPAuditLog(l.NodeReader)
+	auditFieldSet, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
 	if err != nil {
 		return nil, tracker, err
 	}
@@ -86,7 +86,7 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
-	projectPath := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, resourceFieldSet.Project)
+	projectPath := gcpcommon.MustGCPProjectTimeline(ctx, resourceFieldSet.Project)
 	clusterPath := googlecloudlogonpremapiaudit_contract.MustOnPremClusterTimeline(ctx, projectPath, resourceFieldSet.ClusterName)
 
 	var targetPath *khifilev6.TimelinePath
@@ -108,13 +108,13 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	shortMethodName := methodNameParts[len(methodNameParts)-1]
 	normalizedShortMethodName := strings.ReplaceAll(shortMethodName, clusterTypeToFragmentInMethodNameMapping[resourceFieldSet.ClusterType], "")
 
-	operationPath := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetPath, shortMethodName, auditFieldSet.OperationID)
-	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetPath, operationPath, &auditFieldSet, l.Timestamp, normalizedShortMethodName, resourceFieldSet.IsCluster())
+	operationPath := gcpcommon.MustGCPOperationTimeline(ctx, targetPath, shortMethodName, auditFieldSet.OperationID)
+	gcpcommon.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetPath, operationPath, &auditFieldSet, l.Timestamp, normalizedShortMethodName, resourceFieldSet.IsCluster())
 
 	return cs, tracker, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*OnPremAPIAuditTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*OnPremAPIAuditTimelineMapper)(nil)
 
 // LogToTimelineMapperTask is a task that adds revisions/events regarding logs.
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(

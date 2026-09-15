@@ -18,7 +18,7 @@ import (
 	"math"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -33,10 +33,10 @@ var GDCVForBaremetalInspectionType = coreinspection.InspectionType{
 	Icon:        "assets/icons/anthos.png",
 	Priority:    math.MaxInt - 3,
 	Labels: map[string]string{
-		inspectioncore.InspectionTypeLabelKeyLogSource:                  "cloud_logging",
-		inspectioncore.InspectionTypeLabelKeyEnvironment:                "googlecloud",
-		inspectioncore.InspectionTypeLabelKeyBasePlatform:               "kubernetes",
-		googlecloudcommon_contract.InspectionTypeLabelKeyClusterType:    "gdc",
-		googlecloudcommon_contract.InspectionTypeLabelKeyClusterSubType: "baremetal",
+		inspectioncore.InspectionTypeLabelKeyLogSource:    "cloud_logging",
+		inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		gcpcommon.InspectionTypeLabelKeyClusterType:       "gdc",
+		gcpcommon.InspectionTypeLabelKeyClusterSubType:    "baremetal",
 	},
 }

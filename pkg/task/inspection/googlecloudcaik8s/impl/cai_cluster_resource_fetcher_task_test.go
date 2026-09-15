@@ -28,9 +28,9 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -154,12 +154,12 @@ func newPodTemporalAsset(t *testing.T, startTime, endTime time.Time) *assetpb.Te
 func TestClusterParentCandidates(t *testing.T) {
 	testCases := []struct {
 		name    string
-		cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster k8scommon.GoogleCloudClusterIdentity
 		want    []string
 	}{
 		{
 			name: "emits the regional and the zonal naming form of the cluster",
-			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ProjectID:   "test-project",
 				ClusterName: "test-cluster",
 				Location:    "us-central1-a",
@@ -626,13 +626,13 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 	startTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	endTime := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
 
-	completeCluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	completeCluster := k8scommon.GoogleCloudClusterIdentity{
 		ProjectID:   "test-project",
 		ClusterName: "test-cluster",
 		Location:    "us-central1-a",
 	}
 
-	incompleteCluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+	incompleteCluster := k8scommon.GoogleCloudClusterIdentity{
 		ProjectID:   "test-project",
 		ClusterName: "",
 		Location:    "us-central1-a",
@@ -641,7 +641,7 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 	testCases := []struct {
 		name                 string
 		taskMode             inspectioncore.InspectionTaskModeType
-		cluster              googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		cluster              k8scommon.GoogleCloudClusterIdentity
 		kindFilter           *gcpqueryutil.SetFilterParseResult
 		namespaceFilter      *gcpqueryutil.SetFilterParseResult
 		searchErr            error
@@ -715,13 +715,13 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			got, _, err := inspectiontest.RunInspectionTask(ctx, ClusterResourceFetcherTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), startTime),
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryTaskID.Ref(), factory),
-				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
-				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), tc.cluster),
-				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.InputKindFilterTaskID.Ref(), tc.kindFilter),
-				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(), tc.namespaceFilter),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), factory),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+				tasktest.NewTaskDependencyValuePair(k8scommon.ClusterIdentityTaskID.Ref(), tc.cluster),
+				tasktest.NewTaskDependencyValuePair(k8scommon.InputKindFilterTaskID.Ref(), tc.kindFilter),
+				tasktest.NewTaskDependencyValuePair(k8scommon.InputNamespaceFilterTaskID.Ref(), tc.namespaceFilter),
 			)
 			if err != nil {
 				t.Fatalf("ClusterResourceFetcherTask unexpected error: %v", err)

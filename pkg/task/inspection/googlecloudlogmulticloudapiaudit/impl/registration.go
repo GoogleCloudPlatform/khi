@@ -17,7 +17,7 @@ package googlecloudlogmulticloudapiaudit_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -26,10 +26,10 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	scopedWithLogSource := coreinspection.NewScopedRegistry(
 		registry,
 		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyLogSource:               "cloud_logging",
-			inspectioncore.InspectionTypeLabelKeyEnvironment:             "googlecloud",
-			inspectioncore.InspectionTypeLabelKeyBasePlatform:            "kubernetes",
-			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke_multicloud",
+			inspectioncore.InspectionTypeLabelKeyLogSource:    "cloud_logging",
+			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+			gcpcommon.InspectionTypeLabelKeyClusterType:       "gke_multicloud",
 		}),
 	)
 	if err := coretask.RegisterTasks(scopedWithLogSource, ListLogEntriesTask); err != nil {
@@ -39,9 +39,9 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	scoped := coreinspection.NewScopedRegistry(
 		registry,
 		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyEnvironment:             "googlecloud",
-			inspectioncore.InspectionTypeLabelKeyBasePlatform:            "kubernetes",
-			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke_multicloud",
+			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+			gcpcommon.InspectionTypeLabelKeyClusterType:       "gke_multicloud",
 		}),
 	)
 	return coretask.RegisterTasks(scoped,

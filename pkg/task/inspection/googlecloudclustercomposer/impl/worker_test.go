@@ -28,8 +28,8 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -48,7 +48,7 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 			name: "Worker basic identification and TaskInstance extraction",
 			input: testlog.NewMockLog(
 				timestamp,
-				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Executing task"},
+				gcpcommon.GCPMainMessageFieldSet{MainMessage: "Executing task"},
 				googlecloudclustercomposer_contract.ComposerFieldSet{
 					WorkerID: "airflow-worker-abc",
 				},
@@ -86,7 +86,7 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 			name: "Worker log without TaskInstance",
 			input: testlog.NewMockLog(
 				timestamp,
-				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Worker Heartbeat"},
+				gcpcommon.GCPMainMessageFieldSet{MainMessage: "Worker Heartbeat"},
 				googlecloudclustercomposer_contract.ComposerFieldSet{
 					WorkerID: "airflow-worker-abc",
 				},
@@ -103,7 +103,7 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 			name: "Worker TaskInstance with none status generates event",
 			input: testlog.NewMockLog(
 				timestamp,
-				googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Any user task log"},
+				gcpcommon.GCPMainMessageFieldSet{MainMessage: "Any user task log"},
 				googlecloudclustercomposer_contract.ComposerFieldSet{
 					WorkerID: "airflow-worker-abc",
 				},
