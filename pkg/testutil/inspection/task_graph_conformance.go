@@ -62,6 +62,7 @@ func RunTaskGraphConformance(t *testing.T) {
 	})
 
 	reachedTaskImplIDs := make(map[string]struct{})
+	completedInspectionTypes := make(map[string]struct{})
 
 	// Layer 2, 3, 4: InspectionType-specific conformance checks.
 	for _, it := range server.GetAllInspectionTypes() {
@@ -77,13 +78,14 @@ func RunTaskGraphConformance(t *testing.T) {
 			t.Run("Layer4_FormTaskAndTypeContracts", func(t *testing.T) {
 				runFormTaskAndTypeContracts(t, server, it)
 			})
+			completedInspectionTypes[it.Id] = struct{}{}
 		})
 	}
 
 	// Layer 5: Reachability check across all inspection types.
 	t.Run("Layer5_Reachability", func(t *testing.T) {
-		if len(reachedTaskImplIDs) == 0 {
-			t.Skip("skipping reachability check: preceding feature resolution subtests did not run (subtest filter applied)")
+		if len(completedInspectionTypes) < len(server.GetAllInspectionTypes()) {
+			t.Skip("skipping reachability check: not all inspection types were evaluated (subtest filter applied)")
 		}
 		runReachabilityConformance(t, allTasks, reachedTaskImplIDs)
 	})
@@ -333,6 +335,7 @@ func runFormTaskAndTypeContracts(t *testing.T, server *coreinspection.Inspection
 			if isFormTask := typedmap.GetOrDefault(task.Labels(), inspectioncore_contract.TaskLabelKeyIsFormTask, false); isFormTask {
 				label := typedmap.GetOrDefault(task.Labels(), inspectioncore_contract.TaskLabelKeyFormFieldLabel, "")
 				if label == "" {
+					t.Errorf("form task %q is missing a form field label", task.UntypedID().String())
 					continue
 				}
 				if existing, exists := formFieldsByLabel[label]; exists {
