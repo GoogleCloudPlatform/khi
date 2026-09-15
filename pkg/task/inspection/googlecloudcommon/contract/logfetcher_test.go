@@ -50,6 +50,7 @@ func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
+		defer cancel()
 		select {
 		// Test time out is 30 sec by default and getting a single log for 20 sec timeout must be fine.
 		case <-time.After(20 * time.Second):
@@ -58,7 +59,6 @@ func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 			if !ok {
 				t.Errorf("channel closed before receiving any response")
 			}
-			cancel() // this test just receive a log. Cancel context after receiving one.
 		}
 	}()
 
