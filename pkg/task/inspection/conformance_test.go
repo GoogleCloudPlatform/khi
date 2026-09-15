@@ -23,3 +23,7 @@ import (
 func TestConformanceTestForInspectionTypes(t *testing.T) {
 	inspection_test.ConformanceTestForInspectionTypes(t)
 }
+
+func TestTaskGraphConformance(t *testing.T) {
+	inspection_test.RunTaskGraphConformance(t)
+}

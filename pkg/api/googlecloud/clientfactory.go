@@ -24,7 +24,6 @@ import (
 	compute "cloud.google.com/go/compute/apiv1"
 	logging "cloud.google.com/go/logging/apiv2"
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
-	"google.golang.org/api/composer/v1"
 	"google.golang.org/api/option"
 )
 
@@ -40,22 +39,19 @@ type ClientFactoryOptionsModifiers = func(opts []option.ClientOption, container 
 type ClientFactoryOption = func(s *ClientFactory) error
 
 // ClientFactory generates a context used for generating the google cloud client.
-// This type creates the instance of API clients centrally, it uses `cloud.google.com/go` package when the SDK supports the service,
-// if not, it uses `google.golang.org/api` package for the service(e.g, Cloud Composer).
+// This type creates the instance of API clients centrally, using `cloud.google.com/go` packages.
 type ClientFactory struct {
 	ClientOptions    []ClientFactoryOptionsModifiers
 	ContextModifiers []ClientFactoryContextModifiers
 
 	LoggingClientOptions          []ClientFactoryOptionsModifiers
 	RegionsClientOptions          []ClientFactoryOptionsModifiers
-	ComposerServiceOptions        []ClientFactoryOptionsModifiers
 	MonitoringMetricClientOptions []ClientFactoryOptionsModifiers
 	AssetClientOptions            []ClientFactoryOptionsModifiers
 
 	mu                           sync.Mutex
 	loggingClientsCache          map[string]*logging.Client
 	regionsClientsCache          map[string]*compute.RegionsClient
-	composerServicesCache        map[string]*composer.Service
 	monitoringMetricClientsCache map[string]*monitoring.MetricClient
 	assetClientsCache            map[string]*asset.Client
 }
@@ -66,7 +62,6 @@ func NewClientFactory(options ...ClientFactoryOption) (*ClientFactory, error) {
 	var factory = &ClientFactory{
 		loggingClientsCache:          make(map[string]*logging.Client),
 		regionsClientsCache:          make(map[string]*compute.RegionsClient),
-		composerServicesCache:        make(map[string]*composer.Service),
 		monitoringMetricClientsCache: make(map[string]*monitoring.MetricClient),
 		assetClientsCache:            make(map[string]*asset.Client),
 	}
@@ -129,12 +124,6 @@ func (s *ClientFactory) RegionsClient(ctx context.Context, c ResourceContainer, 
 	return getOrInitClient(s, ctx, c, s.regionsClientsCache, s.RegionsClientOptions, opts, compute.NewRegionsRESTClient)
 }
 
-// ComposerService returns the client for composer.googleapis.com from given context and the resource container.
-// Cloud Composer has no package defined by 'cloud.google.com/go', this method returns the low level API client from 'google.golang.org/api/composer/v1'
-func (s *ClientFactory) ComposerService(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*composer.Service, error) {
-	return getOrInitClient(s, ctx, c, s.composerServicesCache, s.ComposerServiceOptions, opts, composer.NewService)
-}
-
 // MonitoringMetricClient returns the client for monitoring.googleapis.com from given context and the resource container.
 func (s *ClientFactory) MonitoringMetricClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*monitoring.MetricClient, error) {
 	return getOrInitClient(s, ctx, c, s.monitoringMetricClientsCache, s.MonitoringMetricClientOptions, opts, monitoring.NewMetricClient)
@@ -162,10 +151,6 @@ func (s *ClientFactory) Close() error {
 			errs = append(errs, fmt.Errorf("failed to close regions client for %s: %w", k, err))
 		}
 		delete(s.regionsClientsCache, k)
-	}
-	for k := range s.composerServicesCache {
-		// composer.Service does not have a Close method.
-		delete(s.composerServicesCache, k)
 	}
 	for k, client := range s.monitoringMetricClientsCache {
 		if err := client.Close(); err != nil {

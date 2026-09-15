@@ -56,7 +56,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(scopedAll,
 		ClusterIdentityAliasTask,
 
-		ComposerEnvironmentListFetcherTask,
 		ComposerEnvironmentClusterFinderTask,
 
 		AutocompleteComposerClusterNamesTask,

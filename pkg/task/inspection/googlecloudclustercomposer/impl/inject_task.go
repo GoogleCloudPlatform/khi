@@ -22,17 +22,6 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-// ComposerEnvironmentListFetcherTask injects ComposerEnvironmentListFetcher implementation.
-var ComposerEnvironmentListFetcherTask = coretask.NewTask(
-	googlecloudclustercomposer_contract.ComposerEnvironmentListFetcherTaskID,
-	[]coretask.Dependency{
-		googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
-	},
-	func(ctx context.Context) (googlecloudclustercomposer_contract.ComposerEnvironmentListFetcher, error) {
-		return &googlecloudclustercomposer_contract.ComposerEnvironmentListFetcherImpl{}, nil
-	},
-)
-
 // ComposerEnvironmentClusterFinderTask injects ComposerEnvironmentClusterFinder implementation.
 var ComposerEnvironmentClusterFinderTask = coretask.NewTask(
 	googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinderTaskID,
