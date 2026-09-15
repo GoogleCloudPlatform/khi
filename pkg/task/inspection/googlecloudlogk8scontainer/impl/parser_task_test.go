@@ -27,7 +27,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -173,12 +173,12 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
-	namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "test-namespace")
-	podTimeline := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod")
-	expectedPath := commonlogk8saudit_contract.MustK8sContainerTimeline(ctx, podTimeline, "test-container")
+	clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+	apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+	kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
+	namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "test-namespace")
+	podTimeline := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod")
+	expectedPath := k8saudit.MustK8sContainerTimeline(ctx, podTimeline, "test-container")
 
 	testCases := []struct {
 		name     string
@@ -244,12 +244,12 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
-	namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "test-namespace")
-	podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod")
-	bindingPath := commonlogk8saudit_contract.MustK8sSubresourceTimeline(ctx, podPath, "binding")
+	clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+	apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+	kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
+	namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "test-namespace")
+	podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod")
+	bindingPath := k8saudit.MustK8sSubresourceTimeline(ctx, podPath, "binding")
 	expectedPath := mustPodPhaseTimelinePath(ctx, "test-cluster", "test-node", "test-namespace", "test-pod", "unknown")
 
 	nodeComparer := cmp.Comparer(func(x, y structured.Node) bool {
@@ -370,22 +370,22 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node", nil),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
 					}, nodeComparer).
 					HasRevision(podPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node", nil),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer).
 					HasRevision(bindingPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makeBindingNode("test-node"),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer)
 			},
 		},
@@ -408,7 +408,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				ClusterName: "test-cluster",
 			},
 			setup: func() {
-				auditPodPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod-audit")
+				auditPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod-audit")
 				builder.TimelineAccumulator.AddTestRevision(auditPodPath)
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
@@ -436,8 +436,8 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				ClusterName: "test-cluster",
 			},
 			setup: func() {
-				bindingPodPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod-binding")
-				subresourcePath := commonlogk8saudit_contract.MustK8sSubresourceTimeline(ctx, bindingPodPath, "binding")
+				bindingPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod-binding")
+				subresourcePath := k8saudit.MustK8sSubresourceTimeline(ctx, bindingPodPath, "binding")
 				builder.TimelineAccumulator.AddTestRevision(subresourcePath)
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
@@ -484,22 +484,22 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node", nil),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
 					}, nodeComparer).
 					HasRevision(podPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node", nil),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer).
 					HasRevision(bindingPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makeBindingNode("test-node"),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer)
 				if css[1] != nil {
 					t.Errorf("expected second changeset to be nil, got %v", css[1])
@@ -551,22 +551,22 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node", map[string]string{"a": "1"}),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
 					}, nodeComparer).
 					HasRevision(podPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node", map[string]string{"a": "1"}),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer).
 					HasRevision(bindingPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makeBindingNode("test-node"),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer)
 
 				// Second log generates only Pod (labels changed, node remained same)
@@ -575,8 +575,8 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node", map[string]string{"a": "2"}),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer)
 
 				if len(css[1].GetRevisions(bindingPath)) > 0 {
@@ -631,22 +631,22 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node-1", nil),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
 					}, nodeComparer).
 					HasRevision(podPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node-1", nil),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer).
 					HasRevision(bindingPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makeBindingNode("test-node-1"),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer)
 
 				// Second log generates all 3 on node 2
@@ -655,22 +655,22 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node-2", nil),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
 					}, nodeComparer).
 					HasRevision(podPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makePodNode("test-node-2", nil),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer).
 					HasRevision(bindingPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: makeBindingNode("test-node-2"),
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+						VerbType:     k8saudit.VerbUnknown,
+						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer)
 			},
 		},

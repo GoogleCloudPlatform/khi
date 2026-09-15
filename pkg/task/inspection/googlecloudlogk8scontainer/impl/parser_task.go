@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -129,12 +129,12 @@ func (m *containerLogLogToTimelineMapper) ProcessLogByGroup(ctx context.Context,
 		clusterName = clusterIdentity.ClusterName
 	}
 
-	clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-	apiVersionPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-	kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
-	namespacePath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, containerFields.Namespace)
-	podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespacePath, containerFields.PodName)
-	containerPath := commonlogk8saudit_contract.MustK8sContainerTimeline(
+	clusterPath := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	apiVersionPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+	kindPath := k8saudit.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
+	namespacePath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, containerFields.Namespace)
+	podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespacePath, containerFields.PodName)
+	containerPath := k8saudit.MustK8sContainerTimeline(
 		ctx,
 		podPath,
 		containerFields.ContainerName,
@@ -165,7 +165,7 @@ func (m *containerLogPodPhaseTimelineMapper) LogIngesterTask() taskid.TaskRefere
 func (m *containerLogPodPhaseTimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		googlecloudlogk8scontainer_contract.ClusterIdentityTaskID.Ref(),
-		commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),
+		k8saudit.ResourceRevisionLogToTimelineMapperTaskID.Ref(),
 	}
 }
 
@@ -201,12 +201,12 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 	}
 
 	// Construct paths for Pod and its binding
-	cluster := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-	api := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
-	kind := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, api, "pod")
-	ns := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kind, containerFields.Namespace)
-	podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, ns, containerFields.PodName)
-	bindingPath := commonlogk8saudit_contract.MustK8sSubresourceTimeline(ctx, podPath, "binding")
+	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
+	kind := k8saudit.MustK8sKindTimeline(ctx, api, "pod")
+	ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, containerFields.Namespace)
+	podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, containerFields.PodName)
+	bindingPath := k8saudit.MustK8sSubresourceTimeline(ctx, podPath, "binding")
 
 	// Check if audit log has already written to the Pod or its binding timeline
 	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
@@ -273,8 +273,8 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 			ChangedTime:  time.Unix(0, 0),
 			ResourceBody: podNode,
 			Principal:    "N/A",
-			VerbType:     commonlogk8saudit_contract.VerbUnknown,
-			StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+			VerbType:     k8saudit.VerbUnknown,
+			StateType:    k8saudit.RevisionStatePodPhaseUnknown,
 		})
 	}
 
@@ -283,8 +283,8 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 			ChangedTime:  time.Unix(0, 0),
 			ResourceBody: podNode,
 			Principal:    "N/A",
-			VerbType:     commonlogk8saudit_contract.VerbUnknown,
-			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+			VerbType:     k8saudit.VerbUnknown,
+			StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 		})
 	}
 
@@ -293,8 +293,8 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 			ChangedTime:  time.Unix(0, 0),
 			ResourceBody: bindingNode,
 			Principal:    "N/A",
-			VerbType:     commonlogk8saudit_contract.VerbUnknown,
-			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+			VerbType:     k8saudit.VerbUnknown,
+			StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 		})
 	}
 
@@ -307,15 +307,15 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 }
 
 func mustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namespace, podName, uid string) *khifilev6.TimelinePath {
-	cluster := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-	api := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
-	kind := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, api, "node")
-	nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kind, nodeName)
+	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
+	kind := k8saudit.MustK8sKindTimeline(ctx, api, "node")
+	nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, nodeName)
 
 	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 	return builder.TimelineAccumulator.GetPath(nodePath, khifilev6.PathSegment{
 		Name: fmt.Sprintf("%s/%s[%s]", namespace, podName, uid),
-		Type: commonlogk8saudit_contract.TimelineTypePodPhase,
+		Type: k8saudit.TimelineTypePodPhase,
 	})
 }
 

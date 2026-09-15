@@ -27,7 +27,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
@@ -191,7 +191,7 @@ func TestLogQueryTask_DryRun(t *testing.T) {
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
 		tasktest.NewTaskDependencyValuePair(googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref(), cluster),
 		tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(), []string{}),
-		tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref(), []string{}),
+		tasktest.NewTaskDependencyValuePair(k8saudit.NodeNameInventoryTaskID.Ref(), []string{}),
 	)
 	if err != nil {
 		t.Fatalf("dry run returned unexpected error: %v", err)

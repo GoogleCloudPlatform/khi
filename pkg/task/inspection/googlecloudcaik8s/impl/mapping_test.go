@@ -19,7 +19,7 @@ import (
 	"time"
 
 	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -106,7 +106,7 @@ func TestResolveResourceIdentity(t *testing.T) {
 		manifestKind       string
 		manifestName       string
 		manifestNamespace  string
-		want               *commonlogk8saudit_contract.ResourceIdentity
+		want               *k8saudit.ResourceIdentity
 	}{
 		{
 			name:               "namespaced pod with core/v1 normalization",
@@ -116,7 +116,7 @@ func TestResolveResourceIdentity(t *testing.T) {
 			manifestKind:       "Pod",
 			manifestName:       "my-pod",
 			manifestNamespace:  "default",
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
 				Name:       "my-pod",
@@ -131,7 +131,7 @@ func TestResolveResourceIdentity(t *testing.T) {
 			manifestKind:       "Deployment",
 			manifestName:       "my-deploy",
 			manifestNamespace:  "prod",
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "apps/v1",
 				Kind:       "deployment",
 				Name:       "my-deploy",
@@ -146,7 +146,7 @@ func TestResolveResourceIdentity(t *testing.T) {
 			manifestKind:       "Namespace",
 			manifestName:       "kube-system",
 			manifestNamespace:  "kube-system",
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "namespace",
 				Name:       "kube-system",
@@ -161,7 +161,7 @@ func TestResolveResourceIdentity(t *testing.T) {
 			manifestKind:       "ClusterRole",
 			manifestName:       "admin",
 			manifestNamespace:  "",
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "rbac.authorization.k8s.io/v1",
 				Kind:       "clusterrole",
 				Name:       "admin",
@@ -176,7 +176,7 @@ func TestResolveResourceIdentity(t *testing.T) {
 			manifestKind:       "",
 			manifestName:       "",
 			manifestNamespace:  "",
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
 				Name:       "fallback-pod",

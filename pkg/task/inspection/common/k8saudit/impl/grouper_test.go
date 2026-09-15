@@ -1,0 +1,488 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package k8saudit_impl
+
+import (
+	"context"
+	"testing"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+)
+
+type testScanTargetResourceInput struct {
+	op           *model.KubernetesObjectOperation
+	requestYAML  string
+	responseYAML string
+}
+
+func TestScanTargetResource(t *testing.T) {
+	testCases := []struct {
+		desc                       string
+		inputs                     []testScanTargetResourceInput
+		subresourceDefaultBehavior map[string]subresourceDefaultBehavior
+		want                       [][]string
+	}{
+		{
+			desc: "simple non subresource",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion: "v1",
+						PluralKind: "pods",
+						Namespace:  "default",
+						Name:       "pod1",
+						Verb:       k8saudit.VerbCreate,
+					},
+					requestYAML:  "",
+					responseYAML: "",
+				},
+			},
+			want: [][]string{
+				{
+					"v1#pod#default#pod1",
+				},
+			},
+		},
+		{
+			desc: "delete collection on namespace returning pod list",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion: "v1",
+						PluralKind: "pods",
+						Namespace:  "default",
+						Name:       "",
+						Verb:       k8saudit.VerbDeleteCollection,
+					},
+					requestYAML: "",
+					responseYAML: `items:
+  - metadata:
+      name: pod1
+  - metadata:
+      name: pod2`,
+				},
+			},
+			want: [][]string{
+				{
+					"v1#pod#default#pod1",
+					"v1#pod#default#pod2",
+				},
+			},
+		},
+		{
+			desc: "deleting all resources in a namespace",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion: "v1",
+						PluralKind: "pods",
+						Namespace:  "other",
+						Name:       "pod-other",
+						Verb:       k8saudit.VerbCreate,
+					},
+				},
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion: "v1",
+						PluralKind: "pods",
+						Namespace:  "default",
+						Name:       "pod1",
+						Verb:       k8saudit.VerbCreate,
+					},
+				},
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion: "v1",
+						PluralKind: "pods",
+						Namespace:  "default",
+						Name:       "pod2",
+						Verb:       k8saudit.VerbCreate,
+					},
+				},
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion: "v1",
+						PluralKind: "pods",
+						Namespace:  "default",
+						Name:       "",
+						Verb:       k8saudit.VerbDeleteCollection,
+					},
+					responseYAML: ``,
+				},
+			},
+			want: [][]string{
+				{"v1#pod#other#pod-other"},
+				{"v1#pod#default#pod1"},
+				{"v1#pod#default#pod2"},
+				{
+					"v1#pod#default#pod1",
+					"v1#pod#default#pod2",
+					"v1#pod#default#@namespace",
+				},
+			},
+		},
+		{
+			desc: "subresource update returning parent resource",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion:      "apps/v1",
+						PluralKind:      "deployments",
+						Namespace:       "default",
+						Name:            "deployment1",
+						Verb:            k8saudit.VerbUpdate,
+						SubResourceName: "scale",
+					},
+					responseYAML: `apiVersion: apps/v1
+kind: Deployment`,
+				},
+			},
+			want: [][]string{
+				{"apps/v1#deployment#default#deployment1"},
+			},
+		},
+		{
+			desc: "subresource update returning subresource",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion:      "v1",
+						PluralKind:      "pods",
+						Namespace:       "default",
+						Name:            "pod1",
+						Verb:            k8saudit.VerbUpdate,
+						SubResourceName: "binding",
+					},
+					responseYAML: `apiVersion: v1
+kind: Binding`,
+				},
+			},
+			want: [][]string{
+				{"v1#pod#default#pod1#binding"},
+			},
+		},
+		{
+			desc: "subresource patch only includes its request",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion:      "v1",
+						PluralKind:      "pods",
+						Namespace:       "default",
+						Name:            "pod1",
+						Verb:            k8saudit.VerbPatch,
+						SubResourceName: "binding",
+					},
+					requestYAML: `apiVersion: v1
+kind: Binding`,
+				},
+			},
+			want: [][]string{
+				{"v1#pod#default#pod1#binding"},
+			},
+		},
+		{
+			desc: "subresource patch only includes its request with status response",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion:      "v1",
+						PluralKind:      "pods",
+						Namespace:       "default",
+						Name:            "pod1",
+						Verb:            k8saudit.VerbPatch,
+						SubResourceName: "binding",
+					},
+					responseYAML: `apiVersion: v1
+kind: Status`,
+					requestYAML: `apiVersion: v1
+kind: Binding`,
+				},
+			},
+			want: [][]string{
+				{"v1#pod#default#pod1#binding"},
+			},
+		},
+		{
+			desc: "cluster scoped resource",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion: "v1",
+						PluralKind: "nodes",
+						Name:       "node-1",
+						Namespace:  "cluster-scope",
+						Verb:       k8saudit.VerbDelete,
+					},
+				},
+			},
+			want: [][]string{
+				{"v1#node#cluster-scope#node-1"},
+			},
+		},
+		{
+			desc: "request and response are not available & behavior is overriden to Parent",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion:      "v1",
+						PluralKind:      "pods",
+						Namespace:       "default",
+						Name:            "pod1",
+						SubResourceName: "status",
+						Verb:            k8saudit.VerbDelete,
+					},
+				},
+			},
+			subresourceDefaultBehavior: map[string]subresourceDefaultBehavior{
+				"status": Parent,
+			},
+			want: [][]string{
+				{"v1#pod#default#pod1"},
+			},
+		},
+		{
+			desc: "request and response are not available & behavior is overriden to Subresource",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion:      "v1",
+						PluralKind:      "pods",
+						Namespace:       "default",
+						Name:            "pod1",
+						SubResourceName: "binding",
+						Verb:            k8saudit.VerbDelete,
+					},
+				},
+			},
+			subresourceDefaultBehavior: map[string]subresourceDefaultBehavior{
+				"binding": Subresource,
+			},
+			want: [][]string{
+				{"v1#pod#default#pod1#binding"},
+			},
+		},
+		{
+			desc: "request and response are not available & behavior is not overriden",
+			inputs: []testScanTargetResourceInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						APIVersion:      "v1",
+						PluralKind:      "pods",
+						Namespace:       "default",
+						Name:            "pod1",
+						SubResourceName: "binding",
+						Verb:            k8saudit.VerbDelete,
+					},
+				},
+			},
+			want: [][]string{
+				{"v1#pod#default#pod1#binding"},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			logs := []*log.Log{}
+			for _, input := range tc.inputs {
+				var request, response *structured.NodeReader
+				if input.requestYAML != "" {
+					node, err := structured.FromYAML(input.requestYAML)
+					if err != nil {
+						t.Fatalf("failed to parse request YAML: %v", err)
+					}
+					request = structured.NewNodeReader(node)
+				}
+				if input.responseYAML != "" {
+					node, err := structured.FromYAML(input.responseYAML)
+					if err != nil {
+						t.Fatalf("failed to parse response YAML: %v", err)
+					}
+					response = structured.NewNodeReader(node)
+				}
+				logs = append(logs, testlog.NewMockLog(k8saudit.K8sAuditLogFieldSet{
+					APIVersion:      input.op.APIVersion,
+					PluralKind:      input.op.PluralKind,
+					Namespace:       input.op.Namespace,
+					ResourceName:    input.op.Name,
+					SubresourceName: input.op.SubResourceName,
+					ClusterName:     "k8s",
+					Verb:            input.op.Verb,
+					Request:         request,
+					Response:        response,
+				}))
+			}
+			var subresourceDefaultBehaviorOverrides map[string]subresourceDefaultBehavior
+			if tc.subresourceDefaultBehavior != nil {
+				subresourceDefaultBehaviorOverrides = tc.subresourceDefaultBehavior
+			}
+
+			targetResourceScanner := targetResourceScanner{
+				resourcesByNamespaceKindAPIVersions: map[string]map[string]struct{}{},
+				subresourceDefaultBehaviorOverrides: subresourceDefaultBehaviorOverrides,
+			}
+			got := [][]string{}
+			for _, l := range logs {
+				gotOperations := targetResourceScanner.scanTargetResource(l)
+				gotPaths := []string{}
+				for _, op := range gotOperations {
+					gotPaths = append(gotPaths, op.ResourcePath())
+				}
+				got = append(got, gotPaths)
+			}
+
+			if diff := cmp.Diff(got, tc.want, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
+				t.Errorf("mismatch (-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestNonSuccessLogGrouperTask(t *testing.T) {
+	testCases := []struct {
+		name          string
+		logYamls      []string
+		wantGroupKeys []string
+	}{
+		{
+			name: "groups non-success logs using extractor without panic",
+			logYamls: []string{
+				`id: log-1
+textPayload: "error 1"`,
+			},
+			wantGroupKeys: []string{
+				"apiVersion=v1,kind=pods,ns=default,name=pod-1, subresource=",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+			logs := make([]*log.Log, 0, len(tc.logYamls))
+			for _, yml := range tc.logYamls {
+				node, err := structured.FromYAML(yml)
+				if err != nil {
+					t.Fatalf("failed to parse yaml: %v", err)
+				}
+				logs = append(logs, &log.Log{
+					NodeReader: structured.NewNodeReader(node),
+				})
+			}
+
+			mockExtractor := k8saudit.K8sAuditLogExtractor(func(reader *structured.NodeReader) (*k8saudit.K8sAuditLogFieldSet, error) {
+				return &k8saudit.K8sAuditLogFieldSet{
+					APIVersion:   "v1",
+					PluralKind:   "pods",
+					Namespace:    "default",
+					ResourceName: "pod-1",
+				}, nil
+			})
+
+			result, _, err := inspectiontest.RunInspectionTask(
+				ctx,
+				NonSuccessLogGrouperTask,
+				inspectioncore.TaskModeRun,
+				map[string]any{},
+				tasktest.NewTaskDependencyValuePair(k8saudit.NonSuccessLogFilterTaskID.Ref(), logs),
+				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
+			)
+			if err != nil {
+				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+			}
+
+			gotGroupKeys := []string{}
+			for groupKey := range result {
+				gotGroupKeys = append(gotGroupKeys, groupKey)
+			}
+			if diff := cmp.Diff(tc.wantGroupKeys, gotGroupKeys, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
+				t.Errorf("groups mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestChangeTargetGrouperTask(t *testing.T) {
+	testCases := []struct {
+		name      string
+		logYamls  []string
+		wantPaths []string
+	}{
+		{
+			name: "groups target resource using extractor without panic",
+			logYamls: []string{
+				`id: log-1`,
+			},
+			wantPaths: []string{
+				"apiVersion=v1,kind=pod,ns=default,name=pod-1",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+			logs := make([]*log.Log, 0, len(tc.logYamls))
+			for _, yml := range tc.logYamls {
+				node, err := structured.FromYAML(yml)
+				if err != nil {
+					t.Fatalf("failed to parse yaml: %v", err)
+				}
+				logs = append(logs, &log.Log{
+					NodeReader: structured.NewNodeReader(node),
+				})
+			}
+
+			mockExtractor := k8saudit.K8sAuditLogExtractor(func(reader *structured.NodeReader) (*k8saudit.K8sAuditLogFieldSet, error) {
+				return &k8saudit.K8sAuditLogFieldSet{
+					APIVersion:   "v1",
+					PluralKind:   "pods",
+					Namespace:    "default",
+					ResourceName: "pod-1",
+					Verb:         k8saudit.VerbCreate,
+				}, nil
+			})
+
+			result, _, err := inspectiontest.RunInspectionTask(
+				ctx,
+				ChangeTargetGrouperTask,
+				inspectioncore.TaskModeRun,
+				map[string]any{},
+				tasktest.NewTaskDependencyValuePair(k8saudit.SuccessLogFilterTaskID.Ref(), logs),
+				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
+			)
+			if err != nil {
+				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+			}
+
+			gotPaths := []string{}
+			for path := range result {
+				gotPaths = append(gotPaths, path)
+			}
+			if diff := cmp.Diff(tc.wantPaths, gotPaths, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
+				t.Errorf("paths mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

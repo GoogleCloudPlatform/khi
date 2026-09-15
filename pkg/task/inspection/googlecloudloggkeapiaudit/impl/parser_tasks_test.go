@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -162,8 +162,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
+						VerbType:     k8saudit.VerbCreate,
+						StateType:    k8saudit.RevisionStateK8sClusterProvisioning,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: bodyNode,
@@ -198,8 +198,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
+						VerbType:    k8saudit.VerbCreate,
+						StateType:   k8saudit.RevisionStateK8sClusterExisting,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).
@@ -239,8 +239,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioning,
+						VerbType:     k8saudit.VerbCreate,
+						StateType:    k8saudit.RevisionStateK8sNodepoolProvisioning,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: bodyNode,
@@ -275,14 +275,14 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioningLogNotFound,
+						VerbType:    k8saudit.VerbCreate,
+						StateType:   k8saudit.RevisionStateK8sNodepoolProvisioningLogNotFound,
 						Principal:   "foobar@qux.test",
 						ChangedTime: time.Unix(0, 0),
 					}, compareNodeOption).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting,
+						VerbType:    k8saudit.VerbCreate,
+						StateType:   k8saudit.RevisionStateK8sNodepoolExisting,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).
@@ -313,14 +313,14 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolDeletingLogNotFound,
+						VerbType:    k8saudit.VerbDelete,
+						StateType:   k8saudit.RevisionStateK8sNodepoolDeletingLogNotFound,
 						Principal:   "foobar@qux.test",
 						ChangedTime: time.Unix(0, 0),
 					}, compareNodeOption).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleted,
+						VerbType:    k8saudit.VerbDelete,
+						StateType:   k8saudit.RevisionStateK8sNodepoolDeleted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).

@@ -27,7 +27,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
@@ -88,7 +88,7 @@ func (m *networkAPITimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(),
-		commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(),
+		k8saudit.IPLeaseHistoryInventoryTaskID.Ref(),
 		googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(),
 	}
 }
@@ -146,14 +146,14 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 
 	switch shortMethodName {
 	case "attachNetworkEndpoints":
-		startVerb = commonlogk8saudit_contract.VerbCreate
+		startVerb = k8saudit.VerbCreate
 		startState = googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttaching
-		endVerb = commonlogk8saudit_contract.VerbReady
+		endVerb = k8saudit.VerbReady
 		endState = googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttached
 	case "detachNetworkEndpoints":
-		startVerb = commonlogk8saudit_contract.VerbNonReady
+		startVerb = k8saudit.VerbNonReady
 		startState = googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching
-		endVerb = commonlogk8saudit_contract.VerbDelete
+		endVerb = k8saudit.VerbDelete
 		endState = googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached
 	default:
 		return cs, prevGroupData, nil
@@ -219,7 +219,7 @@ func (m *networkAPITimelineMapper) processEndpointRevisions(
 	state *pb.RevisionState,
 ) {
 	negToBS := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref())
-	ipLeases := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref())
+	ipLeases := coretask.GetTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref())
 
 	for _, endpoint := range negRequest.NetworkEndpoints {
 		var resourceTimelinePath *khifilev6.TimelinePath
@@ -239,19 +239,19 @@ func (m *networkAPITimelineMapper) processEndpointRevisions(
 				continue
 			}
 
-			clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterIdentity.ClusterName)
-			apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-			kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
-			nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, holder.Namespace)
-			resourceTimelinePath = commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, holder.Name)
+			clusterPath := k8saudit.MustK8sClusterTimeline(ctx, clusterIdentity.ClusterName)
+			apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+			kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "pod")
+			nsPath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, holder.Namespace)
+			resourceTimelinePath = k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsPath, holder.Name)
 			bsSubresourceName = holder.Name
 			endpointKey = getPodEndpointKey(endpoint.IpAddress, endpoint.Port)
 		case endpoint.Instance != "":
 			nodeName := getInstanceNameFromResourceName(endpoint.Instance)
-			clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterIdentity.ClusterName)
-			apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-			kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
-			resourceTimelinePath = commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, nodeName)
+			clusterPath := k8saudit.MustK8sClusterTimeline(ctx, clusterIdentity.ClusterName)
+			apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+			kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "node")
+			resourceTimelinePath = k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindPath, nodeName)
 			bsSubresourceName = nodeName
 			endpointKey = getNodeEndpointKey(nodeName)
 		default:
@@ -345,7 +345,7 @@ func addEndpointRevisions(
 	if shortMethodName == "detachNetworkEndpoints" && !isKnown {
 		cs.AddRevision(targetPath, &khifilev6.StagingRevision{
 			ChangedTime: time.Unix(0, 0),
-			VerbType:    commonlogk8saudit_contract.VerbUnknown,
+			VerbType:    k8saudit.VerbUnknown,
 			StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointExistingLogNotFound,
 			Principal:   "N/A",
 		})

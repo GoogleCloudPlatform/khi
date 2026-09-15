@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
@@ -89,7 +89,7 @@ func TestComposerAuditLogToTimelineMapper(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, envPath *khifilev6.TimelinePath, opPath *khifilev6.TimelinePath) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						VerbType:    k8saudit.VerbCreate,
 						StateType:   googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentProvisioning,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
@@ -134,7 +134,7 @@ config:
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, envPath *khifilev6.TimelinePath, opPath *khifilev6.TimelinePath) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						VerbType:     k8saudit.VerbCreate,
 						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentExisting,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
@@ -168,14 +168,14 @@ config:
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, envPath *khifilev6.TimelinePath, opPath *khifilev6.TimelinePath) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						VerbType:     k8saudit.VerbCreate,
 						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentProvisioningLogNotFound,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
 					}, compareNodeOption).
 					HasRevision(envPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						VerbType:     k8saudit.VerbCreate,
 						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentExisting,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
@@ -214,14 +214,14 @@ config:
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, envPath *khifilev6.TimelinePath, opPath *khifilev6.TimelinePath) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						VerbType:     k8saudit.VerbCreate,
 						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentExistingLogNotFound,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
 					}, compareNodeOption).
 					HasRevision(envPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbDelete,
+						VerbType:     k8saudit.VerbDelete,
 						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentDeleting,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
@@ -258,7 +258,7 @@ config:
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, envPath *khifilev6.TimelinePath, opPath *khifilev6.TimelinePath) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(envPath, &khifilev6.StagingRevision{
-						VerbType:     commonlogk8saudit_contract.VerbDelete,
+						VerbType:     k8saudit.VerbDelete,
 						StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentDeleted,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,

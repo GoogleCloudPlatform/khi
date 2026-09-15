@@ -18,14 +18,14 @@ import (
 	"context"
 
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
 // MustNodeTimelinePath returns the hierarchical TimelinePath for a Kubernetes Node resource under V6 format.
 func MustNodeTimelinePath(ctx context.Context, clusterName string, nodeName string) *khifilev6.TimelinePath {
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
-	namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "cluster-scope")
-	return commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, nodeName)
+	clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+	kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
+	namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "cluster-scope")
+	return k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, nodeName)
 }

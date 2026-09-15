@@ -19,7 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
 var (
@@ -37,7 +37,7 @@ var (
 )
 
 // extractResourceIdentityFromLog extracts the Kubernetes ResourceIdentity from the log's NodeReader.
-func extractResourceIdentityFromLog(reader *structured.NodeReader) *commonlogk8saudit_contract.ResourceIdentity {
+func extractResourceIdentityFromLog(reader *structured.NodeReader) *k8saudit.ResourceIdentity {
 	return resolveResourceIdentity(
 		reader.ReadStringOrDefault(pathAssetName, ""),
 		reader.ReadStringOrDefault(pathAssetType, ""),

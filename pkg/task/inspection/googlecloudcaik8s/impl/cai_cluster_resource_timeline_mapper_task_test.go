@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -49,7 +49,7 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	clusterName := "test-cluster"
 	queryStartTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 
-	podIdent := &commonlogk8saudit_contract.ResourceIdentity{
+	podIdent := &k8saudit.ResourceIdentity{
 		APIVersion: "core/v1",
 		Kind:       "pod",
 		Name:       "pod-1",
@@ -70,7 +70,7 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	manifestNode = structured.WithKeyOrder(manifestNode, k8s.K8sManifestKeyOrder...)
 
 	ctxWithBuilder := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-	targetPath := commonlogk8saudit_contract.MustResourceTimeline(ctxWithBuilder, clusterName, podIdent)
+	targetPath := k8saudit.MustResourceTimeline(ctxWithBuilder, clusterName, podIdent)
 
 	// The generator is shared by every log the closure builds so that each log gets a distinct
 	// log ID; a generator created per call would restart the counter and hand out duplicates.
@@ -153,7 +153,7 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime:  assetWindowStartTime,
 						ResourceBody: manifestNode,
 						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						VerbType:     k8saudit.VerbCreate,
 						StateType:    googlecloudcaik8s_contract.RevisionStateK8sResourceExistingFromCAI,
 					}, nodeCmpOpt)
 
@@ -206,11 +206,11 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				if revs[0].ChangedTime != creationTime {
 					t.Errorf("revs[0].ChangedTime = %v, want %v", revs[0].ChangedTime, creationTime)
 				}
-				if revs[0].StateType != commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
-					t.Errorf("revs[0].StateType = %v, want %v", revs[0].StateType, commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound)
+				if revs[0].StateType != k8saudit.RevisionStateK8sResourceExistingLogNotFound {
+					t.Errorf("revs[0].StateType = %v, want %v", revs[0].StateType, k8saudit.RevisionStateK8sResourceExistingLogNotFound)
 				}
-				if revs[0].VerbType != commonlogk8saudit_contract.VerbCreate {
-					t.Errorf("revs[0].VerbType = %v, want %v", revs[0].VerbType, commonlogk8saudit_contract.VerbCreate)
+				if revs[0].VerbType != k8saudit.VerbCreate {
+					t.Errorf("revs[0].VerbType = %v, want %v", revs[0].VerbType, k8saudit.VerbCreate)
 				}
 				if revs[0].ResourceBody != nil {
 					t.Errorf("revs[0].ResourceBody = %v, want nil", revs[0].ResourceBody)
@@ -221,8 +221,8 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				if revs[1].StateType != googlecloudcaik8s_contract.RevisionStateK8sResourceExistingFromCAI {
 					t.Errorf("revs[1].StateType = %v, want %v", revs[1].StateType, googlecloudcaik8s_contract.RevisionStateK8sResourceExistingFromCAI)
 				}
-				if revs[1].VerbType != commonlogk8saudit_contract.VerbUpdate {
-					t.Errorf("revs[1].VerbType = %v, want %v", revs[1].VerbType, commonlogk8saudit_contract.VerbUpdate)
+				if revs[1].VerbType != k8saudit.VerbUpdate {
+					t.Errorf("revs[1].VerbType = %v, want %v", revs[1].VerbType, k8saudit.VerbUpdate)
 				}
 			},
 		},
@@ -235,8 +235,8 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				if len(revs) != 1 {
 					t.Errorf("len(revs) = %d, want 1", len(revs))
 				}
-				if revs[0].VerbType != commonlogk8saudit_contract.VerbCreate {
-					t.Errorf("revs[0].VerbType = %v, want %v", revs[0].VerbType, commonlogk8saudit_contract.VerbCreate)
+				if revs[0].VerbType != k8saudit.VerbCreate {
+					t.Errorf("revs[0].VerbType = %v, want %v", revs[0].VerbType, k8saudit.VerbCreate)
 				}
 			},
 		},

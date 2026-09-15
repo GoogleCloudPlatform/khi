@@ -24,7 +24,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -101,10 +101,10 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 	manifestNode, shouldUpdate := tracker.TrackAndGetManifest(&audit)
 	if shouldUpdate {
 		switch {
-		case verb == commonlogk8saudit_contract.VerbDelete:
+		case verb == k8saudit.VerbDelete:
 			cs.AddRevision(resourceTimelinePath, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbDelete,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
+				VerbType:    k8saudit.VerbDelete,
+				StateType:   k8saudit.RevisionStateK8sResourceDeleted,
 				Principal:   audit.PrincipalEmail,
 				ChangedTime: l.Timestamp,
 			})
@@ -114,7 +114,7 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 			cs.AddRevision(resourceTimelinePath, &khifilev6.StagingRevision{
 				ResourceBody: manifestNode,
 				VerbType:     verb,
-				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
+				StateType:    k8saudit.RevisionStateK8sResourceExisting,
 				Principal:    audit.PrincipalEmail,
 				ChangedTime:  l.Timestamp,
 			})
@@ -167,12 +167,12 @@ func guessRevisionVerb(methodName string) *pb.Verb {
 
 	switch {
 	case strings.HasPrefix(shortMethodName, "create"), strings.HasPrefix(shortMethodName, "insert"):
-		return commonlogk8saudit_contract.VerbCreate
+		return k8saudit.VerbCreate
 	case strings.HasPrefix(shortMethodName, "delete"):
-		return commonlogk8saudit_contract.VerbDelete
+		return k8saudit.VerbDelete
 	case strings.HasPrefix(shortMethodName, "update"), strings.HasPrefix(shortMethodName, "patch"):
-		return commonlogk8saudit_contract.VerbUpdate
+		return k8saudit.VerbUpdate
 	default:
-		return commonlogk8saudit_contract.VerbUpdate
+		return k8saudit.VerbUpdate
 	}
 }

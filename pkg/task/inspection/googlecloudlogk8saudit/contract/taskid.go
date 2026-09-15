@@ -16,20 +16,20 @@ package googlecloudlogk8saudit_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	commonk8saudit "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 // TaskIDPrefix is the prefix for all task IDs in the googlecloudlogk8saudit package.
 const TaskIDPrefix = "cloud.google.com/log/k8s-audit/"
 
-var GCPK8sAuditLogListLogEntriesTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogProviderRef, "gcp")
+var GCPK8sAuditLogListLogEntriesTaskID = taskid.NewImplementationID(commonk8saudit.K8sAuditLogProviderRef, "gcp")
 
-var GCPK8sAuditLogExtractorTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogExtractorRef, "gcp")
+var GCPK8sAuditLogExtractorTaskID = taskid.NewImplementationID(commonk8saudit.K8sAuditLogExtractorRef, "gcp")
 
-var GCPK8sAuditLogErrorExtractorTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef, "gcp")
+var GCPK8sAuditLogErrorExtractorTaskID = taskid.NewImplementationID(commonk8saudit.K8sAuditLogErrorExtractorRef, "gcp")
 
-var GCPK8sAuditLogParserTailTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogParserTailRef, "gcp")
+var GCPK8sAuditLogParserTailTaskID = taskid.NewImplementationID(commonk8saudit.K8sAuditLogParserTailRef, "gcp")
 
 // NEGToBackendServiceDiscoveryTaskID is the task ID for the discovery task that extracts NEG to BackendService mappings from Kubernetes Audit logs.
 var NEGToBackendServiceDiscoveryTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.NEGToBackendServiceMap](TaskIDPrefix + "neg-discovery")

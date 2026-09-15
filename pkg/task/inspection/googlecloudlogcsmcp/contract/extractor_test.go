@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	commonlogcsmcp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogcsmcp/contract"
+	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -45,7 +45,7 @@ textPayload: "ADS: new delta connection for node:auth-service-647d798687-abcde.b
 				Timestamp:   nil,
 				Message:     "ADS: new delta connection for node:auth-service-647d798687-abcde.backend-ns-61",
 				ClusterName: "my-cluster",
-				Pods: []commonlogcsmcp_contract.PodIdentifier{
+				Pods: []commoncsmcp.PodIdentifier{
 					{
 						Name:         "auth-service-647d798687-abcde",
 						Namespace:    "backend-ns",
@@ -69,7 +69,7 @@ textPayload: 'ADS: "192.0.2.1:41780" payment-worker-7f5bcf84bb-fghij.payment-ns-
 				Timestamp:   nil,
 				Message:     `ADS: "192.0.2.1:41780" payment-worker-7f5bcf84bb-fghij.payment-ns-84 terminated`,
 				ClusterName: "my-cluster",
-				Pods: []commonlogcsmcp_contract.PodIdentifier{
+				Pods: []commoncsmcp.PodIdentifier{
 					{
 						Name:         "payment-worker-7f5bcf84bb-fghij",
 						Namespace:    "payment-ns",
@@ -93,7 +93,7 @@ textPayload: "CDS: PUSH request for node:payment-worker-7f5bcf84bb-fghij.payment
 				Timestamp:   nil,
 				Message:     "CDS: PUSH request for node:payment-worker-7f5bcf84bb-fghij.payment-ns resources:87 ...",
 				ClusterName: "my-cluster",
-				Pods: []commonlogcsmcp_contract.PodIdentifier{
+				Pods: []commoncsmcp.PodIdentifier{
 					{
 						Name:         "payment-worker-7f5bcf84bb-fghij",
 						Namespace:    "payment-ns",
@@ -122,7 +122,7 @@ jsonPayload:
 				}(),
 				Message:     "ADS: new connection for node:ratings-v1-7d99676f7f-abcde.default-1",
 				ClusterName: "prod-cluster",
-				Pods: []commonlogcsmcp_contract.PodIdentifier{
+				Pods: []commoncsmcp.PodIdentifier{
 					{
 						Name:         "ratings-v1-7d99676f7f-abcde",
 						Namespace:    "default",

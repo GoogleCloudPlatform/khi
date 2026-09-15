@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -224,18 +224,18 @@ func getResultInfoSummary(resultInfo *googlecloudloggkeautoscaler_contract.Resul
 }
 
 func getPodTimeline(ctx context.Context, clusterName string, namespace string, podName string) *khifilev6.TimelinePath {
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
-	namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, namespace)
-	return commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, podName)
+	clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+	kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
+	namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, namespace)
+	return k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, podName)
 }
 
 func getNodeTimeline(ctx context.Context, clusterName string, nodeName string) *khifilev6.TimelinePath {
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
-	return commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindTimeline, nodeName)
+	clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+	kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
+	return k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindTimeline, nodeName)
 }
 
 func mapDecision(ctx context.Context, clusterName string, clusterTimeline *khifilev6.TimelinePath, decision *googlecloudloggkeautoscaler_contract.DecisionLog, cs *khifilev6.TimelineChangeSet) error {

@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -67,7 +67,7 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantComponentPath).
 					HasRevision(wantComponentPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						VerbType:    k8saudit.VerbCreate,
 						StateType:   googlecloudlogk8snode_contract.RevisionStateComponentRunning,
 						Principal:   "component-A",
 						ChangedTime: testTime,
@@ -86,7 +86,7 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantComponentPath).
 					HasRevision(wantComponentPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						VerbType:    k8saudit.VerbDelete,
 						StateType:   googlecloudlogk8snode_contract.RevisionStateComponentTerminated,
 						Principal:   "component-A",
 						ChangedTime: testTime,

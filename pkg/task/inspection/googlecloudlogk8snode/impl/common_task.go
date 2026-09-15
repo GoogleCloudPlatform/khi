@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -42,8 +42,8 @@ func (i *K8sNodeLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 func (i *K8sNodeLogIngester) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
-		commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(),
-		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
+		k8saudit.ContainerIDPatternFinderTaskID.Ref(),
+		k8saudit.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -80,7 +80,7 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 		}
 	}
 
-	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref())
+	containerIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref())
 	if containerIDPatternFinder != nil && podIDFinder != nil {
 		containerFindResults := patternfinder.FindAllWithStarterRunes(raw, containerIDPatternFinder, false, '"', '=')
 		for _, result := range containerFindResults {
@@ -93,7 +93,7 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 		}
 	}
 
-	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
+	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 	if resourceUIDPatternFinder != nil {
 		resourceFindResults := patternfinder.FindAllWithStarterRunes(raw, resourceUIDPatternFinder, false, '"', '=')
 		for _, result := range resourceFindResults {

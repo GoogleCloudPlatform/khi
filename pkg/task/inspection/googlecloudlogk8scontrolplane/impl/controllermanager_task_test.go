@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -51,14 +51,14 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
 	})
 
-	k8sClusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-	corev1Timeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, k8sClusterTimeline, "core/v1")
-	podKindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, corev1Timeline, "pod")
-	nsTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, podKindTimeline, "default")
-	wantPodTimeline := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "pod-foo")
+	k8sClusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+	corev1Timeline := k8saudit.MustK8sAPIVersionTimeline(ctx, k8sClusterTimeline, "core/v1")
+	podKindTimeline := k8saudit.MustK8sKindTimeline(ctx, corev1Timeline, "pod")
+	nsTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, podKindTimeline, "default")
+	wantPodTimeline := k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "pod-foo")
 
-	nodeKindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, corev1Timeline, "node")
-	wantNodeTimeline := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "node-1")
+	nodeKindTimeline := k8saudit.MustK8sKindTimeline(ctx, corev1Timeline, "node")
+	wantNodeTimeline := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "node-1")
 
 	testCases := []struct {
 		desc                           string
@@ -79,7 +79,7 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 			},
 			inputControllerManagerFieldSet: googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentFieldSet{
 				Controller: "deployment-controller",
-				AssociatedResources: []*commonlogk8saudit_contract.ResourceIdentity{
+				AssociatedResources: []*k8saudit.ResourceIdentity{
 					{
 						APIVersion: "core/v1",
 						Kind:       "pod",
@@ -113,7 +113,7 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 			},
 			inputControllerManagerFieldSet: googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentFieldSet{
 				Controller: "",
-				AssociatedResources: []*commonlogk8saudit_contract.ResourceIdentity{
+				AssociatedResources: []*k8saudit.ResourceIdentity{
 					{
 						APIVersion: "core/v1",
 						Kind:       "pod",
@@ -139,8 +139,8 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			finder := patternfinder.NewRadixPatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
-			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
+			finder := patternfinder.NewRadixPatternFinder[*k8saudit.ResourceIdentity]()
+			ctx = tasktest.WithTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref(), finder)
 
 			l := testlog.NewMockLog(tc.inputComponentField, tc.inputControllerManagerFieldSet, tc.inputMessageField)
 			mapper := &ControllerManagerTimelineMapper{}

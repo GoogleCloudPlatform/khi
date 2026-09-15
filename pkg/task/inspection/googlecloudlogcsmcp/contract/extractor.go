@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	commonlogcsmcp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogcsmcp/contract"
+	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
 )
 
 var (
@@ -37,7 +37,7 @@ var (
 type FieldSet struct {
 	Timestamp   *time.Time
 	Message     string
-	Pods        []commonlogcsmcp_contract.PodIdentifier
+	Pods        []commoncsmcp.PodIdentifier
 	ClusterName string
 }
 
@@ -63,9 +63,9 @@ func Extract(reader *structured.NodeReader) (FieldSet, error) {
 		message = reader.ReadStringOrDefault(pathJSONPayloadLog, "")
 	}
 
-	var pods []commonlogcsmcp_contract.PodIdentifier
+	var pods []commoncsmcp.PodIdentifier
 	for _, word := range strings.Fields(message) {
-		if p := commonlogcsmcp_contract.ParsePodIdentifier(word); p != nil {
+		if p := commoncsmcp.ParsePodIdentifier(word); p != nil {
 			pods = append(pods, *p)
 		}
 	}

@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
@@ -176,20 +176,20 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	ctx := khictx.WithValue(baseCtx, inspectioncore.Builder, builder)
 
 	// Independently build the expected paths segment-by-segment
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-	apiTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiTimeline, "node")
-	nsTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "cluster-scope")
+	clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+	apiTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+	kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiTimeline, "node")
+	nsTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "cluster-scope")
 
-	wantNodeAbcPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "abc")
+	wantNodeAbcPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "abc")
 	wantOp1Path := builder.TimelineAccumulator.GetPath(wantNodeAbcPath, khifilev6.PathSegment{
 		Name: "insert-op-1",
 		Type: googlecloudcommon_contract.TimelineTypeOperation,
 	})
 
-	wantNodeDefPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "def")
+	wantNodeDefPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "def")
 
-	wantNodeGhiPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "ghi")
+	wantNodeGhiPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "ghi")
 	wantOp3Path := builder.TimelineAccumulator.GetPath(wantNodeGhiPath, khifilev6.PathSegment{
 		Name: "delete-op-3",
 		Type: googlecloudcommon_contract.TimelineTypeOperation,

@@ -28,7 +28,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
@@ -178,8 +178,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Name:      "test-neg",
 					},
 				}
-				ipLeases := resourcelease.NewResourceLeaseHistory[*commonlogk8saudit_contract.ResourceIdentity]()
-				ipLeases.TouchResourceLease("10.0.0.1", testTime, &commonlogk8saudit_contract.ResourceIdentity{
+				ipLeases := resourcelease.NewResourceLeaseHistory[*k8saudit.ResourceIdentity]()
+				ipLeases.TouchResourceLease("10.0.0.1", testTime, &k8saudit.ResourceIdentity{
 					Kind:      "pod",
 					Namespace: "test-ns",
 					Name:      "test-pod",
@@ -188,7 +188,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					"test-neg": "test-bs",
 				}
 				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
+				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
 				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
@@ -203,18 +203,18 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: test-node\n  ipAddress: 10.0.0.1\n  port: \"80\"").Node,
 					}, nodeTransformer)
 
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
-				nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
-				podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "pod")
+				nsPath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
+				podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
 				wantPodNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, podPath, "test-neg")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantPodNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						VerbType:    k8saudit.VerbCreate,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttaching,
 					}, nodeTransformer)
 
@@ -225,7 +225,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						VerbType:    k8saudit.VerbCreate,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttaching,
 					}, nodeTransformer)
 			},
@@ -271,8 +271,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Name:      "test-neg",
 					},
 				}
-				ipLeases := resourcelease.NewResourceLeaseHistory[*commonlogk8saudit_contract.ResourceIdentity]()
-				ipLeases.TouchResourceLease("10.0.0.1", testTime, &commonlogk8saudit_contract.ResourceIdentity{
+				ipLeases := resourcelease.NewResourceLeaseHistory[*k8saudit.ResourceIdentity]()
+				ipLeases.TouchResourceLease("10.0.0.1", testTime, &k8saudit.ResourceIdentity{
 					Kind:      "pod",
 					Namespace: "test-ns",
 					Name:      "test-pod",
@@ -281,7 +281,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					"test-neg": "test-bs",
 				}
 				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
+				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
 				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
@@ -295,18 +295,18 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, nodeTransformer)
 
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
-				nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
-				podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "pod")
+				nsPath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
+				podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
 				wantPodNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, podPath, "test-neg")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantPodNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbReady,
+						VerbType:    k8saudit.VerbReady,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttached,
 					}, nodeTransformer)
 
@@ -317,7 +317,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbReady,
+						VerbType:    k8saudit.VerbReady,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttached,
 					}, nodeTransformer)
 			},
@@ -380,17 +380,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13").Node,
 					}, nodeTransformer)
 
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
-				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
 				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						VerbType:    k8saudit.VerbCreate,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttaching,
 					}, nodeTransformer)
 
@@ -401,7 +401,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						VerbType:    k8saudit.VerbCreate,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttaching,
 					}, nodeTransformer)
 			},
@@ -463,17 +463,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, nodeTransformer)
 
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
-				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
 				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbReady,
+						VerbType:    k8saudit.VerbReady,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttached,
 					}, nodeTransformer)
 
@@ -484,7 +484,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbReady,
+						VerbType:    k8saudit.VerbReady,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointAttached,
 					}, nodeTransformer)
 			},
@@ -547,23 +547,23 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13").Node,
 					}, nodeTransformer)
 
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
-				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
 				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: time.Unix(0, 0),
 						Principal:   "N/A",
-						VerbType:    commonlogk8saudit_contract.VerbUnknown,
+						VerbType:    k8saudit.VerbUnknown,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointExistingLogNotFound,
 					}).
 					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbNonReady,
+						VerbType:    k8saudit.VerbNonReady,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching,
 					}, nodeTransformer)
 
@@ -574,13 +574,13 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: time.Unix(0, 0),
 						Principal:   "N/A",
-						VerbType:    commonlogk8saudit_contract.VerbUnknown,
+						VerbType:    k8saudit.VerbUnknown,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointExistingLogNotFound,
 					}).
 					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbNonReady,
+						VerbType:    k8saudit.VerbNonReady,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching,
 					}, nodeTransformer)
 			},
@@ -642,17 +642,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, nodeTransformer)
 
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
-				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
 				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						VerbType:    k8saudit.VerbDelete,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached,
 					}, nodeTransformer)
 
@@ -663,7 +663,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						VerbType:    k8saudit.VerbDelete,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached,
 					}, nodeTransformer)
 			},
@@ -709,8 +709,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Name:      "test-neg",
 					},
 				}
-				ipLeases := resourcelease.NewResourceLeaseHistory[*commonlogk8saudit_contract.ResourceIdentity]()
-				ipLeases.TouchResourceLease("10.0.0.1", testTime, &commonlogk8saudit_contract.ResourceIdentity{
+				ipLeases := resourcelease.NewResourceLeaseHistory[*k8saudit.ResourceIdentity]()
+				ipLeases.TouchResourceLease("10.0.0.1", testTime, &k8saudit.ResourceIdentity{
 					Kind:      "pod",
 					Namespace: "test-ns",
 					Name:      "test-pod",
@@ -719,7 +719,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					"test-neg": "test-bs",
 				}
 				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
+				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
 				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
@@ -734,24 +734,24 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: test-node\n  ipAddress: 10.0.0.1\n  port: \"80\"").Node,
 					}, nodeTransformer)
 
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
-				nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
-				podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "pod")
+				nsPath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
+				podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
 				wantPodNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, podPath, "test-neg")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantPodNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: time.Unix(0, 0),
 						Principal:   "N/A",
-						VerbType:    commonlogk8saudit_contract.VerbUnknown,
+						VerbType:    k8saudit.VerbUnknown,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointExistingLogNotFound,
 					}).
 					HasRevision(wantPodNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbNonReady,
+						VerbType:    k8saudit.VerbNonReady,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching,
 					}, nodeTransformer)
 
@@ -762,13 +762,13 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: time.Unix(0, 0),
 						Principal:   "N/A",
-						VerbType:    commonlogk8saudit_contract.VerbUnknown,
+						VerbType:    k8saudit.VerbUnknown,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointExistingLogNotFound,
 					}).
 					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbNonReady,
+						VerbType:    k8saudit.VerbNonReady,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching,
 					}, nodeTransformer)
 			},
@@ -814,8 +814,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Name:      "test-neg",
 					},
 				}
-				ipLeases := resourcelease.NewResourceLeaseHistory[*commonlogk8saudit_contract.ResourceIdentity]()
-				ipLeases.TouchResourceLease("10.0.0.1", testTime, &commonlogk8saudit_contract.ResourceIdentity{
+				ipLeases := resourcelease.NewResourceLeaseHistory[*k8saudit.ResourceIdentity]()
+				ipLeases.TouchResourceLease("10.0.0.1", testTime, &k8saudit.ResourceIdentity{
 					Kind:      "pod",
 					Namespace: "test-ns",
 					Name:      "test-pod",
@@ -824,7 +824,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					"test-neg": "test-bs",
 				}
 				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
+				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
 				ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 				return ctx
 			},
@@ -838,18 +838,18 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, nodeTransformer)
 
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
-				nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
-				podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "pod")
+				nsPath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, "test-ns")
+				podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsPath, "test-pod")
 				wantPodNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, podPath, "test-neg")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantPodNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						VerbType:    k8saudit.VerbDelete,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached,
 					}, nodeTransformer)
 
@@ -860,7 +860,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(wantBSNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						VerbType:    k8saudit.VerbDelete,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached,
 					}, nodeTransformer)
 			},
@@ -936,17 +936,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
-				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node-2")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node-2")
 				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						VerbType:    k8saudit.VerbDelete,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetached,
 					}, nodeTransformer)
 			},
@@ -1052,10 +1052,10 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						StateType:   googlecloudcommon_contract.RevisionStateOperationFailed,
 					}, nodeTransformer)
 
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
-				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
 				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
 
 				// Node NEG subresource should NOT have any revision added
@@ -1117,17 +1117,17 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				return ctx
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")
-				apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-				kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "node")
-				nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
+				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
+				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+				kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "node")
+				nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindPath, "test-node")
 				wantNodeNEGPath := googlecloudlognetworkapiaudit_contract.MustNEGUnderResourceTimeline(ctx, nodePath, "test-neg")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodeNEGPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
-						VerbType:    commonlogk8saudit_contract.VerbNonReady,
+						VerbType:    k8saudit.VerbNonReady,
 						StateType:   googlecloudlognetworkapiaudit_contract.RevisionStateNEGEndpointDetaching,
 					}, nodeTransformer)
 
@@ -1150,12 +1150,12 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				ProjectID:   "test-project",
 			}
 			negs := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{}
-			ipLeases := resourcelease.NewResourceLeaseHistory[*commonlogk8saudit_contract.ResourceIdentity]()
+			ipLeases := resourcelease.NewResourceLeaseHistory[*k8saudit.ResourceIdentity]()
 			negToBS := googlecloudk8scommon_contract.NEGToBackendServiceMap{}
 
 			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), clusterIdentity)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(), negs)
-			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
+			ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
 			if tc.setupContext != nil {
 				ctx = tc.setupContext(ctx)

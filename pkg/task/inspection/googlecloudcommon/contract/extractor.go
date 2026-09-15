@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -108,13 +108,13 @@ func (g *GCPAuditLogFieldSet) GuessRevisionVerb() *pb.Verb {
 
 	switch {
 	case strings.HasPrefix(shortMethodName, "create"), strings.HasPrefix(shortMethodName, "insert"):
-		return commonlogk8saudit_contract.VerbCreate
+		return k8saudit.VerbCreate
 	case strings.HasPrefix(shortMethodName, "delete"):
-		return commonlogk8saudit_contract.VerbDelete
+		return k8saudit.VerbDelete
 	case strings.HasPrefix(shortMethodName, "update"), strings.HasPrefix(shortMethodName, "patch"):
-		return commonlogk8saudit_contract.VerbUpdate
+		return k8saudit.VerbUpdate
 	default:
-		return commonlogk8saudit_contract.VerbUpdate
+		return k8saudit.VerbUpdate
 	}
 }
 

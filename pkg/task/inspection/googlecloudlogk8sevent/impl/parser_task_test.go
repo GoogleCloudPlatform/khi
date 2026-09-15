@@ -26,7 +26,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -41,7 +41,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 	testCases := []struct {
 		desc                    string
 		input                   googlecloudlogk8sevent_contract.KubernetesEventFieldSet
-		resourceIdentitiesByUID map[string]*commonlogk8saudit_contract.ResourceIdentity
+		resourceIdentitiesByUID map[string]*k8saudit.ResourceIdentity
 		assert                  func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -56,11 +56,11 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				Message:      "Scaled up replica set test-deployment-xyz to 3",
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-				apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "apps/v1")
-				kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "deployment")
-				namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "default")
-				expectedPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-deployment")
+				clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+				apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "apps/v1")
+				kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "deployment")
+				namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "default")
+				expectedPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-deployment")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(expectedPath).
@@ -79,10 +79,10 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				Message:      "Starting kubelet.",
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-				apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-				kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
-				expectedPath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindTimeline, "my-node")
+				clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+				apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+				kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
+				expectedPath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindTimeline, "my-node")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(expectedPath).
@@ -129,7 +129,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				Reason:       "SuccessfulCreate",
 				Message:      `Created pod: my-job-pod (UID: a1b2c3d4-e5f6-7890-abcd-ef0123456789)`,
 			},
-			resourceIdentitiesByUID: map[string]*commonlogk8saudit_contract.ResourceIdentity{
+			resourceIdentitiesByUID: map[string]*k8saudit.ResourceIdentity{
 				"a1b2c3d4-e5f6-7890-abcd-ef0123456789": {
 					APIVersion: "core/v1",
 					Kind:       "pod",
@@ -138,16 +138,16 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-				jobAPIVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "batch/v1")
-				jobKindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, jobAPIVersionTimeline, "job")
-				jobNamespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, jobKindTimeline, "default")
-				jobExpectedPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, jobNamespaceTimeline, "my-job")
+				clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+				jobAPIVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "batch/v1")
+				jobKindTimeline := k8saudit.MustK8sKindTimeline(ctx, jobAPIVersionTimeline, "job")
+				jobNamespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, jobKindTimeline, "default")
+				jobExpectedPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, jobNamespaceTimeline, "my-job")
 
-				podAPIVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-				podKindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, podAPIVersionTimeline, "pod")
-				podNamespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, podKindTimeline, "default")
-				podExpectedPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, podNamespaceTimeline, "my-job-pod")
+				podAPIVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+				podKindTimeline := k8saudit.MustK8sKindTimeline(ctx, podAPIVersionTimeline, "pod")
+				podNamespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, podKindTimeline, "default")
+				podExpectedPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, podNamespaceTimeline, "my-job-pod")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(jobExpectedPath).
@@ -166,7 +166,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				Reason:       "Killing",
 				Message:      `Stopping container my-pod with uid 11112222-3333-4444-5555-666677778888`,
 			},
-			resourceIdentitiesByUID: map[string]*commonlogk8saudit_contract.ResourceIdentity{
+			resourceIdentitiesByUID: map[string]*k8saudit.ResourceIdentity{
 				"11112222-3333-4444-5555-666677778888": {
 					APIVersion: "core/v1",
 					Kind:       "pod",
@@ -175,11 +175,11 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-				apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-				kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
-				namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "default")
-				expectedPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "my-pod")
+				clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+				apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+				kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
+				namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "default")
+				expectedPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "my-pod")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(expectedPath).
@@ -197,7 +197,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				Reason:       "SuccessfulCreate",
 				Message:      `Created pod: pod-1 (UID: uid-1) and pod-2 (UID: uid-2). Duplicate ref: uid-1`,
 			},
-			resourceIdentitiesByUID: map[string]*commonlogk8saudit_contract.ResourceIdentity{
+			resourceIdentitiesByUID: map[string]*k8saudit.ResourceIdentity{
 				"uid-1": {
 					APIVersion: "core/v1",
 					Kind:       "pod",
@@ -212,21 +212,21 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-				jobAPIVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "batch/v1")
-				jobKindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, jobAPIVersionTimeline, "job")
-				jobNamespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, jobKindTimeline, "default")
-				jobExpectedPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, jobNamespaceTimeline, "my-job")
+				clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+				jobAPIVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "batch/v1")
+				jobKindTimeline := k8saudit.MustK8sKindTimeline(ctx, jobAPIVersionTimeline, "job")
+				jobNamespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, jobKindTimeline, "default")
+				jobExpectedPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, jobNamespaceTimeline, "my-job")
 
-				pod1APIVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-				pod1KindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, pod1APIVersionTimeline, "pod")
-				pod1NamespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, pod1KindTimeline, "default")
-				pod1ExpectedPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, pod1NamespaceTimeline, "pod-1")
+				pod1APIVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+				pod1KindTimeline := k8saudit.MustK8sKindTimeline(ctx, pod1APIVersionTimeline, "pod")
+				pod1NamespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, pod1KindTimeline, "default")
+				pod1ExpectedPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, pod1NamespaceTimeline, "pod-1")
 
-				pod2APIVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-				pod2KindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, pod2APIVersionTimeline, "pod")
-				pod2NamespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, pod2KindTimeline, "default")
-				pod2ExpectedPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, pod2NamespaceTimeline, "pod-2")
+				pod2APIVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+				pod2KindTimeline := k8saudit.MustK8sKindTimeline(ctx, pod2APIVersionTimeline, "pod")
+				pod2NamespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, pod2KindTimeline, "default")
+				pod2ExpectedPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, pod2NamespaceTimeline, "pod-2")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(jobExpectedPath).
@@ -246,11 +246,11 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				Message:      "",
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-				apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-				kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
-				namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "default")
-				expectedPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "my-pod")
+				clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+				apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+				kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
+				namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "default")
+				expectedPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "my-pod")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(expectedPath).
@@ -264,13 +264,13 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 
 			// Set up context with the same Builder reference.
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			finder := patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
+			finder := patternfinder.NewNaivePatternFinder[*k8saudit.ResourceIdentity]()
 			if tc.resourceIdentitiesByUID != nil {
 				for k, v := range tc.resourceIdentitiesByUID {
 					_ = finder.AddPattern(k, v)
 				}
 			}
-			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
+			ctx = tasktest.WithTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref(), finder)
 			mapper := KubernetesEventTimelineMapper{}
 
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
@@ -287,7 +287,7 @@ func TestKubernetesEventLogIngester_ProcessLog(t *testing.T) {
 	testCases := []struct {
 		desc                    string
 		input                   *log.Log
-		resourceIdentitiesByUID map[string]*commonlogk8saudit_contract.ResourceIdentity
+		resourceIdentitiesByUID map[string]*k8saudit.ResourceIdentity
 		assert                  func(t *testing.T, cs *khifilev6.LogChangeSet)
 	}{
 		{
@@ -306,7 +306,7 @@ func TestKubernetesEventLogIngester_ProcessLog(t *testing.T) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)).
 					HasSeverity(inspectioncore.SeverityInfo).
-					HasLogType(commonlogk8saudit_contract.LogTypeEvent).
+					HasLogType(k8saudit.LogTypeEvent).
 					HasSummary("【Scheduled】Successfully assigned default/test-pod to node-1")
 			},
 		},
@@ -319,7 +319,7 @@ func TestKubernetesEventLogIngester_ProcessLog(t *testing.T) {
 					Message: "Created pod: my-job-pod (UID: a1b2c3d4-e5f6-7890-abcd-ef0123456789)",
 				},
 			),
-			resourceIdentitiesByUID: map[string]*commonlogk8saudit_contract.ResourceIdentity{
+			resourceIdentitiesByUID: map[string]*k8saudit.ResourceIdentity{
 				"a1b2c3d4-e5f6-7890-abcd-ef0123456789": {
 					APIVersion: "core/v1",
 					Kind:       "pod",
@@ -341,7 +341,7 @@ func TestKubernetesEventLogIngester_ProcessLog(t *testing.T) {
 					Message: `Processing pod: a1b2c3d4-e5f6-7890-abcd-ef0123456789 and service: f9e8d7c6-b5a4-3210-fedc-ba9876543210 (retry for a1b2c3d4-e5f6-7890-abcd-ef0123456789)`,
 				},
 			),
-			resourceIdentitiesByUID: map[string]*commonlogk8saudit_contract.ResourceIdentity{
+			resourceIdentitiesByUID: map[string]*k8saudit.ResourceIdentity{
 				"a1b2c3d4-e5f6-7890-abcd-ef0123456789": {
 					APIVersion: "core/v1",
 					Kind:       "pod",
@@ -373,7 +373,7 @@ func TestKubernetesEventLogIngester_ProcessLog(t *testing.T) {
 				testchangeset.AssertLog(t, cs).
 					HasTimestamp(time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)).
 					HasSeverity(inspectioncore.SeverityUnknown).
-					HasLogType(commonlogk8saudit_contract.LogTypeEvent).
+					HasLogType(k8saudit.LogTypeEvent).
 					HasSummary("【Scheduled】")
 			},
 		},
@@ -382,13 +382,13 @@ func TestKubernetesEventLogIngester_ProcessLog(t *testing.T) {
 	ingester := &KubernetesEventLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			finder := patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
+			finder := patternfinder.NewNaivePatternFinder[*k8saudit.ResourceIdentity]()
 			if tc.resourceIdentitiesByUID != nil {
 				for k, v := range tc.resourceIdentitiesByUID {
 					_ = finder.AddPattern(k, v)
 				}
 			}
-			ctx := tasktest.WithTaskResult(t.Context(), commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
+			ctx := tasktest.WithTaskResult(t.Context(), k8saudit.ResourceUIDPatternFinderTaskID.Ref(), finder)
 
 			cs, err := ingester.ProcessLog(ctx, tc.input)
 			if err != nil {

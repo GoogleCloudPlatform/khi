@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
@@ -45,8 +45,8 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) Dependencies() []coretask.Dep
 	return []coretask.Dependency{
 		googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
-		commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(),
-		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
+		k8saudit.ContainerIDPatternFinderTaskID.Ref(),
+		k8saudit.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -68,9 +68,9 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context
 	if err != nil {
 		return nil, struct{}{}, err
 	}
-	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref())
+	containerIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref())
 	podIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
-	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
+	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
@@ -99,7 +99,7 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context
 		}
 		pod := foundPod[0].Value
 		podTimelinePath := MustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName)
-		containerTimelinePath := commonlogk8saudit_contract.MustK8sContainerTimeline(ctx, podTimelinePath, result.Value.ContainerName)
+		containerTimelinePath := k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, result.Value.ContainerName)
 		cs.AddEvent(containerTimelinePath)
 	}
 
@@ -111,7 +111,7 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context
 				continue
 			}
 		}
-		resTimelinePath := commonlogk8saudit_contract.MustResourceTimeline(ctx, clusterName, res)
+		resTimelinePath := k8saudit.MustResourceTimeline(ctx, clusterName, res)
 		cs.AddEvent(resTimelinePath)
 	}
 
@@ -124,7 +124,7 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context
 			podTimelinePath := MustK8sPodTimeline(ctx, clusterName, podNamespace, podName)
 			containerName, err := componentFieldSet.Message.StringField("containerName")
 			if err == nil && containerName != "" {
-				containerTimelinePath := commonlogk8saudit_contract.MustK8sContainerTimeline(ctx, podTimelinePath, containerName)
+				containerTimelinePath := k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, containerName)
 				cs.AddEvent(containerTimelinePath)
 			} else {
 				cs.AddEvent(podTimelinePath)

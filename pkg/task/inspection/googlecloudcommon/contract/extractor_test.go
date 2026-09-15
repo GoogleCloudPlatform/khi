@@ -19,7 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
@@ -157,12 +157,12 @@ func TestGCPAuditLogFieldSet_GuessRevisionVerb(t *testing.T) {
 		methodName string
 		want       *pb.Verb
 	}{
-		{"Create", "google.compute.v1.Instances.Create", commonlogk8saudit_contract.VerbCreate},
-		{"Insert", "google.compute.v1.BackendService.Insert", commonlogk8saudit_contract.VerbCreate},
-		{"Update", "google.compute.v1.Instances.Update", commonlogk8saudit_contract.VerbUpdate},
-		{"Patch", "google.compute.v1.Instances.Patch", commonlogk8saudit_contract.VerbUpdate},
-		{"Delete", "google.compute.v1.Instances.Delete", commonlogk8saudit_contract.VerbDelete},
-		{"Unknown", "google.compute.v1.Instances.Get", commonlogk8saudit_contract.VerbUpdate},
+		{"Create", "google.compute.v1.Instances.Create", k8saudit.VerbCreate},
+		{"Insert", "google.compute.v1.BackendService.Insert", k8saudit.VerbCreate},
+		{"Update", "google.compute.v1.Instances.Update", k8saudit.VerbUpdate},
+		{"Patch", "google.compute.v1.Instances.Patch", k8saudit.VerbUpdate},
+		{"Delete", "google.compute.v1.Instances.Delete", k8saudit.VerbDelete},
+		{"Unknown", "google.compute.v1.Instances.Get", k8saudit.VerbUpdate},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

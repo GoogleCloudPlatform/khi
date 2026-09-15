@@ -28,7 +28,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -138,7 +138,7 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 	testCases := []struct {
 		desc                   string
 		inputComponentFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
-		want                   *commonlogk8saudit_contract.ContainerIdentity
+		want                   *k8saudit.ContainerIdentity
 	}{
 		{
 			desc: "valid log message",
@@ -149,7 +149,7 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 					},
 				},
 			},
-			want: &commonlogk8saudit_contract.ContainerIdentity{
+			want: &k8saudit.ContainerIdentity{
 				PodSandboxID:  "sandbox123",
 				ContainerID:   "container123",
 				ContainerName: "container-name",
@@ -170,10 +170,10 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := testlog.NewMockLog(*tc.inputComponentFieldSet)
-			receiver := make(chan *commonlogk8saudit_contract.ContainerIdentity, 1)
+			receiver := make(chan *k8saudit.ContainerIdentity, 1)
 			processContainerIDDiscoveryForLog(t.Context(), l, receiver)
 
-			var got *commonlogk8saudit_contract.ContainerIdentity
+			var got *k8saudit.ContainerIdentity
 			if len(receiver) != 0 {
 				got = <-receiver
 			}
@@ -189,13 +189,13 @@ func TestFindContainerIDInfo(t *testing.T) {
 	testCases := []struct {
 		desc    string
 		log     string
-		want    *commonlogk8saudit_contract.ContainerIdentity
+		want    *k8saudit.ContainerIdentity
 		wantErr bool
 	}{
 		{
 			desc: "valid log message",
 			log:  "CreateContainer within sandbox \"sandbox123\" for &ContainerMetadata{Name:container-name,Attempt:0,} returns container id \"container123\"",
-			want: &commonlogk8saudit_contract.ContainerIdentity{
+			want: &k8saudit.ContainerIdentity{
 				PodSandboxID:  "sandbox123",
 				ContainerName: "container-name",
 				ContainerID:   "container123",
@@ -306,7 +306,7 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
 		inputClusterIdentity *googlecloudk8scommon_contract.GoogleCloudClusterIdentity
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
-		inputContainerIDInfo map[string]*commonlogk8saudit_contract.ContainerIdentity
+		inputContainerIDInfo map[string]*k8saudit.ContainerIdentity
 		assert               func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -323,7 +323,7 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantComponentPath).
 					HasRevision(wantComponentPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						VerbType:    k8saudit.VerbCreate,
 						StateType:   googlecloudlogk8snode_contract.RevisionStateComponentRunning,
 						Principal:   "containerd",
 						ChangedTime: testTime,
@@ -344,7 +344,7 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantComponentPath).
 					HasRevision(wantComponentPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						VerbType:    k8saudit.VerbDelete,
 						StateType:   googlecloudlogk8snode_contract.RevisionStateComponentTerminated,
 						Principal:   "containerd",
 						ChangedTime: testTime,
@@ -389,7 +389,7 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 				},
 			},
-			inputContainerIDInfo: map[string]*commonlogk8saudit_contract.ContainerIdentity{
+			inputContainerIDInfo: map[string]*k8saudit.ContainerIdentity{
 				"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256": {
 					PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 					ContainerName: "fluentbit-gke-init",
@@ -400,7 +400,7 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
 				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
 				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
-				wantContainerPath := commonlogk8saudit_contract.MustK8sContainerTimeline(ctx, wantPodPath, "fluentbit-gke-init")
+				wantContainerPath := k8saudit.MustK8sContainerTimeline(ctx, wantPodPath, "fluentbit-gke-init")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantComponentPath).
@@ -442,7 +442,7 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					podIDFinder.AddPattern(k, v)
 				}
 			}
-			containerIDFinder := patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ContainerIdentity]()
+			containerIDFinder := patternfinder.NewNaivePatternFinder[*k8saudit.ContainerIdentity]()
 			if tc.inputContainerIDInfo != nil {
 				for k, v := range tc.inputContainerIDInfo {
 					containerIDFinder.AddPattern(k, v)
@@ -459,7 +459,7 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(), clusterIdent)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
-			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
+			ctx = tasktest.WithTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
 
 			logfmtParser := logutil.NewLogfmtTextParser()
 			message := logfmtParser.TryParse(tc.inputMessage)

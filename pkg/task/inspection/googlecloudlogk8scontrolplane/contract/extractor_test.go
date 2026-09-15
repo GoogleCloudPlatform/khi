@@ -20,7 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -320,12 +320,12 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromKindF
 	testCases := []struct {
 		desc  string
 		input string
-		want  []*commonlogk8saudit_contract.ResourceIdentity
+		want  []*k8saudit.ResourceIdentity
 	}{
 		{
 			desc:  "with kind and namespaced key",
 			input: `"Finished syncing" kind="Pod" key="default/my-pod"`,
-			want: []*commonlogk8saudit_contract.ResourceIdentity{
+			want: []*k8saudit.ResourceIdentity{
 				{
 					APIVersion: "core/v1",
 					Kind:       "pod",
@@ -337,7 +337,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromKindF
 		{
 			desc:  "with kind and cluster-scoped key",
 			input: `"Finished syncing" kind="Node" key="my-node"`,
-			want: []*commonlogk8saudit_contract.ResourceIdentity{
+			want: []*k8saudit.ResourceIdentity{
 				{
 					APIVersion: "core/v1",
 					Kind:       "node",
@@ -393,12 +393,12 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromContr
 	testCases := []struct {
 		desc  string
 		input string
-		want  []*commonlogk8saudit_contract.ResourceIdentity
+		want  []*k8saudit.ResourceIdentity
 	}{
 		{
 			desc:  "with multiple resources",
 			input: `"Finished syncing" pod="default/my-job" node="node-foo"`,
-			want: []*commonlogk8saudit_contract.ResourceIdentity{
+			want: []*k8saudit.ResourceIdentity{
 				{
 					APIVersion: "core/v1",
 					Kind:       "pod",
@@ -416,7 +416,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromContr
 		{
 			desc:  "with single resource",
 			input: `"Finished syncing" pod="default/my-job"`,
-			want: []*commonlogk8saudit_contract.ResourceIdentity{
+			want: []*k8saudit.ResourceIdentity{
 				{
 					APIVersion: "core/v1",
 					Kind:       "pod",
@@ -428,7 +428,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromContr
 		{
 			desc:  "with kind and cluster-scoped key and longer name",
 			input: `"attacherDetacher.DetachVolume started" logger="persistentvolume-attach-detach-controller" node="node-foo" volumeName="kubernetes.io/csi/pd.csi.storage.gke.io^projects/UNSPECIFIED/zones/us-central1-a/disks/pvc-fe42fc7f-7618-4d3b-94d1-a2490cfd009d"`,
-			want: []*commonlogk8saudit_contract.ResourceIdentity{
+			want: []*k8saudit.ResourceIdentity{
 				{
 					APIVersion: "core/v1",
 					Kind:       "node",
@@ -476,7 +476,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromContr
 
 			klogParser := logutil.NewKLogTextParser(false)
 			paths := extractor.ReadResourceAssociationFromControllerSpecificField(klogParser.TryParse(tc.input))
-			if diff := cmp.Diff(tc.want, paths, cmpopts.SortSlices(func(a, b *commonlogk8saudit_contract.ResourceIdentity) int {
+			if diff := cmp.Diff(tc.want, paths, cmpopts.SortSlices(func(a, b *k8saudit.ResourceIdentity) int {
 				return strings.Compare(a.String(), b.String())
 			})); diff != "" {
 				t.Errorf("ReadResourceAssociationFromControllerSpecificField() mismatch (-want +got):\n%s", diff)
@@ -489,12 +489,12 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromItems
 	testCases := []struct {
 		desc  string
 		input string
-		want  *commonlogk8saudit_contract.ResourceIdentity
+		want  *k8saudit.ResourceIdentity
 	}{
 		{
 			desc:  "valid item field - namespaced",
 			input: `"Deleting item" logger="garbage-collector-controller" item="[coordination.k8s.io/v1/Lease, namespace: kube-node-lease, name: gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v, uid: 8aba20bf-0392-40c9-ae35-240b7c099523]" propagationPolicy="Background"`,
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "coordination.k8s.io/v1",
 				Kind:       "lease",
 				Namespace:  "kube-node-lease",
@@ -504,7 +504,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromItems
 		{
 			desc:  "valid item field - cluster-scoped",
 			input: `"Deleting item" logger="garbage-collector-controller" item="[rbac.authorization.k8s.io/v1/ClusterRole, namespace: , name: admin, uid: 8aba20bf-0392-40c9-ae35-240b7c099523]" propagationPolicy="Background"`,
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "rbac.authorization.k8s.io/v1",
 				Kind:       "clusterrole",
 				Namespace:  "cluster-scope",
@@ -514,7 +514,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromItems
 		{
 			desc:  "valid item field - in core api version",
 			input: `"Deleting item" logger="garbage-collector-controller" item="[v1/Pod, namespace: kube-system, name: gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v, uid: 8aba20bf-0392-40c9-ae35-240b7c099523]" propagationPolicy="Background"`,
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
 				Namespace:  "kube-system",
@@ -553,7 +553,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromItems
 func TestExtractK8sControllerManagerComponent_FromMock(t *testing.T) {
 	mock := K8sControllerManagerComponentFieldSet{
 		Controller: "mock-controller",
-		AssociatedResources: []*commonlogk8saudit_contract.ResourceIdentity{
+		AssociatedResources: []*k8saudit.ResourceIdentity{
 			{
 				APIVersion: "core/v1",
 				Kind:       "pod",

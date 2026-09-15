@@ -22,8 +22,8 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogcsmcp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogcsmcp/contract"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogcsmcp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsmcp/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
@@ -92,23 +92,23 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	testTime := time.Date(2026, time.May, 22, 10, 0, 0, 0, time.UTC)
 
-	clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-	apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-	kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
+	clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+	apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+	kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "pod")
 
 	// Client Pod timeline paths
-	clientNsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, "default")
-	clientPodPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, clientNsPath, "test-pod")
-	csmcpPodPath := commonlogcsmcp_contract.MustCSMCPPodLogTimeline(ctx, clientPodPath)
-	connPath := commonlogcsmcp_contract.MustCSMCPConnectionTimeline(ctx, clientPodPath, "1")
+	clientNsPath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, "default")
+	clientPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, clientNsPath, "test-pod")
+	csmcpPodPath := commoncsmcp.MustCSMCPPodLogTimeline(ctx, clientPodPath)
+	connPath := commoncsmcp.MustCSMCPConnectionTimeline(ctx, clientPodPath, "1")
 
 	customTime := time.Date(2026, time.May, 22, 11, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
 		name            string
 		logMessage      string
-		pods            []commonlogcsmcp_contract.PodIdentifier
-		prevGroupData   *commonlogcsmcp_contract.TimelineState
+		pods            []commoncsmcp.PodIdentifier
+		prevGroupData   *commoncsmcp.TimelineState
 		customTimestamp *time.Time
 		wantNextConns   map[string]bool
 		assert          func(*testing.T, *khifilev6.TimelineChangeSet)
@@ -116,7 +116,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name:       "new delta connection log",
 			logMessage: "ADS: new delta connection for node:test-pod.default-1",
-			pods: []commonlogcsmcp_contract.PodIdentifier{
+			pods: []commoncsmcp.PodIdentifier{
 				{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 			},
 			wantNextConns: map[string]bool{"default/test-pod/1": true},
@@ -126,7 +126,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						VerbType:     inspectioncore.VerbUnknown,
-						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnected,
+						StateType:    commoncsmcp.RevisionStateCSMCPConnectionConnected,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					})
@@ -136,7 +136,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name:            "custom timestamp overrides log timestamp",
 			logMessage:      "ADS: new connection for node:test-pod.default-1",
 			customTimestamp: &customTime,
-			pods: []commonlogcsmcp_contract.PodIdentifier{
+			pods: []commoncsmcp.PodIdentifier{
 				{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 			},
 			wantNextConns: map[string]bool{"default/test-pod/1": true},
@@ -146,7 +146,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  customTime,
 						VerbType:     inspectioncore.VerbUnknown,
-						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnected,
+						StateType:    commoncsmcp.RevisionStateCSMCPConnectionConnected,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					})
@@ -155,7 +155,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name:       "new standard connection log",
 			logMessage: "ADS: new connection for node:test-pod.default-1",
-			pods: []commonlogcsmcp_contract.PodIdentifier{
+			pods: []commoncsmcp.PodIdentifier{
 				{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 			},
 			wantNextConns: map[string]bool{"default/test-pod/1": true},
@@ -165,7 +165,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						VerbType:     inspectioncore.VerbUnknown,
-						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnected,
+						StateType:    commoncsmcp.RevisionStateCSMCPConnectionConnected,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					})
@@ -174,10 +174,10 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name:       "terminated log with previous connected state",
 			logMessage: `ADS: "192.0.2.1:41780" test-pod.default-1 terminated`,
-			pods: []commonlogcsmcp_contract.PodIdentifier{
+			pods: []commoncsmcp.PodIdentifier{
 				{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 			},
-			prevGroupData: &commonlogcsmcp_contract.TimelineState{
+			prevGroupData: &commoncsmcp.TimelineState{
 				ObservedConnections: map[string]bool{"default/test-pod/1": true},
 			},
 			wantNextConns: map[string]bool{"default/test-pod/1": true},
@@ -187,7 +187,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						VerbType:     inspectioncore.VerbUnknown,
-						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionTerminated,
+						StateType:    commoncsmcp.RevisionStateCSMCPConnectionTerminated,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					})
@@ -199,7 +199,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name:       "terminated log without previous connected state (nil prevGroupData)",
 			logMessage: `ADS: "192.0.2.1:41780" test-pod.default-1 terminated`,
-			pods: []commonlogcsmcp_contract.PodIdentifier{
+			pods: []commoncsmcp.PodIdentifier{
 				{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 			},
 			prevGroupData: nil,
@@ -210,14 +210,14 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						VerbType:     inspectioncore.VerbUnknown,
-						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnectedLogNotFound,
+						StateType:    commoncsmcp.RevisionStateCSMCPConnectionConnectedLogNotFound,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					}).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						VerbType:     inspectioncore.VerbUnknown,
-						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionTerminated,
+						StateType:    commoncsmcp.RevisionStateCSMCPConnectionTerminated,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					})
@@ -226,10 +226,10 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name:       "terminated log without previous connected state in existing state",
 			logMessage: `ADS: "192.0.2.1:41780" test-pod.default-1 terminated`,
-			pods: []commonlogcsmcp_contract.PodIdentifier{
+			pods: []commoncsmcp.PodIdentifier{
 				{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 			},
-			prevGroupData: &commonlogcsmcp_contract.TimelineState{
+			prevGroupData: &commoncsmcp.TimelineState{
 				ObservedConnections: map[string]bool{},
 			},
 			wantNextConns: map[string]bool{"default/test-pod/1": true},
@@ -239,14 +239,14 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						VerbType:     inspectioncore.VerbUnknown,
-						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnectedLogNotFound,
+						StateType:    commoncsmcp.RevisionStateCSMCPConnectionConnectedLogNotFound,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					}).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						VerbType:     inspectioncore.VerbUnknown,
-						StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionTerminated,
+						StateType:    commoncsmcp.RevisionStateCSMCPConnectionTerminated,
 						ResourceBody: nil,
 						Principal:    "csm-cp",
 					})
@@ -255,7 +255,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		{
 			name:       "push log without connection id",
 			logMessage: "CDS: PUSH request for node:test-pod.default resources:87",
-			pods: []commonlogcsmcp_contract.PodIdentifier{
+			pods: []commoncsmcp.PodIdentifier{
 				{Name: "test-pod", Namespace: "default", ConnectionID: ""},
 			},
 			wantNextConns: nil,
@@ -316,17 +316,17 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_ClusterNameFallback(t *testing.T)
 	})
 
 	testTime := time.Date(2026, time.May, 22, 10, 0, 0, 0, time.UTC)
-	clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "fallback-cluster")
-	apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-	kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
-	clientNsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, "default")
-	clientPodPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, clientNsPath, "test-pod")
-	csmcpPodPath := commonlogcsmcp_contract.MustCSMCPPodLogTimeline(ctx, clientPodPath)
+	clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "fallback-cluster")
+	apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+	kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "pod")
+	clientNsPath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, "default")
+	clientPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, clientNsPath, "test-pod")
+	csmcpPodPath := commoncsmcp.MustCSMCPPodLogTimeline(ctx, clientPodPath)
 
 	fs := googlecloudlogcsmcp_contract.FieldSet{
 		ClusterName: "fallback-cluster",
 		Message:     "ADS: new connection for node:test-pod.default-1",
-		Pods: []commonlogcsmcp_contract.PodIdentifier{
+		Pods: []commoncsmcp.PodIdentifier{
 			{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 		},
 	}
@@ -351,20 +351,20 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T
 	testTime1 := time.Date(2026, time.May, 22, 10, 0, 0, 0, time.UTC)
 	testTime2 := time.Date(2026, time.May, 22, 10, 5, 0, 0, time.UTC)
 
-	clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-	apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-	kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "pod")
-	clientNsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, "default")
-	clientPodPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, clientNsPath, "test-pod")
-	csmcpPodPath := commonlogcsmcp_contract.MustCSMCPPodLogTimeline(ctx, clientPodPath)
-	connPath := commonlogcsmcp_contract.MustCSMCPConnectionTimeline(ctx, clientPodPath, "1")
+	clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+	apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+	kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "pod")
+	clientNsPath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, "default")
+	clientPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, clientNsPath, "test-pod")
+	csmcpPodPath := commoncsmcp.MustCSMCPPodLogTimeline(ctx, clientPodPath)
+	connPath := commoncsmcp.MustCSMCPConnectionTimeline(ctx, clientPodPath, "1")
 
 	mapper := &csmcpTimelineMapper{}
 
 	// Log 1: connected
 	fs1 := googlecloudlogcsmcp_contract.FieldSet{
 		Message: "ADS: new connection for node:test-pod.default-1",
-		Pods: []commonlogcsmcp_contract.PodIdentifier{
+		Pods: []commoncsmcp.PodIdentifier{
 			{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 		},
 	}
@@ -378,7 +378,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T
 		HasRevision(connPath, &khifilev6.StagingRevision{
 			ChangedTime:  testTime1,
 			VerbType:     inspectioncore.VerbUnknown,
-			StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionConnected,
+			StateType:    commoncsmcp.RevisionStateCSMCPConnectionConnected,
 			ResourceBody: nil,
 			Principal:    "csm-cp",
 		})
@@ -386,7 +386,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T
 	// Log 2: terminated, passing state1 from log1
 	fs2 := googlecloudlogcsmcp_contract.FieldSet{
 		Message: `ADS: "192.0.2.1:41780" test-pod.default-1 terminated`,
-		Pods: []commonlogcsmcp_contract.PodIdentifier{
+		Pods: []commoncsmcp.PodIdentifier{
 			{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 		},
 	}
@@ -402,7 +402,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T
 		HasRevision(connPath, &khifilev6.StagingRevision{
 			ChangedTime:  testTime2,
 			VerbType:     inspectioncore.VerbUnknown,
-			StateType:    commonlogcsmcp_contract.RevisionStateCSMCPConnectionTerminated,
+			StateType:    commoncsmcp.RevisionStateCSMCPConnectionTerminated,
 			ResourceBody: nil,
 			Principal:    "csm-cp",
 		})

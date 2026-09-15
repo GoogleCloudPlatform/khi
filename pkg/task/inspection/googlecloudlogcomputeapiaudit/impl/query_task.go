@@ -26,7 +26,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -78,7 +78,7 @@ func (c *computeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.C
 // Dependencies implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
-		commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref(),
+		k8saudit.NodeNameInventoryTaskID.Ref(),
 		googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref(),
 	}
 }
@@ -96,7 +96,7 @@ func (c *computeAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*l
 	}
 	var nodeNames []string
 	if taskMode == inspectioncore.TaskModeRun {
-		nodeNames = coretask.GetTaskResult(ctx, commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref())
+		nodeNames = coretask.GetTaskResult(ctx, k8saudit.NodeNameInventoryTaskID.Ref())
 	}
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref())
 	queries := GenerateComputeAPIStructuredQuery(taskMode, nodeNames)

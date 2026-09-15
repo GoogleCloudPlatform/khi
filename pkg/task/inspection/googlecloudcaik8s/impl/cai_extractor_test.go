@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -36,7 +36,7 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 	testCases := []struct {
 		name      string
 		inputData map[string]any
-		want      *commonlogk8saudit_contract.ResourceIdentity
+		want      *k8saudit.ResourceIdentity
 	}{
 		{
 			name: "extracts from manifest data for namespaced pod",
@@ -56,7 +56,7 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 					},
 				},
 			},
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
 				Name:       "pod-1",
@@ -81,7 +81,7 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 					},
 				},
 			},
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "apps/v1",
 				Kind:       "deployment",
 				Name:       "web",
@@ -96,7 +96,7 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 					"assetType": "k8s.io/Service",
 				},
 			},
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "service",
 				Name:       "my-svc",
@@ -120,7 +120,7 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 					},
 				},
 			},
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "node",
 				Name:       "node-1",
@@ -145,7 +145,7 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 					},
 				},
 			},
-			want: &commonlogk8saudit_contract.ResourceIdentity{
+			want: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "namespace",
 				Name:       "kube-system",

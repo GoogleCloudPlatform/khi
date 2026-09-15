@@ -25,7 +25,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
@@ -90,7 +90,7 @@ func (s *serialPortLoggingFilterTaskSetting) Dependencies() []coretask.Dependenc
 	return []coretask.Dependency{
 		googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
-		commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref(),
+		k8saudit.NodeNameInventoryTaskID.Ref(),
 	}
 }
 
@@ -101,7 +101,7 @@ func (s *serialPortLoggingFilterTaskSetting) QueryName() string {
 
 // Queries implements googlecloudcommon_contract.StructuredListLogEntriesTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	nodeNames := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref())
+	nodeNames := coretask.GetTaskResult(ctx, k8saudit.NodeNameInventoryTaskID.Ref())
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref())
 	taskMode := inspectioncore.TaskModeRun

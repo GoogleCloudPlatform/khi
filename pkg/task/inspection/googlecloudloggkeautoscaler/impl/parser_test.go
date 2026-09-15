@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -231,24 +231,24 @@ func TestAutoscalerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, "test-project")
 	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, "test-cluster")
-	k8sClusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
+	k8sClusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
 	autoscalerPath := googlecloudloggkeautoscaler_contract.MustAutoscalerTimeline(ctx, gkeClusterTimeline)
 	nodepoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "default-pool")
 	migPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolTimeline, "test-cluster-default-pool-a0c72690-grp")
 
-	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, k8sClusterTimeline, "core/v1")
-	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
-	namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "default")
-	podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-85958b848b-ptc7n")
+	apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, k8sClusterTimeline, "core/v1")
+	kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
+	namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "default")
+	podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-85958b848b-ptc7n")
 
 	// Additional paths for other test cases
 	scaleDownMigPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolTimeline, "test-cluster-default-pool-c47ef39f-grp")
 
-	kubeDnsNamespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "kube-system")
-	kubeDnsPodPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, kubeDnsNamespaceTimeline, "kube-dns-5c44c7b6b6-xvpbk")
+	kubeDnsNamespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "kube-system")
+	kubeDnsPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, kubeDnsNamespaceTimeline, "kube-dns-5c44c7b6b6-xvpbk")
 
-	nodeKindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
-	nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "test-cluster-default-pool-c47ef39f-p395")
+	nodeKindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
+	nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "test-cluster-default-pool-c47ef39f-p395")
 
 	// Node auto provisioning creation
 	napNodepoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "nap-n1-standard-1-1kwag2qv")
@@ -261,13 +261,13 @@ func TestAutoscalerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	skippedNodepoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "nap-n1-highmem-4-1cywzhvf")
 	skippedMigPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, skippedNodepoolTimeline, "test-cluster-nap-n1-highmem-4-fbdca585-grp")
 
-	unhandledPodNamespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "autoscaling-1661")
-	unhandledPodPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, unhandledPodNamespaceTimeline, "memory-reservation2-6zg8m")
+	unhandledPodNamespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "autoscaling-1661")
+	unhandledPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, unhandledPodNamespaceTimeline, "memory-reservation2-6zg8m")
 
 	rejectedMigPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolTimeline, "test-cluster-default-pool-b1808ff9-grp")
 
 	// No scale down
-	noScaleDownNodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "test-cluster-default-pool-f74c1617-fbhk")
+	noScaleDownNodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "test-cluster-default-pool-f74c1617-fbhk")
 	noScaleDownMigPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolTimeline, "test-cluster-default-pool-f74c1617-grp")
 
 	testCases := []struct {

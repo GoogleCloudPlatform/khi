@@ -22,7 +22,7 @@ import (
 	"time"
 
 	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 )
 
@@ -44,7 +44,7 @@ func ConvertTemporalAssetToClusterResourceSnapshot(ta *assetpb.TemporalAsset) (*
 }
 
 // resolveResourceIdentity resolves and normalizes a ResourceIdentity from manifest fields with asset fallbacks.
-func resolveResourceIdentity(assetName, assetType, manifestAPIVersion, manifestKind, manifestName, manifestNamespace string) *commonlogk8saudit_contract.ResourceIdentity {
+func resolveResourceIdentity(assetName, assetType, manifestAPIVersion, manifestKind, manifestName, manifestNamespace string) *k8saudit.ResourceIdentity {
 	parsedNamespace, parsedName := parseAssetName(assetName)
 	name := manifestName
 	if name == "" {
@@ -63,7 +63,7 @@ func resolveResourceIdentity(assetName, assetType, manifestAPIVersion, manifestK
 		namespace = ""
 	}
 
-	return &commonlogk8saudit_contract.ResourceIdentity{
+	return &k8saudit.ResourceIdentity{
 		APIVersion: normalizeAPIVersion(manifestAPIVersion, assetType),
 		Kind:       kind,
 		Name:       name,

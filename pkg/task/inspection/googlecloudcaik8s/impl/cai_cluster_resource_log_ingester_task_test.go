@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -166,19 +166,19 @@ func TestRawLogTask(t *testing.T) {
 			},
 		},
 	}
-	podSampleIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+	podSampleIdentity := &k8saudit.ResourceIdentity{
 		APIVersion: "core/v1",
 		Kind:       "pod",
 		Name:       "pod-sample",
 		Namespace:  "default",
 	}
-	podAssetIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+	podAssetIdentity := &k8saudit.ResourceIdentity{
 		APIVersion: "core/v1",
 		Kind:       "pod",
 		Name:       "pod-asset",
 		Namespace:  "default",
 	}
-	podDeletedIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+	podDeletedIdentity := &k8saudit.ResourceIdentity{
 		APIVersion: "core/v1",
 		Kind:       "pod",
 		Name:       "pod-deleted",
@@ -208,7 +208,7 @@ func TestRawLogTask(t *testing.T) {
 		},
 	}
 
-	podRestoredIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+	podRestoredIdentity := &k8saudit.ResourceIdentity{
 		APIVersion: "core/v1",
 		Kind:       "pod",
 		Name:       "pod-restored",
@@ -252,7 +252,7 @@ func TestRawLogTask(t *testing.T) {
 		},
 	}
 
-	podMetadataIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+	podMetadataIdentity := &k8saudit.ResourceIdentity{
 		APIVersion: "core/v1",
 		Kind:       "pod",
 		Name:       "pod-metadata",
@@ -264,7 +264,7 @@ func TestRawLogTask(t *testing.T) {
 		taskMode               inspectioncore.InspectionTaskModeType
 		snapshots              []*googlecloudcaik8s_contract.ClusterResourceSnapshot
 		wantCount              int
-		wantIdentity           *commonlogk8saudit_contract.ResourceIdentity
+		wantIdentity           *k8saudit.ResourceIdentity
 		wantWindowStartTime    time.Time
 		wantWindowEndTime      time.Time
 		wantDeleted            bool
@@ -431,7 +431,7 @@ func TestLogGrouperTask(t *testing.T) {
 			},
 		},
 	})
-	resourceDataLogIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+	resourceDataLogIdentity := &k8saudit.ResourceIdentity{
 		APIVersion: "core/v1",
 		Kind:       "pod",
 		Name:       "pod-1",

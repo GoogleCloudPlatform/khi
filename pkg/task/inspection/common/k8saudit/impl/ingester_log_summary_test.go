@@ -1,0 +1,143 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package k8saudit_impl
+
+import (
+	"testing"
+	"time"
+
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
+)
+
+func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
+	testTime := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
+
+	testCases := []struct {
+		name   string
+		input  *log.Log
+		assert func(t *testing.T, cs *khifilev6.LogChangeSet)
+	}{
+		{
+			name: "successful info log ingestion",
+			input: testlog.NewMockLog(
+				testTime,
+				k8saudit.K8sAuditLogFieldSet{
+					APIVersion:   "core/v1",
+					PluralKind:   "pods",
+					Namespace:    "default",
+					ResourceName: "test-pod",
+					RequestURI:   "/api/v1/namespaces/default/pods/test-pod",
+					Verb:         k8saudit.VerbCreate,
+					IsError:      false,
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore.SeverityInfo).
+					HasLogType(k8saudit.LogTypeAudit).
+					HasSummary("Create /api/v1/namespaces/default/pods/test-pod")
+			},
+		},
+		{
+			name: "error log ingestion",
+			input: testlog.NewMockLog(
+				testTime,
+				k8saudit.K8sAuditLogFieldSet{
+					APIVersion:    "core/v1",
+					PluralKind:    "pods",
+					Namespace:     "default",
+					ResourceName:  "test-pod",
+					RequestURI:    "/api/v1/namespaces/default/pods/test-pod",
+					Verb:          k8saudit.VerbCreate,
+					IsError:       true,
+					StatusCode:    409,
+					StatusMessage: "Conflict",
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore.SeverityError).
+					HasLogType(k8saudit.LogTypeAudit).
+					HasSummary("【Conflict(409)】Create /api/v1/namespaces/default/pods/test-pod")
+			},
+		},
+		{
+			name: "dry run info log ingestion",
+			input: testlog.NewMockLog(
+				testTime,
+				k8saudit.K8sAuditLogFieldSet{
+					APIVersion:   "core/v1",
+					PluralKind:   "pods",
+					Namespace:    "default",
+					ResourceName: "test-pod",
+					RequestURI:   "/api/v1/namespaces/default/pods/test-pod",
+					Verb:         k8saudit.VerbCreate,
+					IsError:      false,
+					IsDryRun:     true,
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore.SeverityInfo).
+					HasLogType(k8saudit.LogTypeAudit).
+					HasSummary("【DryRun】Create /api/v1/namespaces/default/pods/test-pod")
+			},
+		},
+		{
+			name: "dry run error log ingestion",
+			input: testlog.NewMockLog(
+				testTime,
+				k8saudit.K8sAuditLogFieldSet{
+					APIVersion:    "core/v1",
+					PluralKind:    "pods",
+					Namespace:     "default",
+					ResourceName:  "test-pod",
+					RequestURI:    "/api/v1/namespaces/default/pods/test-pod",
+					Verb:          k8saudit.VerbCreate,
+					IsError:       true,
+					StatusCode:    409,
+					StatusMessage: "Conflict",
+					IsDryRun:      true,
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore.SeverityError).
+					HasLogType(k8saudit.LogTypeAudit).
+					HasSummary("【DryRun】【Conflict(409)】Create /api/v1/namespaces/default/pods/test-pod")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ingester := &k8sAuditLogIngester{}
+			cs, err := ingester.ProcessLog(t.Context(), tc.input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			tc.assert(t, cs)
+		})
+	}
+}

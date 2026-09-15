@@ -21,7 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	commonk8saudit "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
 var (
@@ -43,24 +43,24 @@ var (
 
 // ExtractGCPK8sAuditLogError extracts whether the log represents an error from a GCP Cloud Logging NodeReader.
 func ExtractGCPK8sAuditLogError(reader *structured.NodeReader) (bool, error) {
-	if cached, ok := structured.GetCache(reader, commonlogk8saudit_contract.K8sAuditLogCacheKey); ok {
+	if cached, ok := structured.GetCache(reader, commonk8saudit.K8sAuditLogCacheKey); ok {
 		return cached.IsError, nil
 	}
-	if mock, ok := structured.GetMock[*commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
+	if mock, ok := structured.GetMock[*commonk8saudit.K8sAuditLogFieldSet](reader); ok {
 		return mock.IsError, nil
 	}
 	return reader.ReadIntOrDefault(pathProtoStatusCode, 0) != 0, nil
 }
 
 // ExtractGCPK8sAuditLog extracts Kubernetes audit log data from a GCP Cloud Logging NodeReader.
-func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (*commonlogk8saudit_contract.K8sAuditLogFieldSet, error) {
-	if cached, ok := structured.GetCache(reader, commonlogk8saudit_contract.K8sAuditLogCacheKey); ok {
+func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (*commonk8saudit.K8sAuditLogFieldSet, error) {
+	if cached, ok := structured.GetCache(reader, commonk8saudit.K8sAuditLogCacheKey); ok {
 		return cached, nil
 	}
-	if mock, ok := structured.GetMock[*commonlogk8saudit_contract.K8sAuditLogFieldSet](reader); ok {
+	if mock, ok := structured.GetMock[*commonk8saudit.K8sAuditLogFieldSet](reader); ok {
 		return mock, nil
 	}
-	result := &commonlogk8saudit_contract.K8sAuditLogFieldSet{}
+	result := &commonk8saudit.K8sAuditLogFieldSet{}
 
 	result.OperationID = reader.ReadStringOrDefault(pathOperationID, "")
 	result.IsFirst = reader.ReadBoolOrDefault(pathOperationFirst, false)
@@ -89,7 +89,7 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (*commonlogk8saudit_co
 	labelsReader, _ := reader.GetReader(pathLabels)
 	result.MutatingWebhookResults = extractMutatingWebhookResults(labelsReader)
 
-	structured.SetCache(reader, commonlogk8saudit_contract.K8sAuditLogCacheKey, result)
+	structured.SetCache(reader, commonk8saudit.K8sAuditLogCacheKey, result)
 	return result, nil
 }
 
@@ -100,12 +100,12 @@ type mutatingWebhookKey struct {
 }
 
 // extractMutatingWebhookResults parses mutating webhook execution results recorded in the log labels.
-func extractMutatingWebhookResults(labelsReader *structured.NodeReader) []*commonlogk8saudit_contract.MutatingWebhookResult {
+func extractMutatingWebhookResults(labelsReader *structured.NodeReader) []*commonk8saudit.MutatingWebhookResult {
 	if labelsReader == nil {
 		return nil
 	}
 
-	var webhookResults map[mutatingWebhookKey]*commonlogk8saudit_contract.MutatingWebhookResult
+	var webhookResults map[mutatingWebhookKey]*commonk8saudit.MutatingWebhookResult
 
 	labelsReader.Children()(func(childKey structured.NodeChildrenKey, childVal structured.NodeReader) bool {
 		prefix, round, index, ok := parseWebhookLabelKey(childKey.Key)
@@ -119,12 +119,12 @@ func extractMutatingWebhookResults(labelsReader *structured.NodeReader) []*commo
 		}
 
 		if webhookResults == nil {
-			webhookResults = make(map[mutatingWebhookKey]*commonlogk8saudit_contract.MutatingWebhookResult)
+			webhookResults = make(map[mutatingWebhookKey]*commonk8saudit.MutatingWebhookResult)
 		}
 		key := mutatingWebhookKey{round: round, index: index}
 		res, exists := webhookResults[key]
 		if !exists {
-			res = &commonlogk8saudit_contract.MutatingWebhookResult{
+			res = &commonk8saudit.MutatingWebhookResult{
 				Round: round,
 				Index: index,
 			}
@@ -138,7 +138,7 @@ func extractMutatingWebhookResults(labelsReader *structured.NodeReader) []*commo
 	if len(webhookResults) == 0 {
 		return nil
 	}
-	out := make([]*commonlogk8saudit_contract.MutatingWebhookResult, 0, len(webhookResults))
+	out := make([]*commonk8saudit.MutatingWebhookResult, 0, len(webhookResults))
 	for _, res := range webhookResults {
 		out = append(out, res)
 	}
@@ -148,12 +148,12 @@ func extractMutatingWebhookResults(labelsReader *structured.NodeReader) []*commo
 // parseWebhookLabelKey extracts the admission webhook prefix, round, and index from a label key.
 func parseWebhookLabelKey(key string) (prefix string, round int, index int, ok bool) {
 	switch {
-	case strings.HasPrefix(key, commonlogk8saudit_contract.MutatingWebhookMutationPrefix+"round_"):
-		prefix = commonlogk8saudit_contract.MutatingWebhookMutationPrefix
-	case strings.HasPrefix(key, commonlogk8saudit_contract.MutatingWebhookPatchPrefix+"round_"):
-		prefix = commonlogk8saudit_contract.MutatingWebhookPatchPrefix
-	case strings.HasPrefix(key, commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix+"round_"):
-		prefix = commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix
+	case strings.HasPrefix(key, commonk8saudit.MutatingWebhookMutationPrefix+"round_"):
+		prefix = commonk8saudit.MutatingWebhookMutationPrefix
+	case strings.HasPrefix(key, commonk8saudit.MutatingWebhookPatchPrefix+"round_"):
+		prefix = commonk8saudit.MutatingWebhookPatchPrefix
+	case strings.HasPrefix(key, commonk8saudit.MutatingWebhookFailedOpenPrefix+"round_"):
+		prefix = commonk8saudit.MutatingWebhookFailedOpenPrefix
 	default:
 		return "", 0, 0, false
 	}
@@ -172,17 +172,17 @@ func parseWebhookLabelKey(key string) (prefix string, round int, index int, ok b
 }
 
 // populateWebhookResult populates the webhook result from a JSON payload or string value.
-func populateWebhookResult(res *commonlogk8saudit_contract.MutatingWebhookResult, prefix string, valStr string) {
+func populateWebhookResult(res *commonk8saudit.MutatingWebhookResult, prefix string, valStr string) {
 	switch prefix {
-	case commonlogk8saudit_contract.MutatingWebhookMutationPrefix:
-		var mutationInfo commonlogk8saudit_contract.MutatingWebhookMutationInfo
+	case commonk8saudit.MutatingWebhookMutationPrefix:
+		var mutationInfo commonk8saudit.MutatingWebhookMutationInfo
 		if json.Unmarshal([]byte(valStr), &mutationInfo) == nil {
 			res.Configuration = mutationInfo.Configuration
 			res.Webhook = mutationInfo.Webhook
 			res.Mutated = mutationInfo.Mutated
 		}
-	case commonlogk8saudit_contract.MutatingWebhookPatchPrefix:
-		var patchInfo commonlogk8saudit_contract.MutatingWebhookPatchInfo
+	case commonk8saudit.MutatingWebhookPatchPrefix:
+		var patchInfo commonk8saudit.MutatingWebhookPatchInfo
 		if json.Unmarshal([]byte(valStr), &patchInfo) == nil {
 			res.Patch = patchInfo.Patch
 			if res.Configuration == "" {
@@ -192,7 +192,7 @@ func populateWebhookResult(res *commonlogk8saudit_contract.MutatingWebhookResult
 				res.Webhook = patchInfo.Webhook
 			}
 		}
-	case commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix:
+	case commonk8saudit.MutatingWebhookFailedOpenPrefix:
 		res.FailedOpen = true
 		if res.Webhook == "" {
 			res.Webhook = valStr
@@ -208,17 +208,17 @@ func parseVerb(methodName string) *pb.Verb {
 	}
 	switch verbStr {
 	case "create":
-		return commonlogk8saudit_contract.VerbCreate
+		return commonk8saudit.VerbCreate
 	case "update":
-		return commonlogk8saudit_contract.VerbUpdate
+		return commonk8saudit.VerbUpdate
 	case "delete":
-		return commonlogk8saudit_contract.VerbDelete
+		return commonk8saudit.VerbDelete
 	case "deletecollection":
-		return commonlogk8saudit_contract.VerbDeleteCollection
+		return commonk8saudit.VerbDeleteCollection
 	case "patch":
-		return commonlogk8saudit_contract.VerbPatch
+		return commonk8saudit.VerbPatch
 	default:
-		return commonlogk8saudit_contract.VerbUnknown
+		return commonk8saudit.VerbUnknown
 	}
 }
 

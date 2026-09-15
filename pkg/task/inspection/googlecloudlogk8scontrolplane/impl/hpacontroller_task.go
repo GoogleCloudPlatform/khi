@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
@@ -99,11 +99,11 @@ func (m *HpaControllerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *
 	}
 
 	if hpaNamespace != "" && hpaName != "" {
-		clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, componentFieldSet.ClusterName)
-		apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "autoscaling/v2")
-		kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "horizontalpodautoscaler")
-		namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, hpaNamespace)
-		hpaTimeline := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, hpaName)
+		clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, componentFieldSet.ClusterName)
+		apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "autoscaling/v2")
+		kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "horizontalpodautoscaler")
+		namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, hpaNamespace)
+		hpaTimeline := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, hpaName)
 		cs.AddEvent(hpaTimeline)
 	}
 
@@ -113,13 +113,13 @@ func (m *HpaControllerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *
 		if targetAPIVersion == "v1" {
 			targetAPIVersion = "core/v1"
 		}
-		targetResource := &commonlogk8saudit_contract.ResourceIdentity{
+		targetResource := &k8saudit.ResourceIdentity{
 			APIVersion: targetAPIVersion,
 			Kind:       strings.ToLower(targetRef.Kind),
 			Namespace:  hpaNamespace,
 			Name:       targetRef.Name,
 		}
-		targetTimeline := commonlogk8saudit_contract.MustResourceTimeline(ctx, componentFieldSet.ClusterName, targetResource)
+		targetTimeline := k8saudit.MustResourceTimeline(ctx, componentFieldSet.ClusterName, targetResource)
 		cs.AddEvent(targetTimeline)
 	}
 

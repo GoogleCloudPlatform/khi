@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
@@ -93,7 +93,7 @@ type ControllerManagerTimelineMapper struct {
 // Dependencies implements inspectiontaskbase.LogToTimelineMapper.
 func (o *ControllerManagerTimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
-		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
+		k8saudit.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -109,7 +109,7 @@ func (o *ControllerManagerTimelineMapper) LogIngesterTask() taskid.TaskReference
 
 // ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
+	finder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 	componentFieldSet, err := googlecloudlogk8scontrolplane_contract.ExtractK8sControlplaneComponent(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
@@ -138,7 +138,7 @@ func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context,
 	}
 
 	for _, resource := range resources {
-		tPath := commonlogk8saudit_contract.MustResourceTimeline(ctx, componentFieldSet.ClusterName, resource.Value)
+		tPath := k8saudit.MustResourceTimeline(ctx, componentFieldSet.ClusterName, resource.Value)
 		if _, ok := writtenResourcePaths[tPath.ID]; ok {
 			continue
 		}

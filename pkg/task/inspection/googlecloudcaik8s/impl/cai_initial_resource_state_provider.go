@@ -23,7 +23,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -35,10 +35,10 @@ type caiInitialResourceStateProvider struct {
 	bodiesByIdentity map[string]*structured.NodeReader
 }
 
-var _ commonlogk8saudit_contract.InitialResourceStateProvider = (*caiInitialResourceStateProvider)(nil)
+var _ k8saudit.InitialResourceStateProvider = (*caiInitialResourceStateProvider)(nil)
 
-// InitialResourceState implements commonlogk8saudit_contract.InitialResourceStateProvider.
-func (p *caiInitialResourceStateProvider) InitialResourceState(identity *commonlogk8saudit_contract.ResourceIdentity) (*structured.NodeReader, bool) {
+// InitialResourceState implements k8saudit.InitialResourceStateProvider.
+func (p *caiInitialResourceStateProvider) InitialResourceState(identity *k8saudit.ResourceIdentity) (*structured.NodeReader, bool) {
 	body, found := p.bodiesByIdentity[initialResourceStateKey(identity)]
 	return body, found
 }
@@ -77,12 +77,12 @@ func newCAIInitialResourceStateProvider(logs []*log.Log, at time.Time) *caiIniti
 // initialResourceStateKey renders the lookup key of a CAI resource identity. CAI leaves the namespace
 // empty for cluster scoped resources while the audit log pipeline names it ClusterScopeNamespace, so
 // the key adopts the audit log convention.
-func initialResourceStateKey(identity *commonlogk8saudit_contract.ResourceIdentity) string {
+func initialResourceStateKey(identity *k8saudit.ResourceIdentity) string {
 	if identity.Namespace != "" {
 		return identity.String()
 	}
 	clusterScoped := *identity
-	clusterScoped.Namespace = commonlogk8saudit_contract.ClusterScopeNamespace
+	clusterScoped.Namespace = k8saudit.ClusterScopeNamespace
 	return clusterScoped.String()
 }
 
@@ -92,12 +92,12 @@ func initialResourceStateKey(identity *commonlogk8saudit_contract.ResourceIdenti
 // The subsequent task label pulls the CAI timeline mapper into the graph whenever this provider is
 // selected, so enabling the Kubernetes audit log feature alone also renders the CAI revisions.
 var InitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
-	taskid.NewImplementationID(commonlogk8saudit_contract.InitialResourceStateProviderRef, "cai"),
+	taskid.NewImplementationID(k8saudit.InitialResourceStateProviderRef, "cai"),
 	[]coretask.Dependency{
 		googlecloudcaik8s_contract.RawLogTaskID.Ref(),
 		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	},
-	func(ctx context.Context, _ inspectioncore.InspectionTaskModeType) (commonlogk8saudit_contract.InitialResourceStateProvider, error) {
+	func(ctx context.Context, _ inspectioncore.InspectionTaskModeType) (k8saudit.InitialResourceStateProvider, error) {
 		logs := coretask.GetTaskResult(ctx, googlecloudcaik8s_contract.RawLogTaskID.Ref())
 		queryStartTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 		return newCAIInitialResourceStateProvider(logs, queryStartTime), nil

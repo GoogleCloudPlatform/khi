@@ -19,7 +19,7 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -50,5 +50,5 @@ var NodeNameDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 		}
 		return result, nil
 	},
-	coretask.ProvidesTag(commonlogk8saudit_contract.TagNodeNameDiscovery),
+	coretask.ProvidesTag(k8saudit.TagNodeNameDiscovery),
 )

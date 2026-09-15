@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcaik8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcaik8s/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -77,7 +77,7 @@ func (m *caiClusterResourceTimelineMapper) ProcessLogByGroup(ctx context.Context
 		return nil, struct{}{}, nil
 	}
 	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
-	targetPath := commonlogk8saudit_contract.MustResourceTimeline(ctx, cluster.ClusterName, identity)
+	targetPath := k8saudit.MustResourceTimeline(ctx, cluster.ClusterName, identity)
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 	resourceBody := extractResourceBody(l.NodeReader)
@@ -89,7 +89,7 @@ func (m *caiClusterResourceTimelineMapper) ProcessLogByGroup(ctx context.Context
 		observedTime = queryStartTime
 	}
 
-	snapshotVerb := commonlogk8saudit_contract.VerbCreate
+	snapshotVerb := k8saudit.VerbCreate
 	// The content between the creation and the observed manifest is unknown, so it is rendered as a
 	// body-less revision the same way resources without any log are rendered.
 	if creationTime, found := extractCreationTimestamp(l.NodeReader); found && observedTime.Sub(creationTime) >= creationTimestampSkewTolerance {
@@ -97,10 +97,10 @@ func (m *caiClusterResourceTimelineMapper) ProcessLogByGroup(ctx context.Context
 			ChangedTime:  creationTime,
 			ResourceBody: nil,
 			Principal:    "N/A",
-			VerbType:     commonlogk8saudit_contract.VerbCreate,
-			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+			VerbType:     k8saudit.VerbCreate,
+			StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
 		})
-		snapshotVerb = commonlogk8saudit_contract.VerbUpdate
+		snapshotVerb = k8saudit.VerbUpdate
 	}
 
 	cs.AddRevision(targetPath, &khifilev6.StagingRevision{

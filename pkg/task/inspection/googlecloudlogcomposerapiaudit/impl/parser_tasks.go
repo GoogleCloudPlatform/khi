@@ -26,7 +26,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomposerapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomposerapiaudit/contract"
@@ -137,7 +137,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 
 		if auditFieldSet.Ending() && !tracker.HasStarted(auditFieldSet.OperationID) {
 			cs.AddRevision(envTimeline, &khifilev6.StagingRevision{
-				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				VerbType:     k8saudit.VerbCreate,
 				StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentProvisioningLogNotFound,
 				Principal:    auditFieldSet.PrincipalEmail,
 				ChangedTime:  time.Unix(0, 0),
@@ -154,7 +154,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 		}
 
 		cs.AddRevision(envTimeline, &khifilev6.StagingRevision{
-			VerbType:     commonlogk8saudit_contract.VerbCreate,
+			VerbType:     k8saudit.VerbCreate,
 			StateType:    state,
 			Principal:    auditFieldSet.PrincipalEmail,
 			ChangedTime:  l.Timestamp,
@@ -165,7 +165,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 	case "DeleteEnvironment":
 		if !auditFieldSet.Ending() && !tracker.HasResourceRevision(envTimeline) {
 			cs.AddRevision(envTimeline, &khifilev6.StagingRevision{
-				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				VerbType:     k8saudit.VerbCreate,
 				StateType:    googlecloudclustercomposer_contract.RevisionStateManagedAirflowEnvironmentExistingLogNotFound,
 				Principal:    auditFieldSet.PrincipalEmail,
 				ChangedTime:  time.Unix(0, 0),
@@ -176,7 +176,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 
 		if auditFieldSet.Ending() && !tracker.HasStarted(auditFieldSet.OperationID) {
 			cs.AddRevision(envTimeline, &khifilev6.StagingRevision{
-				VerbType:     commonlogk8saudit_contract.VerbDelete,
+				VerbType:     k8saudit.VerbDelete,
 				StateType:    googlecloudclustercomposer_contract.RevisionManagedAirflowEnvironmentDeletingLogNotFound,
 				Principal:    auditFieldSet.PrincipalEmail,
 				ChangedTime:  time.Unix(0, 0),
@@ -193,7 +193,7 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 		}
 
 		cs.AddRevision(envTimeline, &khifilev6.StagingRevision{
-			VerbType:     commonlogk8saudit_contract.VerbDelete,
+			VerbType:     k8saudit.VerbDelete,
 			StateType:    state,
 			Principal:    auditFieldSet.PrincipalEmail,
 			ChangedTime:  l.Timestamp,

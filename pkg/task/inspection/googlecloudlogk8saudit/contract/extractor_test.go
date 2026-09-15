@@ -19,7 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	commonk8saudit "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -46,7 +46,7 @@ func TestParseKubernetesOperation(t *testing.T) {
 			wantNamespace:       "cluster-scope",
 			wantName:            "gke-p0-gke-basic-1-default-6400229f-n02c",
 			wantSubResourceName: "status",
-			wantVerb:            commonlogk8saudit_contract.VerbPatch,
+			wantVerb:            commonk8saudit.VerbPatch,
 		},
 		{
 			desc:                "namespaced resource",
@@ -57,7 +57,7 @@ func TestParseKubernetesOperation(t *testing.T) {
 			wantNamespace:       "default",
 			wantName:            "nginx",
 			wantSubResourceName: "",
-			wantVerb:            commonlogk8saudit_contract.VerbCreate,
+			wantVerb:            commonk8saudit.VerbCreate,
 		},
 		{
 			desc:                "cluster scoped resource",
@@ -68,7 +68,7 @@ func TestParseKubernetesOperation(t *testing.T) {
 			wantNamespace:       "cluster-scope",
 			wantName:            "test-ns",
 			wantSubResourceName: "",
-			wantVerb:            commonlogk8saudit_contract.VerbDelete,
+			wantVerb:            commonk8saudit.VerbDelete,
 		},
 		{
 			desc:                "namespaced resource with subresource",
@@ -79,7 +79,7 @@ func TestParseKubernetesOperation(t *testing.T) {
 			wantNamespace:       "kube-system",
 			wantName:            "coredns",
 			wantSubResourceName: "scale",
-			wantVerb:            commonlogk8saudit_contract.VerbUpdate,
+			wantVerb:            commonk8saudit.VerbUpdate,
 		},
 	}
 
@@ -112,7 +112,7 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 	testCases := []struct {
 		name  string
 		input string
-		want  commonlogk8saudit_contract.K8sAuditLogFieldSet
+		want  commonk8saudit.K8sAuditLogFieldSet
 	}{
 		{
 			name: "basic fields",
@@ -139,7 +139,7 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 					}
 				}
 			}`,
-			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			want: commonk8saudit.K8sAuditLogFieldSet{
 				OperationID:     "test-op-1",
 				IsFirst:         true,
 				IsLast:          false,
@@ -149,7 +149,7 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 				ResourceName:    "nginx",
 				SubresourceName: "",
 				ClusterName:     "test-cluster",
-				Verb:            commonlogk8saudit_contract.VerbCreate,
+				Verb:            commonk8saudit.VerbCreate,
 				RequestURI:      "core/v1/namespaces/default/pods/nginx",
 				Principal:       "admin@example.com",
 				StatusCode:      0,
@@ -182,7 +182,7 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 					}
 				}
 			}`,
-			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			want: commonk8saudit.K8sAuditLogFieldSet{
 				OperationID:     "test-op-2",
 				IsFirst:         false,
 				IsLast:          true,
@@ -192,7 +192,7 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 				ResourceName:    "nginx",
 				SubresourceName: "",
 				ClusterName:     "test-cluster",
-				Verb:            commonlogk8saudit_contract.VerbDelete,
+				Verb:            commonk8saudit.VerbDelete,
 				RequestURI:      "core/v1/namespaces/default/pods/nginx",
 				Principal:       "admin@example.com",
 				StatusCode:      7,
@@ -216,7 +216,7 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 					"failed-open.mutation.webhook.admission.k8s.io/round_2_index_1": "test-failed-webhook"
 				}
 			}`,
-			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			want: commonk8saudit.K8sAuditLogFieldSet{
 				OperationID:     "test-op-3",
 				APIVersion:      "core/v1",
 				PluralKind:      "pods",
@@ -224,16 +224,16 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 				ResourceName:    "nginx",
 				SubresourceName: "",
 				ClusterName:     "unknown",
-				Verb:            commonlogk8saudit_contract.VerbCreate,
+				Verb:            commonk8saudit.VerbCreate,
 				RequestURI:      "core/v1/namespaces/default/pods/nginx",
-				MutatingWebhookResults: []*commonlogk8saudit_contract.MutatingWebhookResult{
+				MutatingWebhookResults: []*commonk8saudit.MutatingWebhookResult{
 					{
 						Round:         1,
 						Index:         0,
 						Configuration: "mutating-webhook-config",
 						Webhook:       "test-webhook",
 						Mutated:       true,
-						Patch: []commonlogk8saudit_contract.MutatingWebhookPatch{
+						Patch: []commonk8saudit.MutatingWebhookPatch{
 							{
 								Op:   "add",
 								Path: "/spec/containers/0/env",
@@ -267,14 +267,14 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 					"command.gke.io/dryRun": "true"
 				}
 			}`,
-			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			want: commonk8saudit.K8sAuditLogFieldSet{
 				OperationID:  "test-op-4",
 				APIVersion:   "core/v1",
 				PluralKind:   "pods",
 				Namespace:    "default",
 				ResourceName: "nginx",
 				ClusterName:  "unknown",
-				Verb:         commonlogk8saudit_contract.VerbCreate,
+				Verb:         commonk8saudit.VerbCreate,
 				RequestURI:   "core/v1/namespaces/default/pods/nginx",
 				IsDryRun:     true,
 			},
@@ -293,14 +293,14 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 					"audit.k8s.io/truncated": "true"
 				}
 			}`,
-			want: commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			want: commonk8saudit.K8sAuditLogFieldSet{
 				OperationID:  "test-op-5",
 				APIVersion:   "core/v1",
 				PluralKind:   "pods",
 				Namespace:    "default",
 				ResourceName: "nginx",
 				ClusterName:  "unknown",
-				Verb:         commonlogk8saudit_contract.VerbUpdate,
+				Verb:         commonk8saudit.VerbUpdate,
 				RequestURI:   "core/v1/namespaces/default/pods/nginx",
 				IsTruncated:  true,
 			},
@@ -322,7 +322,7 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 			got.Request = nil
 			got.Response = nil
 
-			if diff := cmp.Diff(tc.want, *got, cmpopts.SortSlices(func(a, b *commonlogk8saudit_contract.MutatingWebhookResult) bool {
+			if diff := cmp.Diff(tc.want, *got, cmpopts.SortSlices(func(a, b *commonk8saudit.MutatingWebhookResult) bool {
 				if a.Round != b.Round {
 					return a.Round < b.Round
 				}
@@ -380,7 +380,7 @@ func TestExtractGCPK8sAuditLogError(t *testing.T) {
 	}
 
 	t.Run("from mock with isError true", func(t *testing.T) {
-		reader := structured.NewNodeReader(structured.NewMockNode(commonlogk8saudit_contract.K8sAuditLogFieldSet{
+		reader := structured.NewNodeReader(structured.NewMockNode(commonk8saudit.K8sAuditLogFieldSet{
 			IsError: true,
 		}))
 		got, err := ExtractGCPK8sAuditLogError(reader)
@@ -393,7 +393,7 @@ func TestExtractGCPK8sAuditLogError(t *testing.T) {
 	})
 
 	t.Run("from mock with isError false", func(t *testing.T) {
-		reader := structured.NewNodeReader(structured.NewMockNode(commonlogk8saudit_contract.K8sAuditLogFieldSet{
+		reader := structured.NewNodeReader(structured.NewMockNode(commonk8saudit.K8sAuditLogFieldSet{
 			IsError: false,
 		}))
 		got, err := ExtractGCPK8sAuditLogError(reader)

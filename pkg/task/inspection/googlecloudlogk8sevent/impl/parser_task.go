@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -41,7 +41,7 @@ func (i *KubernetesEventLogIngester) RawLogTask() taskid.TaskReference[[]*log.Lo
 // Dependencies returns additional task dependencies of the ingester.
 func (i *KubernetesEventLogIngester) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
-		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
+		k8saudit.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -51,7 +51,7 @@ func (i *KubernetesEventLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 	if err != nil {
 		return nil, err
 	}
-	cs.SetLogType(commonlogk8saudit_contract.LogTypeEvent)
+	cs.SetLogType(k8saudit.LogTypeEvent)
 	cs.SetTimestamp(l.Timestamp)
 
 	if severity, err := googlecloudcommon_contract.ExtractGCPSeverity(l.NodeReader); err == nil && severity != nil {
@@ -62,8 +62,8 @@ func (i *KubernetesEventLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract kubernetes event: %w", err)
 	}
-	finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
-	cs.SetSummary(commonlogk8saudit_contract.FormatEventSummary(event.Reason, event.Message, finder))
+	finder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
+	cs.SetSummary(k8saudit.FormatEventSummary(event.Reason, event.Message, finder))
 
 	return cs, nil
 }
@@ -102,7 +102,7 @@ func (m *KubernetesEventTimelineMapper) LogIngesterTask() taskid.TaskReference[s
 // Dependencies returns additional task dependencies.
 func (m *KubernetesEventTimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
-		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
+		k8saudit.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -123,11 +123,11 @@ func (m *KubernetesEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l
 	cs.AddEvent(primaryResourcePath)
 
 	if event.Message != "" {
-		finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
+		finder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 		if finder != nil {
-			matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, commonlogk8saudit_contract.EventMessageUIDStarterRunes...)
+			matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, k8saudit.EventMessageUIDStarterRunes...)
 			for _, match := range matches {
-				matchedPath := commonlogk8saudit_contract.MustResourceTimeline(ctx, event.ClusterName, match.Value)
+				matchedPath := k8saudit.MustResourceTimeline(ctx, event.ClusterName, match.Value)
 				cs.AddEvent(matchedPath)
 			}
 		}
@@ -158,12 +158,12 @@ func MustResolveK8sResourceTimelinePath(ctx context.Context, event *googlecloudl
 		return googlecloudlogk8sevent_contract.MustEventExporterTimeline(ctx, gkeTimeline)
 	}
 
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, event.ClusterName)
-	apiVersionPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, event.APIVersion)
-	kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionPath, event.ResourceKind)
+	clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, event.ClusterName)
+	apiVersionPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, event.APIVersion)
+	kindPath := k8saudit.MustK8sKindTimeline(ctx, apiVersionPath, event.ResourceKind)
 	if event.Namespace == "cluster-scope" || event.Namespace == "" {
-		return commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindPath, event.Resource)
+		return k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindPath, event.Resource)
 	}
-	namespacePath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, event.Namespace)
-	return commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespacePath, event.Resource)
+	namespacePath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, event.Namespace)
+	return k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespacePath, event.Resource)
 }

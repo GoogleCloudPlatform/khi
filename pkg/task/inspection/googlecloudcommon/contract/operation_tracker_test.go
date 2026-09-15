@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
@@ -189,8 +189,8 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbCreate,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
+				VerbType:    k8saudit.VerbCreate,
+				StateType:   k8saudit.RevisionStateK8sClusterProvisioning,
 				ChangedTime: testTime,
 			})
 	})
@@ -208,13 +208,13 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbCreate,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterProvisioningLogNotFound,
+				VerbType:    k8saudit.VerbCreate,
+				StateType:   k8saudit.RevisionStateK8sClusterProvisioningLogNotFound,
 				ChangedTime: time.Unix(0, 0),
 			}).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbCreate,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
+				VerbType:    k8saudit.VerbCreate,
+				StateType:   k8saudit.RevisionStateK8sClusterExisting,
 				ChangedTime: testTime,
 			})
 	})
@@ -232,13 +232,13 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbCreate,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterExistingLogNotFound,
+				VerbType:    k8saudit.VerbCreate,
+				StateType:   k8saudit.RevisionStateK8sClusterExistingLogNotFound,
 				ChangedTime: time.Unix(0, 0),
 			}).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbDelete,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterDeleting,
+				VerbType:    k8saudit.VerbDelete,
+				StateType:   k8saudit.RevisionStateK8sClusterDeleting,
 				ChangedTime: testTime,
 			})
 	})
@@ -256,13 +256,13 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbDelete,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterDeletingLogNotFound,
+				VerbType:    k8saudit.VerbDelete,
+				StateType:   k8saudit.RevisionStateK8sClusterDeletingLogNotFound,
 				ChangedTime: time.Unix(0, 0),
 			}).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbDelete,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterDeleted,
+				VerbType:    k8saudit.VerbDelete,
+				StateType:   k8saudit.RevisionStateK8sClusterDeleted,
 				ChangedTime: testTime,
 			})
 	})
@@ -280,13 +280,13 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbCreate,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioningLogNotFound,
+				VerbType:    k8saudit.VerbCreate,
+				StateType:   k8saudit.RevisionStateK8sNodepoolProvisioningLogNotFound,
 				ChangedTime: time.Unix(0, 0),
 			}).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbCreate,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting,
+				VerbType:    k8saudit.VerbCreate,
+				StateType:   k8saudit.RevisionStateK8sNodepoolExisting,
 				ChangedTime: testTime,
 			})
 	})
@@ -304,13 +304,13 @@ func TestProcessGCPClusterNodepoolOperationLog(t *testing.T) {
 
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbDelete,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolDeletingLogNotFound,
+				VerbType:    k8saudit.VerbDelete,
+				StateType:   k8saudit.RevisionStateK8sNodepoolDeletingLogNotFound,
 				ChangedTime: time.Unix(0, 0),
 			}).
 			HasRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:    commonlogk8saudit_contract.VerbDelete,
-				StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleted,
+				VerbType:    k8saudit.VerbDelete,
+				StateType:   k8saudit.RevisionStateK8sNodepoolDeleted,
 				ChangedTime: testTime,
 			})
 	})

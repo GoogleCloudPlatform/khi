@@ -19,13 +19,13 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func mergeNEGNames(results []googlecloudk8scommon_contract.NEGNameToResourceIdentityMap) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
-	result := map[string]commonlogk8saudit_contract.ResourceIdentity{}
+	result := map[string]k8saudit.ResourceIdentity{}
 	for _, r := range results {
 		for negName, identity := range r {
 			result[negName] = identity
@@ -43,16 +43,16 @@ var NEGNamesInventoryTask = inspectiontaskbase.NewInventoryTask(
 var NEGNamesDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID,
 	[]coretask.Dependency{
-		commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(),
+		k8saudit.ManifestGeneratorTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
 		if taskMode == inspectioncore.TaskModeDryRun {
 			return nil, nil
 		}
 		result := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{}
-		resourceLogs := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref())
+		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
 		for _, group := range resourceLogs {
-			if group.Resource.Type() != commonlogk8saudit_contract.Resource {
+			if group.Resource.Type() != k8saudit.Resource {
 				continue
 			}
 			if group.Resource.APIVersion != "networking.gke.io/v1beta1" || group.Resource.Kind != "servicenetworkendpointgroup" {

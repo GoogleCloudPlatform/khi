@@ -20,7 +20,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
@@ -71,7 +71,7 @@ var OtherLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct
 // TailTaskID is a nop task just to require all child parsers.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "tail")
 
-var ContainerIDDiscoveryTaskID = taskid.NewDefaultImplementationID[commonlogk8saudit_contract.ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-discovery")
+var ContainerIDDiscoveryTaskID = taskid.NewDefaultImplementationID[k8saudit.ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-discovery")
 
 // NodeNameDiscoveryTaskID is the task ID for extracting node names from Kubernetes node logs.
 var NodeNameDiscoveryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-discovery")

@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogcsmcp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogcsmcp/contract"
+	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogcsmcp_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsmcp/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
@@ -56,7 +56,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 )
 
 type csmcpTimelineMapper struct {
-	inspectiontaskbase.SinglePassMapperBase[*commonlogcsmcp_contract.TimelineState]
+	inspectiontaskbase.SinglePassMapperBase[*commoncsmcp.TimelineState]
 }
 
 // LogIngesterTask returns the task reference for log ingestion.
@@ -77,7 +77,7 @@ func (m *csmcpTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectionta
 }
 
 // ProcessLogByGroup maps a log entry to its corresponding timeline paths.
-func (m *csmcpTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *commonlogcsmcp_contract.TimelineState) (*khifilev6.TimelineChangeSet, *commonlogcsmcp_contract.TimelineState, error) {
+func (m *csmcpTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *commoncsmcp.TimelineState) (*khifilev6.TimelineChangeSet, *commoncsmcp.TimelineState, error) {
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 
 	fs, err := googlecloudlogcsmcp_contract.Extract(l.NodeReader)
@@ -99,7 +99,7 @@ func (m *csmcpTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 		changedTime = l.Timestamp
 	}
 
-	nextGroupData := commonlogcsmcp_contract.MapPodAndConnectionTimelines(
+	nextGroupData := commoncsmcp.MapPodAndConnectionTimelines(
 		ctx,
 		cs,
 		clusterName,
@@ -118,4 +118,4 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	&csmcpTimelineMapper{},
 )
 
-var _ inspectiontaskbase.LogToTimelineMapper[*commonlogcsmcp_contract.TimelineState] = (*csmcpTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*commoncsmcp.TimelineState] = (*csmcpTimelineMapper)(nil)

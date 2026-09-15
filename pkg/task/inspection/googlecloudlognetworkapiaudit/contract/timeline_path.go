@@ -22,7 +22,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -36,11 +36,11 @@ func MustNEGTimeline(ctx context.Context, clusterName string, namespace string, 
 	if negName == "" {
 		negName = "unknown"
 	}
-	clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-	apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "networking.gke.io/v1beta1")
-	kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "servicenetworkendpointgroup")
-	nsPath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, namespace)
-	return commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsPath, negName)
+	clusterPath := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "networking.gke.io/v1beta1")
+	kindPath := k8saudit.MustK8sKindTimeline(ctx, apiPath, "servicenetworkendpointgroup")
+	nsPath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, namespace)
+	return k8saudit.MustK8sNamespacedResourceTimeline(ctx, nsPath, negName)
 }
 
 // MustNEGOperationTimeline returns the timeline path for the GCE operation under a NEG.

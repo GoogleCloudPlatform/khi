@@ -18,7 +18,7 @@ import (
 	"context"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	commonk8saudit "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -28,7 +28,7 @@ import (
 var GCPK8sAuditLogExtractorTask = coretask.NewTask(
 	googlecloudlogk8saudit_contract.GCPK8sAuditLogExtractorTaskID,
 	[]coretask.Dependency{},
-	func(ctx context.Context) (commonlogk8saudit_contract.K8sAuditLogExtractor, error) {
+	func(ctx context.Context) (commonk8saudit.K8sAuditLogExtractor, error) {
 		return googlecloudlogk8saudit_contract.ExtractGCPK8sAuditLog, nil
 	},
 	coretask.NewTaskResultRetentionLabel(true),
@@ -38,7 +38,7 @@ var GCPK8sAuditLogExtractorTask = coretask.NewTask(
 var GCPK8sAuditLogErrorExtractorTask = coretask.NewTask(
 	googlecloudlogk8saudit_contract.GCPK8sAuditLogErrorExtractorTaskID,
 	[]coretask.Dependency{},
-	func(ctx context.Context) (commonlogk8saudit_contract.K8sAuditLogErrorExtractor, error) {
+	func(ctx context.Context) (commonk8saudit.K8sAuditLogErrorExtractor, error) {
 		return googlecloudlogk8saudit_contract.ExtractGCPK8sAuditLogError, nil
 	},
 	coretask.NewTaskResultRetentionLabel(true),
@@ -47,21 +47,21 @@ var GCPK8sAuditLogErrorExtractorTask = coretask.NewTask(
 var GCPK8sAuditLogParserTailTask = coretask.NewTailTask(
 	googlecloudlogk8saudit_contract.GCPK8sAuditLogParserTailTaskID,
 	[]coretask.Dependency{
-		commonlogk8saudit_contract.K8sAuditLogExtractorRef,
-		commonlogk8saudit_contract.K8sAuditLogErrorExtractorRef,
-		commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
-		commonlogk8saudit_contract.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
-		commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),
-		commonlogk8saudit_contract.ConditionLogToTimelineMapperTaskID.Ref(),
-		commonlogk8saudit_contract.ResourceOwnerReferenceTimelineMapperTaskID.Ref(),
-		commonlogk8saudit_contract.PodPhaseLogToTimelineMapperTaskID.Ref(),
-		commonlogk8saudit_contract.EndpointResourceLogToTimelineMapperTaskID.Ref(),
-		commonlogk8saudit_contract.ContainerLogToTimelineMapperTaskID.Ref(),
+		commonk8saudit.K8sAuditLogExtractorRef,
+		commonk8saudit.K8sAuditLogErrorExtractorRef,
+		commonk8saudit.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
+		commonk8saudit.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
+		commonk8saudit.ResourceRevisionLogToTimelineMapperTaskID.Ref(),
+		commonk8saudit.ConditionLogToTimelineMapperTaskID.Ref(),
+		commonk8saudit.ResourceOwnerReferenceTimelineMapperTaskID.Ref(),
+		commonk8saudit.PodPhaseLogToTimelineMapperTaskID.Ref(),
+		commonk8saudit.EndpointResourceLogToTimelineMapperTaskID.Ref(),
+		commonk8saudit.ContainerLogToTimelineMapperTaskID.Ref(),
 
-		commonlogk8saudit_contract.NodeNameDiscoveryTaskID.Ref(),
-		commonlogk8saudit_contract.ResourceUIDDiscoveryTaskID.Ref(),
-		commonlogk8saudit_contract.ContainerIDDiscoveryTaskID.Ref(),
-		commonlogk8saudit_contract.IPLeaseHistoryDiscoveryTaskID.Ref(),
+		commonk8saudit.NodeNameDiscoveryTaskID.Ref(),
+		commonk8saudit.ResourceUIDDiscoveryTaskID.Ref(),
+		commonk8saudit.ContainerIDDiscoveryTaskID.Ref(),
+		commonk8saudit.IPLeaseHistoryDiscoveryTaskID.Ref(),
 		googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID.Ref(),
 		googlecloudlogk8saudit_contract.NEGToBackendServiceDiscoveryTaskID.Ref(),
 	},

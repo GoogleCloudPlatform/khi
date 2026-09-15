@@ -21,7 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
 var (
@@ -113,12 +113,12 @@ func ProcessGCPClusterNodepoolOperationLog(
 		if audit.Ending() && !tracker.HasStarted(audit.OperationID) {
 			var stateLogNotFound *pb.RevisionState
 			if isCluster {
-				stateLogNotFound = commonlogk8saudit_contract.RevisionStateK8sClusterProvisioningLogNotFound
+				stateLogNotFound = k8saudit.RevisionStateK8sClusterProvisioningLogNotFound
 			} else {
-				stateLogNotFound = commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioningLogNotFound
+				stateLogNotFound = k8saudit.RevisionStateK8sNodepoolProvisioningLogNotFound
 			}
 			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				VerbType:     k8saudit.VerbCreate,
 				StateType:    stateLogNotFound,
 				Principal:    audit.PrincipalEmail,
 				ChangedTime:  time.Unix(0, 0),
@@ -130,19 +130,19 @@ func ProcessGCPClusterNodepoolOperationLog(
 		var state *pb.RevisionState
 		if isCluster {
 			if audit.Ending() {
-				state = commonlogk8saudit_contract.RevisionStateK8sClusterExisting
+				state = k8saudit.RevisionStateK8sClusterExisting
 			} else {
-				state = commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning
+				state = k8saudit.RevisionStateK8sClusterProvisioning
 			}
 		} else {
 			if audit.Ending() {
-				state = commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting
+				state = k8saudit.RevisionStateK8sNodepoolExisting
 			} else {
-				state = commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioning
+				state = k8saudit.RevisionStateK8sNodepoolProvisioning
 			}
 		}
 		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-			VerbType:     commonlogk8saudit_contract.VerbCreate,
+			VerbType:     k8saudit.VerbCreate,
 			StateType:    state,
 			Principal:    audit.PrincipalEmail,
 			ChangedTime:  logTimestamp,
@@ -154,12 +154,12 @@ func ProcessGCPClusterNodepoolOperationLog(
 		if !audit.Ending() && !tracker.HasResourceRevision(targetTimeline) {
 			var stateExistingNotFound *pb.RevisionState
 			if isCluster {
-				stateExistingNotFound = commonlogk8saudit_contract.RevisionStateK8sClusterExistingLogNotFound
+				stateExistingNotFound = k8saudit.RevisionStateK8sClusterExistingLogNotFound
 			} else {
-				stateExistingNotFound = commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound
+				stateExistingNotFound = k8saudit.RevisionStateK8sNodepoolExistingLogNotFound
 			}
 			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				VerbType:     k8saudit.VerbCreate,
 				StateType:    stateExistingNotFound,
 				Principal:    audit.PrincipalEmail,
 				ChangedTime:  time.Unix(0, 0),
@@ -171,12 +171,12 @@ func ProcessGCPClusterNodepoolOperationLog(
 		if audit.Ending() && !tracker.HasStarted(audit.OperationID) {
 			var stateDeletingNotFound *pb.RevisionState
 			if isCluster {
-				stateDeletingNotFound = commonlogk8saudit_contract.RevisionStateK8sClusterDeletingLogNotFound
+				stateDeletingNotFound = k8saudit.RevisionStateK8sClusterDeletingLogNotFound
 			} else {
-				stateDeletingNotFound = commonlogk8saudit_contract.RevisionStateK8sNodepoolDeletingLogNotFound
+				stateDeletingNotFound = k8saudit.RevisionStateK8sNodepoolDeletingLogNotFound
 			}
 			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:     commonlogk8saudit_contract.VerbDelete,
+				VerbType:     k8saudit.VerbDelete,
 				StateType:    stateDeletingNotFound,
 				Principal:    audit.PrincipalEmail,
 				ChangedTime:  time.Unix(0, 0),
@@ -188,19 +188,19 @@ func ProcessGCPClusterNodepoolOperationLog(
 		var state *pb.RevisionState
 		if isCluster {
 			if audit.Ending() {
-				state = commonlogk8saudit_contract.RevisionStateK8sClusterDeleted
+				state = k8saudit.RevisionStateK8sClusterDeleted
 			} else {
-				state = commonlogk8saudit_contract.RevisionStateK8sClusterDeleting
+				state = k8saudit.RevisionStateK8sClusterDeleting
 			}
 		} else {
 			if audit.Ending() {
-				state = commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleted
+				state = k8saudit.RevisionStateK8sNodepoolDeleted
 			} else {
-				state = commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleting
+				state = k8saudit.RevisionStateK8sNodepoolDeleting
 			}
 		}
 		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-			VerbType:     commonlogk8saudit_contract.VerbDelete,
+			VerbType:     k8saudit.VerbDelete,
 			StateType:    state,
 			Principal:    audit.PrincipalEmail,
 			ChangedTime:  logTimestamp,

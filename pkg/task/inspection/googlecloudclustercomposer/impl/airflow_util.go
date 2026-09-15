@@ -16,14 +16,14 @@ package googlecloudclustercomposer_impl
 
 import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 )
 
 // tiStatusToVerb converts Taskinstance status to (*pb.Verb, *pb.RevisionState).
 func tiStatusToVerb(ti *googlecloudclustercomposer_contract.AirflowTaskInstance) (*pb.Verb, *pb.RevisionState) {
 	if ti == nil {
-		return googlecloudclustercomposer_contract.VerbComposerTaskInstanceUnimplemented, commonlogk8saudit_contract.RevisionStateConditionUnknown
+		return googlecloudclustercomposer_contract.VerbComposerTaskInstanceUnimplemented, k8saudit.RevisionStateConditionUnknown
 	}
 	switch ti.Status() {
 	case googlecloudclustercomposer_contract.TASKINSTANCE_SCHEDULED:
@@ -51,6 +51,6 @@ func tiStatusToVerb(ti *googlecloudclustercomposer_contract.AirflowTaskInstance)
 	case googlecloudclustercomposer_contract.TASKINSTANCE_SKIPPED:
 		return googlecloudclustercomposer_contract.VerbComposerTaskInstanceSkipped, googlecloudclustercomposer_contract.RevisionStateComposerTiSkipped
 	default:
-		return googlecloudclustercomposer_contract.VerbComposerTaskInstanceUnimplemented, commonlogk8saudit_contract.RevisionStateConditionUnknown
+		return googlecloudclustercomposer_contract.VerbComposerTaskInstanceUnimplemented, k8saudit.RevisionStateConditionUnknown
 	}
 }

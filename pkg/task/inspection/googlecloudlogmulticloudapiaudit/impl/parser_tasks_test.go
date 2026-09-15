@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -136,8 +136,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 						ResourceBody: testReaderFromYAML(t, `initialNodeCount: 1
 name: test-cluster`).Node,
 						Principal: "foobar@qux.test",
-						VerbType:  commonlogk8saudit_contract.VerbCreate,
-						StateType: commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
+						VerbType:  k8saudit.VerbCreate,
+						StateType: k8saudit.RevisionStateK8sClusterProvisioning,
 					}, nodeComparer).
 					HasRevision(wantOp1ClusterPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
@@ -173,8 +173,8 @@ name: test-cluster`).Node,
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
+						VerbType:     k8saudit.VerbCreate,
+						StateType:    k8saudit.RevisionStateK8sClusterExisting,
 					}, nodeComparer).
 					HasRevision(wantOp1AzureClusterPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
@@ -211,8 +211,8 @@ name: test-cluster`).Node,
 						ResourceBody: testReaderFromYAML(t, `initialNodeCount: 1
 name: test-nodepool`).Node,
 						Principal: "foobar@qux.test",
-						VerbType:  commonlogk8saudit_contract.VerbCreate,
-						StateType: commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioning,
+						VerbType:  k8saudit.VerbCreate,
+						StateType: k8saudit.RevisionStateK8sNodepoolProvisioning,
 					}, nodeComparer).
 					HasRevision(wantOp2NodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
@@ -248,15 +248,15 @@ name: test-nodepool`).Node,
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioningLogNotFound,
+						VerbType:     k8saudit.VerbCreate,
+						StateType:    k8saudit.RevisionStateK8sNodepoolProvisioningLogNotFound,
 					}, nodeComparer).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting,
+						VerbType:     k8saudit.VerbCreate,
+						StateType:    k8saudit.RevisionStateK8sNodepoolExisting,
 					}, nodeComparer).
 					HasRevision(wantOp2AzureNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
@@ -290,15 +290,15 @@ name: test-nodepool`).Node,
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
-						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolDeletingLogNotFound,
+						VerbType:     k8saudit.VerbDelete,
+						StateType:    k8saudit.RevisionStateK8sNodepoolDeletingLogNotFound,
 					}, nodeComparer).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
-						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleted,
+						VerbType:     k8saudit.VerbDelete,
+						StateType:    k8saudit.RevisionStateK8sNodepoolDeleted,
 					}, nodeComparer).
 					HasRevision(wantOp2DeleteNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,

@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -38,8 +38,8 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 		inputMessage         string
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
-		inputContainerIDInfo map[string]*commonlogk8saudit_contract.ContainerIdentity
-		inputResourceUIDInfo map[string]*commonlogk8saudit_contract.ResourceIdentity
+		inputContainerIDInfo map[string]*k8saudit.ContainerIdentity
+		inputResourceUIDInfo map[string]*k8saudit.ResourceIdentity
 		assert               func(t *testing.T, cs *khifilev6.LogChangeSet)
 	}{
 		{
@@ -90,7 +90,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 				},
 			},
-			inputContainerIDInfo: map[string]*commonlogk8saudit_contract.ContainerIdentity{
+			inputContainerIDInfo: map[string]*k8saudit.ContainerIdentity{
 				"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256": {
 					PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 					ContainerName: "fluentbit-gke-init",
@@ -162,7 +162,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 				Component: "kubelet",
 				NodeName:  "node-1",
 			},
-			inputResourceUIDInfo: map[string]*commonlogk8saudit_contract.ResourceIdentity{
+			inputResourceUIDInfo: map[string]*k8saudit.ResourceIdentity{
 				"4cba26fb-f074-44fe-9afa-5195e903c337": {
 					Name:       "podname1",
 					Namespace:  "kube-system",
@@ -210,7 +210,7 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 				},
 			},
-			inputContainerIDInfo: map[string]*commonlogk8saudit_contract.ContainerIdentity{
+			inputContainerIDInfo: map[string]*k8saudit.ContainerIdentity{
 				"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256": {
 					PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 					ContainerName: "fluentbit-gke-init",
@@ -236,18 +236,18 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 				podIDFinder = naiveFinder
 			}
 
-			var containerIDFinder patternfinder.PatternFinder[*commonlogk8saudit_contract.ContainerIdentity] = patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ContainerIdentity]()
+			var containerIDFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity] = patternfinder.NewNaivePatternFinder[*k8saudit.ContainerIdentity]()
 			if tc.inputContainerIDInfo != nil {
-				naiveFinder := patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ContainerIdentity]()
+				naiveFinder := patternfinder.NewNaivePatternFinder[*k8saudit.ContainerIdentity]()
 				for k, v := range tc.inputContainerIDInfo {
 					naiveFinder.AddPattern(k, v)
 				}
 				containerIDFinder = naiveFinder
 			}
 
-			var resourceUIDFinder patternfinder.PatternFinder[*commonlogk8saudit_contract.ResourceIdentity] = patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
+			var resourceUIDFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity] = patternfinder.NewNaivePatternFinder[*k8saudit.ResourceIdentity]()
 			if tc.inputResourceUIDInfo != nil {
-				naiveFinder := patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
+				naiveFinder := patternfinder.NewNaivePatternFinder[*k8saudit.ResourceIdentity]()
 				for k, v := range tc.inputResourceUIDInfo {
 					naiveFinder.AddPattern(k, v)
 				}
@@ -255,8 +255,8 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 			}
 
 			ctx := tasktest.WithTaskResult(t.Context(), googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
-			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
-			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), resourceUIDFinder)
+			ctx = tasktest.WithTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
+			ctx = tasktest.WithTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref(), resourceUIDFinder)
 
 			// Detect type of parser needed for test message
 			var message *logutil.ParseStructuredLogResult

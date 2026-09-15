@@ -21,7 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
 // snapshotLogParams describes a CAI temporal asset log the provider indexes.
@@ -106,7 +106,7 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 		name string
 		logs []snapshotLogParams
 		// lookup is the identity the audit log pipeline asks the provider about.
-		lookup    *commonlogk8saudit_contract.ResourceIdentity
+		lookup    *k8saudit.ResourceIdentity
 		wantFound bool
 		// wantLabel is the metadata.labels.origin value of the manifest the provider must report.
 		wantLabel string
@@ -114,7 +114,7 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 		{
 			name: "reports the snapshot that was current at the inspection start",
 			logs: []snapshotLogParams{withWindow(podParams, "active", -time.Hour, time.Hour)},
-			lookup: &commonlogk8saudit_contract.ResourceIdentity{
+			lookup: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
 				Namespace:  "default",
@@ -126,7 +126,7 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 		{
 			name: "ignores a snapshot that ended before the inspection start",
 			logs: []snapshotLogParams{withWindow(podParams, "ended", -2*time.Hour, -time.Hour)},
-			lookup: &commonlogk8saudit_contract.ResourceIdentity{
+			lookup: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
 				Namespace:  "default",
@@ -137,7 +137,7 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 		{
 			name: "ignores a snapshot that became current after the inspection start",
 			logs: []snapshotLogParams{withWindow(podParams, "future", time.Hour, 2*time.Hour)},
-			lookup: &commonlogk8saudit_contract.ResourceIdentity{
+			lookup: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
 				Namespace:  "default",
@@ -152,7 +152,7 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 				params.isDeleted = true
 				return params
 			}()},
-			lookup: &commonlogk8saudit_contract.ResourceIdentity{
+			lookup: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
 				Namespace:  "default",
@@ -163,10 +163,10 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 		{
 			name: "indexes a cluster scoped resource under the cluster scope namespace",
 			logs: []snapshotLogParams{withWindow(nodeParams, "active", -time.Hour, time.Hour)},
-			lookup: &commonlogk8saudit_contract.ResourceIdentity{
+			lookup: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "node",
-				Namespace:  commonlogk8saudit_contract.ClusterScopeNamespace,
+				Namespace:  k8saudit.ClusterScopeNamespace,
 				Name:       "node-1",
 			},
 			wantFound: true,
@@ -175,7 +175,7 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 		{
 			name: "resolves a cluster scoped resource when queried with an empty namespace",
 			logs: []snapshotLogParams{withWindow(nodeParams, "active", -time.Hour, time.Hour)},
-			lookup: &commonlogk8saudit_contract.ResourceIdentity{
+			lookup: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "node",
 				Namespace:  "",
@@ -190,7 +190,7 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 				withWindow(podParams, "newer", -time.Hour, time.Hour),
 				withWindow(podParams, "older", -2*time.Hour, time.Hour),
 			},
-			lookup: &commonlogk8saudit_contract.ResourceIdentity{
+			lookup: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
 				Namespace:  "default",
@@ -205,7 +205,7 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 				withWindow(podParams, "older", -2*time.Hour, time.Hour),
 				withWindow(podParams, "newer", -time.Hour, time.Hour),
 			},
-			lookup: &commonlogk8saudit_contract.ResourceIdentity{
+			lookup: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
 				Namespace:  "default",
@@ -217,7 +217,7 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 		{
 			name: "reports nothing for a subresource the inventory does not carry",
 			logs: []snapshotLogParams{withWindow(podParams, "active", -time.Hour, time.Hour)},
-			lookup: &commonlogk8saudit_contract.ResourceIdentity{
+			lookup: &k8saudit.ResourceIdentity{
 				APIVersion:      "core/v1",
 				Kind:            "pod",
 				Namespace:       "default",

@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -201,7 +201,7 @@ func TestCheckStartingAndTerminationLog(t *testing.T) {
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantComponentPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						VerbType:    k8saudit.VerbCreate,
 						StateType:   googlecloudlogk8snode_contract.RevisionStateComponentRunning,
 						Principal:   "test-component",
 						ChangedTime: testTime,
@@ -218,7 +218,7 @@ func TestCheckStartingAndTerminationLog(t *testing.T) {
 
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantComponentPath, &khifilev6.StagingRevision{
-						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						VerbType:    k8saudit.VerbDelete,
 						StateType:   googlecloudlogk8snode_contract.RevisionStateComponentTerminated,
 						Principal:   "test-component",
 						ChangedTime: testTime,
