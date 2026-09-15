@@ -70,10 +70,9 @@ func extractClusterCreateTimeFromSnapshots(snapshots []*googlecloudcaik8s_contra
 		if s.TemporalAsset.Asset.AssetType != googlecloudcaik8s_contract.GKEClusterAssetType {
 			continue
 		}
-		if res := s.TemporalAsset.Asset.Resource; res != nil && res.Data != nil {
-			str := res.Data.GetFields()["createTime"].GetStringValue()
-			if str != "" {
-				if t, err := common.ParseTime(str); err == nil {
+		if data := s.TemporalAsset.Asset.GetResource().GetData(); data != nil {
+			if rawCreateTime := data.GetFields()["createTime"].GetStringValue(); rawCreateTime != "" {
+				if t, err := common.ParseTime(rawCreateTime); err == nil {
 					return t
 				}
 			}

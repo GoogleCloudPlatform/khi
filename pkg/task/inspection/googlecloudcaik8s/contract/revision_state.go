@@ -53,7 +53,7 @@ var (
 		"Node Pool existence is undetermined",
 		"help_outline",
 		"The node pool may have existed because the parent cluster was active, but its existence is undetermined prior to the first recorded asset snapshot.",
-		style.MustForceConvertSRGBHex("#888899"),
+		style.Color{R: 0.53, G: 0.53, B: 0.6, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 )

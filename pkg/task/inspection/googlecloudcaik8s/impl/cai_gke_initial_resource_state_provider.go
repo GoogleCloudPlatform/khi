@@ -68,13 +68,12 @@ func newCAIGKEInitialResourceStateProvider(snapshots []*googlecloudcaik8s_contra
 		}
 
 		var windowStartTime, windowEndTime time.Time
-		if w := ta.GetWindow(); w != nil {
-			if st := w.GetStartTime(); st != nil {
-				windowStartTime = st.AsTime()
-			}
-			if et := w.GetEndTime(); et != nil {
-				windowEndTime = et.AsTime()
-			}
+		window := ta.GetWindow()
+		if st := window.GetStartTime(); st != nil {
+			windowStartTime = st.AsTime()
+		}
+		if et := window.GetEndTime(); et != nil {
+			windowEndTime = et.AsTime()
 		}
 
 		if !isActiveAt(windowStartTime, windowEndTime, queryStartTime) {
@@ -87,9 +86,8 @@ func newCAIGKEInitialResourceStateProvider(snapshots []*googlecloudcaik8s_contra
 		}
 
 		var resourceBody structured.Node
-		if res := ta.Asset.GetResource(); res != nil && res.GetData() != nil {
-			dataMap := res.GetData().AsMap()
-			if node, err := structured.FromGoValue(dataMap, &structured.AlphabeticalGoMapKeyOrderProvider{}); err == nil {
+		if data := ta.Asset.GetResource().GetData(); data != nil {
+			if node, err := structured.FromGoValue(data.AsMap(), &structured.AlphabeticalGoMapKeyOrderProvider{}); err == nil {
 				resourceBody = node
 			}
 		}
