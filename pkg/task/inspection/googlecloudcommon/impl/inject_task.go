@@ -23,6 +23,7 @@ import (
 )
 
 // LocationFetcherTask is the task to inject the reference to LocationFetcher.
+// This is primarily utilized by the default fallback AutocompleteLocationTask.
 var LocationFetcherTask = coretask.NewTask(googlecloudcommon_contract.LocationFetcherTaskID, []coretask.Dependency{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
