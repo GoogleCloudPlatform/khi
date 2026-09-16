@@ -15,10 +15,11 @@
 GOLANGCILINT_VERSION := v2.12.2
 GOLANGCILINT_CMD ?= $(shell command -v golangci-lint)
 CONTAINER_CMD ?= $(shell command -v docker || command -v podman)
+NODE_MAX_OLD_SPACE_SIZE ?= 12288
 
 .PHONY: lint-web
 lint-web: $(GENERATE_FRONTEND_DUMMY)## Run frontend linter
-	cd web && NODE_OPTIONS="--max-old-space-size=8192" npx ng lint
+	cd web && NODE_OPTIONS="--max-old-space-size=$(NODE_MAX_OLD_SPACE_SIZE)" npx ng lint
 	cd web && npm run lint:style
 
 .PHONY: lint-go
