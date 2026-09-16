@@ -1319,7 +1319,9 @@ type FormField struct {
 	//	*FormField_File
 	//	*FormField_Set
 	//	*FormField_Checkbox
-	Kind          isFormField_Kind `protobuf_oneof:"kind"`
+	Kind isFormField_Kind `protobuf_oneof:"kind"`
+	// Indicates whether the form field is currently being processed or validated asynchronously.
+	Pending       *bool `protobuf:"varint,11,opt,name=pending" json:"pending,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1439,6 +1441,13 @@ func (x *FormField) GetCheckbox() *CheckboxFormField {
 		}
 	}
 	return nil
+}
+
+func (x *FormField) GetPending() bool {
+	if x != nil && x.Pending != nil {
+		return *x.Pending
+	}
+	return false
 }
 
 type isFormField_Kind interface {
@@ -3449,7 +3458,7 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\x10allow_remove_all\x18\x05 \x01(\bR\x0eallowRemoveAll\"T\n" +
 	"\x11CheckboxFormField\x12\x1a\n" +
 	"\breadonly\x18\x01 \x01(\bR\breadonly\x12#\n" +
-	"\rdefault_value\x18\x02 \x01(\bR\fdefaultValue\"\x94\x03\n" +
+	"\rdefault_value\x18\x02 \x01(\bR\fdefaultValue\"\xae\x03\n" +
 	"\tFormField\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +
@@ -3461,7 +3470,8 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\x04file\x18\b \x01(\v2\x15.api.v1.FileFormFieldH\x00R\x04file\x12(\n" +
 	"\x03set\x18\t \x01(\v2\x14.api.v1.SetFormFieldH\x00R\x03set\x127\n" +
 	"\bcheckbox\x18\n" +
-	" \x01(\v2\x19.api.v1.CheckboxFormFieldH\x00R\bcheckboxB\x06\n" +
+	" \x01(\v2\x19.api.v1.CheckboxFormFieldH\x00R\bcheckbox\x12\x18\n" +
+	"\apending\x18\v \x01(\bR\apendingB\x06\n" +
 	"\x04kind\"\x82\x02\n" +
 	"\x0fInspectionQuery\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +

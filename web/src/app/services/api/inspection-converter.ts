@@ -162,6 +162,7 @@ export function convertProtoFormFieldToParameterFormField(
   const commonDesc = field.description;
   const commonHint = field.hint;
   const commonHintType = mapProtoHintTypeToFormHintType(field.hintType);
+  const commonPending = field.pending;
 
   switch (field.kind.case) {
     case 'group': {
@@ -180,6 +181,7 @@ export function convertProtoFormFieldToParameterFormField(
         description: commonDesc,
         hint: commonHint,
         hintType: commonHintType,
+        pending: commonPending,
         children,
         collapsible: gf.collapsible,
         collapsedByDefault: gf.collapsedByDefault,
@@ -195,6 +197,7 @@ export function convertProtoFormFieldToParameterFormField(
         description: commonDesc,
         hint: commonHint,
         hintType: commonHintType,
+        pending: commonPending,
         readonly: tf.readonly,
         default: tf.defaultValue,
         suggestions: [...tf.suggestions],
@@ -213,6 +216,7 @@ export function convertProtoFormFieldToParameterFormField(
         description: commonDesc,
         hint: commonHint,
         hintType: commonHintType,
+        pending: commonPending,
         token: { id: ff.tokenId },
         status: mapProtoUploadStatusToFormUploadStatus(ff.status),
       };
@@ -227,6 +231,7 @@ export function convertProtoFormFieldToParameterFormField(
         description: commonDesc,
         hint: commonHint,
         hintType: commonHintType,
+        pending: commonPending,
         options: sf.options.map((opt) => ({
           id: opt.id,
           description: opt.description,
@@ -247,6 +252,7 @@ export function convertProtoFormFieldToParameterFormField(
         description: commonDesc,
         hint: commonHint,
         hintType: commonHintType,
+        pending: commonPending,
         readonly: cf.readonly,
         default: cf.defaultValue,
       };

@@ -561,6 +561,7 @@ func convertFormFields(fields []inspectionmetadata.ParameterFormField) []*apiv1.
 			Description: proto.String(base.Description),
 			Hint:        proto.String(base.Hint),
 			HintType:    convertHintType(base.HintType).Enum(),
+			Pending:     proto.Bool(base.Pending),
 		}
 		switch v := field.(type) {
 		case inspectionmetadata.GroupParameterFormField:

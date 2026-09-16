@@ -46,6 +46,7 @@ type AsyncTaskResult[T any] struct {
 type taskFlight[K comparable, T any] struct {
 	inputKey K
 	cancel   context.CancelFunc
+	done     chan struct{}
 }
 
 // AsyncTaskManager coordinates background tasks for inspection task slots.
@@ -101,11 +102,13 @@ func (m *AsyncTaskManager[K, T]) DoAsyncOrGet(
 	flight := &taskFlight[K, T]{
 		inputKey: inputKey,
 		cancel:   callCancel,
+		done:     make(chan struct{}),
 	}
 	m.inFlight[slotKey] = flight
 	m.mu.Unlock()
 
 	go func() {
+		defer close(flight.done)
 		val, err := worker(callCtx)
 
 		m.mu.Lock()
@@ -142,6 +145,47 @@ func (m *AsyncTaskManager[K, T]) DoAsyncOrGet(
 	}()
 
 	return AsyncTaskResult[T]{Status: StatusRunning}
+}
+
+// DoSyncOrGet queries the cached result or executes/waits for the task synchronously.
+// If a task with the same inputKey is already running in the background, it waits for completion.
+// If the context is canceled while waiting, it returns ctx.Err().
+func (m *AsyncTaskManager[K, T]) DoSyncOrGet(
+	ctx context.Context,
+	slotKey string,
+	inputKey K,
+	worker func(ctx context.Context) (T, error),
+) (T, error) {
+	if err := ctx.Err(); err != nil {
+		var zero T
+		return zero, err
+	}
+	for {
+		res := m.DoAsyncOrGet(slotKey, inputKey, worker)
+		if res.Status == StatusCompleted {
+			return res.Value, nil
+		}
+		if res.Status == StatusFailed {
+			return res.Value, res.Error
+		}
+
+		m.mu.Lock()
+		flight, exists := m.inFlight[slotKey]
+		if !exists || flight.inputKey != inputKey {
+			m.mu.Unlock()
+			continue
+		}
+		doneCh := flight.done
+		m.mu.Unlock()
+
+		select {
+		case <-doneCh:
+			continue
+		case <-ctx.Done():
+			var zero T
+			return zero, ctx.Err()
+		}
+	}
 }
 
 // Cancel cancels the active in-flight task for slotKey, if one exists.

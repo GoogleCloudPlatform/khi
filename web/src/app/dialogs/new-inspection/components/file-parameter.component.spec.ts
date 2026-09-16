@@ -19,9 +19,13 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FileParameterComponent } from './file-parameter.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
-import { FILE_UPLOADER, MockFileUploader } from './service/file-uploader';
+import {
+  FILE_UPLOADER,
+  FileUploaderStatus,
+  MockFileUploader,
+} from './service/file-uploader';
 import { By } from '@angular/platform-browser';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatProgressSpinnerHarness } from '@angular/material/progress-spinner/testing';
 import {
@@ -199,5 +203,35 @@ describe('FileParameterComponent', () => {
     fixture.detectChanges();
 
     expect(uploadButton.attributes['disabled']).toBeTruthy();
+  });
+
+  it('refreshes parameter store when upload starts and when status.done becomes true, but not on intermediate progress', () => {
+    const store = TestBed.inject(PARAMETER_STORE);
+    const setSpy = spyOn(store, 'set');
+
+    const progressSubject = new Subject<FileUploaderStatus>();
+    mockFileUploader.statusProvider = () => progressSubject.asObservable();
+
+    fixture.componentInstance.selectedFile = new File([], 'a mock file');
+    fixture.componentInstance.onClickUploadButton();
+
+    // Refreshed immediately when upload starts
+    expect(setSpy).toHaveBeenCalledTimes(1);
+
+    // Intermediate progress update (done: false)
+    progressSubject.next({
+      done: false,
+      completeRatio: 0.5,
+      completeRatioUnknown: false,
+    });
+    expect(setSpy).toHaveBeenCalledTimes(1);
+
+    // Final progress update (done: true)
+    progressSubject.next({
+      done: true,
+      completeRatio: 1,
+      completeRatioUnknown: false,
+    });
+    expect(setSpy).toHaveBeenCalledTimes(2);
   });
 });

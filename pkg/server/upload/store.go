@@ -131,6 +131,60 @@ func (s *UploadFileStore) GetResult(token UploadToken, req map[string]any) (Uplo
 	}
 }
 
+// GetCompletedResult waits for any asynchronous verification to complete and returns the upload result.
+func (s *UploadFileStore) GetCompletedResult(ctx context.Context, token UploadToken, req map[string]any) (UploadResult, error) {
+	err := s.ensureIssuedToken(token)
+	if err != nil {
+		return UploadResult{}, err
+	}
+
+	s.resultLock.RLock()
+	result, ok := s.results[token.GetID()]
+	s.resultLock.RUnlock()
+	if !ok {
+		return UploadResult{}, fmt.Errorf("upload result not found for token %s", token.GetID())
+	}
+
+	if result.Status == UploadStatusWaiting || result.Status == UploadStatusUploading {
+		return result, nil
+	}
+
+	s.verifierLock.RLock()
+	verifier := s.verifiers[token.GetID()]
+	s.verifierLock.RUnlock()
+
+	if verifier == nil {
+		return UploadResult{
+			Token:         token,
+			StoreProvider: s.StoreProvider,
+			Status:        UploadStatusCompleted,
+		}, nil
+	}
+
+	_, verifyErr := s.asyncVerifierManager.DoSyncOrGet(ctx, token.GetID(), token.GetHash(), func(ctx context.Context) (struct{}, error) {
+		return struct{}{}, verifier.Verify(s.StoreProvider, token)
+	})
+
+	if err := ctx.Err(); err != nil {
+		return UploadResult{}, err
+	}
+
+	if verifyErr != nil {
+		return UploadResult{
+			Token:             token,
+			StoreProvider:     s.StoreProvider,
+			Status:            UploadStatusCompleted,
+			VerificationError: verifyErr,
+		}, nil
+	}
+
+	return UploadResult{
+		Token:         token,
+		StoreProvider: s.StoreProvider,
+		Status:        UploadStatusCompleted,
+	}, nil
+}
+
 // NotifyFileUploaded records that a file upload has completed and resets any cached verification.
 func (s *UploadFileStore) NotifyFileUploaded(token UploadToken) error {
 	err := s.ensureIssuedToken(token)
@@ -221,3 +275,5 @@ func NewUploadFileStore(storeProvider UploadFileStoreProvider) *UploadFileStore 
 		asyncVerifierManager: asynctask.NewAsyncTaskManager[string, struct{}](),
 	}
 }
+
+var _ Store = (*UploadFileStore)(nil)

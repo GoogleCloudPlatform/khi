@@ -286,6 +286,48 @@ describe('inspection-converter', () => {
       expect(converted.default).toBeTrue();
       expect(converted.hintType).toBe(ParameterHintType.Info);
     });
+
+    it('propagates pending: true to parameter form field', () => {
+      const field = create(FormFieldSchema, {
+        id: 'checkbox-pending',
+        label: 'Checkbox Pending',
+        pending: true,
+        kind: {
+          case: 'checkbox',
+          value: {
+            readonly: false,
+            defaultValue: false,
+          },
+        },
+      });
+
+      const converted = convertProtoFormFieldToParameterFormField(
+        field,
+      ) as CheckboxParameterFormField;
+      expect(converted).not.toBeNull();
+      expect(converted.pending).toBeTrue();
+    });
+
+    it('propagates pending: false to parameter form field', () => {
+      const field = create(FormFieldSchema, {
+        id: 'checkbox-not-pending',
+        label: 'Checkbox Not Pending',
+        pending: false,
+        kind: {
+          case: 'checkbox',
+          value: {
+            readonly: false,
+            defaultValue: false,
+          },
+        },
+      });
+
+      const converted = convertProtoFormFieldToParameterFormField(
+        field,
+      ) as CheckboxParameterFormField;
+      expect(converted).not.toBeNull();
+      expect(converted.pending).toBeFalse();
+    });
   });
 
   describe('convertMapToParameterValues', () => {

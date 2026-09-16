@@ -15,6 +15,7 @@
 package upload
 
 import (
+	"context"
 	"fmt"
 	"sync"
 )
@@ -73,6 +74,14 @@ func (s *JobModeStore) GetResult(token UploadToken, req map[string]any) (UploadR
 		Status:            UploadStatusCompleted,
 		VerificationError: verificationError,
 	}, nil
+}
+
+// GetCompletedResult resolves and verifies the file synchronously for job mode.
+func (s *JobModeStore) GetCompletedResult(ctx context.Context, token UploadToken, req map[string]any) (UploadResult, error) {
+	if err := ctx.Err(); err != nil {
+		return UploadResult{}, err
+	}
+	return s.GetResult(token, req)
 }
 
 var _ Store = (*JobModeStore)(nil)

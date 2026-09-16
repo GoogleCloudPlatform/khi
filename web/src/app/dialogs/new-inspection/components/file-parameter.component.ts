@@ -20,7 +20,6 @@ import {
   ElementRef,
   inject,
   input,
-  OnDestroy,
   signal,
   ViewChild,
 } from '@angular/core';
@@ -39,7 +38,6 @@ import { ParameterHeaderComponent } from './parameter-header.component';
 import { ParameterHintComponent } from './parameter-hint.component';
 import { PARAMETER_STORE } from './service/parameter-store';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { interval, Subject, takeUntil, takeWhile } from 'rxjs';
 
 @Component({
   selector: 'khi-new-inspection-file-parameter',
@@ -59,12 +57,7 @@ import { interval, Subject, takeUntil, takeWhile } from 'rxjs';
     ParameterHintComponent,
   ],
 })
-export class FileParameterComponent implements OnDestroy {
-  /**
-   * The interval to attempt to retrieve the form status from backend.
-   */
-  static readonly FORM_STATUS_POLLING_INTERVAL_MS = 500;
-
+export class FileParameterComponent {
   readonly UploadStatus = UploadStatus;
   /**
    * The setting of this file type form field.
@@ -101,8 +94,6 @@ export class FileParameterComponent implements OnDestroy {
   fileInput!: ElementRef<HTMLInputElement>;
 
   selectedFile: File | null = null;
-
-  private formStoreRefreshCancel = new Subject();
 
   private snackBar = inject(MatSnackBar);
 
@@ -166,6 +157,7 @@ export class FileParameterComponent implements OnDestroy {
       return;
     }
     this.isSelectedFileUploading.set(true);
+    this.requestStoreRefresh();
     this.uploader
       .upload(this.parameter().token, this.selectedFile)
       .subscribe((status) => {
@@ -175,11 +167,10 @@ export class FileParameterComponent implements OnDestroy {
           this.uploadRatio.set(status.completeRatio);
         }
 
-        this.requestStoreRefresh();
         if (status.done) {
+          this.requestStoreRefresh();
           this.isSelectedFileUploading.set(false);
           this.isSelectedFileUploaded.set(true);
-          this.monitorRefreshingFormStoreWhileVerification();
         }
       });
   }
@@ -204,21 +195,5 @@ export class FileParameterComponent implements OnDestroy {
       [this.parameter().id]: '',
     });
     this.store.set(this.parameter().id, new Date());
-  }
-
-  private monitorRefreshingFormStoreWhileVerification() {
-    this.formStoreRefreshCancel.next(void 0);
-    interval(FileParameterComponent.FORM_STATUS_POLLING_INTERVAL_MS)
-      .pipe(
-        takeUntil(this.formStoreRefreshCancel),
-        takeWhile(() => this.parameter().status === UploadStatus.Verifying),
-      )
-      .subscribe(() => {
-        this.requestStoreRefresh();
-      });
-  }
-
-  ngOnDestroy(): void {
-    this.formStoreRefreshCancel.next(void 0);
   }
 }
