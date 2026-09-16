@@ -573,11 +573,6 @@ func tryResolveActiveFeatureSubgraph(
 		curr := queue[0]
 		queue = queue[1:]
 
-		// Fails if the current task is disabled.
-		if _, isDisabled := disabledRefIDSet[curr.UntypedID().ReferenceIDString()]; isDisabled {
-			return nil, false
-		}
-
 		hasMandatoryDeps := false
 		for _, dep := range curr.Dependencies() {
 			if dep.DescriptorScope() == taskid.ScopeAll && dep.DescriptorCardinality() == taskid.CardinalityPointToPoint {
@@ -588,6 +583,9 @@ func tryResolveActiveFeatureSubgraph(
 				}
 				depRefID := ptp.ReferenceID()
 
+				// Rejecting here is enough to keep disabled tasks out of the traversal. Callers
+				// already skip a disabled candidate, and this check runs before a dependency is
+				// enqueued, so queue never holds a disabled task.
 				if _, isDisabled := disabledRefIDSet[depRefID]; isDisabled {
 					return nil, false // Branch targets a disabled task.
 				}
