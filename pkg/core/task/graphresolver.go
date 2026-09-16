@@ -26,7 +26,7 @@ import (
 
 // ResolveGraph resolves the task graph starting from initialTasks, drawing dependencies from availableTasks,
 // and excluding disabledTasks.
-// It applies a deterministic 5-phase resolution algorithm and returns a runnable TaskSet containing
+// It applies a deterministic 6-phase resolution algorithm and returns a runnable TaskSet containing
 // topologically sorted tasks and concrete TaskEdges.
 func ResolveGraph(
 	initialTasks []UntypedTask,
@@ -44,22 +44,25 @@ func ResolveGraph(
 		return nil, err
 	}
 
-	// --- Phase 2: Active Feature Expansion & Fan-In Candidate Binding ---
+	// --- Phase 2: Disabled Feature Closure Expansion ---
+	expandDisabledClosure(disabledTasks, graphTaskMap, availableTaskMap, disabledRefIDSet)
+
+	// --- Phase 3: Active Feature Expansion & Fan-In Candidate Binding ---
 	candidateFanInEdges, err := resolveActiveFeaturesAndCandidateFanInEdges(graphTaskMap, availableTasks, availableTaskMap, disabledRefIDSet)
 	if err != nil {
 		return nil, err
 	}
 
-	// --- Phase 3: Point-to-Point Edge Binding ---
+	// --- Phase 4: Point-to-Point Edge Binding ---
 	pointToPointEdges := resolvePointToPointEdges(graphTaskMap)
 
-	// --- Phase 4: Fan-In Cycle Resolution & Edge Deduplication ---
+	// --- Phase 5: Fan-In Cycle Resolution & Edge Deduplication ---
 	resolvedTasks, resolvedEdges, boundFanInRefIDsByTaskImplID, err := resolveFanInEdgesAndCycles(graphTaskMap, pointToPointEdges, candidateFanInEdges)
 	if err != nil {
 		return nil, err
 	}
 
-	// --- Phase 5: Topological Sorting (Kahn's Algorithm) ---
+	// --- Phase 6: Topological Sorting (Kahn's Algorithm) ---
 	return buildAndSortTaskSet(resolvedTasks, resolvedEdges, boundFanInRefIDsByTaskImplID), nil
 }
 
@@ -201,6 +204,55 @@ func expandMandatoryDependencies(
 		}
 	}
 	return nil
+}
+
+// expandDisabledClosure marks every task that only disabled tasks depend on as disabled.
+//
+// disabledTasks holds only the feature sink tasks that the user turned off. Those sinks sit at the
+// downstream end of the graph while tryResolveActiveFeatureSubgraph walks upstream, so the sinks
+// alone never reveal that an upstream producer belongs to a disabled feature.
+//
+// Once resolveMandatoryClosure returns, graphTaskMap holds the complete mandatory closure of every
+// enabled feature and every system required task. A task that a disabled task reaches through
+// mandatory point-to-point dependencies and that is absent from graphTaskMap therefore serves
+// disabled features only, so disabling it cannot affect an enabled feature. Traversal stops at
+// tasks inside graphTaskMap because the active graph already needs them.
+func expandDisabledClosure(
+	disabledTasks []UntypedTask,
+	graphTaskMap map[string]UntypedTask,
+	availableTaskMap map[string]UntypedTask,
+	disabledRefIDSet map[string]struct{},
+) {
+	queue := make([]UntypedTask, 0, len(disabledTasks))
+	queue = append(queue, disabledTasks...)
+
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+
+		for _, dep := range curr.Dependencies() {
+			if dep.DescriptorScope() != taskid.ScopeAll || dep.DescriptorCardinality() != taskid.CardinalityPointToPoint {
+				continue
+			}
+			ptp, ok := dep.(taskid.PointToPointDescriptor)
+			if !ok {
+				continue
+			}
+			refID := ptp.ReferenceID()
+			if _, inActiveGraph := graphTaskMap[refID]; inActiveGraph {
+				continue
+			}
+			if _, alreadyDisabled := disabledRefIDSet[refID]; alreadyDisabled {
+				continue
+			}
+			upstream, exists := availableTaskMap[refID]
+			if !exists {
+				continue
+			}
+			disabledRefIDSet[refID] = struct{}{}
+			queue = append(queue, upstream)
+		}
+	}
 }
 
 // resolveActiveFeaturesAndCandidateFanInEdges resolves candidate fan-in edges and conditionally expands
@@ -608,8 +660,11 @@ func tryResolveActiveFeatureSubgraph(
 			}
 		}
 
-		// If an upstream task reached from candidate has no mandatory dependencies,
-		// this dependency branch terminates outside the active graph.
+		// Every branch must end by merging into graphTaskMap. Reaching a task without mandatory
+		// dependencies means the branch ran off the end of the graph instead, so pulling candidate in
+		// would start an entirely new chain of work. This rule stands on its own: disabledRefIDSet
+		// covers tasks owned by disabled features, while this check covers branches that never reach
+		// the active graph at all.
 		if curr != candidate && !hasMandatoryDeps {
 			return nil, false
 		}

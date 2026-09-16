@@ -853,3 +853,123 @@ func TestResolveGraph_InputValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveGraph_DisabledFeatureClosure(t *testing.T) {
+	tagDiscovery := NewTag[any]("disabled-closure-discovery")
+
+	testCases := []struct {
+		name        string
+		setup       func() (initialTasks, availableTasks, disabledTasks []UntypedTask)
+		wantTaskIDs []string
+	}{
+		{
+			name: "disabled feature keeps its exclusive multi-hop pipeline out of the active graph",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				sharedRoot := createMockTask("shared-root", "default", nil)
+				enabledFeature := createMockTask("enabled-feature", "default", []Dependency{
+					taskid.NewTaskReference[any]("shared-root"),
+				})
+				collector := createMockTask("collector", "default", []Dependency{
+					tagDiscovery.Ref(FromActiveFeatures),
+				})
+				disabledQuery := createMockTask("disabled-query", "default", []Dependency{
+					taskid.NewTaskReference[any]("shared-root"),
+				})
+				disabledProducer := createMockTask("disabled-producer", "default", []Dependency{
+					taskid.NewTaskReference[any]("disabled-query"),
+				}, ProvidesTag(tagDiscovery))
+				disabledSink := createMockTask("disabled-sink", "default", []Dependency{
+					taskid.NewTaskReference[any]("disabled-producer"),
+				})
+
+				return []UntypedTask{enabledFeature, collector},
+					[]UntypedTask{sharedRoot, enabledFeature, collector, disabledQuery, disabledProducer, disabledSink},
+					[]UntypedTask{disabledSink}
+			},
+			wantTaskIDs: []string{"collector#default", "shared-root#default", "enabled-feature#default"},
+		},
+		{
+			name: "upstream shared with an enabled feature stays enabled and keeps its producer collectable",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				sharedQuery := createMockTask("shared-query", "default", nil)
+				enabledFeature := createMockTask("enabled-feature", "default", []Dependency{
+					taskid.NewTaskReference[any]("shared-query"),
+				})
+				collector := createMockTask("collector", "default", []Dependency{
+					tagDiscovery.Ref(FromActiveFeatures),
+				})
+				activeProducer := createMockTask("active-producer", "default", []Dependency{
+					taskid.NewTaskReference[any]("shared-query"),
+				}, ProvidesTag(tagDiscovery))
+				disabledSink := createMockTask("disabled-sink", "default", []Dependency{
+					taskid.NewTaskReference[any]("shared-query"),
+				})
+
+				return []UntypedTask{enabledFeature, collector},
+					[]UntypedTask{sharedQuery, enabledFeature, collector, activeProducer, disabledSink},
+					[]UntypedTask{disabledSink}
+			},
+			wantTaskIDs: []string{"shared-query#default", "active-producer#default", "collector#default", "enabled-feature#default"},
+		},
+		{
+			name: "required task upstream of a disabled feature stays in the graph",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				requiredRoot := createMockTask("required-root", "default", nil, NewRequiredTaskLabel())
+				enabledFeature := createMockTask("enabled-feature", "default", nil)
+				disabledSink := createMockTask("disabled-sink", "default", []Dependency{
+					taskid.NewTaskReference[any]("required-root"),
+				})
+
+				return []UntypedTask{enabledFeature},
+					[]UntypedTask{requiredRoot, enabledFeature, disabledSink},
+					[]UntypedTask{disabledSink}
+			},
+			wantTaskIDs: []string{"enabled-feature#default", "required-root#default"},
+		},
+		{
+			name: "upstream shared by two disabled features is disabled",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				sharedRoot := createMockTask("shared-root", "default", nil)
+				enabledFeature := createMockTask("enabled-feature", "default", []Dependency{
+					taskid.NewTaskReference[any]("shared-root"),
+				})
+				collector := createMockTask("collector", "default", []Dependency{
+					tagDiscovery.Ref(FromActiveFeatures),
+				})
+				disabledCommonProducer := createMockTask("disabled-common-producer", "default", []Dependency{
+					taskid.NewTaskReference[any]("shared-root"),
+				}, ProvidesTag(tagDiscovery))
+				disabledSinkA := createMockTask("disabled-sink-a", "default", []Dependency{
+					taskid.NewTaskReference[any]("disabled-common-producer"),
+				})
+				disabledSinkB := createMockTask("disabled-sink-b", "default", []Dependency{
+					taskid.NewTaskReference[any]("disabled-common-producer"),
+				})
+
+				return []UntypedTask{enabledFeature, collector},
+					[]UntypedTask{sharedRoot, enabledFeature, collector, disabledCommonProducer, disabledSinkA, disabledSinkB},
+					[]UntypedTask{disabledSinkA, disabledSinkB}
+			},
+			wantTaskIDs: []string{"collector#default", "shared-root#default", "enabled-feature#default"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			initial, available, disabled := tc.setup()
+			taskSet, err := ResolveGraph(initial, available, disabled)
+			if err != nil {
+				t.Fatalf("ResolveGraph() unexpected error = %v", err)
+			}
+
+			var gotTaskIDs []string
+			for _, task := range taskSet.GetAll() {
+				gotTaskIDs = append(gotTaskIDs, task.UntypedID().String())
+			}
+
+			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
+				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

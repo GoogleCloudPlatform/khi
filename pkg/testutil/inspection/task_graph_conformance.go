@@ -281,6 +281,10 @@ func runFeatureCombinationsConformance(
 		}
 	})
 
+	t.Run("DisabledFeatureIsolation", func(t *testing.T) {
+		runDisabledFeatureIsolation(t, server, it, runner)
+	})
+
 	t.Run("AllExceptOneFeature", func(t *testing.T) {
 		for _, f := range features {
 			t.Run(fmt.Sprintf("without-%s", f.Id), func(t *testing.T) {
@@ -323,6 +327,139 @@ func runFeatureCombinationsConformance(
 			}
 		})
 	}
+}
+
+// runDisabledFeatureIsolation verifies that enabling a single feature never pulls tasks that are
+// exclusively owned by another, disabled feature into the resolved task graph.
+//
+// Ownership is derived only from the declared mandatory dependencies of each task, independently of
+// how ResolveGraph decides which tasks to include. A task is exclusive to a feature when it is
+// mandatorily reachable from that feature but not from any required task or any other feature.
+// Such a task exists solely to serve its owning feature, so resolving a graph without that feature
+// must never include it.
+func runDisabledFeatureIsolation(
+	t *testing.T,
+	server *coreinspection.InspectionTaskServer,
+	it *coreinspection.InspectionType,
+	runner *coreinspection.InspectionTaskRunner,
+) {
+	availableTasks := getAvailableTasksForInspectionType(server, it)
+	availableByRef := make(map[string]coretask.UntypedTask, len(availableTasks))
+	for _, task := range availableTasks {
+		availableByRef[task.UntypedID().ReferenceIDString()] = task
+	}
+
+	var featureTasks []coretask.UntypedTask
+	var requiredTasks []coretask.UntypedTask
+	for _, task := range availableTasks {
+		if typedmap.GetOrDefault(task.Labels(), inspectioncore.LabelKeyInspectionFeatureFlag, false) {
+			featureTasks = append(featureTasks, task)
+		}
+		if typedmap.GetOrDefault(task.Labels(), coretask.LabelKeyRequiredTask, false) {
+			requiredTasks = append(requiredTasks, task)
+		}
+	}
+	if len(featureTasks) < 2 {
+		t.Skipf("skipping isolation check: inspection type %q has %d features, at least 2 are needed", it.Id, len(featureTasks))
+	}
+
+	exclusiveRefIDsByFeature := make(map[string]map[string]struct{}, len(featureTasks))
+	for _, feature := range featureTasks {
+		featureImplID := feature.UntypedID().String()
+
+		otherRoots := make([]coretask.UntypedTask, 0, len(requiredTasks)+len(featureTasks)-1)
+		otherRoots = append(otherRoots, requiredTasks...)
+		for _, other := range featureTasks {
+			if other.UntypedID().String() != featureImplID {
+				otherRoots = append(otherRoots, other)
+			}
+		}
+		otherClosure := mandatoryClosureRefIDs(otherRoots, availableByRef)
+
+		exclusive := make(map[string]struct{})
+		for refID := range mandatoryClosureRefIDs([]coretask.UntypedTask{feature}, availableByRef) {
+			if _, sharedWithOthers := otherClosure[refID]; !sharedWithOthers {
+				exclusive[refID] = struct{}{}
+			}
+		}
+		exclusiveRefIDsByFeature[featureImplID] = exclusive
+	}
+
+	for _, enabled := range featureTasks {
+		enabledImplID := enabled.UntypedID().String()
+		t.Run(enabledImplID, func(t *testing.T) {
+			if err := runner.SetFeatureList([]string{enabledImplID}); err != nil {
+				t.Fatalf("failed to enable only feature %q: %v", enabledImplID, err)
+			}
+			taskSet, err := runner.ResolveTaskGraph()
+			if err != nil {
+				t.Fatalf("failed to resolve task graph with only feature %q enabled: %v", enabledImplID, err)
+			}
+
+			resolvedRefIDs := make(map[string]struct{})
+			for _, task := range taskSet.GetAll() {
+				resolvedRefIDs[task.UntypedID().ReferenceIDString()] = struct{}{}
+			}
+
+			for _, disabled := range featureTasks {
+				disabledImplID := disabled.UntypedID().String()
+				if disabledImplID == enabledImplID {
+					continue
+				}
+				var leaked []string
+				for refID := range exclusiveRefIDsByFeature[disabledImplID] {
+					if _, resolved := resolvedRefIDs[refID]; resolved {
+						leaked = append(leaked, refID)
+					}
+				}
+				if len(leaked) > 0 {
+					sort.Strings(leaked)
+					t.Errorf("enabling only feature %q pulled in tasks exclusively owned by the disabled feature %q: %v",
+						enabledImplID, disabledImplID, leaked)
+				}
+			}
+		})
+	}
+}
+
+// mandatoryClosureRefIDs returns the reference IDs of all tasks reachable from roots by following
+// mandatory point-to-point dependencies.
+func mandatoryClosureRefIDs(roots []coretask.UntypedTask, availableByRef map[string]coretask.UntypedTask) map[string]struct{} {
+	closure := make(map[string]struct{}, len(roots))
+	queue := make([]coretask.UntypedTask, 0, len(roots))
+	for _, root := range roots {
+		refID := root.UntypedID().ReferenceIDString()
+		if _, visited := closure[refID]; visited {
+			continue
+		}
+		closure[refID] = struct{}{}
+		queue = append(queue, root)
+	}
+
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+		for _, dep := range curr.Dependencies() {
+			if dep.DescriptorScope() != taskid.ScopeAll || dep.DescriptorCardinality() != taskid.CardinalityPointToPoint {
+				continue
+			}
+			ptp, ok := dep.(taskid.PointToPointDescriptor)
+			if !ok {
+				continue
+			}
+			refID := ptp.ReferenceID()
+			if _, visited := closure[refID]; visited {
+				continue
+			}
+			next, exists := availableByRef[refID]
+			if !exists {
+				continue
+			}
+			closure[refID] = struct{}{}
+			queue = append(queue, next)
+		}
+	}
+	return closure
 }
 
 // runFormTaskAndTypeContracts validates form task parameters and producer-consumer ResultType contracts.
