@@ -27,8 +27,11 @@ var ComposerEnvironmentClusterFinderTask = coretask.NewTask(
 	composercluster.ComposerEnvironmentClusterFinderTaskID,
 	[]coretask.Dependency{
 		gcpcommon.APIClientFactoryTaskID.Ref(),
+		gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(),
 	},
 	func(ctx context.Context) (composercluster.ComposerEnvironmentClusterFinder, error) {
-		return &composercluster.EnvironmentClusterFinderImpl{}, nil
+		cf := coretask.GetTaskResult(ctx, gcpcommon.APIClientFactoryTaskID.Ref())
+		injector := coretask.GetTaskResult(ctx, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
+		return composercluster.NewEnvironmentClusterFinder(cf, injector), nil
 	},
 )

@@ -22,8 +22,6 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
 var ErrEnvironmentClusterNotFound = errors.New("not found")
@@ -32,19 +30,30 @@ type ComposerEnvironmentClusterFinder interface {
 	GetGKEClusterNames(ctx context.Context, projectID, location, environment string, startTime, endTime time.Time) ([]string, error)
 }
 
-type EnvironmentClusterFinderImpl struct{}
+// EnvironmentClusterFinderImpl queries Cloud Monitoring metrics to discover GKE clusters associated with a Composer environment.
+type EnvironmentClusterFinderImpl struct {
+	ClientFactory       *googlecloud.ClientFactory
+	CallOptionsInjector *googlecloud.CallOptionInjector
+}
+
+var _ ComposerEnvironmentClusterFinder = (*EnvironmentClusterFinderImpl)(nil)
+
+// NewEnvironmentClusterFinder creates a new EnvironmentClusterFinderImpl with the given client factory and call options injector.
+func NewEnvironmentClusterFinder(clientFactory *googlecloud.ClientFactory, callOptionsInjector *googlecloud.CallOptionInjector) *EnvironmentClusterFinderImpl {
+	return &EnvironmentClusterFinderImpl{
+		ClientFactory:       clientFactory,
+		CallOptionsInjector: callOptionsInjector,
+	}
+}
 
 // GetGKEClusterNames implements ComposerEnvironmentClusterFinder.
 func (e *EnvironmentClusterFinderImpl) GetGKEClusterNames(ctx context.Context, projectID, location, environment string, startTime, endTime time.Time) ([]string, error) {
-	cf := coretask.GetTaskResult(ctx, gcpcommon.APIClientFactoryTaskID.Ref())
-	injector := coretask.GetTaskResult(ctx, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
-
-	client, err := cf.MonitoringMetricClient(ctx, googlecloud.Project(projectID))
+	client, err := e.ClientFactory.MonitoringMetricClient(ctx, googlecloud.Project(projectID))
 	if err != nil {
 		return nil, err
 	}
 
-	ctx = injector.InjectToCallContext(ctx, googlecloud.Project(projectID))
+	ctx = e.CallOptionsInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	filter := `metric.type="kubernetes.io/container/uptime" AND resource.type="k8s_container"`
 	metricsLabels, err := googlecloud.QueryResourceLabelsFromMetrics(ctx, client, projectID, filter, startTime, endTime, []string{"resource.label.cluster_name", "resource.label.location"})
 	if err != nil {
