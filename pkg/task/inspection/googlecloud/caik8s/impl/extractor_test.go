@@ -16,7 +16,6 @@ package caik8s_impl
 
 import (
 	"testing"
-	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -32,11 +31,12 @@ func newTestNodeReader(t *testing.T, data map[string]any) *structured.NodeReader
 	return structured.NewNodeReader(node)
 }
 
-func TestExtractResourceIdentityFromLog(t *testing.T) {
+func TestExtractK8sIdentity(t *testing.T) {
 	testCases := []struct {
 		name      string
 		inputData map[string]any
 		want      *k8saudit.ResourceIdentity
+		wantOK    bool
 	}{
 		{
 			name: "extracts from manifest data for namespaced pod",
@@ -62,6 +62,7 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 				Name:       "pod-1",
 				Namespace:  "default",
 			},
+			wantOK: true,
 		},
 		{
 			name: "extracts from manifest data for apps/v1 deployment",
@@ -87,6 +88,7 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 				Name:       "web",
 				Namespace:  "prod",
 			},
+			wantOK: true,
 		},
 		{
 			name: "falls back to asset name and asset type when manifest data is missing",
@@ -102,6 +104,7 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 				Name:       "my-svc",
 				Namespace:  "custom-ns",
 			},
+			wantOK: true,
 		},
 		{
 			name: "extracts cluster-scoped resource without namespace",
@@ -126,6 +129,7 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 				Name:       "node-1",
 				Namespace:  "",
 			},
+			wantOK: true,
 		},
 		{
 			name: "clears namespace when kind is namespace",
@@ -151,84 +155,32 @@ func TestExtractResourceIdentityFromLog(t *testing.T) {
 				Name:       "kube-system",
 				Namespace:  "",
 			},
+			wantOK: true,
+		},
+		{
+			name: "returns false when kind or name is empty",
+			inputData: map[string]any{
+				"asset": map[string]any{},
+			},
+			want: &k8saudit.ResourceIdentity{
+				APIVersion: "core/v1",
+				Kind:       "",
+				Name:       "",
+				Namespace:  "",
+			},
+			wantOK: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := newTestNodeReader(t, tc.inputData)
-			got := extractResourceIdentityFromLog(reader)
+			got, ok := extractK8sIdentity(reader)
+			if ok != tc.wantOK {
+				t.Errorf("extractK8sIdentity() ok = %v, want %v", ok, tc.wantOK)
+			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("extractResourceIdentityFromLog() mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestExtractTimeWindow(t *testing.T) {
-	testCases := []struct {
-		name          string
-		inputData     map[string]any
-		wantStartTime time.Time
-		wantEndTime   time.Time
-		wantDeleted   bool
-	}{
-		{
-			name: "extracts valid time window and deleted false",
-			inputData: map[string]any{
-				"window": map[string]any{
-					"startTime": "2026-01-01T10:00:00Z",
-					"endTime":   "2026-01-01T11:00:00Z",
-				},
-				"deleted": false,
-			},
-			wantStartTime: time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
-			wantEndTime:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
-			wantDeleted:   false,
-		},
-		{
-			name: "extracts tombstone deleted true",
-			inputData: map[string]any{
-				"deleted": true,
-			},
-			wantStartTime: time.Time{},
-			wantEndTime:   time.Time{},
-			wantDeleted:   true,
-		},
-		{
-			name:          "extracts empty map as zero times and not deleted",
-			inputData:     map[string]any{},
-			wantStartTime: time.Time{},
-			wantEndTime:   time.Time{},
-			wantDeleted:   false,
-		},
-		{
-			name: "falls back to zero times when timestamp strings are malformed",
-			inputData: map[string]any{
-				"window": map[string]any{
-					"startTime": "invalid-start-time",
-					"endTime":   "invalid-end-time",
-				},
-				"deleted": false,
-			},
-			wantStartTime: time.Time{},
-			wantEndTime:   time.Time{},
-			wantDeleted:   false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			reader := newTestNodeReader(t, tc.inputData)
-			gotStart, gotEnd, gotDeleted := extractTimeWindow(reader)
-			if !gotStart.Equal(tc.wantStartTime) {
-				t.Errorf("extractTimeWindow() gotStart = %v, want %v", gotStart, tc.wantStartTime)
-			}
-			if !gotEnd.Equal(tc.wantEndTime) {
-				t.Errorf("extractTimeWindow() gotEnd = %v, want %v", gotEnd, tc.wantEndTime)
-			}
-			if gotDeleted != tc.wantDeleted {
-				t.Errorf("extractTimeWindow() gotDeleted = %v, want %v", gotDeleted, tc.wantDeleted)
+				t.Errorf("extractK8sIdentity() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -265,9 +217,13 @@ func TestExtractResourceBody(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := newTestNodeReader(t, tc.inputData)
-			got := extractResourceBody(reader)
-			if (got == nil) != tc.wantNil {
-				t.Errorf("extractResourceBody() nil mismatch: got %v, wantNil %v", got, tc.wantNil)
+			gotK8s := extractK8sResourceBody(reader)
+			if (gotK8s == nil) != tc.wantNil {
+				t.Errorf("extractK8sResourceBody() nil mismatch: got %v, wantNil %v", gotK8s, tc.wantNil)
+			}
+			gotGKE := extractGKEResourceBody(reader)
+			if (gotGKE == nil) != tc.wantNil {
+				t.Errorf("extractGKEResourceBody() nil mismatch: got %v, wantNil %v", gotGKE, tc.wantNil)
 			}
 		})
 	}

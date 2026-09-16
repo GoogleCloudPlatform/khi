@@ -19,7 +19,6 @@ import (
 	"time"
 	"unique"
 
-	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -33,71 +32,79 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
-func TestExtractClusterCreateTimeFromSnapshots(t *testing.T) {
+func newTestClusterCreateTimeLog(t *testing.T, assetType string, createTimeStr string) *log.Log {
+	t.Helper()
+	var data map[string]any
+	if createTimeStr != "" {
+		data = map[string]any{
+			"createTime": createTimeStr,
+		}
+	}
+	m := map[string]any{
+		"asset": map[string]any{
+			"assetType": assetType,
+			"resource": map[string]any{
+				"data": data,
+			},
+		},
+	}
+	node, err := structured.FromGoValue(m, &structured.AlphabeticalGoMapKeyOrderProvider{})
+	if err != nil {
+		t.Fatalf("failed to build node: %v", err)
+	}
+	return log.NewLogWithTimestamp(id.NewGenerator(), structured.NewNodeReader(node), time.Time{})
+}
+
+func TestExtractClusterCreateTimeFromLogs(t *testing.T) {
 	createTime := time.Date(2025, 5, 1, 10, 0, 0, 0, time.UTC)
-	data, _ := structpb.NewStruct(map[string]any{
-		"createTime": createTime.Format(time.RFC3339),
-	})
+	validClusterLog := newTestClusterCreateTimeLog(t, caik8s.GKEClusterAssetType, createTime.Format(time.RFC3339))
+	nonClusterLog := newTestClusterCreateTimeLog(t, caik8s.GKENodePoolAssetType, createTime.Format(time.RFC3339))
+	invalidTimestampLog := newTestClusterCreateTimeLog(t, caik8s.GKEClusterAssetType, "not-a-valid-timestamp")
 
 	testCases := []struct {
-		name      string
-		snapshots []*caik8s.GKEResourceSnapshot
-		want      time.Time
+		name string
+		logs []*log.Log
+		want time.Time
 	}{
 		{
-			name: "extracts createTime from GKECluster snapshot",
-			snapshots: []*caik8s.GKEResourceSnapshot{
-				{
-					TemporalAsset: &assetpb.TemporalAsset{
-						Asset: &assetpb.Asset{
-							AssetType: caik8s.GKEClusterAssetType,
-							Resource:  &assetpb.Resource{Data: data},
-						},
-					},
-				},
-			},
+			name: "extracts createTime from GKECluster log",
+			logs: []*log.Log{validClusterLog},
 			want: createTime,
 		},
 		{
-			name: "returns zero time when no cluster snapshot",
-			snapshots: []*caik8s.GKEResourceSnapshot{
-				{
-					TemporalAsset: &assetpb.TemporalAsset{
-						Asset: &assetpb.Asset{
-							AssetType: caik8s.GKENodePoolAssetType,
-							Resource:  &assetpb.Resource{Data: data},
-						},
-					},
-				},
-			},
+			name: "skips non-cluster and invalid timestamp logs and extracts createTime from subsequent valid log",
+			logs: []*log.Log{nonClusterLog, invalidTimestampLog, validClusterLog},
+			want: createTime,
+		},
+		{
+			name: "returns zero time when no cluster log",
+			logs: []*log.Log{nonClusterLog},
 			want: time.Time{},
 		},
 		{
-			name:      "returns zero time for empty snapshots",
-			snapshots: []*caik8s.GKEResourceSnapshot{},
-			want:      time.Time{},
+			name: "returns zero time for empty logs",
+			logs: []*log.Log{},
+			want: time.Time{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := extractClusterCreateTimeFromSnapshots(tc.snapshots)
+			got := extractClusterCreateTimeFromLogs(tc.logs)
 			if !got.Equal(tc.want) {
-				t.Errorf("extractClusterCreateTimeFromSnapshots() = %v, want %v", got, tc.want)
+				t.Errorf("extractClusterCreateTimeFromLogs() = %v, want %v", got, tc.want)
 			}
 		})
 	}
 }
 
-func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapGKEResourceInitialRevision(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	clusterName := "test-cluster"
 	projectID := "test-project"
 	queryStartTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
-	queryEndTime := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	clusterIdentity := k8scommon.GoogleCloudClusterIdentity{
 		ProjectID:   projectID,
@@ -111,19 +118,6 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	nodePoolTimeline := gcpcommon.MustGKENodePoolTimeline(ctxWithBuilder, clusterTimeline, "default-pool")
 
 	clusterCreateTime := time.Date(2025, 5, 1, 10, 0, 0, 0, time.UTC)
-	clusterData, _ := structpb.NewStruct(map[string]any{
-		"name":       clusterName,
-		"createTime": clusterCreateTime.Format(time.RFC3339),
-	})
-	clusterSnapshot := &caik8s.GKEResourceSnapshot{
-		TemporalAsset: &assetpb.TemporalAsset{
-			Asset: &assetpb.Asset{
-				Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
-				AssetType: caik8s.GKEClusterAssetType,
-				Resource:  &assetpb.Resource{Data: clusterData},
-			},
-		},
-	}
 
 	generator := id.NewGenerator()
 	newGKECAILog := func(assetName, assetType string, windowStartTime, windowEndTime time.Time, isDeleted bool, data map[string]any) *log.Log {
@@ -153,7 +147,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}
 
 	clusterAssetName := "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster"
-	nodepoolAssetName := clusterAssetName + "/nodePools/default-pool"
+	nodePoolAssetName := clusterAssetName + "/nodePools/default-pool"
 
 	clusterInitialLog := newGKECAILog(
 		clusterAssetName,
@@ -179,22 +173,11 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	)
 
-	clusterUpdateLog := newGKECAILog(
-		clusterAssetName,
-		caik8s.GKEClusterAssetType,
-		queryStartTime.Add(30*time.Minute),
-		time.Time{},
-		false,
-		map[string]any{
-			"name": clusterName,
-		},
-	)
-
-	nodepoolEarliestTime := queryStartTime.Add(-10 * time.Hour)
-	nodepoolInitialLog := newGKECAILog(
-		nodepoolAssetName,
+	nodePoolEarliestTime := queryStartTime.Add(-10 * time.Hour)
+	nodePoolInitialLog := newGKECAILog(
+		nodePoolAssetName,
 		caik8s.GKENodePoolAssetType,
-		nodepoolEarliestTime,
+		nodePoolEarliestTime,
 		time.Time{},
 		false,
 		map[string]any{
@@ -202,8 +185,8 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	)
 
-	nodepoolCreatedWithClusterLog := newGKECAILog(
-		nodepoolAssetName,
+	nodePoolCreatedWithClusterLog := newGKECAILog(
+		nodePoolAssetName,
 		caik8s.GKENodePoolAssetType,
 		clusterCreateTime.Add(200*time.Millisecond),
 		time.Time{},
@@ -213,8 +196,8 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	)
 
-	nodepoolZeroStartTimeLog := newGKECAILog(
-		nodepoolAssetName,
+	nodePoolZeroStartTimeLog := newGKECAILog(
+		nodePoolAssetName,
 		caik8s.GKENodePoolAssetType,
 		time.Time{},
 		time.Time{},
@@ -222,64 +205,6 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		map[string]any{
 			"name": "default-pool",
 		},
-	)
-
-	nodepoolUpdateLog := newGKECAILog(
-		nodepoolAssetName,
-		caik8s.GKENodePoolAssetType,
-		queryStartTime.Add(45*time.Minute),
-		time.Time{},
-		false,
-		map[string]any{
-			"name": "default-pool",
-		},
-	)
-
-	nodepoolCreatedDuringWindowLog := newGKECAILog(
-		nodepoolAssetName,
-		caik8s.GKENodePoolAssetType,
-		queryStartTime.Add(30*time.Minute),
-		time.Time{},
-		false,
-		map[string]any{
-			"name": "default-pool",
-		},
-	)
-
-	deletedLog := newGKECAILog(
-		clusterAssetName,
-		caik8s.GKEClusterAssetType,
-		queryStartTime.Add(-2*time.Hour),
-		time.Time{},
-		true,
-		map[string]any{},
-	)
-
-	pastLog := newGKECAILog(
-		clusterAssetName,
-		caik8s.GKEClusterAssetType,
-		queryStartTime.Add(-5*time.Hour),
-		queryStartTime.Add(-2*time.Hour),
-		false,
-		map[string]any{},
-	)
-
-	futureLog := newGKECAILog(
-		clusterAssetName,
-		caik8s.GKEClusterAssetType,
-		queryEndTime.Add(1*time.Hour),
-		time.Time{},
-		false,
-		map[string]any{},
-	)
-
-	unrecognizedLog := newGKECAILog(
-		"//compute.googleapis.com/projects/test-project/zones/us-central1-a/instances/test-instance",
-		"compute.googleapis.com/Instance",
-		queryStartTime.Add(-1*time.Hour),
-		time.Time{},
-		false,
-		map[string]any{},
 	)
 
 	nodeCmpOpt := cmp.AllowUnexported(
@@ -292,16 +217,16 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	)
 
 	testCases := []struct {
-		name                 string
-		inputLog             *log.Log
-		omitClusterSnapshots bool
-		wantNil              bool
-		assertResult         func(t *testing.T, cs *khifilev6.TimelineChangeSet)
+		name            string
+		inputLog        *log.Log
+		observedTime    time.Time
+		omitClusterLogs bool
+		assertResult    func(t *testing.T, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
-			name:     "creates 2 revisions for existing cluster with prior createTime",
-			inputLog: clusterInitialLog,
-			wantNil:  false,
+			name:         "creates 2 revisions for existing cluster with prior createTime",
+			inputLog:     clusterInitialLog,
+			observedTime: queryStartTime.Add(-2 * time.Hour),
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(clusterTimeline)
 				if len(revs) != 2 {
@@ -317,7 +242,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					}, nodeCmpOpt).
 					HasRevision(clusterTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  queryStartTime.Add(-2 * time.Hour),
-						ResourceBody: extractResourceBody(clusterInitialLog.NodeReader),
+						ResourceBody: extractGKEResourceBody(clusterInitialLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbUpdate,
 						StateType:    caik8s.RevisionStateGKEClusterSnapshotFromCAI,
@@ -325,9 +250,9 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "creates 1 revision for cluster created within skew tolerance",
-			inputLog: clusterCreatedRecentlyLog,
-			wantNil:  false,
+			name:         "creates 1 revision for cluster created within skew tolerance",
+			inputLog:     clusterCreatedRecentlyLog,
+			observedTime: queryStartTime,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(clusterTimeline)
 				if len(revs) != 1 {
@@ -336,7 +261,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(clusterTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  queryStartTime,
-						ResourceBody: extractResourceBody(clusterCreatedRecentlyLog.NodeReader),
+						ResourceBody: extractGKEResourceBody(clusterCreatedRecentlyLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    caik8s.RevisionStateGKEClusterSnapshotFromCAI,
@@ -344,14 +269,9 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "skips secondary cluster snapshot not active at query start",
-			inputLog: clusterUpdateLog,
-			wantNil:  true,
-		},
-		{
-			name:     "creates 2 revisions for nodepool with undetermined existence period",
-			inputLog: nodepoolInitialLog,
-			wantNil:  false,
+			name:         "creates 2 revisions for nodepool with undetermined existence period",
+			inputLog:     nodePoolInitialLog,
+			observedTime: nodePoolEarliestTime,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(nodePoolTimeline)
 				if len(revs) != 2 {
@@ -366,8 +286,8 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						StateType:    caik8s.RevisionStateGKENodePoolExistenceUndetermined,
 					}, nodeCmpOpt).
 					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  nodepoolEarliestTime,
-						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
+						ChangedTime:  nodePoolEarliestTime,
+						ResourceBody: extractGKEResourceBody(nodePoolInitialLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbUpdate,
 						StateType:    caik8s.RevisionStateGKENodePoolSnapshotFromCAI,
@@ -375,9 +295,9 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "creates 1 revision for nodepool created alongside cluster",
-			inputLog: nodepoolCreatedWithClusterLog,
-			wantNil:  false,
+			name:         "creates 1 revision for nodepool created alongside cluster",
+			inputLog:     nodePoolCreatedWithClusterLog,
+			observedTime: clusterCreateTime.Add(200 * time.Millisecond),
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(nodePoolTimeline)
 				if len(revs) != 1 {
@@ -386,7 +306,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  clusterCreateTime.Add(200 * time.Millisecond),
-						ResourceBody: extractResourceBody(nodepoolCreatedWithClusterLog.NodeReader),
+						ResourceBody: extractGKEResourceBody(nodePoolCreatedWithClusterLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    caik8s.RevisionStateGKENodePoolSnapshotFromCAI,
@@ -394,9 +314,9 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "creates 2 revisions with undetermined existence for nodepool when window startTime is zero",
-			inputLog: nodepoolZeroStartTimeLog,
-			wantNil:  false,
+			name:         "creates 2 revisions with undetermined existence for nodepool when window startTime is zero",
+			inputLog:     nodePoolZeroStartTimeLog,
+			observedTime: queryStartTime,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(nodePoolTimeline)
 				if len(revs) != 2 {
@@ -412,7 +332,7 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					}, nodeCmpOpt).
 					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
 						ChangedTime:  queryStartTime,
-						ResourceBody: extractResourceBody(nodepoolZeroStartTimeLog.NodeReader),
+						ResourceBody: extractGKEResourceBody(nodePoolZeroStartTimeLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbUpdate,
 						StateType:    caik8s.RevisionStateGKENodePoolSnapshotFromCAI,
@@ -420,10 +340,10 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:                 "creates 1 revision for nodepool when cluster createTime is unavailable",
-			inputLog:             nodepoolInitialLog,
-			omitClusterSnapshots: true,
-			wantNil:              false,
+			name:            "creates 1 revision for nodepool when cluster createTime is unavailable",
+			inputLog:        nodePoolInitialLog,
+			observedTime:    nodePoolEarliestTime,
+			omitClusterLogs: true,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(nodePoolTimeline)
 				if len(revs) != 1 {
@@ -431,72 +351,41 @@ func TestCAIGKEResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				}
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(nodePoolTimeline, &khifilev6.StagingRevision{
-						ChangedTime:  nodepoolEarliestTime,
-						ResourceBody: extractResourceBody(nodepoolInitialLog.NodeReader),
+						ChangedTime:  nodePoolEarliestTime,
+						ResourceBody: extractGKEResourceBody(nodePoolInitialLog.NodeReader),
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    caik8s.RevisionStateGKENodePoolSnapshotFromCAI,
 					}, nodeCmpOpt)
 			},
 		},
-		{
-			name:     "skips nodepool created during inspection window",
-			inputLog: nodepoolCreatedDuringWindowLog,
-			wantNil:  true,
-		},
-		{
-			name:     "skips secondary nodepool snapshot not active at query start",
-			inputLog: nodepoolUpdateLog,
-			wantNil:  true,
-		},
-		{
-			name:     "skips deleted snapshot",
-			inputLog: deletedLog,
-			wantNil:  true,
-		},
-		{
-			name:     "skips snapshot that ended before query window",
-			inputLog: pastLog,
-			wantNil:  true,
-		},
-		{
-			name:     "skips snapshot that started after query window",
-			inputLog: futureLog,
-			wantNil:  true,
-		},
-		{
-			name:     "skips unrecognized non-GKE log asset",
-			inputLog: unrecognizedLog,
-			wantNil:  true,
-		},
 	}
-
-	mapper := &caiGKEResourceTimelineMapper{}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref(), clusterIdentity)
-			ctx = tasktest.WithTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime)
-			clusterSnapshots := []*caik8s.GKEResourceSnapshot{clusterSnapshot}
-			if tc.omitClusterSnapshots {
-				clusterSnapshots = []*caik8s.GKEResourceSnapshot{}
+			clusterLogs := []*log.Log{clusterInitialLog}
+			if tc.omitClusterLogs {
+				clusterLogs = []*log.Log{}
 			}
-			ctx = tasktest.WithTaskResult(ctx, caik8s.GKEResourceFetcherTaskID.Ref(), clusterSnapshots)
+			ctx = tasktest.WithTaskResult(ctx, caik8s.GKEResourceTaskIDs.RawLog.Ref(), clusterLogs)
 
-			cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, struct{}{})
+			identity, ok := extractGKEIdentity(tc.inputLog.NodeReader)
+			if !ok {
+				t.Fatal("extractGKEIdentity() = false, want true")
+			}
+
+			spec, skip, err := mapGKEResourceInitialRevision(ctx, tc.inputLog, identity, tc.observedTime)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() unexpected error: %v", err)
+				t.Fatalf("mapGKEResourceInitialRevision() unexpected error: %v", err)
 			}
-			if tc.wantNil {
-				if cs != nil {
-					t.Errorf("ProcessLogByGroup() returned cs, want nil")
-				}
-				return
+			if skip {
+				t.Fatal("mapGKEResourceInitialRevision() returned skip=true, want false")
 			}
-			if cs == nil {
-				t.Fatalf("ProcessLogByGroup() returned nil cs, want non-nil")
-			}
+
+			cs := khifilev6.NewTimelineChangeSet(tc.inputLog)
+			gcpcommon.StageCAIInitialSnapshotRevisions(cs, spec)
 			tc.assertResult(t, cs)
 		})
 	}

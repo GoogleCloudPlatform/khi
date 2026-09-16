@@ -23,6 +23,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -42,7 +44,7 @@ type gkeSnapshotParams struct {
 	resourceData    map[string]any
 }
 
-func newTestGKESnapshot(t *testing.T, params gkeSnapshotParams) *caik8s.GKEResourceSnapshot {
+func newTestGKESnapshot(t *testing.T, params gkeSnapshotParams) *gcpcommon.CAIAssetSnapshot {
 	t.Helper()
 	var window *assetpb.TimeWindow
 	if !params.windowStartTime.IsZero() || !params.windowEndTime.IsZero() {
@@ -69,7 +71,7 @@ func newTestGKESnapshot(t *testing.T, params gkeSnapshotParams) *caik8s.GKEResou
 		assetType = caik8s.GKENodePoolAssetType
 	}
 
-	return &caik8s.GKEResourceSnapshot{
+	return &gcpcommon.CAIAssetSnapshot{
 		TemporalAsset: &assetpb.TemporalAsset{
 			Window:  window,
 			Deleted: params.isDeleted,
@@ -84,7 +86,21 @@ func newTestGKESnapshot(t *testing.T, params gkeSnapshotParams) *caik8s.GKEResou
 	}
 }
 
-func TestCAIGKEInitialResourceStateProvider(t *testing.T) {
+func snapshotsToLogs(t *testing.T, snapshots []*gcpcommon.CAIAssetSnapshot) []*log.Log {
+	t.Helper()
+	idGen := id.NewGenerator()
+	logs := make([]*log.Log, 0, len(snapshots))
+	for _, s := range snapshots {
+		l, err := gcpcommon.SnapshotToCAIRawLog(idGen, s, nil)
+		if err != nil {
+			t.Fatalf("failed to convert snapshot to raw log: %v", err)
+		}
+		logs = append(logs, l)
+	}
+	return logs
+}
+
+func TestGKEResourceInitialStateProviderTask_ActiveSnapshots(t *testing.T) {
 	queryStartTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 
 	clusterAssetName := "//container.googleapis.com/projects/p/locations/us-central1-a/clusters/test-cluster"
@@ -209,12 +225,23 @@ func TestCAIGKEInitialResourceStateProvider(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			snapshots := make([]*caik8s.GKEResourceSnapshot, 0, len(tc.snapshots))
+			snapshots := make([]*gcpcommon.CAIAssetSnapshot, 0, len(tc.snapshots))
 			for _, p := range tc.snapshots {
 				snapshots = append(snapshots, newTestGKESnapshot(t, p))
 			}
 
-			provider := newCAIGKEInitialResourceStateProvider(snapshots, queryStartTime)
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			provider, _, err := inspectiontest.RunInspectionTask(
+				ctx,
+				GKEResourceInitialStateProviderTask,
+				inspectioncore.TaskModeRun,
+				map[string]any{},
+				tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceTaskIDs.RawLog.Ref(), snapshotsToLogs(t, snapshots)),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
+			)
+			if err != nil {
+				t.Fatalf("unexpected error running GKEResourceInitialStateProviderTask: %v", err)
+			}
 
 			clusterState, gotCluster := provider.ClusterInitialState(tc.queryCluster)
 			if gotCluster != tc.wantCluster {
@@ -255,14 +282,14 @@ func TestCAIGKEInitialResourceStateProvider(t *testing.T) {
 	}
 }
 
-func TestGKEInitialResourceStateProviderTask(t *testing.T) {
+func TestGKEResourceInitialStateProviderTask_Modes(t *testing.T) {
 	queryStartTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	clusterAssetName := "//container.googleapis.com/projects/p/locations/us-central1-a/clusters/test-cluster"
 
 	testCases := []struct {
 		name        string
 		mode        inspectioncore.InspectionTaskModeType
-		snapshots   []*caik8s.GKEResourceSnapshot
+		snapshots   []*gcpcommon.CAIAssetSnapshot
 		wantCluster bool
 	}{
 		{
@@ -274,7 +301,7 @@ func TestGKEInitialResourceStateProviderTask(t *testing.T) {
 		{
 			name: "Run mode resolves snapshots and returns populated provider",
 			mode: inspectioncore.TaskModeRun,
-			snapshots: []*caik8s.GKEResourceSnapshot{
+			snapshots: []*gcpcommon.CAIAssetSnapshot{
 				newTestGKESnapshot(t, gkeSnapshotParams{
 					assetName:       clusterAssetName,
 					windowStartTime: queryStartTime.Add(-time.Hour),
@@ -291,8 +318,8 @@ func TestGKEInitialResourceStateProviderTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			provider, _, err := inspectiontest.RunInspectionTask(ctx, GKEInitialResourceStateProviderTask, tc.mode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceFetcherTaskID.Ref(), tc.snapshots),
+			provider, _, err := inspectiontest.RunInspectionTask(ctx, GKEResourceInitialStateProviderTask, tc.mode, map[string]any{},
+				tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceTaskIDs.RawLog.Ref(), snapshotsToLogs(t, tc.snapshots)),
 				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
 			)
 			if err != nil {

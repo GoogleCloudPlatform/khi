@@ -20,15 +20,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
 var (
-	pathAssetName                             = structured.CompileFieldPath("asset.name")
-	pathAssetType                             = structured.CompileFieldPath("asset.assetType")
-	pathDeleted                               = structured.CompileFieldPath("deleted")
-	pathWindowStartTime                       = structured.CompileFieldPath("window.startTime")
-	pathWindowEndTime                         = structured.CompileFieldPath("window.endTime")
-	pathResourceData                          = structured.CompileFieldPath("asset.resource.data")
 	pathResourceDataAPIVersion                = structured.CompileFieldPath("asset.resource.data.apiVersion")
 	pathResourceDataKind                      = structured.CompileFieldPath("asset.resource.data.kind")
 	pathResourceDataMetadataName              = structured.CompileFieldPath("asset.resource.data.metadata.name")
@@ -36,50 +31,34 @@ var (
 	pathResourceDataMetadataCreationTimestamp = structured.CompileFieldPath("asset.resource.data.metadata.creationTimestamp")
 )
 
-// extractResourceIdentityFromLog extracts the Kubernetes ResourceIdentity from the log's NodeReader.
-func extractResourceIdentityFromLog(reader *structured.NodeReader) *k8saudit.ResourceIdentity {
-	return resolveResourceIdentity(
-		reader.ReadStringOrDefault(pathAssetName, ""),
-		reader.ReadStringOrDefault(pathAssetType, ""),
+// extractK8sIdentity extracts the Kubernetes ResourceIdentity from the log's NodeReader
+// and returns false if Kind or Name is empty.
+func extractK8sIdentity(reader *structured.NodeReader) (*k8saudit.ResourceIdentity, bool) {
+	identity := resolveResourceIdentity(
+		gcpcommon.ExtractCAIAssetName(reader),
+		gcpcommon.ExtractCAIAssetType(reader),
 		reader.ReadStringOrDefault(pathResourceDataAPIVersion, ""),
 		reader.ReadStringOrDefault(pathResourceDataKind, ""),
 		reader.ReadStringOrDefault(pathResourceDataMetadataName, ""),
 		reader.ReadStringOrDefault(pathResourceDataMetadataNamespace, ""),
 	)
-}
-
-// extractTimeWindow extracts validity start/end times and tombstone status from the log's NodeReader.
-func extractTimeWindow(reader *structured.NodeReader) (startTime, endTime time.Time, isDeleted bool) {
-	return reader.ReadTimestampOrDefault(pathWindowStartTime, time.Time{}),
-		reader.ReadTimestampOrDefault(pathWindowEndTime, time.Time{}),
-		reader.ReadBoolOrDefault(pathDeleted, false)
-}
-
-// extractCreationTimestamp extracts metadata.creationTimestamp of the manifest, reporting whether the
-// manifest carried a parsable value.
-func extractCreationTimestamp(reader *structured.NodeReader) (time.Time, bool) {
-	creationTime := reader.ReadTimestampOrDefault(pathResourceDataMetadataCreationTimestamp, time.Time{})
-	return creationTime, !creationTime.IsZero()
-}
-
-// isActiveAt reports whether the asset version covered by the given window was the current one at 'at'.
-// A zero start time means the history did not report when the version became current, and a zero end
-// time means the version is still current.
-func isActiveAt(windowStartTime, windowEndTime, at time.Time) bool {
-	if !windowStartTime.IsZero() && windowStartTime.After(at) {
-		return false
+	if identity.Kind == "" || identity.Name == "" {
+		return identity, false
 	}
-	if !windowEndTime.IsZero() && !windowEndTime.After(at) {
-		return false
-	}
-	return true
+	return identity, true
 }
 
-// extractResourceBody extracts the Kubernetes resource manifest Node for timeline staging.
-func extractResourceBody(reader *structured.NodeReader) structured.Node {
-	node, err := reader.GetNode(pathResourceData)
-	if err != nil {
-		return nil
-	}
-	return structured.WithKeyOrder(node, k8s.K8sManifestKeyOrder...)
+// extractCreationTimestamp extracts metadata.creationTimestamp of the manifest.
+func extractCreationTimestamp(reader *structured.NodeReader) time.Time {
+	return reader.ReadTimestampOrDefault(pathResourceDataMetadataCreationTimestamp, time.Time{})
+}
+
+// extractK8sResourceBody extracts the Kubernetes resource manifest Node for timeline staging.
+func extractK8sResourceBody(reader *structured.NodeReader) structured.Node {
+	return gcpcommon.ExtractCAIResourceBody(reader, k8s.K8sManifestKeyOrder...)
+}
+
+// extractGKEResourceBody extracts the GKE Cluster or NodePool resource payload Node.
+func extractGKEResourceBody(reader *structured.NodeReader) structured.Node {
+	return gcpcommon.ExtractCAIResourceBody(reader)
 }

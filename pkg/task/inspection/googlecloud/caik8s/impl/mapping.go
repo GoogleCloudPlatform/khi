@@ -17,35 +17,14 @@ package caik8s_impl
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"strings"
-	"time"
 
-	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
 )
-
-// ConvertTemporalAssetToClusterResourceSnapshot converts a CAI TemporalAsset into a ClusterResourceSnapshot.
-func ConvertTemporalAssetToClusterResourceSnapshot(ta *assetpb.TemporalAsset) (*caik8s.ClusterResourceSnapshot, error) {
-	if ta == nil || ta.Asset == nil {
-		return nil, errors.New("temporal asset and underlying asset must not be nil")
-	}
-
-	var startTime time.Time
-	if st := ta.GetWindow().GetStartTime(); st != nil {
-		startTime = st.AsTime()
-	}
-
-	return &caik8s.ClusterResourceSnapshot{
-		TemporalAsset: ta,
-		StartTime:     startTime,
-	}, nil
-}
 
 // resolveResourceIdentity resolves and normalizes a ResourceIdentity from manifest fields with asset fallbacks.
 func resolveResourceIdentity(assetName, assetType, manifestAPIVersion, manifestKind, manifestName, manifestNamespace string) *k8saudit.ResourceIdentity {
-	parsedNamespace, parsedName := parseAssetName(assetName)
+	parsedNamespace, parsedName := parseK8sAssetName(assetName)
 	name := manifestName
 	if name == "" {
 		name = parsedName
@@ -71,8 +50,8 @@ func resolveResourceIdentity(assetName, assetType, manifestAPIVersion, manifestK
 	}
 }
 
-// parseAssetName extracts namespace and resource name from a CAI asset name.
-func parseAssetName(assetName string) (namespace, name string) {
+// parseK8sAssetName extracts namespace and resource name from a Kubernetes CAI asset name.
+func parseK8sAssetName(assetName string) (namespace, name string) {
 	k8sPart := assetName
 	if idx := strings.Index(assetName, "/k8s/"); idx != -1 {
 		k8sPart = assetName[idx+len("/k8s/"):]
@@ -246,4 +225,10 @@ func restoreManagedFieldsEntry(entry map[string]any) {
 	if err := json.Unmarshal(decodedBytes, &decodedFields); err == nil {
 		entry["fieldsV1"] = decodedFields
 	}
+}
+
+// preprocessK8sTemporalAssetMap restores missing TypeMeta and decodes encoded metadata fields in the temporal asset map.
+func preprocessK8sTemporalAssetMap(temporalAssetMap map[string]any) {
+	restoreManifestTypeMeta(temporalAssetMap)
+	restoreManifestMetadata(temporalAssetMap)
 }

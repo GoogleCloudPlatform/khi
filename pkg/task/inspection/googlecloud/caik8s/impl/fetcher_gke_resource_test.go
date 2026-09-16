@@ -15,6 +15,7 @@
 package caik8s_impl
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -36,112 +37,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestConvertTemporalAssetsToGKEResourceSnapshots(t *testing.T) {
-	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
-	validAsset := &assetpb.TemporalAsset{
-		Window: &assetpb.TimeWindow{
-			StartTime: timestamppb.New(now),
-		},
-		Asset: &assetpb.Asset{
-			Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
-			AssetType: caik8s.GKEClusterAssetType,
-		},
-	}
-
-	testCases := []struct {
-		name           string
-		temporalAssets []*assetpb.TemporalAsset
-		wantCount      int
-		wantTimes      []time.Time
-	}{
-		{
-			name: "filters out nil and asset-nil items and converts valid items",
-			temporalAssets: []*assetpb.TemporalAsset{
-				nil,
-				{
-					Window: &assetpb.TimeWindow{
-						StartTime: timestamppb.New(now),
-					},
-					Asset: nil,
-				},
-				validAsset,
-			},
-			wantCount: 1,
-			wantTimes: []time.Time{now},
-		},
-		{
-			name: "handles nil window start time gracefully",
-			temporalAssets: []*assetpb.TemporalAsset{
-				{
-					Window: nil,
-					Asset: &assetpb.Asset{
-						Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
-						AssetType: caik8s.GKEClusterAssetType,
-					},
-				},
-			},
-			wantCount: 1,
-			wantTimes: []time.Time{time.Time{}},
-		},
-		{
-			name: "sorts assets ascending by window start time",
-			temporalAssets: []*assetpb.TemporalAsset{
-				{
-					Window: &assetpb.TimeWindow{
-						StartTime: timestamppb.New(now.Add(1 * time.Hour)),
-					},
-					Asset: &assetpb.Asset{
-						Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
-						AssetType: caik8s.GKEClusterAssetType,
-					},
-				},
-				{
-					Window: &assetpb.TimeWindow{
-						StartTime: timestamppb.New(now),
-					},
-					Asset: &assetpb.Asset{
-						Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
-						AssetType: caik8s.GKEClusterAssetType,
-					},
-				},
-				{
-					Window: &assetpb.TimeWindow{
-						StartTime: timestamppb.New(now.Add(-1 * time.Hour)),
-					},
-					Asset: &assetpb.Asset{
-						Name:      "//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/test-cluster",
-						AssetType: caik8s.GKEClusterAssetType,
-					},
-				},
-			},
-			wantCount: 3,
-			wantTimes: []time.Time{
-				now.Add(-1 * time.Hour),
-				now,
-				now.Add(1 * time.Hour),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := convertTemporalAssetsToGKEResourceSnapshots(tc.temporalAssets)
-			if len(got) != tc.wantCount {
-				t.Fatalf("len(got) = %d, want %d", len(got), tc.wantCount)
-			}
-			for i, snapshot := range got {
-				if snapshot.TemporalAsset == nil {
-					t.Errorf("got[%d].TemporalAsset is nil, want non-nil", i)
-				}
-				if !snapshot.StartTime.Equal(tc.wantTimes[i]) {
-					t.Errorf("got[%d].StartTime = %v, want %v", i, snapshot.StartTime, tc.wantTimes[i])
-				}
-			}
-		})
-	}
-}
-
-func TestFetchGKEResourceSnapshots(t *testing.T) {
+func TestDiscoverGKEResourceAssetNames(t *testing.T) {
 	startTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	endTime := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
 
@@ -151,7 +47,7 @@ func TestFetchGKEResourceSnapshots(t *testing.T) {
 		Location:    "us-central1-a",
 	}
 
-	clusterCandidates := clusterParentCandidates(cluster)
+	clusterCandidates := clusterAssetNameCandidates(cluster)
 	expectedClusterQuery := fmt.Sprintf("name=%q OR name=%q", clusterCandidates[0], clusterCandidates[1])
 	matchedClusterName := clusterCandidates[0]
 	expectedNodePoolQuery := fmt.Sprintf("parentFullResourceName=%q", matchedClusterName)
@@ -248,9 +144,18 @@ func TestFetchGKEResourceSnapshots(t *testing.T) {
 			progressMeta := inspectionmetadata.NewTaskProgressMetadata("test")
 			ctx := progress.WithContext(t.Context(), progressMeta)
 
-			got, err := fetchGKEResourceSnapshots(ctx, fetcher, cluster, startTime, endTime)
+			got, err := gcpcommon.FetchCAIAssetSnapshots(
+				ctx,
+				fetcher,
+				"projects/test-project",
+				startTime,
+				endTime,
+				func(ctx context.Context, f gcpcommon.CAIFetcher) ([]string, error) {
+					return discoverGKEResourceAssetNames(ctx, f, cluster)
+				},
+			)
 			if (err != nil) != tc.wantErr {
-				t.Fatalf("fetchGKEResourceSnapshots() error = %v, wantErr %v", err, tc.wantErr)
+				t.Fatalf("FetchCAIAssetSnapshots() error = %v, wantErr %v", err, tc.wantErr)
 			}
 			if !tc.wantErr {
 				if len(got) != tc.wantCount {
@@ -275,7 +180,7 @@ func TestFetchGKEResourceSnapshots(t *testing.T) {
 	}
 }
 
-func TestGKEResourceFetcherTask(t *testing.T) {
+func TestGKEResourceSuite_FetcherTask(t *testing.T) {
 	startTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	endTime := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
 
@@ -291,7 +196,7 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 		Location:    "us-central1-a",
 	}
 
-	clusterCandidates := clusterParentCandidates(completeCluster)
+	clusterCandidates := clusterAssetNameCandidates(completeCluster)
 	clusterQuery := fmt.Sprintf("name=%q OR name=%q", clusterCandidates[0], clusterCandidates[1])
 	clusterAssetName := clusterCandidates[0]
 	nodePoolQuery := fmt.Sprintf("parentFullResourceName=%q", clusterAssetName)
@@ -388,7 +293,7 @@ func TestGKEResourceFetcherTask(t *testing.T) {
 			factory := setupMockServer(t, mockServer)
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, GKEResourceFetcherTask, tc.taskMode, map[string]any{},
+			got, _, err := inspectiontest.RunInspectionTask(ctx, GKEResourceSuite.FetcherTask, tc.taskMode, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
 				tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
 				tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), factory),

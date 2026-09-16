@@ -44,7 +44,7 @@ type caiLogParams struct {
 	creationTimestamp time.Time
 }
 
-func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapClusterResourceInitialRevision(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	clusterName := "test-cluster"
 	queryStartTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
@@ -72,8 +72,6 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	ctxWithBuilder := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 	targetPath := k8saudit.MustResourceTimeline(ctxWithBuilder, clusterName, podIdent)
 
-	// The generator is shared by every log the closure builds so that each log gets a distinct
-	// log ID; a generator created per call would restart the counter and hand out duplicates.
 	generator := id.NewGenerator()
 	newCAILog := func(params caiLogParams) *log.Log {
 		window := map[string]any{}
@@ -116,11 +114,6 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	activeLog := newCAILog(caiLogParams{windowStartTime: assetWindowStartTime, windowEndTime: queryStartTime.Add(1 * time.Hour), hasResourceData: true})
 	windowStartAtQueryStartLog := newCAILog(caiLogParams{windowStartTime: queryStartTime, windowEndTime: queryStartTime.Add(1 * time.Hour), hasResourceData: true})
 	openEndedLog := newCAILog(caiLogParams{windowStartTime: assetWindowStartTime, hasResourceData: true})
-	deletedLog := newCAILog(caiLogParams{windowStartTime: assetWindowStartTime, windowEndTime: queryStartTime.Add(1 * time.Hour), isDeleted: true, hasResourceData: true})
-	futureLog := newCAILog(caiLogParams{windowStartTime: queryStartTime.Add(10 * time.Minute), windowEndTime: queryStartTime.Add(1 * time.Hour), hasResourceData: true})
-	endedLog := newCAILog(caiLogParams{windowStartTime: assetWindowStartTime, windowEndTime: queryStartTime.Add(-10 * time.Minute), hasResourceData: true})
-	windowEndAtQueryStartLog := newCAILog(caiLogParams{windowStartTime: assetWindowStartTime, windowEndTime: queryStartTime, hasResourceData: true})
-	noResourceDataLog := newCAILog(caiLogParams{windowStartTime: queryStartTime, windowEndTime: queryStartTime.Add(1 * time.Hour)})
 	creationTime := assetWindowStartTime.Add(-24 * time.Hour)
 	createdLongBeforeLog := newCAILog(caiLogParams{windowStartTime: assetWindowStartTime, hasResourceData: true, creationTimestamp: creationTime})
 	createdWithinToleranceLog := newCAILog(caiLogParams{windowStartTime: assetWindowStartTime, hasResourceData: true, creationTimestamp: assetWindowStartTime.Add(-500 * time.Millisecond)})
@@ -130,13 +123,13 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testCases := []struct {
 		name         string
 		inputLog     *log.Log
-		wantNil      bool
+		observedTime time.Time
 		assertResult func(t *testing.T, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
-			name:     "stages the snapshot at the time the asset version became current",
-			inputLog: activeLog,
-			wantNil:  false,
+			name:         "stages the snapshot at the time the asset version became current",
+			inputLog:     activeLog,
+			observedTime: assetWindowStartTime,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				nodeCmpOpt := cmp.AllowUnexported(
 					structured.StandardMapNode{},
@@ -167,9 +160,9 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "creates revision when snapshot starts exactly at query window start boundary",
-			inputLog: windowStartAtQueryStartLog,
-			wantNil:  false,
+			name:         "creates revision when snapshot starts exactly at query window start boundary",
+			inputLog:     windowStartAtQueryStartLog,
+			observedTime: queryStartTime,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEventCount(0).
@@ -181,9 +174,9 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "creates revision for open-ended active resource snapshot without endTime",
-			inputLog: openEndedLog,
-			wantNil:  false,
+			name:         "creates revision for open-ended active resource snapshot without endTime",
+			inputLog:     openEndedLog,
+			observedTime: assetWindowStartTime,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEventCount(0).
@@ -195,9 +188,9 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "prepends a body-less revision from the creation timestamp",
-			inputLog: createdLongBeforeLog,
-			wantNil:  false,
+			name:         "prepends a body-less revision from the creation timestamp",
+			inputLog:     createdLongBeforeLog,
+			observedTime: assetWindowStartTime,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(targetPath)
 				if len(revs) != 2 {
@@ -227,9 +220,9 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "keeps a creation timestamp gap under the skew tolerance unrendered",
-			inputLog: createdWithinToleranceLog,
-			wantNil:  false,
+			name:         "keeps a creation timestamp gap under the skew tolerance unrendered",
+			inputLog:     createdWithinToleranceLog,
+			observedTime: assetWindowStartTime,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(targetPath)
 				if len(revs) != 1 {
@@ -241,9 +234,9 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "does not prepend when the creation timestamp is after the window start",
-			inputLog: createdAfterWindowStartLog,
-			wantNil:  false,
+			name:         "does not prepend when the creation timestamp is after the window start",
+			inputLog:     createdAfterWindowStartLog,
+			observedTime: assetWindowStartTime,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(targetPath)
 				if len(revs) != 1 {
@@ -252,9 +245,9 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "falls back to the inspection start time when the window start is missing",
-			inputLog: noWindowStartLog,
-			wantNil:  false,
+			name:         "falls back to the inspection start time when the window start is missing",
+			inputLog:     noWindowStartLog,
+			observedTime: queryStartTime,
 			assertResult: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				revs := cs.GetRevisions(targetPath)
 				if len(revs) != 1 {
@@ -265,34 +258,7 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				}
 			},
 		},
-		{
-			name:     "skips deleted tombstone snapshot",
-			inputLog: deletedLog,
-			wantNil:  true,
-		},
-		{
-			name:     "skips snapshot that starts in the future",
-			inputLog: futureLog,
-			wantNil:  true,
-		},
-		{
-			name:     "skips snapshot that ended before query window",
-			inputLog: endedLog,
-			wantNil:  true,
-		},
-		{
-			name:     "skips snapshot that ended at query window start boundary",
-			inputLog: windowEndAtQueryStartLog,
-			wantNil:  true,
-		},
-		{
-			name:     "skips log without resource identity",
-			inputLog: noResourceDataLog,
-			wantNil:  true,
-		},
 	}
-
-	mapper := &caiClusterResourceTimelineMapper{}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -301,21 +267,17 @@ func TestCAIClusterResourceTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				ClusterName: clusterName,
 				Location:    "us-central1-a",
 			})
-			ctx = tasktest.WithTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime)
 
-			cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, struct{}{})
+			spec, skip, err := mapClusterResourceInitialRevision(ctx, tc.inputLog, podIdent, tc.observedTime)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() returned error: %v", err)
+				t.Fatalf("mapClusterResourceInitialRevision() returned error: %v", err)
 			}
-			if tc.wantNil {
-				if cs != nil {
-					t.Errorf("ProcessLogByGroup() = %v, want nil", cs)
-				}
-				return
+			if skip {
+				t.Fatal("mapClusterResourceInitialRevision() returned skip=true, want false")
 			}
-			if cs == nil {
-				t.Fatal("ProcessLogByGroup() = nil, want non-nil changeset")
-			}
+
+			cs := khifilev6.NewTimelineChangeSet(tc.inputLog)
+			gcpcommon.StageCAIInitialSnapshotRevisions(cs, spec)
 			tc.assertResult(t, cs)
 		})
 	}

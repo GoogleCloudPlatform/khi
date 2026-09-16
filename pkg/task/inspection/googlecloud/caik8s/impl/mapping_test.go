@@ -16,86 +16,10 @@ package caik8s_impl
 
 import (
 	"testing"
-	"time"
 
-	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/google/go-cmp/cmp"
-	"google.golang.org/protobuf/testing/protocmp"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-func TestConvertTemporalAssetToClusterResourceSnapshot(t *testing.T) {
-	startTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
-	sampleAsset := &assetpb.Asset{
-		Name:      "//container.googleapis.com/projects/p/locations/l/clusters/c/k8s/namespaces/default/pods/pod-1",
-		AssetType: "k8s.io/Pod",
-	}
-
-	testCases := []struct {
-		name          string
-		input         *assetpb.TemporalAsset
-		wantStartTime time.Time
-		wantErr       bool
-	}{
-		{
-			name: "temporal asset with start time window",
-			input: &assetpb.TemporalAsset{
-				Window: &assetpb.TimeWindow{
-					StartTime: timestamppb.New(startTime),
-				},
-				Asset: sampleAsset,
-			},
-			wantStartTime: startTime,
-		},
-		{
-			name: "temporal asset without window",
-			input: &assetpb.TemporalAsset{
-				Asset: sampleAsset,
-			},
-			wantStartTime: time.Time{},
-		},
-		{
-			name: "temporal asset with window but nil start time",
-			input: &assetpb.TemporalAsset{
-				Window: &assetpb.TimeWindow{},
-				Asset:  sampleAsset,
-			},
-			wantStartTime: time.Time{},
-		},
-		{
-			name:    "nil temporal asset returns error",
-			input:   nil,
-			wantErr: true,
-		},
-		{
-			name: "nil asset returns error",
-			input: &assetpb.TemporalAsset{
-				Asset: nil,
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := ConvertTemporalAssetToClusterResourceSnapshot(tc.input)
-			if (err != nil) != tc.wantErr {
-				t.Fatalf("ConvertTemporalAssetToClusterResourceSnapshot() error = %v, wantErr %v", err, tc.wantErr)
-			}
-			if tc.wantErr {
-				return
-			}
-
-			if diff := cmp.Diff(tc.input, got.TemporalAsset, protocmp.Transform()); diff != "" {
-				t.Errorf("TemporalAsset mismatch (-want +got):\n%s", diff)
-			}
-			if !got.StartTime.Equal(tc.wantStartTime) {
-				t.Errorf("StartTime = %v, want %v", got.StartTime, tc.wantStartTime)
-			}
-		})
-	}
-}
 
 func TestResolveResourceIdentity(t *testing.T) {
 	testCases := []struct {
@@ -202,7 +126,7 @@ func TestResolveResourceIdentity(t *testing.T) {
 	}
 }
 
-func TestParseAssetName(t *testing.T) {
+func TestParseK8sAssetName(t *testing.T) {
 	testCases := []struct {
 		name          string
 		assetName     string
@@ -231,12 +155,12 @@ func TestParseAssetName(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotNamespace, gotName := parseAssetName(tc.assetName)
+			gotNamespace, gotName := parseK8sAssetName(tc.assetName)
 			if gotNamespace != tc.wantNamespace {
-				t.Errorf("parseAssetName() namespace = %q, want %q", gotNamespace, tc.wantNamespace)
+				t.Errorf("parseK8sAssetName() namespace = %q, want %q", gotNamespace, tc.wantNamespace)
 			}
 			if gotName != tc.wantName {
-				t.Errorf("parseAssetName() name = %q, want %q", gotName, tc.wantName)
+				t.Errorf("parseK8sAssetName() name = %q, want %q", gotName, tc.wantName)
 			}
 		})
 	}

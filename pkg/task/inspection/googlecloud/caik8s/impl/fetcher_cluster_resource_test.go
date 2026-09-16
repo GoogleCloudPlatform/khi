@@ -18,7 +18,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,11 +32,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/oauth2"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -50,11 +56,88 @@ const (
 	defaultNamespaceParentQuery = `parentFullResourceName="` + defaultNamespaceAssetName + `"`
 )
 
-// mockCAIFetcher returns canned CAI responses and records the arguments it was called with,
-// so that assertions run after the call instead of inside a callback that may never fire.
+type mockAssetServer struct {
+	assetpb.UnimplementedAssetServiceServer
+
+	searchResultsByQuery map[string][]*assetpb.ResourceSearchResult
+	searchErr            error
+	batchAssets          []*assetpb.TemporalAsset
+
+	mu             sync.Mutex
+	batchRequests  []*assetpb.BatchGetAssetsHistoryRequest
+	searchRequests []*assetpb.SearchAllResourcesRequest
+}
+
+func (m *mockAssetServer) recordedBatchRequests() []*assetpb.BatchGetAssetsHistoryRequest {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.batchRequests)
+}
+
+func (m *mockAssetServer) recordedSearchRequests() []*assetpb.SearchAllResourcesRequest {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.searchRequests)
+}
+
+func (m *mockAssetServer) BatchGetAssetsHistory(_ context.Context, req *assetpb.BatchGetAssetsHistoryRequest) (*assetpb.BatchGetAssetsHistoryResponse, error) {
+	m.mu.Lock()
+	m.batchRequests = append(m.batchRequests, req)
+	m.mu.Unlock()
+
+	return &assetpb.BatchGetAssetsHistoryResponse{Assets: m.batchAssets}, nil
+}
+
+func (m *mockAssetServer) SearchAllResources(_ context.Context, req *assetpb.SearchAllResourcesRequest) (*assetpb.SearchAllResourcesResponse, error) {
+	m.mu.Lock()
+	m.searchRequests = append(m.searchRequests, req)
+	m.mu.Unlock()
+
+	if m.searchErr != nil {
+		return nil, m.searchErr
+	}
+	return &assetpb.SearchAllResourcesResponse{Results: m.searchResultsByQuery[req.Query]}, nil
+}
+
+func setupMockServer(t *testing.T, srv *mockAssetServer) *googlecloud.ClientFactory {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to create listener: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	assetpb.RegisterAssetServiceServer(grpcServer, srv)
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	t.Cleanup(func() {
+		grpcServer.Stop()
+		_ = listener.Close()
+	})
+
+	factory, err := googlecloud.NewClientFactory(func(f *googlecloud.ClientFactory) error {
+		f.ClientOptions = append(f.ClientOptions, func(opts []option.ClientOption, c googlecloud.ResourceContainer) ([]option.ClientOption, error) {
+			return append(opts,
+				option.WithEndpoint(listener.Addr().String()),
+				option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "dummy"})),
+				option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+			), nil
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("failed to create client factory: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = factory.Close()
+	})
+
+	return factory
+}
+
+// mockCAIFetcher returns canned CAI responses and records the arguments it was called with.
 type mockCAIFetcher struct {
-	// searchResultsPerCall holds the results of successive SearchResources calls, one entry per call.
-	// A cluster resource lookup searches once per phase, so the entries are indexed by phase.
 	searchResultsPerCall [][]*assetpb.ResourceSearchResult
 	searchErr            error
 	searchErrPerCall     []error
@@ -75,7 +158,7 @@ type recordedSearchCall struct {
 	assetTypes []string
 }
 
-var _ caik8s.CAIFetcher = (*mockCAIFetcher)(nil)
+var _ gcpcommon.CAIFetcher = (*mockCAIFetcher)(nil)
 
 func (m *mockCAIFetcher) SearchResources(ctx context.Context, scope, query string, assetTypes []string) ([]*assetpb.ResourceSearchResult, error) {
 	callIndex := len(m.searchCalls)
@@ -115,7 +198,7 @@ func (m *mockCAIFetcher) BatchGetAssetsHistory(ctx context.Context, parent strin
 	m.gotBatchParent = parent
 	m.gotBatchAssetNames = assetNames
 	if len(assetNames) > 0 {
-		totalChunks := (len(assetNames) + maxBatchHistorySize - 1) / maxBatchHistorySize
+		totalChunks := (len(assetNames) + gcpcommon.MaxCAIBatchHistorySize - 1) / gcpcommon.MaxCAIBatchHistorySize
 		tracker := progress.NewTracker(ctx, totalChunks, progress.WithUnit("chunks"))
 		defer tracker.Done()
 		for i := 1; i <= totalChunks; i++ {
@@ -154,7 +237,7 @@ func newPodTemporalAsset(t *testing.T, startTime, endTime time.Time) *assetpb.Te
 	}
 }
 
-func TestClusterParentCandidates(t *testing.T) {
+func TestClusterAssetNameCandidates(t *testing.T) {
 	testCases := []struct {
 		name    string
 		cluster k8scommon.GoogleCloudClusterIdentity
@@ -173,9 +256,9 @@ func TestClusterParentCandidates(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := clusterParentCandidates(tc.cluster)
+			got := clusterAssetNameCandidates(tc.cluster)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("clusterParentCandidates() mismatch (-want +got):\n%s", diff)
+				t.Errorf("clusterAssetNameCandidates() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -191,110 +274,13 @@ func makeNamespaceParents(clusterParent string, count, namespaceNameLength int) 
 	return parents
 }
 
-// parentSearchQuery renders the CAI query that matches exactly the given parents. It spells out the
-// expected wire format so that the expectation does not depend on the production query builder.
-func parentSearchQuery(parents ...string) string {
+// parentSearchQuery renders the CAI query that matches exactly the given parent asset names.
+func parentSearchQuery(parentAssetNames ...string) string {
 	var comparisons []string
-	for _, parent := range parents {
+	for _, parent := range parentAssetNames {
 		comparisons = append(comparisons, fmt.Sprintf("parentFullResourceName=%q", parent))
 	}
 	return strings.Join(comparisons, " OR ")
-}
-
-// assertParentSearchQueryLimits checks that the queries carry the expected number of comparisons,
-// that none of them exceeds the CAI query length limit, and that concatenating the comparisons of
-// every query reproduces each input parent exactly once in the input order.
-// A query holding a single comparison is exempt from the length check because a parent longer than
-// the limit cannot be split any further.
-func assertParentSearchQueryLimits(t *testing.T, parents, queries []string, wantComparisonsPerQuery []int) {
-	t.Helper()
-	var gotComparisonsPerQuery []int
-	var gotComparisons []string
-	for _, query := range queries {
-		comparisons := strings.Split(query, " OR ")
-		gotComparisonsPerQuery = append(gotComparisonsPerQuery, len(comparisons))
-		gotComparisons = append(gotComparisons, comparisons...)
-		if len(comparisons) > 1 && len(query) > maxSearchQueryCharacters {
-			t.Errorf("query length = %d, want at most %d", len(query), maxSearchQueryCharacters)
-		}
-	}
-	if diff := cmp.Diff(wantComparisonsPerQuery, gotComparisonsPerQuery); diff != "" {
-		t.Errorf("comparisons per query mismatch (-want +got):\n%s", diff)
-	}
-
-	var wantComparisons []string
-	for _, parent := range parents {
-		wantComparisons = append(wantComparisons, fmt.Sprintf("parentFullResourceName=%q", parent))
-	}
-	if diff := cmp.Diff(wantComparisons, gotComparisons); diff != "" {
-		t.Errorf("comparisons mismatch (-want +got):\n%s", diff)
-	}
-}
-
-func TestBuildParentSearchQueries(t *testing.T) {
-	testCases := []struct {
-		name    string
-		parents []string
-		want    []string
-	}{
-		{
-			name:    "no parent produces no query",
-			parents: nil,
-			want:    nil,
-		},
-		{
-			name:    "single parent produces a single exact match",
-			parents: []string{regionalClusterAssetName},
-			want:    []string{`parentFullResourceName="` + regionalClusterAssetName + `"`},
-		},
-		{
-			name:    "multiple parents are joined with OR",
-			parents: []string{regionalClusterAssetName, zonalClusterAssetName},
-			want:    []string{clusterParentQuery},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := buildParentSearchQueries(tc.parents)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("buildParentSearchQueries() mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-
-	// A 30 character project ID and a 40 character cluster name leave room for a 63 character
-	// namespace name in a 242 character comparison, so only eight of them fit within the limit.
-	longClusterParent := fmt.Sprintf("//container.googleapis.com/projects/%s/locations/us-central1/clusters/%s", strings.Repeat("p", 30), strings.Repeat("c", 40))
-
-	splitTestCases := []struct {
-		name                    string
-		parents                 []string
-		wantComparisonsPerQuery []int
-	}{
-		{
-			name:                    "splits once the comparison limit is reached",
-			parents:                 makeNamespaceParents(regionalClusterAssetName, maxSearchQueryComparisons+1, 10),
-			wantComparisonsPerQuery: []int{maxSearchQueryComparisons, 1},
-		},
-		{
-			name:                    "splits before the character limit is exceeded",
-			parents:                 makeNamespaceParents(longClusterParent, 10, 63),
-			wantComparisonsPerQuery: []int{8, 2},
-		},
-		{
-			name:                    "keeps a parent longer than the character limit in a query of its own",
-			parents:                 makeNamespaceParents(longClusterParent, 2, maxSearchQueryCharacters),
-			wantComparisonsPerQuery: []int{1, 1},
-		},
-	}
-
-	for _, tc := range splitTestCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := buildParentSearchQueries(tc.parents)
-			assertParentSearchQueryLimits(t, tc.parents, got, tc.wantComparisonsPerQuery)
-		})
-	}
 }
 
 func TestAssetTypesWithNamespace(t *testing.T) {
@@ -407,13 +393,11 @@ func TestFilterSearchResultsByAssetType(t *testing.T) {
 	}
 }
 
-func TestFetchClusterResourceSnapshots(t *testing.T) {
+func TestDiscoverClusterResourceAssetNames(t *testing.T) {
 	startTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	endTime := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
 
-	// One namespace more than the comparison limit forces the namespace parented phase to split
-	// into two searches.
-	splitNamespaceParents := makeNamespaceParents(regionalClusterAssetName, maxSearchQueryComparisons+1, 10)
+	splitNamespaceParents := makeNamespaceParents(regionalClusterAssetName, gcpcommon.MaxCAISearchQueryComparisons+1, 10)
 	splitNamespaceResults := make([]*assetpb.ResourceSearchResult, 0, len(splitNamespaceParents))
 	for _, parent := range splitNamespaceParents {
 		splitNamespaceResults = append(splitNamespaceResults, &assetpb.ResourceSearchResult{Name: parent, AssetType: "k8s.io/Namespace"})
@@ -452,8 +436,6 @@ func TestFetchClusterResourceSnapshots(t *testing.T) {
 			wantBatchAssets:      []string{podAssetName},
 		},
 		{
-			// The history stub returns no asset, so this case asserts the search phases and the
-			// client side filtering rather than the resulting snapshots.
 			name:       "skips the namespace parented phase when only cluster scoped resources are requested",
 			assetTypes: []string{"k8s.io/Node"},
 			fetcher: &mockCAIFetcher{
@@ -486,9 +468,6 @@ func TestFetchClusterResourceSnapshots(t *testing.T) {
 			wantBatchCallCount:   0,
 		},
 		{
-			// A Namespace object carries no namespace of its own, so the namespace filter treats it
-			// as cluster scoped. Excluding kube-system therefore drops its members but keeps the
-			// kube-system Namespace object itself; only #cluster-scoped removes it.
 			name:       "keeps the excluded Namespace object because Namespace assets are cluster scoped",
 			assetTypes: []string{"k8s.io/Namespace", "k8s.io/Pod"},
 			fetcher: &mockCAIFetcher{
@@ -522,8 +501,8 @@ func TestFetchClusterResourceSnapshots(t *testing.T) {
 			namespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
 			wantSearchQueries: []string{
 				clusterParentQuery,
-				parentSearchQuery(splitNamespaceParents[:maxSearchQueryComparisons]...),
-				parentSearchQuery(splitNamespaceParents[maxSearchQueryComparisons:]...),
+				parentSearchQuery(splitNamespaceParents[:gcpcommon.MaxCAISearchQueryComparisons]...),
+				parentSearchQuery(splitNamespaceParents[gcpcommon.MaxCAISearchQueryComparisons:]...),
 			},
 			wantSearchAssetTypes: [][]string{{"k8s.io/Pod", "k8s.io/Namespace"}, {"k8s.io/Pod"}, {"k8s.io/Pod"}},
 			wantCount:            1,
@@ -571,22 +550,27 @@ func TestFetchClusterResourceSnapshots(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			lookup := clusterResourceLookup{
-				scope:                   "projects/test-project",
-				clusterParentCandidates: []string{regionalClusterAssetName, zonalClusterAssetName},
-				assetTypes:              tc.assetTypes,
-				namespaceFilter:         tc.namespaceFilter,
-				timeWindow: &assetpb.TimeWindow{
-					StartTime: timestamppb.New(startTime),
-					EndTime:   timestamppb.New(endTime),
-				},
+			target := clusterResourceDiscoveryTarget{
+				scope:                      "projects/test-project",
+				clusterAssetNameCandidates: []string{regionalClusterAssetName, zonalClusterAssetName},
+				assetTypes:                 tc.assetTypes,
+				namespaceFilter:            tc.namespaceFilter,
 			}
 
 			progressMeta := inspectionmetadata.NewTaskProgressMetadata("test")
 			ctx := progress.WithContext(t.Context(), progressMeta)
-			got, err := fetchClusterResourceSnapshots(ctx, tc.fetcher, lookup)
+			got, err := gcpcommon.FetchCAIAssetSnapshots(
+				ctx,
+				tc.fetcher,
+				target.scope,
+				startTime,
+				endTime,
+				func(ctx context.Context, f gcpcommon.CAIFetcher) ([]string, error) {
+					return discoverClusterResourceAssetNames(ctx, f, target)
+				},
+			)
 			if (err != nil) != tc.wantErr {
-				t.Fatalf("fetchClusterResourceSnapshots() error = %v, wantErr %v", err, tc.wantErr)
+				t.Fatalf("FetchCAIAssetSnapshots() error = %v, wantErr %v", err, tc.wantErr)
 			}
 			if tc.wantErr {
 				return
@@ -610,8 +594,8 @@ func TestFetchClusterResourceSnapshots(t *testing.T) {
 				t.Errorf("search asset types mismatch (-want +got):\n%s", diff)
 			}
 			for _, searchCall := range tc.fetcher.searchCalls {
-				if searchCall.scope != lookup.scope {
-					t.Errorf("search scope = %s, want %s", searchCall.scope, lookup.scope)
+				if searchCall.scope != target.scope {
+					t.Errorf("search scope = %s, want %s", searchCall.scope, target.scope)
 				}
 			}
 			if tc.fetcher.batchCallCount != tc.wantBatchCallCount {
@@ -620,14 +604,14 @@ func TestFetchClusterResourceSnapshots(t *testing.T) {
 			if diff := cmp.Diff(tc.wantBatchAssets, tc.fetcher.gotBatchAssetNames); diff != "" {
 				t.Errorf("batch asset names mismatch (-want +got):\n%s", diff)
 			}
-			if tc.wantBatchCallCount > 0 && tc.fetcher.gotBatchParent != lookup.scope {
-				t.Errorf("batch parent = %s, want %s", tc.fetcher.gotBatchParent, lookup.scope)
+			if tc.wantBatchCallCount > 0 && tc.fetcher.gotBatchParent != target.scope {
+				t.Errorf("batch parent = %s, want %s", tc.fetcher.gotBatchParent, target.scope)
 			}
 		})
 	}
 }
 
-func TestClusterResourceFetcherTask(t *testing.T) {
+func TestClusterResourceSuite_FetcherTask(t *testing.T) {
 	startTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	endTime := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
 
@@ -719,7 +703,7 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 			factory := setupMockServer(t, mockServer)
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, ClusterResourceFetcherTask, tc.taskMode, map[string]any{},
+			got, _, err := inspectiontest.RunInspectionTask(ctx, ClusterResourceSuite.FetcherTask, tc.taskMode, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
 				tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
 				tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), factory),
@@ -729,7 +713,7 @@ func TestClusterResourceFetcherTask(t *testing.T) {
 				tasktest.NewTaskDependencyValuePair(k8scommon.InputNamespaceFilterTaskID.Ref(), tc.namespaceFilter),
 			)
 			if err != nil {
-				t.Fatalf("ClusterResourceFetcherTask unexpected error: %v", err)
+				t.Fatalf("FetcherTask unexpected error: %v", err)
 			}
 
 			if len(got) != tc.wantCount {

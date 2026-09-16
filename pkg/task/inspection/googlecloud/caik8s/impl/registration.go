@@ -15,11 +15,58 @@
 package caik8s_impl
 
 import (
+	"fmt"
+
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
+
+func formatClusterResourceLogSummary(identity *k8saudit.ResourceIdentity) string {
+	return fmt.Sprintf("CAI resource snapshot: %s/%s", identity.Kind, identity.Name)
+}
+
+// ClusterResourceSuite bundles the 5 CAI tasks for Kubernetes cluster resource snapshots.
+var ClusterResourceSuite = gcpcommon.NewCAITaskSuite(gcpcommon.CAITaskSuiteConfig[*k8saudit.ResourceIdentity]{
+	TaskIDs: caik8s.ClusterResourceTaskIDs,
+	FetcherDependencies: []coretask.Dependency{
+		k8scommon.ClusterIdentityTaskID.Ref(),
+		k8scommon.InputKindFilterTaskID.Ref(),
+		k8scommon.InputNamespaceFilterTaskID.Ref(),
+	},
+	ResolveSearchTarget: resolveClusterResourceSearchTarget,
+	PreprocessRawMap:    preprocessK8sTemporalAssetMap,
+	ExtractIdentity:     extractK8sIdentity,
+	IdentityGroupKey: func(identity *k8saudit.ResourceIdentity) string {
+		return identity.String()
+	},
+	FormatLogSummary: formatClusterResourceLogSummary,
+	MapperDependencies: []coretask.Dependency{
+		k8scommon.ClusterIdentityTaskID.Ref(),
+	},
+	MapInitialRevision: mapClusterResourceInitialRevision,
+})
+
+// GKEResourceSuite bundles the 5 CAI tasks for GKE Cluster and NodePool snapshots.
+var GKEResourceSuite = gcpcommon.NewCAITaskSuite(gcpcommon.CAITaskSuiteConfig[gkeResourceIdentity]{
+	TaskIDs: caik8s.GKEResourceTaskIDs,
+	FetcherDependencies: []coretask.Dependency{
+		k8scommon.ClusterIdentityTaskID.Ref(),
+	},
+	ResolveSearchTarget: resolveGKEResourceSearchTarget,
+	ExtractIdentity:     extractGKEIdentity,
+	IdentityGroupKey:    gkeIdentityGroupKey,
+	FormatLogSummary:    formatGKEResourceLogSummary,
+	MapperDependencies: []coretask.Dependency{
+		k8scommon.ClusterIdentityTaskID.Ref(),
+		caik8s.GKEResourceTaskIDs.RawLog.Ref(),
+	},
+	MapInitialRevision: mapGKEResourceInitialRevision,
+})
 
 // Register registers all googlecloudcaik8s inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
@@ -32,19 +79,15 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		}),
 	)
 
+	if err := ClusterResourceSuite.Register(scoped); err != nil {
+		return err
+	}
+	if err := GKEResourceSuite.Register(scoped); err != nil {
+		return err
+	}
 	return coretask.RegisterTasks(
 		scoped,
-		ClusterResourceFetcherTask,
-		InitialResourceStateProviderTask,
-		RawLogTask,
-		LogGrouperTask,
-		LogIngesterTask,
-		LogToTimelineMapperTask,
-		GKEResourceFetcherTask,
-		GKEInitialResourceStateProviderTask,
-		GKERawLogTask,
-		GKELogGrouperTask,
-		GKELogIngesterTask,
-		GKELogToTimelineMapperTask,
+		ClusterResourceInitialStateProviderTask,
+		GKEResourceInitialStateProviderTask,
 	)
 }

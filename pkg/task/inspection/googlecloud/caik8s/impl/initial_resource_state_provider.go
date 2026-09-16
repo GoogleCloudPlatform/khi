@@ -15,18 +15,11 @@
 package caik8s_impl
 
 import (
-	"context"
-	"time"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // caiInitialResourceStateProvider serves the manifests Cloud Asset Inventory reported for the moment
@@ -43,34 +36,11 @@ func (p *caiInitialResourceStateProvider) InitialResourceState(identity *k8saudi
 	return body, found
 }
 
-// newCAIInitialResourceStateProvider indexes the snapshot logs that were current at 'at'. When several
-// snapshots of the same resource qualify, the one that became current last wins.
-func newCAIInitialResourceStateProvider(logs []*log.Log, at time.Time) *caiInitialResourceStateProvider {
-	bodiesByIdentity := map[string]*structured.NodeReader{}
-	observedTimes := map[string]time.Time{}
-
-	for _, l := range logs {
-		assetWindowStartTime, assetWindowEndTime, isDeleted := extractTimeWindow(l.NodeReader)
-		if isDeleted || !isActiveAt(assetWindowStartTime, assetWindowEndTime, at) {
-			continue
-		}
-		identity := extractResourceIdentityFromLog(l.NodeReader)
-		if identity.Kind == "" || identity.Name == "" {
-			continue
-		}
-		body := extractResourceBody(l.NodeReader)
-		if body == nil {
-			continue
-		}
-
-		key := initialResourceStateKey(identity)
-		if previous, found := observedTimes[key]; found && previous.After(assetWindowStartTime) {
-			continue
-		}
-		bodiesByIdentity[key] = structured.NewNodeReader(body)
-		observedTimes[key] = assetWindowStartTime
+func buildCAIInitialResourceStateProvider(states []gcpcommon.CAIActiveAssetState[*k8saudit.ResourceIdentity]) *caiInitialResourceStateProvider {
+	bodiesByIdentity := make(map[string]*structured.NodeReader, len(states))
+	for _, state := range states {
+		bodiesByIdentity[initialResourceStateKey(state.Identity)] = structured.NewNodeReader(state.ResourceBody)
 	}
-
 	return &caiInitialResourceStateProvider{bodiesByIdentity: bodiesByIdentity}
 }
 
@@ -86,22 +56,15 @@ func initialResourceStateKey(identity *k8saudit.ResourceIdentity) string {
 	return clusterScoped.String()
 }
 
-// InitialResourceStateProviderTask supplies the audit log parser with the resource manifests CAI
+// ClusterResourceInitialStateProviderTask supplies the audit log parser with the resource manifests CAI
 // observed before the inspection window.
-//
-// The subsequent task label pulls the CAI timeline mapper into the graph whenever this provider is
-// selected, so enabling the Kubernetes audit log feature alone also renders the CAI revisions.
-var InitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
+var ClusterResourceInitialStateProviderTask = gcpcommon.NewCAIInitialResourceStateProviderTask(
 	taskid.NewImplementationID(k8saudit.InitialResourceStateProviderRef, "cai"),
-	[]coretask.Dependency{
-		caik8s.RawLogTaskID.Ref(),
-		gcpcommon.InputStartTimeTaskID.Ref(),
+	caik8s.ClusterResourceTaskIDs,
+	extractK8sIdentity,
+	initialResourceStateKey,
+	extractK8sResourceBody,
+	func(states []gcpcommon.CAIActiveAssetState[*k8saudit.ResourceIdentity]) k8saudit.InitialResourceStateProvider {
+		return buildCAIInitialResourceStateProvider(states)
 	},
-	func(ctx context.Context, _ inspectioncore.InspectionTaskModeType) (k8saudit.InitialResourceStateProvider, error) {
-		logs := coretask.GetTaskResult(ctx, caik8s.RawLogTaskID.Ref())
-		queryStartTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
-		return newCAIInitialResourceStateProvider(logs, queryStartTime), nil
-	},
-	coretask.WithSelectionPriority(1000),
-	coretask.NewSubsequentTaskRefsTaskLabel(caik8s.LogToTimelineMapperTaskID.Ref()),
 )

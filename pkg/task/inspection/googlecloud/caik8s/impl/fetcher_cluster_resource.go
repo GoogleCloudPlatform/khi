@@ -17,20 +17,16 @@ package caik8s_impl
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 
 	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var defaultSupportedKindsToAssetTypes = map[string]string{
@@ -63,130 +59,54 @@ var defaultSupportedKindsToAssetTypes = map[string]string{
 	"validatingwebhookconfiguration": "admissionregistration.k8s.io/ValidatingWebhookConfiguration",
 }
 
-// ClusterResourceFetcherTask queries CAI for existing Kubernetes resources in a GKE cluster.
-var ClusterResourceFetcherTask = inspectiontaskbase.NewInspectionTask(
-	caik8s.ClusterResourceFetcherTaskID,
-	[]coretask.Dependency{
-		k8scommon.ClusterIdentityTaskID.Ref(),
-		gcpcommon.APIClientFactoryTaskID.Ref(),
-		gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(),
-		gcpcommon.InputStartTimeTaskID.Ref(),
-		gcpcommon.InputEndTimeTaskID.Ref(),
-		k8scommon.InputKindFilterTaskID.Ref(),
-		k8scommon.InputNamespaceFilterTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*caik8s.ClusterResourceSnapshot, error) {
-		cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
-		factory := coretask.GetTaskResult(ctx, gcpcommon.APIClientFactoryTaskID.Ref())
-		injector, _ := coretask.GetOptionalTaskResult(ctx, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
-		startTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
-		endTime := coretask.GetTaskResult(ctx, gcpcommon.InputEndTimeTaskID.Ref())
-		kindFilter := coretask.GetTaskResult(ctx, k8scommon.InputKindFilterTaskID.Ref())
-		namespaceFilter := coretask.GetTaskResult(ctx, k8scommon.InputNamespaceFilterTaskID.Ref())
+func resolveClusterResourceSearchTarget(ctx context.Context, _ inspectioncore.InspectionTaskModeType) (string, gcpcommon.CAIAssetSearchTarget, bool, error) {
+	cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+	if !cluster.IsComplete() {
+		return "", gcpcommon.CAIAssetSearchTarget{}, true, nil
+	}
 
-		if taskMode == inspectioncore.TaskModeDryRun || !cluster.IsComplete() {
-			return []*caik8s.ClusterResourceSnapshot{}, nil
-		}
+	kindFilter := coretask.GetTaskResult(ctx, k8scommon.InputKindFilterTaskID.Ref())
+	assetTypes := resolveAssetTypes(kindFilter)
+	if len(assetTypes) == 0 {
+		return "", gcpcommon.CAIAssetSearchTarget{}, true, nil
+	}
 
-		assetTypes := resolveAssetTypes(kindFilter)
-		if len(assetTypes) == 0 {
-			return []*caik8s.ClusterResourceSnapshot{}, nil
-		}
+	namespaceFilter := coretask.GetTaskResult(ctx, k8scommon.InputNamespaceFilterTaskID.Ref())
+	target := clusterResourceDiscoveryTarget{
+		scope:                      fmt.Sprintf("projects/%s", cluster.ProjectID),
+		clusterAssetNameCandidates: clusterAssetNameCandidates(cluster),
+		assetTypes:                 assetTypes,
+		namespaceFilter:            namespaceFilter,
+	}
 
-		fetcher := NewCAIFetcher(factory, injector, cluster.ProjectID)
+	return cluster.ProjectID, gcpcommon.CAIAssetSearchTarget{
+		Scope: target.scope,
+		Discover: func(ctx context.Context, fetcher gcpcommon.CAIFetcher) ([]string, error) {
+			return discoverClusterResourceAssetNames(ctx, fetcher, target)
+		},
+	}, false, nil
+}
 
-		snapshots, err := fetchClusterResourceSnapshots(ctx, fetcher, clusterResourceLookup{
-			scope:                   fmt.Sprintf("projects/%s", cluster.ProjectID),
-			clusterParentCandidates: clusterParentCandidates(cluster),
-			assetTypes:              assetTypes,
-			namespaceFilter:         namespaceFilter,
-			timeWindow: &assetpb.TimeWindow{
-				StartTime: timestamppb.New(startTime),
-				EndTime:   timestamppb.New(endTime),
-			},
-		})
-		if err != nil {
-			// A CAI failure must not break the rest of the inspection. The pipeline then behaves as if
-			// the inventory covered no resource at all.
-			slog.WarnContext(ctx, "failed to fetch cluster resource snapshots from CAI", "error", err)
-			return []*caik8s.ClusterResourceSnapshot{}, nil
-		}
-		return snapshots, nil
-	},
-)
-
-// clusterResourceLookup carries the resolved inputs of a single CAI cluster resource lookup.
-type clusterResourceLookup struct {
-	// scope is the CAI search scope and the parent of the history lookup, in the form "projects/{id}".
-	scope string
-	// clusterParentCandidates holds the CAI full resource names the cluster may be named by.
-	clusterParentCandidates []string
-	// assetTypes limits the search to the CAI asset types derived from the kind filter.
-	assetTypes []string
-	// namespaceFilter selects which namespaces to search and which discovered assets to keep.
-	namespaceFilter *gcpqueryutil.SetFilterParseResult
-	// timeWindow is the inspection time range to read asset history for.
-	timeWindow *assetpb.TimeWindow
+// clusterResourceDiscoveryTarget carries the resolved inputs for discovering cluster resource assets in CAI.
+type clusterResourceDiscoveryTarget struct {
+	scope                      string
+	clusterAssetNameCandidates []string
+	assetTypes                 []string
+	namespaceFilter            *gcpqueryutil.SetFilterParseResult
 }
 
 // namespaceAssetType is the CAI asset type of Kubernetes Namespace resources.
 const namespaceAssetType = "k8s.io/Namespace"
 
-// CAI rejects search queries that exceed either of these limits.
-// See https://cloud.google.com/asset-inventory/docs/query-syntax for the documented values.
-const (
-	maxSearchQueryComparisons = 10
-	maxSearchQueryCharacters  = 2048
-)
-
-// clusterParentCandidates returns the CAI full resource names the cluster may be named by.
-// CAI names regional clusters under "/locations/" and zonal clusters under "/zones/", and the
-// inspection input carries a single location string that does not tell the two apart, so both
-// forms are searched. Only the form that exists returns results.
-func clusterParentCandidates(cluster k8scommon.GoogleCloudClusterIdentity) []string {
+// clusterAssetNameCandidates returns the CAI full resource names the cluster may be named by.
+func clusterAssetNameCandidates(cluster k8scommon.GoogleCloudClusterIdentity) []string {
 	return []string{
 		fmt.Sprintf("//container.googleapis.com/projects/%s/locations/%s/clusters/%s", cluster.ProjectID, cluster.Location, cluster.ClusterName),
 		fmt.Sprintf("//container.googleapis.com/projects/%s/zones/%s/clusters/%s", cluster.ProjectID, cluster.Location, cluster.ClusterName),
 	}
 }
 
-// buildParentSearchQueries builds the CAI search expressions matching assets whose parent is exactly
-// one of the given full resource names, splitting them to stay within the CAI query limits.
-//
-// Only the "=" operator is used. The ":" operator tokenizes both operands on every non-alphanumeric
-// character and, when the phrase ends with a wildcard, matches those token prefixes in any order.
-// A prefix such as ".../clusters/my-cluster/*" therefore also matches assets of "my-cluster-2", so
-// it cannot scope a search to one cluster. Exact matching has no such ambiguity.
-func buildParentSearchQueries(parents []string) []string {
-	var queries []string
-	var comparisons []string
-	characterCount := 0
-	for _, parent := range parents {
-		comparison := fmt.Sprintf("parentFullResourceName=%q", parent)
-		addedCharacters := len(comparison)
-		if len(comparisons) > 0 {
-			addedCharacters += len(" OR ")
-		}
-		// A comparison that alone exceeds the character limit still forms its own query, because
-		// splitting it further is impossible.
-		if len(comparisons) > 0 && (len(comparisons) == maxSearchQueryComparisons || characterCount+addedCharacters > maxSearchQueryCharacters) {
-			queries = append(queries, strings.Join(comparisons, " OR "))
-			comparisons = nil
-			characterCount = 0
-			addedCharacters = len(comparison)
-		}
-		comparisons = append(comparisons, comparison)
-		characterCount += addedCharacters
-	}
-	if len(comparisons) > 0 {
-		queries = append(queries, strings.Join(comparisons, " OR "))
-	}
-	return queries
-}
-
 // assetTypesWithNamespace returns the asset types to search in the cluster parented phase.
-// Namespace assets are always searched because their names are the parent values the namespace
-// parented phase needs, even when the kind filter excludes them from the result.
 func assetTypesWithNamespace(assetTypes []string) []string {
 	if slices.Contains(assetTypes, namespaceAssetType) {
 		return slices.Clone(assetTypes)
@@ -195,17 +115,13 @@ func assetTypesWithNamespace(assetTypes []string) []string {
 }
 
 // targetNamespaceParents returns the CAI full resource names of the namespaces to search.
-// A Namespace asset's own name is exactly the parent value its members carry, so the cluster path
-// is reused verbatim and the locations or zones form resolves itself.
 func targetNamespaceParents(clusterParentedResults []*assetpb.ResourceSearchResult, filter *gcpqueryutil.SetFilterParseResult) []string {
 	var parents []string
 	for _, searchResult := range clusterParentedResults {
 		if searchResult.AssetType != namespaceAssetType {
 			continue
 		}
-		// A Namespace asset carries no namespace of its own, so parseAssetName reports its
-		// resource name, which is the namespace name the filter matches against.
-		_, namespaceName := parseAssetName(searchResult.Name)
+		_, namespaceName := parseK8sAssetName(searchResult.Name)
 		if matchesNamespaceFilter(filter, namespaceName) {
 			parents = append(parents, searchResult.Name)
 		}
@@ -214,8 +130,6 @@ func targetNamespaceParents(clusterParentedResults []*assetpb.ResourceSearchResu
 }
 
 // filterSearchResultsByAssetType drops results of asset types the kind filter did not ask for.
-// Namespace assets are searched unconditionally to list the namespaces, so they reach this function
-// even when unrequested.
 func filterSearchResultsByAssetType(searchResults []*assetpb.ResourceSearchResult, assetTypes []string) []*assetpb.ResourceSearchResult {
 	var matched []*assetpb.ResourceSearchResult
 	for _, searchResult := range searchResults {
@@ -226,79 +140,38 @@ func filterSearchResultsByAssetType(searchResults []*assetpb.ResourceSearchResul
 	return matched
 }
 
-// searchAssetsByParent runs one CAI search per query and returns the concatenated results.
-func searchAssetsByParent(ctx context.Context, fetcher caik8s.CAIFetcher, scope string, assetTypes []string, queries []string) ([]*assetpb.ResourceSearchResult, error) {
-	var results []*assetpb.ResourceSearchResult
-	for _, query := range queries {
-		searchResults, err := fetcher.SearchResources(ctx, scope, query, assetTypes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to search assets with query %q: %w", query, err)
-		}
-		results = append(results, searchResults...)
-	}
-	return results, nil
-}
-
-// fetchClusterResourceSnapshots searches CAI for the resources of the cluster and converts their
-// temporal history into cluster resource snapshots.
-//
-// The search runs in two phases because CAI models the parent of a namespaced resource as its
-// Namespace and the parent of a cluster-scoped resource as the cluster. There is no single parent
-// value covering a whole cluster, so the cluster parented phase runs first and the Namespace assets
-// it returns supply the parent values of the namespace parented phase.
-func fetchClusterResourceSnapshots(ctx context.Context, fetcher caik8s.CAIFetcher, lookup clusterResourceLookup) ([]*caik8s.ClusterResourceSnapshot, error) {
+// discoverClusterResourceAssetNames runs the two-phase CAI search (cluster-parented then namespace-parented)
+// and returns the matching full resource names.
+func discoverClusterResourceAssetNames(ctx context.Context, fetcher gcpcommon.CAIFetcher, target clusterResourceDiscoveryTarget) ([]string, error) {
 	progress.ReportIndeterminate(ctx, "Searching cluster-scoped resources in Cloud Asset Inventory...")
 
-	clusterParentedResults, err := searchAssetsByParent(ctx, fetcher, lookup.scope, assetTypesWithNamespace(lookup.assetTypes), buildParentSearchQueries(lookup.clusterParentCandidates))
+	clusterParentedResults, err := gcpcommon.SearchCAIAssetsByParents(ctx, fetcher, target.scope, assetTypesWithNamespace(target.assetTypes), target.clusterAssetNameCandidates)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search cluster parented resources from CAI: %w", err)
 	}
 
-	namespaceParents := targetNamespaceParents(clusterParentedResults, lookup.namespaceFilter)
+	namespaceParents := targetNamespaceParents(clusterParentedResults, target.namespaceFilter)
 	progress.ReportIndeterminate(ctx, fmt.Sprintf("Searching namespaced resources in Cloud Asset Inventory (%d namespaces)...", len(namespaceParents)))
 
-	namespaceParentedResults, err := searchAssetsByParent(ctx, fetcher, lookup.scope, lookup.assetTypes, buildParentSearchQueries(namespaceParents))
+	namespaceParentedResults, err := gcpcommon.SearchCAIAssetsByParents(ctx, fetcher, target.scope, target.assetTypes, namespaceParents)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search namespace parented resources from CAI: %w", err)
 	}
 
-	searchResults := append(filterSearchResultsByAssetType(clusterParentedResults, lookup.assetTypes), namespaceParentedResults...)
-	matchedAssetNames := filterAssetNamesByNamespace(searchResults, lookup.namespaceFilter)
-	if len(matchedAssetNames) == 0 {
-		return []*caik8s.ClusterResourceSnapshot{}, nil
-	}
-
-	temporalAssets, err := fetcher.BatchGetAssetsHistory(ctx, lookup.scope, matchedAssetNames, assetpb.ContentType_RESOURCE, lookup.timeWindow)
-	if err != nil {
-		return nil, fmt.Errorf("failed to batch get assets history from CAI: %w", err)
-	}
-
-	return convertTemporalAssets(temporalAssets)
+	searchResults := append(filterSearchResultsByAssetType(clusterParentedResults, target.assetTypes), namespaceParentedResults...)
+	return filterAssetNamesByNamespace(searchResults, target.namespaceFilter), nil
 }
 
 // filterAssetNamesByNamespace filters search results by the namespace filter and returns matching asset names.
 func filterAssetNamesByNamespace(searchResults []*assetpb.ResourceSearchResult, filter *gcpqueryutil.SetFilterParseResult) []string {
 	var matched []string
 	for _, searchResult := range searchResults {
-		namespace, _ := parseAssetName(searchResult.Name)
+		namespace, _ := parseK8sAssetName(searchResult.Name)
 		if matchesNamespaceFilter(filter, namespace) {
 			matched = append(matched, searchResult.Name)
 		}
 	}
 	return matched
-}
-
-// convertTemporalAssets converts a slice of temporal assets into cluster resource snapshots.
-func convertTemporalAssets(temporalAssets []*assetpb.TemporalAsset) ([]*caik8s.ClusterResourceSnapshot, error) {
-	snapshots := make([]*caik8s.ClusterResourceSnapshot, 0, len(temporalAssets))
-	for _, temporalAsset := range temporalAssets {
-		snapshot, err := ConvertTemporalAssetToClusterResourceSnapshot(temporalAsset)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert temporal asset to cluster resource snapshot: %w", err)
-		}
-		snapshots = append(snapshots, snapshot)
-	}
-	return snapshots, nil
 }
 
 // resolveAssetTypes computes the list of CAI asset types to search based on the kind filter.
@@ -313,7 +186,6 @@ func resolveAssetTypes(filter *gcpqueryutil.SetFilterParseResult) []string {
 }
 
 // resolveSubtractiveAssetTypes returns the default asset types minus the ones mapped from the excluded kinds.
-// Kinds without a mapping are ignored because they can never match a default asset type.
 func resolveSubtractiveAssetTypes(subtractives []string) []string {
 	allTypes := defaultAssetTypes()
 	subtractSet := make(map[string]struct{})
@@ -332,7 +204,6 @@ func resolveSubtractiveAssetTypes(subtractives []string) []string {
 }
 
 // resolveAdditiveAssetTypes returns the sorted, deduplicated asset types mapped from the requested kinds.
-// Kinds without a mapping are ignored, and an empty result makes the caller skip the CAI lookup entirely.
 func resolveAdditiveAssetTypes(additives []string) []string {
 	if len(additives) == 0 {
 		return nil

@@ -19,9 +19,14 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // snapshotLogParams describes a CAI temporal asset log the provider indexes.
@@ -37,7 +42,7 @@ type snapshotLogParams struct {
 	isDeleted       bool
 }
 
-func TestCAIInitialResourceStateProvider(t *testing.T) {
+func TestClusterResourceInitialStateProviderTask(t *testing.T) {
 	queryStartTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	pathMetadataLabelsOrigin := structured.CompileFieldPath("metadata.labels.origin")
 
@@ -235,7 +240,14 @@ func TestCAIInitialResourceStateProvider(t *testing.T) {
 				logs = append(logs, newSnapshotLog(t, params))
 			}
 
-			provider := newCAIInitialResourceStateProvider(logs, queryStartTime)
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			provider, _, err := inspectiontest.RunInspectionTask(ctx, ClusterResourceInitialStateProviderTask, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.NewTaskDependencyValuePair(caik8s.ClusterResourceTaskIDs.RawLog.Ref(), logs),
+				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
+			)
+			if err != nil {
+				t.Fatalf("RunInspectionTask() error: %v", err)
+			}
 			body, found := provider.InitialResourceState(tc.lookup)
 			if found != tc.wantFound {
 				t.Fatalf("InitialResourceState(%v) found = %t, want %t", tc.lookup, found, tc.wantFound)

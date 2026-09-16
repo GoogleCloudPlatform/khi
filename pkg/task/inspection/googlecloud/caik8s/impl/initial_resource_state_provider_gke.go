@@ -15,18 +15,12 @@
 package caik8s_impl
 
 import (
-	"context"
 	"fmt"
-	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeapiaudit"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // caiGKEInitialResourceStateProvider serves initial states of GKE clusters and node pools from CAI.
@@ -53,56 +47,18 @@ func nodePoolKey(clusterName, nodePoolName string) string {
 	return fmt.Sprintf("%s/%s", clusterName, nodePoolName)
 }
 
-// newCAIGKEInitialResourceStateProvider extracts active cluster and nodepool initial states at queryStartTime.
-func newCAIGKEInitialResourceStateProvider(snapshots []*caik8s.GKEResourceSnapshot, queryStartTime time.Time) *caiGKEInitialResourceStateProvider {
+func buildCAIGKEInitialResourceStateProvider(states []gcpcommon.CAIActiveAssetState[gkeResourceIdentity]) *caiGKEInitialResourceStateProvider {
 	clusters := map[string]*gkeapiaudit.InitialResourceState{}
 	nodePools := map[string]*gkeapiaudit.InitialResourceState{}
 
-	for _, s := range snapshots {
-		if s == nil || s.TemporalAsset == nil || s.TemporalAsset.Asset == nil {
-			continue
-		}
-		ta := s.TemporalAsset
-		if ta.Deleted {
-			continue
-		}
-
-		var windowStartTime, windowEndTime time.Time
-		window := ta.GetWindow()
-		if st := window.GetStartTime(); st != nil {
-			windowStartTime = st.AsTime()
-		}
-		if et := window.GetEndTime(); et != nil {
-			windowEndTime = et.AsTime()
-		}
-
-		if !isActiveAt(windowStartTime, windowEndTime, queryStartTime) {
-			continue
-		}
-
-		identity := parseGKEAssetName(ta.Asset.Name)
-		if identity.ClusterName == "" && identity.NodePoolName == "" {
-			continue
-		}
-
-		var resourceBody structured.Node
-		if data := ta.Asset.GetResource().GetData(); data != nil {
-			if node, err := structured.FromGoValue(data.AsMap(), &structured.AlphabeticalGoMapKeyOrderProvider{}); err == nil {
-				resourceBody = node
-			}
-		}
-		if resourceBody == nil {
-			continue
-		}
-
+	for _, state := range states {
 		initialState := &gkeapiaudit.InitialResourceState{
-			ResourceBody: resourceBody,
+			ResourceBody: state.ResourceBody,
 		}
-
-		if identity.IsCluster() {
-			clusters[identity.ClusterName] = initialState
-		} else if identity.IsNodePool() {
-			nodePools[nodePoolKey(identity.ClusterName, identity.NodePoolName)] = initialState
+		if state.Identity.IsCluster() {
+			clusters[state.Identity.ClusterName] = initialState
+		} else if state.Identity.IsNodePool() {
+			nodePools[nodePoolKey(state.Identity.ClusterName, state.Identity.NodePoolName)] = initialState
 		}
 	}
 
@@ -112,24 +68,14 @@ func newCAIGKEInitialResourceStateProvider(snapshots []*caik8s.GKEResourceSnapsh
 	}
 }
 
-// GKEInitialResourceStateProviderTask supplies initial GKE resource manifests to the audit log parser.
-var GKEInitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
+// GKEResourceInitialStateProviderTask supplies initial GKE resource manifests to the audit log parser.
+var GKEResourceInitialStateProviderTask = gcpcommon.NewCAIInitialResourceStateProviderTask(
 	taskid.NewImplementationID(gkeapiaudit.InitialResourceStateProviderRef, "cai"),
-	[]coretask.Dependency{
-		caik8s.GKEResourceFetcherTaskID.Ref(),
-		gcpcommon.InputStartTimeTaskID.Ref(),
+	caik8s.GKEResourceTaskIDs,
+	extractGKEIdentity,
+	gkeIdentityGroupKey,
+	extractGKEResourceBody,
+	func(states []gcpcommon.CAIActiveAssetState[gkeResourceIdentity]) gkeapiaudit.InitialResourceStateProvider {
+		return buildCAIGKEInitialResourceStateProvider(states)
 	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (gkeapiaudit.InitialResourceStateProvider, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return &caiGKEInitialResourceStateProvider{
-				clusters:  map[string]*gkeapiaudit.InitialResourceState{},
-				nodePools: map[string]*gkeapiaudit.InitialResourceState{},
-			}, nil
-		}
-		snapshots := coretask.GetTaskResult(ctx, caik8s.GKEResourceFetcherTaskID.Ref())
-		queryStartTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
-		return newCAIGKEInitialResourceStateProvider(snapshots, queryStartTime), nil
-	},
-	coretask.WithSelectionPriority(1000),
-	coretask.NewSubsequentTaskRefsTaskLabel(caik8s.GKELogToTimelineMapperTaskID.Ref()),
 )
