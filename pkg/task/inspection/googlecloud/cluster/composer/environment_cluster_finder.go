@@ -116,5 +116,3 @@ func filterAndMatchComposerGKEClusterNames(metricsLabels []map[string]string, lo
 	sort.Strings(result)
 	return result
 }
-
-var _ ComposerEnvironmentClusterFinder = (*EnvironmentClusterFinderImpl)(nil)
