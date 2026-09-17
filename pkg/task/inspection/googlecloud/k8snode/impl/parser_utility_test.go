@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -251,6 +252,91 @@ func TestCheckStartingAndTerminationLog(t *testing.T) {
 			checkStartingAndTerminationLog(ctx, cs, l, tc.startingLog, tc.terminationLog, wantComponentPath)
 
 			tc.assert(t, ctx, cs)
+		})
+	}
+}
+
+func TestFindPodAndContainerReferences(t *testing.T) {
+	podInfo := &k8snode.PodSandboxIDInfo{
+		PodName:      "podname",
+		PodNamespace: "kube-system",
+		PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+	}
+	containerIdentity := &k8saudit.ContainerIdentity{
+		PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+		ContainerName: "fluentbit-gke-init",
+		ContainerID:   "fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256",
+	}
+
+	testCases := []struct {
+		desc              string
+		text              string
+		podIDInfo         map[string]*k8snode.PodSandboxIDInfo
+		containerIDInfo   map[string]*k8saudit.ContainerIdentity
+		wantPods          []*k8snode.PodSandboxIDInfo
+		wantContainerRefs []containerReference
+	}{
+		{
+			desc: "pod sandbox id is resolved",
+			text: "RunPodSandbox returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\"",
+			podIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				podInfo.PodSandboxID: podInfo,
+			},
+			wantPods: []*k8snode.PodSandboxIDInfo{podInfo},
+		},
+		{
+			desc: "container id is resolved with its owner pod",
+			text: "Received TaskCreate event: {ContainerID:fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256}",
+			podIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				podInfo.PodSandboxID: podInfo,
+			},
+			containerIDInfo: map[string]*k8saudit.ContainerIdentity{
+				containerIdentity.ContainerID: containerIdentity,
+			},
+			wantContainerRefs: []containerReference{
+				{
+					Container: containerIdentity,
+					Pod:       podInfo,
+				},
+			},
+		},
+		{
+			desc: "container id with unknown pod sandbox is omitted",
+			text: "Received TaskCreate event: {ContainerID:fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256}",
+			containerIDInfo: map[string]*k8saudit.ContainerIdentity{
+				containerIdentity.ContainerID: containerIdentity,
+			},
+		},
+		{
+			desc: "unregistered id is ignored",
+			text: "Unknown ID: deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			podIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				podInfo.PodSandboxID: podInfo,
+			},
+			containerIDInfo: map[string]*k8saudit.ContainerIdentity{
+				containerIdentity.ContainerID: containerIdentity,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			podIDFinder := patternfinder.NewNaivePatternFinder[*k8snode.PodSandboxIDInfo]()
+			for k, v := range tc.podIDInfo {
+				podIDFinder.AddPattern(k, v)
+			}
+			containerIDPatternFinder := patternfinder.NewNaivePatternFinder[*k8saudit.ContainerIdentity]()
+			for k, v := range tc.containerIDInfo {
+				containerIDPatternFinder.AddPattern(k, v)
+			}
+
+			gotPods, gotContainerRefs := findPodAndContainerReferences(tc.text, podIDFinder, containerIDPatternFinder)
+			if diff := cmp.Diff(tc.wantPods, gotPods); diff != "" {
+				t.Errorf("findPodAndContainerReferences() pods mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantContainerRefs, gotContainerRefs); diff != "" {
+				t.Errorf("findPodAndContainerReferences() container references mismatch (-want +got):\n%s", diff)
+			}
 		})
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8snode"
 )
@@ -42,6 +43,8 @@ type otherNodeLogLogToTimelineMapperSetting struct {
 func (o *otherNodeLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		k8snode.ClusterIdentityTaskID.Ref(),
+		k8snode.PodSandboxIDDiscoveryTaskID.Ref(),
+		k8saudit.ContainerIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -80,6 +83,19 @@ func (o *otherNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.C
 	checkStartingAndTerminationLog(ctx, cs, l, startingMessage, terminatingMessage, componentTimelinePath)
 
 	cs.AddEvent(componentTimelinePath)
+
+	if componentFieldSet.Message != nil {
+		podSandboxIDFinder := coretask.GetTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
+		containerIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref())
+		pods, containerRefs := findPodAndContainerReferences(componentFieldSet.Message.Raw(), podSandboxIDFinder, containerIDPatternFinder)
+		for _, pod := range pods {
+			cs.AddEvent(MustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
+		}
+		for _, containerRef := range containerRefs {
+			podTimelinePath := MustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
+			cs.AddEvent(k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, containerRef.Container.ContainerName))
+		}
+	}
 
 	return cs, struct{}{}, nil
 }

@@ -284,24 +284,13 @@ func (c *containerdNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx cont
 	cs.AddEvent(componentTimelinePath)
 
 	raw := nodeLogFieldSet.Message.Raw()
-	podFindResults := patternfinder.FindAllWithStarterRunes(raw, podSandboxIDFinder, false, '"', '=')
-
-	for _, result := range podFindResults {
-		podTimelinePath := MustK8sPodTimeline(ctx, clusterName, result.Value.PodNamespace, result.Value.PodName)
-		cs.AddEvent(podTimelinePath)
+	pods, containerRefs := findPodAndContainerReferences(raw, podSandboxIDFinder, containerIDPatternFinder)
+	for _, pod := range pods {
+		cs.AddEvent(MustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
 	}
-
-	containerFindResults := patternfinder.FindAllWithStarterRunes(raw, containerIDPatternFinder, false, '"', '=')
-	for _, result := range containerFindResults {
-		podSandboxID := result.Value.PodSandboxID
-		foundPod := patternfinder.FindAllWithStarterRunes(podSandboxID, podSandboxIDFinder, true)
-		if len(foundPod) == 0 {
-			continue
-		}
-		pod := foundPod[0].Value
-		podTimelinePath := MustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName)
-		containerTimelinePath := k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, result.Value.ContainerName)
-		cs.AddEvent(containerTimelinePath)
+	for _, containerRef := range containerRefs {
+		podTimelinePath := MustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
+		cs.AddEvent(k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, containerRef.Container.ContainerName))
 	}
 
 	return cs, struct{}{}, nil
