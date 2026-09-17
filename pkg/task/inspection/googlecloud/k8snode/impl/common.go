@@ -72,25 +72,14 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 	raw := nodeLogFS.Message.Raw()
 	summaryReplaceMap := map[string]string{}
 
-	podIDFinder := coretask.GetTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
-	if podIDFinder != nil {
-		podFindResults := patternfinder.FindAllWithStarterRunes(raw, podIDFinder, false, '"', '=')
-		for _, result := range podFindResults {
-			summaryReplaceMap[result.Value.PodSandboxID] = toReadablePodSandboxName(result.Value.PodNamespace, result.Value.PodName)
-		}
-	}
-
+	podSandboxIDFinder := coretask.GetTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
 	containerIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref())
-	if containerIDPatternFinder != nil && podIDFinder != nil {
-		containerFindResults := patternfinder.FindAllWithStarterRunes(raw, containerIDPatternFinder, false, '"', '=')
-		for _, result := range containerFindResults {
-			podSandboxID := result.Value.PodSandboxID
-			foundPod := patternfinder.FindAllWithStarterRunes(podSandboxID, podIDFinder, true)
-			if len(foundPod) > 0 {
-				pod := foundPod[0].Value
-				summaryReplaceMap[result.Value.ContainerID] = toReadableContainerName(pod.PodNamespace, pod.PodName, result.Value.ContainerName)
-			}
-		}
+	pods, containerRefs := findPodAndContainerReferences(raw, podSandboxIDFinder, containerIDPatternFinder)
+	for _, pod := range pods {
+		summaryReplaceMap[pod.PodSandboxID] = toReadablePodSandboxName(pod.PodNamespace, pod.PodName)
+	}
+	for _, containerRef := range containerRefs {
+		summaryReplaceMap[containerRef.Container.ContainerID] = toReadableContainerName(containerRef.Pod.PodNamespace, containerRef.Pod.PodName, containerRef.Container.ContainerName)
 	}
 
 	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())

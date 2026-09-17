@@ -119,3 +119,42 @@ func FindAllWithStarterRunes[T any](searchText string, finder PatternFinder[T], 
 
 	return results
 }
+
+// isLowerHexDigit reports whether b is a digit of a lowercase hexadecimal string.
+func isLowerHexDigit(b byte) bool {
+	return ('0' <= b && b <= '9') || ('a' <= b && b <= 'f')
+}
+
+// FindAllHexTokens finds all occurrences of registered patterns that form a whole lowercase
+// hexadecimal token within searchText.
+//
+// Container IDs and pod sandbox IDs are lowercase hexadecimal strings, so a genuine occurrence is
+// always delimited by bytes that are not hexadecimal digits, whatever punctuation the emitting
+// component uses, such as `ContainerID:<id>`, `"<id>"`, or `/containers/<id>/`. Requiring that
+// boundary on both ends finds IDs without enumerating delimiters, and keeps a registered ID from
+// matching inside a longer digest that merely shares its prefix.
+//
+// Returns non-overlapping matches ordered by their position in searchText.
+func FindAllHexTokens[T any](searchText string, finder PatternFinder[T]) []PatternMatchResult[T] {
+	var results []PatternMatchResult[T]
+	for i := 0; i < len(searchText); {
+		if !isLowerHexDigit(searchText[i]) || (i > 0 && isLowerHexDigit(searchText[i-1])) {
+			i++
+			continue
+		}
+		match, ok := finder.Match(searchText[i:])
+		matchEnd := i + match.End
+		// An empty pattern matches with End == 0. Skipping it keeps the cursor moving forward.
+		if !ok || match.End == 0 || (matchEnd < len(searchText) && isLowerHexDigit(searchText[matchEnd])) {
+			i++
+			continue
+		}
+		results = append(results, PatternMatchResult[T]{
+			Value: match.Value,
+			Start: i,
+			End:   matchEnd,
+		})
+		i = matchEnd
+	}
+	return results
+}

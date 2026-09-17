@@ -69,7 +69,7 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context
 		return nil, struct{}{}, err
 	}
 	containerIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref())
-	podIDFinder := coretask.GetTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
+	podSandboxIDFinder := coretask.GetTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
 	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 
 	cs := khifilev6.NewTimelineChangeSet(l)
@@ -82,25 +82,14 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context
 	original := componentFieldSet.Message.Raw()
 
 	foundPods := map[string]struct{}{}
-	podFindResults := patternfinder.FindAllWithStarterRunes(original, podIDFinder, false, '"')
-
-	for _, result := range podFindResults {
-		podTimelinePath := MustK8sPodTimeline(ctx, clusterName, result.Value.PodNamespace, result.Value.PodName)
-		cs.AddEvent(podTimelinePath)
-		foundPods[fmt.Sprintf("%s/%s", result.Value.PodNamespace, result.Value.PodName)] = struct{}{}
+	pods, containerRefs := findPodAndContainerReferences(original, podSandboxIDFinder, containerIDPatternFinder)
+	for _, pod := range pods {
+		cs.AddEvent(MustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
+		foundPods[fmt.Sprintf("%s/%s", pod.PodNamespace, pod.PodName)] = struct{}{}
 	}
-
-	containerFindResults := patternfinder.FindAllWithStarterRunes(original, containerIDPatternFinder, false, '"')
-	for _, result := range containerFindResults {
-		podSandboxID := result.Value.PodSandboxID
-		foundPod := patternfinder.FindAllWithStarterRunes(podSandboxID, podIDFinder, true)
-		if len(foundPod) == 0 {
-			continue
-		}
-		pod := foundPod[0].Value
-		podTimelinePath := MustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName)
-		containerTimelinePath := k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, result.Value.ContainerName)
-		cs.AddEvent(containerTimelinePath)
+	for _, containerRef := range containerRefs {
+		podTimelinePath := MustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
+		cs.AddEvent(k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, containerRef.Container.ContainerName))
 	}
 
 	resourceFindResults := patternfinder.FindAllWithStarterRunes(original, resourceUIDPatternFinder, false, '"')

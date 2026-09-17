@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestFindAllWithStarterRunes(t *testing.T) {
@@ -126,6 +128,117 @@ func TestFindAllWithStarterRunes(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("FindAllWithStarterRunes() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFindAllHexTokens(t *testing.T) {
+	const (
+		podID = "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1"
+		cID   = "fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256"
+	)
+	finder := NewRadixPatternFinder[string]()
+	finder.AddPattern(podID, "pod")
+	finder.AddPattern(cID, "container")
+
+	makeResult := func(text, sub, val string) PatternMatchResult[string] {
+		idx := strings.Index(text, sub)
+		return PatternMatchResult[string]{
+			Value: val,
+			Start: idx,
+			End:   idx + len(sub),
+		}
+	}
+
+	case1Text := "Received TaskCreate event: {ContainerID:" + cID + " Bundle:/run}"
+	case2Text := "/run/containerd/io.containerd.runtime.v2.task/k8s.io/" + cID + "/io"
+	case3Text := "returns container id \"" + cID + "\""
+	case4Text := "sandbox=" + podID + " ok"
+	case5Text := podID
+	case6Text := "deadbeef" + cID
+	case7Text := "pod=" + podID + " container=" + cID
+	case8Text := "/containers/" + cID + "/io/9876543210/" + cID + "-stdout"
+	case9Text := `level=info msg="nothing here"`
+	case10Text := ""
+	case11Text := cID + "deadbeef"
+
+	case8First := strings.Index(case8Text, cID)
+	case8Second := strings.LastIndex(case8Text, cID)
+
+	testCases := []struct {
+		name string
+		text string
+		want []PatternMatchResult[string]
+	}{
+		{
+			name: "id delimited by colon",
+			text: case1Text,
+			want: []PatternMatchResult[string]{makeResult(case1Text, cID, "container")},
+		},
+		{
+			name: "id delimited by slash",
+			text: case2Text,
+			want: []PatternMatchResult[string]{makeResult(case2Text, cID, "container")},
+		},
+		{
+			name: "id delimited by double quote",
+			text: case3Text,
+			want: []PatternMatchResult[string]{makeResult(case3Text, cID, "container")},
+		},
+		{
+			name: "id delimited by equal sign",
+			text: case4Text,
+			want: []PatternMatchResult[string]{makeResult(case4Text, podID, "pod")},
+		},
+		{
+			name: "id at the beginning of the text",
+			text: case5Text,
+			want: []PatternMatchResult[string]{makeResult(case5Text, podID, "pod")},
+		},
+		{
+			name: "id in the middle of a longer hexadecimal run is not matched",
+			text: case6Text,
+			want: nil,
+		},
+		{
+			name: "id followed immediately by hexadecimal characters is not matched",
+			text: case11Text,
+			want: nil,
+		},
+		{
+			name: "multiple ids in one message",
+			text: case7Text,
+			want: []PatternMatchResult[string]{
+				makeResult(case7Text, podID, "pod"),
+				makeResult(case7Text, cID, "container"),
+			},
+		},
+		{
+			name: "same id appearing twice",
+			text: case8Text,
+			want: []PatternMatchResult[string]{
+				{Value: "container", Start: case8First, End: case8First + len(cID)},
+				{Value: "container", Start: case8Second, End: case8Second + len(cID)},
+			},
+		},
+		{
+			name: "no registered id in the text",
+			text: case9Text,
+			want: nil,
+		},
+		{
+			name: "empty text",
+			text: case10Text,
+			want: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := FindAllHexTokens(tc.text, finder)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("FindAllHexTokens() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -294,6 +407,73 @@ func BenchmarkFindAllWithStarterRunesWithContainerIDScenario(b *testing.B) {
 					for i := 0; i < b.N; i++ {
 						for _, query := range queries {
 							FindAllWithStarterRunes(query, finder, true, '"')
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+func BenchmarkFindAllHexTokensWithContainerIDScenario(b *testing.B) {
+	// This benchmark tests speed with using mock logs of containerd including containerID.
+	finders := []struct {
+		name        string
+		constructor func() PatternFinder[string]
+	}{
+		{
+			name: "naive",
+			constructor: func() PatternFinder[string] {
+				return NewNaivePatternFinder[string]()
+			},
+		},
+		{
+			name: "radix",
+			constructor: func() PatternFinder[string] {
+				return NewRadixPatternFinder[string]()
+			},
+		},
+	}
+
+	scenarios := []struct {
+		name           string
+		containerCount int
+		queryCount     int
+		hitPerCount    int // how much of pattern finding actually including the pattern or not.
+	}{
+		{"1000container,1000query,100%hit", 1000, 1000, 1},
+		{"1000container,1000query,1%hit", 1000, 1000, 100},
+		{"10000container,1000query,100%hit", 10000, 1000, 1},
+		{"10000container,1000query,1%hit", 10000, 1000, 100},
+		{"1000container,10000query,100%hit", 1000, 10000, 1},
+		{"1000container,10000query,1%hit", 1000, 10000, 100},
+	}
+
+	for _, f := range finders {
+		b.Run(f.name, func(b *testing.B) {
+			for _, s := range scenarios {
+				b.Run(s.name, func(b *testing.B) {
+					finder := f.constructor()
+					patterns := make([]string, s.containerCount)
+					for i := 0; i < len(patterns); i++ {
+						patterns[i] = generateContainerIDLike()
+						finder.AddPattern(patterns[i], strconv.Itoa(i))
+					}
+					queries := make([]string, s.queryCount)
+					for i := 0; i < len(queries); i++ {
+						id := ""
+						if i%s.hitPerCount == 0 {
+							id = patterns[i*7%len(patterns)] // expecting patterns count and 7 is coprime
+						} else {
+							id = generateContainerIDLike()
+						}
+						queries[i] = fmt.Sprintf(`time="2024-01-01T01:00:00Z" level=info msg="Stop container \"%s\" with signal terminated`, id)
+					}
+
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						for _, query := range queries {
+							FindAllHexTokens(query, finder)
 						}
 					}
 				})
