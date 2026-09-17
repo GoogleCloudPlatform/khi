@@ -37,7 +37,11 @@ import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import { TimelineRulerViewModel } from './timeline-ruler.viewmodel';
 import { TimelineRulerStyle } from 'src/app/timeline/components/style-model';
 import { calculateDateLabels } from './calculator/date-label-calculator';
-import { TimeRangeMs, TimeRangeOverlayStyle } from './interaction-model';
+import {
+  TimeRangeDragMode,
+  TimeRangeMs,
+  TimeRangeOverlayStyle,
+} from './interaction-model';
 
 /**
  * Component that renders the timeline ruler, displaying time ticks and date labels.
@@ -53,6 +57,8 @@ import { TimeRangeMs, TimeRangeOverlayStyle } from './interaction-model';
   styleUrls: ['./timeline-ruler.component.scss'],
 })
 export class TimelineRulerComponent implements AfterViewInit {
+  protected readonly TimeRangeDragMode = TimeRangeDragMode;
+
   private readonly container =
     viewChild<ElementRef<HTMLDivElement>>('container');
   private readonly backgroundCanvas =
@@ -107,6 +113,11 @@ export class TimelineRulerComponent implements AfterViewInit {
   readonly timeRangeSelected = output<TimeRangeMs>();
 
   /**
+   * Emits when the user requests clearing the active time range filter.
+   */
+  readonly timeRangeCleared = output<void>();
+
+  /**
    * Emits when the scaling mode is changed.
    */
   scalingMode = model<boolean>();
@@ -116,8 +127,8 @@ export class TimelineRulerComponent implements AfterViewInit {
    */
   scrollOnRuler = output<WheelEvent>();
 
-  private isDragging = false;
-  private dragStartMs: number | null = null;
+  private readonly activeDragMode = signal<TimeRangeDragMode | null>(null);
+  private dragAnchorMs: number | null = null;
   private dragStartClientX = 0;
   private dragContainerLeft = 0;
   private removeDragListeners: (() => void) | null = null;
@@ -131,6 +142,17 @@ export class TimelineRulerComponent implements AfterViewInit {
       width: Math.max(2, (range.endMs - range.startMs) * this.pixelsPerMs()),
     };
   }
+
+  /**
+   * Whether the user is currently dragging one of the edges of the active time range.
+   */
+  protected readonly isResizingActiveRange = computed(() => {
+    const dragMode = this.activeDragMode();
+    return (
+      dragMode === TimeRangeDragMode.ResizeStart ||
+      dragMode === TimeRangeDragMode.ResizeEnd
+    );
+  });
 
   protected readonly activeRangeStyle = computed<TimeRangeOverlayStyle | null>(
     () => this.computeOverlayStyle(this.activeTimeRangeMs()),
@@ -276,71 +298,29 @@ export class TimelineRulerComponent implements AfterViewInit {
     }
   }
 
-  private handleDragMove(moveEvent: MouseEvent): void {
-    this.ngZone.run(() => {
-      if (!this.isDragging || this.dragStartMs === null) {
-        return;
-      }
-      const currentMs = this.calculateTimeMsFromClientX(moveEvent.clientX);
-      const range: TimeRangeMs = {
-        startMs: Math.min(this.dragStartMs, currentMs),
-        endMs: Math.max(this.dragStartMs, currentMs),
-      };
-      this.previewTimeRangeMs.set(range);
-    });
-  }
-
-  private handleDragEnd(upEvent: MouseEvent): void {
-    this.ngZone.run(() => {
-      const startMs = this.dragStartMs;
-      const wasDragging = this.isDragging;
-      const dragDistancePx = Math.abs(upEvent.clientX - this.dragStartClientX);
-      this.cleanupDragListeners();
-      this.isDragging = false;
-      this.dragStartMs = null;
-      this.previewTimeRangeMs.set(null);
-
-      if (wasDragging && startMs !== null && dragDistancePx >= 3) {
-        const endMs = this.calculateTimeMsFromClientX(upEvent.clientX);
-        const range: TimeRangeMs = {
-          startMs: Math.min(startMs, endMs),
-          endMs: Math.max(startMs, endMs),
-        };
-        if (range.endMs > range.startMs) {
-          this.timeRangeSelected.emit(range);
-        }
-      }
-    });
-  }
-
-  private cancelDrag(): void {
-    this.cleanupDragListeners();
-    this.ngZone.run(() => {
-      this.isDragging = false;
-      this.dragStartMs = null;
-      this.previewTimeRangeMs.set(null);
-    });
-  }
-
   /**
-   * Handles mousedown on the ruler container to start drag selection.
+   * Caches the ruler container's left offset for the current drag gesture.
+   * Returns false when the container element is unavailable.
    */
-  protected onMouseDown(event: MouseEvent): void {
-    if (event.button !== 0) {
-      return;
-    }
+  private cacheDragContainerLeft(): boolean {
     const containerEl = this.container()?.nativeElement;
     if (!containerEl) {
-      return;
+      return false;
     }
-    event.preventDefault();
-    event.stopPropagation();
+    this.dragContainerLeft = containerEl.getBoundingClientRect().left;
+    return true;
+  }
+
+  private startDrag(
+    event: MouseEvent,
+    mode: TimeRangeDragMode,
+    anchorMs: number,
+  ): void {
     this.cleanupDragListeners();
 
-    this.dragContainerLeft = containerEl.getBoundingClientRect().left;
-    this.dragStartMs = this.calculateTimeMsFromClientX(event.clientX);
+    this.dragAnchorMs = anchorMs;
     this.dragStartClientX = event.clientX;
-    this.isDragging = true;
+    this.activeDragMode.set(mode);
 
     this.ngZone.runOutsideAngular(() => {
       const onWindowMouseMove = (moveEvent: MouseEvent) => {
@@ -352,7 +332,7 @@ export class TimelineRulerComponent implements AfterViewInit {
       };
 
       const onWindowKeyDown = (keyEvent: KeyboardEvent) => {
-        if (keyEvent.key === 'Escape' && this.isDragging) {
+        if (keyEvent.key === 'Escape' && this.activeDragMode() !== null) {
           keyEvent.preventDefault();
           keyEvent.stopPropagation();
           this.cancelDrag();
@@ -369,5 +349,114 @@ export class TimelineRulerComponent implements AfterViewInit {
         window.removeEventListener('keydown', onWindowKeyDown);
       };
     });
+  }
+
+  private handleDragMove(moveEvent: MouseEvent): void {
+    this.ngZone.run(() => {
+      if (this.activeDragMode() === null || this.dragAnchorMs === null) {
+        return;
+      }
+      const currentMs = this.calculateTimeMsFromClientX(moveEvent.clientX);
+      const range: TimeRangeMs = {
+        startMs: Math.min(this.dragAnchorMs, currentMs),
+        endMs: Math.max(this.dragAnchorMs, currentMs),
+      };
+      this.previewTimeRangeMs.set(range);
+    });
+  }
+
+  private handleDragEnd(upEvent: MouseEvent): void {
+    this.ngZone.run(() => {
+      const anchorMs = this.dragAnchorMs;
+      const wasDragging = this.activeDragMode() !== null;
+      const dragDistancePx = Math.abs(upEvent.clientX - this.dragStartClientX);
+      this.cleanupDragListeners();
+      this.activeDragMode.set(null);
+      this.dragAnchorMs = null;
+      this.previewTimeRangeMs.set(null);
+
+      if (wasDragging && anchorMs !== null && dragDistancePx >= 3) {
+        const endMs = this.calculateTimeMsFromClientX(upEvent.clientX);
+        const range: TimeRangeMs = {
+          startMs: Math.min(anchorMs, endMs),
+          endMs: Math.max(anchorMs, endMs),
+        };
+        if (range.endMs > range.startMs) {
+          this.timeRangeSelected.emit(range);
+        }
+      }
+    });
+  }
+
+  private cancelDrag(): void {
+    this.cleanupDragListeners();
+    this.ngZone.run(() => {
+      this.activeDragMode.set(null);
+      this.dragAnchorMs = null;
+      this.previewTimeRangeMs.set(null);
+    });
+  }
+
+  /**
+   * Handles mousedown on the ruler container to start creating a new time range.
+   */
+  protected onMouseDown(event: MouseEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+    if (!this.cacheDragContainerLeft()) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.startDrag(
+      event,
+      TimeRangeDragMode.Create,
+      this.calculateTimeMsFromClientX(event.clientX),
+    );
+  }
+
+  /**
+   * Handles mousedown on a resize handle to start adjusting the corresponding edge of the active time range.
+   * The opposite edge of the active range becomes the fixed anchor of the drag.
+   */
+  protected onResizeHandleMouseDown(
+    event: MouseEvent,
+    mode: TimeRangeDragMode,
+  ): void {
+    if (event.button !== 0) {
+      return;
+    }
+    const activeRange = this.activeTimeRangeMs();
+    if (!activeRange) {
+      return;
+    }
+    if (!this.cacheDragContainerLeft()) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const anchorMs =
+      mode === TimeRangeDragMode.ResizeStart
+        ? activeRange.endMs
+        : activeRange.startMs;
+    this.startDrag(event, mode, anchorMs);
+  }
+
+  /**
+   * Stops a mousedown on the clear button from starting a range drag on the ruler.
+   */
+  protected onClearButtonMouseDown(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  /**
+   * Handles a click on the clear button rendered on the active time range.
+   */
+  protected onClearButtonClick(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.timeRangeCleared.emit();
   }
 }

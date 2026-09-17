@@ -136,4 +136,11 @@ describe('TimelineSmartComponent', () => {
 
     expect(timeRangeFilterSignal()).toEqual(testRange);
   });
+
+  it('should set viewStateService.timeRangeFilter to null when onTimeRangeCleared is invoked', () => {
+    timeRangeFilterSignal.set({ startTime: 1000n, endTime: 2000n });
+    component['onTimeRangeCleared']();
+
+    expect(timeRangeFilterSignal()).toBeNull();
+  });
 });

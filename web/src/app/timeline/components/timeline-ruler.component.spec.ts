@@ -309,4 +309,360 @@ describe('TimelineRulerComponent', () => {
 
     expect(selectedRange).toBeUndefined();
   });
+
+  it('should adjust start edge when dragging .range-resize-handle.start while preserving endMs', () => {
+    fixture.componentRef.setInput('activeTimeRangeMs', {
+      startMs: 1200,
+      endMs: 1600,
+    });
+    fixture.detectChanges();
+
+    const container = fixture.nativeElement.querySelector(
+      '.container',
+    ) as HTMLElement;
+    spyOn(container, 'getBoundingClientRect').and.returnValue({
+      left: 100,
+      top: 0,
+      width: 800,
+      height: 60,
+    } as DOMRect);
+
+    let previewRange: TimeRangeMs | null | undefined;
+    fixture.componentInstance.previewTimeRangeMs.subscribe((range) => {
+      previewRange = range;
+    });
+
+    let selectedRange: TimeRangeMs | undefined;
+    fixture.componentInstance.timeRangeSelected.subscribe((range) => {
+      selectedRange = range;
+    });
+
+    const startHandle = fixture.nativeElement.querySelector(
+      '.range-resize-handle.start',
+    ) as HTMLElement;
+    expect(startHandle).not.toBeNull();
+
+    startHandle.dispatchEvent(
+      new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 500,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    // clientX = 300 -> relativeX = 200 -> ms = 1000 + 200 / 2 = 1100
+    // anchor is endMs = 1600
+    window.dispatchEvent(
+      new MouseEvent('mousemove', {
+        clientX: 300,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(previewRange).toEqual({ startMs: 1100, endMs: 1600 });
+
+    window.dispatchEvent(
+      new MouseEvent('mouseup', {
+        clientX: 300,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(selectedRange).toEqual({ startMs: 1100, endMs: 1600 });
+  });
+
+  it('should adjust end edge when dragging .range-resize-handle.end while preserving startMs', () => {
+    fixture.componentRef.setInput('activeTimeRangeMs', {
+      startMs: 1200,
+      endMs: 1600,
+    });
+    fixture.detectChanges();
+
+    const container = fixture.nativeElement.querySelector(
+      '.container',
+    ) as HTMLElement;
+    spyOn(container, 'getBoundingClientRect').and.returnValue({
+      left: 100,
+      top: 0,
+      width: 800,
+      height: 60,
+    } as DOMRect);
+
+    let selectedRange: TimeRangeMs | undefined;
+    fixture.componentInstance.timeRangeSelected.subscribe((range) => {
+      selectedRange = range;
+    });
+
+    const endHandle = fixture.nativeElement.querySelector(
+      '.range-resize-handle.end',
+    ) as HTMLElement;
+    expect(endHandle).not.toBeNull();
+
+    endHandle.dispatchEvent(
+      new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 1300,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    // clientX = 1500 -> relativeX = 1400 -> ms = 1000 + 1400 / 2 = 1700
+    // anchor is startMs = 1200
+    window.dispatchEvent(
+      new MouseEvent('mousemove', {
+        clientX: 1500,
+      }),
+    );
+    fixture.detectChanges();
+
+    window.dispatchEvent(
+      new MouseEvent('mouseup', {
+        clientX: 1500,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(selectedRange).toEqual({ startMs: 1200, endMs: 1700 });
+  });
+
+  it('should hide active range overlay during edge resize drag and restore it after mouseup', () => {
+    fixture.componentRef.setInput('activeTimeRangeMs', {
+      startMs: 1200,
+      endMs: 1600,
+    });
+    fixture.detectChanges();
+
+    const container = fixture.nativeElement.querySelector(
+      '.container',
+    ) as HTMLElement;
+    spyOn(container, 'getBoundingClientRect').and.returnValue({
+      left: 100,
+      top: 0,
+      width: 800,
+      height: 60,
+    } as DOMRect);
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '.time-range-ruler-overlay.active-range',
+      ),
+    ).not.toBeNull();
+
+    const startHandle = fixture.nativeElement.querySelector(
+      '.range-resize-handle.start',
+    ) as HTMLElement;
+
+    startHandle.dispatchEvent(
+      new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 500,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    // The committed range is visually dimmed while resizing an edge, but the
+    // overlay stays mounted so the resize handles keep receiving the drag.
+    expect(
+      fixture.nativeElement.querySelector(
+        '.time-range-ruler-overlay.active-range.is-resizing',
+      ),
+    ).not.toBeNull();
+
+    window.dispatchEvent(
+      new MouseEvent('mouseup', {
+        clientX: 500,
+      }),
+    );
+    fixture.detectChanges();
+
+    // Restored after mouseup
+    expect(
+      fixture.nativeElement.querySelector(
+        '.time-range-ruler-overlay.active-range.is-resizing',
+      ),
+    ).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        '.time-range-ruler-overlay.active-range',
+      ),
+    ).not.toBeNull();
+  });
+
+  it('should emit timeRangeCleared when clicking .range-clear-button without emitting timeRangeSelected or starting a drag', () => {
+    fixture.componentRef.setInput('activeTimeRangeMs', {
+      startMs: 1200,
+      endMs: 1600,
+    });
+    fixture.detectChanges();
+
+    let clearedEmitted = false;
+    fixture.componentInstance.timeRangeCleared.subscribe(() => {
+      clearedEmitted = true;
+    });
+
+    let selectedRange: TimeRangeMs | undefined;
+    fixture.componentInstance.timeRangeSelected.subscribe((range) => {
+      selectedRange = range;
+    });
+
+    let previewRange: TimeRangeMs | null | undefined;
+    fixture.componentInstance.previewTimeRangeMs.subscribe((range) => {
+      previewRange = range;
+    });
+
+    const clearButton = fixture.nativeElement.querySelector(
+      '.range-clear-button',
+    ) as HTMLButtonElement;
+    expect(clearButton).not.toBeNull();
+
+    clearButton.dispatchEvent(
+      new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 500,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(previewRange).toBeUndefined();
+
+    clearButton.dispatchEvent(
+      new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(clearedEmitted).toBeTrue();
+    expect(selectedRange).toBeUndefined();
+  });
+
+  it('should invert bounds when the start handle is dragged past the end edge', () => {
+    fixture.componentRef.setInput('activeTimeRangeMs', {
+      startMs: 1200,
+      endMs: 1600,
+    });
+    fixture.detectChanges();
+
+    const container = fixture.nativeElement.querySelector(
+      '.container',
+    ) as HTMLElement;
+    spyOn(container, 'getBoundingClientRect').and.returnValue({
+      left: 100,
+      top: 0,
+      width: 800,
+      height: 60,
+    } as DOMRect);
+
+    let selectedRange: TimeRangeMs | undefined;
+    fixture.componentInstance.timeRangeSelected.subscribe((range) => {
+      selectedRange = range;
+    });
+
+    const startHandle = fixture.nativeElement.querySelector(
+      '.range-resize-handle.start',
+    ) as HTMLElement;
+    expect(startHandle).not.toBeNull();
+
+    startHandle.dispatchEvent(
+      new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 500,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    // clientX = 1500 -> relativeX = 1400 -> ms = 1000 + 1400 / 2 = 1700
+    // anchor is endMs = 1600, so dragged past anchor
+    window.dispatchEvent(
+      new MouseEvent('mousemove', {
+        clientX: 1500,
+      }),
+    );
+    fixture.detectChanges();
+
+    window.dispatchEvent(
+      new MouseEvent('mouseup', {
+        clientX: 1500,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(selectedRange).toEqual({ startMs: 1600, endMs: 1700 });
+  });
+
+  it('should cancel an edge resize and restore the active range overlay when Escape is pressed', () => {
+    fixture.componentRef.setInput('activeTimeRangeMs', {
+      startMs: 1200,
+      endMs: 1600,
+    });
+    fixture.detectChanges();
+
+    const container = fixture.nativeElement.querySelector(
+      '.container',
+    ) as HTMLElement;
+    spyOn(container, 'getBoundingClientRect').and.returnValue({
+      left: 100,
+      top: 0,
+      width: 800,
+      height: 60,
+    } as DOMRect);
+
+    let selectedRange: TimeRangeMs | undefined;
+    fixture.componentInstance.timeRangeSelected.subscribe((range) => {
+      selectedRange = range;
+    });
+
+    const startHandle = fixture.nativeElement.querySelector(
+      '.range-resize-handle.start',
+    ) as HTMLElement;
+    expect(startHandle).not.toBeNull();
+
+    startHandle.dispatchEvent(
+      new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 500,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '.time-range-ruler-overlay.active-range.is-resizing',
+      ),
+    ).not.toBeNull();
+
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '.time-range-ruler-overlay.active-range.is-resizing',
+      ),
+    ).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        '.time-range-ruler-overlay.active-range',
+      ),
+    ).not.toBeNull();
+    expect(selectedRange).toBeUndefined();
+  });
 });

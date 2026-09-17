@@ -524,6 +524,11 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   readonly timeRangeSelected = output<TimeRangeFilter>();
 
+  /**
+   * Emitted when the user clears the active time range filter from the ruler.
+   */
+  readonly timeRangeCleared = output<void>();
+
   protected readonly activeTimeRangeMs = computed<TimeRangeMs | null>(() => {
     const filter = this.timeRangeFilter();
     if (!filter) return null;
