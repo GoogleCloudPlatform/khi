@@ -22,6 +22,20 @@
 >
   <canvas class="background-canvas" #backgroundCanvas></canvas>
   <div #overlay class="canvas-overlay">
+    @if (activeRangeStyle(); as activeStyle) {
+      <div
+        class="time-range-ruler-overlay active-range"
+        [style.--range-left.px]="activeStyle.left"
+        [style.--range-width.px]="activeStyle.width"
+      ></div>
+    }
+    @if (previewRangeStyle(); as previewStyle) {
+      <div
+        class="time-range-ruler-overlay preview-range"
+        [style.--range-left.px]="previewStyle.left"
+        [style.--range-width.px]="previewStyle.width"
+      ></div>
+    }
     @for (label of dateLabels(); track label.offsetX) {
       <div class="date-container" [style.--offset-x.px]="label.offsetX">
         <p class="date-label">

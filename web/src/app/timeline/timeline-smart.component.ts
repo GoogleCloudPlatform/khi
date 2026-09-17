@@ -20,7 +20,10 @@ import {
   TimelineFrameComponent,
   TimelineHoverOverlayRequest,
 } from 'src/app/timeline/components/timeline-frame.component';
-import { ViewStateService } from 'src/app/services/view-state.service';
+import {
+  TimeRangeFilter,
+  ViewStateService,
+} from 'src/app/services/view-state.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { SelectionManager } from 'src/app/services/selection-manager.service';
 
@@ -226,6 +229,8 @@ export class TimelineSmartComponent {
     this.viewStateService.timezoneShift,
     { initialValue: 0 },
   );
+
+  protected readonly timeRangeFilter = this.viewStateService.timeRangeFilter;
 
   private readonly highlightedTimeline = computed(() => {
     return this.selectionManager.highlightedTimeline();
@@ -558,6 +563,13 @@ export class TimelineSmartComponent {
    */
   protected onViewportLeftTimeMsChange(viewportLeftTimeMs: number): void {
     this.viewStateService.setTimeOffset(viewportLeftTimeMs);
+  }
+
+  /**
+   * Updates the active time range filter in ViewStateService when selected on the timeline.
+   */
+  protected onTimeRangeSelected(range: TimeRangeFilter): void {
+    this.viewStateService.timeRangeFilter.set(range);
   }
 
   /**

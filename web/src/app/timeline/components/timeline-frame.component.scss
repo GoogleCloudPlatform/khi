@@ -29,6 +29,22 @@ $z-index-sticky-chart: 501;
 $z-index-chart: 6;
 $z-index-resizer: 1000;
 $sticky-header-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.6);
+$active-range-bg-color: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500),
+  0.12
+);
+$active-range-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  600
+);
+$preview-range-bg-color: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-cyan-palette, 500),
+  0.18
+);
+$preview-range-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-cyan-palette,
+  700
+);
 
 // stick-to-header mixin is for the container element sticky to the header area.
 // margin-left is applied to align with the right grid area (header or chart) without considering the size of the gutter.
@@ -259,6 +275,27 @@ $sticky-header-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.6);
     border-radius: 5px;
     font-size: 16px;
     font-weight: 600;
+  }
+}
+
+.time-range-body-overlay {
+  @include chart-item(var(--range-left), 0);
+  z-index: $z-index-cursor-body;
+  width: var(--range-width);
+  height: 100%;
+  pointer-events: none;
+  box-sizing: border-box;
+
+  &.active-range {
+    background-color: $active-range-bg-color;
+    border-left: 2px solid $active-range-border-color;
+    border-right: 2px solid $active-range-border-color;
+  }
+
+  &.preview-range {
+    background-color: $preview-range-bg-color;
+    border-left: 2px dashed $preview-range-border-color;
+    border-right: 2px dashed $preview-range-border-color;
   }
 }
 

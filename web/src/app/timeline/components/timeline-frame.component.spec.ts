@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component } from '@angular/core';
+import { Component, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TimelineFrameComponent } from 'src/app/timeline/components/timeline-frame.component';
 import { Timeline, Event } from 'src/app/store/domain/timeline';
@@ -31,6 +31,9 @@ import {
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
 } from 'src/app/timeline/components/style-model';
+import { TimeRangeFilter } from 'src/app/services/view-state.service';
+import { TimelineChartComponent } from './timeline-chart.component';
+import { TimelineRulerComponent } from './timeline-ruler.component';
 
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
@@ -229,5 +232,225 @@ describe('TimelineFrameComponent', () => {
     fixture.detectChanges();
 
     expect(component.getSelectedLogTimelineExposed()).toBe(timelineA);
+  });
+});
+
+describe('TimelineFrameComponent - time range selection', () => {
+  let frameFixture: ComponentFixture<TimelineFrameComponent>;
+  let frameComponent: TimelineFrameComponent;
+
+  beforeEach(async () => {
+    spyOn(TimelineChartComponent.prototype, 'ngAfterViewInit').and.stub();
+    spyOn(TimelineRulerComponent.prototype, 'ngAfterViewInit').and.stub();
+    TestBed.configureTestingModule({
+      imports: [TimelineFrameComponent],
+    });
+    TestBed.overrideComponent(TimelineChartComponent, {
+      set: { template: '' },
+    });
+    TestBed.overrideComponent(TimelineRulerComponent, {
+      set: {
+        template: '<div #container><canvas #backgroundCanvas></canvas></div>',
+      },
+    });
+    await TestBed.compileComponents();
+
+    frameFixture = TestBed.createComponent(TimelineFrameComponent);
+    frameComponent = frameFixture.componentInstance;
+
+    frameFixture.componentRef.setInput(
+      'chartStyle',
+      generateDefaultChartStyle(),
+    );
+    frameFixture.componentRef.setInput(
+      'rulerStyle',
+      generateDefaultRulerStyle(mockStyleStore),
+    );
+    frameFixture.componentRef.setInput('styleStore', mockStyleStore);
+    frameFixture.componentRef.setInput('allLogs', []);
+    frameFixture.detectChanges();
+  });
+
+  it('should render .time-range-body-overlay.active-range when timeRangeFilter input is provided', () => {
+    frameFixture.componentRef.setInput('timeRangeFilter', {
+      startTime: 1000000000000n,
+      endTime: 2000000000000n,
+    });
+    frameFixture.detectChanges();
+
+    const overlay = frameFixture.nativeElement.querySelector(
+      '.time-range-body-overlay.active-range',
+    );
+    expect(overlay).not.toBeNull();
+  });
+
+  it('should enter t-key selection mode when mouse is over chart area and t key is pressed', () => {
+    (
+      frameComponent as unknown as { isMouseInsideChartArea: boolean }
+    ).isMouseInsideChartArea = true;
+    (
+      frameComponent as unknown as {
+        hoverTimeMs: WritableSignal<number | null>;
+      }
+    ).hoverTimeMs.set(5000);
+    frameFixture.detectChanges();
+
+    expect(frameComponent['isTimeSelectionModeActive']()).toBeFalse();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 't' }));
+    frameFixture.detectChanges();
+
+    expect(frameComponent['isTimeSelectionModeActive']()).toBeTrue();
+  });
+
+  it('should adjust selectionHalfWidthPx on wheel scroll while in selection mode', () => {
+    (
+      frameComponent as unknown as { isMouseInsideChartArea: boolean }
+    ).isMouseInsideChartArea = true;
+    (
+      frameComponent as unknown as {
+        hoverTimeMs: WritableSignal<number | null>;
+      }
+    ).hoverTimeMs.set(5000);
+    (
+      frameComponent as unknown as {
+        isTimeSelectionModeActive: WritableSignal<boolean>;
+      }
+    ).isTimeSelectionModeActive.set(true);
+    frameFixture.detectChanges();
+
+    const initialWidth = frameComponent['selectionHalfWidthPx']();
+    const container = frameFixture.nativeElement.querySelector(
+      '.virtual-scroll-container',
+    );
+
+    // Scroll up (deltaY < 0) -> expands half width by 15px
+    const wheelUp = new WheelEvent('wheel', {
+      deltaY: -100,
+      cancelable: true,
+    });
+    container.dispatchEvent(wheelUp);
+    frameFixture.detectChanges();
+
+    expect(frameComponent['selectionHalfWidthPx']()).toBe(initialWidth + 15);
+
+    // Scroll down (deltaY > 0) -> narrows half width by 15px
+    const wheelDown = new WheelEvent('wheel', {
+      deltaY: 100,
+      cancelable: true,
+    });
+    container.dispatchEvent(wheelDown);
+    frameFixture.detectChanges();
+
+    expect(frameComponent['selectionHalfWidthPx']()).toBe(initialWidth);
+  });
+
+  it('should emit timeRangeSelected when t key is released', () => {
+    (
+      frameComponent as unknown as { isMouseInsideChartArea: boolean }
+    ).isMouseInsideChartArea = true;
+    (
+      frameComponent as unknown as {
+        hoverTimeMs: WritableSignal<number | null>;
+      }
+    ).hoverTimeMs.set(5000);
+    (
+      frameComponent as unknown as {
+        isTimeSelectionModeActive: WritableSignal<boolean>;
+      }
+    ).isTimeSelectionModeActive.set(true);
+    frameFixture.detectChanges();
+
+    let emittedRange: TimeRangeFilter | undefined;
+    frameComponent.timeRangeSelected.subscribe((range) => {
+      emittedRange = range;
+    });
+
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 't' }));
+    frameFixture.detectChanges();
+
+    expect(emittedRange).toEqual({
+      startTime: 4900000000n,
+      endTime: 5100000000n,
+    });
+    expect(frameComponent['isTimeSelectionModeActive']()).toBeFalse();
+  });
+
+  it('should emit timeRangeSelected when mouse is clicked in selection mode', () => {
+    (
+      frameComponent as unknown as { isMouseInsideChartArea: boolean }
+    ).isMouseInsideChartArea = true;
+    (
+      frameComponent as unknown as {
+        hoverTimeMs: WritableSignal<number | null>;
+      }
+    ).hoverTimeMs.set(5000);
+    (
+      frameComponent as unknown as {
+        isTimeSelectionModeActive: WritableSignal<boolean>;
+      }
+    ).isTimeSelectionModeActive.set(true);
+    frameFixture.detectChanges();
+
+    let emittedRange: TimeRangeFilter | undefined;
+    frameComponent.timeRangeSelected.subscribe((range) => {
+      emittedRange = range;
+    });
+
+    const mouseEvent = new MouseEvent('mousedown', { cancelable: true });
+    frameComponent.handleMouseDown(mouseEvent);
+    frameFixture.detectChanges();
+
+    expect(emittedRange).toEqual({
+      startTime: 4900000000n,
+      endTime: 5100000000n,
+    });
+    expect(frameComponent['isTimeSelectionModeActive']()).toBeFalse();
+  });
+
+  it('should not enter selection mode if keydown occurs on an editable target or with modifier keys', () => {
+    (
+      frameComponent as unknown as { isMouseInsideChartArea: boolean }
+    ).isMouseInsideChartArea = true;
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 't', bubbles: true }),
+    );
+    expect(frameComponent['isTimeSelectionModeActive']()).toBeFalse();
+    document.body.removeChild(input);
+
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 't', ctrlKey: true }),
+    );
+    expect(frameComponent['isTimeSelectionModeActive']()).toBeFalse();
+  });
+
+  it('should cancel selection mode without emitting when Escape key is pressed', () => {
+    (
+      frameComponent as unknown as { isMouseInsideChartArea: boolean }
+    ).isMouseInsideChartArea = true;
+    (
+      frameComponent as unknown as {
+        hoverTimeMs: WritableSignal<number | null>;
+      }
+    ).hoverTimeMs.set(5000);
+    (
+      frameComponent as unknown as {
+        isTimeSelectionModeActive: WritableSignal<boolean>;
+      }
+    ).isTimeSelectionModeActive.set(true);
+    frameFixture.detectChanges();
+
+    let emittedRange: TimeRangeFilter | undefined;
+    frameComponent.timeRangeSelected.subscribe((range) => {
+      emittedRange = range;
+    });
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    frameFixture.detectChanges();
+
+    expect(frameComponent['isTimeSelectionModeActive']()).toBeFalse();
+    expect(emittedRange).toBeUndefined();
   });
 });

@@ -37,6 +37,7 @@ import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import { TimelineRulerViewModel } from './timeline-ruler.viewmodel';
 import { TimelineRulerStyle } from 'src/app/timeline/components/style-model';
 import { calculateDateLabels } from './calculator/date-label-calculator';
+import { TimeRangeMs, TimeRangeOverlayStyle } from './interaction-model';
 
 /**
  * Component that renders the timeline ruler, displaying time ticks and date labels.
@@ -91,6 +92,16 @@ export class TimelineRulerComponent implements AfterViewInit {
   pixelsPerMs = input<number>(1);
 
   /**
+   * Currently active time range filter window in milliseconds, if any.
+   */
+  readonly activeTimeRangeMs = input<TimeRangeMs | null>(null);
+
+  /**
+   * Interactive preview time range window in milliseconds while holding the 't' key, if any.
+   */
+  readonly previewTimeRangeMs = input<TimeRangeMs | null>(null);
+
+  /**
    * Emits when the scaling mode is changed.
    */
   scalingMode = model<boolean>();
@@ -99,6 +110,24 @@ export class TimelineRulerComponent implements AfterViewInit {
    * Emits when the ruler is scrolled.
    */
   scrollOnRuler = output<WheelEvent>();
+
+  private computeOverlayStyle(
+    range: TimeRangeMs | null,
+  ): TimeRangeOverlayStyle | null {
+    if (!range) return null;
+    return {
+      left: (range.startMs - this.leftEdgeTime()) * this.pixelsPerMs(),
+      width: Math.max(2, (range.endMs - range.startMs) * this.pixelsPerMs()),
+    };
+  }
+
+  protected readonly activeRangeStyle = computed<TimeRangeOverlayStyle | null>(
+    () => this.computeOverlayStyle(this.activeTimeRangeMs()),
+  );
+
+  protected readonly previewRangeStyle = computed<TimeRangeOverlayStyle | null>(
+    () => this.computeOverlayStyle(this.previewTimeRangeMs()),
+  );
 
   /**
    * Computes the positions and text for date labels (e.g., "YYYY/MM/DD") based on the current

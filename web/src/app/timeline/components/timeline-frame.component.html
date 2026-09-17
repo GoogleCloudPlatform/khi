@@ -47,6 +47,8 @@
         [pixelsPerMs]="pixelsPerMs()"
         [leftEdgeTime]="contentLeftTime()"
         [rulerStyle]="rulerStyle()"
+        [activeTimeRangeMs]="activeTimeRangeMs()"
+        [previewTimeRangeMs]="previewTimeRangeMs()"
         [(scalingMode)]="scaleModeFromRuler"
         (scrollOnRuler)="onWheelForScaling($event)"
       ></khi-timeline-ruler>
@@ -102,6 +104,20 @@
     </div>
 
     <!--chart space overlay elements-->
+    @if (activeRangeBodyStyle(); as activeBody) {
+      <div
+        class="time-range-body-overlay active-range"
+        [style.--range-left.px]="activeBody.left"
+        [style.--range-width.px]="activeBody.width"
+      ></div>
+    }
+    @if (previewRangeBodyStyle(); as previewBody) {
+      <div
+        class="time-range-body-overlay preview-range"
+        [style.--range-left.px]="previewBody.left"
+        [style.--range-width.px]="previewBody.width"
+      ></div>
+    }
     <div class="cursor-time-label-container">
       <div class="cursor-vertical-line-header vertical-line"></div>
       <p class="cursor-time-label">{{ cursorTimeString() }}</p>

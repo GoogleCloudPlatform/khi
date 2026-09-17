@@ -53,5 +53,7 @@
   (mouseLeaveChart)="onMouseLeaveChart()"
   (mouseEnterStickyHeader)="onMouseEnterStickyHeader()"
   (mouseLeaveStickyHeader)="onMouseLeaveStickyHeader()"
+  [timeRangeFilter]="timeRangeFilter()"
+  (timeRangeSelected)="onTimeRangeSelected($event)"
 >
 </khi-timeline-frame>

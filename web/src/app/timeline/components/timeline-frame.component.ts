@@ -66,7 +66,10 @@ import {
   TimelineChartItemHighlight,
   TimelineHighlightType,
   TimelineChartItemHighlightType,
+  TimeRangeMs,
+  TimeRangeOverlayStyle,
 } from './interaction-model';
+import { TimeRangeFilter } from 'src/app/services/view-state.service';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import {
   BASE_ROW_HEIGHT,
@@ -510,6 +513,89 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Emitted when the mouse leaves the sticky header area.
    */
   readonly mouseLeaveStickyHeader = output<void>();
+
+  /**
+   * Active time range filter from ViewStateService.
+   */
+  readonly timeRangeFilter = input<TimeRangeFilter | null>(null);
+
+  /**
+   * Emitted when the user confirms a time range selection via 't'-key hold mode.
+   */
+  readonly timeRangeSelected = output<TimeRangeFilter>();
+
+  protected readonly isTimeSelectionModeActive = signal<boolean>(false);
+  protected readonly hoverTimeMs = signal<number | null>(null);
+  protected readonly selectionHalfWidthPx = signal<number>(100);
+  private isMouseInsideChartArea = false;
+
+  protected readonly activeTimeRangeMs = computed<TimeRangeMs | null>(() => {
+    const filter = this.timeRangeFilter();
+    if (!filter) return null;
+    return {
+      startMs: Number(filter.startTime / 1000000n),
+      endMs: Number(filter.endTime / 1000000n),
+    };
+  });
+
+  protected readonly previewTimeRangeMs = computed<TimeRangeMs | null>(() => {
+    if (!this.isTimeSelectionModeActive()) return null;
+    const centerMs = this.hoverTimeMs();
+    if (centerMs === null) return null;
+    const halfDurationMs = this.selectionHalfWidthPx() / this.pixelsPerMs();
+    const startMs = Math.max(0, centerMs - halfDurationMs);
+    return {
+      startMs,
+      endMs: Math.max(startMs, centerMs + halfDurationMs),
+    };
+  });
+
+  protected readonly activeRangeBodyStyle =
+    computed<TimeRangeOverlayStyle | null>(() => {
+      const range = this.activeTimeRangeMs();
+      if (!range) return null;
+      const calc = this.horizontalScrollCalculator();
+      return {
+        left: calc.timeMSToOffsetLeft(range.startMs, this.pixelsPerMs()),
+        width: Math.max(2, (range.endMs - range.startMs) * this.pixelsPerMs()),
+      };
+    });
+
+  protected readonly previewRangeBodyStyle =
+    computed<TimeRangeOverlayStyle | null>(() => {
+      const range = this.previewTimeRangeMs();
+      if (!range) return null;
+      const calc = this.horizontalScrollCalculator();
+      return {
+        left: calc.timeMSToOffsetLeft(range.startMs, this.pixelsPerMs()),
+        width: Math.max(2, (range.endMs - range.startMs) * this.pixelsPerMs()),
+      };
+    });
+
+  private isEditableTarget(target: EventTarget | null): boolean {
+    if (!target || !(target instanceof HTMLElement)) {
+      return false;
+    }
+    return (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target.isContentEditable
+    );
+  }
+
+  protected confirmTimeRangeSelection(): void {
+    if (
+      this.isTimeSelectionModeActive() &&
+      this.previewTimeRangeMs() !== null
+    ) {
+      const range = this.previewTimeRangeMs()!;
+      this.timeRangeSelected.emit({
+        startTime: BigInt(Math.round(range.startMs)) * 1000000n,
+        endTime: BigInt(Math.round(range.endMs)) * 1000000n,
+      });
+      this.isTimeSelectionModeActive.set(false);
+    }
+  }
 
   /**
    * The timezone shift in hours from UTC.
@@ -966,6 +1052,12 @@ export class TimelineFrameComponent implements AfterViewInit {
   }
 
   handleMouseDown(e: MouseEvent) {
+    if (this.isTimeSelectionModeActive()) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.confirmTimeRangeSelection();
+      return;
+    }
     const indexArea = this.indexSplitArea()?.nativeElement;
     if (!indexArea) {
       return;
@@ -987,6 +1079,10 @@ export class TimelineFrameComponent implements AfterViewInit {
   handleMouseLeave() {
     this.isGrabbing.set(false);
     this.isGrabbingAndMoving.set(false);
+    this.isMouseInsideChartArea = false;
+    if (this.isTimeSelectionModeActive()) {
+      this.isTimeSelectionModeActive.set(false);
+    }
   }
 
   ngAfterViewInit(): void {
@@ -1025,9 +1121,54 @@ export class TimelineFrameComponent implements AfterViewInit {
       });
       containerResizeObserver.observe(container.nativeElement);
 
+      const onContainerMouseMove = (event: MouseEvent) => {
+        const containerBox = container.nativeElement.getBoundingClientRect();
+        const indexAreaBox =
+          indexSplitArea.nativeElement.getBoundingClientRect();
+        const x = event.clientX - containerBox.left;
+        const chartLeftOffset = indexAreaBox.width + this.GUTTER_WIDTH;
+        if (x >= chartLeftOffset) {
+          this.isMouseInsideChartArea = true;
+          const viewportRelativeX = x - chartLeftOffset;
+          const timeMs =
+            this.viewportLeftTimeMS() + viewportRelativeX / this.pixelsPerMs();
+          if (this.isTimeSelectionModeActive()) {
+            this.ngZone.run(() => this.hoverTimeMs.set(timeMs));
+          } else {
+            this.hoverTimeMs.set(timeMs);
+          }
+        } else {
+          this.isMouseInsideChartArea = false;
+          if (this.isTimeSelectionModeActive()) {
+            this.ngZone.run(() => this.isTimeSelectionModeActive.set(false));
+          }
+        }
+      };
+      container.nativeElement.addEventListener(
+        'mousemove',
+        onContainerMouseMove,
+        {
+          passive: true,
+        },
+      );
+
       // Handle wheel and scroll events from container.
       // Wheel events assigned to sticky element may not emit wheel event(?), so we handle it here.
       const onContainerWheel = (event: WheelEvent) => {
+        if (this.isTimeSelectionModeActive()) {
+          event.preventDefault();
+          event.stopPropagation();
+          const step = -Math.sign(event.deltaY) * 15;
+          this.ngZone.run(() => {
+            const viewportW = this.viewportWidth();
+            const maxHalfWidth =
+              viewportW > 0 ? Math.max(20, viewportW / 2) : 2000;
+            this.selectionHalfWidthPx.update((w) =>
+              Math.max(10, Math.min(maxHalfWidth, w + step)),
+            );
+          });
+          return;
+        }
         const containerBox = container.nativeElement.getBoundingClientRect();
         const indexAreaBox =
           indexSplitArea.nativeElement.getBoundingClientRect();
@@ -1079,9 +1220,49 @@ export class TimelineFrameComponent implements AfterViewInit {
       };
       window.addEventListener('mousemove', onMouseMove, { passive: true });
 
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (this.isEditableTarget(event.target)) {
+          return;
+        }
+        if (
+          (event.key === 't' || event.key === 'T') &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey
+        ) {
+          if (
+            this.isMouseInsideChartArea &&
+            this.hoverTimeMs() !== null &&
+            !this.isTimeSelectionModeActive()
+          ) {
+            this.ngZone.run(() => this.isTimeSelectionModeActive.set(true));
+          }
+        } else if (event.key === 'Escape' && this.isTimeSelectionModeActive()) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.ngZone.run(() => this.isTimeSelectionModeActive.set(false));
+        }
+      };
+
+      const onKeyUp = (event: KeyboardEvent) => {
+        if (
+          (event.key === 't' || event.key === 'T') &&
+          this.isTimeSelectionModeActive()
+        ) {
+          this.ngZone.run(() => this.confirmTimeRangeSelection());
+        }
+      };
+
+      window.addEventListener('keydown', onKeyDown);
+      window.addEventListener('keyup', onKeyUp);
+
       this.destroyRef.onDestroy(() => {
         resizeObserver.disconnect();
         containerResizeObserver.disconnect();
+        container.nativeElement.removeEventListener(
+          'mousemove',
+          onContainerMouseMove,
+        );
         container.nativeElement.removeEventListener('wheel', onContainerWheel);
         container.nativeElement.removeEventListener(
           'scroll',
@@ -1089,6 +1270,8 @@ export class TimelineFrameComponent implements AfterViewInit {
         );
         container.nativeElement.removeEventListener('scrollend', onScrollEnd);
         window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('keydown', onKeyDown);
+        window.removeEventListener('keyup', onKeyUp);
       });
     });
 

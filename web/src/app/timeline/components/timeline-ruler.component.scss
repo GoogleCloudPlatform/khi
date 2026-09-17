@@ -19,6 +19,22 @@
 @use '@angular/material' as mat;
 $histogram-height: 60px;
 $date-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 400);
+$active-range-bg-color: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500),
+  0.16
+);
+$active-range-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  600
+);
+$preview-range-bg-color: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-cyan-palette, 500),
+  0.22
+);
+$preview-range-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-cyan-palette,
+  700
+);
 
 :host {
   display: block;
@@ -50,6 +66,29 @@ $cursor-color: #0f0;
   width: 100%;
   height: $histogram-height;
   user-select: none;
+}
+
+.time-range-ruler-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--range-width);
+  transform: translateX(var(--range-left));
+  pointer-events: none;
+  box-sizing: border-box;
+
+  &.active-range {
+    background-color: $active-range-bg-color;
+    border-left: 2px solid $active-range-border-color;
+    border-right: 2px solid $active-range-border-color;
+  }
+
+  &.preview-range {
+    background-color: $preview-range-bg-color;
+    border-left: 2px dashed $preview-range-border-color;
+    border-right: 2px dashed $preview-range-border-color;
+  }
 }
 
 .time-container {
