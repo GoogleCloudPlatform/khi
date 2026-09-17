@@ -8,9 +8,13 @@ WEB_ALLOWED_HOSTS_FLAG ?= $(if $(filter 0.0.0.0,$(WEB_HOST)),--allowed-hosts,)
 STORYBOOK_HOST ?= localhost
 STORYBOOK_PORT ?= 6006
 KARMA_PORT ?= 9876
-PORT ?= $(or $(BACKEND_PORT),8080)
+ifeq ($(origin PORT),undefined)
+  PORT := $(or $(BACKEND_PORT),8080)
+endif
+ifeq ($(origin BACKEND_PORT),undefined)
+  BACKEND_PORT := $(PORT)
+endif
 HOST ?= 127.0.0.1
-BACKEND_PORT ?= $(PORT)
 BACKEND_HOST ?= $(if $(filter 0.0.0.0,$(HOST)),127.0.0.1,$(HOST))
 
 .PHONY: watch-web
