@@ -19,6 +19,7 @@ import { TimelineRulerComponent } from './timeline-ruler.component';
 import { TimelineRulerViewModel } from './timeline-ruler.viewmodel';
 import { generateDefaultRulerStyle } from 'src/app/timeline/components/style-model';
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';
+import { TimeRangeMs } from './interaction-model';
 
 describe('TimelineRulerComponent', () => {
   let fixture: ComponentFixture<TimelineRulerComponent>;
@@ -98,5 +99,214 @@ describe('TimelineRulerComponent', () => {
     expect(previewOverlay.style.getPropertyValue('--range-width')).toBe(
       '200px',
     );
+  });
+
+  it('should update previewRangeStyle, emit previewTimeRangeMs, and emit timeRangeSelected on mouseup', () => {
+    const container = fixture.nativeElement.querySelector(
+      '.container',
+    ) as HTMLElement;
+    spyOn(container, 'getBoundingClientRect').and.returnValue({
+      left: 100,
+      top: 0,
+      width: 800,
+      height: 60,
+    } as DOMRect);
+
+    let previewRange: TimeRangeMs | null | undefined;
+    fixture.componentInstance.previewTimeRangeMs.subscribe((range) => {
+      previewRange = range;
+    });
+
+    let selectedRange: TimeRangeMs | undefined;
+    fixture.componentInstance.timeRangeSelected.subscribe((range) => {
+      selectedRange = range;
+    });
+
+    container.dispatchEvent(
+      new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 200,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    window.dispatchEvent(
+      new MouseEvent('mousemove', {
+        clientX: 400,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(previewRange).toEqual({ startMs: 1050, endMs: 1150 });
+    const previewOverlay = fixture.nativeElement.querySelector(
+      '.time-range-ruler-overlay.preview-range',
+    );
+    expect(previewOverlay).not.toBeNull();
+    expect(previewOverlay.style.getPropertyValue('--range-left')).toBe('100px');
+    expect(previewOverlay.style.getPropertyValue('--range-width')).toBe(
+      '200px',
+    );
+
+    window.dispatchEvent(
+      new MouseEvent('mouseup', {
+        clientX: 400,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(selectedRange).toEqual({ startMs: 1050, endMs: 1150 });
+    expect(previewRange).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        '.time-range-ruler-overlay.preview-range',
+      ),
+    ).toBeNull();
+  });
+
+  it('should normalize startMs <= endMs when dragging from right to left', () => {
+    const container = fixture.nativeElement.querySelector(
+      '.container',
+    ) as HTMLElement;
+    spyOn(container, 'getBoundingClientRect').and.returnValue({
+      left: 100,
+      top: 0,
+      width: 800,
+      height: 60,
+    } as DOMRect);
+
+    let selectedRange: TimeRangeMs | undefined;
+    fixture.componentInstance.timeRangeSelected.subscribe((range) => {
+      selectedRange = range;
+    });
+
+    container.dispatchEvent(
+      new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 400,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    window.dispatchEvent(
+      new MouseEvent('mousemove', {
+        clientX: 200,
+      }),
+    );
+    fixture.detectChanges();
+
+    window.dispatchEvent(
+      new MouseEvent('mouseup', {
+        clientX: 200,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(selectedRange).toEqual({ startMs: 1050, endMs: 1150 });
+  });
+
+  it('should cancel drag selection and not emit timeRangeSelected when Escape is pressed', () => {
+    const container = fixture.nativeElement.querySelector(
+      '.container',
+    ) as HTMLElement;
+    spyOn(container, 'getBoundingClientRect').and.returnValue({
+      left: 100,
+      top: 0,
+      width: 800,
+      height: 60,
+    } as DOMRect);
+
+    let previewRange: TimeRangeMs | null | undefined;
+    fixture.componentInstance.previewTimeRangeMs.subscribe((range) => {
+      previewRange = range;
+    });
+
+    let selectedRange: TimeRangeMs | undefined;
+    fixture.componentInstance.timeRangeSelected.subscribe((range) => {
+      selectedRange = range;
+    });
+
+    container.dispatchEvent(
+      new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 200,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    window.dispatchEvent(
+      new MouseEvent('mousemove', {
+        clientX: 400,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(previewRange).toEqual({ startMs: 1050, endMs: 1150 });
+
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(previewRange).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        '.time-range-ruler-overlay.preview-range',
+      ),
+    ).toBeNull();
+    expect(selectedRange).toBeUndefined();
+
+    window.dispatchEvent(
+      new MouseEvent('mouseup', {
+        clientX: 400,
+      }),
+    );
+    fixture.detectChanges();
+    expect(selectedRange).toBeUndefined();
+  });
+
+  it('should not emit timeRangeSelected when clicking without dragging (distance < 3px)', () => {
+    const container = fixture.nativeElement.querySelector(
+      '.container',
+    ) as HTMLElement;
+    spyOn(container, 'getBoundingClientRect').and.returnValue({
+      left: 100,
+      top: 0,
+      width: 800,
+      height: 60,
+    } as DOMRect);
+
+    let selectedRange: TimeRangeMs | undefined;
+    fixture.componentInstance.timeRangeSelected.subscribe((range) => {
+      selectedRange = range;
+    });
+
+    container.dispatchEvent(
+      new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 200,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    fixture.detectChanges();
+
+    window.dispatchEvent(
+      new MouseEvent('mouseup', {
+        clientX: 201,
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(selectedRange).toBeUndefined();
   });
 });

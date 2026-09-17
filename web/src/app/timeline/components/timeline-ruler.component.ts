@@ -97,9 +97,14 @@ export class TimelineRulerComponent implements AfterViewInit {
   readonly activeTimeRangeMs = input<TimeRangeMs | null>(null);
 
   /**
-   * Interactive preview time range window in milliseconds while holding the 't' key, if any.
+   * Interactive preview time range window in milliseconds while dragging on the ruler, if any.
    */
-  readonly previewTimeRangeMs = input<TimeRangeMs | null>(null);
+  readonly previewTimeRangeMs = model<TimeRangeMs | null>(null);
+
+  /**
+   * Emits when a time range selection is completed by dragging on the ruler.
+   */
+  readonly timeRangeSelected = output<TimeRangeMs>();
 
   /**
    * Emits when the scaling mode is changed.
@@ -110,6 +115,12 @@ export class TimelineRulerComponent implements AfterViewInit {
    * Emits when the ruler is scrolled.
    */
   scrollOnRuler = output<WheelEvent>();
+
+  private isDragging = false;
+  private dragStartMs: number | null = null;
+  private dragStartClientX = 0;
+  private dragContainerLeft = 0;
+  private removeDragListeners: (() => void) | null = null;
 
   private computeOverlayStyle(
     range: TimeRangeMs | null,
@@ -161,6 +172,7 @@ export class TimelineRulerComponent implements AfterViewInit {
       this.pixelsPerMs();
       this.invalidate.set(true);
     });
+    this.destroyRef.onDestroy(() => this.cleanupDragListeners());
   }
   /**
    * Initializes the canvas renderer, registers the render loop handler,
@@ -246,5 +258,116 @@ export class TimelineRulerComponent implements AfterViewInit {
 
   mouseLeave() {
     this.scalingMode.set(false);
+  }
+
+  private calculateTimeMsFromClientX(clientX: number): number {
+    const pixelsPerMs = this.pixelsPerMs();
+    if (pixelsPerMs <= 0) {
+      return Math.max(0, this.leftEdgeTime());
+    }
+    const relativeX = clientX - this.dragContainerLeft;
+    return Math.max(0, this.leftEdgeTime() + relativeX / pixelsPerMs);
+  }
+
+  private cleanupDragListeners(): void {
+    if (this.removeDragListeners) {
+      this.removeDragListeners();
+      this.removeDragListeners = null;
+    }
+  }
+
+  private handleDragMove(moveEvent: MouseEvent): void {
+    this.ngZone.run(() => {
+      if (!this.isDragging || this.dragStartMs === null) {
+        return;
+      }
+      const currentMs = this.calculateTimeMsFromClientX(moveEvent.clientX);
+      const range: TimeRangeMs = {
+        startMs: Math.min(this.dragStartMs, currentMs),
+        endMs: Math.max(this.dragStartMs, currentMs),
+      };
+      this.previewTimeRangeMs.set(range);
+    });
+  }
+
+  private handleDragEnd(upEvent: MouseEvent): void {
+    this.ngZone.run(() => {
+      const startMs = this.dragStartMs;
+      const wasDragging = this.isDragging;
+      const dragDistancePx = Math.abs(upEvent.clientX - this.dragStartClientX);
+      this.cleanupDragListeners();
+      this.isDragging = false;
+      this.dragStartMs = null;
+      this.previewTimeRangeMs.set(null);
+
+      if (wasDragging && startMs !== null && dragDistancePx >= 3) {
+        const endMs = this.calculateTimeMsFromClientX(upEvent.clientX);
+        const range: TimeRangeMs = {
+          startMs: Math.min(startMs, endMs),
+          endMs: Math.max(startMs, endMs),
+        };
+        if (range.endMs > range.startMs) {
+          this.timeRangeSelected.emit(range);
+        }
+      }
+    });
+  }
+
+  private cancelDrag(): void {
+    this.cleanupDragListeners();
+    this.ngZone.run(() => {
+      this.isDragging = false;
+      this.dragStartMs = null;
+      this.previewTimeRangeMs.set(null);
+    });
+  }
+
+  /**
+   * Handles mousedown on the ruler container to start drag selection.
+   */
+  protected onMouseDown(event: MouseEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+    const containerEl = this.container()?.nativeElement;
+    if (!containerEl) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.cleanupDragListeners();
+
+    this.dragContainerLeft = containerEl.getBoundingClientRect().left;
+    this.dragStartMs = this.calculateTimeMsFromClientX(event.clientX);
+    this.dragStartClientX = event.clientX;
+    this.isDragging = true;
+
+    this.ngZone.runOutsideAngular(() => {
+      const onWindowMouseMove = (moveEvent: MouseEvent) => {
+        this.handleDragMove(moveEvent);
+      };
+
+      const onWindowMouseUp = (upEvent: MouseEvent) => {
+        this.handleDragEnd(upEvent);
+      };
+
+      const onWindowKeyDown = (keyEvent: KeyboardEvent) => {
+        if (keyEvent.key === 'Escape' && this.isDragging) {
+          keyEvent.preventDefault();
+          keyEvent.stopPropagation();
+          this.cancelDrag();
+        }
+      };
+
+      window.addEventListener('mousemove', onWindowMouseMove);
+      window.addEventListener('mouseup', onWindowMouseUp);
+      window.addEventListener('keydown', onWindowKeyDown);
+
+      this.removeDragListeners = () => {
+        window.removeEventListener('mousemove', onWindowMouseMove);
+        window.removeEventListener('mouseup', onWindowMouseUp);
+        window.removeEventListener('keydown', onWindowKeyDown);
+      };
+    });
   }
 }
