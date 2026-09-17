@@ -86,7 +86,7 @@ export class KHIServerFileUploader implements FileUploader {
           onProgress: (uploadedBytes, totalBytes) => {
             if (totalBytes > 0) {
               subscriber.next({
-                done: uploadedBytes === totalBytes,
+                done: false,
                 completeRatio: uploadedBytes / totalBytes,
                 completeRatioUnknown: false,
               });

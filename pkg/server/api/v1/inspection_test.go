@@ -753,6 +753,41 @@ func TestConvertFormFields_Checkbox(t *testing.T) {
 					Description: proto.String("Whether feature should be enabled"),
 					Hint:        proto.String("Optional hint"),
 					HintType:    apiv1.ParameterHintType_PARAMETER_HINT_TYPE_INFO.Enum(),
+					Pending:     proto.Bool(false),
+					Kind: &apiv1.FormField_Checkbox{
+						Checkbox: &apiv1.CheckboxFormField{
+							Readonly:     proto.Bool(false),
+							DefaultValue: proto.Bool(true),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "converts checkbox form field with pending true",
+			input: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.CheckboxParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:          "checkbox-field",
+						Label:       "Enable feature",
+						Description: "Whether feature should be enabled",
+						Hint:        "Optional hint",
+						HintType:    inspectionmetadata.Info,
+						Priority:    1,
+						Pending:     true,
+					},
+					Readonly: false,
+					Default:  true,
+				},
+			},
+			want: []*apiv1.FormField{
+				{
+					Id:          proto.String("checkbox-field"),
+					Label:       proto.String("Enable feature"),
+					Description: proto.String("Whether feature should be enabled"),
+					Hint:        proto.String("Optional hint"),
+					HintType:    apiv1.ParameterHintType_PARAMETER_HINT_TYPE_INFO.Enum(),
+					Pending:     proto.Bool(true),
 					Kind: &apiv1.FormField_Checkbox{
 						Checkbox: &apiv1.CheckboxFormField{
 							Readonly:     proto.Bool(false),

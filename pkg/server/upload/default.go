@@ -14,11 +14,16 @@
 
 package upload
 
+import "context"
+
 // Store is the store interface form tasks depend on. Server mode and job mode
 // inject different implementations of it.
 type Store interface {
 	GetUploadToken(id string, verifier UploadFileVerifier, fieldID string) UploadToken
 	GetResult(token UploadToken, req map[string]any) (UploadResult, error)
+	// GetCompletedResult waits for asynchronous verification to complete if the file has been uploaded,
+	// or returns the current non-completed status immediately if upload transfer is still pending or in progress.
+	GetCompletedResult(ctx context.Context, token UploadToken, req map[string]any) (UploadResult, error)
 }
 
 var DefaultUploadFileStore Store = nil

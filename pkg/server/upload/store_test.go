@@ -15,6 +15,7 @@
 package upload
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -269,6 +270,75 @@ func TestUploadFileStore(t *testing.T) {
 		}
 		if result2.Status != UploadStatusCompleted {
 			t.Errorf("Want Completed status, got %v", result2.Status)
+		}
+	})
+
+	t.Run("GetCompletedResult_WaitsForVerification", func(t *testing.T) {
+		store := NewUploadFileStore(provider)
+
+		verifier := &MockUploadFileVerifier{
+			VerifyFunc: func(storeProvider UploadFileStoreProvider, token UploadToken) error {
+				time.Sleep(20 * time.Millisecond)
+				return nil
+			},
+		}
+
+		token := store.GetUploadToken("sync-verify-id", verifier, "test-field")
+
+		err := store.SetResultOnStartingUpload(token)
+		if err != nil {
+			t.Fatalf("SetResultOnStartingUpload error: %v", err)
+		}
+
+		err = store.SetResultOnCompletedUpload(token, nil)
+		if err != nil {
+			t.Fatalf("SetResultOnCompletedUpload error: %v", err)
+		}
+
+		// GetCompletedResult should wait for verification to complete synchronously
+		result, err := store.GetCompletedResult(context.Background(), token, nil)
+		if err != nil {
+			t.Fatalf("GetCompletedResult error: %v", err)
+		}
+		if result.Status != UploadStatusCompleted {
+			t.Errorf("expected status 'Completed', got '%v'", result.Status)
+		}
+		if result.VerificationError != nil {
+			t.Errorf("expected VerificationError to be nil, got '%v'", result.VerificationError)
+		}
+	})
+
+	t.Run("GetCompletedResult_VerificationError", func(t *testing.T) {
+		store := NewUploadFileStore(provider)
+		verifyErr := errors.New("verification failed error")
+
+		verifier := &MockUploadFileVerifier{
+			VerifyFunc: func(storeProvider UploadFileStoreProvider, token UploadToken) error {
+				return verifyErr
+			},
+		}
+
+		token := store.GetUploadToken("sync-verify-err-id", verifier, "test-field")
+
+		err := store.SetResultOnStartingUpload(token)
+		if err != nil {
+			t.Fatalf("SetResultOnStartingUpload error: %v", err)
+		}
+
+		err = store.SetResultOnCompletedUpload(token, nil)
+		if err != nil {
+			t.Fatalf("SetResultOnCompletedUpload error: %v", err)
+		}
+
+		result, err := store.GetCompletedResult(context.Background(), token, nil)
+		if err != nil {
+			t.Fatalf("GetCompletedResult error: %v", err)
+		}
+		if result.Status != UploadStatusCompleted {
+			t.Errorf("expected status 'Completed', got '%v'", result.Status)
+		}
+		if !errors.Is(result.VerificationError, verifyErr) {
+			t.Errorf("expected VerificationError '%v', got '%v'", verifyErr, result.VerificationError)
 		}
 	})
 }
