@@ -135,4 +135,49 @@ describe('ToolbarComponent', () => {
     expect(chipSearchBar).toBeTruthy();
     expect(component.logSearchTerms()).toEqual(['test-query']);
   });
+
+  it('should render time range button when timeRangeFilter is null', () => {
+    fixture.componentRef.setInput('timeRangeFilter', null);
+    fixture.detectChanges();
+
+    const addTimeBtn = fixture.debugElement.query(
+      By.css('.add-time-filter-btn'),
+    );
+    expect(addTimeBtn).toBeTruthy();
+    expect(addTimeBtn.nativeElement.textContent).toContain('Time range');
+  });
+
+  it('should render time range badge when timeRangeFilter is set', () => {
+    // 2023-11-15 07:00:00 JST (+9) -> 1699999200000000000n
+    // 2023-11-15 09:30:00 JST (+9) -> 1700008200000000000n
+    fixture.componentRef.setInput('timezoneShift', 9);
+    fixture.componentRef.setInput('timeRangeFilter', {
+      startTime: 1699999200000000000n,
+      endTime: 1700008200000000000n,
+    });
+    fixture.detectChanges();
+
+    const timeBadge = fixture.debugElement.query(By.css('.time-range-badge'));
+    expect(timeBadge).toBeTruthy();
+    expect(timeBadge.nativeElement.textContent).toContain(
+      '2023-11-15 07:00:00 ~ 09:30:00',
+    );
+  });
+
+  it('should clear timeRangeFilter when delete icon is clicked on time range badge', () => {
+    fixture.componentRef.setInput('timeRangeFilter', {
+      startTime: 1699999200000000000n,
+      endTime: 1700008200000000000n,
+    });
+    fixture.detectChanges();
+
+    const deleteIcon = fixture.debugElement.query(
+      By.css('.time-range-badge .delete-icon'),
+    );
+    expect(deleteIcon).toBeTruthy();
+    deleteIcon.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.timeRangeFilter()).toBeNull();
+  });
 });

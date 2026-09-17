@@ -36,11 +36,16 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { ChipSearchBarComponent } from 'src/app/shared/components/chip-search-bar/chip-search-bar.component';
 import { TimelineFilterBuilderComponent } from './timeline-filter-builder.component';
-import { SearchScope } from 'src/app/services/view-state.service';
+import { TimeRangeFilterBuilderComponent } from './time-range-filter-builder.component';
+import {
+  SearchScope,
+  TimeRangeFilter,
+} from 'src/app/services/view-state.service';
 import { TimelineFilterConfig } from '../types/filter-config';
 import { TimelineType } from 'src/app/store/domain/style';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
+import { formatTimeRangeChipLabel } from 'src/app/utils/time-format-util';
 
 /**
  * Visual theme representation for a timeline type chip and row.
@@ -72,6 +77,7 @@ export enum ToolbarPopupStatus {
     MatButtonToggleModule,
     MatTooltipModule,
     TimelineFilterBuilderComponent,
+    TimeRangeFilterBuilderComponent,
     MatSelectModule,
     MatInputModule,
     MatFormFieldModule,
@@ -84,6 +90,44 @@ export class ToolbarComponent {
    */
   public readonly chipSearchBar =
     viewChild<ChipSearchBarComponent>('chipSearchBar');
+
+  // Time Range Filter (Dumb state)
+  /** Two-way model binding managing the time range filter state. */
+  readonly timeRangeFilter = model<TimeRangeFilter | null>(null);
+
+  /** Default start timestamp in nanoseconds when no explicit range is set. */
+  readonly defaultStartTime = input<bigint>(0n);
+
+  /** Default end timestamp in nanoseconds when no explicit range is set. */
+  readonly defaultEndTime = input<bigint>(0n);
+
+  // Time Range Filter builder popover state
+  protected readonly isTimeRangeBuilderOpen = signal<boolean>(false);
+  protected readonly timeRangeChipLabel = computed(() => {
+    const range = this.timeRangeFilter();
+    return range
+      ? formatTimeRangeChipLabel(
+          range.startTime,
+          range.endTime,
+          this.timezoneShift(),
+        )
+      : '';
+  });
+
+  protected toggleTimeRangeBuilder(): void {
+    this.isTimeRangeBuilderOpen.set(!this.isTimeRangeBuilderOpen());
+  }
+
+  protected onTimeRangeConfirm(range: TimeRangeFilter): void {
+    this.timeRangeFilter.set(range);
+    this.isTimeRangeBuilderOpen.set(false);
+  }
+
+  protected clearTimeRangeFilter(event?: Event): void {
+    event?.stopPropagation();
+    this.timeRangeFilter.set(null);
+    this.isTimeRangeBuilderOpen.set(false);
+  }
 
   // Inputs (Signals)
   readonly showButtonLabel = input(false);

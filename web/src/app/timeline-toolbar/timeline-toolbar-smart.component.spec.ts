@@ -23,6 +23,7 @@ import {
   ViewStateService,
 } from 'src/app/services/view-state.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 import { CelValidationClientService } from 'src/app/services/api/cel/cel-validation-client.service';
 import { SelectionManager } from 'src/app/services/selection-manager.service';
 import {
@@ -255,6 +256,7 @@ describe('TimelineToolbarSmartComponent', () => {
   let standardSelectedSeveritySignal: WritableSignal<string>;
   let standardLogSearchTermsSignal: WritableSignal<string[]>;
   let timeRangeFilterSignal: WritableSignal<TimeRangeFilter | null>;
+  let inspectionDataSignal: WritableSignal<InspectionData | null>;
 
   beforeEach(async () => {
     mockCelValidationClient = jasmine.createSpyObj(
@@ -276,6 +278,7 @@ describe('TimelineToolbarSmartComponent', () => {
     standardSelectedSeveritySignal = signal('ANY');
     standardLogSearchTermsSignal = signal([]);
     timeRangeFilterSignal = signal<TimeRangeFilter | null>(null);
+    inspectionDataSignal = signal<InspectionData | null>(null);
 
     mockBackendFilter = {
       updateFilterParams: jasmine.createSpy('updateFilterParams'),
@@ -289,7 +292,7 @@ describe('TimelineToolbarSmartComponent', () => {
 
     mockInspectionDataStore = jasmine.createSpyObj('InspectionDataStore', [], {
       timelineView: signal(mockTimelineView),
-      inspectionData: signal(null),
+      inspectionData: inspectionDataSignal,
     });
 
     mockViewStateService = jasmine.createSpyObj(
@@ -464,5 +467,28 @@ describe('TimelineToolbarSmartComponent', () => {
         filterEndTime: null,
       }),
     );
+  });
+
+  it('should compute defaultStartTime and defaultEndTime from inspection data header unix seconds', () => {
+    inspectionDataSignal.set({
+      metadata: {
+        header: {
+          startTimeUnixSeconds: 1700000000,
+          endTimeUnixSeconds: 1700010000,
+        },
+      },
+    } as unknown as InspectionData);
+    fixture.detectChanges();
+
+    expect(component['defaultStartTime']()).toBe(1700000000000000000n);
+    expect(component['defaultEndTime']()).toBe(1700010000000000000n);
+  });
+
+  it('should default startTime and endTime to 0n when inspection data is absent', () => {
+    inspectionDataSignal.set(null);
+    fixture.detectChanges();
+
+    expect(component['defaultStartTime']()).toBe(0n);
+    expect(component['defaultEndTime']()).toBe(0n);
   });
 });

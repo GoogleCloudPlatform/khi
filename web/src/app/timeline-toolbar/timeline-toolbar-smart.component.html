@@ -15,6 +15,9 @@ limitations under the License.
 -->
 
 <khi-toolbar-frame
+  [(timeRangeFilter)]="timeRangeFilter"
+  [defaultStartTime]="defaultStartTime()"
+  [defaultEndTime]="defaultEndTime()"
   [(isAdvancedMode)]="isAdvancedMode"
   [isFiltering]="isFiltering()"
   [progressPercent]="progressPercent()"

@@ -78,6 +78,93 @@ $timezone-color: mat.m2-get-color-from-palette($primary-palette, 500);
   margin: 0 20px;
 }
 
+.time-filter-origin {
+  display: inline-flex;
+}
+
+.add-time-filter-btn {
+  height: 36px;
+  border-radius: 18px !important;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.time-range-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 12px !important;
+  border-radius: 18px !important;
+  border: 1px solid mat.m2-get-color-from-palette($gray-palette, 300) !important;
+  background-color: mat.m2-get-color-from-palette($gray-palette, 50) !important;
+  color: inherit !important;
+  font-size: 13px;
+  font-weight: 500;
+
+  .filter-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: mat.m2-get-color-from-palette($primary-palette, 500);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .filter-label {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    gap: 3px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .filter-type {
+    color: mat.m2-get-color-from-palette($primary-palette, 700);
+    font-weight: 600;
+  }
+
+  .filter-colon {
+    color: mat.m2-get-color-from-palette($gray-palette, 500);
+  }
+
+  .filter-value {
+    color: mat.m2-get-color-from-palette($gray-palette, 800);
+    font-family: monospace;
+    font-size: 12px;
+    background-color: mat.m2-get-color-from-palette($gray-palette, 100);
+    padding: 2px 4px;
+    border-radius: 4px;
+    max-width: 250px;
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  .delete-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    color: mat.m2-get-color-from-palette($gray-palette, 500);
+    margin-left: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      color: mat.m2-get-color-from-palette($gray-palette, 800);
+      opacity: 0.7;
+    }
+  }
+}
+
 .timezone-control {
   display: flex;
   justify-content: center;

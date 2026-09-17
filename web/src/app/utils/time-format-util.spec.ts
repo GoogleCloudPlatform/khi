@@ -17,8 +17,11 @@
 import {
   formatDurationMs,
   formatDurationSeconds,
+  formatIsoTimestampNs,
   formatIsoTimestampSeconds,
+  formatTimeRangeChipLabel,
   generateTimestampedFilename,
+  parseIsoTimestampNs,
 } from './time-format-util';
 
 describe('time-format-util', () => {
@@ -153,6 +156,98 @@ describe('time-format-util', () => {
       expect(formatIsoTimestampSeconds(-1, 9)).toBe('-');
       expect(formatIsoTimestampSeconds(NaN, 9)).toBe('-');
       expect(formatIsoTimestampSeconds(Infinity, 9)).toBe('-');
+    });
+  });
+
+  describe('formatIsoTimestampNs', () => {
+    // 1700000000123000000n is 2023-11-14T22:13:20.123Z
+    const timestampNs = 1700000000123000000n;
+
+    it('should format UTC timestamp with millisecond precision when timezone shift is 0', () => {
+      expect(formatIsoTimestampNs(timestampNs, 0)).toBe(
+        '2023-11-14T22:13:20.123+00:00',
+      );
+    });
+
+    it('should format timestamp with positive timezone shift (+9 for JST)', () => {
+      expect(formatIsoTimestampNs(timestampNs, 9)).toBe(
+        '2023-11-15T07:13:20.123+09:00',
+      );
+    });
+
+    it('should format timestamp with negative timezone shift (-5 for EST)', () => {
+      expect(formatIsoTimestampNs(timestampNs, -5)).toBe(
+        '2023-11-14T17:13:20.123-05:00',
+      );
+    });
+
+    it('should format timestamp with fractional timezone shift (+5.5 for IST)', () => {
+      expect(formatIsoTimestampNs(timestampNs, 5.5)).toBe(
+        '2023-11-15T03:43:20.123+05:30',
+      );
+    });
+
+    it('should return "-" when timestampNs <= 0n', () => {
+      expect(formatIsoTimestampNs(0n, 9)).toBe('-');
+      expect(formatIsoTimestampNs(-100n, 9)).toBe('-');
+    });
+  });
+
+  describe('parseIsoTimestampNs', () => {
+    it('should return null for empty or whitespace-only input', () => {
+      expect(parseIsoTimestampNs('', 0)).toBeNull();
+      expect(parseIsoTimestampNs('   ', 9)).toBeNull();
+    });
+
+    it('should parse ISO 8601 string with explicit UTC "Z"', () => {
+      const parsed = parseIsoTimestampNs('2023-11-14T22:13:20.123Z', 9);
+      expect(parsed).toBe(1700000000123000000n);
+    });
+
+    it('should parse ISO 8601 string with explicit timezone offset', () => {
+      const parsed = parseIsoTimestampNs('2023-11-15T07:13:20.123+09:00', 0);
+      expect(parsed).toBe(1700000000123000000n);
+    });
+
+    it('should apply timezoneShiftHours when no timezone suffix is present', () => {
+      // With +9 shift, "2023-11-15T07:13:20.123" represents UTC 2023-11-14T22:13:20.123
+      const parsed = parseIsoTimestampNs('2023-11-15T07:13:20.123', 9);
+      expect(parsed).toBe(1700000000123000000n);
+    });
+
+    it('should support space separator between date and time', () => {
+      const parsed = parseIsoTimestampNs('2023-11-15 07:13:20.123', 9);
+      expect(parsed).toBe(1700000000123000000n);
+    });
+
+    it('should correctly apply timezone shift for date-only string', () => {
+      // 2023-11-15 with +9 shift -> 2023-11-15T00:00:00+09:00 -> UTC 2023-11-14T15:00:00Z = 1699974000s
+      const parsed = parseIsoTimestampNs('2023-11-15', 9);
+      expect(parsed).toBe(1699974000000000000n);
+    });
+
+    it('should return null for invalid date strings', () => {
+      expect(parseIsoTimestampNs('invalid-date', 0)).toBeNull();
+      expect(parseIsoTimestampNs('2023-99-99T99:99:99', 0)).toBeNull();
+    });
+  });
+
+  describe('formatTimeRangeChipLabel', () => {
+    // 2023-11-15 07:00:00 JST (+9) -> UTC 2023-11-14 22:00:00
+    const startSameDay = 1699999200000000000n;
+    // 2023-11-15 09:30:00 JST (+9) -> UTC 2023-11-15 00:30:00
+    const endSameDay = 1700008200000000000n;
+    // 2023-11-16 08:00:00 JST (+9) -> UTC 2023-11-15 23:00:00
+    const endDifferentDay = 1700089200000000000n;
+
+    it('should format compact label when start and end fall on the same day', () => {
+      const label = formatTimeRangeChipLabel(startSameDay, endSameDay, 9);
+      expect(label).toBe('2023-11-15 07:00:00 ~ 09:30:00');
+    });
+
+    it('should format full dates when start and end fall on different days', () => {
+      const label = formatTimeRangeChipLabel(startSameDay, endDifferentDay, 9);
+      expect(label).toBe('2023-11-15 07:00:00 ~ 2023-11-16 08:00:00');
     });
   });
 });

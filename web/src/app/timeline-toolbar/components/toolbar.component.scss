@@ -150,6 +150,16 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
   padding: 0 16px;
 }
 
+.time-filter-origin {
+  display: inline-flex;
+}
+
+.time-range-badge {
+  .filter-value {
+    max-width: 250px;
+  }
+}
+
 .filter-badge {
   display: flex;
   align-items: center;
@@ -268,7 +278,8 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
   }
 }
 
-.add-filter-btn {
+.add-filter-btn,
+.add-time-filter-btn {
   height: 36px;
   border-radius: 18px !important;
   display: flex;

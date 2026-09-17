@@ -113,11 +113,28 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   protected readonly timelineFilters =
     this.viewStateService.standardTimelineFilters;
 
+  /** Active time range filter signal. */
+  protected readonly timeRangeFilter = this.viewStateService.timeRangeFilter;
+
   /** Selected timeline type used within interactive filter builders. */
   protected readonly selectedTimelineTypeForBuilder = signal<string>('*');
 
   private readonly inspectionData = computed(() => {
     return this.inspectionDataStore.inspectionData();
+  });
+
+  protected readonly defaultStartTime = computed(() => {
+    const header = this.inspectionData()?.metadata?.header;
+    return header?.startTimeUnixSeconds != null
+      ? BigInt(header.startTimeUnixSeconds) * 1000000000n
+      : 0n;
+  });
+
+  protected readonly defaultEndTime = computed(() => {
+    const header = this.inspectionData()?.metadata?.header;
+    return header?.endTimeUnixSeconds != null
+      ? BigInt(header.endTimeUnixSeconds) * 1000000000n
+      : 0n;
   });
 
   /** List of unique timeline types located within loaded store elements. */

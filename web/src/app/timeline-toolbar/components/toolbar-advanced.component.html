@@ -60,6 +60,66 @@
         </div>
       </div>
       <div class="right-control">
+        <div
+          class="time-filter-origin"
+          #timeBuilderTrigger="cdkOverlayOrigin"
+          cdkOverlayOrigin
+        >
+          @if (timeRangeFilter()) {
+            <button
+              mat-stroked-button
+              class="filter-badge time-range-badge"
+              matTooltip="Edit time range filter"
+              (click)="toggleTimeRangeBuilder()"
+            >
+              <mat-icon class="filter-icon">schedule</mat-icon>
+              <span class="filter-label">
+                <span class="filter-type">Time</span
+                ><span class="filter-colon">: </span
+                ><span class="filter-value">{{ timeRangeChipLabel() }}</span>
+              </span>
+              <mat-icon
+                class="delete-icon"
+                (click)="clearTimeRangeFilter($event)"
+              >
+                close
+              </mat-icon>
+            </button>
+          } @else {
+            <button
+              mat-stroked-button
+              color="primary"
+              class="add-time-filter-btn"
+              (click)="toggleTimeRangeBuilder()"
+              matTooltip="Filter by time range"
+            >
+              <mat-icon>schedule</mat-icon>
+              <span>Time range</span>
+            </button>
+          }
+        </div>
+
+        <ng-template
+          cdkConnectedOverlay
+          [cdkConnectedOverlayOrigin]="timeBuilderTrigger"
+          [cdkConnectedOverlayOpen]="isTimeRangeBuilderOpen()"
+          [cdkConnectedOverlayHasBackdrop]="true"
+          cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+          (backdropClick)="toggleTimeRangeBuilder()"
+        >
+          <khi-time-range-filter-builder
+            [startTime]="timeRangeFilter()?.startTime ?? null"
+            [endTime]="timeRangeFilter()?.endTime ?? null"
+            [defaultStartTime]="defaultStartTime()"
+            [defaultEndTime]="defaultEndTime()"
+            [timezoneShift]="timezoneShift()"
+            [showDeleteButton]="timeRangeFilter() !== null"
+            (closeButtonClicked)="toggleTimeRangeBuilder()"
+            (deleteButtonClicked)="clearTimeRangeFilter()"
+            (confirm)="onTimeRangeConfirm($event)"
+          ></khi-time-range-filter-builder>
+        </ng-template>
+
         <!-- Help button -->
         <button
           mat-icon-button
