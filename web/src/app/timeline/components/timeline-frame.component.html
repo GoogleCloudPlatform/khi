@@ -48,9 +48,10 @@
         [leftEdgeTime]="contentLeftTime()"
         [rulerStyle]="rulerStyle()"
         [activeTimeRangeMs]="activeTimeRangeMs()"
-        [previewTimeRangeMs]="previewTimeRangeMs()"
+        [(previewTimeRangeMs)]="previewTimeRangeMs"
         [(scalingMode)]="scaleModeFromRuler"
         (scrollOnRuler)="onWheelForScaling($event)"
+        (timeRangeSelected)="onRulerTimeRangeSelected($event)"
       ></khi-timeline-ruler>
     </div>
     <div
