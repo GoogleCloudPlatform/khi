@@ -8,12 +8,21 @@ WEB_ALLOWED_HOSTS_FLAG ?= $(if $(filter 0.0.0.0,$(WEB_HOST)),--allowed-hosts,)
 STORYBOOK_HOST ?= localhost
 STORYBOOK_PORT ?= 6006
 KARMA_PORT ?= 9876
-BACKEND_PORT ?= $(or $(PORT),8080)
-BACKEND_HOST ?= $(if $(filter 0.0.0.0,$(HOST)),127.0.0.1,$(or $(HOST),127.0.0.1))
+PORT ?= $(or $(BACKEND_PORT),8080)
+HOST ?= 127.0.0.1
+BACKEND_PORT ?= $(PORT)
+BACKEND_HOST ?= $(if $(filter 0.0.0.0,$(HOST)),127.0.0.1,$(HOST))
 
 .PHONY: watch-web
 watch-web: $(GENERATE_FRONTEND_DUMMY) ## Run frontend development server
 	cd web && BACKEND_PORT=$(BACKEND_PORT) BACKEND_HOST=$(BACKEND_HOST) npx ng serve -c dev --host $(WEB_HOST) --port $(WEB_PORT) $(WEB_ALLOWED_HOSTS_FLAG)
+
+.PHONY: watch-go
+watch-go: $(GENERATE_BACKEND_DUMMY) $(FRONTEND_GENERATED_ASSETS_DUMMY) ## Run backend development server with live reload
+	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
+		$(MAKE) build-web; \
+	fi
+	PORT=$(PORT) HOST=$(HOST) go tool air
 
 $(FRONTEND_ARTIFACT_FILES_DUMMY): $(GENERATE_FRONTEND_DUMMY) $(FRONTEND_SOURCE_FILES) $(FRONTEND_GENERATED_SRCS)## Build frontend for production
 	cd web && npx ng build --output-path ../pkg/server/dist -c prod
