@@ -319,3 +319,13 @@ export const WithTimezoneshift: Story = {
     timezoneShift: 5.5,
   },
 };
+
+export const WithActiveTimeRange: Story = {
+  args: {
+    ...Default.args,
+    activeTimeRangeMs: {
+      startMs: START_TIME + DURATION * 0.25,
+      endMs: START_TIME + DURATION * 0.5,
+    },
+  },
+};

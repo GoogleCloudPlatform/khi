@@ -52,6 +52,7 @@
         [(scalingMode)]="scaleModeFromRuler"
         (scrollOnRuler)="onWheelForScaling($event)"
         (timeRangeSelected)="onRulerTimeRangeSelected($event)"
+        (timeRangeCleared)="timeRangeCleared.emit()"
       ></khi-timeline-ruler>
     </div>
     <div

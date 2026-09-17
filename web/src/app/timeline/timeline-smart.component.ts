@@ -573,6 +573,13 @@ export class TimelineSmartComponent {
   }
 
   /**
+   * Clears the active time range filter.
+   */
+  protected onTimeRangeCleared(): void {
+    this.viewStateService.timeRangeFilter.set(null);
+  }
+
+  /**
    * Handles hovering over a timeline ruler item.
    * Updates the selection manager to highlight the timeline.
    */

@@ -354,4 +354,19 @@ describe('TimelineFrameComponent - time range selection', () => {
       endTime: 5000000000n,
     });
   });
+
+  it('should propagate timeRangeCleared from child ruler component', () => {
+    let clearedEmitted = false;
+    frameComponent.timeRangeCleared.subscribe(() => {
+      clearedEmitted = true;
+    });
+
+    const rulerDebugEl = frameFixture.debugElement.query(
+      (el) => el.componentInstance instanceof TimelineRulerComponent,
+    );
+    rulerDebugEl.componentInstance.timeRangeCleared.emit();
+    frameFixture.detectChanges();
+
+    expect(clearedEmitted).toBeTrue();
+  });
 });
