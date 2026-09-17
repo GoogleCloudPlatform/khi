@@ -31,7 +31,7 @@ export function formatDurationSeconds(seconds: number): string {
 }
 
 /**
- * Formats a duration in milliseconds into a compact display string such as "820ms", "4.3s", or "2m05s".
+ * Formats a duration in milliseconds into a compact display string such as "820ms", "4.3s", "2m05s", "1h00m", or "2d03h".
  *
  * @param durationMs - Duration in milliseconds.
  * @returns Compact duration string.
@@ -44,9 +44,22 @@ export function formatDurationMs(durationMs: number): string {
     return `${(durationMs / 1000).toFixed(1)}s`;
   }
   const totalSeconds = Math.floor(durationMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}m${seconds.toString().padStart(2, '0')}s`;
+  if (durationMs < 3600000) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}m${seconds.toString().padStart(2, '0')}s`;
+  }
+  if (durationMs < 86400000) {
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours}h${minutes.toString().padStart(2, '0')}m`;
+  }
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const totalHours = Math.floor(totalMinutes / 60);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  return `${days}d${hours.toString().padStart(2, '0')}h`;
 }
 
 /**
@@ -112,6 +125,18 @@ export function formatIsoTimestampSeconds(
 }
 
 /**
+ * Converts a nanosecond timestamp to milliseconds, rounding to the nearest millisecond.
+ *
+ * All formatters in this file share this conversion so that a rendered duration always matches
+ * the difference between the rendered timestamps.
+ */
+function roundNsToMs(timestampNs: bigint): number {
+  const wholeMs = timestampNs / 1000000n;
+  const subMsNs = Number(timestampNs % 1000000n);
+  return subMsNs >= 500000 ? Number(wholeMs) + 1 : Number(wholeMs);
+}
+
+/**
  * Formats a timestamp in nanoseconds to an ISO 8601 string with millisecond precision taking timezone shift into account.
  * Format: `YYYY-MM-DDTHH:mm:ss.SSS+HH:mm` (or `-HH:mm`).
  *
@@ -137,9 +162,7 @@ export function formatIsoTimestampNs(
   const signedOffsetMinutes =
     timezoneShiftHours >= 0 ? totalOffsetMinutes : -totalOffsetMinutes;
 
-  const msBigInt = timestampNs / 1000000n;
-  const subMsNs = Number(timestampNs % 1000000n);
-  const roundedMs = subMsNs >= 500000 ? Number(msBigInt) + 1 : Number(msBigInt);
+  const roundedMs = roundNsToMs(timestampNs);
 
   const shiftedDate = new Date(roundedMs + signedOffsetMinutes * 60 * 1000);
   const pad = (n: number): string => n.toString().padStart(2, '0');
@@ -201,27 +224,37 @@ export function parseIsoTimestampNs(
 }
 
 /**
- * Formats a time range [startTimeNs, endTimeNs] into a compact chip label in the shifted timezone.
+ * Represents the two lines rendered inside the time range filter chip.
+ */
+export interface TimeRangeChipLines {
+  /** The first line of the chip, displaying the start timestamp. */
+  readonly startLine: string;
+  /** The second line of the chip, displaying the end timestamp with a leading '~ '. */
+  readonly endLine: string;
+}
+
+/**
+ * Formats a time range into the two lines rendered inside the time range filter chip.
  *
  * @param startTimeNs - Start timestamp in nanoseconds.
  * @param endTimeNs - End timestamp in nanoseconds.
  * @param timezoneShiftHours - Timezone offset from UTC in hours.
- * @returns Compact chip label (e.g. "YYYY-MM-DD HH:mm:ss ~ HH:mm:ss" if same day, or "YYYY-MM-DD HH:mm:ss ~ YYYY-MM-DD HH:mm:ss" if different days).
+ * @returns Start and end lines. The end line omits the date when both ends fall on the same date, and is always prefixed with `~ `.
  */
-export function formatTimeRangeChipLabel(
+export function formatTimeRangeChipLines(
   startTimeNs: bigint,
   endTimeNs: bigint,
   timezoneShiftHours: number,
-): string {
+): TimeRangeChipLines {
   if (startTimeNs <= 0n || endTimeNs <= 0n) {
-    return '-';
+    return { startLine: '-', endLine: '' };
   }
   const totalOffsetMinutes = Math.round(Math.abs(timezoneShiftHours) * 60);
   const signedOffsetMinutes =
     timezoneShiftHours >= 0 ? totalOffsetMinutes : -totalOffsetMinutes;
 
-  const startMs = Number(startTimeNs / 1000000n);
-  const endMs = Number(endTimeNs / 1000000n);
+  const startMs = roundNsToMs(startTimeNs);
+  const endMs = roundNsToMs(endTimeNs);
 
   const startDate = new Date(startMs + signedOffsetMinutes * 60 * 1000);
   const endDate = new Date(endMs + signedOffsetMinutes * 60 * 1000);
@@ -234,8 +267,39 @@ export function formatTimeRangeChipLabel(
   const endYMD = `${endDate.getUTCFullYear()}-${pad(endDate.getUTCMonth() + 1)}-${pad(endDate.getUTCDate())}`;
   const endHMS = `${pad(endDate.getUTCHours())}:${pad(endDate.getUTCMinutes())}:${pad(endDate.getUTCSeconds())}`;
 
-  if (startYMD === endYMD) {
-    return `${startYMD} ${startHMS} ~ ${endHMS}`;
+  const isSameDate =
+    startDate.getUTCFullYear() === endDate.getUTCFullYear() &&
+    startDate.getUTCMonth() === endDate.getUTCMonth() &&
+    startDate.getUTCDate() === endDate.getUTCDate();
+
+  const startLine = `${startYMD} ${startHMS}`;
+  const endLine = isSameDate ? `~ ${endHMS}` : `~ ${endYMD} ${endHMS}`;
+
+  return { startLine, endLine };
+}
+
+/**
+ * Formats a time range into a detailed tooltip with full ISO 8601 timestamps and the range duration.
+ *
+ * @param startTimeNs - Start timestamp in nanoseconds.
+ * @param endTimeNs - End timestamp in nanoseconds.
+ * @param timezoneShiftHours - Timezone offset from UTC in hours.
+ * @returns Detailed label such as `2026-09-17T14:00:00.000+09:00 ~ 2026-09-17T14:30:00.000+09:00 (30m00s)`, or '-' when either timestamp is non-positive.
+ */
+export function formatTimeRangeTooltip(
+  startTimeNs: bigint,
+  endTimeNs: bigint,
+  timezoneShiftHours: number,
+): string {
+  if (startTimeNs <= 0n || endTimeNs <= 0n) {
+    return '-';
   }
-  return `${startYMD} ${startHMS} ~ ${endYMD} ${endHMS}`;
+  const startIso = formatIsoTimestampNs(startTimeNs, timezoneShiftHours);
+  const endIso = formatIsoTimestampNs(endTimeNs, timezoneShiftHours);
+  const durationMs = Math.max(
+    0,
+    roundNsToMs(endTimeNs) - roundNsToMs(startTimeNs),
+  );
+  const durationStr = formatDurationMs(durationMs);
+  return `${startIso} ~ ${endIso} (${durationStr})`;
 }
