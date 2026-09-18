@@ -116,7 +116,8 @@ gcr.io/kubernetes-history-inspector/release:latest
 ### Logging backend
 
 - Google Cloud
-  - Cloud Logging (For all clusters on Google Cloud)
+  - Cloud Logging (Primary log source for all clusters on Google Cloud)
+  - Cloud Asset Inventory (Supplementary: used optionally to reconstruct initial state snapshots for pre-existing resources)
 
 - Other
   - Log file upload ([Tutorial](/docs/en/setup-guide/oss-kubernetes-clusters.md))
