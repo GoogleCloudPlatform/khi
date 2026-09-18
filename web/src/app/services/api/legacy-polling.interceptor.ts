@@ -350,6 +350,8 @@ async function* adaptFilterTimeline(
             timelineExclusionQuery: jobId ? '' : input.timelineExclusionQuery,
             logQuery: jobId ? '' : input.logQuery,
             excludeNoLogs: jobId ? false : input.excludeNoLogs,
+            filterStartTime: jobId ? undefined : input.filterStartTime,
+            filterEndTime: jobId ? undefined : input.filterEndTime,
             jobId,
           },
           { signal: req.signal },

@@ -22,6 +22,7 @@ import {
   Message,
   MessageInitShape,
 } from '@bufbuild/protobuf';
+import { Timestamp, TimestampSchema } from '@bufbuild/protobuf/wkt';
 import {
   Code,
   ConnectError,
@@ -60,6 +61,7 @@ import {
   FilterProgressSchema,
   FilterResultMode,
   FilterResultSchema,
+  FilterTimelineSyncRequest,
   FilterTimelineSyncResponseSchema,
   OpenWorkbenchResponse_Stage,
   OpenWorkbenchSyncResponseSchema,
@@ -549,6 +551,59 @@ describe('LegacyPollingInterceptor', () => {
       }
 
       expect(modes).toEqual([FilterResultMode.INCLUDE]);
+    });
+
+    it('forwards the time range filter to FilterTimelineSync on the job-starting poll', async () => {
+      const filterStartTime = create(TimestampSchema, {
+        seconds: 1700000000n,
+        nanos: 250000000,
+      });
+      const filterEndTime = create(TimestampSchema, {
+        seconds: 1700003600n,
+        nanos: 750000000,
+      });
+      const observedStartTimes: (Timestamp | undefined)[] = [];
+      const observedEndTimes: (Timestamp | undefined)[] = [];
+      let filterCalls = 0;
+      const mockTransport = createMockUnaryTransport((methodName, reqMsg) => {
+        if (methodName === 'FilterTimelineSync') {
+          const req = reqMsg as FilterTimelineSyncRequest;
+          observedStartTimes.push(req.filterStartTime);
+          observedEndTimes.push(req.filterEndTime);
+          filterCalls++;
+          if (filterCalls === 1) {
+            return create(FilterTimelineSyncResponseSchema, {
+              jobId: 'job-time-range',
+              isDone: false,
+            });
+          }
+          return create(FilterTimelineSyncResponseSchema, {
+            jobId: 'job-time-range',
+            isDone: true,
+            result: create(FilterResultSchema, {
+              timelineMode: FilterResultMode.INCLUDE,
+              logMode: FilterResultMode.INCLUDE,
+            }),
+          });
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(WorkbenchService, clientTransport);
+      for await (const res of client.filterTimeline({
+        workbenchId: 'wb-1',
+        filterStartTime,
+        filterEndTime,
+      })) {
+        expect(res).toBeDefined();
+      }
+
+      expect(filterCalls).toBe(2);
+      // The job-starting poll must carry the range, later polls only reference the job ID.
+      expect(observedStartTimes).toEqual([filterStartTime, undefined]);
+      expect(observedEndTimes).toEqual([filterEndTime, undefined]);
     });
 
     it('survives transient 502 error during OpenWorkbench polling', async () => {
