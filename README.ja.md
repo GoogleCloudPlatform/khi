@@ -120,7 +120,8 @@ gcr.io/kubernetes-history-inspector/release:latest
 
 - Google Cloud
 
-  - Cloud Logging（Google Cloud 上のすべてのクラスタ）
+  - Cloud Logging: Google Cloud 上のすべてのクラスタにおける主たるログソース
+  - Cloud Asset Inventory: インスペクション開始前から存在するリソースの初期状態スナップショットを補完するための補助的データソース
 
 - その他環境
   - ファイルによるログアップロード([チュートリアル (OSS Kubernetesクラスタのログの可視化（Loki）)](/docs/ja/setup-guide/oss-kubernetes-clusters.md))

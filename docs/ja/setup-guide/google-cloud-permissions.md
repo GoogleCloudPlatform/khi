@@ -15,6 +15,7 @@ KHI が Cloud Logging をクエリし、New Inspection ダイアログでの入�
 * **推奨権限**:
   * `monitoring.timeSeries.list` - New Inspection ダイアログでクラスタ名などの自動補完候補を取得するために使用します（権限がなくても機能しますが、候補が表示されません）。
   * `container.clusters.list` - Cloud Composer 向け機能利用時のクラスタメタデータ取得に使用します。
+  * `cloudasset.assets.searchAllResources` および `cloudasset.assets.exportResource` - インスペクション開始時刻より前に作成された既存の GKE クラスタや NodePool、Kubernetes リソースの初期スナップショットを Cloud Asset Inventory から取得するために使用します。
 
 ### おすすめの IAM ロール
 
@@ -24,6 +25,17 @@ KHI が Cloud Logging をクエリし、New Inspection ダイアログでの入�
 | --- | --- | --- |
 | **ログ閲覧者 (Logs Viewer)** | `roles/logging.viewer` | Cloud Logging の標準的なログのクエリを許可します。 |
 | **プライベート ログ閲覧者 (Private Logs Viewer)** | `roles/logging.privateLogViewer` | センシティブなデータを含む監査ログのクエリを許可します。（完全な監査ログアクセスのため推奨） |
+| **Cloud Asset Viewer** | `roles/cloudasset.viewer` | Cloud Asset Inventory から既存リソースの補助的な初期スナップショットを取得することを許可します。 |
+
+### Cloud Asset Inventory による既存リソース状態の補完について
+
+KHI は Cloud Asset Inventory を利用して、インスペクション対象期間より前に作成されていた Kubernetes リソースや GKE クラスタ・NodePool の初期状態を復元できます。
+
+> [!NOTE]
+> **Cloud Asset Inventory はあくまで補助的なデータソースです。**
+> KHI における主たる信頼情報源は、すべての API リクエストを正確なタイムスタンプとともにリアルタイム記録する Cloud Logging の監査ログです。一方、Cloud Asset Inventory は非同期のスナップショットを記録する仕組みであるため、短命なリソースや短時間の連続した状態変化が記録されない場合や、タイムスタンプにわずかな遅延が生じる場合があり、監査ログほどの厳密な信頼性はありません。
+>
+> KHI はインスペクション開始時点のベースライン状態を補う目的でのみ Cloud Asset Inventory を補助的に利用します。実行アカウントに `roles/cloudasset.viewer` 権限がない場合でもエラーで停止することはなく、従来通り監査ログのみを用いてインスペクションを実行できます。
 
 ---
 

@@ -15,6 +15,7 @@ To allow KHI to query Cloud Logging and provide autocomplete candidates in the N
 * **Recommended Permissions**:
   * `monitoring.timeSeries.list` - Used to fetch autocomplete candidates for cluster names and resources in the New Inspection dialog.
   * `container.clusters.list` - Used for cluster metadata discovery when using Cloud Composer features.
+  * `cloudasset.assets.searchAllResources` and `cloudasset.assets.exportResource` - Used to fetch initial snapshots of pre-existing GKE clusters, node pools, and Kubernetes resources created before the inspection start time.
 
 ### Recommended IAM Roles
 
@@ -24,6 +25,17 @@ Instead of assigning individual permissions, you can assign one of the following
 | --- | --- | --- |
 | **Logs Viewer** | `roles/logging.viewer` | Allows querying standard logs in Cloud Logging. |
 | **Private Logs Viewer** | `roles/logging.privateLogViewer` | Allows querying audit logs containing sensitive payload data. (Recommended for full audit log access) |
+| **Cloud Asset Viewer** | `roles/cloudasset.viewer` | Allows fetching supplementary initial resource snapshots from Cloud Asset Inventory. |
+
+### Supplementary Resource State via Cloud Asset Inventory
+
+KHI can query Cloud Asset Inventory (CAI) to reconstruct the initial state of Kubernetes resources, GKE clusters, and node pools that existed prior to your inspection time window.
+
+> [!NOTE]
+> **Cloud Asset Inventory is strictly a supplementary data source.**
+> Audit logs in Cloud Logging remain the primary, authoritative source of truth for KHI because they capture every API operation with exact timestamps. In contrast, Cloud Asset Inventory records periodic, asynchronous snapshots; short-lived resources or rapid state transitions may not be captured, and snapshot timestamps may experience slight ingestion lag.
+>
+> KHI uses CAI solely to establish baseline resource states at the start of an inspection. If the identity running KHI does not have `roles/cloudasset.viewer` permissions, KHI will gracefully skip CAI fetching and continue the inspection using Cloud Logging audit logs alone.
 
 ---
 
