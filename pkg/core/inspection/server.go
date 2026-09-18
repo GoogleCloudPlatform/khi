@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
@@ -193,6 +194,40 @@ func (s *InspectionTaskServer) RegisterImportedInspection(id string, store inspe
 	s.inspections[id] = runner
 	s.inspectionsMu.Unlock()
 	return runner
+}
+
+// GetDefaultInspectionName returns a unique default inspection name based on the inspection type name.
+// If the base name is already used by another inspection, it appends a sequential suffix like (1), (2), etc.
+func (s *InspectionTaskServer) GetDefaultInspectionName(inspectionTypeID string, excludeInspectionID string) string {
+	inspectionType := s.GetInspectionType(inspectionTypeID)
+	baseName := "Inspection"
+	if inspectionType != nil && inspectionType.Name != "" {
+		baseName = inspectionType.Name
+	}
+
+	existingNames := map[string]struct{}{}
+	for _, runner := range s.GetAllRunners() {
+		if runner.ID == excludeInspectionID {
+			continue
+		}
+		md, err := runner.GetCurrentMetadata()
+		if err != nil || md == nil {
+			continue
+		}
+		if header, found := typedmap.Get(md, inspectionmetadata.HeaderMetadataKey); found && header != nil && header.InspectionName != "" {
+			existingNames[header.InspectionName] = struct{}{}
+		}
+	}
+
+	if _, exists := existingNames[baseName]; !exists {
+		return baseName
+	}
+	for i := 1; ; i++ {
+		candidate := fmt.Sprintf("%s(%d)", baseName, i)
+		if _, exists := existingNames[candidate]; !exists {
+			return candidate
+		}
+	}
 }
 
 var _ InspectionTaskRegistry = (*InspectionTaskServer)(nil)

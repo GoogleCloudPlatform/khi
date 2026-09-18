@@ -22,4 +22,5 @@ import (
 
 var InspectionTimeTaskID = taskid.NewDefaultImplementationID[time.Time](InspectionTaskPrefix + "task/time")
 var TimeZoneShiftInputTaskID = taskid.NewDefaultImplementationID[*time.Location](InspectionTaskPrefix + "input-timezone-shift")
+var InputInspectionNameTaskID = taskid.NewDefaultImplementationID[string](InspectionTaskPrefix + "input/inspection-name")
 var SerializerTaskID = taskid.NewDefaultImplementationID[*FileSystemStore](InspectionTaskPrefix + "serialize")

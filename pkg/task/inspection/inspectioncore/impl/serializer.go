@@ -34,6 +34,7 @@ var SerializeTask = inspectiontaskbase.NewInspectionTask(
 	inspectioncore.SerializerTaskID,
 	[]coretask.Dependency{
 		JobModeCommandTaskID.Ref(),
+		inspectioncore.InputInspectionNameTaskID.Ref(),
 		inspectiontaskbase.TagLogIngester.Ref(),
 		inspectiontaskbase.TagTimelineMapper.Ref(),
 	},
