@@ -155,8 +155,23 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
 }
 
 .time-range-badge {
-  .filter-value {
-    max-width: 250px;
+  .time-range-value {
+    display: grid;
+    grid-template:
+      'start' auto
+      'end' auto
+      / auto;
+    max-width: none;
+    font-size: 11px;
+    line-height: 1.15;
+    text-align: left;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .time-range-line {
+    white-space: nowrap;
   }
 }
 

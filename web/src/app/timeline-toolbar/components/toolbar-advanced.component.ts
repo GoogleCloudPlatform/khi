@@ -39,7 +39,11 @@ import {
 import { TimeRangeFilterBuilderComponent } from 'src/app/timeline-toolbar/components/time-range-filter-builder.component';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { TimeRangeFilter } from 'src/app/services/view-state.service';
-import { formatTimeRangeChipLabel } from 'src/app/utils/time-format-util';
+import {
+  formatTimeRangeChipLines,
+  formatTimeRangeTooltip,
+  TimeRangeChipLines,
+} from 'src/app/utils/time-format-util';
 import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
 
 /**
@@ -77,10 +81,20 @@ export class ToolbarAdvancedComponent {
 
   // Time Range Filter builder popover state
   protected readonly isTimeRangeBuilderOpen = signal<boolean>(false);
-  protected readonly timeRangeChipLabel = computed(() => {
+  protected readonly timeRangeChipLines = computed<TimeRangeChipLines>(() => {
     const range = this.timeRangeFilter();
     return range
-      ? formatTimeRangeChipLabel(
+      ? formatTimeRangeChipLines(
+          range.startTime,
+          range.endTime,
+          this.timezoneShift(),
+        )
+      : { startLine: '', endLine: '' };
+  });
+  protected readonly timeRangeChipTooltip = computed(() => {
+    const range = this.timeRangeFilter();
+    return range
+      ? formatTimeRangeTooltip(
           range.startTime,
           range.endTime,
           this.timezoneShift(),

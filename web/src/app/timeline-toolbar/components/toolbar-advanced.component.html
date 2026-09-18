@@ -69,14 +69,20 @@
             <button
               mat-stroked-button
               class="filter-badge time-range-badge"
-              matTooltip="Edit time range filter"
+              [matTooltip]="timeRangeChipTooltip()"
               (click)="toggleTimeRangeBuilder()"
             >
               <mat-icon class="filter-icon">schedule</mat-icon>
               <span class="filter-label">
-                <span class="filter-type">Time</span
-                ><span class="filter-colon">: </span
-                ><span class="filter-value">{{ timeRangeChipLabel() }}</span>
+                <span class="filter-type">Time</span>
+                <span class="filter-value time-range-value">
+                  <span class="time-range-line">{{
+                    timeRangeChipLines().startLine
+                  }}</span>
+                  <span class="time-range-line">{{
+                    timeRangeChipLines().endLine
+                  }}</span>
+                </span>
               </span>
               <mat-icon
                 class="delete-icon"

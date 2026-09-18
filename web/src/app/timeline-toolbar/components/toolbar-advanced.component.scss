@@ -128,10 +128,6 @@ $timezone-color: mat.m2-get-color-from-palette($primary-palette, 500);
     font-weight: 600;
   }
 
-  .filter-colon {
-    color: mat.m2-get-color-from-palette($gray-palette, 500);
-  }
-
   .filter-value {
     color: mat.m2-get-color-from-palette($gray-palette, 800);
     font-family: monospace;
@@ -139,12 +135,26 @@ $timezone-color: mat.m2-get-color-from-palette($primary-palette, 500);
     background-color: mat.m2-get-color-from-palette($gray-palette, 100);
     padding: 2px 4px;
     border-radius: 4px;
-    max-width: 250px;
-    display: inline-block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     vertical-align: middle;
+  }
+
+  .time-range-value {
+    display: grid;
+    grid-template:
+      'start' auto
+      'end' auto
+      / auto;
+    max-width: none;
+    font-size: 11px;
+    line-height: 1.15;
+    text-align: left;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .time-range-line {
+    white-space: nowrap;
   }
 
   .delete-icon {

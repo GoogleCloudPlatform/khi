@@ -45,7 +45,11 @@ import { TimelineFilterConfig } from '../types/filter-config';
 import { TimelineType } from 'src/app/store/domain/style';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
-import { formatTimeRangeChipLabel } from 'src/app/utils/time-format-util';
+import {
+  formatTimeRangeChipLines,
+  formatTimeRangeTooltip,
+  TimeRangeChipLines,
+} from 'src/app/utils/time-format-util';
 
 /**
  * Visual theme representation for a timeline type chip and row.
@@ -103,10 +107,20 @@ export class ToolbarComponent {
 
   // Time Range Filter builder popover state
   protected readonly isTimeRangeBuilderOpen = signal<boolean>(false);
-  protected readonly timeRangeChipLabel = computed(() => {
+  protected readonly timeRangeChipLines = computed<TimeRangeChipLines>(() => {
     const range = this.timeRangeFilter();
     return range
-      ? formatTimeRangeChipLabel(
+      ? formatTimeRangeChipLines(
+          range.startTime,
+          range.endTime,
+          this.timezoneShift(),
+        )
+      : { startLine: '', endLine: '' };
+  });
+  protected readonly timeRangeChipTooltip = computed(() => {
+    const range = this.timeRangeFilter();
+    return range
+      ? formatTimeRangeTooltip(
           range.startTime,
           range.endTime,
           this.timezoneShift(),
