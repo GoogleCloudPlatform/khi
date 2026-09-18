@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -60,6 +61,41 @@ func readNextQuotedString(msg string) string {
 	} else {
 		return ""
 	}
+}
+
+// containerReference is an occurrence of a container ID inside a node log message, resolved down
+// to the container and the pod that owns it.
+type containerReference struct {
+	// Container is the container identity registered for the matched container ID.
+	Container *k8saudit.ContainerIdentity
+	// Pod is the pod that owns the container.
+	Pod *k8snode.PodSandboxIDInfo
+}
+
+// findPodAndContainerReferences collects the pod sandboxes and the containers whose IDs are
+// written in message.
+//
+// Container IDs whose owning pod sandbox is unknown are omitted because they can neither be
+// rendered as a readable name nor be mapped onto a container timeline.
+func findPodAndContainerReferences(
+	message string,
+	podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo],
+	containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity],
+) ([]*k8snode.PodSandboxIDInfo, []containerReference) {
+	var pods []*k8snode.PodSandboxIDInfo
+	for _, found := range patternfinder.FindAllHexTokens(message, podSandboxIDFinder) {
+		pods = append(pods, found.Value)
+	}
+
+	var containerRefs []containerReference
+	for _, found := range patternfinder.FindAllHexTokens(message, containerIDPatternFinder) {
+		owner, ok := podSandboxIDFinder.Match(found.Value.PodSandboxID)
+		if !ok {
+			continue
+		}
+		containerRefs = append(containerRefs, containerReference{Container: found.Value, Pod: owner.Value})
+	}
+	return pods, containerRefs
 }
 
 // checkStartingAndTerminationLog checks if the log message matches a predefined starting or termination log for a component and adds a corresponding revision to the TimelineChangeSet.

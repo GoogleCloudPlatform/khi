@@ -83,6 +83,7 @@ graph TD
 	ListLogEntries --> OtherLogFilter
 	OtherLogFilter --> OtherLogGroup
 	OtherLogGroup --> OtherLogToTimelineMapper
+	ContainerdIDDiscovery --> OtherLogToTimelineMapper
 	LogSerializer --> OtherLogToTimelineMapper
 
 	%% Finalization

@@ -76,6 +76,16 @@ make watch-web
 Angular development server on KHI proxies requests to `localhost:4200/api` to `localhost:8080`. ([the proxy config](../../../web/proxy.conf.mjs))
 You can use KHI with accessing `localhost:4200` instead of `localhost:8080`. Angular dev server automatically build and serve the new build when you change the frontend code.
 
+### Run backend server for development
+
+To develop backend code with live reload, start the Go server with `air` using the following command:
+
+```shell
+make watch-go
+```
+
+This command automatically rebuilds and restarts the Go backend server on port 8080 whenever Go source files change.
+
 ### Run test
 
 Run the following code to verify frontend and backend codes.

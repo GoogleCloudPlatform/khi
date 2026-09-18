@@ -59,7 +59,7 @@ func SetupFrontendMiddleware(engine *gin.Engine, basePath string, staticFolderPa
 	engine.Use(static.Serve(exactPath, webFS))
 }
 
-// SetupFrontendRoutes mounts the SPA fallback session routes onto router.
+// SetupFrontendRoutes mounts the SPA fallback routes onto router.
 func SetupFrontendRoutes(router gin.IRouter, staticFolderPath string) {
 	appHtmlPath := path.Join(embeddedStaticFolderPath, "/index.html")
 	fileReaderFunc := embeddedStaticFolder.ReadFile
@@ -68,8 +68,7 @@ func SetupFrontendRoutes(router gin.IRouter, staticFolderPath string) {
 		fileReaderFunc = os.ReadFile
 	}
 
-	// frontend uses Angular router. All frontend routing path should return the app html.
-	router.GET("/session/*wild", func(ctx *gin.Context) {
+	serveIndexHTML := func(ctx *gin.Context) {
 		ctx.Header("Content-Type", "text/html")
 		file, err := fileReaderFunc(appHtmlPath)
 		if err != nil {
@@ -83,5 +82,9 @@ func SetupFrontendRoutes(router gin.IRouter, staticFolderPath string) {
 			return
 		}
 		ctx.Writer.Write([]byte(replacedIndexHtml))
-	})
+	}
+
+	// Frontend uses Angular router. Client-side routing paths should return the app html.
+	router.GET("/session/*wild", serveIndexHTML)
+	router.GET("/debug/*wild", serveIndexHTML)
 }

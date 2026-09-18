@@ -665,6 +665,13 @@ export declare type FormField = Message<'api.v1.FormField'> & {
         case: 'checkbox';
       }
     | { case: undefined; value?: undefined };
+
+  /**
+   * Indicates whether the form field is currently being processed or validated asynchronously.
+   *
+   * @generated from field: bool pending = 11;
+   */
+  pending: boolean;
 };
 
 /**

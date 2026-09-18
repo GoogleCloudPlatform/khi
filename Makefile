@@ -32,7 +32,7 @@ include scripts/make/*.mk
 .PHONY: clean
 clean: ## Clean build artifacts and generated files
 	@echo "Cleaning Go binaries..."
-	rm -rf ./bin ./khi ./khi-debug
+	rm -rf ./bin ./.air ./khi ./khi-debug
 	@echo "Cleaning frontend artifacts..."
 	rm -rf ./pkg/server/dist web/.angular web/coverage
 	@echo "Cleaning test and coverage reports..."

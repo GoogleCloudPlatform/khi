@@ -171,3 +171,108 @@ func TestAsyncTaskManager_ResetAndCancel(t *testing.T) {
 		t.Errorf("expected worker to run again after reset")
 	}
 }
+
+func TestAsyncTaskManager_DoSyncOrGet(t *testing.T) {
+	workerErr := errors.New("worker execution failed")
+
+	testCases := []struct {
+		name      string
+		setup     func(mgr *AsyncTaskManager[string, string])
+		ctxFn     func() (context.Context, context.CancelFunc)
+		worker    func(ctx context.Context) (string, error)
+		wantVal   string
+		wantErr   error
+		checkSync func(t *testing.T, mgr *AsyncTaskManager[string, string])
+	}{
+		{
+			name: "immediate synchronous completion and caching when no task is running",
+			ctxFn: func() (context.Context, context.CancelFunc) {
+				return context.WithTimeout(context.Background(), 1*time.Second)
+			},
+			worker: func(ctx context.Context) (string, error) {
+				return "immediate-result", nil
+			},
+			wantVal: "immediate-result",
+			wantErr: nil,
+			checkSync: func(t *testing.T, mgr *AsyncTaskManager[string, string]) {
+				cached := mgr.DoAsyncOrGet("slot-1", "input-1", nil)
+				if cached.Status != StatusCompleted || cached.Value != "immediate-result" {
+					t.Errorf("expected cached StatusCompleted with value, got status %v, value %v", cached.Status, cached.Value)
+				}
+			},
+		},
+		{
+			name: "waits for already in-flight task started via DoAsyncOrGet",
+			setup: func(mgr *AsyncTaskManager[string, string]) {
+				mgr.DoAsyncOrGet("slot-1", "input-1", func(ctx context.Context) (string, error) {
+					time.Sleep(30 * time.Millisecond)
+					return "in-flight-result", nil
+				})
+			},
+			ctxFn: func() (context.Context, context.CancelFunc) {
+				return context.WithTimeout(context.Background(), 1*time.Second)
+			},
+			worker: func(ctx context.Context) (string, error) {
+				return "should-not-run", nil
+			},
+			wantVal: "in-flight-result",
+			wantErr: nil,
+		},
+		{
+			name: "returns worker error when worker fails",
+			ctxFn: func() (context.Context, context.CancelFunc) {
+				return context.WithTimeout(context.Background(), 1*time.Second)
+			},
+			worker: func(ctx context.Context) (string, error) {
+				return "", workerErr
+			},
+			wantVal: "",
+			wantErr: workerErr,
+		},
+		{
+			name: "returns context error when context is canceled while waiting",
+			setup: func(mgr *AsyncTaskManager[string, string]) {
+				mgr.DoAsyncOrGet("slot-1", "input-1", func(ctx context.Context) (string, error) {
+					time.Sleep(200 * time.Millisecond)
+					return "slow-result", nil
+				})
+			},
+			ctxFn: func() (context.Context, context.CancelFunc) {
+				ctx, cancel := context.WithCancel(context.Background())
+				time.AfterFunc(10*time.Millisecond, cancel)
+				return ctx, cancel
+			},
+			worker: func(ctx context.Context) (string, error) {
+				return "should-not-run", nil
+			},
+			wantVal: "",
+			wantErr: context.Canceled,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mgr := NewAsyncTaskManager[string, string]()
+			defer mgr.Close()
+
+			if tc.setup != nil {
+				tc.setup(mgr)
+			}
+
+			ctx, cancel := tc.ctxFn()
+			defer cancel()
+
+			gotVal, gotErr := mgr.DoSyncOrGet(ctx, "slot-1", "input-1", tc.worker)
+			if gotVal != tc.wantVal {
+				t.Errorf("DoSyncOrGet() value = %q, want %q", gotVal, tc.wantVal)
+			}
+			if !errors.Is(gotErr, tc.wantErr) {
+				t.Errorf("DoSyncOrGet() error = %v, want %v", gotErr, tc.wantErr)
+			}
+
+			if tc.checkSync != nil {
+				tc.checkSync(t, mgr)
+			}
+		})
+	}
+}

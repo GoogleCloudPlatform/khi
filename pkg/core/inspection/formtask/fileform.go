@@ -58,10 +58,18 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask.Tas
 		metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 
 		req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
+		taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
 
 		fieldID := b.FormTaskBuilderBase.id.ReferenceIDString()
 		token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, fieldID), b.verifier, fieldID)
-		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token, req)
+
+		var uploadResult upload.UploadResult
+		var err error
+		if taskMode == inspectioncore.TaskModeRun {
+			uploadResult, err = upload.DefaultUploadFileStore.GetCompletedResult(ctx, token, req)
+		} else {
+			uploadResult, err = upload.DefaultUploadFileStore.GetResult(token, req)
+		}
 		if err != nil {
 			return upload.UploadResult{}, err
 		}
@@ -84,6 +92,18 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask.Tas
 		err = formFields.SetField(field)
 		if err != nil {
 			return upload.UploadResult{}, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.FormTaskBuilderBase.id, err)
+		}
+
+		if taskMode == inspectioncore.TaskModeRun {
+			if uploadResult.UploadError != nil {
+				return upload.UploadResult{}, fmt.Errorf("file upload failed in task %s: %w", b.FormTaskBuilderBase.id, uploadResult.UploadError)
+			}
+			if uploadResult.VerificationError != nil {
+				return upload.UploadResult{}, fmt.Errorf("file verification failed in task %s: %w", b.FormTaskBuilderBase.id, uploadResult.VerificationError)
+			}
+			if uploadResult.Status != upload.UploadStatusCompleted {
+				return upload.UploadResult{}, fmt.Errorf("file upload is not completed in task %s (current status: %d)", b.FormTaskBuilderBase.id, uploadResult.Status)
+			}
 		}
 
 		return uploadResult, nil

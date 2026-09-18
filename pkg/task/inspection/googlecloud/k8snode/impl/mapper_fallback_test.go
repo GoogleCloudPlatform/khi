@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -53,6 +54,8 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		component            string
 		nodeName             string
 		inputClusterIdentity *k8scommon.GoogleCloudClusterIdentity
+		inputPodIDInfo       map[string]*k8snode.PodSandboxIDInfo
+		inputContainerIDInfo map[string]*k8saudit.ContainerIdentity
 		assert               func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -115,10 +118,71 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(wantComponentPath)
 			},
 		},
+		{
+			desc:         "gcfsd log associates pod and container timelines",
+			inputMessage: `time="2026-10-15T09:15:30.123456789Z" level=info msg="Received TaskCreate event: {ContainerID:fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256 Bundle:/run/containerd/io.containerd.runtime.v2.task/k8s.io/fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256 Pid:54321} from namespace: k8s.io" module=containerdgateway`,
+			component:    "gcfsd",
+			nodeName:     "node-1",
+			inputPodIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
+					PodName:      "podname",
+					PodNamespace: "kube-system",
+					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+				},
+			},
+			inputContainerIDInfo: map[string]*k8saudit.ContainerIdentity{
+				"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256": {
+					PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+					ContainerName: "fluentbit-gke-init",
+					ContainerID:   "fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256",
+				},
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "gcfsd")
+				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+				wantContainerPath := k8saudit.MustK8sContainerTimeline(ctx, wantPodPath, "fluentbit-gke-init")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantContainerPath)
+			},
+		},
+		{
+			desc:         "gcfsd log with pod sandbox id associates pod timeline",
+			inputMessage: `time="2026-10-15T09:15:30.123456789Z" level=info msg="failed to mount volume for sandbox 6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1" module=containerdgateway`,
+			component:    "gcfsd",
+			nodeName:     "node-1",
+			inputPodIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
+					PodName:      "podname",
+					PodNamespace: "kube-system",
+					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+				},
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "gcfsd")
+				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantPodPath)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			podIDFinder := patternfinder.NewNaivePatternFinder[*k8snode.PodSandboxIDInfo]()
+			for k, v := range tc.inputPodIDInfo {
+				podIDFinder.AddPattern(k, v)
+			}
+			containerIDFinder := patternfinder.NewNaivePatternFinder[*k8saudit.ContainerIdentity]()
+			for k, v := range tc.inputContainerIDInfo {
+				containerIDFinder.AddPattern(k, v)
+			}
+
 			parser := logutil.FallbackRawTextLogParser{}
 			message := parser.TryParse(tc.inputMessage)
 
@@ -141,6 +205,8 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			// 2. Setup context with SAME builder and mock tasks
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			ctx = tasktest.WithTaskResult(ctx, k8snode.ClusterIdentityTaskID.Ref(), clusterIdent)
+			ctx = tasktest.WithTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
+			ctx = tasktest.WithTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
 
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
 			if err != nil {

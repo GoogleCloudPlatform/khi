@@ -223,6 +223,33 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
+		{
+			desc:         "gcfsd log with container id delimited by colon and slash",
+			inputMessage: `time="2026-10-15T09:15:30.123456789Z" level=info msg="Received TaskCreate event: {ContainerID:fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256 Bundle:/run/containerd/io.containerd.runtime.v2.task/k8s.io/fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256 Pid:54321} from namespace: k8s.io" module=containerdgateway`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "gcfsd",
+				NodeName:  "node-1",
+			},
+			inputPodIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
+					PodName:      "podname",
+					PodNamespace: "kube-system",
+					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+				},
+			},
+			inputContainerIDInfo: map[string]*k8saudit.ContainerIdentity{
+				"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256": {
+					PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+					ContainerName: "fluentbit-gke-init",
+					ContainerID:   "fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256",
+				},
+			},
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary(`time="2026-10-15T09:15:30.123456789Z" level=info msg="Received TaskCreate event: {ContainerID:【fluentbit-gke-init (Pod: podname, Namespace: kube-system)】 Bundle:/run/containerd/io.containerd.runtime.v2.task/k8s.io/【fluentbit-gke-init (Pod: podname, Namespace: kube-system)】 Pid:54321} from namespace: k8s.io" module=containerdgateway`).
+					HasSeverity(inspectioncore.SeverityInfo)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

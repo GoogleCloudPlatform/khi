@@ -313,6 +313,9 @@ message FormField {
     // Checkbox toggle input field.
     CheckboxFormField checkbox = 10;
   }
+
+  // Indicates whether the form field is currently being processed or validated asynchronously.
+  bool pending = 11;
 }
 
 // EstimatedCountPreset defines predefined rough estimation categories when exact count estimation is unfeasible.
