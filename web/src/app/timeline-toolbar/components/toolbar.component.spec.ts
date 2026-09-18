@@ -18,6 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ToolbarComponent } from 'src/app/timeline-toolbar/components/toolbar.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltip } from '@angular/material/tooltip';
 import { By } from '@angular/platform-browser';
 
 describe('ToolbarComponent', () => {
@@ -134,5 +135,69 @@ describe('ToolbarComponent', () => {
     );
     expect(chipSearchBar).toBeTruthy();
     expect(component.logSearchTerms()).toEqual(['test-query']);
+  });
+
+  it('should render time range button when timeRangeFilter is null', () => {
+    fixture.componentRef.setInput('timeRangeFilter', null);
+    fixture.detectChanges();
+
+    const addTimeBtn = fixture.debugElement.query(
+      By.css('.add-time-filter-btn'),
+    );
+    expect(addTimeBtn).toBeTruthy();
+    expect(addTimeBtn.nativeElement.textContent).toContain('Time range');
+  });
+
+  it('should render time range badge with two lines when timeRangeFilter is set', () => {
+    // 2023-11-15 07:00:00 JST (+9) -> 1699999200000000000n
+    // 2023-11-15 09:30:00 JST (+9) -> 1700008200000000000n
+    fixture.componentRef.setInput('timezoneShift', 9);
+    fixture.componentRef.setInput('timeRangeFilter', {
+      startTime: 1699999200000000000n,
+      endTime: 1700008200000000000n,
+    });
+    fixture.detectChanges();
+
+    const timeBadge = fixture.debugElement.query(By.css('.time-range-badge'));
+    expect(timeBadge).toBeTruthy();
+    const lines = timeBadge.queryAll(By.css('.time-range-line'));
+    expect(lines.length).toBe(2);
+    expect(lines[0].nativeElement.textContent.trim()).toBe(
+      '2023-11-15 07:00:00',
+    );
+    expect(lines[1].nativeElement.textContent.trim()).toBe('~ 09:30:00');
+  });
+
+  it('should set detailed tooltip on time range badge when timeRangeFilter is set', () => {
+    fixture.componentRef.setInput('timezoneShift', 9);
+    fixture.componentRef.setInput('timeRangeFilter', {
+      startTime: 1699999200000000000n,
+      endTime: 1700008200000000000n,
+    });
+    fixture.detectChanges();
+
+    const timeBadge = fixture.debugElement.query(By.css('.time-range-badge'));
+    expect(timeBadge).toBeTruthy();
+    const tooltip = timeBadge.injector.get(MatTooltip);
+    expect(tooltip.message).toBe(
+      '2023-11-15T07:00:00.000+09:00 ~ 2023-11-15T09:30:00.000+09:00 (2h30m)',
+    );
+  });
+
+  it('should clear timeRangeFilter when delete icon is clicked on time range badge', () => {
+    fixture.componentRef.setInput('timeRangeFilter', {
+      startTime: 1699999200000000000n,
+      endTime: 1700008200000000000n,
+    });
+    fixture.detectChanges();
+
+    const deleteIcon = fixture.debugElement.query(
+      By.css('.time-range-badge .delete-icon'),
+    );
+    expect(deleteIcon).toBeTruthy();
+    deleteIcon.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.timeRangeFilter()).toBeNull();
   });
 });

@@ -598,6 +598,61 @@ describe('WorkbenchClientService', () => {
     expect(result.logBitset?.masks).toEqual([(1 << 10) | (1 << 20)]);
   });
 
+  it('should forward filterStartTime and filterEndTime converted to proto timestamp', async () => {
+    async function* mockStream() {
+      yield {
+        payload: {
+          case: 'result',
+          value: {
+            timelineMode: FilterResultMode.INCLUDE,
+            timelineBitset: create(SparseBitsetSchema, {
+              indices: [0],
+              masks: [0x2],
+            }),
+            logMode: FilterResultMode.INCLUDE,
+            logBitset: create(SparseBitsetSchema, {
+              indices: [0],
+              masks: [1 << 10],
+            }),
+          },
+        },
+      };
+    }
+
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(mockOpenWorkbenchReady());
+    (
+      mockConnectClient.workbenchClient.filterTimeline as jasmine.Spy
+    ).and.returnValue(mockStream());
+
+    await service.openWorkbench('session-0', 'inspection-1');
+
+    await service.filterTimeline({
+      timelineQuery: 'name == "pod-a"',
+      filterStartTime: 1_000_000_000n,
+      filterEndTime: 2_500_000_000n,
+    });
+
+    expect(
+      mockConnectClient.workbenchClient.filterTimeline,
+    ).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        workbenchId: 'usr-1-session-0',
+        timelineQuery: 'name == "pod-a"',
+        filterStartTime: jasmine.objectContaining({
+          seconds: 1n,
+          nanos: 0,
+        }),
+        filterEndTime: jasmine.objectContaining({
+          seconds: 2n,
+          nanos: 500000000,
+        }),
+      }),
+      jasmine.any(Object),
+    );
+  });
+
   it('should watch index progress and update index state signals', async () => {
     async function* mockIndexStream() {
       yield {

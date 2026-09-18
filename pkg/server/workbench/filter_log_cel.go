@@ -90,12 +90,21 @@ func (f *LogCELFilter) Process(
 				}
 				tlID := timelineIDs[i]
 				if tl, ok := index.TimelineMap[tlID]; ok {
-					tl.ForEachLogID(func(logID uint32) bool {
-						if logID > 0 && int(logID) <= len(index.Logs) {
-							localBM.Add(logID)
-						}
-						return true
-					})
+					if filterCtx.HasTimeRange {
+						tl.ForEachLogIDInRange(filterCtx.StartTimeNs, filterCtx.EndTimeNs, func(logID uint32) bool {
+							if logID > 0 && int(logID) <= len(index.Logs) {
+								localBM.Add(logID)
+							}
+							return true
+						})
+					} else {
+						tl.ForEachLogID(func(logID uint32) bool {
+							if logID > 0 && int(logID) <= len(index.Logs) {
+								localBM.Add(logID)
+							}
+							return true
+						})
+					}
 				}
 			}
 			workerBitmaps[workerIdx] = localBM
@@ -118,6 +127,16 @@ func (f *LogCELFilter) Process(
 
 	totalCandidateLogs := uint32(len(candidateLogIDs))
 	if totalCandidateLogs == 0 {
+		return nil
+	}
+
+	if f.query == "" {
+		filterCtx.LogIDs = candLogBitmap
+		if report != nil {
+			if err := report(f.Name(), totalCandidateLogs, totalCandidateLogs); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 
@@ -196,9 +215,11 @@ func (f *LogCELFilter) Process(
 		return err
 	}
 
+	matchedLogs := roaring.NewBitmap()
 	for _, localMatched := range results {
-		filterCtx.LogIDs.AddMany(localMatched)
+		matchedLogs.AddMany(localMatched)
 	}
+	filterCtx.LogIDs = matchedLogs
 
 	return nil
 }

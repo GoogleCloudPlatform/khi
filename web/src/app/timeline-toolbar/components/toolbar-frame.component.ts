@@ -19,7 +19,10 @@ import { CommonModule } from '@angular/common';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
 import { TimelineType } from 'src/app/store/domain/style';
-import { SearchScope } from 'src/app/services/view-state.service';
+import {
+  SearchScope,
+  TimeRangeFilter,
+} from 'src/app/services/view-state.service';
 import { ToolbarComponent } from './toolbar.component';
 import { ToolbarAdvancedComponent } from './toolbar-advanced.component';
 
@@ -57,6 +60,16 @@ export class ToolbarFrameComponent {
 
   /** Flag locking button triggers when selection context is missing. */
   readonly logOrTimelineNotSelected = input.required<boolean>();
+
+  // Time Range Filter properties
+  /** Two-way model binding managing the time range filter state. */
+  readonly timeRangeFilter = model<TimeRangeFilter | null>(null);
+
+  /** Default start timestamp in nanoseconds when no explicit range is set. */
+  readonly defaultStartTime = input<bigint>(0n);
+
+  /** Default end timestamp in nanoseconds when no explicit range is set. */
+  readonly defaultEndTime = input<bigint>(0n);
 
   // Standard Toolbar properties
   /** Holds the currently selected severity state. */

@@ -26,6 +26,7 @@ import {
 import { GetArchitectureGraphResponse } from 'src/app/generated/api/v1/architecture_graph_pb';
 import { SparseBitset } from 'src/app/generated/api/v1/sparse_bitset_pb';
 import { LRUCache } from 'src/app/common/lru-cache';
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 /**
  * Progress event callback for Workbench opening.
@@ -44,6 +45,8 @@ export interface FilterTimelineParams {
   readonly timelineExclusionQuery?: string;
   readonly logQuery?: string;
   readonly excludeNoLogs?: boolean;
+  readonly filterStartTime?: bigint | null;
+  readonly filterEndTime?: bigint | null;
 }
 
 /**
@@ -735,6 +738,20 @@ export class WorkbenchClientService implements OnDestroy {
           timelineExclusionQuery: params.timelineExclusionQuery ?? '',
           logQuery: params.logQuery ?? '',
           excludeNoLogs: params.excludeNoLogs ?? false,
+          ...(params.filterStartTime != null
+            ? {
+                filterStartTime: BigIntTimeUtil.NsToProtoTimestamp(
+                  params.filterStartTime,
+                ),
+              }
+            : {}),
+          ...(params.filterEndTime != null
+            ? {
+                filterEndTime: BigIntTimeUtil.NsToProtoTimestamp(
+                  params.filterEndTime,
+                ),
+              }
+            : {}),
         },
         { signal },
       );

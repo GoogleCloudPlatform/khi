@@ -1,0 +1,99 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$gray-palette: mat.$m2-gray-palette;
+$red-palette: mat.$m2-red-palette;
+
+$popover-bg-color: mat.m2-get-color-from-palette($gray-palette, 50);
+$popover-border-color: mat.m2-get-color-from-palette($gray-palette, 200);
+$popover-shadow-color: rgba(0, 0, 0, 0.12);
+$text-primary-color: mat.m2-get-color-from-palette($gray-palette, 800);
+$error-text-color: mat.m2-get-color-from-palette($red-palette, 700);
+$error-bg-color: mat.m2-get-color-from-palette($red-palette, 50);
+
+.filter-builder-card {
+  background-color: $popover-bg-color;
+  border: 1px solid $popover-border-color;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 16px $popover-shadow-color;
+  display: grid;
+  grid-template:
+    'title' auto
+    'fields' auto
+    'error' auto
+    'actions' auto
+    / 100%;
+  gap: 16px;
+  width: 440px;
+  box-sizing: border-box;
+}
+
+.header-container {
+  grid-area: title;
+  display: grid;
+  grid-template:
+    'title-text delete-btn' auto
+    / 1fr auto;
+  align-items: center;
+
+  .title {
+    grid-area: title-text;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-primary-color;
+  }
+
+  .delete-btn {
+    grid-area: delete-btn;
+  }
+}
+
+.form-fields-wrapper {
+  grid-area: fields;
+  display: grid;
+  grid-template:
+    'start-field' auto
+    'end-field' auto
+    / 100%;
+  gap: 8px;
+
+  .form-field {
+    width: 100%;
+  }
+}
+
+.error-message {
+  grid-area: error;
+  color: $error-text-color;
+  background-color: $error-bg-color;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.actions {
+  grid-area: actions;
+  display: grid;
+  grid-template:
+    'cancel apply' auto
+    / auto auto;
+  justify-content: end;
+  gap: 8px;
+}

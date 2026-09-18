@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import { create } from '@bufbuild/protobuf';
+import { Timestamp, TimestampSchema } from '@bufbuild/protobuf/wkt';
+
 /**
  * Utility class for converting time represented as BigInt.
  */
@@ -25,5 +28,23 @@ export class BigIntTimeUtil {
    */
   public static NsToNumberMs(ns: bigint): number {
     return Number(ns / 1000000n) + Number(ns % 1000000n) / 1000000;
+  }
+
+  /**
+   * Converts nanoseconds in BigInt to a protobuf Timestamp message.
+   * @param ns The nanoseconds in BigInt.
+   * @returns A protobuf Timestamp instance.
+   */
+  public static NsToProtoTimestamp(ns: bigint): Timestamp {
+    let seconds = ns / 1000000000n;
+    let nanos = Number(ns % 1000000000n);
+    if (nanos < 0) {
+      seconds -= 1n;
+      nanos += 1000000000;
+    }
+    return create(TimestampSchema, {
+      seconds,
+      nanos,
+    });
   }
 }

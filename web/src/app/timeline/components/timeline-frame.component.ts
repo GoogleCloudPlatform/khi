@@ -66,7 +66,10 @@ import {
   TimelineChartItemHighlight,
   TimelineHighlightType,
   TimelineChartItemHighlightType,
+  TimeRangeMs,
+  TimeRangeOverlayStyle,
 } from './interaction-model';
+import { TimeRangeFilter } from 'src/app/services/view-state.service';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import {
   BASE_ROW_HEIGHT,
@@ -510,6 +513,71 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Emitted when the mouse leaves the sticky header area.
    */
   readonly mouseLeaveStickyHeader = output<void>();
+
+  /**
+   * Active time range filter from ViewStateService.
+   */
+  readonly timeRangeFilter = input<TimeRangeFilter | null>(null);
+
+  /**
+   * Emitted when the user selects a time range by dragging on the ruler.
+   */
+  readonly timeRangeSelected = output<TimeRangeFilter>();
+
+  /**
+   * Emitted when the user clears the active time range filter from the ruler.
+   */
+  readonly timeRangeCleared = output<void>();
+
+  protected readonly activeTimeRangeMs = computed<TimeRangeMs | null>(() => {
+    const filter = this.timeRangeFilter();
+    if (!filter) return null;
+    return {
+      startMs: Number(filter.startTime / 1000000n),
+      endMs: Number(filter.endTime / 1000000n),
+    };
+  });
+
+  protected readonly previewTimeRangeMs = signal<TimeRangeMs | null>(null);
+
+  protected readonly activeRangeBodyStyle =
+    computed<TimeRangeOverlayStyle | null>(() => {
+      const range = this.activeTimeRangeMs();
+      if (!range) return null;
+      const calc = this.horizontalScrollCalculator();
+      return {
+        left: calc.timeMSToOffsetLeft(range.startMs, this.pixelsPerMs()),
+        width: Math.max(2, (range.endMs - range.startMs) * this.pixelsPerMs()),
+      };
+    });
+
+  protected readonly previewRangeBodyStyle =
+    computed<TimeRangeOverlayStyle | null>(() => {
+      const range = this.previewTimeRangeMs();
+      if (!range) return null;
+      const calc = this.horizontalScrollCalculator();
+      return {
+        left: calc.timeMSToOffsetLeft(range.startMs, this.pixelsPerMs()),
+        width: Math.max(2, (range.endMs - range.startMs) * this.pixelsPerMs()),
+      };
+    });
+
+  protected onRulerTimeRangeSelected(range: TimeRangeMs): void {
+    let startMs = Math.max(0, range.startMs);
+    let endMs = Math.max(startMs, range.endMs);
+    const minLogMs = this.minQueryLogTimeMS();
+    const maxLogMs = this.maxQueryLogTimeMS();
+    if (maxLogMs > minLogMs) {
+      startMs = Math.max(minLogMs, Math.min(maxLogMs, startMs));
+      endMs = Math.max(startMs, Math.min(maxLogMs, endMs));
+    }
+    if (endMs > startMs) {
+      this.timeRangeSelected.emit({
+        startTime: BigInt(Math.round(startMs)) * 1000000n,
+        endTime: BigInt(Math.round(endMs)) * 1000000n,
+      });
+    }
+  }
 
   /**
    * The timezone shift in hours from UTC.

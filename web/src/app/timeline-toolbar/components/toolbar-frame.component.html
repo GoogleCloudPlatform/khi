@@ -16,6 +16,9 @@ limitations under the License.
 
 @if (isAdvancedMode()) {
   <khi-timeline-toolbar-advanced
+    [(timeRangeFilter)]="timeRangeFilter"
+    [defaultStartTime]="defaultStartTime()"
+    [defaultEndTime]="defaultEndTime()"
     [timezoneShift]="timezoneShift()"
     (timezoneShiftChange)="timezoneShiftChange.emit($event)"
     [logOrTimelineNotSelected]="logOrTimelineNotSelected()"
@@ -41,6 +44,9 @@ limitations under the License.
   ></khi-timeline-toolbar-advanced>
 } @else {
   <khi-timeline-toolbar
+    [(timeRangeFilter)]="timeRangeFilter"
+    [defaultStartTime]="defaultStartTime()"
+    [defaultEndTime]="defaultEndTime()"
     [(selectedSeverity)]="selectedSeverity"
     [(logSearchTerms)]="logSearchTerms"
     [(timelineFilters)]="timelineFilters"

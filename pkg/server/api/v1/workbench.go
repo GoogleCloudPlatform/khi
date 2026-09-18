@@ -401,6 +401,8 @@ func (s *WorkbenchServiceServer) FilterTimeline(
 		TimelineExclusionQuery: msg.GetTimelineExclusionQuery(),
 		LogQuery:               msg.GetLogQuery(),
 		ExcludeNoLogs:          msg.GetExcludeNoLogs(),
+		FilterStartTime:        protoTimestampToTimePtr(msg.GetFilterStartTime()),
+		FilterEndTime:          protoTimestampToTimePtr(msg.GetFilterEndTime()),
 	}
 
 	result, err := wb.FilterTimeline(ctx, params, func(progress *apiv1.FilterProgress) error {
@@ -449,6 +451,8 @@ func (s *WorkbenchServiceServer) FilterTimelineSync(
 		TimelineExclusionQuery: msg.GetTimelineExclusionQuery(),
 		LogQuery:               msg.GetLogQuery(),
 		ExcludeNoLogs:          msg.GetExcludeNoLogs(),
+		FilterStartTime:        protoTimestampToTimePtr(msg.GetFilterStartTime()),
+		FilterEndTime:          protoTimestampToTimePtr(msg.GetFilterEndTime()),
 	}
 
 	runner := func(jobCtx context.Context, onProgress func(*apiv1.FilterProgress) error) (*apiv1.FilterResult, error) {
@@ -559,4 +563,12 @@ func (s *WorkbenchServiceServer) GetArchitectureGraph(
 	}
 
 	return connect.NewResponse(resp), nil
+}
+
+func protoTimestampToTimePtr(ts *timestamppb.Timestamp) *time.Time {
+	if ts == nil {
+		return nil
+	}
+	t := ts.AsTime()
+	return &t
 }

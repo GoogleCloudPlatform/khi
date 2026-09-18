@@ -55,6 +55,18 @@ func (f *TimelineCELFilter) Process(
 		return nil
 	}
 
+	if f.query == "" {
+		for _, tl := range index.Timelines {
+			filterCtx.TimelineIDs.Add(tl.ID)
+		}
+		if report != nil {
+			if err := report(f.Name(), totalTimelines, totalTimelines); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	numWorkers := runtime.GOMAXPROCS(0)
 	if numWorkers > int(totalTimelines) {
 		numWorkers = int(totalTimelines)
@@ -127,9 +139,11 @@ func (f *TimelineCELFilter) Process(
 		return err
 	}
 
+	celMatched := roaring.NewBitmap()
 	for _, localMatched := range results {
-		filterCtx.TimelineIDs.AddMany(localMatched)
+		celMatched.AddMany(localMatched)
 	}
+	filterCtx.TimelineIDs = celMatched
 
 	return nil
 }

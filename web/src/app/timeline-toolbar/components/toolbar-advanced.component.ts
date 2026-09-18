@@ -16,6 +16,7 @@
 
 import {
   Component,
+  computed,
   HostListener,
   input,
   model,
@@ -35,6 +36,14 @@ import {
   CelGuidePopupComponent,
   CelGuideTab,
 } from 'src/app/timeline-toolbar/components/cel-guide-popup.component';
+import { TimeRangeFilterBuilderComponent } from 'src/app/timeline-toolbar/components/time-range-filter-builder.component';
+import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
+import { TimeRangeFilter } from 'src/app/services/view-state.service';
+import {
+  formatTimeRangeChipLines,
+  formatTimeRangeTooltip,
+  TimeRangeChipLines,
+} from 'src/app/utils/time-format-util';
 import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
 
 /**
@@ -47,9 +56,11 @@ import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
   imports: [
     CommonModule,
     MatIconModule,
+    KHIIconRegistrationModule,
     CelInputComponent,
     ToolbarSettingsComponent,
     CelGuidePopupComponent,
+    TimeRangeFilterBuilderComponent,
     MatButtonModule,
     OverlayModule,
     MatTooltipModule,
@@ -57,6 +68,54 @@ import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
 })
 export class ToolbarAdvancedComponent {
   protected readonly CelGuideTab = CelGuideTab;
+
+  // Time Range Filter (Dumb state)
+  /** Two-way model binding managing the time range filter state. */
+  readonly timeRangeFilter = model<TimeRangeFilter | null>(null);
+
+  /** Default start timestamp in nanoseconds when no explicit range is set. */
+  readonly defaultStartTime = input<bigint>(0n);
+
+  /** Default end timestamp in nanoseconds when no explicit range is set. */
+  readonly defaultEndTime = input<bigint>(0n);
+
+  // Time Range Filter builder popover state
+  protected readonly isTimeRangeBuilderOpen = signal<boolean>(false);
+  protected readonly timeRangeChipLines = computed<TimeRangeChipLines>(() => {
+    const range = this.timeRangeFilter();
+    return range
+      ? formatTimeRangeChipLines(
+          range.startTime,
+          range.endTime,
+          this.timezoneShift(),
+        )
+      : { startLine: '', endLine: '' };
+  });
+  protected readonly timeRangeChipTooltip = computed(() => {
+    const range = this.timeRangeFilter();
+    return range
+      ? formatTimeRangeTooltip(
+          range.startTime,
+          range.endTime,
+          this.timezoneShift(),
+        )
+      : '';
+  });
+
+  protected toggleTimeRangeBuilder(): void {
+    this.isTimeRangeBuilderOpen.set(!this.isTimeRangeBuilderOpen());
+  }
+
+  protected onTimeRangeConfirm(range: TimeRangeFilter): void {
+    this.timeRangeFilter.set(range);
+    this.isTimeRangeBuilderOpen.set(false);
+  }
+
+  protected clearTimeRangeFilter(event?: Event): void {
+    event?.stopPropagation();
+    this.timeRangeFilter.set(null);
+    this.isTimeRangeBuilderOpen.set(false);
+  }
 
   /**
    * Reference to the Log CEL input component for search focus management.

@@ -26,8 +26,11 @@ import (
 
 // FilterContext holds the mutable sets of matching timeline and log IDs across pipeline filter stages.
 type FilterContext struct {
-	TimelineIDs *roaring.Bitmap
-	LogIDs      *roaring.Bitmap
+	TimelineIDs  *roaring.Bitmap
+	LogIDs       *roaring.Bitmap
+	HasTimeRange bool
+	StartTimeNs  int64
+	EndTimeNs    int64
 }
 
 // NewFilterContext initializes an empty FilterContext.
@@ -61,11 +64,12 @@ func NewPipeline(filters ...TimelineFilter) *Pipeline {
 	}
 }
 
-// NewDefaultPipeline creates a standard 6-stage timeline and log search pipeline matching frontend filter semantics.
+// NewDefaultPipeline creates a standard 7-stage timeline and log search pipeline matching frontend filter semantics.
 func NewDefaultPipeline(params FilterPipelineParams) *Pipeline {
 	return NewPipeline(
 		NewTimelineCELFilter(params.TimelineQuery),
 		NewIncludeDescendantsFilter(),
+		NewTimeRangeFilter(params.FilterStartTime, params.FilterEndTime),
 		NewTimelineCELExclusionFilter(params.TimelineExclusionQuery),
 		NewLogCELFilter(params.LogQuery),
 		NewExcludeNoLogsFilter(params.ExcludeNoLogs),

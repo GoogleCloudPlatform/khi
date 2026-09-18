@@ -30,6 +30,51 @@ limitations under the License.
       </div>
       <div class="center-control">
         <div class="filter-list">
+          <div
+            class="time-filter-origin"
+            #timeBuilderTrigger="cdkOverlayOrigin"
+            cdkOverlayOrigin
+          >
+            @if (timeRangeFilter()) {
+              <button
+                mat-stroked-button
+                class="filter-badge time-range-badge"
+                [matTooltip]="timeRangeChipTooltip()"
+                (click)="toggleTimeRangeBuilder()"
+              >
+                <mat-icon class="filter-icon">schedule</mat-icon>
+                <span class="filter-label">
+                  <span class="filter-type">Time</span>
+                  <span class="filter-value time-range-value">
+                    <span class="time-range-line">{{
+                      timeRangeChipLines().startLine
+                    }}</span>
+                    <span class="time-range-line">{{
+                      timeRangeChipLines().endLine
+                    }}</span>
+                  </span>
+                </span>
+                <mat-icon
+                  class="delete-icon"
+                  (click)="clearTimeRangeFilter($event)"
+                >
+                  close
+                </mat-icon>
+              </button>
+            } @else {
+              <button
+                mat-stroked-button
+                color="primary"
+                class="add-time-filter-btn"
+                (click)="toggleTimeRangeBuilder()"
+                matTooltip="Filter by time range"
+              >
+                <mat-icon>schedule</mat-icon>
+                <span>Time range</span>
+              </button>
+            }
+          </div>
+
           @for (filter of timelineFilters(); track filter.id) {
             <button
               mat-stroked-button
@@ -143,4 +188,25 @@ limitations under the License.
     (deleteButtonClicked)="deleteFilter(editingFilter()!.id)"
     (confirm)="onFilterAddConfirm($event)"
   ></khi-timeline-filter-builder>
+</ng-template>
+
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="timeBuilderTrigger"
+  [cdkConnectedOverlayOpen]="isTimeRangeBuilderOpen()"
+  [cdkConnectedOverlayHasBackdrop]="true"
+  cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+  (backdropClick)="toggleTimeRangeBuilder()"
+>
+  <khi-time-range-filter-builder
+    [startTime]="timeRangeFilter()?.startTime ?? null"
+    [endTime]="timeRangeFilter()?.endTime ?? null"
+    [defaultStartTime]="defaultStartTime()"
+    [defaultEndTime]="defaultEndTime()"
+    [timezoneShift]="timezoneShift()"
+    [showDeleteButton]="timeRangeFilter() !== null"
+    (closeButtonClicked)="toggleTimeRangeBuilder()"
+    (deleteButtonClicked)="clearTimeRangeFilter()"
+    (confirm)="onTimeRangeConfirm($event)"
+  ></khi-time-range-filter-builder>
 </ng-template>

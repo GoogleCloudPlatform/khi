@@ -593,6 +593,20 @@ export declare type FilterTimelineRequest =
      * @generated from field: bool exclude_no_logs = 5;
      */
     excludeNoLogs: boolean;
+
+    /**
+     * Optional start timestamp of the time range filter (inclusive). Unspecified means unbounded start.
+     *
+     * @generated from field: google.protobuf.Timestamp filter_start_time = 6;
+     */
+    filterStartTime?: Timestamp | undefined;
+
+    /**
+     * Optional end timestamp of the time range filter (inclusive). Unspecified means unbounded end.
+     *
+     * @generated from field: google.protobuf.Timestamp filter_end_time = 7;
+     */
+    filterEndTime?: Timestamp | undefined;
   };
 
 /**
@@ -760,6 +774,20 @@ export declare type FilterTimelineSyncRequest =
      * @generated from field: string job_id = 6;
      */
     jobId: string;
+
+    /**
+     * Optional start timestamp of the time range filter (inclusive). Unspecified means unbounded start.
+     *
+     * @generated from field: google.protobuf.Timestamp filter_start_time = 7;
+     */
+    filterStartTime?: Timestamp | undefined;
+
+    /**
+     * Optional end timestamp of the time range filter (inclusive). Unspecified means unbounded end.
+     *
+     * @generated from field: google.protobuf.Timestamp filter_end_time = 8;
+     */
+    filterEndTime?: Timestamp | undefined;
   };
 
 /**

@@ -192,8 +192,13 @@ func NewFromReader(
 								if id > maxID {
 									maxID = id
 								}
+								var ts int64
+								if log.GetTs() != nil {
+									ts = log.GetTs().AsTime().UnixNano()
+								}
 								batch[i] = cel.LogData{
 									ID:              id,
+									Timestamp:       ts,
 									LogTypeID:       log.GetLogTypeId(),
 									SeverityTypeID:  log.GetSeverityTypeId(),
 									SummaryStringID: log.GetSummaryStringId(),

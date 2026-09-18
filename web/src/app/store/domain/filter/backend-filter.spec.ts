@@ -58,6 +58,8 @@ describe('BackendFilter', () => {
     expect(filter.timelineExclusionQuery()).toBe('');
     expect(filter.logQuery()).toBe('');
     expect(filter.excludeNoLogs()).toBeFalse();
+    expect(filter.filterStartTime()).toBeNull();
+    expect(filter.filterEndTime()).toBeNull();
   });
 
   it('should update filter parameters and emit onChanged', () => {
@@ -130,5 +132,100 @@ describe('BackendFilter', () => {
     filter.invalidateCache();
     await filter.process(initialContext, timelineStoreDummy);
     expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalledTimes(2);
+  });
+
+  it('should update filterStartTime and filterEndTime via updateFilterParams, emit onChanged, and forward them to filterTimeline', async () => {
+    mockWorkbenchClient.isWorkbenchActive.and.returnValue(true);
+    mockWorkbenchClient.filterTimeline.and.resolveTo({
+      timelineMode: FilterResultMode.INCLUDE,
+      timelineBitset: create(SparseBitsetSchema, {
+        indices: [0],
+        masks: [0x2],
+      }),
+      logMode: FilterResultMode.INCLUDE,
+      logBitset: create(SparseBitsetSchema, {
+        indices: [0],
+        masks: [1 << 10],
+      }),
+    });
+
+    const filter = new BackendFilter(mockWorkbenchClient);
+    let changed = false;
+    filter.onChanged.subscribe(() => {
+      changed = true;
+    });
+
+    filter.updateFilterParams({
+      filterStartTime: 1000n,
+      filterEndTime: 2000n,
+    });
+
+    expect(filter.filterStartTime()).toBe(1000n);
+    expect(filter.filterEndTime()).toBe(2000n);
+    expect(changed).toBeTrue();
+
+    const initialContext: LogTimelineFilterContext = {
+      timelineIds: IdBitset.fromAll([1, 2, 3]),
+      logIds: IdBitset.fromAll([10, 20]),
+    };
+
+    await filter.process(initialContext, timelineStoreDummy);
+    expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        filterStartTime: 1000n,
+        filterEndTime: 2000n,
+      }),
+      jasmine.any(Function),
+      undefined,
+    );
+  });
+
+  it('should invalidate cached result and trigger a new backend RPC call when time range changes', async () => {
+    mockWorkbenchClient.isWorkbenchActive.and.returnValue(true);
+    mockWorkbenchClient.filterTimeline.and.resolveTo({
+      timelineMode: FilterResultMode.INCLUDE,
+      timelineBitset: create(SparseBitsetSchema, {
+        indices: [0],
+        masks: [0x2],
+      }),
+      logMode: FilterResultMode.INCLUDE,
+      logBitset: create(SparseBitsetSchema, {
+        indices: [0],
+        masks: [1 << 10],
+      }),
+    });
+
+    const filter = new BackendFilter(mockWorkbenchClient);
+    filter.updateFilterParams({
+      filterStartTime: 1000n,
+      filterEndTime: 2000n,
+    });
+
+    const initialContext: LogTimelineFilterContext = {
+      timelineIds: IdBitset.fromAll([1, 2, 3]),
+      logIds: IdBitset.fromAll([10, 20]),
+    };
+
+    // First call: executes RPC
+    await filter.process(initialContext, timelineStoreDummy);
+    expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalledTimes(1);
+
+    // Second call with same time range: returns cached
+    await filter.process(initialContext, timelineStoreDummy);
+    expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalledTimes(1);
+
+    // Change filterEndTime: cache invalidated, executes RPC again
+    filter.updateFilterParams({
+      filterEndTime: 3000n,
+    });
+    await filter.process(initialContext, timelineStoreDummy);
+    expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalledTimes(2);
+
+    // Change filterStartTime: cache invalidated, executes RPC again
+    filter.updateFilterParams({
+      filterStartTime: 500n,
+    });
+    await filter.process(initialContext, timelineStoreDummy);
+    expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalledTimes(3);
   });
 });

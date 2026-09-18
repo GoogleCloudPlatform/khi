@@ -17,6 +17,7 @@ package workbench
 import (
 	"context"
 	"testing"
+	"time"
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
@@ -79,8 +80,8 @@ func createSampleWorkbench() *Workbench {
 		Name:         "pod-a",
 		TimelineType: "Pod",
 		Events: []cel.EventInfo{
-			{LogID: 1, Severity: 1},
-			{LogID: 2, Severity: 3},
+			{LogID: 1, Timestamp: 1000, Severity: 1},
+			{LogID: 2, Timestamp: 2000, Severity: 3},
 		},
 		MaxSeverity: 3,
 	}
@@ -92,7 +93,7 @@ func createSampleWorkbench() *Workbench {
 		Name:         "pod-b",
 		TimelineType: "Pod",
 		Events: []cel.EventInfo{
-			{LogID: 3, Severity: 1},
+			{LogID: 3, Timestamp: 3000, Severity: 1},
 		},
 		MaxSeverity: 1,
 	}
@@ -104,7 +105,7 @@ func createSampleWorkbench() *Workbench {
 		Name:         "container-b",
 		TimelineType: "Container",
 		Events: []cel.EventInfo{
-			{LogID: 3, Severity: 1},
+			{LogID: 3, Timestamp: 3000, Severity: 1},
 		},
 		MaxSeverity: 1,
 	}
@@ -119,6 +120,9 @@ func createSampleWorkbench() *Workbench {
 }
 
 func TestFilterTimelinePipeline(t *testing.T) {
+	t1000 := time.Unix(0, 1000)
+	t3500 := time.Unix(0, 3500)
+
 	testCases := []struct {
 		name          string
 		params        FilterPipelineParams
@@ -170,6 +174,53 @@ func TestFilterTimelinePipeline(t *testing.T) {
 			wantTimelines: []uint32{1, 2},
 			wantLogs:      []uint32{2},
 		},
+		{
+			name: "time range filter with ancestor restoration",
+			params: FilterPipelineParams{
+				FilterStartTime: timePtr(time.Unix(0, 1000)),
+				FilterEndTime:   timePtr(time.Unix(0, 2000)),
+			},
+			wantTimelines: []uint32{1, 2},
+			wantLogs:      []uint32{1, 2},
+		},
+		{
+			name: "hierarchy vs time range precedence",
+			params: FilterPipelineParams{
+				TimelineQuery:   `name == "default"`,
+				FilterStartTime: timePtr(time.Unix(0, 1000)),
+				FilterEndTime:   timePtr(time.Unix(0, 2000)),
+			},
+			wantTimelines: []uint32{1, 2},
+			wantLogs:      []uint32{1, 2},
+		},
+		{
+			name: "log filtering time range restriction",
+			params: FilterPipelineParams{
+				FilterStartTime: timePtr(time.Unix(0, 1500)),
+				FilterEndTime:   timePtr(time.Unix(0, 2500)),
+			},
+			wantTimelines: []uint32{1, 2},
+			wantLogs:      []uint32{2},
+		},
+		{
+			name: "time range matching no events",
+			params: FilterPipelineParams{
+				FilterStartTime: timePtr(time.Unix(0, 4000)),
+				FilterEndTime:   timePtr(time.Unix(0, 5000)),
+			},
+			wantTimelines: []uint32{},
+			wantLogs:      []uint32{},
+		},
+		{
+			name: "timeline query matching 0 timelines with active time range returns empty",
+			params: FilterPipelineParams{
+				TimelineQuery:   "name == 'nonexistent'",
+				FilterStartTime: &t1000,
+				FilterEndTime:   &t3500,
+			},
+			wantTimelines: []uint32{},
+			wantLogs:      []uint32{},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -210,7 +261,7 @@ func decodeSparseBitset(mode apiv1.FilterResultMode, bitset *apiv1.SparseBitset,
 		return nil
 	}
 	bm := sparsebitset.Decode(bitset)
-	var result []uint32
+	result := make([]uint32, 0)
 	if mode == apiv1.FilterResultMode_FILTER_RESULT_MODE_INCLUDE {
 		for _, id := range allIDs {
 			if bm.Contains(id) {
@@ -236,4 +287,8 @@ func TestFilterTimelineCancellation(t *testing.T) {
 	if err == nil {
 		t.Errorf("FilterTimeline() expected context cancellation error but got nil")
 	}
+}
+
+func timePtr(t time.Time) *time.Time {
+	return &t
 }

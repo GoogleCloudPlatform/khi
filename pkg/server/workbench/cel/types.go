@@ -15,7 +15,9 @@
 package cel
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"strings"
 )
 
@@ -28,8 +30,10 @@ const (
 
 // EventInfo represents lightweight event metadata associated with a timeline for CEL evaluation.
 type EventInfo struct {
-	LogID    uint32
-	Severity uint32
+	LogID uint32
+	// Timestamp is the event occurrence time in Unix nanoseconds.
+	Timestamp int64
+	Severity  uint32
 }
 
 // RevisionInfo represents lightweight revision history metadata associated with a timeline for CEL evaluation.
@@ -69,6 +73,49 @@ func (t *TimelineData) ForEachLogID(cb func(logID uint32) bool) {
 	}
 	for _, rev := range t.Revisions {
 		if !cb(rev.LogID) {
+			return
+		}
+	}
+}
+
+// HasActivityInRange checks whether at least one event or revision falls within [startTimeNs, endTimeNs] (inclusive).
+// It searches t.Events (by Timestamp) and t.Revisions (by ChangedTime) using binary search in O(log E + log R).
+func (t *TimelineData) HasActivityInRange(startTimeNs, endTimeNs int64) bool {
+	if t == nil || startTimeNs > endTimeNs {
+		return false
+	}
+	evtIdx, _ := slices.BinarySearchFunc(t.Events, startTimeNs, func(e EventInfo, target int64) int {
+		return cmp.Compare(e.Timestamp, target)
+	})
+	if evtIdx < len(t.Events) && t.Events[evtIdx].Timestamp <= endTimeNs {
+		return true
+	}
+	revIdx, _ := slices.BinarySearchFunc(t.Revisions, startTimeNs, func(r RevisionInfo, target int64) int {
+		return cmp.Compare(r.ChangedTime, target)
+	})
+	return revIdx < len(t.Revisions) && t.Revisions[revIdx].ChangedTime <= endTimeNs
+}
+
+// ForEachLogIDInRange iterates over log IDs associated with this timeline's events and revisions
+// that fall within [startTimeNs, endTimeNs] (inclusive).
+// If the callback returns false, iteration stops early.
+func (t *TimelineData) ForEachLogIDInRange(startTimeNs, endTimeNs int64, cb func(logID uint32) bool) {
+	if t == nil || startTimeNs > endTimeNs {
+		return
+	}
+	evtIdx, _ := slices.BinarySearchFunc(t.Events, startTimeNs, func(e EventInfo, target int64) int {
+		return cmp.Compare(e.Timestamp, target)
+	})
+	for i := evtIdx; i < len(t.Events) && t.Events[i].Timestamp <= endTimeNs; i++ {
+		if !cb(t.Events[i].LogID) {
+			return
+		}
+	}
+	revIdx, _ := slices.BinarySearchFunc(t.Revisions, startTimeNs, func(r RevisionInfo, target int64) int {
+		return cmp.Compare(r.ChangedTime, target)
+	})
+	for i := revIdx; i < len(t.Revisions) && t.Revisions[i].ChangedTime <= endTimeNs; i++ {
+		if !cb(t.Revisions[i].LogID) {
 			return
 		}
 	}
@@ -133,7 +180,9 @@ var _ StyleResolver = (*SimpleStyleResolver)(nil)
 // LogData encapsulates the indexed log attributes and struct ID required for CEL evaluation.
 // It holds primitive IDs to ensure zero pointers and minimal memory footprint.
 type LogData struct {
-	ID              uint32
+	ID uint32
+	// Timestamp is the log entry occurrence time in Unix nanoseconds.
+	Timestamp       int64
 	LogTypeID       uint32
 	SeverityTypeID  uint32
 	SummaryStringID uint32

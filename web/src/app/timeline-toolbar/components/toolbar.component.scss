@@ -150,6 +150,31 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
   padding: 0 16px;
 }
 
+.time-filter-origin {
+  display: inline-flex;
+}
+
+.time-range-badge {
+  .time-range-value {
+    display: grid;
+    grid-template:
+      'start' auto
+      'end' auto
+      / auto;
+    max-width: none;
+    font-size: 11px;
+    line-height: 1.15;
+    text-align: left;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .time-range-line {
+    white-space: nowrap;
+  }
+}
+
 .filter-badge {
   display: flex;
   align-items: center;
@@ -268,7 +293,8 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
   }
 }
 
-.add-filter-btn {
+.add-filter-btn,
+.add-time-filter-btn {
   height: 36px;
   border-radius: 18px !important;
   display: flex;

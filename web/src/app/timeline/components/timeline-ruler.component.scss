@@ -19,6 +19,38 @@
 @use '@angular/material' as mat;
 $histogram-height: 60px;
 $date-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 400);
+$active-range-bg-color: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500),
+  0.16
+);
+$active-range-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  600
+);
+$range-clear-button-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  600
+);
+$range-clear-button-fg-color: mat.m2-get-color-from-palette(
+  mat.$m2-grey-palette,
+  50
+);
+$range-clear-button-hover-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  800
+);
+$range-resize-handle-hover-bg-color: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 600),
+  0.35
+);
+$preview-range-bg-color: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-cyan-palette, 500),
+  0.22
+);
+$preview-range-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-cyan-palette,
+  700
+);
 
 :host {
   display: block;
@@ -33,6 +65,7 @@ $cursor-color: #0f0;
   height: 100%;
   background-color: white;
   overscroll-behavior: none;
+  cursor: crosshair;
 }
 
 .background-canvas {
@@ -50,6 +83,90 @@ $cursor-color: #0f0;
   width: 100%;
   height: $histogram-height;
   user-select: none;
+}
+
+.time-range-ruler-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--range-width);
+  transform: translateX(var(--range-left));
+  pointer-events: none;
+  box-sizing: border-box;
+
+  &.active-range {
+    background-color: $active-range-bg-color;
+    border-left: 2px solid $active-range-border-color;
+    border-right: 2px solid $active-range-border-color;
+
+    // While an edge is being dragged, the dashed preview overlay represents the
+    // pending range. Hide this overlay visually but keep it mounted so the
+    // resize handles retain the resize cursor throughout the gesture.
+    &.is-resizing {
+      background-color: transparent;
+      border-color: transparent;
+
+      .range-clear-button {
+        display: none;
+      }
+    }
+
+    .range-resize-handle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 8px;
+      cursor: ew-resize;
+      pointer-events: auto;
+      z-index: 15;
+
+      &.start {
+        left: -4px;
+      }
+
+      &.end {
+        right: -4px;
+      }
+
+      &:hover {
+        background-color: $range-resize-handle-hover-bg-color;
+      }
+    }
+
+    .range-clear-button {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      pointer-events: auto;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      border: 0;
+      border-radius: 0 0 2px 2px;
+      background-color: $range-clear-button-bg-color;
+      color: $range-clear-button-fg-color;
+
+      &:hover {
+        background-color: $range-clear-button-hover-bg-color;
+      }
+
+      mat-icon {
+        @include common.adjust-mat-icon-size(12px);
+      }
+    }
+  }
+
+  &.preview-range {
+    background-color: $preview-range-bg-color;
+    border-left: 2px dashed $preview-range-border-color;
+    border-right: 2px dashed $preview-range-border-color;
+  }
 }
 
 .time-container {

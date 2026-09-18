@@ -26,4 +26,28 @@ describe('BigIntTimeUtil', () => {
       expect(BigIntTimeUtil.NsToNumberMs(500n)).toBe(0.0005);
     });
   });
+
+  describe('NsToProtoTimestamp', () => {
+    it('should convert nanoseconds to protobuf Timestamp message', () => {
+      const ts0 = BigIntTimeUtil.NsToProtoTimestamp(0n);
+      expect(ts0.seconds).toBe(0n);
+      expect(ts0.nanos).toBe(0);
+
+      const ts1 = BigIntTimeUtil.NsToProtoTimestamp(1_000_000_000n);
+      expect(ts1.seconds).toBe(1n);
+      expect(ts1.nanos).toBe(0);
+
+      const ts2 = BigIntTimeUtil.NsToProtoTimestamp(1_234_567_890n);
+      expect(ts2.seconds).toBe(1n);
+      expect(ts2.nanos).toBe(234567890);
+
+      const ts3 = BigIntTimeUtil.NsToProtoTimestamp(1700000000123456789n);
+      expect(ts3.seconds).toBe(1700000000n);
+      expect(ts3.nanos).toBe(123456789);
+
+      const tsNeg = BigIntTimeUtil.NsToProtoTimestamp(-1_500_000_000n);
+      expect(tsNeg.seconds).toBe(-2n);
+      expect(tsNeg.nanos).toBe(500000000);
+    });
+  });
 });

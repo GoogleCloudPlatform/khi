@@ -31,6 +31,9 @@ import {
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
 } from 'src/app/timeline/components/style-model';
+import { TimeRangeFilter } from 'src/app/services/view-state.service';
+import { TimelineChartComponent } from './timeline-chart.component';
+import { TimelineRulerComponent } from './timeline-ruler.component';
 
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
@@ -229,5 +232,141 @@ describe('TimelineFrameComponent', () => {
     fixture.detectChanges();
 
     expect(component.getSelectedLogTimelineExposed()).toBe(timelineA);
+  });
+});
+
+describe('TimelineFrameComponent - time range selection', () => {
+  let frameFixture: ComponentFixture<TimelineFrameComponent>;
+  let frameComponent: TimelineFrameComponent;
+
+  beforeEach(async () => {
+    spyOn(TimelineChartComponent.prototype, 'ngAfterViewInit').and.stub();
+    spyOn(TimelineRulerComponent.prototype, 'ngAfterViewInit').and.stub();
+    TestBed.configureTestingModule({
+      imports: [TimelineFrameComponent],
+    });
+    TestBed.overrideComponent(TimelineChartComponent, {
+      set: { template: '' },
+    });
+    TestBed.overrideComponent(TimelineRulerComponent, {
+      set: {
+        template: '<div #container><canvas #backgroundCanvas></canvas></div>',
+      },
+    });
+    await TestBed.compileComponents();
+
+    frameFixture = TestBed.createComponent(TimelineFrameComponent);
+    frameComponent = frameFixture.componentInstance;
+
+    frameFixture.componentRef.setInput(
+      'chartStyle',
+      generateDefaultChartStyle(),
+    );
+    frameFixture.componentRef.setInput(
+      'rulerStyle',
+      generateDefaultRulerStyle(mockStyleStore),
+    );
+    frameFixture.componentRef.setInput('styleStore', mockStyleStore);
+    frameFixture.componentRef.setInput('allLogs', []);
+    frameFixture.detectChanges();
+  });
+
+  it('should render .time-range-body-overlay.active-range when timeRangeFilter input is provided', () => {
+    frameFixture.componentRef.setInput('timeRangeFilter', {
+      startTime: 1000000000000n,
+      endTime: 2000000000000n,
+    });
+    frameFixture.detectChanges();
+
+    const overlay = frameFixture.nativeElement.querySelector(
+      '.time-range-body-overlay.active-range',
+    );
+    expect(overlay).not.toBeNull();
+  });
+
+  it('should render .time-range-body-overlay.preview-range when previewTimeRangeMs is updated from ruler', () => {
+    const rulerDebugEl = frameFixture.debugElement.query(
+      (el) => el.componentInstance instanceof TimelineRulerComponent,
+    );
+    rulerDebugEl.componentInstance.previewTimeRangeMs.set({
+      startMs: 1000,
+      endMs: 2000,
+    });
+    frameFixture.detectChanges();
+
+    const overlay = frameFixture.nativeElement.querySelector(
+      '.time-range-body-overlay.preview-range',
+    );
+    expect(overlay).not.toBeNull();
+
+    rulerDebugEl.componentInstance.previewTimeRangeMs.set(null);
+    frameFixture.detectChanges();
+
+    expect(
+      frameFixture.nativeElement.querySelector(
+        '.time-range-body-overlay.preview-range',
+      ),
+    ).toBeNull();
+  });
+
+  it('should convert ruler time range selection to nanosecond TimeRangeFilter and emit timeRangeSelected', () => {
+    let emittedRange: TimeRangeFilter | undefined;
+    frameComponent.timeRangeSelected.subscribe((range) => {
+      emittedRange = range;
+    });
+
+    const rulerDebugEl = frameFixture.debugElement.query(
+      (el) => el.componentInstance instanceof TimelineRulerComponent,
+    );
+    rulerDebugEl.componentInstance.timeRangeSelected.emit({
+      startMs: 1500,
+      endMs: 3500,
+    });
+    frameFixture.detectChanges();
+
+    expect(emittedRange).toEqual({
+      startTime: 1500000000n,
+      endTime: 3500000000n,
+    });
+  });
+
+  it('should clamp selected time range to minQueryLogTimeMS and maxQueryLogTimeMS when inspection bounds are set', () => {
+    frameFixture.componentRef.setInput('minQueryLogTimeMS', 2000);
+    frameFixture.componentRef.setInput('maxQueryLogTimeMS', 5000);
+    frameFixture.detectChanges();
+
+    let emittedRange: TimeRangeFilter | undefined;
+    frameComponent.timeRangeSelected.subscribe((range) => {
+      emittedRange = range;
+    });
+
+    const rulerDebugEl = frameFixture.debugElement.query(
+      (el) => el.componentInstance instanceof TimelineRulerComponent,
+    );
+    rulerDebugEl.componentInstance.timeRangeSelected.emit({
+      startMs: 1000,
+      endMs: 6000,
+    });
+    frameFixture.detectChanges();
+
+    expect(emittedRange).toEqual({
+      startTime: 2000000000n,
+      endTime: 5000000000n,
+    });
+  });
+
+  it('should propagate timeRangeCleared from child ruler component', () => {
+    let clearedEmitted = false;
+    frameComponent.timeRangeCleared.subscribe(() => {
+      clearedEmitted = true;
+    });
+
+    const rulerDebugEl = frameFixture.debugElement.query(
+      (el) => el.componentInstance instanceof TimelineRulerComponent,
+    );
+    rulerDebugEl.componentInstance.timeRangeCleared.emit();
+    frameFixture.detectChanges();
+
+    expect(clearedEmitted).toBeTrue();
   });
 });

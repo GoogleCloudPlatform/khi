@@ -36,6 +36,16 @@ export enum SearchScope {
 }
 
 /**
+ * Represents a time range filter for narrowing timeline resources and logs.
+ */
+export interface TimeRangeFilter {
+  /** Start timestamp of the time range filter in nanoseconds. */
+  readonly startTime: bigint;
+  /** End timestamp of the time range filter in nanoseconds. */
+  readonly endTime: bigint;
+}
+
+/**
  * A service to manage statuses used for view in application wide.
  */
 @Injectable({ providedIn: 'root' })
@@ -86,6 +96,11 @@ export class ViewStateService {
    * The persistent advanced mode log CEL query.
    */
   public readonly advancedLogCel = signal<string>('');
+
+  /**
+   * The active time range filter applied across both standard and advanced modes.
+   */
+  public readonly timeRangeFilter = signal<TimeRangeFilter | null>(null);
 
   private timezoneShiftSubject: BehaviorSubject<number> = new BehaviorSubject(
     -new Date().getTimezoneOffset() / 60,

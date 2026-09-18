@@ -17,11 +17,48 @@
 <div
   class="container"
   #container
+  (mousedown)="onMouseDown($event)"
   (mouseenter)="mouseEnter()"
   (mouseleave)="mouseLeave()"
 >
   <canvas class="background-canvas" #backgroundCanvas></canvas>
   <div #overlay class="canvas-overlay">
+    @if (activeRangeStyle(); as activeStyle) {
+      <div
+        class="time-range-ruler-overlay active-range"
+        [class.is-resizing]="isResizingActiveRange()"
+        [style.--range-left.px]="activeStyle.left"
+        [style.--range-width.px]="activeStyle.width"
+      >
+        <div
+          class="range-resize-handle start"
+          (mousedown)="
+            onResizeHandleMouseDown($event, TimeRangeDragMode.ResizeStart)
+          "
+        ></div>
+        <div
+          class="range-resize-handle end"
+          (mousedown)="
+            onResizeHandleMouseDown($event, TimeRangeDragMode.ResizeEnd)
+          "
+        ></div>
+        <button
+          type="button"
+          class="range-clear-button"
+          (mousedown)="onClearButtonMouseDown($event)"
+          (click)="onClearButtonClick($event)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    }
+    @if (previewRangeStyle(); as previewStyle) {
+      <div
+        class="time-range-ruler-overlay preview-range"
+        [style.--range-left.px]="previewStyle.left"
+        [style.--range-width.px]="previewStyle.width"
+      ></div>
+    }
     @for (label of dateLabels(); track label.offsetX) {
       <div class="date-container" [style.--offset-x.px]="label.offsetX">
         <p class="date-label">

@@ -1081,6 +1081,10 @@ type FilterTimelineRequest struct {
 	LogQuery *string `protobuf:"bytes,4,opt,name=log_query,json=logQuery" json:"log_query,omitempty"`
 	// When true, excludes timelines that contain no matching log entries.
 	ExcludeNoLogs *bool `protobuf:"varint,5,opt,name=exclude_no_logs,json=excludeNoLogs" json:"exclude_no_logs,omitempty"`
+	// Optional start timestamp of the time range filter (inclusive). Unspecified means unbounded start.
+	FilterStartTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=filter_start_time,json=filterStartTime" json:"filter_start_time,omitempty"`
+	// Optional end timestamp of the time range filter (inclusive). Unspecified means unbounded end.
+	FilterEndTime *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=filter_end_time,json=filterEndTime" json:"filter_end_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1148,6 +1152,20 @@ func (x *FilterTimelineRequest) GetExcludeNoLogs() bool {
 		return *x.ExcludeNoLogs
 	}
 	return false
+}
+
+func (x *FilterTimelineRequest) GetFilterStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FilterStartTime
+	}
+	return nil
+}
+
+func (x *FilterTimelineRequest) GetFilterEndTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FilterEndTime
+	}
+	return nil
 }
 
 // Intermediate progress update emitted during filter pipeline execution.
@@ -1386,7 +1404,11 @@ type FilterTimelineSyncRequest struct {
 	// When true, excludes timelines that contain no matching log entries.
 	ExcludeNoLogs *bool `protobuf:"varint,5,opt,name=exclude_no_logs,json=excludeNoLogs" json:"exclude_no_logs,omitempty"`
 	// Job identifier returned from a previous call, or empty to start a new filter task.
-	JobId         *string `protobuf:"bytes,6,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	JobId *string `protobuf:"bytes,6,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	// Optional start timestamp of the time range filter (inclusive). Unspecified means unbounded start.
+	FilterStartTime *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=filter_start_time,json=filterStartTime" json:"filter_start_time,omitempty"`
+	// Optional end timestamp of the time range filter (inclusive). Unspecified means unbounded end.
+	FilterEndTime *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=filter_end_time,json=filterEndTime" json:"filter_end_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1461,6 +1483,20 @@ func (x *FilterTimelineSyncRequest) GetJobId() string {
 		return *x.JobId
 	}
 	return ""
+}
+
+func (x *FilterTimelineSyncRequest) GetFilterStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FilterStartTime
+	}
+	return nil
+}
+
+func (x *FilterTimelineSyncRequest) GetFilterEndTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FilterEndTime
+	}
+	return nil
 }
 
 // Response containing current progress or final filter result.
@@ -1966,13 +2002,15 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\n" +
 	"struct_ids\x18\x02 \x03(\rR\tstructIds\"P\n" +
 	"\x17ReadStructYAMLsResponse\x125\n" +
-	"\fstruct_yamls\x18\x01 \x03(\v2\x12.api.v1.StructYAMLR\vstructYamls\"\xe0\x01\n" +
+	"\fstruct_yamls\x18\x01 \x03(\v2\x12.api.v1.StructYAMLR\vstructYamls\"\xec\x02\n" +
 	"\x15FilterTimelineRequest\x12!\n" +
 	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\x12%\n" +
 	"\x0etimeline_query\x18\x02 \x01(\tR\rtimelineQuery\x128\n" +
 	"\x18timeline_exclusion_query\x18\x03 \x01(\tR\x16timelineExclusionQuery\x12\x1b\n" +
 	"\tlog_query\x18\x04 \x01(\tR\blogQuery\x12&\n" +
-	"\x0fexclude_no_logs\x18\x05 \x01(\bR\rexcludeNoLogs\"_\n" +
+	"\x0fexclude_no_logs\x18\x05 \x01(\bR\rexcludeNoLogs\x12F\n" +
+	"\x11filter_start_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x0ffilterStartTime\x12B\n" +
+	"\x0ffilter_end_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\rfilterEndTime\"_\n" +
 	"\x0eFilterProgress\x12\x1d\n" +
 	"\n" +
 	"stage_name\x18\x01 \x01(\tR\tstageName\x12\x18\n" +
@@ -1987,14 +2025,16 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\x16FilterTimelineResponse\x124\n" +
 	"\bprogress\x18\x01 \x01(\v2\x16.api.v1.FilterProgressH\x00R\bprogress\x12.\n" +
 	"\x06result\x18\x02 \x01(\v2\x14.api.v1.FilterResultH\x00R\x06resultB\t\n" +
-	"\apayload\"\xfb\x01\n" +
+	"\apayload\"\x87\x03\n" +
 	"\x19FilterTimelineSyncRequest\x12!\n" +
 	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\x12%\n" +
 	"\x0etimeline_query\x18\x02 \x01(\tR\rtimelineQuery\x128\n" +
 	"\x18timeline_exclusion_query\x18\x03 \x01(\tR\x16timelineExclusionQuery\x12\x1b\n" +
 	"\tlog_query\x18\x04 \x01(\tR\blogQuery\x12&\n" +
 	"\x0fexclude_no_logs\x18\x05 \x01(\bR\rexcludeNoLogs\x12\x15\n" +
-	"\x06job_id\x18\x06 \x01(\tR\x05jobId\"\xd3\x01\n" +
+	"\x06job_id\x18\x06 \x01(\tR\x05jobId\x12F\n" +
+	"\x11filter_start_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x0ffilterStartTime\x12B\n" +
+	"\x0ffilter_end_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\rfilterEndTime\"\xd3\x01\n" +
 	"\x1aFilterTimelineSyncResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x17\n" +
 	"\ais_done\x18\x02 \x01(\bR\x06isDone\x122\n" +
@@ -2095,46 +2135,50 @@ var file_api_v1_workbench_proto_depIdxs = []int32{
 	2,  // 3: api.v1.PullIndexProgressResponse.state:type_name -> api.v1.WatchIndexProgressResponse.IndexState
 	31, // 4: api.v1.HeartbeatWorkbenchResponse.expires_at:type_name -> google.protobuf.Timestamp
 	15, // 5: api.v1.ReadStructYAMLsResponse.struct_yamls:type_name -> api.v1.StructYAML
-	0,  // 6: api.v1.FilterResult.timeline_mode:type_name -> api.v1.FilterResultMode
-	32, // 7: api.v1.FilterResult.timeline_bitset:type_name -> api.v1.SparseBitset
-	0,  // 8: api.v1.FilterResult.log_mode:type_name -> api.v1.FilterResultMode
-	32, // 9: api.v1.FilterResult.log_bitset:type_name -> api.v1.SparseBitset
-	19, // 10: api.v1.FilterTimelineResponse.progress:type_name -> api.v1.FilterProgress
-	20, // 11: api.v1.FilterTimelineResponse.result:type_name -> api.v1.FilterResult
-	19, // 12: api.v1.FilterTimelineSyncResponse.progress:type_name -> api.v1.FilterProgress
-	20, // 13: api.v1.FilterTimelineSyncResponse.result:type_name -> api.v1.FilterResult
-	29, // 14: api.v1.GetTimelineIDsForLogsResponse.bindings:type_name -> api.v1.LogTimelineBinding
-	3,  // 15: api.v1.WorkbenchService.OpenWorkbench:input_type -> api.v1.OpenWorkbenchRequest
-	5,  // 16: api.v1.WorkbenchService.OpenWorkbenchSync:input_type -> api.v1.OpenWorkbenchSyncRequest
-	7,  // 17: api.v1.WorkbenchService.CancelOpenWorkbenchSync:input_type -> api.v1.CancelOpenWorkbenchSyncRequest
-	9,  // 18: api.v1.WorkbenchService.WatchIndexProgress:input_type -> api.v1.WatchIndexProgressRequest
-	11, // 19: api.v1.WorkbenchService.PullIndexProgress:input_type -> api.v1.PullIndexProgressRequest
-	13, // 20: api.v1.WorkbenchService.HeartbeatWorkbench:input_type -> api.v1.HeartbeatWorkbenchRequest
-	16, // 21: api.v1.WorkbenchService.ReadStructYAMLs:input_type -> api.v1.ReadStructYAMLsRequest
-	18, // 22: api.v1.WorkbenchService.FilterTimeline:input_type -> api.v1.FilterTimelineRequest
-	22, // 23: api.v1.WorkbenchService.FilterTimelineSync:input_type -> api.v1.FilterTimelineSyncRequest
-	24, // 24: api.v1.WorkbenchService.CancelFilterTimelineSync:input_type -> api.v1.CancelFilterTimelineSyncRequest
-	33, // 25: api.v1.WorkbenchService.GetArchitectureGraph:input_type -> api.v1.GetArchitectureGraphRequest
-	28, // 26: api.v1.WorkbenchService.GetTimelineIDsForLogs:input_type -> api.v1.GetTimelineIDsForLogsRequest
-	26, // 27: api.v1.WorkbenchService.CloseWorkbench:input_type -> api.v1.CloseWorkbenchRequest
-	4,  // 28: api.v1.WorkbenchService.OpenWorkbench:output_type -> api.v1.OpenWorkbenchResponse
-	6,  // 29: api.v1.WorkbenchService.OpenWorkbenchSync:output_type -> api.v1.OpenWorkbenchSyncResponse
-	8,  // 30: api.v1.WorkbenchService.CancelOpenWorkbenchSync:output_type -> api.v1.CancelOpenWorkbenchSyncResponse
-	10, // 31: api.v1.WorkbenchService.WatchIndexProgress:output_type -> api.v1.WatchIndexProgressResponse
-	12, // 32: api.v1.WorkbenchService.PullIndexProgress:output_type -> api.v1.PullIndexProgressResponse
-	14, // 33: api.v1.WorkbenchService.HeartbeatWorkbench:output_type -> api.v1.HeartbeatWorkbenchResponse
-	17, // 34: api.v1.WorkbenchService.ReadStructYAMLs:output_type -> api.v1.ReadStructYAMLsResponse
-	21, // 35: api.v1.WorkbenchService.FilterTimeline:output_type -> api.v1.FilterTimelineResponse
-	23, // 36: api.v1.WorkbenchService.FilterTimelineSync:output_type -> api.v1.FilterTimelineSyncResponse
-	25, // 37: api.v1.WorkbenchService.CancelFilterTimelineSync:output_type -> api.v1.CancelFilterTimelineSyncResponse
-	34, // 38: api.v1.WorkbenchService.GetArchitectureGraph:output_type -> api.v1.GetArchitectureGraphResponse
-	30, // 39: api.v1.WorkbenchService.GetTimelineIDsForLogs:output_type -> api.v1.GetTimelineIDsForLogsResponse
-	27, // 40: api.v1.WorkbenchService.CloseWorkbench:output_type -> api.v1.CloseWorkbenchResponse
-	28, // [28:41] is the sub-list for method output_type
-	15, // [15:28] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	31, // 6: api.v1.FilterTimelineRequest.filter_start_time:type_name -> google.protobuf.Timestamp
+	31, // 7: api.v1.FilterTimelineRequest.filter_end_time:type_name -> google.protobuf.Timestamp
+	0,  // 8: api.v1.FilterResult.timeline_mode:type_name -> api.v1.FilterResultMode
+	32, // 9: api.v1.FilterResult.timeline_bitset:type_name -> api.v1.SparseBitset
+	0,  // 10: api.v1.FilterResult.log_mode:type_name -> api.v1.FilterResultMode
+	32, // 11: api.v1.FilterResult.log_bitset:type_name -> api.v1.SparseBitset
+	19, // 12: api.v1.FilterTimelineResponse.progress:type_name -> api.v1.FilterProgress
+	20, // 13: api.v1.FilterTimelineResponse.result:type_name -> api.v1.FilterResult
+	31, // 14: api.v1.FilterTimelineSyncRequest.filter_start_time:type_name -> google.protobuf.Timestamp
+	31, // 15: api.v1.FilterTimelineSyncRequest.filter_end_time:type_name -> google.protobuf.Timestamp
+	19, // 16: api.v1.FilterTimelineSyncResponse.progress:type_name -> api.v1.FilterProgress
+	20, // 17: api.v1.FilterTimelineSyncResponse.result:type_name -> api.v1.FilterResult
+	29, // 18: api.v1.GetTimelineIDsForLogsResponse.bindings:type_name -> api.v1.LogTimelineBinding
+	3,  // 19: api.v1.WorkbenchService.OpenWorkbench:input_type -> api.v1.OpenWorkbenchRequest
+	5,  // 20: api.v1.WorkbenchService.OpenWorkbenchSync:input_type -> api.v1.OpenWorkbenchSyncRequest
+	7,  // 21: api.v1.WorkbenchService.CancelOpenWorkbenchSync:input_type -> api.v1.CancelOpenWorkbenchSyncRequest
+	9,  // 22: api.v1.WorkbenchService.WatchIndexProgress:input_type -> api.v1.WatchIndexProgressRequest
+	11, // 23: api.v1.WorkbenchService.PullIndexProgress:input_type -> api.v1.PullIndexProgressRequest
+	13, // 24: api.v1.WorkbenchService.HeartbeatWorkbench:input_type -> api.v1.HeartbeatWorkbenchRequest
+	16, // 25: api.v1.WorkbenchService.ReadStructYAMLs:input_type -> api.v1.ReadStructYAMLsRequest
+	18, // 26: api.v1.WorkbenchService.FilterTimeline:input_type -> api.v1.FilterTimelineRequest
+	22, // 27: api.v1.WorkbenchService.FilterTimelineSync:input_type -> api.v1.FilterTimelineSyncRequest
+	24, // 28: api.v1.WorkbenchService.CancelFilterTimelineSync:input_type -> api.v1.CancelFilterTimelineSyncRequest
+	33, // 29: api.v1.WorkbenchService.GetArchitectureGraph:input_type -> api.v1.GetArchitectureGraphRequest
+	28, // 30: api.v1.WorkbenchService.GetTimelineIDsForLogs:input_type -> api.v1.GetTimelineIDsForLogsRequest
+	26, // 31: api.v1.WorkbenchService.CloseWorkbench:input_type -> api.v1.CloseWorkbenchRequest
+	4,  // 32: api.v1.WorkbenchService.OpenWorkbench:output_type -> api.v1.OpenWorkbenchResponse
+	6,  // 33: api.v1.WorkbenchService.OpenWorkbenchSync:output_type -> api.v1.OpenWorkbenchSyncResponse
+	8,  // 34: api.v1.WorkbenchService.CancelOpenWorkbenchSync:output_type -> api.v1.CancelOpenWorkbenchSyncResponse
+	10, // 35: api.v1.WorkbenchService.WatchIndexProgress:output_type -> api.v1.WatchIndexProgressResponse
+	12, // 36: api.v1.WorkbenchService.PullIndexProgress:output_type -> api.v1.PullIndexProgressResponse
+	14, // 37: api.v1.WorkbenchService.HeartbeatWorkbench:output_type -> api.v1.HeartbeatWorkbenchResponse
+	17, // 38: api.v1.WorkbenchService.ReadStructYAMLs:output_type -> api.v1.ReadStructYAMLsResponse
+	21, // 39: api.v1.WorkbenchService.FilterTimeline:output_type -> api.v1.FilterTimelineResponse
+	23, // 40: api.v1.WorkbenchService.FilterTimelineSync:output_type -> api.v1.FilterTimelineSyncResponse
+	25, // 41: api.v1.WorkbenchService.CancelFilterTimelineSync:output_type -> api.v1.CancelFilterTimelineSyncResponse
+	34, // 42: api.v1.WorkbenchService.GetArchitectureGraph:output_type -> api.v1.GetArchitectureGraphResponse
+	30, // 43: api.v1.WorkbenchService.GetTimelineIDsForLogs:output_type -> api.v1.GetTimelineIDsForLogsResponse
+	27, // 44: api.v1.WorkbenchService.CloseWorkbench:output_type -> api.v1.CloseWorkbenchResponse
+	32, // [32:45] is the sub-list for method output_type
+	19, // [19:32] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_workbench_proto_init() }

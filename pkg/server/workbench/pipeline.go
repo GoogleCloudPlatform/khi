@@ -17,6 +17,7 @@ package workbench
 import (
 	"context"
 	"fmt"
+	"time"
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"google.golang.org/protobuf/proto"
@@ -28,9 +29,11 @@ type FilterPipelineParams struct {
 	TimelineExclusionQuery string
 	LogQuery               string
 	ExcludeNoLogs          bool
+	FilterStartTime        *time.Time
+	FilterEndTime          *time.Time
 }
 
-// FilterTimeline executes the complete 6-stage filtering pipeline and streams progress updates.
+// FilterTimeline executes the complete 7-stage filtering pipeline and streams progress updates.
 func (w *Workbench) FilterTimeline(
 	ctx context.Context,
 	params FilterPipelineParams,

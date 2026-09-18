@@ -67,3 +67,37 @@ export enum TimelineChartItemHighlightType {
 export type TimelineChartItemHighlight = {
   [logIndex: number]: TimelineChartItemHighlightType;
 };
+
+/**
+ * Represents a time window in milliseconds for timeline overlays.
+ */
+export interface TimeRangeMs {
+  readonly startMs: number;
+  readonly endMs: number;
+}
+
+/**
+ * Represents computed CSS offset and width in pixels for a time range overlay.
+ */
+export interface TimeRangeOverlayStyle {
+  readonly left: number;
+  readonly width: number;
+}
+
+/**
+ * Identifies which edge or interaction a ruler drag gesture updates.
+ */
+export enum TimeRangeDragMode {
+  /**
+   * Creates a new time range by dragging on the ruler.
+   */
+  Create = 0,
+  /**
+   * Moves the start edge of the active time range.
+   */
+  ResizeStart = 1,
+  /**
+   * Moves the end edge of the active time range.
+   */
+  ResizeEnd = 2,
+}

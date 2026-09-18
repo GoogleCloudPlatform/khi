@@ -113,11 +113,28 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   protected readonly timelineFilters =
     this.viewStateService.standardTimelineFilters;
 
+  /** Active time range filter signal. */
+  protected readonly timeRangeFilter = this.viewStateService.timeRangeFilter;
+
   /** Selected timeline type used within interactive filter builders. */
   protected readonly selectedTimelineTypeForBuilder = signal<string>('*');
 
   private readonly inspectionData = computed(() => {
     return this.inspectionDataStore.inspectionData();
+  });
+
+  protected readonly defaultStartTime = computed(() => {
+    const header = this.inspectionData()?.metadata?.header;
+    return header?.startTimeUnixSeconds != null
+      ? BigInt(header.startTimeUnixSeconds) * 1000000000n
+      : 0n;
+  });
+
+  protected readonly defaultEndTime = computed(() => {
+    const header = this.inspectionData()?.metadata?.header;
+    return header?.endTimeUnixSeconds != null
+      ? BigInt(header.endTimeUnixSeconds) * 1000000000n
+      : 0n;
   });
 
   /** List of unique timeline types located within loaded store elements. */
@@ -239,6 +256,18 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
       const hideNoLogs = this.hideTimelinesWithoutMatchingLogs() ?? true;
       view.backendFilter.updateFilterParams({
         excludeNoLogs: hideNoLogs,
+      });
+    });
+
+    // Synchronize timeRangeFilter to backend filter
+    effect(() => {
+      const view = this.inspectionDataStore.timelineView();
+      if (!view) return;
+
+      const timeRange = this.viewStateService.timeRangeFilter();
+      view.backendFilter.updateFilterParams({
+        filterStartTime: timeRange ? timeRange.startTime : null,
+        filterEndTime: timeRange ? timeRange.endTime : null,
       });
     });
 

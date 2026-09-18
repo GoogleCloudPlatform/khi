@@ -34,6 +34,8 @@ export interface BackendFilterParams {
   readonly timelineExclusionQuery?: string;
   readonly logQuery?: string;
   readonly excludeNoLogs?: boolean;
+  readonly filterStartTime?: bigint | null;
+  readonly filterEndTime?: bigint | null;
 }
 
 /**
@@ -58,6 +60,10 @@ export class BackendFilter implements LogTimelineFilter {
   public readonly logQuery = signal<string>('');
   /** Whether to hide timelines that have no matching logs. */
   public readonly excludeNoLogs = signal<boolean>(false);
+  /** Optional start timestamp of the time range filter in nanoseconds. */
+  public readonly filterStartTime = signal<bigint | null>(null);
+  /** Optional end timestamp of the time range filter in nanoseconds. */
+  public readonly filterEndTime = signal<bigint | null>(null);
 
   private lastCacheKey: string | null = null;
   private lastResultContext: LogTimelineFilterContext | null = null;
@@ -101,6 +107,20 @@ export class BackendFilter implements LogTimelineFilter {
       this.excludeNoLogs.set(params.excludeNoLogs);
       changed = true;
     }
+    if (
+      params.filterStartTime !== undefined &&
+      params.filterStartTime !== this.filterStartTime()
+    ) {
+      this.filterStartTime.set(params.filterStartTime);
+      changed = true;
+    }
+    if (
+      params.filterEndTime !== undefined &&
+      params.filterEndTime !== this.filterEndTime()
+    ) {
+      this.filterEndTime.set(params.filterEndTime);
+      changed = true;
+    }
     if (changed) {
       this._onChanged.next();
     }
@@ -140,7 +160,7 @@ export class BackendFilter implements LogTimelineFilter {
       return context;
     }
 
-    const currentKey = `${this.timelineQuery()}###${this.timelineExclusionQuery()}###${this.logQuery()}###${this.excludeNoLogs()}`;
+    const currentKey = `${this.timelineQuery()}###${this.timelineExclusionQuery()}###${this.logQuery()}###${this.excludeNoLogs()}###${this.filterStartTime() ?? ''}###${this.filterEndTime() ?? ''}`;
     if (this.lastCacheKey === currentKey && this.lastResultContext) {
       return this.lastResultContext;
     }
@@ -156,6 +176,8 @@ export class BackendFilter implements LogTimelineFilter {
           timelineExclusionQuery: this.timelineExclusionQuery(),
           logQuery: this.logQuery(),
           excludeNoLogs: this.excludeNoLogs(),
+          filterStartTime: this.filterStartTime(),
+          filterEndTime: this.filterEndTime(),
         },
         (_stageName, current, total) => {
           onProgress?.(current, total);

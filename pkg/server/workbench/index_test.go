@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func ingestTestPool(wb *Workbench, pool *khifilev6model.InternPool) {
@@ -503,6 +504,152 @@ func TestWorkbench_BuildAsyncIndexesWithProgress(t *testing.T) {
 				if index.TrigramIndex == nil {
 					t.Errorf("index.TrigramIndex is nil, want non-nil")
 				}
+			}
+		})
+	}
+}
+
+func TestWorkbench_BuildBaseSearchIndex_EventTimestampSorting(t *testing.T) {
+	testCases := []struct {
+		name       string
+		setupWB    func() *Workbench
+		wantEvents []cel.EventInfo
+	}{
+		{
+			name: "sorts events by timestamp ascending even when log ids are reversed",
+			setupWB: func() *Workbench {
+				wb := NewWorkbench("wb-test-ts", "insp-test-ts")
+				idGen := id.NewGenerator()
+				pool := khifilev6model.NewTestInternPool(idGen)
+				nameRef := pool.InternString("test-timeline")
+				ingestTestPool(wb, pool)
+
+				// Log chunks with timestamps:
+				// Log 1: Ts = 2000s (later)
+				// Log 2: Ts = 1000s (earlier)
+				wb.logChunks = []*khifilev6.LogChunk{
+					{
+						Logs: []*khifilev6.Log{
+							{
+								Id: proto.Uint32(1),
+								Ts: &timestamppb.Timestamp{Seconds: 2000},
+							},
+							{
+								Id: proto.Uint32(2),
+								Ts: &timestamppb.Timestamp{Seconds: 1000},
+							},
+						},
+					},
+				}
+
+				// Timeline Chunk with events in order: Log 1, then Log 2
+				wb.timelineChunks = []*khifilev6.TimelineChunk{
+					{
+						TimelineItems: []*khifilev6.TimelineItems{
+							{
+								Id: proto.Uint32(100),
+								Events: []*khifilev6.Event{
+									{LogId: proto.Uint32(1)},
+									{LogId: proto.Uint32(2)},
+								},
+							},
+						},
+						Timelines: []*khifilev6.Timeline{
+							{
+								Id:              proto.Uint32(1),
+								NameStringId:    proto.Uint32(nameRef.ToProto().GetId()),
+								TimelineItemsId: proto.Uint32(100),
+							},
+						},
+					},
+				}
+
+				return wb
+			},
+			wantEvents: []cel.EventInfo{
+				{
+					LogID:     2,
+					Timestamp: 1000 * 1_000_000_000,
+				},
+				{
+					LogID:     1,
+					Timestamp: 2000 * 1_000_000_000,
+				},
+			},
+		},
+		{
+			name: "breaks ties by log ID when timestamps are identical",
+			setupWB: func() *Workbench {
+				wb := NewWorkbench("wb-test-ts-tie", "insp-test-ts-tie")
+				idGen := id.NewGenerator()
+				pool := khifilev6model.NewTestInternPool(idGen)
+				nameRef := pool.InternString("test-timeline-tie")
+				ingestTestPool(wb, pool)
+
+				wb.logChunks = []*khifilev6.LogChunk{
+					{
+						Logs: []*khifilev6.Log{
+							{
+								Id: proto.Uint32(1),
+								Ts: &timestamppb.Timestamp{Seconds: 1000},
+							},
+							{
+								Id: proto.Uint32(2),
+								Ts: &timestamppb.Timestamp{Seconds: 1000},
+							},
+						},
+					},
+				}
+
+				wb.timelineChunks = []*khifilev6.TimelineChunk{
+					{
+						TimelineItems: []*khifilev6.TimelineItems{
+							{
+								Id: proto.Uint32(100),
+								Events: []*khifilev6.Event{
+									{LogId: proto.Uint32(2)},
+									{LogId: proto.Uint32(1)},
+								},
+							},
+						},
+						Timelines: []*khifilev6.Timeline{
+							{
+								Id:              proto.Uint32(1),
+								NameStringId:    proto.Uint32(nameRef.ToProto().GetId()),
+								TimelineItemsId: proto.Uint32(100),
+							},
+						},
+					},
+				}
+
+				return wb
+			},
+			wantEvents: []cel.EventInfo{
+				{
+					LogID:     1,
+					Timestamp: 1000 * 1_000_000_000,
+				},
+				{
+					LogID:     2,
+					Timestamp: 1000 * 1_000_000_000,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			wb := tc.setupWB()
+			idx, err := wb.BuildBaseSearchIndex()
+			if err != nil {
+				t.Fatalf("BuildBaseSearchIndex() error = %v", err)
+			}
+			tl := idx.TimelineMap[1]
+			if tl == nil {
+				t.Fatal("timeline 1 not found in index")
+			}
+			if diff := cmp.Diff(tc.wantEvents, tl.Events); diff != "" {
+				t.Errorf("Timeline.Events mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

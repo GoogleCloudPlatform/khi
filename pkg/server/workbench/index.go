@@ -273,8 +273,13 @@ func (w *Workbench) indexLogsParallel(styles *styleMaps) ([]cel.LogData, error) 
 			var localLogs []cel.LogData
 			for _, logChunk := range chunk {
 				for _, log := range logChunk.Logs {
+					var ts int64
+					if log.GetTs() != nil {
+						ts = log.GetTs().AsTime().UnixNano()
+					}
 					localLogs = append(localLogs, cel.LogData{
 						ID:              log.GetId(),
+						Timestamp:       ts,
 						LogTypeID:       log.GetLogTypeId(),
 						SeverityTypeID:  log.GetSeverityTypeId(),
 						SummaryStringID: log.GetSummaryStringId(),
@@ -328,6 +333,12 @@ func (w *Workbench) indexTimelinesParallel(
 		}
 		return 0
 	}
+	getLogTimestamp := func(logID uint32) int64 {
+		if logID > 0 && int(logID) <= len(logs) {
+			return logs[logID-1].Timestamp
+		}
+		return 0
+	}
 
 	workerResults, err := worker.ParallelChunkMap(
 		context.Background(),
@@ -359,11 +370,15 @@ func (w *Workbench) indexTimelinesParallel(
 								severityMask |= (1 << sev)
 							}
 							events = append(events, cel.EventInfo{
-								LogID:    logID,
-								Severity: sev,
+								LogID:     logID,
+								Timestamp: getLogTimestamp(logID),
+								Severity:  sev,
 							})
 						}
-						slices.SortStableFunc(events, func(a, b cel.EventInfo) int {
+						slices.SortFunc(events, func(a, b cel.EventInfo) int {
+							if c := cmp.Compare(a.Timestamp, b.Timestamp); c != 0 {
+								return c
+							}
 							return cmp.Compare(a.LogID, b.LogID)
 						})
 					}
@@ -392,8 +407,11 @@ func (w *Workbench) indexTimelinesParallel(
 								Severity:             sev,
 							})
 						}
-						slices.SortStableFunc(revisions, func(a, b cel.RevisionInfo) int {
-							return cmp.Compare(a.ChangedTime, b.ChangedTime)
+						slices.SortFunc(revisions, func(a, b cel.RevisionInfo) int {
+							if c := cmp.Compare(a.ChangedTime, b.ChangedTime); c != 0 {
+								return c
+							}
+							return cmp.Compare(a.LogID, b.LogID)
 						})
 					}
 				}
