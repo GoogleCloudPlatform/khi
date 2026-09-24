@@ -48,11 +48,19 @@ func discoverGKEResourceAssetNames(
 	cluster k8scommon.GoogleCloudClusterIdentity,
 ) ([]string, error) {
 	scope := fmt.Sprintf("projects/%s", cluster.ProjectID)
-	progress.ReportIndeterminate(ctx, "Searching GKE cluster in Cloud Asset Inventory...")
+	progress.Report(ctx, 0, "[1/2] Searching GKE cluster in Cloud Asset Inventory... (0 resources scanned)")
 
 	candidates := clusterAssetNameCandidates(cluster)
 	clusterQuery := fmt.Sprintf("name=%q OR name=%q", candidates[0], candidates[1])
-	clusterSearchResults, err := fetcher.SearchResources(ctx, scope, clusterQuery, []string{caik8s.GKEClusterAssetType})
+	clusterSearchResults, err := fetcher.SearchResources(
+		ctx,
+		scope,
+		clusterQuery,
+		[]string{caik8s.GKEClusterAssetType},
+		func(scannedInQuery int) {
+			progress.Report(ctx, 0, fmt.Sprintf("[1/2] Searching GKE cluster in Cloud Asset Inventory... (%d resources scanned)", scannedInQuery))
+		},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search GKE cluster from CAI: %w", err)
 	}
@@ -61,13 +69,22 @@ func discoverGKEResourceAssetNames(
 	}
 
 	clusterAssetName := clusterSearchResults[0].Name
-	progress.ReportIndeterminate(ctx, "Searching GKE nodepools in Cloud Asset Inventory...")
+	progress.Report(ctx, 0.5, fmt.Sprintf("[2/2] Searching GKE nodepools in Cloud Asset Inventory... (%d resources scanned)", len(clusterSearchResults)))
 
 	nodePoolQuery := fmt.Sprintf("parentFullResourceName=%q", clusterAssetName)
-	nodePoolSearchResults, err := fetcher.SearchResources(ctx, scope, nodePoolQuery, []string{caik8s.GKENodePoolAssetType})
+	nodePoolSearchResults, err := fetcher.SearchResources(
+		ctx,
+		scope,
+		nodePoolQuery,
+		[]string{caik8s.GKENodePoolAssetType},
+		func(scannedInQuery int) {
+			progress.Report(ctx, 0.5, fmt.Sprintf("[2/2] Searching GKE nodepools in Cloud Asset Inventory... (%d resources scanned)", len(clusterSearchResults)+scannedInQuery))
+		},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search GKE nodepools from CAI: %w", err)
 	}
+	progress.Report(ctx, 1.0, fmt.Sprintf("[2/2] Searching GKE nodepools in Cloud Asset Inventory... (%d resources scanned)", len(clusterSearchResults)+len(nodePoolSearchResults)))
 
 	assetNames := make([]string, 0, 1+len(nodePoolSearchResults))
 	assetNames = append(assetNames, clusterAssetName)

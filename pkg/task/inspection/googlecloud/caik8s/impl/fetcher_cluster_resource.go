@@ -22,7 +22,6 @@ import (
 
 	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
@@ -143,17 +142,32 @@ func filterSearchResultsByAssetType(searchResults []*assetpb.ResourceSearchResul
 // discoverClusterResourceAssetNames runs the two-phase CAI search (cluster-parented then namespace-parented)
 // and returns the matching full resource names.
 func discoverClusterResourceAssetNames(ctx context.Context, fetcher gcpcommon.CAIFetcher, target clusterResourceDiscoveryTarget) ([]string, error) {
-	progress.ReportIndeterminate(ctx, "Searching cluster-scoped resources in Cloud Asset Inventory...")
-
-	clusterParentedResults, err := gcpcommon.SearchCAIAssetsByParents(ctx, fetcher, target.scope, assetTypesWithNamespace(target.assetTypes), target.clusterAssetNameCandidates)
+	clusterParentedResults, err := gcpcommon.SearchCAIAssetsByParents(
+		ctx,
+		fetcher,
+		target.scope,
+		assetTypesWithNamespace(target.assetTypes),
+		target.clusterAssetNameCandidates,
+		gcpcommon.CAIParentSearchProgressConfig{
+			Label: "Searching cluster-scoped resources in Cloud Asset Inventory",
+		},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search cluster parented resources from CAI: %w", err)
 	}
 
 	namespaceParents := targetNamespaceParents(clusterParentedResults, target.namespaceFilter)
-	progress.ReportIndeterminate(ctx, fmt.Sprintf("Searching namespaced resources in Cloud Asset Inventory (%d namespaces)...", len(namespaceParents)))
-
-	namespaceParentedResults, err := gcpcommon.SearchCAIAssetsByParents(ctx, fetcher, target.scope, target.assetTypes, namespaceParents)
+	namespaceParentedResults, err := gcpcommon.SearchCAIAssetsByParents(
+		ctx,
+		fetcher,
+		target.scope,
+		target.assetTypes,
+		namespaceParents,
+		gcpcommon.CAIParentSearchProgressConfig{
+			Label:      "Searching namespaced resources in Cloud Asset Inventory",
+			ParentUnit: "namespaces",
+		},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search namespace parented resources from CAI: %w", err)
 	}

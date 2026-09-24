@@ -23,6 +23,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -213,13 +214,17 @@ func newCAIRawLogTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.T
 			snapshots := coretask.GetTaskResult(ctx, cfg.TaskIDs.Fetcher.Ref())
 			idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
 
-			logs := make([]*log.Log, 0, len(snapshots))
-			for _, s := range snapshots {
+			logs := make([]*log.Log, len(snapshots))
+			err := progress.ForEach(ctx, snapshots, func(i int, s *CAIAssetSnapshot) error {
 				l, err := SnapshotToCAIRawLog(idGen, s, cfg.PreprocessRawMap)
 				if err != nil {
-					return nil, err
+					return err
 				}
-				logs = append(logs, l)
+				logs[i] = l
+				return nil
+			}, progress.WithUnit("snapshots"))
+			if err != nil {
+				return nil, err
 			}
 			return logs, nil
 		},
@@ -381,6 +386,7 @@ func parseActiveAssetState[Identity any](
 // ExtractCAIActiveAssetStates filters CAI snapshot logs to those active at queryStartTime,
 // deduplicating by identityKey so that the most recently observed active snapshot wins.
 func ExtractCAIActiveAssetStates[Identity any](
+	ctx context.Context,
 	logs []*log.Log,
 	queryStartTime time.Time,
 	extractIdentity func(reader *structured.NodeReader) (Identity, bool),
@@ -390,24 +396,25 @@ func ExtractCAIActiveAssetStates[Identity any](
 	var results []CAIActiveAssetState[Identity]
 	indexByKey := make(map[string]int)
 
-	for _, l := range logs {
+	_ = progress.ForEach(ctx, logs, func(_ int, l *log.Log) error {
 		state, ok := parseActiveAssetState(l, queryStartTime, extractIdentity, extractBody)
 		if !ok {
-			continue
+			return nil
 		}
 
 		key := identityKey(state.Identity)
 		if idx, found := indexByKey[key]; found {
 			if results[idx].ObservedTime.After(state.ObservedTime) {
-				continue
+				return nil
 			}
 			results[idx] = state
-			continue
+			return nil
 		}
 
 		indexByKey[key] = len(results)
 		results = append(results, state)
-	}
+		return nil
+	}, progress.WithUnit("logs"))
 
 	return results
 }
@@ -434,7 +441,7 @@ func NewCAIInitialResourceStateProviderTask[Identity any, Provider any](
 			}
 			logs := coretask.GetTaskResult(ctx, suiteTaskIDs.RawLog.Ref())
 			queryStartTime := coretask.GetTaskResult(ctx, InputStartTimeTaskID.Ref())
-			states := ExtractCAIActiveAssetStates(logs, queryStartTime, extractIdentity, identityKey, extractBody)
+			states := ExtractCAIActiveAssetStates(ctx, logs, queryStartTime, extractIdentity, identityKey, extractBody)
 			return buildProvider(states), nil
 		},
 		coretask.WithSelectionPriority(1000),

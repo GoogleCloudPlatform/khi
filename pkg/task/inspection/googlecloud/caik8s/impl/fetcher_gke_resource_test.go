@@ -178,6 +178,41 @@ func TestDiscoverGKEResourceAssetNames(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("reports determinate 2-step progress when finding cluster and nodepools", func(t *testing.T) {
+		fetcher := &mockCAIFetcher{
+			searchResultsPerCall: [][]*assetpb.ResourceSearchResult{
+				{
+					{Name: matchedClusterName, AssetType: caik8s.GKEClusterAssetType},
+				},
+				{
+					{Name: nodePoolName, AssetType: caik8s.GKENodePoolAssetType},
+				},
+			},
+		}
+		progressMeta := inspectionmetadata.NewTaskProgressMetadata("test-task")
+		ctx := progress.WithContext(t.Context(), progressMeta)
+
+		assetNames, err := discoverGKEResourceAssetNames(ctx, fetcher, cluster)
+		if err != nil {
+			t.Fatalf("discoverGKEResourceAssetNames() error = %v", err)
+		}
+		if len(assetNames) != 2 {
+			t.Errorf("len(assetNames) = %d, want 2", len(assetNames))
+		}
+
+		snap := progressMeta.Snapshot()
+		if snap.Ratio != 1.0 {
+			t.Errorf("progressMeta.Ratio = %f, want 1.0", snap.Ratio)
+		}
+		if snap.Indeterminate {
+			t.Errorf("progressMeta.Indeterminate = true, want false")
+		}
+		wantMsg := "[2/2] Searching GKE nodepools in Cloud Asset Inventory... (2 resources scanned)"
+		if snap.Message != wantMsg {
+			t.Errorf("progressMeta.Message = %q, want %q", snap.Message, wantMsg)
+		}
+	})
 }
 
 func TestGKEResourceSuite_FetcherTask(t *testing.T) {

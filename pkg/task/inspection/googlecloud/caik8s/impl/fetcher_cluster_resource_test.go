@@ -160,7 +160,7 @@ type recordedSearchCall struct {
 
 var _ gcpcommon.CAIFetcher = (*mockCAIFetcher)(nil)
 
-func (m *mockCAIFetcher) SearchResources(ctx context.Context, scope, query string, assetTypes []string) ([]*assetpb.ResourceSearchResult, error) {
+func (m *mockCAIFetcher) SearchResources(ctx context.Context, scope, query string, assetTypes []string, onProgress gcpcommon.CAISearchProgressCallback) ([]*assetpb.ResourceSearchResult, error) {
 	callIndex := len(m.searchCalls)
 	m.searchCalls = append(m.searchCalls, recordedSearchCall{scope: scope, query: query, assetTypes: assetTypes})
 	if callIndex < len(m.searchErrPerCall) && m.searchErrPerCall[callIndex] != nil {
@@ -172,7 +172,13 @@ func (m *mockCAIFetcher) SearchResources(ctx context.Context, scope, query strin
 	if callIndex >= len(m.searchResultsPerCall) {
 		return nil, nil
 	}
-	return m.searchResultsPerCall[callIndex], nil
+	results := m.searchResultsPerCall[callIndex]
+	for i := range results {
+		if onProgress != nil {
+			onProgress(i + 1)
+		}
+	}
+	return results, nil
 }
 
 // recordedSearchQueries returns the queries of the recorded SearchResources calls in call order.
