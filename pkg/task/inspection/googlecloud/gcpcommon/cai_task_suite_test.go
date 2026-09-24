@@ -193,7 +193,7 @@ func TestExtractCAIActiveAssetStates(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			states := ExtractCAIActiveAssetStates(tc.logs, queryStartTime, extractIdentity, identityKey, extractBody)
+			states := ExtractCAIActiveAssetStates(t.Context(), tc.logs, queryStartTime, extractIdentity, identityKey, extractBody)
 			if len(states) != tc.wantCount {
 				t.Fatalf("ExtractCAIActiveAssetStates() count = %d, want %d", len(states), tc.wantCount)
 			}

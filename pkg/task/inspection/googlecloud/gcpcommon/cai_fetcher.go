@@ -42,10 +42,15 @@ const (
 	MaxCAISearchQueryCharacters = 2048
 )
 
+// CAISearchProgressCallback is invoked each time a resource is scanned during a CAI search.
+// scannedInQuery is the cumulative count of resources scanned so far within the current SearchResources call.
+type CAISearchProgressCallback func(scannedInQuery int)
+
 // CAIFetcher defines operations to query Google Cloud Asset Inventory.
 type CAIFetcher interface {
 	// SearchResources searches for assets under the given scope matching query and asset types.
-	SearchResources(ctx context.Context, scope, query string, assetTypes []string) ([]*assetpb.ResourceSearchResult, error)
+	// If onProgress is non-nil, it is invoked each time a resource is yielded from the CAI iterator.
+	SearchResources(ctx context.Context, scope, query string, assetTypes []string, onProgress CAISearchProgressCallback) ([]*assetpb.ResourceSearchResult, error)
 
 	// BatchGetAssetsHistory retrieves historical temporal snapshots for specified asset names.
 	// Implementations automatically chunk assetNames exceeding Cloud Asset Inventory limits (max 100 per request).
@@ -71,7 +76,7 @@ func NewCAIFetcher(factory *googlecloud.ClientFactory, callOptionInjector *googl
 }
 
 // SearchResources searches for assets under the given scope matching query and asset types.
-func (f *caiFetcher) SearchResources(ctx context.Context, scope, query string, assetTypes []string) ([]*assetpb.ResourceSearchResult, error) {
+func (f *caiFetcher) SearchResources(ctx context.Context, scope, query string, assetTypes []string, onProgress CAISearchProgressCallback) ([]*assetpb.ResourceSearchResult, error) {
 	container := f.resourceContainer()
 	callCtx := ctx
 	if f.callOptionInjector != nil {
@@ -102,6 +107,9 @@ func (f *caiFetcher) SearchResources(ctx context.Context, scope, query string, a
 			return nil, fmt.Errorf("error iterating search resources: %w", err)
 		}
 		results = append(results, res)
+		if onProgress != nil {
+			onProgress(len(results))
+		}
 	}
 	return results, nil
 }
@@ -124,18 +132,19 @@ func (f *caiFetcher) BatchGetAssetsHistory(ctx context.Context, parent string, a
 	}
 
 	var allAssets []*assetpb.TemporalAsset
-	totalChunks := (len(assetNames) + MaxCAIBatchHistorySize - 1) / MaxCAIBatchHistorySize
-	tracker := progress.NewTracker(ctx, totalChunks, progress.WithUnit("chunks"))
-	defer tracker.Done()
+	totalAssets := len(assetNames)
+	startTime := time.Now()
+	progress.Report(ctx, 0, formatAssetHistoryProgress(0, totalAssets, 0, 0))
 
-	for i := 0; i < len(assetNames); i += MaxCAIBatchHistorySize {
-		end := min(i+MaxCAIBatchHistorySize, len(assetNames))
+	for i := 0; i < totalAssets; i += MaxCAIBatchHistorySize {
+		end := min(i+MaxCAIBatchHistorySize, totalAssets)
 		assets, err := f.fetchAssetHistoryChunk(callCtx, client, parent, assetNames[i:end], contentType, timeWindow)
 		if err != nil {
 			return nil, err
 		}
 		allAssets = append(allAssets, assets...)
-		tracker.Add(1)
+		ratio := float32(end) / float32(totalAssets)
+		progress.Report(ctx, ratio, formatAssetHistoryProgress(end, totalAssets, len(allAssets), time.Since(startTime)))
 	}
 	return allAssets, nil
 }
@@ -179,10 +188,16 @@ func (f *caiFetcher) resourceContainer() googlecloud.ResourceContainer {
 	return googlecloud.Project(f.defaultProjectID)
 }
 
+// CAIParentSearchQuery represents a single CAI search query expression and the number of parent resources it covers.
+type CAIParentSearchQuery struct {
+	Query       string
+	ParentCount int
+}
+
 // BuildCAIParentSearchQueries builds the CAI search expressions matching assets whose parent is
 // exactly one of the given full resource names, splitting them to stay within the CAI query limits.
-func BuildCAIParentSearchQueries(parentAssetNames []string) []string {
-	var queries []string
+func BuildCAIParentSearchQueries(parentAssetNames []string) []CAIParentSearchQuery {
+	var queries []CAIParentSearchQuery
 	var comparisons []string
 	characterCount := 0
 	for _, parent := range parentAssetNames {
@@ -192,7 +207,10 @@ func BuildCAIParentSearchQueries(parentAssetNames []string) []string {
 			addedCharacters += len(" OR ")
 		}
 		if len(comparisons) > 0 && (len(comparisons) == MaxCAISearchQueryComparisons || characterCount+addedCharacters > MaxCAISearchQueryCharacters) {
-			queries = append(queries, strings.Join(comparisons, " OR "))
+			queries = append(queries, CAIParentSearchQuery{
+				Query:       strings.Join(comparisons, " OR "),
+				ParentCount: len(comparisons),
+			})
 			comparisons = nil
 			characterCount = 0
 			addedCharacters = len(comparison)
@@ -201,24 +219,114 @@ func BuildCAIParentSearchQueries(parentAssetNames []string) []string {
 		characterCount += addedCharacters
 	}
 	if len(comparisons) > 0 {
-		queries = append(queries, strings.Join(comparisons, " OR "))
+		queries = append(queries, CAIParentSearchQuery{
+			Query:       strings.Join(comparisons, " OR "),
+			ParentCount: len(comparisons),
+		})
 	}
 	return queries
 }
 
+// CAIParentSearchProgressConfig configures progress reporting for SearchCAIAssetsByParents.
+type CAIParentSearchProgressConfig struct {
+	// Label is the human-readable description of the search phase.
+	Label string
+	// ParentUnit is the unit label for parentAssetNames when reporting determinate progress (e.g., "namespaces").
+	// When empty, progress is reported as indeterminate with a live scanned resource counter.
+	ParentUnit string
+}
+
 // SearchCAIAssetsByParents builds parent search queries for the given parent full resource names
 // and runs one CAI search per query, returning the concatenated results.
-func SearchCAIAssetsByParents(ctx context.Context, fetcher CAIFetcher, scope string, assetTypes []string, parentAssetNames []string) ([]*assetpb.ResourceSearchResult, error) {
+func SearchCAIAssetsByParents(
+	ctx context.Context,
+	fetcher CAIFetcher,
+	scope string,
+	assetTypes []string,
+	parentAssetNames []string,
+	progressCfg CAIParentSearchProgressConfig,
+) ([]*assetpb.ResourceSearchResult, error) {
+	if len(parentAssetNames) == 0 {
+		return nil, nil
+	}
 	queries := BuildCAIParentSearchQueries(parentAssetNames)
+	totalParents := len(parentAssetNames)
+	completedParents := 0
+	startTime := time.Now()
+
+	reportSearchProgress := func(scannedCount int) {
+		if progressCfg.Label == "" {
+			return
+		}
+		elapsed := time.Since(startTime)
+		if progressCfg.ParentUnit != "" && totalParents > 0 {
+			ratio := float32(completedParents) / float32(totalParents)
+			progress.Report(ctx, ratio, formatDeterminateParentSearchProgress(
+				progressCfg.Label,
+				completedParents,
+				totalParents,
+				progressCfg.ParentUnit,
+				scannedCount,
+				elapsed,
+			))
+			return
+		}
+		progress.ReportIndeterminate(ctx, formatIndeterminateSearchProgress(progressCfg.Label, scannedCount, elapsed))
+	}
+
+	reportSearchProgress(0)
+
 	var results []*assetpb.ResourceSearchResult
-	for _, query := range queries {
-		searchResults, err := fetcher.SearchResources(ctx, scope, query, assetTypes)
+	for _, q := range queries {
+		baseCount := len(results)
+		searchResults, err := fetcher.SearchResources(ctx, scope, q.Query, assetTypes, func(scannedInQuery int) {
+			reportSearchProgress(baseCount + scannedInQuery)
+		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to search assets with query %q: %w", query, err)
+			return nil, fmt.Errorf("failed to search assets with query %q: %w", q.Query, err)
 		}
 		results = append(results, searchResults...)
+		completedParents += q.ParentCount
+		reportSearchProgress(len(results))
 	}
 	return results, nil
+}
+
+// formatIndeterminateSearchProgress formats progress message for an indeterminate search phase.
+func formatIndeterminateSearchProgress(label string, scannedCount int, elapsed time.Duration) string {
+	if elapsed >= time.Second && scannedCount > 0 {
+		rate := float64(scannedCount) / elapsed.Seconds()
+		return fmt.Sprintf("%s... (%d resources scanned, %.1f resources/s)", label, scannedCount, rate)
+	}
+	return fmt.Sprintf("%s... (%d resources scanned)", label, scannedCount)
+}
+
+// formatDeterminateParentSearchProgress formats progress message for a parent search phase with known total parents.
+func formatDeterminateParentSearchProgress(label string, completedParents, totalParents int, parentUnit string, scannedCount int, elapsed time.Duration) string {
+	base := fmt.Sprintf("%s: %d/%d %s, %d resources scanned", label, completedParents, totalParents, parentUnit, scannedCount)
+	if elapsed >= time.Second && scannedCount > 0 {
+		rate := float64(scannedCount) / elapsed.Seconds()
+		return fmt.Sprintf("%s (%.1f resources/s)", base, rate)
+	}
+	return base
+}
+
+// formatAssetHistoryProgress formats progress message for BatchGetAssetsHistory chunk processing.
+func formatAssetHistoryProgress(completedAssets, totalAssets, snapshotCount int, elapsed time.Duration) string {
+	base := fmt.Sprintf("Fetching asset history: %d/%d assets, %d snapshots", completedAssets, totalAssets, snapshotCount)
+	if elapsed >= time.Second && completedAssets > 0 {
+		rate := float64(completedAssets) / elapsed.Seconds()
+		var ratio float32
+		if totalAssets > 0 {
+			ratio = float32(completedAssets) / float32(totalAssets)
+		}
+		if ratio > 0.005 && ratio < 1.0 {
+			eta := time.Duration(elapsed.Seconds() * float64(1.0-ratio) / float64(ratio) * float64(time.Second)).Round(time.Second)
+			return fmt.Sprintf("%s (%.1f assets/s, ETA %s)", base, rate, eta)
+		}
+		return fmt.Sprintf("%s (%.1f assets/s)", base, rate)
+	}
+	return base
 }
 
 // ConvertTemporalAssetsToCAISnapshots converts a slice of TemporalAsset into sorted CAIAssetSnapshot entries.

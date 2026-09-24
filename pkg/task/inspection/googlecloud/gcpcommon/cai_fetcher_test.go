@@ -256,6 +256,12 @@ func TestCAIFetcher_BatchGetAssetsHistory_Chunking(t *testing.T) {
 			if gotRatio != wantProgressRatio {
 				t.Errorf("progress ratio = %v, want %v", gotRatio, wantProgressRatio)
 			}
+			if tc.wantRequestsCount > 0 {
+				wantMsg := fmt.Sprintf("Fetching asset history: %d/%d assets, %d snapshots", tc.assetCount, tc.assetCount, tc.assetCount)
+				if !strings.Contains(tp.Snapshot().Message, wantMsg) {
+					t.Errorf("progress message %q does not contain %q", tp.Snapshot().Message, wantMsg)
+				}
+			}
 		})
 	}
 }
@@ -371,7 +377,7 @@ func TestCAIFetcher_ContextCancellation(t *testing.T) {
 				ctx, cancel := context.WithCancel(t.Context())
 				cancel()
 
-				_, err := fetcher.SearchResources(ctx, "projects/test-project", "name:*", []string{"k8s.io/Pod"})
+				_, err := fetcher.SearchResources(ctx, "projects/test-project", "name:*", []string{"k8s.io/Pod"}, nil)
 				if !errors.Is(err, context.Canceled) {
 					t.Errorf("expected context.Canceled error, got: %v", err)
 				}
@@ -416,13 +422,20 @@ func TestCAIFetcher_SearchResources(t *testing.T) {
 			factory := setupMockCAIServer(t, mockServer)
 			fetcher := NewCAIFetcher(factory, googlecloud.NewCallOptionInjector(), "test-project")
 
-			results, err := fetcher.SearchResources(t.Context(), tc.scope, tc.query, tc.assetTypes)
+			var gotProgress []int
+			results, err := fetcher.SearchResources(t.Context(), tc.scope, tc.query, tc.assetTypes, func(scannedInQuery int) {
+				gotProgress = append(gotProgress, scannedInQuery)
+			})
 			if err != nil {
 				t.Fatalf("SearchResources() unexpected error: %v", err)
 			}
 
 			if len(results) != tc.wantCount {
 				t.Errorf("SearchResources() result count = %d, want %d", len(results), tc.wantCount)
+			}
+			wantProgress := []int{1, 2}
+			if diff := cmp.Diff(wantProgress, gotProgress); diff != "" {
+				t.Errorf("onProgress calls mismatch (-want +got):\n%s", diff)
 			}
 			gotSearchRequests := mockServer.recordedSearchRequests()
 			if len(gotSearchRequests) != 1 {
@@ -455,7 +468,7 @@ func TestCAIFetcher_Errors(t *testing.T) {
 				m.searchErr = status.Error(codes.PermissionDenied, "permission denied")
 			},
 			call: func(fetcher CAIFetcher) error {
-				_, err := fetcher.SearchResources(t.Context(), "projects/test-project", "name:*", []string{"k8s.io/Pod"})
+				_, err := fetcher.SearchResources(t.Context(), "projects/test-project", "name:*", []string{"k8s.io/Pod"}, nil)
 				return err
 			},
 			wantCode: codes.PermissionDenied,
@@ -499,7 +512,7 @@ func TestBuildCAIParentSearchQueries(t *testing.T) {
 	testCases := []struct {
 		name             string
 		parentAssetNames []string
-		wantQueries      []string
+		wantQueries      []CAIParentSearchQuery
 	}{
 		{
 			name:             "empty parents returns empty queries",
@@ -512,8 +525,11 @@ func TestBuildCAIParentSearchQueries(t *testing.T) {
 				"//container.googleapis.com/projects/p/locations/l/clusters/c/k8s/namespaces/ns1",
 				"//container.googleapis.com/projects/p/locations/l/clusters/c/k8s/namespaces/ns2",
 			},
-			wantQueries: []string{
-				`parentFullResourceName="//container.googleapis.com/projects/p/locations/l/clusters/c/k8s/namespaces/ns1" OR parentFullResourceName="//container.googleapis.com/projects/p/locations/l/clusters/c/k8s/namespaces/ns2"`,
+			wantQueries: []CAIParentSearchQuery{
+				{
+					Query:       `parentFullResourceName="//container.googleapis.com/projects/p/locations/l/clusters/c/k8s/namespaces/ns1" OR parentFullResourceName="//container.googleapis.com/projects/p/locations/l/clusters/c/k8s/namespaces/ns2"`,
+					ParentCount: 2,
+				},
 			},
 		},
 		{
@@ -525,14 +541,20 @@ func TestBuildCAIParentSearchQueries(t *testing.T) {
 				}
 				return p
 			}(),
-			wantQueries: func() []string {
+			wantQueries: func() []CAIParentSearchQuery {
 				var q1 []string
 				for i := 0; i < 10; i++ {
 					q1 = append(q1, fmt.Sprintf(`parentFullResourceName="parent-%d"`, i))
 				}
-				return []string{
-					strings.Join(q1, " OR "),
-					`parentFullResourceName="parent-10"`,
+				return []CAIParentSearchQuery{
+					{
+						Query:       strings.Join(q1, " OR "),
+						ParentCount: 10,
+					},
+					{
+						Query:       `parentFullResourceName="parent-10"`,
+						ParentCount: 1,
+					},
 				}
 			}(),
 		},
@@ -543,9 +565,15 @@ func TestBuildCAIParentSearchQueries(t *testing.T) {
 				strings.Repeat("b", 800),
 				strings.Repeat("c", 800),
 			},
-			wantQueries: []string{
-				fmt.Sprintf(`parentFullResourceName=%q OR parentFullResourceName=%q`, strings.Repeat("a", 800), strings.Repeat("b", 800)),
-				fmt.Sprintf(`parentFullResourceName=%q`, strings.Repeat("c", 800)),
+			wantQueries: []CAIParentSearchQuery{
+				{
+					Query:       fmt.Sprintf(`parentFullResourceName=%q OR parentFullResourceName=%q`, strings.Repeat("a", 800), strings.Repeat("b", 800)),
+					ParentCount: 2,
+				},
+				{
+					Query:       fmt.Sprintf(`parentFullResourceName=%q`, strings.Repeat("c", 800)),
+					ParentCount: 1,
+				},
 			},
 		},
 		{
@@ -555,10 +583,19 @@ func TestBuildCAIParentSearchQueries(t *testing.T) {
 				strings.Repeat("b", 2200),
 				strings.Repeat("c", 100),
 			},
-			wantQueries: []string{
-				fmt.Sprintf(`parentFullResourceName=%q`, strings.Repeat("a", 100)),
-				fmt.Sprintf(`parentFullResourceName=%q`, strings.Repeat("b", 2200)),
-				fmt.Sprintf(`parentFullResourceName=%q`, strings.Repeat("c", 100)),
+			wantQueries: []CAIParentSearchQuery{
+				{
+					Query:       fmt.Sprintf(`parentFullResourceName=%q`, strings.Repeat("a", 100)),
+					ParentCount: 1,
+				},
+				{
+					Query:       fmt.Sprintf(`parentFullResourceName=%q`, strings.Repeat("b", 2200)),
+					ParentCount: 1,
+				},
+				{
+					Query:       fmt.Sprintf(`parentFullResourceName=%q`, strings.Repeat("c", 100)),
+					ParentCount: 1,
+				},
 			},
 		},
 	}
@@ -619,12 +656,18 @@ type stubCAIFetcher struct {
 
 var _ CAIFetcher = (*stubCAIFetcher)(nil)
 
-func (s *stubCAIFetcher) SearchResources(_ context.Context, _ string, query string, _ []string) ([]*assetpb.ResourceSearchResult, error) {
+func (s *stubCAIFetcher) SearchResources(_ context.Context, _ string, query string, _ []string, onProgress CAISearchProgressCallback) ([]*assetpb.ResourceSearchResult, error) {
 	s.gotQueries = append(s.gotQueries, query)
 	if s.searchErr != nil {
 		return nil, s.searchErr
 	}
-	return s.searchResults[query], nil
+	results := s.searchResults[query]
+	for i := range results {
+		if onProgress != nil {
+			onProgress(i + 1)
+		}
+	}
+	return results, nil
 }
 
 func (s *stubCAIFetcher) BatchGetAssetsHistory(ctx context.Context, _ string, assetNames []string, _ assetpb.ContentType, _ *assetpb.TimeWindow) ([]*assetpb.TemporalAsset, error) {
@@ -644,16 +687,23 @@ func (s *stubCAIFetcher) BatchGetAssetsHistory(ctx context.Context, _ string, as
 
 func TestSearchCAIAssetsByParents(t *testing.T) {
 	testCases := []struct {
-		name             string
-		parentAssetNames []string
-		fetcher          *stubCAIFetcher
-		wantQueries      []string
-		wantNames        []string
-		wantErr          bool
+		name              string
+		parentAssetNames  []string
+		progressCfg       CAIParentSearchProgressConfig
+		fetcher           *stubCAIFetcher
+		wantQueries       []string
+		wantNames         []string
+		wantIndeterminate bool
+		wantRatio         float32
+		wantMessageSubstr string
+		wantErr           bool
 	}{
 		{
-			name:             "searches multiple queries built from parents and concatenates results",
+			name:             "indeterminate progress reporting when parent unit is empty",
 			parentAssetNames: []string{"parent-a", "parent-b"},
+			progressCfg: CAIParentSearchProgressConfig{
+				Label: "Searching cluster resources",
+			},
 			fetcher: &stubCAIFetcher{
 				searchResults: map[string][]*assetpb.ResourceSearchResult{
 					`parentFullResourceName="parent-a" OR parentFullResourceName="parent-b"`: {
@@ -662,12 +712,39 @@ func TestSearchCAIAssetsByParents(t *testing.T) {
 					},
 				},
 			},
-			wantQueries: []string{`parentFullResourceName="parent-a" OR parentFullResourceName="parent-b"`},
-			wantNames:   []string{"asset-1", "asset-2"},
+			wantQueries:       []string{`parentFullResourceName="parent-a" OR parentFullResourceName="parent-b"`},
+			wantNames:         []string{"asset-1", "asset-2"},
+			wantIndeterminate: true,
+			wantRatio:         0,
+			wantMessageSubstr: "Searching cluster resources... (2 resources scanned)",
+		},
+		{
+			name:             "determinate progress reporting when parent unit is specified",
+			parentAssetNames: []string{"parent-a", "parent-b"},
+			progressCfg: CAIParentSearchProgressConfig{
+				Label:      "Searching namespaced resources",
+				ParentUnit: "namespaces",
+			},
+			fetcher: &stubCAIFetcher{
+				searchResults: map[string][]*assetpb.ResourceSearchResult{
+					`parentFullResourceName="parent-a" OR parentFullResourceName="parent-b"`: {
+						{Name: "asset-1"},
+						{Name: "asset-2"},
+					},
+				},
+			},
+			wantQueries:       []string{`parentFullResourceName="parent-a" OR parentFullResourceName="parent-b"`},
+			wantNames:         []string{"asset-1", "asset-2"},
+			wantIndeterminate: false,
+			wantRatio:         1.0,
+			wantMessageSubstr: "Searching namespaced resources: 2/2 namespaces, 2 resources scanned",
 		},
 		{
 			name:             "returns error when search fails",
 			parentAssetNames: []string{"parent-a"},
+			progressCfg: CAIParentSearchProgressConfig{
+				Label: "Searching cluster resources",
+			},
 			fetcher: &stubCAIFetcher{
 				searchErr: fmt.Errorf("search failed"),
 			},
@@ -678,7 +755,9 @@ func TestSearchCAIAssetsByParents(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			results, err := SearchCAIAssetsByParents(t.Context(), tc.fetcher, "projects/p", []string{"k8s.io/Pod"}, tc.parentAssetNames)
+			progressMeta := inspectionmetadata.NewTaskProgressMetadata("test-task")
+			ctx := progress.WithContext(t.Context(), progressMeta)
+			results, err := SearchCAIAssetsByParents(ctx, tc.fetcher, "projects/p", []string{"k8s.io/Pod"}, tc.parentAssetNames, tc.progressCfg)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("SearchCAIAssetsByParents() error = %v, wantErr %v", err, tc.wantErr)
 			}
@@ -692,6 +771,16 @@ func TestSearchCAIAssetsByParents(t *testing.T) {
 				}
 				if diff := cmp.Diff(tc.wantNames, gotNames); diff != "" {
 					t.Errorf("gotNames mismatch (-want +got):\n%s", diff)
+				}
+				snapshot := progressMeta.Snapshot()
+				if snapshot.Indeterminate != tc.wantIndeterminate {
+					t.Errorf("snapshot.Indeterminate = %v, want %v", snapshot.Indeterminate, tc.wantIndeterminate)
+				}
+				if snapshot.Ratio != tc.wantRatio {
+					t.Errorf("snapshot.Ratio = %v, want %v", snapshot.Ratio, tc.wantRatio)
+				}
+				if !strings.Contains(snapshot.Message, tc.wantMessageSubstr) {
+					t.Errorf("snapshot.Message %q does not contain %q", snapshot.Message, tc.wantMessageSubstr)
 				}
 			}
 		})
@@ -771,6 +860,161 @@ func TestFetchCAIAssetSnapshots(t *testing.T) {
 				if gotRatio != tc.wantProgressRatio {
 					t.Errorf("progress ratio = %v, want %v", gotRatio, tc.wantProgressRatio)
 				}
+			}
+		})
+	}
+}
+
+func TestFormatAssetHistoryProgress(t *testing.T) {
+	testCases := []struct {
+		name            string
+		completedAssets int
+		totalAssets     int
+		snapshotCount   int
+		elapsed         time.Duration
+		want            string
+	}{
+		{
+			name:            "omits rate and ETA when elapsed is less than 1 second",
+			completedAssets: 10,
+			totalAssets:     100,
+			snapshotCount:   5,
+			elapsed:         500 * time.Millisecond,
+			want:            "Fetching asset history: 10/100 assets, 5 snapshots",
+		},
+		{
+			name:            "computes rate and ETA when elapsed is at least 1 second and 0.005 < ratio < 1.0",
+			completedAssets: 50,
+			totalAssets:     100,
+			snapshotCount:   25,
+			elapsed:         2 * time.Second,
+			want:            "Fetching asset history: 50/100 assets, 25 snapshots (25.0 assets/s, ETA 2s)",
+		},
+		{
+			name:            "computes rate and omits ETA when ratio is less than or equal to 0.005",
+			completedAssets: 1,
+			totalAssets:     1000,
+			snapshotCount:   1,
+			elapsed:         2 * time.Second,
+			want:            "Fetching asset history: 1/1000 assets, 1 snapshots (0.5 assets/s)",
+		},
+		{
+			name:            "computes rate and omits ETA when ratio is greater than or equal to 1.0",
+			completedAssets: 100,
+			totalAssets:     100,
+			snapshotCount:   50,
+			elapsed:         2 * time.Second,
+			want:            "Fetching asset history: 100/100 assets, 50 snapshots (50.0 assets/s)",
+		},
+		{
+			name:            "omits rate and ETA when completedAssets is 0 even if elapsed is at least 1 second",
+			completedAssets: 0,
+			totalAssets:     100,
+			snapshotCount:   0,
+			elapsed:         2 * time.Second,
+			want:            "Fetching asset history: 0/100 assets, 0 snapshots",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := formatAssetHistoryProgress(tc.completedAssets, tc.totalAssets, tc.snapshotCount, tc.elapsed)
+			if got != tc.want {
+				t.Errorf("formatAssetHistoryProgress() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatDeterminateParentSearchProgress(t *testing.T) {
+	testCases := []struct {
+		name             string
+		label            string
+		completedParents int
+		totalParents     int
+		parentUnit       string
+		scannedCount     int
+		elapsed          time.Duration
+		want             string
+	}{
+		{
+			name:             "omits rate when elapsed is less than 1 second",
+			label:            "Searching namespaced resources",
+			completedParents: 2,
+			totalParents:     10,
+			parentUnit:       "namespaces",
+			scannedCount:     5,
+			elapsed:          500 * time.Millisecond,
+			want:             "Searching namespaced resources: 2/10 namespaces, 5 resources scanned",
+		},
+		{
+			name:             "computes rate when elapsed is at least 1 second and scannedCount is positive",
+			label:            "Searching namespaced resources",
+			completedParents: 5,
+			totalParents:     10,
+			parentUnit:       "namespaces",
+			scannedCount:     20,
+			elapsed:          2 * time.Second,
+			want:             "Searching namespaced resources: 5/10 namespaces, 20 resources scanned (10.0 resources/s)",
+		},
+		{
+			name:             "omits rate when scannedCount is 0 even if elapsed is at least 1 second",
+			label:            "Searching namespaced resources",
+			completedParents: 0,
+			totalParents:     10,
+			parentUnit:       "namespaces",
+			scannedCount:     0,
+			elapsed:          2 * time.Second,
+			want:             "Searching namespaced resources: 0/10 namespaces, 0 resources scanned",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := formatDeterminateParentSearchProgress(tc.label, tc.completedParents, tc.totalParents, tc.parentUnit, tc.scannedCount, tc.elapsed)
+			if got != tc.want {
+				t.Errorf("formatDeterminateParentSearchProgress() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatIndeterminateSearchProgress(t *testing.T) {
+	testCases := []struct {
+		name         string
+		label        string
+		scannedCount int
+		elapsed      time.Duration
+		want         string
+	}{
+		{
+			name:         "omits rate when elapsed is less than 1 second",
+			label:        "Searching cluster resources",
+			scannedCount: 10,
+			elapsed:      500 * time.Millisecond,
+			want:         "Searching cluster resources... (10 resources scanned)",
+		},
+		{
+			name:         "computes rate when elapsed is at least 1 second and scannedCount is positive",
+			label:        "Searching cluster resources",
+			scannedCount: 30,
+			elapsed:      2 * time.Second,
+			want:         "Searching cluster resources... (30 resources scanned, 15.0 resources/s)",
+		},
+		{
+			name:         "omits rate when scannedCount is 0 even if elapsed is at least 1 second",
+			label:        "Searching cluster resources",
+			scannedCount: 0,
+			elapsed:      2 * time.Second,
+			want:         "Searching cluster resources... (0 resources scanned)",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := formatIndeterminateSearchProgress(tc.label, tc.scannedCount, tc.elapsed)
+			if got != tc.want {
+				t.Errorf("formatIndeterminateSearchProgress() = %q, want %q", got, tc.want)
 			}
 		})
 	}
