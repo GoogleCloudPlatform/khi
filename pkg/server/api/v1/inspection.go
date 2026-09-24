@@ -16,6 +16,7 @@ package apiv1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -183,8 +184,15 @@ func (s *InspectionServiceServer) UpdateInspection(
 	if !found || header == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("header not found"))
 	}
-	header.InspectionName = req.Msg.GetName()
-	header.SuggestedFileName = fmt.Sprintf("%s.khi", req.Msg.GetName())
+	newName := strings.TrimSpace(req.Msg.GetName())
+	if err := s.inspectionServer.InspectionNameRegistry().ReserveName(inspectionID, newName); err != nil {
+		if errors.Is(err, inspectioncore.ErrInspectionNameEmpty) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("inspection name %q is already in use", newName))
+	}
+	header.InspectionName = newName
+	header.SuggestedFileName = fmt.Sprintf("%s.khi", newName)
 	return connect.NewResponse(&apiv1.UpdateInspectionResponse{}), nil
 }
 

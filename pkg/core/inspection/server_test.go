@@ -1,6 +1,21 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package coreinspection
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -8,79 +23,25 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-func TestGetDefaultInspectionName(t *testing.T) {
+// TestRegisterImportedInspection_NameReservation verifies auto-numbering and reservation when importing inspections.
+func TestRegisterImportedInspection_NameReservation(t *testing.T) {
 	testCases := []struct {
 		name                string
-		inspectionTypeID    string
-		existingInspections []struct {
-			id   string
-			name string
-		}
-		excludeID string
-		want      string
+		importInspections   []string
+		wantInspectionNames []string
+		wantSuggestedFiles  []string
 	}{
 		{
-			name:             "no existing inspections returns base inspection type name",
-			inspectionTypeID: "gke",
-			want:             "Google Kubernetes Engine",
+			name:                "sequential imported inspections with the same name get auto-numbered and reserved",
+			importInspections:   []string{"Google Kubernetes Engine", "Google Kubernetes Engine", "Google Kubernetes Engine"},
+			wantInspectionNames: []string{"Google Kubernetes Engine", "Google Kubernetes Engine(1)", "Google Kubernetes Engine(2)"},
+			wantSuggestedFiles:  []string{"Google Kubernetes Engine.khi", "Google Kubernetes Engine(1).khi", "Google Kubernetes Engine(2).khi"},
 		},
 		{
-			name:             "base name already exists returns suffix (1)",
-			inspectionTypeID: "gke",
-			existingInspections: []struct {
-				id   string
-				name string
-			}{
-				{id: "insp-1", name: "Google Kubernetes Engine"},
-			},
-			want: "Google Kubernetes Engine(1)",
-		},
-		{
-			name:             "base name and (1) already exist returns suffix (2)",
-			inspectionTypeID: "gke",
-			existingInspections: []struct {
-				id   string
-				name string
-			}{
-				{id: "insp-1", name: "Google Kubernetes Engine"},
-				{id: "insp-2", name: "Google Kubernetes Engine(1)"},
-			},
-			want: "Google Kubernetes Engine(2)",
-		},
-		{
-			name:             "gap in sequence picks lowest available number",
-			inspectionTypeID: "gke",
-			existingInspections: []struct {
-				id   string
-				name string
-			}{
-				{id: "insp-1", name: "Google Kubernetes Engine"},
-				{id: "insp-2", name: "Google Kubernetes Engine(2)"},
-			},
-			want: "Google Kubernetes Engine(1)",
-		},
-		{
-			name:             "excluded inspection ID is ignored",
-			inspectionTypeID: "gke",
-			existingInspections: []struct {
-				id   string
-				name string
-			}{
-				{id: "self-id", name: "Google Kubernetes Engine"},
-			},
-			excludeID: "self-id",
-			want:      "Google Kubernetes Engine",
-		},
-		{
-			name:             "unknown inspection type falls back to Inspection",
-			inspectionTypeID: "unknown-type",
-			existingInspections: []struct {
-				id   string
-				name string
-			}{
-				{id: "insp-1", name: "Inspection"},
-			},
-			want: "Inspection(1)",
+			name:                "empty inspection name falls back to Inspection and auto-numbers",
+			importInspections:   []string{"", "   "},
+			wantInspectionNames: []string{"Inspection", "Inspection(1)"},
+			wantSuggestedFiles:  []string{"Inspection.khi", "Inspection(1).khi"},
 		},
 	}
 
@@ -90,29 +51,32 @@ func TestGetDefaultInspectionName(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to create inspection task server: %v", err)
 			}
-			if err := server.AddInspectionType(InspectionType{
-				Id:   "gke",
-				Name: "Google Kubernetes Engine",
-			}); err != nil {
-				t.Fatalf("failed to add inspection type: %v", err)
-			}
 
-			for _, existing := range tc.existingInspections {
+			for i, baseName := range tc.importInspections {
+				id := fmt.Sprintf("imported-%d", i)
 				md := typedmap.NewTypedMap()
-				typedmap.Set(md, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{
-					InspectionName: existing.name,
-				})
-				runner := &InspectionTaskRunner{
-					inspectionServer: server,
-					ID:               existing.id,
-					metadata:         md.AsReadonly(),
+				header := &inspectionmetadata.HeaderMetadata{
+					InspectionName: baseName,
 				}
-				server.inspections[existing.id] = runner
-			}
+				typedmap.Set(md, inspectionmetadata.HeaderMetadataKey, header)
 
-			got := server.GetDefaultInspectionName(tc.inspectionTypeID, tc.excludeID)
-			if got != tc.want {
-				t.Errorf("GetDefaultInspectionName(%q, %q) = %q, want %q", tc.inspectionTypeID, tc.excludeID, got, tc.want)
+				runner := server.RegisterImportedInspection(id, nil, md.AsReadonly())
+				if runner == nil {
+					t.Fatalf("RegisterImportedInspection returned nil")
+				}
+
+				wantName := tc.wantInspectionNames[i]
+				if header.InspectionName != wantName {
+					t.Errorf("imported inspection [%d] InspectionName = %q, want %q", i, header.InspectionName, wantName)
+				}
+				wantFile := tc.wantSuggestedFiles[i]
+				if header.SuggestedFileName != wantFile {
+					t.Errorf("imported inspection [%d] SuggestedFileName = %q, want %q", i, header.SuggestedFileName, wantFile)
+				}
+
+				if err := server.InspectionNameRegistry().ReserveName("other-id", wantName); err != inspectioncore.ErrInspectionNameAlreadyInUse {
+					t.Errorf("expected %q to be reserved, but got error: %v", wantName, err)
+				}
 			}
 		})
 	}

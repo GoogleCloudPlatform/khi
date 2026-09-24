@@ -73,6 +73,8 @@ type InspectionTaskServer struct {
 
 	ioConfig *inspectioncore.IOConfig
 
+	inspectionNameRegistry inspectioncore.InspectionNameRegistry
+
 	runContextOptions      []RunContextOption
 	inspectionIntercepters []InspectionInterceptor
 }
@@ -83,11 +85,12 @@ func NewServer(ioConfig *inspectioncore.IOConfig) (*InspectionTaskServer, error)
 		return nil, err
 	}
 	server := &InspectionTaskServer{
-		RootTaskSet:           ns,
-		inspectionTypes:       make([]*InspectionType, 0),
-		inspections:           map[string]*InspectionTaskRunner{},
-		inspectionIDGenerator: idgenerator.NewPrefixIDGenerator("inspection-"),
-		ioConfig:              ioConfig,
+		RootTaskSet:            ns,
+		inspectionTypes:        make([]*InspectionType, 0),
+		inspections:            map[string]*InspectionTaskRunner{},
+		inspectionIDGenerator:  idgenerator.NewPrefixIDGenerator("inspection-"),
+		ioConfig:               ioConfig,
+		inspectionNameRegistry: inspectioncore.NewInMemoryInspectionNameRegistry(),
 	}
 
 	// Register mandatory tasks for inspection task
@@ -187,47 +190,34 @@ func (s *InspectionTaskServer) IOConfig() *inspectioncore.IOConfig {
 	return s.ioConfig
 }
 
+// InspectionNameRegistry returns the registry managing unique inspection names for this server.
+func (s *InspectionTaskServer) InspectionNameRegistry() inspectioncore.InspectionNameRegistry {
+	return s.inspectionNameRegistry
+}
+
 // RegisterImportedInspection registers a completed imported inspection with the given ID, store, and metadata.
 func (s *InspectionTaskServer) RegisterImportedInspection(id string, store inspectioncore.Store, metadata *typedmap.ReadonlyTypedMap) *InspectionTaskRunner {
+	if metadata != nil {
+		if header, found := typedmap.Get(metadata, inspectionmetadata.HeaderMetadataKey); found && header != nil {
+			baseName := header.InspectionName
+			if strings.TrimSpace(baseName) == "" {
+				baseName = "Inspection"
+			}
+			for {
+				uniqueName := s.inspectionNameRegistry.ResolveUniqueName(id, baseName)
+				if err := s.inspectionNameRegistry.ReserveName(id, uniqueName); err == nil {
+					header.InspectionName = uniqueName
+					header.SuggestedFileName = fmt.Sprintf("%s.khi", uniqueName)
+					break
+				}
+			}
+		}
+	}
 	runner := NewImportedInspectionRunner(s, s.ioConfig, id, store, metadata, s.runContextOptions...)
 	s.inspectionsMu.Lock()
 	s.inspections[id] = runner
 	s.inspectionsMu.Unlock()
 	return runner
-}
-
-// GetDefaultInspectionName returns a unique default inspection name based on the inspection type name.
-// If the base name is already used by another inspection, it appends a sequential suffix like (1), (2), etc.
-func (s *InspectionTaskServer) GetDefaultInspectionName(inspectionTypeID string, excludeInspectionID string) string {
-	inspectionType := s.GetInspectionType(inspectionTypeID)
-	baseName := "Inspection"
-	if inspectionType != nil && inspectionType.Name != "" {
-		baseName = inspectionType.Name
-	}
-
-	existingNames := map[string]struct{}{}
-	for _, runner := range s.GetAllRunners() {
-		if runner.ID == excludeInspectionID {
-			continue
-		}
-		md, err := runner.GetCurrentMetadata()
-		if err != nil || md == nil {
-			continue
-		}
-		if header, found := typedmap.Get(md, inspectionmetadata.HeaderMetadataKey); found && header != nil && header.InspectionName != "" {
-			existingNames[header.InspectionName] = struct{}{}
-		}
-	}
-
-	if _, exists := existingNames[baseName]; !exists {
-		return baseName
-	}
-	for i := 1; ; i++ {
-		candidate := fmt.Sprintf("%s(%d)", baseName, i)
-		if _, exists := existingNames[candidate]; !exists {
-			return candidate
-		}
-	}
 }
 
 var _ InspectionTaskRegistry = (*InspectionTaskServer)(nil)

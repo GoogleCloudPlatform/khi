@@ -113,8 +113,14 @@ func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
 		RunContextOptionFromFunc(inspectioncore.InspectionTaskType, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
 			return i.currentInspectionType, nil
 		}),
-		RunContextOptionFromFunc(inspectioncore.DefaultInspectionName, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
-			return i.inspectionServer.GetDefaultInspectionName(i.currentInspectionType, i.ID), nil
+		RunContextOptionFromFunc(inspectioncore.InspectionTypeName, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
+			if inspectionType := i.inspectionServer.GetInspectionType(i.currentInspectionType); inspectionType != nil && inspectionType.Name != "" {
+				return inspectionType.Name, nil
+			}
+			return "Inspection", nil
+		}),
+		RunContextOptionFromFunc(inspectioncore.InspectionNameRegistryKey, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (inspectioncore.InspectionNameRegistry, error) {
+			return i.inspectionServer.InspectionNameRegistry(), nil
 		}),
 		RunContextOptionFromFunc(inspectioncore.InspectionTaskEnabledFeatures, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) ([]string, error) {
 			var enabledFeatures []string
@@ -364,7 +370,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore.Insp
 		return err
 	}
 
-	defaultInspectionName := khictx.MustGetValue(runCtx, inspectioncore.DefaultInspectionName)
+	defaultInspectionName := i.inspectionServer.InspectionNameRegistry().ResolveUniqueName(i.ID, currentInspectionType.Name)
 	runMetadata := i.generateMetadataForRun(runCtx, &inspectionmetadata.HeaderMetadata{
 		InspectionName:         defaultInspectionName,
 		InspectTimeUnixSeconds: time.Now().Unix(),
