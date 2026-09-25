@@ -1,0 +1,9 @@
+# Inspections
+
+{{len .Inspections}} inspections, newest first.
+
+| ID | Name | Type | Status | Time range | Labels |
+| --- | --- | --- | --- | --- | --- |
+{{- range .Inspections}}
+| {{code .ID}} | {{cell .Name}} | {{cell .Type}} | {{.Status}} | {{time .Start}} - {{time .End}} | {{cell .Labels}} |
+{{- end}}
