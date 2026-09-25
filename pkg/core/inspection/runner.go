@@ -113,6 +113,15 @@ func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
 		RunContextOptionFromFunc(inspectioncore.InspectionTaskType, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
 			return i.currentInspectionType, nil
 		}),
+		RunContextOptionFromFunc(inspectioncore.InspectionTypeName, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
+			if inspectionType := i.inspectionServer.GetInspectionType(i.currentInspectionType); inspectionType != nil && inspectionType.Name != "" {
+				return inspectionType.Name, nil
+			}
+			return "Inspection", nil
+		}),
+		RunContextOptionFromFunc(inspectioncore.InspectionNameRegistryKey, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (inspectioncore.InspectionNameRegistry, error) {
+			return i.inspectionServer.InspectionNameRegistry(), nil
+		}),
 		RunContextOptionFromFunc(inspectioncore.InspectionTaskEnabledFeatures, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) ([]string, error) {
 			var enabledFeatures []string
 			for f, enabled := range i.enabledFeatures {
@@ -361,8 +370,9 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore.Insp
 		return err
 	}
 
+	defaultInspectionName := i.inspectionServer.InspectionNameRegistry().ResolveUniqueName(i.ID, currentInspectionType.Name)
 	runMetadata := i.generateMetadataForRun(runCtx, &inspectionmetadata.HeaderMetadata{
-		InspectionName:         currentInspectionType.Name,
+		InspectionName:         defaultInspectionName,
 		InspectTimeUnixSeconds: time.Now().Unix(),
 		InspectionType:         currentInspectionType.Name,
 		InspectionTypeIconPath: currentInspectionType.Icon,

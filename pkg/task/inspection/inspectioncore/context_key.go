@@ -84,3 +84,9 @@ var InspectionTaskType = typedmap.NewTypedKey[string]("khi.google.com/inspection
 
 // InspectionTaskEnabledFeatures is the context key to access the list of enabled features.
 var InspectionTaskEnabledFeatures = typedmap.NewTypedKey[[]string]("khi.google.com/inspection/enabled-features")
+
+// InspectionTypeName is the context key to access the display name of the inspection type.
+var InspectionTypeName = typedmap.NewTypedKey[string]("khi.google.com/inspection/type-name")
+
+// InspectionNameRegistryKey is the context key to access the inspection name registry.
+var InspectionNameRegistryKey = typedmap.NewTypedKey[InspectionNameRegistry]("khi.google.com/inspection/inspection-name-registry")

@@ -43,6 +43,7 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.GlobalSharedMap, typedmap.NewTypedMap())
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionSharedMap, typedmap.NewTypedMap())
+	taskCtx = khictx.WithValue[inspectioncore.InspectionNameRegistry](taskCtx, inspectioncore.InspectionNameRegistryKey, inspectioncore.NewInMemoryInspectionNameRegistry())
 
 	// If this context is used with the task runner, it should have the task result map. But if not, then this must complement the value with the default value.
 	_, err := khictx.GetValue(taskCtx, core_contract.TaskResultMapContextKey)

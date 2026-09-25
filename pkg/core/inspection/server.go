@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
@@ -72,6 +73,8 @@ type InspectionTaskServer struct {
 
 	ioConfig *inspectioncore.IOConfig
 
+	inspectionNameRegistry inspectioncore.InspectionNameRegistry
+
 	runContextOptions      []RunContextOption
 	inspectionIntercepters []InspectionInterceptor
 }
@@ -82,11 +85,12 @@ func NewServer(ioConfig *inspectioncore.IOConfig) (*InspectionTaskServer, error)
 		return nil, err
 	}
 	server := &InspectionTaskServer{
-		RootTaskSet:           ns,
-		inspectionTypes:       make([]*InspectionType, 0),
-		inspections:           map[string]*InspectionTaskRunner{},
-		inspectionIDGenerator: idgenerator.NewPrefixIDGenerator("inspection-"),
-		ioConfig:              ioConfig,
+		RootTaskSet:            ns,
+		inspectionTypes:        make([]*InspectionType, 0),
+		inspections:            map[string]*InspectionTaskRunner{},
+		inspectionIDGenerator:  idgenerator.NewPrefixIDGenerator("inspection-"),
+		ioConfig:               ioConfig,
+		inspectionNameRegistry: inspectioncore.NewInMemoryInspectionNameRegistry(),
 	}
 
 	// Register mandatory tasks for inspection task
@@ -186,8 +190,29 @@ func (s *InspectionTaskServer) IOConfig() *inspectioncore.IOConfig {
 	return s.ioConfig
 }
 
+// InspectionNameRegistry returns the registry managing unique inspection names for this server.
+func (s *InspectionTaskServer) InspectionNameRegistry() inspectioncore.InspectionNameRegistry {
+	return s.inspectionNameRegistry
+}
+
 // RegisterImportedInspection registers a completed imported inspection with the given ID, store, and metadata.
 func (s *InspectionTaskServer) RegisterImportedInspection(id string, store inspectioncore.Store, metadata *typedmap.ReadonlyTypedMap) *InspectionTaskRunner {
+	if metadata != nil {
+		if header, found := typedmap.Get(metadata, inspectionmetadata.HeaderMetadataKey); found && header != nil {
+			baseName := header.InspectionName
+			if strings.TrimSpace(baseName) == "" {
+				baseName = "Inspection"
+			}
+			for {
+				uniqueName := s.inspectionNameRegistry.ResolveUniqueName(id, baseName)
+				if err := s.inspectionNameRegistry.ReserveName(id, uniqueName); err == nil {
+					header.InspectionName = uniqueName
+					header.SuggestedFileName = fmt.Sprintf("%s.khi", uniqueName)
+					break
+				}
+			}
+		}
+	}
 	runner := NewImportedInspectionRunner(s, s.ioConfig, id, store, metadata, s.runContextOptions...)
 	s.inspectionsMu.Lock()
 	s.inspections[id] = runner

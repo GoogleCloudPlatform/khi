@@ -119,16 +119,67 @@ func TestInspectionServiceServer_CreateAndUpdateInspection(t *testing.T) {
 	testCases := []struct {
 		name         string
 		typeId       string
+		setupOther   func(server *coreinspection.InspectionTaskServer, tempDir string)
 		updatedName  string
+		wantCode     connect.Code
 		wantName     string
 		wantFilename string
+		verifyAfter  func(t *testing.T, client apiv1connect.InspectionServiceClient)
 	}{
 		{
 			name:         "creates inspection and updates name",
 			typeId:       "gcp-gke",
 			updatedName:  "My Custom Inspection",
+			wantCode:     0,
 			wantName:     "My Custom Inspection",
 			wantFilename: "My Custom Inspection.khi",
+		},
+		{
+			name:        "returns CodeInvalidArgument when renaming to empty string",
+			typeId:      "gcp-gke",
+			updatedName: "",
+			wantCode:    connect.CodeInvalidArgument,
+		},
+		{
+			name:        "returns CodeInvalidArgument when renaming to whitespace string",
+			typeId:      "gcp-gke",
+			updatedName: "   ",
+			wantCode:    connect.CodeInvalidArgument,
+		},
+		{
+			name:   "returns CodeAlreadyExists when renaming to name used by another inspection",
+			typeId: "gcp-gke",
+			setupOther: func(server *coreinspection.InspectionTaskServer, tempDir string) {
+				filePath := filepath.Join(tempDir, "other.khi")
+				_ = os.WriteFile(filePath, []byte("data"), 0644)
+				store := inspectioncore.NewFileSystemInspectionResultRepository(filePath)
+				md := typedmap.NewTypedMap()
+				header := &inspectionmetadata.HeaderMetadata{
+					InspectionType: "gcp-gke",
+					InspectionName: "Existing Other Name",
+				}
+				typedmap.Set(md, inspectionmetadata.HeaderMetadataKey, header)
+				server.RegisterImportedInspection("imported-other", store, md.AsReadonly())
+			},
+			updatedName: "Existing Other Name",
+			wantCode:    connect.CodeAlreadyExists,
+		},
+		{
+			name:         "releases old name when renamed to a new unique name",
+			typeId:       "gcp-gke",
+			updatedName:  "New Distinct Name",
+			wantCode:     0,
+			wantName:     "New Distinct Name",
+			wantFilename: "New Distinct Name.khi",
+			verifyAfter: func(t *testing.T, client apiv1connect.InspectionServiceClient) {
+				_, err := client.UpdateInspection(context.Background(), connect.NewRequest(&apiv1.UpdateInspectionRequest{
+					InspectionId: proto.String("imported-update-2"),
+					Name:         proto.String("Initial Name"),
+				}))
+				if err != nil {
+					t.Errorf("expected Initial Name to be released and usable, got: %v", err)
+				}
+			},
 		},
 	}
 
@@ -137,17 +188,12 @@ func TestInspectionServiceServer_CreateAndUpdateInspection(t *testing.T) {
 			ts, client, server := setupTestInspectionServer(t, 30*time.Second, 1*time.Second)
 			defer ts.Close()
 
-			createRes, err := client.CreateInspection(context.Background(), connect.NewRequest(&apiv1.CreateInspectionRequest{
-				InspectionTypeId: proto.String(tc.typeId),
-			}))
-			if err != nil {
-				t.Fatalf("CreateInspection() unexpected error: %v", err)
-			}
-			if createRes.Msg.GetInspectionId() == "" {
-				t.Fatal("CreateInspection() returned empty inspection ID")
+			tempDir := t.TempDir()
+			if tc.setupOther != nil {
+				tc.setupOther(server, tempDir)
 			}
 
-			filePath := filepath.Join(t.TempDir(), "result.khi")
+			filePath := filepath.Join(tempDir, "result.khi")
 			if err := os.WriteFile(filePath, []byte("test data"), 0644); err != nil {
 				t.Fatalf("WriteFile failed: %v", err)
 			}
@@ -160,10 +206,29 @@ func TestInspectionServiceServer_CreateAndUpdateInspection(t *testing.T) {
 			typedmap.Set(metadata, inspectionmetadata.HeaderMetadataKey, header)
 			server.RegisterImportedInspection("imported-update-1", store, metadata.AsReadonly())
 
-			_, err = client.UpdateInspection(context.Background(), connect.NewRequest(&apiv1.UpdateInspectionRequest{
+			filePath2 := filepath.Join(tempDir, "result2.khi")
+			if err := os.WriteFile(filePath2, []byte("test data 2"), 0644); err != nil {
+				t.Fatalf("WriteFile failed: %v", err)
+			}
+			store2 := inspectioncore.NewFileSystemInspectionResultRepository(filePath2)
+			metadata2 := typedmap.NewTypedMap()
+			header2 := &inspectionmetadata.HeaderMetadata{
+				InspectionType: tc.typeId,
+				InspectionName: "Second Inspection",
+			}
+			typedmap.Set(metadata2, inspectionmetadata.HeaderMetadataKey, header2)
+			server.RegisterImportedInspection("imported-update-2", store2, metadata2.AsReadonly())
+
+			_, err := client.UpdateInspection(context.Background(), connect.NewRequest(&apiv1.UpdateInspectionRequest{
 				InspectionId: proto.String("imported-update-1"),
 				Name:         proto.String(tc.updatedName),
 			}))
+			if tc.wantCode != 0 {
+				if gotCode := connect.CodeOf(err); gotCode != tc.wantCode {
+					t.Errorf("UpdateInspection() code = %v, want %v (err = %v)", gotCode, tc.wantCode, err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("UpdateInspection() unexpected error: %v", err)
 			}
@@ -186,6 +251,10 @@ func TestInspectionServiceServer_CreateAndUpdateInspection(t *testing.T) {
 			}
 			if gotHeader.SuggestedFileName != tc.wantFilename {
 				t.Errorf("SuggestedFileName = %q, want %q", gotHeader.SuggestedFileName, tc.wantFilename)
+			}
+
+			if tc.verifyAfter != nil {
+				tc.verifyAfter(t, client)
 			}
 		})
 	}
