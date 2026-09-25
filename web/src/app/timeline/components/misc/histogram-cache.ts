@@ -83,20 +83,25 @@ export class HistogramCache {
   /**
    * Creates a new HistogramCache.
    *
+   * The range is given by the caller rather than derived from the logs because
+   * `minBucketTime` is chosen from the same range. Deriving the range from the logs
+   * lets a single log far outside the range inflate the bucket count without bound.
+   * Logs outside the range are not counted.
+   *
    * @param severities - The list of severities.
    * @param logs - The list of logs to be indexed.
    * @param logIds - The bitset of active log IDs to include in the histogram.
    * @param minBucketTime - The resolution of the cache in milliseconds.
-   * @param logMinTimeMS - The minimum time of the logs. It will be recalculated from given logs, but this allows user to extend the range.
-   * @param logMaxTimeMS - The maximum time of the logs. It will be recalculated from given logs, but this allows user to extend the range.
+   * @param rangeBeginTimeMs - The start time of the histogram range in milliseconds.
+   * @param rangeEndTimeMs - The end time of the histogram range in milliseconds. The bucket containing this time is included.
    */
   constructor(
     public readonly severities: readonly ReadonlyDomainElement<Severity>[],
     logs: readonly ReadonlyDomainElement<Log>[],
     logIds: IdBitset,
     private readonly minBucketTime: number,
-    public logMinTimeMS: number = Infinity,
-    public logMaxTimeMS: number = -Infinity,
+    rangeBeginTimeMs: number,
+    rangeEndTimeMs: number,
   ) {
     if (logs.length === 0 || logIds.size === 0) {
       this.alignedMinTimeMS = 0;
@@ -109,19 +114,12 @@ export class HistogramCache {
       return;
     }
 
-    for (const log of logs) {
-      if (!logIds.has(log.id)) {
-        continue;
-      }
-      this.logMinTimeMS = Math.min(this.logMinTimeMS, log.legacyTimestampMs);
-      this.logMaxTimeMS = Math.max(this.logMaxTimeMS, log.legacyTimestampMs);
-    }
     this.alignedMinTimeMS =
-      Math.floor(this.logMinTimeMS / minBucketTime) * minBucketTime;
-    const timeAlignedMaxTime =
-      Math.ceil(this.logMaxTimeMS / minBucketTime) * minBucketTime;
+      Math.floor(rangeBeginTimeMs / minBucketTime) * minBucketTime;
+    const alignedMaxTimeMS =
+      (Math.floor(rangeEndTimeMs / minBucketTime) + 1) * minBucketTime;
     const windowCount =
-      Math.ceil((timeAlignedMaxTime - this.alignedMinTimeMS) / minBucketTime) +
+      Math.round((alignedMaxTimeMS - this.alignedMinTimeMS) / minBucketTime) +
       1;
 
     this.cumulativeSums = {} as { [severityId: number]: Int32Array };
@@ -140,7 +138,8 @@ export class HistogramCache {
           this.alignedMinTimeMS) /
           minBucketTime +
         1;
-      if (windowIndex >= 0 && windowIndex < windowCount) {
+      // Index 0 is the empty prefix of the cumulative sums, so logs before the range (index <= 0) and after it are skipped.
+      if (windowIndex > 0 && windowIndex < windowCount) {
         this.cumulativeSums[log.severity.id][windowIndex]++;
       }
     }

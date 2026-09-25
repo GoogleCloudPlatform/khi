@@ -232,6 +232,8 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly allLogsHistogramCache = computed(() => {
     const minTimeSpanForHistogram = this.minTimeSpanForHistogram();
+    const minQueryTime = this.minQueryLogTimeMS();
+    const maxQueryTime = this.maxQueryLogTimeMS();
     const allLogs = this.allLogs();
     const allLogIds = this.allLogIds();
     return new HistogramCache(
@@ -239,6 +241,8 @@ export class TimelineFrameComponent implements AfterViewInit {
       allLogs,
       allLogIds,
       minTimeSpanForHistogram,
+      minQueryTime,
+      maxQueryTime,
     );
   });
 
@@ -248,7 +252,8 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly filteredLogsHistogramCache = computed(() => {
     const minTimeSpanForHistogram = this.minTimeSpanForHistogram();
-    const allLogsHistogramCache = this.allLogsHistogramCache();
+    const minQueryTime = this.minQueryLogTimeMS();
+    const maxQueryTime = this.maxQueryLogTimeMS();
     const allLogs = this.allLogs();
     const filteredLogIds = this.filteredLogIds();
     return new HistogramCache(
@@ -256,8 +261,8 @@ export class TimelineFrameComponent implements AfterViewInit {
       allLogs,
       filteredLogIds,
       minTimeSpanForHistogram,
-      allLogsHistogramCache.logMinTimeMS,
-      allLogsHistogramCache.logMaxTimeMS,
+      minQueryTime,
+      maxQueryTime,
     );
   });
 
