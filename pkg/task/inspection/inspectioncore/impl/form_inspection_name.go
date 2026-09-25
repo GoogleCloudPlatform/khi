@@ -44,10 +44,8 @@ var InputInspectionNameTask = formtask.NewTextFormTaskBuilder(
 		if err != nil || baseName == "" {
 			baseName = "Inspection"
 		}
-		if registry, err := khictx.GetValue(ctx, inspectioncore.InspectionNameRegistryKey); err == nil && registry != nil {
-			return registry.ResolveUniqueName(inspectionID, baseName), nil
-		}
-		return baseName, nil
+		registry := khictx.MustGetValue(ctx, inspectioncore.InspectionNameRegistryKey)
+		return registry.ResolveUniqueName(inspectionID, baseName), nil
 	}).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
 		trimmed := strings.TrimSpace(value)
@@ -55,13 +53,12 @@ var InputInspectionNameTask = formtask.NewTextFormTaskBuilder(
 			return "inspection name must not be empty", nil
 		}
 		inspectionID := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInspectionID)
-		if registry, err := khictx.GetValue(ctx, inspectioncore.InspectionNameRegistryKey); err == nil && registry != nil {
-			if err := registry.ReserveName(inspectionID, trimmed); err != nil {
-				if errors.Is(err, inspectioncore.ErrInspectionNameAlreadyInUse) {
-					return fmt.Sprintf("inspection name %q is already in use", trimmed), nil
-				}
-				return err.Error(), nil
+		registry := khictx.MustGetValue(ctx, inspectioncore.InspectionNameRegistryKey)
+		if err := registry.ReserveName(inspectionID, trimmed); err != nil {
+			if errors.Is(err, inspectioncore.ErrInspectionNameAlreadyInUse) {
+				return fmt.Sprintf("inspection name %q is already in use", trimmed), nil
 			}
+			return err.Error(), nil
 		}
 		return "", nil
 	}).
@@ -70,6 +67,7 @@ var InputInspectionNameTask = formtask.NewTextFormTaskBuilder(
 		metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 		if header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey); found && header != nil {
 			header.InspectionName = trimmed
+			header.SuggestedFileName = fmt.Sprintf("%s.khi", trimmed)
 		}
 		return trimmed, nil
 	}).

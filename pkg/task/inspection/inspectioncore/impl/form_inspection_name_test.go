@@ -195,6 +195,10 @@ func TestInputInspectionNameTask(t *testing.T) {
 			if header.InspectionName != tc.wantHeaderName {
 				t.Errorf("header.InspectionName = %q, want %q", header.InspectionName, tc.wantHeaderName)
 			}
+			wantSuggestedFileName := tc.wantHeaderName + ".khi"
+			if header.SuggestedFileName != wantSuggestedFileName {
+				t.Errorf("header.SuggestedFileName = %q, want %q", header.SuggestedFileName, wantSuggestedFileName)
+			}
 
 			formFields, found := typedmap.Get(metadataSet, inspectionmetadata.FormFieldSetMetadataKey)
 			if !found || formFields == nil {
