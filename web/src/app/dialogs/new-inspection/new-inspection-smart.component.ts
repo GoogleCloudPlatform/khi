@@ -333,9 +333,23 @@ export class NewInspectionDialogComponent implements OnDestroy {
     this.loopAbortController = abortController;
     const signal = abortController.signal;
 
-    const client = await firstValueFrom(this.currentInspectionClient$);
-    if (signal.aborted || !client) {
-      return;
+    let client: InspectionClient;
+    try {
+      client = await firstValueFrom(
+        this.currentInspectionClient$.pipe(
+          takeUntil(fromEvent(signal, 'abort')),
+        ),
+      );
+      if (signal.aborted) {
+        return;
+      }
+    } catch (err) {
+      if (signal.aborted) {
+        return;
+      }
+      throw new Error('Critical failure: Failed to fetch inspection client', {
+        cause: err,
+      });
     }
 
     while (!signal.aborted) {
@@ -396,15 +410,15 @@ export class NewInspectionDialogComponent implements OnDestroy {
       return Promise.reject(new CancellationError('Delay aborted'));
     }
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(resolve, ms);
-      signal.addEventListener(
-        'abort',
-        () => {
-          clearTimeout(timer);
-          reject(new CancellationError('Delay aborted'));
-        },
-        { once: true },
-      );
+      const onAbort = () => {
+        clearTimeout(timer);
+        reject(new CancellationError('Delay aborted'));
+      };
+      const timer = setTimeout(() => {
+        signal.removeEventListener('abort', onAbort);
+        resolve();
+      }, ms);
+      signal.addEventListener('abort', onAbort, { once: true });
     });
   }
 

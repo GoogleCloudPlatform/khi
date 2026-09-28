@@ -56,7 +56,7 @@
               <span class="callout-text">{{ summary.displayText }}</span>
             </div>
           }
-          @for (query of parameterViewModel.queries; track query.name) {
+          @for (query of parameterViewModel.queries; track query.id) {
             <mat-card class="query-card">
               <mat-card-header>
                 <mat-card-title>{{ query.name }}</mat-card-title>

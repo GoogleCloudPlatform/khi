@@ -565,6 +565,63 @@ describe('new-inspection.utils', () => {
 
       expect(flattenDefaultValues(fields)).toEqual({});
     });
+
+    it('should ignore dangerous prototype pollution keys', () => {
+      const fields: ParameterFormField[] = [
+        {
+          id: '__proto__',
+          type: ParameterInputType.Text,
+          label: 'Proto',
+          description: '',
+          hint: '',
+          hintType: ParameterHintType.None,
+          default: 'polluted',
+          readonly: false,
+          suggestions: [],
+          validationTiming: ParameterFormValidationTiming.Blur,
+        } as TextParameterFormField,
+        {
+          id: 'constructor',
+          type: ParameterInputType.Text,
+          label: 'Constructor',
+          description: '',
+          hint: '',
+          hintType: ParameterHintType.None,
+          default: 'polluted',
+          readonly: false,
+          suggestions: [],
+          validationTiming: ParameterFormValidationTiming.Blur,
+        } as TextParameterFormField,
+        {
+          id: 'prototype',
+          type: ParameterInputType.Text,
+          label: 'Prototype',
+          description: '',
+          hint: '',
+          hintType: ParameterHintType.None,
+          default: 'polluted',
+          readonly: false,
+          suggestions: [],
+          validationTiming: ParameterFormValidationTiming.Blur,
+        } as TextParameterFormField,
+        {
+          id: 'safe-key',
+          type: ParameterInputType.Text,
+          label: 'Safe',
+          description: '',
+          hint: '',
+          hintType: ParameterHintType.None,
+          default: 'safe-value',
+          readonly: false,
+          suggestions: [],
+          validationTiming: ParameterFormValidationTiming.Blur,
+        } as TextParameterFormField,
+      ];
+
+      expect(flattenDefaultValues(fields)).toEqual({
+        'safe-key': 'safe-value',
+      });
+    });
   });
 
   describe('countErrorFields', () => {

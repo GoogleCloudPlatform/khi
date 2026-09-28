@@ -198,8 +198,15 @@ export function hasDryRunErrors(response: InspectionDryRunResponse): boolean {
 export function flattenDefaultValues(
   parameters: readonly ParameterFormField[],
 ): Record<string, unknown> {
-  let result: Record<string, unknown> = {};
+  const result: Record<string, unknown> = {};
   for (const parameter of parameters) {
+    if (
+      parameter.id === '__proto__' ||
+      parameter.id === 'constructor' ||
+      parameter.id === 'prototype'
+    ) {
+      continue;
+    }
     switch (parameter.type) {
       case ParameterInputType.Text:
       case ParameterInputType.Set:
@@ -207,10 +214,7 @@ export function flattenDefaultValues(
         result[parameter.id] = parameter.default;
         break;
       case ParameterInputType.Group:
-        result = {
-          ...result,
-          ...flattenDefaultValues(parameter.children),
-        };
+        Object.assign(result, flattenDefaultValues(parameter.children));
         break;
       default:
         break;
