@@ -15,6 +15,7 @@
 package khifilev6_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -99,8 +100,12 @@ func TestTimelineChangeSet_Flush(t *testing.T) {
 	cs := khifilev6.NewTimelineChangeSet(l)
 	cs.AddEvent(path)
 
+	verbID := uint32(1)
+	stateID := uint32(2)
 	stagingRev := &khifilev6.StagingRevision{
 		ChangedTime: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+		VerbType:    &pb.Verb{Id: &verbID},
+		StateType:   &pb.RevisionState{Id: &stateID},
 		FieldAnnotations: []*khifilev6.StagingFieldAnnotation{
 			{
 				FieldPath: "/spec/containers",
@@ -230,6 +235,72 @@ func TestTimelineChangeSet_Release(t *testing.T) {
 				if _, ok := cs.GetAlias(p); ok {
 					t.Errorf("expected no alias staged for path %v after Release", p)
 				}
+			}
+		})
+	}
+}
+
+func TestTimelineChangeSet_Flush_NilVerbOrStateError(t *testing.T) {
+	dummyID := uint32(1)
+	testCases := []struct {
+		name       string
+		verbType   *pb.Verb
+		stateType  *pb.RevisionState
+		wantErrSub string
+	}{
+		{
+			name:       "nil VerbType returns error",
+			verbType:   nil,
+			stateType:  &pb.RevisionState{Id: &dummyID},
+			wantErrSub: "has nil VerbType",
+		},
+		{
+			name:       "nil StateType returns error",
+			verbType:   &pb.Verb{Id: &dummyID},
+			stateType:  nil,
+			wantErrSub: "has nil StateType",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			idGen := id.NewGenerator()
+			pool := khifilev6.NewTestInternPool(idGen)
+			serverPool := khifilev6.NewTestServerInternPool(pool, idGen)
+			logAcc := khifilev6.NewTestLogAccumulator(pool, serverPool, idGen)
+			accumulator := khifilev6.NewTestTimelineAccumulator(idGen, pool, serverPool)
+
+			node := structured.NewStandardMap(nil, nil)
+			l := log.NewLog(idGen, structured.NewNodeReader(node))
+
+			severityID := uint32(1)
+			logTypeID := uint32(2)
+			_ = logAcc.AddLog(&khifilev6.StagingLog{
+				Log:       l,
+				Summary:   "test summary",
+				Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+				Severity:  &pb.Severity{Id: &severityID},
+				LogType:   &pb.LogType{Id: &logTypeID},
+			})
+
+			pathPool := khifilev6.NewTimelinePathPool(idGen, pool)
+			timelineTypeID := uint32(3)
+			timelineType := &pb.TimelineType{Id: &timelineTypeID}
+			path := pathPool.Get(nil, khifilev6.PathSegment{Name: "test-path", Type: timelineType})
+
+			cs := khifilev6.NewTimelineChangeSet(l)
+			cs.AddRevision(path, &khifilev6.StagingRevision{
+				ChangedTime: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+				VerbType:    tc.verbType,
+				StateType:   tc.stateType,
+			})
+
+			err := cs.Flush(accumulator, logAcc)
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tc.wantErrSub)
+			}
+			if !strings.Contains(err.Error(), tc.wantErrSub) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.wantErrSub)
 			}
 		})
 	}

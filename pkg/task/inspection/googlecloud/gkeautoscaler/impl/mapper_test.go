@@ -479,6 +479,7 @@ results:
 						Principal:    "cluster-autoscaler",
 						StateType:    gkeautoscaler.RevisionAutoscalerNoError,
 						ResourceBody: bodyNode,
+						VerbType:     inspectioncore.VerbUnknown,
 					}, nodeCmpOpt)
 			},
 		},
@@ -516,6 +517,7 @@ results:
 						Principal:    "cluster-autoscaler",
 						StateType:    gkeautoscaler.RevisionAutoscalerHasErrors,
 						ResourceBody: bodyNode,
+						VerbType:     inspectioncore.VerbUnknown,
 					}, nodeCmpOpt)
 			},
 		},

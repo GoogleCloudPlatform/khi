@@ -288,6 +288,13 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator, logAcc *Log
 			principalID = ref.id
 		}
 
+		if r.VerbType == nil {
+			return fmt.Errorf("staging revision on path ID %d has nil VerbType", path.ID)
+		}
+		if r.StateType == nil {
+			return fmt.Errorf("staging revision on path ID %d has nil StateType", path.ID)
+		}
+
 		verbID := r.VerbType.GetId()
 		stateID := r.StateType.GetId()
 

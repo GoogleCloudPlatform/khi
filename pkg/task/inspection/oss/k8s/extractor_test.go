@@ -167,6 +167,13 @@ objectRef:
 				Verb:            k8saudit.VerbUpdate,
 			},
 		},
+		{
+			desc:  "empty log without auditID or objectRef returns VerbUnknown",
+			input: `{}`,
+			want: k8saudit.K8sAuditLogFieldSet{
+				Verb: k8saudit.VerbUnknown,
+			},
+		},
 	}
 
 	for _, tc := range testCases {

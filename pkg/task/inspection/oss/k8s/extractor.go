@@ -107,7 +107,9 @@ func ExtractOSSK8sAuditLog(reader *structured.NodeReader) (*k8saudit.K8sAuditLog
 		return mock, nil
 	}
 	if !reader.Has(pathAuditID) && !reader.Has(pathObjectRef) {
-		return &k8saudit.K8sAuditLogFieldSet{}, nil
+		return &k8saudit.K8sAuditLogFieldSet{
+			Verb: k8saudit.VerbUnknown,
+		}, nil
 	}
 
 	result := &k8saudit.K8sAuditLogFieldSet{}
