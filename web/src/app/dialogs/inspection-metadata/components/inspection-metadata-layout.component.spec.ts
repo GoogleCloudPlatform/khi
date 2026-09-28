@@ -50,9 +50,6 @@ describe('InspectionMetadataLayoutComponent', () => {
         log: 'Fetched 1500 audit logs successfully.',
       },
     ],
-    plan: {
-      taskGraph: 'digraph G { task1 -> task2; }',
-    },
     errors: [
       {
         errorId: 'ERR_TIMEOUT',
@@ -131,22 +128,18 @@ describe('InspectionMetadataLayoutComponent', () => {
     expect(accordion.closeAll).toHaveBeenCalled();
   });
 
-  it('should render queries, logs, and plan panels when data exists and omit them when empty', () => {
+  it('should render queries and logs panels when data exists and omit them when empty', () => {
     expect(
       fixture.nativeElement.querySelector('khi-metadata-queries'),
     ).toBeTruthy();
     expect(
       fixture.nativeElement.querySelector('khi-metadata-logs'),
     ).toBeTruthy();
-    expect(
-      fixture.nativeElement.querySelector('khi-metadata-plan'),
-    ).toBeTruthy();
 
     fixture.componentRef.setInput('viewModel', {
       ...mockData,
       queries: [],
       logs: [],
-      plan: { taskGraph: '' },
     });
     fixture.detectChanges();
 
@@ -154,7 +147,6 @@ describe('InspectionMetadataLayoutComponent', () => {
       fixture.nativeElement.querySelector('khi-metadata-queries'),
     ).toBeNull();
     expect(fixture.nativeElement.querySelector('khi-metadata-logs')).toBeNull();
-    expect(fixture.nativeElement.querySelector('khi-metadata-plan')).toBeNull();
   });
 
   it('should render job command when jobCommand is provided and omit when absent', () => {

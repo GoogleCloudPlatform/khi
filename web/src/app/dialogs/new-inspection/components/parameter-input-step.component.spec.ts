@@ -60,9 +60,6 @@ describe('ParameterInputStepComponent', () => {
         estimatedCount: 12345,
       },
     ],
-    plan: {
-      taskGraph: 'digraph G { A -> B; }',
-    },
     job: {
       command: 'khi run --target gke',
     },
@@ -91,6 +88,10 @@ describe('ParameterInputStepComponent', () => {
     store = TestBed.inject(PARAMETER_STORE);
     fixture = TestBed.createComponent(ParameterInputStepComponent);
     fixture.componentRef.setInput('parameterStore', store);
+    fixture.componentRef.setInput(
+      'taskGraphDebugUrl',
+      '/debug/task-graph?tab=DAG_VIEWER&inspectionType=gke&features=feat-1',
+    );
   });
 
   it('should render loading progress bar when parameterViewModel is null', () => {
@@ -111,7 +112,7 @@ describe('ParameterInputStepComponent', () => {
     expect(parameterView).toBeNull();
   });
 
-  it('should render queries, total estimated logs callout, job command, and plan when parameterViewModel is populated', () => {
+  it('should render queries, total estimated logs callout, job command, and task graph diagnostics link when parameterViewModel is populated', () => {
     fixture.componentRef.setInput('parameterViewModel', mockParameterViewModel);
     fixture.detectChanges();
 
@@ -142,9 +143,15 @@ describe('ParameterInputStepComponent', () => {
     );
     expect(jobCommand).toBeTruthy();
 
-    const taskGraphPre = fixture.debugElement.query(By.css('.task-graph-pre'));
-    expect(taskGraphPre.nativeElement.textContent).toContain(
-      'digraph G { A -> B; }',
+    const taskGraphLink = fixture.debugElement.query(
+      By.css('.task-graph-link-content a'),
+    );
+    expect(taskGraphLink).toBeTruthy();
+    expect(taskGraphLink.nativeElement.getAttribute('href')).toContain(
+      '/debug/task-graph?tab=DAG_VIEWER&inspectionType=gke&features=feat-1',
+    );
+    expect(taskGraphLink.nativeElement.textContent).toContain(
+      'Open Task Graph Diagnostics',
     );
   });
 

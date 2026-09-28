@@ -59,9 +59,14 @@ export class ParameterInputStepComponent {
   protected readonly TotalEstimatedLogsSeverity = TotalEstimatedLogsSeverity;
 
   /**
-   * Holds the view model containing forms, queries, execution plan, and metadata.
+   * Holds the view model containing forms, queries, and metadata.
    */
   readonly parameterViewModel = input.required<ParameterStepViewModel | null>();
+
+  /**
+   * URL to open the Task Graph Diagnostics page pre-configured with the current inspection type and enabled features.
+   */
+  readonly taskGraphDebugUrl = input.required<string>();
 
   /**
    * Store holding current, default, and validated parameter values.

@@ -124,9 +124,6 @@ const mockParameterViewModel: ParameterStepViewModel = {
       estimatedCount: 50000,
     },
   ],
-  plan: {
-    taskGraph: 'digraph G {\n  A -> B;\n}',
-  },
   job: {
     command: 'khi run --target gke --cluster production-cluster',
   },

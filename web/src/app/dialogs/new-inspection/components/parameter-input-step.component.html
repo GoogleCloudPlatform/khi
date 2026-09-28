@@ -102,16 +102,22 @@
       }
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Inspection plan</mat-card-title>
+          <mat-card-title>Task graph</mat-card-title>
         </mat-card-header>
-        <mat-card-content>
-          <p>
-            Copy the following task execution plan and visualize it with
-            graphviz.
+        <mat-card-content class="task-graph-link-content">
+          <p class="sub-description">
+            Inspect the resolved task execution graph for the selected cluster
+            type and features in the Task Graph Diagnostics view.
           </p>
-          <pre class="task-graph-pre">{{
-            parameterViewModel.plan.taskGraph
-          }}</pre>
+          <a
+            mat-stroked-button
+            [href]="taskGraphDebugUrl()"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <mat-icon>open_in_new</mat-icon>
+            Open Task Graph Diagnostics
+          </a>
         </mat-card-content>
       </mat-card>
     </div>

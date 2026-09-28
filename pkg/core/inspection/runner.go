@@ -659,12 +659,6 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	progressMeta.SetTotalTaskCount(len(taskGraph.GetAll()))
 	typedmap.Set(writableMetadata, inspectionmetadata.ProgressMetadataKey, progressMeta)
 
-	taskGraphStr, err := taskGraph.DumpGraphviz()
-	if err != nil {
-		taskGraphStr = fmt.Sprintf("failed to generate task graph %v", err.Error())
-	}
-	typedmap.Set(writableMetadata, inspectionmetadata.InspectionPlanMetadataKey, inspectionmetadata.NewInspectionPlanMetadata(taskGraphStr))
-
 }
 
 func InspectionTaskLogger(logLevelForRun slog.Level, logLevelForDryRun slog.Level, withColor bool) InspectionInterceptor {

@@ -16,7 +16,9 @@
 
 import {
   InspectionDryRunResponse,
+  InspectionFeature,
   InspectionMetadataInDryrun,
+  InspectionType,
 } from 'src/app/common/schema/api-types';
 import {
   CheckboxParameterFormField,
@@ -37,6 +39,7 @@ import {
 import { TotalEstimatedLogsSeverity } from 'src/app/dialogs/new-inspection/types/new-inspection.types';
 import {
   buildParameterStepViewModel,
+  buildTaskGraphDebugUrl,
   computeTotalEstimatedLogs,
   countAllFields,
   countErrorFields,
@@ -393,7 +396,6 @@ describe('new-inspection.utils', () => {
               incomplete: true,
             },
           ],
-          plan: { taskGraph: '' },
         },
       };
       expect(hasDryRunErrors(response)).toBe(true);
@@ -411,7 +413,6 @@ describe('new-inspection.utils', () => {
               incomplete: false,
             },
           ],
-          plan: { taskGraph: '' },
         },
       };
       expect(hasDryRunErrors(response)).toBe(false);
@@ -435,7 +436,6 @@ describe('new-inspection.utils', () => {
             },
           ],
           query: [],
-          plan: { taskGraph: '' },
         },
       };
       expect(hasDryRunErrors(response)).toBe(true);
@@ -975,9 +975,6 @@ describe('new-inspection.utils', () => {
             estimatedCount: 100,
           },
         ],
-        plan: {
-          taskGraph: 'graph-dot-string',
-        },
         jobCommand: {
           command: 'khi run',
         },
@@ -997,7 +994,6 @@ describe('new-inspection.utils', () => {
         children: formFields,
       });
       expect(vm.queries).toEqual(metadata.query);
-      expect(vm.plan).toEqual(metadata.plan);
       expect(vm.job).toEqual(metadata.jobCommand);
       expect(vm.fieldCount).toBe(2);
       expect(vm.totalEstimatedSummary).toEqual({
@@ -1008,6 +1004,40 @@ describe('new-inspection.utils', () => {
         displayText: '~100 total logs estimated',
         severity: TotalEstimatedLogsSeverity.Normal,
       });
+    });
+  });
+
+  describe('buildTaskGraphDebugUrl', () => {
+    it('should include tab, inspectionType, and enabled features', () => {
+      const inspectionType: InspectionType = {
+        id: 'gke',
+        name: 'GKE',
+        description: 'Google Kubernetes Engine',
+        icon: '',
+      };
+      const features: InspectionFeature[] = [
+        { id: 'feat-1', label: 'Feature 1', description: '', enabled: true },
+        { id: 'feat-2', label: 'Feature 2', description: '', enabled: false },
+        { id: 'feat-3', label: 'Feature 3', description: '', enabled: true },
+      ];
+
+      const url = buildTaskGraphDebugUrl(inspectionType, features);
+
+      expect(url).toContain('tab=DAG_VIEWER');
+      expect(url).toContain('inspectionType=gke');
+      expect(url).toContain('features=feat-1%2Cfeat-3');
+    });
+
+    it('should omit inspectionType and have empty features when inspectionType is null and no features are enabled', () => {
+      const features: InspectionFeature[] = [
+        { id: 'feat-1', label: 'Feature 1', description: '', enabled: false },
+      ];
+
+      const url = buildTaskGraphDebugUrl(null, features);
+
+      expect(url).toContain('tab=DAG_VIEWER');
+      expect(url).not.toContain('inspectionType');
+      expect(url).toContain('features=');
     });
   });
 });

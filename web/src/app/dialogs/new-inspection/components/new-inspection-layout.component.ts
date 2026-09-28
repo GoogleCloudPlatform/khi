@@ -36,6 +36,7 @@ import {
   NewInspectionStepIndex,
   ParameterStepViewModel,
 } from 'src/app/dialogs/new-inspection/types/new-inspection.types';
+import { buildTaskGraphDebugUrl } from 'src/app/dialogs/new-inspection/utils/new-inspection.utils';
 
 /**
  * Layout dumb component that displays the complete new inspection wizard dialog layout.
@@ -106,6 +107,13 @@ export class NewInspectionLayoutComponent {
    * The view model for the parameter input step, or null while resolving.
    */
   readonly parameterViewModel = input.required<ParameterStepViewModel | null>();
+
+  /**
+   * URL to open the Task Graph Diagnostics page for the current inspection type and enabled features.
+   */
+  readonly taskGraphDebugUrl = computed(() =>
+    buildTaskGraphDebugUrl(this.currentInspectionType(), this.features()),
+  );
 
   /**
    * Emitted when the user changes or navigates to a new step.

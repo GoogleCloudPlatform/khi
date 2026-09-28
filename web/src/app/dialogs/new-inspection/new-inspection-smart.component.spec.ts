@@ -246,7 +246,6 @@ describe('NewInspectionDialogTest', () => {
             },
           ],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'test-cmd' },
         },
       };
@@ -285,7 +284,6 @@ describe('NewInspectionDialogTest', () => {
             },
           ],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'test-cmd' },
         },
       };
@@ -321,7 +319,6 @@ describe('NewInspectionDialogTest', () => {
             },
           ],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'test-cmd' },
         },
       };
@@ -366,7 +363,6 @@ describe('NewInspectionDialogTest', () => {
             },
           ],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'test-cmd' },
         },
       };
@@ -428,7 +424,6 @@ describe('NewInspectionDialogTest', () => {
         metadata: {
           form: [],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'stale-cmd' },
         },
       });
@@ -449,7 +444,6 @@ describe('NewInspectionDialogTest', () => {
         metadata: {
           form: [],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'updated-cmd' },
         },
       });
@@ -468,7 +462,6 @@ describe('NewInspectionDialogTest', () => {
           metadata: {
             form: [],
             query: [],
-            plan: { taskGraph: '' },
             jobCommand: { command: 'cmd' },
           },
         }),
@@ -531,7 +524,6 @@ describe('NewInspectionDialogTest', () => {
             metadata: {
               form: [],
               query: [],
-              plan: { taskGraph: '' },
             },
           }),
         ),

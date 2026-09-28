@@ -16,7 +16,9 @@
 
 import {
   InspectionDryRunResponse,
+  InspectionFeature,
   InspectionMetadataInDryrun,
+  InspectionType,
 } from 'src/app/common/schema/api-types';
 import {
   GroupParameterFormField,
@@ -33,6 +35,8 @@ import {
   TotalEstimatedLogsSeverity,
   TotalEstimatedLogsSummary,
 } from 'src/app/dialogs/new-inspection/types/new-inspection.types';
+import { TaskGraphDebugTab } from 'src/app/pages/task-graph-debug/types/task-graph-debug.model';
+import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 
 function resolveLogSeverity(count: number): TotalEstimatedLogsSeverity {
   if (count >= 5_000_000) {
@@ -319,9 +323,30 @@ export function buildParameterStepViewModel(
   return {
     rootGroupForm,
     queries: metadata.query,
-    plan: metadata.plan,
     job: metadata.jobCommand,
     fieldCount: countAllFields(metadata.form),
     totalEstimatedSummary: computeTotalEstimatedLogs(metadata.query),
   };
+}
+
+/**
+ * Builds the URL to open the Task Graph Diagnostics page pre-configured with the selected inspection type and enabled features.
+ *
+ * @param inspectionType The currently selected inspection type, or null if none is selected.
+ * @param features The list of inspection features for the selected inspection type.
+ * @returns The constructed Task Graph Diagnostics URL.
+ */
+export function buildTaskGraphDebugUrl(
+  inspectionType: InspectionType | null,
+  features: readonly InspectionFeature[],
+): string {
+  const basePath = ApiPathUtil.getServerBasePath();
+  const params = new URLSearchParams();
+  params.set('tab', TaskGraphDebugTab.DAG_VIEWER);
+  if (inspectionType) {
+    params.set('inspectionType', inspectionType.id);
+  }
+  const enabledFeatureIds = features.filter((f) => f.enabled).map((f) => f.id);
+  params.set('features', enabledFeatureIds.join(','));
+  return `${basePath}/debug/task-graph?${params.toString()}`;
 }

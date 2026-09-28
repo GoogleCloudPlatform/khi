@@ -17,7 +17,6 @@
 import { GroupParameterFormField } from 'src/app/common/schema/form-types';
 import {
   InspectionMetadataJobModeCommand,
-  InspectionMetadataPlan,
   InspectionMetadataQuery,
 } from 'src/app/common/schema/metadata-types';
 
@@ -124,10 +123,6 @@ export interface ParameterStepViewModel {
    * Stores the list of inspection queries.
    */
   readonly queries: InspectionMetadataQuery[];
-  /**
-   * Contains the execution plan metadata for the inspection.
-   */
-  readonly plan: InspectionMetadataPlan;
   /**
    * Holds optional job mode command metadata.
    */

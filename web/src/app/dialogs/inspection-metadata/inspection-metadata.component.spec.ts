@@ -54,9 +54,6 @@ describe('InspectionMetadataDialogComponent', () => {
         log: 'Logs fetched.',
       },
     ],
-    plan: {
-      taskGraph: 'digraph G {}',
-    },
     error: {
       errorMessages: [
         {
@@ -103,7 +100,6 @@ describe('InspectionMetadataDialogComponent', () => {
     expect(vm.queries.length).toBe(1);
     expect(vm.logs.length).toBe(1);
     expect(vm.errors.length).toBe(1);
-    expect(vm.plan.taskGraph).toBe('digraph G {}');
     expect(vm.jobCommand).toBeUndefined();
   });
 

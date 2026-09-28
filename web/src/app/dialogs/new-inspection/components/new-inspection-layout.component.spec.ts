@@ -73,9 +73,6 @@ describe('NewInspectionLayoutComponent', () => {
       children: [],
     },
     queries: [],
-    plan: {
-      taskGraph: 'digraph G {}',
-    },
     fieldCount: 1,
   };
 
@@ -216,5 +213,21 @@ describe('NewInspectionLayoutComponent', () => {
     );
 
     expect(changedStep).toBe(NewInspectionStepIndex.FeatureSelection);
+  });
+
+  it('should compute taskGraphDebugUrl and pass it to ParameterInputStepComponent', () => {
+    setStandardInputs();
+    fixture.detectChanges();
+
+    const url = fixture.componentInstance.taskGraphDebugUrl();
+    expect(url).toContain('tab=DAG_VIEWER');
+    expect(url).toContain('inspectionType=gke');
+    expect(url).toContain('features=feature-audit');
+
+    const parameterStep = fixture.debugElement.query(
+      By.directive(ParameterInputStepComponent),
+    );
+    expect(parameterStep).toBeTruthy();
+    expect(parameterStep.componentInstance.taskGraphDebugUrl()).toBe(url);
   });
 });

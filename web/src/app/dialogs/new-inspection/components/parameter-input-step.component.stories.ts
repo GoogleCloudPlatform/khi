@@ -96,9 +96,6 @@ const mockParameterViewModel: ParameterStepViewModel = {
       estimatedCount: 150000,
     },
   ],
-  plan: {
-    taskGraph: 'digraph G {\n  A -> B;\n  B -> C;\n}',
-  },
   job: {
     command: 'khi run --target gke --cluster my-cluster',
   },
@@ -149,6 +146,8 @@ export const Default: Story = {
   args: {
     parameterViewModel: mockParameterViewModel,
     parameterStore: storyParameterStore,
+    taskGraphDebugUrl:
+      '/debug/task-graph?tab=DAG_VIEWER&inspectionType=gke&features=k8s-audit,k8s-events',
   },
 };
 
@@ -156,6 +155,8 @@ export const Loading: Story = {
   args: {
     parameterViewModel: null,
     parameterStore: storyParameterStore,
+    taskGraphDebugUrl:
+      '/debug/task-graph?tab=DAG_VIEWER&inspectionType=gke&features=k8s-audit,k8s-events',
   },
 };
 
@@ -207,5 +208,7 @@ export const WithValidationErrors: Story = {
       },
     },
     parameterStore: storyParameterStore,
+    taskGraphDebugUrl:
+      '/debug/task-graph?tab=DAG_VIEWER&inspectionType=gke&features=k8s-audit,k8s-events',
   },
 };

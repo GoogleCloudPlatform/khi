@@ -22,10 +22,6 @@
  * Metadata includes the form fields needed to be filled on new inspection dialogs, task progress,..etc
  */
 
-export type InspectionMetadataPlan = {
-  taskGraph: string;
-};
-
 /**
  * Defines predefined rough estimation categories when exact count estimation is unfeasible.
  */

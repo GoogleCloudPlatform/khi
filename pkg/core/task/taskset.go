@@ -17,9 +17,7 @@ package coretask
 import (
 	"fmt"
 	"slices"
-	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 )
@@ -168,39 +166,4 @@ func (s *TaskSet) Get(id string) (UntypedTask, error) {
 		}
 	}
 	return nil, fmt.Errorf("task %s was not found", id)
-}
-
-// DumpGraphviz returns task graph as graphviz string for debugging purpose.
-// The generated string can be converted to DAG graph using `dot` command.
-func (s *TaskSet) DumpGraphviz() (string, error) {
-	if !s.runnable {
-		return "", fmt.Errorf("can't draw a graph for non runnable graph")
-	}
-	result := "digraph G {\n"
-	result += "start [shape=\"diamond\",fillcolor=gray,style=filled]\n"
-	for _, task := range s.tasks {
-		feature := typedmap.GetOrDefault(task.Labels(), NewTaskLabelKey[bool]("khi.google.com/inspection/feature"), false)
-		shape := "circle"
-		if feature {
-			shape = "doublecircle"
-		}
-		result += fmt.Sprintf("%s [shape=\"%s\",label=\"%s\"]\n", graphVizValidId(task.UntypedID().String()), shape, task.UntypedID())
-	}
-
-	for _, task := range s.tasks {
-		if len(s.IncomingEdges(task.UntypedID().String())) == 0 {
-			result += fmt.Sprintf("start -> %s\n", graphVizValidId(task.UntypedID().String()))
-		}
-	}
-	for _, task := range s.tasks {
-		sources := s.IncomingEdges(task.UntypedID().String())
-		for _, edge := range sources {
-			result += fmt.Sprintf("%s -> %s\n", graphVizValidId(edge.SourceImplID), graphVizValidId(task.UntypedID().String()))
-		}
-	}
-	result += "}"
-	return result, nil
-}
-func graphVizValidId(id string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(id, "-", "_"), "/", "_"), ".", "_"), "#", "_")
 }

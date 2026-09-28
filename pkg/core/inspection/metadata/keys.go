@@ -20,7 +20,6 @@ var ErrorMessageSetMetadataKey = NewMetadataKey[*ErrorMessageSetMetadata]("error
 
 // LogMetadataKey is a key to get LogMetadata from the metadata set.
 var LogMetadataKey = NewMetadataKey[*LogMetadata]("log")
-var InspectionPlanMetadataKey = NewMetadataKey[*InspectionPlanMetadata]("plan")
 
 // ProgressMetadataKey is the key used to store and retrieve Progress metadata
 // from a context or metadata map.

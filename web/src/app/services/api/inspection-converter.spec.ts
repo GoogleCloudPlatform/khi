@@ -475,7 +475,6 @@ describe('inspection-converter', () => {
             estimatedCountPreset: ProtoEstimatedCountPreset.FEW,
           },
         ],
-        plan: { taskGraph: 'graph TD; A-->B;' },
         jobCommand: { command: 'khi run ...' },
       });
 
@@ -494,7 +493,6 @@ describe('inspection-converter', () => {
         EstimatedCountPreset.Few,
       );
       expect(converted.metadata.query[3].estimatedCount).toBeUndefined();
-      expect(converted.metadata.plan.taskGraph).toBe('graph TD; A-->B;');
       expect(converted.metadata.jobCommand?.command).toBe('khi run ...');
     });
   });
@@ -508,7 +506,6 @@ describe('inspection-converter', () => {
           fileSize: 2048n,
           suggestedFilename: 'run1.khi',
         },
-        plan: { taskGraph: 'graph' },
         queries: [{ id: 'q1', name: 'q1', query: 'log' }],
         logs: [{ id: '1', name: 'INFO', log: 'Finished' }],
         error: {
