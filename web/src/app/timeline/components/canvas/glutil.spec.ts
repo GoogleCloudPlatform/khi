@@ -175,6 +175,31 @@ describe('glutil', () => {
 
         expect(fetchSpy).toHaveBeenCalledTimes(2);
       });
+
+      it('retries on a transient HTTP 502 response and resolves when subsequent attempt succeeds', async () => {
+        let callCount = 0;
+        const fetchSpy = jasmine.createSpy('fetch').and.callFake(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return new Response('bad gateway', {
+              status: 502,
+              statusText: 'Bad Gateway',
+            });
+          }
+          return new Response('recovered shader', {
+            status: 200,
+            statusText: 'OK',
+          });
+        });
+        window.fetch = fetchSpy;
+
+        const result = await WebGLUtil.getShaderString(
+          'assets/retry-test.glsl',
+        );
+
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        expect(result).toBe('recovered shader');
+      });
     });
 
     describe('loadBMFontConfig', () => {
@@ -294,6 +319,31 @@ describe('glutil', () => {
         expect(fetchSpy).toHaveBeenCalledTimes(2);
         expect(retryResult).toEqual(mockConfig);
       });
+
+      it('retries on a transient HTTP 502 response and resolves when subsequent attempt succeeds', async () => {
+        let callCount = 0;
+        const fetchSpy = jasmine.createSpy('fetch').and.callFake(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return new Response('bad gateway', {
+              status: 502,
+              statusText: 'Bad Gateway',
+            });
+          }
+          return new Response(JSON.stringify(mockConfig), {
+            status: 200,
+            statusText: 'OK',
+          });
+        });
+        window.fetch = fetchSpy;
+
+        const config = await WebGLUtil.loadBMFontConfig(
+          'assets/font-retry.json',
+        );
+
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        expect(config).toEqual(mockConfig);
+      });
     });
 
     describe('loadTexture and clearCache', () => {
@@ -322,6 +372,75 @@ describe('glutil', () => {
 
         gl.deleteTexture(texture1);
         gl.deleteTexture(texture2);
+      });
+
+      it('retries on a transient HTTP 502 response when fetching the image and resolves when the subsequent attempt returns a valid PNG response', async () => {
+        const pngBase64 =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+        const pngBytes = Uint8Array.from(atob(pngBase64), (c) =>
+          c.charCodeAt(0),
+        );
+        let callCount = 0;
+        const fetchSpy = jasmine.createSpy('fetch').and.callFake(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return new Response('bad gateway', {
+              status: 502,
+              statusText: 'Bad Gateway',
+            });
+          }
+          return new Response(new Blob([pngBytes], { type: 'image/png' }), {
+            status: 200,
+            statusText: 'OK',
+          });
+        });
+        window.fetch = fetchSpy;
+
+        const texture = await WebGLUtil.loadTexture(
+          gl,
+          'assets/retry-image.png',
+        );
+
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        expect(texture).toBeTruthy();
+        gl.deleteTexture(texture);
+      });
+
+      it('throws an error and evicts the image path from cache on non-retryable HTTP 404 failure', async () => {
+        const pngBase64 =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+        const pngBytes = Uint8Array.from(atob(pngBase64), (c) =>
+          c.charCodeAt(0),
+        );
+        let callCount = 0;
+        const fetchSpy = jasmine.createSpy('fetch').and.callFake(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return new Response(null, {
+              status: 404,
+              statusText: 'Not Found',
+            });
+          }
+          return new Response(new Blob([pngBytes], { type: 'image/png' }), {
+            status: 200,
+            statusText: 'OK',
+          });
+        });
+        window.fetch = fetchSpy;
+
+        await expectAsync(
+          WebGLUtil.loadTexture(gl, 'assets/not-found.png'),
+        ).toBeRejectedWithError(
+          /Failed to load image at assets\/not-found.png: HTTP 404 Not Found/,
+        );
+
+        const retryTexture = await WebGLUtil.loadTexture(
+          gl,
+          'assets/not-found.png',
+        );
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        expect(retryTexture).toBeTruthy();
+        gl.deleteTexture(retryTexture);
       });
 
       it('clears all caches when clearCache is called', async () => {

@@ -15,6 +15,7 @@
  */
 
 import { BMFontConfig } from 'src/app/store/domain/style';
+import { fetchWithRetry } from 'src/app/services/api/retry-util';
 import { WebGLContextLostException } from './glcontextmanager';
 
 /**
@@ -140,7 +141,7 @@ export class WebGLUtil {
       return cached;
     }
     const fetchPromise = (async () => {
-      const result = await fetch(path);
+      const result = await fetchWithRetry(path);
       if (!result.ok) {
         throw new Error(
           `Failed to load BMFont config at ${path}: HTTP ${result.status} ${result.statusText}`,
@@ -189,10 +190,22 @@ export class WebGLUtil {
       return cached;
     }
     const loadPromise = (async () => {
-      const image = new Image();
-      image.src = imagePath;
-      await image.decode();
-      return image;
+      const result = await fetchWithRetry(imagePath);
+      if (!result.ok) {
+        throw new Error(
+          `Failed to load image at ${imagePath}: HTTP ${result.status} ${result.statusText}`,
+        );
+      }
+      const blob = await result.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        const image = new Image();
+        image.src = objectUrl;
+        await image.decode();
+        return image;
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
     })();
 
     this.imageCache.set(imagePath, loadPromise);
@@ -234,7 +247,7 @@ export class WebGLUtil {
       return cached;
     }
     const fetchPromise = (async () => {
-      const result = await fetch(path);
+      const result = await fetchWithRetry(path);
       if (!result.ok) {
         throw new Error(
           `Failed to load shader file at ${path}: HTTP ${result.status} ${result.statusText}`,

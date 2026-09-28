@@ -46,6 +46,12 @@ export const DEFAULT_RETRYABLE_METHODS: ReadonlySet<string> = new Set([
   'FilterTimelineSync',
   'ValidateTimelineQuery',
   'ValidateLogQuery',
+  'GetTimelineIDsForLogs',
+  'GetInspectionTaskRegistry',
+  'ResolveInspectionTaskGraph',
+  'PullInspectionRunTaskGraph',
+  'DryRunInspection',
+  'ValidatePopupAnswer',
 ]);
 
 /**
