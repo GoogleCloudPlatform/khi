@@ -1318,7 +1318,7 @@ export declare type DryRunInspectionRequest =
 export declare const DryRunInspectionRequestSchema: GenMessage<DryRunInspectionRequest>;
 
 /**
- * Response containing evaluated form fields, queries, and execution plan.
+ * Response containing evaluated form fields, queries, and CLI job command.
  *
  * @generated from message api.v1.DryRunInspectionResponse
  */
@@ -1341,7 +1341,7 @@ export declare type DryRunInspectionResponse =
     /**
      * CLI command representation for headless job execution.
      *
-     * @generated from field: api.v1.InspectionJobCommand job_command = 4;
+     * @generated from field: api.v1.InspectionJobCommand job_command = 3;
      */
     jobCommand?: InspectionJobCommand | undefined;
   };
@@ -1467,28 +1467,28 @@ export declare type GetInspectionMetadataResponse =
     /**
      * Executed queries.
      *
-     * @generated from field: repeated api.v1.InspectionQuery queries = 3;
+     * @generated from field: repeated api.v1.InspectionQuery queries = 2;
      */
     queries: InspectionQuery[];
 
     /**
      * Diagnostic logs from task execution.
      *
-     * @generated from field: repeated api.v1.InspectionLog logs = 4;
+     * @generated from field: repeated api.v1.InspectionLog logs = 3;
      */
     logs: InspectionLog[];
 
     /**
      * Errors encountered during execution, if any.
      *
-     * @generated from field: api.v1.InspectionErrorSet error = 5;
+     * @generated from field: api.v1.InspectionErrorSet error = 4;
      */
     error?: InspectionErrorSet | undefined;
 
     /**
      * CLI command representation for headless job execution.
      *
-     * @generated from field: api.v1.InspectionJobCommand job_command = 6;
+     * @generated from field: api.v1.InspectionJobCommand job_command = 5;
      */
     jobCommand?: InspectionJobCommand | undefined;
   };

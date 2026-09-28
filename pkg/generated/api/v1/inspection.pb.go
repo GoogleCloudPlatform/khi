@@ -2832,7 +2832,7 @@ func (x *DryRunInspectionRequest) GetParameters() *InspectionParameters {
 	return nil
 }
 
-// Response containing evaluated form fields, queries, and execution plan.
+// Response containing evaluated form fields, queries, and CLI job command.
 type DryRunInspectionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Form fields with updated hints and validation messages.
@@ -2840,7 +2840,7 @@ type DryRunInspectionResponse struct {
 	// Generated queries for the configured inspection.
 	Queries []*InspectionQuery `protobuf:"bytes,2,rep,name=queries" json:"queries,omitempty"`
 	// CLI command representation for headless job execution.
-	JobCommand    *InspectionJobCommand `protobuf:"bytes,4,opt,name=job_command,json=jobCommand" json:"job_command,omitempty"`
+	JobCommand    *InspectionJobCommand `protobuf:"bytes,3,opt,name=job_command,json=jobCommand" json:"job_command,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3123,13 +3123,13 @@ type GetInspectionMetadataResponse struct {
 	// Header metadata including timestamps and archive details.
 	Header *InspectionHeader `protobuf:"bytes,1,opt,name=header" json:"header,omitempty"`
 	// Executed queries.
-	Queries []*InspectionQuery `protobuf:"bytes,3,rep,name=queries" json:"queries,omitempty"`
+	Queries []*InspectionQuery `protobuf:"bytes,2,rep,name=queries" json:"queries,omitempty"`
 	// Diagnostic logs from task execution.
-	Logs []*InspectionLog `protobuf:"bytes,4,rep,name=logs" json:"logs,omitempty"`
+	Logs []*InspectionLog `protobuf:"bytes,3,rep,name=logs" json:"logs,omitempty"`
 	// Errors encountered during execution, if any.
-	Error *InspectionErrorSet `protobuf:"bytes,5,opt,name=error" json:"error,omitempty"`
+	Error *InspectionErrorSet `protobuf:"bytes,4,opt,name=error" json:"error,omitempty"`
 	// CLI command representation for headless job execution.
-	JobCommand    *InspectionJobCommand `protobuf:"bytes,6,opt,name=job_command,json=jobCommand" json:"job_command,omitempty"`
+	JobCommand    *InspectionJobCommand `protobuf:"bytes,5,opt,name=job_command,json=jobCommand" json:"job_command,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3483,12 +3483,12 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\x12<\n" +
 	"\n" +
 	"parameters\x18\x02 \x01(\v2\x1c.api.v1.InspectionParametersR\n" +
-	"parameters\"\xbf\x01\n" +
+	"parameters\"\xb3\x01\n" +
 	"\x18DryRunInspectionResponse\x12%\n" +
 	"\x04form\x18\x01 \x03(\v2\x11.api.v1.FormFieldR\x04form\x121\n" +
 	"\aqueries\x18\x02 \x03(\v2\x17.api.v1.InspectionQueryR\aqueries\x12=\n" +
-	"\vjob_command\x18\x04 \x01(\v2\x1c.api.v1.InspectionJobCommandR\n" +
-	"jobCommandJ\x04\b\x03\x10\x04R\x04plan\"y\n" +
+	"\vjob_command\x18\x03 \x01(\v2\x1c.api.v1.InspectionJobCommandR\n" +
+	"jobCommand\"y\n" +
 	"\x14RunInspectionRequest\x12#\n" +
 	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\x12<\n" +
 	"\n" +
@@ -3499,14 +3499,14 @@ const file_api_v1_inspection_proto_rawDesc = "" +
 	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\"\x1a\n" +
 	"\x18CancelInspectionResponse\"C\n" +
 	"\x1cGetInspectionMetadataRequest\x12#\n" +
-	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\"\xac\x02\n" +
+	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\"\xa0\x02\n" +
 	"\x1dGetInspectionMetadataResponse\x120\n" +
 	"\x06header\x18\x01 \x01(\v2\x18.api.v1.InspectionHeaderR\x06header\x121\n" +
-	"\aqueries\x18\x03 \x03(\v2\x17.api.v1.InspectionQueryR\aqueries\x12)\n" +
-	"\x04logs\x18\x04 \x03(\v2\x15.api.v1.InspectionLogR\x04logs\x120\n" +
-	"\x05error\x18\x05 \x01(\v2\x1a.api.v1.InspectionErrorSetR\x05error\x12=\n" +
-	"\vjob_command\x18\x06 \x01(\v2\x1c.api.v1.InspectionJobCommandR\n" +
-	"jobCommandJ\x04\b\x02\x10\x03R\x04plan\"\x8d\x01\n" +
+	"\aqueries\x18\x02 \x03(\v2\x17.api.v1.InspectionQueryR\aqueries\x12)\n" +
+	"\x04logs\x18\x03 \x03(\v2\x15.api.v1.InspectionLogR\x04logs\x120\n" +
+	"\x05error\x18\x04 \x01(\v2\x1a.api.v1.InspectionErrorSetR\x05error\x12=\n" +
+	"\vjob_command\x18\x05 \x01(\v2\x1c.api.v1.InspectionJobCommandR\n" +
+	"jobCommand\"\x8d\x01\n" +
 	"\x1dGetInspectionDataChunkRequest\x12#\n" +
 	"\rinspection_id\x18\x01 \x01(\tR\finspectionId\x12!\n" +
 	"\foffset_bytes\x18\x02 \x01(\x03R\voffsetBytes\x12$\n" +
