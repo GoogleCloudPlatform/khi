@@ -354,7 +354,7 @@ describe('retry-util', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(4);
     });
 
-    it('aborts during backoff delay when AbortSignal fires and throws AbortError without making subsequent fetch calls', async () => {
+    it('aborts during backoff delay when AbortSignal fires and throws CancellationError without making subsequent fetch calls', async () => {
       const controller = new AbortController();
       let callCount = 0;
       const fetchSpy = jasmine.createSpy('fetch').and.callFake(async () => {
@@ -377,7 +377,38 @@ describe('retry-util', () => {
       setTimeout(() => controller.abort(), 20);
 
       await expectAsync(retryPromise).toBeRejectedWithError(
-        DOMException,
+        CancellationError,
+        'The operation was aborted.',
+      );
+      expect(callCount).toBe(1);
+    });
+
+    it('respects signal from Request input and throws CancellationError on abort during backoff delay', async () => {
+      const controller = new AbortController();
+      let callCount = 0;
+      const fetchSpy = jasmine.createSpy('fetch').and.callFake(async () => {
+        callCount++;
+        return new Response('bad gateway', {
+          status: 502,
+          statusText: 'Bad Gateway',
+        });
+      });
+      window.fetch = fetchSpy;
+
+      const request = new Request('https://example.com', {
+        signal: controller.signal,
+      });
+
+      const retryPromise = fetchWithRetry(request, {
+        maxRetries: 3,
+        baseDelayMs: 1000,
+        maxDelayMs: 2000,
+      });
+
+      setTimeout(() => controller.abort(), 20);
+
+      await expectAsync(retryPromise).toBeRejectedWithError(
+        CancellationError,
         'The operation was aborted.',
       );
       expect(callCount).toBe(1);

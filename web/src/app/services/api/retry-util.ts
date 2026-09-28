@@ -205,20 +205,23 @@ export async function fetchWithRetry(
   const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
   const baseDelayMs = options?.baseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS;
   const maxDelayMs = options?.maxDelayMs ?? DEFAULT_RETRY_MAX_DELAY_MS;
-  const signal = options?.init?.signal ?? undefined;
+  const signal =
+    options?.init?.signal ??
+    (input instanceof Request ? input.signal : undefined);
 
   let retryCount = 0;
   while (true) {
     try {
-      const response = options?.init
-        ? await fetch(input, options.init)
-        : await fetch(input);
+      const response = await fetch(input, options?.init);
+
+      if (signal?.aborted) {
+        throw new CancellationError('The operation was aborted.');
+      }
 
       if (
         !response.ok &&
         isRetryableHttpStatus(response.status) &&
-        retryCount < maxRetries &&
-        !signal?.aborted
+        retryCount < maxRetries
       ) {
         retryCount++;
         const delayMs = calculateBackoffDelayMs(
@@ -228,7 +231,7 @@ export async function fetchWithRetry(
         );
         await delayWithSignal(delayMs, signal);
         if (signal?.aborted) {
-          throw new DOMException('The operation was aborted.', 'AbortError');
+          throw new CancellationError('The operation was aborted.');
         }
         continue;
       }
@@ -236,7 +239,7 @@ export async function fetchWithRetry(
       return response;
     } catch (err) {
       if (signal?.aborted) {
-        throw err;
+        throw new CancellationError('The operation was aborted.');
       }
 
       retryCount++;
@@ -252,7 +255,7 @@ export async function fetchWithRetry(
       await delayWithSignal(delayMs, signal);
 
       if (signal?.aborted) {
-        throw new DOMException('The operation was aborted.', 'AbortError');
+        throw new CancellationError('The operation was aborted.');
       }
     }
   }
