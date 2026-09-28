@@ -103,11 +103,11 @@ describe('NewInspectionLayoutComponent', () => {
       mockInspectionTypes[0],
     );
     fixture.componentRef.setInput('features', mockFeatures);
-    fixture.componentRef.setInput('hasEnabledFeatures', true);
+    fixture.componentRef.setInput(
+      'parameterStore',
+      TestBed.inject(PARAMETER_STORE),
+    );
     fixture.componentRef.setInput('parameterViewModel', mockParameterViewModel);
-    fixture.componentRef.setInput('errorFieldCount', 0);
-    fixture.componentRef.setInput('pendingFieldCount', 0);
-    fixture.componentRef.setInput('isRunButtonDisabled', false);
   }
 
   it('should render dialog title and stepper', () => {

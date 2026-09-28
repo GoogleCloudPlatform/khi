@@ -19,12 +19,15 @@ import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import {
+  ParameterFormValidationTiming,
   ParameterHintType,
   ParameterInputType,
+  TextParameterFormField,
 } from 'src/app/common/schema/form-types';
 import {
   DefaultParameterStore,
   PARAMETER_STORE,
+  ParameterStore,
 } from 'src/app/dialogs/new-inspection/components/service/parameter-store';
 import {
   ParameterStepViewModel,
@@ -35,6 +38,7 @@ import { JobCommandComponent } from 'src/app/dialogs/new-inspection/components/j
 
 describe('ParameterInputStepComponent', () => {
   let fixture: ComponentFixture<ParameterInputStepComponent>;
+  let store: ParameterStore;
 
   const mockParameterViewModel: ParameterStepViewModel = {
     rootGroupForm: {
@@ -84,14 +88,13 @@ describe('ParameterInputStepComponent', () => {
       ],
     }).compileComponents();
 
+    store = TestBed.inject(PARAMETER_STORE);
     fixture = TestBed.createComponent(ParameterInputStepComponent);
+    fixture.componentRef.setInput('parameterStore', store);
   });
 
   it('should render loading progress bar when parameterViewModel is null', () => {
     fixture.componentRef.setInput('parameterViewModel', null);
-    fixture.componentRef.setInput('errorFieldCount', 0);
-    fixture.componentRef.setInput('pendingFieldCount', 0);
-    fixture.componentRef.setInput('isRunButtonDisabled', true);
     fixture.detectChanges();
 
     const progressBar = fixture.debugElement.query(
@@ -110,9 +113,6 @@ describe('ParameterInputStepComponent', () => {
 
   it('should render queries, total estimated logs callout, job command, and plan when parameterViewModel is populated', () => {
     fixture.componentRef.setInput('parameterViewModel', mockParameterViewModel);
-    fixture.componentRef.setInput('errorFieldCount', 0);
-    fixture.componentRef.setInput('pendingFieldCount', 0);
-    fixture.componentRef.setInput('isRunButtonDisabled', false);
     fixture.detectChanges();
 
     const progressBar = fixture.debugElement.query(
@@ -149,10 +149,40 @@ describe('ParameterInputStepComponent', () => {
   });
 
   it('should show error count message when errorFieldCount > 0', () => {
-    fixture.componentRef.setInput('parameterViewModel', mockParameterViewModel);
-    fixture.componentRef.setInput('errorFieldCount', 2);
-    fixture.componentRef.setInput('pendingFieldCount', 0);
-    fixture.componentRef.setInput('isRunButtonDisabled', true);
+    const errorViewModel: ParameterStepViewModel = {
+      ...mockParameterViewModel,
+      rootGroupForm: {
+        ...mockParameterViewModel.rootGroupForm,
+        children: [
+          {
+            id: 'err-field-1',
+            label: 'Field 1',
+            description: '',
+            type: ParameterInputType.Text,
+            hint: 'Error 1',
+            hintType: ParameterHintType.Error,
+            default: '',
+            readonly: false,
+            suggestions: [],
+            validationTiming: ParameterFormValidationTiming.Blur,
+          } as TextParameterFormField,
+          {
+            id: 'err-field-2',
+            label: 'Field 2',
+            description: '',
+            type: ParameterInputType.Text,
+            hint: 'Error 2',
+            hintType: ParameterHintType.Error,
+            default: '',
+            readonly: false,
+            suggestions: [],
+            validationTiming: ParameterFormValidationTiming.Blur,
+          } as TextParameterFormField,
+        ],
+      },
+      fieldCount: 5,
+    };
+    fixture.componentRef.setInput('parameterViewModel', errorViewModel);
     fixture.detectChanges();
 
     const errorMessage = fixture.debugElement.query(
@@ -162,13 +192,61 @@ describe('ParameterInputStepComponent', () => {
     expect(errorMessage.nativeElement.textContent).toContain(
       'Fix the validation errors on the input parameters: 2 / 5',
     );
+
+    const runButton = fixture.debugElement.query(By.css('.run-button'));
+    expect(runButton.nativeElement.disabled).toBeTrue();
   });
 
   it('should show pending parameters message when pendingFieldCount > 0 and errorFieldCount is 0', () => {
-    fixture.componentRef.setInput('parameterViewModel', mockParameterViewModel);
-    fixture.componentRef.setInput('errorFieldCount', 0);
-    fixture.componentRef.setInput('pendingFieldCount', 3);
-    fixture.componentRef.setInput('isRunButtonDisabled', true);
+    const pendingViewModel: ParameterStepViewModel = {
+      ...mockParameterViewModel,
+      rootGroupForm: {
+        ...mockParameterViewModel.rootGroupForm,
+        children: [
+          {
+            id: 'p-field-1',
+            label: 'Field 1',
+            description: '',
+            type: ParameterInputType.Text,
+            hint: '',
+            hintType: ParameterHintType.None,
+            pending: true,
+            default: '',
+            readonly: false,
+            suggestions: [],
+            validationTiming: ParameterFormValidationTiming.Blur,
+          } as TextParameterFormField,
+          {
+            id: 'p-field-2',
+            label: 'Field 2',
+            description: '',
+            type: ParameterInputType.Text,
+            hint: '',
+            hintType: ParameterHintType.None,
+            pending: true,
+            default: '',
+            readonly: false,
+            suggestions: [],
+            validationTiming: ParameterFormValidationTiming.Blur,
+          } as TextParameterFormField,
+          {
+            id: 'p-field-3',
+            label: 'Field 3',
+            description: '',
+            type: ParameterInputType.Text,
+            hint: '',
+            hintType: ParameterHintType.None,
+            pending: true,
+            default: '',
+            readonly: false,
+            suggestions: [],
+            validationTiming: ParameterFormValidationTiming.Blur,
+          } as TextParameterFormField,
+        ],
+      },
+      fieldCount: 5,
+    };
+    fixture.componentRef.setInput('parameterViewModel', pendingViewModel);
     fixture.detectChanges();
 
     const pendingSection = fixture.debugElement.query(
@@ -178,13 +256,13 @@ describe('ParameterInputStepComponent', () => {
     expect(pendingSection.nativeElement.textContent).toContain(
       'Resolving parameters: 3 / 5',
     );
+
+    const runButton = fixture.debugElement.query(By.css('.run-button'));
+    expect(runButton.nativeElement.disabled).toBeTrue();
   });
 
   it('should emit runInspection when Run button is clicked', () => {
     fixture.componentRef.setInput('parameterViewModel', mockParameterViewModel);
-    fixture.componentRef.setInput('errorFieldCount', 0);
-    fixture.componentRef.setInput('pendingFieldCount', 0);
-    fixture.componentRef.setInput('isRunButtonDisabled', false);
     fixture.detectChanges();
 
     let emitted = false;
@@ -194,8 +272,13 @@ describe('ParameterInputStepComponent', () => {
 
     const runButton = fixture.debugElement.query(By.css('.run-button'));
     expect(runButton.nativeElement.disabled).toBeFalse();
+    expect(fixture.componentInstance.hasRun()).toBeFalse();
+
     runButton.nativeElement.click();
+    fixture.detectChanges();
 
     expect(emitted).toBeTrue();
+    expect(fixture.componentInstance.hasRun()).toBeTrue();
+    expect(runButton.nativeElement.disabled).toBeTrue();
   });
 });

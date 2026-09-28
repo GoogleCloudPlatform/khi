@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, input, output } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -24,11 +24,16 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { GroupParameterComponent } from 'src/app/dialogs/new-inspection/components/group-parameter.component';
 import { JobCommandComponent } from 'src/app/dialogs/new-inspection/components/job-command.component';
+import { ParameterStore } from 'src/app/dialogs/new-inspection/components/service/parameter-store';
 import { EstimatedCountPreset } from 'src/app/common/schema/metadata-types';
 import {
   ParameterStepViewModel,
   TotalEstimatedLogsSeverity,
 } from 'src/app/dialogs/new-inspection/types/new-inspection.types';
+import {
+  countErrorFields,
+  countPendingFields,
+} from 'src/app/dialogs/new-inspection/utils/new-inspection.utils';
 
 /**
  * Dumb component that renders the parameter input step of the new inspection wizard.
@@ -59,22 +64,59 @@ export class ParameterInputStepComponent {
   readonly parameterViewModel = input.required<ParameterStepViewModel | null>();
 
   /**
-   * The count of input parameter fields currently containing validation errors.
+   * Store holding current, default, and validated parameter values.
    */
-  readonly errorFieldCount = input.required<number>();
+  readonly parameterStore = input.required<ParameterStore>();
+
+  /**
+   * Indicates whether the run action has been triggered.
+   */
+  readonly hasRun = signal(false);
 
   /**
    * The count of input parameter fields currently resolving asynchronously.
    */
-  readonly pendingFieldCount = input.required<number>();
+  readonly pendingFieldCount = computed(() => {
+    const vm = this.parameterViewModel();
+    if (!vm) return 0;
+    const store = this.parameterStore();
+    return countPendingFields(vm.rootGroupForm.children, (id) =>
+      store.isValidating(id)(),
+    );
+  });
+
+  /**
+   * The count of input parameter fields currently containing validation errors.
+   */
+  readonly errorFieldCount = computed(() => {
+    const vm = this.parameterViewModel();
+    if (!vm) return 0;
+    const store = this.parameterStore();
+    return countErrorFields(vm.rootGroupForm.children, (id) =>
+      store.isValidating(id)(),
+    );
+  });
 
   /**
    * Indicates whether the run inspection button should be disabled.
    */
-  readonly isRunButtonDisabled = input.required<boolean>();
+  readonly isRunButtonDisabled = computed(
+    () =>
+      this.hasRun() ||
+      this.errorFieldCount() !== 0 ||
+      this.pendingFieldCount() !== 0,
+  );
 
   /**
    * Emitted when the user clicks the run inspection button.
    */
   readonly runInspection = output<void>();
+
+  /**
+   * Marks the inspection as running and emits the runInspection output.
+   */
+  onRunButtonClick(): void {
+    this.hasRun.set(true);
+    this.runInspection.emit();
+  }
 }

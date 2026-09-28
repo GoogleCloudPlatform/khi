@@ -123,6 +123,8 @@ const createInitializedParameterStore = () => {
   return store;
 };
 
+const storyParameterStore = createInitializedParameterStore();
+
 const meta: Meta<ParameterInputStepComponent> = {
   title: 'Dialogs/NewInspection/ParameterInputStep',
   component: ParameterInputStepComponent,
@@ -133,7 +135,7 @@ const meta: Meta<ParameterInputStepComponent> = {
       providers: [
         {
           provide: PARAMETER_STORE,
-          useFactory: createInitializedParameterStore,
+          useValue: storyParameterStore,
         },
       ],
     }),
@@ -146,18 +148,14 @@ type Story = StoryObj<ParameterInputStepComponent>;
 export const Default: Story = {
   args: {
     parameterViewModel: mockParameterViewModel,
-    errorFieldCount: 0,
-    pendingFieldCount: 0,
-    isRunButtonDisabled: false,
+    parameterStore: storyParameterStore,
   },
 };
 
 export const Loading: Story = {
   args: {
     parameterViewModel: null,
-    errorFieldCount: 0,
-    pendingFieldCount: 0,
-    isRunButtonDisabled: true,
+    parameterStore: storyParameterStore,
   },
 };
 
@@ -208,8 +206,6 @@ export const WithValidationErrors: Story = {
         ],
       },
     },
-    errorFieldCount: 2,
-    pendingFieldCount: 0,
-    isRunButtonDisabled: true,
+    parameterStore: storyParameterStore,
   },
 };

@@ -17,9 +17,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { signal, WritableSignal } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Observable, of, Subject } from 'rxjs';
 
+import { ParameterInputStepComponent } from 'src/app/dialogs/new-inspection/components/parameter-input-step.component';
 import { NewInspectionDialogComponent } from 'src/app/dialogs/new-inspection/new-inspection-smart.component';
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
@@ -170,7 +172,6 @@ describe('NewInspectionDialogTest', () => {
     component.onRunButtonClick();
     await fixture.whenStable();
 
-    expect(component.hasRun()).toBeTrue();
     expect(mockInspectionClient.run).toHaveBeenCalled();
     expect(extensionStore.notifyLifecycleOnInspectionStart).toHaveBeenCalled();
     expect(mockDialogRef.close).toHaveBeenCalledWith({
@@ -292,9 +293,14 @@ describe('NewInspectionDialogTest', () => {
 
       component.selectedStepChange(NewInspectionStepIndex.ParameterInput);
       await fixture.whenStable();
+      fixture.detectChanges();
 
-      expect(component.pendingFieldCount()).toBe(1);
-      expect(component.isRunButtonDisabled()).toBe(true);
+      const parameterStep = fixture.debugElement.query(
+        By.directive(ParameterInputStepComponent),
+      ).componentInstance as ParameterInputStepComponent;
+
+      expect(parameterStep.pendingFieldCount()).toBe(1);
+      expect(parameterStep.isRunButtonDisabled()).toBe(true);
     });
 
     it('should suppress stale errors when field is validating', async () => {
@@ -323,18 +329,23 @@ describe('NewInspectionDialogTest', () => {
 
       component.selectedStepChange(NewInspectionStepIndex.ParameterInput);
       await fixture.whenStable();
+      fixture.detectChanges();
 
-      expect(component.errorFieldCount()).toBe(1);
-      expect(component.pendingFieldCount()).toBe(0);
+      const parameterStep = fixture.debugElement.query(
+        By.directive(ParameterInputStepComponent),
+      ).componentInstance as ParameterInputStepComponent;
+
+      expect(parameterStep.errorFieldCount()).toBe(1);
+      expect(parameterStep.pendingFieldCount()).toBe(0);
 
       // User changes the value, making it validating on client side
       store.set('text-param', 'new-text');
       fixture.detectChanges();
 
       // Validating field should suppress the stale error and increase pendingFieldCount
-      expect(component.errorFieldCount()).toBe(0);
-      expect(component.pendingFieldCount()).toBe(1);
-      expect(component.isRunButtonDisabled()).toBe(true);
+      expect(parameterStep.errorFieldCount()).toBe(0);
+      expect(parameterStep.pendingFieldCount()).toBe(1);
+      expect(parameterStep.isRunButtonDisabled()).toBe(true);
     });
 
     it('should keep fields in validating state after defaults are assigned until the next dryrun completes', async () => {

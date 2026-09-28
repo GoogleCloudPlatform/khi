@@ -74,8 +74,6 @@ import {
 } from 'src/app/dialogs/new-inspection/types/new-inspection.types';
 import {
   buildParameterStepViewModel,
-  countErrorFields,
-  countPendingFields,
   flattenDefaultValues,
 } from 'src/app/dialogs/new-inspection/utils/new-inspection.utils';
 
@@ -126,7 +124,12 @@ export class NewInspectionDialogComponent implements OnDestroy {
   private readonly backendSync = inject<BackendSyncService>(BACKEND_SYNC);
   private readonly apiClient = inject<BackendAPI>(BACKEND_API);
   private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
-  private readonly store = inject(PARAMETER_STORE);
+
+  /**
+   * Parameter store holding current, default, and validated parameter values.
+   */
+  readonly parameterStore = inject(PARAMETER_STORE);
+
   private readonly destroyRef = inject(DestroyRef);
 
   /**
@@ -172,55 +175,11 @@ export class NewInspectionDialogComponent implements OnDestroy {
   );
 
   /**
-   * Computed indicating if at least one inspection feature is enabled.
-   */
-  readonly hasEnabledFeatures = computed(() =>
-    this.currentInspectionFeatures().some((f) => f.enabled),
-  );
-
-  /**
-   * Indicates whether the inspection execution has started.
-   */
-  readonly hasRun = signal(false);
-
-  /**
    * Signal holding the view model for the parameter input step.
    */
   readonly parameterViewModel = signal<ParameterStepViewModel | null>(null);
 
   private loopAbortController: AbortController | null = null;
-
-  /**
-   * Count of fields currently being resolved or validated.
-   */
-  readonly pendingFieldCount = computed(() => {
-    const vm = this.parameterViewModel();
-    if (!vm) return 0;
-    return countPendingFields(vm.rootGroupForm.children, (id) =>
-      this.store.isValidating(id)(),
-    );
-  });
-
-  /**
-   * Count of fields with active validation errors.
-   */
-  readonly errorFieldCount = computed(() => {
-    const vm = this.parameterViewModel();
-    if (!vm) return 0;
-    return countErrorFields(vm.rootGroupForm.children, (id) =>
-      this.store.isValidating(id)(),
-    );
-  });
-
-  /**
-   * Computed flag disabling the run inspection button.
-   */
-  readonly isRunButtonDisabled = computed(
-    () =>
-      this.hasRun() ||
-      this.errorFieldCount() !== 0 ||
-      this.pendingFieldCount() !== 0,
-  );
 
   constructor() {
     if (this.dialogData?.initialInspectionTypeId) {
@@ -243,7 +202,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
         tap((matched) => {
           this.currentInspectionTypeSubject.next(matched);
           if (dialogData.initialParameters) {
-            this.store.setDefaultValues(dialogData.initialParameters);
+            this.parameterStore.setDefaultValues(dialogData.initialParameters);
           }
         }),
         switchMap(() => this.currentInspectionClient$.pipe(take(1))),
@@ -314,11 +273,12 @@ export class NewInspectionDialogComponent implements OnDestroy {
    * Initiates the inspection task and closes the dialog upon success.
    */
   public onRunButtonClick(): void {
-    this.hasRun.set(true);
     this.currentInspectionClient$
       .pipe(
         take(1),
-        switchMap((client) => client.run(this.store.currentParameters())),
+        switchMap((client) =>
+          client.run(this.parameterStore.currentParameters()),
+        ),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
@@ -374,7 +334,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
     client: InspectionClient,
     signal: AbortSignal,
   ): Promise<void> {
-    const sentParams = this.store.currentParameters();
+    const sentParams = this.parameterStore.currentParameters();
     const res = await firstValueFrom(
       client
         .dryrunDirect(sentParams)
@@ -384,14 +344,16 @@ export class NewInspectionDialogComponent implements OnDestroy {
       return;
     }
 
-    const currentParams = this.store.currentParameters();
+    const currentParams = this.parameterStore.currentParameters();
     const changedDuringFlight = !haveEqualKeyValues(sentParams, currentParams);
     if (!changedDuringFlight) {
-      this.store.setValidatedParameters(sentParams);
+      this.parameterStore.setValidatedParameters(sentParams);
       this.parameterViewModel.set(buildParameterStepViewModel(res.metadata));
-      this.store.setDefaultValues(flattenDefaultValues(res.metadata.form));
+      this.parameterStore.setDefaultValues(
+        flattenDefaultValues(res.metadata.form),
+      );
 
-      const paramsAfterDefaults = this.store.currentParameters();
+      const paramsAfterDefaults = this.parameterStore.currentParameters();
       if (haveEqualKeyValues(sentParams, paramsAfterDefaults)) {
         await this.delay(800, signal);
       }
@@ -424,8 +386,8 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stopDryrunLoop();
-    if (this.store instanceof DefaultParameterStore) {
-      this.store.destroy();
+    if (this.parameterStore instanceof DefaultParameterStore) {
+      this.parameterStore.destroy();
     }
   }
 }

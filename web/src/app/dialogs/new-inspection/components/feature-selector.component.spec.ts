@@ -48,7 +48,6 @@ describe('FeatureSelectorComponent', () => {
 
   it('should render feature cards and apply selected class to enabled features', () => {
     fixture.componentRef.setInput('features', mockFeatures);
-    fixture.componentRef.setInput('hasEnabledFeatures', true);
     fixture.detectChanges();
 
     const cards = fixture.debugElement.queryAll(By.css('.feature-card'));
@@ -65,7 +64,6 @@ describe('FeatureSelectorComponent', () => {
 
   it('should emit toggleFeature with feature id when a card is clicked', () => {
     fixture.componentRef.setInput('features', mockFeatures);
-    fixture.componentRef.setInput('hasEnabledFeatures', true);
     fixture.detectChanges();
 
     let toggledFeatureId: string | undefined;
@@ -80,8 +78,10 @@ describe('FeatureSelectorComponent', () => {
   });
 
   it('should show error message and disable Next button when hasEnabledFeatures is false', () => {
-    fixture.componentRef.setInput('features', mockFeatures);
-    fixture.componentRef.setInput('hasEnabledFeatures', false);
+    fixture.componentRef.setInput(
+      'features',
+      mockFeatures.map((f) => ({ ...f, enabled: false })),
+    );
     fixture.detectChanges();
 
     const errorMsg = fixture.debugElement.query(
@@ -98,7 +98,6 @@ describe('FeatureSelectorComponent', () => {
 
   it('should enable Next button, hide error message, and emit nextStep when clicked while hasEnabledFeatures is true', () => {
     fixture.componentRef.setInput('features', mockFeatures);
-    fixture.componentRef.setInput('hasEnabledFeatures', true);
     fixture.detectChanges();
 
     const errorMsg = fixture.debugElement.query(

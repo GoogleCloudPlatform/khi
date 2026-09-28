@@ -151,6 +151,8 @@ const createInitializedParameterStore = () => {
   return store;
 };
 
+const storyParameterStore = createInitializedParameterStore();
+
 const meta: Meta<NewInspectionLayoutComponent> = {
   title: 'Dialogs/NewInspection/NewInspectionLayout',
   component: NewInspectionLayoutComponent,
@@ -161,7 +163,7 @@ const meta: Meta<NewInspectionLayoutComponent> = {
       providers: [
         {
           provide: PARAMETER_STORE,
-          useFactory: createInitializedParameterStore,
+          useValue: storyParameterStore,
         },
       ],
     }),
@@ -177,11 +179,8 @@ export const Step1SelectTarget: Story = {
     inspectionTypes: mockInspectionTypes,
     currentInspectionType: null,
     features: [],
-    hasEnabledFeatures: false,
+    parameterStore: storyParameterStore,
     parameterViewModel: null,
-    errorFieldCount: 0,
-    pendingFieldCount: 0,
-    isRunButtonDisabled: true,
   },
 };
 
@@ -191,11 +190,8 @@ export const Step2SelectFeatures: Story = {
     inspectionTypes: mockInspectionTypes,
     currentInspectionType: mockInspectionTypes[0],
     features: mockFeatures,
-    hasEnabledFeatures: true,
+    parameterStore: storyParameterStore,
     parameterViewModel: null,
-    errorFieldCount: 0,
-    pendingFieldCount: 0,
-    isRunButtonDisabled: true,
   },
 };
 
@@ -205,10 +201,7 @@ export const Step3InputParameters: Story = {
     inspectionTypes: mockInspectionTypes,
     currentInspectionType: mockInspectionTypes[0],
     features: mockFeatures,
-    hasEnabledFeatures: true,
+    parameterStore: storyParameterStore,
     parameterViewModel: mockParameterViewModel,
-    errorFieldCount: 0,
-    pendingFieldCount: 0,
-    isRunButtonDisabled: false,
   },
 };

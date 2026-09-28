@@ -39,7 +39,6 @@
       <ng-template matStepLabel>Select what you want to query</ng-template>
       <khi-new-inspection-feature-selector
         [features]="features()"
-        [hasEnabledFeatures]="hasEnabledFeatures()"
         (toggleFeature)="toggleFeature.emit($event)"
         (nextStep)="stepChange.emit(NewInspectionStepIndex.ParameterInput)"
       />
@@ -48,9 +47,7 @@
       <ng-template matStepLabel>Input parameters</ng-template>
       <khi-new-inspection-parameter-input-step
         [parameterViewModel]="parameterViewModel()"
-        [errorFieldCount]="errorFieldCount()"
-        [pendingFieldCount]="pendingFieldCount()"
-        [isRunButtonDisabled]="isRunButtonDisabled()"
+        [parameterStore]="parameterStore()"
         (runInspection)="runInspection.emit()"
       />
     </mat-step>

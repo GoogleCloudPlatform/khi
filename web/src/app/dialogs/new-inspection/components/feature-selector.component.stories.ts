@@ -68,13 +68,11 @@ type Story = StoryObj<FeatureSelectorComponent>;
 export const Default: Story = {
   args: {
     features: mockFeatures,
-    hasEnabledFeatures: true,
   },
 };
 
 export const NoneSelected: Story = {
   args: {
     features: mockNoneSelectedFeatures,
-    hasEnabledFeatures: false,
   },
 };

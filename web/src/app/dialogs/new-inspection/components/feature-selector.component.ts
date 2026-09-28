@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, input, output } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -46,7 +46,9 @@ export class FeatureSelectorComponent {
   /**
    * Whether at least one feature is enabled, allowing progression to the next step.
    */
-  readonly hasEnabledFeatures = input.required<boolean>();
+  readonly hasEnabledFeatures = computed(() =>
+    this.features().some((f) => f.enabled),
+  );
 
   /**
    * Emits the feature ID when the user clicks a feature card to toggle its enabled status.

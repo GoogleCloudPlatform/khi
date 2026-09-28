@@ -17,6 +17,7 @@
 import {
   afterRenderEffect,
   Component,
+  computed,
   input,
   output,
   viewChild,
@@ -30,6 +31,7 @@ import {
 import { FeatureSelectorComponent } from 'src/app/dialogs/new-inspection/components/feature-selector.component';
 import { InspectionTypeSelectorComponent } from 'src/app/dialogs/new-inspection/components/inspection-type-selector.component';
 import { ParameterInputStepComponent } from 'src/app/dialogs/new-inspection/components/parameter-input-step.component';
+import { ParameterStore } from 'src/app/dialogs/new-inspection/components/service/parameter-store';
 import {
   NewInspectionStepIndex,
   ParameterStepViewModel,
@@ -89,29 +91,21 @@ export class NewInspectionLayoutComponent {
   readonly features = input.required<readonly InspectionFeature[]>();
 
   /**
+   * Store holding current, default, and validated parameter values.
+   */
+  readonly parameterStore = input.required<ParameterStore>();
+
+  /**
    * Indicates whether at least one feature is currently selected/enabled.
    */
-  readonly hasEnabledFeatures = input.required<boolean>();
+  readonly hasEnabledFeatures = computed(() =>
+    this.features().some((f) => f.enabled),
+  );
 
   /**
    * The view model for the parameter input step, or null while resolving.
    */
   readonly parameterViewModel = input.required<ParameterStepViewModel | null>();
-
-  /**
-   * The number of parameter fields with validation errors.
-   */
-  readonly errorFieldCount = input.required<number>();
-
-  /**
-   * The number of parameter fields pending async resolution.
-   */
-  readonly pendingFieldCount = input.required<number>();
-
-  /**
-   * Indicates whether the run inspection button is disabled.
-   */
-  readonly isRunButtonDisabled = input.required<boolean>();
 
   /**
    * Emitted when the user changes or navigates to a new step.
