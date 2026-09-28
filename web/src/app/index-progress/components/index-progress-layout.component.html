@@ -18,11 +18,9 @@ limitations under the License.
   <div class="index-progress-card">
     <div class="header-row">
       <div class="title-group">
-        <mat-icon
-          class="status-icon"
-          [class.ready]="isReady()"
-          [svgIcon]="isReady() ? 'check_circle' : 'sync'"
-        ></mat-icon>
+        <mat-icon class="status-icon" [class.ready]="isReady()">{{
+          isReady() ? "check_circle" : "sync"
+        }}</mat-icon>
         <span class="title">{{
           isReady() ? "Search Index Ready" : "Building Search Index"
         }}</span>

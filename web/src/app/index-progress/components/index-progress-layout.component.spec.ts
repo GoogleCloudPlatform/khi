@@ -61,6 +61,10 @@ describe('IndexProgressLayoutComponent', () => {
     const percentEl = fixture.debugElement.query(By.css('.percentage'));
     expect(percentEl.nativeElement.innerText).toContain('55%');
 
+    const statusIcon = fixture.debugElement.query(By.css('.status-icon'));
+    expect(statusIcon.nativeElement.innerText.trim()).toBe('sync');
+    expect(statusIcon.classes['ready']).toBeFalsy();
+
     const messageEl = fixture.debugElement.query(By.css('.message'));
     expect(messageEl.nativeElement.innerText).toBe('Building posting lists...');
   });
@@ -77,5 +81,6 @@ describe('IndexProgressLayoutComponent', () => {
 
     const statusIcon = fixture.debugElement.query(By.css('.status-icon'));
     expect(statusIcon.classes['ready']).toBeTrue();
+    expect(statusIcon.nativeElement.innerText.trim()).toBe('check_circle');
   });
 });
