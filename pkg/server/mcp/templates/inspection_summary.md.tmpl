@@ -1,0 +1,74 @@
+{{ define "properties" -}}
+| Property | Value |
+| --- | --- |
+{{- range . }}
+| {{ cell .Key }} | {{ cell .Value }} |
+{{- end }}
+{{- end -}}
+
+# Inspection Summary: {{ .Header.InspectionName }}
+
+- **ID**: {{ code .ID }}
+- **Type**: {{ .Header.InspectionType }}
+{{- if .TimeRange }}
+- **Time Range**: {{ .TimeRange }}
+{{- end }}
+{{- with .Summary.CoreLabels }}
+
+## Core Labels
+
+| Key | Value |
+| --- | --- |
+{{- range . }}
+| {{ cell .Key }} | {{ cell .Value }} |
+{{- end }}
+{{- end }}
+{{- with .Summary.CommonProperties }}
+
+## Common Properties
+
+{{ template "properties" . }}
+{{- end }}
+{{- range .Summary.Sections }}
+
+---
+
+## {{ .Title }}
+{{- with .Queries }}
+
+### Executed Queries
+{{- range . }}
+
+#### {{ .Name }}
+{{ fence "text" .Text }}
+{{- end }}
+{{- end }}
+{{- with .Properties }}
+
+### Key Properties
+
+{{ template "properties" . }}
+{{- end }}
+{{- with .TaskReports }}
+
+### Task Reports
+{{- range . }}
+
+#### {{ .Title }}
+{{- with .Properties }}
+
+{{ template "properties" . }}
+{{- end }}
+{{- with .Markdown }}
+
+{{ . }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with .Insights }}
+
+### Insights
+
+{{ . }}
+{{- end }}
+{{- end }}

@@ -19,6 +19,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -170,6 +171,35 @@ func TestInventoryTask(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantMap, gotMap); diff != "" {
 				t.Errorf("merger task result mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestInventoryTaskLabel(t *testing.T) {
+	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test-merger")
+	inventoryTag := coretask.NewTag[map[string]struct{}]("test-inventory-tag")
+	mergerTask := NewInventoryTask(
+		mergerTaskID,
+		inventoryTag,
+		func(results []map[string]struct{}) (map[string]struct{}, error) {
+			return nil, nil
+		},
+	)
+	testCases := []struct {
+		name string
+		want bool
+	}{
+		{
+			name: "inventory task carries inventory task label",
+			want: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := typedmap.GetOrDefault(mergerTask.Labels(), inspectioncore.LabelKeyInventoryTask, false)
+			if got != tc.want {
+				t.Errorf("got %v, want %v", got, tc.want)
 			}
 		})
 	}

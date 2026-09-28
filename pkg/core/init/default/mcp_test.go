@@ -22,6 +22,7 @@ import (
 	"time"
 
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/gin-gonic/gin"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -70,11 +71,17 @@ func TestMCPServerInitializer(t *testing.T) {
 				JobMode: &tc.jobMode,
 			})
 
+			taskServer, err := coreinspection.NewServer(nil)
+			if err != nil {
+				t.Fatalf("coreinspection.NewServer() failed: %v", err)
+			}
+			coreinit.Set(ctx, InspectionTaskServerKey, taskServer)
+
 			ginEngine := gin.New()
 			var router gin.IRouter = ginEngine.Group(tc.basePath)
 			coreinit.Set(ctx, GinRouterKey, router)
 
-			err := MCPServerInitializer.Init(ctx)
+			err = MCPServerInitializer.Init(ctx)
 			if err != nil {
 				t.Fatalf("MCPServerInitializer.Init() failed: %v", err)
 			}

@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/kwaymerge"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/ai"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
@@ -347,5 +348,6 @@ func setStructuredQueryInfoWithPendingAndPreset(ctx context.Context, taskID, bas
 	default:
 		queryInfo.SetQuery(taskID, logFilterName, finalFilter)
 	}
+	ai.RecordQuery(ctx, taskID, logFilterName, finalFilter)
 	return nil
 }

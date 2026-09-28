@@ -51,6 +51,6 @@ func NewInventoryTask[T any, R any](
 			results := coretask.GetTaskResultsWithTag(ctx, tagRef)
 			return mergeFunc(results)
 		},
-		labelOpts...,
+		append(labelOpts, inspectioncore.InventoryTaskLabel())...,
 	)
 }

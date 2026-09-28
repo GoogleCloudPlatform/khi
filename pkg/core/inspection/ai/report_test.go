@@ -1,0 +1,382 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package ai
+
+import (
+	"context"
+	"sync"
+	"testing"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/google/go-cmp/cmp"
+)
+
+func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
+	formTask := newTestTask("form-cluster-name", inspectioncore.NewFormTaskLabelOpt("Cluster Name", "Form field"))
+	listAuditTask := newTestTask("list-audit-logs")
+	auditMapperTask := newTestTask("audit-log-mapper")
+	featureAuditTask := newTestTask("feature-audit", inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 1, true))
+
+	listEventTask := newTestTask("list-event-logs")
+	eventMapperTask := newTestTask("event-log-mapper")
+	featureEventTask := newTestTask("feature-event", inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 2, true))
+
+	inventoryTask := newTestTask("inventory-node-names", inspectioncore.InventoryTaskLabel())
+	listNodesTask := newTestTask("list-node-names")
+
+	tasks := []coretask.UntypedTask{
+		formTask,
+		listAuditTask,
+		auditMapperTask,
+		featureAuditTask,
+		listEventTask,
+		eventMapperTask,
+		featureEventTask,
+		inventoryTask,
+		listNodesTask,
+	}
+
+	taskMap := make(map[string]coretask.UntypedTask)
+	for _, t := range tasks {
+		taskMap[t.UntypedID().String()] = t
+	}
+
+	edges := []taskid.TaskEdge{
+		newTestEdge(formTask.UntypedID().String(), listAuditTask.UntypedID().String()),
+		newTestEdge(formTask.UntypedID().String(), listEventTask.UntypedID().String()),
+		newTestEdge(listAuditTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
+		newTestEdge(auditMapperTask.UntypedID().String(), featureAuditTask.UntypedID().String()),
+		newTestEdge(listEventTask.UntypedID().String(), eventMapperTask.UntypedID().String()),
+		newTestEdge(eventMapperTask.UntypedID().String(), featureEventTask.UntypedID().String()),
+		newTestEdge(inventoryTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
+		newTestEdge(inventoryTask.UntypedID().String(), eventMapperTask.UntypedID().String()),
+		newTestEdge(listNodesTask.UntypedID().String(), inventoryTask.UntypedID().String()),
+	}
+
+	return coretask.NewResolvedTaskSet(tasks, edges, nil), taskMap
+}
+
+func buildTaskContext(summary *Summary, task coretask.UntypedTask) context.Context {
+	metaMap := typedmap.NewTypedMap()
+	typedmap.Set(metaMap, SummaryMetadataKey, summary)
+	ctx := khictx.WithValue(context.Background(), inspectionmetadata.MapContextKey, metaMap.AsReadonly())
+	if task != nil {
+		ctx = khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, task.UntypedID())
+	}
+	return ctx
+}
+
+func TestReportAPI(t *testing.T) {
+	taskGraph, tasks := buildTestGraph()
+
+	testCases := []struct {
+		name string
+		run  func(summary *Summary)
+		want SummarySnapshot
+	}{
+		{
+			name: "SetCoreLabel records core labels",
+			run: func(s *Summary) {
+				ctx := buildTaskContext(s, tasks["form-cluster-name#default"])
+				SetCoreLabel(ctx, "cluster", "production-cluster")
+				SetCoreLabel(ctx, "environment", "gcp")
+			},
+			want: SummarySnapshot{
+				CoreLabels: []KeyValue{
+					{Key: "cluster", Value: "production-cluster"},
+					{Key: "environment", Value: "gcp"},
+				},
+			},
+		},
+		{
+			name: "SetProperty from form task writes to common properties",
+			run: func(s *Summary) {
+				ctx := buildTaskContext(s, tasks["form-cluster-name#default"])
+				SetProperty(ctx, "cluster_id", "c-12345")
+			},
+			want: SummarySnapshot{
+				CommonProperties: []KeyValue{
+					{Key: "cluster_id", Value: "c-12345"},
+				},
+			},
+		},
+		{
+			name: "SetProperty from feature task writes to feature section properties",
+			run: func(s *Summary) {
+				ctx := buildTaskContext(s, tasks["feature-audit#default"])
+				SetProperty(ctx, "status", "enabled")
+			},
+			want: SummarySnapshot{
+				Sections: []Section{
+					{
+						Title: "Kubernetes Audit Logs",
+						Properties: []KeyValue{
+							{Key: "status", Value: "enabled"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "SetProperty from featureMember writes to task report",
+			run: func(s *Summary) {
+				ctx := buildTaskContext(s, tasks["audit-log-mapper#default"])
+				SetProperty(ctx, "mapped_count", "42")
+			},
+			want: SummarySnapshot{
+				Sections: []Section{
+					{
+						Title: "Kubernetes Audit Logs",
+						TaskReports: []TaskReport{
+							{
+								Title: "Audit Log Mapper",
+								Properties: []KeyValue{
+									{Key: "mapped_count", Value: "42"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "SetProperty from shared/inventory writes to shared section properties",
+			run: func(s *Summary) {
+				ctx := buildTaskContext(s, tasks["inventory-node-names#default"])
+				SetProperty(ctx, "nodeCount", "10")
+			},
+			want: SummarySnapshot{
+				Sections: []Section{
+					{
+						Title: "Shared & Filter Context",
+						Properties: []KeyValue{
+							{Key: "nodeCount", Value: "10"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "AddFeatureIntProperty writes to enclosing feature section properties",
+			run: func(s *Summary) {
+				ctx := buildTaskContext(s, tasks["audit-log-mapper#default"])
+				AddFeatureIntProperty(ctx, "totalLogs", 15)
+				AddFeatureIntProperty(ctx, "totalLogs", 25)
+			},
+			want: SummarySnapshot{
+				Sections: []Section{
+					{
+						Title: "Kubernetes Audit Logs",
+						Properties: []KeyValue{
+							{Key: "totalLogs", Value: "40"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "AddFeatureIntProperty from form writes to common, from shared writes to shared",
+			run: func(s *Summary) {
+				ctxForm := buildTaskContext(s, tasks["form-cluster-name#default"])
+				AddFeatureIntProperty(ctxForm, "formDelta", 5)
+
+				ctxShared := buildTaskContext(s, tasks["inventory-node-names#default"])
+				AddFeatureIntProperty(ctxShared, "sharedDelta", 8)
+			},
+			want: SummarySnapshot{
+				CommonProperties: []KeyValue{
+					{Key: "formDelta", Value: "5"},
+				},
+				Sections: []Section{
+					{
+						Title: "Shared & Filter Context",
+						Properties: []KeyValue{
+							{Key: "sharedDelta", Value: "8"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "AppendSummaryMarkdown routing",
+			run: func(s *Summary) {
+				// Feature task writes to section insights.
+				ctxFeat := buildTaskContext(s, tasks["feature-audit#default"])
+				AppendSummaryMarkdown(ctxFeat, "Feature insight 1")
+				AppendSummaryMarkdown(ctxFeat, "Feature insight 2")
+
+				// Member task writes to task report markdown.
+				ctxMember := buildTaskContext(s, tasks["audit-log-mapper#default"])
+				AppendSummaryMarkdown(ctxMember, "Task report line 1")
+				AppendSummaryMarkdown(ctxMember, "Task report line 2")
+
+				// Shared task writes to shared section insights.
+				ctxShared := buildTaskContext(s, tasks["inventory-node-names#default"])
+				AppendSummaryMarkdown(ctxShared, "Shared insight")
+			},
+			want: SummarySnapshot{
+				Sections: []Section{
+					{
+						Title: "Kubernetes Audit Logs",
+						TaskReports: []TaskReport{
+							{
+								Title:    "Audit Log Mapper",
+								Markdown: "Task report line 1\n\nTask report line 2",
+							},
+						},
+						Insights: "Feature insight 1\n\nFeature insight 2",
+					},
+					{
+						Title:    "Shared & Filter Context",
+						Insights: "Shared insight",
+					},
+				},
+			},
+		},
+		{
+			name: "RecordQuery routing",
+			run: func(s *Summary) {
+				ctxFeat := buildTaskContext(s, tasks["feature-audit#default"])
+				RecordQuery(ctxFeat, "q2", "Query Two", "text two")
+
+				ctxMember := buildTaskContext(s, tasks["audit-log-mapper#default"])
+				RecordQuery(ctxMember, "q1", "Query One", "text one")
+
+				ctxShared := buildTaskContext(s, tasks["inventory-node-names#default"])
+				RecordQuery(ctxShared, "qShared", "Shared Query", "text shared")
+			},
+			want: SummarySnapshot{
+				Sections: []Section{
+					{
+						Title: "Kubernetes Audit Logs",
+						Queries: []Query{
+							{Name: "Query One", Text: "text one"},
+							{Name: "Query Two", Text: "text two"},
+						},
+					},
+					{
+						Title: "Shared & Filter Context",
+						Queries: []Query{
+							{Name: "Shared Query", Text: "text shared"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			summary := NewSummary(taskGraph)
+			tc.run(summary)
+			got := summary.Snapshot()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Snapshot() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestReportAPI_NoMetadataMapNoop(t *testing.T) {
+	// Must silently no-op and not panic when context has no metadata map.
+	emptyCtx := context.Background()
+
+	SetCoreLabel(emptyCtx, "key", "val")
+	SetProperty(emptyCtx, "key", "val")
+	AddIntProperty(emptyCtx, "key", 1)
+	AddToSetProperty(emptyCtx, "key", "val")
+	AddFeatureIntProperty(emptyCtx, "key", 1)
+	AppendSummaryMarkdown(emptyCtx, "md")
+	RecordQuery(emptyCtx, "id", "name", "text")
+}
+
+func TestReportAPI_ConcurrentAddIntProperty(t *testing.T) {
+	taskGraph, tasks := buildTestGraph()
+	summary := NewSummary(taskGraph)
+	taskCtx := buildTaskContext(summary, tasks["audit-log-mapper#default"])
+
+	var wg sync.WaitGroup
+	const goroutines = 100
+	const callsPerGoroutine = 100
+
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < callsPerGoroutine; j++ {
+				AddIntProperty(taskCtx, "counter", 1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	snapshot := summary.Snapshot()
+	if len(snapshot.Sections) != 1 {
+		t.Fatalf("expected 1 section, got %d", len(snapshot.Sections))
+	}
+	if len(snapshot.Sections[0].TaskReports) != 1 {
+		t.Fatalf("expected 1 task report, got %d", len(snapshot.Sections[0].TaskReports))
+	}
+	props := snapshot.Sections[0].TaskReports[0].Properties
+	if len(props) != 1 {
+		t.Fatalf("expected 1 property, got %d", len(props))
+	}
+	gotVal := props[0].Value
+	wantVal := "10000"
+	if gotVal != wantVal {
+		t.Errorf("counter property = %q, want %q", gotVal, wantVal)
+	}
+}
+
+func TestReportAPI_AddToSetProperty(t *testing.T) {
+	taskGraph, tasks := buildTestGraph()
+	summary := NewSummary(taskGraph)
+	taskCtx := buildTaskContext(summary, tasks["audit-log-mapper#default"])
+
+	testCases := []struct {
+		name   string
+		writes []string
+		want   string
+	}{
+		{
+			name:   "deduplicates and sorts set elements",
+			writes: []string{"banana", "apple", "banana", "cherry", "apple"},
+			want:   "apple, banana, cherry",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, val := range tc.writes {
+				AddToSetProperty(taskCtx, "fruits", val)
+			}
+			snapshot := summary.Snapshot()
+			props := snapshot.Sections[0].TaskReports[0].Properties
+			if len(props) != 1 {
+				t.Fatalf("expected 1 property, got %d", len(props))
+			}
+			got := props[0].Value
+			if got != tc.want {
+				t.Errorf("AddToSetProperty() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

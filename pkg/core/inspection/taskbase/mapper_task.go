@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/ai"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -99,6 +100,7 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}]
 
 		totalLogCount := 0
 		var skippedLogCount atomic.Uint32
+		var mappedLogCount atomic.Int32
 		for _, group := range groupedLogs {
 			totalLogCount += len(group.Logs)
 		}
@@ -180,6 +182,7 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}]
 							setErr(err)
 							return
 						}
+						mappedLogCount.Add(1)
 					} else {
 						skippedLogCount.Add(1)
 					}
@@ -196,6 +199,7 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}]
 		}
 
 		slog.DebugContext(ctx, fmt.Sprintf("LogToTimelineMapperTask %s finished: processed %d logs (skipped %d logs)", tid.String(), totalLogCount, skippedLogCount.Load()))
+		ai.AddIntProperty(ctx, "mappedLogs", int(mappedLogCount.Load()))
 
 		tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 		if tracingActive {

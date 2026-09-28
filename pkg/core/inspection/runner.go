@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/ai"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
@@ -664,7 +665,7 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 		taskGraphStr = fmt.Sprintf("failed to generate task graph %v", err.Error())
 	}
 	typedmap.Set(writableMetadata, inspectionmetadata.InspectionPlanMetadataKey, inspectionmetadata.NewInspectionPlanMetadata(taskGraphStr))
-
+	typedmap.Set(writableMetadata, ai.SummaryMetadataKey, ai.NewSummary(taskGraph))
 }
 
 func InspectionTaskLogger(logLevelForRun slog.Level, logLevelForDryRun slog.Level, withColor bool) InspectionInterceptor {

@@ -55,6 +55,8 @@ var (
 	LabelKeyFeatureTaskDescription      = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/description")
 	// LabelKeyFeatureTaskOrder is a label key of an integer assigned for a feature task. Feature task with smaller order is placed at the top of the feature task list.
 	LabelKeyFeatureTaskOrder = coretask.NewTaskLabelKey[int](InspectionTaskPrefix + "feature/order")
+	// LabelKeyInventoryTask marks tasks that relay shared inventory data so the AI summary excludes them from section traversal.
+	LabelKeyInventoryTask = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "inventory")
 )
 
 // FeatureTaskLabelImpl is an implementation of task.LabelOpt.
@@ -104,4 +106,19 @@ func InspectionTypeLabelSelector(selector map[string]string) *InspectionTypeLabe
 	return &InspectionTypeLabelSelectorImpl{
 		selector: LabelSelector(selector),
 	}
+}
+
+// InventoryTaskLabelImpl implements task.LabelOpt to mark a task as an inventory task.
+type InventoryTaskLabelImpl struct{}
+
+// Write implements coretask.LabelOpt.
+func (itl *InventoryTaskLabelImpl) Write(label *typedmap.TypedMap) {
+	typedmap.Set(label, LabelKeyInventoryTask, true)
+}
+
+var _ coretask.LabelOpt = (*InventoryTaskLabelImpl)(nil)
+
+// InventoryTaskLabel returns a LabelOpt to mark the task as an inventory task.
+func InventoryTaskLabel() *InventoryTaskLabelImpl {
+	return &InventoryTaskLabelImpl{}
 }
