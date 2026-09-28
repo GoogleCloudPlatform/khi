@@ -24,11 +24,9 @@ import { interval, startWith, firstValueFrom, Observable } from 'rxjs';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { openInspectionMetadataDialog } from '../inspection-metadata/inspection-metadata.component';
 import { openInspectionRunTaskGraphDialog } from 'src/app/dialogs/inspection-run-task-graph/inspection-run-task-graph-smart.component';
-import {
-  openNewInspectionDialog,
-  hasDryRunErrors,
-  NewInspectionDialogData,
-} from '../new-inspection/new-inspection.component';
+import { openNewInspectionDialog } from 'src/app/dialogs/new-inspection/new-inspection-smart.component';
+import { NewInspectionDialogData } from 'src/app/dialogs/new-inspection/types/new-inspection.types';
+import { hasDryRunErrors } from 'src/app/dialogs/new-inspection/utils/new-inspection.utils';
 import { openJobCommandInputDialog } from '../job-command-input/job-command-input-smart.component';
 import {
   EXTENSION_STORE,

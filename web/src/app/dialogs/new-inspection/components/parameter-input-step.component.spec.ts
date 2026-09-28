@@ -1,0 +1,201 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { MatProgressBar } from '@angular/material/progress-bar';
+import {
+  ParameterHintType,
+  ParameterInputType,
+} from 'src/app/common/schema/form-types';
+import {
+  DefaultParameterStore,
+  PARAMETER_STORE,
+} from 'src/app/dialogs/new-inspection/components/service/parameter-store';
+import {
+  ParameterStepViewModel,
+  TotalEstimatedLogsSeverity,
+} from 'src/app/dialogs/new-inspection/types/new-inspection.types';
+import { ParameterInputStepComponent } from 'src/app/dialogs/new-inspection/components/parameter-input-step.component';
+import { JobCommandComponent } from 'src/app/dialogs/new-inspection/components/job-command.component';
+
+describe('ParameterInputStepComponent', () => {
+  let fixture: ComponentFixture<ParameterInputStepComponent>;
+
+  const mockParameterViewModel: ParameterStepViewModel = {
+    rootGroupForm: {
+      id: 'root',
+      label: 'Root Group',
+      type: ParameterInputType.Group,
+      description: 'Root group description',
+      hint: '',
+      hintType: ParameterHintType.None,
+      collapsible: false,
+      collapsedByDefault: false,
+      children: [],
+    },
+    queries: [
+      {
+        id: 'q1',
+        name: 'Audit Log Query',
+        query: 'resource.type="k8s_cluster"',
+        estimatedCount: 12345,
+      },
+    ],
+    plan: {
+      taskGraph: 'digraph G { A -> B; }',
+    },
+    job: {
+      command: 'khi run --target gke',
+    },
+    fieldCount: 5,
+    totalEstimatedSummary: {
+      knownCount: 12345,
+      isComplete: true,
+      isEstimating: false,
+      isIncomplete: false,
+      displayText: '~12,345 total logs estimated',
+      severity: TotalEstimatedLogsSeverity.Normal,
+    },
+  };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [NoopAnimationsModule, ParameterInputStepComponent],
+      providers: [
+        {
+          provide: PARAMETER_STORE,
+          useClass: DefaultParameterStore,
+        },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ParameterInputStepComponent);
+  });
+
+  it('should render loading progress bar when parameterViewModel is null', () => {
+    fixture.componentRef.setInput('parameterViewModel', null);
+    fixture.componentRef.setInput('errorFieldCount', 0);
+    fixture.componentRef.setInput('pendingFieldCount', 0);
+    fixture.componentRef.setInput('isRunButtonDisabled', true);
+    fixture.detectChanges();
+
+    const progressBar = fixture.debugElement.query(
+      By.directive(MatProgressBar),
+    );
+    expect(progressBar).toBeTruthy();
+
+    const message = fixture.debugElement.query(By.css('.message'));
+    expect(message.nativeElement.textContent).toContain(
+      'Loading a parameter list for the given setting. Wait a few seconds.',
+    );
+
+    const parameterView = fixture.debugElement.query(By.css('.parameter-view'));
+    expect(parameterView).toBeNull();
+  });
+
+  it('should render queries, total estimated logs callout, job command, and plan when parameterViewModel is populated', () => {
+    fixture.componentRef.setInput('parameterViewModel', mockParameterViewModel);
+    fixture.componentRef.setInput('errorFieldCount', 0);
+    fixture.componentRef.setInput('pendingFieldCount', 0);
+    fixture.componentRef.setInput('isRunButtonDisabled', false);
+    fixture.detectChanges();
+
+    const progressBar = fixture.debugElement.query(
+      By.directive(MatProgressBar),
+    );
+    expect(progressBar).toBeNull();
+
+    const callout = fixture.debugElement.query(
+      By.css('.total-estimated-callout'),
+    );
+    expect(callout).toBeTruthy();
+    expect(callout.nativeElement.textContent).toContain(
+      '~12,345 total logs estimated',
+    );
+
+    const queryCards = fixture.debugElement.queryAll(By.css('.query-card'));
+    expect(queryCards.length).toBe(1);
+    expect(queryCards[0].nativeElement.textContent).toContain(
+      'Audit Log Query',
+    );
+    expect(queryCards[0].nativeElement.textContent).toContain(
+      'resource.type="k8s_cluster"',
+    );
+
+    const jobCommand = fixture.debugElement.query(
+      By.directive(JobCommandComponent),
+    );
+    expect(jobCommand).toBeTruthy();
+
+    const taskGraphPre = fixture.debugElement.query(By.css('.task-graph-pre'));
+    expect(taskGraphPre.nativeElement.textContent).toContain(
+      'digraph G { A -> B; }',
+    );
+  });
+
+  it('should show error count message when errorFieldCount > 0', () => {
+    fixture.componentRef.setInput('parameterViewModel', mockParameterViewModel);
+    fixture.componentRef.setInput('errorFieldCount', 2);
+    fixture.componentRef.setInput('pendingFieldCount', 0);
+    fixture.componentRef.setInput('isRunButtonDisabled', true);
+    fixture.detectChanges();
+
+    const errorMessage = fixture.debugElement.query(
+      By.css('.errmsg-parameters-error'),
+    );
+    expect(errorMessage).toBeTruthy();
+    expect(errorMessage.nativeElement.textContent).toContain(
+      'Fix the validation errors on the input parameters: 2 / 5',
+    );
+  });
+
+  it('should show pending parameters message when pendingFieldCount > 0 and errorFieldCount is 0', () => {
+    fixture.componentRef.setInput('parameterViewModel', mockParameterViewModel);
+    fixture.componentRef.setInput('errorFieldCount', 0);
+    fixture.componentRef.setInput('pendingFieldCount', 3);
+    fixture.componentRef.setInput('isRunButtonDisabled', true);
+    fixture.detectChanges();
+
+    const pendingSection = fixture.debugElement.query(
+      By.css('.pending-parameters'),
+    );
+    expect(pendingSection).toBeTruthy();
+    expect(pendingSection.nativeElement.textContent).toContain(
+      'Resolving parameters: 3 / 5',
+    );
+  });
+
+  it('should emit runInspection when Run button is clicked', () => {
+    fixture.componentRef.setInput('parameterViewModel', mockParameterViewModel);
+    fixture.componentRef.setInput('errorFieldCount', 0);
+    fixture.componentRef.setInput('pendingFieldCount', 0);
+    fixture.componentRef.setInput('isRunButtonDisabled', false);
+    fixture.detectChanges();
+
+    let emitted = false;
+    fixture.componentInstance.runInspection.subscribe(() => {
+      emitted = true;
+    });
+
+    const runButton = fixture.debugElement.query(By.css('.run-button'));
+    expect(runButton.nativeElement.disabled).toBeFalse();
+    runButton.nativeElement.click();
+
+    expect(emitted).toBeTrue();
+  });
+});
