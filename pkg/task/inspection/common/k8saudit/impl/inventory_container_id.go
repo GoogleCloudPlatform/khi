@@ -105,6 +105,7 @@ var ContainerIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagContainerIDDiscovery),
+	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
 )
 
 func extractContainerIDs(reader *structured.NodeReader, fieldPath structured.FieldPath, result k8saudit.ContainerIDToContainerIdentity) {

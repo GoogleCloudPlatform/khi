@@ -35,8 +35,8 @@ var SerializeTask = inspectiontaskbase.NewInspectionTask(
 	[]coretask.Dependency{
 		JobModeCommandTaskID.Ref(),
 		inspectioncore.InputInspectionNameTaskID.Ref(),
-		inspectiontaskbase.TagLogIngester.Ref(),
-		inspectiontaskbase.TagTimelineMapper.Ref(),
+		inspectiontaskbase.TagLogIngester.Ref(coretask.FromActiveGraph),
+		inspectiontaskbase.TagTimelineMapper.Ref(coretask.FromActiveGraph),
 	},
 	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (*inspectioncore.FileSystemStore, error) {
 

@@ -24,6 +24,7 @@ import {
 import {
   DagNodeRunPhase,
   DagPositionedNode,
+  getFeatureGateTaskRef,
   getTaskDescription,
   ProvidedTagItem,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
@@ -34,6 +35,10 @@ const NODE_HORIZONTAL_PADDING_PX = 28;
 const DURATION_CHAR_WIDTH_PX = 6.5;
 const DURATION_GAP_PX = 16;
 const FEATURE_BADGE_OFFSET_X = 62;
+const INPUT_BADGE_OFFSET_X = 48;
+const MIN_FEATURE_GATE_BADGE_WIDTH_PX = 40;
+const GATE_BADGE_CHAR_WIDTH_PX = 6.0;
+const GATE_BADGE_PADDING_PX = 12;
 const TAG_CHAR_WIDTH_PX = 6.2;
 const TAG_PADDING_PX = 14;
 const TAG_GAP_PX = 6;
@@ -168,6 +173,13 @@ export class DagNodeComponent {
   );
 
   /**
+   * Feature gate task reference ID extracted from task labels, or empty string if none.
+   */
+  readonly featureGateTaskRef = computed<string>(() =>
+    getFeatureGateTaskRef(this.node().labels),
+  );
+
+  /**
    * Short display string for output type, truncated to avoid overlapping the run duration label.
    */
   readonly displayOutputType = computed(() => {
@@ -199,8 +211,12 @@ export class DagNodeComponent {
     const desc = this.taskDescription();
     const ref = this.node().referenceId;
     const outputType = this.node().outputType;
+    const featureGate = this.featureGateTaskRef();
     const base = desc ? `${ref} - ${desc}` : ref;
-    return outputType ? `${base}\nOutput: ${outputType}` : base;
+    const withOutput = outputType ? `${base}\nOutput: ${outputType}` : base;
+    return featureGate
+      ? `${withOutput}\nFeature Gate: ${featureGate}`
+      : withOutput;
   });
 
   /**
@@ -221,6 +237,53 @@ export class DagNodeComponent {
   readonly inputBadgeTransform = computed(() => {
     const offsetX = this.node().isFeature ? FEATURE_BADGE_OFFSET_X : 0;
     return `translate(${offsetX}, 0)`;
+  });
+
+  /**
+   * Visual badge representation for the feature gate condition on this task.
+   */
+  readonly featureGateBadge = computed<TagBadge | null>(() => {
+    const featureGate = this.featureGateTaskRef();
+    if (!featureGate) {
+      return null;
+    }
+    let currentX = 0;
+    if (this.node().isFeature) {
+      currentX += FEATURE_BADGE_OFFSET_X;
+    }
+    if (this.node().isFormTask) {
+      currentX += INPUT_BADGE_OFFSET_X;
+    }
+    const maxAvailableWidth =
+      this.node().width - NODE_HORIZONTAL_PADDING_PX - currentX;
+    if (maxAvailableWidth < MIN_FEATURE_GATE_BADGE_WIDTH_PX) {
+      return null;
+    }
+
+    const fullText = `Gate: ${featureGate}`;
+    const calculatedWidth = Math.ceil(
+      fullText.length * GATE_BADGE_CHAR_WIDTH_PX + GATE_BADGE_PADDING_PX,
+    );
+    if (calculatedWidth <= maxAvailableWidth) {
+      return {
+        tooltip: `Feature Gate: ${featureGate}`,
+        displayText: fullText,
+        width: calculatedWidth,
+        transform: `translate(${currentX}, 0)`,
+      };
+    }
+
+    const maxChars = Math.floor(
+      (maxAvailableWidth - GATE_BADGE_PADDING_PX) / GATE_BADGE_CHAR_WIDTH_PX,
+    );
+    const truncatedText =
+      maxChars > 3 ? `${fullText.slice(0, maxChars - 3)}...` : fullText;
+    return {
+      tooltip: `Feature Gate: ${featureGate}`,
+      displayText: truncatedText,
+      width: maxAvailableWidth,
+      transform: `translate(${currentX}, 0)`,
+    };
   });
 
   /**

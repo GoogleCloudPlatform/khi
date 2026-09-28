@@ -21,6 +21,7 @@ import { DagNodeDetailPanelComponent } from 'src/app/shared/components/dag-viewe
 import {
   DagNodeRunPhase,
   DagViewerNode,
+  FEATURE_GATE_TASK_REF_LABEL_KEY,
   TASK_DESCRIPTION_LABEL_KEY,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
@@ -196,5 +197,48 @@ describe('DagNodeDetailPanelComponent', () => {
 
     const descEl = fixture.nativeElement.querySelector('.description-section');
     expect(descEl).toBeNull();
+  });
+
+  it('renders "None" for feature gate when task does not declare a feature gate', () => {
+    fixture.componentRef.setInput('node', mockNode);
+    fixture.detectChanges();
+
+    const propLabels = Array.from(
+      fixture.nativeElement.querySelectorAll('.prop-label'),
+    ) as HTMLElement[];
+    const propValues = Array.from(
+      fixture.nativeElement.querySelectorAll('.prop-value'),
+    ) as HTMLElement[];
+    const gateIndex = propLabels.findIndex(
+      (el) => el.textContent?.trim() === 'Feature Gate',
+    );
+    expect(gateIndex).toBeGreaterThanOrEqual(0);
+    expect(propValues[gateIndex].textContent?.trim()).toBe('None');
+  });
+
+  it('renders feature gate reference ID when task declares a feature gate', () => {
+    const nodeWithGate: DagViewerNode = {
+      ...mockNode,
+      labels: {
+        ...mockNode.labels,
+        [FEATURE_GATE_TASK_REF_LABEL_KEY]: 'khi.feature.foo-flag',
+      },
+    };
+    fixture.componentRef.setInput('node', nodeWithGate);
+    fixture.detectChanges();
+
+    const propLabels = Array.from(
+      fixture.nativeElement.querySelectorAll('.prop-label'),
+    ) as HTMLElement[];
+    const propValues = Array.from(
+      fixture.nativeElement.querySelectorAll('.prop-value'),
+    ) as HTMLElement[];
+    const gateIndex = propLabels.findIndex(
+      (el) => el.textContent?.trim() === 'Feature Gate',
+    );
+    expect(gateIndex).toBeGreaterThanOrEqual(0);
+    expect(propValues[gateIndex].textContent?.trim()).toBe(
+      'khi.feature.foo-flag',
+    );
   });
 });

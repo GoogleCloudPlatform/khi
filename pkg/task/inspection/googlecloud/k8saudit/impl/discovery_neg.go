@@ -68,4 +68,5 @@ var AuditLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 		return result, nil
 	},
 	coretask.ProvidesTag(k8scommon.TagNEGToBackendServiceDiscovery),
+	coretask.WithFeatureGate(commonk8saudit.K8sAuditLogParserTailRef),
 )

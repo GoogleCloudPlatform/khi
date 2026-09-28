@@ -48,6 +48,7 @@ func TestInventoryTask(t *testing.T) {
 			return map[string]struct{}{"foo": {}}, nil
 		},
 		coretask.ProvidesTag(inventoryTag, coretask.WithTagPriority(10)),
+		coretask.WithFeatureGate(discovery1ParentTaskID.Ref()),
 	)
 
 	discovery2ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery-2")
@@ -58,6 +59,7 @@ func TestInventoryTask(t *testing.T) {
 			return map[string]struct{}{"bar": {}}, nil
 		},
 		coretask.ProvidesTag(inventoryTag),
+		coretask.WithFeatureGate(discovery2ParentTaskID.Ref()),
 	)
 
 	mergerTask := NewInventoryTask(
@@ -82,6 +84,7 @@ func TestInventoryTask(t *testing.T) {
 			return map[string]struct{}{"cyclic": {}}, nil
 		},
 		coretask.ProvidesTag(inventoryTag, coretask.WithTagPriority(100)),
+		coretask.WithFeatureGate(discovery1ParentTaskID.Ref()),
 	)
 
 	defaultAvailableTasks := []coretask.UntypedTask{

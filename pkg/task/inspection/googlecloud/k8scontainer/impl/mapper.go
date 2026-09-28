@@ -28,6 +28,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csmcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scontainer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -360,7 +361,7 @@ var TailTask = coretask.NewTailTask(
 	[]coretask.Dependency{
 		k8scontainer.LogToTimelineMapperTaskID.Ref(),
 		k8scontainer.PodPhaseTimelineMapperTaskID.Ref(),
-		k8scontainer.NodeNameDiscoveryTaskID.Ref(),
+		csmcp.LogToTimelineMapperTaskID.Ref(),
 	},
 	inspectioncore.FeatureTaskLabel(
 		"Kubernetes Container Logs",

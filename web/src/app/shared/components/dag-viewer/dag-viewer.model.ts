@@ -66,6 +66,20 @@ export function getTaskDescription(
   return labels[TASK_DESCRIPTION_LABEL_KEY] ?? '';
 }
 
+/** Label key specifying the feature gate task reference ID for a task. */
+export const FEATURE_GATE_TASK_REF_LABEL_KEY =
+  'khi.google.com/feature-gate-task-ref';
+
+/**
+ * Extracts the feature gate task reference ID from a task label map.
+ * Returns an empty string if the task does not declare a feature gate.
+ */
+export function getFeatureGateTaskRef(
+  labels?: Readonly<Record<string, string>> | null,
+): string {
+  return labels?.[FEATURE_GATE_TASK_REF_LABEL_KEY] ?? '';
+}
+
 /**
  * Execution phase of a task node rendered in the DAG viewer.
  */

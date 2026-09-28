@@ -54,6 +54,14 @@
               Output: {{ task.outputType }}
             </span>
           }
+          @if (centerTaskFeatureGate(); as gateRef) {
+            <span
+              class="feature-gate-pill"
+              [title]="'Feature Gate: ' + gateRef"
+            >
+              Feature Gate: {{ gateRef }}
+            </span>
+          }
         </div>
         @if (centerTaskDescription(); as desc) {
           <div class="task-description-row">

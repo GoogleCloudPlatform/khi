@@ -163,9 +163,6 @@ var TailTask = coretask.NewTailTask(
 		k8snode.ContainerdLogLogToTimelineMapperTaskID.Ref(),
 		k8snode.KubeletLogLogToTimelineMapperTaskID.Ref(),
 		k8snode.OtherLogLogToTimelineMapperTaskID.Ref(),
-
-		k8snode.ContainerIDDiscoveryTaskID.Ref(),
-		k8snode.NodeNameDiscoveryTaskID.Ref(),
 	},
 	inspectioncore.FeatureTaskLabel(
 		"Kubernetes Node Logs",

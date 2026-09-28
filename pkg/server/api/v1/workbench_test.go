@@ -64,7 +64,6 @@ func createTestInspectionServerForWorkbench(t *testing.T) (*coreinspection.Inspe
 		},
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	if err := server.AddTask(dummyTask); err != nil {
 		t.Fatalf("failed to add task: %v", err)

@@ -67,6 +67,7 @@ var ResourceUIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagResourceUIDDiscovery),
+	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
 )
 
 var UIDPatternFinderTask = inspectiontaskbase.NewInspectionTask(

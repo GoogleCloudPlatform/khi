@@ -93,7 +93,6 @@ func setupTestServer(t *testing.T) *harnessTestContext {
 			}
 			return msgs, nil
 		},
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 		inspectioncore.FeatureTaskLabel("Downstream Task", "Downstream Task", 0, true),
 	)
 

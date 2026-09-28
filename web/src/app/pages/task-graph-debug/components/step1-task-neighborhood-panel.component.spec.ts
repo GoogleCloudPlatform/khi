@@ -25,7 +25,10 @@ import {
   Step1TaskNeighborhoodPanelComponent,
   computeTaskNeighborhoodGraph,
 } from 'src/app/pages/task-graph-debug/components/step1-task-neighborhood-panel.component';
-import { TASK_DESCRIPTION_LABEL_KEY } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
+import {
+  FEATURE_GATE_TASK_REF_LABEL_KEY,
+  TASK_DESCRIPTION_LABEL_KEY,
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 describe('Step1TaskNeighborhoodPanelComponent', () => {
   const mockTaskGroups: readonly RegisteredTaskGroupInfo[] = [
@@ -447,6 +450,45 @@ describe('Step1TaskNeighborhoodPanelComponent', () => {
       const outputTypeEl =
         fixture.nativeElement.querySelector('.output-type-pill');
       expect(outputTypeEl).toBeNull();
+    });
+
+    it('renders feature gate pill when center task has feature gate label', () => {
+      const gatedGroups: readonly RegisteredTaskGroupInfo[] = [
+        {
+          $typeName: 'api.v1.RegisteredTaskGroupInfo',
+          taskReferenceId: 'ref-gated',
+          tasks: [
+            {
+              $typeName: 'api.v1.RegisteredTaskInfo',
+              taskImplementationId: 'impl-gated-1',
+              taskReferenceId: 'ref-gated',
+              priority: 100,
+              isFeature: false,
+              isDefaultFeature: false,
+              featureDescription: '',
+              dependencies: [],
+              providedTags: [],
+              labels: {
+                [FEATURE_GATE_TASK_REF_LABEL_KEY]: 'k8scontainer/tail-task',
+              },
+            } as unknown as RegisteredTaskInfo,
+          ],
+        } as unknown as RegisteredTaskGroupInfo,
+      ];
+
+      fixture.componentRef.setInput('taskGroups', gatedGroups);
+      fixture.componentRef.setInput('centerTaskId', 'impl-gated-1');
+      fixture.detectChanges();
+
+      const pill: HTMLElement | null =
+        fixture.nativeElement.querySelector('.feature-gate-pill');
+      expect(pill).toBeTruthy();
+      expect(pill?.textContent?.trim()).toBe(
+        'Feature Gate: k8scontainer/tail-task',
+      );
+      expect(pill?.getAttribute('title')).toBe(
+        'Feature Gate: k8scontainer/tail-task',
+      );
     });
   });
 });

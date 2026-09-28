@@ -53,6 +53,19 @@ $input-badge-bg: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 50);
 $input-badge-stroke: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 300);
 $input-badge-text: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 900);
 
+$badge-feature-gate-fill: mat.m2-get-color-from-palette(
+  mat.$m2-cyan-palette,
+  50
+);
+$badge-feature-gate-stroke: mat.m2-get-color-from-palette(
+  mat.$m2-cyan-palette,
+  200
+);
+$badge-feature-gate-text: mat.m2-get-color-from-palette(
+  mat.$m2-cyan-palette,
+  900
+);
+
 $tag-badge-bg: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 50);
 $tag-badge-stroke: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 200);
 $tag-badge-text: mat.m2-get-color-from-palette(mat.$m2-purple-palette, 800);
@@ -285,6 +298,17 @@ $run-duration-text-color: mat.m2-get-color-from-palette(
 
       .badge-text {
         fill: $input-badge-text;
+      }
+    }
+
+    &.feature-gate-badge {
+      .badge-bg {
+        fill: $badge-feature-gate-fill;
+        stroke: $badge-feature-gate-stroke;
+      }
+
+      .badge-text {
+        fill: $badge-feature-gate-text;
       }
     }
 

@@ -71,6 +71,7 @@ var IPLeaseHistoryDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 		return leaseHistory, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagIPLeaseHistoryDiscovery),
+	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
 )
 
 func processPodResource(group *k8saudit.ResourceManifestLogGroup, leaseHistory k8saudit.IPLeaseHistory) {

@@ -19,6 +19,7 @@ import { DagNodeComponent } from 'src/app/shared/components/dag-viewer/dag-node.
 import {
   DagNodeRunPhase,
   DagPositionedNode,
+  FEATURE_GATE_TASK_REF_LABEL_KEY,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 const mockNode: DagPositionedNode = {
@@ -129,6 +130,17 @@ export const FeatureAndInputFormTask: Story = {
       isFeature: true,
       isFormTask: true,
       priority: 200,
+    },
+  },
+};
+
+export const FeatureGateTask: Story = {
+  args: {
+    node: {
+      ...mockNode,
+      labels: {
+        [FEATURE_GATE_TASK_REF_LABEL_KEY]: 'khi.feature.enable-preview',
+      },
     },
   },
 };

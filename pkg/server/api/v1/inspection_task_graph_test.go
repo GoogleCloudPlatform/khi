@@ -260,7 +260,6 @@ func newRunTaskGraphFixture(t *testing.T) runTaskGraphFixture {
 		},
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	inspectionServer, inspectionTypeID := newInspectionServerWithTask(t, dummyTask)
 
@@ -491,7 +490,6 @@ func newBlockingRunInspection(t *testing.T) (*coreinspection.InspectionTaskServe
 		},
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	inspectionServer, inspectionTypeID := newInspectionServerWithTask(t, blockingTask)
 

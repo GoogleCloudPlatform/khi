@@ -40,9 +40,6 @@ var LabelKeyTaskSelectionPriority = NewTaskLabelKey[int](KHISystemPrefix + "task
 // LabelKeyRequiredTask is the task label to tell task resolver to always include the task in the task graph when the task is available.
 var LabelKeyRequiredTask = NewTaskLabelKey[bool](KHISystemPrefix + "required-task")
 
-// LabelKeySubsequentTaskRefs is the list of task references. These tasks are included in the task graph later and the included task reference this task.
-var LabelKeySubsequentTaskRefs = NewTaskLabelKey[[]taskid.UntypedTaskReference](KHISystemPrefix + "subsquent-task-refs")
-
 // LabelKeyTaskResultRetention indicates whether the task result should be retained in the runner after all dependent tasks finish.
 var LabelKeyTaskResultRetention = NewTaskLabelKey[bool](KHISystemPrefix + "task-result-retention")
 
@@ -51,6 +48,11 @@ var LabelKeyTaskDescription = NewTaskLabelKey[string](KHISystemPrefix + "task-de
 
 // LabelKeyTaskResultType is the task label to record the string representation of the task output type.
 var LabelKeyTaskResultType = NewTaskLabelKey[string](KHISystemPrefix + "task-result-type")
+
+// LabelKeyFeatureGateTaskRef is a task label key specifying the task reference
+// whose presence in the active graph gates inclusion of this task when resolved
+// via ScopeActiveFeatures.
+var LabelKeyFeatureGateTaskRef = NewTaskLabelKey[taskid.UntypedTaskReference](KHISystemPrefix + "feature-gate-task-ref")
 
 type UntypedTask interface {
 	UntypedID() taskid.UntypedTaskImplementationID

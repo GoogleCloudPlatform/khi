@@ -112,6 +112,7 @@ var ContainerIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(k8snode.Cont
 		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagContainerIDDiscovery),
+	coretask.WithFeatureGate(k8snode.TailTaskID.Ref()),
 )
 
 // PodSandboxIDDiscoveryTask discovers mappings between pod sandbox IDs and GKE pods.

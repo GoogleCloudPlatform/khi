@@ -108,6 +108,12 @@ func runGlobalStaticConformance(t *testing.T, allTasks []coretask.UntypedTask) {
 					}
 				}
 			}
+			if gateRef, hasGate := typedmap.Get(task.Labels(), coretask.LabelKeyFeatureGateTaskRef); hasGate {
+				gateRefID := gateRef.ReferenceIDString()
+				if _, exists := registeredRefs[gateRefID]; !exists {
+					t.Errorf("task %q has feature gate on unregistered reference ID %q", task.UntypedID().String(), gateRefID)
+				}
+			}
 		}
 	})
 

@@ -63,4 +63,5 @@ var NEGNamesDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 		return result, nil
 	},
 	coretask.ProvidesTag(k8scommon.TagNEGNamesDiscovery),
+	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
 )

@@ -40,6 +40,18 @@ $output-type-pill-border-color: mat.m2-get-color-from-palette(
   mat.$m2-blue-palette,
   200
 );
+$feature-gate-pill-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-teal-palette,
+  50
+);
+$feature-gate-pill-text-color: mat.m2-get-color-from-palette(
+  mat.$m2-teal-palette,
+  800
+);
+$feature-gate-pill-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-teal-palette,
+  200
+);
 $close-btn-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
 $close-btn-hover-color: mat.m2-get-color-from-palette(
   mat.$m2-gray-palette,
@@ -192,6 +204,19 @@ $empty-state-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 500);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.feature-gate-pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: $feature-gate-pill-bg-color;
+  color: $feature-gate-pill-text-color;
+  border: 1px solid $feature-gate-pill-border-color;
 }
 
 .task-description-row {

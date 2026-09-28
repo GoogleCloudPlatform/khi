@@ -21,6 +21,7 @@ import { ProvidedTagInfo } from 'src/app/generated/api/v1/inspection_task_graph_
 import {
   DagNodeRunPhase,
   DagPositionedNode,
+  FEATURE_GATE_TASK_REF_LABEL_KEY,
   TASK_DESCRIPTION_LABEL_KEY,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
@@ -167,6 +168,53 @@ describe('DagNodeComponent', () => {
     const inputBadge = fixture.nativeElement.querySelector('.input-badge');
     expect(inputBadge).toBeTruthy();
     expect(inputBadge.getAttribute('transform')).toBe('translate(0, 0)');
+  });
+
+  it('renders feature gate badge and updates title when feature gate label is present', () => {
+    hostComponent.node = {
+      ...mockNode,
+      isFeature: true,
+      isFormTask: true,
+      labels: {
+        [FEATURE_GATE_TASK_REF_LABEL_KEY]: 'khi.feature.network-mode',
+      },
+    };
+    fixture.detectChanges();
+
+    const gateBadge = fixture.nativeElement.querySelector(
+      '.feature-gate-badge',
+    );
+    expect(gateBadge).toBeTruthy();
+    expect(gateBadge.getAttribute('transform')).toBe('translate(110, 0)');
+
+    const badgeText = gateBadge.querySelector('.badge-text');
+    expect(badgeText.textContent.trim()).toBe('Gate: khi.feature.network-mode');
+
+    const badgeTitle = gateBadge.querySelector('title');
+    expect(badgeTitle.textContent.trim()).toBe(
+      'Feature Gate: khi.feature.network-mode',
+    );
+
+    const titleEl = fixture.nativeElement.querySelector('title');
+    expect(titleEl.textContent.trim()).toContain(
+      'Feature Gate: khi.feature.network-mode',
+    );
+  });
+
+  it('omits feature gate badge when label is not set', () => {
+    hostComponent.node = {
+      ...mockNode,
+      labels: {},
+    };
+    fixture.detectChanges();
+
+    const gateBadge = fixture.nativeElement.querySelector(
+      '.feature-gate-badge',
+    );
+    expect(gateBadge).toBeNull();
+
+    const titleEl = fixture.nativeElement.querySelector('title');
+    expect(titleEl.textContent.trim()).not.toContain('Feature Gate');
   });
 
   it('truncates long task names with ellipsis based on node width', () => {
