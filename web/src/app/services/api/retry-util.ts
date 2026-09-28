@@ -212,7 +212,9 @@ export async function fetchWithRetry(
   let retryCount = 0;
   while (true) {
     try {
-      const response = await fetch(input, options?.init);
+      const response = options?.init
+        ? await fetch(input, options.init)
+        : await fetch(input);
 
       if (signal?.aborted) {
         throw new CancellationError('The operation was aborted.');
