@@ -414,6 +414,19 @@ func TestLocalRunner_TaskError(t *testing.T) {
 			if !strings.Contains(err.Error(), tc.expectedErr.Error()) {
 				t.Errorf("expected error containing '%s', got '%s'", tc.expectedErr.Error(), err.Error())
 			}
+			if !errors.Is(err, tc.expectedErr) {
+				t.Errorf("errors.Is(err, %v) = false, want true", tc.expectedErr)
+			}
+			var taskErr *TaskError
+			if !errors.As(err, &taskErr) {
+				t.Fatalf("errors.As(err, *TaskError) = false, want true")
+			}
+			if taskErr.TaskID.String() != task1.UntypedID().String() {
+				t.Errorf("taskErr.TaskID = %q, want %q", taskErr.TaskID.String(), task1.UntypedID().String())
+			}
+			if !errors.Is(taskErr.Err, tc.expectedErr) {
+				t.Errorf("errors.Is(taskErr.Err, %v) = false, want true", tc.expectedErr)
+			}
 
 			if task2Executed {
 				t.Error("dependent task should not be executed when a dependency fails")
@@ -552,11 +565,13 @@ func TestLocalRunner_AddInterceptor(t *testing.T) {
 func TestLocalRunner_TaskRunStatuses(t *testing.T) {
 	task1ImplID := taskid.NewDefaultImplementationID[any]("task1").String()
 	task2ImplID := taskid.NewDefaultImplementationID[any]("task2").String()
+	sentinelErr := errors.New("task1 failure")
 
 	testCases := []struct {
 		name       string
 		task1Error error
 		wantPhases map[string]TaskRunPhase
+		wantErrors map[string]error
 	}{
 		{
 			name:       "every task finishes successfully",
@@ -565,13 +580,21 @@ func TestLocalRunner_TaskRunStatuses(t *testing.T) {
 				task1ImplID: TaskRunPhaseDone,
 				task2ImplID: TaskRunPhaseDone,
 			},
+			wantErrors: map[string]error{
+				task1ImplID: nil,
+				task2ImplID: nil,
+			},
 		},
 		{
 			name:       "failed task is marked as error and leaves its dependent waiting",
-			task1Error: errors.New("task1 failure"),
+			task1Error: sentinelErr,
 			wantPhases: map[string]TaskRunPhase{
 				task1ImplID: TaskRunPhaseError,
 				task2ImplID: TaskRunPhaseWaiting,
+			},
+			wantErrors: map[string]error{
+				task1ImplID: sentinelErr,
+				task2ImplID: nil,
 			},
 		},
 	}
@@ -611,6 +634,12 @@ func TestLocalRunner_TaskRunStatuses(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantPhases, gotPhases); diff != "" {
 				t.Errorf("TaskRunStatuses() phases mismatch (-want +got):\n%s", diff)
+			}
+
+			for implID, wantErr := range tc.wantErrors {
+				if !errors.Is(statuses[implID].Error, wantErr) {
+					t.Errorf("TaskRunStatuses()[%q].Error = %v, want %v", implID, statuses[implID].Error, wantErr)
+				}
 			}
 
 			task1Status := statuses[task1ImplID]

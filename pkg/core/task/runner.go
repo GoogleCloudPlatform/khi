@@ -85,12 +85,32 @@ func (p TaskRunPhase) String() string {
 	}
 }
 
+// TaskError represents an error that occurred during the execution of a task in a task graph.
+type TaskError struct {
+	TaskID taskid.UntypedTaskImplementationID
+	Err    error
+}
+
+var _ error = (*TaskError)(nil)
+
+// Error returns the formatted error message including the failed task ID and the underlying error.
+func (e *TaskError) Error() string {
+	return fmt.Sprintf("failed to run a task graph.\n task ID=%s got an error. \n ERROR:\n%v", e.TaskID, e.Err)
+}
+
+// Unwrap returns the underlying error returned by the task.
+func (e *TaskError) Unwrap() error {
+	return e.Err
+}
+
 // TaskRunStatus is an immutable snapshot of the execution state of a single task.
 // StartTime is zero while the task is waiting, and EndTime is zero until the task finishes.
+// Error holds the error returned by the task when Phase is TaskRunPhaseError.
 type TaskRunStatus struct {
 	Phase     TaskRunPhase
 	StartTime time.Time
 	EndTime   time.Time
+	Error     error
 }
 
 // NewLocalRunner creates and initializes a new LocalRunner for a given TaskSet.
@@ -165,24 +185,19 @@ func (r *LocalRunner) Run(ctx context.Context) error {
 
 		tasks := r.resolvedTaskSet.GetAll()
 		cancelableCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		currentErrGrp, currentErrCtx := errgroup.WithContext(cancelableCtx)
 		for i := range tasks {
 			taskDefIndex := i
 			currentErrGrp.Go(func() error {
 				defer errorreport.CheckAndReportPanic()
-				err := r.runTask(currentErrCtx, taskDefIndex)
-				if err != nil {
-					cancel()
-					return err
-				}
-				return nil
+				return r.runTask(currentErrCtx, taskDefIndex)
 			})
 		}
 		err := currentErrGrp.Wait()
 		if err != nil {
 			r.resultError = err
 		}
-		cancel()
 	}()
 	return nil
 }
@@ -241,6 +256,7 @@ func (r *LocalRunner) markTaskFinished(taskImplID string, endTime time.Time, tas
 		Phase:     phase,
 		StartTime: previous.StartTime,
 		EndTime:   endTime,
+		Error:     taskErr,
 	}
 }
 
@@ -290,7 +306,6 @@ func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error 
 	}
 	if err != nil {
 		detailedErr := r.wrapWithTaskError(err, task)
-		r.resultError = detailedErr
 		slog.ErrorContext(taskCtx, err.Error())
 		return detailedErr
 	}
@@ -349,11 +364,12 @@ func (r *LocalRunner) Tasks() []UntypedTask {
 	return r.resolvedTaskSet.GetAll()
 }
 
-// wrapWithTaskError creates a detailed error message, wrapping the original error
-// with the ID of the task that produced it for better debugging context.
+// wrapWithTaskError wraps the original error with the ID of the task that produced it.
 func (r *LocalRunner) wrapWithTaskError(err error, task UntypedTask) error {
-	errMsg := fmt.Sprintf("failed to run a task graph.\n task ID=%s got an error. \n ERROR:\n%v", task.UntypedID(), err)
-	return fmt.Errorf("%s", errMsg)
+	return &TaskError{
+		TaskID: task.UntypedID(),
+		Err:    err,
+	}
 }
 
 // waitForDependency blocks until a specified dependency task has completed.

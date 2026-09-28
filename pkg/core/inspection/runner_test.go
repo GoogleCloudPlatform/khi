@@ -588,6 +588,15 @@ func TestInspectionTaskRunner_TakeRunTaskGraphSnapshot(t *testing.T) {
 			if status.Phase != tc.wantPhase {
 				t.Errorf("TaskRunStatuses[%s].Phase = %v, want %v", taskImplID, status.Phase, tc.wantPhase)
 			}
+			if tc.failTask {
+				if !errors.Is(status.Error, taskErr) {
+					t.Errorf("TaskRunStatuses[%s].Error = %v, want %v", taskImplID, status.Error, taskErr)
+				}
+			} else {
+				if status.Error != nil {
+					t.Errorf("TaskRunStatuses[%s].Error = %v, want nil", taskImplID, status.Error)
+				}
+			}
 		})
 	}
 }
@@ -779,6 +788,59 @@ func TestInspectionTaskRunner_ProgressInterceptor(t *testing.T) {
 				if finalSnap.TotalProgress == nil || finalSnap.TotalProgress.Ratio != tc.wantFinalRatio {
 					t.Errorf("finalSnap.TotalProgress = %+v, want Ratio == %v", finalSnap.TotalProgress, tc.wantFinalRatio)
 				}
+			}
+		})
+	}
+}
+
+func TestInspectionTaskRunner_ErrorUnwrapping(t *testing.T) {
+	logger.InitGlobalKHILogger()
+	wantErr := errors.New("simulated task failure")
+
+	testCases := []struct {
+		name string
+		run  func(t *testing.T, runner *InspectionTaskRunner) error
+	}{
+		{
+			name: "Run and Result preserves error chain",
+			run: func(t *testing.T, runner *InspectionTaskRunner) error {
+				req := &inspectioncore.InspectionRequest{Values: map[string]any{}}
+				if err := runner.Run(context.Background(), req); err != nil {
+					t.Fatalf("Run failed: %v", err)
+				}
+				<-runner.Wait()
+				_, err := runner.Result()
+				return err
+			},
+		},
+		{
+			name: "DryRun preserves error chain",
+			run: func(t *testing.T, runner *InspectionTaskRunner) error {
+				req := &inspectioncore.InspectionRequest{Values: map[string]any{}}
+				_, err := runner.DryRun(context.Background(), req)
+				return err
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			server, inspectionID, taskImplID := newTestInspectionServer(t, wantErr)
+			runner := server.GetInspection(inspectionID)
+
+			err := tc.run(t, runner)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !errors.Is(err, wantErr) {
+				t.Errorf("errors.Is(err, %v) = false, want true", wantErr)
+			}
+			var taskErr *coretask.TaskError
+			if !errors.As(err, &taskErr) {
+				t.Fatalf("errors.As(err, *coretask.TaskError) = false, want true")
+			}
+			if taskErr.TaskID.String() != taskImplID {
+				t.Errorf("taskErr.TaskID = %q, want %q", taskErr.TaskID.String(), taskImplID)
 			}
 		})
 	}
