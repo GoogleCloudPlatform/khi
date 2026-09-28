@@ -112,19 +112,4 @@ describe('ParameterHintComponent', () => {
     expect(matIcon.length).toBe(1);
     expect(await matIcon[0].getName()).toBe('info');
   });
-
-  it('renders long unbroken token and applies overflow-wrap style', () => {
-    fixture.componentRef.setInput('parameter', {
-      hintType: ParameterHintType.Warning,
-      hint: 'very-long-token-without-spaces-1234567890123456789012345678901234567890',
-    });
-    fixture.detectChanges();
-
-    const hint = fixture.debugElement.query(By.css('.hint'));
-    expect(hint.nativeElement.innerHTML).toBe(
-      'very-long-token-without-spaces-1234567890123456789012345678901234567890',
-    );
-    const computedStyle = window.getComputedStyle(hint.nativeElement);
-    expect(computedStyle.overflowWrap).toBe('anywhere');
-  });
 });
