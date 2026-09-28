@@ -30,6 +30,10 @@ $background-info: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 50);
 $border-info: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 300);
 $icon-info: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 700);
 
+:host {
+  display: block;
+}
+
 .container {
   display: flex;
   flex-direction: row;
@@ -72,4 +76,6 @@ $icon-info: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 700);
 .hint {
   margin: 0;
   padding: 7px 10px 4px 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
