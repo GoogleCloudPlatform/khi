@@ -19,6 +19,7 @@ import { DagNodeDetailPanelComponent } from 'src/app/shared/components/dag-viewe
 import {
   DagNodeRunPhase,
   DagViewerNode,
+  FEATURE_GATE_TASK_REF_LABEL_KEY,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 const mockNode: DagViewerNode = {
@@ -106,5 +107,17 @@ export const FormTaskNoInputs: Story = {
       topologicalOrder: 0,
     },
     upstreamNodes: [],
+  },
+};
+
+export const WithFeatureGate: Story = {
+  args: {
+    node: {
+      ...mockNode,
+      labels: {
+        ...mockNode.labels,
+        [FEATURE_GATE_TASK_REF_LABEL_KEY]: 'khi.feature.network-mode',
+      },
+    },
   },
 };

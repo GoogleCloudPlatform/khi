@@ -351,11 +351,6 @@ message InspectionQuery {
   EstimatedCountPreset estimated_count_preset = 7;
 }
 
-// InspectionPlan visualizes the resolved execution graph of tasks.
-message InspectionPlan {
-  // Mermaid or DOT graph definition of the task pipeline.
-  string task_graph = 1;
-}
 
 // InspectionLog contains diagnostic or operational logs captured during inspection.
 message InspectionLog {
@@ -525,7 +520,7 @@ message DryRunInspectionRequest {
   InspectionParameters parameters = 2;
 }
 
-// Response containing evaluated form fields, queries, and execution plan.
+// Response containing evaluated form fields, queries, and CLI job command.
 message DryRunInspectionResponse {
   // Form fields with updated hints and validation messages.
   repeated FormField form = 1;
@@ -533,11 +528,8 @@ message DryRunInspectionResponse {
   // Generated queries for the configured inspection.
   repeated InspectionQuery queries = 2;
 
-  // Resolved task graph execution plan.
-  InspectionPlan plan = 3;
-
   // CLI command representation for headless job execution.
-  InspectionJobCommand job_command = 4;
+  InspectionJobCommand job_command = 3;
 }
 
 // Request to start asynchronous inspection execution.
@@ -572,20 +564,17 @@ message GetInspectionMetadataResponse {
   // Header metadata including timestamps and archive details.
   InspectionHeader header = 1;
 
-  // Task execution plan.
-  InspectionPlan plan = 2;
-
   // Executed queries.
-  repeated InspectionQuery queries = 3;
+  repeated InspectionQuery queries = 2;
 
   // Diagnostic logs from task execution.
-  repeated InspectionLog logs = 4;
+  repeated InspectionLog logs = 3;
 
   // Errors encountered during execution, if any.
-  InspectionErrorSet error = 5;
+  InspectionErrorSet error = 4;
 
   // CLI command representation for headless job execution.
-  InspectionJobCommand job_command = 6;
+  InspectionJobCommand job_command = 5;
 }
 
 // Request to download a byte chunk of the generated .khi inspection archive.

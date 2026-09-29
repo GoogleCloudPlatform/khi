@@ -22,6 +22,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import {
   DagViewerNode,
+  getFeatureGateTaskRef,
   getTaskDescription,
   ProvidedTagItem,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
@@ -116,5 +117,16 @@ export class DagNodeDetailPanelComponent {
       return '';
     }
     return getTaskDescription(currentNode.labels);
+  });
+
+  /**
+   * Feature gate task reference ID extracted from task labels, or empty string if none.
+   */
+  readonly featureGateTaskRef = computed<string>(() => {
+    const currentNode = this.node();
+    if (!currentNode) {
+      return '';
+    }
+    return getFeatureGateTaskRef(currentNode.labels);
   });
 }

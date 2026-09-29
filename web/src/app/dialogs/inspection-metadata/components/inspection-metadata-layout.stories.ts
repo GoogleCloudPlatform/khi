@@ -64,10 +64,6 @@ export const Default: Story = {
           log: '[INFO] Starting event parsing\n[INFO] Identified 12 namespaces, 84 pods, 16 nodes\n[INFO] Timeline graph constructed with 1042 revisions',
         },
       ],
-      plan: {
-        taskGraph:
-          'digraph G {\n  rankdir=LR;\n  node [shape=box];\n  "AuditLogFetcherTask" -> "KubernetesEventParserTask";\n  "KubernetesEventParserTask" -> "TimelineBuilderTask";\n}',
-      },
       errors: [],
     },
   },
@@ -100,9 +96,6 @@ export const WithErrors: Story = {
           log: '[ERROR] Request deadline exceeded while querying Cloud Logging API\n[WARN] Partial result returned',
         },
       ],
-      plan: {
-        taskGraph: 'digraph G { "Fetch" -> "Parse"; }',
-      },
       errors: [
         {
           errorId: 'DEADLINE_EXCEEDED',
@@ -136,9 +129,6 @@ export const Minimal: Story = {
       },
       queries: [],
       logs: [],
-      plan: {
-        taskGraph: '',
-      },
       errors: [],
     },
   },

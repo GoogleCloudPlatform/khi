@@ -110,7 +110,7 @@ This allows KHI to fully leverage information discovered from other enabled log 
 In KHI, use `inspectiontaskbase.NewInventoryTaskBuilder` to build **two or more independent `DiscoveryTask`s** corresponding to each log source, combined with a **single `InventoryTask`** that integrates them.
 
 1. **`DiscoveryTask` is included in the graph only when requested by another task**:
-   Each discovery task created by `.DiscoveryTask(...)` on the builder automatically receives `coretask.NewSubsequentTaskRefsTaskLabel`. As a result, **the discovery task itself is never included in the task graph unless requested as a dependency by a parser or feature task that uses it** (if the corresponding parser is disabled, the discovery task is excluded from the graph).
+   Discovery tasks are pulled in on demand as dependencies. As a result, **the discovery task itself is never included in the task graph unless requested as a dependency by a parser or feature task that uses it** (if the corresponding parser is disabled, the discovery task is excluded from the graph).
 2. **Optional integration of enabled results by `InventoryTask`**:
    The inventory task created by `.InventoryTask(strategy)` on the builder uses `coretask.GetOptionalTaskResult` to collect and merge **only the results of Discovery tasks that were actually included and executed in the graph**.
 

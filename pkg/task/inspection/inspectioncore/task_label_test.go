@@ -158,27 +158,3 @@ func TestInspectionTypeLabelSelector(t *testing.T) {
 		t.Errorf("InspectionTypeLabelSelector mismatch (-want +got):\n%s", diff)
 	}
 }
-
-// TestInventoryTaskLabel tests InventoryTaskLabel.
-func TestInventoryTaskLabel(t *testing.T) {
-	testCases := []struct {
-		name string
-		want bool
-	}{
-		{
-			name: "inventory task label is set to true",
-			want: true,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			labelOpt := InventoryTaskLabel()
-			labelSet := coretask.NewLabelSet(labelOpt)
-
-			got := typedmap.GetOrDefault(labelSet, LabelKeyInventoryTask, false)
-			if got != tc.want {
-				t.Errorf("got %v, want %v", got, tc.want)
-			}
-		})
-	}
-}

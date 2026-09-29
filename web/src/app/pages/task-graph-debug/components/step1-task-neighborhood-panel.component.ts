@@ -33,6 +33,7 @@ import {
   DagNodeRunPhase,
   DagViewerEdge,
   DagViewerNode,
+  getFeatureGateTaskRef,
   getTaskDescription,
   isFormTask,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
@@ -394,6 +395,12 @@ export class Step1TaskNeighborhoodPanelComponent {
       return '';
     }
     return getTaskDescription(center.labels);
+  });
+
+  /** Feature gate task reference ID of the currently inspected center task, or empty string. */
+  readonly centerTaskFeatureGate = computed<string>(() => {
+    const center = this.centerTask();
+    return center ? getFeatureGateTaskRef(center.labels) : '';
   });
 
   /**

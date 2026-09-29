@@ -22,7 +22,9 @@ import {
   DEFAULT_RETRY_BASE_DELAY_MS,
   DEFAULT_RETRY_MAX_DELAY_MS,
   delayWithSignal,
+  fetchWithRetry,
   isRetryableError,
+  isRetryableHttpStatus,
 } from 'src/app/services/api/retry-util';
 import { CancellationError } from 'src/app/store/domain/filter/types';
 
@@ -195,6 +197,221 @@ describe('retry-util', () => {
       await delayWithSignal(50);
       const elapsed = Date.now() - start;
       expect(elapsed).toBeGreaterThanOrEqual(40);
+    });
+  });
+
+  describe('isRetryableHttpStatus', () => {
+    it('returns true for 502, 503, and 504', () => {
+      expect(isRetryableHttpStatus(502)).toBeTrue();
+      expect(isRetryableHttpStatus(503)).toBeTrue();
+      expect(isRetryableHttpStatus(504)).toBeTrue();
+    });
+
+    it('returns false for non-retryable HTTP statuses like 200, 400, 404, and 500', () => {
+      expect(isRetryableHttpStatus(200)).toBeFalse();
+      expect(isRetryableHttpStatus(400)).toBeFalse();
+      expect(isRetryableHttpStatus(404)).toBeFalse();
+      expect(isRetryableHttpStatus(500)).toBeFalse();
+    });
+  });
+
+  describe('fetchWithRetry', () => {
+    let originalFetch: typeof window.fetch;
+
+    beforeEach(() => {
+      originalFetch = window.fetch;
+    });
+
+    afterEach(() => {
+      window.fetch = originalFetch;
+    });
+
+    const testRetryOptions = {
+      maxRetries: 3,
+      baseDelayMs: 1,
+      maxDelayMs: 5,
+    };
+
+    it('returns response immediately on 200 OK without retrying', async () => {
+      const mockResponse = new Response('ok', {
+        status: 200,
+        statusText: 'OK',
+      });
+      const fetchSpy = jasmine.createSpy('fetch').and.resolveTo(mockResponse);
+      window.fetch = fetchSpy;
+
+      const response = await fetchWithRetry(
+        'https://example.com',
+        testRetryOptions,
+      );
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(response).toBe(mockResponse);
+    });
+
+    it('retries on HTTP 502, 503, and 504 and resolves when a subsequent attempt succeeds', async () => {
+      let callCount = 0;
+      const okResponse = new Response('ok', { status: 200, statusText: 'OK' });
+      const fetchSpy = jasmine.createSpy('fetch').and.callFake(async () => {
+        callCount++;
+        if (callCount === 1) {
+          return new Response('bad gateway', {
+            status: 502,
+            statusText: 'Bad Gateway',
+          });
+        }
+        if (callCount === 2) {
+          return new Response('service unavailable', {
+            status: 503,
+            statusText: 'Service Unavailable',
+          });
+        }
+        if (callCount === 3) {
+          return new Response('gateway timeout', {
+            status: 504,
+            statusText: 'Gateway Timeout',
+          });
+        }
+        return okResponse;
+      });
+      window.fetch = fetchSpy;
+
+      const response = await fetchWithRetry(
+        'https://example.com',
+        testRetryOptions,
+      );
+
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(response).toBe(okResponse);
+    });
+
+    it('returns the final HTTP 502 response after exhausting maxRetries', async () => {
+      const response502 = new Response('bad gateway', {
+        status: 502,
+        statusText: 'Bad Gateway',
+      });
+      const fetchSpy = jasmine.createSpy('fetch').and.resolveTo(response502);
+      window.fetch = fetchSpy;
+
+      const response = await fetchWithRetry(
+        'https://example.com',
+        testRetryOptions,
+      );
+
+      // Initial call + 3 retries = 4 calls
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(response).toBe(response502);
+    });
+
+    it('does not retry on non-transient HTTP statuses such as 404 or 500', async () => {
+      const response404 = new Response('not found', {
+        status: 404,
+        statusText: 'Not Found',
+      });
+      const fetchSpy = jasmine.createSpy('fetch').and.resolveTo(response404);
+      window.fetch = fetchSpy;
+
+      const response = await fetchWithRetry(
+        'https://example.com',
+        testRetryOptions,
+      );
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(response).toBe(response404);
+    });
+
+    it("retries on network TypeError ('Failed to fetch') and resolves when a subsequent attempt succeeds", async () => {
+      let callCount = 0;
+      const okResponse = new Response('ok', { status: 200, statusText: 'OK' });
+      const fetchSpy = jasmine.createSpy('fetch').and.callFake(async () => {
+        callCount++;
+        if (callCount <= 2) {
+          throw new TypeError('Failed to fetch');
+        }
+        return okResponse;
+      });
+      window.fetch = fetchSpy;
+
+      const response = await fetchWithRetry(
+        'https://example.com',
+        testRetryOptions,
+      );
+
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      expect(response).toBe(okResponse);
+    });
+
+    it('throws the network TypeError after exhausting maxRetries', async () => {
+      const networkError = new TypeError('Failed to fetch');
+      const fetchSpy = jasmine.createSpy('fetch').and.rejectWith(networkError);
+      window.fetch = fetchSpy;
+
+      await expectAsync(
+        fetchWithRetry('https://example.com', testRetryOptions),
+      ).toBeRejectedWith(networkError);
+
+      // Initial call + 3 retries = 4 calls
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+    });
+
+    it('aborts during backoff delay when AbortSignal fires and throws CancellationError without making subsequent fetch calls', async () => {
+      const controller = new AbortController();
+      let callCount = 0;
+      const fetchSpy = jasmine.createSpy('fetch').and.callFake(async () => {
+        callCount++;
+        return new Response('bad gateway', {
+          status: 502,
+          statusText: 'Bad Gateway',
+        });
+      });
+      window.fetch = fetchSpy;
+
+      const retryPromise = fetchWithRetry('https://example.com', {
+        maxRetries: 3,
+        baseDelayMs: 1000,
+        maxDelayMs: 2000,
+        init: { signal: controller.signal },
+      });
+
+      // Abort shortly after the first failure triggers backoff delay
+      setTimeout(() => controller.abort(), 20);
+
+      await expectAsync(retryPromise).toBeRejectedWithError(
+        CancellationError,
+        'The operation was aborted.',
+      );
+      expect(callCount).toBe(1);
+    });
+
+    it('respects signal from Request input and throws CancellationError on abort during backoff delay', async () => {
+      const controller = new AbortController();
+      let callCount = 0;
+      const fetchSpy = jasmine.createSpy('fetch').and.callFake(async () => {
+        callCount++;
+        return new Response('bad gateway', {
+          status: 502,
+          statusText: 'Bad Gateway',
+        });
+      });
+      window.fetch = fetchSpy;
+
+      const request = new Request('https://example.com', {
+        signal: controller.signal,
+      });
+
+      const retryPromise = fetchWithRetry(request, {
+        maxRetries: 3,
+        baseDelayMs: 1000,
+        maxDelayMs: 2000,
+      });
+
+      setTimeout(() => controller.abort(), 20);
+
+      await expectAsync(retryPromise).toBeRejectedWithError(
+        CancellationError,
+        'The operation was aborted.',
+      );
+      expect(callCount).toBe(1);
     });
   });
 });

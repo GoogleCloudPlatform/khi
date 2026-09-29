@@ -48,4 +48,5 @@ var EventLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 		return result, nil
 	},
 	coretask.ProvidesTag(k8scommon.TagNEGToBackendServiceDiscovery),
+	coretask.WithFeatureGate(k8sevent.LogToTimelineMapperTaskID.Ref()),
 )

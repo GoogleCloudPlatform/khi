@@ -222,7 +222,6 @@ describe('BackendAPIImpl testing', () => {
             suggestedFilename: 'test',
           },
           queries: [],
-          plan: { taskGraph: '' },
           logs: [],
           error: { errorMessages: [] },
         }),
@@ -429,7 +428,6 @@ describe('BackendAPIImpl testing', () => {
         create(DryRunInspectionResponseSchema, {
           form: [],
           queries: [],
-          plan: { taskGraph: '' },
         }),
       ),
     );
@@ -496,9 +494,6 @@ describe('InspectionTaskClient testing', () => {
         metadata: {
           query: [],
           form: [],
-          plan: {
-            taskGraph: 'test',
-          },
         },
       }),
     );
@@ -566,9 +561,6 @@ describe('InspectionTaskClient testing', () => {
       metadata: {
         query: [],
         form: [],
-        plan: {
-          taskGraph: 'test',
-        },
       },
     };
     taskClient
@@ -591,9 +583,6 @@ describe('InspectionTaskClient testing', () => {
       metadata: {
         query: [],
         form: [],
-        plan: {
-          taskGraph: 'test',
-        },
       },
     };
     taskClient.dryRunResult.subscribe((response) => {

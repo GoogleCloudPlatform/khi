@@ -162,3 +162,103 @@ export function delayWithSignal(
     signal?.addEventListener('abort', onAbort, { once: true });
   });
 }
+
+/**
+ * Configuration options for {@link fetchWithRetry}.
+ */
+export interface FetchRetryOptions {
+  /** Optional RequestInit configuration passed to the underlying fetch call. */
+  readonly init?: RequestInit;
+
+  /** Maximum number of retry attempts before giving up. Defaults to DEFAULT_MAX_RETRIES (3). */
+  readonly maxRetries?: number;
+
+  /** Base delay in milliseconds before the first retry attempt. Defaults to DEFAULT_RETRY_BASE_DELAY_MS (500). */
+  readonly baseDelayMs?: number;
+
+  /** Maximum backoff delay in milliseconds. Defaults to DEFAULT_RETRY_MAX_DELAY_MS (3000). */
+  readonly maxDelayMs?: number;
+}
+
+/**
+ * Checks whether an HTTP status code represents a transient failure that can be safely retried.
+ *
+ * @param status The HTTP response status code.
+ * @returns True if the status code is retryable (502, 503, 504), false otherwise.
+ */
+export function isRetryableHttpStatus(status: number): boolean {
+  return status === 502 || status === 503 || status === 504;
+}
+
+/**
+ * Executes a browser fetch request and automatically retries on transient HTTP statuses (502, 503, 504)
+ * or transient network errors using exponential backoff.
+ *
+ * @param input The resource URL or RequestInfo to fetch.
+ * @param options Optional retry and RequestInit settings.
+ * @returns A promise that resolves to the fetch Response.
+ */
+export async function fetchWithRetry(
+  input: RequestInfo | URL,
+  options?: FetchRetryOptions,
+): Promise<Response> {
+  const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
+  const baseDelayMs = options?.baseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS;
+  const maxDelayMs = options?.maxDelayMs ?? DEFAULT_RETRY_MAX_DELAY_MS;
+  const signal =
+    options?.init?.signal ??
+    (input instanceof Request ? input.signal : undefined);
+
+  let retryCount = 0;
+  while (true) {
+    try {
+      const response = options?.init
+        ? await fetch(input, options.init)
+        : await fetch(input);
+
+      if (signal?.aborted) {
+        throw new CancellationError('The operation was aborted.');
+      }
+
+      if (
+        !response.ok &&
+        isRetryableHttpStatus(response.status) &&
+        retryCount < maxRetries
+      ) {
+        retryCount++;
+        const delayMs = calculateBackoffDelayMs(
+          retryCount,
+          baseDelayMs,
+          maxDelayMs,
+        );
+        await delayWithSignal(delayMs, signal);
+        if (signal?.aborted) {
+          throw new CancellationError('The operation was aborted.');
+        }
+        continue;
+      }
+
+      return response;
+    } catch (err) {
+      if (signal?.aborted) {
+        throw new CancellationError('The operation was aborted.');
+      }
+
+      retryCount++;
+      if (retryCount > maxRetries || !isRetryableError(err)) {
+        throw err;
+      }
+
+      const delayMs = calculateBackoffDelayMs(
+        retryCount,
+        baseDelayMs,
+        maxDelayMs,
+      );
+      await delayWithSignal(delayMs, signal);
+
+      if (signal?.aborted) {
+        throw new CancellationError('The operation was aborted.');
+      }
+    }
+  }
+}

@@ -232,16 +232,16 @@ func TestResolveGraph_FanInScopeActiveFeatures(t *testing.T) {
 		wantErr     bool
 	}{
 		{
-			name: "anchor check includes anchored provider but excludes unselected feature provider",
+			name: "feature gate check includes feature-gated provider but excludes unselected feature provider",
 			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
 				commonAncestor := createMockTask("common-ancestor", "default", nil)
 				prod1 := createMockTask("prod1", "default", []Dependency{
 					taskid.NewTaskReference[any]("common-ancestor"),
-				}, ProvidesTag(tagDiscovery))
+				}, ProvidesTag(tagDiscovery), WithFeatureGate(taskid.NewTaskReference[any]("common-ancestor")))
 				unselectedFeature := createMockTask("unselected-feature", "default", nil)
 				prod2 := createMockTask("prod2", "default", []Dependency{
 					taskid.NewTaskReference[any]("unselected-feature"),
-				}, ProvidesTag(tagDiscovery))
+				}, ProvidesTag(tagDiscovery), WithFeatureGate(taskid.NewTaskReference[any]("unselected-feature")))
 				collector := createMockTask("collector", "default", []Dependency{
 					tagDiscovery.Ref(FromActiveFeatures),
 				})
@@ -291,7 +291,7 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 				commonAncestor := createMockTask("common-ancestor", "default", nil)
 				targetTask := createMockTask("target-task", "default", []Dependency{
 					taskid.NewTaskReference[any]("common-ancestor"),
-				})
+				}, WithFeatureGate(taskid.NewTaskReference[any]("common-ancestor")))
 				collector := createMockTask("collector", "default", []Dependency{
 					taskid.NewTaskReference[any]("target-task", taskid.ScopeActiveFeatures),
 				})
@@ -324,7 +324,7 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 				unselectedFeature := createMockTask("unselected-feature", "default", nil)
 				targetTask := createMockTask("target-task", "default", []Dependency{
 					taskid.NewTaskReference[any]("unselected-feature"),
-				})
+				}, WithFeatureGate(taskid.NewTaskReference[any]("unselected-feature")))
 				collector := createMockTask("collector", "default", []Dependency{
 					taskid.NewTaskReference[any]("target-task", taskid.ScopeActiveFeatures),
 				})
@@ -345,7 +345,7 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 				})
 				targetTask := createMockTask("target-task", "default", []Dependency{
 					taskid.NewTaskReference[any]("intermediate-task"),
-				})
+				}, WithFeatureGate(taskid.NewTaskReference[any]("common-ancestor")))
 				collector := createMockTask("collector", "default", []Dependency{
 					taskid.NewTaskReference[any]("target-task", taskid.ScopeActiveFeatures),
 				})
@@ -624,8 +624,8 @@ func TestResolveGraph_DisabledTasks(t *testing.T) {
 				createMockTask("consumer", "default", []Dependency{
 					tagA.Ref(FromActiveFeatures),
 				}),
-				createMockTask("provider-a", "default", nil, ProvidesTag(tagA)),
-				createMockTask("provider-b", "default", nil, ProvidesTag(tagA)),
+				createMockTask("provider-a", "default", nil, ProvidesTag(tagA), WithFeatureGate(taskid.NewTaskReference[any]("consumer"))),
+				createMockTask("provider-b", "default", nil, ProvidesTag(tagA), WithFeatureGate(taskid.NewTaskReference[any]("consumer"))),
 			},
 			disabledTasks: nil,
 			wantTaskIDs:   []string{"provider-a#default", "provider-b#default", "consumer#default"},
@@ -877,7 +877,7 @@ func TestResolveGraph_DisabledFeatureClosure(t *testing.T) {
 				})
 				disabledProducer := createMockTask("disabled-producer", "default", []Dependency{
 					taskid.NewTaskReference[any]("disabled-query"),
-				}, ProvidesTag(tagDiscovery))
+				}, ProvidesTag(tagDiscovery), WithFeatureGate(taskid.NewTaskReference[any]("disabled-sink")))
 				disabledSink := createMockTask("disabled-sink", "default", []Dependency{
 					taskid.NewTaskReference[any]("disabled-producer"),
 				})
@@ -900,7 +900,7 @@ func TestResolveGraph_DisabledFeatureClosure(t *testing.T) {
 				})
 				activeProducer := createMockTask("active-producer", "default", []Dependency{
 					taskid.NewTaskReference[any]("shared-query"),
-				}, ProvidesTag(tagDiscovery))
+				}, ProvidesTag(tagDiscovery), WithFeatureGate(taskid.NewTaskReference[any]("enabled-feature")))
 				disabledSink := createMockTask("disabled-sink", "default", []Dependency{
 					taskid.NewTaskReference[any]("shared-query"),
 				})
@@ -938,7 +938,7 @@ func TestResolveGraph_DisabledFeatureClosure(t *testing.T) {
 				})
 				disabledCommonProducer := createMockTask("disabled-common-producer", "default", []Dependency{
 					taskid.NewTaskReference[any]("shared-root"),
-				}, ProvidesTag(tagDiscovery))
+				}, ProvidesTag(tagDiscovery), WithFeatureGate(taskid.NewTaskReference[any]("disabled-sink-a")))
 				disabledSinkA := createMockTask("disabled-sink-a", "default", []Dependency{
 					taskid.NewTaskReference[any]("disabled-common-producer"),
 				})
@@ -960,6 +960,141 @@ func TestResolveGraph_DisabledFeatureClosure(t *testing.T) {
 			taskSet, err := ResolveGraph(initial, available, disabled)
 			if err != nil {
 				t.Fatalf("ResolveGraph() unexpected error = %v", err)
+			}
+
+			var gotTaskIDs []string
+			for _, task := range taskSet.GetAll() {
+				gotTaskIDs = append(gotTaskIDs, task.UntypedID().String())
+			}
+
+			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
+				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestResolveGraph_FeatureGate(t *testing.T) {
+	tagDiscovery := NewTag[any]("feature-gate-discovery")
+
+	testCases := []struct {
+		name        string
+		setup       func() (initialTasks, availableTasks, disabledTasks []UntypedTask)
+		wantTaskIDs []string
+		wantErr     bool
+		wantErrMsg  string
+	}{
+		{
+			name: "multi-hop pipeline and zero-dependency helper are pulled in when feature gate is active",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				s1 := createMockTask("s1", "default", nil)
+				h1 := createMockTask("h1", "default", []Dependency{
+					taskid.NewTaskReference[any]("s1"),
+				})
+				h2 := createMockTask("h2", "default", []Dependency{
+					taskid.NewTaskReference[any]("h1"),
+				})
+				u := createMockTask("u", "default", nil)
+				d1 := createMockTask("d1", "default", []Dependency{
+					taskid.NewTaskReference[any]("h2"),
+					taskid.NewTaskReference[any]("u"),
+				}, ProvidesTag(tagDiscovery), WithFeatureGate(taskid.NewTaskReference[any]("s1")))
+				collector := createMockTask("collector", "default", []Dependency{
+					tagDiscovery.Ref(FromActiveFeatures),
+				})
+				return []UntypedTask{collector, s1},
+					[]UntypedTask{collector, s1, h1, h2, u, d1},
+					nil
+			},
+			wantTaskIDs: []string{"s1#default", "h1#default", "h2#default", "u#default", "d1#default", "collector#default"},
+			wantErr:     false,
+		},
+		{
+			name: "same-feature inventory consumption resolves without cycle",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				inventory := createMockTask("inventory", "default", []Dependency{
+					tagDiscovery.Ref(FromActiveFeatures),
+				})
+				f1 := createMockTask("f1", "default", []Dependency{
+					taskid.NewTaskReference[any]("inventory"),
+				})
+				d1 := createMockTask("d1", "default", nil,
+					ProvidesTag(tagDiscovery),
+					WithFeatureGate(taskid.NewTaskReference[any]("f1")),
+				)
+				return []UntypedTask{f1},
+					[]UntypedTask{f1, inventory, d1},
+					nil
+			},
+			wantTaskIDs: []string{"d1#default", "inventory#default", "f1#default"},
+			wantErr:     false,
+		},
+		{
+			name: "active feature gated task with missing mandatory dependency returns error",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				s1 := createMockTask("s1", "default", nil)
+				d1 := createMockTask("d1", "default", []Dependency{
+					taskid.NewTaskReference[any]("missing-dep"),
+				}, ProvidesTag(tagDiscovery), WithFeatureGate(taskid.NewTaskReference[any]("s1")))
+				collector := createMockTask("collector", "default", []Dependency{
+					tagDiscovery.Ref(FromActiveFeatures),
+				})
+				return []UntypedTask{collector, s1},
+					[]UntypedTask{collector, s1, d1},
+					nil
+			},
+			wantErr:    true,
+			wantErrMsg: "required dependency \"missing-dep\" required by \"d1#default\" not found",
+		},
+		{
+			name: "active feature gated task with disabled mandatory dependency returns error",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				s1 := createMockTask("s1", "default", nil)
+				disabledDep := createMockTask("disabled-dep", "default", nil)
+				d1 := createMockTask("d1", "default", []Dependency{
+					taskid.NewTaskReference[any]("disabled-dep"),
+				}, ProvidesTag(tagDiscovery), WithFeatureGate(taskid.NewTaskReference[any]("s1")))
+				collector := createMockTask("collector", "default", []Dependency{
+					tagDiscovery.Ref(FromActiveFeatures),
+				})
+				return []UntypedTask{collector, s1},
+					[]UntypedTask{collector, s1, disabledDep, d1},
+					[]UntypedTask{disabledDep}
+			},
+			wantErr:    true,
+			wantErrMsg: "required dependency \"disabled-dep\" required by \"d1#default\" is disabled",
+		},
+		{
+			name: "ungated candidate task matching tag is pulled in by default under ScopeActiveFeatures",
+			setup: func() ([]UntypedTask, []UntypedTask, []UntypedTask) {
+				helper := createMockTask("helper", "default", nil)
+				ungatedProducer := createMockTask("ungated-producer", "default", []Dependency{
+					taskid.NewTaskReference[any]("helper"),
+				}, ProvidesTag(tagDiscovery))
+				collector := createMockTask("collector", "default", []Dependency{
+					tagDiscovery.Ref(FromActiveFeatures),
+				})
+				return []UntypedTask{collector},
+					[]UntypedTask{collector, helper, ungatedProducer},
+					nil
+			},
+			wantTaskIDs: []string{"helper#default", "ungated-producer#default", "collector#default"},
+			wantErr:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			initial, available, disabled := tc.setup()
+			taskSet, err := ResolveGraph(initial, available, disabled)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ResolveGraph() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				if tc.wantErrMsg != "" && !strings.Contains(err.Error(), tc.wantErrMsg) {
+					t.Errorf("ResolveGraph() error = %q, want substring %q", err.Error(), tc.wantErrMsg)
+				}
+				return
 			}
 
 			var gotTaskIDs []string

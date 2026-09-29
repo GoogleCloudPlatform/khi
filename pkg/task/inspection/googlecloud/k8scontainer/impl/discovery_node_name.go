@@ -51,4 +51,5 @@ var NodeNameDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagNodeNameDiscovery),
+	coretask.WithFeatureGate(k8scontainer.TailTaskID.Ref()),
 )

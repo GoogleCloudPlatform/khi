@@ -15,16 +15,6 @@
  */
 
 import { Component, computed, input, signal } from '@angular/core';
-import {
-  GroupParameterFormField,
-  ParameterInputType,
-} from 'src/app/common/schema/form-types';
-import { TextParameterComponent } from './text-parameter.component';
-import { FileParameterComponent } from './file-parameter.component';
-import { SetParameterComponent } from './set-parameter.component';
-import { CheckboxParameterComponent } from './checkbox-parameter.component';
-import { ParameterHeaderComponent } from './parameter-header.component';
-import { ParameterHintComponent } from './parameter-hint.component';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -35,6 +25,17 @@ import {
   transition,
   trigger,
 } from '@angular/animations';
+import {
+  GroupParameterFormField,
+  ParameterInputType,
+} from 'src/app/common/schema/form-types';
+import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
+import { TextParameterComponent } from 'src/app/dialogs/new-inspection/components/text-parameter.component';
+import { FileParameterComponent } from 'src/app/dialogs/new-inspection/components/file-parameter.component';
+import { SetParameterComponent } from 'src/app/dialogs/new-inspection/components/set-parameter.component';
+import { CheckboxParameterComponent } from 'src/app/dialogs/new-inspection/components/checkbox-parameter.component';
+import { ParameterHeaderComponent } from 'src/app/dialogs/new-inspection/components/parameter-header.component';
+import { ParameterHintComponent } from 'src/app/dialogs/new-inspection/components/parameter-hint.component';
 
 /**
  * A collection of form fields.
@@ -46,6 +47,7 @@ import {
   imports: [
     CommonModule,
     MatIconModule,
+    KHIIconRegistrationModule,
     MatButtonModule,
     TextParameterComponent,
     FileParameterComponent,
@@ -68,8 +70,8 @@ import {
           height: '0',
         }),
       ),
-      transition('expanded => collapsed', animate('500ms ease-in')),
-      transition('collapsed => expanded', animate('500ms ease-out')),
+      transition('expanded => collapsed', animate('150ms ease-in')),
+      transition('collapsed => expanded', animate('150ms ease-out')),
     ]),
     trigger('expander-animation', [
       state(
@@ -84,8 +86,8 @@ import {
           transform: 'rotate(-90deg)',
         }),
       ),
-      transition('expanded => collapsed', animate('500ms ease-in')),
-      transition('collapsed => expanded', animate('500ms ease-out')),
+      transition('expanded => collapsed', animate('150ms ease-in')),
+      transition('collapsed => expanded', animate('150ms ease-out')),
     ]),
   ],
 })
@@ -94,10 +96,11 @@ export class GroupParameterComponent {
    * Exposes ParameterInputType enum to the template.
    */
   protected readonly ParameterInputType = ParameterInputType;
+
   /**
    * The setting of this group type form field.
    */
-  parameter = input.required<GroupParameterFormField>();
+  readonly parameter = input.required<GroupParameterFormField>();
 
   /**
    * If the children is collapsed or not. When it is null, user didn't click the expander to toggle yet.
@@ -105,16 +108,19 @@ export class GroupParameterComponent {
    */
   private readonly collapsedFromUserInput = signal<boolean | null>(null);
 
-  childrenStatus = computed(() => {
+  /**
+   * Computes the current expansion state of the group's children.
+   */
+  readonly childrenStatus = computed(() => {
     const fromUserInput = this.collapsedFromUserInput();
     const fromDefaultValue = this.parameter().collapsedByDefault;
     return (fromUserInput ?? fromDefaultValue) ? 'collapsed' : 'expanded';
   });
 
   /**
-   * Toggle the collapsed status for children.
+   * Toggles the collapsed status for children.
    */
-  toggle() {
+  toggle(): void {
     this.collapsedFromUserInput.set(this.childrenStatus() !== 'collapsed');
   }
 }

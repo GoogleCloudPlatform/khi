@@ -33,7 +33,6 @@ describe('inspection-metadata.model', () => {
         },
         query: [],
         log: [],
-        plan: { taskGraph: '' },
         error: { errorMessages: [] },
       };
 
@@ -46,7 +45,6 @@ describe('inspection-metadata.model', () => {
       expect(vm.overview.formattedEndTime).toBe('-');
       expect(vm.queries).toEqual([]);
       expect(vm.logs).toEqual([]);
-      expect(vm.plan.taskGraph).toBe('');
       expect(vm.errors).toEqual([]);
     });
 
@@ -66,7 +64,6 @@ describe('inspection-metadata.model', () => {
         },
         query: [],
         log: [],
-        plan: { taskGraph: '' },
         error: { errorMessages: [] },
       });
 
@@ -134,9 +131,6 @@ describe('inspection-metadata.model', () => {
             log: 'Starting query...',
           },
         ],
-        plan: {
-          taskGraph: 'digraph G { A -> B; }',
-        },
         error: {
           errorMessages: [
             {
@@ -163,7 +157,6 @@ describe('inspection-metadata.model', () => {
       expect(vm.queries[0].name).toBe('Audit Logs');
       expect(vm.logs.length).toBe(1);
       expect(vm.logs[0].log).toBe('Starting query...');
-      expect(vm.plan.taskGraph).toBe('digraph G { A -> B; }');
       expect(vm.errors.length).toBe(1);
       expect(vm.errors[0].errorId).toBe('ERR_PERMISSION');
       expect(vm.jobCommand).toBe('./khi --job-mode');

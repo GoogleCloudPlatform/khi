@@ -39,8 +39,7 @@ func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
 	eventMapperTask := newTestTask("event-log-mapper")
 	featureEventTask := newTestTask("feature-event", inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 2, true))
 
-	inventoryTask := newTestTask("inventory-node-names", inspectioncore.InventoryTaskLabel())
-	listNodesTask := newTestTask("list-node-names")
+	inventoryTask := newTestTask("inventory-node-names")
 
 	tasks := []coretask.UntypedTask{
 		formTask,
@@ -51,7 +50,6 @@ func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
 		eventMapperTask,
 		featureEventTask,
 		inventoryTask,
-		listNodesTask,
 	}
 
 	taskMap := make(map[string]coretask.UntypedTask)
@@ -66,9 +64,6 @@ func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
 		newTestEdge(auditMapperTask.UntypedID().String(), featureAuditTask.UntypedID().String()),
 		newTestEdge(listEventTask.UntypedID().String(), eventMapperTask.UntypedID().String()),
 		newTestEdge(eventMapperTask.UntypedID().String(), featureEventTask.UntypedID().String()),
-		newTestEdge(inventoryTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
-		newTestEdge(inventoryTask.UntypedID().String(), eventMapperTask.UntypedID().String()),
-		newTestEdge(listNodesTask.UntypedID().String(), inventoryTask.UntypedID().String()),
 	}
 
 	return coretask.NewResolvedTaskSet(tasks, edges, nil), taskMap

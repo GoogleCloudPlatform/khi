@@ -277,9 +277,6 @@ func (s *InspectionServiceServer) DryRunInspection(
 	if queries, ok := mdMap["query"].([]*inspectionmetadata.QueryItem); ok && queries != nil {
 		resp.Queries = convertQueries(queries)
 	}
-	if plan, ok := mdMap["plan"].(*inspectionmetadata.InspectionPlanMetadata); ok && plan != nil {
-		resp.Plan = &apiv1.InspectionPlan{TaskGraph: proto.String(plan.TaskGraph)}
-	}
 	if cmd, ok := mdMap["jobCommand"].(*inspectionmetadata.JobModeCommandSerializable); ok && cmd != nil {
 		resp.JobCommand = &apiv1.InspectionJobCommand{Command: proto.String(cmd.Command)}
 	}
@@ -349,9 +346,6 @@ func (s *InspectionServiceServer) GetInspectionMetadata(
 			SuggestedFilename:      proto.String(h.SuggestedFileName),
 			FileSize:               proto.Int64(int64(h.FileSize)),
 		}
-	}
-	if p, ok := md["plan"].(*inspectionmetadata.InspectionPlanMetadata); ok && p != nil {
-		resp.Plan = &apiv1.InspectionPlan{TaskGraph: proto.String(p.TaskGraph)}
 	}
 	if q, ok := md["query"].([]*inspectionmetadata.QueryItem); ok && q != nil {
 		resp.Queries = convertQueries(q)

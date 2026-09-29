@@ -1,0 +1,159 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+@if (parameterViewModel(); as parameterViewModel) {
+  <div class="parameter-view">
+    <div class="parameters-form-view allow-vertical-scroll">
+      <khi-new-inspection-group-parameter
+        [parameter]="parameterViewModel.rootGroupForm"
+      ></khi-new-inspection-group-parameter>
+    </div>
+    <div class="parameters-metadata-view allow-vertical-scroll">
+      <mat-card class="query-section-card">
+        <mat-card-header>
+          <mat-card-title>Query</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          @if (parameterViewModel.totalEstimatedSummary; as summary) {
+            <div
+              class="total-estimated-callout"
+              [class.normal]="
+                summary.severity === TotalEstimatedLogsSeverity.Normal
+              "
+              [class.warning]="
+                summary.severity === TotalEstimatedLogsSeverity.Warning
+              "
+              [class.danger]="
+                summary.severity === TotalEstimatedLogsSeverity.Danger
+              "
+            >
+              @if (summary.isEstimating) {
+                <mat-spinner diameter="16"></mat-spinner>
+              } @else if (
+                summary.severity === TotalEstimatedLogsSeverity.Danger
+              ) {
+                <mat-icon>error</mat-icon>
+              } @else if (
+                summary.severity === TotalEstimatedLogsSeverity.Warning
+              ) {
+                <mat-icon>warning</mat-icon>
+              } @else {
+                <mat-icon>info</mat-icon>
+              }
+              <span class="callout-text">{{ summary.displayText }}</span>
+            </div>
+          }
+          @for (query of parameterViewModel.queries; track query.id) {
+            <mat-card class="query-card">
+              <mat-card-header>
+                <mat-card-title>{{ query.name }}</mat-card-title>
+                <mat-card-subtitle class="query-status-subtitle">
+                  @if (query.incomplete) {
+                    <span class="query-incomplete">Incomplete parameters</span>
+                  } @else if (
+                    query.estimatedCountPreset &&
+                    query.estimatedCountPreset !== EstimatedCountPreset.None
+                  ) {
+                    @switch (query.estimatedCountPreset) {
+                      @case (EstimatedCountPreset.Few) {
+                        <span class="query-estimated-count"
+                          >Few logs estimated</span
+                        >
+                      }
+                    }
+                  } @else if (
+                    query.estimatedCount !== undefined && !query.pending
+                  ) {
+                    <span class="query-estimated-count"
+                      >~{{ query.estimatedCount | number }} logs estimated</span
+                    >
+                  } @else {
+                    <div class="query-estimating">
+                      <mat-spinner diameter="14"></mat-spinner>
+                      <span>Estimating...</span>
+                    </div>
+                  }
+                </mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                <pre class="query-section-query-pre">{{ query.query }}</pre>
+              </mat-card-content>
+            </mat-card>
+          }
+        </mat-card-content>
+      </mat-card>
+      @if (parameterViewModel.job) {
+        <khi-job-command
+          [command]="parameterViewModel.job.command"
+        ></khi-job-command>
+      }
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Task graph</mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="task-graph-link-content">
+          <p class="sub-description">
+            Inspect the resolved task execution graph for the selected cluster
+            type and features in the Task Graph Diagnostics view.
+          </p>
+          <a
+            mat-stroked-button
+            [href]="taskGraphDebugUrl()"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <mat-icon>open_in_new</mat-icon>
+            Open Task Graph Diagnostics
+          </a>
+        </mat-card-content>
+      </mat-card>
+    </div>
+    <div class="parameters-footer">
+      @if (errorFieldCount() !== 0) {
+        <p class="errmsg-parameters-error">
+          Fix the validation errors on the input parameters:
+          {{ errorFieldCount() }} /
+          {{ parameterViewModel.fieldCount }}
+        </p>
+      } @else if (pendingFieldCount() !== 0) {
+        <div class="pending-parameters">
+          <mat-spinner diameter="14"></mat-spinner>
+          <span>
+            Resolving parameters:
+            {{ pendingFieldCount() }} /
+            {{ parameterViewModel.fieldCount }}
+          </span>
+        </div>
+      }
+      <button
+        class="run-button"
+        [disabled]="isRunButtonDisabled()"
+        mat-raised-button
+        color="primary"
+        (click)="onRunButtonClick()"
+      >
+        Run
+      </button>
+    </div>
+  </div>
+} @else {
+  <div class="progress-parameters-forms">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    <p class="message">
+      Loading a parameter list for the given setting. Wait a few seconds.
+    </p>
+  </div>
+}

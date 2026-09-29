@@ -15,10 +15,12 @@
  */
 
 import {
+  FEATURE_GATE_TASK_REF_LABEL_KEY,
   FORM_TASK_LABEL_KEY,
+  getFeatureGateTaskRef,
+  getTaskDescription,
   isFormTask,
   TASK_DESCRIPTION_LABEL_KEY,
-  getTaskDescription,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 
 describe('dag-viewer.model', () => {
@@ -82,6 +84,28 @@ describe('dag-viewer.model', () => {
         'khi.google.com/inspection/feature/description': 'Feature description',
       };
       expect(getTaskDescription(labels)).toBe('');
+    });
+  });
+
+  describe('getFeatureGateTaskRef', () => {
+    it('returns the reference string when FEATURE_GATE_TASK_REF_LABEL_KEY is present in labels', () => {
+      const labels = {
+        [FEATURE_GATE_TASK_REF_LABEL_KEY]: 'k8scontainer/tail-task',
+      };
+      expect(getFeatureGateTaskRef(labels)).toBe('k8scontainer/tail-task');
+    });
+
+    it('returns empty string when labels does not contain the key', () => {
+      const labels = {
+        'khi.google.com/inspection/is-feature': 'true',
+      };
+      expect(getFeatureGateTaskRef(labels)).toBe('');
+      expect(getFeatureGateTaskRef({})).toBe('');
+    });
+
+    it('returns empty string when labels is null or undefined', () => {
+      expect(getFeatureGateTaskRef(null)).toBe('');
+      expect(getFeatureGateTaskRef(undefined)).toBe('');
     });
   });
 });

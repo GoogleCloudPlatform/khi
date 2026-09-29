@@ -26,7 +26,6 @@ import { MetadataOverviewComponent } from './metadata-overview.component';
 import { MetadataErrorsComponent } from './metadata-errors.component';
 import { MetadataQueriesComponent } from './metadata-queries.component';
 import { MetadataLogsComponent } from './metadata-logs.component';
-import { MetadataPlanComponent } from './metadata-plan.component';
 
 /**
  * Dumb layout component for the Inspection Metadata dialog.
@@ -45,7 +44,6 @@ import { MetadataPlanComponent } from './metadata-plan.component';
     MetadataErrorsComponent,
     MetadataQueriesComponent,
     MetadataLogsComponent,
-    MetadataPlanComponent,
   ],
   templateUrl: './inspection-metadata-layout.component.html',
   styleUrls: ['./inspection-metadata-layout.component.scss'],

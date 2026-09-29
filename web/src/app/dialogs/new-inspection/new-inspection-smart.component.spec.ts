@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,27 +17,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { signal, WritableSignal } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Observable, of, Subject } from 'rxjs';
 
-import {
-  NewInspectionDialogComponent,
-  computeTotalEstimatedLogs,
-  TotalEstimatedLogsSeverity,
-  hasFormErrors,
-  hasDryRunErrors,
-  NewInspectionDialogData,
-} from './new-inspection.component';
+import { ParameterInputStepComponent } from 'src/app/dialogs/new-inspection/components/parameter-input-step.component';
+import { NewInspectionDialogComponent } from 'src/app/dialogs/new-inspection/new-inspection-smart.component';
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
 import {
   InspectionType,
   InspectionDryRunResponse,
 } from 'src/app/common/schema/api-types';
-import {
-  InspectionMetadataQuery,
-  EstimatedCountPreset,
-} from 'src/app/common/schema/metadata-types';
 import {
   ParameterHintType,
   ParameterInputType,
@@ -46,24 +37,32 @@ import {
 import {
   PARAMETER_STORE,
   ParameterStore,
-} from './components/service/parameter-store';
-
+} from 'src/app/dialogs/new-inspection/components/service/parameter-store';
 import {
   EXTENSION_STORE,
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
+import {
+  NewInspectionDialogData,
+  NewInspectionStepIndex,
+} from 'src/app/dialogs/new-inspection/types/new-inspection.types';
 
 describe('NewInspectionDialogTest', () => {
   let component: NewInspectionDialogComponent;
   let fixture: ComponentFixture<NewInspectionDialogComponent>;
+  let mockDialogRef: { close: jasmine.Spy };
+
   beforeEach(async () => {
+    mockDialogRef = {
+      close: jasmine.createSpy('close'),
+    };
     const inspectionTypesSignal = signal({ types: [] });
     await TestBed.configureTestingModule({
       imports: [NoopAnimationsModule],
       providers: [
         {
           provide: MatDialogRef,
-          useValue: null,
+          useValue: mockDialogRef,
         },
         {
           provide: BACKEND_API,
@@ -93,267 +92,90 @@ describe('NewInspectionDialogTest', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('computeTotalEstimatedLogs', () => {
-    it('should return undefined for empty or undefined query list', () => {
-      expect(computeTotalEstimatedLogs(undefined)).toBeUndefined();
-      expect(computeTotalEstimatedLogs([])).toBeUndefined();
+  it('setInspectionType should update currentInspectionType and transition to FeatureSelection step', () => {
+    const testType: InspectionType = {
+      id: 'test-gke',
+      name: 'Test GKE',
+      icon: '',
+      description: '',
+    };
+    component.setInspectionType(testType);
+    expect(component.currentInspectionType()).toEqual(testType);
+    expect(component.selectedStepIndex()).toBe(
+      NewInspectionStepIndex.FeatureSelection,
+    );
+  });
+
+  it('toggleFeature should call client.setFeatures with toggled boolean value', async () => {
+    const mockInspectionClient = {
+      features: of([
+        { id: 'feat-1', name: 'Feature 1', enabled: true },
+        { id: 'feat-2', name: 'Feature 2', enabled: false },
+      ]),
+      setFeatures: jasmine.createSpy('setFeatures'),
+      dryrunDirect: jasmine.createSpy('dryrunDirect').and.returnValue(of({})),
+      run: jasmine.createSpy('run').and.returnValue(of({})),
+    };
+    const mockApi = TestBed.inject(BACKEND_API) as unknown as {
+      createInspection: jasmine.Spy;
+    };
+    mockApi.createInspection = jasmine
+      .createSpy('createInspection')
+      .and.returnValue(of(mockInspectionClient));
+
+    component.setInspectionType({
+      id: 'test-gke',
+      name: 'Test GKE',
+      icon: '',
+      description: '',
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.toggleFeature('feat-1');
+    expect(mockInspectionClient.setFeatures).toHaveBeenCalledWith({
+      'feat-1': false,
     });
 
-    it('should calculate complete total with Normal severity when < 1,000,000', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 500 },
-        { id: 'q2', name: 'q2', query: 'query2', estimatedCount: 1500 },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 2000,
-        isComplete: true,
-        isEstimating: false,
-        isIncomplete: false,
-        displayText: '~2,000 total logs estimated',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
+    component.toggleFeature('feat-2');
+    expect(mockInspectionClient.setFeatures).toHaveBeenCalledWith({
+      'feat-2': true,
     });
+  });
 
-    it('should calculate complete total with 0 logs', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 0 },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 0,
-        isComplete: true,
-        isEstimating: false,
-        isIncomplete: false,
-        displayText: '~0 total logs estimated',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
+  it('onRunButtonClick should call client.run, extension.notifyLifecycleOnInspectionStart, and close dialog', async () => {
+    const mockInspectionClient = {
+      features: of([]),
+      setFeatures: jasmine.createSpy('setFeatures'),
+      dryrunDirect: jasmine.createSpy('dryrunDirect').and.returnValue(of({})),
+      run: jasmine.createSpy('run').and.returnValue(of({})),
+    };
+    const mockApi = TestBed.inject(BACKEND_API) as unknown as {
+      createInspection: jasmine.Spy;
+    };
+    mockApi.createInspection = jasmine
+      .createSpy('createInspection')
+      .and.returnValue(of(mockInspectionClient));
+
+    const extensionStore = TestBed.inject(EXTENSION_STORE);
+    spyOn(extensionStore, 'notifyLifecycleOnInspectionStart');
+
+    component.setInspectionType({
+      id: 'test-gke',
+      name: 'Test GKE',
+      icon: '',
+      description: '',
     });
+    fixture.detectChanges();
+    await fixture.whenStable();
 
-    it('should format partial estimate with > prefix when some queries are in-flight', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 1250 },
-        { id: 'q2', name: 'q2', query: 'query2' },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 1250,
-        isComplete: false,
-        isEstimating: true,
-        isIncomplete: false,
-        displayText: '>1,250 logs estimated so far',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
-    });
+    component.onRunButtonClick();
+    await fixture.whenStable();
 
-    it('should display Estimating total logs... when all queries are unestimated', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1' },
-        { id: 'q2', name: 'q2', query: 'query2' },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 0,
-        isComplete: false,
-        isEstimating: true,
-        isIncomplete: false,
-        displayText: 'Estimating total logs...',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
-    });
-
-    it('should assign Warning severity for counts between 1,000,000 and 4,999,999', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 1200000 },
-        { id: 'q2', name: 'q2', query: 'query2', estimatedCount: 300000 },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 1500000,
-        isComplete: true,
-        isEstimating: false,
-        isIncomplete: false,
-        displayText: '~1,500,000 total logs estimated',
-        severity: TotalEstimatedLogsSeverity.Warning,
-      });
-    });
-
-    it('should assign Danger severity for counts >= 5,000,000', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 5000000 },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 5000000,
-        isComplete: true,
-        isEstimating: false,
-        isIncomplete: false,
-        displayText: '~5,000,000 total logs estimated',
-        severity: TotalEstimatedLogsSeverity.Danger,
-      });
-    });
-
-    it('should assign Danger severity for partial estimates >= 5,000,000', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 6500000 },
-        { id: 'q2', name: 'q2', query: 'query2' },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 6500000,
-        isComplete: false,
-        isEstimating: true,
-        isIncomplete: false,
-        displayText: '>6,500,000 logs estimated so far',
-        severity: TotalEstimatedLogsSeverity.Danger,
-      });
-    });
-
-    it('should display Incomplete parameters when all queries are incomplete with no counts', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1', incomplete: true },
-        { id: 'q2', name: 'q2', query: 'query2', incomplete: true },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 0,
-        isComplete: false,
-        isEstimating: false,
-        isIncomplete: true,
-        displayText: 'Incomplete parameters',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
-    });
-
-    it('should display >N logs estimated (some parameters incomplete) when some queries are estimated and others are incomplete', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 2500 },
-        { id: 'q2', name: 'q2', query: 'query2', incomplete: true },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 2500,
-        isComplete: false,
-        isEstimating: false,
-        isIncomplete: true,
-        displayText: '>2,500 logs estimated (some parameters incomplete)',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
-    });
-
-    it('should set isEstimating to true when some queries are incomplete and others are still estimating', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 1000 },
-        { id: 'q2', name: 'q2', query: 'query2' },
-        { id: 'q3', name: 'q3', query: 'query3', incomplete: true },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 1000,
-        isComplete: false,
-        isEstimating: true,
-        isIncomplete: true,
-        displayText: '>1,000 logs estimated (some parameters incomplete)',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
-    });
-
-    it('should treat queries with pending = true as estimating', () => {
-      const queries: InspectionMetadataQuery[] = [
-        { id: 'q1', name: 'q1', query: 'query1', estimatedCount: 1000 },
-        { id: 'q2', name: 'q2', query: 'query2', pending: true },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 1000,
-        isComplete: false,
-        isEstimating: true,
-        isIncomplete: false,
-        displayText: '>1,000 logs estimated so far',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
-    });
-
-    it('should display Few total logs estimated when only Few preset queries exist with 0 known count', () => {
-      const queries: InspectionMetadataQuery[] = [
-        {
-          id: 'q1',
-          name: 'q1',
-          query: 'query1',
-          estimatedCountPreset: EstimatedCountPreset.Few,
-        },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 0,
-        isComplete: true,
-        isEstimating: false,
-        isIncomplete: false,
-        displayText: 'Few total logs estimated',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
-    });
-
-    it('should include Few preset query as resolved alongside numeric estimated queries', () => {
-      const queries: InspectionMetadataQuery[] = [
-        {
-          id: 'q1',
-          name: 'q1',
-          query: 'query1',
-          estimatedCountPreset: EstimatedCountPreset.Few,
-        },
-        { id: 'q2', name: 'q2', query: 'query2', estimatedCount: 500 },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 500,
-        isComplete: true,
-        isEstimating: false,
-        isIncomplete: false,
-        displayText: '~500 total logs estimated',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
-    });
-
-    it('should show isEstimating = true when a Few preset query is present with an unestimated query', () => {
-      const queries: InspectionMetadataQuery[] = [
-        {
-          id: 'q1',
-          name: 'q1',
-          query: 'query1',
-          estimatedCountPreset: EstimatedCountPreset.Few,
-        },
-        { id: 'q2', name: 'q2', query: 'query2' },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 0,
-        isComplete: false,
-        isEstimating: true,
-        isIncomplete: false,
-        displayText: 'Estimating total logs...',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
-    });
-
-    it('should treat query with EstimatedCountPreset.None as unestimated when count is undefined', () => {
-      const queries: InspectionMetadataQuery[] = [
-        {
-          id: 'q1',
-          name: 'q1',
-          query: 'query1',
-          estimatedCountPreset: EstimatedCountPreset.None,
-        },
-      ];
-      const result = computeTotalEstimatedLogs(queries);
-      expect(result).toEqual({
-        knownCount: 0,
-        isComplete: false,
-        isEstimating: true,
-        isIncomplete: false,
-        displayText: 'Estimating total logs...',
-        severity: TotalEstimatedLogsSeverity.Normal,
-      });
+    expect(mockInspectionClient.run).toHaveBeenCalled();
+    expect(extensionStore.notifyLifecycleOnInspectionStart).toHaveBeenCalled();
+    expect(mockDialogRef.close).toHaveBeenCalledWith({
+      inspectionTaskStarted: true,
     });
   });
 
@@ -424,15 +246,12 @@ describe('NewInspectionDialogTest', () => {
             },
           ],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'test-cmd' },
         },
       };
       mockDryrunDirect.and.returnValue(of(dryrunResponse));
 
-      component.selectedStepChange(
-        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
-      );
+      component.selectedStepChange(NewInspectionStepIndex.ParameterInput);
 
       await fixture.whenStable();
 
@@ -465,19 +284,21 @@ describe('NewInspectionDialogTest', () => {
             },
           ],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'test-cmd' },
         },
       };
       mockDryrunDirect.and.returnValue(of(dryrunResponse));
 
-      component.selectedStepChange(
-        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
-      );
+      component.selectedStepChange(NewInspectionStepIndex.ParameterInput);
       await fixture.whenStable();
+      fixture.detectChanges();
 
-      expect(component.pendingFieldCount()).toBe(1);
-      expect(component.isRunButtonDisabled()).toBe(true);
+      const parameterStep = fixture.debugElement.query(
+        By.directive(ParameterInputStepComponent),
+      ).componentInstance as ParameterInputStepComponent;
+
+      expect(parameterStep.pendingFieldCount()).toBe(1);
+      expect(parameterStep.isRunButtonDisabled()).toBe(true);
     });
 
     it('should suppress stale errors when field is validating', async () => {
@@ -498,28 +319,30 @@ describe('NewInspectionDialogTest', () => {
             },
           ],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'test-cmd' },
         },
       };
       mockDryrunDirect.and.returnValue(of(dryrunResponse));
 
-      component.selectedStepChange(
-        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
-      );
+      component.selectedStepChange(NewInspectionStepIndex.ParameterInput);
       await fixture.whenStable();
+      fixture.detectChanges();
 
-      expect(component.errorFieldCount()).toBe(1);
-      expect(component.pendingFieldCount()).toBe(0);
+      const parameterStep = fixture.debugElement.query(
+        By.directive(ParameterInputStepComponent),
+      ).componentInstance as ParameterInputStepComponent;
+
+      expect(parameterStep.errorFieldCount()).toBe(1);
+      expect(parameterStep.pendingFieldCount()).toBe(0);
 
       // User changes the value, making it validating on client side
       store.set('text-param', 'new-text');
       fixture.detectChanges();
 
       // Validating field should suppress the stale error and increase pendingFieldCount
-      expect(component.errorFieldCount()).toBe(0);
-      expect(component.pendingFieldCount()).toBe(1);
-      expect(component.isRunButtonDisabled()).toBe(true);
+      expect(parameterStep.errorFieldCount()).toBe(0);
+      expect(parameterStep.pendingFieldCount()).toBe(1);
+      expect(parameterStep.isRunButtonDisabled()).toBe(true);
     });
 
     it('should keep fields in validating state after defaults are assigned until the next dryrun completes', async () => {
@@ -540,7 +363,6 @@ describe('NewInspectionDialogTest', () => {
             },
           ],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'test-cmd' },
         },
       };
@@ -556,9 +378,7 @@ describe('NewInspectionDialogTest', () => {
         return subject2;
       });
 
-      component.selectedStepChange(
-        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
-      );
+      component.selectedStepChange(NewInspectionStepIndex.ParameterInput);
       await new Promise((resolve) => setTimeout(resolve, 10));
       expect(mockDryrunDirect).toHaveBeenCalledTimes(1);
 
@@ -591,9 +411,7 @@ describe('NewInspectionDialogTest', () => {
         return subject2;
       });
 
-      component.selectedStepChange(
-        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
-      );
+      component.selectedStepChange(NewInspectionStepIndex.ParameterInput);
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(mockDryrunDirect).toHaveBeenCalledTimes(1);
@@ -606,7 +424,6 @@ describe('NewInspectionDialogTest', () => {
         metadata: {
           form: [],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'stale-cmd' },
         },
       });
@@ -627,7 +444,6 @@ describe('NewInspectionDialogTest', () => {
         metadata: {
           form: [],
           query: [],
-          plan: { taskGraph: '' },
           jobCommand: { command: 'updated-cmd' },
         },
       });
@@ -646,21 +462,16 @@ describe('NewInspectionDialogTest', () => {
           metadata: {
             form: [],
             query: [],
-            plan: { taskGraph: '' },
             jobCommand: { command: 'cmd' },
           },
         }),
       );
 
-      component.selectedStepChange(
-        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
-      );
+      component.selectedStepChange(NewInspectionStepIndex.ParameterInput);
       await fixture.whenStable();
 
       const initialCalls = mockDryrunDirect.calls.count();
-      component.selectedStepChange(
-        NewInspectionDialogComponent.STEP_INDEX_FEATURE_SELECTION,
-      );
+      component.selectedStepChange(NewInspectionStepIndex.FeatureSelection);
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(mockDryrunDirect.calls.count()).toBe(initialCalls);
@@ -675,128 +486,17 @@ describe('NewInspectionDialogTest', () => {
       });
       mockDryrunDirect.and.returnValue(observable);
 
-      component.selectedStepChange(
-        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
-      );
+      component.selectedStepChange(NewInspectionStepIndex.ParameterInput);
       await fixture.whenStable();
       await new Promise((resolve) => setTimeout(resolve, 20));
 
       expect(unsubscribed).toBe(false);
 
-      component.selectedStepChange(
-        NewInspectionDialogComponent.STEP_INDEX_FEATURE_SELECTION,
-      );
+      component.selectedStepChange(NewInspectionStepIndex.FeatureSelection);
       await fixture.whenStable();
       await new Promise((resolve) => setTimeout(resolve, 20));
 
       expect(unsubscribed).toBe(true);
-    });
-  });
-
-  describe('hasFormErrors and hasDryRunErrors', () => {
-    it('hasFormErrors should return true if any field has error hint', () => {
-      expect(
-        hasFormErrors([
-          {
-            id: 'field1',
-            type: ParameterInputType.Text,
-            label: 'Field 1',
-            description: '',
-            hint: 'Error message',
-            hintType: ParameterHintType.Error,
-            default: '',
-            readonly: false,
-            suggestions: [],
-            validationTiming: ParameterFormValidationTiming.Blur,
-          },
-        ]),
-      ).toBe(true);
-    });
-
-    it('hasFormErrors should return true if nested group field has error hint', () => {
-      expect(
-        hasFormErrors([
-          {
-            id: 'group1',
-            type: ParameterInputType.Group,
-            label: 'Group 1',
-            description: '',
-            hint: '',
-            hintType: ParameterHintType.None,
-            collapsible: false,
-            collapsedByDefault: false,
-            children: [
-              {
-                id: 'nested-field',
-                type: ParameterInputType.Text,
-                label: 'Nested Field',
-                description: '',
-                hint: 'Nested error',
-                hintType: ParameterHintType.Error,
-                default: '',
-                readonly: false,
-                suggestions: [],
-                validationTiming: ParameterFormValidationTiming.Blur,
-              },
-            ],
-          },
-        ]),
-      ).toBe(true);
-    });
-
-    it('hasFormErrors should return false when no errors exist', () => {
-      expect(
-        hasFormErrors([
-          {
-            id: 'field1',
-            type: ParameterInputType.Text,
-            label: 'Field 1',
-            description: '',
-            hint: '',
-            hintType: ParameterHintType.None,
-            default: '',
-            readonly: false,
-            suggestions: [],
-            validationTiming: ParameterFormValidationTiming.Blur,
-          },
-        ]),
-      ).toBe(false);
-    });
-
-    it('hasDryRunErrors should return true when query is incomplete', () => {
-      const response: InspectionDryRunResponse = {
-        metadata: {
-          form: [],
-          query: [
-            {
-              id: 'q1',
-              name: 'Query 1',
-              query: 'q',
-              incomplete: true,
-            },
-          ],
-          plan: { taskGraph: '' },
-        },
-      };
-      expect(hasDryRunErrors(response)).toBe(true);
-    });
-
-    it('hasDryRunErrors should return false when valid', () => {
-      const response: InspectionDryRunResponse = {
-        metadata: {
-          form: [],
-          query: [
-            {
-              id: 'q1',
-              name: 'Query 1',
-              query: 'q',
-              incomplete: false,
-            },
-          ],
-          plan: { taskGraph: '' },
-        },
-      };
-      expect(hasDryRunErrors(response)).toBe(false);
     });
   });
 
@@ -824,7 +524,6 @@ describe('NewInspectionDialogTest', () => {
             metadata: {
               form: [],
               query: [],
-              plan: { taskGraph: '' },
             },
           }),
         ),
@@ -898,7 +597,7 @@ describe('NewInspectionDialogTest', () => {
 
     it('should preselect inspection type, prefill parameters, and enable features', async () => {
       await customFixture.whenStable();
-      const currentType = customComponent.currentInspectionType.getValue();
+      const currentType = customComponent.currentInspectionType();
       expect(currentType?.id).toBe('gke');
 
       const store = customFixture.debugElement.injector.get(PARAMETER_STORE);
@@ -907,8 +606,8 @@ describe('NewInspectionDialogTest', () => {
         'feature-1': true,
         'feature-2': true,
       });
-      expect(customComponent['stepper']?.selectedIndex).toBe(
-        NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT,
+      expect(customComponent.selectedStepIndex()).toBe(
+        NewInspectionStepIndex.ParameterInput,
       );
     });
   });

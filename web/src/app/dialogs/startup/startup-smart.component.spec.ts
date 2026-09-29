@@ -44,7 +44,7 @@ import {
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
 import { By } from '@angular/platform-browser';
-import { NewInspectionDialogComponent } from 'src/app/dialogs/new-inspection/new-inspection.component';
+import { NewInspectionDialogComponent } from 'src/app/dialogs/new-inspection/new-inspection-smart.component';
 import { JobCommandInputSmartComponent } from 'src/app/dialogs/job-command-input/job-command-input-smart.component';
 
 describe('StartupDialogComponent', () => {

@@ -40,6 +40,18 @@ $output-type-badge-border-color: mat.m2-get-color-from-palette(
   mat.$m2-blue-palette,
   200
 );
+$feature-gate-badge-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-teal-palette,
+  50
+);
+$feature-gate-badge-text-color: mat.m2-get-color-from-palette(
+  mat.$m2-teal-palette,
+  800
+);
+$feature-gate-badge-border-color: mat.m2-get-color-from-palette(
+  mat.$m2-teal-palette,
+  200
+);
 $provided-tag-bg-color: mat.m2-get-color-from-palette(
   mat.$m2-purple-palette,
   50
@@ -281,6 +293,15 @@ $panel-bg-color: #fff;
   padding: 2px 6px;
   border-radius: 4px;
   letter-spacing: 0.3px;
+
+  &.badge-feature-gate {
+    background-color: $feature-gate-badge-bg-color;
+    color: $feature-gate-badge-text-color;
+    border: 1px solid $feature-gate-badge-border-color;
+    text-transform: none;
+    font-family: monospace;
+    font-size: 11px;
+  }
 }
 
 .badge-input {

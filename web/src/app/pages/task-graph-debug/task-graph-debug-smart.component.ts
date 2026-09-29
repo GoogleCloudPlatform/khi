@@ -21,6 +21,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import {
   FeatureToggleInfo,
   RegisteredInspectionTypeInfo,
@@ -41,6 +42,17 @@ import {
   TaskGraphDebugTab,
 } from 'src/app/pages/task-graph-debug/types/task-graph-debug.model';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
+
+/**
+ * Checks if a string is a valid TaskGraphDebugTab enum value.
+ */
+function isTaskGraphDebugTab(value: string | null): value is TaskGraphDebugTab {
+  return (
+    value === TaskGraphDebugTab.REGISTRY ||
+    value === TaskGraphDebugTab.INSPECTION_TYPE_FILTER ||
+    value === TaskGraphDebugTab.DAG_VIEWER
+  );
+}
 
 /**
  * Converts protobuf TaskDAGNode array to DagViewerNode models.
@@ -93,6 +105,7 @@ function convertToDagViewerEdges(
 })
 export class TaskGraphDebugSmartComponent implements OnInit {
   private readonly connectClient = inject(ConnectClientService);
+  private readonly route = inject(ActivatedRoute);
   private resolveRequestId = 0;
 
   /**
@@ -161,6 +174,10 @@ export class TaskGraphDebugSmartComponent implements OnInit {
    * Initializes component by fetching task registry.
    */
   ngOnInit(): void {
+    const tabParam = this.route.snapshot.queryParamMap.get('tab');
+    if (isTaskGraphDebugTab(tabParam)) {
+      this.activeTab.set(tabParam);
+    }
     void this.fetchRegistry();
   }
 
@@ -177,8 +194,36 @@ export class TaskGraphDebugSmartComponent implements OnInit {
       this.taskGroups.set(resp.taskGroups);
       this.inspectionTypes.set(resp.inspectionTypes);
 
-      if (resp.inspectionTypes.length > 0 && !this.selectedInspectionTypeId()) {
+      const queryParamMap = this.route.snapshot.queryParamMap;
+      const inspectionTypeParam = queryParamMap.get('inspectionType');
+      if (
+        inspectionTypeParam &&
+        resp.inspectionTypes.some((t) => t.id === inspectionTypeParam)
+      ) {
+        this.selectedInspectionTypeId.set(inspectionTypeParam);
+      } else if (
+        resp.inspectionTypes.length > 0 &&
+        !this.selectedInspectionTypeId()
+      ) {
         this.selectedInspectionTypeId.set(resp.inspectionTypes[0].id);
+      }
+
+      if (queryParamMap.has('features')) {
+        const featuresParam = queryParamMap.get('features') ?? '';
+        const enabledFeatureIdSet = new Set(
+          featuresParam.split(',').filter((id) => id.length > 0),
+        );
+        const overrides: Record<string, boolean> = {};
+        for (const group of resp.taskGroups) {
+          for (const task of group.tasks) {
+            if (task.isFeature) {
+              overrides[task.taskImplementationId] = enabledFeatureIdSet.has(
+                task.taskImplementationId,
+              );
+            }
+          }
+        }
+        this.featureOverrides.set(overrides);
       }
 
       await this.resolveGraph();

@@ -94,6 +94,15 @@
                         >Default On</span
                       >
                     }
+                    @let featureGateRef = getFeatureGateTaskRef(task.labels);
+                    @if (featureGateRef) {
+                      <span
+                        class="badge badge-feature-gate"
+                        [title]="'Feature Gate: ' + featureGateRef"
+                      >
+                        Feature Gate: {{ featureGateRef }}
+                      </span>
+                    }
                   </div>
                   <div class="priority-badge">
                     Priority: <strong>{{ task.priority }}</strong>

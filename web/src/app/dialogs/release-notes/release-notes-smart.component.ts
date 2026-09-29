@@ -25,6 +25,7 @@ import {
   SETTINGS_STORAGE,
   SettingsStorage,
 } from 'src/app/services/settings/settings-storage';
+import { fetchWithRetry } from 'src/app/services/api/retry-util';
 import { ReleaseNotesLayoutComponent } from 'src/app/dialogs/release-notes/components/release-notes-layout.component';
 
 /** LocalStorage key used to store the version for which release notes are suppressed. */
@@ -52,9 +53,12 @@ export class ReleaseNotesDialogSmartComponent {
   private readonly markdownResource = resource({
     loader: async ({ abortSignal }) => {
       try {
-        const response = await fetch('assets/release_note/release_note.md', {
-          signal: abortSignal,
-        });
+        const response = await fetchWithRetry(
+          'assets/release_note/release_note.md',
+          {
+            init: { signal: abortSignal },
+          },
+        );
         if (!response.ok) {
           throw new Error(`HTTP error: ${response.status}`);
         }

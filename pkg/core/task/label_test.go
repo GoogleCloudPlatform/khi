@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 func TestWithLabelValue(t *testing.T) {
@@ -87,4 +88,53 @@ func TestWithLabelValue(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestWithFeatureGate(t *testing.T) {
+	testCases := []struct {
+		name      string
+		ref       taskid.UntypedTaskReference
+		wantPanic bool
+		wantRefID string
+	}{
+		{
+			name:      "sets valid feature gate reference",
+			ref:       taskid.NewTaskReference[any]("my-feature"),
+			wantPanic: false,
+			wantRefID: "my-feature",
+		},
+		{
+			name:      "panics on nil reference",
+			ref:       nil,
+			wantPanic: true,
+		},
+		{
+			name:      "panics on empty reference id",
+			ref:       taskid.NewTaskReference[any](""),
+			wantPanic: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.wantPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("expected panic, got nil")
+					}
+				}()
+			}
+			labels := NewLabelSet(WithFeatureGate(tc.ref))
+			if tc.wantPanic {
+				return
+			}
+			got, found := typedmap.Get(labels, LabelKeyFeatureGateTaskRef)
+			if !found {
+				t.Fatalf("key %q not found in label set", LabelKeyFeatureGateTaskRef)
+			}
+			if got.ReferenceIDString() != tc.wantRefID {
+				t.Errorf("got %q, want %q", got.ReferenceIDString(), tc.wantRefID)
+			}
+		})
+	}
 }

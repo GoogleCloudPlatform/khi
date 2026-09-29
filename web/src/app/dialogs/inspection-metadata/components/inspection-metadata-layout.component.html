@@ -118,19 +118,6 @@ limitations under the License.
           <khi-metadata-logs [logs]="viewModel().logs" />
         </mat-expansion-panel>
       }
-
-      <!-- 5. Plan Panel -->
-      @if (viewModel().plan.taskGraph) {
-        <mat-expansion-panel [expanded]="false">
-          <mat-expansion-panel-header>
-            <mat-panel-title>
-              <mat-icon class="panel-icon">account_tree</mat-icon>
-              <span class="panel-title-text">Plan</span>
-            </mat-panel-title>
-          </mat-expansion-panel-header>
-          <khi-metadata-plan [plan]="viewModel().plan" />
-        </mat-expansion-panel>
-      }
     </mat-accordion>
 
     @if (viewModel().jobCommand; as command) {

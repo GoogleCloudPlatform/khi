@@ -68,8 +68,7 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 	listAuditTask := newTestTask("list-audit-logs")
 	auditMapperTask := newTestTask("audit-log-mapper")
 	featureAuditTask := newTestTask("feature-audit", inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 1, true))
-	inventoryTask := newTestTask("inventory-node-names", inspectioncore.InventoryTaskLabel())
-	listNodesTask := newTestTask("list-node-names")
+	inventoryTask := newTestTask("inventory-node-names")
 
 	tasks := []coretask.UntypedTask{
 		formTask,
@@ -77,15 +76,12 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 		auditMapperTask,
 		featureAuditTask,
 		inventoryTask,
-		listNodesTask,
 	}
 
 	edges := []taskid.TaskEdge{
 		newTestEdge(formTask.UntypedID().String(), listAuditTask.UntypedID().String()),
 		newTestEdge(listAuditTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
 		newTestEdge(auditMapperTask.UntypedID().String(), featureAuditTask.UntypedID().String()),
-		newTestEdge(inventoryTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
-		newTestEdge(listNodesTask.UntypedID().String(), inventoryTask.UntypedID().String()),
 	}
 
 	taskGraph := coretask.NewResolvedTaskSet(tasks, edges, nil)

@@ -14,20 +14,6 @@
  * limitations under the License.
  */
 
-import { Component, input } from '@angular/core';
-import { MetadataCodeViewerComponent } from './metadata-code-viewer.component';
-import { MetadataPlanViewModel } from '../types/inspection-metadata.model';
-
-/**
- * Dumb component displaying the inspection task plan graph.
- */
-@Component({
-  selector: 'khi-metadata-plan',
-  imports: [MetadataCodeViewerComponent],
-  templateUrl: './metadata-plan.component.html',
-  styleUrls: ['./metadata-plan.component.scss'],
-})
-export class MetadataPlanComponent {
-  /** The plan data to display. */
-  readonly plan = input.required<MetadataPlanViewModel>();
+:host {
+  display: contents;
 }

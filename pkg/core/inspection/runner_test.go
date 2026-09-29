@@ -64,7 +64,6 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 		},
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	if err := server.AddTask(dummyTask); err != nil {
 		t.Fatalf("AddTask failed: %v", err)
@@ -494,7 +493,6 @@ func TestInspectionTaskRunner_Cancel(t *testing.T) {
 				},
 				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
-				coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 			)
 			if err := server.AddTask(dummyTask); err != nil {
 				t.Fatalf("AddTask failed: %v", err)
@@ -636,7 +634,6 @@ func newTestInspectionServer(t *testing.T, taskErr error) (*InspectionTaskServer
 		},
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
-		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 	)
 	if err := server.AddTask(dummyTask); err != nil {
 		t.Fatalf("AddTask failed: %v", err)
@@ -709,7 +706,6 @@ func TestInspectionTaskRunner_ProgressInterceptor(t *testing.T) {
 			opts := append([]coretask.LabelOpt{
 				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
-				coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore.SerializerTaskID.Ref()),
 			}, tc.labelOpts...)
 
 			task := coretask.NewTask(

@@ -414,9 +414,6 @@ export function convertProtoDryRunResponseToFrontend(
           ? mapProtoEstimatedCountPreset(q.estimatedCountPreset)
           : undefined,
       })),
-      plan: {
-        taskGraph: res.plan?.taskGraph ?? '',
-      },
       jobCommand: res.jobCommand
         ? { command: res.jobCommand.command }
         : undefined,
@@ -440,9 +437,6 @@ export function convertProtoMetadataToInspectionMetadataOfRunResult(
       inspectTimeUnixSeconds: Number(res.header?.inspectTimeUnixSeconds ?? 0n),
       fileSize: Number(res.header?.fileSize ?? 0n),
       suggestedFilename: res.header?.suggestedFilename ?? '',
-    },
-    plan: {
-      taskGraph: res.plan?.taskGraph ?? '',
     },
     query: (res.queries ?? []).map((q) => ({
       id: q.id,

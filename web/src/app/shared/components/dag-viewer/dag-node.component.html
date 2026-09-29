@@ -79,6 +79,26 @@
       <svg:text class="badge-text" x="21" y="10">Input</svg:text>
     </svg:g>
   }
+
+  @if (featureGateBadge(); as gateBadge) {
+    <svg:g
+      class="badge-group feature-gate-badge"
+      [attr.transform]="gateBadge.transform"
+    >
+      <svg:title>{{ gateBadge.tooltip }}</svg:title>
+      <svg:rect
+        class="badge-bg"
+        x="0"
+        y="0"
+        [attr.width]="gateBadge.width"
+        height="18"
+        rx="4"
+      />
+      <svg:text class="badge-text" [attr.x]="gateBadge.width / 2" y="10">
+        {{ gateBadge.displayText }}
+      </svg:text>
+    </svg:g>
+  }
 </svg:g>
 
 @if (tagBadges().length > 0) {

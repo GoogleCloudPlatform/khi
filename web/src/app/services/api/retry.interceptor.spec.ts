@@ -269,6 +269,18 @@ describe('retry.interceptor', () => {
     expect(DEFAULT_RETRYABLE_METHODS.has('FilterTimelineSync')).toBeTrue();
     expect(DEFAULT_RETRYABLE_METHODS.has('ValidateTimelineQuery')).toBeTrue();
     expect(DEFAULT_RETRYABLE_METHODS.has('ValidateLogQuery')).toBeTrue();
+    expect(DEFAULT_RETRYABLE_METHODS.has('GetTimelineIDsForLogs')).toBeTrue();
+    expect(
+      DEFAULT_RETRYABLE_METHODS.has('GetInspectionTaskRegistry'),
+    ).toBeTrue();
+    expect(
+      DEFAULT_RETRYABLE_METHODS.has('ResolveInspectionTaskGraph'),
+    ).toBeTrue();
+    expect(
+      DEFAULT_RETRYABLE_METHODS.has('PullInspectionRunTaskGraph'),
+    ).toBeTrue();
+    expect(DEFAULT_RETRYABLE_METHODS.has('DryRunInspection')).toBeTrue();
+    expect(DEFAULT_RETRYABLE_METHODS.has('ValidatePopupAnswer')).toBeTrue();
     expect(DEFAULT_RETRYABLE_METHODS.has('GetInspectionDataChunk')).toBeFalse();
     expect(DEFAULT_RETRYABLE_METHODS.has('UploadFileChunk')).toBeFalse();
     expect(DEFAULT_RETRYABLE_METHODS.has('UploadInspectionChunk')).toBeFalse();

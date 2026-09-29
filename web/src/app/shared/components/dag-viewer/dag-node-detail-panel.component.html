@@ -56,6 +56,11 @@
           <span class="prop-value">{{
             currentNode.isFormTask ? "Yes" : "No"
           }}</span>
+
+          <span class="prop-label">Feature Gate</span>
+          <span class="prop-value prop-value-code">{{
+            featureGateTaskRef() || "None"
+          }}</span>
         </div>
       </div>
 

@@ -1,0 +1,56 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<mat-dialog-content>
+  <h2 mat-dialog-title>New inspection</h2>
+  <mat-stepper
+    #stepper
+    [linear]="true"
+    [selectedIndex]="selectedStepIndex()"
+    (selectedIndexChange)="stepChange.emit($event)"
+  >
+    <mat-step [completed]="currentInspectionType() !== null">
+      <ng-template matStepLabel>
+        @if (currentInspectionType(); as selectedType) {
+          <span>Type: {{ selectedType.name }}</span>
+        } @else {
+          Select the inspection target
+        }
+      </ng-template>
+      <khi-new-inspection-type-selector
+        [inspectionTypes]="inspectionTypes()"
+        (selectInspectionType)="selectInspectionType.emit($event)"
+      />
+    </mat-step>
+    <mat-step [completed]="hasEnabledFeatures()">
+      <ng-template matStepLabel>Select what you want to query</ng-template>
+      <khi-new-inspection-feature-selector
+        [features]="features()"
+        (toggleFeature)="toggleFeature.emit($event)"
+        (nextStep)="stepChange.emit(NewInspectionStepIndex.ParameterInput)"
+      />
+    </mat-step>
+    <mat-step>
+      <ng-template matStepLabel>Input parameters</ng-template>
+      <khi-new-inspection-parameter-input-step
+        [parameterViewModel]="parameterViewModel()"
+        [parameterStore]="parameterStore()"
+        [taskGraphDebugUrl]="taskGraphDebugUrl()"
+        (runInspection)="runInspection.emit()"
+      />
+    </mat-step>
+  </mat-stepper>
+</mat-dialog-content>

@@ -32,6 +32,7 @@ import {
   TaskDependencyScope,
 } from 'src/app/generated/api/v1/inspection_task_graph_pb';
 import {
+  getFeatureGateTaskRef,
   getTaskDescription,
   isFormTask,
 } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
@@ -69,6 +70,11 @@ export class Step1RegistryTableComponent {
    * Helper function to extract human-readable task description.
    */
   protected readonly getTaskDescription = getTaskDescription;
+
+  /**
+   * Helper function to extract feature gate task reference.
+   */
+  protected readonly getFeatureGateTaskRef = getFeatureGateTaskRef;
 
   /**
    * All registered task groups by reference identifier.

@@ -77,14 +77,6 @@ export interface MetadataErrorViewModel {
 }
 
 /**
- * View model representing the inspection task execution plan.
- */
-export interface MetadataPlanViewModel {
-  /** Task graph representation (e.g., Graphviz or text graph). */
-  readonly taskGraph: string;
-}
-
-/**
  * Aggregated view model for the entire inspection metadata dialog.
  */
 export interface InspectionMetadataViewModel {
@@ -94,8 +86,6 @@ export interface InspectionMetadataViewModel {
   readonly queries: readonly MetadataQueryViewModel[];
   /** List of task logs. */
   readonly logs: readonly MetadataLogViewModel[];
-  /** Task plan graph. */
-  readonly plan: MetadataPlanViewModel;
   /** List of errors. */
   readonly errors: readonly MetadataErrorViewModel[];
   /** CLI command representation for headless job execution. */
@@ -167,10 +157,6 @@ export function convertToInspectionMetadataViewModel(
     log: l.log,
   }));
 
-  const plan: MetadataPlanViewModel = {
-    taskGraph: metadata.plan.taskGraph,
-  };
-
   const errors: MetadataErrorViewModel[] = metadata.error.errorMessages.map(
     (e) => ({
       errorId: e.errorId,
@@ -183,7 +169,6 @@ export function convertToInspectionMetadataViewModel(
     overview,
     queries,
     logs,
-    plan,
     errors,
     jobCommand: metadata.jobCommand?.command,
   };

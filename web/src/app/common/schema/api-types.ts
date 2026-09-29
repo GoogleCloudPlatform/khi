@@ -24,7 +24,6 @@ import {
   InspectionMetadataErrorSet,
   InspectionMetadataHeader,
   InspectionMetadataLog,
-  InspectionMetadataPlan,
   InspectionMetadataProgress,
   InspectionMetadataQuery,
   InspectionMetadataJobModeCommand,
@@ -179,11 +178,6 @@ export type InspectionMetadataInDryrun = {
   query: InspectionMetadataQuery[];
 
   /**
-   * The inspection task graph in string representation.
-   */
-  plan: InspectionMetadataPlan;
-
-  /**
    * The copy-pasteable CLI command to run this inspection in job mode.
    */
   jobCommand?: InspectionMetadataJobModeCommand;
@@ -219,10 +213,6 @@ export type InspectionMetadataOfRunResult = {
    * List of queries having run with this inspection.
    */
   query: InspectionMetadataQuery[];
-  /**
-   * The inspection task graph in string representation.
-   */
-  plan: InspectionMetadataPlan;
   /**
    * The logs generated from the inspection itself.
    */

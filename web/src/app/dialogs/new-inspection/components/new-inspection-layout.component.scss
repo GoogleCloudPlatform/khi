@@ -16,12 +16,51 @@
 
 :host {
   display: block;
-  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
-.plan-container {
+mat-dialog-content {
+  overflow: hidden;
+  height: 100%;
+  max-width: 100vw;
+  max-height: 100%;
   display: grid;
   grid-template:
-    'plan-content' auto
-    / 1fr;
+    'title' auto
+    'stepper' minmax(0, 1fr)
+    / 100%;
+}
+
+h2 {
+  grid-area: title;
+}
+
+mat-stepper {
+  grid-area: stepper;
+  overflow: hidden;
+  height: 100%;
+}
+
+mat-step {
+  height: 100%;
+}
+
+:host::ng-deep {
+  .mat-horizontal-stepper-wrapper {
+    height: 100%;
+  }
+
+  .mat-horizontal-stepper-content.mat-horizontal-stepper-content-current {
+    height: 100%;
+  }
+
+  .mat-horizontal-content-container {
+    padding: 0 24px;
+    flex: 1;
+  }
+
+  .mat-horizontal-stepper-header-container {
+    flex: 0;
+  }
 }

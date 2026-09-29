@@ -507,7 +507,7 @@ func TestInspectionServiceServer_DryRunInspection(t *testing.T) {
 		typeId string
 	}{
 		{
-			name:   "performs dry run and returns form fields and plan",
+			name:   "performs dry run and returns form fields",
 			typeId: "gcp-gke",
 		},
 	}
@@ -533,8 +533,8 @@ func TestInspectionServiceServer_DryRunInspection(t *testing.T) {
 				t.Fatalf("DryRunInspection() unexpected error: %v", err)
 			}
 
-			if dryRunRes.Msg.GetPlan() == nil || dryRunRes.Msg.GetPlan().GetTaskGraph() == "" {
-				t.Errorf("DryRunInspection() plan task graph is empty: %v", dryRunRes.Msg.GetPlan())
+			if len(dryRunRes.Msg.GetForm()) == 0 {
+				t.Errorf("DryRunInspection() form fields are empty")
 			}
 		})
 	}
@@ -617,11 +617,9 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 	testCases := []struct {
 		name           string
 		header         *inspectionmetadata.HeaderMetadata
-		plan           *inspectionmetadata.InspectionPlanMetadata
 		queries        []*inspectionmetadata.QueryItem
 		jobCommand     *inspectionmetadata.JobModeCommandMetadata
 		wantHeader     *apiv1.InspectionHeader
-		wantPlan       *apiv1.InspectionPlan
 		wantQueries    []*apiv1.InspectionQuery
 		wantJobCommand *apiv1.InspectionJobCommand
 	}{
@@ -632,9 +630,6 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 				InspectionName:    "Test Run",
 				SuggestedFileName: "Test Run.khi",
 				FileSize:          1234,
-			},
-			plan: &inspectionmetadata.InspectionPlanMetadata{
-				TaskGraph: "graph TD; A-->B;",
 			},
 			queries: []*inspectionmetadata.QueryItem{
 				{
@@ -664,9 +659,6 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 				InspectTimeUnixSeconds: proto.Int64(0),
 				SuggestedFilename:      proto.String("Test Run.khi"),
 				FileSize:               proto.Int64(1234),
-			},
-			wantPlan: &apiv1.InspectionPlan{
-				TaskGraph: proto.String("graph TD; A-->B;"),
 			},
 			wantQueries: []*apiv1.InspectionQuery{
 				{
@@ -703,7 +695,6 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 			store := inspectioncore.NewFileSystemInspectionResultRepository(filePath)
 			metadata := typedmap.NewTypedMap()
 			typedmap.Set(metadata, inspectionmetadata.HeaderMetadataKey, tc.header)
-			typedmap.Set(metadata, inspectionmetadata.InspectionPlanMetadataKey, tc.plan)
 			if tc.queries != nil {
 				queryMD := inspectionmetadata.NewQueryMetadata()
 				queryMD.Queries = tc.queries
@@ -723,9 +714,6 @@ func TestInspectionServiceServer_GetInspectionMetadata(t *testing.T) {
 
 			if diff := cmp.Diff(tc.wantHeader, res.Msg.GetHeader(), protocmp.Transform()); diff != "" {
 				t.Errorf("header mismatch (-want +got):\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.wantPlan, res.Msg.GetPlan(), protocmp.Transform()); diff != "" {
-				t.Errorf("plan mismatch (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.wantQueries, res.Msg.GetQueries(), protocmp.Transform()); diff != "" {
 				t.Errorf("queries mismatch (-want +got):\n%s", diff)

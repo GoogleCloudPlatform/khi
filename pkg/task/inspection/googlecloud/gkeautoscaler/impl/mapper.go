@@ -348,6 +348,7 @@ func mapResultInfo(ctx context.Context, clusterTimeline *khifilev6.TimelinePath,
 		StateType:    revisionState,
 		Principal:    "cluster-autoscaler",
 		ResourceBody: bodyNode,
+		VerbType:     inspectioncore.VerbUnknown,
 	})
 	return nil
 }

@@ -56,11 +56,6 @@ var OSSK8sAuditLogParserTailTask = coretask.NewTailTask(
 		k8saudit.PodPhaseLogToTimelineMapperTaskID.Ref(),
 		k8saudit.EndpointResourceLogToTimelineMapperTaskID.Ref(),
 		k8saudit.ContainerLogToTimelineMapperTaskID.Ref(),
-
-		k8saudit.NodeNameDiscoveryTaskID.Ref(),
-		k8saudit.ResourceUIDDiscoveryTaskID.Ref(),
-		k8saudit.ContainerIDDiscoveryTaskID.Ref(),
-		k8saudit.IPLeaseHistoryDiscoveryTaskID.Ref(),
 	},
 	inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", `Gather Kubernetes audit logs to visualize resource modifications and API call histories on associated timelines.`, 1001, true),
 )

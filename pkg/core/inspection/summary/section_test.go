@@ -43,38 +43,44 @@ func newTestEdge(sourceID, targetID string) taskid.TaskEdge {
 func TestSectionResolver(t *testing.T) {
 	formTask := newTestTask("form-cluster-name", inspectioncore.NewFormTaskLabelOpt("Cluster Name", "Form field"))
 	listAuditTask := newTestTask("list-audit-logs")
+	auditExtractorTask := newTestTask("audit-log-extractor")
 	auditMapperTask := newTestTask("audit-log-mapper")
-	featureAuditTask := newTestTask("feature-audit", inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 1, true))
+	featureAuditTask := newTestTask("feature-audit", inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 2, true))
 
 	listEventTask := newTestTask("list-event-logs")
 	eventMapperTask := newTestTask("event-log-mapper")
-	featureEventTask := newTestTask("feature-event", inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 2, true))
+	featureEventTask := newTestTask("feature-event", inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 1, true))
 
-	inventoryTask := newTestTask("inventory-node-names", inspectioncore.InventoryTaskLabel())
-	listNodesTask := newTestTask("list-node-names")
+	nodeDiscoveryTask := newTestTask("discovery-node-names", coretask.WithFeatureGate(featureAuditTask.UntypedID().GetUntypedReference()))
+	inventoryTask := newTestTask("inventory-node-names")
+	serializerTask := newTestTask("serializer")
 
 	tasks := []coretask.UntypedTask{
 		formTask,
 		listAuditTask,
+		auditExtractorTask,
 		auditMapperTask,
 		featureAuditTask,
 		listEventTask,
 		eventMapperTask,
 		featureEventTask,
+		nodeDiscoveryTask,
 		inventoryTask,
-		listNodesTask,
+		serializerTask,
 	}
 
 	edges := []taskid.TaskEdge{
 		newTestEdge(formTask.UntypedID().String(), listAuditTask.UntypedID().String()),
 		newTestEdge(formTask.UntypedID().String(), listEventTask.UntypedID().String()),
-		newTestEdge(listAuditTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
+		newTestEdge(listAuditTask.UntypedID().String(), auditExtractorTask.UntypedID().String()),
+		newTestEdge(auditExtractorTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
 		newTestEdge(auditMapperTask.UntypedID().String(), featureAuditTask.UntypedID().String()),
 		newTestEdge(listEventTask.UntypedID().String(), eventMapperTask.UntypedID().String()),
 		newTestEdge(eventMapperTask.UntypedID().String(), featureEventTask.UntypedID().String()),
-		newTestEdge(inventoryTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
-		newTestEdge(inventoryTask.UntypedID().String(), eventMapperTask.UntypedID().String()),
-		newTestEdge(listNodesTask.UntypedID().String(), inventoryTask.UntypedID().String()),
+		newTestEdge(listAuditTask.UntypedID().String(), nodeDiscoveryTask.UntypedID().String()),
+		newTestEdge(nodeDiscoveryTask.UntypedID().String(), inventoryTask.UntypedID().String()),
+		newTestEdge(inventoryTask.UntypedID().String(), featureEventTask.UntypedID().String()),
+		newTestEdge(featureAuditTask.UntypedID().String(), serializerTask.UntypedID().String()),
 	}
 
 	taskGraph := coretask.NewResolvedTaskSet(tasks, edges, nil)
@@ -93,8 +99,16 @@ func TestSectionResolver(t *testing.T) {
 			},
 		},
 		{
-			name:   "list audit logs is member of audit feature",
+			name:   "list audit logs is member of audit feature and does not traverse gated discovery task",
 			taskID: listAuditTask.UntypedID().String(),
+			want: destination{
+				kind:      destinationFeatureMember,
+				featureID: featureAuditTask.UntypedID().String(),
+			},
+		},
+		{
+			name:   "audit log extractor is member of audit feature",
+			taskID: auditExtractorTask.UntypedID().String(),
 			want: destination{
 				kind:      destinationFeatureMember,
 				featureID: featureAuditTask.UntypedID().String(),
@@ -103,6 +117,14 @@ func TestSectionResolver(t *testing.T) {
 		{
 			name:   "audit log mapper is member of audit feature",
 			taskID: auditMapperTask.UntypedID().String(),
+			want: destination{
+				kind:      destinationFeatureMember,
+				featureID: featureAuditTask.UntypedID().String(),
+			},
+		},
+		{
+			name:   "node discovery task is member of audit feature via feature gate",
+			taskID: nodeDiscoveryTask.UntypedID().String(),
 			want: destination{
 				kind:      destinationFeatureMember,
 				featureID: featureAuditTask.UntypedID().String(),
@@ -141,15 +163,8 @@ func TestSectionResolver(t *testing.T) {
 			},
 		},
 		{
-			name:   "inventory node names is shared",
-			taskID: inventoryTask.UntypedID().String(),
-			want: destination{
-				kind: destinationShared,
-			},
-		},
-		{
-			name:   "list node names is shared because inventory task blocks traversal",
-			taskID: listNodesTask.UntypedID().String(),
+			name:   "serializer task downstream of features is shared",
+			taskID: serializerTask.UntypedID().String(),
 			want: destination{
 				kind: destinationShared,
 			},

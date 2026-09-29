@@ -420,7 +420,7 @@ func ExtractCAIActiveAssetStates[Identity any](
 }
 
 // NewCAIInitialResourceStateProviderTask creates an inspection task that provides initial resource states
-// from CAI snapshots active at queryStartTime, and attaches a SubsequentTaskRefs label pointing to the suite's TimelineMapper.
+// from CAI snapshots active at queryStartTime.
 func NewCAIInitialResourceStateProviderTask[Identity any, Provider any](
 	taskID taskid.TaskImplementationID[Provider],
 	suiteTaskIDs CAITaskIDSet,
@@ -433,6 +433,7 @@ func NewCAIInitialResourceStateProviderTask[Identity any, Provider any](
 		taskID,
 		[]coretask.Dependency{
 			suiteTaskIDs.RawLog.Ref(),
+			suiteTaskIDs.TimelineMapper.Ref(),
 			InputStartTimeTaskID.Ref(),
 		},
 		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (Provider, error) {
@@ -445,6 +446,5 @@ func NewCAIInitialResourceStateProviderTask[Identity any, Provider any](
 			return buildProvider(states), nil
 		},
 		coretask.WithSelectionPriority(1000),
-		coretask.NewSubsequentTaskRefsTaskLabel(suiteTaskIDs.TimelineMapper.Ref()),
 	)
 }

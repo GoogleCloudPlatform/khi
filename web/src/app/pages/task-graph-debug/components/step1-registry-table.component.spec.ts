@@ -22,7 +22,10 @@ import {
   TaskDependencyCardinality,
   TaskDependencyScope,
 } from 'src/app/generated/api/v1/inspection_task_graph_pb';
-import { TASK_DESCRIPTION_LABEL_KEY } from 'src/app/shared/components/dag-viewer/dag-viewer.model';
+import {
+  FEATURE_GATE_TASK_REF_LABEL_KEY,
+  TASK_DESCRIPTION_LABEL_KEY,
+} from 'src/app/shared/components/dag-viewer/dag-viewer.model';
 import { Step1RegistryTableComponent } from './step1-registry-table.component';
 
 describe('Step1RegistryTableComponent', () => {
@@ -277,6 +280,42 @@ describe('Step1RegistryTableComponent', () => {
     expect(descEl).toBeTruthy();
     expect(descEl?.textContent?.trim()).toBe(
       'Parses Kubernetes audit logs into structured events.',
+    );
+  });
+
+  it('renders Feature Gate badge when task has feature gate label', () => {
+    const gatedTask: RegisteredTaskInfo = {
+      taskImplementationId: 'parser.k8s.csm-tail',
+      taskReferenceId: 'parser.k8s.csm',
+      priority: 100,
+      isFeature: false,
+      isDefaultFeature: false,
+      featureLabel: '',
+      featureDescription: '',
+      dependencies: [],
+      providedTags: [],
+      selectorRequirements: [],
+      compatibleInspectionTypes: [],
+      labels: {
+        [FEATURE_GATE_TASK_REF_LABEL_KEY]: 'k8scontainer/tail-task',
+      },
+    } as unknown as RegisteredTaskInfo;
+
+    const groups: RegisteredTaskGroupInfo[] = [
+      {
+        taskReferenceId: 'parser.k8s.csm',
+        tasks: [gatedTask],
+      } as unknown as RegisteredTaskGroupInfo,
+    ];
+
+    fixture.componentRef.setInput('taskGroups', groups);
+    fixture.detectChanges();
+
+    const element: HTMLElement = fixture.nativeElement;
+    const badge = element.querySelector('.badge-feature-gate');
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent?.trim()).toBe(
+      'Feature Gate: k8scontainer/tail-task',
     );
   });
 });

@@ -53,11 +53,12 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 	features := make(map[string]featureInfo)
 
 	isForm := make(map[string]bool)
-	isInventory := make(map[string]bool)
 
 	allTasks := taskGraph.GetAll()
+	refToImplID := make(map[string]string, len(allTasks))
 	for _, task := range allTasks {
 		id := task.UntypedID().String()
+		refToImplID[task.UntypedID().ReferenceIDString()] = id
 		labels := task.Labels()
 		switch {
 		case typedmap.GetOrDefault(labels, inspectioncore.LabelKeyInspectionFeatureFlag, false):
@@ -75,34 +76,56 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 			destinations[id] = destination{
 				kind: destinationForm,
 			}
-		case typedmap.GetOrDefault(labels, inspectioncore.LabelKeyInventoryTask, false):
-			isInventory[id] = true
-			destinations[id] = destination{
-				kind: destinationShared,
-			}
+		}
+	}
+
+	gateTaskByTask := make(map[string]string)
+	for _, task := range allTasks {
+		id := task.UntypedID().String()
+		if gateRef, hasGate := typedmap.Get(task.Labels(), coretask.LabelKeyFeatureGateTaskRef); hasGate {
+			gateTaskByTask[id] = refToImplID[gateRef.ReferenceIDString()]
 		}
 	}
 
 	adj := make(map[string][]string)
 	for _, edge := range taskGraph.Edges() {
+		if _, isGated := gateTaskByTask[edge.SourceImplID]; isGated {
+			// Feature-gated tasks export data to shared inventory tasks across features,
+			// so their outgoing data edges must not be traversed for section resolution.
+			continue
+		}
 		adj[edge.SourceImplID] = append(adj[edge.SourceImplID], edge.TargetImplID)
 	}
 
 	for _, task := range allTasks {
 		id := task.UntypedID().String()
-		if _, isFeature := features[id]; isFeature || isForm[id] || isInventory[id] {
+		if _, isFeature := features[id]; isFeature || isForm[id] {
 			continue
 		}
 
-		if best, ok := findNearestFeature(id, adj, isInventory, features); ok {
-			destinations[id] = destination{
-				kind:      destinationFeatureMember,
-				featureID: best.id,
+		startID := id
+		if gateTaskID, isGated := gateTaskByTask[id]; isGated {
+			if _, isFeature := features[gateTaskID]; isFeature {
+				destinations[id] = destination{
+					kind:      destinationFeatureMember,
+					featureID: gateTaskID,
+				}
+				continue
 			}
-		} else {
-			destinations[id] = destination{
-				kind: destinationShared,
+			startID = gateTaskID
+		}
+
+		if startID != "" {
+			if best, ok := findNearestFeature(startID, adj, features); ok {
+				destinations[id] = destination{
+					kind:      destinationFeatureMember,
+					featureID: best.id,
+				}
+				continue
 			}
+		}
+		destinations[id] = destination{
+			kind: destinationShared,
 		}
 	}
 
@@ -112,7 +135,7 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 	}
 }
 
-func findNearestFeature(startID string, adj map[string][]string, isInventory map[string]bool, features map[string]featureInfo) (featureInfo, bool) {
+func findNearestFeature(startID string, adj map[string][]string, features map[string]featureInfo) (featureInfo, bool) {
 	currentLevel := []string{startID}
 	visited := map[string]bool{startID: true}
 	var candidateFeatures []featureInfo
@@ -125,10 +148,6 @@ func findNearestFeature(startID string, adj map[string][]string, isInventory map
 					continue
 				}
 				visited[next] = true
-				if isInventory[next] {
-					// Shared inventory tasks must not be traversed into or through.
-					continue
-				}
 				if fi, ok := features[next]; ok {
 					// Feature tasks are terminal search targets and are not expanded further.
 					candidateFeatures = append(candidateFeatures, fi)
