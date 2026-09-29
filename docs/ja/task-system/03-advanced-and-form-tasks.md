@@ -290,7 +290,7 @@ var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(
 
 KHI のすべてのタスクには、タスクランナーのインターセプタによって実行時の `context.Context` に進捗メタデータが自動的に付与されます。`github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress` パッケージを使用することで、タスクの実行中に進捗状況をフロントエンドへ動的に報告できます。
 
-デフォルトでは、進捗ラベルとして短縮されたタスク ID が表示されます。プログレスバーに分かりやすい表示タイトルを設定するには、タスク定義時に `progress.WithTitle("...")` をラベルオプションとして指定します:
+デフォルトでは、進捗ラベルとして短縮されたタスク ID が表示されます。プログレスバーに分かりやすい表示タイトルを設定するには、タスク定義時に `coretask.WithTitle("...")` をラベルオプションとして指定します:
 
 ```go
 var HeavyProcessingTask = inspectiontaskbase.NewInspectionTask(
@@ -299,7 +299,7 @@ var HeavyProcessingTask = inspectiontaskbase.NewInspectionTask(
     func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
         // タスクの実装...
     },
-    progress.WithTitle("Analyze Node Logs"),
+    coretask.WithTitle("Analyze Node Logs"),
 )
 ```
 
@@ -330,7 +330,7 @@ var HeavyProcessingTask = inspectiontaskbase.NewInspectionTask(
 
         return result, nil
     },
-    progress.WithTitle("Process Logs"),
+    coretask.WithTitle("Process Logs"),
 )
 ```
 
@@ -365,7 +365,7 @@ var UnknownLengthTask = inspectiontaskbase.NewInspectionTask(
 
         return result, nil
     },
-    progress.WithTitle("Fetch Dynamic Resources"),
+    coretask.WithTitle("Fetch Dynamic Resources"),
 )
 ```
 

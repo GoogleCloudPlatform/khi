@@ -213,7 +213,7 @@ var ExampleInspectionTask = inspectiontaskbase.NewInspectionTask(
         }
         return result, nil
     },
-    progress.WithTitle("Analyze source logs"),
+    coretask.WithTitle("Analyze source logs"),
 )
 ```
 

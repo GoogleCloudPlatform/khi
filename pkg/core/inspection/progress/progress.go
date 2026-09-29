@@ -24,21 +24,13 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-// LabelKeyTitle is the task label key used to store a human-readable title for progress display.
-var LabelKeyTitle = typedmap.NewTypedKey[string]("khi.google.com/inspection/progress-title")
-
 type taskProgressContextKey struct{}
 
 var noopProgress = inspectionmetadata.NewNoopTaskProgressMetadata()
 
-// WithTitle returns a task label option that specifies a human-readable title for progress display.
-func WithTitle(title string) coretask.LabelOpt {
-	return coretask.WithLabelValue(LabelKeyTitle, title)
-}
-
-// ResolveTitle determines the display title for a task using its explicit progress title label or its shortened task ID.
+// ResolveTitle determines the display title for a task using its explicit title label or its shortened task ID.
 func ResolveTitle(task coretask.UntypedTask) string {
-	if title, found := typedmap.Get(task.Labels(), LabelKeyTitle); found && title != "" {
+	if title, found := typedmap.Get(task.Labels(), coretask.LabelKeyTaskTitle); found && title != "" {
 		return title
 	}
 	id := task.UntypedID().String()

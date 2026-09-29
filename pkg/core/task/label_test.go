@@ -138,3 +138,49 @@ func TestWithFeatureGate(t *testing.T) {
 		})
 	}
 }
+
+func TestWithTitleAndDescription(t *testing.T) {
+	testCases := []struct {
+		name            string
+		title           string
+		description     string
+		wantTitle       string
+		wantDescription string
+	}{
+		{
+			name:            "sets non-empty title and description",
+			title:           "Sample Title",
+			description:     "Sample Description",
+			wantTitle:       "Sample Title",
+			wantDescription: "Sample Description",
+		},
+		{
+			name:            "sets empty title and description",
+			title:           "",
+			description:     "",
+			wantTitle:       "",
+			wantDescription: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			labels := NewLabelSet(WithTitle(tc.title), WithDescription(tc.description))
+			gotTitle, found := typedmap.Get(labels, LabelKeyTaskTitle)
+			if !found {
+				t.Fatalf("key %q not found in label set", LabelKeyTaskTitle)
+			}
+			if gotTitle != tc.wantTitle {
+				t.Errorf("got title %q, want %q", gotTitle, tc.wantTitle)
+			}
+
+			gotDesc, found := typedmap.Get(labels, LabelKeyTaskDescription)
+			if !found {
+				t.Fatalf("key %q not found in label set", LabelKeyTaskDescription)
+			}
+			if gotDesc != tc.wantDescription {
+				t.Errorf("got description %q, want %q", gotDesc, tc.wantDescription)
+			}
+		})
+	}
+}

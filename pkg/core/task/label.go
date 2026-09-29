@@ -128,7 +128,12 @@ func NewTaskResultRetentionLabel(retain bool) LabelOpt {
 	}
 }
 
-// WithTaskDescription returns a LabelOpt to attach a human-readable description to the task.
-func WithTaskDescription(description string) LabelOpt {
+// WithTitle returns a LabelOpt to attach a human-readable title to the task.
+func WithTitle(title string) LabelOpt {
+	return WithLabelValue(LabelKeyTaskTitle, title)
+}
+
+// WithDescription returns a LabelOpt to attach a human-readable description to the task.
+func WithDescription(description string) LabelOpt {
 	return WithLabelValue(LabelKeyTaskDescription, description)
 }

@@ -283,7 +283,7 @@ func (c *Collector) getOrCreateShared() *section {
 	return c.shared
 }
 
-func renderSection(title string, sec *section) Section {
+func (c *Collector) renderSection(title string, sec *section) Section {
 	var queries []Query
 	if len(sec.queries) > 0 {
 		queryIDs := make([]string, 0, len(sec.queries))
@@ -297,32 +297,6 @@ func renderSection(title string, sec *section) Section {
 		}
 	}
 
-	var taskReports []TaskReport
-	if len(sec.taskReports) > 0 {
-		taskIDs := make([]string, 0, len(sec.taskReports))
-		for tid, tr := range sec.taskReports {
-			if tr.hasWrites() {
-				taskIDs = append(taskIDs, tid)
-			}
-		}
-		if len(taskIDs) > 0 {
-			slices.Sort(taskIDs)
-			taskReports = make([]TaskReport, len(taskIDs))
-			for i, tid := range taskIDs {
-				tr := sec.taskReports[tid]
-				var md string
-				if len(tr.markdown) > 0 {
-					md = strings.Join(tr.markdown, "\n\n")
-				}
-				taskReports[i] = TaskReport{
-					Title:      formatTaskTitle(tid),
-					Properties: tr.properties.toKeyValues(),
-					Markdown:   md,
-				}
-			}
-		}
-	}
-
 	var insights string
 	if len(sec.insights) > 0 {
 		insights = strings.Join(sec.insights, "\n\n")
@@ -332,9 +306,39 @@ func renderSection(title string, sec *section) Section {
 		Title:       title,
 		Queries:     queries,
 		Properties:  sec.properties.toKeyValues(),
-		TaskReports: taskReports,
+		TaskReports: c.renderTaskReports(sec),
 		Insights:    insights,
 	}
+}
+
+func (c *Collector) renderTaskReports(sec *section) []TaskReport {
+	if len(sec.taskReports) == 0 {
+		return nil
+	}
+	taskIDs := make([]string, 0, len(sec.taskReports))
+	for tid, tr := range sec.taskReports {
+		if tr.hasWrites() {
+			taskIDs = append(taskIDs, tid)
+		}
+	}
+	if len(taskIDs) == 0 {
+		return nil
+	}
+	slices.Sort(taskIDs)
+	taskReports := make([]TaskReport, len(taskIDs))
+	for i, tid := range taskIDs {
+		tr := sec.taskReports[tid]
+		var md string
+		if len(tr.markdown) > 0 {
+			md = strings.Join(tr.markdown, "\n\n")
+		}
+		taskReports[i] = TaskReport{
+			Title:      c.resolver.titleOf(tid),
+			Properties: tr.properties.toKeyValues(),
+			Markdown:   md,
+		}
+	}
+	return taskReports
 }
 
 func sortedKeyValues(m map[string]string) []KeyValue {
@@ -369,19 +373,11 @@ func (c *Collector) featureSections() []Section {
 		if !sec.hasWrites() {
 			continue
 		}
-		title := ""
-		order := 0
-		if info, ok := c.resolver.features[featID]; ok {
-			title = info.title
-			order = info.order
-		}
-		if title == "" {
-			title = formatTaskTitle(featID)
-		}
+		info := c.resolver.features[featID]
 		featureEntries = append(featureEntries, featureSectionEntry{
 			id:    featID,
-			order: order,
-			title: title,
+			order: info.order,
+			title: info.title,
 			sec:   sec,
 		})
 	}
@@ -398,7 +394,7 @@ func (c *Collector) featureSections() []Section {
 
 	var sections []Section
 	for _, entry := range featureEntries {
-		sections = append(sections, renderSection(entry.title, entry.sec))
+		sections = append(sections, c.renderSection(entry.title, entry.sec))
 	}
 	return sections
 }
@@ -410,7 +406,7 @@ func (c *Collector) Snapshot() Snapshot {
 
 	sections := c.featureSections()
 	if c.shared != nil && c.shared.hasWrites() {
-		sections = append(sections, renderSection("Shared & Filter Context", c.shared))
+		sections = append(sections, c.renderSection("Shared & Filter Context", c.shared))
 	}
 
 	return Snapshot{

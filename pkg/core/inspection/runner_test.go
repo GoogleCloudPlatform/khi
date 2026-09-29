@@ -661,7 +661,7 @@ func TestInspectionTaskRunner_ProgressInterceptor(t *testing.T) {
 		{
 			name:               "explicit progress title label and done phase",
 			taskIDStr:          "khi.google.com/inspection/test/custom-task",
-			labelOpts:          []coretask.LabelOpt{progress.WithTitle("Custom Task Title")},
+			labelOpts:          []coretask.LabelOpt{coretask.WithTitle("Custom Task Title")},
 			wantInFlightLabel:  "Custom Task Title",
 			wantFinalPhase:     inspectionmetadata.TaskPhaseDone,
 			wantFinalRatio:     1.0,
@@ -679,7 +679,7 @@ func TestInspectionTaskRunner_ProgressInterceptor(t *testing.T) {
 		{
 			name:               "task failure cleans up in-flight progress and marks error phase",
 			taskIDStr:          "khi.google.com/inspection/test/failing-task",
-			labelOpts:          []coretask.LabelOpt{progress.WithTitle("Failing Task")},
+			labelOpts:          []coretask.LabelOpt{coretask.WithTitle("Failing Task")},
 			taskErr:            errors.New("simulated task failure"),
 			wantInFlightLabel:  "Failing Task",
 			wantFinalPhase:     inspectionmetadata.TaskPhaseError,

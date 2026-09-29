@@ -24,19 +24,13 @@ import (
 )
 
 func resolveCollectorAndCaller(ctx context.Context) (*Collector, string) {
-	metadataSet, err := khictx.GetValue(ctx, inspectionmetadata.MapContextKey)
-	if err != nil {
-		return nil, ""
-	}
+	metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 	collector, found := typedmap.Get(metadataSet, MetadataKey)
 	if !found {
-		return nil, ""
+		panic("summary collector metadata not found in metadata map")
 	}
-	var callerID string
-	if taskImplID, err := khictx.GetValue(ctx, core_contract.TaskImplementationIDContextKey); err == nil {
-		callerID = taskImplID.String()
-	}
-	return collector, callerID
+	taskImplID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
+	return collector, taskImplID.String()
 }
 
 func (c *Collector) setCoreLabel(key, value string) {
@@ -139,62 +133,41 @@ func (c *Collector) recordQuery(callerID, id, name, text string) {
 // SetCoreLabel records a core label describing the target environment or resource.
 func SetCoreLabel(ctx context.Context, key, value string) {
 	c, _ := resolveCollectorAndCaller(ctx)
-	if c == nil {
-		return
-	}
 	c.setCoreLabel(key, value)
 }
 
 // SetProperty records or updates a key-value property.
 func SetProperty(ctx context.Context, key, value string) {
 	c, callerID := resolveCollectorAndCaller(ctx)
-	if c == nil {
-		return
-	}
 	c.setProperty(callerID, key, value)
 }
 
 // AddIntProperty adds delta to the integer property with the given key.
 func AddIntProperty(ctx context.Context, key string, delta int) {
 	c, callerID := resolveCollectorAndCaller(ctx)
-	if c == nil {
-		return
-	}
 	c.addIntProperty(callerID, key, delta)
 }
 
 // AddToSetProperty adds a value to the set property with the given key.
 func AddToSetProperty(ctx context.Context, key, value string) {
 	c, callerID := resolveCollectorAndCaller(ctx)
-	if c == nil {
-		return
-	}
 	c.addToSetProperty(callerID, key, value)
 }
 
 // AddFeatureIntProperty adds delta to the integer property of the enclosing feature section.
 func AddFeatureIntProperty(ctx context.Context, key string, delta int) {
 	c, callerID := resolveCollectorAndCaller(ctx)
-	if c == nil {
-		return
-	}
 	c.addFeatureIntProperty(callerID, key, delta)
 }
 
 // AppendMarkdown appends markdown content to the appropriate insight or task report.
 func AppendMarkdown(ctx context.Context, markdown string) {
 	c, callerID := resolveCollectorAndCaller(ctx)
-	if c == nil {
-		return
-	}
 	c.appendMarkdown(callerID, markdown)
 }
 
 // RecordQuery records an inspection query associated with the section.
 func RecordQuery(ctx context.Context, id, name, text string) {
 	c, callerID := resolveCollectorAndCaller(ctx)
-	if c == nil {
-		return
-	}
 	c.recordQuery(callerID, id, name, text)
 }

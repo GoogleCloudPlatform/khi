@@ -29,8 +29,8 @@ func TestCollector_SnapshotOrdering(t *testing.T) {
 	featB := newTestTask("feature-b", inspectioncore.FeatureTaskLabel("Feature B", "", 2, false))
 	featEmpty := newTestTask("feature-empty", inspectioncore.FeatureTaskLabel("Feature Empty", "", 0, false))
 
-	memberA2 := newTestTask("task-a-2")
-	memberA1 := newTestTask("task-a-1")
+	memberA2 := newTestTask("task-a-2", coretask.WithTitle("Task A 2"))
+	memberA1 := newTestTask("task-a-1", coretask.WithTitle("Task A 1"))
 
 	tasks := []coretask.UntypedTask{
 		featC, featA, featB, featEmpty,

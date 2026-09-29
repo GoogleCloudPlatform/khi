@@ -15,8 +15,7 @@
 package summary
 
 import (
-	"strings"
-	"unicode"
+	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -46,6 +45,7 @@ type featureInfo struct {
 type sectionResolver struct {
 	destinations map[string]destination
 	features     map[string]featureInfo
+	taskTitles   map[string]string
 }
 
 func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
@@ -56,15 +56,21 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 
 	allTasks := taskGraph.GetAll()
 	refToImplID := make(map[string]string, len(allTasks))
+	taskTitles := make(map[string]string, len(allTasks))
 	for _, task := range allTasks {
 		id := task.UntypedID().String()
 		refToImplID[task.UntypedID().ReferenceIDString()] = id
 		labels := task.Labels()
+		title := typedmap.GetOrDefault(labels, coretask.LabelKeyTaskTitle, "")
+		if title == "" {
+			title = id
+		}
+		taskTitles[id] = title
 		switch {
 		case typedmap.GetOrDefault(labels, inspectioncore.LabelKeyInspectionFeatureFlag, false):
 			features[id] = featureInfo{
 				id:    id,
-				title: typedmap.GetOrDefault(labels, inspectioncore.LabelKeyFeatureTaskTitle, ""),
+				title: title,
 				order: typedmap.GetOrDefault(labels, inspectioncore.LabelKeyFeatureTaskOrder, 0),
 			}
 			destinations[id] = destination{
@@ -132,6 +138,7 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 	return &sectionResolver{
 		destinations: destinations,
 		features:     features,
+		taskTitles:   taskTitles,
 	}
 }
 
@@ -176,24 +183,17 @@ func findNearestFeature(startID string, adj map[string][]string, features map[st
 }
 
 func (r *sectionResolver) destinationOf(taskID string) destination {
-	return r.destinations[taskID]
+	dest, ok := r.destinations[taskID]
+	if !ok {
+		panic(fmt.Sprintf("unknown task ID %q in sectionResolver", taskID))
+	}
+	return dest
 }
 
-// formatTaskTitle converts a task implementation or reference ID into a human-readable title.
-func formatTaskTitle(taskID string) string {
-	if idx := strings.LastIndex(taskID, "/"); idx != -1 {
-		taskID = taskID[idx+1:]
+func (r *sectionResolver) titleOf(taskID string) string {
+	title, ok := r.taskTitles[taskID]
+	if !ok {
+		panic(fmt.Sprintf("unknown task ID %q in sectionResolver", taskID))
 	}
-	if idx := strings.Index(taskID, "#"); idx != -1 {
-		taskID = taskID[:idx]
-	}
-	words := strings.FieldsFunc(taskID, func(r rune) bool {
-		return r == '-' || r == '_' || unicode.IsSpace(r)
-	})
-	for i, w := range words {
-		runes := []rune(w)
-		runes[0] = unicode.ToUpper(runes[0])
-		words[i] = string(runes)
-	}
-	return strings.Join(words, " ")
+	return title
 }

@@ -15,7 +15,6 @@
 package csm_impl
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -333,14 +332,13 @@ labels.response_flag:("UH")`,
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			ctx = khictx.WithValue(ctx, inspectioncore.InspectionTaskMode, inspectioncore.TaskModeRun)
-			prefixPolicy, err := tasktest.RunTask(ctx, tc.prefixTask)
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			prefixPolicy, _, err := inspectiontest.RunInspectionTask(ctx, tc.prefixTask, inspectioncore.TaskModeRun, nil)
 			if err != nil {
 				t.Fatalf("unexpected error running prefix task: %v", err)
 			}
 
-			idRes, err := tasktest.RunTask(ctx, k8scommon_impl.ClusterIdentityTask,
+			idRes, _, err := inspectiontest.RunInspectionTask(ctx, k8scommon_impl.ClusterIdentityTask, inspectioncore.TaskModeRun, nil,
 				tasktest.NewTaskDependencyValuePair(gcpcommon.InputProjectIdTaskID.Ref(), "test-project"),
 				tasktest.NewTaskDependencyValuePair(k8scommon.InputClusterNameTaskID.Ref(), "test-cluster"),
 				tasktest.NewTaskDependencyValuePair(gcpcommon.InputLocationsTaskID.Ref(), "test-location"),

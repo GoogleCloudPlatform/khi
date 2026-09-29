@@ -65,8 +65,8 @@ func taskContext(c *summary.Collector, taskImplID taskid.UntypedTaskImplementati
 
 func TestInspectionHandler_SummaryGolden(t *testing.T) {
 	formTask := newTestTask("form-cluster-name", inspectioncore.NewFormTaskLabelOpt("Cluster Name", "Form field"))
-	listAuditTask := newTestTask("list-audit-logs")
-	auditMapperTask := newTestTask("audit-log-mapper")
+	listAuditTask := newTestTask("list-audit-logs", coretask.WithTitle("List Audit Logs"))
+	auditMapperTask := newTestTask("audit-log-mapper", coretask.WithTitle("Audit Log Mapper"))
 	featureAuditTask := newTestTask("feature-audit", inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 1, true))
 	inventoryTask := newTestTask("inventory-node-names")
 

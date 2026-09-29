@@ -169,13 +169,6 @@ func TestSectionResolver(t *testing.T) {
 				kind: destinationShared,
 			},
 		},
-		{
-			name:   "unknown task ID defaults to shared",
-			taskID: "unknown-task#default",
-			want: destination{
-				kind: destinationShared,
-			},
-		},
 	}
 
 	for _, tc := range testCases {
@@ -225,34 +218,86 @@ func TestSectionResolverTieBreak(t *testing.T) {
 	}
 }
 
-func TestFormatTaskTitle(t *testing.T) {
+func TestSectionResolver_PanicsOnUnknownTaskID(t *testing.T) {
+	taskGraph := coretask.NewResolvedTaskSet(nil, nil, nil)
+	resolver := newSectionResolver(taskGraph)
+
 	testCases := []struct {
-		name  string
-		input string
-		want  string
+		name string
+		call func()
 	}{
 		{
-			name:  "standard task ID with default hash",
-			input: "audit-log-mapper#default",
-			want:  "Audit Log Mapper",
+			name: "destinationOf panics on unknown task ID",
+			call: func() {
+				resolver.destinationOf("unknown-task#default")
+			},
 		},
 		{
-			name:  "task ID with package path and impl hash",
-			input: "khi.google.com/inspection/list-audit-logs#impl",
-			want:  "List Audit Logs",
-		},
-		{
-			name:  "task ID with underscores and spaces",
-			input: "foo_bar baz",
-			want:  "Foo Bar Baz",
+			name: "titleOf panics on unknown task ID",
+			call: func() {
+				resolver.titleOf("unknown-task#default")
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := formatTaskTitle(tc.input)
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic, got nil")
+				}
+			}()
+			tc.call()
+		})
+	}
+}
+
+func TestSectionResolver_TitleOf(t *testing.T) {
+	taskWithTitle := newTestTask("task-with-title", coretask.WithTitle("Custom Title"))
+	featureTask := newTestTask("feature-task", inspectioncore.FeatureTaskLabel("Feature Title", "desc", 1, true))
+	taskWithoutTitle := newTestTask("task-without-title")
+	taskWithEmptyTitle := newTestTask("task-with-empty-title", coretask.WithTitle(""))
+
+	taskGraph := coretask.NewResolvedTaskSet([]coretask.UntypedTask{
+		taskWithTitle,
+		featureTask,
+		taskWithoutTitle,
+		taskWithEmptyTitle,
+	}, nil, nil)
+	resolver := newSectionResolver(taskGraph)
+
+	testCases := []struct {
+		name   string
+		taskID string
+		want   string
+	}{
+		{
+			name:   "explicit title label",
+			taskID: taskWithTitle.UntypedID().String(),
+			want:   "Custom Title",
+		},
+		{
+			name:   "feature task title",
+			taskID: featureTask.UntypedID().String(),
+			want:   "Feature Title",
+		},
+		{
+			name:   "fallback to task ID when no title is set",
+			taskID: taskWithoutTitle.UntypedID().String(),
+			want:   taskWithoutTitle.UntypedID().String(),
+		},
+		{
+			name:   "explicit empty title falls back to task ID",
+			taskID: taskWithEmptyTitle.UntypedID().String(),
+			want:   taskWithEmptyTitle.UntypedID().String(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := resolver.titleOf(tc.taskID)
 			if got != tc.want {
-				t.Errorf("formatTaskTitle(%q) = %q, want %q", tc.input, got, tc.want)
+				t.Errorf("titleOf(%q) = %q, want %q", tc.taskID, got, tc.want)
 			}
 		})
 	}

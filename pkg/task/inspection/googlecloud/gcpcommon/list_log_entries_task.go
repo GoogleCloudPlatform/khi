@@ -192,7 +192,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 		},
 		inspectioncore.NewQueryTaskLabelOpt(description.ExampleQuery),
 		coretask.WithLabelValue(RequestOptionalInputResourceNameTaskLabel, taskID.ReferenceIDString()),
-		progress.WithTitle(fmt.Sprintf("Fetch %s", description.QueryName)),
+		coretask.WithTitle(fmt.Sprintf("Fetch %s", description.QueryName)),
 	)
 }
 

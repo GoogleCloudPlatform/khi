@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -33,6 +34,25 @@ import (
 
 // TestInspectionCreationTime is a fixed time used across tests to ensure deterministic behavior.
 var TestInspectionCreationTime = time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
+
+func withTestSummaryCollector(metadata *typedmap.ReadonlyTypedMap, tasks ...coretask.UntypedTask) *typedmap.ReadonlyTypedMap {
+	fakeID := taskid.NewDefaultImplementationID[struct{}]("khi.google.com/fake-test-id")
+	fakeTask := coretask.NewTask(fakeID, nil, func(ctx context.Context) (struct{}, error) {
+		return struct{}{}, nil
+	})
+	allTasks := make([]coretask.UntypedTask, 0, len(tasks)+1)
+	allTasks = append(allTasks, fakeTask)
+	for _, t := range tasks {
+		if t.UntypedID().String() == fakeTask.UntypedID().String() {
+			continue
+		}
+		allTasks = append(allTasks, t)
+	}
+	taskGraph := coretask.NewResolvedTaskSet(allTasks, nil, nil)
+	overlay := typedmap.NewTypedMap()
+	typedmap.Set(overlay, summary.MetadataKey, summary.NewCollector(taskGraph))
+	return typedmap.Merge(metadata, overlay)
+}
 
 // WithDefaultTestInspectionTaskContext returns a new context used for running inspection task.
 func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.Context {
@@ -81,9 +101,11 @@ func NextRunTaskContext(originalCtx context.Context, prevRunCtx context.Context)
 
 // RunInspectionTask execute a single task with given context. Use WithDefaultTestInspectionTaskContext to get the context.
 func RunInspectionTask[T any](baseContext context.Context, task coretask.Task[T], mode inspectioncore.InspectionTaskModeType, input map[string]any, taskDependencyValues ...tasktest.TaskDependencyValues) (T, *typedmap.ReadonlyTypedMap, error) {
-	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionTaskInput, input)
+	metadata := khictx.MustGetValue(baseContext, inspectionmetadata.MapContextKey)
+	metadata = withTestSummaryCollector(metadata, task)
+	taskCtx := khictx.WithValue(baseContext, inspectionmetadata.MapContextKey, metadata)
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskInput, input)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskMode, mode)
-	metadata := khictx.MustGetValue(taskCtx, inspectionmetadata.MapContextKey)
 
 	var result T
 	_, err := progress.TaskInterceptor(taskCtx, task, func(ctx context.Context) (any, error) {
@@ -96,9 +118,12 @@ func RunInspectionTask[T any](baseContext context.Context, task coretask.Task[T]
 
 // RunInspectionTaskWithDependency execute a task as a graph. Supply dependencies needed to be used with the mainTask.
 func RunInspectionTaskWithDependency[T any](baseContext context.Context, mainTask coretask.Task[T], dependencies []coretask.UntypedTask, mode inspectioncore.InspectionTaskModeType, input map[string]any) (T, *typedmap.ReadonlyTypedMap, error) {
-	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionTaskInput, input)
+	allTasks := append([]coretask.UntypedTask{mainTask}, dependencies...)
+	metadata := khictx.MustGetValue(baseContext, inspectionmetadata.MapContextKey)
+	metadata = withTestSummaryCollector(metadata, allTasks...)
+	taskCtx := khictx.WithValue(baseContext, inspectionmetadata.MapContextKey, metadata)
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskInput, input)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskMode, mode)
-	metadata := khictx.MustGetValue(taskCtx, inspectionmetadata.MapContextKey)
 	result, err := tasktest.RunTaskWithDependency(taskCtx, mainTask, dependencies, progress.TaskInterceptor)
 	return result, metadata, err
 }
@@ -110,5 +135,5 @@ func generateTestMetadata() *typedmap.ReadonlyTypedMap {
 	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.ProgressMetadataKey, inspectionmetadata.NewProgress())
-	return writableMetadata.AsReadonly()
+	return withTestSummaryCollector(writableMetadata.AsReadonly())
 }

@@ -29,5 +29,5 @@ var DefaultK8sResourceMergeConfigTask = coretask.NewTask(
 	func(ctx context.Context) (*k8s.K8sManifestMergeConfigRegistry, error) {
 		return k8s.GenerateDefaultMergeConfig()
 	},
-	coretask.WithTaskDescription("Generates the default Kubernetes manifest patch request merge configuration."),
+	coretask.WithDescription("Generates the default Kubernetes manifest patch request merge configuration."),
 )

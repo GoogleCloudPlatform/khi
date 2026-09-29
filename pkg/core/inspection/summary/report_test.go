@@ -31,8 +31,8 @@ import (
 
 func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
 	formTask := newTestTask("form-cluster-name", inspectioncore.NewFormTaskLabelOpt("Cluster Name", "Form field"))
-	listAuditTask := newTestTask("list-audit-logs")
-	auditMapperTask := newTestTask("audit-log-mapper")
+	listAuditTask := newTestTask("list-audit-logs", coretask.WithTitle("List Audit Logs"))
+	auditMapperTask := newTestTask("audit-log-mapper", coretask.WithTitle("Audit Log Mapper"))
 	featureAuditTask := newTestTask("feature-audit", inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 1, true))
 
 	listEventTask := newTestTask("list-event-logs")
@@ -290,17 +290,57 @@ func TestReportAPI(t *testing.T) {
 	}
 }
 
-func TestReportAPI_NoMetadataMapNoop(t *testing.T) {
-	// Must silently no-op and not panic when context has no metadata map.
-	emptyCtx := context.Background()
+func TestReportAPI_PanicsOnInvalidContext(t *testing.T) {
+	taskGraph, _ := buildTestGraph()
 
-	SetCoreLabel(emptyCtx, "key", "val")
-	SetProperty(emptyCtx, "key", "val")
-	AddIntProperty(emptyCtx, "key", 1)
-	AddToSetProperty(emptyCtx, "key", "val")
-	AddFeatureIntProperty(emptyCtx, "key", 1)
-	AppendMarkdown(emptyCtx, "md")
-	RecordQuery(emptyCtx, "id", "name", "text")
+	testCases := []struct {
+		name string
+		ctx  func() context.Context
+	}{
+		{
+			name: "missing metadata map in context",
+			ctx:  context.Background,
+		},
+		{
+			name: "missing collector in metadata map",
+			ctx: func() context.Context {
+				metaMap := typedmap.NewTypedMap().AsReadonly()
+				return khictx.WithValue(context.Background(), inspectionmetadata.MapContextKey, metaMap)
+			},
+		},
+		{
+			name: "missing task implementation ID in context",
+			ctx: func() context.Context {
+				collector := NewCollector(taskGraph)
+				metaMap := typedmap.NewTypedMap()
+				typedmap.Set(metaMap, MetadataKey, collector)
+				return khictx.WithValue(context.Background(), inspectionmetadata.MapContextKey, metaMap.AsReadonly())
+			},
+		},
+		{
+			name: "unknown task implementation ID not in task graph",
+			ctx: func() context.Context {
+				collector := NewCollector(taskGraph)
+				metaMap := typedmap.NewTypedMap()
+				typedmap.Set(metaMap, MetadataKey, collector)
+				ctx := khictx.WithValue(context.Background(), inspectionmetadata.MapContextKey, metaMap.AsReadonly())
+				unknownID := taskid.NewDefaultImplementationID[any]("unknown-task")
+				return khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, unknownID.(taskid.UntypedTaskImplementationID))
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic, got nil")
+				}
+			}()
+			ctx := tc.ctx()
+			SetProperty(ctx, "key", "val")
+		})
+	}
 }
 
 func TestReportAPI_ConcurrentAddIntProperty(t *testing.T) {

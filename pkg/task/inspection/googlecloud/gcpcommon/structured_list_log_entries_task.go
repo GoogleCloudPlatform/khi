@@ -122,7 +122,7 @@ func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSet
 			return fetchLogsForStructuredQueries(ctx, taskID.String(), logFetcher, groups, queries, startTime, endTime, queryName, timePartitionCount)
 		},
 		coretask.WithLabelValue(RequestOptionalInputResourceNameTaskLabel, taskID.ReferenceIDString()),
-		progress.WithTitle(fmt.Sprintf("Fetch %s", queryName)),
+		coretask.WithTitle(fmt.Sprintf("Fetch %s", queryName)),
 	)
 }
 

@@ -43,6 +43,9 @@ var LabelKeyRequiredTask = NewTaskLabelKey[bool](KHISystemPrefix + "required-tas
 // LabelKeyTaskResultRetention indicates whether the task result should be retained in the runner after all dependent tasks finish.
 var LabelKeyTaskResultRetention = NewTaskLabelKey[bool](KHISystemPrefix + "task-result-retention")
 
+// LabelKeyTaskTitle is the task label to record a human-readable title of the task.
+var LabelKeyTaskTitle = NewTaskLabelKey[string](KHISystemPrefix + "task-title")
+
 // LabelKeyTaskDescription is the task label to record a human-readable description of the task.
 var LabelKeyTaskDescription = NewTaskLabelKey[string](KHISystemPrefix + "task-description")
 
