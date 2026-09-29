@@ -17,6 +17,7 @@ package mcp
 import (
 	"net/http"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/constants"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -36,7 +37,7 @@ type Server struct {
 func NewServer(handlers ...DomainHandler) *Server {
 	impl := &mcpsdk.Implementation{
 		Name:    "khi",
-		Version: "dev",
+		Version: constants.VERSION,
 	}
 	mcpServer := mcpsdk.NewServer(impl, nil)
 	s := &Server{
