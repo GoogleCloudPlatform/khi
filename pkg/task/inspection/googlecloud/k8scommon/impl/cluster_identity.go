@@ -17,7 +17,7 @@ package k8scommon_impl
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/ai"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
@@ -37,13 +37,13 @@ var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(k8scommon.Cluster
 	prefixPolicy := coretask.GetTaskResult(ctx, k8scommon.ClusterNamePrefixTaskRef)
 	if taskMode == inspectioncore.TaskModeRun {
 		if projectID != "" {
-			ai.SetCoreLabel(ctx, "projectId", projectID)
+			summary.SetCoreLabel(ctx, "projectId", projectID)
 		}
 		if clusterName != "" {
-			ai.SetCoreLabel(ctx, "clusterName", clusterName)
+			summary.SetCoreLabel(ctx, "clusterName", clusterName)
 		}
 		if location != "" {
-			ai.SetCoreLabel(ctx, "location", location)
+			summary.SetCoreLabel(ctx, "location", location)
 		}
 	}
 	return k8scommon.GoogleCloudClusterIdentity{

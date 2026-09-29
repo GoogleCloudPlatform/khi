@@ -25,8 +25,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/ai"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -124,8 +124,8 @@ func (h *InspectionHandler) handleListInspections(ctx context.Context, req *mcps
 		}
 
 		labels := ""
-		if summary, found := typedmap.Get(metadata, ai.SummaryMetadataKey); found && summary != nil {
-			snap := summary.Snapshot()
+		if s, found := typedmap.Get(metadata, summary.MetadataKey); found && s != nil {
+			snap := s.Snapshot()
 			if len(snap.CoreLabels) > 0 {
 				parts := make([]string, len(snap.CoreLabels))
 				for i, label := range snap.CoreLabels {
@@ -168,7 +168,7 @@ type inspectionSummaryData struct {
 	ID        string
 	Header    *inspectionmetadata.HeaderMetadata
 	TimeRange string
-	Summary   ai.SummarySnapshot
+	Summary   summary.Snapshot
 }
 
 func (h *InspectionHandler) handleInspectionResource(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
@@ -247,9 +247,9 @@ func (h *InspectionHandler) renderSummary(id string, metadata *typedmap.Readonly
 		timeRange = fmt.Sprintf("%s - %s", mdtemplate.FormatTime(startTime), mdtemplate.FormatTime(endTime))
 	}
 
-	var snap ai.SummarySnapshot
-	if summary, found := typedmap.Get(metadata, ai.SummaryMetadataKey); found && summary != nil {
-		snap = summary.Snapshot()
+	var snap summary.Snapshot
+	if s, found := typedmap.Get(metadata, summary.MetadataKey); found && s != nil {
+		snap = s.Snapshot()
 	}
 
 	text, err := h.templates.Render("inspection_summary.md.tmpl", inspectionSummaryData{

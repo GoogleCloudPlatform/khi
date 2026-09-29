@@ -27,8 +27,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/ai"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
@@ -54,10 +54,10 @@ func newTestEdge(sourceID, targetID string) taskid.TaskEdge {
 	}
 }
 
-func taskContext(summary *ai.Summary, taskImplID taskid.UntypedTaskImplementationID) context.Context {
+func taskContext(c *summary.Collector, taskImplID taskid.UntypedTaskImplementationID) context.Context {
 	ctx := context.Background()
 	m := typedmap.NewTypedMap()
-	typedmap.Set(m, ai.SummaryMetadataKey, summary)
+	typedmap.Set(m, summary.MetadataKey, c)
 	ctx = khictx.WithValue(ctx, inspectionmetadata.MapContextKey, m.AsReadonly())
 	ctx = khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, taskImplID)
 	return ctx
@@ -89,33 +89,33 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 	}
 
 	taskGraph := coretask.NewResolvedTaskSet(tasks, edges, nil)
-	summary := ai.NewSummary(taskGraph)
+	c := summary.NewCollector(taskGraph)
 
-	ctxForm := taskContext(summary, formTask.UntypedID())
-	ai.SetCoreLabel(ctxForm, "clusterName", "prod-cluster-1")
-	ai.SetCoreLabel(ctxForm, "projectId", "my-gcp-project")
-	ai.SetProperty(ctxForm, "duration", "1h")
+	ctxForm := taskContext(c, formTask.UntypedID())
+	summary.SetCoreLabel(ctxForm, "clusterName", "prod-cluster-1")
+	summary.SetCoreLabel(ctxForm, "projectId", "my-gcp-project")
+	summary.SetProperty(ctxForm, "duration", "1h")
 
-	ctxListAudit := taskContext(summary, listAuditTask.UntypedID())
-	ai.RecordQuery(ctxListAudit, "k8s-audit", "K8s audit logs", "resource.type=\"k8s_cluster\"\nresource.labels.cluster_name=\"prod-cluster-1\"")
-	ai.AddIntProperty(ctxListAudit, "fetchedLogs", 1520)
-	ai.AppendSummaryMarkdown(ctxListAudit, "Split the query into 4 time ranges because of the log volume.")
+	ctxListAudit := taskContext(c, listAuditTask.UntypedID())
+	summary.RecordQuery(ctxListAudit, "k8s-audit", "K8s audit logs", "resource.type=\"k8s_cluster\"\nresource.labels.cluster_name=\"prod-cluster-1\"")
+	summary.AddIntProperty(ctxListAudit, "fetchedLogs", 1520)
+	summary.AppendMarkdown(ctxListAudit, "Split the query into 4 time ranges because of the log volume.")
 
-	ctxAuditMapper := taskContext(summary, auditMapperTask.UntypedID())
+	ctxAuditMapper := taskContext(c, auditMapperTask.UntypedID())
 	for i := 0; i < 1520; i++ {
-		ai.AddIntProperty(ctxAuditMapper, "mappedLogs", 1)
-		ai.AddFeatureIntProperty(ctxAuditMapper, "totalLogs", 1)
+		summary.AddIntProperty(ctxAuditMapper, "mappedLogs", 1)
+		summary.AddFeatureIntProperty(ctxAuditMapper, "totalLogs", 1)
 	}
 	for _, v := range []string{"create", "delete", "patch", "update", "patch", "create"} {
-		ai.AddToSetProperty(ctxAuditMapper, "verbs", v)
+		summary.AddToSetProperty(ctxAuditMapper, "verbs", v)
 	}
 
-	ctxFeatureAudit := taskContext(summary, featureAuditTask.UntypedID())
-	ai.SetProperty(ctxFeatureAudit, "timelineCount", "342")
-	ai.AppendSummaryMarkdown(ctxFeatureAudit, "- 3 audit logs failed to parse and were skipped.")
+	ctxFeatureAudit := taskContext(c, featureAuditTask.UntypedID())
+	summary.SetProperty(ctxFeatureAudit, "timelineCount", "342")
+	summary.AppendMarkdown(ctxFeatureAudit, "- 3 audit logs failed to parse and were skipped.")
 
-	ctxInventory := taskContext(summary, inventoryTask.UntypedID())
-	ai.SetProperty(ctxInventory, "nodeCount", "3")
+	ctxInventory := taskContext(c, inventoryTask.UntypedID())
+	summary.SetProperty(ctxInventory, "nodeCount", "3")
 
 	header := &inspectionmetadata.HeaderMetadata{
 		InspectionName:         "prod-cluster-1 restart investigation",
@@ -137,7 +137,7 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 		ID:        "2026-09-24-0130-a1b2",
 		Header:    header,
 		TimeRange: fmt.Sprintf("%s - %s", mdtemplate.FormatTime(startTime), mdtemplate.FormatTime(endTime)),
-		Summary:   summary.Snapshot(),
+		Summary:   c.Snapshot(),
 	}
 
 	got, err := handler.templates.Render("inspection_summary.md.tmpl", data)
@@ -227,12 +227,12 @@ func TestInspectionHandler_E2E(t *testing.T) {
 	typedmap.Set(md1, inspectionmetadata.ProgressMetadataKey, prog1)
 
 	taskGraph := coretask.NewResolvedTaskSet(nil, nil, nil)
-	summary1 := ai.NewSummary(taskGraph)
+	summary1 := summary.NewCollector(taskGraph)
 	ctxTask1 := taskContext(summary1, taskid.NewDefaultImplementationID[any]("form-task"))
-	ai.SetCoreLabel(ctxTask1, "clusterName", "prod-cluster-1")
-	ai.SetCoreLabel(ctxTask1, "location", "us-central1")
-	ai.SetCoreLabel(ctxTask1, "projectId", "my-gcp-project")
-	typedmap.Set(md1, ai.SummaryMetadataKey, summary1)
+	summary.SetCoreLabel(ctxTask1, "clusterName", "prod-cluster-1")
+	summary.SetCoreLabel(ctxTask1, "location", "us-central1")
+	summary.SetCoreLabel(ctxTask1, "projectId", "my-gcp-project")
+	typedmap.Set(md1, summary.MetadataKey, summary1)
 
 	server.RegisterImportedInspection("2026-09-24-0130-a1b2", nil, md1.AsReadonly())
 

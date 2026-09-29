@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ai
+package summary
 
 import (
 	"testing"
@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestSummary_SnapshotOrdering(t *testing.T) {
+func TestCollector_SnapshotOrdering(t *testing.T) {
 	featC := newTestTask("feature-c", inspectioncore.FeatureTaskLabel("Feature C", "", 1, false))
 	featA := newTestTask("feature-a", inspectioncore.FeatureTaskLabel("Feature A", "", 1, false))
 	featB := newTestTask("feature-b", inspectioncore.FeatureTaskLabel("Feature B", "", 2, false))
@@ -46,28 +46,28 @@ func TestSummary_SnapshotOrdering(t *testing.T) {
 
 	testCases := []struct {
 		name  string
-		setup func(s *Summary)
-		want  SummarySnapshot
+		setup func(c *Collector)
+		want  Snapshot
 	}{
 		{
 			name: "orders features by order then ID, task reports by ID, rows by key, and places shared last while omitting empty sections",
-			setup: func(s *Summary) {
-				s.coreLabels["cluster"] = "my-cluster"
-				s.coreLabels["project"] = "my-project"
+			setup: func(c *Collector) {
+				c.coreLabels["cluster"] = "my-cluster"
+				c.coreLabels["project"] = "my-project"
 
-				s.common.set("zone", "us-central1-a")
-				s.common.set("region", "us-central1")
+				c.common.set("zone", "us-central1-a")
+				c.common.set("region", "us-central1")
 
 				// Write to feature B (order 2).
-				secB := s.getOrCreateSection(featB.UntypedID().String())
+				secB := c.getOrCreateSection(featB.UntypedID().String())
 				secB.properties.set("metric", "100")
 
 				// Write to feature C (order 1).
-				secC := s.getOrCreateSection(featC.UntypedID().String())
+				secC := c.getOrCreateSection(featC.UntypedID().String())
 				secC.properties.set("metric", "50")
 
 				// Write to feature A (order 1) via members.
-				secA := s.getOrCreateSection(featA.UntypedID().String())
+				secA := c.getOrCreateSection(featA.UntypedID().String())
 				secA.properties.set("status", "ok")
 				tr2 := secA.getOrCreateTaskReport(memberA2.UntypedID().String())
 				tr2.properties.set("count", "20")
@@ -75,10 +75,10 @@ func TestSummary_SnapshotOrdering(t *testing.T) {
 				tr1.properties.set("count", "10")
 
 				// Write to shared.
-				secShared := s.getOrCreateShared()
+				secShared := c.getOrCreateShared()
 				secShared.properties.set("nodeCount", "3")
 			},
-			want: SummarySnapshot{
+			want: Snapshot{
 				CoreLabels: []KeyValue{
 					{Key: "cluster", Value: "my-cluster"},
 					{Key: "project", Value: "my-project"},
@@ -133,9 +133,9 @@ func TestSummary_SnapshotOrdering(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			summary := NewSummary(taskGraph)
-			tc.setup(summary)
-			got := summary.Snapshot()
+			c := NewCollector(taskGraph)
+			tc.setup(c)
+			got := c.Snapshot()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("Snapshot() mismatch (-want +got):\n%s", diff)
 			}

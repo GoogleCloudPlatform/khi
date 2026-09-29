@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ai
+package summary
 
 import (
 	"context"
@@ -74,9 +74,9 @@ func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
 	return coretask.NewResolvedTaskSet(tasks, edges, nil), taskMap
 }
 
-func buildTaskContext(summary *Summary, task coretask.UntypedTask) context.Context {
+func buildTaskContext(collector *Collector, task coretask.UntypedTask) context.Context {
 	metaMap := typedmap.NewTypedMap()
-	typedmap.Set(metaMap, SummaryMetadataKey, summary)
+	typedmap.Set(metaMap, MetadataKey, collector)
 	ctx := khictx.WithValue(context.Background(), inspectionmetadata.MapContextKey, metaMap.AsReadonly())
 	if task != nil {
 		ctx = khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, task.UntypedID())
@@ -89,17 +89,17 @@ func TestReportAPI(t *testing.T) {
 
 	testCases := []struct {
 		name string
-		run  func(summary *Summary)
-		want SummarySnapshot
+		run  func(c *Collector)
+		want Snapshot
 	}{
 		{
 			name: "SetCoreLabel records core labels",
-			run: func(s *Summary) {
-				ctx := buildTaskContext(s, tasks["form-cluster-name#default"])
+			run: func(c *Collector) {
+				ctx := buildTaskContext(c, tasks["form-cluster-name#default"])
 				SetCoreLabel(ctx, "cluster", "production-cluster")
 				SetCoreLabel(ctx, "environment", "gcp")
 			},
-			want: SummarySnapshot{
+			want: Snapshot{
 				CoreLabels: []KeyValue{
 					{Key: "cluster", Value: "production-cluster"},
 					{Key: "environment", Value: "gcp"},
@@ -108,11 +108,11 @@ func TestReportAPI(t *testing.T) {
 		},
 		{
 			name: "SetProperty from form task writes to common properties",
-			run: func(s *Summary) {
-				ctx := buildTaskContext(s, tasks["form-cluster-name#default"])
+			run: func(c *Collector) {
+				ctx := buildTaskContext(c, tasks["form-cluster-name#default"])
 				SetProperty(ctx, "cluster_id", "c-12345")
 			},
-			want: SummarySnapshot{
+			want: Snapshot{
 				CommonProperties: []KeyValue{
 					{Key: "cluster_id", Value: "c-12345"},
 				},
@@ -120,11 +120,11 @@ func TestReportAPI(t *testing.T) {
 		},
 		{
 			name: "SetProperty from feature task writes to feature section properties",
-			run: func(s *Summary) {
-				ctx := buildTaskContext(s, tasks["feature-audit#default"])
+			run: func(c *Collector) {
+				ctx := buildTaskContext(c, tasks["feature-audit#default"])
 				SetProperty(ctx, "status", "enabled")
 			},
-			want: SummarySnapshot{
+			want: Snapshot{
 				Sections: []Section{
 					{
 						Title: "Kubernetes Audit Logs",
@@ -137,11 +137,11 @@ func TestReportAPI(t *testing.T) {
 		},
 		{
 			name: "SetProperty from featureMember writes to task report",
-			run: func(s *Summary) {
-				ctx := buildTaskContext(s, tasks["audit-log-mapper#default"])
+			run: func(c *Collector) {
+				ctx := buildTaskContext(c, tasks["audit-log-mapper#default"])
 				SetProperty(ctx, "mapped_count", "42")
 			},
-			want: SummarySnapshot{
+			want: Snapshot{
 				Sections: []Section{
 					{
 						Title: "Kubernetes Audit Logs",
@@ -159,11 +159,11 @@ func TestReportAPI(t *testing.T) {
 		},
 		{
 			name: "SetProperty from shared/inventory writes to shared section properties",
-			run: func(s *Summary) {
-				ctx := buildTaskContext(s, tasks["inventory-node-names#default"])
+			run: func(c *Collector) {
+				ctx := buildTaskContext(c, tasks["inventory-node-names#default"])
 				SetProperty(ctx, "nodeCount", "10")
 			},
-			want: SummarySnapshot{
+			want: Snapshot{
 				Sections: []Section{
 					{
 						Title: "Shared & Filter Context",
@@ -176,12 +176,12 @@ func TestReportAPI(t *testing.T) {
 		},
 		{
 			name: "AddFeatureIntProperty writes to enclosing feature section properties",
-			run: func(s *Summary) {
-				ctx := buildTaskContext(s, tasks["audit-log-mapper#default"])
+			run: func(c *Collector) {
+				ctx := buildTaskContext(c, tasks["audit-log-mapper#default"])
 				AddFeatureIntProperty(ctx, "totalLogs", 15)
 				AddFeatureIntProperty(ctx, "totalLogs", 25)
 			},
-			want: SummarySnapshot{
+			want: Snapshot{
 				Sections: []Section{
 					{
 						Title: "Kubernetes Audit Logs",
@@ -194,14 +194,14 @@ func TestReportAPI(t *testing.T) {
 		},
 		{
 			name: "AddFeatureIntProperty from form writes to common, from shared writes to shared",
-			run: func(s *Summary) {
-				ctxForm := buildTaskContext(s, tasks["form-cluster-name#default"])
+			run: func(c *Collector) {
+				ctxForm := buildTaskContext(c, tasks["form-cluster-name#default"])
 				AddFeatureIntProperty(ctxForm, "formDelta", 5)
 
-				ctxShared := buildTaskContext(s, tasks["inventory-node-names#default"])
+				ctxShared := buildTaskContext(c, tasks["inventory-node-names#default"])
 				AddFeatureIntProperty(ctxShared, "sharedDelta", 8)
 			},
-			want: SummarySnapshot{
+			want: Snapshot{
 				CommonProperties: []KeyValue{
 					{Key: "formDelta", Value: "5"},
 				},
@@ -216,23 +216,23 @@ func TestReportAPI(t *testing.T) {
 			},
 		},
 		{
-			name: "AppendSummaryMarkdown routing",
-			run: func(s *Summary) {
+			name: "AppendMarkdown routing",
+			run: func(c *Collector) {
 				// Feature task writes to section insights.
-				ctxFeat := buildTaskContext(s, tasks["feature-audit#default"])
-				AppendSummaryMarkdown(ctxFeat, "Feature insight 1")
-				AppendSummaryMarkdown(ctxFeat, "Feature insight 2")
+				ctxFeat := buildTaskContext(c, tasks["feature-audit#default"])
+				AppendMarkdown(ctxFeat, "Feature insight 1")
+				AppendMarkdown(ctxFeat, "Feature insight 2")
 
 				// Member task writes to task report markdown.
-				ctxMember := buildTaskContext(s, tasks["audit-log-mapper#default"])
-				AppendSummaryMarkdown(ctxMember, "Task report line 1")
-				AppendSummaryMarkdown(ctxMember, "Task report line 2")
+				ctxMember := buildTaskContext(c, tasks["audit-log-mapper#default"])
+				AppendMarkdown(ctxMember, "Task report line 1")
+				AppendMarkdown(ctxMember, "Task report line 2")
 
 				// Shared task writes to shared section insights.
-				ctxShared := buildTaskContext(s, tasks["inventory-node-names#default"])
-				AppendSummaryMarkdown(ctxShared, "Shared insight")
+				ctxShared := buildTaskContext(c, tasks["inventory-node-names#default"])
+				AppendMarkdown(ctxShared, "Shared insight")
 			},
-			want: SummarySnapshot{
+			want: Snapshot{
 				Sections: []Section{
 					{
 						Title: "Kubernetes Audit Logs",
@@ -253,17 +253,17 @@ func TestReportAPI(t *testing.T) {
 		},
 		{
 			name: "RecordQuery routing",
-			run: func(s *Summary) {
-				ctxFeat := buildTaskContext(s, tasks["feature-audit#default"])
+			run: func(c *Collector) {
+				ctxFeat := buildTaskContext(c, tasks["feature-audit#default"])
 				RecordQuery(ctxFeat, "q2", "Query Two", "text two")
 
-				ctxMember := buildTaskContext(s, tasks["audit-log-mapper#default"])
+				ctxMember := buildTaskContext(c, tasks["audit-log-mapper#default"])
 				RecordQuery(ctxMember, "q1", "Query One", "text one")
 
-				ctxShared := buildTaskContext(s, tasks["inventory-node-names#default"])
+				ctxShared := buildTaskContext(c, tasks["inventory-node-names#default"])
 				RecordQuery(ctxShared, "qShared", "Shared Query", "text shared")
 			},
-			want: SummarySnapshot{
+			want: Snapshot{
 				Sections: []Section{
 					{
 						Title: "Kubernetes Audit Logs",
@@ -285,9 +285,9 @@ func TestReportAPI(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			summary := NewSummary(taskGraph)
-			tc.run(summary)
-			got := summary.Snapshot()
+			c := NewCollector(taskGraph)
+			tc.run(c)
+			got := c.Snapshot()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("Snapshot() mismatch (-want +got):\n%s", diff)
 			}
@@ -304,14 +304,14 @@ func TestReportAPI_NoMetadataMapNoop(t *testing.T) {
 	AddIntProperty(emptyCtx, "key", 1)
 	AddToSetProperty(emptyCtx, "key", "val")
 	AddFeatureIntProperty(emptyCtx, "key", 1)
-	AppendSummaryMarkdown(emptyCtx, "md")
+	AppendMarkdown(emptyCtx, "md")
 	RecordQuery(emptyCtx, "id", "name", "text")
 }
 
 func TestReportAPI_ConcurrentAddIntProperty(t *testing.T) {
 	taskGraph, tasks := buildTestGraph()
-	summary := NewSummary(taskGraph)
-	taskCtx := buildTaskContext(summary, tasks["audit-log-mapper#default"])
+	c := NewCollector(taskGraph)
+	taskCtx := buildTaskContext(c, tasks["audit-log-mapper#default"])
 
 	var wg sync.WaitGroup
 	const goroutines = 100
@@ -328,7 +328,7 @@ func TestReportAPI_ConcurrentAddIntProperty(t *testing.T) {
 	}
 	wg.Wait()
 
-	snapshot := summary.Snapshot()
+	snapshot := c.Snapshot()
 	if len(snapshot.Sections) != 1 {
 		t.Fatalf("expected 1 section, got %d", len(snapshot.Sections))
 	}
@@ -348,8 +348,8 @@ func TestReportAPI_ConcurrentAddIntProperty(t *testing.T) {
 
 func TestReportAPI_AddToSetProperty(t *testing.T) {
 	taskGraph, tasks := buildTestGraph()
-	summary := NewSummary(taskGraph)
-	taskCtx := buildTaskContext(summary, tasks["audit-log-mapper#default"])
+	c := NewCollector(taskGraph)
+	taskCtx := buildTaskContext(c, tasks["audit-log-mapper#default"])
 
 	testCases := []struct {
 		name   string
@@ -368,7 +368,7 @@ func TestReportAPI_AddToSetProperty(t *testing.T) {
 			for _, val := range tc.writes {
 				AddToSetProperty(taskCtx, "fruits", val)
 			}
-			snapshot := summary.Snapshot()
+			snapshot := c.Snapshot()
 			props := snapshot.Sections[0].TaskReports[0].Properties
 			if len(props) != 1 {
 				t.Fatalf("expected 1 property, got %d", len(props))

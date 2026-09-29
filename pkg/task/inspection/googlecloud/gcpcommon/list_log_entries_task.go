@@ -30,10 +30,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/kwaymerge"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/ai"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -229,7 +229,7 @@ func setQueryInfo(ctx context.Context, taskID, baseLogFilter string, logFilterIn
 		slog.WarnContext(ctx, fmt.Sprintf("Logging filter is exceeding Cloud Logging limitation 20000 characters\n%s", finalFilter))
 	}
 	queryInfo.SetQuery(taskID, logFilterName, finalFilter)
-	ai.RecordQuery(ctx, taskID, logFilterName, finalFilter)
+	summary.RecordQuery(ctx, taskID, logFilterName, finalFilter)
 	return nil
 }
 

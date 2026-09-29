@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ai collects bounded-size facts that tasks report during an inspection run and exposes them as a snapshot for AI agents.
-package ai
+// Package summary collects bounded-size facts that tasks report during an inspection run and exposes them as a snapshot.
+package summary
 
 import (
 	"slices"
@@ -26,8 +26,8 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-// SummaryMetadataKey holds the typed metadata key for retrieving Summary.
-var SummaryMetadataKey = inspectionmetadata.NewMetadataKey[*Summary]("aiSummary")
+// MetadataKey holds the typed metadata key for retrieving Collector.
+var MetadataKey = inspectionmetadata.NewMetadataKey[*Collector]("inspectionSummary")
 
 // KeyValue represents a single key-value pair.
 type KeyValue struct {
@@ -69,8 +69,8 @@ type Section struct {
 	Insights string
 }
 
-// SummarySnapshot represents the immutable snapshot of the AI summary state.
-type SummarySnapshot struct {
+// Snapshot represents the immutable snapshot of the summary state.
+type Snapshot struct {
 	// CoreLabels holds sorted core labels describing the inspection target.
 	CoreLabels []KeyValue
 	// CommonProperties holds sorted form-level common properties.
@@ -235,8 +235,8 @@ func (sec *section) hasWrites() bool {
 	return len(sec.queries) > 0 || len(sec.properties.properties) > 0 || len(sec.taskReports) > 0 || len(sec.insights) > 0
 }
 
-// Summary aggregates structured facts and observations during an inspection run.
-type Summary struct {
+// Collector aggregates structured facts and observations during an inspection run.
+type Collector struct {
 	resolver   *sectionResolver
 	coreLabels map[string]string
 	common     *propertyTable
@@ -245,11 +245,11 @@ type Summary struct {
 	mu         sync.Mutex
 }
 
-var _ inspectionmetadata.Metadata = (*Summary)(nil)
+var _ inspectionmetadata.Metadata = (*Collector)(nil)
 
-// NewSummary creates a new Summary instance initialized with the given task graph.
-func NewSummary(taskGraph *coretask.TaskSet) *Summary {
-	return &Summary{
+// NewCollector creates a new Collector instance initialized with the given task graph.
+func NewCollector(taskGraph *coretask.TaskSet) *Collector {
+	return &Collector{
 		resolver:   newSectionResolver(taskGraph),
 		coreLabels: make(map[string]string),
 		common:     newPropertyTable(),
@@ -258,29 +258,29 @@ func NewSummary(taskGraph *coretask.TaskSet) *Summary {
 }
 
 // Labels returns an empty label set so the summary is not serialized into run results.
-func (s *Summary) Labels() *typedmap.ReadonlyTypedMap {
+func (c *Collector) Labels() *typedmap.ReadonlyTypedMap {
 	return inspectionmetadata.NewLabelSet()
 }
 
 // ToSerializable returns the immutable summary snapshot for serialization.
-func (s *Summary) ToSerializable() interface{} {
-	return s.Snapshot()
+func (c *Collector) ToSerializable() interface{} {
+	return c.Snapshot()
 }
 
-func (s *Summary) getOrCreateSection(featureID string) *section {
-	sec, ok := s.sections[featureID]
+func (c *Collector) getOrCreateSection(featureID string) *section {
+	sec, ok := c.sections[featureID]
 	if !ok {
 		sec = newSection()
-		s.sections[featureID] = sec
+		c.sections[featureID] = sec
 	}
 	return sec
 }
 
-func (s *Summary) getOrCreateShared() *section {
-	if s.shared == nil {
-		s.shared = newSection()
+func (c *Collector) getOrCreateShared() *section {
+	if c.shared == nil {
+		c.shared = newSection()
 	}
-	return s.shared
+	return c.shared
 }
 
 func renderSection(title string, sec *section) Section {
@@ -363,15 +363,15 @@ type featureSectionEntry struct {
 	sec   *section
 }
 
-func (s *Summary) featureSections() []Section {
+func (c *Collector) featureSections() []Section {
 	var featureEntries []featureSectionEntry
-	for featID, sec := range s.sections {
+	for featID, sec := range c.sections {
 		if !sec.hasWrites() {
 			continue
 		}
 		title := ""
 		order := 0
-		if info, ok := s.resolver.features[featID]; ok {
+		if info, ok := c.resolver.features[featID]; ok {
 			title = info.title
 			order = info.order
 		}
@@ -403,19 +403,19 @@ func (s *Summary) featureSections() []Section {
 	return sections
 }
 
-// Snapshot captures the current summary state as an immutable SummarySnapshot.
-func (s *Summary) Snapshot() SummarySnapshot {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// Snapshot captures the current summary state as an immutable Snapshot.
+func (c *Collector) Snapshot() Snapshot {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	sections := s.featureSections()
-	if s.shared != nil && s.shared.hasWrites() {
-		sections = append(sections, renderSection("Shared & Filter Context", s.shared))
+	sections := c.featureSections()
+	if c.shared != nil && c.shared.hasWrites() {
+		sections = append(sections, renderSection("Shared & Filter Context", c.shared))
 	}
 
-	return SummarySnapshot{
-		CoreLabels:       sortedKeyValues(s.coreLabels),
-		CommonProperties: s.common.toKeyValues(),
+	return Snapshot{
+		CoreLabels:       sortedKeyValues(c.coreLabels),
+		CommonProperties: c.common.toKeyValues(),
 		Sections:         sections,
 	}
 }
