@@ -15,6 +15,7 @@
 package mcp
 
 import (
+	"cmp"
 	"context"
 	"embed"
 	"fmt"
@@ -28,13 +29,14 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 //go:embed templates/*.md.tmpl
 var templateFS embed.FS
 
-// InspectionHandler exposes inspection list and summary resources over MCP.
+// InspectionHandler exposes inspection types, inspection listing, inspection summaries, and inspection lifecycle tools over MCP.
 type InspectionHandler struct {
 	server       *coreinspection.InspectionTaskServer
 	templates    *mdtemplate.Set
@@ -53,8 +55,15 @@ func NewInspectionHandler(server *coreinspection.InspectionTaskServer) *Inspecti
 	}
 }
 
-// Register registers the inspection resources and resource templates to the MCP server.
+// Register registers the inspection resources, resource templates, and tools to the MCP server.
 func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
+	srv.AddResource(&mcpsdk.Resource{
+		URI:         "khi://inspection-types",
+		Name:        "inspection-types",
+		Description: "List all inspection types and their availability over MCP.",
+		MIMEType:    "text/markdown",
+	}, h.handleListInspectionTypes)
+
 	srv.AddResource(&mcpsdk.Resource{
 		URI:         "khi://inspections",
 		Name:        "inspections",
@@ -68,6 +77,62 @@ func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
 		Description: "Inspection summary or current progress status.",
 		MIMEType:    "text/markdown",
 	}, h.handleInspectionResource)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "create_inspection",
+		Description: "Create a new inspection session of the specified type. Returns the inspection ID and selectable features. Check available types from khi://inspection-types first.",
+	}, h.handleCreateInspection)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "update_inspection_features",
+		Description: "Update the enabled features for an inspection session. Specify all feature IDs that should be enabled; this replaces the current feature selection. Call dry_run_inspection next.",
+	}, h.handleUpdateInspectionFeatures)
+}
+
+// mcpUnavailableReason returns a non-empty explanation if the inspection type cannot be used via MCP.
+// TODO(#1047): Remove this check when file uploads are supported via MCP.
+func mcpUnavailableReason(t *coreinspection.InspectionType) string {
+	if t.Labels[inspectioncore.InspectionTypeLabelKeyLogSource] == "file" {
+		return "requires file uploads, which are not supported via MCP yet."
+	}
+	return ""
+}
+
+type inspectionTypeRow struct {
+	ID          string
+	Name        string
+	Description string
+	Available   string
+}
+
+type inspectionTypesData struct {
+	Types []inspectionTypeRow
+}
+
+func (h *InspectionHandler) handleListInspectionTypes(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
+	types := h.server.GetAllInspectionTypes()
+	slices.SortFunc(types, func(a, b *coreinspection.InspectionType) int {
+		if n := cmp.Compare(b.Priority, a.Priority); n != 0 {
+			return n
+		}
+		return cmp.Compare(a.Id, b.Id)
+	})
+
+	rows := make([]inspectionTypeRow, 0, len(types))
+	for _, t := range types {
+		available := "yes"
+		if reason := mcpUnavailableReason(t); reason != "" {
+			available = fmt.Sprintf("no: %s Use the KHI Web UI.", reason)
+		}
+		rows = append(rows, inspectionTypeRow{
+			ID:          t.Id,
+			Name:        t.Name,
+			Description: t.Description,
+			Available:   available,
+		})
+	}
+
+	return h.templates.ResourceResult("khi://inspection-types", "inspection_types.md.tmpl", inspectionTypesData{Types: rows})
 }
 
 type inspectionListRow struct {

@@ -152,10 +152,74 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 	}
 }
 
+func TestMCPUnavailableReason(t *testing.T) {
+	testCases := []struct {
+		name string
+		in   *coreinspection.InspectionType
+		want string
+	}{
+		{
+			name: "file log source",
+			in: &coreinspection.InspectionType{
+				Labels: map[string]string{inspectioncore.InspectionTypeLabelKeyLogSource: "file"},
+			},
+			want: "requires file uploads, which are not supported via MCP yet.",
+		},
+		{
+			name: "cloud log source",
+			in: &coreinspection.InspectionType{
+				Labels: map[string]string{inspectioncore.InspectionTypeLabelKeyLogSource: "cloud"},
+			},
+			want: "",
+		},
+		{
+			name: "nil labels",
+			in: &coreinspection.InspectionType{
+				Labels: nil,
+			},
+			want: "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := mcpUnavailableReason(tc.in)
+			if got != tc.want {
+				t.Errorf("mcpUnavailableReason() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestInspectionHandler_E2E(t *testing.T) {
 	server, err := coreinspection.NewServer(nil)
 	if err != nil {
 		t.Fatalf("failed to create inspection task server: %v", err)
+	}
+
+	if err := server.AddInspectionType(coreinspection.InspectionType{
+		Id:          "gcp-gke",
+		Name:        "Google Kubernetes Engine",
+		Description: "Gather and parse Google Kubernetes Engine (GKE) cluster logs ...",
+		Priority:    100,
+	}); err != nil {
+		t.Fatalf("failed to add gcp-gke inspection type: %v", err)
+	}
+
+	if err := server.AddInspectionType(coreinspection.InspectionType{
+		Id:          "oss-kubernetes-from-files",
+		Name:        "OSS Kubernetes Log Files",
+		Description: "Parse uploaded OSS Kubernetes log files to visualize cluster operations on timelines.",
+		Priority:    50,
+		Labels:      map[string]string{inspectioncore.InspectionTypeLabelKeyLogSource: "file"},
+	}); err != nil {
+		t.Fatalf("failed to add oss-kubernetes-from-files inspection type: %v", err)
+	}
+
+	if err := server.AddTask(newTestTask("k8s-audit-log", inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 1, true))); err != nil {
+		t.Fatalf("failed to add k8s-audit-log task: %v", err)
+	}
+	if err := server.AddTask(newTestTask("k8s-event-log", inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 2, true))); err != nil {
+		t.Fatalf("failed to add k8s-event-log task: %v", err)
 	}
 
 	handler := NewInspectionHandler(server)
@@ -181,13 +245,42 @@ func TestInspectionHandler_E2E(t *testing.T) {
 	}
 	defer session.Close()
 
-	t.Run("NoTools", func(t *testing.T) {
+	t.Run("ListTools", func(t *testing.T) {
 		toolsRes, err := session.ListTools(ctx, nil)
 		if err != nil {
 			t.Fatalf("session.ListTools() failed: %v", err)
 		}
-		if len(toolsRes.Tools) != 0 {
-			t.Errorf("len(toolsRes.Tools) = %d, want 0", len(toolsRes.Tools))
+		if len(toolsRes.Tools) != 2 {
+			t.Fatalf("len(toolsRes.Tools) = %d, want 2", len(toolsRes.Tools))
+		}
+		toolNames := make(map[string]bool)
+		for _, tool := range toolsRes.Tools {
+			toolNames[tool.Name] = true
+		}
+		if !toolNames["create_inspection"] {
+			t.Errorf("tool create_inspection not found")
+		}
+		if !toolNames["update_inspection_features"] {
+			t.Errorf("tool update_inspection_features not found")
+		}
+	})
+
+	t.Run("ListInspectionTypesResource", func(t *testing.T) {
+		res, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspection-types"})
+		if err != nil {
+			t.Fatalf("session.ReadResource(\"khi://inspection-types\") failed: %v", err)
+		}
+		if len(res.Contents) != 1 {
+			t.Fatalf("len(res.Contents) = %d, want 1", len(res.Contents))
+		}
+		goldenBytes, err := os.ReadFile("testdata/inspection_types.golden.md")
+		if err != nil {
+			t.Fatalf("failed to read golden file: %v", err)
+		}
+		want := strings.TrimRight(string(goldenBytes), "\r\n")
+		got := strings.TrimRight(res.Contents[0].Text, "\r\n")
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("inspection types resource mismatch (-want +got):\n%s", diff)
 		}
 	})
 

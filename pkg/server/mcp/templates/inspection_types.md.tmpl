@@ -1,0 +1,7 @@
+# Inspection types
+
+| ID | Name | Description | Available via MCP |
+| --- | --- | --- | --- |
+{{ range .Types -}}
+| {{ code .ID }} | {{ cell .Name }} | {{ cell .Description }} | {{ cell .Available }} |
+{{ end -}}
