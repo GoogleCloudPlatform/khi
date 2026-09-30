@@ -125,6 +125,28 @@ func (s *InspectionTaskServer) AddTask(task coretask.UntypedTask) error {
 	return s.RootTaskSet.Add(task)
 }
 
+// AddModules registers the inspection types and the scoped tasks of the given modules.
+// It returns an error when a module scope conflicts with its parent scope, or when a task ID or an inspection type ID is duplicated.
+func (s *InspectionTaskServer) AddModules(modules ...Module) error {
+	for _, module := range modules {
+		flattened, err := module.flatten()
+		if err != nil {
+			return err
+		}
+		for _, inspectionType := range flattened.inspectionTypes {
+			if err := s.AddInspectionType(inspectionType); err != nil {
+				return fmt.Errorf("module %s: %w", module.Name, err)
+			}
+		}
+		for _, task := range flattened.tasks {
+			if err := s.AddTask(task); err != nil {
+				return fmt.Errorf("module %s: %w", module.Name, err)
+			}
+		}
+	}
+	return nil
+}
+
 // AddInspectionInterceptor adds an interceptor that will be applied to all new inspection runners.
 func (s *InspectionTaskServer) AddInspectionInterceptor(interceptor InspectionInterceptor) {
 	s.inspectionIntercepters = append(s.inspectionIntercepters, interceptor)
