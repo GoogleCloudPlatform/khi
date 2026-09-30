@@ -55,33 +55,51 @@ func NewLogGrouperTaskWithDependencies(taskID taskid.TaskImplementationID[LogGro
 			if taskMode != inspectioncore.TaskModeRun {
 				return LogGroupMap{}, nil
 			}
-
-			logs := coretask.GetTaskResult(ctx, logTask)
-			groups := LogGroupMap{}
-
-			tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
-			defer tracker.Done()
-
-			for _, l := range logs {
-				group := grouper(ctx, l)
-				if _, ok := groups[group]; !ok {
-					groups[group] = &LogGroup{
-						Group: group,
-						Logs:  make([]*log.Log, 0),
-					}
-				}
-				groups[group].Logs = append(groups[group].Logs, l)
-				tracker.Inc()
-			}
-
-			tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
-			if tracingActive {
-				trace.SpanFromContext(ctx).SetAttributes(
-					attribute.String("log_count", fmt.Sprintf("%d", len(logs))),
-					attribute.String("group_count", fmt.Sprintf("%d", len(groups))),
-				)
-			}
-
-			return groups, nil
+			return groupLogs(ctx, coretask.GetTaskResult(ctx, logTask), grouper), nil
 		})
+}
+
+// DefineLogGrouperTask creates a task that groups the logs provided by logTask with the grouper function returned by bind.
+// bind declares the additional inputs the grouper reads, and the task declares logTask itself.
+func DefineLogGrouperTask(taskID taskid.TaskImplementationID[LogGroupMap], logTask taskid.TaskReference[[]*log.Log], bind func(b *coretask.Binder) LogGrouperFunc) coretask.DefinedTask[LogGroupMap] {
+	return DefineInspectionTask(taskID, func(b *coretask.Binder) InspectionTaskFunc[LogGroupMap] {
+		logs := coretask.Use(b, logTask)
+		grouper := bind(b)
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (LogGroupMap, error) {
+			if taskMode != inspectioncore.TaskModeRun {
+				return LogGroupMap{}, nil
+			}
+			return groupLogs(ctx, logs.Get(ctx), grouper), nil
+		}
+	})
+}
+
+// groupLogs organizes logs into groups keyed by the result of grouper.
+func groupLogs(ctx context.Context, logs []*log.Log, grouper LogGrouperFunc) LogGroupMap {
+	groups := LogGroupMap{}
+
+	tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
+	defer tracker.Done()
+
+	for _, l := range logs {
+		group := grouper(ctx, l)
+		if _, ok := groups[group]; !ok {
+			groups[group] = &LogGroup{
+				Group: group,
+				Logs:  make([]*log.Log, 0),
+			}
+		}
+		groups[group].Logs = append(groups[group].Logs, l)
+		tracker.Inc()
+	}
+
+	tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
+	if tracingActive {
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("log_count", fmt.Sprintf("%d", len(logs))),
+			attribute.String("group_count", fmt.Sprintf("%d", len(groups))),
+		)
+	}
+
+	return groups
 }

@@ -17,6 +17,7 @@ package inspectiontaskbase
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/google/go-cmp/cmp"
 )
 
 var mockLogIngesterPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester-prev")
@@ -49,6 +51,7 @@ func (m *mockLogIngester) Dependencies() []coretask.Dependency {
 var (
 	pathCancel = structured.CompileFieldPath("cancel")
 	pathError  = structured.CompileFieldPath("error")
+	pathName   = structured.CompileFieldPath("name")
 	pathSkip   = structured.CompileFieldPath("skip")
 )
 
@@ -192,6 +195,109 @@ func TestLogIngesterTask(t *testing.T) {
 					} else if ok {
 						t.Errorf("expected log %d NOT to be ingested, but ResolveLogID returned true with ID %d", l.ID, resolvedID)
 					}
+				}
+			}
+		})
+	}
+}
+
+func TestDefineLogIngesterTask(t *testing.T) {
+	skippedNameTaskID := taskid.NewDefaultImplementationID[string]("mock-log-ingester-skipped-name")
+	task := DefineLogIngesterTask(taskid.NewDefaultImplementationID[struct{}]("mock-log-ingester"), mockLogIngesterPrevTaskID.Ref(), func(b *coretask.Binder) LogIngesterFunc {
+		skippedName := coretask.Use(b, skippedNameTaskID.Ref())
+		ingester := &mockLogIngester{}
+		return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+			if l.ReadStringOrDefault(pathName, "") == skippedName.Get(ctx) {
+				return nil, nil
+			}
+			return ingester.ProcessLog(ctx, l)
+		}
+	})
+	wantInputs := []string{"required mock-log-ingester-prev", "required mock-log-ingester-skipped-name"}
+
+	type testLog struct {
+		yaml         string
+		shouldIngest bool
+	}
+	testCases := []struct {
+		desc          string
+		taskMode      inspectioncore.InspectionTaskModeType
+		logs          []testLog
+		cancelContext bool
+		wantErrSubstr string
+	}{
+		{
+			desc:     "DryRun mode",
+			taskMode: inspectioncore.TaskModeDryRun,
+			logs: []testLog{
+				{yaml: `{"name": "pod-1"}`, shouldIngest: false},
+			},
+		},
+		{
+			desc:     "skips logs with the name read from an input declared in bind",
+			taskMode: inspectioncore.TaskModeRun,
+			logs: []testLog{
+				{yaml: `{"name": "pod-1"}`, shouldIngest: true},
+				{yaml: `{"name": "skipped-pod"}`, shouldIngest: false},
+			},
+		},
+		{
+			desc:     "Execution with error",
+			taskMode: inspectioncore.TaskModeRun,
+			logs: []testLog{
+				{yaml: `{"name": "pod-1", "error": true}`},
+			},
+			wantErrSubstr: "test error",
+		},
+		{
+			desc:     "Execution with context cancelled",
+			taskMode: inspectioncore.TaskModeRun,
+			logs: []testLog{
+				{yaml: `{"name": "pod-1"}`},
+			},
+			cancelContext: true,
+			wantErrSubstr: context.Canceled.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+				t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+			}
+
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+
+			var logs []*log.Log
+			for _, tl := range tc.logs {
+				logs = append(logs, mustNewLogFromYAML(t, ctx, tl.yaml))
+			}
+
+			if tc.cancelContext {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+
+			_, _, err := inspectiontest.Run(t, ctx, task, tc.taskMode, map[string]any{},
+				tasktest.Given(mockLogIngesterPrevTaskID.Ref(), logs),
+				tasktest.Given(skippedNameTaskID.Ref(), "skipped-pod"),
+			)
+			if tc.wantErrSubstr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErrSubstr) {
+					t.Fatalf("Run() error = %v, want error containing %q", err, tc.wantErrSubstr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Run() returned an unexpected error: %v", err)
+			}
+
+			for i, l := range logs {
+				_, gotIngested := builder.LogAccumulator.ResolveLogID(l.ID)
+				if gotIngested != tc.logs[i].shouldIngest {
+					t.Errorf("log %d ingested = %v, want %v", i, gotIngested, tc.logs[i].shouldIngest)
 				}
 			}
 		})
