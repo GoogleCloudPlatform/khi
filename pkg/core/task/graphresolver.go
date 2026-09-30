@@ -51,7 +51,10 @@ func ResolveGraph(
 	}
 
 	// --- Phase 3: Point-to-Point Edge Binding ---
-	pointToPointEdges := resolvePointToPointEdges(graphTaskMap)
+	pointToPointEdges, err := resolvePointToPointEdges(graphTaskMap)
+	if err != nil {
+		return nil, err
+	}
 
 	// --- Phase 4: Fan-In Cycle Resolution & Edge Deduplication ---
 	resolvedTasks, resolvedEdges, boundFanInRefIDsByTaskImplID, err := resolveFanInEdgesAndCycles(graphTaskMap, pointToPointEdges, candidateFanInEdges)
@@ -278,9 +281,12 @@ func resolveActiveFeaturesAndCandidateFanInEdges(
 			}
 
 			for _, p := range matchingProducers {
+				if err := verifyDependencyResultType(task, dep, p); err != nil {
+					return nil, err
+				}
 				priority := typedmap.GetOrDefault(p.Labels(), LabelKeyProvidedTagPriority(tag), DefaultTagPriority)
 				tagType := typedmap.GetOrDefault(p.Labels(), LabelKeyProvidedTagType(tag), "")
-				if tagType == "" && p.ResultType() != nil {
+				if tagType == "" {
 					tagType = p.ResultType().String()
 				}
 				rawEdges = append(rawEdges, taskid.TaskEdge{
@@ -388,9 +394,21 @@ func compareTaskEdge(a, b taskid.TaskEdge) int {
 	return a.Priority - b.Priority
 }
 
+// verifyDependencyResultType returns an error when the producer result cannot be read as the result type the consumer expects.
+// Task results are read with a type assertion to the dependency result type, so the producer result type must be assignable to it.
+func verifyDependencyResultType(consumer UntypedTask, dep Dependency, producer UntypedTask) error {
+	want := dep.ResultType()
+	got := producer.ResultType()
+	if got.AssignableTo(want) {
+		return nil
+	}
+	return fmt.Errorf("task %q expects result type %s from dependency %q, but producer %q returns %s", consumer.UntypedID(), want, dependencyKey(dep), producer.UntypedID(), got)
+}
+
 // resolvePointToPointEdges creates point-to-point edges for all tasks in graphTaskMap
 // whose source (upstream dependency) exists in the graph (both required and optional).
-func resolvePointToPointEdges(graphTaskMap map[string]UntypedTask) []taskid.TaskEdge {
+// It returns an error when a dependency result type does not match its producer.
+func resolvePointToPointEdges(graphTaskMap map[string]UntypedTask) ([]taskid.TaskEdge, error) {
 	tasks := make([]UntypedTask, 0, len(graphTaskMap))
 	for _, t := range graphTaskMap {
 		tasks = append(tasks, t)
@@ -407,22 +425,21 @@ func resolvePointToPointEdges(graphTaskMap map[string]UntypedTask) []taskid.Task
 				}
 				refID := ptp.ReferenceID()
 				if sourceTask, exists := graphTaskMap[refID]; exists {
-					outputType := ""
-					if sourceTask.ResultType() != nil {
-						outputType = sourceTask.ResultType().String()
+					if err := verifyDependencyResultType(t, dep, sourceTask); err != nil {
+						return nil, err
 					}
 					rawEdges = append(rawEdges, taskid.TaskEdge{
 						SourceRefID:  refID,
 						SourceImplID: sourceTask.UntypedID().String(),
 						TargetImplID: t.UntypedID().String(),
 						Cardinality:  taskid.CardinalityPointToPoint,
-						OutputType:   outputType,
+						OutputType:   sourceTask.ResultType().String(),
 					})
 				}
 			}
 		}
 	}
-	return rawEdges
+	return rawEdges, nil
 }
 
 // deduplicateAndNormalizeEdges merges duplicate edges between the same source and target.
