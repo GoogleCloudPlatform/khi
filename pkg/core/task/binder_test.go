@@ -51,18 +51,24 @@ func describeInputSpecs(specs []InputSpec) []string {
 
 func TestInputKind_String(t *testing.T) {
 	testCases := []struct {
-		kind InputKind
-		want string
+		name      string
+		kind      InputKind
+		want      string
+		wantPanic string
 	}{
-		{kind: InputKindRequired, want: "required"},
-		{kind: InputKindOptional, want: "optional"},
-		{kind: InputKindTag, want: "tag"},
-		{kind: InputKindOrdering, want: "ordering"},
-		{kind: InputKind(42), want: "InputKind(42)"},
+		{name: "required", kind: InputKindRequired, want: "required"},
+		{name: "optional", kind: InputKindOptional, want: "optional"},
+		{name: "tag", kind: InputKindTag, want: "tag"},
+		{name: "ordering", kind: InputKindOrdering, want: "ordering"},
+		{name: "unknown kind panics", kind: InputKind(42), wantPanic: "unknown InputKind 42"},
 	}
 	for _, tc := range testCases {
-		t.Run(tc.want, func(t *testing.T) {
-			got := tc.kind.String()
+		t.Run(tc.name, func(t *testing.T) {
+			var got string
+			gotPanic := panicMessage(func() { got = tc.kind.String() })
+			if gotPanic != tc.wantPanic {
+				t.Fatalf("InputKind(%d).String() panic = %q, want %q", int(tc.kind), gotPanic, tc.wantPanic)
+			}
 			if got != tc.want {
 				t.Errorf("InputKind(%d).String() = %q, want %q", int(tc.kind), got, tc.want)
 			}

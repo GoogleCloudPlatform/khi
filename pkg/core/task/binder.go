@@ -35,6 +35,7 @@ const (
 )
 
 // String returns a human readable name of the input kind.
+// It panics for values other than the declared InputKind constants because they indicate a programming error.
 func (k InputKind) String() string {
 	switch k {
 	case InputKindRequired:
@@ -46,7 +47,7 @@ func (k InputKind) String() string {
 	case InputKindOrdering:
 		return "ordering"
 	default:
-		return fmt.Sprintf("InputKind(%d)", int(k))
+		panic(fmt.Sprintf("unknown InputKind %d", int(k)))
 	}
 }
 
