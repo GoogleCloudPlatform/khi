@@ -87,6 +87,16 @@ func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
 		Name:        "update_inspection_features",
 		Description: "Update the enabled features for an inspection session. Specify all feature IDs that should be enabled; this replaces the current feature selection. Call dry_run_inspection next.",
 	}, h.handleUpdateInspectionFeatures)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "dry_run_inspection",
+		Description: "Dry-run the inspection task DAG with parameters to validate inputs and view planned log queries. Must always be run before run_inspection until all errors are resolved. All times are UTC RFC3339. Warnings do not block run_inspection. Wider time ranges increase execution time and memory usage.",
+	}, h.handleDryRunInspection)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "run_inspection",
+		Description: "Start the inspection with the same parameters as dry_run_inspection. Always call dry_run_inspection first and fix all errors; warnings do not block the run. All times are UTC RFC3339. Wider time ranges increase execution time and memory usage. Returns immediately; call wait_inspection next.",
+	}, h.handleRunInspection)
 }
 
 // mcpUnavailableReason returns a non-empty explanation if the inspection type cannot be used via MCP.

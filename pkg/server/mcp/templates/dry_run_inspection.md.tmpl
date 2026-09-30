@@ -1,0 +1,41 @@
+# Dry run of {{ code .ID }}
+
+Errors: {{ .ErrorCount }}, warnings: {{ .WarningCount }}. {{ if gt .ErrorCount 0 }}Fix the fields with errors and call `dry_run_inspection` again.{{ else }}Ready to run. Call `run_inspection` with the parameters to start the inspection.{{ end }}
+
+## Fields
+{{ range .Groups }}
+### {{ .Title }}
+{{ range .Fields }}
+#### {{ code .ID }}
+- Label: {{ .Label }}
+{{- if .Description }}
+- Description: {{ .Description }}
+{{- end }}
+- Type: {{ .Type }}
+{{- if .Value }}
+- Value: {{ .Value }}
+{{- end }}
+{{- if .Default }}
+- Default: {{ .Default }}
+{{- end }}
+{{- if .Suggestions }}
+- Suggestions: {{ .Suggestions }}
+{{- end }}
+{{- if .Options }}
+- Options: {{ .Options }}
+{{- end }}
+{{- if .Hint }}
+- {{ .HintType }}: {{ .Hint }}
+{{- end }}
+{{ end -}}
+{{ end -}}
+{{ if .Queries }}
+## Queries
+{{ range .Queries }}
+### {{ .Name }} ({{ code .ID }})
+{{- if .EstimatedCount }}
+Estimated logs: {{ .EstimatedCount }}
+{{ end }}
+{{ fence "text" .Query }}
+{{ end -}}
+{{ end }}

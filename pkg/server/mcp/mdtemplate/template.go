@@ -165,6 +165,16 @@ func (s *Set) ToolResult(templateName string, data any) (*mcp.CallToolResult, an
 	}, nil, nil
 }
 
+// ErrorToolResult renders templateName with data and wraps it into an MCP CallToolResult with IsError set to true.
+func (s *Set) ErrorToolResult(templateName string, data any) (*mcp.CallToolResult, any, error) {
+	res, extra, err := s.ToolResult(templateName, data)
+	if err != nil {
+		return nil, nil, err
+	}
+	res.IsError = true
+	return res, extra, nil
+}
+
 // ResourceResult renders templateName with data and wraps it into an MCP ReadResourceResult.
 func (s *Set) ResourceResult(uri, templateName string, data any) (*mcp.ReadResourceResult, error) {
 	text, err := s.Render(templateName, data)

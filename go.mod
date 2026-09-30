@@ -6,6 +6,7 @@ require github.com/google/go-cmp v0.7.0
 
 require (
 	cloud.google.com/go/asset v1.27.0
+	cloud.google.com/go/auth v0.20.0
 	cloud.google.com/go/logging v1.18.0
 	cloud.google.com/go/monitoring v1.29.0
 	connectrpc.com/connect v1.20.0
@@ -33,7 +34,6 @@ require (
 	cel.dev/expr v0.25.1 // indirect
 	cloud.google.com/go v0.123.0 // indirect
 	cloud.google.com/go/accesscontextmanager v1.14.0 // indirect
-	cloud.google.com/go/auth v0.20.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.11.0 // indirect

@@ -396,6 +396,8 @@ func TestInspectionTools_InspectionNotFound(t *testing.T) {
 		args map[string]any
 	}{
 		{tool: "update_inspection_features", args: map[string]any{"inspectionId": "nonexistent-id", "enabledFeatureIds": []string{doneFeatureID}}},
+		{tool: "dry_run_inspection", args: map[string]any{"inspectionId": "nonexistent-id"}},
+		{tool: "run_inspection", args: map[string]any{"inspectionId": "nonexistent-id"}},
 	}
 
 	for _, tc := range testCases {
@@ -530,18 +532,53 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 		checkToolResult(t, "update_inspection_features", text, isError, want, false)
 	})
 
+	t.Run("run and wait until done", func(t *testing.T) {
+		requireInspectionID(t, id)
+		env.runInspection(t, id, map[string]any{})
+		<-env.server.GetInspection(id).Wait()
+	})
+
+	t.Run("list shows the name", func(t *testing.T) {
+		requireInspectionID(t, id)
+		res, err := env.session.ReadResource(env.ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspections"})
+		if err != nil {
+			t.Fatalf("ReadResource(khi://inspections) failed: %v", err)
+		}
+		if len(res.Contents) != 1 {
+			t.Fatalf("len(res.Contents) = %d, want 1", len(res.Contents))
+		}
+		rowPrefix := fmt.Sprintf("| `%s` |", id)
+		var row string
+		for line := range strings.SplitSeq(res.Contents[0].Text, "\n") {
+			if strings.HasPrefix(line, rowPrefix) {
+				row = line
+				break
+			}
+		}
+		// Only the prefix is checked because the time range and label columns depend on the run time and
+		// on metadata written by framework tasks, which this test does not control.
+		wantPrefix := fmt.Sprintf("| `%s` | %s | Google Kubernetes Engine | DONE |", id, inspectionName)
+		if !strings.HasPrefix(row, wantPrefix) {
+			t.Errorf("inspection row = %q, want prefix %q\nfull list:\n%s", row, wantPrefix, res.Contents[0].Text)
+		}
+	})
+
 	t.Run("already started", func(t *testing.T) {
 		requireInspectionID(t, id)
-		runner := env.server.GetInspection(id)
-		if err := runner.Run(env.ctx, &inspectioncore.InspectionRequest{}); err != nil {
-			t.Fatalf("runner.Run() failed: %v", err)
-		}
-		<-runner.Wait()
 		want := fmt.Sprintf("Error: INSPECTION_ALREADY_STARTED\n\n- Inspection `%s` has already been started.\n- Create a new inspection with `create_inspection`.", id)
-		text, isError := callTool(t, env.ctx, env.session, "update_inspection_features", map[string]any{
-			"inspectionId":      id,
-			"enabledFeatureIds": []string{doneFeatureID},
-		})
-		checkToolResult(t, "update_inspection_features", text, isError, want, true)
+		testCases := []struct {
+			tool string
+			args map[string]any
+		}{
+			{tool: "update_inspection_features", args: map[string]any{"inspectionId": id, "enabledFeatureIds": []string{doneFeatureID}}},
+			{tool: "dry_run_inspection", args: map[string]any{"inspectionId": id}},
+			{tool: "run_inspection", args: map[string]any{"inspectionId": id}},
+		}
+		for _, tc := range testCases {
+			t.Run(tc.tool, func(t *testing.T) {
+				text, isError := callTool(t, env.ctx, env.session, tc.tool, tc.args)
+				checkToolResult(t, tc.tool, text, isError, want, true)
+			})
+		}
 	})
 }

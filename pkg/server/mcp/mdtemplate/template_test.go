@@ -537,6 +537,28 @@ func TestSet_InspectionsGolden(t *testing.T) {
 		t.Errorf("ToolResult content mismatch (-want +got):\n%s", diff)
 	}
 
+	// Verify ErrorToolResult wrapping
+	errToolResult, errExtra, err := ts.ErrorToolResult("inspections.md.tmpl", data)
+	if err != nil {
+		t.Fatalf("ts.ErrorToolResult() error: %v", err)
+	}
+	if errExtra != nil {
+		t.Errorf("errExtra = %v, want nil", errExtra)
+	}
+	if !errToolResult.IsError {
+		t.Error("errToolResult.IsError = false, want true")
+	}
+	if len(errToolResult.Content) != 1 {
+		t.Fatalf("len(errToolResult.Content) = %d, want 1", len(errToolResult.Content))
+	}
+	errTextItem, ok := errToolResult.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("errToolResult.Content[0] type is %T, want *mcp.TextContent", errToolResult.Content[0])
+	}
+	if diff := cmp.Diff(want, errTextItem.Text); diff != "" {
+		t.Errorf("ErrorToolResult content mismatch (-want +got):\n%s", diff)
+	}
+
 	// Verify ResourceResult wrapping
 	resResult, err := ts.ResourceResult("khi://inspections", "inspections.md.tmpl", data)
 	if err != nil {
