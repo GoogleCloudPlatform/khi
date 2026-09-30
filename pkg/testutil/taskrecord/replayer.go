@@ -93,18 +93,35 @@ func ResolveTaskTypeFromTaskSet(taskSet *coretask.TaskSet, taskRef taskid.Untype
 	return nil, false
 }
 
+// replayStubTask returns a recorded value while reporting the result type of the recorded task.
+// Graph resolution checks producer result types, so the stub must report the type that consumers expect instead of any.
+type replayStubTask struct {
+	*coretask.TaskImpl[any]
+	resultType reflect.Type
+}
+
+var _ coretask.UntypedTask = (*replayStubTask)(nil)
+
+// ResultType implements coretask.UntypedTask.
+func (s *replayStubTask) ResultType() reflect.Type {
+	return s.resultType
+}
+
 // newReplayStubTask creates a stub task with highest selection priority and no upstream dependencies.
-func newReplayStubTask(taskRef taskid.UntypedTaskReference, val any) coretask.UntypedTask {
+func newReplayStubTask(taskRef taskid.UntypedTaskReference, resultType reflect.Type, val any) coretask.UntypedTask {
 	typedRef := taskid.NewTaskReference[any](taskRef.ReferenceIDString())
 	implID := taskid.NewImplementationID(typedRef, "replay")
-	return coretask.NewTask[any](
-		implID,
-		[]coretask.Dependency{},
-		func(ctx context.Context) (any, error) {
-			return val, nil
-		},
-		coretask.WithSelectionPriority(1000000),
-	)
+	return &replayStubTask{
+		TaskImpl: coretask.NewTask[any](
+			implID,
+			[]coretask.Dependency{},
+			func(ctx context.Context) (any, error) {
+				return val, nil
+			},
+			coretask.WithSelectionPriority(1000000),
+		),
+		resultType: resultType,
+	}
 }
 
 // newReplayInspectionInterceptor creates an InspectionInterceptor managing isolated execution and profiling.
