@@ -182,6 +182,11 @@ func (i *InspectionTaskRunner) Started() bool {
 	return i.runner != nil
 }
 
+// InspectionTypeID returns the inspection type ID configured for this runner.
+func (i *InspectionTaskRunner) InspectionTypeID() string {
+	return i.currentInspectionType
+}
+
 // SetInspectionType sets the type of inspection and initializes the available tasks.
 // It filters the root task set from the server to get tasks relevant to the specified inspectionType.
 func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {

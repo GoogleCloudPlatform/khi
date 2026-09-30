@@ -222,3 +222,226 @@ func TestInMemoryInspectionNameRegistry_ReserveName(t *testing.T) {
 		})
 	}
 }
+
+// TestInMemoryInspectionNameRegistry_NameOf verifies retrieving reserved inspection names.
+func TestInMemoryInspectionNameRegistry_NameOf(t *testing.T) {
+	testCases := []struct {
+		name         string
+		setup        func(r *InMemoryInspectionNameRegistry)
+		inspectionID string
+		wantName     string
+		wantExists   bool
+	}{
+		{
+			name:         "returns false when no name is reserved for inspection",
+			setup:        func(r *InMemoryInspectionNameRegistry) {},
+			inspectionID: "insp-1",
+			wantName:     "",
+			wantExists:   false,
+		},
+		{
+			name: "returns reserved name and true when name is reserved",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("insp-1", "My Inspection")
+			},
+			inspectionID: "insp-1",
+			wantName:     "My Inspection",
+			wantExists:   true,
+		},
+		{
+			name: "returns updated name after renaming",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("insp-1", "Initial Name")
+				_ = r.ReserveName("insp-1", "Updated Name")
+			},
+			inspectionID: "insp-1",
+			wantName:     "Updated Name",
+			wantExists:   true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := NewInMemoryInspectionNameRegistry()
+			if tc.setup != nil {
+				tc.setup(r)
+			}
+			gotName, gotExists := r.NameOf(tc.inspectionID)
+			if gotExists != tc.wantExists {
+				t.Errorf("NameOf() exists = %v, want %v", gotExists, tc.wantExists)
+			}
+			if gotName != tc.wantName {
+				t.Errorf("NameOf() name = %q, want %q", gotName, tc.wantName)
+			}
+		})
+	}
+}
+
+// TestInMemoryInspectionNameRegistry_IsNameAvailable verifies name availability checks.
+func TestInMemoryInspectionNameRegistry_IsNameAvailable(t *testing.T) {
+	testCases := []struct {
+		name         string
+		setup        func(r *InMemoryInspectionNameRegistry)
+		inspectionID string
+		checkName    string
+		want         bool
+	}{
+		{
+			name:         "returns true when name is unused",
+			setup:        func(r *InMemoryInspectionNameRegistry) {},
+			inspectionID: "insp-1",
+			checkName:    "Unused Name",
+			want:         true,
+		},
+		{
+			name: "returns true when name is reserved by the same inspection",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("insp-1", "My Name")
+			},
+			inspectionID: "insp-1",
+			checkName:    "My Name",
+			want:         true,
+		},
+		{
+			name: "returns false when name is reserved by another inspection",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("other-insp", "Taken Name")
+			},
+			inspectionID: "insp-1",
+			checkName:    "Taken Name",
+			want:         false,
+		},
+		{
+			name:         "returns false on empty string",
+			setup:        func(r *InMemoryInspectionNameRegistry) {},
+			inspectionID: "insp-1",
+			checkName:    "",
+			want:         false,
+		},
+		{
+			name:         "returns false on whitespace string",
+			setup:        func(r *InMemoryInspectionNameRegistry) {},
+			inspectionID: "insp-1",
+			checkName:    "   ",
+			want:         false,
+		},
+		{
+			name: "returns false on padded name reserved by another inspection",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("other-insp", "My Name")
+			},
+			inspectionID: "insp-1",
+			checkName:    "  My Name  ",
+			want:         false,
+		},
+		{
+			name: "returns true on padded name reserved by the same inspection",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("insp-1", "My Name")
+			},
+			inspectionID: "insp-1",
+			checkName:    "  My Name  ",
+			want:         true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := NewInMemoryInspectionNameRegistry()
+			if tc.setup != nil {
+				tc.setup(r)
+			}
+			got := r.IsNameAvailable(tc.inspectionID, tc.checkName)
+			if got != tc.want {
+				t.Errorf("IsNameAvailable() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestInMemoryInspectionNameRegistry_ReserveUniqueName verifies that a unique name is resolved and reserved in one step.
+func TestInMemoryInspectionNameRegistry_ReserveUniqueName(t *testing.T) {
+	testCases := []struct {
+		name         string
+		setup        func(r *InMemoryInspectionNameRegistry)
+		inspectionID string
+		baseName     string
+		want         string
+		// releasedName is a name expected to become reservable by another inspection after the call.
+		releasedName string
+	}{
+		{
+			name:         "returns baseName when unused",
+			setup:        func(r *InMemoryInspectionNameRegistry) {},
+			inspectionID: "insp-1",
+			baseName:     "GKE Cluster",
+			want:         "GKE Cluster",
+		},
+		{
+			name: "returns baseName(1) when baseName is reserved by another inspection",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("other-insp", "GKE Cluster")
+			},
+			inspectionID: "insp-1",
+			baseName:     "GKE Cluster",
+			want:         "GKE Cluster(1)",
+		},
+		{
+			name: "returns baseName(2) when baseName and baseName(1) are reserved by other inspections",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("other-1", "GKE Cluster")
+				_ = r.ReserveName("other-2", "GKE Cluster(1)")
+			},
+			inspectionID: "insp-1",
+			baseName:     "GKE Cluster",
+			want:         "GKE Cluster(2)",
+		},
+		{
+			name: "keeps baseName when already reserved by the same inspectionID",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("insp-1", "GKE Cluster")
+			},
+			inspectionID: "insp-1",
+			baseName:     "GKE Cluster",
+			want:         "GKE Cluster",
+		},
+		{
+			name:         "falls back to Inspection when baseName is whitespace only",
+			setup:        func(r *InMemoryInspectionNameRegistry) {},
+			inspectionID: "insp-1",
+			baseName:     "   ",
+			want:         "Inspection",
+		},
+		{
+			name: "releases the previous name of the same inspectionID",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("insp-1", "Old Name")
+			},
+			inspectionID: "insp-1",
+			baseName:     "New Name",
+			want:         "New Name",
+			releasedName: "Old Name",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := NewInMemoryInspectionNameRegistry()
+			tc.setup(r)
+			got := r.ReserveUniqueName(tc.inspectionID, tc.baseName)
+			if got != tc.want {
+				t.Errorf("ReserveUniqueName() = %q, want %q", got, tc.want)
+			}
+			gotName, gotExists := r.NameOf(tc.inspectionID)
+			if !gotExists || gotName != tc.want {
+				t.Errorf("NameOf() = (%q, %v), want (%q, true)", gotName, gotExists, tc.want)
+			}
+			if r.IsNameAvailable("another-insp", tc.want) {
+				t.Errorf("IsNameAvailable(%q) = true for another inspection, want false", tc.want)
+			}
+			if tc.releasedName != "" && !r.IsNameAvailable("another-insp", tc.releasedName) {
+				t.Errorf("IsNameAvailable(%q) = false for another inspection, want true", tc.releasedName)
+			}
+		})
+	}
+}

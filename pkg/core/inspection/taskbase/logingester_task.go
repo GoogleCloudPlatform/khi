@@ -25,7 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -135,7 +134,6 @@ func NewLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], ingester L
 		}
 
 		slog.DebugContext(ctx, fmt.Sprintf("LogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), len(logs), skippedLogCount.Load()))
-		summary.AddIntProperty(ctx, "ingestedLogs", len(logs))
 
 		tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 		if tracingActive {

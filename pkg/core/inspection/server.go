@@ -199,18 +199,9 @@ func (s *InspectionTaskServer) InspectionNameRegistry() inspectioncore.Inspectio
 func (s *InspectionTaskServer) RegisterImportedInspection(id string, store inspectioncore.Store, metadata *typedmap.ReadonlyTypedMap) *InspectionTaskRunner {
 	if metadata != nil {
 		if header, found := typedmap.Get(metadata, inspectionmetadata.HeaderMetadataKey); found && header != nil {
-			baseName := header.InspectionName
-			if strings.TrimSpace(baseName) == "" {
-				baseName = "Inspection"
-			}
-			for {
-				uniqueName := s.inspectionNameRegistry.ResolveUniqueName(id, baseName)
-				if err := s.inspectionNameRegistry.ReserveName(id, uniqueName); err == nil {
-					header.InspectionName = uniqueName
-					header.SuggestedFileName = fmt.Sprintf("%s.khi", uniqueName)
-					break
-				}
-			}
+			uniqueName := s.inspectionNameRegistry.ReserveUniqueName(id, header.InspectionName)
+			header.InspectionName = uniqueName
+			header.SuggestedFileName = fmt.Sprintf("%s.khi", uniqueName)
 		}
 	}
 	runner := NewImportedInspectionRunner(s, s.ioConfig, id, store, metadata, s.runContextOptions...)

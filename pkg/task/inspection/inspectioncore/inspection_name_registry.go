@@ -35,9 +35,21 @@ type InspectionNameRegistry interface {
 	// It does not modify any reservations.
 	ResolveUniqueName(inspectionID string, baseName string) string
 
+	// ReserveUniqueName resolves a unique name in the same way as ResolveUniqueName and reserves it
+	// for inspectionID in one atomic step, so that concurrent callers never receive the same name.
+	// It releases any previous reservation held by inspectionID and returns the reserved name.
+	ReserveUniqueName(inspectionID string, baseName string) string
+
 	// ReserveName atomically validates that name is non-empty and not reserved by another inspection,
 	// and reserves it for inspectionID, releasing any previous reservation held by inspectionID.
 	ReserveName(inspectionID string, name string) error
+
+	// NameOf returns the name reserved for inspectionID and true, or empty string and false if no name is reserved.
+	NameOf(inspectionID string) (string, bool)
+
+	// IsNameAvailable returns true if the trimmed name is non-empty and is either not reserved or reserved by ownerID.
+	// An empty ownerID treats every reservation as taken, which suits checks made before the inspection exists.
+	IsNameAvailable(ownerID string, name string) bool
 }
 
 // InMemoryInspectionNameRegistry is a thread-safe in-memory implementation of InspectionNameRegistry.
@@ -60,7 +72,20 @@ func NewInMemoryInspectionNameRegistry() *InMemoryInspectionNameRegistry {
 func (r *InMemoryInspectionNameRegistry) ResolveUniqueName(inspectionID string, baseName string) string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	return r.resolveUniqueNameLocked(inspectionID, baseName)
+}
 
+// ReserveUniqueName resolves a unique name from baseName and reserves it for inspectionID under a single lock.
+func (r *InMemoryInspectionNameRegistry) ReserveUniqueName(inspectionID string, baseName string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	name := r.resolveUniqueNameLocked(inspectionID, baseName)
+	r.reserveLocked(inspectionID, name)
+	return name
+}
+
+// resolveUniqueNameLocked implements ResolveUniqueName. The caller must hold r.mu.
+func (r *InMemoryInspectionNameRegistry) resolveUniqueNameLocked(inspectionID string, baseName string) string {
 	trimmedBase := strings.TrimSpace(baseName)
 	if trimmedBase == "" {
 		trimmedBase = "Inspection"
@@ -92,12 +117,39 @@ func (r *InMemoryInspectionNameRegistry) ReserveName(inspectionID string, name s
 		return ErrInspectionNameAlreadyInUse
 	}
 
-	if prevName, hasPrev := r.nameByID[inspectionID]; hasPrev && prevName != trimmed {
+	r.reserveLocked(inspectionID, trimmed)
+	return nil
+}
+
+// reserveLocked assigns name to inspectionID and releases its previous name. The caller must hold r.mu
+// for writing and must have verified that name is not reserved by another inspection.
+func (r *InMemoryInspectionNameRegistry) reserveLocked(inspectionID string, name string) {
+	if prevName, hasPrev := r.nameByID[inspectionID]; hasPrev && prevName != name {
 		delete(r.idByName, prevName)
 	}
-	r.nameByID[inspectionID] = trimmed
-	r.idByName[trimmed] = inspectionID
-	return nil
+	r.nameByID[inspectionID] = name
+	r.idByName[name] = inspectionID
+}
+
+// NameOf returns the name reserved for inspectionID and true, or empty string and false if no name is reserved.
+func (r *InMemoryInspectionNameRegistry) NameOf(inspectionID string) (string, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	name, exists := r.nameByID[inspectionID]
+	return name, exists
+}
+
+// IsNameAvailable returns true if the trimmed name is non-empty and is either not reserved or reserved by ownerID.
+// An empty ownerID treats every reservation as taken.
+func (r *InMemoryInspectionNameRegistry) IsNameAvailable(ownerID string, name string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return false
+	}
+	reservedBy, exists := r.idByName[trimmed]
+	return !exists || reservedBy == ownerID
 }
 
 var _ InspectionNameRegistry = (*InMemoryInspectionNameRegistry)(nil)
