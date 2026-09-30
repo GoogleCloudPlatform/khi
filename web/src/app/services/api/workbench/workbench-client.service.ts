@@ -804,15 +804,20 @@ export class WorkbenchClientService implements OnDestroy {
       throw new Error('No active Workbench session found.');
     }
 
-    return await this.connectClient.workbenchClient.getArchitectureGraph(
-      {
-        workbenchId,
-        timestampNs,
-        timelineBitset,
-        deletionThresholdSeconds,
-      },
-      { signal },
-    );
+    try {
+      return await this.connectClient.workbenchClient.getArchitectureGraph(
+        {
+          workbenchId,
+          timestampNs,
+          timelineBitset,
+          deletionThresholdSeconds,
+        },
+        { signal },
+      );
+    } catch (e) {
+      this.handleSessionError(e);
+      throw e;
+    }
   }
 
   private startHeartbeat(workbenchId: string): void {

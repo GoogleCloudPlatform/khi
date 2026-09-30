@@ -14,7 +14,11 @@
 
 package parameters
 
-import "github.com/GoogleCloudPlatform/khi/pkg/common/flag"
+import (
+	"fmt"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
+)
 
 var Server *ServerParameters = &ServerParameters{}
 
@@ -31,6 +35,8 @@ type ServerParameters struct {
 	FrontendAssetFolder *string
 	// MaxUploadFileSizeInBytes is the maximum limit of uploaded file. Server returns 400 when the request exceeds it.
 	MaxUploadFileSizeInBytes *int
+	// MaxLoadedInspections is the maximum number of inspections kept loaded in memory for the browser and MCP at the same time.
+	MaxLoadedInspections *int
 }
 
 // PostProcess implements ParameterStore.
@@ -40,6 +46,9 @@ func (s *ServerParameters) PostProcess() error {
 		*s.FrontendResourceBasePath = *s.BasePath
 	}
 	ensureEndsWithSlash(s.FrontendResourceBasePath)
+	if *s.MaxLoadedInspections < 1 {
+		return fmt.Errorf("--max-loaded-inspections must be 1 or greater, got %d", *s.MaxLoadedInspections)
+	}
 	return nil
 }
 
@@ -51,6 +60,7 @@ func (s *ServerParameters) Prepare() error {
 	s.FrontendResourceBasePath = flag.String("frontend-resource-base-path", "", "Another base address only for frontend assets. If this value is not set, this uses `--base-path` value by default.", "KHI_FRONTEND_RESOURCE_PATH")
 	s.FrontendAssetFolder = flag.String("frontend-asset-folder", "", "The root folder of the assets used in frontend including index.html. If this value is not set, the assets embedded into the executable are used.", "KHI_FRONTEND_ASSET_FOLDER")
 	s.MaxUploadFileSizeInBytes = flag.Int("max-upload-file-size-in-bytes", 1024*1024*1024, "The maximum limit of uploaded file. Server returns 400 when the request exceeds it.", "")
+	s.MaxLoadedInspections = flag.Int("max-loaded-inspections", 3, "The maximum number of inspections kept loaded in memory at the same time. When loading another inspection would exceed it, the least recently used inspection that is not in use is released from memory.", "KHI_MAX_LOADED_INSPECTIONS")
 	return nil
 }
 

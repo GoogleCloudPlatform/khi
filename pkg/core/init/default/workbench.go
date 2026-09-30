@@ -15,8 +15,6 @@
 package defaultinit
 
 import (
-	"time"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
@@ -72,8 +70,9 @@ var WorkbenchServiceInitializer = &coreinit.Initializer{
 		indexManager := coreinit.MustGet(ctx, InspectionIndexManagerKey)
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
+		serverParams := coreinit.MustGet(ctx, ServerParametersKey)
 
-		workbenchManager := workbench.NewWorkbenchManager(inspectionServer, indexManager, 15*time.Minute, 15*time.Second)
+		workbenchManager := workbench.NewWorkbenchManager(inspectionServer, indexManager, *serverParams.MaxLoadedInspections)
 		coreinit.Set(ctx, WorkbenchManagerKey, workbenchManager)
 
 		workbenchPath, workbenchHandler := apiv1connect.NewWorkbenchServiceHandler(apiv1impl.NewWorkbenchServiceServer(workbenchManager))

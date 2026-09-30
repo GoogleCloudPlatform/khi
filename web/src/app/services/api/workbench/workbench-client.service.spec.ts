@@ -953,17 +953,9 @@ describe('WorkbenchClientService', () => {
     });
 
     it('should call getArchitectureGraph RPC on active workbench', async () => {
-      async function* mockOpenStream() {
-        yield {
-          stage: OpenWorkbenchResponse_Stage.READY,
-          progressPercentage: 100,
-          message: 'Ready',
-          workbenchId: 'wb-1',
-        };
-      }
       (
         mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
-      ).and.returnValue(mockOpenStream());
+      ).and.returnValue(mockOpenWorkbenchReady('wb-1'));
       await service.openWorkbench('session-1', 'insp-1');
 
       const expectedResponse = create(GetArchitectureGraphResponseSchema, {
@@ -995,6 +987,22 @@ describe('WorkbenchClientService', () => {
         },
         { signal: undefined },
       );
+    });
+
+    it('should mark session expired when getArchitectureGraph fails with NotFound', async () => {
+      (
+        mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+      ).and.returnValue(mockOpenWorkbenchReady('wb-1'));
+      await service.openWorkbench('session-1', 'insp-1');
+
+      (
+        mockConnectClient.workbenchClient.getArchitectureGraph as jasmine.Spy
+      ).and.returnValue(
+        Promise.reject(new ConnectError('workbench not found', Code.NotFound)),
+      );
+
+      await expectAsync(service.getArchitectureGraph(1000n)).toBeRejected();
+      expect(service.isWorkbenchExpired()).toBeTrue();
     });
   });
 });

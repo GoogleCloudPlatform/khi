@@ -42,20 +42,19 @@ func NewWorkbenchServiceServer(manager *workbench.WorkbenchManager) *WorkbenchSe
 	}
 }
 
-// OpenWorkbench opens or attaches to an in-memory Workbench session, streaming progress stages back to the client.
+// OpenWorkbench opens the shared Workbench of an inspection, loading it if needed, and streams progress stages back to the client.
+// The returned workbench ID is the inspection ID because every browser and MCP client shares one workbench per inspection.
 func (s *WorkbenchServiceServer) OpenWorkbench(
 	ctx context.Context,
 	req *connect.Request[apiv1.OpenWorkbenchRequest],
 	stream *connect.ServerStream[apiv1.OpenWorkbenchResponse],
 ) error {
 	msg := req.Msg
-	if msg.GetUserId() == "" || msg.GetSessionId() == "" || msg.GetInspectionId() == "" {
-		return connect.NewError(connect.CodeInvalidArgument, errors.New("user_id, session_id, and inspection_id are required"))
+	if msg.GetInspectionId() == "" {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("inspection_id is required"))
 	}
 
-	workbenchID := fmt.Sprintf("%s-%s", msg.GetUserId(), msg.GetSessionId())
-
-	wb, err := s.manager.GetOrOpen(ctx, workbenchID, msg.GetInspectionId(), func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+	wb, err := s.manager.Open(ctx, msg.GetInspectionId(), workbench.AccessorBrowser, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
 		res := &apiv1.OpenWorkbenchResponse{
 			Stage:              stage.Enum(),
 			ProgressPercentage: proto.Float64(progressPercentage),
@@ -77,19 +76,18 @@ func (s *WorkbenchServiceServer) OpenWorkbench(
 	return stream.Send(finalRes)
 }
 
-// OpenWorkbenchSync opens or polls loading progress of a Workbench session without streaming.
+// OpenWorkbenchSync opens or polls loading progress of the shared Workbench of an inspection without streaming.
 func (s *WorkbenchServiceServer) OpenWorkbenchSync(
 	ctx context.Context,
 	req *connect.Request[apiv1.OpenWorkbenchSyncRequest],
 ) (*connect.Response[apiv1.OpenWorkbenchSyncResponse], error) {
 	msg := req.Msg
-	if msg.GetJobId() == "" && (msg.GetUserId() == "" || msg.GetSessionId() == "" || msg.GetInspectionId() == "") {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("user_id, session_id, and inspection_id are required"))
+	if msg.GetJobId() == "" && msg.GetInspectionId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("inspection_id is required"))
 	}
 
-	workbenchID := fmt.Sprintf("%s-%s", msg.GetUserId(), msg.GetSessionId())
 	runner := func(jobCtx context.Context, onProgress func(*apiv1.OpenWorkbenchSyncResponse) error) (string, error) {
-		wb, err := s.manager.GetOrOpen(jobCtx, workbenchID, msg.GetInspectionId(), func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
+		wb, err := s.manager.Open(jobCtx, msg.GetInspectionId(), workbench.AccessorBrowser, func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error {
 			return onProgress(&apiv1.OpenWorkbenchSyncResponse{
 				Stage:              stage.Enum(),
 				ProgressPercentage: proto.Float64(progressPercentage),
@@ -161,7 +159,7 @@ func (s *WorkbenchServiceServer) WatchIndexProgress(
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
 	}
 
-	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	wb, err := s.manager.Get(msg.GetWorkbenchId(), workbench.AccessorBrowser)
 	if err != nil {
 		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
 			return connect.NewError(connect.CodeNotFound, err)
@@ -225,7 +223,7 @@ func (s *WorkbenchServiceServer) PullIndexProgress(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
 	}
 
-	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	wb, err := s.manager.Get(msg.GetWorkbenchId(), workbench.AccessorBrowser)
 	if err != nil {
 		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -255,7 +253,8 @@ func (s *WorkbenchServiceServer) PullIndexProgress(
 	}), nil
 }
 
-// HeartbeatWorkbench refreshes the lease expiration time for an active Workbench session.
+// HeartbeatWorkbench records that the browser still shows the workbench, which keeps it from being preferred for eviction.
+// It reports active=false instead of an error when the workbench was evicted, so the frontend can prompt the user to reload it.
 func (s *WorkbenchServiceServer) HeartbeatWorkbench(
 	ctx context.Context,
 	req *connect.Request[apiv1.HeartbeatWorkbenchRequest],
@@ -265,17 +264,8 @@ func (s *WorkbenchServiceServer) HeartbeatWorkbench(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
 	}
 
-	_, expiresAt, err := s.manager.Heartbeat(msg.GetWorkbenchId())
-	if err != nil {
-		if errors.Is(err, workbench.ErrWorkbenchNotFound) {
-			return nil, connect.NewError(connect.CodeNotFound, err)
-		}
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-
 	res := &apiv1.HeartbeatWorkbenchResponse{
-		Active:    proto.Bool(true),
-		ExpiresAt: timestamppb.New(expiresAt),
+		Active: proto.Bool(s.manager.Heartbeat(msg.GetWorkbenchId())),
 	}
 	return connect.NewResponse(res), nil
 }
@@ -295,7 +285,7 @@ func (s *WorkbenchServiceServer) ReadStructYAMLs(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("struct_ids cannot exceed %d items", maxStructIDsPerBatch))
 	}
 
-	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	wb, err := s.manager.Get(msg.GetWorkbenchId(), workbench.AccessorBrowser)
 	if err != nil {
 		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -342,7 +332,7 @@ func (s *WorkbenchServiceServer) GetTimelineIDsForLogs(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
 	}
 
-	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	wb, err := s.manager.Get(msg.GetWorkbenchId(), workbench.AccessorBrowser)
 	if err != nil {
 		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -388,7 +378,7 @@ func (s *WorkbenchServiceServer) FilterTimeline(
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
 	}
 
-	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	wb, err := s.manager.Get(msg.GetWorkbenchId(), workbench.AccessorBrowser)
 	if err != nil {
 		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
 			return connect.NewError(connect.CodeNotFound, err)
@@ -438,7 +428,7 @@ func (s *WorkbenchServiceServer) FilterTimelineSync(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
 	}
 
-	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	wb, err := s.manager.Get(msg.GetWorkbenchId(), workbench.AccessorBrowser)
 	if err != nil {
 		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -502,7 +492,7 @@ func (s *WorkbenchServiceServer) CancelFilterTimelineSync(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id and job_id are required"))
 	}
 
-	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	wb, err := s.manager.Get(msg.GetWorkbenchId(), workbench.AccessorBrowser)
 	if err != nil {
 		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -516,7 +506,8 @@ func (s *WorkbenchServiceServer) CancelFilterTimelineSync(
 	}), nil
 }
 
-// CloseWorkbench explicitly closes and frees the specified Workbench session.
+// CloseWorkbench records that the browser stopped showing the workbench so that it becomes a candidate for eviction.
+// The workbench stays loaded because other browsers or MCP clients may share it. Unknown or evicted workbench IDs still succeed.
 func (s *WorkbenchServiceServer) CloseWorkbench(
 	ctx context.Context,
 	req *connect.Request[apiv1.CloseWorkbenchRequest],
@@ -526,9 +517,7 @@ func (s *WorkbenchServiceServer) CloseWorkbench(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
 	}
 
-	if err := s.manager.Close(msg.GetWorkbenchId()); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
+	s.manager.MarkBrowserClosed(msg.GetWorkbenchId())
 
 	res := &apiv1.CloseWorkbenchResponse{
 		Closed: proto.Bool(true),
@@ -546,7 +535,7 @@ func (s *WorkbenchServiceServer) GetArchitectureGraph(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
 	}
 
-	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	wb, err := s.manager.Get(msg.GetWorkbenchId(), workbench.AccessorBrowser)
 	if err != nil {
 		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
 			return nil, connect.NewError(connect.CodeNotFound, err)

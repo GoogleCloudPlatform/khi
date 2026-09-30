@@ -17,6 +17,7 @@ package workbench
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/google/go-cmp/cmp"
 )
 
 func createTestInspectionServer(t *testing.T) (*coreinspection.InspectionTaskServer, string) {
@@ -65,292 +67,500 @@ func createTestInspectionServer(t *testing.T) (*coreinspection.InspectionTaskSer
 		t.Fatalf("failed to add task: %v", err)
 	}
 
-	inspectionID, err := server.CreateInspection(inspectionType.Id)
+	return server, runTestInspection(t, server)
+}
+
+// runTestInspection creates and runs one more inspection on the server and returns its ID.
+func runTestInspection(t *testing.T, server *coreinspection.InspectionTaskServer) string {
+	t.Helper()
+	inspectionID, err := server.CreateInspection("test-type")
 	if err != nil {
 		t.Fatalf("failed to create inspection: %v", err)
 	}
-
 	runner := server.GetInspection(inspectionID)
 	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
 		t.Fatalf("failed to run inspection: %v", err)
 	}
 	<-runner.Wait()
-
-	return server, inspectionID
+	return inspectionID
 }
 
-func TestWorkbenchManager_GetOrOpen(t *testing.T) {
+// newTestManager creates a manager whose background indexing is awaited before the test's temporary directories are removed.
+func newTestManager(t *testing.T, inspectionServer *coreinspection.InspectionTaskServer, maxWorkbenches int) *WorkbenchManager {
+	t.Helper()
+	indexMgr := NewInspectionIndexManager(inspectionServer, t.TempDir())
+	mgr := NewWorkbenchManager(inspectionServer, indexMgr, maxWorkbenches)
+	t.Cleanup(func() {
+		mgr.mu.Lock()
+		var loaded []*Workbench
+		for _, e := range mgr.entries {
+			if e.load.isLoaded() {
+				loaded = append(loaded, e.load.wb)
+			}
+		}
+		mgr.mu.Unlock()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		for _, wb := range loaded {
+			if state, _, _, _ := wb.IndexStatus(); state == IndexStateBuilding {
+				_ = wb.AwaitIndex(ctx)
+			}
+			wb.Close()
+		}
+		indexMgr.Wait()
+	})
+	return mgr
+}
+
+// fakeClock is a manually advanced clock injected into the manager so tests can simulate long idle periods without sleeping.
+type fakeClock struct {
+	mu  sync.Mutex
+	now time.Time
+}
+
+func newFakeClock(mgr *WorkbenchManager) *fakeClock {
+	c := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	mgr.now = c.Now
+	return c
+}
+
+func (c *fakeClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
+
+func (c *fakeClock) Advance(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.now = c.now.Add(d)
+}
+
+func noopProgress(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error {
+	return nil
+}
+
+func TestWorkbenchManager_Open(t *testing.T) {
 	inspectionServer, validInspectionID := createTestInspectionServer(t)
 
 	testCases := []struct {
 		name         string
-		workbenchID  string
 		inspectionID string
-		wantErr      bool
+		wantErrIs    error
 	}{
 		{
-			name:         "opens new workbench successfully",
-			workbenchID:  "user-session-1",
+			name:         "opens a workbench identified by the inspection ID",
 			inspectionID: validInspectionID,
-			wantErr:      false,
 		},
 		{
-			name:         "fails when inspection data not found",
-			workbenchID:  "user-session-2",
+			name:         "fails when the inspection does not exist",
 			inspectionID: "invalid-inspection",
-			wantErr:      true,
+			wantErrIs:    ErrInspectionNotFound,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			indexMgr := NewInspectionIndexManager(inspectionServer, t.TempDir())
-			mgr := NewWorkbenchManager(inspectionServer, indexMgr, 100*time.Millisecond, 0)
-			defer mgr.Stop()
+			mgr := newTestManager(t, inspectionServer, 3)
 
-			var progressEvents []apiv1.OpenWorkbenchResponse_Stage
-			progressCb := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error {
-				progressEvents = append(progressEvents, stage)
+			var stages []apiv1.OpenWorkbenchResponse_Stage
+			wb, err := mgr.Open(context.Background(), tc.inspectionID, AccessorBrowser, func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error {
+				stages = append(stages, stage)
 				return nil
-			}
-
-			wb, err := mgr.GetOrOpen(context.Background(), tc.workbenchID, tc.inspectionID, progressCb)
-			if (err != nil) != tc.wantErr {
-				t.Fatalf("GetOrOpen() error = %v, wantErr = %v", err, tc.wantErr)
-			}
-			if tc.wantErr {
-				return
-			}
-
-			if wb.ID() != tc.workbenchID {
-				t.Errorf("wb.ID() = %q, want %q", wb.ID(), tc.workbenchID)
-			}
-
-			if len(progressEvents) == 0 {
-				t.Errorf("expected progress events to be captured")
-			}
-			if progressEvents[len(progressEvents)-1] != apiv1.OpenWorkbenchResponse_STAGE_READY {
-				t.Errorf("final progress stage = %v, want STAGE_READY", progressEvents[len(progressEvents)-1])
-			}
-		})
-	}
-}
-
-func TestWorkbenchManager_HeartbeatAndClose(t *testing.T) {
-	inspectionServer, validInspectionID := createTestInspectionServer(t)
-
-	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 50*time.Millisecond, 0)
-	defer mgr.Stop()
-
-	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
-
-	wb, err := mgr.GetOrOpen(context.Background(), "user-session-1", validInspectionID, noopProgress)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// 1. Heartbeat succeeds
-	_, expiresAt, err := mgr.Heartbeat(wb.ID())
-	if err != nil {
-		t.Fatalf("Heartbeat() error = %v", err)
-	}
-	if !expiresAt.After(time.Now()) {
-		t.Errorf("expiresAt %v should be after current time", expiresAt)
-	}
-
-	// 2. Heartbeat on unknown ID fails
-	if _, _, err := mgr.Heartbeat("non-existent"); !errors.Is(err, ErrWorkbenchNotFound) {
-		t.Errorf("Heartbeat() error = %v, want ErrWorkbenchNotFound", err)
-	}
-
-	// 3. Close frees session
-	if err := mgr.Close(wb.ID()); err != nil {
-		t.Fatalf("Close() error = %v", err)
-	}
-	if _, err := mgr.Get(wb.ID()); !errors.Is(err, ErrWorkbenchNotFound) {
-		t.Errorf("Get() after Close() error = %v, want ErrWorkbenchNotFound", err)
-	}
-}
-
-func TestWorkbenchManager_LeasesAndRemove(t *testing.T) {
-	inspectionServer, validInspectionID := createTestInspectionServer(t)
-
-	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 50*time.Millisecond, 0)
-	defer mgr.Stop()
-
-	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
-
-	wb, err := mgr.GetOrOpen(context.Background(), "user-session-1", validInspectionID, noopProgress)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	leases := mgr.Leases()
-	expiresAt, ok := leases[wb.ID()]
-	if !ok {
-		t.Fatalf("expected leases to contain %q", wb.ID())
-	}
-	if !expiresAt.After(time.Now()) {
-		t.Errorf("expected lease expiration to be in the future, got %v", expiresAt)
-	}
-
-	// Remove frees session
-	mgr.Remove(wb.ID())
-	if _, err := mgr.Get(wb.ID()); !errors.Is(err, ErrWorkbenchNotFound) {
-		t.Errorf("Get() after Remove() error = %v, want ErrWorkbenchNotFound", err)
-	}
-	if _, ok := mgr.Leases()[wb.ID()]; ok {
-		t.Errorf("expected lease for %q to be deleted after Remove()", wb.ID())
-	}
-}
-
-func TestWorkbenchManager_GetAndTouch(t *testing.T) {
-	inspectionServer, validInspectionID := createTestInspectionServer(t)
-
-	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 50*time.Millisecond, 0)
-	defer mgr.Stop()
-
-	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
-
-	wb, err := mgr.GetOrOpen(context.Background(), "user-session-1", validInspectionID, noopProgress)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	testCases := []struct {
-		name        string
-		workbenchID string
-		wantErrIs   error
-	}{
-		{
-			name:        "successfully gets workbench and refreshes TTL",
-			workbenchID: wb.ID(),
-			wantErrIs:   nil,
-		},
-		{
-			name:        "returns ErrWorkbenchNotFound for non-existent ID",
-			workbenchID: "unknown-session",
-			wantErrIs:   ErrWorkbenchNotFound,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotWb, err := mgr.GetAndTouch(tc.workbenchID)
+			})
 			if tc.wantErrIs != nil {
 				if !errors.Is(err, tc.wantErrIs) {
-					t.Fatalf("GetAndTouch(%q) error = %v, want %v", tc.workbenchID, err, tc.wantErrIs)
+					t.Fatalf("Open() error = %v, want %v", err, tc.wantErrIs)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("GetAndTouch(%q) unexpected error = %v", tc.workbenchID, err)
+				t.Fatalf("Open() unexpected error: %v", err)
 			}
-			if gotWb.ID() != tc.workbenchID {
-				t.Errorf("GetAndTouch(%q) ID = %q, want %q", tc.workbenchID, gotWb.ID(), tc.workbenchID)
+			if wb.ID() != tc.inspectionID {
+				t.Errorf("wb.ID() = %q, want %q", wb.ID(), tc.inspectionID)
+			}
+			if len(stages) == 0 {
+				t.Fatalf("Open() reported no progress")
+			}
+			if got := stages[len(stages)-1]; got != apiv1.OpenWorkbenchResponse_STAGE_READY {
+				t.Errorf("final progress stage = %v, want STAGE_READY", got)
 			}
 		})
 	}
 }
 
-func TestWorkbenchManager_ReopenDifferentInspection(t *testing.T) {
-	inspectionServer, validInspectionID1 := createTestInspectionServer(t)
+func TestWorkbenchManager_SharesWorkbenchAcrossBrowsersAndMCP(t *testing.T) {
+	inspectionServer, inspectionID := createTestInspectionServer(t)
+	mgr := newTestManager(t, inspectionServer, 3)
 
-	// Create second inspection
-	validInspectionID2, err := inspectionServer.CreateInspection("test-type")
+	accessors := []Accessor{AccessorBrowser, AccessorBrowser, AccessorMCP}
+	handles := make([]*LoadHandle, len(accessors))
+	workbenches := make([]*Workbench, len(accessors))
+	errs := make([]error, len(accessors))
+	var wg sync.WaitGroup
+	for i, accessor := range accessors {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			handles[i] = mgr.Load(inspectionID, accessor)
+			workbenches[i], errs[i] = handles[i].Wait(context.Background(), noopProgress)
+		}()
+	}
+	wg.Wait()
+
+	for i := range accessors {
+		if errs[i] != nil {
+			t.Fatalf("caller %d returned error: %v", i, errs[i])
+		}
+		if handles[i] != handles[0] {
+			t.Errorf("caller %d received load handle %p, want the shared handle %p", i, handles[i], handles[0])
+		}
+		if workbenches[i] != workbenches[0] {
+			t.Errorf("caller %d received workbench %p, want the shared workbench %p", i, workbenches[i], workbenches[0])
+		}
+	}
+	got, err := mgr.Get(inspectionID, AccessorMCP)
 	if err != nil {
-		t.Fatalf("failed to create second inspection: %v", err)
+		t.Fatalf("Get() unexpected error: %v", err)
 	}
-	runner := inspectionServer.GetInspection(validInspectionID2)
-	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
-		t.Fatalf("failed to run second inspection: %v", err)
-	}
-	<-runner.Wait()
-
-	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 5*time.Second, 0)
-	defer mgr.Stop()
-
-	workbenchID := "user-session-same"
-
-	noopProgress := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error { return nil }
-
-	// 1. Open inspection 1
-	wb1, err := mgr.GetOrOpen(context.Background(), workbenchID, validInspectionID1, noopProgress)
-	if err != nil {
-		t.Fatalf("GetOrOpen(inspection1) unexpected error: %v", err)
-	}
-	if wb1.InspectionID() != validInspectionID1 {
-		t.Errorf("wb1.InspectionID() = %q, want %q", wb1.InspectionID(), validInspectionID1)
-	}
-
-	// 2. Open inspection 2 with the SAME workbench ID
-	var progressStages []apiv1.OpenWorkbenchResponse_Stage
-	progressCb := func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error {
-		progressStages = append(progressStages, stage)
-		return nil
-	}
-
-	wb2, err := mgr.GetOrOpen(context.Background(), workbenchID, validInspectionID2, progressCb)
-	if err != nil {
-		t.Fatalf("GetOrOpen(inspection2) unexpected error: %v", err)
-	}
-
-	// Verify old workbench is closed
-	if !wb1.IsClosed() {
-		t.Errorf("expected wb1 to be closed after opening different inspection")
-	}
-
-	// Verify new workbench has inspection 2
-	if wb2.InspectionID() != validInspectionID2 {
-		t.Errorf("wb2.InspectionID() = %q, want %q", wb2.InspectionID(), validInspectionID2)
-	}
-
-	// Verify full progress lifecycle was executed for inspection 2 (not just STAGE_READY attached)
-	if len(progressStages) < 2 {
-		t.Errorf("expected full progress events for new inspection, got: %v", progressStages)
-	}
-	if progressStages[0] != apiv1.OpenWorkbenchResponse_STAGE_INITIALIZING {
-		t.Errorf("first progress stage = %v, want STAGE_INITIALIZING", progressStages[0])
+	if got != workbenches[0] {
+		t.Errorf("Get() = %p, want the shared workbench %p", got, workbenches[0])
 	}
 }
 
-func TestWorkbenchManager_ConcurrentGetOrOpen(t *testing.T) {
-	inspectionServer, validInspectionID := createTestInspectionServer(t)
+func TestWorkbenchManager_KeepsWorkbenchAfterLongInactivityBelowLimit(t *testing.T) {
+	inspectionServer, inspectionID := createTestInspectionServer(t)
+	secondInspectionID := runTestInspection(t, inspectionServer)
+	mgr := newTestManager(t, inspectionServer, 2)
+	clock := newFakeClock(mgr)
 
-	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 5*time.Second, 0)
-	defer mgr.Stop()
-
-	const numConcurrent = 10
-	workbenchID := "concurrent-user-session"
-
-	results := make([]*Workbench, numConcurrent)
-	errs := make([]error, numConcurrent)
-
-	var wg sync.WaitGroup
-	wg.Add(numConcurrent)
-
-	for i := 0; i < numConcurrent; i++ {
-		workerIdx := i
-		go func() {
-			defer wg.Done()
-			wb, err := mgr.GetOrOpen(context.Background(), workbenchID, validInspectionID, nil)
-			results[workerIdx] = wb
-			errs[workerIdx] = err
-		}()
+	wb, err := mgr.Open(context.Background(), inspectionID, AccessorBrowser, noopProgress)
+	if err != nil {
+		t.Fatalf("Open() unexpected error: %v", err)
+	}
+	clock.Advance(30 * 24 * time.Hour)
+	if _, err := mgr.Open(context.Background(), secondInspectionID, AccessorMCP, noopProgress); err != nil {
+		t.Fatalf("Open(second) unexpected error: %v", err)
 	}
 
-	wg.Wait()
+	got, err := mgr.Get(inspectionID, AccessorBrowser)
+	if err != nil {
+		t.Fatalf("Get() after long inactivity unexpected error: %v", err)
+	}
+	if got != wb {
+		t.Errorf("Get() = %p, want %p", got, wb)
+	}
+	if wb.IsClosed() {
+		t.Errorf("workbench was closed after long inactivity below the retention limit")
+	}
+}
 
-	for i := 0; i < numConcurrent; i++ {
-		if errs[i] != nil {
-			t.Fatalf("goroutine %d returned error: %v", i, errs[i])
-		}
-		if results[i] == nil {
-			t.Fatalf("goroutine %d returned nil Workbench", i)
-		}
-		if results[i] != results[0] {
-			t.Errorf("goroutine %d returned workbench instance %p, want %p", i, results[i], results[0])
-		}
+func TestWorkbenchManager_EvictsOnNewLoadOverLimit(t *testing.T) {
+	const (
+		recent  = time.Second
+		longAgo = 24 * time.Hour
+	)
+	type seed struct {
+		id      string
+		loading bool
+		// Each duration is how long before the new load the corresponding access happened.
+		lastAccessAgo  time.Duration
+		browserSeenAgo time.Duration
+		mcpUsedAgo     time.Duration
+	}
+	testCases := []struct {
+		name           string
+		maxWorkbenches int
+		seeds          []seed
+		wantRemaining  []string
+	}{
+		{
+			name:           "evicts the least recently accessed workbench that is not in use",
+			maxWorkbenches: 2,
+			seeds: []seed{
+				{id: "older", lastAccessAgo: 10 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
+				{id: "newer", lastAccessAgo: 5 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
+			},
+			wantRemaining: []string{"newer"},
+		},
+		{
+			name:           "keeps a workbench shown in a browser",
+			maxWorkbenches: 2,
+			seeds: []seed{
+				{id: "shown", lastAccessAgo: 10 * time.Minute, browserSeenAgo: 10 * time.Second, mcpUsedAgo: longAgo},
+				{id: "idle", lastAccessAgo: 5 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
+			},
+			wantRemaining: []string{"shown"},
+		},
+		{
+			name:           "evicts a workbench whose browser stopped sending heartbeats",
+			maxWorkbenches: 2,
+			seeds: []seed{
+				{id: "hidden-tab", lastAccessAgo: 10 * time.Minute, browserSeenAgo: time.Minute, mcpUsedAgo: longAgo},
+				{id: "idle", lastAccessAgo: 5 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
+			},
+			wantRemaining: []string{"idle"},
+		},
+		{
+			name:           "keeps a workbench recently used by MCP",
+			maxWorkbenches: 2,
+			seeds: []seed{
+				{id: "mcp", lastAccessAgo: 10 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: time.Minute},
+				{id: "idle", lastAccessAgo: 5 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
+			},
+			wantRemaining: []string{"mcp"},
+		},
+		{
+			name:           "falls back to the least recently accessed workbench when all are in use",
+			maxWorkbenches: 2,
+			seeds: []seed{
+				{id: "older", lastAccessAgo: 10 * time.Minute, browserSeenAgo: recent, mcpUsedAgo: longAgo},
+				{id: "newer", lastAccessAgo: 5 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: recent},
+			},
+			wantRemaining: []string{"newer"},
+		},
+		{
+			name:           "never evicts a workbench that is still loading",
+			maxWorkbenches: 2,
+			seeds: []seed{
+				{id: "loading", loading: true, lastAccessAgo: 10 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
+				{id: "loaded", lastAccessAgo: 5 * time.Minute, browserSeenAgo: recent, mcpUsedAgo: recent},
+			},
+			wantRemaining: []string{"loading"},
+		},
+		{
+			name:           "exceeds the limit when only loading workbenches remain",
+			maxWorkbenches: 1,
+			seeds: []seed{
+				{id: "loading", loading: true, lastAccessAgo: 10 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
+			},
+			wantRemaining: []string{"loading"},
+		},
+		{
+			name:           "does not evict below the limit",
+			maxWorkbenches: 3,
+			seeds: []seed{
+				{id: "a", lastAccessAgo: 10 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
+				{id: "b", lastAccessAgo: 5 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
+			},
+			wantRemaining: []string{"a", "b"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			inspectionServer, _ := createTestInspectionServer(t)
+			mgr := newTestManager(t, inspectionServer, tc.maxWorkbenches)
+			clock := newFakeClock(mgr)
+			now := clock.Now()
+
+			workbenches := map[string]*Workbench{}
+			for _, s := range tc.seeds {
+				h := newLoadHandle()
+				if !s.loading {
+					wb := NewWorkbench(s.id, s.id)
+					workbenches[s.id] = wb
+					h.finish(wb, nil)
+				}
+				mgr.entries[s.id] = &entry{
+					load:          h,
+					lastAccess:    now.Add(-s.lastAccessAgo),
+					browserSeenAt: now.Add(-s.browserSeenAgo),
+					mcpUsedAt:     now.Add(-s.mcpUsedAgo),
+				}
+			}
+
+			// The new inspection does not exist, so its own load fails and is discarded; only the eviction matters here.
+			mgr.Load("new-inspection", AccessorMCP)
+
+			mgr.mu.Lock()
+			var remaining []string
+			for id := range mgr.entries {
+				if id != "new-inspection" {
+					remaining = append(remaining, id)
+				}
+			}
+			mgr.mu.Unlock()
+			sort.Strings(remaining)
+			if diff := cmp.Diff(tc.wantRemaining, remaining); diff != "" {
+				t.Errorf("remaining workbenches mismatch (-want +got):\n%s", diff)
+			}
+			for id, wb := range workbenches {
+				wantClosed := true
+				for _, kept := range tc.wantRemaining {
+					if kept == id {
+						wantClosed = false
+					}
+				}
+				if wb.IsClosed() != wantClosed {
+					t.Errorf("workbench %q IsClosed() = %v, want %v", id, wb.IsClosed(), wantClosed)
+				}
+			}
+		})
+	}
+}
+
+func TestWorkbenchManager_LoadContinuesAfterCallerCancel(t *testing.T) {
+	inspectionServer, inspectionID := createTestInspectionServer(t)
+	mgr := newTestManager(t, inspectionServer, 3)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := mgr.Open(ctx, inspectionID, AccessorMCP, noopProgress); err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatalf("Open() with a cancelled context error = %v, want nil or context.Canceled", err)
+	}
+
+	h := mgr.Load(inspectionID, AccessorBrowser)
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer waitCancel()
+	wb, err := h.Wait(waitCtx, noopProgress)
+	if err != nil {
+		t.Fatalf("Wait() error = %v, want nil", err)
+	}
+	if wb.IsClosed() {
+		t.Errorf("loaded workbench is closed")
+	}
+}
+
+func TestWorkbenchManager_RetriesFailedLoad(t *testing.T) {
+	inspectionServer, _ := createTestInspectionServer(t)
+	mgr := newTestManager(t, inspectionServer, 3)
+
+	first := mgr.Load("missing-inspection", AccessorMCP)
+	if _, err := first.Wait(context.Background(), noopProgress); !errors.Is(err, ErrInspectionNotFound) {
+		t.Fatalf("first Wait() error = %v, want ErrInspectionNotFound", err)
+	}
+
+	second := mgr.Load("missing-inspection", AccessorMCP)
+	if second == first {
+		t.Errorf("Load() after a failed load returned the failed handle, want a new load")
+	}
+	_, _ = second.Wait(context.Background(), noopProgress)
+}
+
+func TestWorkbenchManager_Heartbeat(t *testing.T) {
+	testCases := []struct {
+		name  string
+		setup func(t *testing.T, mgr *WorkbenchManager, inspectionID string, otherInspectionID string) string
+		want  bool
+	}{
+		{
+			name: "loaded workbench is active",
+			setup: func(t *testing.T, mgr *WorkbenchManager, inspectionID string, otherInspectionID string) string {
+				if _, err := mgr.Open(context.Background(), inspectionID, AccessorBrowser, noopProgress); err != nil {
+					t.Fatalf("Open() unexpected error: %v", err)
+				}
+				return inspectionID
+			},
+			want: true,
+		},
+		{
+			name: "unknown workbench is inactive",
+			setup: func(t *testing.T, mgr *WorkbenchManager, inspectionID string, otherInspectionID string) string {
+				return "unknown-inspection"
+			},
+			want: false,
+		},
+		{
+			name: "evicted workbench is inactive",
+			setup: func(t *testing.T, mgr *WorkbenchManager, inspectionID string, otherInspectionID string) string {
+				if _, err := mgr.Open(context.Background(), inspectionID, AccessorBrowser, noopProgress); err != nil {
+					t.Fatalf("Open() unexpected error: %v", err)
+				}
+				if _, err := mgr.Open(context.Background(), otherInspectionID, AccessorBrowser, noopProgress); err != nil {
+					t.Fatalf("Open(other) unexpected error: %v", err)
+				}
+				return inspectionID
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			inspectionServer, inspectionID := createTestInspectionServer(t)
+			otherInspectionID := runTestInspection(t, inspectionServer)
+			mgr := newTestManager(t, inspectionServer, 1)
+
+			target := tc.setup(t, mgr, inspectionID, otherInspectionID)
+			if got := mgr.Heartbeat(target); got != tc.want {
+				t.Errorf("Heartbeat(%q) = %v, want %v", target, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestWorkbenchManager_Get(t *testing.T) {
+	inspectionServer, inspectionID := createTestInspectionServer(t)
+	mgr := newTestManager(t, inspectionServer, 3)
+	wb, err := mgr.Open(context.Background(), inspectionID, AccessorBrowser, noopProgress)
+	if err != nil {
+		t.Fatalf("Open() unexpected error: %v", err)
+	}
+
+	testCases := []struct {
+		name         string
+		inspectionID string
+		want         *Workbench
+		wantErrIs    error
+	}{
+		{
+			name:         "returns the loaded workbench",
+			inspectionID: inspectionID,
+			want:         wb,
+		},
+		{
+			name:         "returns ErrWorkbenchNotFound for an inspection that is not loaded",
+			inspectionID: "unknown-inspection",
+			wantErrIs:    ErrWorkbenchNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := mgr.Get(tc.inspectionID, AccessorBrowser)
+			if !errors.Is(err, tc.wantErrIs) {
+				t.Fatalf("Get(%q) error = %v, want %v", tc.inspectionID, err, tc.wantErrIs)
+			}
+			if got != tc.want {
+				t.Errorf("Get(%q) = %p, want %p", tc.inspectionID, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestWorkbenchManager_MarkBrowserClosedMakesWorkbenchEvictable(t *testing.T) {
+	inspectionServer, closedInspectionID := createTestInspectionServer(t)
+	shownInspectionID := runTestInspection(t, inspectionServer)
+	newInspectionID := runTestInspection(t, inspectionServer)
+	mgr := newTestManager(t, inspectionServer, 2)
+	clock := newFakeClock(mgr)
+
+	shown, err := mgr.Open(context.Background(), shownInspectionID, AccessorBrowser, noopProgress)
+	if err != nil {
+		t.Fatalf("Open(shown) unexpected error: %v", err)
+	}
+	clock.Advance(time.Second)
+	closed, err := mgr.Open(context.Background(), closedInspectionID, AccessorBrowser, noopProgress)
+	if err != nil {
+		t.Fatalf("Open(closed) unexpected error: %v", err)
+	}
+
+	mgr.MarkBrowserClosed(closedInspectionID)
+	if closed.IsClosed() {
+		t.Fatalf("MarkBrowserClosed() released the workbench, want it to stay loaded")
+	}
+
+	// The closed workbench was accessed more recently, but it is the only one not in use.
+	if _, err := mgr.Open(context.Background(), newInspectionID, AccessorBrowser, noopProgress); err != nil {
+		t.Fatalf("Open(new) unexpected error: %v", err)
+	}
+	if !closed.IsClosed() {
+		t.Errorf("workbench closed by the browser was not evicted")
+	}
+	if shown.IsClosed() {
+		t.Errorf("workbench shown in a browser was evicted")
 	}
 }
 
@@ -372,8 +582,8 @@ func TestWorkbenchManager_WithInspectionIndexManager(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			inspectionServer, validInspectionID := createTestInspectionServer(t)
-			dataDir := t.TempDir()
-			indexMgr := NewInspectionIndexManager(inspectionServer, dataDir)
+			indexMgr := NewInspectionIndexManager(inspectionServer, t.TempDir())
+			t.Cleanup(indexMgr.Wait)
 
 			if tc.withPrebuiltIndex {
 				indexMgr.StartAsyncIndexing(context.Background(), validInspectionID)
@@ -387,29 +597,16 @@ func TestWorkbenchManager_WithInspectionIndexManager(t *testing.T) {
 				}
 			}
 
-			wbMgr := NewWorkbenchManager(inspectionServer, indexMgr, 5*time.Second, 0)
-			defer wbMgr.Stop()
-
-			wb, err := wbMgr.GetOrOpen(context.Background(), "wb-session-1", validInspectionID, func(stage apiv1.OpenWorkbenchResponse_Stage, pct float64, msg string) error {
-				return nil
-			})
+			wbMgr := NewWorkbenchManager(inspectionServer, indexMgr, 3)
+			wb, err := wbMgr.Open(context.Background(), validInspectionID, AccessorBrowser, noopProgress)
 			if err != nil {
-				t.Fatalf("GetOrOpen failed: %v", err)
+				t.Fatalf("Open() failed: %v", err)
 			}
 
-			// Wait for Workbench indexing to reach ready
-			deadline := time.Now().Add(5 * time.Second)
-			var state IndexState
-			for time.Now().Before(deadline) {
-				state, _, _, _ = wb.IndexStatus()
-				if state == IndexStateReady {
-					break
-				}
-				time.Sleep(10 * time.Millisecond)
-			}
-
-			if state != IndexStateReady {
-				t.Errorf("wb.IndexStatus() state = %v, want %v", state, IndexStateReady)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := wb.AwaitIndex(ctx); err != nil {
+				t.Fatalf("AwaitIndex() error = %v", err)
 			}
 			if wb.searchIndex == nil || wb.searchIndex.TrigramIndex == nil {
 				t.Errorf("expected searchIndex.TrigramIndex to be populated")
@@ -426,101 +623,5 @@ func TestNewWorkbenchManager_PanicsOnNilIndexManager(t *testing.T) {
 			t.Errorf("expected panic when indexManager is nil, got none")
 		}
 	}()
-	NewWorkbenchManager(inspectionServer, nil, time.Minute, 0)
-}
-
-func TestWorkbenchManager_SingleWorkbenchRetention(t *testing.T) {
-	inspectionServer, validInspectionID := createTestInspectionServer(t)
-
-	// Short TTL of 20ms
-	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 20*time.Millisecond, 0)
-	defer mgr.Stop()
-
-	wb, err := mgr.GetOrOpen(context.Background(), "single-session-1", validInspectionID, nil)
-	if err != nil {
-		t.Fatalf("GetOrOpen() unexpected error: %v", err)
-	}
-
-	// Wait for TTL to elapse
-	time.Sleep(40 * time.Millisecond)
-
-	// 1. Get() should still succeed because only 1 workbench exists
-	gotWb, err := mgr.Get(wb.ID())
-	if err != nil {
-		t.Errorf("Get() on expired single workbench unexpected error: %v", err)
-	}
-	if gotWb != wb {
-		t.Errorf("Get() workbench = %p, want %p", gotWb, wb)
-	}
-
-	// 2. Heartbeat() should refresh lease and succeed
-	heartbeatWb, newExpiresAt, err := mgr.Heartbeat(wb.ID())
-	if err != nil {
-		t.Errorf("Heartbeat() on expired single workbench unexpected error: %v", err)
-	}
-	if heartbeatWb != wb {
-		t.Errorf("Heartbeat() workbench = %p, want %p", heartbeatWb, wb)
-	}
-	if !newExpiresAt.After(time.Now()) {
-		t.Errorf("Heartbeat() newExpiresAt = %v, want future time", newExpiresAt)
-	}
-
-	// 3. GetOrOpen() with same ID should reattach without error
-	reattachWb, err := mgr.GetOrOpen(context.Background(), wb.ID(), validInspectionID, nil)
-	if err != nil {
-		t.Errorf("GetOrOpen() reattach unexpected error: %v", err)
-	}
-	if reattachWb != wb {
-		t.Errorf("GetOrOpen() reattach workbench = %p, want %p", reattachWb, wb)
-	}
-}
-
-func TestWorkbenchManager_MultipleWorkbenchesExpiration(t *testing.T) {
-	inspectionServer, validInspectionID := createTestInspectionServer(t)
-
-	mgr := NewWorkbenchManager(inspectionServer, NewInspectionIndexManager(inspectionServer, t.TempDir()), 20*time.Millisecond, 0)
-	defer mgr.Stop()
-
-	// Open session 1
-	wb1, err := mgr.GetOrOpen(context.Background(), "multi-session-1", validInspectionID, nil)
-	if err != nil {
-		t.Fatalf("GetOrOpen(session-1) unexpected error: %v", err)
-	}
-
-	// Stagger session 2 slightly so session 1 has an older expiration time
-	time.Sleep(10 * time.Millisecond)
-	wb2, err := mgr.GetOrOpen(context.Background(), "multi-session-2", validInspectionID, nil)
-	if err != nil {
-		t.Fatalf("GetOrOpen(session-2) unexpected error: %v", err)
-	}
-
-	// Wait until both leases have expired
-	time.Sleep(30 * time.Millisecond)
-
-	sweeper := NewSweeper(10 * time.Millisecond)
-
-	// First sweep: should evict oldest expired session (session 1) and leave session 2
-	evicted := sweeper.Sweep(mgr, time.Now())
-	if evicted != 1 {
-		t.Errorf("first Sweep() evicted = %d, want 1", evicted)
-	}
-
-	if _, err := mgr.Get(wb1.ID()); !errors.Is(err, ErrWorkbenchNotFound) {
-		t.Errorf("Get(wb1.ID()) error = %v, want ErrWorkbenchNotFound", err)
-	}
-
-	// wb2 is now the single remaining workbench, so Get() must succeed despite expired lease
-	gotWb2, err := mgr.Get(wb2.ID())
-	if err != nil {
-		t.Errorf("Get(wb2.ID()) unexpected error: %v", err)
-	}
-	if gotWb2 != wb2 {
-		t.Errorf("Get(wb2.ID()) workbench = %p, want %p", gotWb2, wb2)
-	}
-
-	// Second sweep: should NOT evict wb2 because len(leases) <= 1
-	evictedSecond := sweeper.Sweep(mgr, time.Now())
-	if evictedSecond != 0 {
-		t.Errorf("second Sweep() evicted = %d, want 0", evictedSecond)
-	}
+	NewWorkbenchManager(inspectionServer, nil, 3)
 }
