@@ -132,7 +132,9 @@ func (h *LoadHandle) subscribe() (<-chan LoadProgress, func()) {
 		defer h.mu.Unlock()
 		for i, sub := range h.subscribers {
 			if sub == ch {
-				h.subscribers = append(h.subscribers[:i], h.subscribers[i+1:]...)
+				copy(h.subscribers[i:], h.subscribers[i+1:])
+				h.subscribers[len(h.subscribers)-1] = nil
+				h.subscribers = h.subscribers[:len(h.subscribers)-1]
 				break
 			}
 		}
