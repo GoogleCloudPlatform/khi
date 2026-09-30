@@ -35,6 +35,7 @@ var MCPServerInitializer = &coreinit.Initializer{
 	Dependencies: []coreinit.InitializerID{
 		InitializerIDGinServer,
 		InitializerIDInspectionTaskServer,
+		InitializerIDWorkbenchService,
 	},
 	Before: []coreinit.InitializerID{
 		InitializerIDServerRunner,
@@ -45,7 +46,8 @@ var MCPServerInitializer = &coreinit.Initializer{
 			return nil
 		}
 		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
-		srv := mcp.NewServer(mcp.NewInspectionHandler(inspectionServer))
+		workbenchManager := coreinit.MustGet(ctx, WorkbenchManagerKey)
+		srv := mcp.NewServer(mcp.NewInspectionHandler(inspectionServer), mcp.NewWorkbenchHandler(workbenchManager))
 		coreinit.Set(ctx, MCPServerKey, srv)
 
 		router := coreinit.MustGet(ctx, GinRouterKey)
