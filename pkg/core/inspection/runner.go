@@ -37,7 +37,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -385,17 +384,27 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore.Insp
 	i.cancel = cancel
 
 	i.metadata = runMetadata
-	lifecycle.Default.NotifyInspectionStart(khictx.MustGetValue(runCtx, inspectioncore.InspectionTaskRunID), currentInspectionType.Name)
 
-	// Run the inspection with interceptors
+	// Run the inspection with interceptors.
 	runFunc := func(ctx context.Context) error {
-		err := i.runner.Run(ctx)
-		if err != nil {
+		if err := i.runner.Run(ctx); err != nil {
 			return err
 		}
 		<-i.runner.Wait()
-		_, err = i.runner.Result()
-		return err
+
+		progress, _ := typedmap.Get(i.metadata, inspectionmetadata.ProgressMetadataKey)
+		if _, err := i.runner.Result(); err != nil {
+			if errors.Is(ctx.Err(), context.Canceled) {
+				_ = progress.MarkCancelled()
+			} else {
+				_ = progress.MarkError()
+			}
+			slog.WarnContext(runCtx, fmt.Sprintf("task %s was finished with an error\n%s", i.ID, err))
+			return err
+		}
+
+		_ = progress.MarkDone()
+		return nil
 	}
 
 	for j := len(i.interceptors) - 1; j >= 0; j-- {
@@ -410,40 +419,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore.Insp
 		defer close(i.runComplete)
 		defer i.inspectionCancel()
 		defer cancel()
-		runFunc(cancelableCtx)
-		progress, found := typedmap.Get(i.metadata, inspectionmetadata.ProgressMetadataKey)
-		if !found {
-			slog.ErrorContext(runCtx, "progress metadata was not found")
-		}
-		status := ""
-		resultSize := 0
-		if result, err := i.runner.Result(); err != nil {
-			if errors.Is(cancelableCtx.Err(), context.Canceled) {
-				progress.MarkCancelled()
-				status = "cancel"
-			} else {
-				progress.MarkError()
-				status = "error"
-			}
-			slog.WarnContext(runCtx, fmt.Sprintf("task %s was finished with an error\n%s", i.ID, err))
-		} else {
-			progress.MarkDone()
-			status = "done"
-
-			history, found := typedmap.Get(result, typedmap.NewTypedKey[inspectioncore.Store](inspectioncore.SerializerTaskID.ReferenceIDString()))
-			if !found {
-				slog.ErrorContext(runCtx, fmt.Sprintf("Failed to get generated history after the completion\n%s", err))
-			}
-			if history == nil {
-				slog.ErrorContext(runCtx, "Failed to get the serializer result. Result is nil!")
-			} else {
-				resultSize, err = history.GetInspectionResultSizeInBytes()
-				if err != nil {
-					slog.ErrorContext(runCtx, fmt.Sprintf("Failed to get the serialized result size\n%s", err))
-				}
-			}
-		}
-		lifecycle.Default.NotifyInspectionEnd(khictx.MustGetValue(runCtx, inspectioncore.InspectionTaskRunID), currentInspectionType.Name, status, resultSize)
+		_ = runFunc(cancelableCtx)
 	}()
 	return nil
 }

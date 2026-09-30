@@ -40,9 +40,11 @@ var ServerStatusServiceInitializer = &coreinit.Initializer{
 		}
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
+		connectOpts, _ := coreinit.Get(ctx, ConnectHandlerOptionsKey)
 
 		serverStatusPath, serverStatusHandler := apiv1connect.NewServerStatusServiceHandler(
 			apiv1impl.NewServerStatusServiceServer(server.NewResourceMonitorImpl()),
+			connectOpts...,
 		)
 		coreinit.RegisterConnectServiceHandler(router, basePath, serverStatusPath, serverStatusHandler)
 		return nil

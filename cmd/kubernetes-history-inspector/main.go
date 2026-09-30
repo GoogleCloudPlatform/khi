@@ -23,7 +23,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
-	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 
 	_ "github.com/GoogleCloudPlatform/khi/pkg/core/init/default"
 )
@@ -33,7 +32,6 @@ func handleTerminateSignal(engine *coreinit.Engine, exitCh chan<- int) {
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 
 	s := <-sig
-	lifecycle.Default.NotifyTerminate(s)
 	if err := engine.Terminate(); err != nil {
 		slog.Error("Calling termination hooks on Engine failed", "error", err)
 	}

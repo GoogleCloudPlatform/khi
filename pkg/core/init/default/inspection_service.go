@@ -42,9 +42,10 @@ var InspectionServiceInitializer = &coreinit.Initializer{
 		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
+		connectOpts, _ := coreinit.Get(ctx, ConnectHandlerOptionsKey)
 
 		inspectionServiceServer := serverapiv1.NewInspectionServiceServer(inspectionServer)
-		inspectionServicePath, inspectionServiceHandler := apiv1connect.NewInspectionServiceHandler(inspectionServiceServer)
+		inspectionServicePath, inspectionServiceHandler := apiv1connect.NewInspectionServiceHandler(inspectionServiceServer, connectOpts...)
 		coreinit.RegisterConnectServiceHandler(router, basePath, inspectionServicePath, inspectionServiceHandler)
 
 		return nil

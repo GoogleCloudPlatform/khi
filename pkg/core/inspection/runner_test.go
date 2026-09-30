@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -34,84 +35,141 @@ import (
 )
 
 func TestInspectionTaskRunner_Interceptor(t *testing.T) {
-	// Initialize global logger
 	logger.InitGlobalKHILogger()
 
-	// Setup minimal server
-	ioConfig := &inspectioncore.IOConfig{
-		TemporaryFolder: t.TempDir(),
-	}
-	server, err := NewServer(ioConfig)
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-	}
-
-	inspectionType := InspectionType{
-		Id:   "test-inspection",
-		Name: "Test Inspection",
-	}
-	if err := server.AddInspectionType(inspectionType); err != nil {
-		t.Fatalf("AddInspectionType failed: %v", err)
-	}
-
-	// Add a dummy task that is enabled for this inspection type
-	dummyTaskID := taskid.NewDefaultImplementationID[any]("dummy-task")
-	dummyTask := coretask.NewTask(
-		dummyTaskID,
-		nil,
-		func(ctx context.Context) (any, error) {
-			return "success", nil
+	testCases := []struct {
+		name             string
+		taskFunc         func(ctx context.Context, runner *InspectionTaskRunner) (any, error)
+		wantPhase        inspectionmetadata.TaskProgressPhase
+		wantPositiveSize bool
+		wantErr          bool
+	}{
+		{
+			name: "successful run finalizes progress to done and populates file size before interceptor exits",
+			taskFunc: func(ctx context.Context, runner *InspectionTaskRunner) (any, error) {
+				return "success", nil
+			},
+			wantPhase:        inspectionmetadata.TaskPhaseDone,
+			wantPositiveSize: true,
+			wantErr:          false,
 		},
-		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
-		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
-	)
-	if err := server.AddTask(dummyTask); err != nil {
-		t.Fatalf("AddTask failed: %v", err)
+		{
+			name: "failed task finalizes progress to error before interceptor exits",
+			taskFunc: func(ctx context.Context, runner *InspectionTaskRunner) (any, error) {
+				return nil, errors.New("simulated task failure")
+			},
+			wantPhase:        inspectionmetadata.TaskPhaseError,
+			wantPositiveSize: false,
+			wantErr:          true,
+		},
+		{
+			name: "cancelled run finalizes progress to cancelled before interceptor exits",
+			taskFunc: func(ctx context.Context, runner *InspectionTaskRunner) (any, error) {
+				_ = runner.Cancel()
+				<-ctx.Done()
+				return nil, ctx.Err()
+			},
+			wantPhase:        inspectionmetadata.TaskPhaseCancelled,
+			wantPositiveSize: false,
+			wantErr:          true,
+		},
 	}
 
-	// Create inspection
-	inspectionID, err := server.CreateInspection(inspectionType.Id)
-	if err != nil {
-		t.Fatalf("CreateInspection failed: %v", err)
-	}
-	runner := server.GetInspection(inspectionID)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ioConfig := &inspectioncore.IOConfig{
+				DataDestination: t.TempDir(),
+				TemporaryFolder: t.TempDir(),
+			}
+			server, err := NewServer(ioConfig)
+			if err != nil {
+				t.Fatalf("NewServer failed: %v", err)
+			}
 
-	// Add interceptors
-	executionOrder := []string{}
-	interceptor1 := func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
-		executionOrder = append(executionOrder, "interceptor1_start")
-		err := next(ctx)
-		executionOrder = append(executionOrder, "interceptor1_end")
-		return err
-	}
-	interceptor2 := func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
-		executionOrder = append(executionOrder, "interceptor2_start")
-		err := next(ctx)
-		executionOrder = append(executionOrder, "interceptor2_end")
-		return err
-	}
+			inspectionType := InspectionType{
+				Id:   "test-inspection",
+				Name: "Test Inspection",
+			}
+			if err := server.AddInspectionType(inspectionType); err != nil {
+				t.Fatalf("AddInspectionType failed: %v", err)
+			}
 
-	runner.AddInterceptors(interceptor1, interceptor2)
+			var runner *InspectionTaskRunner
+			dummyTaskID := taskid.NewDefaultImplementationID[any]("dummy-task")
+			dummyTask := coretask.NewTask(
+				dummyTaskID,
+				nil,
+				func(ctx context.Context) (any, error) {
+					return tc.taskFunc(ctx, runner)
+				},
+				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
+				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
+			)
+			if err := server.AddTask(dummyTask); err != nil {
+				t.Fatalf("AddTask failed: %v", err)
+			}
 
-	// Run inspection
-	req := &inspectioncore.InspectionRequest{
-		Values: map[string]any{},
-	}
-	err = runner.Run(context.Background(), req)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-	<-runner.Wait()
+			inspectionID, err := server.CreateInspection(inspectionType.Id)
+			if err != nil {
+				t.Fatalf("CreateInspection failed: %v", err)
+			}
+			runner = server.GetInspection(inspectionID)
 
-	expectedOrder := []string{
-		"interceptor1_start",
-		"interceptor2_start",
-		"interceptor2_end",
-		"interceptor1_end",
-	}
+			executionOrder := []string{}
+			var observedPhase inspectionmetadata.TaskProgressPhase
+			var observedFileSize int
+			var observedErr error
+			interceptor1 := func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
+				executionOrder = append(executionOrder, "interceptor1_start")
+				err := next(ctx)
+				executionOrder = append(executionOrder, "interceptor1_end")
+				observedErr = err
+				metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+				if prog, found := typedmap.Get(metadataSet, inspectionmetadata.ProgressMetadataKey); found {
+					observedPhase = prog.Snapshot().Phase
+				}
+				if header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey); found {
+					observedFileSize = header.FileSize
+				}
+				return err
+			}
+			interceptor2 := func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
+				executionOrder = append(executionOrder, "interceptor2_start")
+				err := next(ctx)
+				executionOrder = append(executionOrder, "interceptor2_end")
+				return err
+			}
 
-	if diff := cmp.Diff(expectedOrder, executionOrder); diff != "" {
-		t.Errorf("Execution order mismatch (-want +got):\n%s", diff)
+			runner.AddInterceptors(interceptor1, interceptor2)
+
+			req := &inspectioncore.InspectionRequest{
+				Values: map[string]any{},
+			}
+			if err := runner.Run(context.Background(), req); err != nil {
+				t.Fatalf("Run failed: %v", err)
+			}
+			<-runner.Wait()
+
+			expectedOrder := []string{
+				"interceptor1_start",
+				"interceptor2_start",
+				"interceptor2_end",
+				"interceptor1_end",
+			}
+
+			if diff := cmp.Diff(expectedOrder, executionOrder); diff != "" {
+				t.Errorf("Execution order mismatch (-want +got):\n%s", diff)
+			}
+			if observedPhase != tc.wantPhase {
+				t.Errorf("observedPhase = %q, want %q", observedPhase, tc.wantPhase)
+			}
+			if (observedErr != nil) != tc.wantErr {
+				t.Errorf("observedErr = %v, wantErr %v", observedErr, tc.wantErr)
+			}
+			if tc.wantPositiveSize && observedFileSize <= 0 {
+				t.Errorf("observedFileSize = %d, want > 0", observedFileSize)
+			}
+		})
 	}
 }
 
