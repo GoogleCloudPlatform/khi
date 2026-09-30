@@ -198,11 +198,9 @@ func TestWorkbenchServiceServer_HeartbeatAndClose(t *testing.T) {
 		t.Fatalf("OpenWorkbench() stream error = %v", err)
 	}
 
-	workbenchID := validInspID
-
 	// 2. Heartbeat on active workbench
 	hbRes, err := client.HeartbeatWorkbench(context.Background(), connect.NewRequest(&apiv1.HeartbeatWorkbenchRequest{
-		WorkbenchId: proto.String(workbenchID),
+		WorkbenchId: proto.String(validInspID),
 	}))
 	if err != nil {
 		t.Fatalf("HeartbeatWorkbench() unexpected error: %v", err)
@@ -213,7 +211,7 @@ func TestWorkbenchServiceServer_HeartbeatAndClose(t *testing.T) {
 
 	// 3. Close workbench
 	closeRes, err := client.CloseWorkbench(context.Background(), connect.NewRequest(&apiv1.CloseWorkbenchRequest{
-		WorkbenchId: proto.String(workbenchID),
+		WorkbenchId: proto.String(validInspID),
 	}))
 	if err != nil {
 		t.Fatalf("CloseWorkbench() unexpected error: %v", err)
@@ -224,7 +222,7 @@ func TestWorkbenchServiceServer_HeartbeatAndClose(t *testing.T) {
 
 	// 4. Closing only marks the shared workbench as an eviction candidate, so it stays active.
 	hbRes, err = client.HeartbeatWorkbench(context.Background(), connect.NewRequest(&apiv1.HeartbeatWorkbenchRequest{
-		WorkbenchId: proto.String(workbenchID),
+		WorkbenchId: proto.String(validInspID),
 	}))
 	if err != nil {
 		t.Fatalf("HeartbeatWorkbench() after close unexpected error: %v", err)
@@ -262,8 +260,6 @@ func TestWorkbenchServiceServer_ReadStructYAMLs(t *testing.T) {
 		t.Fatalf("OpenWorkbench() stream error = %v", err)
 	}
 
-	workbenchID := validInspID
-
 	tooManyIDs := make([]uint32, maxStructIDsPerBatch+1)
 	for i := 0; i < len(tooManyIDs); i++ {
 		tooManyIDs[i] = uint32(i + 1)
@@ -284,7 +280,7 @@ func TestWorkbenchServiceServer_ReadStructYAMLs(t *testing.T) {
 		},
 		{
 			name:        "fails with invalid argument when struct_ids exceeds 200 items",
-			workbenchID: workbenchID,
+			workbenchID: validInspID,
 			structIDs:   tooManyIDs,
 			wantErrCode: connect.CodeInvalidArgument,
 		},
@@ -296,14 +292,14 @@ func TestWorkbenchServiceServer_ReadStructYAMLs(t *testing.T) {
 		},
 		{
 			name:        "succeeds with empty response when struct IDs are not found or invalid",
-			workbenchID: workbenchID,
+			workbenchID: validInspID,
 			structIDs:   []uint32{9999, 0},
 			wantErrCode: 0,
 			wantCount:   0,
 		},
 		{
 			name:        "succeeds with empty response when struct_ids is empty",
-			workbenchID: workbenchID,
+			workbenchID: validInspID,
 			structIDs:   []uint32{},
 			wantErrCode: 0,
 			wantCount:   0,
@@ -352,8 +348,6 @@ func TestWorkbenchServiceServer_FilterTimeline(t *testing.T) {
 		t.Fatalf("OpenWorkbench() stream error = %v", err)
 	}
 
-	workbenchID := validInspID
-
 	testCases := []struct {
 		name        string
 		req         *apiv1.FilterTimelineRequest
@@ -362,7 +356,7 @@ func TestWorkbenchServiceServer_FilterTimeline(t *testing.T) {
 		{
 			name: "successfully filters timeline with streaming progress",
 			req: &apiv1.FilterTimelineRequest{
-				WorkbenchId:   proto.String(workbenchID),
+				WorkbenchId:   proto.String(validInspID),
 				TimelineQuery: proto.String(""),
 				LogQuery:      proto.String(""),
 				ExcludeNoLogs: proto.Bool(false),
@@ -441,8 +435,6 @@ func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
 		t.Fatalf("OpenWorkbench() stream error = %v", err)
 	}
 
-	workbenchID := validInspID
-
 	testCases := []struct {
 		name        string
 		req         *apiv1.WatchIndexProgressRequest
@@ -451,7 +443,7 @@ func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
 		{
 			name: "success on valid workbench id",
 			req: &apiv1.WatchIndexProgressRequest{
-				WorkbenchId: proto.String(workbenchID),
+				WorkbenchId: proto.String(validInspID),
 			},
 			wantErrCode: 0,
 		},
