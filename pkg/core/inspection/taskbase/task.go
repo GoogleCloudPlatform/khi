@@ -44,3 +44,16 @@ func NewInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencie
 		return taskFunc(ctx, taskMode)
 	}, labelOpts...)
 }
+
+// DefineInspectionTask creates an inspection task whose inputs are declared through a coretask.Binder.
+// bind declares the inputs with coretask.Use and related functions and returns the task function
+// that receives the task mode from the context.
+func DefineInspectionTask[T any](id taskid.TaskImplementationID[T], bind func(b *coretask.Binder) InspectionTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
+		taskFunc := bind(b)
+		return func(ctx context.Context) (T, error) {
+			taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
+			return taskFunc(ctx, taskMode)
+		}
+	}, labelOpts...)
+}
