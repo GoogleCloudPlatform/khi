@@ -15,7 +15,6 @@
 package mcp
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -174,29 +173,19 @@ func TestConvertMCPParameters(t *testing.T) {
 			want:  map[string]any{"str": "hello", "flag": true},
 		},
 		{
-			name:  "array of scalars becomes string slice",
-			input: map[string]any{"list": []any{"a", true, float64(10), json.Number("7")}},
-			want:  map[string]any{"list": []string{"a", "true", "10", "7"}},
+			name:  "array of strings becomes string slice",
+			input: map[string]any{"list": []any{"a", "b"}},
+			want:  map[string]any{"list": []string{"a", "b"}},
 		},
 		{
-			name:  "string slice is kept",
-			input: map[string]any{"list": []string{"x", "y"}},
-			want:  map[string]any{"list": []string{"x", "y"}},
+			name:       "number returns error",
+			input:      map[string]any{"count": float64(42)},
+			wantErrKey: "count",
 		},
 		{
-			name:  "large integral float64 is formatted without exponent",
-			input: map[string]any{"count": float64(1000000)},
-			want:  map[string]any{"count": "1000000"},
-		},
-		{
-			name:  "fractional float64 is formatted as decimal",
-			input: map[string]any{"ratio": 1.5},
-			want:  map[string]any{"ratio": "1.5"},
-		},
-		{
-			name:  "json number is formatted as string",
-			input: map[string]any{"num": json.Number("42")},
-			want:  map[string]any{"num": "42"},
+			name:       "non-string array element returns error",
+			input:      map[string]any{"list": []any{"a", float64(10)}},
+			wantErrKey: "list",
 		},
 		{
 			name:       "nested map returns error",
@@ -614,7 +603,7 @@ func TestInspectionTools_InvalidParameters(t *testing.T) {
 		{
 			name:   "unsupported parameter type",
 			params: map[string]any{"cluster-name": map[string]any{"nested": "value"}},
-			want:   "Error: INVALID_PARAMETERS\n\n- Parameter `cluster-name` must be a string, number, boolean, or an array of those.",
+			want:   "Error: INVALID_PARAMETERS\n\n- Parameter `cluster-name` must be a string, boolean, or an array of strings.",
 		},
 	}
 

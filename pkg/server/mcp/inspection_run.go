@@ -16,7 +16,6 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -85,48 +84,30 @@ type invalidParameterError struct {
 }
 
 func (e *invalidParameterError) Error() string {
-	return fmt.Sprintf("parameter %q must be a string, number, boolean, or an array of those", e.Key)
+	return fmt.Sprintf("parameter %q must be a string, boolean, or an array of strings", e.Key)
 }
 
 // convertMCPParameters sanitizes parameter types from JSON decoding into types expected by tasks.
-// Scalar types (string, bool, float64, json.Number) and slices of scalar types are supported.
-// Float64 values are formatted with strconv.FormatFloat(v, 'f', -1, 64). Nil values are skipped.
-// Maps, nested slices, or unsupported types return an invalidParameterError for the first invalid key in sorted order.
+// Strings, booleans, and slices of strings are supported. Nil values are skipped.
+// Other types return an invalidParameterError for the first invalid key in sorted order.
 func convertMCPParameters(params map[string]any) (map[string]any, error) {
 	result := make(map[string]any, len(params))
 	for _, k := range slices.Sorted(maps.Keys(params)) {
-		v := params[k]
-		if v == nil {
+		switch val := params[k].(type) {
+		case nil:
 			continue
-		}
-		switch val := v.(type) {
-		case string:
+		case string, bool:
 			result[k] = val
-		case bool:
-			result[k] = val
-		case float64:
-			result[k] = strconv.FormatFloat(val, 'f', -1, 64)
-		case json.Number:
-			result[k] = val.String()
-		case []string:
-			result[k] = slices.Clone(val)
 		case []any:
-			strSlice := make([]string, len(val))
+			strs := make([]string, len(val))
 			for i, elem := range val {
-				switch ev := elem.(type) {
-				case string:
-					strSlice[i] = ev
-				case bool:
-					strSlice[i] = strconv.FormatBool(ev)
-				case float64:
-					strSlice[i] = strconv.FormatFloat(ev, 'f', -1, 64)
-				case json.Number:
-					strSlice[i] = ev.String()
-				default:
+				s, ok := elem.(string)
+				if !ok {
 					return nil, &invalidParameterError{Key: k}
 				}
+				strs[i] = s
 			}
-			result[k] = strSlice
+			result[k] = strs
 		default:
 			return nil, &invalidParameterError{Key: k}
 		}
@@ -142,7 +123,7 @@ func (h *InspectionHandler) prepareParameters(id string, rawParams map[string]an
 		var invErr *invalidParameterError
 		if errors.As(err, &invErr) {
 			res, _, _ := mdtemplate.ErrorResult("INVALID_PARAMETERS",
-				fmt.Sprintf("Parameter %s must be a string, number, boolean, or an array of those.", mdtemplate.Code(invErr.Key)))
+				fmt.Sprintf("Parameter %s must be a string, boolean, or an array of strings.", mdtemplate.Code(invErr.Key)))
 			return nil, res, nil
 		}
 		return nil, nil, err
