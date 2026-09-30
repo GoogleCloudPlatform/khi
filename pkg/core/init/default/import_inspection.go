@@ -45,10 +45,11 @@ var ImportInspectionInitializer = &coreinit.Initializer{
 		indexManager := coreinit.MustGet(ctx, InspectionIndexManagerKey)
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
+		connectOpts, _ := coreinit.Get(ctx, ConnectHandlerOptionsKey)
 
 		importSessionManager := importinspection.NewImportSessionManager(inspectionServer, inspectionServer.IOConfig())
 		importInspectionServer := serverapiv1.NewImportInspectionServiceServer(importSessionManager, indexManager)
-		importInspectionPath, importInspectionHandler := apiv1connect.NewImportInspectionServiceHandler(importInspectionServer)
+		importInspectionPath, importInspectionHandler := apiv1connect.NewImportInspectionServiceHandler(importInspectionServer, connectOpts...)
 		coreinit.RegisterConnectServiceHandler(router, basePath, importInspectionPath, importInspectionHandler)
 
 		return nil
