@@ -250,14 +250,14 @@ func TestInspectionHandler_E2E(t *testing.T) {
 		if err != nil {
 			t.Fatalf("session.ListTools() failed: %v", err)
 		}
-		if len(toolsRes.Tools) != 4 {
-			t.Errorf("len(toolsRes.Tools) = %d, want 4", len(toolsRes.Tools))
+		if len(toolsRes.Tools) != 6 {
+			t.Errorf("len(toolsRes.Tools) = %d, want 6", len(toolsRes.Tools))
 		}
 		toolNames := make(map[string]bool)
 		for _, tool := range toolsRes.Tools {
 			toolNames[tool.Name] = true
 		}
-		for _, want := range []string{"create_inspection", "update_inspection_features", "dry_run_inspection", "run_inspection"} {
+		for _, want := range []string{"create_inspection", "update_inspection_features", "dry_run_inspection", "run_inspection", "wait_inspection", "cancel_inspection"} {
 			if !toolNames[want] {
 				t.Errorf("missing tool: %s", want)
 			}

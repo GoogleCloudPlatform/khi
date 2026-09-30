@@ -398,6 +398,8 @@ func TestInspectionTools_InspectionNotFound(t *testing.T) {
 		{tool: "update_inspection_features", args: map[string]any{"inspectionId": "nonexistent-id", "enabledFeatureIds": []string{doneFeatureID}}},
 		{tool: "dry_run_inspection", args: map[string]any{"inspectionId": "nonexistent-id"}},
 		{tool: "run_inspection", args: map[string]any{"inspectionId": "nonexistent-id"}},
+		{tool: "wait_inspection", args: map[string]any{"inspectionId": "nonexistent-id"}},
+		{tool: "cancel_inspection", args: map[string]any{"inspectionId": "nonexistent-id"}},
 	}
 
 	for _, tc := range testCases {
@@ -487,6 +489,17 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 		checkToolResult(t, "create_inspection", text, isError, want, false)
 	})
 
+	t.Run("not started", func(t *testing.T) {
+		requireInspectionID(t, id)
+		want := "Error: INSPECTION_NOT_STARTED\n\n- Call `run_inspection` to start the inspection."
+		for _, tool := range []string{"wait_inspection", "cancel_inspection"} {
+			t.Run(tool, func(t *testing.T) {
+				text, isError := callTool(t, env.ctx, env.session, tool, map[string]any{"inspectionId": id})
+				checkToolResult(t, tool, text, isError, want, true)
+			})
+		}
+	})
+
 	t.Run("update rejects invalid feature lists", func(t *testing.T) {
 		requireInspectionID(t, id)
 		testCases := []struct {
@@ -535,7 +548,12 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 	t.Run("run and wait until done", func(t *testing.T) {
 		requireInspectionID(t, id)
 		env.runInspection(t, id, map[string]any{})
-		<-env.server.GetInspection(id).Wait()
+		text, isError := callTool(t, env.ctx, env.session, "wait_inspection", map[string]any{
+			"inspectionId":   id,
+			"timeoutSeconds": 30,
+		})
+		want := fmt.Sprintf("# Inspection `%s`\n\nStatus: DONE. Read `khi://inspections/%s` for the summary.", id, id)
+		checkToolResult(t, "wait_inspection", text, isError, want, false)
 	})
 
 	t.Run("list shows the name", func(t *testing.T) {
@@ -580,5 +598,12 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 				checkToolResult(t, tc.tool, text, isError, want, true)
 			})
 		}
+	})
+
+	t.Run("cancel after finish", func(t *testing.T) {
+		requireInspectionID(t, id)
+		text, isError := callTool(t, env.ctx, env.session, "cancel_inspection", map[string]any{"inspectionId": id})
+		want := "Error: INSPECTION_ALREADY_FINISHED\n\n- Call `wait_inspection` to read the final status."
+		checkToolResult(t, "cancel_inspection", text, isError, want, true)
 	})
 }

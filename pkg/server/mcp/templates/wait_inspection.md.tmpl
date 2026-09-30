@@ -1,0 +1,25 @@
+# Inspection {{ code .ID }}
+
+{{ if eq .Phase "RUNNING" -}}
+Status: RUNNING, {{ percent .ProgressRatio }} done. Call `wait_inspection` again to keep waiting.
+{{- if .RunningTasks }}
+
+| Task | Progress | Message |
+| --- | --- | --- |
+{{ range .RunningTasks -}}
+| {{ cell .Label }} | {{ cell .Progress }} | {{ cell .Message }} |
+{{ end -}}
+{{- end }}
+{{- else if eq .Phase "DONE" -}}
+Status: DONE. Read `khi://inspections/{{ .ID }}` for the summary.
+{{- else if eq .Phase "ERROR" -}}
+Status: ERROR.
+
+| Task | Error |
+| --- | --- |
+{{ range .FailedTasks -}}
+| {{ if .Title }}{{ cell .Title }}{{ else }}{{ code .TaskID }}{{ end }} | {{ cell .Error }} |
+{{ end -}}
+{{- else if eq .Phase "CANCELLED" -}}
+Status: CANCELLED.
+{{- end }}

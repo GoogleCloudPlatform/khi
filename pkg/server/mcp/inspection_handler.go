@@ -97,6 +97,16 @@ func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
 		Name:        "run_inspection",
 		Description: "Start the inspection with the same parameters as dry_run_inspection. Always call dry_run_inspection first and fix all errors; warnings do not block the run. All times are UTC RFC3339. Wider time ranges increase execution time and memory usage. Returns immediately; call wait_inspection next.",
 	}, h.handleRunInspection)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "wait_inspection",
+		Description: "Wait until the inspection finishes or timeoutSeconds (default 60, max 300) elapses, then return the status and the progress of running tasks. A timeout is not a failure; call again to keep waiting. This is the only way to read progress.",
+	}, h.handleWaitInspection)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "cancel_inspection",
+		Description: "Cancel a running inspection.",
+	}, h.handleCancelInspection)
 }
 
 // mcpUnavailableReason returns a non-empty explanation if the inspection type cannot be used via MCP.
