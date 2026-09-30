@@ -56,7 +56,7 @@ func TestRun(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := WithDefaultTestInspectionTaskContext(context.Background())
+			ctx := WithDefaultTestInspectionTaskContext(t.Context())
 			wantMetadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 
 			got, gotMetadata, err := Run(t, ctx, task, tc.mode, map[string]any{"form": "bar"}, tasktest.Given(sourceRef, "foo"))

@@ -46,7 +46,7 @@ func runWithFatalRecorder[T any](t *testing.T, task coretask.DefinedTask[T], inp
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		result, err = Run(recorder, context.Background(), task, inputs...)
+		result, err = Run(recorder, t.Context(), task, inputs...)
 	}()
 	<-done
 	return result, recorder.fatalMessage, err
