@@ -126,10 +126,6 @@ func ingestLogs(ctx context.Context, taskID taskid.TaskImplementationID[struct{}
 				if hasErr() {
 					return
 				}
-				if err := ctx.Err(); err != nil {
-					setErr(err)
-					return
-				}
 				l := logs[i]
 				cs, err := processLog(ctx, l)
 				tracker.Inc()
