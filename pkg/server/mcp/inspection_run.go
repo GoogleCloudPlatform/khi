@@ -115,8 +115,7 @@ func convertMCPParameters(params map[string]any) (map[string]any, error) {
 	return result, nil
 }
 
-// prepareParameters validates and converts input parameters, drops the timezone shift key
-// so that inspections evaluate in UTC, and injects the registered inspection name if omitted.
+// prepareParameters validates and converts input parameters and injects the registered inspection name if omitted.
 func (h *InspectionHandler) prepareParameters(id string, rawParams map[string]any) (map[string]any, *mcpsdk.CallToolResult, error) {
 	preparedParams, err := convertMCPParameters(rawParams)
 	if err != nil {
@@ -128,8 +127,6 @@ func (h *InspectionHandler) prepareParameters(id string, rawParams map[string]an
 		}
 		return nil, nil, err
 	}
-
-	delete(preparedParams, inspectioncore.TaskInputKeyTimezoneShiftHours)
 
 	nameKey := inspectioncore.InputInspectionNameTaskID.ReferenceIDString()
 	if _, exists := preparedParams[nameKey]; !exists {
