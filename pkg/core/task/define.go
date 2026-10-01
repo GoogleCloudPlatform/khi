@@ -59,3 +59,13 @@ func Define[T any](
 		inputs: b.specs,
 	}
 }
+
+// DefineConstant constructs a task that has no inputs and always returns value.
+// The same value is returned on every run, so callers must not modify reference types such as slices or maps in it.
+func DefineConstant[T any](id taskid.TaskImplementationID[T], value T, labelOpts ...LabelOpt) DefinedTask[T] {
+	return Define(id, func(b *Binder) func(ctx context.Context) (T, error) {
+		return func(ctx context.Context) (T, error) {
+			return value, nil
+		}
+	}, labelOpts...)
+}

@@ -32,19 +32,11 @@ import (
 // autocompleteMetricsK8sContainerTask is the task to provide the default metrics type to collect the cluster names.
 // The resource type "k8s_container" must be available on the returned metrics type.
 // This task is overridden in GKE clusters.
-var autocompleteMetricsK8sContainerTask = coretask.Define(k8scommon.AutocompleteMetricsK8sContainerTaskID, func(b *coretask.Binder) func(ctx context.Context) (string, error) {
-	// logging.googleapis.com/log_entry_count is better from the perspective of KHI's purpose, but use container metrics for longer retention period(24 months).
-	return func(ctx context.Context) (string, error) {
-		return "kubernetes.io/anthos/up", nil
-	}
-})
+// logging.googleapis.com/log_entry_count is better from the perspective of KHI's purpose, but use container metrics for longer retention period(24 months).
+var autocompleteMetricsK8sContainerTask = coretask.DefineConstant(k8scommon.AutocompleteMetricsK8sContainerTaskID, "kubernetes.io/anthos/up")
 
 // autocompleteMetricsK8sNodeTask provides the default metrics type to collect node names.
-var autocompleteMetricsK8sNodeTask = coretask.Define(k8scommon.AutocompleteMetricsK8sNodeTaskID, func(b *coretask.Binder) func(ctx context.Context) (string, error) {
-	return func(ctx context.Context) (string, error) {
-		return "kubernetes.io/anthos/up", nil
-	}
-})
+var autocompleteMetricsK8sNodeTask = coretask.DefineConstant(k8scommon.AutocompleteMetricsK8sNodeTaskID, "kubernetes.io/anthos/up")
 
 // autocompleteClusterIdentityTask collects cluster name candidates as GoogleCloudClusterIdentity.
 var autocompleteClusterIdentityTask = inspectiontaskbase.DefineCachedTask(k8scommon.AutocompleteClusterIdentityTaskID, func(b *coretask.Binder) inspectiontaskbase.CachedTaskSpec[*inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]] {

@@ -15,7 +15,6 @@
 package csm_impl
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -25,12 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	gdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gdcbaremetal/impl"
-	gkecluster_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gke/impl"
-	gkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gkeonaws/impl"
-	gkeonazure_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gkeonazure/impl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
@@ -284,13 +278,13 @@ labels.response_flag:("UH")`,
 
 func TestCSMQueryTaskPrefixResolution(t *testing.T) {
 	testCases := []struct {
-		name       string
-		prefixTask coretask.Task[k8scommon.ClusterPrefixPolicy]
-		want       string
+		name         string
+		prefixPolicy k8scommon.ClusterPrefixPolicy
+		want         string
 	}{
 		{
-			name:       "GKE side task generates no prefix",
-			prefixTask: gkecluster_impl.GKEClusterNamePrefixTask,
+			name:         "GKE policy generates no prefix",
+			prefixPolicy: k8scommon.ClusterPrefixPolicy{},
 			want: `resource.labels.project_id="test-project"
 resource.labels.location="test-location"
 resource.labels.cluster_name="test-cluster"
@@ -299,8 +293,11 @@ resource.labels.namespace_name:"default"
 labels.response_flag:("UH")`,
 		},
 		{
-			name:       "baremetal side task adds prefix",
-			prefixTask: gdcbaremetal_impl.GDCVForBaremetalClusterNamePrefixTask,
+			name: "baremetal policy adds prefix",
+			prefixPolicy: k8scommon.ClusterPrefixPolicy{
+				Prefix:         "baremetalClusters/",
+				RequiredUsages: []k8scommon.ClusterNameUsage{k8scommon.ClusterNameUsageK8sPlatformAudit, k8scommon.ClusterNameUsageCSM},
+			},
 			want: `resource.labels.project_id="test-project"
 resource.labels.location="test-location"
 resource.labels.cluster_name="baremetalClusters/test-cluster"
@@ -309,8 +306,11 @@ resource.labels.namespace_name:"default"
 labels.response_flag:("UH")`,
 		},
 		{
-			name:       "aws side task adds prefix",
-			prefixTask: gkeonaws_impl.AnthosOnAWSClusterNamePrefixTask,
+			name: "aws policy adds prefix",
+			prefixPolicy: k8scommon.ClusterPrefixPolicy{
+				Prefix:         "awsClusters/",
+				RequiredUsages: []k8scommon.ClusterNameUsage{k8scommon.ClusterNameUsageK8sCluster, k8scommon.ClusterNameUsageK8sPlatformAudit, k8scommon.ClusterNameUsageCSM},
+			},
 			want: `resource.labels.project_id="test-project"
 resource.labels.location="test-location"
 resource.labels.cluster_name="awsClusters/test-cluster"
@@ -319,8 +319,11 @@ resource.labels.namespace_name:"default"
 labels.response_flag:("UH")`,
 		},
 		{
-			name:       "azure side task adds prefix",
-			prefixTask: gkeonazure_impl.AnthosOnAzureClusterNamePrefixTask,
+			name: "azure policy adds prefix",
+			prefixPolicy: k8scommon.ClusterPrefixPolicy{
+				Prefix:         "azureClusters/",
+				RequiredUsages: []k8scommon.ClusterNameUsage{k8scommon.ClusterNameUsageK8sCluster, k8scommon.ClusterNameUsageK8sPlatformAudit, k8scommon.ClusterNameUsageCSM},
+			},
 			want: `resource.labels.project_id="test-project"
 resource.labels.location="test-location"
 resource.labels.cluster_name="azureClusters/test-cluster"
@@ -332,18 +335,11 @@ labels.response_flag:("UH")`,
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			ctx = khictx.WithValue(ctx, inspectioncore.InspectionTaskMode, inspectioncore.TaskModeRun)
-			prefixPolicy, err := tasktest.RunTask(ctx, tc.prefixTask)
-			if err != nil {
-				t.Fatalf("unexpected error running prefix task: %v", err)
-			}
-
 			idRes := k8scommon.GoogleCloudClusterIdentity{
 				ProjectID:    "test-project",
 				ClusterName:  "test-cluster",
 				Location:     "test-location",
-				PrefixPolicy: prefixPolicy,
+				PrefixPolicy: tc.prefixPolicy,
 			}
 
 			got := GenerateCSMTrafficLogsStructuredQuery(idRes, &gcpqueryutil.SetFilterParseResult{Additives: []string{"UH"}}, &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}}).GenerateCloudLoggingQuery()

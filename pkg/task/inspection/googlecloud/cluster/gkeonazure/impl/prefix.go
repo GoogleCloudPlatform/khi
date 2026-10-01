@@ -15,22 +15,18 @@
 package gkeonazure_impl
 
 import (
-	"context"
-
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gkeonazure"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
-// AnthosOnAzureClusterNamePrefixTask is a task that provides the cluster name prefix policy for GKE on Azure.
+// anthosOnAzureClusterNamePrefixTask is a task that provides the cluster name prefix policy for GKE on Azure.
 // This task applies "azureClusters/" prefix across all usage layers.
-var AnthosOnAzureClusterNamePrefixTask = coretask.NewTask(gkeonazure.ClusterNamePrefixTaskID, []coretask.Dependency{}, func(_ context.Context) (k8scommon.ClusterPrefixPolicy, error) {
-	return k8scommon.ClusterPrefixPolicy{
-		Prefix: "azureClusters/",
-		RequiredUsages: []k8scommon.ClusterNameUsage{
-			k8scommon.ClusterNameUsageK8sCluster,
-			k8scommon.ClusterNameUsageK8sPlatformAudit,
-			k8scommon.ClusterNameUsageCSM,
-		},
-	}, nil
+var anthosOnAzureClusterNamePrefixTask = coretask.DefineConstant(gkeonazure.ClusterNamePrefixTaskID, k8scommon.ClusterPrefixPolicy{
+	Prefix: "azureClusters/",
+	RequiredUsages: []k8scommon.ClusterNameUsage{
+		k8scommon.ClusterNameUsageK8sCluster,
+		k8scommon.ClusterNameUsageK8sPlatformAudit,
+		k8scommon.ClusterNameUsageCSM,
+	},
 })

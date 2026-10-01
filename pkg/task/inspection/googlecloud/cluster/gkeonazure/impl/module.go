@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,23 +22,17 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// Register registers all googlecloudclustergkeonazure inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	if err := registry.AddInspectionType(gkeonazure.AnthosOnAzureInspectionType); err != nil {
-		return err
-	}
-
-	scoped := coreinspection.NewScopedRegistry(
-		registry,
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
-			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
-			gcpcommon.InspectionTypeLabelKeyClusterType:       "gke_multicloud",
-			gcpcommon.InspectionTypeLabelKeyClusterSubType:    "azure",
-		}),
-	)
-
-	return coretask.RegisterTasks(scoped,
-		AnthosOnAzureClusterNamePrefixTask,
-	)
+// Module declares the GKE on Azure inspection type and the cluster name prefix task for it.
+var Module = coreinspection.Module{
+	Name: "googlecloud/cluster/gkeonazure",
+	Scope: coreinspection.Scope{
+		inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		gcpcommon.InspectionTypeLabelKeyClusterType:       "gke_multicloud",
+		gcpcommon.InspectionTypeLabelKeyClusterSubType:    "azure",
+	},
+	InspectionTypes: []coreinspection.InspectionType{gkeonazure.AnthosOnAzureInspectionType},
+	Tasks: []coretask.UntypedTask{
+		anthosOnAzureClusterNamePrefixTask,
+	},
 }
