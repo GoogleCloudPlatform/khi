@@ -31,43 +31,44 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// JobModeCommandTaskID defines the unique ID of the JobModeCommandTask.
-var JobModeCommandTaskID = taskid.NewDefaultImplementationID[any](inspectioncore.InspectionTaskPrefix + "job-command")
+// jobModeCommandTaskID defines the unique ID of jobModeCommandTask.
+var jobModeCommandTaskID = taskid.NewDefaultImplementationID[any](inspectioncore.InspectionTaskPrefix + "job-command")
 
-// JobModeCommandTask calculates the job mode command example and populates it into the metadata map.
-var JobModeCommandTask = inspectiontaskbase.NewInspectionTask(
-	JobModeCommandTaskID,
-	[]coretask.Dependency{},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (any, error) {
-		metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
-		jobMetadata, found := typedmap.Get(metadataSet, inspectionmetadata.JobModeCommandMetadataKey)
-		if !found {
-			return nil, fmt.Errorf("job command metadata not found")
+// jobModeCommandTask calculates the job mode command example and populates it into the metadata map.
+var jobModeCommandTask = inspectiontaskbase.DefineInspectionTask(
+	jobModeCommandTaskID,
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[any] {
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (any, error) {
+			metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+			jobMetadata, found := typedmap.Get(metadataSet, inspectionmetadata.JobModeCommandMetadataKey)
+			if !found {
+				return nil, fmt.Errorf("job command metadata not found")
+			}
+
+			enabledFeatures, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskEnabledFeatures)
+			if err != nil {
+				return nil, err
+			}
+
+			inspectionType := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskType)
+
+			taskInput := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
+
+			formFields, found := typedmap.Get(metadataSet, inspectionmetadata.FormFieldSetMetadataKey)
+			if !found {
+				return nil, fmt.Errorf("form field metadata not found")
+			}
+			fileFieldIDs := formFields.GetFileFieldIDs()
+
+			command, err := GenerateJobModeCommand(inspectionType, enabledFeatures, taskInput, fileFieldIDs)
+			if err != nil {
+				return nil, err
+			}
+
+			jobMetadata.SetCommand(command)
+
+			return nil, nil
 		}
-
-		enabledFeatures, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskEnabledFeatures)
-		if err != nil {
-			return nil, err
-		}
-
-		inspectionType := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskType)
-
-		taskInput := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
-
-		formFields, found := typedmap.Get(metadataSet, inspectionmetadata.FormFieldSetMetadataKey)
-		if !found {
-			return nil, fmt.Errorf("form field metadata not found")
-		}
-		fileFieldIDs := formFields.GetFileFieldIDs()
-
-		command, err := GenerateJobModeCommand(inspectionType, enabledFeatures, taskInput, fileFieldIDs)
-		if err != nil {
-			return nil, err
-		}
-
-		jobMetadata.SetCommand(command)
-
-		return nil, nil
 	},
 )
 

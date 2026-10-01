@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,27 +20,24 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// Register registers all googlecloudcommon inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	scoped := coreinspection.NewScopedRegistry(
-		registry,
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyEnvironment: "googlecloud",
-		}),
-	)
-
-	return coretask.RegisterTasks(scoped,
-		AutocompleteLocationTask,
-		InputProjectIdTask,
-		InputLoggingFilterResourceNameTask,
-		InputDurationTask,
-		InputStartTimeTask,
-		InputEndTimeTask,
-		InputLocationsTask,
-		APIClientFactoryTask,
-		APIClientFactoryOptionsTask,
-		APICallOptionsInjectorTask,
-		LocationFetcherTask,
-		LoggingFetcherTask,
-	)
+// Module declares the common Google Cloud inspection tasks.
+var Module = coreinspection.Module{
+	Name: "googlecloud/gcpcommon",
+	Scope: coreinspection.Scope{
+		inspectioncore.InspectionTypeLabelKeyEnvironment: "googlecloud",
+	},
+	Tasks: []coretask.UntypedTask{
+		autocompleteLocationTask,
+		inputProjectIDTask,
+		inputLoggingFilterResourceNameTask,
+		inputDurationTask,
+		inputStartTimeTask,
+		inputEndTimeTask,
+		inputLocationsTask,
+		apiClientFactoryTask,
+		apiClientFactoryOptionsTask,
+		apiClientCallOptionsInjectorTask,
+		locationFetcherTask,
+		loggingFetcherTask,
+	},
 }

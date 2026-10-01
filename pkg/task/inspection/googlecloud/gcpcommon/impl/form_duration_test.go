@@ -20,26 +20,28 @@ import (
 
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func TestDurationInput(t *testing.T) {
 	expectedDescription := "The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)"
 	expectedLabel := "Duration"
 	expectedSuggestions := []string{"1m", "10m", "1h", "3h", "12h", "24h"}
-	timezoneTaskUTC := tasktest.StubTask(inspectioncore_impl.TimeZoneShiftInputTask, time.UTC, nil)
-	timezoneTaskJST := tasktest.StubTask(inspectioncore_impl.TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
-	currentTimeTask1 := tasktest.StubTask(inspectioncore_impl.InspectionTimeProducer, time.Date(2023, time.April, 5, 12, 0, 0, 0, time.UTC), nil)
-	endTimeTask := tasktest.StubTask(InputEndTimeTask, time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC), nil)
+	currentTime1 := time.Date(2023, time.April, 5, 12, 0, 0, 0, time.UTC)
+	endTime := time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
 
-	form_task_test.TestTextForms(t, "duration", InputDurationTask, []*form_task_test.TextFormTestCase{
+	form_task_test.TestTextForms(t, "duration", inputDurationTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "With valid time duration",
 			Input:         "10m",
 			ExpectedValue: time.Duration(time.Minute) * 10,
-			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
+			TaskInputs: []tasktest.InputValue{
+				tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+				tasktest.Given(inspectioncore.InspectionTimeTaskID.Ref(), currentTime1),
+				tasktest.Given(inspectioncore.TimeZoneShiftInputTaskID.Ref(), time.UTC),
+			},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -59,7 +61,11 @@ func TestDurationInput(t *testing.T) {
 			Name:          "With invalid time duration",
 			Input:         "foo",
 			ExpectedValue: time.Hour,
-			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
+			TaskInputs: []tasktest.InputValue{
+				tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+				tasktest.Given(inspectioncore.InspectionTimeTaskID.Ref(), currentTime1),
+				tasktest.Given(inspectioncore.TimeZoneShiftInputTaskID.Ref(), time.UTC),
+			},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -76,7 +82,11 @@ func TestDurationInput(t *testing.T) {
 			Name:          "With invalid time duration(negative)",
 			Input:         "-10m",
 			ExpectedValue: time.Hour,
-			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
+			TaskInputs: []tasktest.InputValue{
+				tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+				tasktest.Given(inspectioncore.InspectionTimeTaskID.Ref(), currentTime1),
+				tasktest.Given(inspectioncore.TimeZoneShiftInputTaskID.Ref(), time.UTC),
+			},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -93,7 +103,11 @@ func TestDurationInput(t *testing.T) {
 			Name:          "with longer duration starting before than 30 days",
 			Input:         "672h", // starting time will be 30 days before the inspection time
 			ExpectedValue: time.Hour * 672,
-			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
+			TaskInputs: []tasktest.InputValue{
+				tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+				tasktest.Given(inspectioncore.InspectionTimeTaskID.Ref(), currentTime1),
+				tasktest.Given(inspectioncore.TimeZoneShiftInputTaskID.Ref(), time.UTC),
+			},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Type:        "Text",
@@ -116,7 +130,11 @@ Query range:
 			Name:          "With non UTC timezone",
 			Input:         "1h",
 			ExpectedValue: time.Hour,
-			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskJST},
+			TaskInputs: []tasktest.InputValue{
+				tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+				tasktest.Given(inspectioncore.InspectionTimeTaskID.Ref(), currentTime1),
+				tasktest.Given(inspectioncore.TimeZoneShiftInputTaskID.Ref(), time.FixedZone("", 9*3600)),
+			},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Type:        "Text",

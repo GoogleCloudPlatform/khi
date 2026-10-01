@@ -198,9 +198,9 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			ctx = khictx.WithValue[coretask.TaskRunner](ctx, inspectioncore.TaskRunner, &mockTaskRunner{tasks: tc.tasks})
-			resourceNames, _, err := inspectiontest.RunInspectionTask(ctx, InputLoggingFilterResourceNameTask, inspectioncore.TaskModeDryRun, map[string]any{})
+			resourceNames, _, err := inspectiontest.Run(t, ctx, inputLoggingFilterResourceNameTask, inspectioncore.TaskModeDryRun, map[string]any{})
 			if err != nil {
-				t.Fatalf("Failed to call InputLoggingFilterResourceNameTask at 1st time:%v", err)
+				t.Fatalf("failed to call inputLoggingFilterResourceNameTask at 1st time: %v", err)
 			}
 			resourceName := gcpcommon.QueryResourceNames{
 				QueryID: "test",
@@ -208,11 +208,11 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 			newCtx := inspectiontest.NextRunTaskContext(t.Context(), ctx)
 			newCtx = khictx.WithValue[coretask.TaskRunner](newCtx, inspectioncore.TaskRunner, &mockTaskRunner{tasks: tc.tasks})
 			resourceNames.UpdateDefaultResourceNamesForQuery("test", defaultNames)
-			_, metadata, err := inspectiontest.RunInspectionTask(newCtx, InputLoggingFilterResourceNameTask, tc.taskMode, map[string]any{
+			_, metadata, err := inspectiontest.Run(t, newCtx, inputLoggingFilterResourceNameTask, tc.taskMode, map[string]any{
 				resourceName.GetInputID(): tc.inputValue,
 			})
 			if err != nil {
-				t.Fatalf("Failed to call InputLoggingFilterResourceNameTask at 2nd time:%v", err)
+				t.Fatalf("failed to call inputLoggingFilterResourceNameTask at 2nd time: %v", err)
 			}
 			formFieldSet, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 			if !found {
@@ -220,7 +220,7 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 			}
 			gotForm := formFieldSet.DangerouslyGetField(gcpcommon.InputLoggingFilterResourceNameTaskID.ReferenceIDString())
 			if diff := cmp.Diff(tc.wantForm, gotForm); diff != "" {
-				t.Errorf("InputLoggingFilterResourceNameTask saved group form mismatch (-want,+got):\n%s", diff)
+				t.Errorf("inputLoggingFilterResourceNameTask saved group form mismatch (-want,+got):\n%s", diff)
 			}
 		})
 	}

@@ -93,9 +93,9 @@ func TestAPIClientFactoryOptionsTask(t *testing.T) {
 
 			ctx := tc.prepareContext(context.Background())
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
-			gotOptions, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryOptionsTask, inspectioncore.TaskModeRun, map[string]any{})
+			gotOptions, _, err := inspectiontest.Run(t, ctx, apiClientFactoryOptionsTask, inspectioncore.TaskModeRun, map[string]any{})
 			if err != nil {
-				t.Fatalf("APIClientFactoryOptionsTask failed: %v", err)
+				t.Fatalf("apiClientFactoryOptionsTask failed: %v", err)
 			}
 			if len(gotOptions) != tc.wantCount {
 				t.Errorf("got %d options, want %d", len(gotOptions), tc.wantCount)
@@ -137,9 +137,9 @@ func TestAPICallOptionsInjectorTask(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := tc.prepareContext(context.Background())
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
-			gotCallOptionsInjector, _, err := inspectiontest.RunInspectionTask(ctx, APICallOptionsInjectorTask, inspectioncore.TaskModeRun, map[string]any{})
+			gotCallOptionsInjector, _, err := inspectiontest.Run(t, ctx, apiClientCallOptionsInjectorTask, inspectioncore.TaskModeRun, map[string]any{})
 			if err != nil {
-				t.Fatalf("APICallOptionsInjectorTask failed: %v", err)
+				t.Fatalf("apiClientCallOptionsInjectorTask failed: %v", err)
 			}
 			if diff := cmp.Diff(tc.wantCallOptionsInjector, gotCallOptionsInjector, cmp.AllowUnexported(googlecloud.CallOptionInjector{})); diff != "" {
 				t.Errorf("APICallOptionsInjectorTask returned unexpected diff (-want +got):\n%s", diff)

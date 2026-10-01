@@ -26,40 +26,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// InputDurationTask defines a form task to input the duration for log queries.
-var InputDurationTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputDurationTaskID, gcpcommon.PriorityForQueryTimeGroup+4000, "Duration").
-	WithDependencies([]coretask.Dependency{
-		inspectioncore.InspectionTimeTaskID.Ref(),
-		gcpcommon.InputEndTimeTaskID.Ref(),
-		inspectioncore.TimeZoneShiftInputTaskID.Ref(),
-	}).
+// inputDurationTask defines a form task to input the duration for log queries.
+var inputDurationTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputDurationTaskID, gcpcommon.PriorityForQueryTimeGroup+4000, "Duration").
 	WithDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
 	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
 		if len(previousValues) > 0 {
 			return previousValues[0], nil
-		} else {
-			return "1h", nil
 		}
-	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		inspectionTime := coretask.GetTaskResult(ctx, inspectioncore.InspectionTimeTaskID.Ref())
-		endTime := coretask.GetTaskResult(ctx, gcpcommon.InputEndTimeTaskID.Ref())
-		timezoneShift := coretask.GetTaskResult(ctx, inspectioncore.TimeZoneShiftInputTaskID.Ref())
-
-		duration := convertedValue.(time.Duration)
-		startTime := endTime.Add(-duration)
-		startToNow := inspectionTime.Sub(startTime)
-		hintString := ""
-		if startToNow > time.Hour*24*30 {
-			hintString += "Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.\n"
-		}
-		if duration > time.Hour*3 {
-			hintString += "This duration can be too long for big clusters and lead OOM. Please retry with shorter duration when your machine crashed.\n"
-		}
-		hintString += fmt.Sprintf("Query range:\n%s\n", toTimeDurationWithTimezone(startTime, endTime, timezoneShift, true))
-		hintString += fmt.Sprintf("(UTC: %s)\n", toTimeDurationWithTimezone(startTime, endTime, time.UTC, false))
-		hintString += fmt.Sprintf("(PDT: %s)", toTimeDurationWithTimezone(startTime, endTime, time.FixedZone("PDT", -7*3600), false))
-		return hintString, inspectionmetadata.Info, nil
+		return "1h", nil
 	}).
 	WithSuggestionsConstant([]string{"1m", "10m", "1h", "3h", "12h", "24h"}).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
@@ -79,7 +53,34 @@ var InputDurationTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputDurationT
 		}
 		return d, nil
 	}).
-	Build()
+	Define(func(b *coretask.Binder) formtask.TextFormFuncs[time.Duration] {
+		inspectionTimeHandle := coretask.Use(b, inspectioncore.InspectionTimeTaskID.Ref())
+		endTimeHandle := coretask.Use(b, gcpcommon.InputEndTimeTaskID.Ref())
+		timezoneShiftHandle := coretask.Use(b, inspectioncore.TimeZoneShiftInputTaskID.Ref())
+
+		return formtask.TextFormFuncs[time.Duration]{
+			Hint: func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+				inspectionTime := inspectionTimeHandle.Get(ctx)
+				endTime := endTimeHandle.Get(ctx)
+				timezoneShift := timezoneShiftHandle.Get(ctx)
+
+				duration := convertedValue.(time.Duration)
+				startTime := endTime.Add(-duration)
+				startToNow := inspectionTime.Sub(startTime)
+				hintString := ""
+				if startToNow > time.Hour*24*30 {
+					hintString += "Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.\n"
+				}
+				if duration > time.Hour*3 {
+					hintString += "This duration can be too long for big clusters and lead OOM. Please retry with shorter duration when your machine crashed.\n"
+				}
+				hintString += fmt.Sprintf("Query range:\n%s\n", toTimeDurationWithTimezone(startTime, endTime, timezoneShift, true))
+				hintString += fmt.Sprintf("(UTC: %s)\n", toTimeDurationWithTimezone(startTime, endTime, time.UTC, false))
+				hintString += fmt.Sprintf("(PDT: %s)", toTimeDurationWithTimezone(startTime, endTime, time.FixedZone("PDT", -7*3600), false))
+				return hintString, inspectionmetadata.Info, nil
+			},
+		}
+	})
 
 func toTimeDurationWithTimezone(startTime time.Time, endTime time.Time, timezone *time.Location, withTimezone bool) string {
 	timeFormat := "2006-01-02T15:04:05"

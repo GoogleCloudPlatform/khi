@@ -24,42 +24,30 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// AutocompleteLocationTask is a task that provides a list of available locations for autocomplete.
+// autocompleteLocationTask is a task that provides a list of available locations for autocomplete.
 // This serves as the default fallback implementation for generic Google Cloud environments.
 // When an inspection type specific implementation is available (e.g. Kubernetes cluster or Cloud Composer),
 // this implementation is shadowed by the higher-priority task.
-var AutocompleteLocationTask = inspectiontaskbase.NewGlobalCachedTask(gcpcommon.AutocompleteLocationTaskID,
-	[]coretask.Dependency{
-		gcpcommon.InputProjectIdTaskID.Ref(), // for API restriction
-		gcpcommon.LocationFetcherTaskID.Ref(),
-	},
-	func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]], error) {
-		projectID := coretask.GetTaskResult(ctx, gcpcommon.InputProjectIdTaskID.Ref())
-		dependencyDigest := fmt.Sprintf("location-%s", projectID)
-
-		if prevValue.DependencyDigest == dependencyDigest {
-			return prevValue, nil
-		}
-
-		defaultResult := inspectiontaskbase.CacheableTaskResult[*inspectioncore.AutocompleteResult[string]]{
-			DependencyDigest: dependencyDigest,
-			Value: &inspectioncore.AutocompleteResult[string]{
-				Values: []string{},
-				Error:  "",
-				Hint:   "",
+var autocompleteLocationTask = inspectiontaskbase.DefineCachedTask(gcpcommon.AutocompleteLocationTaskID,
+	func(b *coretask.Binder) inspectiontaskbase.CachedTaskSpec[*inspectioncore.AutocompleteResult[string]] {
+		projectID := coretask.Use(b, gcpcommon.InputProjectIdTaskID.Ref()) // for API restriction
+		locationFetcher := coretask.Use(b, gcpcommon.LocationFetcherTaskID.Ref())
+		return inspectiontaskbase.CachedTaskSpec[*inspectioncore.AutocompleteResult[string]]{
+			Scope: inspectiontaskbase.CacheScopeGlobal,
+			InputDigest: func(ctx context.Context) string {
+				return fmt.Sprintf("location-%s", projectID.Get(ctx))
+			},
+			Compute: func(ctx context.Context) (*inspectioncore.AutocompleteResult[string], error) {
+				pid := projectID.Get(ctx)
+				if pid == "" {
+					return &inspectioncore.AutocompleteResult[string]{Values: []string{}}, nil
+				}
+				regions, err := locationFetcher.Get(ctx).FetchRegions(ctx, pid)
+				if err != nil {
+					return &inspectioncore.AutocompleteResult[string]{Values: []string{}}, nil
+				}
+				return &inspectioncore.AutocompleteResult[string]{Values: regions}, nil
 			},
 		}
-
-		if projectID == "" {
-			return defaultResult, nil
-		}
-
-		locationFetcher := coretask.GetTaskResult(ctx, gcpcommon.LocationFetcherTaskID.Ref())
-		regions, err := locationFetcher.FetchRegions(ctx, projectID)
-		if err != nil {
-			return defaultResult, nil
-		}
-		result := defaultResult
-		result.Value.Values = regions
-		return result, nil
-	})
+	},
+)
