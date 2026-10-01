@@ -33,20 +33,29 @@ import (
 
 // TestDefineTextForm_FormField checks the form field and value computed from each spec setting.
 func TestDefineTextForm_FormField(t *testing.T) {
+	getField := func(t *testing.T, ctx context.Context) inspectionmetadata.ParameterFormField {
+		t.Helper()
+		metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+		fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
+		if !found {
+			t.Fatal("FormFieldSet not found on metadata")
+		}
+		return fields.DangerouslyGetField("foo")
+	}
+
 	testCases := []struct {
 		Name              string
 		Spec              TextFormSpec[string]
 		RequestValue      string
 		ExpectedFormField inspectionmetadata.ParameterFormField
-		ExpectedValue     any
-		ExpectedError     string
+		ExpectedValue     string
+		ExpectRunError    bool
 	}{
 		{
 			Name:          "A text form with given parameter",
 			Spec:          TextFormSpec[string]{},
 			RequestValue:  "bar",
 			ExpectedValue: "bar",
-			ExpectedError: "",
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				Readonly: false,
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
@@ -67,7 +76,6 @@ func TestDefineTextForm_FormField(t *testing.T) {
 			},
 			RequestValue:  "",
 			ExpectedValue: "foo-default",
-			ExpectedError: "",
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.None,
@@ -84,9 +92,9 @@ func TestDefineTextForm_FormField(t *testing.T) {
 					return "foo validation error", nil
 				},
 			},
-			RequestValue:  "",
-			ExpectedValue: "foo-default",
-			ExpectedError: "",
+			RequestValue:   "",
+			ExpectedValue:  "",
+			ExpectRunError: true,
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.Error,
@@ -105,7 +113,6 @@ func TestDefineTextForm_FormField(t *testing.T) {
 			},
 			RequestValue:  "",
 			ExpectedValue: "",
-			ExpectedError: "",
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.None,
@@ -129,7 +136,6 @@ func TestDefineTextForm_FormField(t *testing.T) {
 			},
 			RequestValue:  "bar-from-request",
 			ExpectedValue: "foo-from-default",
-			ExpectedError: "",
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.None,
@@ -148,7 +154,6 @@ func TestDefineTextForm_FormField(t *testing.T) {
 			},
 			RequestValue:  "bar-from-request",
 			ExpectedValue: "bar-from-request",
-			ExpectedError: "",
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.Info,
@@ -172,8 +177,7 @@ func TestDefineTextForm_FormField(t *testing.T) {
 				},
 			},
 			RequestValue:  "bar-from-request",
-			ExpectedValue: "bar-from-request",
-			ExpectedError: "",
+			ExpectedValue: "foo-from-default",
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.None,
@@ -194,7 +198,6 @@ func TestDefineTextForm_FormField(t *testing.T) {
 			},
 			RequestValue:  "bar-from-request",
 			ExpectedValue: "bar-from-request",
-			ExpectedError: "",
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.None,
@@ -215,72 +218,45 @@ func TestDefineTextForm_FormField(t *testing.T) {
 			taskDef := DefineTextForm(taskid.NewDefaultImplementationID[string]("foo"), 1, "foo label", "", func(*coretask.Binder) TextFormSpec[string] {
 				return testCase.Spec
 			})
-			formFields := []inspectionmetadata.ParameterFormField{}
 
-			// Execute task as DryRun mode
-			taskCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			// An empty RequestValue means the request does not contain the field.
+			request := map[string]any{}
+			if testCase.RequestValue != "" {
+				request["foo"] = testCase.RequestValue
+			}
 
-			_, _, err := inspectiontest.Run(t, taskCtx, taskDef, inspectioncore.TaskModeDryRun, map[string]any{
-				"foo": testCase.RequestValue,
-			})
-			if testCase.ExpectedError != "" {
+			// 1. DryRun
+			dryRunCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			got, _, err := inspectiontest.Run(t, dryRunCtx, taskDef, inspectioncore.TaskModeDryRun, request)
+			if err != nil {
+				t.Fatalf("DryRun unexpected error: %v", err)
+			}
+			if got != testCase.ExpectedValue {
+				t.Errorf("DryRun value = %q, want %q", got, testCase.ExpectedValue)
+			}
+			dryRunField := getField(t, dryRunCtx)
+			if diff := cmp.Diff(testCase.ExpectedFormField, dryRunField, cmpopts.IgnoreFields(inspectionmetadata.TextParameterFormField{}, "ID", "Priority", "Type", "Label")); diff != "" {
+				t.Errorf("DryRun form field mismatch (-want +got):\n%s", diff)
+			}
+
+			// 2. Run with a fresh context
+			runCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			got, _, err = inspectiontest.Run(t, runCtx, taskDef, inspectioncore.TaskModeRun, request)
+			if testCase.ExpectRunError {
 				if err == nil {
-					t.Errorf("task was expected to be end with an error. But the task finished without an error")
+					t.Errorf("Run returned no error, want a validation error")
 				}
-				if err.Error() != testCase.ExpectedError {
-					t.Errorf("task was expected to be end with an error. But the expected error is different.\n expected:%s\nactual:%s", testCase.ExpectedError, err.Error())
-				}
-			} else {
-				if err != nil {
-					t.Errorf("task was ended with unexpected error\n%s", err)
-				}
-				metadata := khictx.MustGetValue(taskCtx, inspectionmetadata.MapContextKey)
-
-				fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
-				if !found {
-					t.Fatal("FormFieldSet not found on metadata")
-				}
-				field := fields.DangerouslyGetField("foo")
-				formFields = append(formFields, field)
+				return
 			}
-
-			// Execute task as Run mode
-			if testCase.ExpectedError != "" {
-				taskCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-				result, _, err := inspectiontest.Run(t, taskCtx, taskDef, inspectioncore.TaskModeRun, map[string]any{
-					"foo": testCase.RequestValue,
-				})
-
-				if testCase.ExpectedError != "" {
-					if err == nil {
-						t.Errorf("task was expected to be end with an error. But the task finished without an error")
-					}
-					if err.Error() != testCase.ExpectedError {
-						t.Errorf("task was expected to be end with an error. But the expected error is different.\n expected:%s\nactual:%s", testCase.ExpectedError, err.Error())
-					}
-				} else {
-					if err != nil {
-						t.Errorf("task was ended with unexpected error\n%s", err)
-					}
-					if result != testCase.RequestValue {
-						t.Errorf("the result is not matching with the expected value\nexpected:%s\nactual:%s", testCase.RequestValue, result)
-					}
-					metadata := khictx.MustGetValue(taskCtx, inspectionmetadata.MapContextKey)
-
-					fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
-					if !found {
-						t.Fatal("FormFieldSet not found on metadata")
-					}
-					field := fields.DangerouslyGetField("foo")
-					formFields = append(formFields, field)
-				}
-
-				if diff := cmp.Diff(formFields[0], formFields[1]); diff != "" {
-					t.Errorf("form field is different between DryRun mode and Run mode with same parameter.\n%s", diff)
-				}
+			if err != nil {
+				t.Fatalf("Run unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(formFields[0], testCase.ExpectedFormField, cmpopts.IgnoreFields(inspectionmetadata.TextParameterFormField{}, "ID", "Priority", "Type", "Label")); diff != "" {
-				t.Errorf("the generated form field is different from the expected\n%s", diff)
+			if got != testCase.ExpectedValue {
+				t.Errorf("Run value = %q, want %q", got, testCase.ExpectedValue)
+			}
+			runField := getField(t, runCtx)
+			if diff := cmp.Diff(dryRunField, runField); diff != "" {
+				t.Errorf("form field differs between DryRun and Run (-dryrun +run):\n%s", diff)
 			}
 		})
 	}
