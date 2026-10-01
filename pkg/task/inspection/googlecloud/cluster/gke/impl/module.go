@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,24 +22,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// Register registers all googlecloudclustergke inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	if err := registry.AddInspectionType(gkecluster.GKEInspectionType); err != nil {
-		return err
-	}
-
-	scoped := coreinspection.NewScopedRegistry(
-		registry,
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
-			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
-			gcpcommon.InspectionTypeLabelKeyClusterType:       "gke",
-		}),
-	)
-
-	return coretask.RegisterTasks(scoped,
-		GKEClusterNamePrefixTask,
-		AutocompleteMetricsK8sContainerTask,
-		AutocompleteMetricsK8sNodeTask,
-	)
+// Module declares the GKE inspection type and the tasks that override cluster specific defaults for GKE, such as the cluster name prefix and the metrics types used for autocomplete.
+var Module = coreinspection.Module{
+	Name: "googlecloud/cluster/gke",
+	Scope: coreinspection.Scope{
+		inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		gcpcommon.InspectionTypeLabelKeyClusterType:       "gke",
+	},
+	InspectionTypes: []coreinspection.InspectionType{gkecluster.GKEInspectionType},
+	Tasks: []coretask.UntypedTask{
+		gkeClusterNamePrefixTask,
+		autocompleteMetricsK8sContainerTask,
+		autocompleteMetricsK8sNodeTask,
+	},
 }
