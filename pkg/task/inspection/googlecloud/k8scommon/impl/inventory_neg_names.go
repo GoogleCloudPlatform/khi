@@ -34,33 +34,35 @@ func mergeNEGNames(results []k8scommon.NEGNameToResourceIdentityMap) (k8scommon.
 	return result, nil
 }
 
-var NEGNamesInventoryTask = inspectiontaskbase.NewInventoryTask(
+// negNamesInventoryTask is an inventory task that merges discovered NEG names.
+var negNamesInventoryTask = inspectiontaskbase.NewInventoryTask(
 	k8scommon.NEGNamesInventoryTaskID,
 	k8scommon.TagNEGNamesDiscovery,
 	mergeNEGNames,
 )
 
-var NEGNamesDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// negNamesDiscoveryTask extracts NEG names from audit logs.
+var negNamesDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8scommon.NEGNamesDiscoveryTaskID,
-	[]coretask.Dependency{
-		k8saudit.ManifestGeneratorTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.NEGNameToResourceIdentityMap, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return nil, nil
-		}
-		result := k8scommon.NEGNameToResourceIdentityMap{}
-		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
-		for _, group := range resourceLogs {
-			if group.Resource.Type() != k8saudit.Resource {
-				continue
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8scommon.NEGNameToResourceIdentityMap] {
+		manifestGenerator := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.NEGNameToResourceIdentityMap, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
 			}
-			if group.Resource.APIVersion != "networking.gke.io/v1beta1" || group.Resource.Kind != "servicenetworkendpointgroup" {
-				continue
+			result := k8scommon.NEGNameToResourceIdentityMap{}
+			resourceLogs := manifestGenerator.Get(ctx)
+			for _, group := range resourceLogs {
+				if group.Resource.Type() != k8saudit.Resource {
+					continue
+				}
+				if group.Resource.APIVersion != "networking.gke.io/v1beta1" || group.Resource.Kind != "servicenetworkendpointgroup" {
+					continue
+				}
+				result[group.Resource.Name] = *group.Resource
 			}
-			result[group.Resource.Name] = *group.Resource
+			return result, nil
 		}
-		return result, nil
 	},
 	coretask.ProvidesTag(k8scommon.TagNEGNamesDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),

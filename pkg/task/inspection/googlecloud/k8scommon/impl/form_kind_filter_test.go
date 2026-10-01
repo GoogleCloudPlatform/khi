@@ -15,7 +15,6 @@
 package k8scommon_impl
 
 import (
-	"context"
 	"slices"
 	"strings"
 	"testing"
@@ -37,8 +36,8 @@ var expectedLegacyDefaultKinds = func() []string {
 }()
 
 func TestInputKindFilterTask_Metadata(t *testing.T) {
-	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-	_, metadata, err := inspectiontest.RunInspectionTask(ctx, InputKindFilterTask, inspectioncore.TaskModeDryRun, nil)
+	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+	_, metadata, err := inspectiontest.Run(t, ctx, inputKindFilterTask, inspectioncore.TaskModeDryRun, nil)
 	if err != nil {
 		t.Fatalf("unexpected error on DryRun mode: %v", err)
 	}
@@ -156,13 +155,13 @@ func TestInputKindFilterTask_Run(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			inputMap := map[string]any{}
 			if tc.inputValue != nil {
 				inputMap[k8scommon.InputKindFilterTaskID.ReferenceIDString()] = tc.inputValue
 			}
 
-			result, _, err := inspectiontest.RunInspectionTask(ctx, InputKindFilterTask, inspectioncore.TaskModeRun, inputMap)
+			result, _, err := inspectiontest.Run(t, ctx, inputKindFilterTask, inspectioncore.TaskModeRun, inputMap)
 			if tc.wantErrSub != "" {
 				if err == nil {
 					t.Fatalf("expected error containing %q, got nil", tc.wantErrSub)
@@ -178,7 +177,7 @@ func TestInputKindFilterTask_Run(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.wantResult, result, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("RunInspectionTask() mismatch (-want +got):\n%s", diff)
+				t.Errorf("Run() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

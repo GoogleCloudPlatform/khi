@@ -31,51 +31,58 @@ import (
 
 var clusterNameValidator = regexp.MustCompile(`^\s*[0-9a-z\-]+\s*$`)
 
-// InputClusterNameTask is a form task receiving cluster name from the user.
+// inputClusterNameTask receives the cluster name from the user.
 // This task returns the raw cluster name without the prefix defined from the cluster type.
 // This input also supports autocomplete cluster names from some task having ID for k8scommon.AutocompleteClusterIdentityTaskID.
-var InputClusterNameTask = formtask.NewTextFormTaskBuilder(k8scommon.InputClusterNameTaskID, gcpcommon.PriorityForResourceIdentifierGroup+4000, "Cluster name").
-	WithDependencies([]coretask.Dependency{k8scommon.AutocompleteClusterIdentityTaskID.Ref()}).
-	WithDescription("The cluster name to gather logs.").
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		clusters := coretask.GetTaskResult(ctx, k8scommon.AutocompleteClusterIdentityTaskID.Ref())
-		// If the previous value is included in the list of cluster names, the name is used as the default value.
-		if len(previousValues) > 0 && hasClusterNameInAutocomplete(clusters.Values, previousValues[0]) {
-			return previousValues[0], nil
-		}
-		if len(clusters.Values) == 0 {
-			return "", nil
-		}
-		return clusters.Values[0].ClusterName, nil
-	}).
-	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		clusters := coretask.GetTaskResult(ctx, k8scommon.AutocompleteClusterIdentityTaskID.Ref())
-		return common.SortForAutocomplete(value, dedupeClusterName(clusters.Values)), nil
-	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		clusters := coretask.GetTaskResult(ctx, k8scommon.AutocompleteClusterIdentityTaskID.Ref())
-		// on failure of getting the list of clusters
-		if clusters.Error != "" {
-			return fmt.Sprintf("Failed to obtain the cluster list due to the error '%s'.\n The suggestion list won't popup", clusters.Error), inspectionmetadata.Warning, nil
-		}
-		if clusters.Hint != "" {
-			return clusters.Hint, inspectionmetadata.Info, nil
-		}
-		for _, suggestedCluster := range clusters.Values {
-			if suggestedCluster.ClusterName == convertedValue.(string) {
-				return "", inspectionmetadata.Info, nil
-			}
-		}
+var inputClusterNameTask = formtask.DefineTextForm(
+	k8scommon.InputClusterNameTaskID,
+	gcpcommon.PriorityForResourceIdentifierGroup+4000,
+	"Cluster name",
+	"The cluster name to gather logs.",
+	func(b *coretask.Binder) formtask.TextFormSpec[string] {
+		clusters := coretask.Use(b, k8scommon.AutocompleteClusterIdentityTaskID.Ref())
+		return formtask.TextFormSpec[string]{
+			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
+				c := clusters.Get(ctx)
+				// If the previous value is included in the list of cluster names, the name is used as the default value.
+				if len(previousValues) > 0 && hasClusterNameInAutocomplete(c.Values, previousValues[0]) {
+					return previousValues[0], nil
+				}
+				if len(c.Values) == 0 {
+					return "", nil
+				}
+				return c.Values[0].ClusterName, nil
+			},
+			Suggestions: func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+				c := clusters.Get(ctx)
+				return common.SortForAutocomplete(value, dedupeClusterName(c.Values)), nil
+			},
+			Validator: validateClusterName,
+			Converter: convertClusterName,
+			Hint: func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+				c := clusters.Get(ctx)
+				// on failure of getting the list of clusters
+				if c.Error != "" {
+					return fmt.Sprintf("Failed to obtain the cluster list due to the error '%s'.\n The suggestion list won't popup", c.Error), inspectionmetadata.Warning, nil
+				}
+				if c.Hint != "" {
+					return c.Hint, inspectionmetadata.Info, nil
+				}
+				for _, suggestedCluster := range c.Values {
+					if suggestedCluster.ClusterName == convertedValue.(string) {
+						return "", inspectionmetadata.Info, nil
+					}
+				}
 
-		availableClusterNameStr := ""
-		for _, cluster := range dedupeClusterName(clusters.Values) {
-			availableClusterNameStr += fmt.Sprintf("* %s\n", cluster)
+				availableClusterNameStr := ""
+				for _, cluster := range dedupeClusterName(c.Values) {
+					availableClusterNameStr += fmt.Sprintf("* %s\n", cluster)
+				}
+				return fmt.Sprintf("Cluster '%s' was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.\nAvailable cluster names:\n%s", value, availableClusterNameStr), inspectionmetadata.Warning, nil
+			},
 		}
-		return fmt.Sprintf("Cluster '%s' was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.\nAvailable cluster names:\n%s", value, availableClusterNameStr), inspectionmetadata.Warning, nil
-	}).
-	WithValidator(validateClusterName).
-	WithConverter(convertClusterName).
-	Build()
+	},
+)
 
 func hasClusterNameInAutocomplete(autocmpleteList []k8scommon.GoogleCloudClusterIdentity, clusterName string) bool {
 	for _, cluster := range autocmpleteList {

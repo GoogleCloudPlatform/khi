@@ -383,3 +383,56 @@ func TestDefineSetForm(t *testing.T) {
 		}
 	})
 }
+
+// TestPreviousOrConstantDefaultValue checks the default value resolution based on previous values.
+func TestPreviousOrConstantDefaultValue(t *testing.T) {
+	testCases := []struct {
+		name           string
+		values         []string
+		previousValues []string
+		want           []string
+		wantNonNil     bool
+	}{
+		{
+			name:           "previous values exist",
+			values:         []string{"fallback"},
+			previousValues: []string{"prev"},
+			want:           []string{"prev"},
+		},
+		{
+			name:           "previous nil",
+			values:         []string{"fallback"},
+			previousValues: nil,
+			want:           []string{"fallback"},
+		},
+		{
+			name:           "previous empty",
+			values:         []string{"fallback"},
+			previousValues: []string{},
+			want:           []string{"fallback"},
+		},
+		{
+			name:           "values is an empty non-nil slice and no previous",
+			values:         []string{},
+			previousValues: nil,
+			want:           []string{},
+			wantNonNil:     true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			generator := PreviousOrConstantDefaultValue(tc.values)
+			got, err := generator(t.Context(), tc.previousValues)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.wantNonNil && got == nil {
+				t.Errorf("PreviousOrConstantDefaultValue() returned nil, want non-nil slice")
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("PreviousOrConstantDefaultValue() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

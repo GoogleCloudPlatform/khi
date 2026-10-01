@@ -30,22 +30,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// HeaderSuggestedFileNameTask is a task to supply the suggested file name of the KHI file generated.
+// headerSuggestedFileNameTask supplies the suggested file name of the KHI file generated.
 // This name is used in frontend to save the inspection data as a file.
-var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(k8scommon.HeaderSuggestedFileNameTaskID, []coretask.Dependency{
-	gcpcommon.InputStartTimeTaskID.Ref(),
-	gcpcommon.InputEndTimeTaskID.Ref(),
-	k8scommon.InputClusterNameTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
-	metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
-	header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
-
-	clusterName := coretask.GetTaskResult(ctx, k8scommon.InputClusterNameTaskID.Ref())
-	endTime := coretask.GetTaskResult(ctx, gcpcommon.InputEndTimeTaskID.Ref())
-	startTime := coretask.GetTaskResult(ctx, gcpcommon.InputStartTimeTaskID.Ref())
-	header.SuggestedFileName = getSuggestedFileName(clusterName, startTime, endTime)
-
-	return struct{}{}, nil
+var headerSuggestedFileNameTask = inspectiontaskbase.DefineInspectionTask(k8scommon.HeaderSuggestedFileNameTaskID, func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[struct{}] {
+	startTime := coretask.Use(b, gcpcommon.InputStartTimeTaskID.Ref())
+	endTime := coretask.Use(b, gcpcommon.InputEndTimeTaskID.Ref())
+	clusterName := coretask.Use(b, k8scommon.InputClusterNameTaskID.Ref())
+	return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
+		metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+		header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
+		header.SuggestedFileName = getSuggestedFileName(clusterName.Get(ctx), startTime.Get(ctx), endTime.Get(ctx))
+		return struct{}{}, nil
+	}
 }, coretask.NewRequiredTaskLabel())
 
 func getSuggestedFileName(clusterName string, startTime, endTime time.Time) string {
