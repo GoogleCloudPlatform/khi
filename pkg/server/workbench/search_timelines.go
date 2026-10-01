@@ -17,7 +17,9 @@ package workbench
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
+	"sync"
 	"time"
 
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -159,8 +161,11 @@ func collectFilteredTimelineHierarchy(index *SearchIndex, filterOut *FilterOutpu
 	filteredChildren := make(map[uint32][]uint32, matchedCount)
 	var roots []uint32
 
-	for _, tl := range index.Timelines {
-		if tl == nil || !filterOut.TimelineIDs.Contains(tl.ID) {
+	it := filterOut.TimelineIDs.Iterator()
+	for it.HasNext() {
+		id := it.Next()
+		tl := index.TimelineMap[id]
+		if tl == nil {
 			continue
 		}
 		if tl.ParentID == 0 || !filterOut.TimelineIDs.Contains(tl.ParentID) {
@@ -350,13 +355,18 @@ func buildTimelineTreeNode(tl *cel.TimelineData, depth int, children []uint32, s
 	}
 }
 
-func buildTimelineTypeDescriptionMap(styleChunk *khifilev6.TimelineStyleChunk) map[string]string {
+var defaultTimelineTypeDescriptions = sync.OnceValue(func() map[string]string {
 	descMap := make(map[string]string)
 	for _, tt := range style.GenerateChunkWithoutIconAtlas().GetTimelineTypes() {
 		if tt.GetLabel() != "" && tt.GetDescription() != "" {
 			descMap[tt.GetLabel()] = tt.GetDescription()
 		}
 	}
+	return descMap
+})
+
+func buildTimelineTypeDescriptionMap(styleChunk *khifilev6.TimelineStyleChunk) map[string]string {
+	descMap := maps.Clone(defaultTimelineTypeDescriptions())
 	for _, tt := range styleChunk.GetTimelineTypes() {
 		if tt.GetLabel() != "" && tt.GetDescription() != "" {
 			descMap[tt.GetLabel()] = tt.GetDescription()
