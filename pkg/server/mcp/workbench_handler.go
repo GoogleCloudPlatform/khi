@@ -47,9 +47,16 @@ func NewWorkbenchHandler(manager *workbench.WorkbenchManager) *WorkbenchHandler 
 }
 
 // Register registers workbench tools to the MCP server.
-// Read tools are registered in #1043 and #1044.
 func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
-	// No-op for now; read tools are registered in #1043 and #1044.
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "search_timelines",
+		Description: "Search the resource timeline tree with a filter and return matching nodes with event, revision, and descendant warning/error counts. Check khi://cel/timeline and khi://cel/log for CEL filter syntax.",
+	}, h.handleSearchTimelines)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "search_logs",
+		Description: "Search logs across all timelines with a filter and return severity counts, top linked timelines, and evenly spaced sample logs. Check khi://cel/timeline and khi://cel/log for CEL filter syntax.",
+	}, h.handleSearchLogs)
 }
 
 type workbenchLoadingData struct {

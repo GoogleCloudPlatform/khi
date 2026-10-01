@@ -1,0 +1,36 @@
+# Logs matching the filter
+{{ if eq .MatchedLogCount 0 }}
+No logs matched the filter.
+
+{{ appliedFilter .Applied }}
+{{- else }}
+Matched {{ .MatchedLogCount }} logs linked to {{ .MatchedTimelineCount }} timelines, from {{ time .FirstMatchTime }} to {{ time .LastMatchTime }}.
+{{- if .SeveritySummary }}
+Severity: {{ .SeveritySummary }}.
+{{- end }}
+
+{{ appliedFilter .Applied }}
+{{- if .TimelineGroups }}
+
+## Timelines linked to the matched logs
+Showing {{ len .TimelineGroups }} of {{ .MatchedTimelineCount }} timelines, sorted by the number of matched logs.
+One log can link to several timelines, so the counts can add up to more than {{ .MatchedLogCount }}.
+
+| Timeline | ID | Logs | Severity | First | Last |
+| --- | --- | --- | --- | --- | --- |
+{{- range .TimelineGroups }}
+| {{ cell (timelinePath .Segments) }} | {{ code .TimelineID }} | {{ .MatchedLogCount }} | {{ .SeveritySummary }} | {{ time .FirstMatchTime }} | {{ time .LastMatchTime }} |
+{{- end }}
+{{- end }}
+{{- if .SampleLogs }}
+
+## Sample logs
+Showing {{ len .SampleLogs }} of {{ .MatchedLogCount }} logs, spread evenly over time.
+
+| Time | Severity | Type | Log ID | Summary | Timelines |
+| --- | --- | --- | --- | --- | --- |
+{{- range .SampleLogs }}
+| {{ time .Time }} | {{ .Severity }} | {{ cell .LogType }} | {{ code .LogID }} | {{ cell .Summary }} | {{ .TimelinesCell }} |
+{{- end }}
+{{- end }}
+{{- end }}
