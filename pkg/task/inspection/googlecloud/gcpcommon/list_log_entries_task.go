@@ -113,7 +113,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*log.Log, error) {
 			startTime := coretask.GetTaskResult(ctx, InputStartTimeTaskID.Ref())
 			endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
-			resourceNames, err := handleResourceNames(ctx, taskID, taskSetting)
+			resourceNames, err := handleResourceNames(ctx, taskID, coretask.GetTaskResult(ctx, InputLoggingFilterResourceNameTaskID.Ref()), taskSetting.DefaultResourceNames)
 			if err != nil {
 				return nil, fmt.Errorf("failed to determine the resource names list for log filter: %w", err)
 			}
@@ -196,11 +196,10 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 }
 
 // handleResourceNames retrieves and validates resource names for a given task, updating default values if necessary.
-func handleResourceNames(ctx context.Context, taskID taskid.TaskImplementationID[[]*log.Log], taskSetting ListLogEntriesTaskSetting) ([]string, error) {
-	resourceNamesInput := coretask.GetTaskResult(ctx, InputLoggingFilterResourceNameTaskID.Ref())
+func handleResourceNames(ctx context.Context, taskID taskid.TaskImplementationID[[]*log.Log], resourceNamesInput *ResourceNamesInput, getDefaultResourceNames func(ctx context.Context) ([]string, error)) ([]string, error) {
 	queryResourceNamePair := resourceNamesInput.GetResourceNamesForQuery(ctx, taskID.ReferenceIDString())
 
-	defaultResourceNames, err := taskSetting.DefaultResourceNames(ctx)
+	defaultResourceNames, err := getDefaultResourceNames(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ResourceNames returned an error: %w", err)
 	}
