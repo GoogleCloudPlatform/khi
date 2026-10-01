@@ -308,54 +308,62 @@ func (b *SetFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.T
 	return coretask.NewTask(b.id, b.dependencies, b.run, b.formLabelOpts(labelOpts)...)
 }
 
-// SetFormFuncs holds the callbacks of a set form that read task inputs through handles declared on a Binder.
-// A nil field keeps the callback configured on the builder.
-type SetFormFuncs[T any] struct {
+// SetFormSpec holds the optional settings of a set form defined with DefineSetForm.
+// Callbacks may read inputs declared on the Binder passed to the bind function.
+// A nil callback or a zero value uses the default of NewSetFormTaskBuilder.
+type SetFormSpec[T any] struct {
+	// AllowCustomValue reports whether users can input custom values. Defaults to false.
 	AllowCustomValue SetFormBoolProvider
-	AllowAddAll      SetFormBoolProvider
-	AllowRemoveAll   SetFormBoolProvider
-	DefaultValue     SetFormDefaultValueGenerator
-	Options          SetFormOptionsProvider
-	Validator        SetFormValidator
-	Converter        SetFormValueConverter[T]
-	Hint             SetFormHintGenerator
+	// AllowAddAll reports whether the "Add All" option is enabled. Defaults to true.
+	AllowAddAll SetFormBoolProvider
+	// AllowRemoveAll reports whether the "Remove All" option is enabled. Defaults to true.
+	AllowRemoveAll SetFormBoolProvider
+	// DefaultValue generates the default value of the set form. Defaults to nil.
+	DefaultValue SetFormDefaultValueGenerator
+	// Options provides the available options for the set form. Defaults to an empty slice.
+	Options SetFormOptionsProvider
+	// Validator validates the input string slice. Defaults to a validator that accepts any input.
+	Validator SetFormValidator
+	// Converter converts the input string slice to T. Defaults to a conversion that only works when T is []string.
+	Converter SetFormValueConverter[T]
+	// Hint generates a hint message for the form field. Defaults to no hint.
+	Hint SetFormHintGenerator
 }
 
-func (b *SetFormTaskBuilder[T]) applyFuncs(funcs SetFormFuncs[T]) {
-	if funcs.AllowCustomValue != nil {
-		b.allowCustomValue = funcs.AllowCustomValue
+func (b *SetFormTaskBuilder[T]) applySpec(spec SetFormSpec[T]) {
+	if spec.AllowCustomValue != nil {
+		b.allowCustomValue = spec.AllowCustomValue
 	}
-	if funcs.AllowAddAll != nil {
-		b.allowAddAll = funcs.AllowAddAll
+	if spec.AllowAddAll != nil {
+		b.allowAddAll = spec.AllowAddAll
 	}
-	if funcs.AllowRemoveAll != nil {
-		b.allowRemoveAll = funcs.AllowRemoveAll
+	if spec.AllowRemoveAll != nil {
+		b.allowRemoveAll = spec.AllowRemoveAll
 	}
-	if funcs.DefaultValue != nil {
-		b.defaultValue = funcs.DefaultValue
+	if spec.DefaultValue != nil {
+		b.defaultValue = spec.DefaultValue
 	}
-	if funcs.Options != nil {
-		b.optionsProvider = funcs.Options
+	if spec.Options != nil {
+		b.optionsProvider = spec.Options
 	}
-	if funcs.Validator != nil {
-		b.validator = funcs.Validator
+	if spec.Validator != nil {
+		b.validator = spec.Validator
 	}
-	if funcs.Converter != nil {
-		b.converter = funcs.Converter
+	if spec.Converter != nil {
+		b.converter = spec.Converter
 	}
-	if funcs.Hint != nil {
-		b.hintGenerator = funcs.Hint
+	if spec.Hint != nil {
+		b.hintGenerator = spec.Hint
 	}
 }
 
-// Define builds the form task with a Binder so that its callbacks read task inputs through handles.
-// bind runs once, declares the inputs on the Binder, and returns the callbacks that read them.
-// The builder is copied when Define is called, so later changes to the builder do not affect the task.
-// Dependencies set by WithDependencies are not used because inputs are declared on the Binder.
-func (b *SetFormTaskBuilder[T]) Define(bind func(binder *coretask.Binder) SetFormFuncs[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
-	return coretask.Define(b.id, func(binder *coretask.Binder) func(ctx context.Context) (T, error) {
-		form := *b
-		form.applyFuncs(bind(binder))
+// DefineSetForm defines a set form task with a Binder.
+// id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
+// and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
+func DefineSetForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) SetFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
+	form := NewSetFormTaskBuilder(id, priority, label).WithDescription(description)
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
+		form.applySpec(bind(b))
 		return form.run
-	}, b.formLabelOpts(labelOpts)...)
+	}, form.formLabelOpts(labelOpts)...)
 }

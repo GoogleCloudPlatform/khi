@@ -178,9 +178,9 @@ func TestInputInspectionNameTask(t *testing.T) {
 				taskInput[inspectioncore.InputInspectionNameTaskID.ReferenceIDString()] = *tc.inputValue
 			}
 
-			got, _, err := inspectiontest.RunInspectionTask(ctx, inputInspectionNameTask, tc.taskMode, taskInput)
+			got, _, err := inspectiontest.Run(t, ctx, inputInspectionNameTask, tc.taskMode, taskInput)
 			if err != nil {
-				t.Fatalf("RunInspectionTask() failed: %v", err)
+				t.Fatalf("Run() failed: %v", err)
 			}
 
 			if got != tc.wantResult {

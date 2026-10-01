@@ -25,20 +25,15 @@ import (
 )
 
 // inputLocationsTask defines a form task for inputting the resource location.
-var inputLocationsTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputLocationsTaskID, gcpcommon.PriorityForResourceIdentifierGroup+3000, "Location").
-	WithDescription(
-		"The location(region) to specify the resource exist(s|ed)",
-	).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		if value == "" {
-			return "location is required", nil
-		}
-		return "", nil
-	}).
-	Define(func(b *coretask.Binder) formtask.TextFormFuncs[string] {
+var inputLocationsTask = formtask.DefineTextForm(
+	gcpcommon.InputLocationsTaskID,
+	gcpcommon.PriorityForResourceIdentifierGroup+3000,
+	"Location",
+	"The location(region) to specify the resource exist(s|ed)",
+	func(b *coretask.Binder) formtask.TextFormSpec[string] {
 		locationsHandle := coretask.Use(b, gcpcommon.AutocompleteLocationTaskID.Ref())
 
-		return formtask.TextFormFuncs[string]{
+		return formtask.TextFormSpec[string]{
 			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
 				locations := locationsHandle.Get(ctx)
 				if len(previousValues) > 0 && slices.Contains(locations.Values, previousValues[0]) {
@@ -53,5 +48,12 @@ var inputLocationsTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputLocation
 				regions := locationsHandle.Get(ctx)
 				return common.SortForAutocomplete(value, regions.Values), nil
 			},
+			Validator: func(ctx context.Context, value string) (string, error) {
+				if value == "" {
+					return "location is required", nil
+				}
+				return "", nil
+			},
 		}
-	})
+	},
+)
