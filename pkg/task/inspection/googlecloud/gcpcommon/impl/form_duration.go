@@ -27,38 +27,37 @@ import (
 )
 
 // inputDurationTask defines a form task to input the duration for log queries.
-var inputDurationTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputDurationTaskID, gcpcommon.PriorityForQueryTimeGroup+4000, "Duration").
-	WithDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		if len(previousValues) > 0 {
-			return previousValues[0], nil
-		}
-		return "1h", nil
-	}).
-	WithSuggestionsConstant([]string{"1m", "10m", "1h", "3h", "12h", "24h"}).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return err.Error(), nil
-		}
-		if d <= 0 {
-			return "duration must be positive", nil
-		}
-		return "", nil
-	}).
-	WithConverter(func(ctx context.Context, value string) (time.Duration, error) {
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return 0, err
-		}
-		return d, nil
-	}).
-	Define(func(b *coretask.Binder) formtask.TextFormFuncs[time.Duration] {
+var inputDurationTask = formtask.DefineTextForm(
+	gcpcommon.InputDurationTaskID,
+	gcpcommon.PriorityForQueryTimeGroup+4000,
+	"Duration",
+	"The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)",
+	func(b *coretask.Binder) formtask.TextFormSpec[time.Duration] {
 		inspectionTimeHandle := coretask.Use(b, inspectioncore.InspectionTimeTaskID.Ref())
 		endTimeHandle := coretask.Use(b, gcpcommon.InputEndTimeTaskID.Ref())
 		timezoneShiftHandle := coretask.Use(b, inspectioncore.TimeZoneShiftInputTaskID.Ref())
 
-		return formtask.TextFormFuncs[time.Duration]{
+		return formtask.TextFormSpec[time.Duration]{
+			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
+				if len(previousValues) > 0 {
+					return previousValues[0], nil
+				}
+				return "1h", nil
+			},
+			Suggestions: formtask.ConstantSuggestions("1m", "10m", "1h", "3h", "12h", "24h"),
+			Validator: func(ctx context.Context, value string) (string, error) {
+				d, err := time.ParseDuration(value)
+				if err != nil {
+					return err.Error(), nil
+				}
+				if d <= 0 {
+					return "duration must be positive", nil
+				}
+				return "", nil
+			},
+			Converter: func(ctx context.Context, value string) (time.Duration, error) {
+				return time.ParseDuration(value)
+			},
 			Hint: func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
 				inspectionTime := inspectionTimeHandle.Get(ctx)
 				endTime := endTimeHandle.Get(ctx)
@@ -80,7 +79,8 @@ var inputDurationTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputDurationT
 				return hintString, inspectionmetadata.Info, nil
 			},
 		}
-	})
+	},
+)
 
 func toTimeDurationWithTimezone(startTime time.Time, endTime time.Time, timezone *time.Location, withTimezone bool) string {
 	timeFormat := "2006-01-02T15:04:05"

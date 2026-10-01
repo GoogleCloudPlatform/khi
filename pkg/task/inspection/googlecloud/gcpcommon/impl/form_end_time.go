@@ -29,35 +29,16 @@ import (
 )
 
 // inputEndTimeTask defines a form task to input the end time for log queries.
-var inputEndTimeTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputEndTimeTaskID, gcpcommon.PriorityForQueryTimeGroup+5000, "End time").
-	WithDescription(`The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)`).
-	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		return previousValues, nil
-	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		creationTime := khictx.MustGetValue(ctx, inspectioncore.InspectionCreationTime)
-
-		specifiedTime := convertedValue.(time.Time)
-		if creationTime.Sub(specifiedTime) < 0 {
-			return fmt.Sprintf("Specified time `%s` is pointing the future. Please make sure if you specified the right value", value), inspectionmetadata.Warning, nil
-		}
-		return "", inspectionmetadata.Info, nil
-	}).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		_, err := common.ParseTime(value)
-		if err != nil {
-			return "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)", nil
-		}
-		return "", nil
-	}).
-	WithConverter(func(ctx context.Context, value string) (time.Time, error) {
-		return common.ParseTime(value)
-	}).
-	Define(func(b *coretask.Binder) formtask.TextFormFuncs[time.Time] {
+var inputEndTimeTask = formtask.DefineTextForm(
+	gcpcommon.InputEndTimeTaskID,
+	gcpcommon.PriorityForQueryTimeGroup+5000,
+	"End time",
+	`The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)`,
+	func(b *coretask.Binder) formtask.TextFormSpec[time.Time] {
 		timezoneShiftHandle := coretask.Use(b, inspectioncore.TimeZoneShiftInputTaskID.Ref())
 
-		return formtask.TextFormFuncs[time.Time]{
+		return formtask.TextFormSpec[time.Time]{
 			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
 				if len(previousValues) > 0 {
 					return previousValues[0], nil
@@ -67,5 +48,28 @@ var inputEndTimeTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputEndTimeTas
 
 				return creationTime.In(timezoneShift).Format(time.RFC3339), nil
 			},
+			Suggestions: func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+				return previousValues, nil
+			},
+			Validator: func(ctx context.Context, value string) (string, error) {
+				_, err := common.ParseTime(value)
+				if err != nil {
+					return "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)", nil
+				}
+				return "", nil
+			},
+			Converter: func(ctx context.Context, value string) (time.Time, error) {
+				return common.ParseTime(value)
+			},
+			Hint: func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+				creationTime := khictx.MustGetValue(ctx, inspectioncore.InspectionCreationTime)
+
+				specifiedTime := convertedValue.(time.Time)
+				if creationTime.Sub(specifiedTime) < 0 {
+					return fmt.Sprintf("Specified time `%s` is pointing the future. Please make sure if you specified the right value", value), inspectionmetadata.Warning, nil
+				}
+				return "", inspectionmetadata.Info, nil
+			},
 		}
-	})
+	},
+)

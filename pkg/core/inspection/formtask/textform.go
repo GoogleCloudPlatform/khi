@@ -115,31 +115,9 @@ func (b *TextFormTaskBuilder[T]) WithDefaultValueFunc(defFunc TextFormDefaultVal
 	return b
 }
 
-func (b *TextFormTaskBuilder[T]) WithDefaultValueConstant(defValue string, preferPrevValue bool) *TextFormTaskBuilder[T] {
-	return b.WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		if preferPrevValue {
-			if len(previousValues) > 0 {
-				return previousValues[0], nil
-			}
-		}
-		return defValue, nil
-	})
-}
-
-func (b *TextFormTaskBuilder[T]) WithReadonlyFunc(readonlyFunc TextFormReadonlyProvider) *TextFormTaskBuilder[T] {
-	b.readonlyProvider = readonlyFunc
-	return b
-}
-
 func (b *TextFormTaskBuilder[T]) WithSuggestionsFunc(suggestionsFunc TextFormSuggestionsProvider) *TextFormTaskBuilder[T] {
 	b.suggestionsProvider = suggestionsFunc
 	return b
-}
-
-func (b *TextFormTaskBuilder[T]) WithSuggestionsConstant(suggestions []string) *TextFormTaskBuilder[T] {
-	return b.WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		return suggestions, nil
-	})
 }
 
 func (b *TextFormTaskBuilder[T]) WithHintFunc(hintFunc TextFormHintGenerator) *TextFormTaskBuilder[T] {
@@ -149,11 +127,6 @@ func (b *TextFormTaskBuilder[T]) WithHintFunc(hintFunc TextFormHintGenerator) *T
 
 func (b *TextFormTaskBuilder[T]) WithConverter(converter TextFormValueConverter[T]) *TextFormTaskBuilder[T] {
 	b.converter = converter
-	return b
-}
-
-func (b *TextFormTaskBuilder[T]) WithValidatingTiming(timing inspectionmetadata.TextFormValidationTimingType) *TextFormTaskBuilder[T] {
-	b.validatingTiming = timing
 	return b
 }
 
@@ -254,46 +227,64 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.
 	return coretask.NewTask(b.id, b.dependencies, b.run, b.formLabelOpts(labelOpts)...)
 }
 
-// TextFormFuncs holds the callbacks of a text form that read task inputs through handles declared on a Binder.
-// A nil field keeps the callback configured on the builder.
-type TextFormFuncs[T any] struct {
-	Readonly     TextFormReadonlyProvider
+// ConstantSuggestions returns a suggestions provider that always returns the given suggestions.
+func ConstantSuggestions(suggestions ...string) TextFormSuggestionsProvider {
+	return func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+		return suggestions, nil
+	}
+}
+
+// TextFormSpec holds the optional settings of a text form defined with DefineTextForm.
+// Callbacks may read inputs declared on the Binder passed to the bind function.
+// A nil callback or a zero value uses the default of NewTextFormTaskBuilder.
+type TextFormSpec[T any] struct {
+	// Readonly reports whether the field is read only. Defaults to false.
+	Readonly TextFormReadonlyProvider
+	// DefaultValue generates the default value of the text form. Defaults to empty string.
 	DefaultValue TextFormDefaultValueGenerator
-	Suggestions  TextFormSuggestionsProvider
-	Validator    TextFormValidator
-	Converter    TextFormValueConverter[T]
-	Hint         TextFormHintGenerator
+	// Suggestions provides suggestions for the text form. Defaults to nil.
+	Suggestions TextFormSuggestionsProvider
+	// Validator validates the input string. Defaults to a validator that accepts any string.
+	Validator TextFormValidator
+	// Converter converts the input string to T. Defaults to a conversion that only works when T is string.
+	Converter TextFormValueConverter[T]
+	// Hint generates a hint message for the form field. Defaults to no hint.
+	Hint TextFormHintGenerator
+	// ValidationTiming specifies when form validation should occur. Defaults to inspectionmetadata.Change.
+	ValidationTiming inspectionmetadata.TextFormValidationTimingType
 }
 
-func (b *TextFormTaskBuilder[T]) applyFuncs(funcs TextFormFuncs[T]) {
-	if funcs.Readonly != nil {
-		b.readonlyProvider = funcs.Readonly
+func (b *TextFormTaskBuilder[T]) applySpec(spec TextFormSpec[T]) {
+	if spec.Readonly != nil {
+		b.readonlyProvider = spec.Readonly
 	}
-	if funcs.DefaultValue != nil {
-		b.defaultValue = funcs.DefaultValue
+	if spec.DefaultValue != nil {
+		b.defaultValue = spec.DefaultValue
 	}
-	if funcs.Suggestions != nil {
-		b.suggestionsProvider = funcs.Suggestions
+	if spec.Suggestions != nil {
+		b.suggestionsProvider = spec.Suggestions
 	}
-	if funcs.Validator != nil {
-		b.validator = funcs.Validator
+	if spec.Validator != nil {
+		b.validator = spec.Validator
 	}
-	if funcs.Converter != nil {
-		b.converter = funcs.Converter
+	if spec.Converter != nil {
+		b.converter = spec.Converter
 	}
-	if funcs.Hint != nil {
-		b.hintGenerator = funcs.Hint
+	if spec.Hint != nil {
+		b.hintGenerator = spec.Hint
+	}
+	if spec.ValidationTiming != "" {
+		b.validatingTiming = spec.ValidationTiming
 	}
 }
 
-// Define builds the form task with a Binder so that its callbacks read task inputs through handles.
-// bind runs once, declares the inputs on the Binder, and returns the callbacks that read them.
-// The builder is copied when Define is called, so later changes to the builder do not affect the task.
-// Dependencies set by WithDependencies are not used because inputs are declared on the Binder.
-func (b *TextFormTaskBuilder[T]) Define(bind func(binder *coretask.Binder) TextFormFuncs[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
-	return coretask.Define(b.id, func(binder *coretask.Binder) func(ctx context.Context) (T, error) {
-		form := *b
-		form.applyFuncs(bind(binder))
+// DefineTextForm defines a text form task with a Binder.
+// id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
+// and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
+func DefineTextForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) TextFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
+	form := NewTextFormTaskBuilder(id, priority, label).WithDescription(description)
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
+		form.applySpec(bind(b))
 		return form.run
-	}, b.formLabelOpts(labelOpts)...)
+	}, form.formLabelOpts(labelOpts)...)
 }

@@ -189,18 +189,17 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 	}
 }
 
-func TestSetFormTaskBuilder_Define(t *testing.T) {
+func TestDefineSetForm(t *testing.T) {
 	sourceTaskID := taskid.NewDefaultImplementationID[[]string]("source")
 	formID := taskid.NewDefaultImplementationID[[]string]("set-form")
 
-	makeTask := func(customizeBuilder func(b *SetFormTaskBuilder[[]string])) coretask.DefinedTask[[]string] {
-		builder := NewSetFormTaskBuilder(formID, 1, "test set form")
-		if customizeBuilder != nil {
-			customizeBuilder(builder)
-		}
-		return builder.Define(func(b *coretask.Binder) SetFormFuncs[[]string] {
+	makeTask := func(customizeSpec func(source coretask.Input[[]string]) SetFormSpec[[]string]) coretask.DefinedTask[[]string] {
+		return DefineSetForm(formID, 1, "test set form", "test description", func(b *coretask.Binder) SetFormSpec[[]string] {
 			source := coretask.Use(b, sourceTaskID.Ref())
-			return SetFormFuncs[[]string]{
+			if customizeSpec != nil {
+				return customizeSpec(source)
+			}
+			return SetFormSpec[[]string]{
 				DefaultValue: func(ctx context.Context, previousValues []string) ([]string, error) {
 					return source.Get(ctx), nil
 				},
@@ -242,19 +241,57 @@ func TestSetFormTaskBuilder_Define(t *testing.T) {
 				if diff := cmp.Diff(wantOpts, field.Options); diff != "" {
 					t.Errorf("field.Options mismatch (-want +got):\n%s", diff)
 				}
+				if field.Label != "test set form" {
+					t.Errorf("field.Label = %q, want %q", field.Label, "test set form")
+				}
+				if field.Description != "test description" {
+					t.Errorf("field.Description = %q, want %q", field.Description, "test description")
+				}
+				if field.Priority != 1 {
+					t.Errorf("field.Priority = %d, want %d", field.Priority, 1)
+				}
 			},
 		},
 		{
-			name: "nil fields keep the builder callbacks",
-			task: makeTask(func(b *SetFormTaskBuilder[[]string]) {
-				b.WithValidator(func(ctx context.Context, value []string) (string, error) {
-					for _, v := range value {
-						if v == "bad" {
-							return "bad value", nil
+			name: "nil fields use the defaults",
+			task: makeTask(func(coretask.Input[[]string]) SetFormSpec[[]string] {
+				return SetFormSpec[[]string]{}
+			}),
+			taskMode:     inspectioncore.TaskModeDryRun,
+			requestValue: map[string]any{formID.ReferenceIDString(): []any{"abc"}},
+			sourceValue:  []string{"opt1"},
+			wantValue:    []string{"abc"},
+			checkField: func(t *testing.T, field inspectionmetadata.SetParameterFormField) {
+				if field.AllowCustomValue != false {
+					t.Errorf("field.AllowCustomValue = %v, want false", field.AllowCustomValue)
+				}
+				if field.AllowAddAll != true {
+					t.Errorf("field.AllowAddAll = %v, want true", field.AllowAddAll)
+				}
+				if field.AllowRemoveAll != true {
+					t.Errorf("field.AllowRemoveAll = %v, want true", field.AllowRemoveAll)
+				}
+				if diff := cmp.Diff([]inspectionmetadata.SetParameterFormFieldOptionItem{}, field.Options); diff != "" {
+					t.Errorf("field.Options mismatch (-want +got):\n%s", diff)
+				}
+			},
+		},
+		{
+			name: "validation error falls back to the default in dry run",
+			task: makeTask(func(source coretask.Input[[]string]) SetFormSpec[[]string] {
+				return SetFormSpec[[]string]{
+					DefaultValue: func(ctx context.Context, previousValues []string) ([]string, error) {
+						return source.Get(ctx), nil
+					},
+					Validator: func(ctx context.Context, value []string) (string, error) {
+						for _, v := range value {
+							if v == "bad" {
+								return "bad value", nil
+							}
 						}
-					}
-					return "", nil
-				})
+						return "", nil
+					},
+				}
 			}),
 			taskMode:     inspectioncore.TaskModeDryRun,
 			requestValue: map[string]any{formID.ReferenceIDString(): []any{"bad"}},
@@ -271,15 +308,20 @@ func TestSetFormTaskBuilder_Define(t *testing.T) {
 		},
 		{
 			name: "run mode rejects invalid value",
-			task: makeTask(func(b *SetFormTaskBuilder[[]string]) {
-				b.WithValidator(func(ctx context.Context, value []string) (string, error) {
-					for _, v := range value {
-						if v == "bad" {
-							return "bad value", nil
+			task: makeTask(func(source coretask.Input[[]string]) SetFormSpec[[]string] {
+				return SetFormSpec[[]string]{
+					DefaultValue: func(ctx context.Context, previousValues []string) ([]string, error) {
+						return source.Get(ctx), nil
+					},
+					Validator: func(ctx context.Context, value []string) (string, error) {
+						for _, v := range value {
+							if v == "bad" {
+								return "bad value", nil
+							}
 						}
-					}
-					return "", nil
-				})
+						return "", nil
+					},
+				}
 			}),
 			taskMode:     inspectioncore.TaskModeRun,
 			requestValue: map[string]any{formID.ReferenceIDString(): []string{"bad"}},
@@ -330,6 +372,14 @@ func TestSetFormTaskBuilder_Define(t *testing.T) {
 		wantInputs := []string{"required source"}
 		if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
 			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("has form task label", func(t *testing.T) {
+		task := makeTask(nil)
+		isFormTask, found := typedmap.Get(task.Labels(), inspectioncore.TaskLabelKeyIsFormTask)
+		if !found || !isFormTask {
+			t.Errorf("task label %v = %v, want true", inspectioncore.TaskLabelKeyIsFormTask, isFormTask)
 		}
 	})
 }
