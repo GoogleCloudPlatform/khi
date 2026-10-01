@@ -261,6 +261,9 @@ func (e *TimelineEvaluator) Compile(expr string) error {
 	if iss.Err() != nil {
 		return iss.Err()
 	}
+	if outType := ast.OutputType(); !outType.IsExactType(cel.BoolType) && !outType.IsExactType(cel.DynType) {
+		return fmt.Errorf("expression must evaluate to bool, got %s", outType)
+	}
 
 	prg, err := e.env.Program(ast)
 	if err != nil {
@@ -429,6 +432,9 @@ func (e *LogEvaluator) Compile(expr string) error {
 	ast, iss := e.env.Compile(expr)
 	if iss.Err() != nil {
 		return iss.Err()
+	}
+	if outType := ast.OutputType(); !outType.IsExactType(cel.BoolType) && !outType.IsExactType(cel.DynType) {
+		return fmt.Errorf("expression must evaluate to bool, got %s", outType)
 	}
 
 	prg, err := e.env.Program(ast)

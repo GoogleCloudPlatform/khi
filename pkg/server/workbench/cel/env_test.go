@@ -334,6 +334,11 @@ func TestValidateTimelineQuery(t *testing.T) {
 			query:   `unknownVar == "test"`,
 			wantErr: true,
 		},
+		{
+			name:    "non-bool return type",
+			query:   `path.kind`,
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -370,6 +375,11 @@ func TestValidateLogQuery(t *testing.T) {
 		{
 			name:    "invalid function call",
 			query:   `nonExistentFunction("test")`,
+			wantErr: true,
+		},
+		{
+			name:    "non-bool return type",
+			query:   `severity`,
 			wantErr: true,
 		},
 	}
