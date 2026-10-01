@@ -63,10 +63,7 @@ func newCachedTaskWithSharedMapKey[T any](sharedMapKey typedmap.TypedKey[*typedm
 func runCachedTask[T any](ctx context.Context, sharedMapKey typedmap.TypedKey[*typedmap.TypedMap], taskID taskid.TaskImplementationID[T], f CachedTaskFunc[T]) (T, error) {
 	sharedMap := khictx.MustGetValue(ctx, sharedMapKey)
 	cacheKey := typedmap.NewTypedKey[CacheableTaskResult[T]](fmt.Sprintf("cached_result-%s", taskID.String()))
-	cachedResult := typedmap.GetOrDefault(sharedMap, cacheKey, CacheableTaskResult[T]{
-		Value:            *new(T),
-		DependencyDigest: "",
-	})
+	cachedResult := typedmap.GetOrDefault(sharedMap, cacheKey, CacheableTaskResult[T]{})
 
 	nextCache, err := f(ctx, cachedResult)
 	if err != nil {
