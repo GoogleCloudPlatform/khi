@@ -57,5 +57,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		ContainerIDPatternFinderTask,
 		IPLeaseHistoryInventoryTask,
 		IPLeaseHistoryDiscoveryTask,
+		TimelinePathInventoryTask,
+		TimelinePathDiscoveryTask,
 	)
 }

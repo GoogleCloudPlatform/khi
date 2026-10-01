@@ -80,22 +80,6 @@ func (a *TimelineAccumulator) SetAlias(aliasPath, targetPath *TimelinePath) erro
 	return a.registry.SetAlias(aliasPath, targetPath)
 }
 
-// HasRevision reports whether the timeline at path has any accumulated revisions.
-func (a *TimelineAccumulator) HasRevision(path *TimelinePath) bool {
-	if b, ok := a.registry.GetBuilderIfExists(path); ok {
-		return b.HasRevision()
-	}
-	return false
-}
-
-// HasEvent reports whether the timeline at path has any accumulated events.
-func (a *TimelineAccumulator) HasEvent(path *TimelinePath) bool {
-	if b, ok := a.registry.GetBuilderIfExists(path); ok {
-		return b.HasEvent()
-	}
-	return false
-}
-
 // NotifyItemsAdded increments the count of accumulated items and triggers a flush if the threshold is met.
 func (a *TimelineAccumulator) NotifyItemsAdded(count int) error {
 	if count <= 0 {
@@ -152,10 +136,4 @@ func (a *TimelineAccumulator) Flush() error {
 		}
 	}
 	return nil
-}
-
-// AddTestRevision adds a dummy revision to the timeline builder at path for testing purposes.
-func (a *TimelineAccumulator) AddTestRevision(path *TimelinePath) {
-	b := a.GetBuilder(path)
-	b.AddRevision(pendingRevision{})
 }

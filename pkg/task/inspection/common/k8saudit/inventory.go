@@ -18,6 +18,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 )
 
 // TagNodeNameDiscovery is the tag for discovery tasks producing node names.
@@ -45,3 +46,12 @@ type IPLeaseHistory = *resourcelease.ResourceLeaseHistory[*ResourceIdentity]
 var TagIPLeaseHistoryDiscovery = coretask.NewTag[IPLeaseHistory]("khi.google.com/inspection/commonlogk8saudit/iplease")
 
 var IPLeaseHistoryInventoryTaskID = taskid.NewDefaultImplementationID[IPLeaseHistory](TaskIDPrefix + "ip-lease-history-inventory")
+
+// TimelinePathSet represents a set of timeline paths written by audit logs.
+type TimelinePathSet = map[*khifilev6.TimelinePath]struct{}
+
+// TagTimelinePathDiscovery is the tag for discovery tasks producing timeline paths written by audit logs.
+var TagTimelinePathDiscovery = coretask.NewTag[TimelinePathSet]("khi.google.com/inspection/commonlogk8saudit/timelinepath")
+
+// TimelinePathInventoryTaskID is the task ID for the inventory task aggregating timeline paths written by audit logs.
+var TimelinePathInventoryTaskID = taskid.NewDefaultImplementationID[TimelinePathSet](TaskIDPrefix + "timeline-path-inventory")
