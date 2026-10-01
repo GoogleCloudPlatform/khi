@@ -58,6 +58,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		IPLeaseHistoryInventoryTask,
 		IPLeaseHistoryDiscoveryTask,
 		TimelineCreationTimeInventoryTask,
-		TimelineCreationTimeDiscoveryTask,
+		ResourceTimelineCreationTimeDiscoveryTask,
+		PodPhaseTimelineCreationTimeDiscoveryTask,
 	)
 }

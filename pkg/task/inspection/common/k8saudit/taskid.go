@@ -115,5 +115,8 @@ var ContainerIDPatternFinderTaskID = taskid.NewDefaultImplementationID[patternfi
 // IPLeaseHistoryDiscoveryTaskID is the task ID for extracting IP lease history from audit logs.
 var IPLeaseHistoryDiscoveryTaskID = taskid.NewDefaultImplementationID[IPLeaseHistory](TaskIDPrefix + "ip-lease-history-discovery")
 
-// TimelineCreationTimeDiscoveryTaskID is the task ID for extracting creation timestamps per timeline path from audit logs.
-var TimelineCreationTimeDiscoveryTaskID = taskid.NewDefaultImplementationID[TimelineCreationTimes](TaskIDPrefix + "timeline-creation-time-discovery")
+// ResourceTimelineCreationTimeDiscoveryTaskID is the task ID for extracting resource timeline creation timestamps from audit logs.
+var ResourceTimelineCreationTimeDiscoveryTaskID = taskid.NewDefaultImplementationID[TimelineCreationTimes](TaskIDPrefix + "resource-timeline-creation-time-discovery")
+
+// PodPhaseTimelineCreationTimeDiscoveryTaskID is the task ID for extracting Pod phase timeline creation timestamps from audit logs.
+var PodPhaseTimelineCreationTimeDiscoveryTaskID = taskid.NewDefaultImplementationID[TimelineCreationTimes](TaskIDPrefix + "pod-phase-timeline-creation-time-discovery")

@@ -88,7 +88,7 @@ func TestMergeTimelineCreationTimes(t *testing.T) {
 	}
 }
 
-func TestTimelineCreationTimeDiscoveryTask(t *testing.T) {
+func TestResourceTimelineCreationTimeDiscoveryTask(t *testing.T) {
 	testTime := time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC)
 
 	type logSpec struct {
@@ -106,7 +106,7 @@ func TestTimelineCreationTimeDiscoveryTask(t *testing.T) {
 		wantFunc    func(ctx context.Context) k8saudit.TimelineCreationTimes
 	}{
 		{
-			name: "standard pod resource with creationTimestamp, UID, and spec.nodeName",
+			name: "standard pod resource with creationTimestamp",
 			resource: &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
 				Kind:       "pod",
@@ -135,11 +135,8 @@ spec:
 					Namespace:  "default",
 					Name:       "test-pod",
 				})
-				podPhasePath := MustPodPhaseTimelinePath(ctx, "test-cluster", "worker-node-1", "default", "test-pod", "pod-uid-123")
-				ct := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 				return k8saudit.TimelineCreationTimes{
-					podPath:      []time.Time{ct},
-					podPhasePath: []time.Time{ct},
+					podPath: []time.Time{time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)},
 				}
 			},
 		},
@@ -359,7 +356,7 @@ metadata:
 				return nil, nil
 			})
 
-			got, _, err := inspectiontest.RunInspectionTask(ctx, TimelineCreationTimeDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{},
+			got, _, err := inspectiontest.RunInspectionTask(ctx, ResourceTimelineCreationTimeDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(k8saudit.ManifestGeneratorTaskID.Ref(), input),
 				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
 			)
@@ -369,7 +366,280 @@ metadata:
 
 			want := tc.wantFunc(ctx)
 			if diff := cmp.Diff(want, got, cmp.Comparer(func(a, b *khifilev6.TimelinePath) bool { return a == b })); diff != "" {
-				t.Errorf("TimelineCreationTimeDiscoveryTask mismatch (-want +got):\n%s", diff)
+				t.Errorf("ResourceTimelineCreationTimeDiscoveryTask mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestPodPhaseTimelineCreationTimeDiscoveryTask(t *testing.T) {
+	testTime := time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC)
+
+	type logSpec struct {
+		manifest string
+		verb     *pb.Verb
+		logTime  time.Time
+		isDryRun bool
+	}
+
+	testCases := []struct {
+		name        string
+		resource    *k8saudit.ResourceIdentity
+		logs        []logSpec
+		clusterName string
+		wantFunc    func(ctx context.Context) k8saudit.TimelineCreationTimes
+	}{
+		{
+			name: "scheduled pod with creationTimestamp, uid, and spec.nodeName",
+			resource: &k8saudit.ResourceIdentity{
+				APIVersion: "core/v1",
+				Kind:       "pod",
+				Namespace:  "default",
+				Name:       "test-pod",
+			},
+			logs: []logSpec{
+				{
+					manifest: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+  uid: pod-uid-123
+  creationTimestamp: "2026-05-26T10:00:00Z"
+spec:
+  nodeName: worker-node-1
+`,
+				},
+			},
+			clusterName: "test-cluster",
+			wantFunc: func(ctx context.Context) k8saudit.TimelineCreationTimes {
+				podPhasePath := MustPodPhaseTimelinePath(ctx, "test-cluster", "worker-node-1", "default", "test-pod", "pod-uid-123")
+				return k8saudit.TimelineCreationTimes{
+					podPhasePath: []time.Time{time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)},
+				}
+			},
+		},
+		{
+			name: "multiple logs with duplicate and multiple timestamps deduplicated and sorted",
+			resource: &k8saudit.ResourceIdentity{
+				APIVersion: "core/v1",
+				Kind:       "pod",
+				Namespace:  "default",
+				Name:       "test-pod",
+			},
+			logs: []logSpec{
+				{
+					manifest: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+  uid: pod-uid-123
+  creationTimestamp: "2026-05-26T11:00:00Z"
+spec:
+  nodeName: worker-node-1
+`,
+				},
+				{
+					manifest: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+  uid: pod-uid-123
+  creationTimestamp: "2026-05-26T10:00:00Z"
+spec:
+  nodeName: worker-node-1
+`,
+				},
+				{
+					manifest: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+  uid: pod-uid-123
+  creationTimestamp: "2026-05-26T10:00:00Z"
+spec:
+  nodeName: worker-node-1
+`,
+				},
+			},
+			clusterName: "test-cluster",
+			wantFunc: func(ctx context.Context) k8saudit.TimelineCreationTimes {
+				podPhasePath := MustPodPhaseTimelinePath(ctx, "test-cluster", "worker-node-1", "default", "test-pod", "pod-uid-123")
+				return k8saudit.TimelineCreationTimes{
+					podPhasePath: []time.Time{
+						time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC),
+						time.Date(2026, 5, 26, 11, 0, 0, 0, time.UTC),
+					},
+				}
+			},
+		},
+		{
+			name: "unscheduled pod without spec.nodeName is excluded",
+			resource: &k8saudit.ResourceIdentity{
+				APIVersion: "core/v1",
+				Kind:       "pod",
+				Namespace:  "default",
+				Name:       "test-pod",
+			},
+			logs: []logSpec{
+				{
+					manifest: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+  uid: pod-uid-123
+  creationTimestamp: "2026-05-26T10:00:00Z"
+spec: {}
+`,
+				},
+			},
+			clusterName: "test-cluster",
+			wantFunc: func(ctx context.Context) k8saudit.TimelineCreationTimes {
+				return k8saudit.TimelineCreationTimes{}
+			},
+		},
+		{
+			name: "pod without creationTimestamp and non-create verb is excluded",
+			resource: &k8saudit.ResourceIdentity{
+				APIVersion: "core/v1",
+				Kind:       "pod",
+				Namespace:  "default",
+				Name:       "test-pod",
+			},
+			logs: []logSpec{
+				{
+					manifest: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+  uid: pod-uid-123
+spec:
+  nodeName: worker-node-1
+`,
+					verb: k8saudit.VerbDelete,
+				},
+			},
+			clusterName: "test-cluster",
+			wantFunc: func(ctx context.Context) k8saudit.TimelineCreationTimes {
+				return k8saudit.TimelineCreationTimes{}
+			},
+		},
+		{
+			name: "non-pod resource skipped",
+			resource: &k8saudit.ResourceIdentity{
+				APIVersion: "core/v1",
+				Kind:       "configmap",
+				Namespace:  "default",
+				Name:       "test-cm",
+			},
+			logs: []logSpec{
+				{
+					manifest: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-cm
+  namespace: default
+  uid: cm-uid-123
+  creationTimestamp: "2026-05-26T10:00:00Z"
+`,
+				},
+			},
+			clusterName: "test-cluster",
+			wantFunc: func(ctx context.Context) k8saudit.TimelineCreationTimes {
+				return k8saudit.TimelineCreationTimes{}
+			},
+		},
+		{
+			name: "dry run log is excluded",
+			resource: &k8saudit.ResourceIdentity{
+				APIVersion: "core/v1",
+				Kind:       "pod",
+				Namespace:  "default",
+				Name:       "test-pod",
+			},
+			logs: []logSpec{
+				{
+					manifest: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+  uid: pod-uid-123
+  creationTimestamp: "2026-05-26T10:00:00Z"
+spec:
+  nodeName: worker-node-1
+`,
+					isDryRun: true,
+				},
+			},
+			clusterName: "test-cluster",
+			wantFunc: func(ctx context.Context) k8saudit.TimelineCreationTimes {
+				return k8saudit.TimelineCreationTimes{}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+
+			var manifestLogs []*k8saudit.ResourceManifestLog
+			for _, ls := range tc.logs {
+				logTime := ls.logTime
+				if logTime.IsZero() {
+					logTime = testTime
+				}
+				fieldSet := &k8saudit.K8sAuditLogFieldSet{
+					ClusterName: tc.clusterName,
+					IsDryRun:    ls.isDryRun,
+					Verb:        ls.verb,
+				}
+				l := testlog.NewMockLog(logTime, fieldSet)
+
+				var reader *structured.NodeReader
+				if ls.manifest != "" {
+					yamlNode, err := structured.FromYAML(ls.manifest)
+					if err != nil {
+						t.Fatalf("failed to parse yaml: %v", err)
+					}
+					reader = structured.NewNodeReader(yamlNode)
+				}
+				manifestLogs = append(manifestLogs, &k8saudit.ResourceManifestLog{
+					Log:                l,
+					ResourceBodyReader: reader,
+				})
+			}
+
+			input := k8saudit.ResourceManifestLogGroupMap{
+				"test": &k8saudit.ResourceManifestLogGroup{
+					Resource: tc.resource,
+					Logs:     manifestLogs,
+				},
+			}
+
+			mockExtractor := k8saudit.K8sAuditLogExtractor(func(reader *structured.NodeReader) (*k8saudit.K8sAuditLogFieldSet, error) {
+				if mock, ok := structured.GetMock[*k8saudit.K8sAuditLogFieldSet](reader); ok {
+					return mock, nil
+				}
+				return nil, nil
+			})
+
+			got, _, err := inspectiontest.RunInspectionTask(ctx, PodPhaseTimelineCreationTimeDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.NewTaskDependencyValuePair(k8saudit.ManifestGeneratorTaskID.Ref(), input),
+				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
+			)
+			if err != nil {
+				t.Fatalf("RunInspectionTask failed: %v", err)
+			}
+
+			want := tc.wantFunc(ctx)
+			if diff := cmp.Diff(want, got, cmp.Comparer(func(a, b *khifilev6.TimelinePath) bool { return a == b })); diff != "" {
+				t.Errorf("PodPhaseTimelineCreationTimeDiscoveryTask mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
