@@ -186,7 +186,7 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 
 func TestDefineGCPOperationLogIngesterTask(t *testing.T) {
 	rawLogTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("gcp-operation-raw-logs")
-	logType := style.MustRegisterLogType("define-gcp-operation", "Define GCP Operation", style.MustForceConvertSRGBHex("#654321"), style.ColorWhite)
+	logType := style.MustRegisterLogType("define-gcp-operation", "Define GCP Operation", style.ColorBlack, style.ColorWhite)
 	task := DefineGCPOperationLogIngesterTask(taskid.NewDefaultImplementationID[struct{}]("gcp-operation-log-ingester"), rawLogTaskID.Ref(), logType)
 	wantInputs := []string{"required gcp-operation-raw-logs"}
 
