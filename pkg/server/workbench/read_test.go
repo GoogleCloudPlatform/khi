@@ -66,6 +66,14 @@ func TestFormatTimelinePathAndBuildTimelineQuery(t *testing.T) {
 			wantPath:  `[Resource] pod"s\name`,
 			wantQuery: `path["resource"] == "pod\"s\\name"`,
 		},
+		{
+			name: "escaping quotes and backslashes in type and value",
+			segments: []TimelineSegment{
+				{Type: `custom"type\name`, Name: `pod"s\name`},
+			},
+			wantPath:  `[custom"type\name] pod"s\name`,
+			wantQuery: `path["custom\"type\\name"] == "pod\"s\\name"`,
+		},
 	}
 
 	for _, tc := range testCases {

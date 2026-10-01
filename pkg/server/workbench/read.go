@@ -51,9 +51,11 @@ func BuildTimelineQuery(segments []TimelineSegment) string {
 	parts := make([]string, 0, len(segments))
 	for _, seg := range segments {
 		key := strings.ToLower(seg.Type)
+		escapedKey := strings.ReplaceAll(key, `\`, `\\`)
+		escapedKey = strings.ReplaceAll(escapedKey, `"`, `\"`)
 		escapedVal := strings.ReplaceAll(seg.Name, `\`, `\\`)
 		escapedVal = strings.ReplaceAll(escapedVal, `"`, `\"`)
-		parts = append(parts, fmt.Sprintf(`path["%s"] == "%s"`, key, escapedVal))
+		parts = append(parts, fmt.Sprintf(`path["%s"] == "%s"`, escapedKey, escapedVal))
 	}
 	return strings.Join(parts, " && ")
 }
