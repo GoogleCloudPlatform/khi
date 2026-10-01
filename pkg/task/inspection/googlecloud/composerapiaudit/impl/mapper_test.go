@@ -296,7 +296,7 @@ config:
 		},
 	}
 
-	mapperSetting := &composerAuditLogLogToTimelineMapperSetting{}
+	mapper := &composerAuditTimelineMapper{}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -319,7 +319,7 @@ config:
 
 			l := testlog.NewMockLog(testTime, tc.inputAudit, tc.inputResource)
 
-			cs, _, err := mapperSetting.ProcessLogByGroup(ctx, l, tracker)
+			cs, _, err := mapper.ProcessLogByGroup(ctx, l, tracker)
 			if err != nil {
 				t.Fatalf("ProcessLogByGroup() error = %v", err)
 			}

@@ -15,57 +15,48 @@
 package composercluster_impl
 
 import (
-	"context"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func TestInputComposerEnvironmentNameTask(t *testing.T) {
-	mockAutocompleteEnvironments := coretask.NewTask(composercluster.AutocompleteComposerEnvironmentIdentityTaskID, []coretask.Dependency{}, func(ctx context.Context) (*inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity], error) {
-		return &inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity]{
-			Values: []composercluster.ComposerEnvironmentIdentity{
-				{
-					EnvironmentName: "composer-env-1",
-					Location:        "us-central1",
-					ProjectID:       "sample-project",
-				},
-				{
-					EnvironmentName: "composer-env-2",
-					Location:        "asia-northeast1",
-					ProjectID:       "sample-project",
-				},
+	autocompleteEnvironments := &inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity]{
+		Values: []composercluster.ComposerEnvironmentIdentity{
+			{
+				EnvironmentName: "composer-env-1",
+				Location:        "us-central1",
+				ProjectID:       "sample-project",
 			},
-		}, nil
-	})
+			{
+				EnvironmentName: "composer-env-2",
+				Location:        "asia-northeast1",
+				ProjectID:       "sample-project",
+			},
+		},
+	}
 
-	mockAutocompleteEmptyEnvironments := coretask.NewTask(composercluster.AutocompleteComposerEnvironmentIdentityTaskID, []coretask.Dependency{}, func(ctx context.Context) (*inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity], error) {
-		return &inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity]{
-			Values: []composercluster.ComposerEnvironmentIdentity{},
-		}, nil
-	})
+	autocompleteEmptyEnvironments := &inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity]{
+		Values: []composercluster.ComposerEnvironmentIdentity{},
+	}
 
-	mockAutocompleteErrorEnvironments := coretask.NewTask(composercluster.AutocompleteComposerEnvironmentIdentityTaskID, []coretask.Dependency{}, func(ctx context.Context) (*inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity], error) {
-		return &inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity]{
-			Values: []composercluster.ComposerEnvironmentIdentity{},
-			Error:  "failed to list environments",
-		}, nil
-	})
+	autocompleteErrorEnvironments := &inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity]{
+		Values: []composercluster.ComposerEnvironmentIdentity{},
+		Error:  "failed to list environments",
+	}
 
-	form_task_test.TestTextForms(t, "composer environment name", InputComposerEnvironmentNameTask, []*form_task_test.TextFormTestCase{
+	form_task_test.TestTextForms(t, "composer environment name", inputComposerEnvironmentNameTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "with environment suggestions available",
 			Input:         "composer-env-1",
 			ExpectedValue: "composer-env-1",
-			Dependencies:  []coretask.UntypedTask{mockAutocompleteEnvironments},
+			TaskInputs:    []tasktest.InputValue{tasktest.Given(composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref(), autocompleteEnvironments)},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:       composercluster.GoogleCloudComposerTaskIDPrefix + "input/composer/environment_name",
@@ -82,7 +73,7 @@ func TestInputComposerEnvironmentNameTask(t *testing.T) {
 			Name:          "without environment suggestions",
 			Input:         "",
 			ExpectedValue: "",
-			Dependencies:  []coretask.UntypedTask{mockAutocompleteEmptyEnvironments},
+			TaskInputs:    []tasktest.InputValue{tasktest.Given(composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref(), autocompleteEmptyEnvironments)},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:       composercluster.GoogleCloudComposerTaskIDPrefix + "input/composer/environment_name",
@@ -99,7 +90,7 @@ func TestInputComposerEnvironmentNameTask(t *testing.T) {
 			Name:          "when autocomplete returns error",
 			Input:         "",
 			ExpectedValue: "",
-			Dependencies:  []coretask.UntypedTask{mockAutocompleteErrorEnvironments},
+			TaskInputs:    []tasktest.InputValue{tasktest.Given(composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref(), autocompleteErrorEnvironments)},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:       composercluster.GoogleCloudComposerTaskIDPrefix + "input/composer/environment_name",
@@ -150,45 +141,43 @@ func TestInputComposerEnvironmentNameTask_PreviousValues(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx1 := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			firstMock := tasktest.StubTaskFromReferenceID(
-				composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref(),
-				&inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity]{
-					Values: []composercluster.ComposerEnvironmentIdentity{
-						{EnvironmentName: tc.previousValue},
-					},
-				},
-				nil,
-			)
+			ctx1 := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
-			_, _, err := inspectiontest.RunInspectionTaskWithDependency(
+			_, _, err := inspectiontest.Run(
+				t,
 				ctx1,
-				InputComposerEnvironmentNameTask,
-				[]coretask.UntypedTask{firstMock},
+				inputComposerEnvironmentNameTask,
 				inspectioncore.TaskModeRun,
 				map[string]any{
-					InputComposerEnvironmentNameTask.ID().ReferenceIDString(): tc.previousValue,
+					inputComposerEnvironmentNameTask.ID().ReferenceIDString(): tc.previousValue,
 				},
+				tasktest.Given(
+					composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref(),
+					&inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity]{
+						Values: []composercluster.ComposerEnvironmentIdentity{
+							{EnvironmentName: tc.previousValue},
+						},
+					},
+				),
 			)
 			if err != nil {
 				t.Fatalf("first run failed: %v", err)
 			}
 
-			ctx2 := inspectiontest.NextRunTaskContext(context.Background(), ctx1)
-			secondMock := tasktest.StubTaskFromReferenceID(
-				composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref(),
-				&inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity]{
-					Values: tc.secondRunEnvironments,
-				},
-				nil,
-			)
+			ctx2 := inspectiontest.NextRunTaskContext(t.Context(), ctx1)
 
-			_, metadata, err := inspectiontest.RunInspectionTaskWithDependency(
+			_, metadata, err := inspectiontest.Run(
+				t,
 				ctx2,
-				InputComposerEnvironmentNameTask,
-				[]coretask.UntypedTask{secondMock},
+				inputComposerEnvironmentNameTask,
 				inspectioncore.TaskModeDryRun,
 				map[string]any{},
+				tasktest.Given(
+					composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref(),
+					&inspectioncore.AutocompleteResult[composercluster.ComposerEnvironmentIdentity]{
+						Values: tc.secondRunEnvironments,
+					},
+				),
 			)
 			if err != nil {
 				t.Fatalf("second run failed: %v", err)
@@ -198,7 +187,7 @@ func TestInputComposerEnvironmentNameTask_PreviousValues(t *testing.T) {
 			if !found {
 				t.Fatalf("form field metadata not found")
 			}
-			field := formFields.DangerouslyGetField(InputComposerEnvironmentNameTask.UntypedID().GetUntypedReference().String())
+			field := formFields.DangerouslyGetField(inputComposerEnvironmentNameTask.UntypedID().GetUntypedReference().String())
 			textField, ok := field.(inspectionmetadata.TextParameterFormField)
 			if !ok {
 				t.Fatalf("field is not TextParameterFormField")

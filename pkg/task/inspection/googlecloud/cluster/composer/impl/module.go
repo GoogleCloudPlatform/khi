@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,28 +22,22 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// Register registers all composer cluster inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	if err := registry.AddInspectionType(composercluster.ComposerInspectionType); err != nil {
-		return err
-	}
-
-	scopedAll := coreinspection.NewScopedRegistry(
-		registry,
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
-			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
-			gcpcommon.InspectionTypeLabelKeyClusterType:       "gke",
-			gcpcommon.InspectionTypeLabelKeyProduct:           "composer",
-		}),
-	)
-
-	return coretask.RegisterTasks(scopedAll,
-		ClusterIdentityAliasTask,
-		ComposerEnvironmentClusterFinderTask,
-		AutocompleteComposerClusterNamesTask,
-		AutocompleteComposerEnvironmentIdentityTask,
-		AutocompleteLocationForComposerEnvironmentTask,
-		InputComposerEnvironmentNameTask,
-	)
+// Module declares the Cloud Composer inspection type and the tasks for discovering and selecting Composer clusters.
+var Module = coreinspection.Module{
+	Name: "googlecloud/cluster/composer",
+	Scope: coreinspection.Scope{
+		inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		gcpcommon.InspectionTypeLabelKeyClusterType:       "gke",
+		gcpcommon.InspectionTypeLabelKeyProduct:           "composer",
+	},
+	InspectionTypes: []coreinspection.InspectionType{composercluster.ComposerInspectionType},
+	Tasks: []coretask.UntypedTask{
+		clusterIdentityAliasTask,
+		composerEnvironmentClusterFinderTask,
+		autocompleteComposerClusterNamesTask,
+		autocompleteComposerEnvironmentIdentityTask,
+		autocompleteLocationForComposerEnvironmentTask,
+		inputComposerEnvironmentNameTask,
+	},
 }

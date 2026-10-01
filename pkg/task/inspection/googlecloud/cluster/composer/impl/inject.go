@@ -22,16 +22,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
-// ComposerEnvironmentClusterFinderTask injects ComposerEnvironmentClusterFinder implementation.
-var ComposerEnvironmentClusterFinderTask = coretask.NewTask(
+// composerEnvironmentClusterFinderTask injects ComposerEnvironmentClusterFinder implementation.
+var composerEnvironmentClusterFinderTask = coretask.Define(
 	composercluster.ComposerEnvironmentClusterFinderTaskID,
-	[]coretask.Dependency{
-		gcpcommon.APIClientFactoryTaskID.Ref(),
-		gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(),
-	},
-	func(ctx context.Context) (composercluster.ComposerEnvironmentClusterFinder, error) {
-		cf := coretask.GetTaskResult(ctx, gcpcommon.APIClientFactoryTaskID.Ref())
-		injector := coretask.GetTaskResult(ctx, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
-		return composercluster.NewEnvironmentClusterFinder(cf, injector), nil
+	func(b *coretask.Binder) func(ctx context.Context) (composercluster.ComposerEnvironmentClusterFinder, error) {
+		clientFactory := coretask.Use(b, gcpcommon.APIClientFactoryTaskID.Ref())
+		callOptionInjector := coretask.Use(b, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
+		return func(ctx context.Context) (composercluster.ComposerEnvironmentClusterFinder, error) {
+			return composercluster.NewEnvironmentClusterFinder(clientFactory.Get(ctx), callOptionInjector.Get(ctx)), nil
+		}
 	},
 )
