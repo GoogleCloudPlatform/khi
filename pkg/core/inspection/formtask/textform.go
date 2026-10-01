@@ -157,99 +157,143 @@ func (b *TextFormTaskBuilder[T]) WithValidatingTiming(timing inspectionmetadata.
 	return b
 }
 
-func (b *TextFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.Task[T] {
-	return coretask.NewTask(b.id, b.dependencies, func(ctx context.Context) (T, error) {
-		m := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
-		req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
-		taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
-		globalSharedMap := khictx.MustGetValue(ctx, inspectioncore.GlobalSharedMap)
+// run computes the form field metadata and returns the converted value of the current input.
+func (b *TextFormTaskBuilder[T]) run(ctx context.Context) (T, error) {
+	m := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+	req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
+	taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
+	globalSharedMap := khictx.MustGetValue(ctx, inspectioncore.GlobalSharedMap)
 
-		previousValueStoreKey := typedmap.NewTypedKey[[]string](fmt.Sprintf("text-form-pv-%s", b.id))
-		prevValue := typedmap.GetOrDefault(globalSharedMap, previousValueStoreKey, []string{})
+	previousValueStoreKey := typedmap.NewTypedKey[[]string](fmt.Sprintf("text-form-pv-%s", b.id))
+	prevValue := typedmap.GetOrDefault(globalSharedMap, previousValueStoreKey, []string{})
 
-		readonly, err := b.readonlyProvider(ctx)
-		if err != nil {
-			return *new(T), fmt.Errorf("allowEdit provider for task `%s` returned an error\n%v", b.id, err)
+	readonly, err := b.readonlyProvider(ctx)
+	if err != nil {
+		return *new(T), fmt.Errorf("allowEdit provider for task `%s` returned an error\n%v", b.id, err)
+	}
+	field := inspectionmetadata.TextParameterFormField{}
+	field.Readonly = readonly
+	field.ValidationTiming = b.validatingTiming
+
+	// Compute the default value of the form
+	var currentValue string
+	defaultValue, err := b.defaultValue(ctx, prevValue)
+	if err != nil {
+		return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
+	}
+	field.Default = defaultValue
+	currentValue = defaultValue
+	if valueRaw, exist := req[b.id.ReferenceIDString()]; exist && !readonly {
+		valueString, isString := valueRaw.(string)
+		if !isString {
+			return *new(T), fmt.Errorf("request parameter `%s` was not given in string in task %s", b.id, b.id)
 		}
-		field := inspectionmetadata.TextParameterFormField{}
-		field.Readonly = readonly
-		field.ValidationTiming = b.validatingTiming
+		currentValue = valueString
+	}
 
-		// Compute the default value of the form
-		var currentValue string
-		defaultValue, err := b.defaultValue(ctx, prevValue)
+	field.Type = inspectionmetadata.Text
+	field.HintType = inspectionmetadata.Info
+
+	b.SetupBaseFormField(&field.ParameterFormFieldBase)
+
+	suggestions, err := b.suggestionsProvider(ctx, currentValue, prevValue)
+	if err != nil {
+		return *new(T), fmt.Errorf("suggesion provider for task `%s` returned an error\n%v", b.id, err)
+	}
+	field.Suggestions = suggestions
+
+	validationErr, err := b.validator(ctx, currentValue)
+	if err != nil {
+		return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%v", b.id, err)
+	}
+	if validationErr != "" {
+		// When the given string is invalid, it should be the default value.
+		currentValue, err = b.defaultValue(ctx, prevValue)
 		if err != nil {
 			return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
 		}
-		field.Default = defaultValue
-		currentValue = defaultValue
-		if valueRaw, exist := req[b.id.ReferenceIDString()]; exist && !readonly {
-			valueString, isString := valueRaw.(string)
-			if !isString {
-				return *new(T), fmt.Errorf("request parameter `%s` was not given in string in task %s", b.id, b.id)
-			}
-			currentValue = valueString
-		}
+	}
+	if validationErr != "" && taskMode == inspectioncore.TaskModeRun {
+		return *new(T), fmt.Errorf("validator for task `%s` returned a validation error. But this task was executed as a Run mode not in DryRun. All validations must be resolved before running.\n%v", b.id, validationErr)
+	}
 
-		field.Type = inspectionmetadata.Text
-		field.HintType = inspectionmetadata.Info
-
-		b.SetupBaseFormField(&field.ParameterFormFieldBase)
-
-		suggestions, err := b.suggestionsProvider(ctx, currentValue, prevValue)
+	convertedValue, err := b.converter(ctx, currentValue)
+	if err != nil {
+		return *new(T), fmt.Errorf("failed to convert the value `%s` to the dedicated value in task %s\n%v", currentValue, b.id, err)
+	}
+	if validationErr != "" {
+		field.HintType = inspectionmetadata.Error
+		field.Hint = validationErr
+	} else {
+		hint, hintType, err := b.hintGenerator(ctx, currentValue, convertedValue)
 		if err != nil {
-			return *new(T), fmt.Errorf("suggesion provider for task `%s` returned an error\n%v", b.id, err)
+			return *new(T), fmt.Errorf("failed to generate a hint for task %s\n%v", b.id, err)
 		}
-		field.Suggestions = suggestions
+		if hint == "" {
+			hintType = inspectionmetadata.None
+		}
+		field.Hint = hint
+		field.HintType = hintType
+		if taskMode == inspectioncore.TaskModeRun {
+			newValueHistory := append([]string{currentValue}, prevValue...)
+			typedmap.Set(globalSharedMap, previousValueStoreKey, newValueHistory)
+		}
+	}
+	formFields, found := typedmap.Get(m, inspectionmetadata.FormFieldSetMetadataKey)
+	if !found {
+		return *new(T), fmt.Errorf("form field set was not found in the metadata set")
+	}
+	err = formFields.SetField(field)
+	if err != nil {
+		return *new(T), fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
+	}
+	return convertedValue, nil
+}
 
-		validationErr, err := b.validator(ctx, currentValue)
-		if err != nil {
-			return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%v", b.id, err)
-		}
-		if validationErr != "" {
-			// When the given string is invalid, it should be the default value.
-			currentValue, err = b.defaultValue(ctx, prevValue)
-			if err != nil {
-				return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
-			}
-		}
-		if validationErr != "" && taskMode == inspectioncore.TaskModeRun {
-			return *new(T), fmt.Errorf("validator for task `%s` returned a validation error. But this task was executed as a Run mode not in DryRun. All validations must be resolved before running.\n%v", b.id, validationErr)
-		}
+func (b *TextFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.Task[T] {
+	return coretask.NewTask(b.id, b.dependencies, b.run, b.formLabelOpts(labelOpts)...)
+}
 
-		convertedValue, err := b.converter(ctx, currentValue)
-		if err != nil {
-			return *new(T), fmt.Errorf("failed to convert the value `%s` to the dedicated value in task %s\n%v", currentValue, b.id, err)
-		}
-		if validationErr != "" {
-			field.HintType = inspectionmetadata.Error
-			field.Hint = validationErr
-		} else {
-			hint, hintType, err := b.hintGenerator(ctx, currentValue, convertedValue)
-			if err != nil {
-				return *new(T), fmt.Errorf("failed to generate a hint for task %s\n%v", b.id, err)
-			}
-			if hint == "" {
-				hintType = inspectionmetadata.None
-			}
-			field.Hint = hint
-			field.HintType = hintType
-			if taskMode == inspectioncore.TaskModeRun {
-				newValueHistory := append([]string{currentValue}, prevValue...)
-				typedmap.Set(globalSharedMap, previousValueStoreKey, newValueHistory)
-			}
-		}
-		formFields, found := typedmap.Get(m, inspectionmetadata.FormFieldSetMetadataKey)
-		if !found {
-			return *new(T), fmt.Errorf("form field set was not found in the metadata set")
-		}
-		err = formFields.SetField(field)
-		if err != nil {
-			return *new(T), fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
-		}
-		return convertedValue, nil
-	}, append(labelOpts, inspectioncore.NewFormTaskLabelOpt(
-		b.label,
-		b.description,
-	))...)
+// TextFormFuncs holds the callbacks of a text form that read task inputs through handles declared on a Binder.
+// A nil field keeps the callback configured on the builder.
+type TextFormFuncs[T any] struct {
+	Readonly     TextFormReadonlyProvider
+	DefaultValue TextFormDefaultValueGenerator
+	Suggestions  TextFormSuggestionsProvider
+	Validator    TextFormValidator
+	Converter    TextFormValueConverter[T]
+	Hint         TextFormHintGenerator
+}
+
+func (b *TextFormTaskBuilder[T]) applyFuncs(funcs TextFormFuncs[T]) {
+	if funcs.Readonly != nil {
+		b.readonlyProvider = funcs.Readonly
+	}
+	if funcs.DefaultValue != nil {
+		b.defaultValue = funcs.DefaultValue
+	}
+	if funcs.Suggestions != nil {
+		b.suggestionsProvider = funcs.Suggestions
+	}
+	if funcs.Validator != nil {
+		b.validator = funcs.Validator
+	}
+	if funcs.Converter != nil {
+		b.converter = funcs.Converter
+	}
+	if funcs.Hint != nil {
+		b.hintGenerator = funcs.Hint
+	}
+}
+
+// Define builds the form task with a Binder so that its callbacks read task inputs through handles.
+// bind runs once, declares the inputs on the Binder, and returns the callbacks that read them.
+// The builder is copied when Define is called, so later changes to the builder do not affect the task.
+// Dependencies set by WithDependencies are not used because inputs are declared on the Binder.
+func (b *TextFormTaskBuilder[T]) Define(bind func(binder *coretask.Binder) TextFormFuncs[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
+	return coretask.Define(b.id, func(binder *coretask.Binder) func(ctx context.Context) (T, error) {
+		form := *b
+		form.applyFuncs(bind(binder))
+		return form.run
+	}, b.formLabelOpts(labelOpts)...)
 }

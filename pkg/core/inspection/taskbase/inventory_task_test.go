@@ -177,3 +177,29 @@ func TestInventoryTask(t *testing.T) {
 		})
 	}
 }
+
+func TestInventoryTask_Inputs(t *testing.T) {
+	inventoryTag := coretask.NewTag[map[string]struct{}]("test-inventory-tag")
+	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test-merger")
+	mergerTask := NewInventoryTask(
+		mergerTaskID,
+		inventoryTag,
+		func(results []map[string]struct{}) (map[string]struct{}, error) {
+			return nil, nil
+		},
+	)
+	inputs := mergerTask.Inputs()
+	if len(inputs) != 1 {
+		t.Fatalf("Inputs() count = %d, want 1", len(inputs))
+	}
+	if inputs[0].Kind != coretask.InputKindTag {
+		t.Errorf("inputs[0].Kind = %v, want %v", inputs[0].Kind, coretask.InputKindTag)
+	}
+	tagRef := inputs[0].Dependency.(taskid.FanInDescriptor)
+	if tagRef.Tag() != "test-inventory-tag" {
+		t.Errorf("Tag() = %q, want %q", tagRef.Tag(), "test-inventory-tag")
+	}
+	if tagRef.DescriptorScope() != coretask.FromActiveFeatures {
+		t.Errorf("DescriptorScope() = %v, want %v", tagRef.DescriptorScope(), coretask.FromActiveFeatures)
+	}
+}

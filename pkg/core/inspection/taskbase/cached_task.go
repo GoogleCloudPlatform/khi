@@ -34,6 +34,9 @@ type CacheableTaskResult[T any] struct {
 	DependencyDigest string
 }
 
+// CachedTaskFunc computes the next cached result from the result cached by the previous run.
+type CachedTaskFunc[T any] func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error)
+
 // NewGlobalCachedTask generates a task which can reuse the value from previous runs stored in GlobalSharedMap.
 func NewGlobalCachedTask[T any](taskID taskid.TaskImplementationID[T], dependencies []coretask.Dependency, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
 	return newCachedTaskWithSharedMapKey(inspectioncore.GlobalSharedMap, taskID, dependencies, f, labelOpt...)
@@ -52,19 +55,35 @@ func NewInspectionCachedTask[T any](taskID taskid.TaskImplementationID[T], depen
 
 func newCachedTaskWithSharedMapKey[T any](sharedMapKey typedmap.TypedKey[*typedmap.TypedMap], taskID taskid.TaskImplementationID[T], dependencies []coretask.Dependency, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
 	return coretask.NewTask(taskID, dependencies, func(ctx context.Context) (T, error) {
-		sharedMap := khictx.MustGetValue(ctx, sharedMapKey)
-		cacheKey := typedmap.NewTypedKey[CacheableTaskResult[T]](fmt.Sprintf("cached_result-%s", taskID.String()))
-		cachedResult := typedmap.GetOrDefault(sharedMap, cacheKey, CacheableTaskResult[T]{
-			Value:            *new(T),
-			DependencyDigest: "",
-		})
-
-		nextCache, err := f(ctx, cachedResult)
-		if err != nil {
-			return *new(T), err
-		}
-
-		typedmap.Set(sharedMap, cacheKey, nextCache)
-		return nextCache.Value, nil
+		return runCachedTask(ctx, sharedMapKey, taskID, f)
 	}, labelOpt...)
+}
+
+// runCachedTask passes the previous cached result to f and stores the next result in the shared map.
+func runCachedTask[T any](ctx context.Context, sharedMapKey typedmap.TypedKey[*typedmap.TypedMap], taskID taskid.TaskImplementationID[T], f CachedTaskFunc[T]) (T, error) {
+	sharedMap := khictx.MustGetValue(ctx, sharedMapKey)
+	cacheKey := typedmap.NewTypedKey[CacheableTaskResult[T]](fmt.Sprintf("cached_result-%s", taskID.String()))
+	cachedResult := typedmap.GetOrDefault(sharedMap, cacheKey, CacheableTaskResult[T]{
+		Value:            *new(T),
+		DependencyDigest: "",
+	})
+
+	nextCache, err := f(ctx, cachedResult)
+	if err != nil {
+		return *new(T), err
+	}
+
+	typedmap.Set(sharedMap, cacheKey, nextCache)
+	return nextCache.Value, nil
+}
+
+// DefineGlobalCachedTask defines a task with a Binder that can reuse the value from previous runs stored in GlobalSharedMap.
+// bind declares the inputs on the Binder and returns the function that computes the next cached result from them.
+func DefineGlobalCachedTask[T any](taskID taskid.TaskImplementationID[T], bind func(b *coretask.Binder) CachedTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
+	return coretask.Define(taskID, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
+		f := bind(b)
+		return func(ctx context.Context) (T, error) {
+			return runCachedTask(ctx, inspectioncore.GlobalSharedMap, taskID, f)
+		}
+	}, labelOpts...)
 }

@@ -22,7 +22,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -185,4 +187,149 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSetFormTaskBuilder_Define(t *testing.T) {
+	sourceTaskID := taskid.NewDefaultImplementationID[[]string]("source")
+	formID := taskid.NewDefaultImplementationID[[]string]("set-form")
+
+	makeTask := func(customizeBuilder func(b *SetFormTaskBuilder[[]string])) coretask.DefinedTask[[]string] {
+		builder := NewSetFormTaskBuilder(formID, 1, "test set form")
+		if customizeBuilder != nil {
+			customizeBuilder(builder)
+		}
+		return builder.Define(func(b *coretask.Binder) SetFormFuncs[[]string] {
+			source := coretask.Use(b, sourceTaskID.Ref())
+			return SetFormFuncs[[]string]{
+				DefaultValue: func(ctx context.Context, previousValues []string) ([]string, error) {
+					return source.Get(ctx), nil
+				},
+				Options: func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+					opts := make([]inspectionmetadata.SetParameterFormFieldOptionItem, len(source.Get(ctx)))
+					for i, opt := range source.Get(ctx) {
+						opts[i] = inspectionmetadata.SetParameterFormFieldOptionItem{ID: opt}
+					}
+					return opts, nil
+				},
+			}
+		})
+	}
+
+	testCases := []struct {
+		name         string
+		task         coretask.DefinedTask[[]string]
+		taskMode     inspectioncore.InspectionTaskModeType
+		requestValue map[string]any
+		sourceValue  []string
+		wantValue    []string
+		wantErr      bool
+		checkField   func(t *testing.T, field inspectionmetadata.SetParameterFormField)
+	}{
+		{
+			name:        "callbacks read the declared input",
+			task:        makeTask(nil),
+			taskMode:    inspectioncore.TaskModeDryRun,
+			sourceValue: []string{"opt1", "opt2"},
+			wantValue:   []string{"opt1", "opt2"},
+			checkField: func(t *testing.T, field inspectionmetadata.SetParameterFormField) {
+				if diff := cmp.Diff([]string{"opt1", "opt2"}, field.Default); diff != "" {
+					t.Errorf("field.Default mismatch (-want +got):\n%s", diff)
+				}
+				wantOpts := []inspectionmetadata.SetParameterFormFieldOptionItem{
+					{ID: "opt1"},
+					{ID: "opt2"},
+				}
+				if diff := cmp.Diff(wantOpts, field.Options); diff != "" {
+					t.Errorf("field.Options mismatch (-want +got):\n%s", diff)
+				}
+			},
+		},
+		{
+			name: "nil fields keep the builder callbacks",
+			task: makeTask(func(b *SetFormTaskBuilder[[]string]) {
+				b.WithValidator(func(ctx context.Context, value []string) (string, error) {
+					for _, v := range value {
+						if v == "bad" {
+							return "bad value", nil
+						}
+					}
+					return "", nil
+				})
+			}),
+			taskMode:     inspectioncore.TaskModeDryRun,
+			requestValue: map[string]any{formID.ReferenceIDString(): []any{"bad"}},
+			sourceValue:  []string{"opt1"},
+			wantValue:    []string{"opt1"},
+			checkField: func(t *testing.T, field inspectionmetadata.SetParameterFormField) {
+				if field.HintType != inspectionmetadata.Error {
+					t.Errorf("field.HintType = %v, want %v", field.HintType, inspectionmetadata.Error)
+				}
+				if field.Hint != "bad value" {
+					t.Errorf("field.Hint = %q, want %q", field.Hint, "bad value")
+				}
+			},
+		},
+		{
+			name: "run mode rejects invalid value",
+			task: makeTask(func(b *SetFormTaskBuilder[[]string]) {
+				b.WithValidator(func(ctx context.Context, value []string) (string, error) {
+					for _, v := range value {
+						if v == "bad" {
+							return "bad value", nil
+						}
+					}
+					return "", nil
+				})
+			}),
+			taskMode:     inspectioncore.TaskModeRun,
+			requestValue: map[string]any{formID.ReferenceIDString(): []string{"bad"}},
+			sourceValue:  []string{"opt1"},
+			wantErr:      true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			req := tc.requestValue
+			if req == nil {
+				req = map[string]any{}
+			}
+			got, metadata, err := inspectiontest.Run(t, ctx, tc.task, tc.taskMode, req,
+				tasktest.Given(sourceTaskID.Ref(), tc.sourceValue),
+			)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.wantValue, got); diff != "" {
+				t.Errorf("result mismatch (-want +got):\n%s", diff)
+			}
+			if tc.checkField != nil {
+				fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
+				if !found {
+					t.Fatalf("form field set not found on metadata")
+				}
+				rawField := fields.DangerouslyGetField(formID.ReferenceIDString())
+				setField, ok := rawField.(inspectionmetadata.SetParameterFormField)
+				if !ok {
+					t.Fatalf("field is not SetParameterFormField: %T", rawField)
+				}
+				tc.checkField(t, setField)
+			}
+		})
+	}
+
+	t.Run("declares required input on source reference", func(t *testing.T) {
+		task := makeTask(nil)
+		wantInputs := []string{"required source"}
+		if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }

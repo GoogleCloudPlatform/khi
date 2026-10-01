@@ -22,6 +22,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
@@ -124,4 +125,93 @@ func TestInspectionCachedTask(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDefineGlobalCachedTask(t *testing.T) {
+	sourceTaskID := taskid.NewDefaultImplementationID[string]("source")
+	taskID := taskid.NewDefaultImplementationID[int]("cached-task")
+
+	newTask := func(counter *int) coretask.DefinedTask[int] {
+		return DefineGlobalCachedTask(taskID, func(b *coretask.Binder) CachedTaskFunc[int] {
+			source := coretask.Use(b, sourceTaskID.Ref())
+			return func(ctx context.Context, prevValue CacheableTaskResult[int]) (CacheableTaskResult[int], error) {
+				input := source.Get(ctx)
+				if prevValue.DependencyDigest == input {
+					return prevValue, nil
+				}
+				*counter++
+				return CacheableTaskResult[int]{
+					Value:            *counter,
+					DependencyDigest: input,
+				}, nil
+			}
+		})
+	}
+
+	testCases := []struct {
+		name          string
+		secondInput   string
+		newInspection bool
+		want          []int
+	}{
+		{
+			name:          "same input",
+			secondInput:   "input-a",
+			newInspection: false,
+			want:          []int{1, 1},
+		},
+		{
+			name:          "different input",
+			secondInput:   "input-b",
+			newInspection: false,
+			want:          []int{1, 2},
+		},
+		{
+			name:          "new inspection same input",
+			secondInput:   "input-a",
+			newInspection: true,
+			want:          []int{1, 1},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			counter := 0
+			task := newTask(&counter)
+
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			res1, _, err := inspectiontest.Run(t, ctx, task, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.Given(sourceTaskID.Ref(), "input-a"),
+			)
+			if err != nil {
+				t.Fatalf("first run failed: %v", err)
+			}
+
+			secondCtx := ctx
+			if tc.newInspection {
+				secondCtx = inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+				globalSharedMap := khictx.MustGetValue(ctx, inspectioncore.GlobalSharedMap)
+				secondCtx = khictx.WithValue(secondCtx, inspectioncore.GlobalSharedMap, globalSharedMap)
+			}
+
+			res2, _, err := inspectiontest.Run(t, secondCtx, task, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.Given(sourceTaskID.Ref(), tc.secondInput),
+			)
+			if err != nil {
+				t.Fatalf("second run failed: %v", err)
+			}
+
+			if diff := cmp.Diff(tc.want, []int{res1, res2}); diff != "" {
+				t.Errorf("results mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+
+	t.Run("declares required input on source reference", func(t *testing.T) {
+		task := newTask(new(int))
+		wantInputs := []string{"required source"}
+		if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }
