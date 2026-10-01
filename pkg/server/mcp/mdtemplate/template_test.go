@@ -15,11 +15,15 @@
 package mdtemplate
 
 import (
+	"bytes"
 	"embed"
+	"errors"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -628,6 +632,176 @@ func TestSet_PaginatedLogs(t *testing.T) {
 			hasTokenLine := strings.Contains(got, "pageToken:")
 			if hasTokenLine != tc.wantHasFooter {
 				t.Errorf("strings.Contains(got, %q) = %v, want %v\nFull output:\n%s", "pageToken:", hasTokenLine, tc.wantHasFooter, got)
+			}
+		})
+	}
+}
+
+func TestTimelinePathFunc(t *testing.T) {
+	testCases := []struct {
+		name     string
+		segments []workbench.TimelineSegment
+		want     string
+	}{
+		{
+			name:     "empty segments",
+			segments: nil,
+			want:     "",
+		},
+		{
+			name: "single segment",
+			segments: []workbench.TimelineSegment{
+				{Type: "Kind", Name: "node"},
+			},
+			want: "[Kind] node",
+		},
+		{
+			name: "multiple segments",
+			segments: []workbench.TimelineSegment{
+				{Type: "APIVersion", Name: "core/v1"},
+				{Type: "Kind", Name: "pod"},
+			},
+			want: "[APIVersion] core/v1 > [Kind] pod",
+		},
+	}
+
+	tmpl, err := template.New("test").Funcs(DefaultFuncMap()).Parse("{{ timelinePath .Segments }}")
+	if err != nil {
+		t.Fatalf("failed to parse template: %v", err)
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			data := struct {
+				Segments []workbench.TimelineSegment
+			}{
+				Segments: tc.segments,
+			}
+			if err := tmpl.Execute(&buf, data); err != nil {
+				t.Fatalf("Execute() error: %v", err)
+			}
+			got := buf.String()
+			if got != tc.want {
+				t.Errorf("{{ timelinePath }} = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatAppliedFilter(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input workbench.AppliedFilter
+		want  string
+	}{
+		{
+			name: "full filter with timestamps",
+			input: workbench.AppliedFilter{
+				TimelineQuery:               `t.path.namespace == "kube-system"`,
+				TimelineExclusionQuery:      `t.name.contains("pause")`,
+				LogQuery:                    `severity >= WARNING`,
+				StartTime:                   time.Date(2026, time.September, 24, 1, 0, 0, 0, time.UTC),
+				EndTime:                     time.Date(2026, time.September, 24, 2, 0, 0, 0, time.UTC),
+				ExcludeTimelinesWithoutLogs: true,
+			},
+			want: "## Applied filter\n" +
+				"Enter these values in the KHI Web UI filter to see the same data.\n\n" +
+				"```yaml\n" +
+				"timelineQuery: t.path.namespace == \"kube-system\"\n" +
+				"timelineExclusionQuery: t.name.contains(\"pause\")\n" +
+				"logQuery: severity >= WARNING\n" +
+				"startTime: 2026-09-24T01:00:00Z\n" +
+				"endTime: 2026-09-24T02:00:00Z\n" +
+				"excludeTimelinesWithoutLogs: true\n" +
+				"```",
+		},
+		{
+			name: "empty filter with zero timestamps",
+			input: workbench.AppliedFilter{
+				ExcludeTimelinesWithoutLogs: false,
+			},
+			want: "## Applied filter\n" +
+				"Enter these values in the KHI Web UI filter to see the same data.\n\n" +
+				"```yaml\n" +
+				"timelineQuery: \"\"\n" +
+				"timelineExclusionQuery: \"\"\n" +
+				"logQuery: \"\"\n" +
+				"startTime: \"\"\n" +
+				"endTime: \"\"\n" +
+				"excludeTimelinesWithoutLogs: false\n" +
+				"```",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := FormatAppliedFilter(tc.input)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("FormatAppliedFilter() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestFormatCELErrorAndCELErrorResult(t *testing.T) {
+	testCases := []struct {
+		name        string
+		field       string
+		expression  string
+		err         error
+		wantMessage string
+	}{
+		{
+			name:       "return type validation error",
+			field:      "filter.timelineQuery",
+			expression: "path.kind",
+			err:        errors.New("expression must evaluate to bool, got string"),
+			wantMessage: "Error: INVALID_CEL\n\n" +
+				"- Field: `filter.timelineQuery`\n" +
+				"- Expression: `path.kind`\n" +
+				"- Message: expression must evaluate to bool, got string",
+		},
+		{
+			name:       "cel compiler error with location and caret",
+			field:      "filter.logQuery",
+			expression: "severit >= WARNING",
+			err:        errors.New("ERROR: <input>:1:1: undeclared reference to 'severit' (in container '')\n | severit >= WARNING\n | ^"),
+			wantMessage: "Error: INVALID_CEL\n\n" +
+				"- Field: `filter.logQuery`\n" +
+				"- Expression: `severit >= WARNING`\n" +
+				"- Message: ERROR: <input>:1:1: undeclared reference to 'severit' (in container '')\n" +
+				" | severit >= WARNING\n" +
+				" | ^",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotFormatted := FormatCELError(tc.field, tc.expression, tc.err)
+			if diff := cmp.Diff(tc.wantMessage, gotFormatted); diff != "" {
+				t.Errorf("FormatCELError() mismatch (-want +got):\n%s", diff)
+			}
+
+			res, out, err := CELErrorResult(tc.field, tc.expression, tc.err)
+			if err != nil {
+				t.Fatalf("CELErrorResult() returned error: %v", err)
+			}
+			if out != nil {
+				t.Errorf("CELErrorResult() out = %v, want nil", out)
+			}
+			if !res.IsError {
+				t.Error("CELErrorResult() res.IsError = false, want true")
+			}
+			if len(res.Content) != 1 {
+				t.Fatalf("len(res.Content) = %d, want 1", len(res.Content))
+			}
+			textContent, ok := res.Content[0].(*mcp.TextContent)
+			if !ok {
+				t.Fatalf("res.Content[0] type = %T, want *mcp.TextContent", res.Content[0])
+			}
+			if diff := cmp.Diff(tc.wantMessage, textContent.Text); diff != "" {
+				t.Errorf("CELErrorResult() text mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
