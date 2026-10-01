@@ -77,12 +77,12 @@ func NewDefaultPipeline(params FilterPipelineParams) *Pipeline {
 	)
 }
 
-// Execute runs all registered filter stages sequentially and constructs the final FilterResult.
-func (p *Pipeline) Execute(
+// ExecuteToFilterContext runs all registered filter stages sequentially and returns the raw FilterContext.
+func (p *Pipeline) ExecuteToFilterContext(
 	ctx context.Context,
 	index *SearchIndex,
 	report ProgressReporter,
-) (*apiv1.FilterResult, error) {
+) (*FilterContext, error) {
 	filterCtx := NewFilterContext()
 
 	totalStart := time.Now()
@@ -107,9 +107,6 @@ func (p *Pipeline) Execute(
 		)
 	}
 
-	tlMode, tlBitset := sparsebitset.EncodeFilterResult(len(index.Timelines), filterCtx.TimelineIDs)
-	logMode, logBitset := sparsebitset.EncodeFilterResult(len(index.Logs), filterCtx.LogIDs)
-
 	totalDuration := time.Since(totalStart)
 	slog.DebugContext(ctx, "filter pipeline completed",
 		"total_duration", totalDuration.String(),
@@ -117,6 +114,23 @@ func (p *Pipeline) Execute(
 		"result_timelines", filterCtx.TimelineIDs.GetCardinality(),
 		"result_logs", filterCtx.LogIDs.GetCardinality(),
 	)
+
+	return filterCtx, nil
+}
+
+// Execute runs all registered filter stages sequentially and constructs the final FilterResult.
+func (p *Pipeline) Execute(
+	ctx context.Context,
+	index *SearchIndex,
+	report ProgressReporter,
+) (*apiv1.FilterResult, error) {
+	filterCtx, err := p.ExecuteToFilterContext(ctx, index, report)
+	if err != nil {
+		return nil, err
+	}
+
+	tlMode, tlBitset := sparsebitset.EncodeFilterResult(len(index.Timelines), filterCtx.TimelineIDs)
+	logMode, logBitset := sparsebitset.EncodeFilterResult(len(index.Logs), filterCtx.LogIDs)
 
 	return &apiv1.FilterResult{
 		TimelineMode:   tlMode.Enum(),
