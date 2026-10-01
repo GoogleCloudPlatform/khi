@@ -33,24 +33,21 @@ import (
 
 // NewInventoryTask creates an inventory task that dynamically discovers and aggregates outputs
 // from all producer tasks that provide the specified tag within active features.
+// The tag input is declared on a Binder.
 func NewInventoryTask[T any, R any](
 	id taskid.TaskImplementationID[R],
 	tag coretask.Tag[T],
 	mergeFunc func(results []T) (R, error),
 	labelOpts ...coretask.LabelOpt,
-) coretask.Task[R] {
-	tagRef := tag.Ref(coretask.FromActiveFeatures)
-	return NewInspectionTask(
-		id,
-		[]coretask.Dependency{tagRef},
-		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (R, error) {
+) coretask.DefinedTask[R] {
+	return DefineInspectionTask(id, func(b *coretask.Binder) InspectionTaskFunc[R] {
+		results := coretask.UseTag(b, tag.Ref(coretask.FromActiveFeatures))
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (R, error) {
 			if taskMode == inspectioncore.TaskModeDryRun {
 				var zero R
 				return zero, nil
 			}
-			results := coretask.GetTaskResultsWithTag(ctx, tagRef)
-			return mergeFunc(results)
-		},
-		labelOpts...,
-	)
+			return mergeFunc(results.Get(ctx))
+		}
+	}, labelOpts...)
 }

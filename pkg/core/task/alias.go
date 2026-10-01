@@ -22,13 +22,11 @@ import (
 
 // NewAliasTask generates a new task implementation that proxies the result of another task.
 // This is useful for selectively overriding dependencies on a per-task basis.
-func NewAliasTask[TaskResult any](taskId taskid.TaskImplementationID[TaskResult], sourceTaskReference taskid.TaskReference[TaskResult], labelOpts ...LabelOpt) *TaskImpl[TaskResult] {
-	return NewTask(
-		taskId,
-		[]Dependency{sourceTaskReference},
-		func(ctx context.Context) (TaskResult, error) {
-			return GetTaskResult(ctx, sourceTaskReference), nil
-		},
-		labelOpts...,
-	)
+func NewAliasTask[TaskResult any](taskId taskid.TaskImplementationID[TaskResult], sourceTaskReference taskid.TaskReference[TaskResult], labelOpts ...LabelOpt) DefinedTask[TaskResult] {
+	return Define(taskId, func(b *Binder) func(ctx context.Context) (TaskResult, error) {
+		source := Use(b, sourceTaskReference)
+		return func(ctx context.Context) (TaskResult, error) {
+			return source.Get(ctx), nil
+		}
+	}, labelOpts...)
 }

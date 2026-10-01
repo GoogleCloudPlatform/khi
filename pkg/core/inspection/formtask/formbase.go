@@ -18,6 +18,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // FormTaskBuilderBase provides common functionality for form task builders
@@ -57,4 +58,9 @@ func (b *FormTaskBuilderBase[T]) SetupBaseFormField(field *inspectionmetadata.Pa
 	field.Label = b.label
 	field.Priority = b.priority
 	field.Description = b.description
+}
+
+// formLabelOpts appends the form task label to the given label options.
+func (b *FormTaskBuilderBase[T]) formLabelOpts(labelOpts []coretask.LabelOpt) []coretask.LabelOpt {
+	return append(labelOpts, inspectioncore.NewFormTaskLabelOpt(b.label, b.description))
 }

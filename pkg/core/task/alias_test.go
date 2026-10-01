@@ -59,6 +59,17 @@ func TestNewAliasTask(t *testing.T) {
 				t.Errorf("unexpected dependencies: %v", deps)
 			}
 
+			inputs := aliasTask.Inputs()
+			if len(inputs) != 1 {
+				t.Fatalf("unexpected input count: %d", len(inputs))
+			}
+			if inputs[0].Kind != InputKindRequired {
+				t.Errorf("inputs[0].Kind = %v, want %v", inputs[0].Kind, InputKindRequired)
+			}
+			if inputs[0].Dependency != sourceTaskID.Ref() {
+				t.Errorf("inputs[0].Dependency = %v, want %v", inputs[0].Dependency, sourceTaskID.Ref())
+			}
+
 			res, err := aliasTask.Run(ctx)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

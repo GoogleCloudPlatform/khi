@@ -16,13 +16,16 @@ package formtask
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -267,4 +270,146 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			}
 		})
 	}
+}
+
+// describeInputs converts point-to-point input specs to comparable strings.
+func describeInputs(specs []coretask.InputSpec) []string {
+	result := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		result = append(result, fmt.Sprintf("%s %s", spec.Kind, spec.Dependency.(taskid.PointToPointDescriptor).ReferenceID()))
+	}
+	return result
+}
+
+func TestTextFormTaskBuilder_Define(t *testing.T) {
+	sourceTaskID := taskid.NewDefaultImplementationID[string]("source")
+	formID := taskid.NewDefaultImplementationID[string]("text-form")
+
+	makeTask := func(customizeBuilder func(b *TextFormTaskBuilder[string])) coretask.DefinedTask[string] {
+		builder := NewTextFormTaskBuilder(formID, 1, "test text form")
+		if customizeBuilder != nil {
+			customizeBuilder(builder)
+		}
+		return builder.Define(func(b *coretask.Binder) TextFormFuncs[string] {
+			source := coretask.Use(b, sourceTaskID.Ref())
+			return TextFormFuncs[string]{
+				DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
+					return "default-" + source.Get(ctx), nil
+				},
+				Suggestions: func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+					return []string{"suggest-" + source.Get(ctx)}, nil
+				},
+			}
+		})
+	}
+
+	testCases := []struct {
+		name         string
+		task         coretask.DefinedTask[string]
+		taskMode     inspectioncore.InspectionTaskModeType
+		requestValue map[string]any
+		sourceValue  string
+		wantValue    string
+		wantErr      bool
+		checkField   func(t *testing.T, field inspectionmetadata.TextParameterFormField)
+	}{
+		{
+			name:        "callbacks read the declared input",
+			task:        makeTask(nil),
+			taskMode:    inspectioncore.TaskModeDryRun,
+			sourceValue: "src",
+			wantValue:   "default-src",
+			checkField: func(t *testing.T, field inspectionmetadata.TextParameterFormField) {
+				if field.Default != "default-src" {
+					t.Errorf("field.Default = %q, want %q", field.Default, "default-src")
+				}
+				if diff := cmp.Diff([]string{"suggest-src"}, field.Suggestions); diff != "" {
+					t.Errorf("field.Suggestions mismatch (-want +got):\n%s", diff)
+				}
+			},
+		},
+		{
+			name: "nil fields keep the builder callbacks",
+			task: makeTask(func(b *TextFormTaskBuilder[string]) {
+				b.WithValidator(func(ctx context.Context, value string) (string, error) {
+					if value == "bad" {
+						return "bad value", nil
+					}
+					return "", nil
+				})
+			}),
+			taskMode:     inspectioncore.TaskModeDryRun,
+			requestValue: map[string]any{formID.ReferenceIDString(): "bad"},
+			sourceValue:  "src",
+			wantValue:    "default-src",
+			checkField: func(t *testing.T, field inspectionmetadata.TextParameterFormField) {
+				if field.HintType != inspectionmetadata.Error {
+					t.Errorf("field.HintType = %v, want %v", field.HintType, inspectionmetadata.Error)
+				}
+				if field.Hint != "bad value" {
+					t.Errorf("field.Hint = %q, want %q", field.Hint, "bad value")
+				}
+			},
+		},
+		{
+			name: "run mode rejects invalid value",
+			task: makeTask(func(b *TextFormTaskBuilder[string]) {
+				b.WithValidator(func(ctx context.Context, value string) (string, error) {
+					if value == "bad" {
+						return "bad value", nil
+					}
+					return "", nil
+				})
+			}),
+			taskMode:     inspectioncore.TaskModeRun,
+			requestValue: map[string]any{formID.ReferenceIDString(): "bad"},
+			sourceValue:  "src",
+			wantErr:      true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			req := tc.requestValue
+			if req == nil {
+				req = map[string]any{}
+			}
+			got, metadata, err := inspectiontest.Run(t, ctx, tc.task, tc.taskMode, req,
+				tasktest.Given(sourceTaskID.Ref(), tc.sourceValue),
+			)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.wantValue {
+				t.Errorf("got %q, want %q", got, tc.wantValue)
+			}
+			if tc.checkField != nil {
+				fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
+				if !found {
+					t.Fatalf("form field set not found on metadata")
+				}
+				rawField := fields.DangerouslyGetField(formID.ReferenceIDString())
+				textField, ok := rawField.(inspectionmetadata.TextParameterFormField)
+				if !ok {
+					t.Fatalf("field is not TextParameterFormField: %T", rawField)
+				}
+				tc.checkField(t, textField)
+			}
+		})
+	}
+
+	t.Run("declares required input on source reference", func(t *testing.T) {
+		task := makeTask(nil)
+		wantInputs := []string{"required source"}
+		if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }
