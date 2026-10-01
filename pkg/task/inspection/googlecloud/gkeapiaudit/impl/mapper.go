@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -42,59 +41,59 @@ var (
 	nodePoolUpdateCandidatePaths = []structured.FieldPath{pathUpdate, pathNodePool}
 )
 
-// LogIngesterTask is a task that serializes GKE audit logs for storage in the history builder.
-var LogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
+// logIngesterTask is a task that serializes GKE audit logs for storage in the history builder.
+var logIngesterTask = gcpcommon.DefineGCPOperationLogIngesterTask(
 	gkeapiaudit.LogIngesterTaskID,
 	gkeapiaudit.ListLogEntriesTaskID.Ref(),
 	gkeapiaudit.LogTypeGkeAudit,
 )
 
-// LogGrouperTask is a task that groups GKE audit logs by GKE cluster or nodepool name.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(gkeapiaudit.LogGrouperTaskID, gkeapiaudit.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		resourceFieldSet, err := gkeapiaudit.ExtractGKEAuditLogResource(l.NodeReader)
-		if err != nil {
-			return ""
+// logGrouperTask is a task that groups GKE audit logs by GKE cluster or nodepool name.
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(gkeapiaudit.LogGrouperTaskID, gkeapiaudit.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			resourceFieldSet, err := gkeapiaudit.ExtractGKEAuditLogResource(l.NodeReader)
+			if err != nil {
+				return ""
+			}
+			if resourceFieldSet.IsCluster() {
+				return fmt.Sprintf("cluster/%s", resourceFieldSet.ClusterName)
+			}
+			return fmt.Sprintf("nodepool/%s/%s", resourceFieldSet.ClusterName, resourceFieldSet.NodepoolName)
 		}
-		if resourceFieldSet.IsCluster() {
-			return fmt.Sprintf("cluster/%s", resourceFieldSet.ClusterName)
-		}
-		return fmt.Sprintf("nodepool/%s/%s", resourceFieldSet.ClusterName, resourceFieldSet.NodepoolName)
 	},
 )
 
-// LogToTimelineMapperTask is a task that maps GKE audit logs to timeline elements.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*gcpcommon.GCPOperationTracker](gkeapiaudit.LogToTimelineMapperTaskID, &gkeAuditLogLogToTimelineMapperSetting{},
+// logToTimelineMapperTask is a task that maps GKE audit logs to timeline elements.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(gkeapiaudit.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: gkeapiaudit.LogIngesterTaskID.Ref(),
+		GroupedLogs: gkeapiaudit.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
+		return &gkeAuditTimelineMapper{initialStateProvider: coretask.Use(b, gkeapiaudit.InitialResourceStateProviderRef)}
+	},
 	inspectioncore.FeatureTaskLabel(`GKE Audit Logs`,
 		`Gather GKE audit logs to visualize the creation, upgrade, and deletion of clusters and node pools on timelines.`,
 		5000,
 		true),
 )
 
-// gkeAuditLogLogToTimelineMapperSetting implements the LogToTimelineMapper interface for GKE audit logs.
-type gkeAuditLogLogToTimelineMapperSetting struct {
+// gkeAuditTimelineMapper maps GKE audit logs to the timelines of clusters and node pools.
+type gkeAuditTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
+	initialStateProvider coretask.Input[gkeapiaudit.InitialResourceStateProvider]
 }
 
-// Dependencies returns additional task dependencies used in timeline mapper.
-func (g *gkeAuditLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		gkeapiaudit.InitialResourceStateProviderRef,
-	}
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (m *gkeAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
+	return mapGKEAuditLog(ctx, l, tracker, m.initialStateProvider.Get(ctx))
 }
 
-// GroupedLogTask returns a reference to the task that provides the grouped logs.
-func (g *gkeAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return gkeapiaudit.LogGrouperTaskID.Ref()
-}
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*gkeAuditTimelineMapper)(nil)
 
-// LogIngesterTask returns a reference to the log ingester task.
-func (g *gkeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return gkeapiaudit.LogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup maps GKE audit log resource updates to timeline events/revisions.
-func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
+// mapGKEAuditLog maps a GKE audit log resource update to timeline events and revisions. It takes the initial state provider as a value so that tests can call it without running the task.
+func mapGKEAuditLog(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker, initialStateProvider gkeapiaudit.InitialResourceStateProvider) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	if tracker == nil {
 		tracker = gcpcommon.NewGCPOperationTracker()
 	}
@@ -117,7 +116,6 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 		targetTimeline = gcpcommon.MustGKENodePoolTimeline(ctx, clusterTimeline, resourceFieldSet.NodepoolName)
 	}
 
-	initialStateProvider := coretask.GetTaskResult(ctx, gkeapiaudit.InitialResourceStateProviderRef)
 	var initialState *gkeapiaudit.InitialResourceState
 	var hasInitialState bool
 	if resourceFieldSet.IsCluster() {
@@ -141,7 +139,7 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 	}
 
 	if !isCreate && !isDelete && !auditFieldSet.ImmediateOperation() {
-		g.processUpdateOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, &auditFieldSet, l.Timestamp, resourceFieldSet.IsCluster(), initialState)
+		processUpdateOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, &auditFieldSet, l.Timestamp, resourceFieldSet.IsCluster(), initialState)
 	} else {
 		gcpcommon.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, &auditFieldSet, l.Timestamp, shortMethodName, resourceFieldSet.IsCluster())
 		if isCreate && auditFieldSet.Request != nil {
@@ -163,7 +161,7 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 // processUpdateOperationLog handles non-create, non-delete asynchronous operations on clusters and node pools.
 // It stages a dummy LogNotFound revision at Unix time 0 if the resource was not observed beforehand and has no CAI snapshot,
 // and stages a VerbUpdate revision with merged manifests upon operation completion.
-func (g *gkeAuditLogLogToTimelineMapperSetting) processUpdateOperationLog(
+func processUpdateOperationLog(
 	ctx context.Context,
 	cs *khifilev6.TimelineChangeSet,
 	tracker *gcpcommon.GCPOperationTracker,
@@ -250,5 +248,3 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) processUpdateOperationLog(
 
 	tracker.ProcessOperationLog(ctx, cs, operationTimeline, audit, logTimestamp)
 }
-
-var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*gkeAuditLogLogToTimelineMapperSetting)(nil)
