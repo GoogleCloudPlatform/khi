@@ -1,0 +1,110 @@
+# Timeline CEL Reference
+
+Timeline CEL expressions filter which resource timelines are displayed or excluded in KHI. Expressions must evaluate to a boolean value (`bool`).
+
+## Variables
+
+The following variables are available in the timeline evaluation scope:
+
+- `name` (`string`): The name of the resource represented by the timeline (e.g. pod name, node name).
+- `timelineType` (`string`): The type of the timeline (e.g. `Pod`, `Node`, `Namespace`).
+- `path` (`map<string, string>`): Hierarchical resource path properties (e.g. `path["namespace"]`, `path["kind"]`, `path["resource"]`).
+- `t` (`map<string, dyn>`): The root timeline object, exposing `t.name`, `t.timelineType`, and `t.path`.
+
+## Timeline Path Keys
+
+The following keys can be accessed via `path["<key>"]`:
+
+| Key | Timeline Type | Description |
+| --- | --- | --- |
+{{- range .PathEntries }}
+| `path[{{ printf "%q" .Key }}]` | {{ .TimelineType }} | {{ .Description }} |
+{{- end }}
+
+## Severity Constants
+
+Severities are integer constants used with `hasSeverity` and `minSeverity`:
+
+| Constant | Value | Description |
+| --- | --- | --- |
+{{- range .Severities }}
+| `{{ .Constant }}` | {{ .Value }} | {{ .Label }} severity |
+{{- end }}
+
+## Functions
+
+### `match` / `M`
+
+Matches values in the timeline path against substrings or regular expressions.
+
+- `match(value string) bool` / `M(value string) bool`:
+  Checks if any value across all timeline path keys contains `value` (case-insensitive substring or regex).
+- `match(values list<string>) bool` / `M(values list<string>) bool`:
+  Checks if any value across all timeline path keys matches any pattern in `values`.
+- `match(key string, value string) bool` / `M(key string, value string) bool`:
+  Checks if the path property `key` contains `value` (case-insensitive substring or regex).
+- `match(key string, values list<string>) bool` / `M(key string, values list<string>) bool`:
+  Checks if the path property `key` matches any pattern in `values`.
+
+### `revision_body` / `RB`
+
+Matches YAML/JSON field paths in recorded resource revision bodies.
+
+- `revision_body(value string) bool` / `RB(value string) bool`:
+  Checks if any revision body contains `value` anywhere in its contents.
+- `revision_body(values list<string>) bool` / `RB(values list<string>) bool`:
+  Checks if any revision body contains any pattern in `values`.
+- `revision_body(fieldPath string, value string) bool` / `RB(fieldPath string, value string) bool`:
+  Checks if the dot-separated field `fieldPath` in any revision body matches `value`.
+- `revision_body(fieldPath string, values list<string>) bool` / `RB(fieldPath string, values list<string>) bool`:
+  Checks if the dot-separated field `fieldPath` in any revision body matches any pattern in `values`.
+
+### `minSeverity`
+
+- `minSeverity(severity int) bool`:
+  Returns `true` if the timeline contains at least one event or log with a severity level equal to or greater than the given constant.
+
+### `hasSeverity`
+
+- `hasSeverity(severity int) bool`:
+  Returns `true` if the timeline contains at least one event or log with the exact given severity level.
+- `hasSeverity(severities list<int>) bool`:
+  Returns `true` if the timeline contains at least one event or log matching any severity level in `severities`.
+
+## Common Patterns
+
+Filter by namespace:
+
+```cel
+path["namespace"] == "kube-system"
+```
+
+Filter by resource kind:
+
+```cel
+path["kind"] == "Pod"
+```
+
+Filter by resource name regex:
+
+```cel
+match("resource", "^coredns-.*")
+```
+
+Filter timelines with errors:
+
+```cel
+minSeverity(ERROR)
+```
+
+Filter by revision body field:
+
+```cel
+revision_body("status.phase", "Failed")
+```
+
+Combine conditions:
+
+```cel
+path["kind"] == "Pod" && path["namespace"] == "default" && minSeverity(WARNING)
+```
