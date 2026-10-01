@@ -65,25 +65,23 @@ func GenerateTimelineReference(styleChunk *khifilev6.TimelineStyleChunk) string 
 	var pathEntries []pathEntry
 	seenKeys := make(map[string]struct{})
 
-	if styleChunk != nil {
-		for _, tt := range styleChunk.GetTimelineTypes() {
-			lbl := tt.GetLabel()
-			k := strings.ToLower(lbl)
-			if k == "" || strings.HasPrefix(k, "@") {
-				continue
+	for _, tt := range styleChunk.GetTimelineTypes() {
+		lbl := tt.GetLabel()
+		k := strings.ToLower(lbl)
+		if k == "" || strings.HasPrefix(k, "@") {
+			continue
+		}
+		if _, exists := seenKeys[k]; !exists {
+			seenKeys[k] = struct{}{}
+			desc := tt.GetDescription()
+			if desc == "" {
+				desc = fmt.Sprintf("Timeline of type %s", lbl)
 			}
-			if _, exists := seenKeys[k]; !exists {
-				seenKeys[k] = struct{}{}
-				desc := tt.GetDescription()
-				if desc == "" {
-					desc = fmt.Sprintf("Timeline of type %s", lbl)
-				}
-				pathEntries = append(pathEntries, pathEntry{
-					key:          k,
-					timelineType: lbl,
-					description:  desc,
-				})
-			}
+			pathEntries = append(pathEntries, pathEntry{
+				key:          k,
+				timelineType: lbl,
+				description:  desc,
+			})
 		}
 	}
 
@@ -114,10 +112,7 @@ func GenerateTimelineReference(styleChunk *khifilev6.TimelineStyleChunk) string 
 	b.WriteString("| Constant | Value | Description |\n")
 	b.WriteString("| --- | --- | --- |\n")
 
-	var severities []*khifilev6.Severity
-	if styleChunk != nil {
-		severities = slices.Clone(styleChunk.GetSeverities())
-	}
+	severities := slices.Clone(styleChunk.GetSeverities())
 	slices.SortFunc(severities, func(a, b *khifilev6.Severity) int {
 		return int(a.GetOrder() - b.GetOrder())
 	})
@@ -195,10 +190,7 @@ func GenerateLogReference(styleChunk *khifilev6.TimelineStyleChunk) string {
 	b.WriteString("| Constant | Value | Description |\n")
 	b.WriteString("| --- | --- | --- |\n")
 
-	var severities []*khifilev6.Severity
-	if styleChunk != nil {
-		severities = slices.Clone(styleChunk.GetSeverities())
-	}
+	severities := slices.Clone(styleChunk.GetSeverities())
 	slices.SortFunc(severities, func(a, b *khifilev6.Severity) int {
 		return int(a.GetOrder() - b.GetOrder())
 	})
@@ -213,10 +205,7 @@ func GenerateLogReference(styleChunk *khifilev6.TimelineStyleChunk) string {
 	b.WriteString("| `Label` | Description |\n")
 	b.WriteString("| --- | --- |\n")
 
-	var logTypes []*khifilev6.LogType
-	if styleChunk != nil {
-		logTypes = slices.Clone(styleChunk.GetLogTypes())
-	}
+	logTypes := slices.Clone(styleChunk.GetLogTypes())
 	slices.SortFunc(logTypes, func(a, b *khifilev6.LogType) int {
 		return strings.Compare(a.GetLabel(), b.GetLabel())
 	})
