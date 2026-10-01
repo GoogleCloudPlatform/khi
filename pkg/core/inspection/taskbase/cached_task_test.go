@@ -16,6 +16,7 @@ package inspectiontaskbase
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
@@ -127,64 +128,104 @@ func TestInspectionCachedTask(t *testing.T) {
 	}
 }
 
-func TestDefineGlobalCachedTask(t *testing.T) {
+func TestDefineCachedTask(t *testing.T) {
 	sourceTaskID := taskid.NewDefaultImplementationID[string]("source")
 	taskID := taskid.NewDefaultImplementationID[int]("cached-task")
 
-	newTask := func(counter *int) coretask.DefinedTask[int] {
-		return DefineGlobalCachedTask(taskID, func(b *coretask.Binder) CachedTaskFunc[int] {
+	newTask := func(scope CacheScope, computeCount *int, failFirst bool) coretask.DefinedTask[int] {
+		return DefineCachedTask(taskID, func(b *coretask.Binder) CachedTaskSpec[int] {
 			source := coretask.Use(b, sourceTaskID.Ref())
-			return func(ctx context.Context, prevValue CacheableTaskResult[int]) (CacheableTaskResult[int], error) {
-				input := source.Get(ctx)
-				if prevValue.DependencyDigest == input {
-					return prevValue, nil
-				}
-				*counter++
-				return CacheableTaskResult[int]{
-					Value:            *counter,
-					DependencyDigest: input,
-				}, nil
+			return CachedTaskSpec[int]{
+				Scope:       scope,
+				InputDigest: source.Get,
+				Compute: func(ctx context.Context) (int, error) {
+					*computeCount++
+					if failFirst && *computeCount == 1 {
+						return 0, errors.New("simulated compute failure")
+					}
+					return *computeCount, nil
+				},
 			}
 		})
 	}
 
 	testCases := []struct {
-		name          string
-		secondInput   string
-		newInspection bool
-		want          []int
+		name             string
+		scope            CacheScope
+		secondInput      string
+		newInspection    bool
+		failFirst        bool
+		wantFirstErr     bool
+		want             []int
+		wantComputeCount int
 	}{
 		{
-			name:          "same input",
-			secondInput:   "input-a",
-			newInspection: false,
-			want:          []int{1, 1},
+			name:             "inspection scope, same input in the same inspection",
+			scope:            CacheScopeInspection,
+			secondInput:      "input-a",
+			newInspection:    false,
+			failFirst:        false,
+			wantFirstErr:     false,
+			want:             []int{1, 1},
+			wantComputeCount: 1,
 		},
 		{
-			name:          "different input",
-			secondInput:   "input-b",
-			newInspection: false,
-			want:          []int{1, 2},
+			name:             "inspection scope, different input",
+			scope:            CacheScopeInspection,
+			secondInput:      "input-b",
+			newInspection:    false,
+			failFirst:        false,
+			wantFirstErr:     false,
+			want:             []int{1, 2},
+			wantComputeCount: 2,
 		},
 		{
-			name:          "new inspection same input",
-			secondInput:   "input-a",
-			newInspection: true,
-			want:          []int{1, 1},
+			name:             "inspection scope, same input in a new inspection",
+			scope:            CacheScopeInspection,
+			secondInput:      "input-a",
+			newInspection:    true,
+			failFirst:        false,
+			wantFirstErr:     false,
+			want:             []int{1, 2},
+			wantComputeCount: 2,
+		},
+		{
+			name:             "global scope, same input in a new inspection",
+			scope:            CacheScopeGlobal,
+			secondInput:      "input-a",
+			newInspection:    true,
+			failFirst:        false,
+			wantFirstErr:     false,
+			want:             []int{1, 1},
+			wantComputeCount: 1,
+		},
+		{
+			name:             "compute error is not cached",
+			scope:            CacheScopeInspection,
+			secondInput:      "input-a",
+			newInspection:    false,
+			failFirst:        true,
+			wantFirstErr:     true,
+			want:             []int{2},
+			wantComputeCount: 2,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			counter := 0
-			task := newTask(&counter)
+			computeCount := 0
+			task := newTask(tc.scope, &computeCount, tc.failFirst)
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			res1, _, err := inspectiontest.Run(t, ctx, task, inspectioncore.TaskModeRun, map[string]any{},
+			res1, _, err1 := inspectiontest.Run(t, ctx, task, inspectioncore.TaskModeRun, map[string]any{},
 				tasktest.Given(sourceTaskID.Ref(), "input-a"),
 			)
-			if err != nil {
-				t.Fatalf("first run failed: %v", err)
+			if tc.wantFirstErr {
+				if err1 == nil {
+					t.Fatalf("first run expected error, got nil")
+				}
+			} else if err1 != nil {
+				t.Fatalf("first run failed: %v", err1)
 			}
 
 			secondCtx := ctx
@@ -194,21 +235,30 @@ func TestDefineGlobalCachedTask(t *testing.T) {
 				secondCtx = khictx.WithValue(secondCtx, inspectioncore.GlobalSharedMap, globalSharedMap)
 			}
 
-			res2, _, err := inspectiontest.Run(t, secondCtx, task, inspectioncore.TaskModeRun, map[string]any{},
+			res2, _, err2 := inspectiontest.Run(t, secondCtx, task, inspectioncore.TaskModeRun, map[string]any{},
 				tasktest.Given(sourceTaskID.Ref(), tc.secondInput),
 			)
-			if err != nil {
-				t.Fatalf("second run failed: %v", err)
+			if err2 != nil {
+				t.Fatalf("second run failed: %v", err2)
 			}
 
-			if diff := cmp.Diff(tc.want, []int{res1, res2}); diff != "" {
+			var gotResults []int
+			if !tc.wantFirstErr {
+				gotResults = append(gotResults, res1)
+			}
+			gotResults = append(gotResults, res2)
+
+			if diff := cmp.Diff(tc.want, gotResults); diff != "" {
 				t.Errorf("results mismatch (-want +got):\n%s", diff)
+			}
+			if computeCount != tc.wantComputeCount {
+				t.Errorf("compute count = %d, want %d", computeCount, tc.wantComputeCount)
 			}
 		})
 	}
 
 	t.Run("declares required input on source reference", func(t *testing.T) {
-		task := newTask(new(int))
+		task := newTask(CacheScopeInspection, new(int), false)
 		wantInputs := []string{"required source"}
 		if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
 			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
