@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typeddict"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
@@ -35,6 +37,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 type mockStructuredListLogEntriesTaskSetting struct {
@@ -569,5 +572,204 @@ func TestStructuredListLogEntriesTask_DryRun_CallOptionInjector(t *testing.T) {
 	_, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
 		t.Fatalf("QueryMetadata not found")
+	}
+}
+
+// describeInputs converts point-to-point input specs to comparable strings, because dependency descriptors hold unexported fields.
+func describeInputs(specs []coretask.InputSpec) []string {
+	result := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		result = append(result, fmt.Sprintf("%s %s", spec.Kind, spec.Dependency.(taskid.PointToPointDescriptor).ReferenceID()))
+	}
+	return result
+}
+
+// projectQuerySource is a StructuredLogQuerySource whose resource names and query use a project ID read through an input handle.
+type projectQuerySource struct {
+	projectID          coretask.Input[string]
+	noQueries          bool
+	timePartitionCount int
+}
+
+func (s *projectQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	return []string{"projects/" + s.projectID.Get(ctx)}, nil
+}
+
+func (s *projectQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+	if s.noQueries {
+		return nil, nil
+	}
+	// The query is marked incomplete so that dry run records it without calling the log estimation APIs.
+	return []*logestimator.StructuredLogQuery{{
+		Incomplete:    true,
+		ResourceTypes: []string{"k8s_container"},
+		Filters: []logestimator.LoggingMonitoringMatcher{
+			logestimator.ResourceLabel("project_id", logestimator.Exact(s.projectID.Get(ctx))),
+		},
+	}}, nil
+}
+
+func (s *projectQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
+	return s.timePartitionCount, nil
+}
+
+var _ StructuredLogQuerySource = (*projectQuerySource)(nil)
+
+func TestDefineStructuredListLogEntriesTask(t *testing.T) {
+	taskID := taskid.NewDefaultImplementationID[[]*log.Log]("structured-test")
+	projectIDTaskID := taskid.NewDefaultImplementationID[string]("structured-test-project-id")
+	startTime := time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
+	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
+	wantInputs := []string{
+		"required " + InputStartTimeTaskID.ReferenceIDString(),
+		"required " + InputEndTimeTaskID.ReferenceIDString(),
+		"required " + InputLoggingFilterResourceNameTaskID.ReferenceIDString(),
+		"required " + LoggingFetcherTaskID.ReferenceIDString(),
+		"required " + APIClientFactoryTaskID.ReferenceIDString(),
+		"required " + APIClientCallOptionsInjectorTaskID.ReferenceIDString(),
+		"required structured-test-project-id",
+	}
+	recordedQuery := `resource.type="k8s_container"
+resource.labels.project_id="test-project"
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp <= "2025-01-01T01:01:00+0000"`
+	fetchFilter := `resource.type="k8s_container"
+resource.labels.project_id="test-project"
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp < "2025-01-01T01:01:00+0000"`
+
+	testCases := []struct {
+		desc               string
+		taskMode           inspectioncore.InspectionTaskModeType
+		noQueries          bool
+		timePartitionCount int
+		fetch              func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error)
+		wantLogs           []string
+		wantQueries        []*inspectionmetadata.QueryItem
+		wantErrSubstr      string
+	}{
+		{
+			desc:               "dry run records the query with the query name",
+			taskMode:           inspectioncore.TaskModeDryRun,
+			timePartitionCount: 1,
+			wantQueries: []*inspectionmetadata.QueryItem{
+				{Id: taskID.String(), Name: "container-logs", Query: recordedQuery, Incomplete: true},
+			},
+		},
+		{
+			desc:               "run fetches the logs of the query",
+			taskMode:           inspectioncore.TaskModeRun,
+			timePartitionCount: 1,
+			fetch: func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+				logSource <- &loggingpb.LogEntry{InsertId: "log-1", LogName: "container-log"}
+				logSource <- &loggingpb.LogEntry{InsertId: "log-2", LogName: "container-log"}
+			},
+			wantLogs: []string{
+				"insertId: log-1\nlogName: container-log\n",
+				"insertId: log-2\nlogName: container-log\n",
+			},
+			wantQueries: []*inspectionmetadata.QueryItem{
+				{Id: taskID.String(), Name: "container-logs", Query: recordedQuery},
+			},
+		},
+		{
+			desc:               "returns no logs when the source has no queries",
+			taskMode:           inspectioncore.TaskModeRun,
+			noQueries:          true,
+			timePartitionCount: 1,
+		},
+		{
+			desc:               "returns the fetch error",
+			taskMode:           inspectioncore.TaskModeRun,
+			timePartitionCount: 1,
+			fetch: func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+				errSource <- errors.New("fetch error")
+			},
+			wantErrSubstr: "fetch error",
+		},
+		{
+			desc:               "rejects a time partition count less than 1",
+			taskMode:           inspectioncore.TaskModeRun,
+			timePartitionCount: 0,
+			wantErrSubstr:      "TimePartitionCount returned an invalid value 0",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			task := DefineStructuredListLogEntriesTask(taskID, "container-logs", func(b *coretask.Binder) StructuredLogQuerySource {
+				return &projectQuerySource{
+					projectID:          coretask.Use(b, projectIDTaskID.Ref()),
+					noQueries:          tc.noQueries,
+					timePartitionCount: tc.timePartitionCount,
+				}
+			})
+			if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+				t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+			}
+
+			var upstreams []fakeLogUpstreamPair
+			if tc.fetch != nil {
+				upstreams = append(upstreams, newFakeLogUpstreamPair(fetchFilter, tc.fetch))
+			}
+			fetcher := getMockFetcherFromFakeLogUpstreamPairs(t, upstreams)
+			clientFactory, err := googlecloud.NewClientFactory()
+			if err != nil {
+				t.Fatalf("failed to create ClientFactory: %v", err)
+			}
+			// The resource names to query come from the previous default, and the task replaces the default with the one of the source.
+			resourceNamesInput := NewResourceNamesInput()
+			resourceNamesInput.UpdateDefaultResourceNamesForQuery(taskID.ReferenceIDString(), []string{"projects/previous-project"})
+
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			gotLogs, _, err := inspectiontest.Run(t, ctx, task, tc.taskMode, map[string]any{},
+				tasktest.Given(InputStartTimeTaskID.Ref(), startTime),
+				tasktest.Given(InputEndTimeTaskID.Ref(), endTime),
+				tasktest.Given(InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+				tasktest.Given[LogFetcher](LoggingFetcherTaskID.Ref(), fetcher),
+				tasktest.Given(APIClientFactoryTaskID.Ref(), clientFactory),
+				tasktest.Given(APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+				tasktest.Given(projectIDTaskID.Ref(), "test-project"),
+			)
+			if tc.wantErrSubstr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErrSubstr) {
+					t.Fatalf("Run() error = %v, want error containing %q", err, tc.wantErrSubstr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Run() returned an unexpected error: %v", err)
+			}
+
+			var gotLogStrings []string
+			for _, l := range gotLogs {
+				yaml, err := l.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+				if err != nil {
+					t.Fatalf("failed to serialize to yaml: %v", err)
+				}
+				gotLogStrings = append(gotLogStrings, string(yaml))
+			}
+			if diff := cmp.Diff(tc.wantLogs, gotLogStrings, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("logs mismatch (-want +got):\n%s", diff)
+			}
+
+			metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+			queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
+			if !found {
+				t.Fatalf("QueryMetadata not found")
+			}
+			gotQueries := queryMetadata.ToSerializable().([]*inspectionmetadata.QueryItem)
+			if diff := cmp.Diff(tc.wantQueries, gotQueries, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("QueryItem mismatch (-want +got):\n%s", diff)
+			}
+
+			queryResourceNames, found := typeddict.Get(resourceNamesInput.resourceNames, taskID.ReferenceIDString())
+			if !found {
+				t.Fatalf("resource names for %q not found", taskID.ReferenceIDString())
+			}
+			if diff := cmp.Diff([]string{"projects/test-project"}, queryResourceNames.DefaultResourceNames); diff != "" {
+				t.Errorf("default resource names mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

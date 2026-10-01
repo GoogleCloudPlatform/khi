@@ -39,14 +39,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// StructuredListLogEntriesTaskSetting defines the settings for a Cloud Logging task driven by StructuredLogQuery.
-type StructuredListLogEntriesTaskSetting interface {
-	// TaskID returns the task ID for the structured list log entries task.
-	TaskID() taskid.TaskImplementationID[[]*log.Log]
-
-	// Dependencies returns the list of dependencies for the task.
-	Dependencies() []coretask.Dependency
-
+// StructuredLogQuerySource provides the resource names, queries, and time partitions of a Cloud Logging task driven by StructuredLogQuery.
+type StructuredLogQuerySource interface {
 	// DefaultResourceNames returns default resource names (e.g. ["projects/<project-id>"]).
 	DefaultResourceNames(ctx context.Context) ([]string, error)
 
@@ -55,6 +49,18 @@ type StructuredListLogEntriesTaskSetting interface {
 
 	// TimePartitionCount returns the number of time partitions to gather logs in parallel.
 	TimePartitionCount(ctx context.Context) (int, error)
+}
+
+// StructuredListLogEntriesTaskSetting defines the settings for a Cloud Logging task driven by StructuredLogQuery.
+// It extends StructuredLogQuerySource with the task ID, dependencies, and query name that NewStructuredListLogEntriesTask needs.
+type StructuredListLogEntriesTaskSetting interface {
+	StructuredLogQuerySource
+
+	// TaskID returns the task ID for the structured list log entries task.
+	TaskID() taskid.TaskImplementationID[[]*log.Log]
+
+	// Dependencies returns the list of dependencies for the task.
+	Dependencies() []coretask.Dependency
 
 	// QueryName returns human-readable name of the query.
 	QueryName() string
@@ -82,23 +88,13 @@ func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSet
 		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*log.Log, error) {
 			startTime := coretask.GetTaskResult(ctx, InputStartTimeTaskID.Ref())
 			endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
-			resourceNames, err := handleResourceNames(ctx, taskID, &resourceNamesSettingAdapter{taskSetting: taskSetting})
-			if err != nil {
-				return nil, fmt.Errorf("failed to determine resource names list for structured log query: %w", err)
-			}
-
-			queries, err := taskSetting.Queries(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("Queries returned an error: %w", err)
-			}
-			if len(queries) == 0 {
-				slog.DebugContext(ctx, "Queries returned an empty list. Skipping fetching logs for this task.")
-				return []*log.Log{}, nil
-			}
-
-			groups, err := groupResourceNamesByContainer(resourceNames)
+			resourceNamesInput := coretask.GetTaskResult(ctx, InputLoggingFilterResourceNameTaskID.Ref())
+			groups, queries, err := resolveStructuredQueries(ctx, taskID, resourceNamesInput, taskSetting)
 			if err != nil {
 				return nil, err
+			}
+			if len(queries) == 0 {
+				return []*log.Log{}, nil
 			}
 
 			// In DryRun: perform volume estimation across all container groups and record query metadata.
@@ -109,12 +105,9 @@ func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSet
 			}
 
 			// In Run mode: fetch logs across partitions.
-			timePartitionCount, err := taskSetting.TimePartitionCount(ctx)
+			timePartitionCount, err := resolveTimePartitionCount(ctx, taskSetting)
 			if err != nil {
-				return nil, fmt.Errorf("TimePartitionCount returned an error: %w", err)
-			}
-			if timePartitionCount < 1 {
-				return nil, fmt.Errorf("TimePartitionCount returned an invalid value %d, it must be bigger than 0", timePartitionCount)
+				return nil, err
 			}
 
 			logFetcher := coretask.GetTaskResult(ctx, LoggingFetcherTaskID.Ref())
@@ -125,38 +118,80 @@ func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSet
 	)
 }
 
-// resourceNamesSettingAdapter adapts StructuredListLogEntriesTaskSetting to ListLogEntriesTaskSetting for resource name handling.
-type resourceNamesSettingAdapter struct {
-	taskSetting StructuredListLogEntriesTaskSetting
+// DefineStructuredListLogEntriesTask defines a task that queries logs from Cloud Logging using the StructuredLogQuery list of the source returned by bind.
+// It declares the time range, resource names, log fetcher, and API client inputs before it calls bind, so bind only declares the inputs of the source.
+// In DryRun mode, it estimates log volumes and populates QueryMetadata with estimated counts.
+func DefineStructuredListLogEntriesTask(taskID taskid.TaskImplementationID[[]*log.Log], queryName string, bind func(b *coretask.Binder) StructuredLogQuerySource) coretask.DefinedTask[[]*log.Log] {
+	return inspectiontaskbase.DefineInspectionTask(
+		taskID,
+		func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]*log.Log] {
+			startTime := coretask.Use(b, InputStartTimeTaskID.Ref())
+			endTime := coretask.Use(b, InputEndTimeTaskID.Ref())
+			resourceNamesInput := coretask.Use(b, InputLoggingFilterResourceNameTaskID.Ref())
+			logFetcher := coretask.Use(b, LoggingFetcherTaskID.Ref())
+			clientFactory := coretask.Use(b, APIClientFactoryTaskID.Ref())
+			callOptionInjector := coretask.Use(b, APIClientCallOptionsInjectorTaskID.Ref())
+			source := bind(b)
+			return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*log.Log, error) {
+				groups, queries, err := resolveStructuredQueries(ctx, taskID, resourceNamesInput.Get(ctx), source)
+				if err != nil {
+					return nil, err
+				}
+				if len(queries) == 0 {
+					return []*log.Log{}, nil
+				}
+
+				if taskMode != inspectioncore.TaskModeRun {
+					return nil, estimateAndRecordQueries(ctx, taskID.String(), clientFactory.Get(ctx), callOptionInjector.Get(ctx), groups, queries, startTime.Get(ctx), endTime.Get(ctx), queryName)
+				}
+
+				timePartitionCount, err := resolveTimePartitionCount(ctx, source)
+				if err != nil {
+					return nil, err
+				}
+				return fetchLogsForStructuredQueries(ctx, taskID.String(), logFetcher.Get(ctx), groups, queries, startTime.Get(ctx), endTime.Get(ctx), queryName, timePartitionCount)
+			}
+		},
+		coretask.WithLabelValue(RequestOptionalInputResourceNameTaskLabel, taskID.ReferenceIDString()),
+		progress.WithTitle(fmt.Sprintf("Fetch %s", queryName)),
+	)
 }
 
-func (a *resourceNamesSettingAdapter) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return a.taskSetting.TaskID()
-}
-
-func (a *resourceNamesSettingAdapter) Dependencies() []coretask.Dependency {
-	return a.taskSetting.Dependencies()
-}
-
-func (a *resourceNamesSettingAdapter) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	return a.taskSetting.DefaultResourceNames(ctx)
-}
-
-func (a *resourceNamesSettingAdapter) LogFilters(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
-	return nil, nil
-}
-
-func (a *resourceNamesSettingAdapter) TimePartitionCount(ctx context.Context) (int, error) {
-	return a.taskSetting.TimePartitionCount(ctx)
-}
-
-func (a *resourceNamesSettingAdapter) Description() *ListLogEntriesTaskDescription {
-	return &ListLogEntriesTaskDescription{
-		QueryName: a.taskSetting.QueryName(),
+// resolveStructuredQueries determines the resource names and queries of a structured list log entries task and groups the resource names by container.
+// It returns no queries when the source has none, so that the caller can skip fetching logs.
+func resolveStructuredQueries(ctx context.Context, taskID taskid.TaskImplementationID[[]*log.Log], resourceNamesInput *ResourceNamesInput, source StructuredLogQuerySource) ([]*resourceContainerLogQueryGroup, []*logestimator.StructuredLogQuery, error) {
+	resourceNames, err := handleResourceNames(ctx, taskID, resourceNamesInput, source.DefaultResourceNames)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to determine resource names list for structured log query: %w", err)
 	}
+
+	queries, err := source.Queries(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Queries returned an error: %w", err)
+	}
+	if len(queries) == 0 {
+		slog.DebugContext(ctx, "Queries returned an empty list. Skipping fetching logs for this task.")
+		return nil, nil, nil
+	}
+
+	groups, err := groupResourceNamesByContainer(resourceNames)
+	if err != nil {
+		return nil, nil, err
+	}
+	return groups, queries, nil
 }
 
-var _ ListLogEntriesTaskSetting = (*resourceNamesSettingAdapter)(nil)
+// resolveTimePartitionCount returns the time partition count of the source after checking that it is positive.
+func resolveTimePartitionCount(ctx context.Context, source StructuredLogQuerySource) (int, error) {
+	timePartitionCount, err := source.TimePartitionCount(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("TimePartitionCount returned an error: %w", err)
+	}
+	if timePartitionCount < 1 {
+		return 0, fmt.Errorf("TimePartitionCount returned an invalid value %d, it must be bigger than 0", timePartitionCount)
+	}
+	return timePartitionCount, nil
+}
 
 // LogEstimatorCacheKey is the key to retrieve or store CachedStructuredLogEstimator in the InspectionSharedMap.
 var LogEstimatorCacheKey = typedmap.NewTypedKey[*logestimator.CachedStructuredLogEstimator]("googlecloud.logestimator.cache")
