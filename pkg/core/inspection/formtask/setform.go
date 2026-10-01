@@ -122,12 +122,6 @@ func (b *SetFormTaskBuilder[T]) WithOptionsFunc(optionsFunc SetFormOptionsProvid
 	return b
 }
 
-func (b *SetFormTaskBuilder[T]) WithOptionsConstant(options []inspectionmetadata.SetParameterFormFieldOptionItem) *SetFormTaskBuilder[T] {
-	return b.WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		return options, nil
-	})
-}
-
 func (b *SetFormTaskBuilder[T]) WithOptionsSimple(options []string) *SetFormTaskBuilder[T] {
 	return b.WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 		result := make([]inspectionmetadata.SetParameterFormFieldOptionItem, len(options))
@@ -366,4 +360,28 @@ func DefineSetForm[T any](id taskid.TaskImplementationID[T], priority int, label
 		form.applySpec(bind(b))
 		return form.run
 	}, form.formLabelOpts(labelOpts)...)
+}
+
+// ConstantBool returns a SetFormBoolProvider that always returns value.
+func ConstantBool(value bool) SetFormBoolProvider {
+	return func(ctx context.Context) (bool, error) {
+		return value, nil
+	}
+}
+
+// ConstantOptions returns a SetFormOptionsProvider that always returns options.
+func ConstantOptions(options ...inspectionmetadata.SetParameterFormFieldOptionItem) SetFormOptionsProvider {
+	return func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+		return options, nil
+	}
+}
+
+// PreviousOrConstantDefaultValue returns a SetFormDefaultValueGenerator that returns the previous values when they exist, otherwise values.
+func PreviousOrConstantDefaultValue(values []string) SetFormDefaultValueGenerator {
+	return func(ctx context.Context, previousValues []string) ([]string, error) {
+		if len(previousValues) > 0 {
+			return previousValues, nil
+		}
+		return values, nil
+	}
 }

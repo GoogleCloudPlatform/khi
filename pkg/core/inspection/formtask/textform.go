@@ -120,16 +120,6 @@ func (b *TextFormTaskBuilder[T]) WithSuggestionsFunc(suggestionsFunc TextFormSug
 	return b
 }
 
-func (b *TextFormTaskBuilder[T]) WithHintFunc(hintFunc TextFormHintGenerator) *TextFormTaskBuilder[T] {
-	b.hintGenerator = hintFunc
-	return b
-}
-
-func (b *TextFormTaskBuilder[T]) WithConverter(converter TextFormValueConverter[T]) *TextFormTaskBuilder[T] {
-	b.converter = converter
-	return b
-}
-
 // run computes the form field metadata and returns the converted value of the current input.
 func (b *TextFormTaskBuilder[T]) run(ctx context.Context) (T, error) {
 	m := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)

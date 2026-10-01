@@ -30,38 +30,48 @@ const maxNodeNameFilterOptions = 500
 
 var nodeNameSubstringValidator = regexp.MustCompile("^[-a-z0-9]*$")
 
-// InputNodeNameFilterTask is a task to collect list of substrings of node names. This input value is used in querying k8s_node or serialport logs.
-var InputNodeNameFilterTask = formtask.NewSetFormTaskBuilder(k8scommon.InputNodeNameFilterTaskID, gcpcommon.PriorityForK8sResourceFilterGroup+3000, "Node names").
-	WithDependencies([]coretask.Dependency{k8scommon.AutocompleteNodeNamesTaskID.Ref()}).
-	WithDefaultValueConstant([]string{}, true).
-	WithDescription("A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.").
-	WithAllowAddAll(false).
-	WithAllowRemoveAll(false).
-	WithAllowCustomValue(true).
-	WithValidator(func(ctx context.Context, value []string) (string, error) {
-		for _, v := range value {
-			if !nodeNameSubstringValidator.MatchString(v) {
-				return fmt.Sprintf("invalid node name substring: %s", v), nil
-			}
+// inputNodeNameFilterTask is a task to collect list of substrings of node names. This input value is used in querying k8s_node or serialport logs.
+var inputNodeNameFilterTask = formtask.DefineSetForm(
+	k8scommon.InputNodeNameFilterTaskID,
+	gcpcommon.PriorityForK8sResourceFilterGroup+3000,
+	"Node names",
+	"A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.",
+	func(b *coretask.Binder) formtask.SetFormSpec[[]string] {
+		nodeNames := coretask.Use(b, k8scommon.AutocompleteNodeNamesTaskID.Ref())
+		return formtask.SetFormSpec[[]string]{
+			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{}),
+			AllowCustomValue: formtask.ConstantBool(true),
+			AllowAddAll:      formtask.ConstantBool(false),
+			AllowRemoveAll:   formtask.ConstantBool(false),
+			Validator:        validateNodeNameFilter,
+			Options: func(ctx context.Context, prevValue []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+				result := []inspectionmetadata.SetParameterFormFieldOptionItem{}
+				names := nodeNames.Get(ctx)
+				for i, v := range names.Values {
+					if i >= maxNodeNameFilterOptions {
+						break
+					}
+					result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: v})
+				}
+				return result, nil
+			},
+			Hint: func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+				names := nodeNames.Get(ctx)
+				if len(names.Values) > maxNodeNameFilterOptions {
+					return fmt.Sprintf("Some node names are not shown on the suggestion list because the number of node names is %d, which is more than %d.", len(names.Values), maxNodeNameFilterOptions), inspectionmetadata.Warning, nil
+				}
+				return "", inspectionmetadata.None, nil
+			},
 		}
-		return "", nil
-	}).
-	WithOptionsFunc(func(ctx context.Context, prevValue []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		result := []inspectionmetadata.SetParameterFormFieldOptionItem{}
-		nodeNames := coretask.GetTaskResult(ctx, k8scommon.AutocompleteNodeNamesTaskID.Ref())
-		for i, v := range nodeNames.Values {
-			if i >= maxNodeNameFilterOptions {
-				break
-			}
-			result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: v})
+	},
+)
+
+// validateNodeNameFilter validates that each node name substring contains only allowed characters.
+func validateNodeNameFilter(ctx context.Context, value []string) (string, error) {
+	for _, v := range value {
+		if !nodeNameSubstringValidator.MatchString(v) {
+			return fmt.Sprintf("invalid node name substring: %s", v), nil
 		}
-		return result, nil
-	}).
-	WithHintFunc(func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		nodeNames := coretask.GetTaskResult(ctx, k8scommon.AutocompleteNodeNamesTaskID.Ref())
-		if len(nodeNames.Values) > maxNodeNameFilterOptions {
-			return fmt.Sprintf("Some node names are not shown on the suggestion list because the number of node names is %d, which is more than %d.", len(nodeNames.Values), maxNodeNameFilterOptions), inspectionmetadata.Warning, nil
-		}
-		return "", inspectionmetadata.None, nil
-	}).
-	Build()
+	}
+	return "", nil
+}

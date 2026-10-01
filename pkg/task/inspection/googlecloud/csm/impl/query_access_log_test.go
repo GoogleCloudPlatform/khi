@@ -34,7 +34,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
-	k8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon/impl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
@@ -340,14 +339,11 @@ labels.response_flag:("UH")`,
 				t.Fatalf("unexpected error running prefix task: %v", err)
 			}
 
-			idRes, err := tasktest.RunTask(ctx, k8scommon_impl.ClusterIdentityTask,
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputProjectIdTaskID.Ref(), "test-project"),
-				tasktest.NewTaskDependencyValuePair(k8scommon.InputClusterNameTaskID.Ref(), "test-cluster"),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputLocationsTaskID.Ref(), "test-location"),
-				tasktest.NewTaskDependencyValuePair(k8scommon.ClusterNamePrefixTaskRef, prefixPolicy),
-			)
-			if err != nil {
-				t.Fatalf("unexpected error running cluster identity task: %v", err)
+			idRes := k8scommon.GoogleCloudClusterIdentity{
+				ProjectID:    "test-project",
+				ClusterName:  "test-cluster",
+				Location:     "test-location",
+				PrefixPolicy: prefixPolicy,
 			}
 
 			got := GenerateCSMTrafficLogsStructuredQuery(idRes, &gcpqueryutil.SetFilterParseResult{Additives: []string{"UH"}}, &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}}).GenerateCloudLoggingQuery()
