@@ -62,23 +62,23 @@ func TestAPIClientFactoryTask(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			mockOptionCalledCount = 0
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			clientFactory, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryTask, inspectioncore.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryOptionsTaskID.Ref(), tc.options))
+			clientFactory, _, err := inspectiontest.Run(t, ctx, apiClientFactoryTask, inspectioncore.TaskModeRun, map[string]any{}, tasktest.Given(gcpcommon.APIClientFactoryOptionsTaskID.Ref(), tc.options))
 			if !tc.wantErr && err != nil {
-				t.Errorf("APIClientFactoryTask failed: %v", err)
+				t.Errorf("apiClientFactoryTask failed: %v", err)
 			}
 			if tc.wantErr {
 				if err == nil {
-					t.Errorf("APIClientFactoryTask didn't return error unexpectedly")
+					t.Errorf("apiClientFactoryTask didn't return error unexpectedly")
 				}
 				return
 			}
 			if clientFactory == nil {
-				t.Errorf("APIClientFactoryTask returned nil")
+				t.Errorf("apiClientFactoryTask returned nil")
 			}
 
-			clientFactory2, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryTask, inspectioncore.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryOptionsTaskID.Ref(), tc.options))
+			clientFactory2, _, err := inspectiontest.Run(t, ctx, apiClientFactoryTask, inspectioncore.TaskModeRun, map[string]any{}, tasktest.Given(gcpcommon.APIClientFactoryOptionsTaskID.Ref(), tc.options))
 			if err != nil {
-				t.Errorf("APIClientFactoryTask failed on the second time: %v", err)
+				t.Errorf("apiClientFactoryTask failed on the second time: %v", err)
 			}
 			if clientFactory != clientFactory2 {
 				t.Errorf("APIClientFactoryTask returned different instances")

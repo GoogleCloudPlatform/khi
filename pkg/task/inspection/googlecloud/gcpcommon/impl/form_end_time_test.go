@@ -20,9 +20,8 @@ import (
 
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func TestInputEndtime(t *testing.T) {
@@ -33,18 +32,18 @@ func TestInputEndtime(t *testing.T) {
 		t.Errorf("unexpected error\n%s", err)
 	}
 	expectedValue2, err := time.Parse(time.RFC3339, "2020-01-02T00:00:00Z")
-	timezoneTaskUTC := tasktest.StubTask(inspectioncore_impl.TimeZoneShiftInputTask, time.UTC, nil)
-	timezoneTaskJST := tasktest.StubTask(inspectioncore_impl.TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
-
 	if err != nil {
 		t.Errorf("unexpected error\n%s", err)
 	}
-	form_task_test.TestTextForms(t, "endtime", InputEndTimeTask, []*form_task_test.TextFormTestCase{
+
+	form_task_test.TestTextForms(t, "endtime", inputEndTimeTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "with empty",
 			Input:         "",
 			ExpectedValue: expectedValue1,
-			Dependencies:  []coretask.UntypedTask{timezoneTaskUTC},
+			TaskInputs: []tasktest.InputValue{
+				tasktest.Given(inspectioncore.TimeZoneShiftInputTaskID.Ref(), time.UTC),
+			},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -61,7 +60,9 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with valid timestamp and UTC timezone",
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
-			Dependencies:  []coretask.UntypedTask{timezoneTaskUTC},
+			TaskInputs: []tasktest.InputValue{
+				tasktest.Given(inspectioncore.TimeZoneShiftInputTaskID.Ref(), time.UTC),
+			},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -77,7 +78,9 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with valid timestamp and non UTC timezone",
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
-			Dependencies:  []coretask.UntypedTask{timezoneTaskJST},
+			TaskInputs: []tasktest.InputValue{
+				tasktest.Given(inspectioncore.TimeZoneShiftInputTaskID.Ref(), time.FixedZone("", 9*3600)),
+			},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Label:       expectedLabel,

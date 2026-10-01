@@ -31,8 +31,8 @@ import (
 // inspectionNameFormPriority places the inspection name input field at the top of the parameter form.
 const inspectionNameFormPriority = 200000
 
-// InputInspectionNameTask is a form task that allows users to specify the display name of the inspection.
-var InputInspectionNameTask = formtask.NewTextFormTaskBuilder(
+// inputInspectionNameTask is a form task that allows users to specify the display name of the inspection.
+var inputInspectionNameTask = formtask.NewTextFormTaskBuilder(
 	inspectioncore.InputInspectionNameTaskID,
 	inspectionNameFormPriority,
 	"Inspection name",

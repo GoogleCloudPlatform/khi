@@ -25,7 +25,7 @@ import (
 
 func TestProjectIdInput(t *testing.T) {
 	wantDescription := "The project ID containing logs of the cluster to query"
-	form_task_test.TestTextForms(t, "gcp-project-id", InputProjectIdTask, []*form_task_test.TextFormTestCase{
+	form_task_test.TestTextForms(t, "gcp-project-id", inputProjectIDTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "With valid project ID",
 			Input:         "foo-project",

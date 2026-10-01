@@ -28,24 +28,25 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// InputStartTimeTask defines an inspection task that calculates the start time of a query
+// inputStartTimeTask defines an inspection task that calculates the start time of a query
 // from the end time and duration.
-var InputStartTimeTask = inspectiontaskbase.NewInspectionTask(gcpcommon.InputStartTimeTaskID, []coretask.Dependency{
-	gcpcommon.InputEndTimeTaskID.Ref(),
-	gcpcommon.InputDurationTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (time.Time, error) {
-	endTime := coretask.GetTaskResult(ctx, gcpcommon.InputEndTimeTaskID.Ref())
-	duration := coretask.GetTaskResult(ctx, gcpcommon.InputDurationTaskID.Ref())
-	startTime := endTime.Add(-duration)
-	// Add starttime and endtime on the header metadata
-	metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+var inputStartTimeTask = inspectiontaskbase.DefineInspectionTask(gcpcommon.InputStartTimeTaskID, func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[time.Time] {
+	endTimeInput := coretask.Use(b, gcpcommon.InputEndTimeTaskID.Ref())
+	durationInput := coretask.Use(b, gcpcommon.InputDurationTaskID.Ref())
+	return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (time.Time, error) {
+		endTime := endTimeInput.Get(ctx)
+		duration := durationInput.Get(ctx)
+		startTime := endTime.Add(-duration)
+		// Add starttime and endtime on the header metadata
+		metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 
-	header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey)
-	if !found {
-		return time.Time{}, fmt.Errorf("header metadata not found")
+		header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey)
+		if !found {
+			return time.Time{}, fmt.Errorf("header metadata not found")
+		}
+
+		header.StartTimeUnixSeconds = startTime.Unix()
+		header.EndTimeUnixSeconds = endTime.Unix()
+		return startTime, nil
 	}
-
-	header.StartTimeUnixSeconds = startTime.Unix()
-	header.EndTimeUnixSeconds = endTime.Unix()
-	return startTime, nil
 })

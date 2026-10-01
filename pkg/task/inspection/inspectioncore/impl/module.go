@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,16 @@
 
 package inspectioncore_impl
 
-import coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+import (
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+)
 
-func Register(registry coretask.TaskRegistry) error {
-	return coretask.RegisterTasks(registry, InspectionTimeProducer, TimeZoneShiftInputTask, InputInspectionNameTask, SerializeTask, JobModeCommandTask)
+// Tasks are the tasks that every inspection type uses, such as the inspection time, the inspection name form and the serializer.
+// The inspection server registers them in NewServer because this package cannot import the package that defines Module.
+var Tasks = []coretask.UntypedTask{
+	inspectionTimeTask,
+	timeZoneShiftInputTask,
+	inputInspectionNameTask,
+	serializerTask,
+	jobModeCommandTask,
 }

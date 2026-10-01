@@ -94,7 +94,7 @@ func NewServer(ioConfig *inspectioncore.IOConfig) (*InspectionTaskServer, error)
 	}
 
 	// Register mandatory tasks for inspection task
-	err = inspectioncore_impl.Register(server)
+	err = server.AddModules(Module{Name: "inspectioncore", Tasks: inspectioncore_impl.Tasks})
 	if err != nil {
 		return nil, err
 	}

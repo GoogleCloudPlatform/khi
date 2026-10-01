@@ -26,29 +26,26 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// APIClientFactoryTask is a task to inject googlecloud.ClientFactory to the later tasks. The instance is singleton in an inspection and the instance is cached on inspection cache after the first generation.
-var APIClientFactoryTask = inspectiontaskbase.NewInspectionCachedTask(gcpcommon.APIClientFactoryTaskID, []coretask.Dependency{
-	gcpcommon.APIClientFactoryOptionsTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory]) (inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory], error) {
-	// Use cached client if it was set already.
-	if prevValue.DependencyDigest != "" {
-		return prevValue, nil
+// apiClientFactoryTask is a task to inject googlecloud.ClientFactory to the later tasks. The instance is singleton in an inspection and the instance is cached on inspection cache after the first generation.
+var apiClientFactoryTask = inspectiontaskbase.DefineCachedTask(gcpcommon.APIClientFactoryTaskID, func(b *coretask.Binder) inspectiontaskbase.CachedTaskSpec[*googlecloud.ClientFactory] {
+	opts := coretask.Use(b, gcpcommon.APIClientFactoryOptionsTaskID.Ref())
+	return inspectiontaskbase.CachedTaskSpec[*googlecloud.ClientFactory]{
+		InputDigest: func(ctx context.Context) string {
+			// The client is created once per inspection because options are not expected to change.
+			return "singleton"
+		},
+		Compute: func(ctx context.Context) (*googlecloud.ClientFactory, error) {
+			clientFactory, err := googlecloud.NewClientFactory(opts.Get(ctx)...)
+			if err != nil {
+				return nil, err
+			}
+			inspectionContext := khictx.MustGetValue(ctx, inspectioncore.InspectionContext)
+			context.AfterFunc(inspectionContext, func() {
+				if err := clientFactory.Close(); err != nil {
+					slog.ErrorContext(inspectionContext, "failed to close client factory", "error", err)
+				}
+			})
+			return clientFactory, nil
+		},
 	}
-	opts := coretask.GetTaskResult(ctx, gcpcommon.APIClientFactoryOptionsTaskID.Ref())
-
-	clientFactory, err := googlecloud.NewClientFactory(opts...)
-	if err != nil {
-		return inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory]{}, err
-	}
-	inspectionContext := khictx.MustGetValue(ctx, inspectioncore.InspectionContext)
-	context.AfterFunc(inspectionContext, func() {
-		if err := clientFactory.Close(); err != nil {
-			slog.ErrorContext(inspectionContext, "failed to close client factory", "error", err)
-		}
-	})
-
-	return inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory]{
-		DependencyDigest: "singleton", // the client don't need to recreate and it's singleton because the options are not expected to be refresh.
-		Value:            clientFactory,
-	}, nil
 })

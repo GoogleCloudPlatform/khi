@@ -31,7 +31,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestSerializeTask verifies that SerializeTask successfully converts accumulated
+// TestSerializeTask verifies that serializerTask successfully converts accumulated
 // builder contents into the v6 protobuf chunk format.
 func TestSerializeTask(t *testing.T) {
 	testCases := []struct {
@@ -154,7 +154,7 @@ func TestSerializeTask(t *testing.T) {
 			}
 
 			mode := tc.taskMode
-			store, _, err := inspectiontest.RunInspectionTask(taskCtx, SerializeTask, mode, nil)
+			store, _, err := inspectiontest.Run(t, taskCtx, serializerTask, mode, nil)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("SerializeTask error = %v, wantErr %v", err, tc.wantErr)
 			}
