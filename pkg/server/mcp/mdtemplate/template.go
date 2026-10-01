@@ -16,6 +16,7 @@ package mdtemplate
 
 import (
 	"bytes"
+	"embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -103,34 +104,22 @@ func PageFooter(nextPageToken string) string {
 	return fmt.Sprintf("pageToken: %q", nextPageToken)
 }
 
+//go:embed templates/*.md.tmpl
+var builtinTemplateFS embed.FS
+
+var appliedFilterTemplate = template.Must(
+	template.New("applied_filter.md.tmpl").Funcs(template.FuncMap{
+		"time": FormatTime,
+	}).ParseFS(builtinTemplateFS, "templates/applied_filter.md.tmpl"),
+)
+
 // FormatAppliedFilter formats an AppliedFilter struct into a markdown explanation with a YAML block.
 func FormatAppliedFilter(f workbench.AppliedFilter) string {
-	formatVal := func(s string) string {
-		if s == "" {
-			return `""`
-		}
-		return s
+	var buf bytes.Buffer
+	if err := appliedFilterTemplate.Execute(&buf, f); err != nil {
+		panic(err)
 	}
-	startTimeStr := `""`
-	if !f.StartTime.IsZero() {
-		startTimeStr = f.StartTime.UTC().Format(time.RFC3339)
-	}
-	endTimeStr := `""`
-	if !f.EndTime.IsZero() {
-		endTimeStr = f.EndTime.UTC().Format(time.RFC3339)
-	}
-	var b strings.Builder
-	b.WriteString("## Applied filter\n")
-	b.WriteString("Enter these values in the KHI Web UI filter to see the same data.\n\n")
-	b.WriteString("```yaml\n")
-	b.WriteString(fmt.Sprintf("timelineQuery: %s\n", formatVal(f.TimelineQuery)))
-	b.WriteString(fmt.Sprintf("timelineExclusionQuery: %s\n", formatVal(f.TimelineExclusionQuery)))
-	b.WriteString(fmt.Sprintf("logQuery: %s\n", formatVal(f.LogQuery)))
-	b.WriteString(fmt.Sprintf("startTime: %s\n", startTimeStr))
-	b.WriteString(fmt.Sprintf("endTime: %s\n", endTimeStr))
-	b.WriteString(fmt.Sprintf("excludeTimelinesWithoutLogs: %t\n", f.ExcludeTimelinesWithoutLogs))
-	b.WriteString("```")
-	return b.String()
+	return strings.TrimRight(buf.String(), "\r\n")
 }
 
 // DefaultFuncMap returns the default template functions for markdown templates.
