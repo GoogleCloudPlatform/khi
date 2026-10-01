@@ -20,7 +20,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
-var ClusterIdentityAliasTask = coretask.NewAliasTask(
+// clusterIdentityAliasTask provides the cluster identity of the GKE cluster from the common cluster identity task.
+var clusterIdentityAliasTask = coretask.NewAliasTask(
 	gkeapiaudit.ClusterIdentityTaskID,
 	k8scommon.ClusterIdentityTaskID.Ref(),
 )

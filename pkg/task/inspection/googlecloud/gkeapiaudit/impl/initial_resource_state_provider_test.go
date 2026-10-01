@@ -41,7 +41,7 @@ func TestEmptyInitialResourceStateProviderTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			provider, _, err := inspectiontest.RunInspectionTask(ctx, EmptyInitialResourceStateProviderTask, inspectioncore.TaskModeRun, map[string]any{})
+			provider, _, err := inspectiontest.Run(t, ctx, emptyInitialResourceStateProviderTask, inspectioncore.TaskModeRun, map[string]any{})
 			if err != nil {
 				t.Fatalf("unexpected error running task: %v", err)
 			}
