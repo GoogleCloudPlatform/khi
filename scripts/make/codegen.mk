@@ -43,6 +43,10 @@ generate-backend: ## Generate backend source code
 	go run ./scripts/backend-codegen/
 	touch $(GENERATE_BACKEND_DUMMY)
 
+.PHONY: generate-agent-plugin-references
+generate-agent-plugin-references: ## Generate CEL reference documents for the agent plugin
+	go run ./scripts/celref-gen
+
 # TODO: eventually the following cp commands are not needed after we removed icon image dependency directly from the frontend.
 $(FRONTEND_GENERATED_ASSETS_DUMMY): scripts/msdf-generator/zzz_generated_used_icons.json scripts/msdf-generator/index.js $(MSDF_SETUP_DUMMY) ## Generate font atlas
 	cd scripts/msdf-generator && node index.js
