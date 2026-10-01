@@ -168,7 +168,7 @@ var pathMetadataUID = structured.CompileFieldPath("metadata.uid")
 func (m *containerLogPodPhaseTimelineMapper) Dependencies() []coretask.Dependency {
 	return []coretask.Dependency{
 		k8scontainer.ClusterIdentityTaskID.Ref(),
-		k8saudit.TimelinePathInventoryTaskID.Ref(),
+		k8saudit.TimelineCreationTimeInventoryTaskID.Ref(),
 		k8saudit.InitialResourceStateProviderRef,
 	}
 }
@@ -240,14 +240,14 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 		podPhasePath = mustPodPhaseTimelinePath(ctx, clusterName, nodeFields.NodeName, containerFields.Namespace, containerFields.PodName, uid)
 	}
 
-	// Check if audit log has already written to the Pod, its binding, or its phase timeline.
+	// Check if audit log has already recorded creation times for the Pod, its binding, or its phase timeline.
 	if state == nil {
-		auditTimelinePaths := coretask.GetTaskResult(ctx, k8saudit.TimelinePathInventoryTaskID.Ref())
-		_, hasPodPath := auditTimelinePaths[podPath]
-		_, hasBindingPath := auditTimelinePaths[bindingPath]
-		_, hasPodPhasePath := auditTimelinePaths[podPhasePath]
+		timelineCreationTimes := coretask.GetTaskResult(ctx, k8saudit.TimelineCreationTimeInventoryTaskID.Ref())
+		hasPodCreationTime := len(timelineCreationTimes[podPath]) > 0
+		hasBindingCreationTime := len(timelineCreationTimes[bindingPath]) > 0
+		hasPodPhaseCreationTime := len(timelineCreationTimes[podPhasePath]) > 0
 
-		if hasPodPath || hasBindingPath || hasPodPhasePath {
+		if hasPodCreationTime || hasBindingCreationTime || hasPodPhaseCreationTime {
 			return nil, &containerLogPodPhaseMapperState{AuditLogFound: true}, nil
 		}
 	}

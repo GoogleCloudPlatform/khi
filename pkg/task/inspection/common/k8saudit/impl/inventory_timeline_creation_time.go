@@ -16,6 +16,8 @@ package k8saudit_impl
 
 import (
 	"context"
+	"slices"
+	"time"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -23,35 +25,51 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// TimelinePathInventoryTask aggregates timeline paths discovered from audit logs.
-var TimelinePathInventoryTask = inspectiontaskbase.NewInventoryTask(
-	k8saudit.TimelinePathInventoryTaskID,
-	k8saudit.TagTimelinePathDiscovery,
-	mergeTimelinePaths,
+// TimelineCreationTimeInventoryTask aggregates creation timestamps per timeline path discovered from audit logs.
+var TimelineCreationTimeInventoryTask = inspectiontaskbase.NewInventoryTask(
+	k8saudit.TimelineCreationTimeInventoryTaskID,
+	k8saudit.TagTimelineCreationTimeDiscovery,
+	mergeTimelineCreationTimes,
 )
 
-func mergeTimelinePaths(results []k8saudit.TimelinePathSet) (k8saudit.TimelinePathSet, error) {
-	result := k8saudit.TimelinePathSet{}
+func mergeTimelineCreationTimes(results []k8saudit.TimelineCreationTimes) (k8saudit.TimelineCreationTimes, error) {
+	result := k8saudit.TimelineCreationTimes{}
 	for _, r := range results {
-		for path := range r {
-			result[path] = struct{}{}
+		for path, times := range r {
+			result[path] = append(result[path], times...)
 		}
+	}
+	for path, times := range result {
+		result[path] = deduplicateAndSortTimes(times)
 	}
 	return result, nil
 }
 
-// TimelinePathDiscoveryTask extracts timeline paths written by audit logs and registers them to TimelinePathInventoryTask.
-var TimelinePathDiscoveryTask = inspectiontaskbase.NewInspectionTask(
-	k8saudit.TimelinePathDiscoveryTaskID,
+func deduplicateAndSortTimes(times []time.Time) []time.Time {
+	if len(times) <= 1 {
+		return slices.Clone(times)
+	}
+	sorted := slices.Clone(times)
+	slices.SortFunc(sorted, func(a, b time.Time) int {
+		return a.Compare(b)
+	})
+	return slices.CompactFunc(sorted, func(a, b time.Time) bool {
+		return a.Equal(b)
+	})
+}
+
+// TimelineCreationTimeDiscoveryTask extracts creation timestamps per timeline path from audit logs and registers them to TimelineCreationTimeInventoryTask.
+var TimelineCreationTimeDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+	k8saudit.TimelineCreationTimeDiscoveryTaskID,
 	[]coretask.Dependency{
 		k8saudit.ManifestGeneratorTaskID.Ref(),
 		k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
 	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.TimelinePathSet, error) {
+	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.TimelineCreationTimes, error) {
 		if taskMode == inspectioncore.TaskModeDryRun {
-			return k8saudit.TimelinePathSet{}, nil
+			return k8saudit.TimelineCreationTimes{}, nil
 		}
-		result := k8saudit.TimelinePathSet{}
+		result := k8saudit.TimelineCreationTimes{}
 		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
 		for _, group := range resourceLogs {
 			if group.Resource.Type() == k8saudit.Namespace {
@@ -62,21 +80,38 @@ var TimelinePathDiscoveryTask = inspectiontaskbase.NewInspectionTask(
 				if err != nil || k8sFieldSet == nil || k8sFieldSet.IsDryRun {
 					continue
 				}
+
+				var creationTime time.Time
+				var hasCreationTime bool
+				if l.ResourceBodyReader != nil {
+					creationTime, hasCreationTime = GetCreationTimestamp(l.ResourceBodyReader)
+				}
+				if !hasCreationTime && k8sFieldSet.Verb == k8saudit.VerbCreate {
+					creationTime = l.Log.Timestamp
+					hasCreationTime = true
+				}
+				if !hasCreationTime {
+					continue
+				}
+
 				targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, group.Resource)
-				result[targetPath] = struct{}{}
+				result[targetPath] = append(result[targetPath], creationTime)
 
 				if group.Resource.Type() == k8saudit.Resource && group.Resource.APIVersion == "core/v1" && group.Resource.Kind == "pod" && l.ResourceBodyReader != nil {
 					uid, foundUID := GetUID(l.ResourceBodyReader)
 					nodeName, foundNode := GetNodeNameOfPod(l.ResourceBodyReader)
 					if foundUID && uid != "" && foundNode && nodeName != "" {
 						podPhasePath := MustPodPhaseTimelinePath(ctx, k8sFieldSet.ClusterName, nodeName, group.Resource.Namespace, group.Resource.Name, uid)
-						result[podPhasePath] = struct{}{}
+						result[podPhasePath] = append(result[podPhasePath], creationTime)
 					}
 				}
 			}
 		}
+		for path, times := range result {
+			result[path] = deduplicateAndSortTimes(times)
+		}
 		return result, nil
 	},
-	coretask.ProvidesTag(k8saudit.TagTimelinePathDiscovery),
+	coretask.ProvidesTag(k8saudit.TagTimelineCreationTimeDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
 )

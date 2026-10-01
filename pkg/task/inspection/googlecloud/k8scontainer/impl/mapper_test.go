@@ -353,12 +353,12 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name                 string
-		inputLogs            []*log.Log
-		cluster              k8scommon.GoogleCloudClusterIdentity
-		initialStateProvider *mockInitialResourceStateProvider
-		auditTimelinePaths   func() k8saudit.TimelinePathSet
-		assert               func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet)
+		name                  string
+		inputLogs             []*log.Log
+		cluster               k8scommon.GoogleCloudClusterIdentity
+		initialStateProvider  *mockInitialResourceStateProvider
+		timelineCreationTimes func() k8saudit.TimelineCreationTimes
+		assert                func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet)
 	}{
 		{
 			name: "skipped because NodeName is empty",
@@ -445,9 +445,9 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
-			auditTimelinePaths: func() k8saudit.TimelinePathSet {
+			timelineCreationTimes: func() k8saudit.TimelineCreationTimes {
 				auditPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod-audit")
-				return k8saudit.TimelinePathSet{auditPodPath: struct{}{}}
+				return k8saudit.TimelineCreationTimes{auditPodPath: []time.Time{time.Date(2026, 5, 26, 11, 0, 0, 0, time.UTC)}}
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
 				if css[0] != nil {
@@ -473,10 +473,10 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ClusterName: "test-cluster",
 			},
-			auditTimelinePaths: func() k8saudit.TimelinePathSet {
+			timelineCreationTimes: func() k8saudit.TimelineCreationTimes {
 				bindingPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod-binding")
 				subresourcePath := k8saudit.MustK8sSubresourceTimeline(ctx, bindingPodPath, "binding")
-				return k8saudit.TimelinePathSet{subresourcePath: struct{}{}}
+				return k8saudit.TimelineCreationTimes{subresourcePath: []time.Time{time.Date(2026, 5, 26, 11, 0, 0, 0, time.UTC)}}
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
 				if css[0] != nil {
@@ -830,9 +830,9 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					}: {},
 				},
 			},
-			auditTimelinePaths: func() k8saudit.TimelinePathSet {
+			timelineCreationTimes: func() k8saudit.TimelineCreationTimes {
 				caiPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod-cai-audit")
-				return k8saudit.TimelinePathSet{caiPodPath: struct{}{}}
+				return k8saudit.TimelineCreationTimes{caiPodPath: []time.Time{time.Date(2026, 5, 26, 11, 0, 0, 0, time.UTC)}}
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
 				if css[0] != nil {
@@ -921,10 +921,10 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					}: {},
 				},
 			},
-			auditTimelinePaths: func() k8saudit.TimelinePathSet {
+			timelineCreationTimes: func() k8saudit.TimelineCreationTimes {
 				caiPodPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod-cai-binding")
 				subresourcePath := k8saudit.MustK8sSubresourceTimeline(ctx, caiPodPath, "binding")
-				return k8saudit.TimelinePathSet{subresourcePath: struct{}{}}
+				return k8saudit.TimelineCreationTimes{subresourcePath: []time.Time{time.Date(2026, 5, 26, 11, 0, 0, 0, time.UTC)}}
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
 				if css[0] != nil {
@@ -960,9 +960,9 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					}: makeCAIPodNodeReader("cai-pod-uid-456"),
 				},
 			},
-			auditTimelinePaths: func() k8saudit.TimelinePathSet {
+			timelineCreationTimes: func() k8saudit.TimelineCreationTimes {
 				existingPhasePath := mustPodPhaseTimelinePath(ctx, "test-cluster", "test-node", "test-namespace", "test-pod-cai-phase", "cai-pod-uid-456")
-				return k8saudit.TimelinePathSet{existingPhasePath: struct{}{}}
+				return k8saudit.TimelineCreationTimes{existingPhasePath: []time.Time{time.Date(2026, 5, 26, 11, 0, 0, 0, time.UTC)}}
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
 				if css[0] != nil {
@@ -983,11 +983,11 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			}
 			ctx = tasktest.WithTaskResult(ctx, k8saudit.InitialResourceStateProviderRef, provider)
 
-			auditPaths := k8saudit.TimelinePathSet{}
-			if tc.auditTimelinePaths != nil {
-				auditPaths = tc.auditTimelinePaths()
+			creationTimes := k8saudit.TimelineCreationTimes{}
+			if tc.timelineCreationTimes != nil {
+				creationTimes = tc.timelineCreationTimes()
 			}
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.TimelinePathInventoryTaskID.Ref(), auditPaths)
+			ctx = tasktest.WithTaskResult(ctx, k8saudit.TimelineCreationTimeInventoryTaskID.Ref(), creationTimes)
 
 			var css []*khifilev6.TimelineChangeSet
 			var state *containerLogPodPhaseMapperState

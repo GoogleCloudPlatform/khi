@@ -15,6 +15,8 @@
 package k8saudit
 
 import (
+	"time"
+
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
@@ -47,11 +49,11 @@ var TagIPLeaseHistoryDiscovery = coretask.NewTag[IPLeaseHistory]("khi.google.com
 
 var IPLeaseHistoryInventoryTaskID = taskid.NewDefaultImplementationID[IPLeaseHistory](TaskIDPrefix + "ip-lease-history-inventory")
 
-// TimelinePathSet represents a set of timeline paths written by audit logs.
-type TimelinePathSet = map[*khifilev6.TimelinePath]struct{}
+// TimelineCreationTimes maps a timeline path to its observed creation timestamps in chronological order.
+type TimelineCreationTimes = map[*khifilev6.TimelinePath][]time.Time
 
-// TagTimelinePathDiscovery is the tag for discovery tasks producing timeline paths written by audit logs.
-var TagTimelinePathDiscovery = coretask.NewTag[TimelinePathSet]("khi.google.com/inspection/commonlogk8saudit/timelinepath")
+// TagTimelineCreationTimeDiscovery is the tag for discovery tasks producing creation timestamps per timeline path.
+var TagTimelineCreationTimeDiscovery = coretask.NewTag[TimelineCreationTimes]("khi.google.com/inspection/commonlogk8saudit/timelinecreationtime")
 
-// TimelinePathInventoryTaskID is the task ID for the inventory task aggregating timeline paths written by audit logs.
-var TimelinePathInventoryTaskID = taskid.NewDefaultImplementationID[TimelinePathSet](TaskIDPrefix + "timeline-path-inventory")
+// TimelineCreationTimeInventoryTaskID is the task ID for the inventory task aggregating creation timestamps per timeline path.
+var TimelineCreationTimeInventoryTaskID = taskid.NewDefaultImplementationID[TimelineCreationTimes](TaskIDPrefix + "timeline-creation-time-inventory")
