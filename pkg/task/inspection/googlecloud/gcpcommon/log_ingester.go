@@ -27,28 +27,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GCPOperationLogIngester is a common LogIngester implementation for GCP Operation audit logs.
+// GCPOperationLogIngester sets the log type, timestamp, severity and summary of GCP Operation audit logs.
 type GCPOperationLogIngester struct {
-	rawLogTask taskid.TaskReference[[]*log.Log]
-	logType    *pb.LogType
+	logType *pb.LogType
 }
 
 // NewGCPOperationLogIngester creates a new GCPOperationLogIngester.
-func NewGCPOperationLogIngester(rawLogTask taskid.TaskReference[[]*log.Log], logType *pb.LogType) inspectiontaskbase.LogIngester {
+func NewGCPOperationLogIngester(logType *pb.LogType) *GCPOperationLogIngester {
 	return &GCPOperationLogIngester{
-		rawLogTask: rawLogTask,
-		logType:    logType,
+		logType: logType,
 	}
-}
-
-// RawLogTask returns the task reference that provides the raw logs to ingest.
-func (i *GCPOperationLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return i.rawLogTask
-}
-
-// Dependencies returns additional task dependencies of the ingester.
-func (i *GCPOperationLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
 }
 
 // ProcessLog parses raw log entry and populates the LogChangeSet.
@@ -91,17 +79,9 @@ func (i *GCPOperationLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*
 	return cs, nil
 }
 
-// Explicit interface compliance assertion.
-var _ inspectiontaskbase.LogIngester = (*GCPOperationLogIngester)(nil)
-
-// NewGCPOperationLogIngesterTask returns a new log ingester task for GCP Operation audit logs.
-func NewGCPOperationLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], rawLogTask taskid.TaskReference[[]*log.Log], logType *pb.LogType) coretask.Task[struct{}] {
-	return inspectiontaskbase.NewLogIngesterTask(taskID, NewGCPOperationLogIngester(rawLogTask, logType))
-}
-
 // DefineGCPOperationLogIngesterTask defines a log ingester task for GCP Operation audit logs read from rawLogTask.
 func DefineGCPOperationLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], rawLogTask taskid.TaskReference[[]*log.Log], logType *pb.LogType) coretask.DefinedTask[struct{}] {
-	ingester := NewGCPOperationLogIngester(rawLogTask, logType)
+	ingester := NewGCPOperationLogIngester(logType)
 	return inspectiontaskbase.DefineLogIngesterTask(taskID, rawLogTask, func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
 		return ingester.ProcessLog
 	})

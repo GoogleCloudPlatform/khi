@@ -338,10 +338,7 @@ config:
 
 func TestComposerAuditLogIngester(t *testing.T) {
 	testTime := time.Date(2026, time.August, 10, 0, 23, 12, 0, time.UTC)
-	ingester := gcpcommon.NewGCPOperationLogIngester(
-		composerapiaudit.ListLogEntriesTaskID.Ref(),
-		composerapiaudit.LogTypeManagedAirflowAPI,
-	)
+	ingester := gcpcommon.NewGCPOperationLogIngester(composerapiaudit.LogTypeManagedAirflowAPI)
 
 	testCases := []struct {
 		desc       string

@@ -65,7 +65,7 @@ Exposes interactive input fields (e.g., text boxes, multi-select checkboxes) to 
 
 Queries logs from the data source (e.g., Google Cloud Logging or local files) using parameters provided by the Form tasks.
 
-- **Utility:** `gcpcommon.NewStructuredListLogEntriesTask` (for any logs on Cloud Logging) or `inspection_task.NewInspectionTask`.
+- **Utility:** `gcpcommon.DefineStructuredListLogEntriesTask` (for any logs on Cloud Logging) or `inspection_task.NewInspectionTask`.
 - **Google Cloud API Calling:** When calling Google Cloud APIs directly or through fetchers, refer to [googlecloud-api](skill://googlecloud-api) for mandatory `CallOptionInjector` usage and client configuration.
 
 ### Step 3: Log Ingestion Tasks
@@ -333,7 +333,7 @@ var InputFilterKeywordTask = formtask.NewTextFormTaskBuilder(
 
 #### `query.go` (Step 2)
 
-Implements querying logs from Google Cloud Logging based on parameters.
+Implements querying logs from Google Cloud Logging based on parameters. The bind function declares each input with `coretask.Use` and passes the handles to the query source, which reads them with `Get` while the task runs.
 
 ```go
 package customapp_impl
@@ -344,37 +344,34 @@ import (
 
  "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
  coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
- "github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-
- "github.com/GoogleCloudPlatform/khi/pkg/model/log"
  "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/customapp"
  "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
  "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
 // LogQueryTask executes Cloud Logging queries to fetch logs.
-var LogQueryTask = gcpcommon.NewStructuredListLogEntriesTask(&customAppLogQueryTaskSetting{})
+var LogQueryTask = gcpcommon.DefineStructuredListLogEntriesTask(
+ customapp.LogQueryTaskID,
+ "Custom App logs",
+ func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+  return &customAppQuerySource{
+   cluster: coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
+   keyword: coretask.Use(b, customapp.InputFilterKeywordTaskID.Ref()),
+  }
+ },
+)
 
-type customAppLogQueryTaskSetting struct{}
-
-func (s *customAppLogQueryTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
- return customapp.LogQueryTaskID
+// customAppQuerySource builds the Cloud Logging query for Custom App logs from the cluster identity and the filter keyword.
+type customAppQuerySource struct {
+ cluster coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+ keyword coretask.Input[string]
 }
 
-func (s *customAppLogQueryTaskSetting) Dependencies() []coretask.Dependency {
- return []coretask.Dependency{
-  k8scommon.ClusterIdentityTaskID.Ref(),
-  customapp.InputFilterKeywordTaskID.Ref(),
- }
-}
+var _ gcpcommon.StructuredLogQuerySource = (*customAppQuerySource)(nil)
 
-func (s *customAppLogQueryTaskSetting) QueryName() string {
- return "Custom App logs"
-}
-
-func (s *customAppLogQueryTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
- cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
- keyword := coretask.GetTaskResult(ctx, customapp.InputFilterKeywordTaskID.Ref())
+func (s *customAppQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+ cluster := s.cluster.Get(ctx)
+ keyword := s.keyword.Get(ctx)
  return []*logestimator.StructuredLogQuery{{
   Incomplete:    !cluster.IsComplete(),
   ResourceTypes: []string{"k8s_container"},
@@ -386,16 +383,14 @@ func (s *customAppLogQueryTaskSetting) Queries(ctx context.Context) ([]*logestim
  }}, nil
 }
 
-func (s *customAppLogQueryTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
- cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+func (s *customAppQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+ cluster := s.cluster.Get(ctx)
  return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
-func (s *customAppLogQueryTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+func (s *customAppQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
  return 5, nil
 }
-
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*customAppLogQueryTaskSetting)(nil)
 ```
 
 #### `mapper.go` (Steps 3, 4)

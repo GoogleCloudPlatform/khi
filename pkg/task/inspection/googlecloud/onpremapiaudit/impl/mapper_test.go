@@ -74,7 +74,7 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := gcpcommon.NewGCPOperationLogIngester(onpremapiaudit.ListLogEntriesTaskID.Ref(), onpremapiaudit.LogTypeOnPremAPI)
+	ingester := gcpcommon.NewGCPOperationLogIngester(onpremapiaudit.LogTypeOnPremAPI)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.inputLog)

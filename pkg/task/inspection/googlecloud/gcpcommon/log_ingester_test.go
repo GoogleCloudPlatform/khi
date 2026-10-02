@@ -33,7 +33,6 @@ import (
 
 func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 	testTime := time.Date(2026, 6, 24, 10, 0, 0, 0, time.UTC)
-	dummyTaskRef := taskid.NewTaskReference[[]*log.Log]("dummy")
 	dummyLogType := style.MustRegisterLogType("dummy", "Dummy", style.MustForceConvertSRGBHex("#123456"), style.ColorWhite)
 
 	testCases := []struct {
@@ -172,7 +171,7 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := NewGCPOperationLogIngester(dummyTaskRef, dummyLogType)
+	ingester := NewGCPOperationLogIngester(dummyLogType)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
