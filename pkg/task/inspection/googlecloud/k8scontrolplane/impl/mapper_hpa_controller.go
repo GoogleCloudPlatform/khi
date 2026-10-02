@@ -20,7 +20,6 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -28,50 +27,39 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scontrolplane"
 )
 
-// HpaControllerLogFilterTask filters logs for HPA controller.
-var HpaControllerLogFilterTask = inspectiontaskbase.NewLogFilterTask(
+// hpaControllerLogFilterTask filters logs for HPA controller.
+var hpaControllerLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	k8scontrolplane.HpaControllerLogFilterTaskID,
 	k8scontrolplane.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) bool {
-		parserType, err := k8scontrolplane.ExtractK8sControlplaneComponentParserType(l.NodeReader)
-		if err != nil {
-			return false
+	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		return func(ctx context.Context, l *log.Log) bool {
+			parserType, err := k8scontrolplane.ExtractK8sControlplaneComponentParserType(l.NodeReader)
+			if err != nil {
+				return false
+			}
+			return parserType == k8scontrolplane.ComponentParserTypeHPAController
 		}
-		return parserType == k8scontrolplane.ComponentParserTypeHPAController
 	},
 )
 
-// HpaControllerGrouperTask groups HPA controller logs.
-var HpaControllerGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+// hpaControllerLogGrouperTask groups HPA controller logs.
+var hpaControllerLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	k8scontrolplane.HpaControllerLogGrouperTaskID,
 	k8scontrolplane.HpaControllerLogFilterTaskID.Ref(),
-	func(ctx context.Context, log *log.Log) string {
-		return "" // No grouping needed
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			return "" // No grouping needed
+		}
 	},
 )
 
-// HpaControllerTimelineMapper maps HPA controller logs to timeline paths.
-type HpaControllerTimelineMapper struct {
+// hpaControllerTimelineMapper maps HPA controller logs to timeline paths.
+type hpaControllerTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (m *HpaControllerTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (m *HpaControllerTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return k8scontrolplane.HpaControllerLogGrouperTaskID.Ref()
-}
-
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (m *HpaControllerTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8scontrolplane.LogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (m *HpaControllerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (m *hpaControllerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	componentFieldSet, err := k8scontrolplane.ExtractK8sControlplaneComponent(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
@@ -126,7 +114,16 @@ func (m *HpaControllerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*HpaControllerTimelineMapper)(nil)
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*hpaControllerTimelineMapper)(nil)
 
-// HpaControllerLogToTimelineMapperTask creates timeline events for HPA controller logs.
-var HpaControllerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(k8scontrolplane.HpaControllerLogToTimelineMapperTaskID, &HpaControllerTimelineMapper{})
+// hpaControllerLogToTimelineMapperTask creates timeline events for HPA controller logs.
+var hpaControllerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8scontrolplane.HpaControllerLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8scontrolplane.HpaControllerLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &hpaControllerTimelineMapper{}
+	},
+)

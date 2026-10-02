@@ -20,7 +20,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -62,69 +61,63 @@ var defaultControllerManagerExtractor = &k8scontrolplane.K8sControllerManagerCom
 	},
 }
 
-var ControllerManagerFilterTask = inspectiontaskbase.NewLogFilterTask(
+// controllerManagerLogFilterTask filters kube-controller-manager logs.
+var controllerManagerLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	k8scontrolplane.ControllerManagerLogFilterTaskID,
 	k8scontrolplane.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) bool {
-		parserType, err := k8scontrolplane.ExtractK8sControlplaneComponentParserType(l.NodeReader)
-		if err != nil {
-			return false
+	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		return func(ctx context.Context, l *log.Log) bool {
+			parserType, err := k8scontrolplane.ExtractK8sControlplaneComponentParserType(l.NodeReader)
+			if err != nil {
+				return false
+			}
+			return parserType == k8scontrolplane.ComponentParserTypeControllerManager
 		}
-		return parserType == k8scontrolplane.ComponentParserTypeControllerManager
 	},
 )
 
-var ControllerManagerGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+// controllerManagerLogGrouperTask puts all kube-controller-manager logs into one group.
+var controllerManagerLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	k8scontrolplane.ControllerManagerLogGrouperTaskID,
 	k8scontrolplane.ControllerManagerLogFilterTaskID.Ref(),
-	func(ctx context.Context, log *log.Log) string {
-		return "" // No grouping needed
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			return "" // No grouping needed
+		}
 	},
 )
 
-var ControllerManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](k8scontrolplane.ControllerManagerLogToTimelineMapperTaskID, &ControllerManagerTimelineMapper{})
-
-// ControllerManagerTimelineMapper maps controller manager logs to timeline paths.
-type ControllerManagerTimelineMapper struct {
+// controllerManagerTimelineMapper maps controller manager logs to timeline paths.
+type controllerManagerTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
-	uidPrefixTokenCandidates []rune
+	finder coretask.Input[patternfinder.PatternFinder[*k8saudit.ResourceIdentity]]
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (o *ControllerManagerTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8saudit.ResourceUIDPatternFinderTaskID.Ref(),
-	}
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (o *controllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	cs, err := mapControllerManagerLog(ctx, l, o.finder.Get(ctx))
+	return cs, struct{}{}, err
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *ControllerManagerTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return k8scontrolplane.ControllerManagerLogGrouperTaskID.Ref()
-}
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*controllerManagerTimelineMapper)(nil)
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *ControllerManagerTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8scontrolplane.LogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	finder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
+// mapControllerManagerLog adds events for a kube-controller-manager log to the timelines of its controller and of the resources the log mentions by name or UID.
+func mapControllerManagerLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.TimelineChangeSet, error) {
 	componentFieldSet, err := k8scontrolplane.ExtractK8sControlplaneComponent(l.NodeReader)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, err
 	}
 	commonMainMessage, err := k8scontrolplane.ExtractK8sControlplaneCommonMessage(l.NodeReader)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, err
 	}
 	controllerManagerFieldSet, err := defaultControllerManagerExtractor.Extract(l.NodeReader)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, err
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
-	resources := patternfinder.FindAllWithStarterRunes(commonMainMessage, finder, false, o.uidPrefixTokenCandidates...)
+	resources := patternfinder.FindAllWithStarterRunes(commonMainMessage, finder, false)
 	writtenResourcePaths := map[uint32]struct{}{}
 
 	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, componentFieldSet.ProjectID)
@@ -146,7 +139,19 @@ func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context,
 		writtenResourcePaths[tPath.ID] = struct{}{}
 	}
 
-	return cs, struct{}{}, nil
+	return cs, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*ControllerManagerTimelineMapper)(nil)
+// controllerManagerLogToTimelineMapperTask maps kube-controller-manager logs to the timelines of the controllers and the resources they mention.
+var controllerManagerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8scontrolplane.ControllerManagerLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8scontrolplane.ControllerManagerLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &controllerManagerTimelineMapper{
+			finder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
+		}
+	},
+)
