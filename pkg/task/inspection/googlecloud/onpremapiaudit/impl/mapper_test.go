@@ -89,7 +89,7 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 	}
 }
 
-func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestOnPremAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
 
 	// 1. Initialize the Builder.
@@ -505,7 +505,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &OnPremAPIAuditTimelineMapper{}
+	mapper := &onPremAuditTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := testlog.NewMockLog(testTime, tc.inputAudit, tc.inputResource)
