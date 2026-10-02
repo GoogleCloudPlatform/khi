@@ -18,21 +18,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
+func TestProcessCSMTrafficLog(t *testing.T) {
 	testCases := []struct {
 		desc                string
 		inputGCPAccessLog   *gcpcommon.GCPAccessLogFieldSet
@@ -93,7 +90,6 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := &CSMTrafficLogLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := testlog.NewMockLog(
@@ -101,9 +97,9 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 				*tc.inputGCPAccessLog,
 				*tc.inputIstioAccessLog,
 			)
-			cs, err := ingester.ProcessLog(t.Context(), l)
+			cs, err := processCSMTrafficLog(t.Context(), l)
 			if err != nil {
-				t.Fatalf("ProcessLog() failed: %v", err)
+				t.Fatalf("processCSMTrafficLog() failed: %v", err)
 			}
 			testchangeset.AssertLog(t, cs).
 				HasSummary(tc.wantSummary).
@@ -112,7 +108,7 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 	}
 }
 
-func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestCSMTrafficLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testCases := []struct {
 		desc                string
 		inputGCPAccessLog   *gcpcommon.GCPAccessLogFieldSet
@@ -223,23 +219,19 @@ func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &CSMTrafficLogLogToTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, csm.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
-				ClusterName: "test-cluster",
-			})
 
 			l := testlog.NewMockLog(
 				time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
 				*tc.inputGCPAccessLog,
 				*tc.inputIstioAccessLog,
 			)
-			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
+			cs, err := mapCSMTrafficLog(ctx, l, "test-cluster")
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() failed: %v", err)
+				t.Fatalf("mapCSMTrafficLog() failed: %v", err)
 			}
 			tc.assert(t, builder, cs)
 		})

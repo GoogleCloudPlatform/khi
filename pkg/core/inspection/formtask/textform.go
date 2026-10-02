@@ -224,6 +224,17 @@ func ConstantSuggestions(suggestions ...string) TextFormSuggestionsProvider {
 	}
 }
 
+// PreviousOrDefaultValue returns a TextFormDefaultValueGenerator that returns the most recent previous value when one exists,
+// or calls defaultValue to compute the initial default value.
+func PreviousOrDefaultValue(defaultValue func(ctx context.Context) (string, error)) TextFormDefaultValueGenerator {
+	return func(ctx context.Context, previousValues []string) (string, error) {
+		if len(previousValues) > 0 {
+			return previousValues[0], nil
+		}
+		return defaultValue(ctx)
+	}
+}
+
 // TextFormSpec holds the optional settings of a text form defined with DefineTextForm.
 // Callbacks may read inputs declared on the Binder passed to the bind function.
 // A nil callback or a zero value uses the default of NewTextFormTaskBuilder.
