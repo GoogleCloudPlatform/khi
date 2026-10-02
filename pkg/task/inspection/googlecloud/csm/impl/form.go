@@ -41,13 +41,9 @@ var inputFleetProjectIDTask = formtask.DefineTextForm(
 	func(b *coretask.Binder) formtask.TextFormSpec[string] {
 		clusterIdentity := coretask.Use(b, csm.ClusterIdentityTaskID.Ref())
 		return formtask.TextFormSpec[string]{
-			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
-				if len(previousValues) > 0 {
-					return previousValues[0], nil
-				}
-				cluster := clusterIdentity.Get(ctx)
-				return cluster.ProjectID, nil
-			},
+			DefaultValue: formtask.PreviousOrDefaultValue(func(ctx context.Context) (string, error) {
+				return clusterIdentity.Get(ctx).ProjectID, nil
+			}),
 		}
 	},
 )

@@ -469,3 +469,52 @@ func TestDefineTextForm(t *testing.T) {
 		}
 	})
 }
+
+func TestPreviousOrDefaultValue(t *testing.T) {
+	testCases := []struct {
+		name           string
+		previousValues []string
+		defaultValue   func(ctx context.Context) (string, error)
+		want           string
+		wantErr        bool
+	}{
+		{
+			name:           "returns the first previous value without calling defaultValue",
+			previousValues: []string{"prev-1", "prev-2"},
+			defaultValue: func(ctx context.Context) (string, error) {
+				t.Fatal("defaultValue should not be called when previousValues is not empty")
+				return "", nil
+			},
+			want: "prev-1",
+		},
+		{
+			name:           "computes the default value when previousValues is empty",
+			previousValues: nil,
+			defaultValue: func(ctx context.Context) (string, error) {
+				return "computed-default", nil
+			},
+			want: "computed-default",
+		},
+		{
+			name:           "propagates error from defaultValue",
+			previousValues: []string{},
+			defaultValue: func(ctx context.Context) (string, error) {
+				return "", fmt.Errorf("compute error")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gen := PreviousOrDefaultValue(tc.defaultValue)
+			got, err := gen(t.Context(), tc.previousValues)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("PreviousOrDefaultValue() error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if got != tc.want {
+				t.Errorf("PreviousOrDefaultValue() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
