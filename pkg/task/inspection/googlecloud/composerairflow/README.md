@@ -16,12 +16,12 @@ The Composer inspection pipeline can be divided into four main phases:
 - **`autocompleteComposerEnvironmentIdentityTask`**: Suggests available Composer environments.
 - **`autocompleteLocationForComposerEnvironmentTask`**: Suggests the location of the selected environment.
 - **`inputComposerEnvironmentNameTask`**: Captures the user-selected environment name.
-- **`AutocompleteComposerComponentsTask`**: Queries Cloud Monitoring (`logging.googleapis.com/log_entry_count`) to dynamically suggest available Airflow components (e.g. `scheduler`, `worker`, `dag-processor-manager`, `webserver`, etc.).
-- **`InputComposerComponentsTask`**: Captures the user-selected components to inspect.
+- **`autocompleteComposerComponentsTask`**: Queries Cloud Monitoring (`logging.googleapis.com/log_entry_count`) to dynamically suggest available Airflow components (e.g. `scheduler`, `worker`, `dag-processor-manager`, `webserver`, etc.).
+- **`inputComposerComponentsTask`**: Captures the user-selected components to inspect.
 
 ### 2. Log Fetching
 
-- **`ComposerLogsQueryTask`**: Generates the Cloud Logging query based on input properties and fetches the raw logs.
+- **`composerLogsQueryTask`**: Generates the Cloud Logging query based on input properties and fetches the raw logs.
 
 ### 3. Parsing & Mapping Pipelines
 
@@ -29,17 +29,17 @@ Logs are filtered into specific component streams using extractors. Each stream 
 `Filter` -> `Grouper` -> `Ingester` -> `Mapper`
 
 - **Scheduler Pipeline**: Handles `airflow-scheduler` component logs.
-  - Tasks: `AirflowSchedulerLogFilterTask`, `AirflowSchedulerLogGrouperTask`, `AirflowSchedulerLogIngesterTask`, `AirflowSchedulerLogToTimelineMapperTask`.
+  - Tasks: `airflowSchedulerLogFilterTask`, `airflowSchedulerLogGrouperTask`, `airflowSchedulerLogIngesterTask`, `airflowSchedulerLogToTimelineMapperTask`.
 - **Worker Pipeline**: Handles `airflow-worker` component logs.
-  - Tasks: `AirflowWorkerLogFilterTask`, `AirflowWorkerLogGrouperTask`, `AirflowWorkerLogIngesterTask`, `AirflowWorkerLogToTimelineMapperTask`.
+  - Tasks: `airflowWorkerLogFilterTask`, `airflowWorkerLogGrouperTask`, `airflowWorkerLogIngesterTask`, `airflowWorkerLogToTimelineMapperTask`.
 - **Dag Processor Manager Pipeline**: Handles `airflow-dag-processor-manager` logs.
-  - Tasks: `AirflowDagProcessorManagerLogFilterTask`, `AirflowDagProcessorManagerLogGrouperTask`, `AirflowDagProcessorManagerLogIngesterTask`, `AirflowDagProcessorManagerLogToTimelineMapperTask`.
+  - Tasks: `airflowDagProcessorManagerLogFilterTask`, `airflowDagProcessorManagerLogGrouperTask`, `airflowDagProcessorManagerLogIngesterTask`, `airflowDagProcessorManagerLogToTimelineMapperTask`.
 - **Other Pipeline (Fallback)**: Catches any component logs that do not match the above three (e.g., `webserver`, `triggerer`).
-  - Tasks: `AirflowOtherLogFilterTask`, `AirflowOtherLogGrouperTask`, `AirflowOtherLogIngesterTask`, `AirflowOtherLogToTimelineMapperTask`.
+  - Tasks: `airflowOtherLogFilterTask`, `airflowOtherLogGrouperTask`, `airflowOtherLogIngesterTask`, `airflowOtherLogToTimelineMapperTask`.
 
 ### 4. Aggregation
 
-- **`ComposerLogsTailTask`**: Collects the outputs of all `...LogToTimelineMapperTask` tasks to unify the Composer logs feature on the timeline.
+- **`composerLogsTailTask`**: Collects the outputs of all `...LogToTimelineMapperTask` tasks to unify the Composer logs feature on the timeline.
 
 ## Task Relationship Diagram
 
@@ -65,8 +65,8 @@ graph TD
     EnvIdentityAuto[autocompleteComposerEnvironmentIdentityTask]:::pipeline
     LocationAuto[autocompleteLocationForComposerEnvironmentTask]:::pipeline
     EnvInput[inputComposerEnvironmentNameTask]:::input
-    CompAuto[AutocompleteComposerComponentsTask]:::pipeline
-    CompInput[InputComposerComponentsTask]:::input
+    CompAuto[autocompleteComposerComponentsTask]:::pipeline
+    CompInput[inputComposerComponentsTask]:::input
 
     %% Dependencies for AutocompleteComposerEnvironmentIdentity
     ProjectIDInput --> EnvIdentityAuto
@@ -98,33 +98,33 @@ graph TD
     CompAuto --> CompInput
 
     %% Log Fetching
-    ClusterIdentity --> LogQuery[ComposerLogsQueryTask]:::query
+    ClusterIdentity --> LogQuery[composerLogsQueryTask]:::query
     EnvInput --> LogQuery
     CompInput --> LogQuery
 
     %% Pipelines
-    LogQuery --> SchedFilter[AirflowSchedulerLogFilterTask]:::pipeline
-    SchedFilter --> SchedGrouper[AirflowSchedulerLogGrouperTask]:::pipeline
-    SchedGrouper --> SchedIngester[AirflowSchedulerLogIngesterTask]:::pipeline
-    SchedIngester --> SchedMapper[AirflowSchedulerLogToTimelineMapperTask]:::pipeline
+    LogQuery --> SchedFilter[airflowSchedulerLogFilterTask]:::pipeline
+    SchedFilter --> SchedGrouper[airflowSchedulerLogGrouperTask]:::pipeline
+    SchedGrouper --> SchedIngester[airflowSchedulerLogIngesterTask]:::pipeline
+    SchedIngester --> SchedMapper[airflowSchedulerLogToTimelineMapperTask]:::pipeline
 
-    LogQuery --> WorkFilter[AirflowWorkerLogFilterTask]:::pipeline
-    WorkFilter --> WorkGrouper[AirflowWorkerLogGrouperTask]:::pipeline
-    WorkGrouper --> WorkIngester[AirflowWorkerLogIngesterTask]:::pipeline
-    WorkIngester --> WorkMapper[AirflowWorkerLogToTimelineMapperTask]:::pipeline
+    LogQuery --> WorkFilter[airflowWorkerLogFilterTask]:::pipeline
+    WorkFilter --> WorkGrouper[airflowWorkerLogGrouperTask]:::pipeline
+    WorkGrouper --> WorkIngester[airflowWorkerLogIngesterTask]:::pipeline
+    WorkIngester --> WorkMapper[airflowWorkerLogToTimelineMapperTask]:::pipeline
 
-    LogQuery --> DpmFilter[AirflowDagProcessorManagerLogFilterTask]:::pipeline
-    DpmFilter --> DpmGrouper[AirflowDagProcessorManagerLogGrouperTask]:::pipeline
-    DpmGrouper --> DpmIngester[AirflowDagProcessorManagerLogIngesterTask]:::pipeline
-    DpmIngester --> DpmMapper[AirflowDagProcessorManagerLogToTimelineMapperTask]:::pipeline
+    LogQuery --> DpmFilter[airflowDagProcessorManagerLogFilterTask]:::pipeline
+    DpmFilter --> DpmGrouper[airflowDagProcessorManagerLogGrouperTask]:::pipeline
+    DpmGrouper --> DpmIngester[airflowDagProcessorManagerLogIngesterTask]:::pipeline
+    DpmIngester --> DpmMapper[airflowDagProcessorManagerLogToTimelineMapperTask]:::pipeline
 
-    LogQuery --> OtherFilter[AirflowOtherLogFilterTask]:::pipeline
-    OtherFilter --> OtherGrouper[AirflowOtherLogGrouperTask]:::pipeline
-    OtherGrouper --> OtherIngester[AirflowOtherLogIngesterTask]:::pipeline
-    OtherIngester --> OtherMapper[AirflowOtherLogToTimelineMapperTask]:::pipeline
+    LogQuery --> OtherFilter[airflowOtherLogFilterTask]:::pipeline
+    OtherFilter --> OtherGrouper[airflowOtherLogGrouperTask]:::pipeline
+    OtherGrouper --> OtherIngester[airflowOtherLogIngesterTask]:::pipeline
+    OtherIngester --> OtherMapper[airflowOtherLogToTimelineMapperTask]:::pipeline
 
     %% Aggregation
-    SchedMapper --> TailTask[ComposerLogsTailTask]:::tail
+    SchedMapper --> TailTask[composerLogsTailTask]:::tail
     WorkMapper --> TailTask
     DpmMapper --> TailTask
     OtherMapper --> TailTask

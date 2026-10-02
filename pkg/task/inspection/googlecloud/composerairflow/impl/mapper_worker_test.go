@@ -20,18 +20,13 @@ import (
 	"time"
 	"unique"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -128,20 +123,12 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &workerLogToTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-			taskDependentValues := typedmap.NewTypedMap()
-			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](composercluster.InputComposerEnvironmentNameTaskID.ReferenceIDString()), "test-environment")
-			ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
-
-			cs, _, err := mapper.ProcessLogByGroup(ctx, tc.input, struct{}{})
-			if err != nil {
-				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
-			}
+			cs := mapWorkerLog(ctx, tc.input, "test-environment")
 
 			tc.assert(t, ctx, cs)
 		})

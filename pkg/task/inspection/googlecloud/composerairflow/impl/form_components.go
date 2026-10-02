@@ -24,42 +24,50 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
-var InputComposerComponentsTask = formtask.NewSetFormTaskBuilder(composerairflow.InputComposerComponentsTaskID, gcpcommon.FormBasePriority+3000, "Composer Components").
-	WithDependencies([]coretask.Dependency{composerairflow.AutocompleteComposerComponentsTaskID.Ref()}).
-	WithDefaultValueConstant([]string{"@any"}, true).
-	WithAllowAddAll(false).
-	WithAllowRemoveAll(false).
-	WithAllowCustomValue(false).
-	WithDescription(`Select which Composer V3 components to fetch logs from.`).
-	WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		autocompleteResult := coretask.GetTaskResult(ctx, composerairflow.AutocompleteComposerComponentsTaskID.Ref())
+// inputComposerComponentsTask allows the user to select which Composer V3 components to fetch logs from.
+var inputComposerComponentsTask = formtask.DefineSetForm(
+	composerairflow.InputComposerComponentsTaskID,
+	gcpcommon.FormBasePriority+3000,
+	"Composer Components",
+	"Select which Composer V3 components to fetch logs from.",
+	func(b *coretask.Binder) formtask.SetFormSpec[[]string] {
+		components := coretask.Use(b, composerairflow.AutocompleteComposerComponentsTaskID.Ref())
+		return formtask.SetFormSpec[[]string]{
+			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@any"}),
+			AllowAddAll:      formtask.ConstantBool(false),
+			AllowRemoveAll:   formtask.ConstantBool(false),
+			AllowCustomValue: formtask.ConstantBool(false),
+			Options: func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+				autocompleteResult := components.Get(ctx)
 
-		var options []inspectionmetadata.SetParameterFormFieldOptionItem
-		options = append(options, inspectionmetadata.SetParameterFormFieldOptionItem{
-			ID: "@any",
-		})
-		if autocompleteResult != nil {
-			for _, comp := range autocompleteResult.Values {
+				var options []inspectionmetadata.SetParameterFormFieldOptionItem
 				options = append(options, inspectionmetadata.SetParameterFormFieldOptionItem{
-					ID: comp,
+					ID: "@any",
 				})
-			}
+				if autocompleteResult != nil {
+					for _, comp := range autocompleteResult.Values {
+						options = append(options, inspectionmetadata.SetParameterFormFieldOptionItem{
+							ID: comp,
+						})
+					}
+				}
+				return options, nil
+			},
+			Hint: func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+				autocompleteResult := components.Get(ctx)
+				if autocompleteResult != nil {
+					if autocompleteResult.Error != "" {
+						return autocompleteResult.Error, inspectionmetadata.Error, nil
+					}
+					if autocompleteResult.Hint != "" {
+						return autocompleteResult.Hint, inspectionmetadata.Info, nil
+					}
+				}
+				return "", inspectionmetadata.None, nil
+			},
+			Converter: func(ctx context.Context, value []string) ([]string, error) {
+				return value, nil
+			},
 		}
-		return options, nil
-	}).
-	WithHintFunc(func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		autocompleteResult := coretask.GetTaskResult(ctx, composerairflow.AutocompleteComposerComponentsTaskID.Ref())
-		if autocompleteResult != nil {
-			if autocompleteResult.Error != "" {
-				return autocompleteResult.Error, inspectionmetadata.Error, nil
-			}
-			if autocompleteResult.Hint != "" {
-				return autocompleteResult.Hint, inspectionmetadata.Info, nil
-			}
-		}
-		return "", inspectionmetadata.None, nil
-	}).
-	WithConverter(func(ctx context.Context, value []string) ([]string, error) {
-		return value, nil
-	}).
-	Build()
+	},
+)

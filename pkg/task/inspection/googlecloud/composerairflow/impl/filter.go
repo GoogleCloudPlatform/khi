@@ -24,33 +24,44 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
 )
 
-func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source taskid.TaskReference[[]*log.Log], componentName string) coretask.Task[[]*log.Log] {
-	return inspectiontaskbase.NewLogFilterTask(
+// componentFilterTask creates a log filter task that filters logs for a specific Composer component.
+func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source taskid.TaskReference[[]*log.Log], componentName string) coretask.DefinedTask[[]*log.Log] {
+	return inspectiontaskbase.DefineLogFilterTask(
 		taskID,
 		source,
-		func(ctx context.Context, l *log.Log) bool {
-			component, err := composerairflow.ExtractComposerComponent(l.NodeReader)
-			if err != nil {
-				return false
+		func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+			return func(ctx context.Context, l *log.Log) bool {
+				component, err := composerairflow.ExtractComposerComponent(l.NodeReader)
+				if err != nil {
+					return false
+				}
+				return component == componentName
 			}
-			return component == componentName
 		},
 	)
 }
 
-var AirflowWorkerLogFilterTask = componentFilterTask(composerairflow.AirflowWorkerLogFilterTaskID, composerairflow.ComposerLogsQueryTaskID.Ref(), "airflow-worker")
-var AirflowSchedulerLogFilterTask = componentFilterTask(composerairflow.AirflowSchedulerLogFilterTaskID, composerairflow.ComposerLogsQueryTaskID.Ref(), "airflow-scheduler")
-var AirflowDagProcessorManagerLogFilterTask = componentFilterTask(composerairflow.AirflowDagProcessorManagerLogFilterTaskID, composerairflow.ComposerLogsQueryTaskID.Ref(), "dag-processor-manager")
+// airflowWorkerLogFilterTask filters logs for the Airflow worker component.
+var airflowWorkerLogFilterTask = componentFilterTask(composerairflow.AirflowWorkerLogFilterTaskID, composerairflow.ComposerLogsQueryTaskID.Ref(), "airflow-worker")
 
-var AirflowOtherLogFilterTask = inspectiontaskbase.NewLogFilterTask(
+// airflowSchedulerLogFilterTask filters logs for the Airflow scheduler component.
+var airflowSchedulerLogFilterTask = componentFilterTask(composerairflow.AirflowSchedulerLogFilterTaskID, composerairflow.ComposerLogsQueryTaskID.Ref(), "airflow-scheduler")
+
+// airflowDagProcessorManagerLogFilterTask filters logs for the Airflow DAG processor manager component.
+var airflowDagProcessorManagerLogFilterTask = componentFilterTask(composerairflow.AirflowDagProcessorManagerLogFilterTaskID, composerairflow.ComposerLogsQueryTaskID.Ref(), "dag-processor-manager")
+
+// airflowOtherLogFilterTask filters logs for Airflow components without a dedicated pipeline.
+var airflowOtherLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	composerairflow.AirflowOtherLogFilterTaskID,
 	composerairflow.ComposerLogsQueryTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) bool {
-		component, err := composerairflow.ExtractComposerComponent(l.NodeReader)
-		if err != nil {
-			return false
+	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		return func(ctx context.Context, l *log.Log) bool {
+			component, err := composerairflow.ExtractComposerComponent(l.NodeReader)
+			if err != nil {
+				return false
+			}
+			// If it's none of the specific components we support parsing, it goes to "Other"
+			return component != "airflow-worker" && component != "airflow-scheduler" && component != "dag-processor-manager"
 		}
-		// If it's none of the specific components we support parsing, it goes to "Other"
-		return component != "airflow-worker" && component != "airflow-scheduler" && component != "dag-processor-manager"
 	},
 )

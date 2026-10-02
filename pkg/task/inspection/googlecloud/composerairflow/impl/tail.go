@@ -21,7 +21,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-var ComposerLogsTailTask = coretask.NewTailTask(
+// composerLogsTailTask waits for all Airflow log mappers so that selecting the Managed Airflow feature runs them.
+var composerLogsTailTask = coretask.DefineTailTask(
 	composerairflow.ComposerLogsTailTaskID,
 	[]coretask.Dependency{
 		composerairflow.AirflowWorkerLogToTimelineMapperTaskID.Ref(),
