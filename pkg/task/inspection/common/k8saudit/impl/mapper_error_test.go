@@ -175,7 +175,8 @@ func TestNonSuccessLogLogToTimelineMapperTask(t *testing.T) {
 			ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
 			wantPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "pod-1", Type: inspectioncore.TimelineTypeResource})
 
-			if !builder.TimelineAccumulator.HasEvent(wantPath) {
+			protoItems := builder.TimelineAccumulator.GetBuilder(wantPath).ToProto()
+			if protoItems == nil || len(protoItems.GetEvents()) == 0 {
 				t.Errorf("expected timeline %v to have events, but none found", wantPath)
 			}
 		})

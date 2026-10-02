@@ -131,20 +131,6 @@ func (b *TimelineBuilder) HasItems() bool {
 	return len(b.events) > 0 || len(b.revisions) > 0
 }
 
-// HasRevision returns true if the builder has accumulated any revisions.
-func (b *TimelineBuilder) HasRevision() bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return len(b.revisions) > 0
-}
-
-// HasEvent returns true if the builder has accumulated any events.
-func (b *TimelineBuilder) HasEvent() bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return len(b.events) > 0
-}
-
 // HasEverHadItems returns true if the builder has ever accumulated events or revisions,
 // even if they have already been flushed from memory.
 func (b *TimelineBuilder) HasEverHadItems() bool {

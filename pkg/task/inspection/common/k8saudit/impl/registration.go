@@ -57,5 +57,8 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		ContainerIDPatternFinderTask,
 		IPLeaseHistoryInventoryTask,
 		IPLeaseHistoryDiscoveryTask,
+		TimelineCreationTimeInventoryTask,
+		ResourceTimelineCreationTimeDiscoveryTask,
+		PodPhaseTimelineCreationTimeDiscoveryTask,
 	)
 }

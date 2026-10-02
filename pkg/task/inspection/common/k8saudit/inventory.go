@@ -15,9 +15,12 @@
 package k8saudit
 
 import (
+	"time"
+
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 )
 
 // TagNodeNameDiscovery is the tag for discovery tasks producing node names.
@@ -45,3 +48,12 @@ type IPLeaseHistory = *resourcelease.ResourceLeaseHistory[*ResourceIdentity]
 var TagIPLeaseHistoryDiscovery = coretask.NewTag[IPLeaseHistory]("khi.google.com/inspection/commonlogk8saudit/iplease")
 
 var IPLeaseHistoryInventoryTaskID = taskid.NewDefaultImplementationID[IPLeaseHistory](TaskIDPrefix + "ip-lease-history-inventory")
+
+// TimelineCreationTimes maps a timeline path to its observed creation timestamps in chronological order.
+type TimelineCreationTimes = map[*khifilev6.TimelinePath][]time.Time
+
+// TagTimelineCreationTimeDiscovery is the tag for discovery tasks producing creation timestamps per timeline path.
+var TagTimelineCreationTimeDiscovery = coretask.NewTag[TimelineCreationTimes]("khi.google.com/inspection/commonlogk8saudit/timelinecreationtime")
+
+// TimelineCreationTimeInventoryTaskID is the task ID for the inventory task aggregating creation timestamps per timeline path.
+var TimelineCreationTimeInventoryTaskID = taskid.NewDefaultImplementationID[TimelineCreationTimes](TaskIDPrefix + "timeline-creation-time-inventory")
