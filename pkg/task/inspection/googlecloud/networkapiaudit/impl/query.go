@@ -23,16 +23,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/networkapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GenerateGCPNetworkAPIStructuredQuery generates a structured query slice for network API logs.
-func GenerateGCPNetworkAPIStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, negNames []string) []*logestimator.StructuredLogQuery {
+// generateGCPNetworkAPIStructuredQuery generates a structured query slice for network API logs.
+func generateGCPNetworkAPIStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, negNames []string) []*logestimator.StructuredLogQuery {
 	if taskMode == inspectioncore.TaskModeDryRun {
 		return []*logestimator.StructuredLogQuery{
 			{
@@ -64,42 +62,32 @@ func GenerateGCPNetworkAPIStructuredQuery(taskMode inspectioncore.InspectionTask
 	return result
 }
 
-type networkAPIListLogEntriesTaskSetting struct{}
-
-// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, networkapiaudit.ClusterIdentityTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
+// networkAuditQuerySource generates log queries for GCE Network API audit logs.
+type networkAuditQuerySource struct {
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	negs            coretask.Input[k8scommon.NEGNameToResourceIdentityMap]
 }
 
-// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		networkapiaudit.ClusterIdentityTaskID.Ref(),
-		k8scommon.NEGNamesInventoryTaskID.Ref(),
-	}
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *networkAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	return []string{fmt.Sprintf("projects/%s", s.clusterIdentity.Get(ctx).ProjectID)}, nil
 }
 
-// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntriesTaskSetting) QueryName() string {
-	return "GCP network log"
-}
-
-// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *networkAuditQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	taskMode, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
 	if err != nil {
 		taskMode = inspectioncore.TaskModeRun
 	}
 	var negNames []string
 	if taskMode == inspectioncore.TaskModeRun {
-		negs := coretask.GetTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref())
+		negs := s.negs.Get(ctx)
 		for negName := range negs {
 			negNames = append(negNames, negName)
 		}
 	}
-	clusterIdentity := coretask.GetTaskResult(ctx, networkapiaudit.ClusterIdentityTaskID.Ref())
-	queries := GenerateGCPNetworkAPIStructuredQuery(taskMode, negNames)
+	clusterIdentity := s.clusterIdentity.Get(ctx)
+	queries := generateGCPNetworkAPIStructuredQuery(taskMode, negNames)
 	if clusterIdentity.ProjectID == "" {
 		for _, q := range queries {
 			q.Incomplete = true
@@ -108,16 +96,21 @@ func (n *networkAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*l
 	return queries, nil
 }
 
-// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return networkapiaudit.ListLogEntriesTaskID
-}
-
-// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (n *networkAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *networkAuditQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
 	return 1, nil
 }
 
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*networkAPIListLogEntriesTaskSetting)(nil)
+var _ gcpcommon.StructuredLogQuerySource = (*networkAuditQuerySource)(nil)
 
-var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&networkAPIListLogEntriesTaskSetting{})
+// listLogEntriesTask queries GCP network logs from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	networkapiaudit.ListLogEntriesTaskID,
+	"GCP network log",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &networkAuditQuerySource{
+			clusterIdentity: coretask.Use(b, networkapiaudit.ClusterIdentityTaskID.Ref()),
+			negs:            coretask.Use(b, k8scommon.NEGNamesInventoryTaskID.Ref()),
+		}
+	},
+)

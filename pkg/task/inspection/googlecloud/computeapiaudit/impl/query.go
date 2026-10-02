@@ -24,16 +24,15 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/computeapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GenerateComputeAPIStructuredQuery generates a structured query slice for compute API logs.
-func GenerateComputeAPIStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, nodeNames []string) []*logestimator.StructuredLogQuery {
+// generateComputeAPIStructuredQuery generates a structured query slice for compute API logs.
+func generateComputeAPIStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, nodeNames []string) []*logestimator.StructuredLogQuery {
 	if taskMode == inspectioncore.TaskModeDryRun {
 		return []*logestimator.StructuredLogQuery{
 			{
@@ -66,40 +65,29 @@ func GenerateComputeAPIStructuredQuery(taskMode inspectioncore.InspectionTaskMod
 	return result
 }
 
-type computeAPIListLogEntriesTaskSetting struct {
+// computeAuditQuerySource builds the Compute API audit log queries for the cluster.
+type computeAuditQuerySource struct {
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	nodeNames       coretask.Input[[]string]
 }
 
-// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *computeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, computeapiaudit.ClusterIdentityTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *computeAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	return []string{fmt.Sprintf("projects/%s", s.clusterIdentity.Get(ctx).ProjectID)}, nil
 }
 
-// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *computeAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8saudit.NodeNameInventoryTaskID.Ref(),
-		computeapiaudit.ClusterIdentityTaskID.Ref(),
-	}
-}
-
-// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *computeAPIListLogEntriesTaskSetting) QueryName() string {
-	return "Compute API Audit log"
-}
-
-// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *computeAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *computeAuditQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
 	taskMode, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
 	if err != nil {
 		taskMode = inspectioncore.TaskModeRun
 	}
 	var nodeNames []string
 	if taskMode == inspectioncore.TaskModeRun {
-		nodeNames = coretask.GetTaskResult(ctx, k8saudit.NodeNameInventoryTaskID.Ref())
+		nodeNames = s.nodeNames.Get(ctx)
 	}
-	clusterIdentity := coretask.GetTaskResult(ctx, computeapiaudit.ClusterIdentityTaskID.Ref())
-	queries := GenerateComputeAPIStructuredQuery(taskMode, nodeNames)
+	clusterIdentity := s.clusterIdentity.Get(ctx)
+	queries := generateComputeAPIStructuredQuery(taskMode, nodeNames)
 	if !clusterIdentity.IsComplete() {
 		for _, q := range queries {
 			q.Incomplete = true
@@ -108,16 +96,21 @@ func (c *computeAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*l
 	return queries, nil
 }
 
-// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *computeAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return computeapiaudit.ListLogEntriesTaskID
-}
-
-// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *computeAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *computeAuditQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
 	return 10, nil
 }
 
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*computeAPIListLogEntriesTaskSetting)(nil)
+var _ gcpcommon.StructuredLogQuerySource = (*computeAuditQuerySource)(nil)
 
-var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&computeAPIListLogEntriesTaskSetting{})
+// listLogEntriesTask queries compute API audit logs from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	computeapiaudit.ListLogEntriesTaskID,
+	"Compute API Audit log",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &computeAuditQuerySource{
+			clusterIdentity: coretask.Use(b, computeapiaudit.ClusterIdentityTaskID.Ref()),
+			nodeNames:       coretask.Use(b, k8saudit.NodeNameInventoryTaskID.Ref()),
+		}
+	},
+)
