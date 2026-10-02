@@ -515,12 +515,10 @@ func (c *conditionWalker) advanceMinChangeTime(changeTime time.Time) time.Time {
 // hasConditionAtOrBefore reports whether the condition already has a known transition or probe time at or before targetTime.
 func (c *conditionWalker) hasConditionAtOrBefore(targetTime time.Time, logTime time.Time, condition *model.K8sResourceStatusCondition) bool {
 	if condition == nil {
-		refCond := c.getLastCondition(logTime)
-		if refCond == nil || refCond.Status == "" {
+		condition = c.getLastCondition(logTime)
+		if condition == nil || condition.Status == "" {
 			return false
 		}
-		transitionTime, err := time.Parse(time.RFC3339, refCond.LastTransitionTime)
-		return err == nil && !transitionTime.After(targetTime)
 	}
 	if condition.LastTransitionTime != "" {
 		if transitionTime, err := time.Parse(time.RFC3339, condition.LastTransitionTime); err == nil && !transitionTime.After(targetTime) {
