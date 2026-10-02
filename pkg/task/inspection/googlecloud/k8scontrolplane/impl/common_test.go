@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestK8sControlPlaneLogIngester_ProcessLog(t *testing.T) {
+func TestProcessK8sControlPlaneLog(t *testing.T) {
 	testTime := time.Date(2026, time.May, 27, 12, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
@@ -118,12 +118,11 @@ func TestK8sControlPlaneLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := &K8sControlPlaneLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cs, err := ingester.ProcessLog(t.Context(), tc.input)
+			cs, err := processK8sControlPlaneLog(t.Context(), tc.input)
 			if err != nil {
-				t.Fatalf("ProcessLog() returned unexpected error: %v", err)
+				t.Fatalf("processK8sControlPlaneLog() returned unexpected error: %v", err)
 			}
 			tc.assert(t, cs)
 		})
