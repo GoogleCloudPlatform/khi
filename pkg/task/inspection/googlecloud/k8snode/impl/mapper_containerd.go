@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -36,126 +35,128 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const ContainerdStartingMsg = "starting containerd"
-const ContainerdTerminationMsg = "Stop CRI service"
+const containerdStartingMsg = "starting containerd"
+const containerdTerminationMsg = "Stop CRI service"
 
-// ContainerdLogFilterTask filters only containerd logs.
-var ContainerdLogFilterTask = newParserTypeFilterTask(k8snode.ContainerdLogFilterTaskID, k8snode.ListLogEntriesTaskID.Ref(), k8snode.Containerd)
+// containerdLogFilterTask filters only containerd logs.
+var containerdLogFilterTask = defineParserTypeFilterTask(k8snode.ContainerdLogFilterTaskID, k8snode.ListLogEntriesTaskID.Ref(), k8snode.Containerd)
 
-// ContainerdLogGroupTask groups containerd logs by node and component.
-var ContainerdLogGroupTask = newNodeAndComponentNameGrouperTask(k8snode.ContainerdLogGroupTaskID, k8snode.ContainerdLogFilterTaskID.Ref())
+// containerdLogGroupTask groups containerd logs by node and component.
+var containerdLogGroupTask = defineNodeAndComponentNameGrouperTask(k8snode.ContainerdLogGroupTaskID, k8snode.ContainerdLogFilterTaskID.Ref())
 
-// ContainerIDDiscoveryTask discovers mappings between container IDs and GKE pod containers.
-var ContainerIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(k8snode.ContainerIDDiscoveryTaskID,
-	[]coretask.Dependency{
-		k8snode.ContainerdLogFilterTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ContainerIDToContainerIdentity, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return nil, nil
-		}
+// containerIDDiscoveryTask discovers mappings between container IDs and GKE pod containers.
+var containerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
+	k8snode.ContainerIDDiscoveryTaskID,
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ContainerIDToContainerIdentity] {
+		containerdLogs := coretask.Use(b, k8snode.ContainerdLogFilterTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ContainerIDToContainerIdentity, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
+			}
 
-		logs := coretask.GetTaskResult(ctx, k8snode.ContainerdLogFilterTaskID.Ref())
+			logs := containerdLogs.Get(ctx)
 
-		tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
-		defer tracker.Done()
+			tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
+			defer tracker.Done()
 
-		result := k8saudit.ContainerIDToContainerIdentity{}
-		logChan := make(chan *log.Log)
-		errGrp, childRoutineCtx := errgroup.WithContext(ctx)
-		containerIdentitiesChan := make(chan *k8saudit.ContainerIdentity, runtime.GOMAXPROCS(0))
-		for i := 0; i < runtime.GOMAXPROCS(0); i++ {
-			errGrp.Go(func() error {
+			result := k8saudit.ContainerIDToContainerIdentity{}
+			logChan := make(chan *log.Log)
+			errGrp, childRoutineCtx := errgroup.WithContext(ctx)
+			containerIdentitiesChan := make(chan *k8saudit.ContainerIdentity, runtime.GOMAXPROCS(0))
+			for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+				errGrp.Go(func() error {
+					for {
+						select {
+						case <-childRoutineCtx.Done():
+							return childRoutineCtx.Err()
+						case l, ok := <-logChan:
+							if !ok {
+								return nil
+							}
+							processContainerIDDiscoveryForLog(ctx, l, containerIdentitiesChan)
+							tracker.Inc()
+						}
+					}
+				})
+			}
+			consumerGrp, childConsumerRoutineCtx := errgroup.WithContext(ctx)
+			consumerGrp.Go(func() error {
 				for {
 					select {
-					case <-childRoutineCtx.Done():
-						return childRoutineCtx.Err()
-					case l, ok := <-logChan:
+					case <-childConsumerRoutineCtx.Done():
+						return childConsumerRoutineCtx.Err()
+					case c, ok := <-containerIdentitiesChan:
 						if !ok {
 							return nil
 						}
-						processContainerIDDiscoveryForLog(ctx, l, containerIdentitiesChan)
-						tracker.Inc()
+						result[c.ContainerID] = c
 					}
 				}
 			})
-		}
-		consumerGrp, childConsumerRoutineCtx := errgroup.WithContext(ctx)
-		consumerGrp.Go(func() error {
-			for {
-				select {
-				case <-childConsumerRoutineCtx.Done():
-					return childConsumerRoutineCtx.Err()
-				case c, ok := <-containerIdentitiesChan:
-					if !ok {
-						return nil
-					}
-					result[c.ContainerID] = c
-				}
+
+			for _, l := range logs {
+				logChan <- l
 			}
-		})
+			close(logChan)
+			err := errGrp.Wait()
+			close(containerIdentitiesChan)
+			consumerErr := consumerGrp.Wait()
+			if err != nil {
+				return nil, err
+			}
+			if consumerErr != nil {
+				return nil, consumerErr
+			}
 
-		for _, l := range logs {
-			logChan <- l
+			return result, nil
 		}
-		close(logChan)
-		err := errGrp.Wait()
-		close(containerIdentitiesChan)
-		consumerErr := consumerGrp.Wait()
-		if err != nil {
-			return nil, err
-		}
-		if consumerErr != nil {
-			return nil, consumerErr
-		}
-
-		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagContainerIDDiscovery),
 	coretask.WithFeatureGate(k8snode.TailTaskID.Ref()),
 )
 
-// PodSandboxIDDiscoveryTask discovers mappings between pod sandbox IDs and GKE pods.
-var PodSandboxIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(k8snode.PodSandboxIDDiscoveryTaskID,
-	[]coretask.Dependency{
-		k8snode.ContainerdLogFilterTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return nil, nil
-		}
-		logs := coretask.GetTaskResult(ctx, k8snode.ContainerdLogFilterTaskID.Ref())
+// podSandboxIDDiscoveryTask discovers mappings between pod sandbox IDs and GKE pods.
+var podSandboxIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
+	k8snode.PodSandboxIDDiscoveryTaskID,
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo]] {
+		containerdLogs := coretask.Use(b, k8snode.ContainerdLogFilterTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
+			}
+			logs := containerdLogs.Get(ctx)
 
-		tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
-		defer tracker.Done()
+			tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
+			defer tracker.Done()
 
-		logChan := make(chan *log.Log)
-		errGrp, childCtx := errgroup.WithContext(ctx)
-		podSandboxIDFinder := patternfinder.NewRadixPatternFinder[*k8snode.PodSandboxIDInfo]()
-		for i := 0; i < runtime.GOMAXPROCS(0); i++ {
-			errGrp.Go(func() error {
-				for {
-					select {
-					case <-childCtx.Done():
-						return childCtx.Err()
-					case l, ok := <-logChan:
-						if !ok {
-							return nil
+			logChan := make(chan *log.Log)
+			errGrp, childCtx := errgroup.WithContext(ctx)
+			podSandboxIDFinder := patternfinder.NewRadixPatternFinder[*k8snode.PodSandboxIDInfo]()
+			for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+				errGrp.Go(func() error {
+					for {
+						select {
+						case <-childCtx.Done():
+							return childCtx.Err()
+						case l, ok := <-logChan:
+							if !ok {
+								return nil
+							}
+							processPodSandboxIDDiscoveryForLog(ctx, l, podSandboxIDFinder)
+							tracker.Inc()
 						}
-						processPodSandboxIDDiscoveryForLog(ctx, l, podSandboxIDFinder)
-						tracker.Inc()
 					}
-				}
-			})
-		}
+				})
+			}
 
-		for _, l := range logs {
-			logChan <- l
-		}
-		close(logChan)
-		errGrp.Wait()
+			for _, l := range logs {
+				logChan <- l
+			}
+			close(logChan)
+			errGrp.Wait()
 
-		return podSandboxIDFinder, nil
+			return podSandboxIDFinder, nil
+		}
 	},
 )
 
@@ -241,66 +242,65 @@ func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (
 	return nil, fmt.Errorf("container index information not found:%w", khierrors.ErrNotFound)
 }
 
-type containerdNodeLogLogToTimelineMapperSetting struct {
+// containerdLogTimelineMapper maps containerd logs to the timelines of their node component and of the pods and containers they mention.
+type containerdLogTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
+	clusterIdentity          coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	podSandboxIDFinder       coretask.Input[patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo]]
+	containerIDPatternFinder coretask.Input[patternfinder.PatternFinder[*k8saudit.ContainerIdentity]]
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerdNodeLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8snode.ClusterIdentityTaskID.Ref(),
-		k8snode.PodSandboxIDDiscoveryTaskID.Ref(),
-		k8saudit.ContainerIDPatternFinderTaskID.Ref(),
-	}
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (c *containerdLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	cs, err := mapContainerdLog(ctx, l, c.clusterIdentity.Get(ctx), c.podSandboxIDFinder.Get(ctx), c.containerIDPatternFinder.Get(ctx))
+	return cs, struct{}{}, err
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerdNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return k8snode.ContainerdLogGroupTaskID.Ref()
-}
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*containerdLogTimelineMapper)(nil)
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerdNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8snode.LogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerdNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, k8snode.ClusterIdentityTaskID.Ref())
+// mapContainerdLog adds events for a containerd log to the timeline of its node component and to the timelines of the pods and containers it mentions.
+// It also adds a revision to the component timeline when the log marks the start or the stop of containerd.
+func mapContainerdLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon.GoogleCloudClusterIdentity, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity]) (*khifilev6.TimelineChangeSet, error) {
 	clusterName := clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sCluster)
-	podSandboxIDFinder := coretask.GetTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
-	containerIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref())
 	nodeLogFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, err
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
-	nodeTimelinePath := MustK8sNodeTimeline(ctx, clusterName, nodeLogFieldSet.NodeName)
+	nodeTimelinePath := mustK8sNodeTimeline(ctx, clusterName, nodeLogFieldSet.NodeName)
 	componentTimelinePath := k8snode.MustNodeComponentTimeline(ctx, nodeTimelinePath, nodeLogFieldSet.Component)
 
-	checkStartingAndTerminationLog(ctx, cs, l, ContainerdStartingMsg, ContainerdTerminationMsg, componentTimelinePath)
+	checkStartingAndTerminationLog(ctx, cs, l, containerdStartingMsg, containerdTerminationMsg, componentTimelinePath)
 
 	cs.AddEvent(componentTimelinePath)
 
 	raw := nodeLogFieldSet.Message.Raw()
 	pods, containerRefs := findPodAndContainerReferences(raw, podSandboxIDFinder, containerIDPatternFinder)
 	for _, pod := range pods {
-		cs.AddEvent(MustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
+		cs.AddEvent(mustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
 	}
 	for _, containerRef := range containerRefs {
-		podTimelinePath := MustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
+		podTimelinePath := mustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
 		cs.AddEvent(k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, containerRef.Container.ContainerName))
 	}
 
-	return cs, struct{}{}, nil
+	return cs, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*containerdNodeLogLogToTimelineMapperSetting)(nil)
-
-// ContainerdNodeLogLogToTimelineMapperTask registers the mapper for containerd node component logs.
-var ContainerdNodeLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+// containerdLogLogToTimelineMapperTask maps containerd logs to timelines.
+var containerdLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	k8snode.ContainerdLogLogToTimelineMapperTaskID,
-	&containerdNodeLogLogToTimelineMapperSetting{},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8snode.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8snode.ContainerdLogGroupTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &containerdLogTimelineMapper{
+			clusterIdentity:          coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
+			podSandboxIDFinder:       coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref()),
+			containerIDPatternFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
+		}
+	},
 )
