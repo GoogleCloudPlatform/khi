@@ -208,15 +208,10 @@ LOG_ID("events")`,
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			sq := GenerateK8sEventStructuredQuery(tc.cluster, tc.namespaceFilter)
+			sq := generateK8sEventStructuredQuery(tc.cluster, tc.namespaceFilter)
 			gotQuery := sq.GenerateCloudLoggingQuery()
 			if diff := cmp.Diff(tc.wantQuery, gotQuery); diff != "" {
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
-			}
-
-			legacyQuery := GenerateK8sEventQuery(tc.cluster, tc.namespaceFilter)
-			if diff := cmp.Diff(gotQuery, legacyQuery); diff != "" {
-				t.Errorf("GenerateK8sEventQuery() mismatch (-want +got):\n%s", diff)
 			}
 
 			gotMetrics := sq.GenerateMonitoringMetricFilters()
@@ -231,7 +226,7 @@ LOG_ID("events")`,
 	}
 }
 
-func TestGenerateK8sEventQueryIsValid(t *testing.T) {
+func TestGenerateK8sEventStructuredQueryIsValid(t *testing.T) {
 	testCluster := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
 		Location:    "us-central1-a",
@@ -275,7 +270,7 @@ func TestGenerateK8sEventQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			query := GenerateK8sEventQuery(tc.cluster, tc.namespaceFilter)
+			query := generateK8sEventStructuredQuery(tc.cluster, tc.namespaceFilter).GenerateCloudLoggingQuery()
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("IsValidLogQuery error: %s", err.Error())
@@ -302,13 +297,16 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
-		tasktest.NewTaskDependencyValuePair(k8sevent.ClusterIdentityTaskID.Ref(), cluster),
-		tasktest.NewTaskDependencyValuePair(k8scommon.InputNamespaceFilterTaskID.Ref(), &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "#namespaced"}}),
+	gotLogs, _, err := inspectiontest.Run(t, ctx, listLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
+		tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.Given(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		// Dry run records the query without fetching logs.
+		tasktest.Given[gcpcommon.LogFetcher](gcpcommon.LoggingFetcherTaskID.Ref(), nil),
+		tasktest.Given(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.Given(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+		tasktest.Given(k8sevent.ClusterIdentityTaskID.Ref(), cluster),
+		tasktest.Given(k8scommon.InputNamespaceFilterTaskID.Ref(), &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "#namespaced"}}),
 	)
 	if err != nil {
 		t.Fatalf("dry run returned unexpected error: %v", err)

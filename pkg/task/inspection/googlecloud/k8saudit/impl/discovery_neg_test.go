@@ -91,8 +91,8 @@ func TestAuditLogNEGDiscoveryTask(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			result, _, err := inspectiontest.RunInspectionTask(ctx, AuditLogNEGDiscoveryTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(commonk8saudit.ManifestGeneratorTaskID.Ref(), tc.groupMap),
+			result, _, err := inspectiontest.Run(t, ctx, auditLogNEGDiscoveryTask, tc.taskMode, map[string]any{},
+				tasktest.Given(commonk8saudit.ManifestGeneratorTaskID.Ref(), tc.groupMap),
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

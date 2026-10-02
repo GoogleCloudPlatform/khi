@@ -15,9 +15,9 @@ CSM インスペクションパイプラインは以下を処理します:
 
 これらのタスクは、トラフィックログ内に直接存在しないものの、適切なリソースマッピングに必要な関連付けを発見するために使用されます。共通の Google Cloud コンポーネントおよびログプロバイダーパッケージから提供されます。
 
-- **`EventLogNEGDiscoveryTask`**: `googlecloud/k8sevent` パッケージ内で Kubernetes Event ログをパースして NEG と BackendService のマッピングを発見。
-- **`AuditLogNEGDiscoveryTask`**: `googlecloud/k8saudit` パッケージ内でリソースマニフェストを経由して Kubernetes Audit ログをパースし、NEG と BackendService のマッピングを発見。
-- **`NEGToBackendServiceInventoryTask`**: `googlecloud/k8scommon` パッケージ内で発見結果を統合された 1 つのインベントリマップに集約。
+- **`eventLogNEGDiscoveryTask`**: `googlecloud/k8sevent` パッケージ内で Kubernetes Event ログをパースして NEG と BackendService のマッピングを発見。
+- **`auditLogNEGDiscoveryTask`**: `googlecloud/k8saudit` パッケージ内でリソースマニフェストを経由して Kubernetes Audit ログをパースし、NEG と BackendService のマッピングを発見。
+- **`negToBackendServiceInventoryTask`**: `googlecloud/k8scommon` パッケージ内で発見結果を統合された 1 つのインベントリマップに集約。
 
 ### CSM トラフィックログパイプライン
 
@@ -43,9 +43,9 @@ graph TD
     ManifestGen[Manifest Generator]:::external
 
     %% インベントリ
-    EventLogs --> EventDiscovery[EventLogNEGDiscoveryTask]:::inventory
-    ManifestGen --> AuditDiscovery[AuditLogNEGDiscoveryTask]:::inventory
-    EventDiscovery --> Inventory[NEGToBackendServiceInventoryTask]:::inventory
+    EventLogs --> EventDiscovery[eventLogNEGDiscoveryTask]:::inventory
+    ManifestGen --> AuditDiscovery[auditLogNEGDiscoveryTask]:::inventory
+    EventDiscovery --> Inventory[negToBackendServiceInventoryTask]:::inventory
     AuditDiscovery --> Inventory
 
     %% CSM トラフィックログパイプライン

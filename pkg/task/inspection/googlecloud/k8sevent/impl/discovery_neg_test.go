@@ -64,8 +64,8 @@ func TestEventLogNEGDiscoveryTask(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			result, _, err := inspectiontest.RunInspectionTask(ctx, EventLogNEGDiscoveryTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(k8sevent.ListLogEntriesTaskID.Ref(), tc.logs),
+			result, _, err := inspectiontest.Run(t, ctx, eventLogNEGDiscoveryTask, tc.taskMode, map[string]any{},
+				tasktest.Given(k8sevent.ListLogEntriesTaskID.Ref(), tc.logs),
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

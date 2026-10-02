@@ -15,9 +15,9 @@ The CSM inspection pipeline handles the following:
 
 These tasks are used to discover associations that are not directly present in the traffic logs but are required for proper resource mapping. They are provided by shared Google Cloud components and log provider packages.
 
-- **`EventLogNEGDiscoveryTask`** (in `googlecloud/k8sevent`): Discovers NEG to BackendService mappings by parsing Kubernetes Event logs.
-- **`AuditLogNEGDiscoveryTask`** (in `googlecloud/k8saudit`): Discovers NEG to BackendService mappings by parsing Kubernetes Audit logs (via resource manifests).
-- **`NEGToBackendServiceInventoryTask`** (in `googlecloud/k8scommon`): Aggregates the discovery results into a single consolidated inventory map.
+- **`eventLogNEGDiscoveryTask`** (in `googlecloud/k8sevent`): Discovers NEG to BackendService mappings by parsing Kubernetes Event logs.
+- **`auditLogNEGDiscoveryTask`** (in `googlecloud/k8saudit`): Discovers NEG to BackendService mappings by parsing Kubernetes Audit logs (via resource manifests).
+- **`negToBackendServiceInventoryTask`** (in `googlecloud/k8scommon`): Aggregates the discovery results into a single consolidated inventory map.
 
 ### CSM Traffic Log Pipeline
 
@@ -43,9 +43,9 @@ graph TD
     ManifestGen[Manifest Generator]:::external
 
     %% Inventory
-    EventLogs --> EventDiscovery[EventLogNEGDiscoveryTask]:::inventory
-    ManifestGen --> AuditDiscovery[AuditLogNEGDiscoveryTask]:::inventory
-    EventDiscovery --> Inventory[NEGToBackendServiceInventoryTask]:::inventory
+    EventLogs --> EventDiscovery[eventLogNEGDiscoveryTask]:::inventory
+    ManifestGen --> AuditDiscovery[auditLogNEGDiscoveryTask]:::inventory
+    EventDiscovery --> Inventory[negToBackendServiceInventoryTask]:::inventory
     AuditDiscovery --> Inventory
 
     %% CSM Traffic Log Pipeline
