@@ -243,6 +243,103 @@ func TestSearchTimelines(t *testing.T) {
 			},
 		},
 		{
+			name:     "shared log across parent child and sibling timelines is counted once in ancestor",
+			filter:   Filter{},
+			maxDepth: 0,
+			maxNodes: 10,
+			setupWorkbench: func() *Workbench {
+				wb := setupSearchTimelinesTestWorkbench()
+				// Link log 5 (ERROR, already on child container-a1) and log 4 (INFO, already on sibling pod-b) to pod-a.
+				tl2 := wb.searchIndex.TimelineMap[2]
+				tl2.Events = append(tl2.Events,
+					cel.EventInfo{LogID: 4, Timestamp: 3000},
+					cel.EventInfo{LogID: 5, Timestamp: 4000},
+				)
+				return wb
+			},
+			wantMatchedCount:  5,
+			wantReturnedCount: 5,
+			wantMaxDepth:      0,
+			wantMaxNodes:      10,
+			wantNodes: []TimelineTreeNode{
+				{
+					ID:            1,
+					Depth:         0,
+					Type:          "Namespace",
+					Name:          "ns-1",
+					EventCount:    0,
+					RevisionCount: 0,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 2},
+						{Severity: testSeverityWarning, Count: 2},
+						{Severity: testSeverityInfo, Count: 2},
+					},
+					OmittedChildren: 0,
+					FirstMatchTime:  time.Time{},
+					LastMatchTime:   time.Time{},
+				},
+				{
+					ID:            2,
+					Depth:         1,
+					Type:          "Pod",
+					Name:          "pod-a",
+					EventCount:    4,
+					RevisionCount: 1,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+						{Severity: testSeverityWarning, Count: 2},
+						{Severity: testSeverityInfo, Count: 2},
+					},
+					OmittedChildren: 0,
+					FirstMatchTime:  time.Unix(0, 1000).UTC(),
+					LastMatchTime:   time.Unix(0, 4000).UTC(),
+				},
+				{
+					ID:            4,
+					Depth:         2,
+					Type:          "Container",
+					Name:          "container-a1",
+					EventCount:    1,
+					RevisionCount: 1,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+					},
+					OmittedChildren: 0,
+					FirstMatchTime:  time.Unix(0, 4000).UTC(),
+					LastMatchTime:   time.Unix(0, 4500).UTC(),
+				},
+				{
+					ID:            3,
+					Depth:         1,
+					Type:          "Pod",
+					Name:          "pod-b",
+					EventCount:    1,
+					RevisionCount: 0,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+						{Severity: testSeverityInfo, Count: 1},
+					},
+					OmittedChildren: 0,
+					FirstMatchTime:  time.Unix(0, 3000).UTC(),
+					LastMatchTime:   time.Unix(0, 3000).UTC(),
+				},
+				{
+					ID:            5,
+					Depth:         2,
+					Type:          "Container",
+					Name:          "container-b1",
+					EventCount:    1,
+					RevisionCount: 1,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+					},
+					OmittedChildren: 0,
+					FirstMatchTime:  time.Unix(0, 5000).UTC(),
+					LastMatchTime:   time.Unix(0, 5000).UTC(),
+				},
+			},
+		},
+		{
 			name:              "breadth-first truncation by maxNodes",
 			filter:            Filter{},
 			maxDepth:          0,

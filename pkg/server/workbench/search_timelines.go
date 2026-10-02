@@ -17,12 +17,12 @@ package workbench
 import (
 	"context"
 	"fmt"
-	"maps"
 	"math"
 	"time"
 
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
+	"github.com/RoaringBitmap/roaring/v2"
 )
 
 // DefaultMaxTimelineNodes is the default maximum number of timeline nodes returned by SearchTimelines.
@@ -66,7 +66,8 @@ type logSeverityResolver func(logID uint32) *khifilev6.Severity
 type nodeMetrics struct {
 	ownEv             int
 	ownRev            int
-	ownSeverityCounts severityCounter
+	ownLogIDs         *roaring.Bitmap
+	aggLogIDs         *roaring.Bitmap
 	aggSeverityCounts severityCounter
 	firstNs           int64
 	lastNs            int64
@@ -84,17 +85,13 @@ func (m *nodeMetrics) updateTime(ts int64) {
 	}
 }
 
-// recordSeverity counts the severity of the log linked to a matched entry once per timeline, because several entries of a timeline can link to the same log.
-func (m *nodeMetrics) recordSeverity(logID uint32, resolveLogSeverity logSeverityResolver, seenLogs map[uint32]struct{}) {
+// recordLog adds the log linked to a matched entry to the timeline's matched log set.
+func (m *nodeMetrics) recordLog(logID uint32) {
 	// Entries without a linked log have no severity.
 	if logID == 0 {
 		return
 	}
-	if _, seen := seenLogs[logID]; seen {
-		return
-	}
-	seenLogs[logID] = struct{}{}
-	m.ownSeverityCounts[resolveLogSeverity(logID)]++
+	m.ownLogIDs.Add(logID)
 }
 
 // SearchTimelines filters timelines and builds a breadth-first truncated, pre-order rendered timeline hierarchy tree.
@@ -137,8 +134,8 @@ func (w *Workbench) SearchTimelines(ctx context.Context, filter Filter, maxDepth
 	resolveLogSeverity := func(logID uint32) *khifilev6.Severity {
 		return styles.severityMap[index.GetLog(logID).SeverityTypeID]
 	}
-	roots, filteredChildren, metricsMap := collectFilteredTimelineHierarchy(index, filterOut, resolveLogSeverity)
-	aggregateTimelineSeverities(roots, filteredChildren, metricsMap)
+	roots, filteredChildren, metricsMap := collectFilteredTimelineHierarchy(index, filterOut)
+	aggregateTimelineSeverities(roots, filteredChildren, metricsMap, resolveLogSeverity)
 	selected, nodeDepth := selectBFSNodes(roots, filteredChildren, maxDepth, maxNodes, matchedCount)
 	nodes, timelineTypes := emitTimelineTreeNodes(roots, filteredChildren, selected, nodeDepth, metricsMap, index, styles.timelineTypeDescriptionMap)
 
@@ -148,7 +145,7 @@ func (w *Workbench) SearchTimelines(ctx context.Context, filter Filter, maxDepth
 	return res, nil
 }
 
-func collectFilteredTimelineHierarchy(index *SearchIndex, filterOut *FilterOutput, resolveLogSeverity logSeverityResolver) ([]uint32, map[uint32][]uint32, map[uint32]*nodeMetrics) {
+func collectFilteredTimelineHierarchy(index *SearchIndex, filterOut *FilterOutput) ([]uint32, map[uint32][]uint32, map[uint32]*nodeMetrics) {
 	matchedCount := int(filterOut.TimelineIDs.GetCardinality())
 	startNs := int64(math.MinInt64)
 	if !filterOut.Applied.StartTime.IsZero() {
@@ -178,18 +175,17 @@ func collectFilteredTimelineHierarchy(index *SearchIndex, filterOut *FilterOutpu
 				filteredChildren[tl.ID] = append(filteredChildren[tl.ID], childID)
 			}
 		}
-		metricsMap[tl.ID] = computeNodeMetrics(tl, filterOut, startNs, endNs, resolveLogSeverity)
+		metricsMap[tl.ID] = computeNodeMetrics(tl, filterOut, startNs, endNs)
 	}
 	return roots, filteredChildren, metricsMap
 }
 
-func computeNodeMetrics(tl *cel.TimelineData, filterOut *FilterOutput, startNs, endNs int64, resolveLogSeverity logSeverityResolver) *nodeMetrics {
+func computeNodeMetrics(tl *cel.TimelineData, filterOut *FilterOutput, startNs, endNs int64) *nodeMetrics {
 	m := &nodeMetrics{
-		ownSeverityCounts: make(severityCounter),
-		firstNs:           -1,
-		lastNs:            -1,
+		ownLogIDs: roaring.New(),
+		firstNs:   -1,
+		lastNs:    -1,
 	}
-	seenLogs := make(map[uint32]struct{})
 
 	for _, evt := range tl.Events {
 		if !isTimelineEntryMatched(evt.LogID, evt.Timestamp, filterOut, startNs, endNs) {
@@ -197,7 +193,7 @@ func computeNodeMetrics(tl *cel.TimelineData, filterOut *FilterOutput, startNs, 
 		}
 		m.ownEv++
 		m.updateTime(evt.Timestamp)
-		m.recordSeverity(evt.LogID, resolveLogSeverity, seenLogs)
+		m.recordLog(evt.LogID)
 	}
 
 	for _, rev := range tl.Revisions {
@@ -206,7 +202,7 @@ func computeNodeMetrics(tl *cel.TimelineData, filterOut *FilterOutput, startNs, 
 		}
 		m.ownRev++
 		m.updateTime(rev.ChangedTime)
-		m.recordSeverity(rev.LogID, resolveLogSeverity, seenLogs)
+		m.recordLog(rev.LogID)
 	}
 	return m
 }
@@ -218,24 +214,34 @@ func isTimelineEntryMatched(logID uint32, ts int64, filterOut *FilterOutput, sta
 	return ts >= startNs && ts <= endNs
 }
 
-func aggregateTimelineSeverities(roots []uint32, filteredChildren map[uint32][]uint32, metricsMap map[uint32]*nodeMetrics) {
+func aggregateTimelineSeverities(roots []uint32, filteredChildren map[uint32][]uint32, metricsMap map[uint32]*nodeMetrics, resolveLogSeverity logSeverityResolver) {
 	visited := make(map[uint32]bool, len(metricsMap))
-	var dfs func(id uint32) severityCounter
-	dfs = func(id uint32) severityCounter {
+	var dfs func(id uint32) *roaring.Bitmap
+	dfs = func(id uint32) *roaring.Bitmap {
 		m := metricsMap[id]
 		if m == nil {
 			return nil
 		}
 		if visited[id] {
-			return m.aggSeverityCounts
+			return m.aggLogIDs
 		}
 		visited[id] = true
-		agg := maps.Clone(m.ownSeverityCounts)
+
+		aggLogIDs := m.ownLogIDs.Clone()
 		for _, childID := range filteredChildren[id] {
-			agg.merge(dfs(childID))
+			if childLogIDs := dfs(childID); childLogIDs != nil {
+				aggLogIDs.Or(childLogIDs)
+			}
 		}
-		m.aggSeverityCounts = agg
-		return agg
+		m.aggLogIDs = aggLogIDs
+
+		counts := make(severityCounter)
+		it := aggLogIDs.Iterator()
+		for it.HasNext() {
+			counts[resolveLogSeverity(it.Next())]++
+		}
+		m.aggSeverityCounts = counts
+		return aggLogIDs
 	}
 	for _, rootID := range roots {
 		dfs(rootID)

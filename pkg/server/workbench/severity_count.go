@@ -30,13 +30,6 @@ type SeverityCount struct {
 // severityCounter counts logs per severity definition in the style chunk of the inspection.
 type severityCounter map[*khifilev6.Severity]int
 
-// merge adds every count in other to c.
-func (c severityCounter) merge(other severityCounter) {
-	for severity, count := range other {
-		c[severity] += count
-	}
-}
-
 // sorted returns the counts in descending severity order, breaking ties by severity ID so that the output is deterministic.
 func (c severityCounter) sorted() []SeverityCount {
 	var counts []SeverityCount
