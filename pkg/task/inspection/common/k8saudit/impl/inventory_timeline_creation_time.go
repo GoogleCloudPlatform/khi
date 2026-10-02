@@ -19,6 +19,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -84,8 +85,11 @@ var ResourceTimelineCreationTimeDiscoveryTask = inspectiontaskbase.NewInspection
 		}
 		result := k8saudit.TimelineCreationTimes{}
 		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
+		tracker := progress.NewTracker(ctx, len(resourceLogs), progress.WithUnit("groups"))
+		defer tracker.Done()
 		for _, group := range resourceLogs {
 			if group.Resource.Type() == k8saudit.Namespace {
+				tracker.Inc()
 				continue
 			}
 			for _, l := range group.Logs {
@@ -100,6 +104,7 @@ var ResourceTimelineCreationTimeDiscoveryTask = inspectiontaskbase.NewInspection
 				targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, group.Resource)
 				result[targetPath] = append(result[targetPath], creationTime)
 			}
+			tracker.Inc()
 		}
 		for path, times := range result {
 			result[path] = deduplicateAndSortTimes(times)
@@ -108,6 +113,8 @@ var ResourceTimelineCreationTimeDiscoveryTask = inspectiontaskbase.NewInspection
 	},
 	coretask.ProvidesTag(k8saudit.TagTimelineCreationTimeDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
+	progress.WithTitle("Discover resource timeline creation times"),
+	coretask.WithTaskDescription("Extracts resource timeline creation timestamps from Kubernetes audit logs."),
 )
 
 // PodPhaseTimelineCreationTimeDiscoveryTask extracts Pod phase timeline creation timestamps from audit logs.
@@ -123,8 +130,11 @@ var PodPhaseTimelineCreationTimeDiscoveryTask = inspectiontaskbase.NewInspection
 		}
 		result := k8saudit.TimelineCreationTimes{}
 		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
+		tracker := progress.NewTracker(ctx, len(resourceLogs), progress.WithUnit("groups"))
+		defer tracker.Done()
 		for _, group := range resourceLogs {
 			if group.Resource.Type() != k8saudit.Resource || group.Resource.APIVersion != "core/v1" || group.Resource.Kind != "pod" {
+				tracker.Inc()
 				continue
 			}
 			for _, l := range group.Logs {
@@ -146,6 +156,7 @@ var PodPhaseTimelineCreationTimeDiscoveryTask = inspectiontaskbase.NewInspection
 					result[podPhasePath] = append(result[podPhasePath], creationTime)
 				}
 			}
+			tracker.Inc()
 		}
 		for path, times := range result {
 			result[path] = deduplicateAndSortTimes(times)
@@ -154,4 +165,6 @@ var PodPhaseTimelineCreationTimeDiscoveryTask = inspectiontaskbase.NewInspection
 	},
 	coretask.ProvidesTag(k8saudit.TagTimelineCreationTimeDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
+	progress.WithTitle("Discover Pod phase timeline creation times"),
+	coretask.WithTaskDescription("Extracts Pod phase timeline creation timestamps from Kubernetes audit logs."),
 )
