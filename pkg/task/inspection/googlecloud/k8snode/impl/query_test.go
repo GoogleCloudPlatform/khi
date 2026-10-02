@@ -95,7 +95,7 @@ resource.labels.node_name:("node-1" OR "node-2")`,
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			sq := GenerateK8sNodeStructuredQuery(tc.cluster, tc.nodeNameSubstrings)
+			sq := generateK8sNodeStructuredQuery(tc.cluster, tc.nodeNameSubstrings)
 			gotQuery := sq.GenerateCloudLoggingQuery()
 			if diff := cmp.Diff(tc.wantQuery, gotQuery); diff != "" {
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
@@ -149,7 +149,7 @@ func TestGenerateK8sNodeStructuredQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			query := GenerateK8sNodeStructuredQuery(tc.cluster, tc.nodeNameSubstrings).GenerateCloudLoggingQuery()
+			query := generateK8sNodeStructuredQuery(tc.cluster, tc.nodeNameSubstrings).GenerateCloudLoggingQuery()
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("IsValidLogQuery error: %s", err.Error())
@@ -176,19 +176,22 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
-		tasktest.NewTaskDependencyValuePair(k8snode.ClusterIdentityTaskID.Ref(), cluster),
-		tasktest.NewTaskDependencyValuePair(k8scommon.InputNodeNameFilterTaskID.Ref(), []string{"node-1"}),
+	gotLogs, _, err := inspectiontest.Run(t, ctx, listLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
+		tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.Given(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		// Dry run records the query without fetching logs.
+		tasktest.Given[gcpcommon.LogFetcher](gcpcommon.LoggingFetcherTaskID.Ref(), nil),
+		tasktest.Given(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.Given(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+		tasktest.Given(k8snode.ClusterIdentityTaskID.Ref(), cluster),
+		tasktest.Given(k8scommon.InputNodeNameFilterTaskID.Ref(), []string{"node-1"}),
 	)
 	if err != nil {
-		t.Fatalf("DryRun returned unexpected error: %v", err)
+		t.Fatalf("dry run returned unexpected error: %v", err)
 	}
 	if len(gotLogs) != 0 {
-		t.Errorf("DryRun should return 0 logs, got %d", len(gotLogs))
+		t.Errorf("dry run should return 0 logs, got %d", len(gotLogs))
 	}
 
 	metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
@@ -212,9 +215,9 @@ timestamp >= "2025-01-01T01:00:00+0000"
 timestamp <= "2025-01-01T01:01:00+0000"`
 
 	if diff := cmp.Diff(wantQuery, serialized[0].Query); diff != "" {
-		t.Errorf("Query mismatch (-want +got):\n%s", diff)
+		t.Errorf("query mismatch (-want +got):\n%s", diff)
 	}
 	if serialized[0].Name != "Kubernetes node logs" {
-		t.Errorf("Query Name mismatch: got %q, want %q", serialized[0].Name, "Kubernetes node logs")
+		t.Errorf("query name mismatch: got %q, want %q", serialized[0].Name, "Kubernetes node logs")
 	}
 }

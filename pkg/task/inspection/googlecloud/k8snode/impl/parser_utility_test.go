@@ -197,7 +197,7 @@ func TestCheckStartingAndTerminationLog(t *testing.T) {
 			logMessage:  "component is starting",
 			startingLog: "component is starting",
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "test-node")
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "test-node")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "test-component")
 
 				testchangeset.AssertTimeline(t, cs).
@@ -214,7 +214,7 @@ func TestCheckStartingAndTerminationLog(t *testing.T) {
 			logMessage:     "component is stopping",
 			terminationLog: "component is stopping",
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "test-node")
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "test-node")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "test-component")
 
 				testchangeset.AssertTimeline(t, cs).
@@ -246,7 +246,7 @@ func TestCheckStartingAndTerminationLog(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 			cs := khifilev6.NewTimelineChangeSet(l)
-			wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "test-node")
+			wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "test-node")
 			wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "test-component")
 
 			checkStartingAndTerminationLog(ctx, cs, l, tc.startingLog, tc.terminationLog, wantComponentPath)
