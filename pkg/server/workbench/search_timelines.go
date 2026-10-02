@@ -19,11 +19,9 @@ import (
 	"fmt"
 	"maps"
 	"math"
-	"sync"
 	"time"
 
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
@@ -121,7 +119,7 @@ func (w *Workbench) SearchTimelines(ctx context.Context, filter Filter, maxDepth
 		return nil, fmt.Errorf("search index is not ready")
 	}
 	index := w.searchIndex
-	styleChunk := w.styleChunk
+	styles := w.styles
 	w.mu.RUnlock()
 
 	matchedCount := int(filterOut.TimelineIDs.GetCardinality())
@@ -135,15 +133,14 @@ func (w *Workbench) SearchTimelines(ctx context.Context, filter Filter, maxDepth
 		return res, nil
 	}
 
-	severitiesByID := buildSeverityMap(styleChunk)
 	// Matched entries only link to logs that exist in the index, so GetLog never returns nil here.
 	resolveLogSeverity := func(logID uint32) *khifilev6.Severity {
-		return severitiesByID[index.GetLog(logID).SeverityTypeID]
+		return styles.severityMap[index.GetLog(logID).SeverityTypeID]
 	}
 	roots, filteredChildren, metricsMap := collectFilteredTimelineHierarchy(index, filterOut, resolveLogSeverity)
 	aggregateTimelineSeverities(roots, filteredChildren, metricsMap)
 	selected, nodeDepth := selectBFSNodes(roots, filteredChildren, maxDepth, maxNodes, matchedCount)
-	nodes, timelineTypes := emitTimelineTreeNodes(roots, filteredChildren, selected, nodeDepth, metricsMap, index, styleChunk)
+	nodes, timelineTypes := emitTimelineTreeNodes(roots, filteredChildren, selected, nodeDepth, metricsMap, index, styles.timelineTypeDescriptionMap)
 
 	res.ReturnedNodeCount = len(nodes)
 	res.TimelineTypes = timelineTypes
@@ -286,9 +283,8 @@ func emitTimelineTreeNodes(
 	nodeDepth map[uint32]int,
 	metricsMap map[uint32]*nodeMetrics,
 	index *SearchIndex,
-	styleChunk *khifilev6.TimelineStyleChunk,
+	timelineTypeDescriptionMap map[string]string,
 ) ([]TimelineTreeNode, []TimelineTypeDescription) {
-	typeDescMap := buildTimelineTypeDescriptionMap(styleChunk)
 	seenTypes := make(map[string]bool)
 	var timelineTypes []TimelineTypeDescription
 	nodes := make([]TimelineTreeNode, 0, len(selected))
@@ -308,7 +304,7 @@ func emitTimelineTreeNodes(
 
 		if tl.TimelineType != "" && !seenTypes[tl.TimelineType] {
 			seenTypes[tl.TimelineType] = true
-			if desc := typeDescMap[tl.TimelineType]; desc != "" {
+			if desc := timelineTypeDescriptionMap[tl.TimelineType]; desc != "" {
 				timelineTypes = append(timelineTypes, TimelineTypeDescription{
 					Type:        tl.TimelineType,
 					Description: desc,
@@ -354,24 +350,4 @@ func buildTimelineTreeNode(tl *cel.TimelineData, depth int, children []uint32, s
 		FirstMatchTime:  firstTime,
 		LastMatchTime:   lastTime,
 	}
-}
-
-var defaultTimelineTypeDescriptions = sync.OnceValue(func() map[string]string {
-	descMap := make(map[string]string)
-	for _, tt := range style.GenerateChunkWithoutIconAtlas().GetTimelineTypes() {
-		if tt.GetLabel() != "" && tt.GetDescription() != "" {
-			descMap[tt.GetLabel()] = tt.GetDescription()
-		}
-	}
-	return descMap
-})
-
-func buildTimelineTypeDescriptionMap(styleChunk *khifilev6.TimelineStyleChunk) map[string]string {
-	descMap := maps.Clone(defaultTimelineTypeDescriptions())
-	for _, tt := range styleChunk.GetTimelineTypes() {
-		if tt.GetLabel() != "" && tt.GetDescription() != "" {
-			descMap[tt.GetLabel()] = tt.GetDescription()
-		}
-	}
-	return descMap
 }

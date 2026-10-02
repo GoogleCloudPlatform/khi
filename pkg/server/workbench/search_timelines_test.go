@@ -129,6 +129,8 @@ func setupSearchTimelinesTestWorkbench() *Workbench {
 			{Label: proto.String("Container"), Description: proto.String("Container inside pod")},
 		},
 	}
+	// Build the style maps from the style chunk as BuildBaseSearchIndex does when the workbench loads.
+	wb.styles = wb.buildStyleMaps()
 
 	return wb
 }

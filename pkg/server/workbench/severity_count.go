@@ -51,12 +51,3 @@ func (c severityCounter) sorted() []SeverityCount {
 	})
 	return counts
 }
-
-// buildSeverityMap maps severity IDs to their definitions in the style chunk.
-func buildSeverityMap(styleChunk *khifilev6.TimelineStyleChunk) map[uint32]*khifilev6.Severity {
-	severities := make(map[uint32]*khifilev6.Severity, len(styleChunk.GetSeverities()))
-	for _, severity := range styleChunk.GetSeverities() {
-		severities[severity.GetId()] = severity
-	}
-	return severities
-}
