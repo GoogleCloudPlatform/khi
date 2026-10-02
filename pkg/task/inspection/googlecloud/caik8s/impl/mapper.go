@@ -26,8 +26,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
-func mapClusterResourceInitialRevision(ctx context.Context, l *log.Log, identity *k8saudit.ResourceIdentity, observedTime time.Time) (gcpcommon.CAIInitialSnapshotRevisionSpec, bool, error) {
-	cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+func bindClusterResourceInitialRevisionMapper(b *coretask.Binder) gcpcommon.CAIInitialRevisionMapper[*k8saudit.ResourceIdentity] {
+	cluster := coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref())
+	return func(ctx context.Context, l *log.Log, identity *k8saudit.ResourceIdentity, observedTime time.Time) (gcpcommon.CAIInitialSnapshotRevisionSpec, bool, error) {
+		return mapClusterResourceInitialRevision(ctx, l, cluster.Get(ctx), identity, observedTime)
+	}
+}
+
+func mapClusterResourceInitialRevision(
+	ctx context.Context,
+	l *log.Log,
+	cluster k8scommon.GoogleCloudClusterIdentity,
+	identity *k8saudit.ResourceIdentity,
+	observedTime time.Time,
+) (gcpcommon.CAIInitialSnapshotRevisionSpec, bool, error) {
 	targetPath := k8saudit.MustResourceTimeline(ctx, cluster.ClusterName, identity)
 	creationTime := extractCreationTimestamp(l.NodeReader)
 

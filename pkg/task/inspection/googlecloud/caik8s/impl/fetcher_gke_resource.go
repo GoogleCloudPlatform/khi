@@ -23,11 +23,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/caik8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-func resolveGKEResourceSearchTarget(ctx context.Context, _ inspectioncore.InspectionTaskModeType) (string, gcpcommon.CAIAssetSearchTarget, bool, error) {
-	cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+func bindGKEResourceSearchTargetResolver(b *coretask.Binder) gcpcommon.CAISearchTargetResolver {
+	cluster := coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref())
+	return func(ctx context.Context) (string, gcpcommon.CAIAssetSearchTarget, bool, error) {
+		return resolveGKEResourceSearchTarget(cluster.Get(ctx))
+	}
+}
+
+func resolveGKEResourceSearchTarget(cluster k8scommon.GoogleCloudClusterIdentity) (string, gcpcommon.CAIAssetSearchTarget, bool, error) {
 	if !cluster.IsComplete() {
 		return "", gcpcommon.CAIAssetSearchTarget{}, true, nil
 	}
