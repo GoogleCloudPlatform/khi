@@ -20,8 +20,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func TestCSMClusterIdentifierTask(t *testing.T) {
@@ -71,7 +73,8 @@ func TestCSMClusterIdentifierTask(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := tasktest.Run(t, t.Context(), csmClusterIdentifierTask,
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			result, _, err := inspectiontest.Run(t, ctx, csmClusterIdentifierTask, inspectioncore.TaskModeRun, map[string]any{},
 				tasktest.Given(k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), tc.inventory),
 			)
 			if err != nil {

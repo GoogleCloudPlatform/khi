@@ -18,19 +18,28 @@ import (
 	"context"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // csmClusterIdentifierTask extracts the unique cluster identifier(s) from BackendService names.
 // CSM BackendService names follow the pattern: gsmrsvd-(cluster-identifier)-(neg-id).
-var csmClusterIdentifierTask = coretask.Define(
+var csmClusterIdentifierTask = inspectiontaskbase.DefineInspectionTask(
 	csm.CSMClusterIdentifierTaskID,
-	func(b *coretask.Binder) func(ctx context.Context) ([]string, error) {
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]string] {
 		negToBackendService := coretask.Use(b, k8scommon.NEGToBackendServiceInventoryTaskID.Ref())
-		return func(ctx context.Context) ([]string, error) {
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
+			}
+
 			inventory := negToBackendService.Get(ctx)
+			tracker := progress.NewTracker(ctx, len(inventory))
+			defer tracker.Done()
 
 			uniqueIds := make(map[string]struct{})
 
@@ -42,6 +51,7 @@ var csmClusterIdentifierTask = coretask.Define(
 						uniqueIds[parts[1]] = struct{}{}
 					}
 				}
+				tracker.Inc()
 			}
 
 			result := make([]string, 0, len(uniqueIds))
