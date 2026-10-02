@@ -32,40 +32,42 @@ var (
 	pathMessage          = structured.CompileFieldPath("message")
 )
 
-// AuditLogNEGDiscoveryTask is the discovery task that extracts NEG to BackendService mappings from Kubernetes Audit logs.
-var AuditLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// auditLogNEGDiscoveryTask is the discovery task that extracts NEG to BackendService mappings from Kubernetes Audit logs.
+var auditLogNEGDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.NEGToBackendServiceDiscoveryTaskID,
-	[]coretask.Dependency{commonk8saudit.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.NEGToBackendServiceMap, error) {
-		if taskMode != inspectioncore.TaskModeRun {
-			return nil, nil
-		}
-
-		groups := coretask.GetTaskResult(ctx, commonk8saudit.ManifestGeneratorTaskID.Ref())
-		result := make(k8scommon.NEGToBackendServiceMap)
-
-		for _, group := range groups {
-			if group.Resource == nil || strings.ToLower(group.Resource.Kind) != "pod" {
-				continue
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8scommon.NEGToBackendServiceMap] {
+		manifestGroups := coretask.Use(b, commonk8saudit.ManifestGeneratorTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.NEGToBackendServiceMap, error) {
+			if taskMode != inspectioncore.TaskModeRun {
+				return nil, nil
 			}
-			for _, mLog := range group.Logs {
-				if mLog.ResourceBodyReader == nil {
+
+			groups := manifestGroups.Get(ctx)
+			result := make(k8scommon.NEGToBackendServiceMap)
+
+			for _, group := range groups {
+				if group.Resource == nil || strings.ToLower(group.Resource.Kind) != "pod" {
 					continue
 				}
-				conditionsReader, err := mLog.ResourceBodyReader.GetReader(pathStatusConditions)
-				if err == nil {
-					conditionsReader.Children()(func(_ structured.NodeChildrenKey, conditionReader structured.NodeReader) bool {
-						message := conditionReader.ReadStringOrDefault(pathMessage, "")
-						neg, bs := k8scommon.ExtractNEGToBackendService(message)
-						if neg != "" && bs != "" {
-							result[neg] = bs
-						}
-						return true
-					})
+				for _, mLog := range group.Logs {
+					if mLog.ResourceBodyReader == nil {
+						continue
+					}
+					conditionsReader, err := mLog.ResourceBodyReader.GetReader(pathStatusConditions)
+					if err == nil {
+						conditionsReader.Children()(func(_ structured.NodeChildrenKey, conditionReader structured.NodeReader) bool {
+							message := conditionReader.ReadStringOrDefault(pathMessage, "")
+							neg, bs := k8scommon.ExtractNEGToBackendService(message)
+							if neg != "" && bs != "" {
+								result[neg] = bs
+							}
+							return true
+						})
+					}
 				}
 			}
+			return result, nil
 		}
-		return result, nil
 	},
 	coretask.ProvidesTag(k8scommon.TagNEGToBackendServiceDiscovery),
 	coretask.WithFeatureGate(commonk8saudit.K8sAuditLogParserTailRef),

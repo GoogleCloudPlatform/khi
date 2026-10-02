@@ -21,7 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -30,23 +29,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// KubernetesEventLogIngester handles log ingestion into the KHI v6 builder format.
-type KubernetesEventLogIngester struct{}
-
-// RawLogTask returns the task providing the raw logs to ingest.
-func (i *KubernetesEventLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return k8sevent.ListLogEntriesTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies of the ingester.
-func (i *KubernetesEventLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8saudit.ResourceUIDPatternFinderTaskID.Ref(),
-	}
-}
-
-// ProcessLog processes a raw log entry and populates its metadata into LogChangeSet.
-func (i *KubernetesEventLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+// processK8sEventLog sets the log type, timestamp, severity and summary of a Kubernetes event log.
+// The summary shows the resources that finder resolves from the resource UIDs in the event message.
+func processK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err
@@ -62,68 +47,65 @@ func (i *KubernetesEventLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract kubernetes event: %w", err)
 	}
-	finder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 	cs.SetSummary(k8saudit.FormatEventSummary(event.Reason, event.Message, finder))
 
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngester = (*KubernetesEventLogIngester)(nil)
-
-// LogIngesterTask is the log ingester task for GKE Event Logs.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+// logIngesterTask is the log ingester task for GKE Event Logs.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	k8sevent.LogIngesterTaskID,
-	&KubernetesEventLogIngester{},
-)
-
-// LogGrouperTask groups logs by the event's resource path so they can be mapped to timelines.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
-	k8sevent.LogGrouperTaskID,
 	k8sevent.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		event, err := k8sevent.ExtractKubernetesEvent(l.NodeReader)
-		if err != nil {
-			return "unknown"
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		finder := coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
+		return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+			return processK8sEventLog(ctx, l, finder.Get(ctx))
 		}
-		return fmt.Sprintf("cluster=%s,kind=%s,namespace=%s,name=%s", event.ClusterName, event.ResourceKind, event.Namespace, event.Resource)
 	},
 )
 
-// KubernetesEventTimelineMapper maps grouped GKE Event Logs to resource timelines.
-type KubernetesEventTimelineMapper struct {
+// logGrouperTask groups logs by the event's resource path so they can be mapped to timelines.
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
+	k8sevent.LogGrouperTaskID,
+	k8sevent.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			event, err := k8sevent.ExtractKubernetesEvent(l.NodeReader)
+			if err != nil {
+				return "unknown"
+			}
+			return fmt.Sprintf("cluster=%s,kind=%s,namespace=%s,name=%s", event.ClusterName, event.ResourceKind, event.Namespace, event.Resource)
+		}
+	},
+)
+
+// k8sEventTimelineMapper maps grouped GKE Event Logs to resource timelines.
+type k8sEventTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
-}
-
-// LogIngesterTask returns the prerequisite log ingester task.
-func (m *KubernetesEventTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8sevent.LogIngesterTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies.
-func (m *KubernetesEventTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8saudit.ResourceUIDPatternFinderTaskID.Ref(),
-	}
-}
-
-// GroupedLogTask returns the task providing grouped logs.
-func (m *KubernetesEventTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return k8sevent.LogGrouperTaskID.Ref()
+	finder coretask.Input[patternfinder.PatternFinder[*k8saudit.ResourceIdentity]]
 }
 
 // ProcessLogByGroup maps a single GKE Event Log to its resource timeline path and matches any resource UIDs in the message.
-func (m *KubernetesEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+func (m *k8sEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	cs, err := mapK8sEventLog(ctx, l, m.finder.Get(ctx))
+	return cs, struct{}{}, err
+}
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*k8sEventTimelineMapper)(nil)
+
+// mapK8sEventLog adds an event for a Kubernetes event log to the timeline of its involved resource
+// and to the timelines of the resources that finder resolves from the resource UIDs in the event message.
+func mapK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.TimelineChangeSet, error) {
 	event, err := k8sevent.ExtractKubernetesEvent(l.NodeReader)
 	if err != nil {
-		return nil, struct{}{}, fmt.Errorf("failed to extract kubernetes event: %w", err)
+		return nil, fmt.Errorf("failed to extract kubernetes event: %w", err)
 	}
 
-	primaryResourcePath := MustResolveK8sResourceTimelinePath(ctx, &event)
+	primaryResourcePath := mustResolveK8sResourceTimelinePath(ctx, &event)
 	cs := khifilev6.NewTimelineChangeSet(l)
 	cs.AddEvent(primaryResourcePath)
 
 	if event.Message != "" {
-		finder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 		if finder != nil {
 			matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, k8saudit.EventMessageUIDStarterRunes...)
 			for _, match := range matches {
@@ -133,15 +115,21 @@ func (m *KubernetesEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l
 		}
 	}
 
-	return cs, struct{}{}, nil
+	return cs, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*KubernetesEventTimelineMapper)(nil)
-
-// LogToTimelineMapperTask is the task to map GKE Event Logs into timeline events.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+// logToTimelineMapperTask is the task to map GKE Event Logs into timeline events.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	k8sevent.LogToTimelineMapperTaskID,
-	&KubernetesEventTimelineMapper{},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8sevent.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8sevent.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &k8sEventTimelineMapper{
+			finder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
+		}
+	},
 	inspectioncore.FeatureTaskLabel(
 		"Kubernetes Event Logs",
 		"Gather Kubernetes event logs to visualize cluster events on associated resource timelines.",
@@ -150,8 +138,8 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	),
 )
 
-// MustResolveK8sResourceTimelinePath resolves a KubernetesEventFieldSet to a *khifilev6.TimelinePath.
-func MustResolveK8sResourceTimelinePath(ctx context.Context, event *k8sevent.KubernetesEventFieldSet) *khifilev6.TimelinePath {
+// mustResolveK8sResourceTimelinePath resolves a KubernetesEventFieldSet to a *khifilev6.TimelinePath.
+func mustResolveK8sResourceTimelinePath(ctx context.Context, event *k8sevent.KubernetesEventFieldSet) *khifilev6.TimelinePath {
 	if event.Resource == "" {
 		projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, event.ProjectID)
 		gkeTimeline := gcpcommon.MustGKEClusterTimeline(ctx, projectTimeline, event.ClusterName)
