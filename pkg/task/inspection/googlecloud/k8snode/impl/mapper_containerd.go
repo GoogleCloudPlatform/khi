@@ -153,7 +153,9 @@ var podSandboxIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 				logChan <- l
 			}
 			close(logChan)
-			errGrp.Wait()
+			if err := errGrp.Wait(); err != nil {
+				return nil, err
+			}
 
 			return podSandboxIDFinder, nil
 		}
