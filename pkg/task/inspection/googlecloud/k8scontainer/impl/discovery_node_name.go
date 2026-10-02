@@ -43,7 +43,7 @@ var nodeNameDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 				}
 			}
 
-			var result []string
+			result := make([]string, 0, len(foundNodeNames))
 			for k := range foundNodeNames {
 				result = append(result, k)
 			}
