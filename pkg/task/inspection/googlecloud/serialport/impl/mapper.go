@@ -20,7 +20,6 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
@@ -29,35 +28,24 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// LogFilterTask removes logs with empty message.
+// logFilterTask removes logs with empty message.
 // This message is mostly just contained escape sequences and stripped by ANSIEscapeSequenceStripper.
-var LogFilterTask = inspectiontaskbase.NewLogFilterTask(
+var logFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	serialport.LogFilterTaskID,
 	serialport.LogQueryTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) bool {
-		msg, err := serialport.ExtractGCESerialPortMessage(l.NodeReader)
-		if err != nil {
-			return false
+	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		return func(ctx context.Context, l *log.Log) bool {
+			msg, err := serialport.ExtractGCESerialPortMessage(l.NodeReader)
+			if err != nil {
+				return false
+			}
+			return msg != ""
 		}
-		return msg != ""
 	},
 )
 
-// serialPortLogIngester implements the LogIngester interface.
-type serialPortLogIngester struct{}
-
-// RawLogTask returns the task reference that provides the raw logs to ingest.
-func (i *serialPortLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return serialport.LogFilterTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies of the ingester.
-func (i *serialPortLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// ProcessLog parses raw log entry and manually populates the LogChangeSet.
-func (i *serialPortLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+// processSerialPortLog sets the log type, timestamp, severity and summary of a serial port log.
+func processSerialPortLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err
@@ -77,62 +65,55 @@ func (i *serialPortLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*kh
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngester = (*serialPortLogIngester)(nil)
-
-// LogIngesterTask is the log ingester task.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+// logIngesterTask ingests the metadata of the filtered serial port logs.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	serialport.LogIngesterTaskID,
-	&serialPortLogIngester{},
-)
-
-// LogGrouperTask is the grouper task for GCE serial port logs.
-// It groups logs by the node name and port name.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
-	serialport.LogGrouperTaskID,
 	serialport.LogFilterTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		serialFS, err := serialport.ExtractGCESerialPortLog(l.NodeReader)
-		if err != nil {
-			return ""
-		}
-		return fmt.Sprintf("%s#%s", serialFS.NodeName, serialFS.Port)
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return processSerialPortLog
 	},
 )
 
-// serialportLogToTimelineMapper maps logs to hierarchical node serial port timelines.
-type serialportLogToTimelineMapper struct {
+// logGrouperTask is the grouper task for GCE serial port logs.
+// It groups logs by the node name and port name.
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
+	serialport.LogGrouperTaskID,
+	serialport.LogFilterTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			serialFS, err := serialport.ExtractGCESerialPortLog(l.NodeReader)
+			if err != nil {
+				return ""
+			}
+			return fmt.Sprintf("%s#%s", serialFS.NodeName, serialFS.Port)
+		}
+	},
+)
+
+// serialPortLogToTimelineMapper maps logs to hierarchical node serial port timelines.
+type serialPortLogToTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
-}
-
-// LogIngesterTask implements the LogToTimelineMapper interface.
-func (s *serialportLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return serialport.LogIngesterTaskID.Ref()
-}
-
-// GroupedLogTask implements the LogToTimelineMapper interface.
-func (s *serialportLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return serialport.LogGrouperTaskID.Ref()
-}
-
-// Dependencies implements the LogToTimelineMapper interface.
-func (s *serialportLogToTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8scommon.ClusterIdentityTaskID.Ref(),
-	}
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
 }
 
 // ProcessLogByGroup processes each log inside the group and stages the event on the timeline.
-func (s *serialportLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+func (s *serialPortLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	cs, err := mapSerialPortLog(ctx, l, s.clusterIdentity.Get(ctx).ClusterName)
+	return cs, struct{}{}, err
+}
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*serialPortLogToTimelineMapper)(nil)
+
+// mapSerialPortLog adds an event for a serial port log to the serial port timeline of its node in the given cluster.
+func mapSerialPortLog(ctx context.Context, l *log.Log, clusterName string) (*khifilev6.TimelineChangeSet, error) {
 	serialportFieldSet, err := serialport.ExtractGCESerialPortLog(l.NodeReader)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, err
 	}
-
-	clusterIdentity := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
 
 	targetPath := serialport.MustSerialPortTimeline(
 		ctx,
-		clusterIdentity.ClusterName,
+		clusterName,
 		serialportFieldSet.NodeName,
 		serialportFieldSet.Port,
 	)
@@ -140,15 +121,21 @@ func (s *serialportLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l
 	cs := khifilev6.NewTimelineChangeSet(l)
 	cs.AddEvent(targetPath)
 
-	return cs, struct{}{}, nil
+	return cs, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*serialportLogToTimelineMapper)(nil)
-
-// LogToTimelineMapperTask is the timeline mapper task.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+// logToTimelineMapperTask is the timeline mapper task.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	serialport.LogToTimelineMapperTaskID,
-	&serialportLogToTimelineMapper{},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: serialport.LogIngesterTaskID.Ref(),
+		GroupedLogs: serialport.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &serialPortLogToTimelineMapper{
+			clusterIdentity: coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
+		}
+	},
 	inspectioncore.FeatureTaskLabel(
 		"GCE Node Serial Port Logs",
 		`Gather serial port logs from GCE instances to troubleshoot VM bootstrapping and OS initialization issues.`,

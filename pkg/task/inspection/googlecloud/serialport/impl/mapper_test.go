@@ -19,20 +19,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/serialport"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
+func TestProcessSerialPortLog(t *testing.T) {
 	testTime := time.Date(2025, 9, 29, 6, 39, 24, 0, time.UTC)
 	testCases := []struct {
 		name   string
@@ -62,13 +59,12 @@ func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := &serialPortLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := t.Context()
-			cs, err := ingester.ProcessLog(ctx, tc.input)
+			cs, err := processSerialPortLog(ctx, tc.input)
 			if err != nil {
-				t.Fatalf("ProcessLog() returned unexpected error: %v", err)
+				t.Fatalf("processSerialPortLog() returned unexpected error: %v", err)
 			}
 			tc.assert(t, cs)
 		})
@@ -101,17 +97,12 @@ func TestSerialPortLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &serialportLogToTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
-				ClusterName: "test-cluster",
-			})
-
-			cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, struct{}{})
+			cs, err := mapSerialPortLog(ctx, tc.inputLog, "test-cluster")
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+				t.Fatalf("mapSerialPortLog() returned unexpected error: %v", err)
 			}
 
 			tc.assert(t, ctx, cs)

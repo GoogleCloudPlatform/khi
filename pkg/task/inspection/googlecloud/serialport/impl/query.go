@@ -23,8 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
@@ -32,10 +30,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-const MaxNodesPerQuery = 30
+// maxNodesPerQuery is the maximum number of node names that one serial port log query filters by.
+const maxNodesPerQuery = 30
 
-// GenerateSerialPortStructuredQuery generates structured log queries for serial port logs.
-func GenerateSerialPortStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, foundNodeNames []string, nodeNameSubstrings []string) []*logestimator.StructuredLogQuery {
+// generateSerialPortStructuredQuery generates structured log queries for serial port logs.
+func generateSerialPortStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, foundNodeNames []string, nodeNameSubstrings []string) []*logestimator.StructuredLogQuery {
 	logIDFilter := logestimator.LogID(logestimator.OneOf(
 		"serialconsole.googleapis.com/serial_port_1_output",
 		"serialconsole.googleapis.com/serial_port_2_output",
@@ -65,7 +64,7 @@ func GenerateSerialPortStructuredQuery(taskMode inspectioncore.InspectionTaskMod
 	}
 
 	result := []*logestimator.StructuredLogQuery{}
-	instanceNameGroups := gcpqueryutil.SplitToChildGroups(foundNodeNames, MaxNodesPerQuery)
+	instanceNameGroups := gcpqueryutil.SplitToChildGroups(foundNodeNames, maxNodesPerQuery)
 	for _, group := range instanceNameGroups {
 		instanceNameFilter := logestimator.CustomFilter(fmt.Sprintf(`labels."compute.googleapis.com/resource_name"=(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(group), " OR ")))
 		filters := []logestimator.LoggingMonitoringMatcher{
@@ -82,33 +81,28 @@ func GenerateSerialPortStructuredQuery(taskMode inspectioncore.InspectionTaskMod
 	return result
 }
 
-type serialPortLoggingFilterTaskSetting struct {
+// serialPortQuerySource builds the serial port log queries for the cluster nodes.
+type serialPortQuerySource struct {
+	clusterIdentity    coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	nodeNameSubstrings coretask.Input[[]string]
+	nodeNames          coretask.Input[[]string]
 }
 
-// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *serialPortLoggingFilterTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		serialport.ClusterIdentityTaskID.Ref(),
-		k8scommon.InputNodeNameFilterTaskID.Ref(),
-		k8saudit.NodeNameInventoryTaskID.Ref(),
-	}
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *serialPortQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	return []string{fmt.Sprintf("projects/%s", s.clusterIdentity.Get(ctx).ProjectID)}, nil
 }
 
-// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *serialPortLoggingFilterTaskSetting) QueryName() string {
-	return "Serial port log"
-}
-
-// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *serialPortLoggingFilterTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	nodeNames := coretask.GetTaskResult(ctx, k8saudit.NodeNameInventoryTaskID.Ref())
-	nodeNameSubstrings := coretask.GetTaskResult(ctx, k8scommon.InputNodeNameFilterTaskID.Ref())
-	clusterIdentity := coretask.GetTaskResult(ctx, serialport.ClusterIdentityTaskID.Ref())
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *serialPortQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+	nodeNames := s.nodeNames.Get(ctx)
+	nodeNameSubstrings := s.nodeNameSubstrings.Get(ctx)
+	clusterIdentity := s.clusterIdentity.Get(ctx)
 	taskMode := inspectioncore.TaskModeRun
 	if val, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode); err == nil {
 		taskMode = val
 	}
-	queries := GenerateSerialPortStructuredQuery(taskMode, nodeNames, nodeNameSubstrings)
+	queries := generateSerialPortStructuredQuery(taskMode, nodeNames, nodeNameSubstrings)
 	if clusterIdentity.ProjectID == "" {
 		for _, q := range queries {
 			q.Incomplete = true
@@ -117,22 +111,22 @@ func (s *serialPortLoggingFilterTaskSetting) Queries(ctx context.Context) ([]*lo
 	return queries, nil
 }
 
-// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *serialPortLoggingFilterTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, serialport.ClusterIdentityTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
-}
-
-// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *serialPortLoggingFilterTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return serialport.LogQueryTaskID
-}
-
-// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *serialPortLoggingFilterTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *serialPortQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
 	return 10, nil
 }
 
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*serialPortLoggingFilterTaskSetting)(nil)
+var _ gcpcommon.StructuredLogQuerySource = (*serialPortQuerySource)(nil)
 
-var LogQueryTask = gcpcommon.NewStructuredListLogEntriesTask(&serialPortLoggingFilterTaskSetting{})
+// logQueryTask queries the serial port logs of the cluster nodes from Cloud Logging.
+var logQueryTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	serialport.LogQueryTaskID,
+	"Serial port log",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &serialPortQuerySource{
+			clusterIdentity:    coretask.Use(b, serialport.ClusterIdentityTaskID.Ref()),
+			nodeNameSubstrings: coretask.Use(b, k8scommon.InputNodeNameFilterTaskID.Ref()),
+			nodeNames:          coretask.Use(b, k8saudit.NodeNameInventoryTaskID.Ref()),
+		}
+	},
+)
