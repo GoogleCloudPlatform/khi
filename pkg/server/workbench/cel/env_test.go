@@ -68,7 +68,6 @@ spec:
 		Revisions: []RevisionInfo{
 			{
 				ResourceBodyStructID: sRef.ID(),
-				Severity:             2,
 			},
 		},
 	}

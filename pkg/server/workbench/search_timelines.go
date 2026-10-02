@@ -38,14 +38,14 @@ type TimelineTypeDescription struct {
 
 // TimelineTreeNode represents a single node in the pre-order timeline hierarchy.
 type TimelineTreeNode struct {
-	ID              uint32
-	Depth           int
-	Type            string
-	Name            string
-	EventCount      int
-	RevisionCount   int
-	WarnCount       int
-	ErrCount        int
+	ID            uint32
+	Depth         int
+	Type          string
+	Name          string
+	EventCount    int
+	RevisionCount int
+	// SeverityCounts holds the number of matched logs per severity across the timeline and its filtered descendants, from the most severe.
+	SeverityCounts  []SeverityCount
 	OmittedChildren int
 	FirstMatchTime  time.Time
 	LastMatchTime   time.Time
@@ -62,15 +62,16 @@ type TimelineTreeResult struct {
 	Nodes                []TimelineTreeNode
 }
 
+// logSeverityResolver returns the severity definition of the log with the given ID.
+type logSeverityResolver func(logID uint32) *khifilev6.Severity
+
 type nodeMetrics struct {
-	ownEv   int
-	ownRev  int
-	ownWarn int
-	ownErr  int
-	aggWarn int
-	aggErr  int
-	firstNs int64
-	lastNs  int64
+	ownEv             int
+	ownRev            int
+	ownSeverityCounts severityCounter
+	aggSeverityCounts severityCounter
+	firstNs           int64
+	lastNs            int64
 }
 
 func (m *nodeMetrics) updateTime(ts int64) {
@@ -85,18 +86,17 @@ func (m *nodeMetrics) updateTime(ts int64) {
 	}
 }
 
-func (m *nodeMetrics) recordSeverity(logID, severity uint32, seenLogs map[uint32]struct{}) {
-	if logID > 0 {
-		if _, seen := seenLogs[logID]; seen {
-			return
-		}
-		seenLogs[logID] = struct{}{}
+// recordSeverity counts the severity of the log linked to a matched entry once per timeline, because several entries of a timeline can link to the same log.
+func (m *nodeMetrics) recordSeverity(logID uint32, resolveLogSeverity logSeverityResolver, seenLogs map[uint32]struct{}) {
+	// Entries without a linked log have no severity.
+	if logID == 0 {
+		return
 	}
-	if severity == 2 {
-		m.ownWarn++
-	} else if severity >= 3 {
-		m.ownErr++
+	if _, seen := seenLogs[logID]; seen {
+		return
 	}
+	seenLogs[logID] = struct{}{}
+	m.ownSeverityCounts[resolveLogSeverity(logID)]++
 }
 
 // SearchTimelines filters timelines and builds a breadth-first truncated, pre-order rendered timeline hierarchy tree.
@@ -135,7 +135,12 @@ func (w *Workbench) SearchTimelines(ctx context.Context, filter Filter, maxDepth
 		return res, nil
 	}
 
-	roots, filteredChildren, metricsMap := collectFilteredTimelineHierarchy(index, filterOut)
+	severitiesByID := buildSeverityMap(styleChunk)
+	// Matched entries only link to logs that exist in the index, so GetLog never returns nil here.
+	resolveLogSeverity := func(logID uint32) *khifilev6.Severity {
+		return severitiesByID[index.GetLog(logID).SeverityTypeID]
+	}
+	roots, filteredChildren, metricsMap := collectFilteredTimelineHierarchy(index, filterOut, resolveLogSeverity)
 	aggregateTimelineSeverities(roots, filteredChildren, metricsMap)
 	selected, nodeDepth := selectBFSNodes(roots, filteredChildren, maxDepth, maxNodes, matchedCount)
 	nodes, timelineTypes := emitTimelineTreeNodes(roots, filteredChildren, selected, nodeDepth, metricsMap, index, styleChunk)
@@ -146,7 +151,7 @@ func (w *Workbench) SearchTimelines(ctx context.Context, filter Filter, maxDepth
 	return res, nil
 }
 
-func collectFilteredTimelineHierarchy(index *SearchIndex, filterOut *FilterOutput) ([]uint32, map[uint32][]uint32, map[uint32]*nodeMetrics) {
+func collectFilteredTimelineHierarchy(index *SearchIndex, filterOut *FilterOutput, resolveLogSeverity logSeverityResolver) ([]uint32, map[uint32][]uint32, map[uint32]*nodeMetrics) {
 	matchedCount := int(filterOut.TimelineIDs.GetCardinality())
 	startNs := int64(math.MinInt64)
 	if !filterOut.Applied.StartTime.IsZero() {
@@ -176,17 +181,18 @@ func collectFilteredTimelineHierarchy(index *SearchIndex, filterOut *FilterOutpu
 				filteredChildren[tl.ID] = append(filteredChildren[tl.ID], childID)
 			}
 		}
-		metricsMap[tl.ID] = computeNodeMetrics(tl, filterOut, startNs, endNs)
+		metricsMap[tl.ID] = computeNodeMetrics(tl, filterOut, startNs, endNs, resolveLogSeverity)
 	}
 	return roots, filteredChildren, metricsMap
 }
 
-func computeNodeMetrics(tl *cel.TimelineData, filterOut *FilterOutput, startNs, endNs int64) *nodeMetrics {
+func computeNodeMetrics(tl *cel.TimelineData, filterOut *FilterOutput, startNs, endNs int64, resolveLogSeverity logSeverityResolver) *nodeMetrics {
 	m := &nodeMetrics{
-		firstNs: -1,
-		lastNs:  -1,
+		ownSeverityCounts: make(severityCounter),
+		firstNs:           -1,
+		lastNs:            -1,
 	}
-	seenSevLogs := make(map[uint32]struct{})
+	seenLogs := make(map[uint32]struct{})
 
 	for _, evt := range tl.Events {
 		if !isTimelineEntryMatched(evt.LogID, evt.Timestamp, filterOut, startNs, endNs) {
@@ -194,7 +200,7 @@ func computeNodeMetrics(tl *cel.TimelineData, filterOut *FilterOutput, startNs, 
 		}
 		m.ownEv++
 		m.updateTime(evt.Timestamp)
-		m.recordSeverity(evt.LogID, evt.Severity, seenSevLogs)
+		m.recordSeverity(evt.LogID, resolveLogSeverity, seenLogs)
 	}
 
 	for _, rev := range tl.Revisions {
@@ -203,7 +209,7 @@ func computeNodeMetrics(tl *cel.TimelineData, filterOut *FilterOutput, startNs, 
 		}
 		m.ownRev++
 		m.updateTime(rev.ChangedTime)
-		m.recordSeverity(rev.LogID, rev.Severity, seenSevLogs)
+		m.recordSeverity(rev.LogID, resolveLogSeverity, seenLogs)
 	}
 	return m
 }
@@ -217,26 +223,22 @@ func isTimelineEntryMatched(logID uint32, ts int64, filterOut *FilterOutput, sta
 
 func aggregateTimelineSeverities(roots []uint32, filteredChildren map[uint32][]uint32, metricsMap map[uint32]*nodeMetrics) {
 	visited := make(map[uint32]bool, len(metricsMap))
-	var dfs func(id uint32) (int, int)
-	dfs = func(id uint32) (int, int) {
+	var dfs func(id uint32) severityCounter
+	dfs = func(id uint32) severityCounter {
 		m := metricsMap[id]
 		if m == nil {
-			return 0, 0
+			return nil
 		}
 		if visited[id] {
-			return m.aggWarn, m.aggErr
+			return m.aggSeverityCounts
 		}
 		visited[id] = true
-		wSum := m.ownWarn
-		eSum := m.ownErr
+		agg := maps.Clone(m.ownSeverityCounts)
 		for _, childID := range filteredChildren[id] {
-			cw, ce := dfs(childID)
-			wSum += cw
-			eSum += ce
+			agg.merge(dfs(childID))
 		}
-		m.aggWarn = wSum
-		m.aggErr = eSum
-		return wSum, eSum
+		m.aggSeverityCounts = agg
+		return agg
 	}
 	for _, rootID := range roots {
 		dfs(rootID)
@@ -347,8 +349,7 @@ func buildTimelineTreeNode(tl *cel.TimelineData, depth int, children []uint32, s
 		Name:            tl.Name,
 		EventCount:      m.ownEv,
 		RevisionCount:   m.ownRev,
-		WarnCount:       m.aggWarn,
-		ErrCount:        m.aggErr,
+		SeverityCounts:  m.aggSeverityCounts.sorted(),
 		OmittedChildren: len(children) - selectedChildren,
 		FirstMatchTime:  firstTime,
 		LastMatchTime:   lastTime,

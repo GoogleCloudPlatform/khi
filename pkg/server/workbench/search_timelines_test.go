@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func setupSearchTimelinesTestWorkbench() *Workbench {
@@ -64,11 +65,11 @@ func setupSearchTimelinesTestWorkbench() *Workbench {
 		Name:         "pod-a",
 		TimelineType: "Pod",
 		Events: []cel.EventInfo{
-			{LogID: 1, Timestamp: 1000, Severity: 1},
-			{LogID: 2, Timestamp: 2000, Severity: 2},
+			{LogID: 1, Timestamp: 1000},
+			{LogID: 2, Timestamp: 2000},
 		},
 		Revisions: []cel.RevisionInfo{
-			{LogID: 3, ChangedTime: 2500, Severity: 2},
+			{LogID: 3, ChangedTime: 2500},
 		},
 	}
 
@@ -79,7 +80,7 @@ func setupSearchTimelinesTestWorkbench() *Workbench {
 		Name:         "pod-b",
 		TimelineType: "Pod",
 		Events: []cel.EventInfo{
-			{LogID: 4, Timestamp: 3000, Severity: 1},
+			{LogID: 4, Timestamp: 3000},
 		},
 	}
 
@@ -90,7 +91,11 @@ func setupSearchTimelinesTestWorkbench() *Workbench {
 		Name:         "container-a1",
 		TimelineType: "Container",
 		Events: []cel.EventInfo{
-			{LogID: 5, Timestamp: 4000, Severity: 3},
+			{LogID: 5, Timestamp: 4000},
+		},
+		// The revision has no linked log, so it adds no severity count.
+		Revisions: []cel.RevisionInfo{
+			{LogID: 0, ChangedTime: 4500},
 		},
 	}
 
@@ -100,8 +105,12 @@ func setupSearchTimelinesTestWorkbench() *Workbench {
 		ChildrenIDs:  nil,
 		Name:         "container-b1",
 		TimelineType: "Container",
+		// The event and the revision link to the same log, so its severity is counted once.
+		Events: []cel.EventInfo{
+			{LogID: 6, Timestamp: 5000},
+		},
 		Revisions: []cel.RevisionInfo{
-			{LogID: 6, ChangedTime: 5000, Severity: 3},
+			{LogID: 6, ChangedTime: 5000},
 		},
 	}
 
@@ -113,6 +122,7 @@ func setupSearchTimelinesTestWorkbench() *Workbench {
 	wb.searchIndex.TimelineMap[5] = tl5
 
 	wb.styleChunk = &khifilev6.TimelineStyleChunk{
+		Severities: []*khifilev6.Severity{testSeverityInfo, testSeverityWarning, testSeverityError},
 		TimelineTypes: []*khifilev6.TimelineType{
 			{Label: proto.String("Namespace"), Description: proto.String("Kubernetes namespace")},
 			{Label: proto.String("Pod"), Description: proto.String("Kubernetes pod")},
@@ -154,66 +164,76 @@ func TestSearchTimelines(t *testing.T) {
 			},
 			wantNodes: []TimelineTreeNode{
 				{
-					ID:              1,
-					Depth:           0,
-					Type:            "Namespace",
-					Name:            "ns-1",
-					EventCount:      0,
-					RevisionCount:   0,
-					WarnCount:       2,
-					ErrCount:        2,
+					ID:            1,
+					Depth:         0,
+					Type:          "Namespace",
+					Name:          "ns-1",
+					EventCount:    0,
+					RevisionCount: 0,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 2},
+						{Severity: testSeverityWarning, Count: 2},
+						{Severity: testSeverityInfo, Count: 2},
+					},
 					OmittedChildren: 0,
 					FirstMatchTime:  time.Time{},
 					LastMatchTime:   time.Time{},
 				},
 				{
-					ID:              2,
-					Depth:           1,
-					Type:            "Pod",
-					Name:            "pod-a",
-					EventCount:      2,
-					RevisionCount:   1,
-					WarnCount:       2,
-					ErrCount:        1,
+					ID:            2,
+					Depth:         1,
+					Type:          "Pod",
+					Name:          "pod-a",
+					EventCount:    2,
+					RevisionCount: 1,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+						{Severity: testSeverityWarning, Count: 2},
+						{Severity: testSeverityInfo, Count: 1},
+					},
 					OmittedChildren: 0,
 					FirstMatchTime:  time.Unix(0, 1000).UTC(),
 					LastMatchTime:   time.Unix(0, 2500).UTC(),
 				},
 				{
-					ID:              4,
-					Depth:           2,
-					Type:            "Container",
-					Name:            "container-a1",
-					EventCount:      1,
-					RevisionCount:   0,
-					WarnCount:       0,
-					ErrCount:        1,
+					ID:            4,
+					Depth:         2,
+					Type:          "Container",
+					Name:          "container-a1",
+					EventCount:    1,
+					RevisionCount: 1,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+					},
 					OmittedChildren: 0,
 					FirstMatchTime:  time.Unix(0, 4000).UTC(),
-					LastMatchTime:   time.Unix(0, 4000).UTC(),
+					LastMatchTime:   time.Unix(0, 4500).UTC(),
 				},
 				{
-					ID:              3,
-					Depth:           1,
-					Type:            "Pod",
-					Name:            "pod-b",
-					EventCount:      1,
-					RevisionCount:   0,
-					WarnCount:       0,
-					ErrCount:        1,
+					ID:            3,
+					Depth:         1,
+					Type:          "Pod",
+					Name:          "pod-b",
+					EventCount:    1,
+					RevisionCount: 0,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+						{Severity: testSeverityInfo, Count: 1},
+					},
 					OmittedChildren: 0,
 					FirstMatchTime:  time.Unix(0, 3000).UTC(),
 					LastMatchTime:   time.Unix(0, 3000).UTC(),
 				},
 				{
-					ID:              5,
-					Depth:           2,
-					Type:            "Container",
-					Name:            "container-b1",
-					EventCount:      0,
-					RevisionCount:   1,
-					WarnCount:       0,
-					ErrCount:        1,
+					ID:            5,
+					Depth:         2,
+					Type:          "Container",
+					Name:          "container-b1",
+					EventCount:    1,
+					RevisionCount: 1,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+					},
 					OmittedChildren: 0,
 					FirstMatchTime:  time.Unix(0, 5000).UTC(),
 					LastMatchTime:   time.Unix(0, 5000).UTC(),
@@ -235,40 +255,48 @@ func TestSearchTimelines(t *testing.T) {
 			},
 			wantNodes: []TimelineTreeNode{
 				{
-					ID:              1,
-					Depth:           0,
-					Type:            "Namespace",
-					Name:            "ns-1",
-					EventCount:      0,
-					RevisionCount:   0,
-					WarnCount:       2,
-					ErrCount:        2,
+					ID:            1,
+					Depth:         0,
+					Type:          "Namespace",
+					Name:          "ns-1",
+					EventCount:    0,
+					RevisionCount: 0,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 2},
+						{Severity: testSeverityWarning, Count: 2},
+						{Severity: testSeverityInfo, Count: 2},
+					},
 					OmittedChildren: 0,
 					FirstMatchTime:  time.Time{},
 					LastMatchTime:   time.Time{},
 				},
 				{
-					ID:              2,
-					Depth:           1,
-					Type:            "Pod",
-					Name:            "pod-a",
-					EventCount:      2,
-					RevisionCount:   1,
-					WarnCount:       2,
-					ErrCount:        1,
+					ID:            2,
+					Depth:         1,
+					Type:          "Pod",
+					Name:          "pod-a",
+					EventCount:    2,
+					RevisionCount: 1,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+						{Severity: testSeverityWarning, Count: 2},
+						{Severity: testSeverityInfo, Count: 1},
+					},
 					OmittedChildren: 1,
 					FirstMatchTime:  time.Unix(0, 1000).UTC(),
 					LastMatchTime:   time.Unix(0, 2500).UTC(),
 				},
 				{
-					ID:              3,
-					Depth:           1,
-					Type:            "Pod",
-					Name:            "pod-b",
-					EventCount:      1,
-					RevisionCount:   0,
-					WarnCount:       0,
-					ErrCount:        1,
+					ID:            3,
+					Depth:         1,
+					Type:          "Pod",
+					Name:          "pod-b",
+					EventCount:    1,
+					RevisionCount: 0,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+						{Severity: testSeverityInfo, Count: 1},
+					},
 					OmittedChildren: 1,
 					FirstMatchTime:  time.Unix(0, 3000).UTC(),
 					LastMatchTime:   time.Unix(0, 3000).UTC(),
@@ -290,40 +318,48 @@ func TestSearchTimelines(t *testing.T) {
 			},
 			wantNodes: []TimelineTreeNode{
 				{
-					ID:              1,
-					Depth:           0,
-					Type:            "Namespace",
-					Name:            "ns-1",
-					EventCount:      0,
-					RevisionCount:   0,
-					WarnCount:       2,
-					ErrCount:        2,
+					ID:            1,
+					Depth:         0,
+					Type:          "Namespace",
+					Name:          "ns-1",
+					EventCount:    0,
+					RevisionCount: 0,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 2},
+						{Severity: testSeverityWarning, Count: 2},
+						{Severity: testSeverityInfo, Count: 2},
+					},
 					OmittedChildren: 0,
 					FirstMatchTime:  time.Time{},
 					LastMatchTime:   time.Time{},
 				},
 				{
-					ID:              2,
-					Depth:           1,
-					Type:            "Pod",
-					Name:            "pod-a",
-					EventCount:      2,
-					RevisionCount:   1,
-					WarnCount:       2,
-					ErrCount:        1,
+					ID:            2,
+					Depth:         1,
+					Type:          "Pod",
+					Name:          "pod-a",
+					EventCount:    2,
+					RevisionCount: 1,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+						{Severity: testSeverityWarning, Count: 2},
+						{Severity: testSeverityInfo, Count: 1},
+					},
 					OmittedChildren: 1,
 					FirstMatchTime:  time.Unix(0, 1000).UTC(),
 					LastMatchTime:   time.Unix(0, 2500).UTC(),
 				},
 				{
-					ID:              3,
-					Depth:           1,
-					Type:            "Pod",
-					Name:            "pod-b",
-					EventCount:      1,
-					RevisionCount:   0,
-					WarnCount:       0,
-					ErrCount:        1,
+					ID:            3,
+					Depth:         1,
+					Type:          "Pod",
+					Name:          "pod-b",
+					EventCount:    1,
+					RevisionCount: 0,
+					SeverityCounts: []SeverityCount{
+						{Severity: testSeverityError, Count: 1},
+						{Severity: testSeverityInfo, Count: 1},
+					},
 					OmittedChildren: 1,
 					FirstMatchTime:  time.Unix(0, 3000).UTC(),
 					LastMatchTime:   time.Unix(0, 3000).UTC(),
@@ -404,7 +440,7 @@ func TestSearchTimelines(t *testing.T) {
 				}
 			}
 			if tc.wantNodes != nil {
-				if diff := cmp.Diff(tc.wantNodes, got.Nodes); diff != "" {
+				if diff := cmp.Diff(tc.wantNodes, got.Nodes, protocmp.Transform()); diff != "" {
 					t.Errorf("SearchTimelines() Nodes mismatch (-want +got):\n%s", diff)
 				}
 			}

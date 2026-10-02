@@ -372,7 +372,6 @@ func (w *Workbench) indexTimelinesParallel(
 							events = append(events, cel.EventInfo{
 								LogID:     logID,
 								Timestamp: getLogTimestamp(logID),
-								Severity:  sev,
 							})
 						}
 						slices.SortFunc(events, func(a, b cel.EventInfo) int {
@@ -404,7 +403,6 @@ func (w *Workbench) indexTimelinesParallel(
 								Verb:                 verb,
 								State:                state,
 								ResourceBodyStructID: rev.resourceBodyStructID,
-								Severity:             sev,
 							})
 						}
 						slices.SortFunc(revisions, func(a, b cel.RevisionInfo) int {
