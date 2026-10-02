@@ -29,7 +29,7 @@ import (
 // SearchTimelinesInput defines the input parameters for the search_timelines MCP tool.
 type SearchTimelinesInput struct {
 	InspectionID string           `json:"inspectionId" jsonschema:"The target inspection ID."`
-	Filter       workbench.Filter `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters."`
+	Filter       workbench.Filter `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters. excludeTimelinesWithoutLogs defaults to true when logQuery is non-empty and false otherwise."`
 	MaxDepth     int              `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
 	MaxNodes     int              `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline nodes to return (default 200)."`
 }
@@ -37,7 +37,7 @@ type SearchTimelinesInput struct {
 // SearchLogsInput defines the input parameters for the search_logs MCP tool.
 type SearchLogsInput struct {
 	InspectionID  string           `json:"inspectionId" jsonschema:"The target inspection ID."`
-	Filter        workbench.Filter `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters."`
+	Filter        workbench.Filter `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters. excludeTimelinesWithoutLogs defaults to true when logQuery is non-empty and false otherwise."`
 	MaxTimelines  int              `json:"maxTimelines,omitempty" jsonschema:"Maximum number of linked timelines to return (default 20)."`
 	MaxSampleLogs int              `json:"maxSampleLogs,omitempty" jsonschema:"Maximum number of evenly spaced sample logs to return (default 20)."`
 }
