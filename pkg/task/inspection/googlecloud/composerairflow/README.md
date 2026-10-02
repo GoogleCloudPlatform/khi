@@ -13,9 +13,9 @@ The Composer inspection pipeline can be divided into four main phases:
 
 ### 1. Discovery & Inputs
 
-- **`AutocompleteComposerEnvironmentIdentityTask`**: Suggests available Composer environments.
-- **`AutocompleteLocationForComposerEnvironmentTask`**: Suggests the location of the selected environment.
-- **`InputComposerEnvironmentNameTask`**: Captures the user-selected environment name.
+- **`autocompleteComposerEnvironmentIdentityTask`**: Suggests available Composer environments.
+- **`autocompleteLocationForComposerEnvironmentTask`**: Suggests the location of the selected environment.
+- **`inputComposerEnvironmentNameTask`**: Captures the user-selected environment name.
 - **`AutocompleteComposerComponentsTask`**: Queries Cloud Monitoring (`logging.googleapis.com/log_entry_count`) to dynamically suggest available Airflow components (e.g. `scheduler`, `worker`, `dag-processor-manager`, `webserver`, etc.).
 - **`InputComposerComponentsTask`**: Captures the user-selected components to inspect.
 
@@ -62,9 +62,9 @@ graph TD
     ClusterIdentity[ClusterIdentityTask]:::pipeline
 
     %% Composer Discovery & Input
-    EnvIdentityAuto[AutocompleteComposerEnvironmentIdentityTask]:::pipeline
-    LocationAuto[AutocompleteLocationForComposerEnvironmentTask]:::pipeline
-    EnvInput[InputComposerEnvironmentNameTask]:::input
+    EnvIdentityAuto[autocompleteComposerEnvironmentIdentityTask]:::pipeline
+    LocationAuto[autocompleteLocationForComposerEnvironmentTask]:::pipeline
+    EnvInput[inputComposerEnvironmentNameTask]:::input
     CompAuto[AutocompleteComposerComponentsTask]:::pipeline
     CompInput[InputComposerComponentsTask]:::input
 

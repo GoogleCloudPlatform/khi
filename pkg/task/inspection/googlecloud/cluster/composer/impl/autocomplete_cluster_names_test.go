@@ -172,7 +172,7 @@ Note: Composer 3 is not running on your GKE cluster. Please remove all Kubernete
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
-			mockComposerClusterFinderInput := tasktest.NewTaskDependencyValuePair[composercluster.ComposerEnvironmentClusterFinder](
+			mockComposerClusterFinderInput := tasktest.Given[composercluster.ComposerEnvironmentClusterFinder](
 				composercluster.ComposerEnvironmentClusterFinderTaskID.Ref(),
 				&mockComposerClusterFinder{
 					clusterMapping: tc.clusterMapping,
@@ -181,18 +181,20 @@ Note: Composer 3 is not running on your GKE cluster. Please remove all Kubernete
 			)
 
 			for i := 0; i < len(tc.projectIDs); i++ {
-				projectIDInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputProjectIdTaskID.Ref(), tc.projectIDs[i])
-				environmentNameInput := tasktest.NewTaskDependencyValuePair(composercluster.InputComposerEnvironmentNameTaskID.Ref(), tc.environments[i])
-				locationInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputLocationsTaskID.Ref(), tc.locations[i])
-				startTimeInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), time.Unix(1700000000, 0))
-				endTimeInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), time.Unix(1700003600, 0))
-				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteComposerClusterNamesTask, inspectioncore.TaskModeDryRun, map[string]any{}, projectIDInput, environmentNameInput, locationInput, startTimeInput, endTimeInput, mockComposerClusterFinderInput)
+				result, _, err := inspectiontest.Run(t, ctx, autocompleteComposerClusterNamesTask, inspectioncore.TaskModeDryRun, map[string]any{},
+					tasktest.Given(gcpcommon.InputProjectIdTaskID.Ref(), tc.projectIDs[i]),
+					tasktest.Given(composercluster.InputComposerEnvironmentNameTaskID.Ref(), tc.environments[i]),
+					tasktest.Given(gcpcommon.InputLocationsTaskID.Ref(), tc.locations[i]),
+					tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), time.Unix(1700000000, 0)),
+					tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), time.Unix(1700003600, 0)),
+					mockComposerClusterFinderInput,
+				)
 				if err != nil {
 					t.Fatalf("failed to run inspection task in loop %d: %v", i, err)
 				}
 
 				if diff := cmp.Diff(tc.want[i], result); diff != "" {
-					t.Errorf("result of AutocompleteComposerClusterNamesTask mismatch (-want +got):\n%s", diff)
+					t.Errorf("autocompleteComposerClusterNamesTask mismatch (-want +got):\n%s", diff)
 				}
 			}
 		})

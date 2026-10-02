@@ -25,28 +25,38 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
-// InputComposerEnvironmentNameTask is the task that inputs composer environment name.
-var InputComposerEnvironmentNameTask = formtask.NewTextFormTaskBuilder(composercluster.InputComposerEnvironmentNameTaskID, gcpcommon.PriorityForResourceIdentifierGroup+4400, "Composer Environment Name").WithDependencies(
-	[]coretask.Dependency{composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref()},
-).WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-	environments := coretask.GetTaskResult(ctx, composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref())
-	if len(previousValues) > 0 && slices.ContainsFunc(environments.Values, func(env composercluster.ComposerEnvironmentIdentity) bool {
-		return env.EnvironmentName == previousValues[0]
-	}) {
-		return previousValues[0], nil
-	}
-	if len(environments.Values) == 0 {
-		return "", nil
-	}
-	return environments.Values[0].EnvironmentName, nil
-}).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-	environments := coretask.GetTaskResult(ctx, composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref())
-	if environments.Error != "" {
-		return []string{}, nil
-	}
-	environmentNames := make([]string, len(environments.Values))
-	for i, env := range environments.Values {
-		environmentNames[i] = env.EnvironmentName
-	}
-	return common.SortForAutocomplete(value, environmentNames), nil
-}).Build()
+// inputComposerEnvironmentNameTask inputs the composer environment name.
+var inputComposerEnvironmentNameTask = formtask.DefineTextForm(
+	composercluster.InputComposerEnvironmentNameTaskID,
+	gcpcommon.PriorityForResourceIdentifierGroup+4400,
+	"Composer Environment Name",
+	"",
+	func(b *coretask.Binder) formtask.TextFormSpec[string] {
+		environmentsInput := coretask.Use(b, composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref())
+		return formtask.TextFormSpec[string]{
+			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
+				environments := environmentsInput.Get(ctx)
+				if len(previousValues) > 0 && slices.ContainsFunc(environments.Values, func(env composercluster.ComposerEnvironmentIdentity) bool {
+					return env.EnvironmentName == previousValues[0]
+				}) {
+					return previousValues[0], nil
+				}
+				if len(environments.Values) == 0 {
+					return "", nil
+				}
+				return environments.Values[0].EnvironmentName, nil
+			},
+			Suggestions: func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+				environments := environmentsInput.Get(ctx)
+				if environments.Error != "" {
+					return []string{}, nil
+				}
+				environmentNames := make([]string, len(environments.Values))
+				for i, env := range environments.Values {
+					environmentNames[i] = env.EnvironmentName
+				}
+				return common.SortForAutocomplete(value, environmentNames), nil
+			},
+		}
+	},
+)

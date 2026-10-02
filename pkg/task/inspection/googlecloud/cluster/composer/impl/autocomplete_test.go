@@ -119,15 +119,14 @@ func TestAutocompleteComposerEnvironmentIdentityTask(t *testing.T) {
 	startTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 
-	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-	inspectionTask := AutocompleteComposerEnvironmentIdentityTask
+	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
-	result, _, err := inspectiontest.RunInspectionTask(ctx, inspectionTask, inspectioncore.TaskModeDryRun, nil,
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputProjectIdTaskID.Ref(), "test-project"),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), factory),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), injector),
+	result, _, err := inspectiontest.Run(t, ctx, autocompleteComposerEnvironmentIdentityTask, inspectioncore.TaskModeDryRun, nil,
+		tasktest.Given(gcpcommon.InputProjectIdTaskID.Ref(), "test-project"),
+		tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.Given(gcpcommon.APIClientFactoryTaskID.Ref(), factory),
+		tasktest.Given(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), injector),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -248,18 +247,18 @@ func TestAutocompleteLocationForComposerEnvironmentTask(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
-			projectIDInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputProjectIdTaskID.Ref(), tc.projectID)
-			envNameInput := tasktest.NewTaskDependencyValuePair(composercluster.InputComposerEnvironmentNameTaskID.Ref(), tc.envName)
-			startTimeInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), time.Now())
-			endTimeInput := tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), time.Now())
-			identitiesInput := tasktest.NewTaskDependencyValuePair(composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref(), tc.input)
-
-			result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteLocationForComposerEnvironmentTask, inspectioncore.TaskModeDryRun, map[string]any{}, projectIDInput, envNameInput, startTimeInput, endTimeInput, identitiesInput)
+			result, _, err := inspectiontest.Run(t, ctx, autocompleteLocationForComposerEnvironmentTask, inspectioncore.TaskModeDryRun, map[string]any{},
+				tasktest.Given(gcpcommon.InputProjectIdTaskID.Ref(), tc.projectID),
+				tasktest.Given(composercluster.InputComposerEnvironmentNameTaskID.Ref(), tc.envName),
+				tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), time.Now()),
+				tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), time.Now()),
+				tasktest.Given(composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref(), tc.input),
+			)
 			if err != nil {
 				t.Fatalf("failed to run inspection task: %v", err)
 			}
 
-			// Sort values for deterministic comparison because map iteration is random
+			// Sort values for deterministic comparison because map iteration is random.
 			if len(result.Values) > 0 {
 				sort.Strings(result.Values)
 			}
@@ -268,7 +267,7 @@ func TestAutocompleteLocationForComposerEnvironmentTask(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.want, result); diff != "" {
-				t.Errorf("result of AutocompleteLocationForComposerEnvironmentTask mismatch (-want +got):\n%s", diff)
+				t.Errorf("autocompleteLocationForComposerEnvironmentTask mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
