@@ -92,7 +92,7 @@ protoPayload.resourceName:"test-cluster"`,
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			sq := GenerateOnPremAPIStructuredQuery(tc.cluster)
+			sq := generateOnPremAPIStructuredQuery(tc.cluster)
 			gotQuery := sq.GenerateCloudLoggingQuery()
 			if diff := cmp.Diff(tc.wantQuery, gotQuery); diff != "" {
 				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
@@ -132,7 +132,7 @@ func TestGenerateOnPremAPIStructuredQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			query := GenerateOnPremAPIStructuredQuery(tc.cluster).GenerateCloudLoggingQuery()
+			query := generateOnPremAPIStructuredQuery(tc.cluster).GenerateCloudLoggingQuery()
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("%s", err.Error())
@@ -159,12 +159,15 @@ func TestListLogEntriesTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
-		tasktest.NewTaskDependencyValuePair(onpremapiaudit.ClusterIdentityTaskID.Ref(), cluster),
+	gotLogs, _, err := inspectiontest.Run(t, ctx, listLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
+		tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.Given(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		// Dry run records the query without fetching logs.
+		tasktest.Given[gcpcommon.LogFetcher](gcpcommon.LoggingFetcherTaskID.Ref(), nil),
+		tasktest.Given(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.Given(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+		tasktest.Given(onpremapiaudit.ClusterIdentityTaskID.Ref(), cluster),
 	)
 	if err != nil {
 		t.Fatalf("dry run returned unexpected error: %v", err)
