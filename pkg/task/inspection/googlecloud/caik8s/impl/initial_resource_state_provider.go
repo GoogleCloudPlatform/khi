@@ -56,9 +56,9 @@ func initialResourceStateKey(identity *k8saudit.ResourceIdentity) string {
 	return clusterScoped.String()
 }
 
-// ClusterResourceInitialStateProviderTask supplies the audit log parser with the resource manifests CAI
+// clusterResourceInitialStateProviderTask supplies the audit log parser with the resource manifests CAI
 // observed before the inspection window.
-var ClusterResourceInitialStateProviderTask = gcpcommon.NewCAIInitialResourceStateProviderTask(
+var clusterResourceInitialStateProviderTask = gcpcommon.DefineCAIInitialResourceStateProviderTask(
 	taskid.NewImplementationID(k8saudit.InitialResourceStateProviderRef, "cai"),
 	caik8s.ClusterResourceTaskIDs,
 	extractK8sIdentity,

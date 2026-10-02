@@ -21,7 +21,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -364,19 +363,17 @@ func TestMapGKEResourceInitialRevision(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref(), clusterIdentity)
 			clusterLogs := []*log.Log{clusterInitialLog}
 			if tc.omitClusterLogs {
 				clusterLogs = []*log.Log{}
 			}
-			ctx = tasktest.WithTaskResult(ctx, caik8s.GKEResourceTaskIDs.RawLog.Ref(), clusterLogs)
 
 			identity, ok := extractGKEIdentity(tc.inputLog.NodeReader)
 			if !ok {
 				t.Fatal("extractGKEIdentity() = false, want true")
 			}
 
-			spec, skip, err := mapGKEResourceInitialRevision(ctx, tc.inputLog, identity, tc.observedTime)
+			spec, skip, err := mapGKEResourceInitialRevision(ctx, tc.inputLog, clusterIdentity, clusterLogs, identity, tc.observedTime)
 			if err != nil {
 				t.Fatalf("mapGKEResourceInitialRevision() unexpected error: %v", err)
 			}

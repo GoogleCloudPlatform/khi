@@ -120,8 +120,8 @@ func TestClusterResourceSuite_LogIngesterTask(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
-	_, _, err := inspectiontest.RunInspectionTask(ctx, ClusterResourceSuite.LogIngesterTask, inspectioncore.TaskModeRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(caik8s.ClusterResourceTaskIDs.RawLog.Ref(), []*log.Log{resourceDataLog, noResourceDataLog}),
+	_, _, err := inspectiontest.Run(t, ctx, clusterResourceSuite.LogIngesterTask, inspectioncore.TaskModeRun, map[string]any{},
+		tasktest.Given(caik8s.ClusterResourceTaskIDs.RawLog.Ref(), []*log.Log{resourceDataLog, noResourceDataLog}),
 	)
 	if err != nil {
 		t.Fatalf("LogIngesterTask failed: %v", err)
@@ -362,8 +362,8 @@ func TestClusterResourceSuite_RawLogTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, ClusterResourceSuite.RawLogTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(caik8s.ClusterResourceTaskIDs.Fetcher.Ref(), tc.snapshots),
+			got, _, err := inspectiontest.Run(t, ctx, clusterResourceSuite.RawLogTask, tc.taskMode, map[string]any{},
+				tasktest.Given(caik8s.ClusterResourceTaskIDs.Fetcher.Ref(), tc.snapshots),
 			)
 			if err != nil {
 				t.Fatalf("RawLogTask failed: %v", err)
@@ -476,8 +476,8 @@ func TestClusterResourceSuite_LogGrouperTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			groups, _, err := inspectiontest.RunInspectionTask(ctx, ClusterResourceSuite.LogGrouperTask, inspectioncore.TaskModeRun, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(caik8s.ClusterResourceTaskIDs.RawLog.Ref(), tc.inputLogs),
+			groups, _, err := inspectiontest.Run(t, ctx, clusterResourceSuite.LogGrouperTask, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.Given(caik8s.ClusterResourceTaskIDs.RawLog.Ref(), tc.inputLogs),
 			)
 			if err != nil {
 				t.Fatalf("LogGrouperTask failed: %v", err)
@@ -568,15 +568,14 @@ func TestClusterResourceSuite_TimelineMapperTask(t *testing.T) {
 		"pod-deleted": {Group: "pod-deleted", Logs: []*log.Log{deletedLog}},
 	}
 
-	_, _, err := inspectiontest.RunInspectionTask(ctx, ClusterResourceSuite.TimelineMapperTask, inspectioncore.TaskModeRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(caik8s.ClusterResourceTaskIDs.LogGrouper.Ref(), groupMap),
-		tasktest.NewTaskDependencyValuePair(caik8s.ClusterResourceTaskIDs.LogIngester.Ref(), struct{}{}),
-		tasktest.NewTaskDependencyValuePair(k8scommon.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
+	_, _, err := inspectiontest.Run(t, ctx, clusterResourceSuite.TimelineMapperTask, inspectioncore.TaskModeRun, map[string]any{},
+		tasktest.Given(caik8s.ClusterResourceTaskIDs.LogGrouper.Ref(), groupMap),
+		tasktest.Given(k8scommon.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
 			ProjectID:   "test-project",
 			ClusterName: "test-cluster",
 			Location:    "us-central1-a",
 		}),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
+		tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
 	)
 	if err != nil {
 		t.Fatalf("TimelineMapperTask failed: %v", err)
@@ -680,8 +679,8 @@ func TestGKEResourceSuite_RawLogTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, GKEResourceSuite.RawLogTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceTaskIDs.Fetcher.Ref(), tc.snapshots),
+			got, _, err := inspectiontest.Run(t, ctx, gkeResourceSuite.RawLogTask, tc.taskMode, map[string]any{},
+				tasktest.Given(caik8s.GKEResourceTaskIDs.Fetcher.Ref(), tc.snapshots),
 			)
 			if err != nil {
 				t.Fatalf("RawLogTask error: %v", err)
@@ -747,8 +746,8 @@ func TestGKEResourceSuite_LogIngesterTask(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
-	_, _, err := inspectiontest.RunInspectionTask(ctx, GKEResourceSuite.LogIngesterTask, inspectioncore.TaskModeRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceTaskIDs.RawLog.Ref(), []*log.Log{clusterLog, nodePoolLog, unknownLog}),
+	_, _, err := inspectiontest.Run(t, ctx, gkeResourceSuite.LogIngesterTask, inspectioncore.TaskModeRun, map[string]any{},
+		tasktest.Given(caik8s.GKEResourceTaskIDs.RawLog.Ref(), []*log.Log{clusterLog, nodePoolLog, unknownLog}),
 	)
 	if err != nil {
 		t.Fatalf("LogIngesterTask failed: %v", err)
@@ -795,8 +794,8 @@ func TestGKEResourceSuite_LogGrouperTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, GKEResourceSuite.LogGrouperTask, inspectioncore.TaskModeRun, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceTaskIDs.RawLog.Ref(), tc.rawLogs),
+			got, _, err := inspectiontest.Run(t, ctx, gkeResourceSuite.LogGrouperTask, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.Given(caik8s.GKEResourceTaskIDs.RawLog.Ref(), tc.rawLogs),
 			)
 			if err != nil {
 				t.Fatalf("LogGrouperTask error: %v", err)
@@ -879,16 +878,15 @@ func TestGKEResourceSuite_TimelineMapperTask(t *testing.T) {
 		"nodepool/test-cluster/deleted-pool": {Group: "nodepool/test-cluster/deleted-pool", Logs: []*log.Log{deletedLog}},
 	}
 
-	_, _, err := inspectiontest.RunInspectionTask(ctx, GKEResourceSuite.TimelineMapperTask, inspectioncore.TaskModeRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceTaskIDs.LogGrouper.Ref(), groupMap),
-		tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceTaskIDs.LogIngester.Ref(), struct{}{}),
-		tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceTaskIDs.RawLog.Ref(), []*log.Log{clusterLog, deletedLog}),
-		tasktest.NewTaskDependencyValuePair(k8scommon.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
+	_, _, err := inspectiontest.Run(t, ctx, gkeResourceSuite.TimelineMapperTask, inspectioncore.TaskModeRun, map[string]any{},
+		tasktest.Given(caik8s.GKEResourceTaskIDs.LogGrouper.Ref(), groupMap),
+		tasktest.Given(caik8s.GKEResourceTaskIDs.RawLog.Ref(), []*log.Log{clusterLog, deletedLog}),
+		tasktest.Given(k8scommon.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
 			ProjectID:   "test-project",
 			ClusterName: "test-cluster",
 			Location:    "us-central1-a",
 		}),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
+		tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
 	)
 	if err != nil {
 		t.Fatalf("TimelineMapperTask failed: %v", err)

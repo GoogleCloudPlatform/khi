@@ -328,12 +328,12 @@ func TestGKEResourceSuite_FetcherTask(t *testing.T) {
 			factory := setupMockServer(t, mockServer)
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, GKEResourceSuite.FetcherTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), factory),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
-				tasktest.NewTaskDependencyValuePair(k8scommon.ClusterIdentityTaskID.Ref(), tc.cluster),
+			got, _, err := inspectiontest.Run(t, ctx, gkeResourceSuite.FetcherTask, tc.taskMode, map[string]any{},
+				tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+				tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+				tasktest.Given(gcpcommon.APIClientFactoryTaskID.Ref(), factory),
+				tasktest.Given(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+				tasktest.Given(k8scommon.ClusterIdentityTaskID.Ref(), tc.cluster),
 			)
 			if err != nil {
 				t.Fatalf("GKEResourceFetcherTask unexpected error: %v", err)

@@ -218,6 +218,11 @@ func newTestCAITaskSuiteConfig(targetTimeline *khifilev6.TimelinePath) CAITaskSu
 	taskIDs := NewCAITaskIDSet("cloud.google.com/cai/test/")
 	return CAITaskSuiteConfig[string]{
 		TaskIDs: taskIDs,
+		BindSearchTargetResolver: func(_ *coretask.Binder) CAISearchTargetResolver {
+			return func(_ context.Context) (string, CAIAssetSearchTarget, bool, error) {
+				return "", CAIAssetSearchTarget{}, true, nil
+			}
+		},
 		ExtractIdentity: func(reader *structured.NodeReader) (string, bool) {
 			name := ExtractCAIAssetName(reader)
 			return name, name != ""
@@ -231,16 +236,18 @@ func newTestCAITaskSuiteConfig(targetTimeline *khifilev6.TimelinePath) CAITaskSu
 		FormatLogSummary: func(id string) string {
 			return "summary:" + id
 		},
-		MapInitialRevision: func(_ context.Context, _ *log.Log, identity string, observedTime time.Time) (CAIInitialSnapshotRevisionSpec, bool, error) {
-			if identity == "skip-me" {
-				return CAIInitialSnapshotRevisionSpec{}, true, nil
+		BindInitialRevisionMapper: func(_ *coretask.Binder) CAIInitialRevisionMapper[string] {
+			return func(_ context.Context, _ *log.Log, identity string, observedTime time.Time) (CAIInitialSnapshotRevisionSpec, bool, error) {
+				if identity == "skip-me" {
+					return CAIInitialSnapshotRevisionSpec{}, true, nil
+				}
+				return CAIInitialSnapshotRevisionSpec{
+					TargetTimeline:    targetTimeline,
+					ObservedTime:      observedTime,
+					CreationStateType: k8saudit.RevisionStateK8sResourceExistingLogNotFound,
+					SnapshotStateType: k8saudit.RevisionStateK8sClusterExistingLogNotFound,
+				}, false, nil
 			}
-			return CAIInitialSnapshotRevisionSpec{
-				TargetTimeline:    targetTimeline,
-				ObservedTime:      observedTime,
-				CreationStateType: k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-				SnapshotStateType: k8saudit.RevisionStateK8sClusterExistingLogNotFound,
-			}, false, nil
 		},
 	}
 }
@@ -317,28 +324,30 @@ func TestCAITaskSuite_FetcherTask(t *testing.T) {
 				factory = setupMockCAIServer(t, tc.mockServer)
 			}
 			cfg := newTestCAITaskSuiteConfig(&khifilev6.TimelinePath{ID: 1})
-			cfg.ResolveSearchTarget = func(_ context.Context, _ inspectioncore.InspectionTaskModeType) (string, CAIAssetSearchTarget, bool, error) {
-				if tc.targetErr != nil {
-					return "", CAIAssetSearchTarget{}, false, tc.targetErr
+			cfg.BindSearchTargetResolver = func(_ *coretask.Binder) CAISearchTargetResolver {
+				return func(_ context.Context) (string, CAIAssetSearchTarget, bool, error) {
+					if tc.targetErr != nil {
+						return "", CAIAssetSearchTarget{}, false, tc.targetErr
+					}
+					return "p1", CAIAssetSearchTarget{
+						Scope: "projects/p1",
+						Discover: func(_ context.Context, _ CAIFetcher) ([]string, error) {
+							if tc.discoverErr != nil {
+								return nil, tc.discoverErr
+							}
+							return []string{"//compute.googleapis.com/projects/p1/zones/z/instances/i-1"}, nil
+						},
+					}, tc.skip, nil
 				}
-				return "p1", CAIAssetSearchTarget{
-					Scope: "projects/p1",
-					Discover: func(_ context.Context, _ CAIFetcher) ([]string, error) {
-						if tc.discoverErr != nil {
-							return nil, tc.discoverErr
-						}
-						return []string{"//compute.googleapis.com/projects/p1/zones/z/instances/i-1"}, nil
-					},
-				}, tc.skip, nil
 			}
-			suite := NewCAITaskSuite(cfg)
+			suite := DefineCAITaskSuite(cfg)
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			snapshots, _, err := inspectiontest.RunInspectionTask(ctx, suite.FetcherTask, tc.mode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(APIClientFactoryTaskID.Ref(), factory),
-				tasktest.NewTaskDependencyValuePair(APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
-				tasktest.NewTaskDependencyValuePair(InputStartTimeTaskID.Ref(), time.Now()),
-				tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), time.Now()),
+			snapshots, _, err := inspectiontest.Run(t, ctx, suite.FetcherTask, tc.mode, map[string]any{},
+				tasktest.Given(APIClientFactoryTaskID.Ref(), factory),
+				tasktest.Given(APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+				tasktest.Given(InputStartTimeTaskID.Ref(), time.Now()),
+				tasktest.Given(InputEndTimeTaskID.Ref(), time.Now()),
 			)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("FetcherTask error = %v, wantErr %v", err, tc.wantErr)
@@ -351,7 +360,8 @@ func TestCAITaskSuite_FetcherTask(t *testing.T) {
 }
 
 func TestCAITaskSuite_LogGrouper(t *testing.T) {
-	suite := NewCAITaskSuite(newTestCAITaskSuiteConfig(&khifilev6.TimelinePath{ID: 1}))
+	cfg := newTestCAITaskSuiteConfig(&khifilev6.TimelinePath{ID: 1})
+	suite := DefineCAITaskSuite(cfg)
 	t1 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
@@ -380,8 +390,9 @@ func TestCAITaskSuite_LogGrouper(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			logs := []*log.Log{makeCAITestLog(t, tc.assetName, t1, time.Time{}, false, "v1")}
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			grouped, _, err := inspectiontest.RunInspectionTask(ctx, suite.LogGrouperTask, inspectioncore.TaskModeRun, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(suite.LogGrouperTask.Dependencies()[0].(taskid.TaskReference[[]*log.Log]), logs))
+			grouped, _, err := inspectiontest.Run(t, ctx, suite.LogGrouperTask, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.Given(cfg.TaskIDs.RawLog.Ref(), logs),
+			)
 			if err != nil {
 				t.Fatalf("LogGrouperTask error: %v", err)
 			}
@@ -392,13 +403,8 @@ func TestCAITaskSuite_LogGrouper(t *testing.T) {
 	}
 }
 
-func TestCAITaskSuite_Ingester(t *testing.T) {
+func TestProcessCAILog(t *testing.T) {
 	cfg := newTestCAITaskSuiteConfig(&khifilev6.TimelinePath{ID: 1})
-	ingester := &caiLogIngester[string]{
-		rawLogRef:        cfg.TaskIDs.RawLog.Ref(),
-		extractIdentity:  cfg.ExtractIdentity,
-		formatLogSummary: cfg.FormatLogSummary,
-	}
 	t1 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
@@ -421,9 +427,9 @@ func TestCAITaskSuite_Ingester(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			l := makeCAITestLog(t, tc.assetName, t1, time.Time{}, false, "v1")
-			cs, err := ingester.ProcessLog(t.Context(), l)
+			cs, err := processCAILog(l, cfg.ExtractIdentity, cfg.FormatLogSummary)
 			if err != nil {
-				t.Fatalf("ProcessLog() error: %v", err)
+				t.Fatalf("processCAILog() error: %v", err)
 			}
 			testchangeset.AssertLog(t, cs).
 				HasTimestamp(t1).
@@ -434,16 +440,10 @@ func TestCAITaskSuite_Ingester(t *testing.T) {
 	}
 }
 
-func TestCAITaskSuite_Mapper(t *testing.T) {
+func TestMapCAILogToTimeline(t *testing.T) {
 	targetTimeline := &khifilev6.TimelinePath{ID: 1}
 	cfg := newTestCAITaskSuiteConfig(targetTimeline)
-	mapper := &caiTimelineMapper[string]{
-		logIngesterRef:     cfg.TaskIDs.LogIngester.Ref(),
-		groupedLogRef:      cfg.TaskIDs.LogGrouper.Ref(),
-		dependencies:       append([]coretask.Dependency{InputStartTimeTaskID.Ref()}, cfg.MapperDependencies...),
-		extractIdentity:    cfg.ExtractIdentity,
-		mapInitialRevision: cfg.MapInitialRevision,
-	}
+	mapInitialRevision := cfg.BindInitialRevisionMapper(nil)
 	queryStartTime := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	t1 := time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC)
 
@@ -506,30 +506,29 @@ func TestCAITaskSuite_Mapper(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			ctx = tasktest.WithTaskResult(ctx, InputStartTimeTaskID.Ref(), queryStartTime)
-			cs, _, err := mapper.ProcessLogByGroup(ctx, tc.log, struct{}{})
+			cs, err := mapCAILogToTimeline(ctx, tc.log, queryStartTime, cfg.ExtractIdentity, mapInitialRevision)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() error: %v", err)
+				t.Fatalf("mapCAILogToTimeline() error: %v", err)
 			}
 			if tc.wantNil {
 				if cs != nil {
-					t.Errorf("ProcessLogByGroup() = %v, want nil", cs)
+					t.Errorf("mapCAILogToTimeline() = %v, want nil", cs)
 				}
 				return
 			}
 			if cs == nil {
-				t.Fatal("ProcessLogByGroup() = nil, want non-nil changeset")
+				t.Fatal("mapCAILogToTimeline() = nil, want non-nil changeset")
 			}
 			tc.assertResult(t, cs)
 		})
 	}
 }
 
-func TestNewCAIInitialResourceStateProviderTask(t *testing.T) {
+func TestDefineCAIInitialResourceStateProviderTask(t *testing.T) {
 	taskID := taskid.NewDefaultImplementationID[[]string]("cloud.google.com/cai/test/provider")
 	suiteTaskIDs := NewCAITaskIDSet("cloud.google.com/cai/test/")
 
-	providerTask := NewCAIInitialResourceStateProviderTask[string, []string](
+	providerTask := DefineCAIInitialResourceStateProviderTask[string, []string](
 		taskID,
 		suiteTaskIDs,
 		func(reader *structured.NodeReader) (string, bool) {
@@ -574,12 +573,12 @@ func TestNewCAIInitialResourceStateProviderTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, providerTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(suiteTaskIDs.RawLog.Ref(), logs),
-				tasktest.NewTaskDependencyValuePair(InputStartTimeTaskID.Ref(), queryStartTime),
+			got, _, err := inspectiontest.Run(t, ctx, providerTask, tc.taskMode, map[string]any{},
+				tasktest.Given(suiteTaskIDs.RawLog.Ref(), logs),
+				tasktest.Given(InputStartTimeTaskID.Ref(), queryStartTime),
 			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask() error: %v", err)
+				t.Fatalf("inspectiontest.Run() error: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("provider output mismatch (-want +got):\n%s", diff)

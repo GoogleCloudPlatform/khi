@@ -68,8 +68,8 @@ func buildCAIGKEInitialResourceStateProvider(states []gcpcommon.CAIActiveAssetSt
 	}
 }
 
-// GKEResourceInitialStateProviderTask supplies initial GKE resource manifests to the audit log parser.
-var GKEResourceInitialStateProviderTask = gcpcommon.NewCAIInitialResourceStateProviderTask(
+// gkeResourceInitialStateProviderTask supplies initial GKE resource manifests to the audit log parser.
+var gkeResourceInitialStateProviderTask = gcpcommon.DefineCAIInitialResourceStateProviderTask(
 	taskid.NewImplementationID(gkeapiaudit.InitialResourceStateProviderRef, "cai"),
 	caik8s.GKEResourceTaskIDs,
 	extractGKEIdentity,
