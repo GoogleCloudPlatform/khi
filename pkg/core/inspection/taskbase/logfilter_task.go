@@ -47,62 +47,80 @@ func NewLogFilterTaskWithDependencies(tid taskid.TaskImplementationID[[]*log.Log
 		if taskMode != inspectioncore.TaskModeRun {
 			return []*log.Log{}, nil
 		}
-
-		logs := coretask.GetTaskResult(ctx, sourceLogs)
-		if len(logs) == 0 {
-			return []*log.Log{}, nil
-		}
-
-		concurrency := min(runtime.GOMAXPROCS(0), len(logs))
-		if concurrency <= 0 {
-			concurrency = 1
-		}
-
-		workerResults := make([][]*log.Log, concurrency)
-
-		tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
-		defer tracker.Done()
-
-		pool := worker.NewPool(concurrency)
-		for c := 0; c < concurrency; c++ {
-			c := c
-			pool.Run(func() {
-				start := c * len(logs) / concurrency
-				end := (c + 1) * len(logs) / concurrency
-				var workerFiltered []*log.Log
-				for i := start; i < end; i++ {
-					if ctx.Err() != nil {
-						return
-					}
-					if logFilter(ctx, logs[i]) {
-						workerFiltered = append(workerFiltered, logs[i])
-					}
-					tracker.Inc()
-				}
-				workerResults[c] = workerFiltered
-			})
-		}
-		pool.Wait()
-
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-
-		totalCount := 0
-		for _, wr := range workerResults {
-			totalCount += len(wr)
-		}
-		filteredLogs := make([]*log.Log, 0, totalCount)
-		for _, wr := range workerResults {
-			filteredLogs = append(filteredLogs, wr...)
-		}
-
-		tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
-		if tracingActive {
-			trace.SpanFromContext(ctx).SetAttributes(
-				attribute.String("log_count", fmt.Sprintf("%d -> %d", len(logs), len(filteredLogs))),
-			)
-		}
-		return filteredLogs, nil
+		return filterLogs(ctx, coretask.GetTaskResult(ctx, sourceLogs), logFilter)
 	})
+}
+
+// DefineLogFilterTask creates a task that returns only the logs provided by sourceLogs that the filter function returned by bind keeps.
+// bind declares the additional inputs the filter reads, and the task declares sourceLogs itself.
+func DefineLogFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], sourceLogs taskid.TaskReference[[]*log.Log], bind func(b *coretask.Binder) LogFilterFunc) coretask.DefinedTask[[]*log.Log] {
+	return DefineInspectionTask(taskID, func(b *coretask.Binder) InspectionTaskFunc[[]*log.Log] {
+		logs := coretask.Use(b, sourceLogs)
+		logFilter := bind(b)
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*log.Log, error) {
+			if taskMode != inspectioncore.TaskModeRun {
+				return []*log.Log{}, nil
+			}
+			return filterLogs(ctx, logs.Get(ctx), logFilter)
+		}
+	})
+}
+
+// filterLogs returns the logs that logFilter keeps in their original order, evaluating logFilter in parallel.
+func filterLogs(ctx context.Context, logs []*log.Log, logFilter LogFilterFunc) ([]*log.Log, error) {
+	if len(logs) == 0 {
+		return []*log.Log{}, nil
+	}
+
+	concurrency := min(runtime.GOMAXPROCS(0), len(logs))
+	if concurrency <= 0 {
+		concurrency = 1
+	}
+
+	workerResults := make([][]*log.Log, concurrency)
+
+	tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
+	defer tracker.Done()
+
+	pool := worker.NewPool(concurrency)
+	for c := 0; c < concurrency; c++ {
+		c := c
+		pool.Run(func() {
+			start := c * len(logs) / concurrency
+			end := (c + 1) * len(logs) / concurrency
+			var workerFiltered []*log.Log
+			for i := start; i < end; i++ {
+				if ctx.Err() != nil {
+					return
+				}
+				if logFilter(ctx, logs[i]) {
+					workerFiltered = append(workerFiltered, logs[i])
+				}
+				tracker.Inc()
+			}
+			workerResults[c] = workerFiltered
+		})
+	}
+	pool.Wait()
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	totalCount := 0
+	for _, wr := range workerResults {
+		totalCount += len(wr)
+	}
+	filteredLogs := make([]*log.Log, 0, totalCount)
+	for _, wr := range workerResults {
+		filteredLogs = append(filteredLogs, wr...)
+	}
+
+	tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
+	if tracingActive {
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("log_count", fmt.Sprintf("%d -> %d", len(logs), len(filteredLogs))),
+		)
+	}
+	return filteredLogs, nil
 }

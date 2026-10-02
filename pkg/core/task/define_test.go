@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	"github.com/google/go-cmp/cmp"
@@ -183,4 +184,60 @@ func TestDefine_RunsAlongsideLegacyTasks(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDefineTailTask(t *testing.T) {
+	t.Run("declares dependencies and preserves descriptors", func(t *testing.T) {
+		taskID := taskid.NewDefaultImplementationID[struct{}]("tail-test.task")
+		deps := []Dependency{
+			taskid.NewTaskReference[string]("tail-test.a"),
+			taskid.NewTaskReference[int]("tail-test.b", taskid.ScopeActiveGraph),
+			NewTag[string]("tail-test-tag").Ref(),
+		}
+		testLabelKey := typedmap.NewTypedKey[string]("tail-test-label")
+		task := DefineTailTask(taskID, deps, labelOptFunc(func(labels *typedmap.TypedMap) {
+			typedmap.Set(labels, testLabelKey, "tail-label-val")
+		}))
+
+		wantInputs := []string{
+			"ordering ref:tail-test.a",
+			"ordering ref:tail-test.b",
+			"ordering tag:tail-test-tag",
+		}
+		if diff := cmp.Diff(wantInputs, describeInputSpecs(task.Inputs())); diff != "" {
+			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+		}
+
+		if got := task.Dependencies()[1].DescriptorScope(); got != taskid.ScopeActiveGraph {
+			t.Errorf("task.Dependencies()[1].DescriptorScope() = %v, want %v", got, taskid.ScopeActiveGraph)
+		}
+
+		val, ok := typedmap.Get(task.Labels(), testLabelKey)
+		if !ok {
+			t.Errorf("expected label to be present")
+		} else if val != "tail-label-val" {
+			t.Errorf("label value = %q, want %q", val, "tail-label-val")
+		}
+
+		ctx := khictx.WithValue[taskid.UntypedTaskImplementationID](context.Background(), core_contract.TaskImplementationIDContextKey, taskID)
+		got, err := task.Run(ctx)
+		if err != nil {
+			t.Fatalf("task.Run() returned unexpected error: %v", err)
+		}
+		if got != (struct{}{}) {
+			t.Errorf("task.Run() = %v, want %v", got, struct{}{})
+		}
+	})
+
+	t.Run("panics on duplicate dependencies", func(t *testing.T) {
+		taskID := taskid.NewDefaultImplementationID[struct{}]("tail-test.dup-task")
+		dupRef := taskid.NewTaskReference[string]("tail-test.dup")
+		gotPanic := panicMessage(func() {
+			DefineTailTask(taskID, []Dependency{dupRef, dupRef})
+		})
+		wantSubstring := "declares input ref:tail-test.dup twice"
+		if !strings.Contains(gotPanic, wantSubstring) {
+			t.Errorf("DefineTailTask() panic = %q, want substring %q", gotPanic, wantSubstring)
+		}
+	})
 }

@@ -20,87 +20,46 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
-// AirflowSchedulerLogGrouperTask groups Airflow scheduler logs.
-var AirflowSchedulerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+// airflowSchedulerLogGrouperTask groups Airflow scheduler logs.
+var airflowSchedulerLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	composerairflow.AirflowSchedulerLogGrouperTaskID,
 	composerairflow.AirflowSchedulerLogFilterTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		return ""
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			return ""
+		}
 	},
 )
 
-type schedulerLogIngester struct{}
-
-// RawLogTask returns the task reference that provides the raw logs to ingest.
-func (i *schedulerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return composerairflow.AirflowSchedulerLogFilterTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies of the ingester.
-func (i *schedulerLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// ProcessLog is called for each log entry to customize log metadata (summary, severity, timestamp, etc.).
-func (i *schedulerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-	cs, err := khifilev6.NewLogChangeSet(l)
-	if err != nil {
-		return nil, err
-	}
-	cs.SetLogType(composerairflow.LogTypeManagedAirflowEnvironment)
-	cs.SetTimestamp(l.Timestamp)
-
-	if severity, err := gcpcommon.ExtractGCPSeverity(l.NodeReader); err == nil {
-		cs.SetSeverity(severity)
-	}
-
-	if message, err := gcpcommon.ExtractGCPMainMessage(l.NodeReader); err == nil {
-		cs.SetSummary(message)
-	}
-
-	return cs, nil
-}
-
-var _ inspectiontaskbase.LogIngester = (*schedulerLogIngester)(nil)
-
-// AirflowSchedulerLogIngesterTask is the task that ingests Airflow scheduler logs.
-var AirflowSchedulerLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+// airflowSchedulerLogIngesterTask is the task that ingests Airflow scheduler logs.
+var airflowSchedulerLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	composerairflow.AirflowSchedulerLogIngesterTaskID,
-	&schedulerLogIngester{},
+	composerairflow.AirflowSchedulerLogFilterTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return processAirflowLog
+	},
 )
 
 type schedulerLogToTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
-}
-
-// LogIngesterTask returns a reference to the ingester task.
-func (m *schedulerLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return composerairflow.AirflowSchedulerLogIngesterTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies of the mapper.
-func (m *schedulerLogToTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		composercluster.InputComposerEnvironmentNameTaskID.Ref(),
-	}
-}
-
-// GroupedLogTask returns a reference to the task that provides the grouped logs.
-func (m *schedulerLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return composerairflow.AirflowSchedulerLogGrouperTaskID.Ref()
+	environmentName coretask.Input[string]
 }
 
 // ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
 func (m *schedulerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	environmentName := coretask.GetTaskResult(ctx, composercluster.InputComposerEnvironmentNameTaskID.Ref())
+	return mapSchedulerLog(ctx, l, m.environmentName.Get(ctx)), struct{}{}, nil
+}
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*schedulerLogToTimelineMapper)(nil)
+
+// mapSchedulerLog maps an Airflow scheduler log to timeline changes for the given environment.
+func mapSchedulerLog(ctx context.Context, l *log.Log, environmentName string) *khifilev6.TimelineChangeSet {
 	envPath := composerairflow.MustAirflowTimeline(ctx, environmentName)
 
 	schedulerField, err := composerairflow.ExtractComposer(l.NodeReader)
@@ -115,7 +74,7 @@ func (m *schedulerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 
 	tiField, err := composerairflow.ExtractComposerTaskInstance(l.NodeReader)
 	if err != nil || tiField.TaskInstance == nil {
-		return cs, struct{}{}, nil // Not an Airflow TaskInstance log
+		return cs // Not an Airflow TaskInstance log
 	}
 	ti := tiField.TaskInstance
 	var detail = ti.TaskId()
@@ -147,13 +106,19 @@ func (m *schedulerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 		cs.AddEvent(workerTimelinePath)
 	}
 
-	return cs, struct{}{}, nil
+	return cs
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*schedulerLogToTimelineMapper)(nil)
-
-// AirflowSchedulerLogToTimelineMapperTask is the task that maps Airflow scheduler logs to timeline events.
-var AirflowSchedulerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+// airflowSchedulerLogToTimelineMapperTask is the task that maps Airflow scheduler logs to timeline events.
+var airflowSchedulerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	composerairflow.AirflowSchedulerLogToTimelineMapperTaskID,
-	&schedulerLogToTimelineMapper{},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: composerairflow.AirflowSchedulerLogIngesterTaskID.Ref(),
+		GroupedLogs: composerairflow.AirflowSchedulerLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &schedulerLogToTimelineMapper{
+			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
+		}
+	},
 )
