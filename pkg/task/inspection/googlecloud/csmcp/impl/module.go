@@ -20,18 +20,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// Register registers the in-cluster CSM CP log parser tasks to the core inspection registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	scoped := coreinspection.NewScopedRegistry(
-		registry,
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{
-			inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
-			inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
-		}),
-	)
-	return coretask.RegisterTasks(scoped,
-		IstiodLogFilterTask,
-		LogGrouperTask,
-		LogToTimelineMapperTask,
-	)
+// Module declares the tasks that build pod connection timelines from in-cluster CSM control plane (Istiod) logs.
+var Module = coreinspection.Module{
+	Name: "googlecloud/csmcp",
+	Scope: coreinspection.Scope{
+		inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+	},
+	Tasks: []coretask.UntypedTask{
+		istiodLogFilterTask,
+		logGrouperTask,
+		logToTimelineMapperTask,
+	},
 }

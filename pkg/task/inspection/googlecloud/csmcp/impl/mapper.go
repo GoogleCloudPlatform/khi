@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
@@ -36,50 +35,45 @@ var (
 	pathPodName       = structured.CompileFieldPath("resource.labels.pod_name")
 )
 
-// IstiodLogFilterTask filters container logs to Istiod discovery logs.
-var IstiodLogFilterTask = inspectiontaskbase.NewLogFilterTask(
+// istiodLogFilterTask filters container logs to Istiod discovery logs.
+var istiodLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	csmcp.IstiodLogFilterTaskID,
 	k8scontainer.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) bool {
-		return l.NodeReader.ReadStringOrDefault(pathContainerName, "") == "discovery" &&
-			strings.Contains(l.NodeReader.ReadStringOrDefault(pathPodName, ""), "istiod")
+	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		return func(ctx context.Context, l *log.Log) bool {
+			return l.NodeReader.ReadStringOrDefault(pathContainerName, "") == "discovery" &&
+				strings.Contains(l.NodeReader.ReadStringOrDefault(pathPodName, ""), "istiod")
+		}
 	},
 )
 
-// LogGrouperTask groups Istiod discovery logs by a constant key "csmcp" to process all logs in chronological order.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+// logGrouperTask groups Istiod discovery logs by a constant key "csmcp" to process all logs in chronological order.
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	csmcp.LogGrouperTaskID,
 	csmcp.IstiodLogFilterTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		return "csmcp"
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			return "csmcp"
+		}
 	},
 )
 
+// csmcpTimelineMapper maps Istiod discovery logs to the CSM control plane timelines of the pods they mention.
 type csmcpTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*commoncsmcp.TimelineState]
-}
-
-// LogIngesterTask returns the task reference for log ingestion.
-func (m *csmcpTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8scontainer.LogIngesterTaskID.Ref()
-}
-
-// Dependencies returns dependencies needed for mapping.
-func (m *csmcpTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8scommon.ClusterIdentityTaskID.Ref(),
-	}
-}
-
-// GroupedLogTask returns the task reference for grouped logs.
-func (m *csmcpTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return csmcp.LogGrouperTaskID.Ref()
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
 }
 
 // ProcessLogByGroup maps a log entry to its corresponding timeline paths.
 func (m *csmcpTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *commoncsmcp.TimelineState) (*khifilev6.TimelineChangeSet, *commoncsmcp.TimelineState, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+	return mapCSMCPLog(ctx, l, prevGroupData, m.clusterIdentity.Get(ctx))
+}
 
+var _ inspectiontaskbase.TimelineMapper[*commoncsmcp.TimelineState] = (*csmcpTimelineMapper)(nil)
+
+// mapCSMCPLog maps an Istiod discovery log to the pod and connection timelines of the pods it mentions.
+// It uses the cluster name in the log when clusterIdentity has no cluster name.
+func mapCSMCPLog(ctx context.Context, l *log.Log, prevGroupData *commoncsmcp.TimelineState, clusterIdentity k8scommon.GoogleCloudClusterIdentity) (*khifilev6.TimelineChangeSet, *commoncsmcp.TimelineState, error) {
 	fs, err := csmcp.Extract(l.NodeReader)
 	if err != nil {
 		return nil, prevGroupData, err
@@ -112,10 +106,16 @@ func (m *csmcpTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 	return cs, nextGroupData, nil
 }
 
-// LogToTimelineMapperTask is the task that maps in-cluster Control Plane Logs to timelines.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+// logToTimelineMapperTask is the task that maps in-cluster Control Plane Logs to timelines.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	csmcp.LogToTimelineMapperTaskID,
-	&csmcpTimelineMapper{},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontainer.LogIngesterTaskID.Ref(),
+		GroupedLogs: csmcp.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*commoncsmcp.TimelineState] {
+		return &csmcpTimelineMapper{
+			clusterIdentity: coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
+		}
+	},
 )
-
-var _ inspectiontaskbase.LogToTimelineMapper[*commoncsmcp.TimelineState] = (*csmcpTimelineMapper)(nil)

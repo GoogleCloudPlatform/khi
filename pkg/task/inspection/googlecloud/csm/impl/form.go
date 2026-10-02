@@ -32,76 +32,90 @@ import (
 
 const priorityForCSMGroup = gcpcommon.FormBasePriority + 10000
 
-var InputFleetProjectIDTask = formtask.NewTextFormTaskBuilder(csm.InputFleetProjectIDTaskID, priorityForCSMGroup+500, "Fleet project ID").
-	WithDependencies([]coretask.Dependency{
-		csm.ClusterIdentityTaskID.Ref(),
-	}).
-	WithDescription("The project ID where the Fleet is hosted and CSM control plane logs are stored. Default is the cluster's project ID.").
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		if len(previousValues) > 0 {
-			return previousValues[0], nil
+// inputFleetProjectIDTask is the form task for the ID of the project that hosts the Fleet and stores CSM control plane logs.
+var inputFleetProjectIDTask = formtask.DefineTextForm(
+	csm.InputFleetProjectIDTaskID,
+	priorityForCSMGroup+500,
+	"Fleet project ID",
+	"The project ID where the Fleet is hosted and CSM control plane logs are stored. Default is the cluster's project ID.",
+	func(b *coretask.Binder) formtask.TextFormSpec[string] {
+		clusterIdentity := coretask.Use(b, csm.ClusterIdentityTaskID.Ref())
+		return formtask.TextFormSpec[string]{
+			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
+				if len(previousValues) > 0 {
+					return previousValues[0], nil
+				}
+				cluster := clusterIdentity.Get(ctx)
+				return cluster.ProjectID, nil
+			},
 		}
-		cluster := coretask.GetTaskResult(ctx, csm.ClusterIdentityTaskID.Ref())
-		return cluster.ProjectID, nil
-	}).
-	Build()
+	},
+)
 
 var inputCSMAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]string{}
 
-var InputCSMResponseFlagsTask = formtask.NewSetFormTaskBuilder(csm.InputCSMResponseFlagsTaskID, priorityForCSMGroup+1000, "Envoy response flags").
-	WithDefaultValueConstant([]string{"@any", "-OK"}, true).
-	WithAllowAddAll(false).
-	WithAllowRemoveAll(false).
-	WithAllowCustomValue(true).
-	WithDescription("Response flags used for filtering CSM traffic logs. Note '-' in response flags is corresponded to 'OK' in this form.").
-	WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		result := []inspectionmetadata.SetParameterFormFieldOptionItem{
-			{ID: "@any", Description: "[Alias] Matches any response flag"},
+// inputCSMResponseFlagsTask is the form task for the Envoy response flags that filter CSM traffic logs.
+var inputCSMResponseFlagsTask = formtask.DefineSetForm(
+	csm.InputCSMResponseFlagsTaskID,
+	priorityForCSMGroup+1000,
+	"Envoy response flags",
+	"Response flags used for filtering CSM traffic logs. Note '-' in response flags is corresponded to 'OK' in this form.",
+	func(b *coretask.Binder) formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult] {
+		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{
+			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@any", "-OK"}),
+			AllowAddAll:      formtask.ConstantBool(false),
+			AllowRemoveAll:   formtask.ConstantBool(false),
+			AllowCustomValue: formtask.ConstantBool(true),
+			Options: func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+				result := []inspectionmetadata.SetParameterFormFieldOptionItem{
+					{ID: "@any", Description: "[Alias] Matches any response flag"},
+				}
+				ids := make([]string, 0, len(logutil.EnvoyResponseFlagDescriptions))
+				for flag := range logutil.EnvoyResponseFlagDescriptions {
+					ids = append(ids, string(flag))
+				}
+				sort.Strings(ids)
+				for _, id := range ids {
+					message := logutil.EnvoyResponseFlagDescriptions[logutil.EnvoyResponseFlag(id)]
+					if id == "-" {
+						id = "OK"
+						message = "It's '-' in the response flag field because '-' means subtracting operator in this form."
+					}
+					result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: id, Description: message})
+				}
+				return result, nil
+			},
+			Validator: func(ctx context.Context, value []string) (string, error) {
+				strFilter := strings.Join(value, " ")
+				result, err := gcpqueryutil.ParseSetFilter(strFilter, inputCSMAliasMap, true, true, true)
+				if err != nil {
+					return "", err
+				}
+				if result.ValidationError == "" {
+					err = verifyResponseFlags(convertInputOnlyResponseFlagToActualFlag(result.Additives))
+					if err != nil {
+						return err.Error(), nil
+					}
+					err = verifyResponseFlags(convertInputOnlyResponseFlagToActualFlag(result.Subtractives))
+					if err != nil {
+						return err.Error(), nil
+					}
+				}
+				return result.ValidationError, nil
+			},
+			Converter: func(ctx context.Context, value []string) (*gcpqueryutil.SetFilterParseResult, error) {
+				strFilter := strings.Join(value, " ")
+				result, err := gcpqueryutil.ParseSetFilter(strFilter, inputCSMAliasMap, true, true, true)
+				if err != nil {
+					return nil, err
+				}
+				result.Additives = convertInputOnlyResponseFlagToActualFlag(result.Additives)
+				result.Subtractives = convertInputOnlyResponseFlagToActualFlag(result.Subtractives)
+				return result, nil
+			},
 		}
-		ids := make([]string, 0, len(logutil.EnvoyResponseFlagDescriptions))
-		for flag := range logutil.EnvoyResponseFlagDescriptions {
-			ids = append(ids, string(flag))
-		}
-		sort.Strings(ids)
-		for _, id := range ids {
-			message := logutil.EnvoyResponseFlagDescriptions[logutil.EnvoyResponseFlag(id)]
-			if id == "-" {
-				id = "OK"
-				message = "It's '-' in the response flag field because '-' means subtracting operator in this form."
-			}
-			result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: id, Description: message})
-		}
-		return result, nil
-	}).
-	WithValidator(func(ctx context.Context, value []string) (string, error) {
-		strFilter := strings.Join(value, " ")
-		result, err := gcpqueryutil.ParseSetFilter(strFilter, inputCSMAliasMap, true, true, true)
-		if err != nil {
-			return "", err
-		}
-		if result.ValidationError == "" {
-			err = verifyResponseFlags(convertInputOnlyResponseFlagToActualFlag(result.Additives))
-			if err != nil {
-				return err.Error(), nil
-			}
-			err = verifyResponseFlags(convertInputOnlyResponseFlagToActualFlag(result.Subtractives))
-			if err != nil {
-				return err.Error(), nil
-			}
-		}
-		return result.ValidationError, nil
-	}).
-	WithConverter(func(ctx context.Context, value []string) (*gcpqueryutil.SetFilterParseResult, error) {
-		strFilter := strings.Join(value, " ")
-		result, err := gcpqueryutil.ParseSetFilter(strFilter, inputCSMAliasMap, true, true, true)
-		if err != nil {
-			return nil, err
-		}
-		result.Additives = convertInputOnlyResponseFlagToActualFlag(result.Additives)
-		result.Subtractives = convertInputOnlyResponseFlagToActualFlag(result.Subtractives)
-		return result, nil
-	}).
-	Build()
+	},
+)
 
 // convertInputOnlyResponseFlagToActualFlag replaces "OK" included in the given flag array to "-" and all other lower cased flags to upper case.
 func convertInputOnlyResponseFlagToActualFlag(flags []string) []string {

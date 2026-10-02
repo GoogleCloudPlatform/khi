@@ -21,11 +21,11 @@ CSM インスペクションパイプラインは以下を処理します:
 
 ### CSM トラフィックログパイプライン
 
-- **`InputCSMResponseFlagsTask`**: Envoy レスポンスフラグによるログフィルタリング用フォーム入力。
-- **`ListLogEntriesTask`**: Cloud Logging から CSM トラフィックログを取得。
-- **`LogIngesterTask`**: ログを最終的な KHI 履歴に登録。
-- **`LogGrouperTask`**: レポーター Pod ごとにログをグループ化。
-- **`LogToTimelineMapperTask`**: 正確なサービス関連付けのために NEG インベントリを利用して、CSM トラフィックログイベントをリソースタイムラインにマッピング。
+- **`inputCSMResponseFlagsTask`**: Envoy レスポンスフラグによるログフィルタリング用フォーム入力。
+- **`listLogEntriesTask`**: Cloud Logging から CSM トラフィックログを取得。
+- **`logIngesterTask`**: ログを最終的な KHI 履歴に登録。
+- **`logGrouperTask`**: レポーター Pod ごとにログをグループ化。
+- **`logToTimelineMapperTask`**: 正確なサービス関連付けのために NEG インベントリを利用して、CSM トラフィックログイベントをリソースタイムラインにマッピング。
 
 ## タスク関係図
 
@@ -49,11 +49,11 @@ graph TD
     AuditDiscovery --> Inventory
 
     %% CSM トラフィックログパイプライン
-    FlagsInput[InputCSMResponseFlagsTask]:::input
-    FlagsInput --> ListLogs[ListLogEntriesTask]:::query
-    ListLogs --> Ingester[LogIngesterTask]:::pipeline
-    ListLogs --> Grouper[LogGrouperTask]:::pipeline
-    Grouper --> Mapper[LogToTimelineMapperTask]:::pipeline
+    FlagsInput[inputCSMResponseFlagsTask]:::input
+    FlagsInput --> ListLogs[listLogEntriesTask]:::query
+    ListLogs --> Ingester[logIngesterTask]:::pipeline
+    ListLogs --> Grouper[logGrouperTask]:::pipeline
+    Grouper --> Mapper[logToTimelineMapperTask]:::pipeline
     Ingester --> Mapper
     Inventory --> Mapper
 ```

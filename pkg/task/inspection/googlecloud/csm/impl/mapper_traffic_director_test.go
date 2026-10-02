@@ -19,17 +19,14 @@ import (
 	"time"
 	"unique"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -89,7 +86,7 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 	}
 }
 
-func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestCSMTrafficDirectorTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	now := time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)
 
 	createReader := func(t *testing.T, data map[string]any) *structured.NodeReader {
@@ -213,14 +210,11 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &CSMTrafficDirectorLogToTimelineMapper{}
+	mapper := &csmTrafficDirectorTimelineMapper{}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, csm.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
-				ClusterName: "test-cluster",
-			})
 
 			tracker := gcpcommon.NewGCPOperationTracker()
 			var results []*khifilev6.TimelineChangeSet

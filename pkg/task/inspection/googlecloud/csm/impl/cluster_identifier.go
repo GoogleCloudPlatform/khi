@@ -23,30 +23,32 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
-// CSMClusterIdentifierTask extracts the unique cluster identifier(s) from BackendService names.
+// csmClusterIdentifierTask extracts the unique cluster identifier(s) from BackendService names.
 // CSM BackendService names follow the pattern: gsmrsvd-(cluster-identifier)-(neg-id).
-var CSMClusterIdentifierTask = coretask.NewTask(
+var csmClusterIdentifierTask = coretask.Define(
 	csm.CSMClusterIdentifierTaskID,
-	[]coretask.Dependency{k8scommon.NEGToBackendServiceInventoryTaskID.Ref()},
-	func(ctx context.Context) ([]string, error) {
-		inventory := coretask.GetTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref())
+	func(b *coretask.Binder) func(ctx context.Context) ([]string, error) {
+		negToBackendService := coretask.Use(b, k8scommon.NEGToBackendServiceInventoryTaskID.Ref())
+		return func(ctx context.Context) ([]string, error) {
+			inventory := negToBackendService.Get(ctx)
 
-		uniqueIds := make(map[string]struct{})
+			uniqueIds := make(map[string]struct{})
 
-		for _, bsName := range inventory {
-			if strings.HasPrefix(bsName, "gsmrsvd-") {
-				// gsmrsvd-<cluster-id>-<neg-id>
-				parts := strings.Split(bsName, "-")
-				if len(parts) >= 3 {
-					uniqueIds[parts[1]] = struct{}{}
+			for _, bsName := range inventory {
+				if strings.HasPrefix(bsName, "gsmrsvd-") {
+					// gsmrsvd-<cluster-id>-<neg-id>
+					parts := strings.Split(bsName, "-")
+					if len(parts) >= 3 {
+						uniqueIds[parts[1]] = struct{}{}
+					}
 				}
 			}
-		}
 
-		result := make([]string, 0, len(uniqueIds))
-		for id := range uniqueIds {
-			result = append(result, id)
+			result := make([]string, 0, len(uniqueIds))
+			for id := range uniqueIds {
+				result = append(result, id)
+			}
+			return result, nil
 		}
-		return result, nil
 	},
 )

@@ -23,15 +23,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GenerateCSMTrafficDirectorStructuredQuery generates a structured query for CSM Traffic Director logs.
-func GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID string, clusterIdentifiers []string, isDryRun bool) *logestimator.StructuredLogQuery {
+// generateCSMTrafficDirectorStructuredQuery generates a structured query for CSM Traffic Director logs.
+func generateCSMTrafficDirectorStructuredQuery(fleetProjectID string, clusterIdentifiers []string, isDryRun bool) *logestimator.StructuredLogQuery {
 	if isDryRun {
 		clusterIdentifiers = []string{"dummy"}
 	}
@@ -63,38 +61,29 @@ func GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID string, clusterIde
 	}
 }
 
-type CSMTrafficDirectorListLogEntryTaskSetting struct{}
+// csmTrafficDirectorQuerySource builds the Cloud Logging query for the audit logs of the Traffic Director resources that CSM created for the cluster.
+type csmTrafficDirectorQuerySource struct {
+	fleetProjectID     coretask.Input[string]
+	clusterIdentifiers coretask.Input[[]string]
+}
 
-// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *CSMTrafficDirectorListLogEntryTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	fleetProjectID := coretask.GetTaskResult(ctx, csm.InputFleetProjectIDTaskID.Ref())
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *csmTrafficDirectorQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	fleetProjectID := s.fleetProjectID.Get(ctx)
 	return []string{fmt.Sprintf("projects/%s", fleetProjectID)}, nil
 }
 
-// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *CSMTrafficDirectorListLogEntryTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		csm.InputFleetProjectIDTaskID.Ref(),
-		csm.CSMClusterIdentifierTaskID.Ref(),
-	}
-}
-
-// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *CSMTrafficDirectorListLogEntryTaskSetting) QueryName() string {
-	return "CSM Traffic Director logs"
-}
-
-// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *CSMTrafficDirectorListLogEntryTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	fleetProjectID := coretask.GetTaskResult(ctx, csm.InputFleetProjectIDTaskID.Ref())
-	clusterIdentifiers := coretask.GetTaskResult(ctx, csm.CSMClusterIdentifierTaskID.Ref())
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *csmTrafficDirectorQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+	fleetProjectID := s.fleetProjectID.Get(ctx)
+	clusterIdentifiers := s.clusterIdentifiers.Get(ctx)
 	taskMode := inspectioncore.TaskModeRun
 	if val, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode); err == nil {
 		taskMode = val
 	}
 	isDryRun := taskMode == inspectioncore.TaskModeDryRun
 
-	sq := GenerateCSMTrafficDirectorStructuredQuery(fleetProjectID, clusterIdentifiers, isDryRun)
+	sq := generateCSMTrafficDirectorStructuredQuery(fleetProjectID, clusterIdentifiers, isDryRun)
 	if sq == nil {
 		if !isDryRun {
 			slog.InfoContext(ctx, "No CSM BackendServices found in inventory. Skipping Traffic Director log query.")
@@ -105,16 +94,21 @@ func (s *CSMTrafficDirectorListLogEntryTaskSetting) Queries(ctx context.Context)
 	return []*logestimator.StructuredLogQuery{sq}, nil
 }
 
-// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *CSMTrafficDirectorListLogEntryTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return csm.ListCSMTrafficDirectorLogEntriesTaskID
-}
-
-// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (s *CSMTrafficDirectorListLogEntryTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *csmTrafficDirectorQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
 	return 1, nil
 }
 
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*CSMTrafficDirectorListLogEntryTaskSetting)(nil)
+var _ gcpcommon.StructuredLogQuerySource = (*csmTrafficDirectorQuerySource)(nil)
 
-var ListCSMTrafficDirectorLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&CSMTrafficDirectorListLogEntryTaskSetting{})
+// listCSMTrafficDirectorLogEntriesTask queries the audit logs of the Traffic Director resources that CSM created for the cluster from Cloud Logging.
+var listCSMTrafficDirectorLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	csm.ListCSMTrafficDirectorLogEntriesTaskID,
+	"CSM Traffic Director logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &csmTrafficDirectorQuerySource{
+			fleetProjectID:     coretask.Use(b, csm.InputFleetProjectIDTaskID.Ref()),
+			clusterIdentifiers: coretask.Use(b, csm.CSMClusterIdentifierTaskID.Ref()),
+		}
+	},
+)
