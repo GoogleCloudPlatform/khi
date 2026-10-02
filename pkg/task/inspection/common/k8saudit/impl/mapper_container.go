@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -47,8 +46,13 @@ type containerStatusIdentity struct {
 	containerType containerType
 }
 
-// ContainerLogToTimelineMapperTask is the task to generate container history.
-var ContainerLogToTimelineMapperTask = k8saudit.NewManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState](&containerLogToTimelineMapperTaskSetting{})
+// containerLogToTimelineMapperTask is the task to generate container history.
+var containerLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState](
+	k8saudit.ContainerLogToTimelineMapperTaskID,
+	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState] {
+		return &containerLogToTimelineMapperTaskSetting{}
+	},
+)
 
 type containerLogToTimelineMapperTaskState struct {
 	// containerIdentities is the map of container identities.
@@ -60,29 +64,9 @@ type containerLogToTimelineMapperTaskState struct {
 type containerLogToTimelineMapperTaskSetting struct {
 }
 
-// Dependencies implements k8saudit.ManifestLogToTimelineMapper.
-func (c *containerLogToTimelineMapperTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask implements k8saudit.ManifestLogToTimelineMapper.
-func (c *containerLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[k8saudit.ResourceManifestLogGroupMap] {
-	return k8saudit.ResourceLifetimeTrackerTaskID.Ref()
-}
-
-// LogIngesterTask implements k8saudit.ManifestLogToTimelineMapper.
-func (c *containerLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8saudit.K8sAuditLogIngesterTaskID.Ref()
-}
-
 // PassCount implements k8saudit.ManifestLogToTimelineMapper.
 func (c *containerLogToTimelineMapperTaskSetting) PassCount() int {
 	return 1
-}
-
-// TaskID implements k8saudit.ManifestLogToTimelineMapper.
-func (c *containerLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return k8saudit.ContainerLogToTimelineMapperTaskID
 }
 
 // ResolveRelatedGroupSets implements k8saudit.ManifestLogToTimelineMapper.
@@ -162,7 +146,7 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 	if event.GroupRole != "pod" {
 		return cs, state, nil
 	}
-	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
+	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 	if k8sFieldSet.IsDryRun {
 		return cs, state, nil
 	}

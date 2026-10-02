@@ -23,7 +23,7 @@ import (
 )
 
 func TestSuccessLogFilterTask(t *testing.T) {
-	inspectiontaskbasetest.AssertFilterTask(t, SuccessLogFilterTask, k8saudit.K8sAuditLogProviderRef, []inspectiontaskbasetest.FilterTaskTestCase{
+	inspectiontaskbasetest.AssertFilterTask(t, successLogFilterTask, k8saudit.K8sAuditLogProviderRef, []inspectiontaskbasetest.FilterTaskTestCase{
 		{
 			Description: "success log",
 			Log: testlog.NewMockLog(k8saudit.K8sAuditLogFieldSet{
@@ -42,7 +42,7 @@ func TestSuccessLogFilterTask(t *testing.T) {
 }
 
 func TestNonSuccessLogFilterTask(t *testing.T) {
-	inspectiontaskbasetest.AssertFilterTask(t, NonSuccessLogFilterTask, k8saudit.K8sAuditLogProviderRef, []inspectiontaskbasetest.FilterTaskTestCase{
+	inspectiontaskbasetest.AssertFilterTask(t, nonSuccessLogFilterTask, k8saudit.K8sAuditLogProviderRef, []inspectiontaskbasetest.FilterTaskTestCase{
 		{
 			Description: "success log",
 			Log: testlog.NewMockLog(k8saudit.K8sAuditLogFieldSet{

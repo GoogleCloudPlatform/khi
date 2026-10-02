@@ -400,16 +400,17 @@ textPayload: "error 1"`,
 				}, nil
 			})
 
-			result, _, err := inspectiontest.RunInspectionTask(
+			result, _, err := inspectiontest.Run(
+				t,
 				ctx,
-				NonSuccessLogGrouperTask,
+				nonSuccessLogGrouperTask,
 				inspectioncore.TaskModeRun,
 				map[string]any{},
-				tasktest.NewTaskDependencyValuePair(k8saudit.NonSuccessLogFilterTaskID.Ref(), logs),
-				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
+				tasktest.Given(k8saudit.NonSuccessLogFilterTaskID.Ref(), logs),
+				tasktest.Given(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
 			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+				t.Fatalf("inspectiontest.Run() returned an unexpected error: %v", err)
 			}
 
 			gotGroupKeys := []string{}
@@ -464,16 +465,17 @@ func TestChangeTargetGrouperTask(t *testing.T) {
 				}, nil
 			})
 
-			result, _, err := inspectiontest.RunInspectionTask(
+			result, _, err := inspectiontest.Run(
+				t,
 				ctx,
-				ChangeTargetGrouperTask,
+				changeTargetGrouperTask,
 				inspectioncore.TaskModeRun,
 				map[string]any{},
-				tasktest.NewTaskDependencyValuePair(k8saudit.SuccessLogFilterTaskID.Ref(), logs),
-				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
+				tasktest.Given(k8saudit.SuccessLogFilterTaskID.Ref(), logs),
+				tasktest.Given(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
 			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+				t.Fatalf("inspectiontest.Run() returned an unexpected error: %v", err)
 			}
 
 			gotPaths := []string{}

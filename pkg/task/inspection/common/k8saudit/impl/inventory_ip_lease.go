@@ -40,7 +40,8 @@ var (
 	pathIPLeaseNamespace    = structured.CompileFieldPath("namespace")
 )
 
-var IPLeaseHistoryInventoryTask = inspectiontaskbase.NewInventoryTask(
+// ipLeaseHistoryInventoryTask merges IP lease histories discovered across tasks.
+var ipLeaseHistoryInventoryTask = inspectiontaskbase.NewInventoryTask(
 	k8saudit.IPLeaseHistoryInventoryTaskID,
 	k8saudit.TagIPLeaseHistoryDiscovery,
 	func(results []k8saudit.IPLeaseHistory) (k8saudit.IPLeaseHistory, error) {
@@ -48,27 +49,30 @@ var IPLeaseHistoryInventoryTask = inspectiontaskbase.NewInventoryTask(
 	},
 )
 
-var IPLeaseHistoryDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// ipLeaseHistoryDiscoveryTask extracts IP lease history from pod and endpointslice manifests in audit logs.
+var ipLeaseHistoryDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.IPLeaseHistoryDiscoveryTaskID,
-	[]coretask.Dependency{k8saudit.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.IPLeaseHistory, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return nil, nil
-		}
-		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
-		leaseHistory := resourcelease.NewResourceLeaseHistory[*k8saudit.ResourceIdentity]()
-		for _, group := range resourceLogs {
-			if group.Resource.Type() != k8saudit.Resource {
-				continue
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.IPLeaseHistory] {
+		resourceLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.IPLeaseHistory, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
 			}
-			switch {
-			case group.Resource.APIVersion == "core/v1" && group.Resource.Kind == "pod":
-				processPodResource(group, leaseHistory)
-			case group.Resource.APIVersion == "discovery.k8s.io/v1" && group.Resource.Kind == "endpointslice":
-				processEndpointSliceResource(ctx, group, leaseHistory)
+			resourceLogs := resourceLogsInput.Get(ctx)
+			leaseHistory := resourcelease.NewResourceLeaseHistory[*k8saudit.ResourceIdentity]()
+			for _, group := range resourceLogs {
+				if group.Resource.Type() != k8saudit.Resource {
+					continue
+				}
+				switch {
+				case group.Resource.APIVersion == "core/v1" && group.Resource.Kind == "pod":
+					processPodResource(group, leaseHistory)
+				case group.Resource.APIVersion == "discovery.k8s.io/v1" && group.Resource.Kind == "endpointslice":
+					processEndpointSliceResource(ctx, group, leaseHistory)
+				}
 			}
+			return leaseHistory, nil
 		}
-		return leaseHistory, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagIPLeaseHistoryDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),

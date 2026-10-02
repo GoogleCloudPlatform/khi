@@ -24,7 +24,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-var ResourceUIDInventoryTask = inspectiontaskbase.NewInventoryTask(
+// resourceUIDInventoryTask merges resource UID to resource identity mappings discovered across tasks.
+var resourceUIDInventoryTask = inspectiontaskbase.NewInventoryTask(
 	k8saudit.ResourceUIDInventoryTaskID,
 	k8saudit.TagResourceUIDDiscovery,
 	mergeResourceUIDs,
@@ -40,51 +41,57 @@ func mergeResourceUIDs(results []k8saudit.UIDToResourceIdentity) (k8saudit.UIDTo
 	return result, nil
 }
 
-var ResourceUIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// resourceUIDDiscoveryTask extracts resource UIDs from resource manifests in audit logs.
+var resourceUIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.ResourceUIDDiscoveryTaskID,
-	[]coretask.Dependency{k8saudit.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.UIDToResourceIdentity, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return k8saudit.UIDToResourceIdentity{}, nil
-		}
-		result := k8saudit.UIDToResourceIdentity{}
-		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
-		for _, group := range resourceLogs {
-			if group.Resource.Type() != k8saudit.Resource {
-				continue
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.UIDToResourceIdentity] {
+		resourceLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.UIDToResourceIdentity, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return k8saudit.UIDToResourceIdentity{}, nil
 			}
-			for _, log := range group.Logs {
-				if log.ResourceBodyReader == nil {
+			result := k8saudit.UIDToResourceIdentity{}
+			resourceLogs := resourceLogsInput.Get(ctx)
+			for _, group := range resourceLogs {
+				if group.Resource.Type() != k8saudit.Resource {
 					continue
 				}
-				uid, found := GetUID(log.ResourceBodyReader)
-				if !found {
-					continue
+				for _, log := range group.Logs {
+					if log.ResourceBodyReader == nil {
+						continue
+					}
+					uid, found := GetUID(log.ResourceBodyReader)
+					if !found {
+						continue
+					}
+					result[uid] = group.Resource
 				}
-				result[uid] = group.Resource
 			}
+			return result, nil
 		}
-		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagResourceUIDDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
 )
 
-var UIDPatternFinderTask = inspectiontaskbase.NewInspectionTask(
+// uidPatternFinderTask builds a pattern finder for resource UIDs from the resource UID inventory.
+var uidPatternFinderTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.ResourceUIDPatternFinderTaskID,
-	[]coretask.Dependency{k8saudit.ResourceUIDInventoryTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (patternfinder.PatternFinder[*k8saudit.ResourceIdentity], error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return nil, nil
-		}
-		uidMap := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDInventoryTaskID.Ref())
-		finder := patternfinder.NewRadixPatternFinder[*k8saudit.ResourceIdentity]()
-		for uid, resource := range uidMap {
-			err := finder.AddPattern(uid, resource)
-			if err != nil {
-				return nil, err
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[patternfinder.PatternFinder[*k8saudit.ResourceIdentity]] {
+		uidMapInput := coretask.Use(b, k8saudit.ResourceUIDInventoryTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (patternfinder.PatternFinder[*k8saudit.ResourceIdentity], error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
 			}
+			uidMap := uidMapInput.Get(ctx)
+			finder := patternfinder.NewRadixPatternFinder[*k8saudit.ResourceIdentity]()
+			for uid, resource := range uidMap {
+				err := finder.AddPattern(uid, resource)
+				if err != nil {
+					return nil, err
+				}
+			}
+			return finder, nil
 		}
-		return finder, nil
 	},
 )
