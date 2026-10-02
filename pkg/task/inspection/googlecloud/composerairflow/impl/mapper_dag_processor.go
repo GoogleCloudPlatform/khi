@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
@@ -134,8 +133,6 @@ var airflowDagProcessorManagerLogIngesterTask = inspectiontaskbase.DefineGrouped
 
 type dagProcessorManagerTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*DagProcessorState]
-	targetLogType   *pb.LogType
-	dagFilePath     string
 	environmentName coretask.Input[string]
 }
 
@@ -215,8 +212,6 @@ var airflowDagProcessorManagerLogToTimelineMapperTask = inspectiontaskbase.Defin
 	},
 	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*DagProcessorState] {
 		return &dagProcessorManagerTimelineMapper{
-			targetLogType:   composerairflow.LogTypeManagedAirflowEnvironment,
-			dagFilePath:     "/home/airflow/gcs/dags",
 			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
 		}
 	},
