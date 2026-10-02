@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -33,20 +32,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type autoscalerLogIngester struct{}
-
-// RawLogTask returns the task that provides raw logs for ingestion.
-func (i *autoscalerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return gkeautoscaler.ListLogEntriesTaskID.Ref()
-}
-
-// Dependencies returns additional dependencies of the ingester.
-func (i *autoscalerLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// ProcessLog ingests metadata for a single log.
-func (i *autoscalerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+// processAutoscalerLog sets the log type, timestamp, severity and summary of a cluster autoscaler log.
+func processAutoscalerLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err
@@ -75,38 +62,29 @@ func (i *autoscalerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*kh
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngester = (*autoscalerLogIngester)(nil)
-
-// LogIngesterTask serializes the ingested log metadata into the builder.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+// logIngesterTask serializes the ingested log metadata into the builder.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	gkeautoscaler.LogIngesterTaskID,
-	&autoscalerLogIngester{},
-)
-
-// LogGrouperTask groups logs (no grouping needed for autoscaler logs).
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(gkeautoscaler.LogGrouperTaskID, gkeautoscaler.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		return "" // No grouping
+	gkeautoscaler.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return processAutoscalerLog
 	},
 )
 
+// logGrouperTask groups logs (no grouping needed for autoscaler logs).
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
+	gkeautoscaler.LogGrouperTaskID,
+	gkeautoscaler.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			return "" // No grouping
+		}
+	},
+)
+
+// autoscalerTimelineMapper maps cluster autoscaler logs to the timelines of the affected node pools, MIGs, nodes and pods.
 type autoscalerTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
-}
-
-// LogIngesterTask returns the prerequisite log serializer task.
-func (m *autoscalerTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return gkeautoscaler.LogIngesterTaskID.Ref()
-}
-
-// Dependencies returns additional dependencies of the mapper.
-func (m *autoscalerTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask returns the log grouper task reference.
-func (m *autoscalerTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return gkeautoscaler.LogGrouperTaskID.Ref()
 }
 
 // ProcessLogByGroup processes a single log and registers its timeline event/revision mutations.
@@ -143,12 +121,18 @@ func (m *autoscalerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*autoscalerTimelineMapper)(nil)
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*autoscalerTimelineMapper)(nil)
 
-// LogToTimelineMapperTask maps the autoscaler logs to respective resource timelines.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+// logToTimelineMapperTask maps the autoscaler logs to respective resource timelines.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	gkeautoscaler.LogToTimelineMapperTaskID,
-	&autoscalerTimelineMapper{},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: gkeautoscaler.LogIngesterTaskID.Ref(),
+		GroupedLogs: gkeautoscaler.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &autoscalerTimelineMapper{}
+	},
 	inspectioncore.FeatureTaskLabel(
 		`GKE Autoscaler Logs`,
 		`Gather Cluster Autoscaler logs to visualize autoscaling decisions and actions on the timelines of the affected resources.`,

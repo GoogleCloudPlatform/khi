@@ -126,7 +126,7 @@ labels."compute.googleapis.com/resource_name":("sub-1" OR "sub-2")`,
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			sqs := GenerateSerialPortStructuredQuery(tc.taskMode, tc.nodeNames, tc.nodeNameSubstrings)
+			sqs := generateSerialPortStructuredQuery(tc.taskMode, tc.nodeNames, tc.nodeNameSubstrings)
 			gotQueries := make([]string, len(sqs))
 			for i, sq := range sqs {
 				gotQueries[i] = sq.GenerateCloudLoggingQuery()
@@ -151,12 +151,12 @@ func TestMaximumNodeCountNotHittingQueryLengthLimit(t *testing.T) {
 	idg8 := idgenerator.NewFixedLengthIDGenerator(8)
 	idg4 := idgenerator.NewFixedLengthIDGenerator(4)
 	nodeNames := []string{}
-	for i := 0; i < MaxNodesPerQuery*2+1; i++ { // This query must be split into 3 sub groups.
+	for i := 0; i < maxNodesPerQuery*2+1; i++ { // This query must be split into 3 sub groups.
 		nodeNames = append(nodeNames, fmt.Sprintf(`gke-%s-%s-%s`, idg46.Generate(), idg8.Generate(), idg4.Generate()))
 	}
-	sqs := GenerateSerialPortStructuredQuery(inspectioncore.TaskModeRun, nodeNames, []string{})
+	sqs := generateSerialPortStructuredQuery(inspectioncore.TaskModeRun, nodeNames, []string{})
 	if len(sqs) != 3 {
-		t.Errorf("len(GenerateSerialPortStructuredQuery())=%d, want %d", len(sqs), 3)
+		t.Errorf("len(generateSerialPortStructuredQuery())=%d, want %d", len(sqs), 3)
 	}
 	for _, sq := range sqs {
 		err := gcp_test.IsValidLogQuery(t, sq.GenerateCloudLoggingQuery())
@@ -184,14 +184,17 @@ func TestLogQueryTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, LogQueryTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
-		tasktest.NewTaskDependencyValuePair(serialport.ClusterIdentityTaskID.Ref(), cluster),
-		tasktest.NewTaskDependencyValuePair(k8scommon.InputNodeNameFilterTaskID.Ref(), []string{}),
-		tasktest.NewTaskDependencyValuePair(k8saudit.NodeNameInventoryTaskID.Ref(), []string{}),
+	gotLogs, _, err := inspectiontest.Run(t, ctx, logQueryTask, inspectioncore.TaskModeDryRun, map[string]any{},
+		tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.Given(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		// Dry run records the query without fetching logs.
+		tasktest.Given[gcpcommon.LogFetcher](gcpcommon.LoggingFetcherTaskID.Ref(), nil),
+		tasktest.Given(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.Given(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+		tasktest.Given(serialport.ClusterIdentityTaskID.Ref(), cluster),
+		tasktest.Given(k8scommon.InputNodeNameFilterTaskID.Ref(), []string{}),
+		tasktest.Given(k8saudit.NodeNameInventoryTaskID.Ref(), []string{}),
 	)
 	if err != nil {
 		t.Fatalf("dry run returned unexpected error: %v", err)
