@@ -151,7 +151,7 @@ func (h *WorkbenchHandler) handleSearchLogs(ctx context.Context, _ *mcpsdk.CallT
 		samples[i] = sampleLogTemplateData{
 			LogID:         strconv.FormatUint(uint64(s.LogID), 10),
 			Time:          s.Time,
-			Severity:      s.Severity,
+			Severity:      s.Severity.GetLabel(),
 			LogType:       s.LogType,
 			Summary:       s.Summary,
 			TimelinesCell: formatTimelineIDsCell(s.TimelineIDs),
@@ -204,11 +204,8 @@ func formatTimelineTreeLine(node workbench.TimelineTreeNode, sameDay bool) strin
 	if node.EventCount > 0 || node.RevisionCount > 0 {
 		tokens = append(tokens, fmt.Sprintf("ev=%d rev=%d", node.EventCount, node.RevisionCount))
 	}
-	if node.WarnCount > 0 {
-		tokens = append(tokens, fmt.Sprintf("warn=%d", node.WarnCount))
-	}
-	if node.ErrCount > 0 {
-		tokens = append(tokens, fmt.Sprintf("err=%d", node.ErrCount))
+	for _, c := range node.SeverityCounts {
+		tokens = append(tokens, fmt.Sprintf("%s=%d", strings.ToLower(c.Severity.GetLabel()), c.Count))
 	}
 	if !node.FirstMatchTime.IsZero() && !node.LastMatchTime.IsZero() {
 		layout := time.RFC3339
@@ -229,7 +226,7 @@ func formatSeveritySummary(counts []workbench.SeverityCount) string {
 	}
 	parts := make([]string, len(counts))
 	for i, c := range counts {
-		parts[i] = fmt.Sprintf("%s %d", c.Severity, c.Count)
+		parts[i] = fmt.Sprintf("%s %d", c.Severity.GetLabel(), c.Count)
 	}
 	return strings.Join(parts, ", ")
 }

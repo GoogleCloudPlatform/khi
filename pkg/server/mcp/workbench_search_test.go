@@ -20,9 +20,18 @@ import (
 	"testing"
 	"time"
 
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
+)
+
+// The following severity definitions emulate the style chunk of a loaded inspection in the tests of this file.
+var (
+	testSeverityInfo    = &khifilev6.Severity{Id: proto.Uint32(1), Label: proto.String("INFO"), Order: proto.Int32(1)}
+	testSeverityWarning = &khifilev6.Severity{Id: proto.Uint32(2), Label: proto.String("WARNING"), Order: proto.Int32(2)}
+	testSeverityError   = &khifilev6.Severity{Id: proto.Uint32(3), Label: proto.String("ERROR"), Order: proto.Int32(3)}
 )
 
 func TestWorkbenchHandler_HandleSearchTimelines(t *testing.T) {
@@ -212,20 +221,23 @@ func TestFormatTimelineTreeLine(t *testing.T) {
 		{
 			name: "same day with all fields",
 			node: workbench.TimelineTreeNode{
-				ID:              10,
-				Depth:           1,
-				Type:            "Pod",
-				Name:            "test-pod",
-				EventCount:      2,
-				RevisionCount:   1,
-				WarnCount:       3,
-				ErrCount:        1,
+				ID:            10,
+				Depth:         1,
+				Type:          "Pod",
+				Name:          "test-pod",
+				EventCount:    2,
+				RevisionCount: 1,
+				SeverityCounts: []workbench.SeverityCount{
+					{Severity: testSeverityError, Count: 1},
+					{Severity: testSeverityWarning, Count: 3},
+					{Severity: testSeverityInfo, Count: 5},
+				},
 				OmittedChildren: 4,
 				FirstMatchTime:  time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC),
 				LastMatchTime:   time.Date(2026, 10, 1, 10, 45, 0, 0, time.UTC),
 			},
 			sameDay: true,
-			want:    "  [Pod] test-pod id=10 children=4 ev=2 rev=1 warn=3 err=1 09:30:00..10:45:00",
+			want:    "  [Pod] test-pod id=10 children=4 ev=2 rev=1 error=1 warning=3 info=5 09:30:00..10:45:00",
 		},
 		{
 			name: "multi day with RFC3339 format",
@@ -258,6 +270,38 @@ func TestFormatTimelineTreeLine(t *testing.T) {
 			got := formatTimelineTreeLine(tc.node, tc.sameDay)
 			if got != tc.want {
 				t.Errorf("formatTimelineTreeLine() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatSeveritySummary(t *testing.T) {
+	testCases := []struct {
+		name   string
+		counts []workbench.SeverityCount
+		want   string
+	}{
+		{
+			name:   "no counts return empty string",
+			counts: nil,
+			want:   "",
+		},
+		{
+			name: "counts are joined with severity labels",
+			counts: []workbench.SeverityCount{
+				{Severity: testSeverityError, Count: 2},
+				{Severity: testSeverityWarning, Count: 3},
+				{Severity: testSeverityInfo, Count: 5},
+			},
+			want: "ERROR 2, WARNING 3, INFO 5",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := formatSeveritySummary(tc.counts)
+			if got != tc.want {
+				t.Errorf("formatSeveritySummary() = %q, want %q", got, tc.want)
 			}
 		})
 	}
