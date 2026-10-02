@@ -20,8 +20,11 @@ import (
 	ossk8s "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/oss/k8s"
 )
 
-var InputAuditLogFilesTask = formtask.NewFileFormTaskBuilder(ossk8s.InputAuditLogFilesFormTaskID, 1000, "Audit Log Files", &upload.JSONLineUploadFileVerifier{
-	MaxLineSizeInBytes: 1024 * 1024 * 1024,
-}).
-	WithDescription(`Upload JSONLine format kube-apiserver audit log`).
-	Build()
+// inputAuditLogFilesTask receives the kube-apiserver audit log file in JSONL format that the user uploads.
+var inputAuditLogFilesTask = formtask.DefineFileForm(
+	ossk8s.InputAuditLogFilesFormTaskID,
+	1000,
+	"Audit Log Files",
+	`Upload JSONLine format kube-apiserver audit log`,
+	&upload.JSONLineUploadFileVerifier{MaxLineSizeInBytes: 1024 * 1024 * 1024},
+)

@@ -211,7 +211,7 @@ Choose from the following 3 builder types depending on the input format:
 
 - **`formtask.NewTextFormTaskBuilder(...)`**: Builds form tasks for string or text input (supporting autocomplete and regular expression validation).
 - **`formtask.NewSetFormTaskBuilder(...)`**: Builds form tasks that let users select single or multiple values from options, such as dropdowns or checklists.
-- **`formtask.NewFileFormTaskBuilder(...)`**: Builds form tasks that accept log file uploads or file path selections from the user's local environment.
+- **`formtask.DefineFileForm(...)`**: Defines form tasks that accept log file uploads or file path selections from the user's local environment.
 
 ### 4.2 Building Rich Input Forms and Autocomplete Integrations
 

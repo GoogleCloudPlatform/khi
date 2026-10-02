@@ -18,15 +18,19 @@ import (
 	"context"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	ossk8s "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/oss/k8s"
 )
 
-var NonEventAuditLogFilterTask = inspectiontaskbase.NewLogFilterTask(
+// nonEventAuditLogFilterTask filters audit logs to keep only logs for non-Event resources.
+var nonEventAuditLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	ossk8s.NonEventAuditLogFilterTaskID,
 	ossk8s.AuditLogFileReaderTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) bool {
-		isNonEvent, _ := ossk8s.ExtractOSSK8sIsNonEventAuditLog(l.NodeReader)
-		return isNonEvent
+	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		return func(ctx context.Context, l *log.Log) bool {
+			isNonEvent, _ := ossk8s.ExtractOSSK8sIsNonEventAuditLog(l.NodeReader)
+			return isNonEvent
+		}
 	},
 )
