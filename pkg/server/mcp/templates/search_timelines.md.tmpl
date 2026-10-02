@@ -1,0 +1,23 @@
+# Timeline tree
+
+Matched {{ .MatchedTimelineCount }} timelines. Showing {{ .ReturnedNodeCount }} nodes ({{ if gt .MaxDepth 0 }}depth <= {{ .MaxDepth }}, {{ end }}maxNodes {{ .MaxNodes }}).
+
+{{ appliedFilter .Applied }}
+{{- if .TimelineTypes }}
+
+## Timeline types
+{{- range .TimelineTypes }}
+- {{ .Type }}: {{ .Description }}
+{{- end }}
+{{- end }}
+
+## Tree
+{{ if .TreeLines }}
+```text
+{{- range .TreeLines }}
+{{ . }}
+{{- end }}
+```
+{{- else }}
+No timelines matched the filter.
+{{- end }}
