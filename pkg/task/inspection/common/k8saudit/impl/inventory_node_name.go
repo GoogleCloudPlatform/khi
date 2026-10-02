@@ -24,8 +24,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// NodeNameInventoryTask provides list of node name found in this inspection for later task usage.
-var NodeNameInventoryTask = inspectiontaskbase.NewInventoryTask(
+// nodeNameInventoryTask provides list of node name found in this inspection for later task usage.
+var nodeNameInventoryTask = inspectiontaskbase.NewInventoryTask(
 	k8saudit.NodeNameInventoryTaskID,
 	k8saudit.TagNodeNameDiscovery,
 	mergeNodeNames,
@@ -47,31 +47,33 @@ func mergeNodeNames(results [][]string) ([]string, error) {
 	return ret, nil
 }
 
-// NodeNameDiscoveryTask extracts node name from audit logs and node names are registered on NodeNameInventoryTask.
-var NodeNameDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// nodeNameDiscoveryTask extracts node name from audit logs and node names are registered on nodeNameInventoryTask.
+var nodeNameDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.NodeNameDiscoveryTaskID,
-	[]coretask.Dependency{k8saudit.ManifestGeneratorTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return nil, nil
-		}
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]string] {
+		resourceLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
+			}
 
-		foundNodeNames := map[string]struct{}{}
-		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
-		for _, group := range resourceLogs {
-			if group.Resource.Type() != k8saudit.Resource {
-				continue
+			foundNodeNames := map[string]struct{}{}
+			resourceLogs := resourceLogsInput.Get(ctx)
+			for _, group := range resourceLogs {
+				if group.Resource.Type() != k8saudit.Resource {
+					continue
+				}
+				if group.Resource.APIVersion != "core/v1" || group.Resource.Kind != "node" {
+					continue
+				}
+				foundNodeNames[group.Resource.Name] = struct{}{}
 			}
-			if group.Resource.APIVersion != "core/v1" || group.Resource.Kind != "node" {
-				continue
+			var ret []string
+			for k := range foundNodeNames {
+				ret = append(ret, k)
 			}
-			foundNodeNames[group.Resource.Name] = struct{}{}
+			return ret, nil
 		}
-		var ret []string
-		for k := range foundNodeNames {
-			ret = append(ret, k)
-		}
-		return ret, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagNodeNameDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),

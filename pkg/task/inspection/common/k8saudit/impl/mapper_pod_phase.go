@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -74,29 +73,9 @@ func newPodPhaseTaskState() *podPhaseTaskState {
 type podPhaseLogToTimelineMapperTaskSetting struct {
 }
 
-// Dependencies implements k8saudit.ManifestLogToTimelineMapper.
-func (c *podPhaseLogToTimelineMapperTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
 // PassCount implements k8saudit.ManifestLogToTimelineMapper.
 func (c *podPhaseLogToTimelineMapperTaskSetting) PassCount() int {
 	return 2
-}
-
-// GroupedLogTask implements k8saudit.ManifestLogToTimelineMapper.
-func (c *podPhaseLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[k8saudit.ResourceManifestLogGroupMap] {
-	return k8saudit.ResourceLifetimeTrackerTaskID.Ref()
-}
-
-// LogIngesterTask implements k8saudit.ManifestLogToTimelineMapper.
-func (c *podPhaseLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8saudit.K8sAuditLogIngesterTaskID.Ref()
-}
-
-// TaskID implements k8saudit.ManifestLogToTimelineMapper.
-func (c *podPhaseLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return k8saudit.PodPhaseLogToTimelineMapperTaskID
 }
 
 // ResolveRelatedGroupSets implements k8saudit.ManifestLogToTimelineMapper.
@@ -153,7 +132,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Conte
 		prevGroupData = newPodPhaseTaskState()
 	}
 
-	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
+	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 	if k8sFieldSet.IsDryRun {
 		return prevGroupData, nil
 	}
@@ -227,7 +206,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Conte
 func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event k8saudit.MultiGroupLogEvent, prevGroupData *podPhaseTaskState) (*khifilev6.TimelineChangeSet, *podPhaseTaskState, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
-	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
+	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 	if k8sFieldSet.IsDryRun {
 		return cs, prevGroupData, nil
 	}
@@ -343,5 +322,10 @@ func MustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namesp
 // Explicit interface compliance assertion.
 var _ k8saudit.ManifestLogToTimelineMapper[*podPhaseTaskState] = (*podPhaseLogToTimelineMapperTaskSetting)(nil)
 
-// PodPhaseLogToTimelineMapperTask is the task to generate pod phase history.
-var PodPhaseLogToTimelineMapperTask = k8saudit.NewManifestLogToTimelineMapper[*podPhaseTaskState](&podPhaseLogToTimelineMapperTaskSetting{})
+// podPhaseLogToTimelineMapperTask is the task to generate pod phase history.
+var podPhaseLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*podPhaseTaskState](
+	k8saudit.PodPhaseLogToTimelineMapperTaskID,
+	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*podPhaseTaskState] {
+		return &podPhaseLogToTimelineMapperTaskSetting{}
+	},
+)

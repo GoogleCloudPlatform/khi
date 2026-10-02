@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
+func TestProcessK8sAuditLog(t *testing.T) {
 	testTime := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
@@ -132,10 +132,9 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ingester := &k8sAuditLogIngester{}
-			cs, err := ingester.ProcessLog(t.Context(), tc.input)
+			cs, err := processK8sAuditLog(tc.input, nil)
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+				t.Fatalf("processK8sAuditLog() returned unexpected error: %v", err)
 			}
 			tc.assert(t, cs)
 		})

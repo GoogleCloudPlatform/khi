@@ -15,10 +15,7 @@
 package k8saudit
 
 import (
-	"context"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
 // K8sAuditLogCacheKey identifies the cached K8sAuditLogFieldSet on a NodeReader.
@@ -27,15 +24,14 @@ var K8sAuditLogCacheKey = structured.NewCacheKey[*K8sAuditLogFieldSet]()
 // K8sAuditLogExtractor is a function type for extracting K8sAuditLogFieldSet from a NodeReader.
 type K8sAuditLogExtractor func(reader *structured.NodeReader) (*K8sAuditLogFieldSet, error)
 
-// ExtractK8sAuditLog extracts K8s audit log data from a NodeReader using the extractor in the task context.
-func ExtractK8sAuditLog(ctx context.Context, reader *structured.NodeReader) (*K8sAuditLogFieldSet, error) {
+// ExtractK8sAuditLog extracts K8s audit log data from a NodeReader using the given extractor.
+func ExtractK8sAuditLog(reader *structured.NodeReader, extractor K8sAuditLogExtractor) (*K8sAuditLogFieldSet, error) {
 	if mock, ok := structured.GetMock[*K8sAuditLogFieldSet](reader); ok {
 		return mock, nil
 	}
 	if cached, ok := structured.GetCache(reader, K8sAuditLogCacheKey); ok {
 		return cached, nil
 	}
-	extractor := coretask.GetTaskResult(ctx, K8sAuditLogExtractorRef)
 	res, err := extractor(reader)
 	if err == nil && res != nil {
 		structured.SetCache(reader, K8sAuditLogCacheKey, res)
@@ -46,14 +42,13 @@ func ExtractK8sAuditLog(ctx context.Context, reader *structured.NodeReader) (*K8
 // K8sAuditLogErrorExtractor is a function type for extracting whether a log represents an error from a NodeReader.
 type K8sAuditLogErrorExtractor func(reader *structured.NodeReader) (bool, error)
 
-// ExtractK8sAuditLogError extracts whether the K8s audit log is an error using the error extractor in the task context.
-func ExtractK8sAuditLogError(ctx context.Context, reader *structured.NodeReader) (bool, error) {
+// ExtractK8sAuditLogError extracts whether the K8s audit log is an error using the given error extractor.
+func ExtractK8sAuditLogError(reader *structured.NodeReader, extractor K8sAuditLogErrorExtractor) (bool, error) {
 	if mock, ok := structured.GetMock[*K8sAuditLogFieldSet](reader); ok {
 		return mock.IsError, nil
 	}
 	if cached, ok := structured.GetCache(reader, K8sAuditLogCacheKey); ok {
 		return cached.IsError, nil
 	}
-	extractor := coretask.GetTaskResult(ctx, K8sAuditLogErrorExtractorRef)
 	return extractor(reader)
 }

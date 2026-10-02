@@ -20,35 +20,27 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// K8sAuditLogIngesterTask is the task to serialize and ingest k8s audit logs.
-var K8sAuditLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+// k8sAuditLogIngesterTask is the task to serialize and ingest k8s audit logs.
+var k8sAuditLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	k8saudit.K8sAuditLogIngesterTaskID,
-	&k8sAuditLogIngester{},
+	k8saudit.K8sAuditLogProviderRef,
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		extractorInput := coretask.UseOptional(b, k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph))
+		return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+			extractor, _ := extractorInput.Get(ctx)
+			return processK8sAuditLog(l, extractor)
+		}
+	},
 )
 
-type k8sAuditLogIngester struct{}
-
-// RawLogTask implements inspectiontaskbase.LogIngester.
-func (i *k8sAuditLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return k8saudit.K8sAuditLogProviderRef
-}
-
-// Dependencies implements inspectiontaskbase.LogIngester.
-func (i *k8sAuditLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
-	}
-}
-
-// ProcessLog parses raw log entry and populates the LogChangeSet.
-func (i *k8sAuditLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+// processK8sAuditLog parses a raw audit log entry and populates its LogChangeSet.
+func processK8sAuditLog(l *log.Log, extractor k8saudit.K8sAuditLogExtractor) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err
@@ -57,7 +49,7 @@ func (i *k8sAuditLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khif
 	cs.SetTimestamp(l.Timestamp)
 	cs.SetLogType(k8saudit.LogTypeAudit)
 
-	k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(ctx, l.NodeReader)
+	k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(l.NodeReader, extractor)
 	if err != nil {
 		return nil, err
 	}
@@ -77,5 +69,3 @@ func (i *k8sAuditLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khif
 
 	return cs, nil
 }
-
-var _ inspectiontaskbase.LogIngester = (*k8sAuditLogIngester)(nil)

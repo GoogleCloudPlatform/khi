@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
@@ -27,26 +26,6 @@ import (
 // namespaceRequestLogToTimelineMapperTaskSetting maps namespace-wide requests to namespace timelines under the model.
 type namespaceRequestLogToTimelineMapperTaskSetting struct {
 	k8saudit.ManifestStatelessMapperBase
-}
-
-// Dependencies implements k8saudit.ManifestLogToTimelineMapper.
-func (n *namespaceRequestLogToTimelineMapperTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask implements k8saudit.ManifestLogToTimelineMapper.
-func (n *namespaceRequestLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[k8saudit.ResourceManifestLogGroupMap] {
-	return k8saudit.ResourceLifetimeTrackerTaskID.Ref()
-}
-
-// LogIngesterTask implements k8saudit.ManifestLogToTimelineMapper.
-func (n *namespaceRequestLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8saudit.K8sAuditLogIngesterTaskID.Ref()
-}
-
-// TaskID implements k8saudit.ManifestLogToTimelineMapper.
-func (n *namespaceRequestLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return k8saudit.NamespaceRequestLogToTimelineMapperTaskID
 }
 
 // ResolveRelatedGroupSets implements k8saudit.ManifestLogToTimelineMapper.
@@ -68,7 +47,7 @@ func (n *namespaceRequestLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets
 func (n *namespaceRequestLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event k8saudit.MultiGroupLogEvent, state struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
-	k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
+	k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 	if err != nil {
 		return nil, struct{}{}, err
 	}
@@ -86,5 +65,10 @@ func (n *namespaceRequestLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 // Explicit interface compliance assertion.
 var _ k8saudit.ManifestLogToTimelineMapper[struct{}] = (*namespaceRequestLogToTimelineMapperTaskSetting)(nil)
 
-// NamespaceRequestLogToTimelineMapperTask is the task to generate events of requests against namespace wide by deletecollection.
-var NamespaceRequestLogToTimelineMapperTask = k8saudit.NewManifestLogToTimelineMapper[struct{}](&namespaceRequestLogToTimelineMapperTaskSetting{})
+// namespaceRequestLogToTimelineMapperTask is the task to generate events of requests against namespace wide by deletecollection.
+var namespaceRequestLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[struct{}](
+	k8saudit.NamespaceRequestLogToTimelineMapperTaskID,
+	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[struct{}] {
+		return &namespaceRequestLogToTimelineMapperTaskSetting{}
+	},
+)

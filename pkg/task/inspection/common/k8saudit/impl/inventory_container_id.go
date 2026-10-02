@@ -26,7 +26,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-var ContainerIDInventoryTask = inspectiontaskbase.NewInventoryTask(
+// containerIDInventoryTask merges container ID to container identity mappings discovered across tasks.
+var containerIDInventoryTask = inspectiontaskbase.NewInventoryTask(
 	k8saudit.ContainerIDInventoryTaskID,
 	k8saudit.TagContainerIDDiscovery,
 	mergeContainerIDs,
@@ -46,22 +47,23 @@ func mergeContainerIDs(results []k8saudit.ContainerIDToContainerIdentity) (k8sau
 	return result, nil
 }
 
-var ContainerIDPatternFinderTask = inspectiontaskbase.NewInspectionTask(
+// containerIDPatternFinderTask builds a pattern finder for container IDs from the container ID inventory.
+var containerIDPatternFinderTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.ContainerIDPatternFinderTaskID,
-	[]coretask.Dependency{
-		k8saudit.ContainerIDInventoryTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (patternfinder.PatternFinder[*k8saudit.ContainerIdentity], error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return nil, nil
-		}
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[patternfinder.PatternFinder[*k8saudit.ContainerIdentity]] {
+		cidMapInput := coretask.Use(b, k8saudit.ContainerIDInventoryTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (patternfinder.PatternFinder[*k8saudit.ContainerIdentity], error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
+			}
 
-		cidMap := coretask.GetTaskResult(ctx, k8saudit.ContainerIDInventoryTaskID.Ref())
-		finder := patternfinder.NewRadixPatternFinder[*k8saudit.ContainerIdentity]()
-		for cid, v := range cidMap {
-			finder.AddPattern(cid, v)
+			cidMap := cidMapInput.Get(ctx)
+			finder := patternfinder.NewRadixPatternFinder[*k8saudit.ContainerIdentity]()
+			for cid, v := range cidMap {
+				finder.AddPattern(cid, v)
+			}
+			return finder, nil
 		}
-		return finder, nil
 	},
 )
 
@@ -73,36 +75,37 @@ var (
 	pathContainerName              = structured.CompileFieldPath("name")
 )
 
-var ContainerIDDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// containerIDDiscoveryTask extracts container IDs from pod manifests in audit logs.
+var containerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.ContainerIDDiscoveryTaskID,
-	[]coretask.Dependency{
-		k8saudit.ManifestGeneratorTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ContainerIDToContainerIdentity, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return nil, nil
-		}
-
-		result := k8saudit.ContainerIDToContainerIdentity{}
-		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
-		for _, group := range resourceLogs {
-			if group.Resource.Type() != k8saudit.Resource {
-				continue
-			}
-			if group.Resource.APIVersion != "core/v1" || group.Resource.Kind != "pod" {
-				continue
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ContainerIDToContainerIdentity] {
+		resourceLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ContainerIDToContainerIdentity, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
 			}
 
-			for _, log := range group.Logs {
-				if log.ResourceBodyReader == nil {
+			result := k8saudit.ContainerIDToContainerIdentity{}
+			resourceLogs := resourceLogsInput.Get(ctx)
+			for _, group := range resourceLogs {
+				if group.Resource.Type() != k8saudit.Resource {
 					continue
 				}
-				extractContainerIDs(log.ResourceBodyReader, pathContainerStatuses, result)
-				extractContainerIDs(log.ResourceBodyReader, pathInitContainerStatuses, result)
-				extractContainerIDs(log.ResourceBodyReader, pathEphemeralContainerStatuses, result)
+				if group.Resource.APIVersion != "core/v1" || group.Resource.Kind != "pod" {
+					continue
+				}
+
+				for _, log := range group.Logs {
+					if log.ResourceBodyReader == nil {
+						continue
+					}
+					extractContainerIDs(log.ResourceBodyReader, pathContainerStatuses, result)
+					extractContainerIDs(log.ResourceBodyReader, pathInitContainerStatuses, result)
+					extractContainerIDs(log.ResourceBodyReader, pathEphemeralContainerStatuses, result)
+				}
 			}
+			return result, nil
 		}
-		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagContainerIDDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),

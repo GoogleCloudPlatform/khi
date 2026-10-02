@@ -1023,18 +1023,19 @@ metadata:
 				},
 			}
 
-			result, _, err := inspectiontest.RunInspectionTask(
+			result, _, err := inspectiontest.Run(
+				t,
 				ctx,
-				ManifestGeneratorTask,
+				manifestGeneratorTask,
 				inspectioncore.TaskModeRun,
 				map[string]any{},
-				tasktest.NewTaskDependencyValuePair(k8saudit.ChangeTargetGrouperTaskID.Ref(), logGroups),
-				tasktest.NewTaskDependencyValuePair(k8saudit.K8sResourceMergeConfigTaskID.Ref(), mergeConfigRegistry),
-				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
-				tasktest.NewTaskDependencyValuePair[k8saudit.InitialResourceStateProvider](k8saudit.InitialResourceStateProviderRef, &emptyInitialResourceStateProvider{}),
+				tasktest.Given(k8saudit.ChangeTargetGrouperTaskID.Ref(), logGroups),
+				tasktest.Given(k8saudit.K8sResourceMergeConfigTaskID.Ref(), mergeConfigRegistry),
+				tasktest.Given(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
+				tasktest.Given[k8saudit.InitialResourceStateProvider](k8saudit.InitialResourceStateProviderRef, &emptyInitialResourceStateProvider{}),
 			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+				t.Fatalf("inspectiontest.Run() returned an unexpected error: %v", err)
 			}
 
 			group, ok := result["group1"]

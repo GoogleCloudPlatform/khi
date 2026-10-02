@@ -61,7 +61,7 @@ func isPod(apiVersion string, pluralKind string) bool {
 
 // DetectLifetimeLogEvent detects if the log is the timing to create or delete the timeline resource and update the log field.
 func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context, l *k8saudit.ResourceManifestLog, prevGroupData *lifeTimeTrackerGroupState) (*lifeTimeTrackerGroupState, error) {
-	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(ctx, l.Log.NodeReader)
+	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(l.Log.NodeReader, nil)
 	if k8sFieldSet.IsDryRun {
 		return prevGroupData, nil
 	}
@@ -166,64 +166,64 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 	return prevGroupData, nil
 }
 
-// ResourceLifetimeTrackerTask is the task to track the lifetime of resources.
-var ResourceLifetimeTrackerTask = inspectiontaskbase.NewInspectionTask[k8saudit.ResourceManifestLogGroupMap](
+// resourceLifetimeTrackerTask is the task to track the lifetime of resources.
+var resourceLifetimeTrackerTask = inspectiontaskbase.DefineInspectionTask[k8saudit.ResourceManifestLogGroupMap](
 	k8saudit.ResourceLifetimeTrackerTaskID,
-	[]coretask.Dependency{
-		k8saudit.ManifestGeneratorTaskID.Ref(),
-		k8saudit.K8sAuditLogIngesterTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceManifestLogGroupMap, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
-			return k8saudit.ResourceManifestLogGroupMap{}, nil
-		}
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ResourceManifestLogGroupMap] {
+		groupedLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
+		coretask.After(b, k8saudit.K8sAuditLogIngesterTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceManifestLogGroupMap, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				slog.DebugContext(ctx, "Skipping task because this is dry run mode")
+				return k8saudit.ResourceManifestLogGroupMap{}, nil
+			}
 
-		groupedLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
+			groupedLogs := groupedLogsInput.Get(ctx)
 
-		totalLogCount := 0
-		for _, group := range groupedLogs {
-			totalLogCount += len(group.Logs)
-		}
+			totalLogCount := 0
+			for _, group := range groupedLogs {
+				totalLogCount += len(group.Logs)
+			}
 
-		tracker := progress.NewTracker(ctx, totalLogCount, progress.WithUnit("logs"))
-		defer tracker.Done()
+			tracker := progress.NewTracker(ctx, totalLogCount, progress.WithUnit("logs"))
+			defer tracker.Done()
 
-		setting := &lifeTimeTrackerTaskSetting{
-			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
-				"core/v1#pod": {},
-			},
-		}
+			setting := &lifeTimeTrackerTaskSetting{
+				kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
+					"core/v1#pod": {},
+				},
+			}
 
-		pool := worker.NewPool(runtime.GOMAXPROCS(0))
-		for _, group := range groupedLogs {
-			pool.Run(func() {
-				var groupData *lifeTimeTrackerGroupState
-				// Lifetimetracker doesn't handle namespace resources.
-				if group.Resource.Type() == k8saudit.Namespace {
-					tracker.Add(len(group.Logs))
-					return
-				}
-				for _, l := range group.Logs {
-					var err error
-					groupData, err = setting.DetectLifetimeLogEvent(ctx, l, groupData)
-					if err != nil {
-						var yaml string
-						yamlBytes, err2 := l.Log.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-						if err2 != nil {
-							yaml = "ERROR!! failed to dump in yaml"
-						} else {
-							yaml = string(yamlBytes)
-						}
-						slog.WarnContext(ctx, "parser ended with an error", "error", err, "logContent", yaml)
-						continue
+			pool := worker.NewPool(runtime.GOMAXPROCS(0))
+			for _, group := range groupedLogs {
+				pool.Run(func() {
+					var groupData *lifeTimeTrackerGroupState
+					// Lifetimetracker doesn't handle namespace resources.
+					if group.Resource.Type() == k8saudit.Namespace {
+						tracker.Add(len(group.Logs))
+						return
 					}
-				}
-				tracker.Add(len(group.Logs))
-			})
-		}
-		pool.Wait()
+					for _, l := range group.Logs {
+						var err error
+						groupData, err = setting.DetectLifetimeLogEvent(ctx, l, groupData)
+						if err != nil {
+							var yaml string
+							yamlBytes, err2 := l.Log.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+							if err2 != nil {
+								yaml = "ERROR!! failed to dump in yaml"
+							} else {
+								yaml = string(yamlBytes)
+							}
+							slog.WarnContext(ctx, "parser ended with an error", "error", err, "logContent", yaml)
+							continue
+						}
+					}
+					tracker.Add(len(group.Logs))
+				})
+			}
+			pool.Wait()
 
-		return groupedLogs, nil
+			return groupedLogs, nil
+		}
 	},
 )

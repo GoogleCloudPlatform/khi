@@ -22,12 +22,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
-// DefaultK8sResourceMergeConfigTask is the task that generates the default patch request merge config.
-var DefaultK8sResourceMergeConfigTask = coretask.NewTask(
+// defaultK8sResourceMergeConfigTask is the task that generates the default patch request merge config.
+var defaultK8sResourceMergeConfigTask = coretask.Define(
 	k8saudit.K8sResourceMergeConfigTaskID,
-	[]coretask.Dependency{},
-	func(ctx context.Context) (*k8s.K8sManifestMergeConfigRegistry, error) {
-		return k8s.GenerateDefaultMergeConfig()
+	func(_ *coretask.Binder) func(ctx context.Context) (*k8s.K8sManifestMergeConfigRegistry, error) {
+		return func(ctx context.Context) (*k8s.K8sManifestMergeConfigRegistry, error) {
+			return k8s.GenerateDefaultMergeConfig()
+		}
 	},
 	coretask.WithTaskDescription("Generates the default Kubernetes manifest patch request merge configuration."),
 )

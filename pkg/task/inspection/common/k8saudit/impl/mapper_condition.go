@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -43,11 +42,16 @@ var (
 	pathConditionLastHeartbeatTime  = structured.CompileFieldPath("lastHeartbeatTime")
 )
 
-// ConditionLogToTimelineMapperTask is a ManifestLogToTimelineMapper task that tracks and records the history of Kubernetes resource conditions.
+// conditionLogToTimelineMapperTask is a ManifestLogToTimelineMapper task that tracks and records the history of Kubernetes resource conditions.
 // It analyzes status.conditions fields in audit logs to generate revisions for each condition type (e.g., Ready, Scheduled).
-var ConditionLogToTimelineMapperTask = k8saudit.NewManifestLogToTimelineMapper[*conditionLogToTimelineMapperTaskState](&conditionLogToTimelineMapperTaskSetting{
-	minimumDeltaTimeToCreateInferredCreationRevision: 10 * time.Second,
-})
+var conditionLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*conditionLogToTimelineMapperTaskState](
+	k8saudit.ConditionLogToTimelineMapperTaskID,
+	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*conditionLogToTimelineMapperTaskState] {
+		return &conditionLogToTimelineMapperTaskSetting{
+			minimumDeltaTimeToCreateInferredCreationRevision: 10 * time.Second,
+		}
+	},
+)
 
 // conditionLogToTimelineMapperTaskState tracks the status of all conditions of a resource during timeline generation.
 type conditionLogToTimelineMapperTaskState struct {
@@ -76,29 +80,9 @@ type conditionLogToTimelineMapperTaskSetting struct {
 	minimumDeltaTimeToCreateInferredCreationRevision time.Duration
 }
 
-// Dependencies implements k8saudit.ManifestLogToTimelineMapper.
-func (c *conditionLogToTimelineMapperTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
 // PassCount implements k8saudit.ManifestLogToTimelineMapper.
 func (c *conditionLogToTimelineMapperTaskSetting) PassCount() int {
 	return 1
-}
-
-// GroupedLogTask implements k8saudit.ManifestLogToTimelineMapper.
-func (c *conditionLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[k8saudit.ResourceManifestLogGroupMap] {
-	return k8saudit.ResourceLifetimeTrackerTaskID.Ref()
-}
-
-// LogIngesterTask implements k8saudit.ManifestLogToTimelineMapper.
-func (c *conditionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8saudit.K8sAuditLogIngesterTaskID.Ref()
-}
-
-// TaskID implements k8saudit.ManifestLogToTimelineMapper.
-func (c *conditionLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return k8saudit.ConditionLogToTimelineMapperTaskID
 }
 
 // ResolveRelatedGroupSets implements k8saudit.ManifestLogToTimelineMapper.
@@ -155,7 +139,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 		return state, nil
 	}
 
-	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
+	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 	ownerPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	for _, child := range conditionsReader.Children() {
@@ -192,7 +176,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) resolveUID(ts *common.TimeSeri
 func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event k8saudit.MultiGroupLogEvent, state *conditionLogToTimelineMapperTaskState) (*khifilev6.TimelineChangeSet, *conditionLogToTimelineMapperTaskState, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
-	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
+	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 	if k8sFieldSet.IsDryRun {
 		return cs, state, nil
 	}
