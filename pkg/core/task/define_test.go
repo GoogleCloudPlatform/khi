@@ -186,7 +186,7 @@ func TestDefine_RunsTasksWithMergedInputs(t *testing.T) {
 			return sharedInput.Get(ctx) + "|" + wrapped, nil
 		}
 	}, NewTaskResultRetentionLabel(true))
-	promotedConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.promoted-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
+	scopeAllOrderingConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.scope-all-ordering-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
 		sharedInput := UseOptional(b, sharedRef.Ref(taskid.ScopeActiveGraph))
 		After(b, sharedRef)
 		return func(ctx context.Context) (string, error) {
@@ -195,7 +195,7 @@ func TestDefine_RunsTasksWithMergedInputs(t *testing.T) {
 		}
 	}, NewTaskResultRetentionLabel(true))
 
-	tasks := []UntypedTask{shared, wrapper, promotedConsumer}
+	tasks := []UntypedTask{shared, wrapper, scopeAllOrderingConsumer}
 	runnableSet, err := ResolveGraph(tasks, tasks, nil)
 	if err != nil {
 		t.Fatalf("ResolveGraph() returned unexpected error: %v", err)
@@ -226,7 +226,7 @@ func TestDefine_RunsTasksWithMergedInputs(t *testing.T) {
 		},
 		{
 			name:       "optional input merged with a ScopeAll ordering dependency reads the produced value",
-			task:       promotedConsumer,
+			task:       scopeAllOrderingConsumer,
 			wantInputs: []string{"required ref:define-test.shared"},
 			want:       "shared,true",
 		},

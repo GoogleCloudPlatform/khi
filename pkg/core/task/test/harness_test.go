@@ -175,14 +175,14 @@ func TestRun(t *testing.T) {
 	}
 }
 
-func TestRun_OptionalInputMergedIntoRequiredInput(t *testing.T) {
-	promotedRef := taskid.NewTaskReference[string]("harness-test.promoted")
-	task := coretask.Define(taskid.NewDefaultImplementationID[string]("harness-test.promoted-task"), func(b *coretask.Binder) func(ctx context.Context) (string, error) {
-		promoted := coretask.UseOptional(b, promotedRef.Ref(taskid.ScopeActiveGraph))
-		coretask.After(b, promotedRef)
+func TestRun_OptionalInputBecomesRequiredWithScopeAllOrdering(t *testing.T) {
+	producerRef := taskid.NewTaskReference[string]("harness-test.producer")
+	task := coretask.Define(taskid.NewDefaultImplementationID[string]("harness-test.scope-all-ordering-task"), func(b *coretask.Binder) func(ctx context.Context) (string, error) {
+		producerInput := coretask.UseOptional(b, producerRef.Ref(taskid.ScopeActiveGraph))
+		coretask.After(b, producerRef)
 		return func(ctx context.Context) (string, error) {
-			value, found := promoted.Get(ctx)
-			return fmt.Sprintf("promoted=%s,%t", value, found), nil
+			value, found := producerInput.Get(ctx)
+			return fmt.Sprintf("value=%s,%t", value, found), nil
 		}
 	})
 
@@ -194,19 +194,22 @@ func TestRun_OptionalInputMergedIntoRequiredInput(t *testing.T) {
 	}{
 		{
 			name:   "given value is read",
-			inputs: []InputValue{Given(promotedRef, "foo")},
-			want:   "promoted=foo,true",
+			inputs: []InputValue{Given(producerRef, "foo")},
+			want:   "value=foo,true",
 		},
 		{
 			name:             "omitted value fails as a missing required input",
 			inputs:           nil,
-			wantFatalSubstrs: []string{"missing required input ref:harness-test.promoted (string)"},
+			wantFatalSubstrs: []string{"missing required input ref:harness-test.producer (string)"},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			got, fatalMessage, err := runWithFatalRecorder(t, task, tc.inputs...)
 			if len(tc.wantFatalSubstrs) > 0 {
+				if fatalMessage == "" {
+					t.Fatalf("Run() did not fail the test, want failure containing %q", tc.wantFatalSubstrs)
+				}
 				for _, want := range tc.wantFatalSubstrs {
 					if !strings.Contains(fatalMessage, want) {
 						t.Errorf("Run() failure message = %q, want substring %q", fatalMessage, want)

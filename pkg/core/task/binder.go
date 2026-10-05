@@ -101,8 +101,9 @@ func (b *Binder) add(dep Dependency, kind InputKind) {
 	b.specs[i] = mergeInputSpecs(existing, InputSpec{Dependency: dep, Kind: kind})
 }
 
-// mergeInputSpecs combines two declarations of the same input into one spec with the broadest scope.
-// The merged kind follows from the declared kinds and the merged scope.
+// mergeInputSpecs combines two declarations of the same input into one spec with the broader scope.
+// The merged kind is ordering when both declarations are ordering, tag when either is a tag input,
+// and otherwise required when the merged scope is ScopeAll and optional when it is narrower.
 func mergeInputSpecs(existing, incoming InputSpec) InputSpec {
 	merged := existing
 	// DependencyScope constants are declared from the narrowest to the broadest scope.
