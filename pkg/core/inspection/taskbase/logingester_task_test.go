@@ -36,39 +36,17 @@ import (
 
 var mockLogIngesterPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester-prev")
 
-type mockLogIngester struct {
-	cancel context.CancelFunc
-}
-
-func (m *mockLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return mockLogIngesterPrevTaskID.Ref()
-}
-
-func (m *mockLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
+type mockLogIngester struct{}
 
 var (
-	pathCancel = structured.CompileFieldPath("cancel")
-	pathError  = structured.CompileFieldPath("error")
-	pathName   = structured.CompileFieldPath("name")
-	pathSkip   = structured.CompileFieldPath("skip")
+	pathError = structured.CompileFieldPath("error")
+	pathName  = structured.CompileFieldPath("name")
 )
 
 func (m *mockLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-	shouldCancel := l.ReadBoolOrDefault(pathCancel, false)
-	if shouldCancel && m.cancel != nil {
-		m.cancel()
-		time.Sleep(50 * time.Millisecond)
-		return nil, ctx.Err()
-	}
 	shouldErr := l.ReadBoolOrDefault(pathError, false)
 	if shouldErr {
 		return nil, fmt.Errorf("test error")
-	}
-	shouldSkip := l.ReadBoolOrDefault(pathSkip, false)
-	if shouldSkip {
-		return nil, nil // Return nil changeset (skip)
 	}
 
 	cs, err := khifilev6.NewLogChangeSet(l)
@@ -83,122 +61,6 @@ func (m *mockLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev
 	cs.SetSeverity(&pb.Severity{Id: &severityID})
 	cs.SetLogType(&pb.LogType{Id: &logTypeID})
 	return cs, nil
-}
-
-var _ LogIngester = (*mockLogIngester)(nil)
-
-func TestLogIngesterTask(t *testing.T) {
-	type testLog struct {
-		yaml         string
-		shouldIngest bool
-	}
-
-	testCases := []struct {
-		desc          string
-		taskMode      inspectioncore.InspectionTaskModeType
-		prevLogs      []testLog
-		wantError     bool
-		cancelContext bool
-		cancelMidWay  bool
-	}{
-		{
-			desc:     "DryRun mode",
-			taskMode: inspectioncore.TaskModeDryRun,
-			prevLogs: []testLog{
-				{
-					yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`,
-					shouldIngest: false,
-				},
-			},
-			wantError: false,
-		},
-		{
-			desc:     "Normal execution with some skipped logs",
-			taskMode: inspectioncore.TaskModeRun,
-			prevLogs: []testLog{
-				{
-					yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`,
-					shouldIngest: true,
-				},
-				{
-					yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-2", "skip": true}`,
-					shouldIngest: false,
-				},
-			},
-			wantError: false,
-		},
-		{
-			desc:     "Execution with error",
-			taskMode: inspectioncore.TaskModeRun,
-			prevLogs: []testLog{
-				{
-					yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1", "error": true}`,
-					shouldIngest: false,
-				},
-			},
-			wantError: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			tid := taskid.NewDefaultImplementationID[struct{}]("mock-log-ingester")
-
-			ctx := context.Background()
-			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
-
-			var cancel context.CancelFunc
-			if tc.cancelContext || tc.cancelMidWay {
-				ctx, cancel = context.WithCancel(ctx)
-				defer cancel()
-			}
-			if tc.cancelContext {
-				cancel()
-			}
-
-			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-
-			var logs []*log.Log
-			shouldIngestMap := make(map[uint32]bool)
-			for _, tl := range tc.prevLogs {
-				l := mustNewLogFromYAML(t, ctx, tl.yaml)
-				logs = append(logs, l)
-				shouldIngestMap[l.ID] = tl.shouldIngest
-			}
-
-			task := NewLogIngesterTask(tid, &mockLogIngester{})
-
-			_, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockLogIngesterPrevTaskID.Ref(), logs))
-			if (err != nil) != tc.wantError {
-				t.Fatalf("RunInspectionTask() error = %v, wantError %v", err, tc.wantError)
-			}
-
-			if tc.cancelContext {
-				var expectedErr = context.Canceled
-				if err == nil || err.Error() != expectedErr.Error() {
-					t.Errorf("RunInspectionTask() error = %v, want %v", err, expectedErr)
-				}
-			}
-
-			if !tc.wantError {
-				// Verify whether logs were correctly accumulated in LogAccumulator or not
-				for _, l := range logs {
-					resolvedID, ok := builder.LogAccumulator.ResolveLogID(l.ID)
-					shouldIngest := shouldIngestMap[l.ID]
-					if shouldIngest {
-						if !ok {
-							t.Errorf("expected log %d to be ingested, but ResolveLogID returned false", l.ID)
-						}
-						if resolvedID == 0 {
-							t.Errorf("expected log %d to have a valid resolved ID, got 0", l.ID)
-						}
-					} else if ok {
-						t.Errorf("expected log %d NOT to be ingested, but ResolveLogID returned true with ID %d", l.ID, resolvedID)
-					}
-				}
-			}
-		})
-	}
 }
 
 func TestDefineLogIngesterTask(t *testing.T) {

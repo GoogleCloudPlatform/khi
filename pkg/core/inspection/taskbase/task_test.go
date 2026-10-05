@@ -53,13 +53,13 @@ func TestDefineInspectionTask(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(sourceRef, "source-value"))
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			got, _, err := inspectiontest.Run(t, ctx, task, tc.taskMode, map[string]any{}, tasktest.Given(sourceRef, "source-value"))
 			if err != nil {
-				t.Fatalf("RunInspectionTask() returned unexpected error: %v", err)
+				t.Fatalf("Run() returned unexpected error: %v", err)
 			}
 			if got != tc.want {
-				t.Errorf("RunInspectionTask() = %q, want %q", got, tc.want)
+				t.Errorf("Run() = %q, want %q", got, tc.want)
 			}
 		})
 	}
