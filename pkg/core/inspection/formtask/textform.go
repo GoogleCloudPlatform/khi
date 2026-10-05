@@ -47,10 +47,9 @@ type TextFormValueConverter[T any] = func(ctx context.Context, value string) (T,
 // TextFormHintGenerator is a function type to generate a hint string
 type TextFormHintGenerator = func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error)
 
-// TextFormTaskBuilder is an utility to construct an instance of task for input form field.
-// This will generate the task instance with `Build()` method call after chaining several configuration methods.
-type TextFormTaskBuilder[T any] struct {
-	FormTaskBuilderBase[T]
+// textFormTask holds the settings of a text form task defined with DefineTextForm.
+type textFormTask[T any] struct {
+	formTaskBase[T]
 	defaultValue        TextFormDefaultValueGenerator
 	validator           TextFormValidator
 	readonlyProvider    TextFormReadonlyProvider
@@ -60,18 +59,10 @@ type TextFormTaskBuilder[T any] struct {
 	validatingTiming    inspectionmetadata.TextFormValidationTimingType
 }
 
-// NewTextFormTaskBuilder constructs an instance of TextFormDefinitionBuilder.
-// id,prioirity and label will be initialized with the value given in the argument. The other values are initialized with the following values.
-// dependencies : Initialized with an empty string array indicating this task is not depending on anything.
-// description: Initialized with an empty string.
-// defaultValue: Initialized with a function to return empty string.
-// validator: Initialized with a function to return empty string that indicates the validation is always passing.
-// allowEditProvider: Initialized with a function to return true.
-// suggestionsProvider: Initialized with a function to return nil.
-// converter: Initialized with a function to return the given value. This means no conversion applied and treated as a string.
-func NewTextFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority int, fieldLabel string) *TextFormTaskBuilder[T] {
-	return &TextFormTaskBuilder[T]{
-		FormTaskBuilderBase: NewFormTaskBuilderBase(id, priority, fieldLabel),
+// newTextFormTask creates a text form task with the default settings described in TextFormSpec.
+func newTextFormTask[T any](id taskid.TaskImplementationID[T], priority int, label string, description string) *textFormTask[T] {
+	return &textFormTask[T]{
+		formTaskBase: newFormTaskBase(id, priority, label, description),
 		defaultValue: func(ctx context.Context, previousValues []string) (string, error) {
 			return "", nil
 		},
@@ -95,33 +86,8 @@ func NewTextFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority i
 	}
 }
 
-func (b *TextFormTaskBuilder[T]) WithDependencies(dependencies []coretask.Dependency) *TextFormTaskBuilder[T] {
-	b.FormTaskBuilderBase.WithDependencies(dependencies)
-	return b
-}
-
-func (b *TextFormTaskBuilder[T]) WithDescription(description string) *TextFormTaskBuilder[T] {
-	b.FormTaskBuilderBase.WithDescription(description)
-	return b
-}
-
-func (b *TextFormTaskBuilder[T]) WithValidator(validator TextFormValidator) *TextFormTaskBuilder[T] {
-	b.validator = validator
-	return b
-}
-
-func (b *TextFormTaskBuilder[T]) WithDefaultValueFunc(defFunc TextFormDefaultValueGenerator) *TextFormTaskBuilder[T] {
-	b.defaultValue = defFunc
-	return b
-}
-
-func (b *TextFormTaskBuilder[T]) WithSuggestionsFunc(suggestionsFunc TextFormSuggestionsProvider) *TextFormTaskBuilder[T] {
-	b.suggestionsProvider = suggestionsFunc
-	return b
-}
-
 // run computes the form field metadata and returns the converted value of the current input.
-func (b *TextFormTaskBuilder[T]) run(ctx context.Context) (T, error) {
+func (b *textFormTask[T]) run(ctx context.Context) (T, error) {
 	m := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 	req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
 	taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
@@ -157,7 +123,7 @@ func (b *TextFormTaskBuilder[T]) run(ctx context.Context) (T, error) {
 	field.Type = inspectionmetadata.Text
 	field.HintType = inspectionmetadata.Info
 
-	b.SetupBaseFormField(&field.ParameterFormFieldBase)
+	b.setupBaseFormField(&field.ParameterFormFieldBase)
 
 	suggestions, err := b.suggestionsProvider(ctx, currentValue, prevValue)
 	if err != nil {
@@ -213,10 +179,6 @@ func (b *TextFormTaskBuilder[T]) run(ctx context.Context) (T, error) {
 	return convertedValue, nil
 }
 
-func (b *TextFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.Task[T] {
-	return coretask.NewTask(b.id, b.dependencies, b.run, b.formLabelOpts(labelOpts)...)
-}
-
 // ConstantSuggestions returns a suggestions provider that always returns the given suggestions.
 func ConstantSuggestions(suggestions ...string) TextFormSuggestionsProvider {
 	return func(ctx context.Context, value string, previousValues []string) ([]string, error) {
@@ -237,7 +199,7 @@ func PreviousOrDefaultValue(defaultValue func(ctx context.Context) (string, erro
 
 // TextFormSpec holds the optional settings of a text form defined with DefineTextForm.
 // Callbacks may read inputs declared on the Binder passed to the bind function.
-// A nil callback or a zero value uses the default of NewTextFormTaskBuilder.
+// A nil callback or a zero value uses the default.
 type TextFormSpec[T any] struct {
 	// Readonly reports whether the field is read only. Defaults to false.
 	Readonly TextFormReadonlyProvider
@@ -255,7 +217,7 @@ type TextFormSpec[T any] struct {
 	ValidationTiming inspectionmetadata.TextFormValidationTimingType
 }
 
-func (b *TextFormTaskBuilder[T]) applySpec(spec TextFormSpec[T]) {
+func (b *textFormTask[T]) applySpec(spec TextFormSpec[T]) {
 	if spec.Readonly != nil {
 		b.readonlyProvider = spec.Readonly
 	}
@@ -283,7 +245,7 @@ func (b *TextFormTaskBuilder[T]) applySpec(spec TextFormSpec[T]) {
 // id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
 // and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
 func DefineTextForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) TextFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
-	form := NewTextFormTaskBuilder(id, priority, label).WithDescription(description)
+	form := newTextFormTask(id, priority, label, description)
 	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
 		form.applySpec(bind(b))
 		return form.run

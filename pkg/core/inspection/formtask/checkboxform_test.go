@@ -23,18 +23,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-type testCheckboxFormConfigurator = func(builder *CheckboxFormTaskBuilder)
-
-func TestCheckboxFormDefinitionBuilder(t *testing.T) {
+func TestDefineCheckboxForm_FormField(t *testing.T) {
 	testCases := []struct {
 		name              string
-		formConfigurator  testCheckboxFormConfigurator
+		spec              CheckboxFormSpec
 		requestValue      any
 		hasRequestValue   bool
 		expectedFormField inspectionmetadata.ParameterFormField
@@ -42,11 +42,10 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 		expectedError     string
 	}{
 		{
-			name:             "checkbox form with given boolean parameter",
-			formConfigurator: func(builder *CheckboxFormTaskBuilder) {},
-			requestValue:     true,
-			hasRequestValue:  true,
-			expectedValue:    true,
+			name:            "checkbox form with given boolean parameter",
+			requestValue:    true,
+			hasRequestValue: true,
+			expectedValue:   true,
 			expectedFormField: inspectionmetadata.CheckboxParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.None,
@@ -56,11 +55,10 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 			},
 		},
 		{
-			name:             "checkbox form with string true parameter",
-			formConfigurator: func(builder *CheckboxFormTaskBuilder) {},
-			requestValue:     "true",
-			hasRequestValue:  true,
-			expectedValue:    true,
+			name:            "checkbox form with string true parameter",
+			requestValue:    "true",
+			hasRequestValue: true,
+			expectedValue:   true,
 			expectedFormField: inspectionmetadata.CheckboxParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.None,
@@ -70,11 +68,10 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 			},
 		},
 		{
-			name:             "checkbox form with string false parameter",
-			formConfigurator: func(builder *CheckboxFormTaskBuilder) {},
-			requestValue:     "false",
-			hasRequestValue:  true,
-			expectedValue:    false,
+			name:            "checkbox form with string false parameter",
+			requestValue:    "false",
+			hasRequestValue: true,
+			expectedValue:   false,
 			expectedFormField: inspectionmetadata.CheckboxParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.None,
@@ -85,8 +82,8 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			name: "checkbox form with default parameter true",
-			formConfigurator: func(builder *CheckboxFormTaskBuilder) {
-				builder.WithDefaultValue(true)
+			spec: CheckboxFormSpec{
+				DefaultValue: func(ctx context.Context) (bool, error) { return true, nil },
 			},
 			hasRequestValue: false,
 			expectedValue:   true,
@@ -100,13 +97,13 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			name: "checkbox form with validator error",
-			formConfigurator: func(builder *CheckboxFormTaskBuilder) {
-				builder.WithValidator(func(ctx context.Context, value bool) (string, error) {
+			spec: CheckboxFormSpec{
+				Validator: func(ctx context.Context, value bool) (string, error) {
 					if value {
 						return "cannot be enabled", nil
 					}
 					return "", nil
-				})
+				},
 			},
 			requestValue:    true,
 			hasRequestValue: true,
@@ -122,8 +119,9 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			name: "checkbox form with readonly ignoring request value",
-			formConfigurator: func(builder *CheckboxFormTaskBuilder) {
-				builder.WithReadonly(true).WithDefaultValue(false)
+			spec: CheckboxFormSpec{
+				Readonly:     func(ctx context.Context) (bool, error) { return true, nil },
+				DefaultValue: func(ctx context.Context) (bool, error) { return false, nil },
 			},
 			requestValue:    true,
 			hasRequestValue: true,
@@ -138,10 +136,10 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			name: "checkbox form with hint",
-			formConfigurator: func(builder *CheckboxFormTaskBuilder) {
-				builder.WithHintFunc(func(ctx context.Context, value bool) (string, inspectionmetadata.ParameterHintType, error) {
+			spec: CheckboxFormSpec{
+				Hint: func(ctx context.Context, value bool) (string, inspectionmetadata.ParameterHintType, error) {
 					return "checkbox hint", inspectionmetadata.Info, nil
-				})
+				},
 			},
 			hasRequestValue: false,
 			expectedValue:   false,
@@ -155,27 +153,24 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 			},
 		},
 		{
-			name:             "checkbox form with invalid string parameter",
-			formConfigurator: func(builder *CheckboxFormTaskBuilder) {},
-			requestValue:     "not-a-bool",
-			hasRequestValue:  true,
-			expectedError:    "request parameter `foo` was not a valid boolean in task foo#default",
+			name:            "checkbox form with invalid string parameter",
+			requestValue:    "not-a-bool",
+			hasRequestValue: true,
+			expectedError:   "request parameter `foo` was not a valid boolean in task foo#default",
 		},
 		{
-			name:             "checkbox form with invalid parameter type",
-			formConfigurator: func(builder *CheckboxFormTaskBuilder) {},
-			requestValue:     123,
-			hasRequestValue:  true,
-			expectedError:    "request parameter `foo` was not given as boolean or boolean string in task foo#default",
+			name:            "checkbox form with invalid parameter type",
+			requestValue:    123,
+			hasRequestValue: true,
+			expectedError:   "request parameter `foo` was not given as boolean or boolean string in task foo#default",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			builder := NewCheckboxFormTaskBuilder(taskid.NewDefaultImplementationID[bool]("foo"), 1, "foo label")
-			builder.WithDescription("foo description")
-			tc.formConfigurator(builder)
-			taskDef := builder.Build()
+			taskDef := DefineCheckboxForm(taskid.NewDefaultImplementationID[bool]("foo"), 1, "foo label", "foo description", func(b *coretask.Binder) CheckboxFormSpec {
+				return tc.spec
+			})
 
 			inputs := map[string]any{}
 			if tc.hasRequestValue {
@@ -184,7 +179,7 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 
 			// DryRun mode execution
 			dryRunCtx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			_, _, dryRunErr := inspectiontest.RunInspectionTask(dryRunCtx, taskDef, inspectioncore.TaskModeDryRun, inputs)
+			_, _, dryRunErr := inspectiontest.Run(t, dryRunCtx, taskDef, inspectioncore.TaskModeDryRun, inputs)
 
 			if tc.expectedError != "" {
 				if dryRunErr == nil {
@@ -230,7 +225,7 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 
 			// Run mode execution
 			runCtx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			runResult, _, runErr := inspectiontest.RunInspectionTask(runCtx, taskDef, inspectioncore.TaskModeRun, inputs)
+			runResult, _, runErr := inspectiontest.Run(t, runCtx, taskDef, inspectioncore.TaskModeRun, inputs)
 
 			if checkboxField.HintType == inspectionmetadata.Error {
 				if runErr == nil {
@@ -246,4 +241,83 @@ func TestCheckboxFormDefinitionBuilder(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDefineCheckboxForm(t *testing.T) {
+	sourceTaskID := taskid.NewDefaultImplementationID[bool]("source")
+	formID := taskid.NewDefaultImplementationID[bool]("checkbox-form")
+	task := DefineCheckboxForm(formID, 1, "test checkbox form", "test description", func(b *coretask.Binder) CheckboxFormSpec {
+		source := coretask.Use(b, sourceTaskID.Ref())
+		return CheckboxFormSpec{
+			DefaultValue: func(ctx context.Context) (bool, error) {
+				return source.Get(ctx), nil
+			},
+			Readonly: func(ctx context.Context) (bool, error) {
+				return source.Get(ctx), nil
+			},
+		}
+	})
+
+	testCases := []struct {
+		name         string
+		sourceValue  bool
+		inputs       map[string]any
+		wantValue    bool
+		wantReadonly bool
+	}{
+		{
+			name:         "callbacks read the declared input",
+			sourceValue:  true,
+			inputs:       map[string]any{formID.ReferenceIDString(): false},
+			wantValue:    true,
+			wantReadonly: true,
+		},
+		{
+			name:         "request value is used when the input makes the field editable",
+			sourceValue:  false,
+			inputs:       map[string]any{formID.ReferenceIDString(): true},
+			wantValue:    true,
+			wantReadonly: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			got, metadata, err := inspectiontest.Run(t, ctx, task, inspectioncore.TaskModeDryRun, tc.inputs,
+				tasktest.Given(sourceTaskID.Ref(), tc.sourceValue),
+			)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.wantValue {
+				t.Errorf("got %v, want %v", got, tc.wantValue)
+			}
+			fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
+			if !found {
+				t.Fatalf("form field set not found on metadata")
+			}
+			rawField := fields.DangerouslyGetField(formID.ReferenceIDString())
+			checkboxField, ok := rawField.(inspectionmetadata.CheckboxParameterFormField)
+			if !ok {
+				t.Fatalf("field is not CheckboxParameterFormField: %T", rawField)
+			}
+			if checkboxField.Readonly != tc.wantReadonly {
+				t.Errorf("field.Readonly = %v, want %v", checkboxField.Readonly, tc.wantReadonly)
+			}
+		})
+	}
+
+	t.Run("declares required input on source reference", func(t *testing.T) {
+		wantInputs := []string{"required source"}
+		if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("has form task label", func(t *testing.T) {
+		isFormTask, found := typedmap.Get(task.Labels(), inspectioncore.TaskLabelKeyIsFormTask)
+		if !found || !isFormTask {
+			t.Errorf("task label %v = %v, want true", inspectioncore.TaskLabelKeyIsFormTask, isFormTask)
+		}
+	})
 }

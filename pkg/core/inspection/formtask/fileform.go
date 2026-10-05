@@ -32,8 +32,7 @@ import (
 // DefineFileForm defines a form task that receives a file uploaded by the user and returns the upload result.
 // verifier checks the uploaded file. The form reads no input, so it declares nothing on the Binder.
 func DefineFileForm(id taskid.TaskImplementationID[upload.UploadResult], priority int, label string, description string, verifier upload.UploadFileVerifier, labelOpts ...coretask.LabelOpt) coretask.DefinedTask[upload.UploadResult] {
-	form := NewFormTaskBuilderBase(id, priority, label)
-	form.WithDescription(description)
+	form := newFormTaskBase(id, priority, label, description)
 	return coretask.Define(id, func(_ *coretask.Binder) func(ctx context.Context) (upload.UploadResult, error) {
 		return func(ctx context.Context) (upload.UploadResult, error) {
 			metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
@@ -63,7 +62,7 @@ func DefineFileForm(id taskid.TaskImplementationID[upload.UploadResult], priorit
 				Token:  token,
 				Status: uploadResult.Status,
 			}
-			form.SetupBaseFormField(&field.ParameterFormFieldBase)
+			form.setupBaseFormField(&field.ParameterFormFieldBase)
 
 			field = setFormHintsFromUploadResult(uploadResult, field)
 			formFields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
