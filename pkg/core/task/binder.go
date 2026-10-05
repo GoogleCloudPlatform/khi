@@ -77,10 +77,11 @@ func newBinder(owner taskid.UntypedTaskImplementationID) *Binder {
 
 // add registers an input. It panics when the Binder is sealed or when the same input is declared twice,
 // because both are programming errors that must fail at package initialization.
+// Bind-time panic messages omit the task ID because Define prefixes them with it.
 func (b *Binder) add(dep Dependency, kind InputKind) {
 	key := dependencyKey(dep)
 	if b.sealed {
-		panic(fmt.Sprintf("task %s declares input %s after its bind function returned; declare inputs in the bind function, not in the run function", b.owner, key))
+		panic(fmt.Sprintf("task %s: declares input %s after its bind function returned; declare inputs in the bind function, not in the run function", b.owner, key))
 	}
 	if _, found := b.keys[key]; found {
 		panic(fmt.Sprintf("declares input %s twice", key))
@@ -100,7 +101,7 @@ func (b *Binder) dependencies() []Dependency {
 
 // Use declares a required input and returns the handle to read its value.
 // The reference must use ScopeAll, the default scope, so that the producer is always pulled into the graph.
-// Use UseOptional for references with a narrower scope.
+// Use UseOptional for references with a narrower scope. Define prefixes the panic for a wrong scope with the task ID.
 func Use[T any](b *Binder, ref taskid.TaskReference[T]) Input[T] {
 	if ref.DescriptorScope() != taskid.ScopeAll {
 		panic(fmt.Sprintf("declares required input %s with a scope other than ScopeAll; use UseOptional for inputs whose producer may be absent", ref.ReferenceIDString()))
@@ -111,6 +112,7 @@ func Use[T any](b *Binder, ref taskid.TaskReference[T]) Input[T] {
 
 // UseOptional declares an input whose producer may be absent from the graph and returns the handle to read it.
 // The reference must use a scope narrower than ScopeAll, such as ScopeActiveGraph or ScopeActiveFeatures.
+// Define prefixes the panic for a wrong scope with the task ID.
 func UseOptional[T any](b *Binder, ref taskid.TaskReference[T]) OptionalInput[T] {
 	if ref.DescriptorScope() == taskid.ScopeAll {
 		panic(fmt.Sprintf("declares optional input %s with ScopeAll; pass a reference with a narrower scope such as FromActiveGraph, or use Use for a required input", ref.ReferenceIDString()))

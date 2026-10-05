@@ -114,9 +114,9 @@ func TestDefine_RunsInGraph(t *testing.T) {
 		}
 	}, NewTaskResultRetentionLabel(true))
 	chainedConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.chained-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
-		multiInputConsumerResult := Use(b, taskid.NewTaskReference[string]("define-test.multi-input-consumer"))
+		multiInputConsumerInput := Use(b, taskid.NewTaskReference[string]("define-test.multi-input-consumer"))
 		return func(ctx context.Context) (string, error) {
-			return "consumed:" + multiInputConsumerResult.Get(ctx), nil
+			return "consumed:" + multiInputConsumerInput.Get(ctx), nil
 		}
 	}, NewTaskResultRetentionLabel(true))
 
@@ -148,7 +148,7 @@ func TestDefine_RunsInGraph(t *testing.T) {
 			want: `produced|"",false|[tagged]`,
 		},
 		{
-			name: "reads the result of a task that has multiple inputs",
+			name: "reads the result of another task defined with inputs",
 			ref:  taskid.NewTaskReference[string]("define-test.chained-consumer"),
 			want: `consumed:produced|"",false|[tagged]`,
 		},
@@ -215,9 +215,9 @@ func TestDefineTailTask(t *testing.T) {
 		gotPanic := panicMessage(func() {
 			DefineTailTask(taskID, []Dependency{dupRef, dupRef})
 		})
-		wantSubstring := "task tail-test.dup-task#default: declares input ref:tail-test.dup twice"
-		if !strings.Contains(gotPanic, wantSubstring) {
-			t.Errorf("DefineTailTask() panic = %q, want substring %q", gotPanic, wantSubstring)
+		want := "task tail-test.dup-task#default: declares input ref:tail-test.dup twice"
+		if gotPanic != want {
+			t.Errorf("DefineTailTask() panic = %q, want %q", gotPanic, want)
 		}
 	})
 
@@ -242,6 +242,7 @@ func TestDefine_BuildsTask(t *testing.T) {
 		deps            []Dependency
 		labelOpts       []LabelOpt
 		runErr          error
+		bindPanic       error
 		wantLabelVal    string
 		wantProvidedTag string
 		wantPanic       string
@@ -279,6 +280,12 @@ func TestDefine_BuildsTask(t *testing.T) {
 			wantPanic: "task task.test#default: unsupported dependency <nil>",
 		},
 		{
+			name:      "panics with the task ID when user code in bind panics",
+			taskID:    taskID,
+			bindPanic: errors.New("boom"),
+			wantPanic: "task task.test#default: boom",
+		},
+		{
 			name:   "panics when label contains empty key",
 			taskID: taskID,
 			labelOpts: []LabelOpt{
@@ -296,6 +303,9 @@ func TestDefine_BuildsTask(t *testing.T) {
 				return Define(tc.taskID, func(b *Binder) func(ctx context.Context) (string, error) {
 					for _, dep := range tc.deps {
 						After(b, dep)
+					}
+					if tc.bindPanic != nil {
+						panic(tc.bindPanic)
 					}
 					return func(ctx context.Context) (string, error) {
 						if tc.runErr != nil {

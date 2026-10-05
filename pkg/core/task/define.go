@@ -91,7 +91,7 @@ func Define[T any](
 ) DefinedTask[T] {
 	verifyTaskID(id)
 	b := newBinder(id)
-	run := runBind(id, b, bind)
+	run := callBind(id, b, bind)
 	b.sealed = true
 	labelOpts = append([]LabelOpt{WithLabelValue(LabelKeyTaskResultType, reflect.TypeFor[T]().String())}, labelOpts...)
 	labels := NewLabelSet(labelOpts...)
@@ -105,9 +105,9 @@ func Define[T any](
 	}
 }
 
-// runBind calls bind and re-panics any panic raised in it with the task ID prepended.
+// callBind calls bind and re-panics any panic raised in it with the task ID prepended.
 // Bind functions run at package initialization, where the stack trace alone rarely tells which task failed.
-func runBind[T any](id taskid.TaskImplementationID[T], b *Binder, bind func(b *Binder) func(ctx context.Context) (T, error)) func(ctx context.Context) (T, error) {
+func callBind[T any](id taskid.TaskImplementationID[T], b *Binder, bind func(b *Binder) func(ctx context.Context) (T, error)) func(ctx context.Context) (T, error) {
 	defer func() {
 		if r := recover(); r != nil {
 			panic(fmt.Sprintf("task %s: %v", id, r))
