@@ -107,7 +107,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := gcpcommon.NewGCPOperationLogIngester(networkapiaudit.ListLogEntriesTaskID.Ref(), networkapiaudit.LogTypeNetworkAPI)
+	ingester := gcpcommon.NewGCPOperationLogIngester(networkapiaudit.LogTypeNetworkAPI)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)

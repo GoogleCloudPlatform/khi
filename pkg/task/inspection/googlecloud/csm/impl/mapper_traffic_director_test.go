@@ -68,7 +68,7 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := gcpcommon.NewGCPOperationLogIngester(csm.ListCSMTrafficDirectorLogEntriesTaskID.Ref(), csm.LogTypeCSMTrafficLog)
+	ingester := gcpcommon.NewGCPOperationLogIngester(csm.LogTypeCSMTrafficLog)
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := testlog.NewMockLog(

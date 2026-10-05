@@ -148,7 +148,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := gcpcommon.NewGCPOperationLogIngester(computeapiaudit.ListLogEntriesTaskID.Ref(), computeapiaudit.LogTypeComputeApi)
+	ingester := gcpcommon.NewGCPOperationLogIngester(computeapiaudit.LogTypeComputeApi)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
