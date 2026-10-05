@@ -25,6 +25,7 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -240,4 +241,83 @@ func TestDefineCheckboxForm(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDefineCheckboxForm_Binder(t *testing.T) {
+	sourceTaskID := taskid.NewDefaultImplementationID[bool]("source")
+	formID := taskid.NewDefaultImplementationID[bool]("checkbox-form")
+	task := DefineCheckboxForm(formID, 1, "test checkbox form", "test description", func(b *coretask.Binder) CheckboxFormSpec {
+		source := coretask.Use(b, sourceTaskID.Ref())
+		return CheckboxFormSpec{
+			DefaultValue: func(ctx context.Context) (bool, error) {
+				return source.Get(ctx), nil
+			},
+			Readonly: func(ctx context.Context) (bool, error) {
+				return source.Get(ctx), nil
+			},
+		}
+	})
+
+	testCases := []struct {
+		name         string
+		sourceValue  bool
+		requestValue map[string]any
+		wantValue    bool
+		wantReadonly bool
+	}{
+		{
+			name:         "callbacks read the declared input",
+			sourceValue:  true,
+			requestValue: map[string]any{formID.ReferenceIDString(): false},
+			wantValue:    true,
+			wantReadonly: true,
+		},
+		{
+			name:         "request value is used when the input makes the field editable",
+			sourceValue:  false,
+			requestValue: map[string]any{formID.ReferenceIDString(): true},
+			wantValue:    true,
+			wantReadonly: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			got, metadata, err := inspectiontest.Run(t, ctx, task, inspectioncore.TaskModeDryRun, tc.requestValue,
+				tasktest.Given(sourceTaskID.Ref(), tc.sourceValue),
+			)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.wantValue {
+				t.Errorf("got %v, want %v", got, tc.wantValue)
+			}
+			fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
+			if !found {
+				t.Fatalf("form field set not found on metadata")
+			}
+			rawField := fields.DangerouslyGetField(formID.ReferenceIDString())
+			checkboxField, ok := rawField.(inspectionmetadata.CheckboxParameterFormField)
+			if !ok {
+				t.Fatalf("field is not CheckboxParameterFormField: %T", rawField)
+			}
+			if checkboxField.Readonly != tc.wantReadonly {
+				t.Errorf("field.Readonly = %v, want %v", checkboxField.Readonly, tc.wantReadonly)
+			}
+		})
+	}
+
+	t.Run("declares required input on source reference", func(t *testing.T) {
+		wantInputs := []string{"required source"}
+		if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("has form task label", func(t *testing.T) {
+		isFormTask, found := typedmap.Get(task.Labels(), inspectioncore.TaskLabelKeyIsFormTask)
+		if !found || !isFormTask {
+			t.Errorf("task label %v = %v, want true", inspectioncore.TaskLabelKeyIsFormTask, isFormTask)
+		}
+	})
 }
