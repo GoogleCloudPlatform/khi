@@ -13,20 +13,20 @@ Because log processing shares many common patterns, you should implement log pro
 
 KHI provides the following high-level task creation utilities to cover basic log processing use cases:
 
-- **`LogFilterTask`** : Filters logs based on conditions.
-- **`LogGrouperTask`** : Groups logs by specific keys (e.g., entity name, correlation ID).
-- **`LogIngesterTask`** : Ingests logs into the final history data, generating log-level metadata (`LogChangeSet`).
-- **`LogToTimelineMapperTask`** : Maps ingested logs to timeline events and resource revisions displayed on the KHI UI (`TimelineChangeSet`).
+- **`DefineLogFilterTask`** : Filters logs based on conditions.
+- **`DefineLogGrouperTask`** : Groups logs by specific keys (e.g., entity name, correlation ID).
+- **`DefineLogIngesterTask`** : Ingests logs into the final history data, generating log-level metadata (`LogChangeSet`).
+- **`DefineLogToTimelineMapperTask`** : Maps ingested logs to timeline events and resource revisions displayed on the KHI UI (`TimelineChangeSet`).
 
 The following is an example dependency graph showing how these task types work together to parse Kubernetes node audit logs fetched from Cloud Logging and render them on the UI timeline:
 
 ```mermaid
 flowchart TD
     Fetch["Log Collection/Query Task<br>(Cloud Logging, etc.)"]
-    Filter["LogFilterTask<br>(Filter out unwanted logs)"]
-    Grouper["LogGrouperTask<br>(Group by Pod name or thread)"]
-    Ingester["LogIngesterTask<br>(Build log change sets and styles)"]
-    Mapper["LogToTimelineMapperTask<br>(Map to timeline events and paths)"]
+    Filter["DefineLogFilterTask<br>(Filter out unwanted logs)"]
+    Grouper["DefineLogGrouperTask<br>(Group by Pod name or thread)"]
+    Ingester["DefineLogIngesterTask<br>(Build log change sets and styles)"]
+    Mapper["DefineLogToTimelineMapperTask<br>(Map to timeline events and paths)"]
 
     Fetch --> Filter
     Filter --> Grouper
@@ -74,108 +74,88 @@ Tasks can then call `ExtractMyFields(l.NodeReader)` directly without intermediat
 
 ---
 
-## 3. Filtering Logs (`LogFilterTask`)
+## 3. Filtering Logs (`DefineLogFilterTask`)
 
-Use `LogFilterTask` to filter out noise logs (such as routine health check logs) in advance that are not needed for visualization or analysis.
+Use `DefineLogFilterTask` to filter out noise logs (such as routine health check logs) in advance that are not needed for visualization or analysis.
 
 ```go
-var MyFilterTask = inspectiontaskbase.NewLogFilterTask(
+var MyFilterTask = inspectiontaskbase.DefineLogFilterTask(
     MyFilterTaskID,
     SourceLogsTaskID.Ref(),
-    func(ctx context.Context, l *log.Log) (bool, error) {
-        fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
-        if err != nil {
-            return false, err
+    func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+        return func(ctx context.Context, l *log.Log) bool {
+            fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
+            return err == nil && fields.Bar > 0
         }
-        return fields.Bar > 0, nil
     },
 )
 ```
 
 ---
 
-## 4. Grouping Logs (`LogGrouperTask`)
+## 4. Grouping Logs (`DefineLogGrouperTask`)
 
 When an individual log message is not enough to identify a cause, you need to group related logs across time (e.g., a sequence of events from Pod creation to termination).
-`LogGrouperTask` groups logs based on a specific key:
+`DefineLogGrouperTask` groups logs based on a specific key:
 
 ```go
-var MyGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+var MyGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
     MyGrouperTaskID,
     SourceLogsTaskID.Ref(),
-    func(ctx context.Context, l *log.Log) string {
-        fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
-        if err == nil && fields.Foo != "" {
-            return fields.Foo
+    func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+        return func(ctx context.Context, l *log.Log) string {
+            fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
+            if err == nil && fields.Foo != "" {
+                return fields.Foo
+            }
+            return "unknown"
         }
-        return "unknown"
     },
 )
 ```
 
 ---
 
-## 5. Ingesting Logs (`LogIngesterTask`)
+## 5. Ingesting Logs (`DefineLogIngesterTask`)
 
-`LogIngesterTask` is an ingestion task that configures log-level metadata (such as log type, timestamp, severity, and summary) into a `*khifilev6.LogChangeSet`.
-
-### 1. Declaring the `LogIngester` Interface
-
-When defining an ingestion task, first implement a struct that satisfies the `inspectiontaskbase.LogIngester` interface:
+`DefineLogIngesterTask` is an ingestion task (`coretask.Task[struct{}]`) that configures log-level metadata (such as log type, timestamp, severity, and summary) into a `*khifilev6.LogChangeSet`.
+Pass the source log reference (`taskid.TaskReference[[]*log.Log]`) as the second argument and a `bind` function returning an `inspectiontaskbase.LogIngesterFunc` as the third argument:
 
 ```go
-type MyLogIngester struct{}
-
-// RawLogTask returns the raw log source or parent task reference ID
-func (i *MyLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-    return SourceLogsTaskID.Ref()
-}
-
-// Dependencies returns the list of dependencies required by the parser
-func (i *MyLogIngester) Dependencies() []taskid.UntypedTaskReference {
-    return []taskid.UntypedTaskReference{}
-}
-
-// ProcessLog implements initial processing or transformation logic for each log
-func (i *MyLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-    cs, err := khifilev6.NewLogChangeSet(l)
-    if err != nil {
-        return nil, err
-    }
-
-    cs.SetTimestamp(l.Timestamp)
-    cs.SetLogType(myapp_contract.LogTypeMyApp)
-
-    if fields, err := myapp_contract.ExtractMyFields(l.NodeReader); err == nil {
-        cs.SetSummary(fmt.Sprintf("[%s] count=%d", fields.Foo, fields.Bar))
-    }
-
-    return cs, nil
-}
-
-var _ inspectiontaskbase.LogIngester = (*MyLogIngester)(nil)
-```
-
-### 2. Building the Task Instance
-
-Pass the address of your ingester struct to `inspectiontaskbase.NewLogIngesterTask` to declare the task instance:
-
-```go
-var MyLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+var MyLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
     MyLogIngesterTaskID,
-    &MyLogIngester{},
+    SourceLogsTaskID.Ref(),
+    func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+        return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+            cs, err := khifilev6.NewLogChangeSet(l)
+            if err != nil {
+                return nil, err
+            }
+
+            cs.SetTimestamp(l.Timestamp)
+            cs.SetLogType(myapp_contract.LogTypeMyApp)
+
+            if fields, err := myapp_contract.ExtractMyFields(l.NodeReader); err == nil {
+                cs.SetSummary(fmt.Sprintf("[%s] count=%d", fields.Foo, fields.Bar))
+            }
+
+            return cs, nil
+        }
+    },
 )
 ```
 
+If your ingester needs additional upstream inputs, bind them on `b *coretask.Binder` inside the outer function and read their handles inside the returned `LogIngesterFunc`.
+
 ---
 
-## 6. Mapping to Timelines (`LogToTimelineMapperTask`)
+## 6. Mapping to Timelines (`DefineLogToTimelineMapperTask`)
 
-As the final step in log processing, `LogToTimelineMapperTask` maps `*log.Log` objects after filtering and grouping to resource trees and chronological timeline events (event bars, severity, detailed messages) rendered on the KHI UI.
+As the final step in log processing, `DefineLogToTimelineMapperTask` maps `*log.Log` objects after filtering and grouping to resource trees and chronological timeline events (event bars, severity, detailed messages) rendered on the KHI UI.
 
-### 6.1 Implementing the `LogToTimelineMapper[T]` Interface
+### 6.1 Implementing the `TimelineMapper[T]` Interface
 
-To create a mapper task, declare a struct that satisfies the `inspectiontaskbase.LogToTimelineMapper[T]` interface.
+To create a mapper task, declare a struct that satisfies the `inspectiontaskbase.TimelineMapper[T]` interface.
 In most cases, embed **`inspectiontaskbase.SinglePassMapperBase[T]`** (or `StatelessMapperBase`) to eliminate boilerplate and make it easy to write custom sequential processing, overriding only required methods.
 
 ```go
@@ -187,17 +167,7 @@ type MyMapper struct {
     inspectiontaskbase.SinglePassMapperBase[MyGroupData]
 }
 
-func (m *MyMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-    return MyGrouperTaskID.Ref()
-}
-
-func (m *MyMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
-    return MyLogIngesterTaskID.Ref()
-}
-
-func (m *MyMapper) Dependencies() []taskid.UntypedTaskReference {
-    return []taskid.UntypedTaskReference{}
-}
+var _ inspectiontaskbase.TimelineMapper[MyGroupData] = (*MyMapper)(nil)
 ```
 
 ### 6.2 Creating and Using Timeline Path Helper Utilities
@@ -236,9 +206,15 @@ func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData M
 }
 
 // Initialize as a task
-var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+var MyMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
     MyMapperTaskID,
-    &MyMapper{},
+    inspectiontaskbase.TimelineMapperInputs{
+        LogIngester: MyLogIngesterTaskID.Ref(),
+        GroupedLogs: MyGrouperTaskID.Ref(),
+    },
+    func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[MyGroupData] {
+        return &MyMapper{}
+    },
     inspectioncore_contract.FeatureTaskLabel(
         "Custom App Logs",
         "Parser and timeline mapping for Custom App logs.",
