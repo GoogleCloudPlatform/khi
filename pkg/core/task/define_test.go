@@ -103,24 +103,24 @@ func TestDefine_RunsInGraph(t *testing.T) {
 	producer := DefineConstant(taskid.NewDefaultImplementationID[string]("define-test.producer"), "produced")
 	tagProducer := DefineConstant(taskid.NewDefaultImplementationID[string]("define-test.tag-producer"), "tagged", ProvidesTag(tag))
 	orderingProducer := DefineConstant(taskid.NewDefaultImplementationID[struct{}]("define-test.ordering-producer"), struct{}{})
-	bound := Define(taskid.NewDefaultImplementationID[string]("define-test.bound"), func(b *Binder) func(ctx context.Context) (string, error) {
-		produced := Use(b, taskid.NewTaskReference[string]("define-test.producer"))
+	multiInputConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.multi-input-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
+		producerInput := Use(b, taskid.NewTaskReference[string]("define-test.producer"))
 		absent := UseOptional(b, taskid.NewTaskReference[string]("define-test.absent", taskid.ScopeActiveGraph))
 		tagged := UseTag(b, tag.Ref())
 		After(b, taskid.NewTaskReference[struct{}]("define-test.ordering-producer"))
 		return func(ctx context.Context) (string, error) {
 			absentValue, found := absent.Get(ctx)
-			return fmt.Sprintf("%s|%q,%v|%v", produced.Get(ctx), absentValue, found, tagged.Get(ctx)), nil
+			return fmt.Sprintf("%s|%q,%v|%v", producerInput.Get(ctx), absentValue, found, tagged.Get(ctx)), nil
 		}
 	}, NewTaskResultRetentionLabel(true))
-	definedConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.defined-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
-		boundInput := Use(b, taskid.NewTaskReference[string]("define-test.bound"))
+	chainedConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.chained-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
+		multiInput := Use(b, taskid.NewTaskReference[string]("define-test.multi-input-consumer"))
 		return func(ctx context.Context) (string, error) {
-			return "consumed:" + boundInput.Get(ctx), nil
+			return "consumed:" + multiInput.Get(ctx), nil
 		}
 	}, NewTaskResultRetentionLabel(true))
 
-	tasks := []UntypedTask{producer, tagProducer, orderingProducer, bound, definedConsumer}
+	tasks := []UntypedTask{producer, tagProducer, orderingProducer, multiInputConsumer, chainedConsumer}
 	runnableSet, err := ResolveGraph(tasks, tasks, nil)
 	if err != nil {
 		t.Fatalf("ResolveGraph() returned unexpected error: %v", err)
@@ -143,13 +143,13 @@ func TestDefine_RunsInGraph(t *testing.T) {
 		want string
 	}{
 		{
-			name: "task defined with Define reads required, optional and tag inputs",
-			ref:  taskid.NewTaskReference[string]("define-test.bound"),
+			name: "reads required, optional and tag inputs",
+			ref:  taskid.NewTaskReference[string]("define-test.multi-input-consumer"),
 			want: `produced|"",false|[tagged]`,
 		},
 		{
-			name: "task defined with Define reads the result of another task defined with Define",
-			ref:  taskid.NewTaskReference[string]("define-test.defined-consumer"),
+			name: "reads the result of a consumer task",
+			ref:  taskid.NewTaskReference[string]("define-test.chained-consumer"),
 			want: `consumed:produced|"",false|[tagged]`,
 		},
 	}
@@ -185,7 +185,7 @@ func TestDefineTailTask(t *testing.T) {
 			"ordering tag:tail-test-tag",
 		}
 		if diff := cmp.Diff(wantInputs, describeInputSpecs(task.Inputs())); diff != "" {
-			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+			t.Fatalf("Inputs() mismatch (-want +got):\n%s", diff)
 		}
 
 		if got := task.Dependencies()[1].DescriptorScope(); got != taskid.ScopeActiveGraph {
@@ -229,7 +229,7 @@ func TestDefineTailTask(t *testing.T) {
 	})
 }
 
-func TestDefine_ConstructsTask(t *testing.T) {
+func TestDefine_BuildsRunnableTask(t *testing.T) {
 	taskID := taskid.NewDefaultImplementationID[string]("task.test")
 	depA := taskid.NewTaskReference[string]("task.a")
 	tag := NewTag[int]("tag.test")

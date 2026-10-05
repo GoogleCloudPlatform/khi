@@ -31,9 +31,9 @@ var _ coretask.Task[any] = (*retainedTask[any])(nil)
 
 // Labels returns the labels of the wrapped task with the result retention label set to true.
 func (r *retainedTask[T]) Labels() *typedmap.ReadonlyTypedMap {
-	retention := typedmap.NewTypedMap()
-	coretask.NewTaskResultRetentionLabel(true).Write(retention)
-	return typedmap.Merge(r.Task.Labels(), retention)
+	retentionLabels := typedmap.NewTypedMap()
+	coretask.NewTaskResultRetentionLabel(true).Write(retentionLabels)
+	return typedmap.Merge(r.Task.Labels(), retentionLabels)
 }
 
 // RunTaskWithDependency runs a task as a graph. Supply the dependencies of the main task to resolve the graph correctly.
