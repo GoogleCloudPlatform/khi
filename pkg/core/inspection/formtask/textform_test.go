@@ -275,7 +275,7 @@ func TestDefineTextForm(t *testing.T) {
 	sourceTaskID := taskid.NewDefaultImplementationID[string]("source")
 	formID := taskid.NewDefaultImplementationID[string]("text-form")
 
-	makeTask := func(customizeSpec func(source coretask.Input[string]) TextFormSpec[string]) coretask.DefinedTask[string] {
+	makeTask := func(customizeSpec func(source coretask.Input[string]) TextFormSpec[string]) coretask.Task[string] {
 		return DefineTextForm(formID, 1, "test text form", "test description", func(b *coretask.Binder) TextFormSpec[string] {
 			source := coretask.Use(b, sourceTaskID.Ref())
 			if customizeSpec != nil {
@@ -294,7 +294,7 @@ func TestDefineTextForm(t *testing.T) {
 
 	testCases := []struct {
 		name         string
-		task         coretask.DefinedTask[string]
+		task         coretask.Task[string]
 		taskMode     inspectioncore.InspectionTaskModeType
 		requestValue map[string]any
 		sourceValue  string

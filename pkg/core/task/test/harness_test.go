@@ -39,7 +39,7 @@ func (r *fatalRecorder) Fatalf(format string, args ...any) {
 }
 
 // runWithFatalRecorder runs Run in a separate goroutine so that Fatalf can stop it without stopping the test.
-func runWithFatalRecorder[T any](t *testing.T, task coretask.DefinedTask[T], inputs ...InputValue) (T, string, error) {
+func runWithFatalRecorder[T any](t *testing.T, task coretask.Task[T], inputs ...InputValue) (T, string, error) {
 	recorder := &fatalRecorder{TB: t}
 	var result T
 	var err error

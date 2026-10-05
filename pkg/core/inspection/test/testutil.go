@@ -78,7 +78,7 @@ func NextRunTaskContext(originalCtx context.Context, prevRunCtx context.Context)
 // Run validates inputs against the inputs declared by task and runs the task in the given inspection mode.
 // It fails t on invalid inputs in the same way as tasktest.Run. Use WithDefaultTestInspectionTaskContext to get the base context.
 // It returns the task result, the inspection metadata and the error returned by the task.
-func Run[T any](t testing.TB, baseContext context.Context, task coretask.DefinedTask[T], mode inspectioncore.InspectionTaskModeType, inspectionInput map[string]any, inputs ...tasktest.InputValue) (T, *typedmap.ReadonlyTypedMap, error) {
+func Run[T any](t testing.TB, baseContext context.Context, task coretask.Task[T], mode inspectioncore.InspectionTaskModeType, inspectionInput map[string]any, inputs ...tasktest.InputValue) (T, *typedmap.ReadonlyTypedMap, error) {
 	t.Helper()
 	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionTaskInput, inspectionInput)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskMode, mode)

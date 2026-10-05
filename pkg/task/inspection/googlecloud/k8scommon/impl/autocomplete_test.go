@@ -84,7 +84,7 @@ func TestFilterAndTrimPrefixFromClusterNames(t *testing.T) {
 func TestClusterScopedAutocompleteTasks_IncompleteClusterIdentity(t *testing.T) {
 	testCases := []struct {
 		name       string
-		task       coretask.DefinedTask[*inspectioncore.AutocompleteResult[string]]
+		task       coretask.Task[*inspectioncore.AutocompleteResult[string]]
 		metricsRef taskid.TaskReference[string]
 		cluster    k8scommon.GoogleCloudClusterIdentity
 		wantHint   string

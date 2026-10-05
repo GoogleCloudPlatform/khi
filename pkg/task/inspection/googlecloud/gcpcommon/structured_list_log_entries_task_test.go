@@ -67,7 +67,7 @@ func (s *mockStructuredLogQuerySource) TimePartitionCount(ctx context.Context) (
 var _ StructuredLogQuerySource = (*mockStructuredLogQuerySource)(nil)
 
 // defineMockStructuredListLogEntriesTask defines a structured list log entries task with the task ID "structured-test" that queries with source.
-func defineMockStructuredListLogEntriesTask(queryName string, source *mockStructuredLogQuerySource) coretask.DefinedTask[[]*log.Log] {
+func defineMockStructuredListLogEntriesTask(queryName string, source *mockStructuredLogQuerySource) coretask.Task[[]*log.Log] {
 	return DefineStructuredListLogEntriesTask(taskid.NewDefaultImplementationID[[]*log.Log]("structured-test"), queryName, func(b *coretask.Binder) StructuredLogQuerySource {
 		return source
 	})

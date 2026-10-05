@@ -39,7 +39,7 @@ func NewInventoryTask[T any, R any](
 	tag coretask.Tag[T],
 	mergeFunc func(results []T) (R, error),
 	labelOpts ...coretask.LabelOpt,
-) coretask.DefinedTask[R] {
+) coretask.Task[R] {
 	return DefineInspectionTask(id, func(b *coretask.Binder) InspectionTaskFunc[R] {
 		results := coretask.UseTag(b, tag.Ref(coretask.FromActiveFeatures))
 		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (R, error) {

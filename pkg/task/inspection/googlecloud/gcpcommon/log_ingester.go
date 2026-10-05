@@ -80,7 +80,7 @@ func (i *GCPOperationLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*
 }
 
 // DefineGCPOperationLogIngesterTask defines a log ingester task for GCP Operation audit logs read from rawLogTask.
-func DefineGCPOperationLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], rawLogTask taskid.TaskReference[[]*log.Log], logType *pb.LogType) coretask.DefinedTask[struct{}] {
+func DefineGCPOperationLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], rawLogTask taskid.TaskReference[[]*log.Log], logType *pb.LogType) coretask.Task[struct{}] {
 	ingester := NewGCPOperationLogIngester(logType)
 	return inspectiontaskbase.DefineLogIngesterTask(taskID, rawLogTask, func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
 		return ingester.ProcessLog

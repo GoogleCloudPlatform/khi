@@ -60,8 +60,8 @@ type UntypedTask interface {
 	// The implementation of this function must return a constant value.
 	Labels() *typedmap.ReadonlyTypedMap
 
-	// Dependencies returns the list of task dependencies. Task runner will wait for these dependencies before running this task.
-	Dependencies() []Dependency
+	// Inputs returns the inputs declared for this task in declaration order.
+	Inputs() []InputSpec
 
 	// ResultType returns the reflection Type of the task output.
 	ResultType() reflect.Type

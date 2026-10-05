@@ -67,7 +67,7 @@ type cachedEntry[T any] struct {
 
 // DefineCachedTask defines a task with a Binder that reuses the previously computed value while the digest of its inputs is unchanged.
 // bind declares the inputs on the Binder and returns the spec whose functions read them. Only the latest value is kept.
-func DefineCachedTask[T any](taskID taskid.TaskImplementationID[T], bind func(b *coretask.Binder) CachedTaskSpec[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
+func DefineCachedTask[T any](taskID taskid.TaskImplementationID[T], bind func(b *coretask.Binder) CachedTaskSpec[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
 	return coretask.Define(taskID, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
 		spec := bind(b)
 		sharedMapKey := spec.Scope.sharedMapKey()

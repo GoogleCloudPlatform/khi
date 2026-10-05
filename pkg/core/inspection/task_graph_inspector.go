@@ -387,7 +387,7 @@ func convertToRegisteredTaskInfo(task coretask.UntypedTask) *apiv1.RegisteredTas
 	featureLabel := typedmap.GetOrDefault(labels, inspectioncore.LabelKeyFeatureTaskTitle, "")
 	featureDesc := typedmap.GetOrDefault(labels, inspectioncore.LabelKeyFeatureTaskDescription, "")
 
-	dependencies := convertTaskDependencies(task.Dependencies())
+	dependencies := convertTaskDependencies(task.Inputs())
 
 	selector, hasSelector := typedmap.Get(labels, inspectioncore.LabelKeyInspectionTypeLabelSelector)
 	var selectorRequirements []*apiv1.LabelSelectorRequirementInfo
@@ -416,9 +416,10 @@ func convertToRegisteredTaskInfo(task coretask.UntypedTask) *apiv1.RegisteredTas
 	}
 }
 
-func convertTaskDependencies(deps []coretask.Dependency) []*apiv1.TaskDependencyInfo {
-	dependencies := make([]*apiv1.TaskDependencyInfo, 0, len(deps))
-	for _, dep := range deps {
+func convertTaskDependencies(inputs []coretask.InputSpec) []*apiv1.TaskDependencyInfo {
+	dependencies := make([]*apiv1.TaskDependencyInfo, 0, len(inputs))
+	for _, input := range inputs {
+		dep := input.Dependency
 		depInfo := &apiv1.TaskDependencyInfo{
 			Cardinality: convertEdgeCardinality(dep.DescriptorCardinality()),
 			Scope:       convertDependencyScope(dep.DescriptorScope()),

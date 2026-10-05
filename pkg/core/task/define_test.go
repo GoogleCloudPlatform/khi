@@ -28,7 +28,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestDefine_DeclaresInputsAsDependencies(t *testing.T) {
+func TestDefine_DeclaresInputs(t *testing.T) {
 	requiredRef := taskid.NewTaskReference[string]("define-test.required")
 	optionalRef := taskid.NewTaskReference[int]("define-test.optional", taskid.ScopeActiveGraph)
 	orderingRef := taskid.NewTaskReference[struct{}]("define-test.ordering")
@@ -44,15 +44,6 @@ func TestDefine_DeclaresInputsAsDependencies(t *testing.T) {
 			return fmt.Sprint(required.Get(ctx), value, tagged.Get(ctx)), nil
 		}
 	})
-
-	wantKeys := []string{"ref:define-test.required", "ref:define-test.optional", "tag:define-test-tag", "ref:define-test.ordering"}
-	gotKeys := make([]string, 0, len(task.Dependencies()))
-	for _, dep := range task.Dependencies() {
-		gotKeys = append(gotKeys, dependencyKey(dep))
-	}
-	if diff := cmp.Diff(wantKeys, gotKeys); diff != "" {
-		t.Errorf("Dependencies() mismatch (-want +got):\n%s", diff)
-	}
 
 	wantInputs := []string{
 		"required ref:define-test.required",
@@ -214,7 +205,7 @@ func TestDefine_RunsTasksWithMergedInputs(t *testing.T) {
 
 	testCases := []struct {
 		name       string
-		task       DefinedTask[string]
+		task       Task[string]
 		wantInputs []string
 		want       string
 	}{
@@ -269,8 +260,8 @@ func TestDefineTailTask(t *testing.T) {
 			t.Fatalf("Inputs() mismatch (-want +got):\n%s", diff)
 		}
 
-		if got := task.Dependencies()[1].DescriptorScope(); got != taskid.ScopeActiveGraph {
-			t.Errorf("task.Dependencies()[1].DescriptorScope() = %v, want %v", got, taskid.ScopeActiveGraph)
+		if got := task.Inputs()[1].Dependency.DescriptorScope(); got != taskid.ScopeActiveGraph {
+			t.Errorf("task.Inputs()[1].Dependency.DescriptorScope() = %v, want %v", got, taskid.ScopeActiveGraph)
 		}
 
 		val, ok := typedmap.Get(task.Labels(), testLabelKey)
@@ -315,8 +306,8 @@ func TestDefineTailTask(t *testing.T) {
 
 	t.Run("accepts empty dependencies", func(t *testing.T) {
 		task := DefineTailTask(taskid.NewDefaultImplementationID[struct{}]("tail-test.empty"), nil)
-		if got := len(task.Dependencies()); got != 0 {
-			t.Errorf("len(task.Dependencies()) = %d, want 0", got)
+		if got := len(task.Inputs()); got != 0 {
+			t.Errorf("len(task.Inputs()) = %d, want 0", got)
 		}
 	})
 }
@@ -391,7 +382,7 @@ func TestDefine_BuildsTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			define := func() DefinedTask[string] {
+			define := func() Task[string] {
 				return Define(tc.taskID, func(b *Binder) func(ctx context.Context) (string, error) {
 					for _, dep := range tc.deps {
 						After(b, dep)

@@ -259,7 +259,7 @@ func (b *setFormTask[T]) applySpec(spec SetFormSpec[T]) {
 // DefineSetForm defines a set form task with a Binder.
 // id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
 // and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
-func DefineSetForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) SetFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
+func DefineSetForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) SetFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
 	form := newSetFormTask(id, priority, label, description)
 	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
 		form.applySpec(bind(b))

@@ -49,15 +49,6 @@ func TestNewAliasTask(t *testing.T) {
 			ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 			ctx = khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, taskid.UntypedTaskImplementationID(aliasTaskID))
 
-			deps := aliasTask.Dependencies()
-			if len(deps) != 1 {
-				t.Fatalf("unexpected dependency count: %d", len(deps))
-			}
-			ptp, ok := deps[0].(taskid.PointToPointDescriptor)
-			if !ok || ptp.ReferenceID() != sourceTaskID.ReferenceIDString() {
-				t.Errorf("unexpected dependencies: %v", deps)
-			}
-
 			inputs := aliasTask.Inputs()
 			if len(inputs) != 1 {
 				t.Fatalf("unexpected input count: %d", len(inputs))
