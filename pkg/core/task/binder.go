@@ -102,7 +102,7 @@ func (b *Binder) add(dep Dependency, kind InputKind) {
 }
 
 // mergeInputSpecs combines two declarations of the same input into one spec with the broader scope.
-// The merged kind is ordering when both declarations are ordering, tag when either is a tag input,
+// The merged kind is ordering when both declarations are ordering, tag when the dependency is a tag reference,
 // and otherwise required when the merged scope is ScopeAll and optional when it is narrower.
 func mergeInputSpecs(existing, incoming InputSpec) InputSpec {
 	merged := existing
@@ -110,11 +110,13 @@ func mergeInputSpecs(existing, incoming InputSpec) InputSpec {
 	if incoming.Dependency.DescriptorScope() > merged.Dependency.DescriptorScope() {
 		merged.Dependency = incoming.Dependency
 	}
+	_, isTag := merged.Dependency.(taskid.FanInDescriptor)
 	switch {
 	case existing.Kind == InputKindOrdering && incoming.Kind == InputKindOrdering:
 		merged.Kind = InputKindOrdering
-	case existing.Kind == InputKindTag || incoming.Kind == InputKindTag:
-		// A tag key never merges with a reference key, so the other declaration is a tag input or an ordering dependency.
+	case isTag:
+		// At least one declaration reads the tag, and tag scopes are never ScopeAll,
+		// so without this case the input would fall through to optional.
 		merged.Kind = InputKindTag
 	case merged.Dependency.DescriptorScope() == taskid.ScopeAll:
 		// The task reads the value and ScopeAll always pulls the producer into the graph.
