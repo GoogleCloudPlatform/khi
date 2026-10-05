@@ -8,25 +8,25 @@
 
 ## 1. ログ解析パイプラインの全体像
 
-KHI はその堅牢なタスクシステムを使用してログ解析を実行します。このアーキテクチャは KHI を非常に拡張性の高いものにし（新しいタスクを作成するだけで新しい機能を追加できます）、Go の並行処理機能をフル活用することを可能にします。
+KHI はその堅牢なタスクシステムを使用してログ解析を実行します。このアーキテクチャにより、新しいタスクを作成するだけで新機能を追加できる高い拡張性を備え、Go の並行処理機能を最大限に活用できます。
 ログ解析には多くの共通パターンがあるため、ログ解析タスクは KHI が提供する高レベルなタスク作成ユーティリティを使用して実装すべきです。
 
 KHI は、基本的なログ解析のユースケースをカバーするために、以下の高レベルタスク作成ユーティリティを提供しています:
 
-- **`LogFilterTask`** : 条件に基づいてログをフィルタリングします。
-- **`LogGrouperTask`** : 特定のキー（エンティティ名や相関IDなど）でログをグループ化します。
-- **`LogIngesterTask`** : ログを最終的な履歴データに取り込み、ログレベルのメタデータ（`LogChangeSet`）を生成します。
-- **`LogToTimelineMapperTask`** : 取り込まれたログを KHI の UI 上で表示するタイムラインのイベントやリソースリビジョン（`TimelineChangeSet`）へとマッピングします。
+- **`DefineLogFilterTask`** : 条件に基づいてログをフィルタリングします。
+- **`DefineLogGrouperTask`** : エンティティ名や相関 ID といった特定のキーでログをグループ化します。
+- **`DefineLogIngesterTask`** : ログを最終的な履歴データに取り込み、ログレベルのメタデータである `LogChangeSet` を生成します。
+- **`DefineLogToTimelineMapperTask`** : 取り込まれたログを KHI の UI 上で表示するタイムラインのイベントやリソースリビジョンである `TimelineChangeSet` へとマッピングします。
 
 以下は、これら 4 種類のタスクを組み合わせて、Cloud Logging から取得したログを解析し、UI タイムラインへと描画するまでのパイプライン全体の依存グラフ例です:
 
 ```mermaid
 flowchart TD
     Fetch["ログ収集・クエリタスク<br>(Cloud Logging 等)"]
-    Filter["LogFilterTask<br>(不要ログの除外)"]
-    Grouper["LogGrouperTask<br>(Pod名やスレッドごとのグループ化)"]
-    Ingester["LogIngesterTask<br>(ログ変更セットとスタイルの構築)"]
-    Mapper["LogToTimelineMapperTask<br>(タイムラインイベント・リソースパス変換)"]
+    Filter["DefineLogFilterTask<br>(不要ログの除外)"]
+    Grouper["DefineLogGrouperTask<br>(Pod名やスレッドごとのグループ化)"]
+    Ingester["DefineLogIngesterTask<br>(ログ変更セットとスタイルの構築)"]
+    Mapper["DefineLogToTimelineMapperTask<br>(タイムラインイベント・リソースパス変換)"]
 
     Fetch --> Filter
     Filter --> Grouper
@@ -74,109 +74,89 @@ func ExtractMyFields(reader *structured.NodeReader) (MyFields, error) {
 
 ---
 
-## 3. ログのフィルタリング (`LogFilterTask`)
+## 3. ログのフィルタリング (`DefineLogFilterTask`)
 
-膨大なログの中から、可視化や解析に不要なノイズログ（ヘルスチェックの正常ログなど）を事前に除外するには `LogFilterTask` を使用します。
+膨大なログの中から、ヘルスチェックの正常ログなど可視化や解析に不要なノイズログを事前に除外するには `DefineLogFilterTask` を使用します。
 
 ```go
-var MyFilterTask = inspectiontaskbase.NewLogFilterTask(
+var MyFilterTask = inspectiontaskbase.DefineLogFilterTask(
     MyFilterTaskID,
     SourceLogsTaskID.Ref(),
-    func(ctx context.Context, l *log.Log) (bool, error) {
-        fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
-        if err != nil {
-            return false, err
+    func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+        return func(ctx context.Context, l *log.Log) bool {
+            fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
+            return err == nil && fields.Bar > 0
         }
-        return fields.Bar > 0, nil
     },
 )
 ```
 
 ---
 
-## 4. ログのグループ化 (`LogGrouperTask`)
+## 4. ログのグループ化 (`DefineLogGrouperTask`)
 
-個別のログメッセージだけでは原因を特定できない場合、関連する複数のログを時系列でグループ化して処理する必要があります（例: Kubernetes の Pod の起動から終了までの一連のイベント群など）。
-`LogGrouperTask` は、特定のキーに基づいてログをグルーピングします:
+個別のログメッセージだけでは原因を特定できない場合、Kubernetes の Pod の起動から終了までの一連のイベント群のように、関連する複数のログを時系列でグループ化して処理する必要があります。
+`DefineLogGrouperTask` は、特定のキーに基づいてログをグルーピングします:
 
 ```go
-var MyGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+var MyGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
     MyGrouperTaskID,
     SourceLogsTaskID.Ref(),
-    func(ctx context.Context, l *log.Log) string {
-        fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
-        if err == nil && fields.Foo != "" {
-            return fields.Foo
+    func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+        return func(ctx context.Context, l *log.Log) string {
+            fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
+            if err == nil && fields.Foo != "" {
+                return fields.Foo
+            }
+            return "unknown"
         }
-        return "unknown"
     },
 )
 ```
 
 ---
 
-## 5. ログの取り込み (`LogIngesterTask`)
+## 5. ログの取り込み (`DefineLogIngesterTask`)
 
-`LogIngesterTask` は、ログ種別、タイムスタンプ、重要度、サマリーなどのログレベルのメタデータを `*khifilev6.LogChangeSet` に設定するための取り込みタスクです。
-
-### 1. `LogIngester` インターフェースの宣言
-
-取り込みを行うタスクを定義する際は、まず `inspectiontaskbase.LogIngester` インターフェースを満たす構造体を実装します:
+`DefineLogIngesterTask` は、ログ種別、タイムスタンプ、重要度、サマリーなどのログレベルのメタデータを `*khifilev6.LogChangeSet` に設定する取り込みタスク (`coretask.Task[struct{}]`) です。
+第二引数に生ログタスクの参照 (`taskid.TaskReference[[]*log.Log]`) を、第三引数に `inspectiontaskbase.LogIngesterFunc` を返す `bind` 関数を渡します:
 
 ```go
-type MyLogIngester struct{}
-
-// ログソースとなる生ログまたは親タスクの参照IDを返します
-func (i *MyLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-    return SourceLogsTaskID.Ref()
-}
-
-// パーサーが必要とする依存関係のリストを返します
-func (i *MyLogIngester) Dependencies() []taskid.UntypedTaskReference {
-    return []taskid.UntypedTaskReference{}
-}
-
-// 個々のログに対して実行する初期処理や変換ロジックを実装します
-func (i *MyLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-    cs, err := khifilev6.NewLogChangeSet(l)
-    if err != nil {
-        return nil, err
-    }
-
-    cs.SetTimestamp(l.Timestamp)
-    cs.SetLogType(myapp_contract.LogTypeMyApp)
-
-    if fields, err := myapp_contract.ExtractMyFields(l.NodeReader); err == nil {
-        cs.SetSummary(fmt.Sprintf("[%s] count=%d", fields.Foo, fields.Bar))
-    }
-
-    return cs, nil
-}
-
-var _ inspectiontaskbase.LogIngester = (*MyLogIngester)(nil)
-```
-
-### 2. タスクインスタンスの構築
-
-実装したインジェスター構造体のアドレスを `inspectiontaskbase.NewLogIngesterTask` に渡してタスクインスタンスを宣言します:
-
-```go
-var MyLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+var MyLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
     MyLogIngesterTaskID,
-    &MyLogIngester{},
+    SourceLogsTaskID.Ref(),
+    func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+        return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+            cs, err := khifilev6.NewLogChangeSet(l)
+            if err != nil {
+                return nil, err
+            }
+
+            cs.SetTimestamp(l.Timestamp)
+            cs.SetLogType(myapp_contract.LogTypeMyApp)
+
+            if fields, err := myapp_contract.ExtractMyFields(l.NodeReader); err == nil {
+                cs.SetSummary(fmt.Sprintf("[%s] count=%d", fields.Foo, fields.Bar))
+            }
+
+            return cs, nil
+        }
+    },
 )
 ```
 
+インジェスターが追加の上流タスク入力を必要とする場合は、外側の関数内で `b *coretask.Binder` にバインドし、返される `LogIngesterFunc` の中で入力ハンドルを読み取ります。
+
 ---
 
-## 6. タイムラインへのマッピング (`LogToTimelineMapperTask`)
+## 6. タイムラインへのマッピング (`DefineLogToTimelineMapperTask`)
 
-ログ解析の最終工程として、フィルタリングやグループ化を経た `*log.Log` オブジェクトから、KHI の UI 上に描画するリソースツリーおよび時系列タイムラインイベント（イベントバー、重要度、詳細メッセージ）へとマッピングするタスクが `LogToTimelineMapperTask` です。
+ログ解析の最終工程として、フィルタリングやグループ化を経た `*log.Log` オブジェクトから、KHI の UI 上に描画するリソースツリー、およびイベントバーや重要度、詳細メッセージを含む時系列タイムラインイベントへとマッピングするタスクが `DefineLogToTimelineMapperTask` です。
 
-### 6.1 `LogToTimelineMapper[T]` インターフェースの実装
+### 6.1 `TimelineMapper[T]` インターフェースの実装
 
-マッパータスクを作成するには、`inspectiontaskbase.LogToTimelineMapper[T]` インターフェースを満たす構造体を宣言します。
-通常は、独自の順次処理を記述しやすいように **`inspectiontaskbase.SinglePassMapperBase[T]`** （または `StatelessMapperBase`）を埋め込んで定型コードを省略し、必要なメソッドのみをオーバーライドします。
+マッパータスクを作成するには、`inspectiontaskbase.TimelineMapper[T]` インターフェースを満たす構造体を宣言します。
+通常は、独自の順次処理を記述しやすいように **`inspectiontaskbase.SinglePassMapperBase[T]`** または **`inspectiontaskbase.StatelessMapperBase`** を埋め込んで定型コードを省略し、必要なメソッドのみをオーバーライドします。
 
 ```go
 type MyGroupData struct {
@@ -187,23 +167,13 @@ type MyMapper struct {
     inspectiontaskbase.SinglePassMapperBase[MyGroupData]
 }
 
-func (m *MyMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-    return MyGrouperTaskID.Ref()
-}
-
-func (m *MyMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
-    return MyLogIngesterTaskID.Ref()
-}
-
-func (m *MyMapper) Dependencies() []taskid.UntypedTaskReference {
-    return []taskid.UntypedTaskReference{}
-}
+var _ inspectiontaskbase.TimelineMapper[MyGroupData] = (*MyMapper)(nil)
 ```
 
 ### 6.2 タイムラインパス生成ユーティリティの作成と利用
 
-現在の KHI 実装では、マッパー内で生の文字列からパスを直接構築するのではなく、リソースの階層関係（ツリー構造）を明確に型で表現する **`*khifilev6.TimelinePath`** を用いてイベントを追加・解決します。
-さらに、親階層を `TimelineAccumulator.GetPath` でゼロから再構築するのではなく、既存の親タイムラインヘルパー関数（`MustXXXTimeline`）を合成して子リソースのパスを生成する**タイムラインパス生成ユーティリティ**を作成する実装パターンを採用しています。
+現在の KHI 実装では、マッパー内で生の文字列からパスを直接構築するのではなく、リソースのツリー構造を明確に型で表現する **`*khifilev6.TimelinePath`** を用いてイベントを追加・解決します。
+さらに、親階層を `TimelineAccumulator.GetPath` でゼロから再構築するのではなく、`MustXXXTimeline` といった既存の親タイムラインヘルパー関数を合成して子リソースのパスを生成する**タイムラインパス生成ユーティリティ**を作成する実装パターンを採用しています。
 
 #### 1. タイムラインパス生成ヘルパーの作成例 (`contract` または `impl` パッケージに定義)
 
@@ -236,9 +206,15 @@ func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData M
 }
 
 // タスクとして初期化
-var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+var MyMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
     MyMapperTaskID,
-    &MyMapper{},
+    inspectiontaskbase.TimelineMapperInputs{
+        LogIngester: MyLogIngesterTaskID.Ref(),
+        GroupedLogs: MyGrouperTaskID.Ref(),
+    },
+    func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[MyGroupData] {
+        return &MyMapper{}
+    },
     inspectioncore_contract.FeatureTaskLabel(
         "Custom App Logs",
         "Parser and timeline mapping for Custom App logs.",

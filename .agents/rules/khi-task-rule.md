@@ -15,10 +15,10 @@ When developing or modifying task-related files in the KHI project (under `pkg/t
   - `internal` folder defines utility only used from the contract or impl folder. The package name must be `packagetaskname_internal`.
 - Add a README.md just under the task package summarizing details of tasks defined in the package and the expected structure.
 
-## 2. Dependencies and Result Retrieval
+## 2. Inputs and Result Retrieval
 
-- Values output by dependent tasks should be retrieved using `task.GetTaskResult(ctx, Reference.Ref())`.
-- The context passed to `GetTaskResult` must be the exact context value passed to the task function.
+- Tasks declare their inputs during bind time on `*coretask.Binder` using `coretask.Use(b, Reference.Ref())`, `coretask.UseOptional(b, Reference.Ref(coretask.FromActiveGraph))`, `coretask.UseTag(b, Tag.Ref())`, or `coretask.After(b, dep)`.
+- Values output by upstream tasks must be retrieved at execution time by calling `.Get(ctx)` on the handle returned by `Use`, `UseOptional`, or `UseTag`, passing the context passed to the task function.
 
 ## 3. Logging
 
@@ -28,7 +28,7 @@ When developing or modifying task-related files in the KHI project (under `pkg/t
 ## 4. Testing Tasks
 
 - Generate a context for test from `inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())`
-- Run the tested Task with `inspectiontest.RunInspectionTask`.
+- Run the tested Task with `inspectiontest.Run` (or `tasktest.Run` for core tasks) using `tasktest.Given` / `tasktest.GivenTag`.
 - When you test result of a Task emits ChangeSet, use `testchangeset.ChangeSetAsserter` and its implementation to test.
 - Search existing codes for reference.
 
@@ -39,4 +39,4 @@ When developing or modifying task-related files in the KHI project (under `pkg/t
 ## 6. Calling Google Cloud APIs
 
 - When calling Google Cloud APIs (Cloud Logging, Cloud Monitoring, etc.), you **MUST** inject call options into `context.Context` using `CallOptionInjector.InjectToCallContext(ctx, container)` before executing the API call. Refer to the `googlecloud-api` skill for details and patterns.
-- Tasks calling Google Cloud APIs must depend on `googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref()` and retrieve it via `coretask.GetTaskResult(ctx, ...)` (or `coretask.GetOptionalTaskResult` when the injector is optional).
+- Tasks calling Google Cloud APIs must bind `gcpcommon.APIClientCallOptionsInjectorTaskID.Ref()` via `coretask.Use(b, ...)` (or `coretask.UseOptional(b, ...)` when the injector is optional) and read it with `.Get(ctx)`.

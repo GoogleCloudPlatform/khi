@@ -42,9 +42,13 @@ In KHI, each `InspectionType` defines a set of key-value labels indicating its t
 To restrict a task so that it only runs for compatible inspection types, attach an `InspectionTypeLabelSelector` label option specifying the required label key-value pairs:
 
 ```go
-var AdvancedTask = coretask.NewTask(AdvancedTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (any, error) {
-    return nil, nil
-},
+var AdvancedTask = coretask.Define(
+    AdvancedTaskID,
+    func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+        return func(ctx context.Context) (any, error) {
+            return nil, nil
+        }
+    },
     inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
         inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
         inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
@@ -107,43 +111,53 @@ This allows KHI to fully leverage information discovered from other enabled log 
 
 ### 3.2 Creating Discovery Tasks and Integrating with Inventory Tasks
 
-In KHI, use `inspectiontaskbase.NewInventoryTaskBuilder` to build **two or more independent `DiscoveryTask`s** corresponding to each log source, combined with a **single `InventoryTask`** that integrates them.
+In KHI, you declare a `coretask.Tag[T]` for the inventory type, create **independent Discovery tasks** for each log source that publish to the tag via `coretask.ProvidesTag`, and combine them with a **single Inventory task** built via `inspectiontaskbase.NewInventoryTask`.
 
-1. **`DiscoveryTask` is included in the graph only when requested by another task**:
-   Discovery tasks are pulled in on demand as dependencies. As a result, **the discovery task itself is never included in the task graph unless requested as a dependency by a parser or feature task that uses it** (if the corresponding parser is disabled, the discovery task is excluded from the graph).
-2. **Optional integration of enabled results by `InventoryTask`**:
-   The inventory task created by `.InventoryTask(strategy)` on the builder uses `coretask.GetOptionalTaskResult` to collect and merge **only the results of Discovery tasks that were actually included and executed in the graph**.
+1. **Discovery tasks publish via `coretask.ProvidesTag(tag)`**:
+   Each discovery task declares its prerequisite log parser input on its `Binder` and attaches `coretask.ProvidesTag(tag)`.
+2. **Active-feature aggregation by `NewInventoryTask`**:
+   `inspectiontaskbase.NewInventoryTask` binds `coretask.UseTag(b, tag.Ref(coretask.FromActiveFeatures))`, which pulls in and merges outputs **only from discovery tasks whose prerequisite data sources belong to enabled features**.
 
 #### Example Code: Two Discovery Tasks (Node Log and Audit Log) and an Integrated Inventory Task
 
 ```go
-// 1. Initialize the Inventory builder
-var containerInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder(ContainerIDInventoryTaskID)
+// 1. Declare a tag in contract for the discovered container identity maps
+var ContainerIDInventoryTag = coretask.NewTag[commonlogk8saudit_contract.ContainerIDToContainerIdentity](
+    "khi.google.com/inventory/container-id",
+)
 
-// 2-A. Discovery task for container IDs from node logs (included in the graph only when depended on by node log parsers, etc.)
-var NodeLogContainerIDDiscoveryTask = containerInventoryBuilder.DiscoveryTask(
+// 2-A. Discovery task for container IDs from node logs
+var NodeLogContainerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
     NodeLogContainerIDDiscoveryTaskID,
-    []taskid.UntypedTaskReference{NodeLogParserTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
-        logs := coretask.GetTaskResult(ctx, NodeLogParserTaskID.Ref())
-        return extractContainersFromNodeLogs(logs), nil
+    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[commonlogk8saudit_contract.ContainerIDToContainerIdentity] {
+        logsInput := coretask.Use(b, NodeLogParserTaskID.Ref())
+        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
+            if taskMode == inspectioncore_contract.TaskModeDryRun {
+                return nil, nil
+            }
+            return extractContainersFromNodeLogs(logsInput.Get(ctx)), nil
+        }
     },
+    coretask.ProvidesTag(ContainerIDInventoryTag),
 )
 
-// 2-B. Discovery task for container IDs from audit logs (included in the graph only when depended on by audit log parsers, etc.)
-var AuditLogContainerIDDiscoveryTask = containerInventoryBuilder.DiscoveryTask(
+// 2-B. Discovery task for container IDs from audit logs
+var AuditLogContainerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
     AuditLogContainerIDDiscoveryTaskID,
-    []taskid.UntypedTaskReference{AuditLogParserTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
-        logs := coretask.GetTaskResult(ctx, AuditLogParserTaskID.Ref())
-        return extractContainersFromAuditLogs(logs), nil
+    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[commonlogk8saudit_contract.ContainerIDToContainerIdentity] {
+        logsInput := coretask.Use(b, AuditLogParserTaskID.Ref())
+        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
+            if taskMode == inspectioncore_contract.TaskModeDryRun {
+                return nil, nil
+            }
+            return extractContainersFromAuditLogs(logsInput.Get(ctx)), nil
+        }
     },
+    coretask.ProvidesTag(ContainerIDInventoryTag),
 )
 
-// 3. Merge strategy that deduplicates and combines results from multiple sources (implementing InventoryMergerStrategy)
-type containerIDMergeStrategy struct{}
-
-func (c *containerIDMergeStrategy) Merge(results []commonlogk8saudit_contract.ContainerIDToContainerIdentity) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
+// 3. Merge function that deduplicates and combines results from multiple sources
+func mergeContainerIDs(results []commonlogk8saudit_contract.ContainerIDToContainerIdentity) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
     result := map[string]*commonlogk8saudit_contract.ContainerIdentity{}
     for _, r := range results {
         for cid, s := range r {
@@ -158,13 +172,15 @@ func (c *containerIDMergeStrategy) Merge(results []commonlogk8saudit_contract.Co
     return result, nil
 }
 
-var _ inspectiontaskbase.InventoryMergerStrategy[commonlogk8saudit_contract.ContainerIDToContainerIdentity] = (*containerIDMergeStrategy)(nil)
-
 // 4. Inventory task that aggregates and merges results only from enabled Discovery tasks
-var ContainerIDInventoryTask = containerInventoryBuilder.InventoryTask(&containerIDMergeStrategy{})
+var ContainerIDInventoryTask = inspectiontaskbase.NewInventoryTask(
+    ContainerIDInventoryTaskID,
+    ContainerIDInventoryTag,
+    mergeContainerIDs,
+)
 ```
 
-By delegating the choice to use discovery tasks and include them in the graph to individual log parsers, KHI achieves a resource inventory that operates safely and flexibly even when users disable certain log parsing features.
+By scoping tag resolution to active features, KHI achieves a resource inventory that operates safely and flexibly even when users disable certain log parsing features.
 
 ### 3.3 Building Searchers with PatternFinder to Reduce Complexity
 
@@ -180,18 +196,23 @@ Common Discovery / PatternFinder utilities:
 
 #### Using PatternFinders in Mapper Tasks
 
-By adding the reference ID of a Discovery/PatternFinder task to your mapper task's `Dependencies()`, you can retrieve the searcher inside `ProcessLogByGroup` using `coretask.GetTaskResult(ctx, ...)` and perform high-speed O(1) to O(log N) association lookups using functions like `patternfinder.FindAllWithStarterRunes(...)`.
+By binding a Discovery/PatternFinder task reference on the `Binder` in `DefineLogToTimelineMapperTask`, you can read the searcher inside `ProcessLogByGroup` via its `coretask.Input[T]` handle and perform high-speed O(1) to O(log N) association lookups using functions like `patternfinder.FindAllWithStarterRunes(...)`.
 
 ```go
+type MyMapper struct {
+    inspectiontaskbase.SinglePassMapperBase[MyGroupData]
+    containerFinder coretask.Input[patternfinder.PatternFinder[*commonlogk8saudit_contract.ContainerIdentity]]
+}
+
 func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData MyGroupData) (*khifilev6.TimelineChangeSet, MyGroupData, error) {
-    // Get the container ID searcher
-    containerFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref())
+    // Read the container ID searcher from the bound input handle
+    containerFinder := m.containerFinder.Get(ctx)
 
     originalMsg := l.Message // Message body
     // Scan high-speed for container ID patterns starting with alphabet or digit runes
     results := patternfinder.FindAllWithStarterRunes(originalMsg, containerFinder, false, '"')
 
-    cs := khifilev6.NewTimelineChangeSet()
+    cs := khifilev6.NewTimelineChangeSet(l)
     for _, res := range results {
         // Add Pod timeline event based on the discovered container information
         podPath := commonlogk8saudit_contract.MustK8sPodTimeline(ctx, clusterName, res.Value.PodNamespace, res.Value.PodName)
@@ -199,87 +220,97 @@ func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData M
     }
     return cs, prevData, nil
 }
+
+var MyMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+    MyMapperTaskID,
+    inspectiontaskbase.TimelineMapperInputs{
+        LogIngester: MyLogIngesterTaskID.Ref(),
+        GroupedLogs: MyGrouperTaskID.Ref(),
+    },
+    func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[MyGroupData] {
+        return &MyMapper{
+            containerFinder: coretask.Use(b, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref()),
+        }
+    },
+)
 ```
 
 ## 4. Task Forms and User Input Fields (`formtask`)
 
-To allow users to enter or select parameters (such as project IDs, locations, cluster names, time ranges, or log files) in KHI's "New Inspection" dialog, implement tasks using the declarative form task builder package (`github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask`).
+To allow users to enter or select parameters (such as project IDs, locations, cluster names, time ranges, or log files) in KHI's "New Inspection" dialog, implement tasks using the declarative form task package (`github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask`).
 
-### 4.1 Types of Form Builders
+### 4.1 Types of Form Definition Functions
 
-Choose from the following 3 builder types depending on the input format:
+Choose from the following 3 form definition functions depending on the input format:
 
-- **`formtask.NewTextFormTaskBuilder(...)`**: Builds form tasks for string or text input (supporting autocomplete and regular expression validation).
-- **`formtask.NewSetFormTaskBuilder(...)`**: Builds form tasks that let users select single or multiple values from options, such as dropdowns or checklists.
+- **`formtask.DefineTextForm(...)`**: Defines form tasks for string or text input (supporting autocomplete, type conversion, and regular expression validation).
+- **`formtask.DefineSetForm(...)`**: Defines form tasks that let users select single or multiple values from options, such as dropdowns or checklists.
 - **`formtask.DefineFileForm(...)`**: Defines form tasks that accept log file uploads or file path selections from the user's local environment.
 
 ### 4.2 Building Rich Input Forms and Autocomplete Integrations
 
-Form builders provide various methods to support comfortable user input, such as UI validation and dynamic autocomplete suggestions:
+`formtask.DefineTextForm` accepts the required form metadata (`id`, `priority`, `label`, `description`) and a `bind` function (`func(b *coretask.Binder) formtask.TextFormSpec[T]`) that declares any upstream inputs on `b` and returns optional callbacks in `TextFormSpec[T]`:
 
-- **`WithDescription(desc)`**: Sets the help description text displayed in the UI input field.
-- **`WithDependencies(...)`**: Declares dependency tasks required to calculate default values or autocomplete suggestions.
-- **`WithDefaultValueFunc(fn)`**: Dynamically calculates default values based on input history from previous inspection runs or dependency task results.
-- **`WithSuggestionsFunc(fn)`**: Dynamically sorts and presents autocomplete suggestion lists from autocomplete task results as the user types (`common.SortForAutocomplete` is standard).
-- **`WithValidator(fn)`**: Performs required field checks or regular expression checks, displaying error messages in the UI and blocking execution when input is invalid.
+- **`DefaultValue`**: Dynamically calculates default values based on input history from previous inspection runs or bound upstream task inputs (`formtask.PreviousOrDefaultValue` is available as a helper).
+- **`Suggestions`**: Dynamically sorts and presents autocomplete suggestion lists from bound autocomplete task inputs as the user types (`common.SortForAutocomplete` is standard).
+- **`Validator`**: Performs required field checks or regular expression checks, displaying error messages in the UI and blocking execution when input is invalid.
+- **`Converter`**: Converts the validated input string into the task's output type `T` (defaults to identity when `T` is `string`).
+- **`Readonly` / `Hint` / `ValidationTiming`**: Controls field editability, informational hints, and validation timing.
 
 #### Example Code: Location Input Task with Autocomplete and Validation
 
-The following is a declarative task implementation example used in the actual `InputLocationsTask`, incorporating autocomplete integration and validation (`Validator`):
+The following is a declarative task implementation example used in `InputLocationsTask`, incorporating autocomplete integration and validation (`Validator`):
 
 ```go
-var InputLocationsTask = formtask.NewTextFormTaskBuilder(
+var InputLocationsTask = formtask.DefineTextForm(
     googlecloudcommon_contract.InputLocationsTaskID,
     googlecloudcommon_contract.PriorityForResourceIdentifierGroup+3000,
     "Location",
-).
-    WithDependencies([]taskid.UntypedTaskReference{
-        googlecloudcommon_contract.AutocompleteLocationTaskID.Ref(),
-    }).
-    WithDescription("The location (region) to specify where the resource exists").
-    WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-        locations := coretask.GetTaskResult(ctx, googlecloudcommon_contract.AutocompleteLocationTaskID.Ref())
-        if len(previousValues) > 0 && slices.Contains(locations.Values, previousValues[0]) {
-            return previousValues[0], nil
+    "The location (region) to specify where the resource exists",
+    func(b *coretask.Binder) formtask.TextFormSpec[string] {
+        autocompleteLocation := coretask.Use(b, googlecloudcommon_contract.AutocompleteLocationTaskID.Ref())
+        return formtask.TextFormSpec[string]{
+            DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
+                locations := autocompleteLocation.Get(ctx)
+                if len(previousValues) > 0 && slices.Contains(locations.Values, previousValues[0]) {
+                    return previousValues[0], nil
+                }
+                if len(locations.Values) == 0 {
+                    return "", nil
+                }
+                return locations.Values[0], nil
+            },
+            Suggestions: func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+                regions := autocompleteLocation.Get(ctx)
+                return common.SortForAutocomplete(value, regions.Values), nil
+            },
+            Validator: func(ctx context.Context, value string) (string, error) {
+                if value == "" {
+                    return "location is required", nil
+                }
+                return "", nil
+            },
         }
-        if len(locations.Values) == 0 {
-            return "", nil
-        }
-        return locations.Values[0], nil
-    }).
-    WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-        regions := coretask.GetTaskResult(ctx, googlecloudcommon_contract.AutocompleteLocationTaskID.Ref())
-        return common.SortForAutocomplete(value, regions.Values), nil
-    }).
-    WithValidator(func(ctx context.Context, value string) (string, error) {
-        if value == "" {
-            return "location is required", nil
-        }
-        return "", nil
-    }).
-    Build()
+    },
+)
 ```
 
 ### 4.3 Reading Input Values from Subsequent Tasks
 
-Consumer tasks (such as log query tasks or resource identification tasks) that add the created input form task ID to their dependencies (`Dependencies()`) can safely read user-confirmed input values (`string`, etc.) with proper types by calling `coretask.GetTaskResult`:
+Consumer tasks (such as log query tasks or resource identification tasks) that bind the input form task reference with `coretask.Use` can safely read user-confirmed input values (`string`, etc.) with proper types via the returned `coretask.Input[T]` handle:
 
 ```go
-var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(
+var ClusterIdentityTask = inspectiontaskbase.DefineInspectionTask(
     googlecloudk8scommon_contract.ClusterIdentityTaskID,
-    []taskid.UntypedTaskReference{
-        googlecloudcommon_contract.InputLocationsTaskID.Ref(),
-        googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-    },
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (GoogleCloudClusterIdentity, error) {
-        // Get the entered location string
-        location := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputLocationsTaskID.Ref())
-        clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
-
-        return GoogleCloudClusterIdentity{
-            Location:    location,
-            ClusterName: clusterName,
-        }, nil
+    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[GoogleCloudClusterIdentity] {
+        locationInput := coretask.Use(b, googlecloudcommon_contract.InputLocationsTaskID.Ref())
+        clusterNameInput := coretask.Use(b, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
+        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (GoogleCloudClusterIdentity, error) {
+            return GoogleCloudClusterIdentity{
+                Location:    locationInput.Get(ctx),
+                ClusterName: clusterNameInput.Get(ctx),
+            }, nil
+        }
     },
 )
 ```
@@ -293,11 +324,13 @@ Every task in KHI automatically has progress metadata attached to its execution 
 By default, the runner displays a shortened task ID as the progress label. To provide a human-readable display title for the task in the progress bar, attach `progress.WithTitle("...")` to the task labels when defining the task:
 
 ```go
-var HeavyProcessingTask = inspectiontaskbase.NewInspectionTask(
+var HeavyProcessingTask = inspectiontaskbase.DefineInspectionTask(
     HeavyProcessingTaskID,
-    []taskid.UntypedTaskReference{SourceLogsTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
-        // Task implementation...
+    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[ResultType] {
+        logsInput := coretask.Use(b, SourceLogsTaskID.Ref())
+        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
+            // Task implementation...
+        }
     },
     progress.WithTitle("Analyze Node Logs"),
 )
@@ -308,27 +341,29 @@ var HeavyProcessingTask = inspectiontaskbase.NewInspectionTask(
 When the total number of items is known in advance, use `progress.NewTracker` or `progress.ForEach`. The tracker automatically throttles UI updates to avoid excessive rendering overhead, calculates the completion ratio, and estimates the remaining time (ETA):
 
 ```go
-var HeavyProcessingTask = inspectiontaskbase.NewInspectionTask(
+var HeavyProcessingTask = inspectiontaskbase.DefineInspectionTask(
     HeavyProcessingTaskID,
-    []taskid.UntypedTaskReference{SourceLogsTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
-        if taskMode != inspectioncore_contract.TaskModeRun {
-            return ResultType{}, nil
+    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[ResultType] {
+        logsInput := coretask.Use(b, SourceLogsTaskID.Ref())
+        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
+            if taskMode != inspectioncore_contract.TaskModeRun {
+                return ResultType{}, nil
+            }
+
+            logs := logsInput.Get(ctx)
+
+            // Create a tracker for the total number of logs with a unit label
+            tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
+            defer tracker.Done()
+
+            for _, l := range logs {
+                // Process each log entry...
+                processLog(l)
+                tracker.Inc()
+            }
+
+            return result, nil
         }
-
-        logs := coretask.GetTaskResult(ctx, SourceLogsTaskID.Ref())
-
-        // Create a tracker for the total number of logs with a unit label
-        tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
-        defer tracker.Done()
-
-        for _, l := range logs {
-            // Process each log entry...
-            processLog(l)
-            tracker.Inc()
-        }
-
-        return result, nil
     },
     progress.WithTitle("Process Logs"),
 )
@@ -347,69 +382,67 @@ err := progress.ForEach(ctx, logs, func(i int, l *log.Log) error {
 When the total amount of work cannot be determined in advance (such as streaming items from a channel or waiting for an external API response), use `progress.ReportIndeterminate` to show an indeterminate progress bar with a status message, or `progress.Report` to set an explicit completion ratio (`0.0` to `1.0`):
 
 ```go
-var UnknownLengthTask = inspectiontaskbase.NewInspectionTask(
+var UnknownLengthTask = inspectiontaskbase.DefineInspectionTask(
     UnknownLengthTaskID,
-    []taskid.UntypedTaskReference{SomeDependencyTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
-        if taskMode != inspectioncore_contract.TaskModeRun {
-            return ResultType{}, nil
+    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[ResultType] {
+        _ = coretask.Use(b, SomeDependencyTaskID.Ref())
+        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
+            if taskMode != inspectioncore_contract.TaskModeRun {
+                return ResultType{}, nil
+            }
+
+            // Report indeterminate progress with a status message
+            progress.ReportIndeterminate(ctx, "Fetching resources from API...")
+
+            // Process items discovered dynamically...
+            for item := range dynamicItemsChannel {
+                process(item)
+            }
+
+            return result, nil
         }
-
-        // Report indeterminate progress with a status message
-        progress.ReportIndeterminate(ctx, "Fetching resources from API...")
-
-        // Process items discovered dynamically...
-        for item := range dynamicItemsChannel {
-            process(item)
-        }
-
-        return result, nil
     },
     progress.WithTitle("Fetch Dynamic Resources"),
 )
 ```
 
-### 5.2 Caching Task Results (`NewGlobalCachedTask` and `NewInspectionCachedTask`)
+### 5.2 Caching Task Results (`DefineCachedTask`)
 
-For high-cost tasks where results depend only on input parameters, such as heavy computations or external API calls, you can create cache-enabled tasks that cache and reuse results.
-KHI provides the following two creation functions depending on the cache lifetime (scope):
+For high-cost tasks where results depend only on input parameters, such as heavy computations or external API calls, use `inspectiontaskbase.DefineCachedTask[T]` to cache and reuse the latest computed result while the digest of its inputs remains unchanged.
 
-- **`inspectiontaskbase.NewGlobalCachedTask[T]`**: Creates a task cached permanently across the entire application (`GlobalSharedMap`). It reuses results across different inspections as long as the inputs are identical.
-- **`inspectiontaskbase.NewInspectionCachedTask[T]`**: Creates a task cached only within the same inspection run (`InspectionSharedMap`). For example, it reuses results during DryRun updates when input forms change in the "New Inspection" dialog, or when re-querying within the same inspection.
+Pass a `bind` function that declares the upstream inputs on `*coretask.Binder` and returns an `inspectiontaskbase.CachedTaskSpec[T]` with:
 
-Both functions pass a **`CacheableTaskResult[T]`** to your task logic containing the previous calculation result and dependency digest, allowing the task to compare the digest calculated from current parameters against the previous digest (`DependencyDigest`).
+- **`Scope`**: Controls the cache lifetime:
+  - **`inspectiontaskbase.CacheScopeInspection`** (default zero value): Caches the value in `InspectionSharedMap`, reusing it across `DryRun` updates and the `Run` execution of the same inspection.
+  - **`inspectiontaskbase.CacheScopeGlobal`**: Caches the value in `GlobalSharedMap`, reusing it across different inspections as long as the input digest matches.
+- **`InputDigest`**: A function `func(ctx context.Context) string` that computes a digest string from the bound inputs. `Compute` runs only when this digest differs from the cached entry's digest.
+- **`Compute`**: A function `func(ctx context.Context) (T, error)` that computes the value when there is a cache miss. Errors are returned directly and are not cached.
 
 #### Example Code
 
-The following is a complete implementation example of `NewInspectionCachedTask` that returns the previous cached value when input parameter digests remain unchanged:
+The following is a complete implementation example of `DefineCachedTask` that reuses the cached value within the same inspection when the input parameter digest is unchanged:
 
 ```go
-var CachedHeavyTask = inspectiontaskbase.NewInspectionCachedTask(
+var CachedHeavyTask = inspectiontaskbase.DefineCachedTask(
     CachedHeavyTaskID,
-    []taskid.UntypedTaskReference{InputParamsTaskID.Ref()},
-    func(ctx context.Context, prevResult inspectiontaskbase.CacheableTaskResult[ResultType]) (inspectiontaskbase.CacheableTaskResult[ResultType], error) {
-        params := coretask.GetTaskResult(ctx, InputParamsTaskID.Ref())
-        // Calculate the current digest from input parameters
-        digest := calculateDigest(params)
-
-        // If the digest matches the previous run, return the cached value immediately without recomputing
-        if prevResult.DependencyDigest == digest {
-            return prevResult, nil
+    func(b *coretask.Binder) inspectiontaskbase.CachedTaskSpec[ResultType] {
+        paramsInput := coretask.Use(b, InputParamsTaskID.Ref())
+        return inspectiontaskbase.CachedTaskSpec[ResultType]{
+            Scope: inspectiontaskbase.CacheScopeInspection,
+            InputDigest: func(ctx context.Context) string {
+                return calculateDigest(paramsInput.Get(ctx))
+            },
+            Compute: func(ctx context.Context) (ResultType, error) {
+                return doHeavyCalculation(paramsInput.Get(ctx))
+            },
         }
-
-        // Recompute if this is the first run or the input digest changed
-        newValue := doHeavyCalculation(params)
-        return inspectiontaskbase.CacheableTaskResult[ResultType]{
-            Value:            newValue,
-            DependencyDigest: digest,
-        }, nil
     },
 )
 ```
 
 > [!TIP]
 > **Releasing Resources When an Inspection Ends**
-> If you want to clean up cached data or resources created by `NewInspectionCachedTask` when the inspection is destroyed, you can tie into the inspection lifecycle using `context.AfterFunc` as follows:
+> If you want to clean up cached data or resources created by `DefineCachedTask` with `CacheScopeInspection` when the inspection is destroyed, you can tie into the inspection lifecycle using `context.AfterFunc` as follows:
 >
 > ```go
 > inspectionContext := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionContext)

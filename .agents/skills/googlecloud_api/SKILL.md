@@ -26,11 +26,11 @@ Inspection tasks under `pkg/task/` that interact with Google Cloud APIs must ret
 
 ### Step-by-Step Task Pattern
 
-1. **Add Task Dependency:**
-   Include `googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref()` in the task's dependency list.
+1. **Bind Task Inputs:**
+   Declare `gcpcommon.APIClientCallOptionsInjectorTaskID.Ref()` on `*coretask.Binder` using `coretask.Use` (or `coretask.UseOptional` when the injector is optional).
 
 2. **Retrieve Injector:**
-   In the task body, retrieve the injector using `coretask.GetTaskResult` (or `coretask.GetOptionalTaskResult` when the injector is optional).
+   In the task execution function, read the injector from the bound input handle with `.Get(ctx)`.
 
 3. **Inject Options Before Calling APIs:**
    Call `InjectToCallContext` on `ctx` for the target container, and pass the resulting context to client initialization and API calls.
@@ -46,41 +46,47 @@ import (
 
  "cloud.google.com/go/logging/apiv2/loggingpb"
  "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+ inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
  coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
  "github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
- googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
- inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-var MyDiscoveryTask = coretask.NewTask(
+var MyDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
  taskid.NewDefaultImplementationID[[]string]("mylog.khi.google.com/discovery"),
- []taskid.UntypedTaskReference{
-  googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
-  googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
- },
- func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-  clientFactory := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
-  callOptionInjector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
+ func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]string] {
+  clientFactoryInput := coretask.Use(b, gcpcommon.APIClientFactoryTaskID.Ref())
+  callOptionInjectorInput := coretask.Use(b, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
 
-  container := googlecloud.Project("my-project-id")
+  return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
+   if taskMode == inspectioncore.TaskModeDryRun {
+    return []string{}, nil
+   }
 
-  // 1. Inject call options into context for the container.
-  callCtx := callOptionInjector.InjectToCallContext(ctx, container)
+   clientFactory := clientFactoryInput.Get(ctx)
+   callOptionInjector := callOptionInjectorInput.Get(ctx)
 
-  // 2. Create client and make calls using callCtx.
-  loggingClient, err := clientFactory.NewClient(callCtx, container)
-  if err != nil {
-   return nil, fmt.Errorf("failed to create logging client: %w", err)
+   container := googlecloud.Project("my-project-id")
+
+   // 1. Inject call options into context for the container.
+   callCtx := callOptionInjector.InjectToCallContext(ctx, container)
+
+   // 2. Create client and make calls using callCtx.
+   loggingClient, err := clientFactory.NewClient(callCtx, container)
+   if err != nil {
+    return nil, fmt.Errorf("failed to create logging client: %w", err)
+   }
+   defer loggingClient.Close()
+
+   it := loggingClient.ListLogEntries(callCtx, &loggingpb.ListLogEntriesRequest{
+    ResourceNames: []string{"projects/my-project-id"},
+    PageSize:      10,
+   })
+   _ = it
+
+   return []string{}, nil
   }
-  defer loggingClient.Close()
-
-  it := loggingClient.ListLogEntries(callCtx, &loggingpb.ListLogEntriesRequest{
-   ResourceNames: []string{"projects/my-project-id"},
-   PageSize:      10,
-  })
-  _ = it
-
-  return []string{}, nil
  },
 )
 ```

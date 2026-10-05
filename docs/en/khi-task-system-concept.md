@@ -14,7 +14,7 @@ Refer to the following specialized guides depending on your learning stage or de
 flowchart LR
     Portal["Overview (This Document)<br>• Why DAG<br>• UI flow & task graphs"]
     P1["1. Syntax and Modes<br>• Task[T] & dependencies<br>• Run/DryRun modes<br>• Unit testing"]
-    P2["2. Log Processing Guide<br>• 6 major task cookbooks<br>• Timeline APIs & assertions"]
+    P2["2. Log Processing Guide<br>• 4 major task cookbooks<br>• Timeline APIs & assertions"]
     P3["3. Advanced Patterns<br>• Inventory-Discovery pattern<br>• Input forms (formtask)<br>• Caching & progress"]
 
     Portal --> P1
@@ -23,11 +23,11 @@ flowchart LR
 ```
 
 1. **[Task System Syntax and Execution Modes](./task-system/01-syntax-and-modes.md)**
-   - Covers DAG basics, task type (`Task[T]`) declarations, dependency model (`Dependency`: point-to-point and tag fan-in, required/optional, scopes), reading values from dependencies (`GetTaskResult`, `GetOptionalTaskResult`, `GetTaskResultsWithTag`), structured logging (`slog`), package structures and naming conventions (`_contract`/`_impl`), **inspection execution modes (`Run` and `DryRun`)**, and **unit testing (`tasktest`)**.
+   - Covers DAG basics, task type (`Task[T]`) definitions with `coretask.Define`, the input and dependency model (`Binder`: `Use`, `UseOptional`, `UseTag`, `After`, point-to-point and tag fan-in, scopes), reading values via bound input handles (`.Get(ctx)`), structured logging (`slog`), package structures and naming conventions (`_contract`/`_impl`), **inspection execution modes (`Run` and `DryRun`)**, and **unit testing (`tasktest`)**.
 2. **[Log Processing Task Implementation Patterns (Cookbook)](./task-system/02-log-processing-cookbook.md)**
-   - Covers the overall log processing pipeline, practical recipes for the **4 major task creation utilities (`LogFilterTask`, `LogGrouperTask`, `LogIngesterTask`, `LogToTimelineMapperTask`)**, and timeline mapping using modern `*khifilev6.TimelinePath` and `testchangeset.AssertTimeline` objects.
+   - Covers the overall log processing pipeline, practical recipes for the **4 major task definition utilities (`DefineLogFilterTask`, `DefineLogGrouperTask`, `DefineLogIngesterTask`, `DefineLogToTimelineMapperTask`)**, and timeline mapping using modern `*khifilev6.TimelinePath` and `testchangeset.AssertTimeline` objects.
 3. **[Advanced Task Patterns and Utilities](./task-system/03-advanced-and-form-tasks.md)**
-   - Covers automatic inspection server registration (`Register`), label selectors (`LabelSelector`, `FeatureTask`), the **`Inventory`-`Discovery` task pattern (`InventoryTaskBuilder` and merge strategies)** for resolving names across multiple log sources, **form tasks (`formtask` / autocomplete)** for rich UI input fields, and **progress reporting / cache control (`NewGlobalCachedTask`, `NewInspectionCachedTask`)**.
+   - Covers automatic inspection server registration (`Register`), label selectors (`LabelSelector`, `FeatureTask`), the **`Inventory`-`Discovery` task pattern (`NewInventoryTask` and tag-based discovery)** for resolving names across multiple log sources, **form tasks (`formtask` / autocomplete)** for rich UI input fields, and **progress reporting / cache control (`DefineCachedTask`)**.
 
 ---
 
@@ -102,24 +102,24 @@ You can access this `Metadata` from outside the server or from the frontend (UI)
 - **Rendering dynamic input forms and autocomplete lists**:
   During form interactions on the "New Inspection" screen (`DryRun` mode), parameter input tasks and autocomplete tasks write required field definitions and suggestion lists to `Metadata`. The frontend reads this information to render interactive input forms.
 
-### 1.3 Task Graph Edge and Dependency Model (`Dependency`)
+### 1.3 Task Graph Edge and Input Model (`Binder` and `Dependency`)
 
-In KHI, connections (edges) between tasks in the DAG are represented by the `Dependency` interface (`coretask.Dependency` / `taskid.DependencyDescriptor`). Rather than simple unconstrained references, dependencies declare rich attributes that govern how the task graph is resolved and executed:
+In KHI, a task declares its inputs at definition time on a `*coretask.Binder`, and connections (edges) between tasks in the DAG are represented by `InputSpec` (`coretask.Dependency` / `taskid.DependencyDescriptor`). Rather than simple unconstrained references, inputs declare rich attributes that govern how the task graph is resolved and executed:
 
 #### 1. Cardinality: Point-to-Point vs Tag Fan-In
 
 - **Point-to-Point (`TaskReference[T]`)**:
-  Represents a direct 1-to-1 dependency on a specific task reference (`taskID.Ref()`). Downstream tasks read the upstream task's return value using `coretask.GetTaskResult(ctx, ref)`. If a task only needs to enforce execution order without consuming return data, it can declare the dependency without calling `GetTaskResult`, or use barrier tasks such as `coretask.NewTailTask(taskID, dependencies)`.
+  Represents a direct 1-to-1 dependency on a specific task reference (`taskID.Ref()`). Downstream tasks bind the reference using `coretask.Use(b, ref)` (or `coretask.UseOptional(b, ref)`) and read the upstream task's return value at execution time via `input.Get(ctx)`. If a task only needs to enforce execution order without consuming return data, it declares the dependency with `coretask.After(b, dep)` (which returns no handle so it cannot become an unused input) or uses barrier tasks such as `coretask.DefineTailTask(taskID, dependencies)`.
 - **Tag Fan-In (`TagReference[T]`)**:
-  Represents a 1-to-N aggregated dependency. Producer tasks declare the tags they provide using the `coretask.ProvidesTag(tag, opts...)` label option. You can optionally specify `coretask.WithTagPriority(priority)` to assign precedence to the producer's contribution (default: 100, where lower numerical values indicate higher precedence). A consumer task declares a dependency on the tag using `tag.Ref()`. During execution, the consumer retrieves a combined slice of results (`[]T`) from all active producer tasks using `coretask.GetTaskResultsWithTag(ctx, tag.Ref())`. This allows new log parsers or metadata producers to be added without modifying downstream consumer tasks.
+  Represents a 1-to-N aggregated dependency. Producer tasks declare the tags they provide using the `coretask.ProvidesTag(tag, opts...)` label option. You can optionally specify `coretask.WithTagPriority(priority)` to assign precedence to the producer's contribution (default: 100, where lower numerical values indicate higher precedence). A consumer task binds the tag on its `Binder` using `coretask.UseTag(b, tag.Ref())`. During execution, the consumer retrieves a combined slice of results (`[]T`) from all active producer tasks using `tagInput.Get(ctx)`. This allows new log parsers or metadata producers to be added without modifying downstream consumer tasks.
   When cross-inventory dependencies between multiple producers cause circular dependencies, the graph resolver deterministically prunes candidate fan-in edges that form cycles, automatically resolving the circular dependency into a single-stage DAG. For details on prerequisites and resolution mechanisms, see [5. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority](#5-prerequisites-of-fan-in-cycles-and-graph-stabilization-via-priority).
 
-#### 2. Condition: Required vs Optional
+#### 2. Input Kind: Required vs Optional
 
-- **Required (`taskid.ConditionRequired`)**:
-  The default condition. The dependency must be present in the task graph and execute successfully; otherwise, the dependent task cannot run.
-- **Optional (`taskid.ConditionOptional`)**:
-  Specified with `taskid.Optional`. If the dependency task is not present in the resolved graph (e.g., when an optional log feature is disabled by the user), the dependent task still executes. The consumer checks for presence using `coretask.GetOptionalTaskResult(ctx, ref)`, which returns `(T, bool)`.
+- **Required (`coretask.InputKindRequired`, declared with `coretask.Use`)**:
+  Declared with `coretask.Use(b, taskID.Ref())` (which requires `ScopeAll`). The upstream task is pulled into the task graph and must execute before the consumer runs; `input.Get(ctx)` returns `T`.
+- **Optional (`coretask.InputKindOptional`, declared with `coretask.UseOptional`)**:
+  Declared with `coretask.UseOptional(b, taskID.Ref(coretask.FromActiveGraph))` (or `coretask.FromActiveFeatures`). If the upstream task is not present in the resolved graph (e.g., when an optional log feature is disabled by the user), the dependent task still executes. The consumer checks for presence using `optInput.Get(ctx)`, which returns `(T, bool)`.
 
 #### 3. Scope: Resolution Boundaries (`DependencyScope`)
 
@@ -138,35 +138,34 @@ To prevent this, KHI introduces **scopes (`DependencyScope`)** to define **how f
 
 ##### Semantics of the Three Scope Levels
 
-1. **`ScopeActiveGraph` (Passive / Lazy Binding)**:
+1. **`ScopeActiveGraph` (`coretask.FromActiveGraph` — Passive / Lazy Binding)**:
    - **Behavior**: Binds only to tasks that are already included in the active execution graph (`currentGraphTasks`) by other feature selections or required dependencies.
-   - **Characteristics**: This dependency itself never pulls new upstream tasks into the graph. If no matching producer exists in the active graph, a tag fan-in safely resolves to an empty slice, and an optional dependency is safely skipped.
-   - **Use cases**: The default for tag fan-in (`tag.Ref()`) and optional dependencies (`taskID.Ref(taskid.Optional)`). It expresses: "If this task is already running in this inspection, give me its result; otherwise, do not start it."
+   - **Characteristics**: This dependency itself never pulls new upstream tasks into the graph. If no matching producer exists in the active graph, a tag fan-in safely resolves to an empty slice, and an optional input safely returns `(zero, false)`.
+   - **Use cases**: Typical for optional inputs (`coretask.UseOptional(b, taskID.Ref(coretask.FromActiveGraph))`). It expresses: "If this task is already running in this inspection, give me its result; otherwise, do not start it."
 
-2. **`ScopeActiveFeatures` (Active Feature Boundary)**:
+2. **`ScopeActiveFeatures` (`coretask.FromActiveFeatures` — Active Feature Boundary)**:
    - **Behavior**: Resolves against producer tasks belonging to features (`FeatureTask`) that are enabled for the current inspection.
    - **Characteristics**: Pulls in a producer task only if all of its upstream dependencies merge into tasks already present in the active graph.
-   - **Use cases**: Serves as an intermediate scope to coordinate producers across enabled features without pulling in tasks whose prerequisites are missing.
+   - **Use cases**: The default for tag fan-in (`tag.Ref()`). Serves as an intermediate scope to coordinate producers across enabled features without pulling in tasks whose prerequisites are missing.
 
-3. **`ScopeAll` (Aggressive / Eager Binding)**:
+3. **`ScopeAll` (`coretask.FromAll` — Aggressive / Eager Binding)**:
    - **Behavior**: Searches the entire registered pool (`availableTasks`) and eagerly pulls matching tasks and their upstream dependencies into the active graph.
    - **Characteristics**: Guarantees that the dependency is included in the graph unless the target task is missing from the pool.
-   - **Use cases**: The default for required point-to-point dependencies (`taskID.Ref()`). It expresses: "Task B strictly requires the output of Task A to execute."
+   - **Use cases**: The default for point-to-point references (`taskID.Ref()`) and required by `coretask.Use`. It expresses: "Task B strictly requires the output of Task A to execute."
 
-##### Default Scope Resolution Rules (`ResolvedScope`)
+##### Default Scope Rules
 
-When a dependency does not explicitly specify a scope (`ScopeUnspecified`), KHI automatically applies a safe default based on its edge attributes:
+When creating a reference without an explicit scope option:
 
-- **Required Point-to-Point (`taskID.Ref()`)**: `ScopeAll` (ensures required upstream tasks are pulled in).
-- **Optional Point-to-Point (`taskID.Ref(taskid.Optional)`)**: `ScopeActiveGraph` (only receives data if the task was activated elsewhere).
-- **Tag Fan-In (`tag.Ref()`)**: `ScopeActiveGraph` (aggregates only from producers that are active in the current inspection).
+- **Point-to-Point (`taskID.Ref()`)**: Defaults to `ScopeAll` (ensures required upstream tasks are pulled in when passed to `coretask.Use`). When passed to `coretask.UseOptional`, you must explicitly pass a narrower scope such as `coretask.FromActiveGraph` or `coretask.FromActiveFeatures`.
+- **Tag Fan-In (`tag.Ref()`)**: Defaults to `ScopeActiveFeatures` (aggregates from producers whose prerequisites are active in the current inspection).
 
-#### 4. Automatic Dependency Deduplication and Merging
+#### 4. Automatic Input Deduplication and Merging
 
-When a task declares multiple dependencies targeting the same task reference or tag (either directly or via shared definitions), KHI automatically merges them into a single edge:
+When a task (or a wrapper factory and the bind function it wraps) declares the same task reference or tag more than once on the `Binder`, KHI automatically merges them into a single `InputSpec`:
 
-- **Condition**: `Required` is preferred over `Optional`.
-- **Scope**: The broader scope is preferred (`ScopeAll` > `ScopeActiveFeatures` > `ScopeActiveGraph`).
+- **Scope**: The broader scope wins (`ScopeAll` > `ScopeActiveFeatures` > `ScopeActiveGraph`).
+- **Kind**: Ordering-only (`After`) when all declarations are ordering-only; `Tag` for tag references; otherwise `Required` when the merged scope is `ScopeAll` and `Optional` when narrower.
 
 #### 5. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority
 
@@ -200,6 +199,6 @@ KHI achieves an always unique, deterministic, and stable graph through the follo
 
 To learn task syntax and see practical code examples, proceed to the following specialized guides:
 
-- **[1. Task System Syntax and Execution Modes](./task-system/01-syntax-and-modes.md)** — Task (`Task[T]`) syntax, `Run`/`DryRun` modes, and unit testing
-- **[2. Log Processing Task Implementation Patterns (Cookbook)](./task-system/02-log-processing-cookbook.md)** — Log processing pipeline and 6 major task cookbooks
+- **[1. Task System Syntax and Execution Modes](./task-system/01-syntax-and-modes.md)** — Task (`Task[T]`) syntax, `Binder`, `Run`/`DryRun` modes, and unit testing
+- **[2. Log Processing Task Implementation Patterns (Cookbook)](./task-system/02-log-processing-cookbook.md)** — Log processing pipeline and 4 major task cookbooks
 - **[3. Advanced Task Patterns and Utilities](./task-system/03-advanced-and-form-tasks.md)** — Automatic registration, labels, Inventory-Discovery, and form tasks (`formtask`)
