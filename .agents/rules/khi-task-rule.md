@@ -17,7 +17,7 @@ When developing or modifying task-related files in the KHI project (under `pkg/t
 
 ## 2. Inputs and Result Retrieval
 
-- Tasks declare their inputs during bind time on `*coretask.Binder` using `coretask.Use(b, Reference.Ref())`, `coretask.UseOptional(b, Reference.Ref())`, `coretask.UseTag(b, Tag.Ref())`, or `coretask.After(b, dep)`.
+- Tasks declare their inputs during bind time on `*coretask.Binder` using `coretask.Use(b, Reference.Ref())`, `coretask.UseOptional(b, Reference.Ref(coretask.FromActiveGraph))`, `coretask.UseTag(b, Tag.Ref())`, or `coretask.After(b, dep)`.
 - Values output by upstream tasks must be retrieved at execution time by calling `.Get(ctx)` on the handle returned by `Use`, `UseOptional`, or `UseTag`, passing the context passed to the task function.
 
 ## 3. Logging

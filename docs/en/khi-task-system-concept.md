@@ -14,7 +14,7 @@ Refer to the following specialized guides depending on your learning stage or de
 flowchart LR
     Portal["Overview (This Document)<br>• Why DAG<br>• UI flow & task graphs"]
     P1["1. Syntax and Modes<br>• Task[T] & dependencies<br>• Run/DryRun modes<br>• Unit testing"]
-    P2["2. Log Processing Guide<br>• 6 major task cookbooks<br>• Timeline APIs & assertions"]
+    P2["2. Log Processing Guide<br>• 4 major task cookbooks<br>• Timeline APIs & assertions"]
     P3["3. Advanced Patterns<br>• Inventory-Discovery pattern<br>• Input forms (formtask)<br>• Caching & progress"]
 
     Portal --> P1
