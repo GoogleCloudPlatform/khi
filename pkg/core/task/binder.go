@@ -62,35 +62,19 @@ type InputSpec struct {
 	Kind InputKind
 }
 
-// precedence ranks how strongly a kind binds the task to its producer when the same input is declared more than once.
-// Required and tag never share a key because references and tags use different key prefixes, so they can share a rank.
-func (k InputKind) precedence() int {
-	switch k {
-	case InputKindRequired, InputKindTag:
-		return 2
-	case InputKindOptional:
-		return 1
-	case InputKindOrdering:
-		return 0
-	default:
-		panic(fmt.Sprintf("unknown InputKind %d", int(k)))
-	}
-}
-
 // Binder collects the inputs of a task defined with Define.
 // Inputs can only be declared while the bind function passed to Define is running.
 type Binder struct {
-	owner taskid.UntypedTaskImplementationID
-	specs []InputSpec
-	// keys maps the dependency key of each declared input to its index in specs.
-	keys   map[string]int
-	sealed bool
+	owner          taskid.UntypedTaskImplementationID
+	specs          []InputSpec
+	specIndexByKey map[string]int
+	sealed         bool
 }
 
 func newBinder(owner taskid.UntypedTaskImplementationID) *Binder {
 	return &Binder{
-		owner: owner,
-		keys:  map[string]int{},
+		owner:          owner,
+		specIndexByKey: map[string]int{},
 	}
 }
 
@@ -104,9 +88,9 @@ func (b *Binder) add(dep Dependency, kind InputKind) {
 	if b.sealed {
 		panic(fmt.Sprintf("task %s: declares input %s after its bind function returned; declare inputs in the bind function, not in the run function", b.owner, key))
 	}
-	i, found := b.keys[key]
+	i, found := b.specIndexByKey[key]
 	if !found {
-		b.keys[key] = len(b.specs)
+		b.specIndexByKey[key] = len(b.specs)
 		b.specs = append(b.specs, InputSpec{Dependency: dep, Kind: kind})
 		return
 	}
@@ -117,20 +101,25 @@ func (b *Binder) add(dep Dependency, kind InputKind) {
 	b.specs[i] = mergeInputSpecs(existing, InputSpec{Dependency: dep, Kind: kind})
 }
 
-// mergeInputSpecs merges two declarations of the same input into the one that binds the task most strongly.
-// It keeps the kind with the higher precedence and the dependency with the broader scope.
-func mergeInputSpecs(a, b InputSpec) InputSpec {
-	merged := a
-	if b.Kind.precedence() > merged.Kind.precedence() {
-		merged.Kind = b.Kind
-	}
+// mergeInputSpecs combines two declarations of the same input into one spec with the broadest scope.
+// The merged kind follows from the declared kinds and the merged scope.
+func mergeInputSpecs(existing, incoming InputSpec) InputSpec {
+	merged := existing
 	// DependencyScope constants are declared from the narrowest to the broadest scope.
-	if b.Dependency.DescriptorScope() > merged.Dependency.DescriptorScope() {
-		merged.Dependency = b.Dependency
+	if incoming.Dependency.DescriptorScope() > merged.Dependency.DescriptorScope() {
+		merged.Dependency = incoming.Dependency
 	}
-	// An ordering dependency with ScopeAll pulls the producer into the graph, so an optional read of it is effectively required.
-	if merged.Kind == InputKindOptional && merged.Dependency.DescriptorScope() == taskid.ScopeAll {
+	switch {
+	case existing.Kind == InputKindOrdering && incoming.Kind == InputKindOrdering:
+		merged.Kind = InputKindOrdering
+	case existing.Kind == InputKindTag || incoming.Kind == InputKindTag:
+		// A tag key never merges with a reference key, so the other declaration is a tag input or an ordering dependency.
+		merged.Kind = InputKindTag
+	case merged.Dependency.DescriptorScope() == taskid.ScopeAll:
+		// The task reads the value and ScopeAll always pulls the producer into the graph.
 		merged.Kind = InputKindRequired
+	default:
+		merged.Kind = InputKindOptional
 	}
 	return merged
 }
