@@ -109,20 +109,29 @@ func TestBinder(t *testing.T) {
 			wantSpecs: []string{},
 		},
 		{
-			name: "panics when the same input is declared twice",
+			name: "merges an input declared twice into one spec",
 			bind: func(b *Binder) {
 				Use(b, requiredRef)
 				Use(b, requiredRef)
 			},
-			wantPanic: "declares input ref:required twice",
+			wantSpecs: []string{"required ref:required"},
 		},
 		{
-			name: "panics when an ordering dependency duplicates a value input",
+			name: "merges an ordering dependency into the value input it duplicates",
 			bind: func(b *Binder) {
 				Use(b, requiredRef)
+				After(b, orderingRef)
 				After(b, requiredRef)
 			},
-			wantPanic: "declares input ref:required twice",
+			wantSpecs: []string{"required ref:required", "ordering ref:ordering"},
+		},
+		{
+			name: "panics when declarations of the same input have conflicting result types",
+			bind: func(b *Binder) {
+				Use(b, requiredRef)
+				After(b, taskid.NewTaskReference[int]("required"))
+			},
+			wantPanic: "declares input ref:required with conflicting result types string and int",
 		},
 		{
 			name: "panics when a required input uses a scope other than ScopeAll",
@@ -161,6 +170,81 @@ func TestBinder(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantSpecs, describeInputSpecs(b.specs)); diff != "" {
 				t.Errorf("Binder specs mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestBinder_MergesDuplicateInputs(t *testing.T) {
+	ref := taskid.NewTaskReference[string]("merged")
+	activeGraphRef := taskid.NewTaskReference[string]("merged", taskid.ScopeActiveGraph)
+	activeFeaturesRef := taskid.NewTaskReference[string]("merged", taskid.ScopeActiveFeatures)
+	tag := NewTag[string]("binder-merge-tag")
+
+	testCases := []struct {
+		name      string
+		bind      func(b *Binder)
+		wantKind  InputKind
+		wantScope taskid.DependencyScope
+	}{
+		{
+			name: "required input declared after an ordering dependency stays required",
+			bind: func(b *Binder) {
+				After(b, ref)
+				Use(b, ref)
+			},
+			wantKind:  InputKindRequired,
+			wantScope: taskid.ScopeAll,
+		},
+		{
+			name: "required input wins over an optional input and widens the scope",
+			bind: func(b *Binder) {
+				UseOptional(b, activeGraphRef)
+				Use(b, ref)
+			},
+			wantKind:  InputKindRequired,
+			wantScope: taskid.ScopeAll,
+		},
+		{
+			name: "tag input wins over an ordering dependency on the same tag",
+			bind: func(b *Binder) {
+				UseTag(b, tag.Ref())
+				After(b, tag.Ref())
+			},
+			wantKind:  InputKindTag,
+			wantScope: taskid.ScopeActiveFeatures,
+		},
+		{
+			name: "optional input keeps its kind and takes the broader scope of an ordering dependency",
+			bind: func(b *Binder) {
+				UseOptional(b, activeGraphRef)
+				After(b, activeFeaturesRef)
+			},
+			wantKind:  InputKindOptional,
+			wantScope: taskid.ScopeActiveFeatures,
+		},
+		{
+			name: "optional input becomes required when an ordering dependency pulls the producer with ScopeAll",
+			bind: func(b *Binder) {
+				UseOptional(b, activeGraphRef)
+				After(b, ref)
+			},
+			wantKind:  InputKindRequired,
+			wantScope: taskid.ScopeAll,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := newBinder(taskid.NewDefaultImplementationID[string]("owner"))
+			tc.bind(b)
+			if len(b.specs) != 1 {
+				t.Fatalf("len(b.specs) = %d, want 1: %v", len(b.specs), describeInputSpecs(b.specs))
+			}
+			if got := b.specs[0].Kind; got != tc.wantKind {
+				t.Errorf("Kind = %v, want %v", got, tc.wantKind)
+			}
+			if got := b.specs[0].Dependency.DescriptorScope(); got != tc.wantScope {
+				t.Errorf("DescriptorScope() = %v, want %v", got, tc.wantScope)
 			}
 		})
 	}
