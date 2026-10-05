@@ -174,3 +174,55 @@ func TestRun(t *testing.T) {
 		})
 	}
 }
+
+func TestRun_OptionalInputMergedIntoRequiredInput(t *testing.T) {
+	promotedRef := taskid.NewTaskReference[string]("harness-test.promoted")
+	task := coretask.Define(taskid.NewDefaultImplementationID[string]("harness-test.promoted-task"), func(b *coretask.Binder) func(ctx context.Context) (string, error) {
+		promoted := coretask.UseOptional(b, promotedRef.Ref(taskid.ScopeActiveGraph))
+		coretask.After(b, promotedRef)
+		return func(ctx context.Context) (string, error) {
+			value, found := promoted.Get(ctx)
+			return fmt.Sprintf("promoted=%s,%t", value, found), nil
+		}
+	})
+
+	testCases := []struct {
+		name             string
+		inputs           []InputValue
+		want             string
+		wantFatalSubstrs []string
+	}{
+		{
+			name:   "given value is read",
+			inputs: []InputValue{Given(promotedRef, "foo")},
+			want:   "promoted=foo,true",
+		},
+		{
+			name:             "omitted value fails as a missing required input",
+			inputs:           nil,
+			wantFatalSubstrs: []string{"missing required input ref:harness-test.promoted (string)"},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, fatalMessage, err := runWithFatalRecorder(t, task, tc.inputs...)
+			if len(tc.wantFatalSubstrs) > 0 {
+				for _, want := range tc.wantFatalSubstrs {
+					if !strings.Contains(fatalMessage, want) {
+						t.Errorf("Run() failure message = %q, want substring %q", fatalMessage, want)
+					}
+				}
+				return
+			}
+			if fatalMessage != "" {
+				t.Fatalf("Run() failed the test unexpectedly: %s", fatalMessage)
+			}
+			if err != nil {
+				t.Fatalf("Run() returned unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("Run() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

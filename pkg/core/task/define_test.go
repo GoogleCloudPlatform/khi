@@ -166,7 +166,7 @@ func TestDefine_RunsInGraph(t *testing.T) {
 	}
 }
 
-func TestDefine_RunsWrapperSharingInputWithWrappedBind(t *testing.T) {
+func TestDefine_RunsTasksWithMergedInputs(t *testing.T) {
 	sharedRef := taskid.NewTaskReference[string]("define-test.shared")
 	shared := DefineConstant(taskid.NewDefaultImplementationID[string]("define-test.shared"), "shared")
 	wrappedBind := func(b *Binder) func(ctx context.Context) (string, error) {
@@ -175,8 +175,7 @@ func TestDefine_RunsWrapperSharingInputWithWrappedBind(t *testing.T) {
 			return "wrapped:" + sharedInput.Get(ctx), nil
 		}
 	}
-	wrapperID := taskid.NewDefaultImplementationID[string]("define-test.wrapper")
-	wrapper := Define(wrapperID, func(b *Binder) func(ctx context.Context) (string, error) {
+	wrapper := Define(taskid.NewDefaultImplementationID[string]("define-test.wrapper"), func(b *Binder) func(ctx context.Context) (string, error) {
 		sharedInput := Use(b, sharedRef)
 		wrappedRun := wrappedBind(b)
 		return func(ctx context.Context) (string, error) {
@@ -187,13 +186,16 @@ func TestDefine_RunsWrapperSharingInputWithWrappedBind(t *testing.T) {
 			return sharedInput.Get(ctx) + "|" + wrapped, nil
 		}
 	}, NewTaskResultRetentionLabel(true))
+	promotedConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.promoted-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
+		sharedInput := UseOptional(b, sharedRef.Ref(taskid.ScopeActiveGraph))
+		After(b, sharedRef)
+		return func(ctx context.Context) (string, error) {
+			value, found := sharedInput.Get(ctx)
+			return fmt.Sprintf("%s,%t", value, found), nil
+		}
+	}, NewTaskResultRetentionLabel(true))
 
-	wantInputs := []string{"required ref:define-test.shared"}
-	if diff := cmp.Diff(wantInputs, describeInputSpecs(wrapper.Inputs())); diff != "" {
-		t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
-	}
-
-	tasks := []UntypedTask{shared, wrapper}
+	tasks := []UntypedTask{shared, wrapper, promotedConsumer}
 	runnableSet, err := ResolveGraph(tasks, tasks, nil)
 	if err != nil {
 		t.Fatalf("ResolveGraph() returned unexpected error: %v", err)
@@ -210,12 +212,38 @@ func TestDefine_RunsWrapperSharingInputWithWrappedBind(t *testing.T) {
 		t.Fatalf("Result() returned unexpected error: %v", err)
 	}
 
-	got, found := GetTaskResultFromLocalRunner(runner, wrapperID.Ref())
-	if !found {
-		t.Fatalf("GetTaskResultFromLocalRunner(%s) found no result", wrapperID)
+	testCases := []struct {
+		name       string
+		task       DefinedTask[string]
+		wantInputs []string
+		want       string
+	}{
+		{
+			name:       "wrapper and wrapped bind both read an input they declared",
+			task:       wrapper,
+			wantInputs: []string{"required ref:define-test.shared"},
+			want:       "shared|wrapped:shared",
+		},
+		{
+			name:       "optional input merged with a ScopeAll ordering dependency reads the produced value",
+			task:       promotedConsumer,
+			wantInputs: []string{"required ref:define-test.shared"},
+			want:       "shared,true",
+		},
 	}
-	if want := "shared|wrapped:shared"; got != want {
-		t.Errorf("GetTaskResultFromLocalRunner(%s) = %q, want %q", wrapperID, got, want)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.wantInputs, describeInputSpecs(tc.task.Inputs())); diff != "" {
+				t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+			}
+			got, found := GetTaskResultFromLocalRunner(runner, tc.task.ID().Ref())
+			if !found {
+				t.Fatalf("GetTaskResultFromLocalRunner(%s) found no result", tc.task.ID())
+			}
+			if got != tc.want {
+				t.Errorf("GetTaskResultFromLocalRunner(%s) = %q, want %q", tc.task.ID(), got, tc.want)
+			}
+		})
 	}
 }
 
