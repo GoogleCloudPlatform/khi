@@ -35,9 +35,9 @@ web/src/environments/version.*.ts: VERSION
 
 BACKEND_CODEGEN_SRCS := $(shell find scripts/backend-codegen -name "*.go")
 # The generated registration code depends only on which inspection task impl packages exist.
-INSPECTION_TASK_IMPL_SRCS := $(shell find pkg/task/inspection -type d -name impl)
+INSPECTION_TASK_IMPL_DIRS := $(shell find pkg/task/inspection -type d -name impl)
 
-$(GENERATE_BACKEND_DUMMY): $(GENERATE_PROTO_DUMMY) $(BACKEND_CODEGEN_SRCS) $(INSPECTION_TASK_IMPL_SRCS) ## Generate backend source code
+$(GENERATE_BACKEND_DUMMY): $(GENERATE_PROTO_DUMMY) $(BACKEND_CODEGEN_SRCS) $(INSPECTION_TASK_IMPL_DIRS) ## Generate backend source code
 	go run ./scripts/backend-codegen/
 	touch $(GENERATE_BACKEND_DUMMY)
 .PHONY: generate-backend

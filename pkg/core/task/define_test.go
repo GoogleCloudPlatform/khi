@@ -119,9 +119,9 @@ func TestDefine_RunsAlongsideLegacyTasks(t *testing.T) {
 		}
 	}, NewTaskResultRetentionLabel(true))
 	definedConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.defined-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
-		bound := Use(b, taskid.NewTaskReference[string]("define-test.bound"))
+		boundInput := Use(b, taskid.NewTaskReference[string]("define-test.bound"))
 		return func(ctx context.Context) (string, error) {
-			return "consumed:" + bound.Get(ctx), nil
+			return "consumed:" + boundInput.Get(ctx), nil
 		}
 	}, NewTaskResultRetentionLabel(true))
 
