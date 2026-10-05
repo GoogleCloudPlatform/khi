@@ -114,9 +114,9 @@ func TestDefine_RunsInGraph(t *testing.T) {
 		}
 	}, NewTaskResultRetentionLabel(true))
 	chainedConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.chained-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
-		multiInput := Use(b, taskid.NewTaskReference[string]("define-test.multi-input-consumer"))
+		multiInputConsumerResult := Use(b, taskid.NewTaskReference[string]("define-test.multi-input-consumer"))
 		return func(ctx context.Context) (string, error) {
-			return "consumed:" + multiInput.Get(ctx), nil
+			return "consumed:" + multiInputConsumerResult.Get(ctx), nil
 		}
 	}, NewTaskResultRetentionLabel(true))
 
@@ -148,7 +148,7 @@ func TestDefine_RunsInGraph(t *testing.T) {
 			want: `produced|"",false|[tagged]`,
 		},
 		{
-			name: "reads the result of a consumer task",
+			name: "reads the result of a task that has multiple inputs",
 			ref:  taskid.NewTaskReference[string]("define-test.chained-consumer"),
 			want: `consumed:produced|"",false|[tagged]`,
 		},
@@ -229,7 +229,7 @@ func TestDefineTailTask(t *testing.T) {
 	})
 }
 
-func TestDefine_BuildsRunnableTask(t *testing.T) {
+func TestDefine_BuildsTask(t *testing.T) {
 	taskID := taskid.NewDefaultImplementationID[string]("task.test")
 	depA := taskid.NewTaskReference[string]("task.a")
 	tag := NewTag[int]("tag.test")
