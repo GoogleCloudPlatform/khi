@@ -26,6 +26,8 @@ import (
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 )
 
+// dependencyKey identifies a dependency by its reference ID or tag.
+// It panics for nil and any other dependency type because such a dependency cannot be resolved in the task graph.
 func dependencyKey(dep Dependency) string {
 	switch d := dep.(type) {
 	case taskid.PointToPointDescriptor:
@@ -33,7 +35,7 @@ func dependencyKey(dep Dependency) string {
 	case taskid.FanInDescriptor:
 		return "tag:" + d.Tag()
 	default:
-		return ""
+		panic(fmt.Sprintf("unsupported dependency %T; a dependency must be a task reference or a tag reference", dep))
 	}
 }
 
@@ -93,18 +95,4 @@ func WrapErrorWithTaskInformation(ctx context.Context, err error) error {
 	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
 	errorMessage := fmt.Sprintf("An error occurred in task `%s`", taskID.String())
 	return errors.Join(errors.New(errorMessage), err)
-}
-
-// NewTailTask creates a no-op barrier task that waits for all given dependencies.
-func NewTailTask(taskID taskid.TaskImplementationID[struct{}], dependencies []Dependency, labelOpts ...LabelOpt) *TaskImpl[struct{}] {
-	verifyTaskID(taskID)
-	verifyNonNilDependencies(taskID, dependencies)
-	return NewTask(
-		taskID,
-		dependencies,
-		func(ctx context.Context) (struct{}, error) {
-			return struct{}{}, nil
-		},
-		labelOpts...,
-	)
 }

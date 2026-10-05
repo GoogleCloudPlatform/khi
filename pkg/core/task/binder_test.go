@@ -138,6 +138,13 @@ func TestBinder(t *testing.T) {
 			},
 			wantPanic: "declares optional input required with ScopeAll",
 		},
+		{
+			name: "panics when an input is nil",
+			bind: func(b *Binder) {
+				After(b, nil)
+			},
+			wantPanic: "unsupported dependency <nil>",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

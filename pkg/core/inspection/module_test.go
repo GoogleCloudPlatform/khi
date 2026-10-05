@@ -15,7 +15,6 @@
 package coreinspection
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -27,9 +26,7 @@ import (
 )
 
 func newModuleTestTask(id string) coretask.UntypedTask {
-	return coretask.NewTask(taskid.NewDefaultImplementationID[struct{}](id), nil, func(ctx context.Context) (struct{}, error) {
-		return struct{}{}, nil
-	})
+	return coretask.DefineConstant(taskid.NewDefaultImplementationID[struct{}](id), struct{}{})
 }
 
 // selectorsByReferenceID returns the inspection type selector of each task keyed by its reference ID. Tasks without a selector map to nil.

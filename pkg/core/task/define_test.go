@@ -16,6 +16,7 @@ package coretask
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -97,35 +98,29 @@ func TestDefine_RejectsMisuseInRunFunction(t *testing.T) {
 	}
 }
 
-func TestDefine_RunsAlongsideLegacyTasks(t *testing.T) {
+func TestDefine_RunsInGraph(t *testing.T) {
 	tag := NewTag[string]("define-test-runner-tag")
-	legacyProducer := NewTask(taskid.NewDefaultImplementationID[string]("define-test.legacy-producer"), nil, func(ctx context.Context) (string, error) {
-		return "legacy", nil
-	})
-	tagProducer := NewTask(taskid.NewDefaultImplementationID[string]("define-test.tag-producer"), nil, func(ctx context.Context) (string, error) {
-		return "tagged", nil
-	}, ProvidesTag(tag))
-	orderingProducer := NewTask(taskid.NewDefaultImplementationID[struct{}]("define-test.ordering-producer"), nil, func(ctx context.Context) (struct{}, error) {
-		return struct{}{}, nil
-	})
-	bound := Define(taskid.NewDefaultImplementationID[string]("define-test.bound"), func(b *Binder) func(ctx context.Context) (string, error) {
-		legacy := Use(b, taskid.NewTaskReference[string]("define-test.legacy-producer"))
+	producer := DefineConstant(taskid.NewDefaultImplementationID[string]("define-test.producer"), "produced")
+	tagProducer := DefineConstant(taskid.NewDefaultImplementationID[string]("define-test.tag-producer"), "tagged", ProvidesTag(tag))
+	orderingProducer := DefineConstant(taskid.NewDefaultImplementationID[struct{}]("define-test.ordering-producer"), struct{}{})
+	multiInputConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.multi-input-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
+		producerInput := Use(b, taskid.NewTaskReference[string]("define-test.producer"))
 		absent := UseOptional(b, taskid.NewTaskReference[string]("define-test.absent", taskid.ScopeActiveGraph))
 		tagged := UseTag(b, tag.Ref())
 		After(b, taskid.NewTaskReference[struct{}]("define-test.ordering-producer"))
 		return func(ctx context.Context) (string, error) {
 			absentValue, found := absent.Get(ctx)
-			return fmt.Sprintf("%s|%q,%v|%v", legacy.Get(ctx), absentValue, found, tagged.Get(ctx)), nil
+			return fmt.Sprintf("%s|%q,%v|%v", producerInput.Get(ctx), absentValue, found, tagged.Get(ctx)), nil
 		}
 	}, NewTaskResultRetentionLabel(true))
-	definedConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.defined-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
-		boundInput := Use(b, taskid.NewTaskReference[string]("define-test.bound"))
+	chainedConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.chained-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
+		multiInputConsumerInput := Use(b, taskid.NewTaskReference[string]("define-test.multi-input-consumer"))
 		return func(ctx context.Context) (string, error) {
-			return "consumed:" + boundInput.Get(ctx), nil
+			return "consumed:" + multiInputConsumerInput.Get(ctx), nil
 		}
 	}, NewTaskResultRetentionLabel(true))
 
-	tasks := []UntypedTask{legacyProducer, tagProducer, orderingProducer, bound, definedConsumer}
+	tasks := []UntypedTask{producer, tagProducer, orderingProducer, multiInputConsumer, chainedConsumer}
 	runnableSet, err := ResolveGraph(tasks, tasks, nil)
 	if err != nil {
 		t.Fatalf("ResolveGraph() returned unexpected error: %v", err)
@@ -148,14 +143,14 @@ func TestDefine_RunsAlongsideLegacyTasks(t *testing.T) {
 		want string
 	}{
 		{
-			name: "task defined with Define reads legacy, optional and tag inputs",
-			ref:  taskid.NewTaskReference[string]("define-test.bound"),
-			want: `legacy|"",false|[tagged]`,
+			name: "reads required, optional and tag inputs",
+			ref:  taskid.NewTaskReference[string]("define-test.multi-input-consumer"),
+			want: `produced|"",false|[tagged]`,
 		},
 		{
-			name: "task defined with Define reads the result of another task defined with Define",
-			ref:  taskid.NewTaskReference[string]("define-test.defined-consumer"),
-			want: `consumed:legacy|"",false|[tagged]`,
+			name: "reads the result of another task defined with inputs",
+			ref:  taskid.NewTaskReference[string]("define-test.chained-consumer"),
+			want: `consumed:produced|"",false|[tagged]`,
 		},
 	}
 	for _, tc := range testCases {
@@ -190,7 +185,7 @@ func TestDefineTailTask(t *testing.T) {
 			"ordering tag:tail-test-tag",
 		}
 		if diff := cmp.Diff(wantInputs, describeInputSpecs(task.Inputs())); diff != "" {
-			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+			t.Fatalf("Inputs() mismatch (-want +got):\n%s", diff)
 		}
 
 		if got := task.Dependencies()[1].DescriptorScope(); got != taskid.ScopeActiveGraph {
@@ -220,9 +215,164 @@ func TestDefineTailTask(t *testing.T) {
 		gotPanic := panicMessage(func() {
 			DefineTailTask(taskID, []Dependency{dupRef, dupRef})
 		})
-		wantSubstring := "declares input ref:tail-test.dup twice"
-		if !strings.Contains(gotPanic, wantSubstring) {
-			t.Errorf("DefineTailTask() panic = %q, want substring %q", gotPanic, wantSubstring)
+		want := "task tail-test.dup-task#default: declares input ref:tail-test.dup twice"
+		if gotPanic != want {
+			t.Errorf("DefineTailTask() panic = %q, want %q", gotPanic, want)
 		}
 	})
+
+	t.Run("accepts empty dependencies", func(t *testing.T) {
+		task := DefineTailTask(taskid.NewDefaultImplementationID[struct{}]("tail-test.empty"), nil)
+		if got := len(task.Dependencies()); got != 0 {
+			t.Errorf("len(task.Dependencies()) = %d, want 0", got)
+		}
+	})
+}
+
+func TestDefine_BuildsTask(t *testing.T) {
+	taskID := taskid.NewDefaultImplementationID[string]("task.test")
+	depA := taskid.NewTaskReference[string]("task.a")
+	tag := NewTag[int]("tag.test")
+	testLabelKey := NewTaskLabelKey[string]("test-label")
+	expectedErr := errors.New("execution failure")
+
+	testCases := []struct {
+		name            string
+		taskID          taskid.TaskImplementationID[string]
+		deps            []Dependency
+		labelOpts       []LabelOpt
+		runErr          error
+		bindPanic       error
+		wantLabelVal    string
+		wantProvidedTag string
+		wantPanic       string
+	}{
+		{
+			name:   "applies label options",
+			taskID: taskID,
+			labelOpts: []LabelOpt{
+				labelOptFunc(func(labels *typedmap.TypedMap) {
+					typedmap.Set(labels, testLabelKey, "foo")
+				}),
+			},
+			wantLabelVal: "foo",
+		},
+		{
+			name:            "applies ProvidesTag label option",
+			taskID:          taskID,
+			labelOpts:       []LabelOpt{ProvidesTag(tag)},
+			wantProvidedTag: "tag.test",
+		},
+		{
+			name:   "propagates error from run function",
+			taskID: taskID,
+			runErr: expectedErr,
+		},
+		{
+			name:      "panics when taskID is nil",
+			taskID:    nil,
+			wantPanic: "Invalid taskID",
+		},
+		{
+			name:      "panics with the task ID when a declared input is nil",
+			taskID:    taskID,
+			deps:      []Dependency{depA, nil},
+			wantPanic: "task task.test#default: unsupported dependency <nil>",
+		},
+		{
+			name:      "panics with the task ID when user code in bind panics",
+			taskID:    taskID,
+			bindPanic: errors.New("boom"),
+			wantPanic: "task task.test#default: boom",
+		},
+		{
+			name:   "panics when label contains empty key",
+			taskID: taskID,
+			labelOpts: []LabelOpt{
+				labelOptFunc(func(labels *typedmap.TypedMap) {
+					typedmap.Set(labels, typedmap.NewTypedKey[string](""), "empty")
+				}),
+			},
+			wantPanic: "contains an empty key",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			define := func() DefinedTask[string] {
+				return Define(tc.taskID, func(b *Binder) func(ctx context.Context) (string, error) {
+					for _, dep := range tc.deps {
+						After(b, dep)
+					}
+					if tc.bindPanic != nil {
+						panic(tc.bindPanic)
+					}
+					return func(ctx context.Context) (string, error) {
+						if tc.runErr != nil {
+							return "", tc.runErr
+						}
+						return "result", nil
+					}
+				}, tc.labelOpts...)
+			}
+			if tc.wantPanic != "" {
+				gotPanic := panicMessage(func() { define() })
+				if !strings.Contains(gotPanic, tc.wantPanic) {
+					t.Errorf("Define() panic = %q, want substring %q", gotPanic, tc.wantPanic)
+				}
+				return
+			}
+
+			task := define()
+			if got := task.ID().String(); got != tc.taskID.String() {
+				t.Errorf("task.ID() = %q, want %q", got, tc.taskID.String())
+			}
+			if got := task.UntypedID().String(); got != tc.taskID.String() {
+				t.Errorf("task.UntypedID() = %q, want %q", got, tc.taskID.String())
+			}
+			if tc.wantLabelVal != "" {
+				val, ok := typedmap.Get(task.Labels(), testLabelKey)
+				if !ok || val != tc.wantLabelVal {
+					t.Errorf("test label = %q (found: %v), want %q", val, ok, tc.wantLabelVal)
+				}
+			}
+			if tc.wantProvidedTag != "" {
+				val, ok := typedmap.Get(task.Labels(), LabelKeyProvidedTag(tc.wantProvidedTag))
+				if !ok || !val {
+					t.Errorf("provided tag label %s = %v (found: %v), want true", tc.wantProvidedTag, val, ok)
+				}
+			}
+
+			ctx := khictx.WithValue[taskid.UntypedTaskImplementationID](t.Context(), core_contract.TaskImplementationIDContextKey, taskID)
+			res, err := task.Run(ctx)
+			untypedRes, untypedErr := task.UntypedRun(ctx)
+			if tc.runErr != nil {
+				if !errors.Is(err, tc.runErr) {
+					t.Errorf("task.Run() error = %v, want %v", err, tc.runErr)
+				}
+				if !errors.Is(untypedErr, tc.runErr) {
+					t.Errorf("task.UntypedRun() error = %v, want %v", untypedErr, tc.runErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("task.Run() returned unexpected error: %v", err)
+			}
+			if res != "result" {
+				t.Errorf("task.Run() = %q, want %q", res, "result")
+			}
+			if untypedErr != nil {
+				t.Fatalf("task.UntypedRun() returned unexpected error: %v", untypedErr)
+			}
+			if untypedRes != "result" {
+				t.Errorf("task.UntypedRun() = %v, want %q", untypedRes, "result")
+			}
+		})
+	}
+}
+
+type labelOptFunc func(labels *typedmap.TypedMap)
+
+func (f labelOptFunc) Write(labels *typedmap.TypedMap) {
+	f(labels)
 }

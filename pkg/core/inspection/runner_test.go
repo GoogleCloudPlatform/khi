@@ -56,12 +56,9 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 
 	// Add a dummy task that is enabled for this inspection type
 	dummyTaskID := taskid.NewDefaultImplementationID[any]("dummy-task")
-	dummyTask := coretask.NewTask(
+	dummyTask := coretask.DefineConstant[any](
 		dummyTaskID,
-		nil,
-		func(ctx context.Context) (any, error) {
-			return "success", nil
-		},
+		"success",
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
 	)
@@ -195,10 +192,9 @@ func TestIsTaskCompatible(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			task := coretask.NewTask(
+			task := coretask.DefineConstant[any](
 				taskid.NewDefaultImplementationID[any]("test-task"),
 				nil,
-				func(ctx context.Context) (any, error) { return nil, nil },
 				tt.labelOpts...,
 			)
 
@@ -214,40 +210,34 @@ func TestDeduplicateTasksByPriority(t *testing.T) {
 	taskRefA := taskid.NewTaskReference[any]("task-a")
 	taskRefB := taskid.NewTaskReference[any]("task-b")
 
-	taskAImpl1 := coretask.NewTask(
+	taskAImpl1 := coretask.DefineConstant[any](
 		taskid.NewImplementationID(taskRefA, "impl1"),
 		nil,
-		func(ctx context.Context) (any, error) { return nil, nil },
 		coretask.WithSelectionPriority(10),
 	)
-	taskAImpl2 := coretask.NewTask(
+	taskAImpl2 := coretask.DefineConstant[any](
 		taskid.NewImplementationID(taskRefA, "impl2"),
 		nil,
-		func(ctx context.Context) (any, error) { return nil, nil },
 		coretask.WithSelectionPriority(100),
 	)
-	taskAImpl3 := coretask.NewTask(
+	taskAImpl3 := coretask.DefineConstant[any](
 		taskid.NewImplementationID(taskRefA, "impl3"),
 		nil,
-		func(ctx context.Context) (any, error) { return nil, nil },
 		coretask.WithSelectionPriority(50),
 	)
-	taskBImpl1 := coretask.NewTask(
+	taskBImpl1 := coretask.DefineConstant[any](
 		taskid.NewImplementationID(taskRefB, "impl1"),
 		nil,
-		func(ctx context.Context) (any, error) { return nil, nil },
 		coretask.WithSelectionPriority(0),
 	)
-	taskATie1 := coretask.NewTask(
+	taskATie1 := coretask.DefineConstant[any](
 		taskid.NewImplementationID(taskRefA, "tie-a"),
 		nil,
-		func(ctx context.Context) (any, error) { return nil, nil },
 		coretask.WithSelectionPriority(20),
 	)
-	taskATie2 := coretask.NewTask(
+	taskATie2 := coretask.DefineConstant[any](
 		taskid.NewImplementationID(taskRefA, "tie-b"),
 		nil,
-		func(ctx context.Context) (any, error) { return nil, nil },
 		coretask.WithSelectionPriority(20),
 	)
 
@@ -316,18 +306,16 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 			},
 			tasks: []coretask.UntypedTask{
 				// Generic implementation with priority 0, default feature
-				coretask.NewTask(
+				coretask.DefineConstant[any](
 					taskid.NewImplementationID(taskid.NewTaskReference[any]("audit-log-parser"), "generic"),
 					nil,
-					func(ctx context.Context) (any, error) { return nil, nil },
 					inspectioncore.FeatureTaskLabel("Generic Audit Logs", "Generic description", 100, true),
 					coretask.WithSelectionPriority(0),
 				),
 				// GKE specialized implementation with priority 100, default feature
-				coretask.NewTask(
+				coretask.DefineConstant[any](
 					taskid.NewImplementationID(taskid.NewTaskReference[any]("audit-log-parser"), "gke"),
 					nil,
-					func(ctx context.Context) (any, error) { return nil, nil },
 					inspectioncore.FeatureTaskLabel("GKE Audit Logs", "GKE description", 100, true),
 					inspectioncore.InspectionTypeLabelSelector(map[string]string{"platform": "gke"}),
 					coretask.WithSelectionPriority(100),
@@ -346,18 +334,16 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 			},
 			tasks: []coretask.UntypedTask{
 				// Generic implementation with priority 0, default feature = true
-				coretask.NewTask(
+				coretask.DefineConstant[any](
 					taskid.NewImplementationID(taskid.NewTaskReference[any]("custom-feature"), "generic"),
 					nil,
-					func(ctx context.Context) (any, error) { return nil, nil },
 					inspectioncore.FeatureTaskLabel("Generic Feature", "Generic description", 100, true),
 					coretask.WithSelectionPriority(0),
 				),
 				// GKE specialized implementation with priority 50, default feature = false
-				coretask.NewTask(
+				coretask.DefineConstant[any](
 					taskid.NewImplementationID(taskid.NewTaskReference[any]("custom-feature"), "gke"),
 					nil,
-					func(ctx context.Context) (any, error) { return nil, nil },
 					inspectioncore.FeatureTaskLabel("GKE Feature", "GKE description", 100, false),
 					inspectioncore.InspectionTypeLabelSelector(map[string]string{"platform": "gke"}),
 					coretask.WithSelectionPriority(50),
@@ -482,14 +468,15 @@ func TestInspectionTaskRunner_Cancel(t *testing.T) {
 				t.Fatalf("AddInspectionType failed: %v", err)
 			}
 			dummyTaskID := taskid.NewDefaultImplementationID[any]("dummy-task")
-			dummyTask := coretask.NewTask(
+			dummyTask := coretask.Define(
 				dummyTaskID,
-				nil,
-				func(ctx context.Context) (any, error) {
-					if tc.failTask {
-						return nil, fmt.Errorf("simulated failure")
+				func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+					return func(ctx context.Context) (any, error) {
+						if tc.failTask {
+							return nil, fmt.Errorf("simulated failure")
+						}
+						return "success", nil
 					}
-					return "success", nil
 				},
 				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
@@ -623,14 +610,15 @@ func newTestInspectionServer(t *testing.T, taskErr error) (*InspectionTaskServer
 		t.Fatalf("AddInspectionType failed: %v", err)
 	}
 	dummyTaskID := taskid.NewDefaultImplementationID[any]("dummy-task")
-	dummyTask := coretask.NewTask(
+	dummyTask := coretask.Define(
 		dummyTaskID,
-		nil,
-		func(ctx context.Context) (any, error) {
-			if taskErr != nil {
-				return nil, taskErr
+		func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+			return func(ctx context.Context) (any, error) {
+				if taskErr != nil {
+					return nil, taskErr
+				}
+				return "success", nil
 			}
-			return "success", nil
 		},
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
@@ -708,23 +696,24 @@ func TestInspectionTaskRunner_ProgressInterceptor(t *testing.T) {
 				coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
 			}, tc.labelOpts...)
 
-			task := coretask.NewTask(
+			task := coretask.Define(
 				taskID,
-				nil,
-				func(ctx context.Context) (any, error) {
-					capturedTaskCtx = ctx
-					progress.Report(ctx, 0.5, "Halfway through")
-					meta, err := runner.GetCurrentMetadata()
-					if err != nil {
-						return nil, err
+				func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+					return func(ctx context.Context) (any, error) {
+						capturedTaskCtx = ctx
+						progress.Report(ctx, 0.5, "Halfway through")
+						meta, err := runner.GetCurrentMetadata()
+						if err != nil {
+							return nil, err
+						}
+						if prog, found := typedmap.Get(meta, inspectionmetadata.ProgressMetadataKey); found {
+							capturedSnapshot = prog.Snapshot()
+						}
+						if tc.taskErr != nil {
+							return nil, tc.taskErr
+						}
+						return "ok", nil
 					}
-					if prog, found := typedmap.Get(meta, inspectionmetadata.ProgressMetadataKey); found {
-						capturedSnapshot = prog.Snapshot()
-					}
-					if tc.taskErr != nil {
-						return nil, tc.taskErr
-					}
-					return "ok", nil
 				},
 				opts...,
 			)

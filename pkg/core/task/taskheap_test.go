@@ -16,7 +16,6 @@ package coretask
 
 import (
 	"container/heap"
-	"context"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -24,13 +23,7 @@ import (
 )
 
 func createHeapTestTask(refID string, hash string) UntypedTask {
-	return NewTask(
-		taskid.NewImplementationID(taskid.NewTaskReference[any](refID), hash),
-		nil,
-		func(ctx context.Context) (any, error) {
-			return nil, nil
-		},
-	)
+	return DefineConstant[any](taskid.NewImplementationID(taskid.NewTaskReference[any](refID), hash), nil)
 }
 
 func TestTaskMinHeap_TableDriven(t *testing.T) {

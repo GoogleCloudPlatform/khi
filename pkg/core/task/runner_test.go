@@ -27,17 +27,12 @@ import (
 )
 
 func createMockRunnableTask(id string, dependencies []string, runFunc func(ctx context.Context) (any, error), labelOpts ...LabelOpt) UntypedTask {
-	deps := make([]Dependency, len(dependencies))
-	for i, dep := range dependencies {
-		deps[i] = taskid.NewTaskReference[any](dep)
-	}
-
-	return NewTask(
-		taskid.NewDefaultImplementationID[any](id),
-		deps,
-		runFunc,
-		labelOpts...,
-	)
+	return Define(taskid.NewDefaultImplementationID[any](id), func(b *Binder) func(ctx context.Context) (any, error) {
+		for _, dep := range dependencies {
+			After(b, taskid.NewTaskReference[any](dep))
+		}
+		return runFunc
+	}, labelOpts...)
 }
 
 func TestLocalRunner_SingleTask(t *testing.T) {

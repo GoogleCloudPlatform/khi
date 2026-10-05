@@ -1113,10 +1113,15 @@ func TestResolveGraph_DependencyResultType(t *testing.T) {
 	type stringer interface{ String() string }
 	tagString := NewTag[string]("tag-string")
 	newStringProducer := func(labelOpts ...LabelOpt) UntypedTask {
-		return NewTask(taskid.NewDefaultImplementationID[string]("producer"), nil, func(ctx context.Context) (string, error) { return "", nil }, labelOpts...)
+		return DefineConstant(taskid.NewDefaultImplementationID[string]("producer"), "", labelOpts...)
 	}
 	newConsumer := func(deps ...Dependency) UntypedTask {
-		return NewTask(taskid.NewDefaultImplementationID[struct{}]("consumer"), deps, func(ctx context.Context) (struct{}, error) { return struct{}{}, nil })
+		return Define(taskid.NewDefaultImplementationID[struct{}]("consumer"), func(b *Binder) func(ctx context.Context) (struct{}, error) {
+			for _, dep := range deps {
+				After(b, dep)
+			}
+			return func(ctx context.Context) (struct{}, error) { return struct{}{}, nil }
+		})
 	}
 
 	testCases := []struct {
@@ -1141,7 +1146,7 @@ func TestResolveGraph_DependencyResultType(t *testing.T) {
 		{
 			name: "point-to-point dependency expecting interface accepts implementing producer",
 			tasks: []UntypedTask{
-				NewTask(taskid.NewDefaultImplementationID[*strings.Builder]("producer"), nil, func(ctx context.Context) (*strings.Builder, error) { return &strings.Builder{}, nil }),
+				DefineConstant(taskid.NewDefaultImplementationID[*strings.Builder]("producer"), &strings.Builder{}),
 				newConsumer(taskid.NewTaskReference[stringer]("producer")),
 			},
 		},
@@ -1171,7 +1176,7 @@ func TestResolveGraph_DependencyResultType(t *testing.T) {
 		{
 			name: "fan-in dependency with mismatched producer type returns error",
 			tasks: []UntypedTask{
-				NewTask(taskid.NewDefaultImplementationID[int]("producer"), nil, func(ctx context.Context) (int, error) { return 0, nil }, ProvidesTag(tagString)),
+				DefineConstant(taskid.NewDefaultImplementationID[int]("producer"), 0, ProvidesTag(tagString)),
 				newConsumer(tagString.Ref()),
 			},
 			wantErrMsg: `expects result type string from dependency "tag:tag-string"`,
