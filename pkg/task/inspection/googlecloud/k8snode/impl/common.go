@@ -160,7 +160,7 @@ var tailTask = coretask.DefineTailTask(
 )
 
 // defineParserTypeFilterTask defines a filter task that passes only the logs of the given parser type.
-func defineParserTypeFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], logSource taskid.TaskReference[[]*log.Log], parserType k8snode.K8sNodeParserType) coretask.DefinedTask[[]*log.Log] {
+func defineParserTypeFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], logSource taskid.TaskReference[[]*log.Log], parserType k8snode.K8sNodeParserType) coretask.Task[[]*log.Log] {
 	return inspectiontaskbase.DefineLogFilterTask(taskID, logSource, func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
 		return func(ctx context.Context, l *log.Log) bool {
 			gotParserType, err := k8snode.ExtractK8sNodeParserType(l.NodeReader)
@@ -173,7 +173,7 @@ func defineParserTypeFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], 
 }
 
 // defineNodeAndComponentNameGrouperTask defines a grouper task that groups logs by node name and component name.
-func defineNodeAndComponentNameGrouperTask(taskID taskid.TaskImplementationID[inspectiontaskbase.LogGroupMap], logSource taskid.TaskReference[[]*log.Log]) coretask.DefinedTask[inspectiontaskbase.LogGroupMap] {
+func defineNodeAndComponentNameGrouperTask(taskID taskid.TaskImplementationID[inspectiontaskbase.LogGroupMap], logSource taskid.TaskReference[[]*log.Log]) coretask.Task[inspectiontaskbase.LogGroupMap] {
 	return inspectiontaskbase.DefineLogGrouperTask(taskID, logSource, func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
 		return func(ctx context.Context, l *log.Log) string {
 			componentFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)

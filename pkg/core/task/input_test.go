@@ -43,7 +43,7 @@ func newInputTestContext(active taskid.UntypedTaskImplementationID, results map[
 	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
 	ctx = khictx.WithValue(ctx, core_contract.TaskGraphMetadataContextKey, meta)
 	if active != nil {
-		ctx = withActiveDefinedTask(ctx, active)
+		ctx = withActiveTask(ctx, active)
 	}
 	return ctx
 }

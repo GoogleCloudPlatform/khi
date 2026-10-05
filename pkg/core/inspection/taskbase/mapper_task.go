@@ -86,7 +86,7 @@ func (StatelessMapperBase) PreProcessLogByGroup(ctx context.Context, passIndex i
 // DefineLogToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry based on the logs grouped by inputs.GroupedLogs.
 // The task waits for inputs.LogIngester and reads inputs.GroupedLogs itself.
 // bind declares the additional inputs the mapper reads and returns the mapper that processes each log group in parallel.
-func DefineLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}], inputs TimelineMapperInputs, bind func(b *coretask.Binder) TimelineMapper[T], labels ...coretask.LabelOpt) coretask.DefinedTask[struct{}] {
+func DefineLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}], inputs TimelineMapperInputs, bind func(b *coretask.Binder) TimelineMapper[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(TagTimelineMapper),
 	}, labels...)

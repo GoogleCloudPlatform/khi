@@ -23,61 +23,48 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// DefinedTask is a task defined with Define. It exposes its typed input declarations to callers outside the task.
-type DefinedTask[T any] interface {
-	Task[T]
-	// Inputs returns the inputs declared through the Binder in declaration order.
-	Inputs() []InputSpec
+type taskImpl[T any] struct {
+	id     taskid.TaskImplementationID[T]
+	labels *typedmap.ReadonlyTypedMap
+	inputs []InputSpec
+	run    func(ctx context.Context) (T, error)
 }
 
-type definedTaskImpl[T any] struct {
-	id           taskid.TaskImplementationID[T]
-	labels       *typedmap.ReadonlyTypedMap
-	dependencies []Dependency
-	inputs       []InputSpec
-	run          func(ctx context.Context) (T, error)
-}
-
-var _ DefinedTask[any] = (*definedTaskImpl[any])(nil)
+var _ Task[any] = (*taskImpl[any])(nil)
 
 // ID implements Task.
-func (t *definedTaskImpl[T]) ID() taskid.TaskImplementationID[T] {
+func (t *taskImpl[T]) ID() taskid.TaskImplementationID[T] {
 	return t.id
 }
 
 // UntypedID implements UntypedTask.
-func (t *definedTaskImpl[T]) UntypedID() taskid.UntypedTaskImplementationID {
+func (t *taskImpl[T]) UntypedID() taskid.UntypedTaskImplementationID {
 	return t.id
 }
 
 // Labels implements UntypedTask.
-func (t *definedTaskImpl[T]) Labels() *typedmap.ReadonlyTypedMap {
+func (t *taskImpl[T]) Labels() *typedmap.ReadonlyTypedMap {
 	return t.labels
 }
 
-// Dependencies implements UntypedTask.
-func (t *definedTaskImpl[T]) Dependencies() []Dependency {
-	return t.dependencies
+// Inputs implements UntypedTask.
+func (t *taskImpl[T]) Inputs() []InputSpec {
+	return t.inputs
 }
 
 // ResultType implements UntypedTask.
-func (t *definedTaskImpl[T]) ResultType() reflect.Type {
+func (t *taskImpl[T]) ResultType() reflect.Type {
 	return reflect.TypeFor[T]()
 }
 
 // Run implements Task. It marks ctx with the running task so that input handles can verify their owner.
-func (t *definedTaskImpl[T]) Run(ctx context.Context) (T, error) {
-	return t.run(withActiveDefinedTask(ctx, t.id))
+func (t *taskImpl[T]) Run(ctx context.Context) (T, error) {
+	return t.run(withActiveTask(ctx, t.id))
 }
 
 // UntypedRun implements UntypedTask.
-func (t *definedTaskImpl[T]) UntypedRun(ctx context.Context) (any, error) {
+func (t *taskImpl[T]) UntypedRun(ctx context.Context) (any, error) {
 	return t.Run(ctx)
-}
-
-// Inputs implements DefinedTask.
-func (t *definedTaskImpl[T]) Inputs() []InputSpec {
-	return t.inputs
 }
 
 // Define constructs a task whose dependencies are declared through a Binder.
@@ -88,7 +75,7 @@ func Define[T any](
 	id taskid.TaskImplementationID[T],
 	bind func(b *Binder) func(ctx context.Context) (T, error),
 	labelOpts ...LabelOpt,
-) DefinedTask[T] {
+) Task[T] {
 	verifyTaskID(id)
 	b := newBinder(id)
 	run := callBind(id, b, bind)
@@ -96,12 +83,11 @@ func Define[T any](
 	labelOpts = append([]LabelOpt{WithLabelValue(LabelKeyTaskResultType, reflect.TypeFor[T]().String())}, labelOpts...)
 	labels := NewLabelSet(labelOpts...)
 	verifyLabelKeys(id, labels)
-	return &definedTaskImpl[T]{
-		id:           id,
-		labels:       labels,
-		dependencies: b.dependencies(),
-		inputs:       b.specs,
-		run:          run,
+	return &taskImpl[T]{
+		id:     id,
+		labels: labels,
+		inputs: b.specs,
+		run:    run,
 	}
 }
 
@@ -118,7 +104,7 @@ func callBind[T any](id taskid.TaskImplementationID[T], b *Binder, bind func(b *
 
 // DefineConstant constructs a task that has no inputs and always returns value.
 // The same value is returned on every run, so callers must not modify reference types such as slices or maps in it.
-func DefineConstant[T any](id taskid.TaskImplementationID[T], value T, labelOpts ...LabelOpt) DefinedTask[T] {
+func DefineConstant[T any](id taskid.TaskImplementationID[T], value T, labelOpts ...LabelOpt) Task[T] {
 	return Define(id, func(b *Binder) func(ctx context.Context) (T, error) {
 		return func(ctx context.Context) (T, error) {
 			return value, nil
@@ -128,7 +114,7 @@ func DefineConstant[T any](id taskid.TaskImplementationID[T], value T, labelOpts
 
 // DefineTailTask constructs a no-op barrier task that waits for all dependencies without reading their values.
 // Duplicate dependencies are merged into one input by the Binder.
-func DefineTailTask(taskID taskid.TaskImplementationID[struct{}], dependencies []Dependency, labelOpts ...LabelOpt) DefinedTask[struct{}] {
+func DefineTailTask(taskID taskid.TaskImplementationID[struct{}], dependencies []Dependency, labelOpts ...LabelOpt) Task[struct{}] {
 	return Define(taskID, func(b *Binder) func(ctx context.Context) (struct{}, error) {
 		for _, dep := range dependencies {
 			After(b, dep)

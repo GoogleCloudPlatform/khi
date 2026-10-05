@@ -42,7 +42,7 @@ type LogGrouperFunc = func(ctx context.Context, log *log.Log) string
 
 // DefineLogGrouperTask creates a task that groups the logs provided by logTask with the grouper function returned by bind.
 // bind declares the additional inputs the grouper reads, and the task declares logTask itself.
-func DefineLogGrouperTask(taskID taskid.TaskImplementationID[LogGroupMap], logTask taskid.TaskReference[[]*log.Log], bind func(b *coretask.Binder) LogGrouperFunc) coretask.DefinedTask[LogGroupMap] {
+func DefineLogGrouperTask(taskID taskid.TaskImplementationID[LogGroupMap], logTask taskid.TaskReference[[]*log.Log], bind func(b *coretask.Binder) LogGrouperFunc) coretask.Task[LogGroupMap] {
 	return DefineInspectionTask(taskID, func(b *coretask.Binder) InspectionTaskFunc[LogGroupMap] {
 		logs := coretask.Use(b, logTask)
 		grouper := bind(b)

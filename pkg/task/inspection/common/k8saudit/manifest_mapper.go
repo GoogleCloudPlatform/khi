@@ -135,7 +135,7 @@ func (ManifestStatelessMapperBase) PreProcessLog(ctx context.Context, passIndex 
 }
 
 // DefineManifestLogToTimelineMapper defines a timeline mapper task utilizing the ManifestLogToTimelineMapper interface.
-func DefineManifestLogToTimelineMapper[T any](taskID taskid.TaskImplementationID[struct{}], bind func(b *coretask.Binder) ManifestLogToTimelineMapper[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[struct{}] {
+func DefineManifestLogToTimelineMapper[T any](taskID taskid.TaskImplementationID[struct{}], bind func(b *coretask.Binder) ManifestLogToTimelineMapper[T], labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(inspectiontaskbase.TagTimelineMapper),
 	}, labelOpts...)

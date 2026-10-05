@@ -37,7 +37,7 @@ type FilterTaskTestCase struct {
 
 // AssertFilterTask asserts that the given filter task behaves as expected for the given test cases.
 // It runs the task with the given log fields and checks if the log is included or excluded from the result.
-func AssertFilterTask(t *testing.T, task coretask.DefinedTask[[]*log.Log], sourceRef taskid.TaskReference[[]*log.Log], testCases []FilterTaskTestCase) {
+func AssertFilterTask(t *testing.T, task coretask.Task[[]*log.Log], sourceRef taskid.TaskReference[[]*log.Log], testCases []FilterTaskTestCase) {
 	t.Helper()
 	for _, tc := range testCases {
 		t.Run(tc.Description, func(t *testing.T) {

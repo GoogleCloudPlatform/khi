@@ -179,7 +179,7 @@ func (b *checkboxFormTask) applySpec(spec CheckboxFormSpec) {
 // DefineCheckboxForm defines a checkbox form task with a Binder.
 // id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
 // and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
-func DefineCheckboxForm(id taskid.TaskImplementationID[bool], priority int, label string, description string, bind func(b *coretask.Binder) CheckboxFormSpec, labelOpts ...coretask.LabelOpt) coretask.DefinedTask[bool] {
+func DefineCheckboxForm(id taskid.TaskImplementationID[bool], priority int, label string, description string, bind func(b *coretask.Binder) CheckboxFormSpec, labelOpts ...coretask.LabelOpt) coretask.Task[bool] {
 	form := newCheckboxFormTask(id, priority, label, description)
 	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (bool, error) {
 		form.applySpec(bind(b))

@@ -58,7 +58,7 @@ type StructuredLogQuerySource interface {
 // DefineStructuredListLogEntriesTask defines a task that queries logs from Cloud Logging using the StructuredLogQuery list of the source returned by bind.
 // It declares the time range, resource names, log fetcher, and API client inputs before it calls bind, so bind only declares the inputs of the source.
 // In DryRun mode, it estimates log volumes and populates QueryMetadata with estimated counts.
-func DefineStructuredListLogEntriesTask(taskID taskid.TaskImplementationID[[]*log.Log], queryName string, bind func(b *coretask.Binder) StructuredLogQuerySource) coretask.DefinedTask[[]*log.Log] {
+func DefineStructuredListLogEntriesTask(taskID taskid.TaskImplementationID[[]*log.Log], queryName string, bind func(b *coretask.Binder) StructuredLogQuerySource) coretask.Task[[]*log.Log] {
 	return inspectiontaskbase.DefineInspectionTask(
 		taskID,
 		func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]*log.Log] {

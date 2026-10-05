@@ -21,18 +21,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// activeDefinedTaskKey is the context key for the implementation ID of the running task defined with Define.
-type activeDefinedTaskKey struct{}
+// activeTaskKey is the context key for the implementation ID of the running task.
+type activeTaskKey struct{}
 
-// withActiveDefinedTask marks ctx as running the task defined with Define identified by owner.
-func withActiveDefinedTask(ctx context.Context, owner taskid.UntypedTaskImplementationID) context.Context {
-	return context.WithValue(ctx, activeDefinedTaskKey{}, owner.String())
+// withActiveTask marks ctx as running the task identified by owner.
+func withActiveTask(ctx context.Context, owner taskid.UntypedTaskImplementationID) context.Context {
+	return context.WithValue(ctx, activeTaskKey{}, owner.String())
 }
 
-// mustMatchActiveDefinedTask panics unless ctx is running the task that declared the handle.
+// mustMatchActiveTask panics unless ctx is running the task that declared the handle.
 // A handle read from another task would bypass that task's input declarations.
-func mustMatchActiveDefinedTask(ctx context.Context, owner taskid.UntypedTaskImplementationID, input string) {
-	active, found := ctx.Value(activeDefinedTaskKey{}).(string)
+func mustMatchActiveTask(ctx context.Context, owner taskid.UntypedTaskImplementationID, input string) {
+	active, found := ctx.Value(activeTaskKey{}).(string)
 	if !found {
 		panic(fmt.Sprintf("input %s declared by task %s is read outside of a task defined with Define", input, owner))
 	}
@@ -49,7 +49,7 @@ type Input[T any] struct {
 
 // Get returns the result of the producer task.
 func (in Input[T]) Get(ctx context.Context) T {
-	mustMatchActiveDefinedTask(ctx, in.owner, dependencyKey(in.ref))
+	mustMatchActiveTask(ctx, in.owner, dependencyKey(in.ref))
 	return lookupTaskResult(ctx, in.ref)
 }
 
@@ -61,7 +61,7 @@ type OptionalInput[T any] struct {
 
 // Get returns the result of the producer task and true, or the zero value and false when the producer is not in the graph.
 func (in OptionalInput[T]) Get(ctx context.Context) (T, bool) {
-	mustMatchActiveDefinedTask(ctx, in.owner, dependencyKey(in.ref))
+	mustMatchActiveTask(ctx, in.owner, dependencyKey(in.ref))
 	return lookupOptionalTaskResult(ctx, in.ref)
 }
 
@@ -73,6 +73,6 @@ type TagInput[T any] struct {
 
 // Get returns the results of all producer tasks bound to the tag in deterministic order.
 func (in TagInput[T]) Get(ctx context.Context) []T {
-	mustMatchActiveDefinedTask(ctx, in.owner, dependencyKey(in.ref))
+	mustMatchActiveTask(ctx, in.owner, dependencyKey(in.ref))
 	return lookupTaskResultsWithTag(ctx, in.ref)
 }

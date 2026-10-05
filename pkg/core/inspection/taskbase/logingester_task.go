@@ -41,7 +41,7 @@ type LogIngesterFunc = func(ctx context.Context, l *log.Log) (*khifilev6.LogChan
 // DefineLogIngesterTask returns a task that ingests metadata of the logs provided by rawLogTask into the KHI v6 builder.
 // bind declares the additional inputs the ingester reads and returns the function that processes each log.
 // The task declares rawLogTask itself.
-func DefineLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], rawLogTask taskid.TaskReference[[]*log.Log], bind func(b *coretask.Binder) LogIngesterFunc, labels ...coretask.LabelOpt) coretask.DefinedTask[struct{}] {
+func DefineLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], rawLogTask taskid.TaskReference[[]*log.Log], bind func(b *coretask.Binder) LogIngesterFunc, labels ...coretask.LabelOpt) coretask.Task[struct{}] {
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(TagLogIngester),
 	}, labels...)

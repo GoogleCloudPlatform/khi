@@ -182,7 +182,8 @@ func expandMandatoryDependencies(
 		curr := queue[0]
 		queue = queue[1:]
 
-		for _, dep := range curr.Dependencies() {
+		for _, input := range curr.Inputs() {
+			dep := input.Dependency
 			if dep.DescriptorScope() == taskid.ScopeAll && dep.DescriptorCardinality() == taskid.CardinalityPointToPoint {
 				ptp, ok := dep.(taskid.PointToPointDescriptor)
 				if !ok {
@@ -260,7 +261,8 @@ func resolveActiveFeaturesAndCandidateFanInEdges(
 
 	var rawEdges []taskid.TaskEdge
 	for _, task := range tasks {
-		for _, dep := range task.Dependencies() {
+		for _, input := range task.Inputs() {
+			dep := input.Dependency
 			if dep.DescriptorCardinality() != taskid.CardinalityFanIn {
 				continue
 			}
@@ -314,7 +316,8 @@ func expandActiveFeaturePointToPointDependencies(
 	graphTaskMap map[string]UntypedTask,
 	disabledRefIDSet map[string]struct{},
 ) error {
-	for _, dep := range task.Dependencies() {
+	for _, input := range task.Inputs() {
+		dep := input.Dependency
 		if dep.DescriptorCardinality() != taskid.CardinalityPointToPoint || dep.DescriptorScope() != taskid.ScopeActiveFeatures {
 			continue
 		}
@@ -353,7 +356,8 @@ func expandActiveFeatureFanInProducers(
 	graphTaskMap map[string]UntypedTask,
 	disabledRefIDSet map[string]struct{},
 ) error {
-	for _, dep := range task.Dependencies() {
+	for _, input := range task.Inputs() {
+		dep := input.Dependency
 		if dep.DescriptorCardinality() != taskid.CardinalityFanIn || dep.DescriptorScope() != taskid.ScopeActiveFeatures {
 			continue
 		}
@@ -417,7 +421,8 @@ func resolvePointToPointEdges(graphTaskMap map[string]UntypedTask) ([]taskid.Tas
 
 	var rawEdges []taskid.TaskEdge
 	for _, t := range tasks {
-		for _, dep := range t.Dependencies() {
+		for _, input := range t.Inputs() {
+			dep := input.Dependency
 			if dep.DescriptorCardinality() == taskid.CardinalityPointToPoint {
 				ptp, ok := dep.(taskid.PointToPointDescriptor)
 				if !ok {

@@ -25,7 +25,7 @@ import (
 )
 
 // componentFilterTask creates a log filter task that filters logs for a specific Composer component.
-func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source taskid.TaskReference[[]*log.Log], componentName string) coretask.DefinedTask[[]*log.Log] {
+func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source taskid.TaskReference[[]*log.Log], componentName string) coretask.Task[[]*log.Log] {
 	return inspectiontaskbase.DefineLogFilterTask(
 		taskID,
 		source,

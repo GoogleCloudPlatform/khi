@@ -195,7 +195,7 @@ func TestDefineSetForm(t *testing.T) {
 	sourceTaskID := taskid.NewDefaultImplementationID[[]string]("source")
 	formID := taskid.NewDefaultImplementationID[[]string]("set-form")
 
-	makeTask := func(customizeSpec func(source coretask.Input[[]string]) SetFormSpec[[]string]) coretask.DefinedTask[[]string] {
+	makeTask := func(customizeSpec func(source coretask.Input[[]string]) SetFormSpec[[]string]) coretask.Task[[]string] {
 		return DefineSetForm(formID, 1, "test set form", "test description", func(b *coretask.Binder) SetFormSpec[[]string] {
 			source := coretask.Use(b, sourceTaskID.Ref())
 			if customizeSpec != nil {
@@ -218,7 +218,7 @@ func TestDefineSetForm(t *testing.T) {
 
 	testCases := []struct {
 		name         string
-		task         coretask.DefinedTask[[]string]
+		task         coretask.Task[[]string]
 		taskMode     inspectioncore.InspectionTaskModeType
 		requestValue map[string]any
 		sourceValue  []string

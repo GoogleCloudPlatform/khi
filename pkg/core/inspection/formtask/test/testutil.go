@@ -41,7 +41,7 @@ type TextFormTestCase struct {
 }
 
 // TestTextForms tests an inspection task generating a TextForm in the metadata.
-func TestTextForms[T any](t *testing.T, label string, formTask coretask.DefinedTask[T], testCases []*TextFormTestCase, cmpOptions ...cmp.Option) {
+func TestTextForms[T any](t *testing.T, label string, formTask coretask.Task[T], testCases []*TextFormTestCase, cmpOptions ...cmp.Option) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			if testCase.Before != nil {

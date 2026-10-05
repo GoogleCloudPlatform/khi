@@ -127,15 +127,6 @@ func mergeInputSpecs(existing, incoming InputSpec) InputSpec {
 	return merged
 }
 
-// dependencies returns the dependency descriptors of all declared inputs in declaration order.
-func (b *Binder) dependencies() []Dependency {
-	deps := make([]Dependency, 0, len(b.specs))
-	for _, spec := range b.specs {
-		deps = append(deps, spec.Dependency)
-	}
-	return deps
-}
-
 // Use declares a required input and returns the handle to read its value.
 // The reference must use ScopeAll, the default scope, so that the producer is always pulled into the graph.
 // Use UseOptional for references with a narrower scope. Define prefixes the panic for a wrong scope with the task ID.

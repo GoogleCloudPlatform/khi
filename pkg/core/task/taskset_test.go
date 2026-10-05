@@ -26,9 +26,9 @@ import (
 )
 
 type testTask struct {
-	id           taskid.TaskImplementationID[any]
-	dependencies []Dependency
-	labels       *typedmap.ReadonlyTypedMap
+	id     taskid.TaskImplementationID[any]
+	inputs []InputSpec
+	labels *typedmap.ReadonlyTypedMap
 }
 
 // Run implements Task.
@@ -58,22 +58,25 @@ func (d *testTask) Labels() *typedmap.ReadonlyTypedMap {
 	return d.labels
 }
 
-// Dependencies implements KHITaskUnit.
-func (d *testTask) Dependencies() []Dependency {
-	return d.dependencies
+// Inputs implements UntypedTask.
+func (d *testTask) Inputs() []InputSpec {
+	return d.inputs
 }
 
 func newDebugTask(id string, dependencies []string, labelOpt ...LabelOpt) *testTask {
 	labels := NewLabelSet(labelOpt...)
-	deps := make([]Dependency, 0, len(dependencies))
+	inputs := make([]InputSpec, 0, len(dependencies))
 	for _, depID := range dependencies {
-		deps = append(deps, taskid.NewTaskReference[any](depID))
+		inputs = append(inputs, InputSpec{
+			Dependency: taskid.NewTaskReference[any](depID),
+			Kind:       InputKindOrdering,
+		})
 	}
 
 	return &testTask{
-		id:           taskid.NewDefaultImplementationID[any](id),
-		dependencies: deps,
-		labels:       labels,
+		id:     taskid.NewDefaultImplementationID[any](id),
+		inputs: inputs,
+		labels: labels,
 	}
 }
 

@@ -103,11 +103,11 @@ type CAITaskSuiteConfig[Identity any] struct {
 
 // CAITaskSuite bundles the 5 tasks constituting a Cloud Asset Inventory inspection pipeline.
 type CAITaskSuite struct {
-	FetcherTask        coretask.DefinedTask[[]*CAIAssetSnapshot]
-	RawLogTask         coretask.DefinedTask[[]*log.Log]
-	LogGrouperTask     coretask.DefinedTask[inspectiontaskbase.LogGroupMap]
-	LogIngesterTask    coretask.DefinedTask[struct{}]
-	TimelineMapperTask coretask.DefinedTask[struct{}]
+	FetcherTask        coretask.Task[[]*CAIAssetSnapshot]
+	RawLogTask         coretask.Task[[]*log.Log]
+	LogGrouperTask     coretask.Task[inspectiontaskbase.LogGroupMap]
+	LogIngesterTask    coretask.Task[struct{}]
+	TimelineMapperTask coretask.Task[struct{}]
 }
 
 // Tasks returns all 5 tasks in the suite.
@@ -132,7 +132,7 @@ func DefineCAITaskSuite[Identity any](cfg CAITaskSuiteConfig[Identity]) *CAITask
 	}
 }
 
-func defineCAIFetcherTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.DefinedTask[[]*CAIAssetSnapshot] {
+func defineCAIFetcherTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.Task[[]*CAIAssetSnapshot] {
 	return inspectiontaskbase.DefineInspectionTask(
 		cfg.TaskIDs.Fetcher,
 		func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]*CAIAssetSnapshot] {
@@ -166,7 +166,7 @@ func defineCAIFetcherTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coreta
 	)
 }
 
-func defineCAIRawLogTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.DefinedTask[[]*log.Log] {
+func defineCAIRawLogTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.Task[[]*log.Log] {
 	return inspectiontaskbase.DefineInspectionTask(
 		cfg.TaskIDs.RawLog,
 		func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]*log.Log] {
@@ -197,7 +197,7 @@ func defineCAIRawLogTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretas
 	)
 }
 
-func defineCAILogGrouperTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.DefinedTask[inspectiontaskbase.LogGroupMap] {
+func defineCAILogGrouperTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.Task[inspectiontaskbase.LogGroupMap] {
 	return inspectiontaskbase.DefineLogGrouperTask(
 		cfg.TaskIDs.LogGrouper,
 		cfg.TaskIDs.RawLog.Ref(),
@@ -217,7 +217,7 @@ func defineCAILogGrouperTask[Identity any](cfg CAITaskSuiteConfig[Identity]) cor
 	)
 }
 
-func defineCAILogIngesterTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.DefinedTask[struct{}] {
+func defineCAILogIngesterTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.Task[struct{}] {
 	return inspectiontaskbase.DefineLogIngesterTask(
 		cfg.TaskIDs.LogIngester,
 		cfg.TaskIDs.RawLog.Ref(),
@@ -253,7 +253,7 @@ func processCAILog[Identity any](
 	return cs, nil
 }
 
-func defineCAITimelineMapperTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.DefinedTask[struct{}] {
+func defineCAITimelineMapperTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.Task[struct{}] {
 	return inspectiontaskbase.DefineLogToTimelineMapperTask(
 		cfg.TaskIDs.TimelineMapper,
 		inspectiontaskbase.TimelineMapperInputs{
@@ -405,7 +405,7 @@ func DefineCAIInitialResourceStateProviderTask[Identity any, Provider any](
 	identityKey func(Identity) string,
 	extractBody func(reader *structured.NodeReader) structured.Node,
 	buildProvider func(activeStates []CAIActiveAssetState[Identity]) Provider,
-) coretask.DefinedTask[Provider] {
+) coretask.Task[Provider] {
 	return inspectiontaskbase.DefineInspectionTask(
 		taskID,
 		func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[Provider] {

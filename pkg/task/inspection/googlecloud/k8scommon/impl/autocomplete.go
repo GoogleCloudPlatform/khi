@@ -192,7 +192,7 @@ func defineClusterScopedAutocompleteTask(
 	id taskid.TaskImplementationID[*inspectioncore.AutocompleteResult[string]],
 	metricsTypeRef taskid.TaskReference[string],
 	cfg clusterScopedAutocompleteConfig,
-) coretask.DefinedTask[*inspectioncore.AutocompleteResult[string]] {
+) coretask.Task[*inspectioncore.AutocompleteResult[string]] {
 	return inspectiontaskbase.DefineCachedTask(id, func(b *coretask.Binder) inspectiontaskbase.CachedTaskSpec[*inspectioncore.AutocompleteResult[string]] {
 		cluster := coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref())
 		startTime := coretask.Use(b, gcpcommon.InputStartTimeTaskID.Ref())

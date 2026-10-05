@@ -26,14 +26,14 @@ import (
 )
 
 type mockUntypedTask struct {
-	id           taskid.UntypedTaskImplementationID
-	labels       *typedmap.ReadonlyTypedMap
-	dependencies []Dependency
+	id     taskid.UntypedTaskImplementationID
+	labels *typedmap.ReadonlyTypedMap
+	inputs []InputSpec
 }
 
 func (m *mockUntypedTask) UntypedID() taskid.UntypedTaskImplementationID { return m.id }
 func (m *mockUntypedTask) Labels() *typedmap.ReadonlyTypedMap            { return m.labels }
-func (m *mockUntypedTask) Dependencies() []Dependency                    { return m.dependencies }
+func (m *mockUntypedTask) Inputs() []InputSpec                           { return m.inputs }
 func (m *mockUntypedTask) ResultType() reflect.Type                      { return reflect.TypeFor[any]() }
 func (m *mockUntypedTask) UntypedRun(ctx context.Context) (any, error)   { return nil, nil }
 
@@ -41,10 +41,20 @@ var _ UntypedTask = (*mockUntypedTask)(nil)
 
 func createMockTask(refID, implHash string, deps []Dependency, labelOpts ...LabelOpt) UntypedTask {
 	id := taskid.NewImplementationID(taskid.NewTaskReference[any](refID), implHash)
+	var inputs []InputSpec
+	if deps != nil {
+		inputs = make([]InputSpec, 0, len(deps))
+		for _, dep := range deps {
+			inputs = append(inputs, InputSpec{
+				Dependency: dep,
+				Kind:       InputKindOrdering,
+			})
+		}
+	}
 	return &mockUntypedTask{
-		id:           id,
-		labels:       NewLabelSet(labelOpts...),
-		dependencies: deps,
+		id:     id,
+		labels: NewLabelSet(labelOpts...),
+		inputs: inputs,
 	}
 }
 

@@ -32,7 +32,7 @@ func TestDefineCachedTask(t *testing.T) {
 	sourceTaskID := taskid.NewDefaultImplementationID[string]("source")
 	taskID := taskid.NewDefaultImplementationID[int]("cached-task")
 
-	newTask := func(scope CacheScope, computeCount *int, failFirst bool) coretask.DefinedTask[int] {
+	newTask := func(scope CacheScope, computeCount *int, failFirst bool) coretask.Task[int] {
 		return DefineCachedTask(taskID, func(b *coretask.Binder) CachedTaskSpec[int] {
 			source := coretask.Use(b, sourceTaskID.Ref())
 			return CachedTaskSpec[int]{

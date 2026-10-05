@@ -35,7 +35,7 @@ type LogFilterFunc = func(ctx context.Context, log *log.Log) bool
 
 // DefineLogFilterTask creates a task that returns only the logs provided by sourceLogs that the filter function returned by bind keeps.
 // bind declares the additional inputs the filter reads, and the task declares sourceLogs itself.
-func DefineLogFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], sourceLogs taskid.TaskReference[[]*log.Log], bind func(b *coretask.Binder) LogFilterFunc) coretask.DefinedTask[[]*log.Log] {
+func DefineLogFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], sourceLogs taskid.TaskReference[[]*log.Log], bind func(b *coretask.Binder) LogFilterFunc) coretask.Task[[]*log.Log] {
 	return DefineInspectionTask(taskID, func(b *coretask.Binder) InspectionTaskFunc[[]*log.Log] {
 		logs := coretask.Use(b, sourceLogs)
 		logFilter := bind(b)
