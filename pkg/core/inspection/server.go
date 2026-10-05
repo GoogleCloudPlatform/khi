@@ -28,8 +28,6 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type InspectionRegistrationFunc = func(registry InspectionTaskRegistry) error
-
 type InspectionType struct {
 	Id          string            `json:"id"`
 	Name        string            `json:"name"`
@@ -241,5 +239,3 @@ func (s *InspectionTaskServer) RegisterImportedInspection(id string, store inspe
 	s.inspectionsMu.Unlock()
 	return runner
 }
-
-var _ InspectionTaskRegistry = (*InspectionTaskServer)(nil)

@@ -15,9 +15,11 @@
 package coreinspection
 
 import (
+	"context"
 	"fmt"
 	"maps"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
@@ -92,3 +94,27 @@ func applyScope(task coretask.UntypedTask, scope Scope) coretask.UntypedTask {
 		opts:        []coretask.LabelOpt{inspectioncore.InspectionTypeLabelSelector(scope)},
 	}
 }
+
+// wrappedTaskWithLabels adds labels to a task without changing its behavior.
+type wrappedTaskWithLabels struct {
+	coretask.UntypedTask
+	opts []coretask.LabelOpt
+}
+
+// Labels returns the merged labels of the base task and additional options.
+func (w *wrappedTaskWithLabels) Labels() *typedmap.ReadonlyTypedMap {
+	baseLabels := w.UntypedTask.Labels()
+
+	optMap := typedmap.NewTypedMap()
+	for _, opt := range w.opts {
+		opt.Write(optMap)
+	}
+
+	return typedmap.Merge(baseLabels, optMap)
+}
+
+func (w *wrappedTaskWithLabels) UntypedRun(ctx context.Context) (any, error) {
+	return w.UntypedTask.UntypedRun(ctx)
+}
+
+var _ coretask.UntypedTask = (*wrappedTaskWithLabels)(nil)
