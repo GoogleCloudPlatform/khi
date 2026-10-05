@@ -47,18 +47,6 @@ type TimelineMapper[T any] interface {
 	ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData T) (*khifilev6.TimelineChangeSet, T, error)
 }
 
-// LogToTimelineMapper defines the interface for mapping logs to timeline elements (events or revisions) in KHI file v6 format.
-// It extends TimelineMapper with the tasks that NewLogToTimelineMapperTask depends on.
-type LogToTimelineMapper[T any] interface {
-	TimelineMapper[T]
-	// LogIngesterTask is one of prerequisite task of LogToTimelineMapper ingesting logs before processing with this mapper.
-	LogIngesterTask() taskid.TaskReference[struct{}]
-	// Dependencies are the additional references used in timeline mapper.
-	Dependencies() []coretask.Dependency
-	// GroupedLogTask returns a reference to the task that provides the grouped logs.
-	GroupedLogTask() taskid.TaskReference[LogGroupMap]
-}
-
 // TimelineMapperInputs holds the references that every log-to-timeline mapper task reads.
 type TimelineMapperInputs struct {
 	// LogIngester is the task that must ingest the log metadata before the mapper runs. The mapper does not read its value.
@@ -93,23 +81,6 @@ func (StatelessMapperBase) PassCount() int {
 // PreProcessLogByGroup is a no-op pre-processor that returns an empty struct.
 func (StatelessMapperBase) PreProcessLogByGroup(ctx context.Context, passIndex int, l *log.Log, prevGroupData struct{}) (struct{}, error) {
 	return struct{}{}, nil
-}
-
-// NewLogToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry based on grouped logs.
-// It processes logs in parallel and applies the logic from the provided LogToTimelineMapper.
-func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}], mapper LogToTimelineMapper[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
-	groupedLogTaskID := mapper.GroupedLogTask()
-	dependencies := append([]coretask.Dependency{mapper.LogIngesterTask(), mapper.GroupedLogTask()}, mapper.Dependencies()...)
-	allLabels := append([]coretask.LabelOpt{
-		coretask.ProvidesTag(TagTimelineMapper),
-	}, labels...)
-	return NewInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
-			return struct{}{}, nil
-		}
-		return struct{}{}, mapGroupedLogs(ctx, tid, coretask.GetTaskResult(ctx, groupedLogTaskID), mapper)
-	}, allLabels...)
 }
 
 // DefineLogToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry based on the logs grouped by inputs.GroupedLogs.

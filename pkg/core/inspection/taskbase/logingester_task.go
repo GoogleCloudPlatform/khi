@@ -34,34 +34,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// LogIngester defines the interface for ingesting log metadata into KHI v6 format.
-type LogIngester interface {
-	// RawLogTask returns the task reference that provides the raw logs to ingest.
-	RawLogTask() taskid.TaskReference[[]*log.Log]
-	// Dependencies returns additional task dependencies of the ingester.
-	Dependencies() []coretask.Dependency
-	// ProcessLog is called for each log entry to customize log metadata (summary, severity, timestamp, etc.).
-	ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error)
-}
-
 // LogIngesterFunc converts a log into the change set of its metadata, such as summary, severity, and timestamp.
 // It returns a nil change set to skip the log.
 type LogIngesterFunc = func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error)
-
-// NewLogIngesterTask returns a task that ingests log metadata into the KHI v6 builder.
-func NewLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], ingester LogIngester, labels ...coretask.LabelOpt) coretask.Task[struct{}] {
-	rawLogTaskID := ingester.RawLogTask()
-	dependencies := append([]coretask.Dependency{rawLogTaskID}, ingester.Dependencies()...)
-	allLabels := append([]coretask.LabelOpt{
-		coretask.ProvidesTag(TagLogIngester),
-	}, labels...)
-	return NewInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return struct{}{}, nil
-		}
-		return struct{}{}, ingestLogs(ctx, taskID, coretask.GetTaskResult(ctx, rawLogTaskID), ingester.ProcessLog)
-	}, allLabels...)
-}
 
 // DefineLogIngesterTask returns a task that ingests metadata of the logs provided by rawLogTask into the KHI v6 builder.
 // bind declares the additional inputs the ingester reads and returns the function that processes each log.

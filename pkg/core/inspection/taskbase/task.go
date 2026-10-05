@@ -26,25 +26,6 @@ import (
 // InspectionTaskFunc is a type for inspection task functions.
 type InspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (T, error)
 
-// NewInspectionTask creates an inspection task.
-// The task is executed based on the task mode retrieved from the context and reports progress via context.
-//
-// Parameters:
-//   - taskId: The unique identifier for the task.
-//   - dependencies: A list of task references that this task depends on.
-//   - taskFunc: The function to execute for the task.
-//   - labelOpts: Optional labels to apply to the task.
-//
-// Returns:
-//
-//	An inspection task.
-func NewInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []coretask.Dependency, taskFunc InspectionTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
-	return coretask.NewTask(taskId, dependencies, func(ctx context.Context) (T, error) {
-		taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
-		return taskFunc(ctx, taskMode)
-	}, labelOpts...)
-}
-
 // DefineInspectionTask creates an inspection task whose inputs are declared through a coretask.Binder.
 // bind declares the inputs with coretask.Use and related functions and returns the task function
 // that receives the task mode from the context.

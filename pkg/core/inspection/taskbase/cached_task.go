@@ -25,47 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// CacheableTaskResult is the combination of the cached value and a digest of its dependency.
-type CacheableTaskResult[T any] struct {
-	// Value is the value used previous run.
-	Value T
-	// DependencyDigest is a string representation of digest of its inputs.
-	// Task must generate a different value for the different combination of the input and task should compare the current digest generated from the current inputs and the previous value digest, then it should return the previous value only when the digest is not changed.
-	DependencyDigest string
-}
-
-// NewGlobalCachedTask generates a task which can reuse the value from previous runs stored in GlobalSharedMap.
-func NewGlobalCachedTask[T any](taskID taskid.TaskImplementationID[T], dependencies []coretask.Dependency, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
-	return newCachedTaskWithSharedMapKey(inspectioncore.GlobalSharedMap, taskID, dependencies, f, labelOpt...)
-}
-
-// NewInspectionCachedTask generates a task which can reuse the value from previous runs within the same inspection stored in InspectionSharedMap.
-// To clean up resources after inspection, use context.AfterFunc as below:
-//
-//	inspectionContext := khictx.MustGetValue(ctx, inspectioncore.InspectionContext)
-//	context.AfterFunc(inspectionContext, func() {
-//		// Dispose allocated resource here.
-//	})
-func NewInspectionCachedTask[T any](taskID taskid.TaskImplementationID[T], dependencies []coretask.Dependency, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
-	return newCachedTaskWithSharedMapKey(inspectioncore.InspectionSharedMap, taskID, dependencies, f, labelOpt...)
-}
-
-func newCachedTaskWithSharedMapKey[T any](sharedMapKey typedmap.TypedKey[*typedmap.TypedMap], taskID taskid.TaskImplementationID[T], dependencies []coretask.Dependency, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
-	return coretask.NewTask(taskID, dependencies, func(ctx context.Context) (T, error) {
-		sharedMap := khictx.MustGetValue(ctx, sharedMapKey)
-		cacheKey := typedmap.NewTypedKey[CacheableTaskResult[T]](fmt.Sprintf("cached_result-%s", taskID.String()))
-		cachedResult := typedmap.GetOrDefault(sharedMap, cacheKey, CacheableTaskResult[T]{})
-
-		nextCache, err := f(ctx, cachedResult)
-		if err != nil {
-			return *new(T), err
-		}
-
-		typedmap.Set(sharedMap, cacheKey, nextCache)
-		return nextCache.Value, nil
-	}, labelOpt...)
-}
-
 // CacheScope is the lifetime of the value cached by a task defined with DefineCachedTask.
 type CacheScope int
 

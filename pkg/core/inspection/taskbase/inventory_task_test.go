@@ -30,33 +30,39 @@ func TestInventoryTask(t *testing.T) {
 	inventoryTag := coretask.NewTag[map[string]struct{}]("test-inventory-tag")
 	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test-merger")
 
-	nop := func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
-		return struct{}{}, nil
+	nop := func(b *coretask.Binder) InspectionTaskFunc[struct{}] {
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
+			return struct{}{}, nil
+		}
 	}
 
 	discovery1ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-1-parent")
-	discovery1ParentTask := NewInspectionTask(discovery1ParentTaskID, []coretask.Dependency{}, nop)
+	discovery1ParentTask := DefineInspectionTask(discovery1ParentTaskID, nop)
 
 	discovery2ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-2-parent")
-	discovery2ParentTask := NewInspectionTask(discovery2ParentTaskID, []coretask.Dependency{}, nop)
+	discovery2ParentTask := DefineInspectionTask(discovery2ParentTaskID, nop)
 
 	discovery1ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery-1")
-	discovery1 := NewInspectionTask(
+	discovery1 := DefineInspectionTask(
 		discovery1ID,
-		[]coretask.Dependency{discovery1ParentTaskID.Ref()},
-		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
-			return map[string]struct{}{"foo": {}}, nil
+		func(b *coretask.Binder) InspectionTaskFunc[map[string]struct{}] {
+			coretask.After(b, discovery1ParentTaskID.Ref())
+			return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
+				return map[string]struct{}{"foo": {}}, nil
+			}
 		},
 		coretask.ProvidesTag(inventoryTag, coretask.WithTagPriority(10)),
 		coretask.WithFeatureGate(discovery1ParentTaskID.Ref()),
 	)
 
 	discovery2ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery-2")
-	discovery2 := NewInspectionTask(
+	discovery2 := DefineInspectionTask(
 		discovery2ID,
-		[]coretask.Dependency{discovery2ParentTaskID.Ref()},
-		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
-			return map[string]struct{}{"bar": {}}, nil
+		func(b *coretask.Binder) InspectionTaskFunc[map[string]struct{}] {
+			coretask.After(b, discovery2ParentTaskID.Ref())
+			return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
+				return map[string]struct{}{"bar": {}}, nil
+			}
 		},
 		coretask.ProvidesTag(inventoryTag),
 		coretask.WithFeatureGate(discovery2ParentTaskID.Ref()),
@@ -77,11 +83,13 @@ func TestInventoryTask(t *testing.T) {
 	)
 
 	cyclicDiscoveryTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("cyclic-discovery")
-	cyclicDiscoveryTask := NewInspectionTask(
+	cyclicDiscoveryTask := DefineInspectionTask(
 		cyclicDiscoveryTaskID,
-		[]coretask.Dependency{mergerTaskID.Ref()},
-		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
-			return map[string]struct{}{"cyclic": {}}, nil
+		func(b *coretask.Binder) InspectionTaskFunc[map[string]struct{}] {
+			coretask.After(b, mergerTaskID.Ref())
+			return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
+				return map[string]struct{}{"cyclic": {}}, nil
+			}
 		},
 		coretask.ProvidesTag(inventoryTag, coretask.WithTagPriority(100)),
 		coretask.WithFeatureGate(discovery1ParentTaskID.Ref()),
@@ -98,13 +106,13 @@ func TestInventoryTask(t *testing.T) {
 	testCases := []struct {
 		name           string
 		availableTasks []coretask.UntypedTask
-		userTaskDeps   []coretask.Dependency
+		userTaskAfter  []coretask.Dependency
 		wantMap        map[string]struct{}
 	}{
 		{
 			name:           "provided from single discovery task when only parent 1 is active",
 			availableTasks: defaultAvailableTasks,
-			userTaskDeps:   []coretask.Dependency{mergerTaskID.Ref(), discovery1ParentTaskID.Ref()},
+			userTaskAfter:  []coretask.Dependency{discovery1ParentTaskID.Ref()},
 			wantMap: map[string]struct{}{
 				"foo": {},
 			},
@@ -112,7 +120,7 @@ func TestInventoryTask(t *testing.T) {
 		{
 			name:           "provided from multiple discovery tasks when both parent 1 and 2 are active",
 			availableTasks: defaultAvailableTasks,
-			userTaskDeps:   []coretask.Dependency{mergerTaskID.Ref(), discovery1ParentTaskID.Ref(), discovery2ParentTaskID.Ref()},
+			userTaskAfter:  []coretask.Dependency{discovery1ParentTaskID.Ref(), discovery2ParentTaskID.Ref()},
 			wantMap: map[string]struct{}{
 				"foo": {},
 				"bar": {},
@@ -121,13 +129,13 @@ func TestInventoryTask(t *testing.T) {
 		{
 			name:           "provided from no discovery tasks when neither parent is active",
 			availableTasks: defaultAvailableTasks,
-			userTaskDeps:   []coretask.Dependency{mergerTaskID.Ref()},
+			userTaskAfter:  []coretask.Dependency{},
 			wantMap:        map[string]struct{}{},
 		},
 		{
 			name:           "prunes circular dependency created by selected cyclic task so merger only includes non-cyclic discovery tasks",
 			availableTasks: append(slices.Clone(defaultAvailableTasks), cyclicDiscoveryTask),
-			userTaskDeps:   []coretask.Dependency{mergerTaskID.Ref(), discovery1ParentTaskID.Ref(), cyclicDiscoveryTaskID.Ref()},
+			userTaskAfter:  []coretask.Dependency{discovery1ParentTaskID.Ref(), cyclicDiscoveryTaskID.Ref()},
 			wantMap: map[string]struct{}{
 				"foo": {},
 			},
@@ -137,11 +145,16 @@ func TestInventoryTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			userTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("user-" + tc.name)
-			userTask := NewInspectionTask(
+			userTask := DefineInspectionTask(
 				userTaskID,
-				tc.userTaskDeps,
-				func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
-					return coretask.GetTaskResult(ctx, mergerTaskID.Ref()), nil
+				func(b *coretask.Binder) InspectionTaskFunc[map[string]struct{}] {
+					merged := coretask.Use(b, mergerTaskID.Ref())
+					for _, dep := range tc.userTaskAfter {
+						coretask.After(b, dep)
+					}
+					return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (map[string]struct{}, error) {
+						return merged.Get(ctx), nil
+					}
 				},
 			)
 

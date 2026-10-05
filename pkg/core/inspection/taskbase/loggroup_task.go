@@ -40,25 +40,6 @@ type LogGroupMap = map[string]*LogGroup
 // LogGrouperFunc defines a function that returns a group key for a given log.
 type LogGrouperFunc = func(ctx context.Context, log *log.Log) string
 
-// NewLogGrouperTask creates a task that groups logs based on a grouper function.
-// It processes a list of logs and organizes them into a map of LogGroup,
-// where each group contains logs with the same key.
-func NewLogGrouperTask(taskID taskid.TaskImplementationID[LogGroupMap], logTask taskid.TaskReference[[]*log.Log], grouper LogGrouperFunc) coretask.Task[LogGroupMap] {
-	return NewLogGrouperTaskWithDependencies(taskID, logTask, nil, grouper)
-}
-
-// NewLogGrouperTaskWithDependencies creates a task that groups logs based on a grouper function with extra task dependencies.
-func NewLogGrouperTaskWithDependencies(taskID taskid.TaskImplementationID[LogGroupMap], logTask taskid.TaskReference[[]*log.Log], extraDependencies []coretask.Dependency, grouper LogGrouperFunc) coretask.Task[LogGroupMap] {
-	dependencies := append([]coretask.Dependency{logTask}, extraDependencies...)
-	return NewInspectionTask(taskID, dependencies,
-		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (LogGroupMap, error) {
-			if taskMode != inspectioncore.TaskModeRun {
-				return LogGroupMap{}, nil
-			}
-			return groupLogs(ctx, coretask.GetTaskResult(ctx, logTask), grouper), nil
-		})
-}
-
 // DefineLogGrouperTask creates a task that groups the logs provided by logTask with the grouper function returned by bind.
 // bind declares the additional inputs the grouper reads, and the task declares logTask itself.
 func DefineLogGrouperTask(taskID taskid.TaskImplementationID[LogGroupMap], logTask taskid.TaskReference[[]*log.Log], bind func(b *coretask.Binder) LogGrouperFunc) coretask.DefinedTask[LogGroupMap] {

@@ -42,243 +42,8 @@ var (
 var mockLogToTimelineMapperPrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-timeline-mapper-prev")
 var mockLogSerializerPrevTaskID = taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper-prev-log-serializer")
 
-type mockLogToTimelineMapperGroupData struct {
+type inputPathMapperGroupData struct {
 	ProcessedLogs int
-}
-
-type mockLogToTimelineMapper struct {
-	passCount int
-	path      *khifilev6.TimelinePath
-}
-
-func (m *mockLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[LogGroupMap] {
-	return mockLogToTimelineMapperPrevTaskID.Ref()
-}
-
-func (m *mockLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return mockLogSerializerPrevTaskID.Ref()
-}
-
-func (m *mockLogToTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-func (m *mockLogToTimelineMapper) PassCount() int {
-	return m.passCount
-}
-
-func (m *mockLogToTimelineMapper) PreProcessLogByGroup(ctx context.Context, passIndex int, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (mockLogToTimelineMapperGroupData, error) {
-	return mockLogToTimelineMapperGroupData{
-		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
-	}, nil
-}
-
-func (m *mockLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (*khifilev6.TimelineChangeSet, mockLogToTimelineMapperGroupData, error) {
-	shouldErr := l.ReadBoolOrDefault(pathMockError, false)
-	if shouldErr {
-		return nil, prevGroupData, fmt.Errorf("test error")
-	}
-	shouldSkip := l.ReadBoolOrDefault(pathMockSkip, false)
-	if shouldSkip {
-		return nil, mockLogToTimelineMapperGroupData{
-			ProcessedLogs: prevGroupData.ProcessedLogs + 1,
-		}, nil
-	}
-
-	cs := khifilev6.NewTimelineChangeSet(l)
-	cs.AddEvent(m.path)
-
-	return cs, mockLogToTimelineMapperGroupData{
-		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
-	}, nil
-}
-
-var _ LogToTimelineMapper[mockLogToTimelineMapperGroupData] = (*mockLogToTimelineMapper)(nil)
-
-func TestLogToTimelineMapperTask(t *testing.T) {
-	type testLog struct {
-		yaml         string
-		shouldIngest bool
-	}
-
-	type testGroup struct {
-		group string
-		logs  []testLog
-	}
-
-	testCases := []struct {
-		desc            string
-		taskMode        inspectioncore.InspectionTaskModeType
-		prevLogGroupMap []testGroup
-		passCount       int
-		cancelContext   bool
-		wantError       bool
-	}{
-		{
-			desc:     "DryRun mode",
-			taskMode: inspectioncore.TaskModeDryRun,
-			prevLogGroupMap: []testGroup{
-				{
-					group: "group1",
-					logs: []testLog{
-						{
-							yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`,
-							shouldIngest: false,
-						},
-					},
-				},
-			},
-			passCount: 1,
-			wantError: false,
-		},
-		{
-			desc:     "Normal execution with some skipped logs and 2 passes",
-			taskMode: inspectioncore.TaskModeRun,
-			prevLogGroupMap: []testGroup{
-				{
-					group: "group1",
-					logs: []testLog{
-						{
-							yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`,
-							shouldIngest: true,
-						},
-						{
-							yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-2", "skip": true}`,
-							shouldIngest: false,
-						},
-					},
-				},
-			},
-			passCount: 2,
-			wantError: false,
-		},
-		{
-			desc:     "Execution with error in one log",
-			taskMode: inspectioncore.TaskModeRun,
-			prevLogGroupMap: []testGroup{
-				{
-					group: "group1",
-					logs: []testLog{
-						{
-							yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`,
-							shouldIngest: false,
-						},
-						{
-							yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-2", "error": true}`,
-							shouldIngest: false,
-						},
-					},
-				},
-			},
-			passCount: 0,
-			wantError: true,
-		},
-		{
-			desc:     "Execution with context cancelled",
-			taskMode: inspectioncore.TaskModeRun,
-			prevLogGroupMap: []testGroup{
-				{
-					group: "group1",
-					logs: []testLog{
-						{
-							yaml:         `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`,
-							shouldIngest: false,
-						},
-					},
-				},
-			},
-			passCount:     0,
-			cancelContext: true,
-			wantError:     true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			tid := taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper")
-
-			ctx := context.Background()
-			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
-
-			idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
-			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-
-			prevGroupMap := make(LogGroupMap)
-			var shouldHaveItems bool
-
-			for _, tg := range tc.prevLogGroupMap {
-				var logs []*log.Log
-				for _, tl := range tg.logs {
-					l := mustNewLogFromYAML(t, ctx, tl.yaml)
-					logs = append(logs, l)
-					if tl.shouldIngest {
-						shouldHaveItems = true
-					}
-
-					// Populate log accumulator with log metadata before mapping
-					severityID := uint32(1)
-					logTypeID := uint32(2)
-					_ = builder.LogAccumulator.AddLog(&khifilev6.StagingLog{
-						Log:       l,
-						Summary:   "test",
-						Timestamp: time.Now(),
-						Severity:  &pb.Severity{Id: &severityID},
-						LogType:   &pb.LogType{Id: &logTypeID},
-					})
-				}
-				prevGroupMap[tg.group] = &LogGroup{
-					Group: tg.group,
-					Logs:  logs,
-				}
-			}
-
-			pool := khifilev6.NewTestInternPool(idGen)
-			pathPool := khifilev6.NewTimelinePathPool(idGen, pool)
-			timelineTypeID := uint32(3)
-			timelineType := &pb.TimelineType{Id: &timelineTypeID}
-			path := pathPool.Get(nil, khifilev6.PathSegment{Name: "test-path", Type: timelineType})
-
-			mapper := &mockLogToTimelineMapper{
-				passCount: tc.passCount,
-				path:      path,
-			}
-			task := NewLogToTimelineMapperTask(tid, mapper)
-
-			if tc.cancelContext {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithCancel(ctx)
-				cancel()
-			}
-
-			_, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockLogToTimelineMapperPrevTaskID.Ref(), prevGroupMap))
-			if (err != nil) != tc.wantError {
-				t.Fatalf("RunInspectionTask() error = %v, wantError %v", err, tc.wantError)
-			}
-
-			if tc.cancelContext {
-				var expectedErr = context.Canceled
-				if err == nil || err.Error() != expectedErr.Error() {
-					t.Errorf("RunInspectionTask() error = %v, want %v", err, expectedErr)
-				}
-			}
-
-			if !tc.wantError {
-				// Verify timeline items inside the accumulator registry
-				timelineBuilder := builder.TimelineAccumulator.GetBuilder(path)
-				hasItems := timelineBuilder.HasItems()
-
-				if shouldHaveItems {
-					if !hasItems {
-						t.Error("expected timeline builder to have items successfully flushed, but had none")
-					}
-				} else {
-					if hasItems {
-						t.Error("expected timeline builder to remain empty, but items were found")
-					}
-				}
-			}
-		})
-	}
 }
 
 // inputPathMapper is a TimelineMapper that reads the timeline path through an input handle.
@@ -291,18 +56,29 @@ func (m *inputPathMapper) PassCount() int {
 	return m.passCount
 }
 
-func (m *inputPathMapper) PreProcessLogByGroup(ctx context.Context, passIndex int, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (mockLogToTimelineMapperGroupData, error) {
-	return mockLogToTimelineMapperGroupData{
+func (m *inputPathMapper) PreProcessLogByGroup(ctx context.Context, passIndex int, l *log.Log, prevGroupData inputPathMapperGroupData) (inputPathMapperGroupData, error) {
+	return inputPathMapperGroupData{
 		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
 	}, nil
 }
 
-func (m *inputPathMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (*khifilev6.TimelineChangeSet, mockLogToTimelineMapperGroupData, error) {
-	mapper := &mockLogToTimelineMapper{passCount: m.passCount, path: m.path.Get(ctx)}
-	return mapper.ProcessLogByGroup(ctx, l, prevGroupData)
+func (m *inputPathMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData inputPathMapperGroupData) (*khifilev6.TimelineChangeSet, inputPathMapperGroupData, error) {
+	if l.ReadBoolOrDefault(pathMockError, false) {
+		return nil, prevGroupData, fmt.Errorf("test error")
+	}
+	nextGroupData := inputPathMapperGroupData{
+		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
+	}
+	if l.ReadBoolOrDefault(pathMockSkip, false) {
+		return nil, nextGroupData, nil
+	}
+
+	cs := khifilev6.NewTimelineChangeSet(l)
+	cs.AddEvent(m.path.Get(ctx))
+	return cs, nextGroupData, nil
 }
 
-var _ TimelineMapper[mockLogToTimelineMapperGroupData] = (*inputPathMapper)(nil)
+var _ TimelineMapper[inputPathMapperGroupData] = (*inputPathMapper)(nil)
 
 func TestDefineLogToTimelineMapperTask(t *testing.T) {
 	timelinePathTaskID := taskid.NewDefaultImplementationID[*khifilev6.TimelinePath]("mock-timeline-path")
@@ -370,7 +146,7 @@ func TestDefineLogToTimelineMapperTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			task := DefineLogToTimelineMapperTask(taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper"), inputs, func(b *coretask.Binder) TimelineMapper[mockLogToTimelineMapperGroupData] {
+			task := DefineLogToTimelineMapperTask(taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper"), inputs, func(b *coretask.Binder) TimelineMapper[inputPathMapperGroupData] {
 				return &inputPathMapper{
 					passCount: tc.passCount,
 					path:      coretask.Use(b, timelinePathTaskID.Ref()),

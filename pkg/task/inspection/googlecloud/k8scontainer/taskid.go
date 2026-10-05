@@ -39,7 +39,7 @@ var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDP
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
 var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-ingester")
 
-// LogGrouperTaskID is the task id to group logs by target instance to process logs in LogToTimelineMapper in parallel.
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in TimelineMapper in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
 
 // LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
