@@ -15,7 +15,6 @@
 package coreinspection
 
 import (
-	"context"
 	"fmt"
 	"maps"
 
@@ -111,10 +110,6 @@ func (w *wrappedTaskWithLabels) Labels() *typedmap.ReadonlyTypedMap {
 	}
 
 	return typedmap.Merge(baseLabels, optMap)
-}
-
-func (w *wrappedTaskWithLabels) UntypedRun(ctx context.Context) (any, error) {
-	return w.UntypedTask.UntypedRun(ctx)
 }
 
 var _ coretask.UntypedTask = (*wrappedTaskWithLabels)(nil)
