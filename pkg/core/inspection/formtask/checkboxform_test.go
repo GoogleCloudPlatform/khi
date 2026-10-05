@@ -31,7 +31,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestDefineCheckboxForm(t *testing.T) {
+func TestDefineCheckboxForm_FormField(t *testing.T) {
 	testCases := []struct {
 		name              string
 		spec              CheckboxFormSpec
@@ -243,7 +243,7 @@ func TestDefineCheckboxForm(t *testing.T) {
 	}
 }
 
-func TestDefineCheckboxForm_Binder(t *testing.T) {
+func TestDefineCheckboxForm(t *testing.T) {
 	sourceTaskID := taskid.NewDefaultImplementationID[bool]("source")
 	formID := taskid.NewDefaultImplementationID[bool]("checkbox-form")
 	task := DefineCheckboxForm(formID, 1, "test checkbox form", "test description", func(b *coretask.Binder) CheckboxFormSpec {
@@ -261,21 +261,21 @@ func TestDefineCheckboxForm_Binder(t *testing.T) {
 	testCases := []struct {
 		name         string
 		sourceValue  bool
-		requestValue map[string]any
+		inputs       map[string]any
 		wantValue    bool
 		wantReadonly bool
 	}{
 		{
 			name:         "callbacks read the declared input",
 			sourceValue:  true,
-			requestValue: map[string]any{formID.ReferenceIDString(): false},
+			inputs:       map[string]any{formID.ReferenceIDString(): false},
 			wantValue:    true,
 			wantReadonly: true,
 		},
 		{
 			name:         "request value is used when the input makes the field editable",
 			sourceValue:  false,
-			requestValue: map[string]any{formID.ReferenceIDString(): true},
+			inputs:       map[string]any{formID.ReferenceIDString(): true},
 			wantValue:    true,
 			wantReadonly: false,
 		},
@@ -283,7 +283,7 @@ func TestDefineCheckboxForm_Binder(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, metadata, err := inspectiontest.Run(t, ctx, task, inspectioncore.TaskModeDryRun, tc.requestValue,
+			got, metadata, err := inspectiontest.Run(t, ctx, task, inspectioncore.TaskModeDryRun, tc.inputs,
 				tasktest.Given(sourceTaskID.Ref(), tc.sourceValue),
 			)
 			if err != nil {

@@ -30,7 +30,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestDefineSetForm_Spec(t *testing.T) {
+func TestDefineSetForm_FormField(t *testing.T) {
 	testCases := []struct {
 		Name              string
 		Spec              SetFormSpec[[]string]
