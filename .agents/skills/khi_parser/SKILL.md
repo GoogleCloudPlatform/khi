@@ -28,7 +28,7 @@ pkg/task/inspection/<provider>/<feature>/
     ├── ingester.go        // (Optional) Implements the LogIngester task.
     ├── grouper.go         // (Optional) Implements the LogGrouper task.
     ├── mapper.go          // (Optional) Implements LogToTimelineMapper tasks (or mapper_<target>.go).
-    └── registration.go    // Implements task registration to the KHI registry.
+    └── module.go          // Declares the package Module with its Scope and Tasks.
 ```
 
 ### Key Package Boundaries
@@ -37,8 +37,8 @@ pkg/task/inspection/<provider>/<feature>/
 >
 > - **Contract / Root Package (`pkg/task/inspection/<provider>/<feature>`)**: Uses `package <feature>` (no `_contract` suffix). MUST NOT import the `impl` package. External packages can freely import the root package to depend on parser task IDs, Extractor functions, or TimelineType constants.
 > - **Implementation Package (`impl/`)**: Uses `package <feature>_impl`. Implements the actual tasks and imports the parent contract package. **External packages MUST NOT import the `impl` package.**
-> - **File Naming**: Do NOT append redundant `_task.go` or `_tasks.go` suffixes to filenames in `impl/`. Name files strictly by their DAG pipeline role (`form.go`, `query.go`, `ingester.go`, `grouper.go`, `mapper.go` or `mapper_<target>.go`, `registration.go`).
-> - **Registration**: Tasks inside the `impl` package are registered through `impl/registration.go`.
+> - **File Naming**: Do NOT append redundant `_task.go` or `_tasks.go` suffixes to filenames in `impl/`. Name files strictly by their DAG pipeline role (`form.go`, `query.go`, `ingester.go`, `grouper.go`, `mapper.go` or `mapper_<target>.go`, `module.go`).
+> - **Registration**: Tasks inside the `impl` package are declared through `impl/module.go`.
 
 ---
 
@@ -598,9 +598,9 @@ var MyManifestMapperTask = k8saudit.DefineManifestLogToTimelineMapper(
 var _ k8saudit.ManifestLogToTimelineMapper[*MyState] = (*MyManifestMapper)(nil)
 ```
 
-#### `registration.go`
+#### `module.go`
 
-Registers the tasks with the central registry.
+Declares the module with its inspection scope and tasks.
 
 ```go
 package customapp_impl
@@ -608,18 +608,22 @@ package customapp_impl
 import (
  coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
  coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// Register registers all customapp tasks to the central registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
- return coretask.RegisterTasks(
-  registry,
+// Module declares the tasks that build timelines from customapp logs.
+var Module = coreinspection.Module{
+ Name: "googlecloud/customapp",
+ Scope: coreinspection.Scope{
+  inspectioncore.InspectionTypeLabelKeyEnvironment: "googlecloud",
+ },
+ Tasks: []coretask.UntypedTask{
   InputFilterKeywordTask,
   LogQueryTask,
   LogIngesterTask,
   LogGrouperTask,
   LogToTimelineMapperTask,
- )
+ },
 }
 ```
 

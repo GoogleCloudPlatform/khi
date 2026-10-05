@@ -8,22 +8,24 @@
 
 ## 1. インスペクションタスクサーバーへのタスク登録
 
-KHI のビルドスクリプトは、自動で初期化時に `task/inspection/<パッケージ名>/impl` 以下に `registration.go` が存在する場合に `Register()` を呼び出すよう構成します。
-新しいタスクを追加するパッケージを定義するには、この `Register()` 関数の中で、タスクや Inspection Type を登録する必要があります。
+KHI のビルドスクリプトは、`pkg/task/inspection/<プロバイダ>/<機能>/impl` 以下に `module.go` が存在する場合、初期化時にそのパッケージの `Module` を自動で登録するよう構成します。
+新しいタスクや Inspection Type を追加するパッケージを定義するには、`module.go` 内で `coreinspection.Module` 型の公開変数 `Module` を宣言します。
 
 ```go
-// Register registers all googlecloudlogserialport inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-    err := registry.AddInspectionType(ossclusterk8s_contract.OSSKubernetesLogFilesInspectionType)
-    if err != nil {
-        return err
-    }
-
-    return coretask.RegisterTasks(registry,
+// Module declares the OSS Kubernetes log files inspection type and the tasks that build timelines from uploaded kube-apiserver audit logs.
+var Module = coreinspection.Module{
+    Name: "oss/k8s",
+    Scope: coreinspection.Scope{
+        inspectioncore_contract.InspectionTypeLabelKeyLogSource:    "file",
+        inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "oss",
+        inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+    },
+    InspectionTypes: []coreinspection.InspectionType{ossclusterk8s_contract.OSSKubernetesLogFilesInspectionType},
+    Tasks: []coretask.UntypedTask{
         InputAuditLogFilesTask,
         InputNodeLogFilesTask,
         SerialPortLogIngesterTask,
-    )
+    },
 }
 ```
 
@@ -58,14 +60,22 @@ var AdvancedTask = coretask.Define(
 
 インスペクション開始時、ランナーはセレクタに含まれるすべてのキー・バリューが選択された `InspectionType.Labels` に一致するかを検証します。`InspectionTypeLabelSelector` が指定されていないタスクはグローバルタスクとして扱われ、すべてのインスペクションタイプで利用可能になります。
 
-また、パッケージ内で登録する全タスクに一括してセレクタを適用する場合は、`coreinspection.NewScopedRegistry` でレジストリをラップして登録できます。
+また、パッケージ内の全タスクに一括してセレクタを適用する場合は、`coreinspection.Module` の `Scope` フィールドを設定します。さらに特定のタスクに対してのみ条件を追加して絞り込む場合は `SubModules` を使用できます。
 
 ```go
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-    scoped := coreinspection.NewScopedRegistry(registry, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+var Module = coreinspection.Module{
+    Name: "googlecloud/example",
+    Scope: coreinspection.Scope{
         inspectioncore_contract.InspectionTypeLabelKeyEnvironment: "googlecloud",
-    }))
-    return coretask.RegisterTasks(scoped, TaskA, TaskB)
+    },
+    Tasks: []coretask.UntypedTask{TaskA, TaskB},
+    SubModules: []coreinspection.Module{
+        {
+            Name:  "cloud-logging",
+            Scope: coreinspection.Scope{inspectioncore_contract.InspectionTypeLabelKeyLogSource: "cloud_logging"},
+            Tasks: []coretask.UntypedTask{CloudLoggingOnlyTask},
+        },
+    },
 }
 ```
 

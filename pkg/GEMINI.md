@@ -47,10 +47,10 @@ We follow Google's Go coding standards and the conventions outlined in the root 
   - The feature root directory (`pkg/task/inspection/<provider>/<feature>`) contains the contract (Task IDs, public types, extractors, timeline path helpers).
     - Root package name is `<feature>` (e.g., `package k8snode`, `package gkecluster`).
     - Root package must not depend on the `impl` subpackage.
-  - The `impl` subdirectory (`pkg/task/inspection/<provider>/<feature>/impl`) contains the concrete task implementations and `registration.go`.
+  - The `impl` subdirectory (`pkg/task/inspection/<provider>/<feature>/impl`) contains the concrete task implementations and `module.go`.
     - `impl` package name is `<feature>_impl` (e.g., `package k8snode_impl`, `package gkecluster_impl`).
 - **Task Implementation & File Naming**:
-  - Task implementation files in `impl/` use `snake_case` named by their DAG pipeline role without redundant `_task.go` / `_tasks.go` suffixes (e.g., `registration.go`, `form.go`, `query.go`, `ingester.go`, `grouper.go`, `mapper.go`, `mapper_<target>.go`, `discovery_<target>.go`, `inventory_<target>.go`).
+  - Task implementation files in `impl/` use `snake_case` named by their DAG pipeline role without redundant `_task.go` / `_tasks.go` suffixes (e.g., `module.go`, `form.go`, `query.go`, `ingester.go`, `grouper.go`, `mapper.go`, `mapper_<target>.go`, `discovery_<target>.go`, `inventory_<target>.go`).
   - Task IDs should be defined in `taskid.go` at the feature package root.
 
 ## 3. Testing Strategy
