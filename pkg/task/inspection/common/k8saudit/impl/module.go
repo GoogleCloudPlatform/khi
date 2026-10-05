@@ -55,5 +55,8 @@ var Module = coreinspection.Module{
 		containerIDPatternFinderTask,
 		ipLeaseHistoryInventoryTask,
 		ipLeaseHistoryDiscoveryTask,
+		timelineCreationTimeInventoryTask,
+		resourceTimelineCreationTimeDiscoveryTask,
+		podPhaseTimelineCreationTimeDiscoveryTask,
 	},
 }

@@ -39,8 +39,9 @@ var PopupServiceInitializer = &coreinit.Initializer{
 		}
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
+		connectOpts, _ := coreinit.Get(ctx, ConnectHandlerOptionsKey)
 
-		popupPath, popupHandler := apiv1connect.NewPopupServiceHandler(apiv1impl.NewPopupServer(nil))
+		popupPath, popupHandler := apiv1connect.NewPopupServiceHandler(apiv1impl.NewPopupServer(nil), connectOpts...)
 		coreinit.RegisterConnectServiceHandler(router, basePath, popupPath, popupHandler)
 		return nil
 	},

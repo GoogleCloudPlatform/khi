@@ -18,8 +18,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -30,11 +32,12 @@ func TestInspectionServiceInitializer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	testCases := []struct {
-		name        string
-		jobMode     bool
-		basePath    string
-		requestPath string
-		wantHit     bool
+		name            string
+		jobMode         bool
+		basePath        string
+		requestPath     string
+		withInterceptor bool
+		wantHit         bool
 	}{
 		{
 			name:        "registers route at root when not in job mode and empty base path",
@@ -49,6 +52,14 @@ func TestInspectionServiceInitializer(t *testing.T) {
 			basePath:    "/custom/prefix",
 			requestPath: "/custom/prefix/api.v1.InspectionService/GetInspectionTypes",
 			wantHit:     true,
+		},
+		{
+			name:            "applies Connect handler options and interceptors from InitContext",
+			jobMode:         false,
+			basePath:        "",
+			requestPath:     "/api.v1.InspectionService/GetInspectionTypes",
+			withInterceptor: true,
+			wantHit:         true,
 		},
 		{
 			name:        "skips registration when in job mode",
@@ -79,11 +90,21 @@ func TestInspectionServiceInitializer(t *testing.T) {
 			coreinit.Set(ctx, GinRouterKey, router)
 			coreinit.Set(ctx, BasePathKey, tc.basePath)
 
+			interceptorCalled := false
+			if tc.withInterceptor {
+				AddConnectInterceptors(ctx, connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+					return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+						interceptorCalled = true
+						return next(ctx, req)
+					}
+				}))
+			}
+
 			if err := InspectionServiceInitializer.Init(ctx); err != nil {
 				t.Fatalf("InspectionServiceInitializer.Init() failed: %v", err)
 			}
 
-			req := httptest.NewRequest(http.MethodPost, tc.requestPath, nil)
+			req := httptest.NewRequest(http.MethodPost, tc.requestPath, strings.NewReader("{}"))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			ginEngine.ServeHTTP(w, req)
@@ -93,6 +114,9 @@ func TestInspectionServiceInitializer(t *testing.T) {
 			}
 			if !tc.wantHit && w.Code != http.StatusNotFound {
 				t.Errorf("expected route %q not to be registered (404), got %d", tc.requestPath, w.Code)
+			}
+			if tc.withInterceptor && !interceptorCalled {
+				t.Errorf("interceptorCalled = %v, want true", interceptorCalled)
 			}
 		})
 	}

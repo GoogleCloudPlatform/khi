@@ -44,6 +44,7 @@ var FileParameterUploadInitializer = &coreinit.Initializer{
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
 		commonParams := coreinit.MustGet(ctx, CommonParametersKey)
+		connectOpts, _ := coreinit.Get(ctx, ConnectHandlerOptionsKey)
 
 		uploadFolder := "/tmp"
 		if commonParams.UploadFileStoreFolder != nil {
@@ -53,7 +54,7 @@ var FileParameterUploadInitializer = &coreinit.Initializer{
 		chunkManager := chunkedupload.NewChunkSessionManager(uploadFolder)
 		manager := upload.NewFileParameterUploadManager(uploadStore, chunkManager)
 		fileUploadServer := serverapiv1.NewFileParameterUploadServiceServer(manager)
-		fileUploadPath, fileUploadHandler := apiv1connect.NewFileParameterUploadServiceHandler(fileUploadServer)
+		fileUploadPath, fileUploadHandler := apiv1connect.NewFileParameterUploadServiceHandler(fileUploadServer, connectOpts...)
 		coreinit.RegisterConnectServiceHandler(router, basePath, fileUploadPath, fileUploadHandler)
 
 		return nil

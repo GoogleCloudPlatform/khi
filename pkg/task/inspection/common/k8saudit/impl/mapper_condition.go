@@ -230,7 +230,6 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 		}
 
 		if hasCreationTime {
-			// The creation time is not included in the log range.
 			for _, key := range sortedKeys {
 				walker := state.ConditionWalkers[key]
 				if walker == nil {
@@ -238,13 +237,17 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 					walker = newConditionWalker(conditionPath, key)
 					state.ConditionWalkers[key] = walker
 				}
-				cs.AddRevision(walker.conditionPath, &khifilev6.StagingRevision{
-					VerbType:     k8sFieldSet.Verb,
-					ResourceBody: nil,
-					Principal:    k8sFieldSet.Principal,
-					ChangedTime:  creationTime,
-					StateType:    k8saudit.RevisionStateConditionNoAvailableInfo,
-				})
+				clampedCreationTime := walker.advanceMinChangeTime(creationTime)
+				if event.Log.Timestamp.Sub(clampedCreationTime) > c.minimumDeltaTimeToCreateInferredCreationRevision &&
+					!walker.hasConditionAtOrBefore(clampedCreationTime, event.Log.Timestamp, currentConditions[key]) {
+					cs.AddRevision(walker.conditionPath, &khifilev6.StagingRevision{
+						VerbType:     k8sFieldSet.Verb,
+						ResourceBody: nil,
+						Principal:    k8sFieldSet.Principal,
+						ChangedTime:  clampedCreationTime,
+						StateType:    k8saudit.RevisionStateConditionNoAvailableInfo,
+					})
+				}
 			}
 		}
 	}
@@ -367,14 +370,14 @@ func (c *conditionWalker) CheckAndRecord(ctx context.Context, changedTime time.T
 			}
 		} else {
 			if c.lastStatus != "n/a" {
+				clampedChangedTime := c.advanceMinChangeTime(changedTime)
 				cs.AddRevision(c.conditionPath, &khifilev6.StagingRevision{
 					VerbType:     k8sAuditLog.Verb,
 					ResourceBody: nil,
 					Principal:    k8sAuditLog.Principal,
-					ChangedTime:  changedTime,
+					ChangedTime:  clampedChangedTime,
 					StateType:    k8saudit.RevisionStateConditionNotGiven,
 				})
-				c.minChangeTime = &changedTime
 				c.lastStatus = "n/a"
 			}
 		}
@@ -433,6 +436,7 @@ func (c *conditionWalker) RecordDeletion(deletionTime time.Time) {
 	c.lastStatus = ""
 	c.lastTransitionTime = ""
 	c.lastProbeLikeTime = ""
+	c.advanceMinChangeTime(deletionTime)
 }
 
 func (c *conditionWalker) getLastCondition(beforeThan time.Time) *model.K8sResourceStatusCondition {
@@ -483,6 +487,32 @@ func (c *conditionWalker) clampMinChangeTime(changeTime time.Time) time.Time {
 		return *c.minChangeTime
 	}
 	return changeTime
+}
+
+// advanceMinChangeTime updates minChangeTime to changeTime if changeTime is after the current minChangeTime, and returns the resulting minChangeTime.
+func (c *conditionWalker) advanceMinChangeTime(changeTime time.Time) time.Time {
+	clamped := c.clampMinChangeTime(changeTime)
+	c.minChangeTime = &clamped
+	return clamped
+}
+
+// hasConditionAtOrBefore reports whether the condition already has a known transition or probe time at or before targetTime.
+func (c *conditionWalker) hasConditionAtOrBefore(targetTime time.Time, logTime time.Time, condition *model.K8sResourceStatusCondition) bool {
+	if condition == nil {
+		condition = c.getLastCondition(logTime)
+		if condition == nil || condition.Status == "" {
+			return false
+		}
+	}
+	if condition.LastTransitionTime != "" {
+		if transitionTime, err := time.Parse(time.RFC3339, condition.LastTransitionTime); err == nil && !transitionTime.After(targetTime) {
+			return true
+		}
+	}
+	if probeLikeTime, err := condition.ProbeLikeTime(); err == nil && !probeLikeTime.After(targetTime) {
+		return true
+	}
+	return false
 }
 
 // MustK8sConditionTimeline resolves the timeline path of a resource condition.

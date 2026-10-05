@@ -17,6 +17,7 @@ package defaultinit
 import (
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
@@ -33,7 +34,22 @@ var (
 
 	// BasePathKey stores the normalized server base path.
 	BasePathKey = typedmap.NewTypedKey[string]("khi.google.com/init/base-path")
+
+	// ConnectHandlerOptionsKey stores shared connect.HandlerOption values applied to all Connect-RPC service handlers.
+	ConnectHandlerOptionsKey = typedmap.NewTypedKey[[]connect.HandlerOption]("khi.google.com/init/connect-handler-options")
 )
+
+// AddConnectHandlerOptions appends connect.HandlerOption values to InitContext for all Connect-RPC service handlers.
+func AddConnectHandlerOptions(ctx *coreinit.InitContext, opts ...connect.HandlerOption) {
+	existing, _ := coreinit.Get(ctx, ConnectHandlerOptionsKey)
+	existing = append(existing, opts...)
+	coreinit.Set(ctx, ConnectHandlerOptionsKey, existing)
+}
+
+// AddConnectInterceptors registers Connect-RPC interceptors to be applied to all Connect-RPC service handlers.
+func AddConnectInterceptors(ctx *coreinit.InitContext, interceptors ...connect.Interceptor) {
+	AddConnectHandlerOptions(ctx, connect.WithInterceptors(interceptors...))
+}
 
 // InitializerIDGinServer mounts default REST endpoints and static files onto Gin engine.
 const InitializerIDGinServer coreinit.InitializerID = "khi.default/gin-server"

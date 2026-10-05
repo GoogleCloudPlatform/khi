@@ -39,8 +39,9 @@ var CELValidationServiceInitializer = &coreinit.Initializer{
 		}
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
+		connectOpts, _ := coreinit.Get(ctx, ConnectHandlerOptionsKey)
 
-		celValidationPath, celValidationHandler := apiv1connect.NewCELValidationServiceHandler(apiv1impl.NewCELValidationServer())
+		celValidationPath, celValidationHandler := apiv1connect.NewCELValidationServiceHandler(apiv1impl.NewCELValidationServer(), connectOpts...)
 		coreinit.RegisterConnectServiceHandler(router, basePath, celValidationPath, celValidationHandler)
 		return nil
 	},
