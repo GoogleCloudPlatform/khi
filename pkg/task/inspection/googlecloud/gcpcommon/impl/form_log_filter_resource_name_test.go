@@ -65,10 +65,10 @@ var _ coretask.TaskRunner = (*mockTaskRunner)(nil)
 
 func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 	defaultNames := []string{"projects/foo"}
-	t1 := coretask.NewTask(taskid.NewDefaultImplementationID[struct{}]("t1"), nil, nil, coretask.WithLabelValue(
+	t1 := coretask.DefineConstant(taskid.NewDefaultImplementationID[struct{}]("t1"), struct{}{}, coretask.WithLabelValue(
 		gcpcommon.RequestOptionalInputResourceNameTaskLabel, "test",
 	))
-	nonRelatedTask := coretask.NewTask(taskid.NewDefaultImplementationID[struct{}]("not-related"), nil, nil)
+	nonRelatedTask := coretask.DefineConstant(taskid.NewDefaultImplementationID[struct{}]("not-related"), struct{}{})
 	testCases := []struct {
 		desc       string
 		taskMode   inspectioncore.InspectionTaskModeType
@@ -227,13 +227,13 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 }
 
 func TestGetCurrentActiveQueryIDsForResourceName(t *testing.T) {
-	t1 := coretask.NewTask(taskid.NewDefaultImplementationID[struct{}]("t1"), nil, nil, coretask.WithLabelValue(
+	t1 := coretask.DefineConstant(taskid.NewDefaultImplementationID[struct{}]("t1"), struct{}{}, coretask.WithLabelValue(
 		gcpcommon.RequestOptionalInputResourceNameTaskLabel, "test1",
 	))
-	t2 := coretask.NewTask(taskid.NewDefaultImplementationID[struct{}]("t2"), nil, nil, coretask.WithLabelValue(
+	t2 := coretask.DefineConstant(taskid.NewDefaultImplementationID[struct{}]("t2"), struct{}{}, coretask.WithLabelValue(
 		gcpcommon.RequestOptionalInputResourceNameTaskLabel, "test2",
 	))
-	nonRelatedTask := coretask.NewTask(taskid.NewDefaultImplementationID[struct{}]("not-related"), nil, nil)
+	nonRelatedTask := coretask.DefineConstant(taskid.NewDefaultImplementationID[struct{}]("not-related"), struct{}{})
 	testCases := []struct {
 		desc  string
 		tasks []coretask.UntypedTask

@@ -94,17 +94,3 @@ func WrapErrorWithTaskInformation(ctx context.Context, err error) error {
 	errorMessage := fmt.Sprintf("An error occurred in task `%s`", taskID.String())
 	return errors.Join(errors.New(errorMessage), err)
 }
-
-// NewTailTask creates a no-op barrier task that waits for all given dependencies.
-func NewTailTask(taskID taskid.TaskImplementationID[struct{}], dependencies []Dependency, labelOpts ...LabelOpt) *TaskImpl[struct{}] {
-	verifyTaskID(taskID)
-	verifyNonNilDependencies(taskID, dependencies)
-	return NewTask(
-		taskID,
-		dependencies,
-		func(ctx context.Context) (struct{}, error) {
-			return struct{}{}, nil
-		},
-		labelOpts...,
-	)
-}

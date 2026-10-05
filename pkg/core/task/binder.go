@@ -75,9 +75,13 @@ func newBinder(owner taskid.UntypedTaskImplementationID) *Binder {
 	}
 }
 
-// add registers an input. It panics when the Binder is sealed or when the same input is declared twice,
-// because both are programming errors that must fail at package initialization.
+// add registers an input. It panics when the dependency is nil, when the Binder is sealed or when the same input is declared twice,
+// because all of them are programming errors that must fail at package initialization.
 func (b *Binder) add(dep Dependency, kind InputKind) {
+	if dep == nil {
+		panic(fmt.Sprintf(`task %s declares a nil input. This may be caused because of initialization order issue of global variables.
+Please define task IDs and types used in its type parameter in a different package.`, b.owner))
+	}
 	if b.sealed {
 		panic(fmt.Sprintf("task %s declares input %s after its bind function returned; declare inputs in the bind function, not in the run function", b.owner, dependencyKey(dep)))
 	}

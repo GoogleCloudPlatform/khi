@@ -16,7 +16,9 @@ package coretask
 
 import (
 	"context"
+	"reflect"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
@@ -28,11 +30,49 @@ type DefinedTask[T any] interface {
 }
 
 type definedTaskImpl[T any] struct {
-	*TaskImpl[T]
-	inputs []InputSpec
+	id           taskid.TaskImplementationID[T]
+	labels       *typedmap.ReadonlyTypedMap
+	dependencies []Dependency
+	inputs       []InputSpec
+	run          func(ctx context.Context) (T, error)
 }
 
 var _ DefinedTask[any] = (*definedTaskImpl[any])(nil)
+
+// ID implements Task.
+func (t *definedTaskImpl[T]) ID() taskid.TaskImplementationID[T] {
+	return t.id
+}
+
+// UntypedID implements UntypedTask.
+func (t *definedTaskImpl[T]) UntypedID() taskid.UntypedTaskImplementationID {
+	return t.id
+}
+
+// Labels implements UntypedTask.
+func (t *definedTaskImpl[T]) Labels() *typedmap.ReadonlyTypedMap {
+	return t.labels
+}
+
+// Dependencies implements UntypedTask.
+func (t *definedTaskImpl[T]) Dependencies() []Dependency {
+	return t.dependencies
+}
+
+// ResultType implements UntypedTask.
+func (t *definedTaskImpl[T]) ResultType() reflect.Type {
+	return reflect.TypeFor[T]()
+}
+
+// Run implements Task. It marks ctx with the running task so that input handles can verify their owner.
+func (t *definedTaskImpl[T]) Run(ctx context.Context) (T, error) {
+	return t.run(withActiveDefinedTask(ctx, t.id))
+}
+
+// UntypedRun implements UntypedTask.
+func (t *definedTaskImpl[T]) UntypedRun(ctx context.Context) (any, error) {
+	return t.Run(ctx)
+}
 
 // Inputs implements DefinedTask.
 func (t *definedTaskImpl[T]) Inputs() []InputSpec {
@@ -52,11 +92,15 @@ func Define[T any](
 	b := newBinder(id)
 	run := bind(b)
 	b.sealed = true
+	labelOpts = append([]LabelOpt{WithLabelValue(LabelKeyTaskResultType, reflect.TypeFor[T]().String())}, labelOpts...)
+	labels := NewLabelSet(labelOpts...)
+	verifyLabelKeys(id, labels)
 	return &definedTaskImpl[T]{
-		TaskImpl: NewTask(id, b.dependencies(), func(ctx context.Context) (T, error) {
-			return run(withActiveDefinedTask(ctx, id))
-		}, labelOpts...),
-		inputs: b.specs,
+		id:           id,
+		labels:       labels,
+		dependencies: b.dependencies(),
+		inputs:       b.specs,
+		run:          run,
 	}
 }
 

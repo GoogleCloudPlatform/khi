@@ -68,16 +68,17 @@ func setupTestServer(t *testing.T) *harnessTestContext {
 	upstreamExecs := &atomic.Int32{}
 	downstreamExecs := &atomic.Int32{}
 
-	upstreamTask := coretask.NewTask[[]*log.Log](
+	upstreamTask := coretask.Define(
 		upstreamTaskID,
-		[]coretask.Dependency{},
-		func(ctx context.Context) ([]*log.Log, error) {
-			upstreamExecs.Add(1)
-			l, err := log.NewLogFromYAMLString(id.NewGenerator(), "textPayload: hello from upstream\nseverity: INFO")
-			if err != nil {
-				return nil, err
+		func(b *coretask.Binder) func(ctx context.Context) ([]*log.Log, error) {
+			return func(ctx context.Context) ([]*log.Log, error) {
+				upstreamExecs.Add(1)
+				l, err := log.NewLogFromYAMLString(id.NewGenerator(), "textPayload: hello from upstream\nseverity: INFO")
+				if err != nil {
+					return nil, err
+				}
+				return []*log.Log{l}, nil
 			}
-			return []*log.Log{l}, nil
 		},
 	)
 

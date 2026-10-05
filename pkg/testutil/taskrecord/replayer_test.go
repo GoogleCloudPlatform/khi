@@ -15,7 +15,6 @@
 package taskrecord
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -43,22 +42,14 @@ func TestResolveTaskTypeFromTask(t *testing.T) {
 			wantOk:   false,
 		},
 		{
-			name: "task returning []*log.Log",
-			task: coretask.NewTask[[]*log.Log](
-				testUpstreamID,
-				nil,
-				func(ctx context.Context) ([]*log.Log, error) { return nil, nil },
-			),
+			name:     "task returning []*log.Log",
+			task:     coretask.DefineConstant[[]*log.Log](testUpstreamID, nil),
 			wantType: "[]*log.Log",
 			wantOk:   true,
 		},
 		{
-			name: "task returning []string",
-			task: coretask.NewTask[[]string](
-				testDownstreamID,
-				nil,
-				func(ctx context.Context) ([]string, error) { return nil, nil },
-			),
+			name:     "task returning []string",
+			task:     coretask.DefineConstant[[]string](testDownstreamID, nil),
 			wantType: "[]string",
 			wantOk:   true,
 		},
@@ -83,16 +74,8 @@ func TestResolveTaskTypeFromTaskSet(t *testing.T) {
 	testUpstreamID := taskid.NewDefaultImplementationID[[]*log.Log]("test/upstream")
 	testDownstreamID := taskid.NewDefaultImplementationID[[]string]("test/downstream")
 
-	task1 := coretask.NewTask[[]*log.Log](
-		testUpstreamID,
-		nil,
-		func(ctx context.Context) ([]*log.Log, error) { return nil, nil },
-	)
-	task2 := coretask.NewTask[[]string](
-		testDownstreamID,
-		nil,
-		func(ctx context.Context) ([]string, error) { return nil, nil },
-	)
+	task1 := coretask.DefineConstant[[]*log.Log](testUpstreamID, nil)
+	task2 := coretask.DefineConstant[[]string](testDownstreamID, nil)
 	taskSet, err := coretask.NewTaskSet([]coretask.UntypedTask{task1, task2})
 	if err != nil {
 		t.Fatalf("failed to create task set: %v", err)

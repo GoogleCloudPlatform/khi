@@ -96,7 +96,7 @@ func ResolveTaskTypeFromTaskSet(taskSet *coretask.TaskSet, taskRef taskid.Untype
 // replayStubTask returns a recorded value while reporting the result type of the recorded task.
 // Graph resolution checks producer result types, so the stub must report the type that consumers expect instead of any.
 type replayStubTask struct {
-	*coretask.TaskImpl[any]
+	coretask.DefinedTask[any]
 	resultType reflect.Type
 }
 
@@ -112,15 +112,8 @@ func newReplayStubTask(taskRef taskid.UntypedTaskReference, resultType reflect.T
 	typedRef := taskid.NewTaskReference[any](taskRef.ReferenceIDString())
 	implID := taskid.NewImplementationID(typedRef, "replay")
 	return &replayStubTask{
-		TaskImpl: coretask.NewTask[any](
-			implID,
-			[]coretask.Dependency{},
-			func(ctx context.Context) (any, error) {
-				return val, nil
-			},
-			coretask.WithSelectionPriority(1000000),
-		),
-		resultType: resultType,
+		DefinedTask: coretask.DefineConstant(implID, val, coretask.WithSelectionPriority(1000000)),
+		resultType:  resultType,
 	}
 }
 

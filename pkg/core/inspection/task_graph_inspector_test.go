@@ -32,8 +32,13 @@ import (
 func createTestTask(refID, implHash string, deps []coretask.Dependency, opts ...coretask.LabelOpt) coretask.UntypedTask {
 	ref := taskid.NewTaskReference[any](refID)
 	id := taskid.NewImplementationID[any](ref, implHash)
-	return coretask.NewTask[any](id, deps, func(ctx context.Context) (any, error) {
-		return nil, nil
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+		for _, dep := range deps {
+			coretask.After(b, dep)
+		}
+		return func(ctx context.Context) (any, error) {
+			return nil, nil
+		}
 	}, opts...)
 }
 
