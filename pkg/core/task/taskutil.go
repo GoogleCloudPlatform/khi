@@ -26,6 +26,8 @@ import (
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 )
 
+// dependencyKey identifies a dependency by its reference ID or tag.
+// It panics for nil and any other dependency type because such a dependency cannot be resolved in the task graph.
 func dependencyKey(dep Dependency) string {
 	switch d := dep.(type) {
 	case taskid.PointToPointDescriptor:
@@ -33,7 +35,7 @@ func dependencyKey(dep Dependency) string {
 	case taskid.FanInDescriptor:
 		return "tag:" + d.Tag()
 	default:
-		return ""
+		panic(fmt.Sprintf("unsupported dependency %T; a dependency must be a task reference or a tag reference", dep))
 	}
 }
 

@@ -276,7 +276,7 @@ func TestDefine_ConstructsTask(t *testing.T) {
 			name:      "panics when a declared input is nil",
 			taskID:    taskID,
 			deps:      []Dependency{depA, nil},
-			wantPanic: "declares a nil input",
+			wantPanic: "unsupported dependency <nil>",
 		},
 		{
 			name:   "panics when label contains empty key",
