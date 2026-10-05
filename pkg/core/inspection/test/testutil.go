@@ -46,12 +46,7 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionSharedMap, typedmap.NewTypedMap())
 	taskCtx = khictx.WithValue[inspectioncore.InspectionNameRegistry](taskCtx, inspectioncore.InspectionNameRegistryKey, inspectioncore.NewInMemoryInspectionNameRegistry())
 
-	// If this context is used with the task runner, it should have the task result map. But if not, then this must complement the value with the default value.
-	_, err := khictx.GetValue(taskCtx, core_contract.TaskResultMapContextKey)
-	if err != nil {
-		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskResultMapContextKey, typedmap.NewTypedMap())
-	}
-	_, err = khictx.GetValue(taskCtx, core_contract.TaskImplementationIDContextKey)
+	_, err := khictx.GetValue(taskCtx, core_contract.TaskImplementationIDContextKey)
 	if err != nil {
 		fakeTaskID := taskid.NewDefaultImplementationID[struct{}]("khi.google.com/fake-test-id")
 		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskImplementationIDContextKey, fakeTaskID.(taskid.UntypedTaskImplementationID))
@@ -78,21 +73,6 @@ func NextRunTaskContext(originalCtx context.Context, prevRunCtx context.Context)
 
 	originalCtx = khictx.WithValue(originalCtx, inspectioncore.GlobalSharedMap, globalSharedMap)
 	return khictx.WithValue(originalCtx, inspectioncore.InspectionSharedMap, inspectionSharedMap)
-}
-
-// RunInspectionTask execute a single task with given context. Use WithDefaultTestInspectionTaskContext to get the context.
-func RunInspectionTask[T any](baseContext context.Context, task coretask.Task[T], mode inspectioncore.InspectionTaskModeType, input map[string]any, taskDependencyValues ...tasktest.TaskDependencyValues) (T, *typedmap.ReadonlyTypedMap, error) {
-	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionTaskInput, input)
-	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskMode, mode)
-	metadata := khictx.MustGetValue(taskCtx, inspectionmetadata.MapContextKey)
-
-	var result T
-	_, err := progress.TaskInterceptor(taskCtx, task, func(ctx context.Context) (any, error) {
-		var runErr error
-		result, runErr = tasktest.RunTask(ctx, task, taskDependencyValues...)
-		return result, runErr
-	})
-	return result, metadata, err
 }
 
 // Run validates inputs against the inputs declared by task and runs the task in the given inspection mode.

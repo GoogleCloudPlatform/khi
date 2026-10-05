@@ -16,9 +16,6 @@ package main
 
 import (
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"slices"
@@ -33,9 +30,6 @@ type InspectionTaskPackage struct {
 	PackageImportPathBase string
 	// PackageNamePrefix is the prefix for the package name, derived from its directory path.
 	PackageNamePrefix string
-	// HasModule reports whether the implementation package declares a package-level Module variable.
-	// Packages without it are registered through their Register function.
-	HasModule bool
 }
 
 // ImplPackageName returns the package alias name for the implementation part of the task.
@@ -98,15 +92,10 @@ func (f *InspectionTaskPackageFinder) findAllInspectionTaskPackages() ([]Inspect
 				return err
 			}
 			aliasPrefix := strings.ReplaceAll(filepath.ToSlash(relPath), "/", "_")
-			hasModule, err := hasModuleDeclaration(path)
-			if err != nil {
-				return err
-			}
 			packages = append(packages, InspectionTaskPackage{
 				PackageRootFolderPath: pkgRootPath,
 				PackageImportPathBase: filepath.ToSlash(filepath.Join(f.RepositoryPackageName, pkgRootPath)),
 				PackageNamePrefix:     aliasPrefix,
-				HasModule:             hasModule,
 			})
 			return filepath.SkipDir
 		}
@@ -120,37 +109,4 @@ func (f *InspectionTaskPackageFinder) findAllInspectionTaskPackages() ([]Inspect
 		return strings.Compare(a.PackageImportPathBase, b.PackageImportPathBase)
 	})
 	return packages, nil
-}
-
-// hasModuleDeclaration reports whether a non-test Go file in the directory declares a package-level variable named Module.
-func hasModuleDeclaration(dir string) (bool, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return false, err
-	}
-	fset := token.NewFileSet()
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		file, err := parser.ParseFile(fset, filepath.Join(dir, name), nil, parser.SkipObjectResolution)
-		if err != nil {
-			return false, err
-		}
-		for _, decl := range file.Decls {
-			genDecl, ok := decl.(*ast.GenDecl)
-			if !ok || genDecl.Tok != token.VAR {
-				continue
-			}
-			for _, spec := range genDecl.Specs {
-				for _, ident := range spec.(*ast.ValueSpec).Names {
-					if ident.Name == "Module" {
-						return true, nil
-					}
-				}
-			}
-		}
-	}
-	return false, nil
 }

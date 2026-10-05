@@ -48,7 +48,6 @@ func TestNewAliasTask(t *testing.T) {
 			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](sourceTaskID.ReferenceIDString()), tc.sourceValue)
 			ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 			ctx = khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, taskid.UntypedTaskImplementationID(aliasTaskID))
-			ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, aliasTask.Dependencies())
 
 			deps := aliasTask.Dependencies()
 			if len(deps) != 1 {

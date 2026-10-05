@@ -117,7 +117,7 @@ func TestLocalRunner_TasksWithDependencies(t *testing.T) {
 				executionOrder = append(executionOrder, "task2")
 				mu.Unlock()
 
-				task1Result := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+				task1Result := lookupTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
 				if task1Result != tc.wantTask1Result {
 					panic("task1 result is not matching")
 				}
@@ -210,7 +210,7 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 					return "result1", nil
 				})
 				task2 := createMockRunnableTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
-					task1Val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+					task1Val := lookupTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
 					if task1Val != "result1" {
 						return nil, errors.New("unexpected task1 result")
 					}
@@ -236,7 +236,7 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 					return "result1", nil
 				}, NewTaskResultRetentionLabel(true))
 				task2 := createMockRunnableTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
-					task1Val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+					task1Val := lookupTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
 					if task1Val != "result1" {
 						return nil, errors.New("unexpected task1 result")
 					}
@@ -265,7 +265,7 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 					return "shared_result", nil
 				})
 				task2 := createMockRunnableTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
-					val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+					val := lookupTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
 					if val != "shared_result" {
 						return nil, errors.New("task2: invalid task1 result")
 					}
@@ -273,7 +273,7 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 					return "result2", nil
 				})
 				task3 := createMockRunnableTask("task3", []string{"task1"}, func(ctx context.Context) (any, error) {
-					val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+					val := lookupTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
 					if val != "shared_result" {
 						return nil, errors.New("task3: invalid task1 result")
 					}
@@ -296,16 +296,16 @@ func TestLocalRunner_ResultCleanup(t *testing.T) {
 					return "resA", nil
 				})
 				taskB := createMockRunnableTask("taskB", []string{"taskA"}, func(ctx context.Context) (any, error) {
-					resA := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskA"))
+					resA := lookupTaskResult(ctx, taskid.NewTaskReference[string]("taskA"))
 					return resA + "->B", nil
 				})
 				taskC := createMockRunnableTask("taskC", []string{"taskA"}, func(ctx context.Context) (any, error) {
-					resA := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskA"))
+					resA := lookupTaskResult(ctx, taskid.NewTaskReference[string]("taskA"))
 					return resA + "->C", nil
 				})
 				taskD := createMockRunnableTask("taskD", []string{"taskB", "taskC"}, func(ctx context.Context) (any, error) {
-					resB := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskB"))
-					resC := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskC"))
+					resB := lookupTaskResult(ctx, taskid.NewTaskReference[string]("taskB"))
+					resC := lookupTaskResult(ctx, taskid.NewTaskReference[string]("taskC"))
 					return resB + "+" + resC + "->D", nil
 				}, NewTaskResultRetentionLabel(true))
 				return []UntypedTask{taskA, taskB, taskC, taskD}

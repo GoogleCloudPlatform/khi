@@ -313,13 +313,7 @@ func TestDefineFileForm(t *testing.T) {
 			task := DefineFileForm(taskId, 10, "Test File", "", nil)
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			result, metadata, err := inspectiontest.RunInspectionTaskWithDependency(
-				ctx,
-				task,
-				nil,
-				tc.mode,
-				map[string]any{},
-			)
+			result, metadata, err := inspectiontest.Run(t, ctx, task, tc.mode, map[string]any{})
 
 			if tc.wantResultCall != store.getResultCalled {
 				t.Errorf("getResultCalled = %v, want %v", store.getResultCalled, tc.wantResultCall)

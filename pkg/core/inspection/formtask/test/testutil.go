@@ -34,16 +34,14 @@ type TextFormTestCase struct {
 	Input             string
 	ExpectedValue     any
 	ExpectedFormField inspectionmetadata.TextParameterFormField
-	// Dependencies are the tasks run with a form task built with Build.
-	Dependencies []coretask.UntypedTask
-	// TaskInputs are the task input values given to a form task defined with Define.
+	// TaskInputs are the task input values given to the form task.
 	TaskInputs []tasktest.InputValue
 	Before     func()
 	After      func()
 }
 
 // TestTextForms tests an inspection task generating a TextForm in the metadata.
-func TestTextForms[T any](t *testing.T, label string, formTask coretask.Task[T], testCases []*TextFormTestCase, cmpOptions ...cmp.Option) {
+func TestTextForms[T any](t *testing.T, label string, formTask coretask.DefinedTask[T], testCases []*TextFormTestCase, cmpOptions ...cmp.Option) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			if testCase.Before != nil {
@@ -57,14 +55,7 @@ func TestTextForms[T any](t *testing.T, label string, formTask coretask.Task[T],
 			input := map[string]any{
 				formTask.ID().ReferenceIDString(): testCase.Input,
 			}
-			var metadata *typedmap.ReadonlyTypedMap
-			var err error
-			if definedTask, ok := formTask.(coretask.DefinedTask[T]); ok {
-				_, metadata, err = inspectiontest.Run(t, ctx, definedTask, inspectioncore.TaskModeDryRun, input, testCase.TaskInputs...)
-			} else {
-				// The Build path will be removed in the final PR of the task system migration.
-				_, metadata, err = inspectiontest.RunInspectionTaskWithDependency(ctx, formTask, testCase.Dependencies, inspectioncore.TaskModeDryRun, input)
-			}
+			_, metadata, err := inspectiontest.Run(t, ctx, formTask, inspectioncore.TaskModeDryRun, input, testCase.TaskInputs...)
 
 			if err != nil {
 				t.Errorf("form field task returned an error %v", err)
