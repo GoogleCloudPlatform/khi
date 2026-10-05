@@ -42,7 +42,7 @@ var (
 var mockLogToTimelineMapperPrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-timeline-mapper-prev")
 var mockLogSerializerPrevTaskID = taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper-prev-log-serializer")
 
-type mockLogToTimelineMapperGroupData struct {
+type inputPathMapperGroupData struct {
 	ProcessedLogs int
 }
 
@@ -56,17 +56,17 @@ func (m *inputPathMapper) PassCount() int {
 	return m.passCount
 }
 
-func (m *inputPathMapper) PreProcessLogByGroup(ctx context.Context, passIndex int, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (mockLogToTimelineMapperGroupData, error) {
-	return mockLogToTimelineMapperGroupData{
+func (m *inputPathMapper) PreProcessLogByGroup(ctx context.Context, passIndex int, l *log.Log, prevGroupData inputPathMapperGroupData) (inputPathMapperGroupData, error) {
+	return inputPathMapperGroupData{
 		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
 	}, nil
 }
 
-func (m *inputPathMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (*khifilev6.TimelineChangeSet, mockLogToTimelineMapperGroupData, error) {
+func (m *inputPathMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData inputPathMapperGroupData) (*khifilev6.TimelineChangeSet, inputPathMapperGroupData, error) {
 	if l.ReadBoolOrDefault(pathMockError, false) {
 		return nil, prevGroupData, fmt.Errorf("test error")
 	}
-	nextGroupData := mockLogToTimelineMapperGroupData{
+	nextGroupData := inputPathMapperGroupData{
 		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
 	}
 	if l.ReadBoolOrDefault(pathMockSkip, false) {
@@ -78,7 +78,7 @@ func (m *inputPathMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, pre
 	return cs, nextGroupData, nil
 }
 
-var _ TimelineMapper[mockLogToTimelineMapperGroupData] = (*inputPathMapper)(nil)
+var _ TimelineMapper[inputPathMapperGroupData] = (*inputPathMapper)(nil)
 
 func TestDefineLogToTimelineMapperTask(t *testing.T) {
 	timelinePathTaskID := taskid.NewDefaultImplementationID[*khifilev6.TimelinePath]("mock-timeline-path")
@@ -146,7 +146,7 @@ func TestDefineLogToTimelineMapperTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			task := DefineLogToTimelineMapperTask(taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper"), inputs, func(b *coretask.Binder) TimelineMapper[mockLogToTimelineMapperGroupData] {
+			task := DefineLogToTimelineMapperTask(taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper"), inputs, func(b *coretask.Binder) TimelineMapper[inputPathMapperGroupData] {
 				return &inputPathMapper{
 					passCount: tc.passCount,
 					path:      coretask.Use(b, timelinePathTaskID.Ref()),
