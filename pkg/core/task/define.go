@@ -127,7 +127,7 @@ func DefineConstant[T any](id taskid.TaskImplementationID[T], value T, labelOpts
 }
 
 // DefineTailTask constructs a no-op barrier task that waits for all dependencies without reading their values.
-// Each dependency must be unique because the Binder rejects inputs declared twice.
+// Duplicate dependencies are merged into one input by the Binder.
 func DefineTailTask(taskID taskid.TaskImplementationID[struct{}], dependencies []Dependency, labelOpts ...LabelOpt) DefinedTask[struct{}] {
 	return Define(taskID, func(b *Binder) func(ctx context.Context) (struct{}, error) {
 		for _, dep := range dependencies {

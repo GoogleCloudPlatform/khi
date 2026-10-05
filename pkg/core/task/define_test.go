@@ -166,6 +166,87 @@ func TestDefine_RunsInGraph(t *testing.T) {
 	}
 }
 
+func TestDefine_RunsTasksWithMergedInputs(t *testing.T) {
+	sharedRef := taskid.NewTaskReference[string]("define-test.shared")
+	shared := DefineConstant(taskid.NewDefaultImplementationID[string]("define-test.shared"), "shared")
+	wrappedBind := func(b *Binder) func(ctx context.Context) (string, error) {
+		sharedInput := Use(b, sharedRef)
+		return func(ctx context.Context) (string, error) {
+			return "wrapped:" + sharedInput.Get(ctx), nil
+		}
+	}
+	wrapper := Define(taskid.NewDefaultImplementationID[string]("define-test.wrapper"), func(b *Binder) func(ctx context.Context) (string, error) {
+		sharedInput := Use(b, sharedRef)
+		wrappedRun := wrappedBind(b)
+		return func(ctx context.Context) (string, error) {
+			wrapped, err := wrappedRun(ctx)
+			if err != nil {
+				return "", err
+			}
+			return sharedInput.Get(ctx) + "|" + wrapped, nil
+		}
+	}, NewTaskResultRetentionLabel(true))
+	scopeAllOrderingConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.scope-all-ordering-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
+		sharedInput := UseOptional(b, sharedRef.Ref(taskid.ScopeActiveGraph))
+		After(b, sharedRef)
+		return func(ctx context.Context) (string, error) {
+			value, found := sharedInput.Get(ctx)
+			return fmt.Sprintf("%s,%t", value, found), nil
+		}
+	}, NewTaskResultRetentionLabel(true))
+
+	tasks := []UntypedTask{shared, wrapper, scopeAllOrderingConsumer}
+	runnableSet, err := ResolveGraph(tasks, tasks, nil)
+	if err != nil {
+		t.Fatalf("ResolveGraph() returned unexpected error: %v", err)
+	}
+	runner, err := NewLocalRunner(runnableSet)
+	if err != nil {
+		t.Fatalf("NewLocalRunner() returned unexpected error: %v", err)
+	}
+	if err := runner.Run(context.Background()); err != nil {
+		t.Fatalf("Run() returned unexpected error: %v", err)
+	}
+	<-runner.Wait()
+	if _, err := runner.Result(); err != nil {
+		t.Fatalf("Result() returned unexpected error: %v", err)
+	}
+
+	testCases := []struct {
+		name       string
+		task       DefinedTask[string]
+		wantInputs []string
+		want       string
+	}{
+		{
+			name:       "wrapper and wrapped bind both read an input they declared",
+			task:       wrapper,
+			wantInputs: []string{"required ref:define-test.shared"},
+			want:       "shared|wrapped:shared",
+		},
+		{
+			name:       "optional input merged with a ScopeAll ordering dependency reads the produced value",
+			task:       scopeAllOrderingConsumer,
+			wantInputs: []string{"required ref:define-test.shared"},
+			want:       "shared,true",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.wantInputs, describeInputSpecs(tc.task.Inputs())); diff != "" {
+				t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+			}
+			got, found := GetTaskResultFromLocalRunner(runner, tc.task.ID().Ref())
+			if !found {
+				t.Fatalf("GetTaskResultFromLocalRunner(%s) found no result", tc.task.ID())
+			}
+			if got != tc.want {
+				t.Errorf("GetTaskResultFromLocalRunner(%s) = %q, want %q", tc.task.ID(), got, tc.want)
+			}
+		})
+	}
+}
+
 func TestDefineTailTask(t *testing.T) {
 	t.Run("declares dependencies and preserves descriptors", func(t *testing.T) {
 		taskID := taskid.NewDefaultImplementationID[struct{}]("tail-test.task")
@@ -209,13 +290,24 @@ func TestDefineTailTask(t *testing.T) {
 		}
 	})
 
-	t.Run("panics on duplicate dependencies", func(t *testing.T) {
-		taskID := taskid.NewDefaultImplementationID[struct{}]("tail-test.dup-task")
+	t.Run("merges duplicate dependencies", func(t *testing.T) {
 		dupRef := taskid.NewTaskReference[string]("tail-test.dup")
+		task := DefineTailTask(taskid.NewDefaultImplementationID[struct{}]("tail-test.dup-task"), []Dependency{dupRef, dupRef})
+		want := []string{"ordering ref:tail-test.dup"}
+		if diff := cmp.Diff(want, describeInputSpecs(task.Inputs())); diff != "" {
+			t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("panics with the task ID on dependencies with conflicting result types", func(t *testing.T) {
+		taskID := taskid.NewDefaultImplementationID[struct{}]("tail-test.conflict-task")
 		gotPanic := panicMessage(func() {
-			DefineTailTask(taskID, []Dependency{dupRef, dupRef})
+			DefineTailTask(taskID, []Dependency{
+				taskid.NewTaskReference[string]("tail-test.conflict"),
+				taskid.NewTaskReference[int]("tail-test.conflict"),
+			})
 		})
-		want := "task tail-test.dup-task#default: declares input ref:tail-test.dup twice"
+		want := "task tail-test.conflict-task#default: declares input ref:tail-test.conflict with conflicting result types string and int"
 		if gotPanic != want {
 			t.Errorf("DefineTailTask() panic = %q, want %q", gotPanic, want)
 		}
