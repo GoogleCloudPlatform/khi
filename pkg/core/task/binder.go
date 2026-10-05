@@ -20,17 +20,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// InputKind classifies how a task declared an input through the Binder.
+// InputKind classifies how a task depends on an input after all declarations of the input are merged.
 type InputKind int
 
 const (
-	// InputKindRequired is an input declared with Use. The producer must be in the graph.
+	// InputKindRequired is an input whose value the task reads and whose producer must be in the graph.
+	// Use declares it. An input declared with UseOptional also becomes required when an ordering dependency
+	// on the same reference uses ScopeAll.
 	InputKindRequired InputKind = iota
-	// InputKindOptional is an input declared with UseOptional. The producer may be absent from the graph.
+	// InputKindOptional is an input whose value the task reads and whose producer may be absent from the graph.
+	// UseOptional declares it.
 	InputKindOptional
 	// InputKindTag is a fan-in input declared with UseTag over all producers of a tag.
 	InputKindTag
-	// InputKindOrdering is a dependency declared with After. The task waits for it but never reads its value.
+	// InputKindOrdering is a dependency declared only with After. The task waits for it but never reads its value.
 	InputKindOrdering
 )
 
@@ -55,7 +58,7 @@ func (k InputKind) String() string {
 type InputSpec struct {
 	// Dependency is the dependency descriptor registered in the task graph for this input.
 	Dependency Dependency
-	// Kind is how the input was declared.
+	// Kind is the merged kind of every declaration of the input.
 	Kind InputKind
 }
 

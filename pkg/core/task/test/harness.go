@@ -54,7 +54,8 @@ func GivenTag[T any](ref coretask.TagReference[T], values ...T) InputValue {
 // Run validates inputs against the inputs declared by task and runs the task with them.
 // It fails t when a required input is missing, when a value is given for an undeclared or ordering-only input,
 // when the same input is given twice, or when a value cannot be read as the declared input type.
-// Inputs declared with coretask.UseOptional read (zero, false) and tag inputs read an empty slice when no value is given.
+// Optional inputs read (zero, false) and tag inputs read an empty slice when no value is given.
+// An input declared with coretask.UseOptional is required when the Binder merged it into a required input.
 func Run[T any](t testing.TB, ctx context.Context, task coretask.DefinedTask[T], inputs ...InputValue) (T, error) {
 	t.Helper()
 	if problems := validateInputs(task.Inputs(), inputs); len(problems) > 0 {
