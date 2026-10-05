@@ -30,23 +30,20 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-type setFormConfigurator = func(builder *SetFormTaskBuilder[[]string])
-
-func TestSetFormDefinitionBuilder(t *testing.T) {
+func TestDefineSetForm_Spec(t *testing.T) {
 	testCases := []struct {
 		Name              string
-		FormConfigurator  setFormConfigurator
+		Spec              SetFormSpec[[]string]
 		RequestValue      interface{} // Change to interface{} to allow passing []string or []interface{}
 		ExpectedFormField inspectionmetadata.ParameterFormField
 		ExpectedValue     any
 		ExpectedError     string
 	}{
 		{
-			Name:             "A set form with given parameter",
-			FormConfigurator: func(builder *SetFormTaskBuilder[[]string]) {},
-			RequestValue:     []string{"bar"},
-			ExpectedValue:    []string{"bar"},
-			ExpectedError:    "",
+			Name:          "A set form with given parameter",
+			RequestValue:  []string{"bar"},
+			ExpectedValue: []string{"bar"},
+			ExpectedError: "",
 			ExpectedFormField: inspectionmetadata.SetParameterFormField{
 				AllowCustomValue: false,
 				AllowAddAll:      true,
@@ -59,8 +56,8 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			Name: "A set form with default parameter",
-			FormConfigurator: func(builder *SetFormTaskBuilder[[]string]) {
-				builder.WithDefaultValueConstant([]string{"foo-default"}, true)
+			Spec: SetFormSpec[[]string]{
+				DefaultValue: PreviousOrConstantDefaultValue([]string{"foo-default"}),
 			},
 			RequestValue:  nil, // Simulate missing input
 			ExpectedValue: []string{"foo-default"},
@@ -78,8 +75,11 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			Name: "A set form with options",
-			FormConfigurator: func(builder *SetFormTaskBuilder[[]string]) {
-				builder.WithOptionsSimple([]string{"opt1", "opt2"})
+			Spec: SetFormSpec[[]string]{
+				Options: ConstantOptions(
+					inspectionmetadata.SetParameterFormFieldOptionItem{ID: "opt1"},
+					inspectionmetadata.SetParameterFormFieldOptionItem{ID: "opt2"},
+				),
 			},
 			RequestValue:  []string{"opt1"},
 			ExpectedValue: []string{"opt1"},
@@ -99,8 +99,10 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			Name: "A set form with custom configuration",
-			FormConfigurator: func(builder *SetFormTaskBuilder[[]string]) {
-				builder.WithAllowCustomValue(true).WithAllowAddAll(false).WithAllowRemoveAll(false)
+			Spec: SetFormSpec[[]string]{
+				AllowCustomValue: ConstantBool(true),
+				AllowAddAll:      ConstantBool(false),
+				AllowRemoveAll:   ConstantBool(false),
 			},
 			RequestValue:  []string{"custom"},
 			ExpectedValue: []string{"custom"},
@@ -119,9 +121,9 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			originalBuilder := NewSetFormTaskBuilder(taskid.NewDefaultImplementationID[[]string]("foo-set"), 1, "foo label")
-			testCase.FormConfigurator(originalBuilder)
-			taskDef := originalBuilder.Build()
+			taskDef := DefineSetForm(taskid.NewDefaultImplementationID[[]string]("foo-set"), 1, "foo label", "", func(b *coretask.Binder) SetFormSpec[[]string] {
+				return testCase.Spec
+			})
 			formFields := []inspectionmetadata.ParameterFormField{}
 
 			// Execute task as DryRun mode
@@ -133,7 +135,7 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 				inputMap["foo-set"] = testCase.RequestValue
 			}
 
-			_, _, err := inspectiontest.RunInspectionTask(taskCtx, taskDef, inspectioncore.TaskModeDryRun, inputMap)
+			_, _, err := inspectiontest.Run(t, taskCtx, taskDef, inspectioncore.TaskModeDryRun, inputMap)
 			if testCase.ExpectedError != "" {
 				if err == nil {
 					t.Errorf("task was expected to be end with an error. But the task finished without an error")
@@ -158,7 +160,7 @@ func TestSetFormDefinitionBuilder(t *testing.T) {
 			if testCase.ExpectedError == "" {
 				taskCtx := context.Background()
 				taskCtx = inspectiontest.WithDefaultTestInspectionTaskContext(taskCtx)
-				result, _, err := inspectiontest.RunInspectionTask(taskCtx, taskDef, inspectioncore.TaskModeRun, inputMap)
+				result, _, err := inspectiontest.Run(t, taskCtx, taskDef, inspectioncore.TaskModeRun, inputMap)
 
 				if err != nil {
 					t.Errorf("task was ended with unexpected error\n%s", err)

@@ -44,9 +44,9 @@ type SetFormHintGenerator = func(ctx context.Context, value []string, convertedV
 // SetFormBoolProvider is a function type to provide boolean flags dynamically.
 type SetFormBoolProvider = func(ctx context.Context) (bool, error)
 
-// SetFormTaskBuilder is an utility to construct an instance of task for input form field.
-type SetFormTaskBuilder[T any] struct {
-	FormTaskBuilderBase[T]
+// setFormTask holds the settings of a set form task defined with DefineSetForm.
+type setFormTask[T any] struct {
+	formTaskBase[T]
 	defaultValue     SetFormDefaultValueGenerator
 	validator        SetFormValidator
 	optionsProvider  SetFormOptionsProvider
@@ -57,10 +57,10 @@ type SetFormTaskBuilder[T any] struct {
 	allowRemoveAll   SetFormBoolProvider
 }
 
-// NewSetFormTaskBuilder constructs an instance of SetFormTaskBuilder.
-func NewSetFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority int, fieldLabel string) *SetFormTaskBuilder[T] {
-	return &SetFormTaskBuilder[T]{
-		FormTaskBuilderBase: NewFormTaskBuilderBase(id, priority, fieldLabel),
+// newSetFormTask creates a set form task with the default settings described in SetFormSpec.
+func newSetFormTask[T any](id taskid.TaskImplementationID[T], priority int, label string, description string) *setFormTask[T] {
+	return &setFormTask[T]{
+		formTaskBase: newFormTaskBase(id, priority, label, description),
 		defaultValue: func(ctx context.Context, previousValues []string) ([]string, error) {
 			return nil, nil
 		},
@@ -86,99 +86,8 @@ func NewSetFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority in
 	}
 }
 
-func (b *SetFormTaskBuilder[T]) WithDependencies(dependencies []coretask.Dependency) *SetFormTaskBuilder[T] {
-	b.FormTaskBuilderBase.WithDependencies(dependencies)
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithDescription(description string) *SetFormTaskBuilder[T] {
-	b.FormTaskBuilderBase.WithDescription(description)
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithValidator(validator SetFormValidator) *SetFormTaskBuilder[T] {
-	b.validator = validator
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithDefaultValueFunc(defFunc SetFormDefaultValueGenerator) *SetFormTaskBuilder[T] {
-	b.defaultValue = defFunc
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithDefaultValueConstant(defValue []string, preferPrevValue bool) *SetFormTaskBuilder[T] {
-	return b.WithDefaultValueFunc(func(ctx context.Context, previousValues []string) ([]string, error) {
-		if preferPrevValue {
-			if len(previousValues) > 0 {
-				return previousValues, nil
-			}
-		}
-		return defValue, nil
-	})
-}
-
-func (b *SetFormTaskBuilder[T]) WithOptionsFunc(optionsFunc SetFormOptionsProvider) *SetFormTaskBuilder[T] {
-	b.optionsProvider = optionsFunc
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithOptionsSimple(options []string) *SetFormTaskBuilder[T] {
-	return b.WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		result := make([]inspectionmetadata.SetParameterFormFieldOptionItem, len(options))
-		for i, opt := range options {
-			result[i] = inspectionmetadata.SetParameterFormFieldOptionItem{
-				ID: opt,
-			}
-		}
-		return result, nil
-	})
-}
-
-func (b *SetFormTaskBuilder[T]) WithAllowCustomValueFunc(allowFunc SetFormBoolProvider) *SetFormTaskBuilder[T] {
-	b.allowCustomValue = allowFunc
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithAllowCustomValue(allow bool) *SetFormTaskBuilder[T] {
-	return b.WithAllowCustomValueFunc(func(ctx context.Context) (bool, error) {
-		return allow, nil
-	})
-}
-
-func (b *SetFormTaskBuilder[T]) WithAllowAddAllFunc(allowFunc SetFormBoolProvider) *SetFormTaskBuilder[T] {
-	b.allowAddAll = allowFunc
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithAllowAddAll(allow bool) *SetFormTaskBuilder[T] {
-	return b.WithAllowAddAllFunc(func(ctx context.Context) (bool, error) {
-		return allow, nil
-	})
-}
-
-func (b *SetFormTaskBuilder[T]) WithAllowRemoveAllFunc(allowFunc SetFormBoolProvider) *SetFormTaskBuilder[T] {
-	b.allowRemoveAll = allowFunc
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithAllowRemoveAll(allow bool) *SetFormTaskBuilder[T] {
-	return b.WithAllowRemoveAllFunc(func(ctx context.Context) (bool, error) {
-		return allow, nil
-	})
-}
-
-func (b *SetFormTaskBuilder[T]) WithHintFunc(hintFunc SetFormHintGenerator) *SetFormTaskBuilder[T] {
-	b.hintGenerator = hintFunc
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithConverter(converter SetFormValueConverter[T]) *SetFormTaskBuilder[T] {
-	b.converter = converter
-	return b
-}
-
 // run computes the form field metadata and returns the converted value of the current input.
-func (b *SetFormTaskBuilder[T]) run(ctx context.Context) (T, error) {
+func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 	m := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 	req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
 	taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
@@ -240,7 +149,7 @@ func (b *SetFormTaskBuilder[T]) run(ctx context.Context) (T, error) {
 	field.Type = inspectionmetadata.Set
 	field.HintType = inspectionmetadata.Info
 
-	b.SetupBaseFormField(&field.ParameterFormFieldBase)
+	b.setupBaseFormField(&field.ParameterFormFieldBase)
 
 	options, err := b.optionsProvider(ctx, prevValue)
 	if err != nil {
@@ -298,13 +207,9 @@ func (b *SetFormTaskBuilder[T]) run(ctx context.Context) (T, error) {
 	return convertedValue, nil
 }
 
-func (b *SetFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.Task[T] {
-	return coretask.NewTask(b.id, b.dependencies, b.run, b.formLabelOpts(labelOpts)...)
-}
-
 // SetFormSpec holds the optional settings of a set form defined with DefineSetForm.
 // Callbacks may read inputs declared on the Binder passed to the bind function.
-// A nil callback or a zero value uses the default of NewSetFormTaskBuilder.
+// A nil callback or a zero value uses the default.
 type SetFormSpec[T any] struct {
 	// AllowCustomValue reports whether users can input custom values. Defaults to false.
 	AllowCustomValue SetFormBoolProvider
@@ -324,7 +229,7 @@ type SetFormSpec[T any] struct {
 	Hint SetFormHintGenerator
 }
 
-func (b *SetFormTaskBuilder[T]) applySpec(spec SetFormSpec[T]) {
+func (b *setFormTask[T]) applySpec(spec SetFormSpec[T]) {
 	if spec.AllowCustomValue != nil {
 		b.allowCustomValue = spec.AllowCustomValue
 	}
@@ -355,7 +260,7 @@ func (b *SetFormTaskBuilder[T]) applySpec(spec SetFormSpec[T]) {
 // id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
 // and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
 func DefineSetForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) SetFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.DefinedTask[T] {
-	form := NewSetFormTaskBuilder(id, priority, label).WithDescription(description)
+	form := newSetFormTask(id, priority, label, description)
 	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
 		form.applySpec(bind(b))
 		return form.run
