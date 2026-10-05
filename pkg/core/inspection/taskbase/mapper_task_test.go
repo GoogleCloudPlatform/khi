@@ -46,43 +46,6 @@ type mockLogToTimelineMapperGroupData struct {
 	ProcessedLogs int
 }
 
-type mockLogToTimelineMapper struct {
-	passCount int
-	path      *khifilev6.TimelinePath
-}
-
-func (m *mockLogToTimelineMapper) PassCount() int {
-	return m.passCount
-}
-
-func (m *mockLogToTimelineMapper) PreProcessLogByGroup(ctx context.Context, passIndex int, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (mockLogToTimelineMapperGroupData, error) {
-	return mockLogToTimelineMapperGroupData{
-		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
-	}, nil
-}
-
-func (m *mockLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (*khifilev6.TimelineChangeSet, mockLogToTimelineMapperGroupData, error) {
-	shouldErr := l.ReadBoolOrDefault(pathMockError, false)
-	if shouldErr {
-		return nil, prevGroupData, fmt.Errorf("test error")
-	}
-	shouldSkip := l.ReadBoolOrDefault(pathMockSkip, false)
-	if shouldSkip {
-		return nil, mockLogToTimelineMapperGroupData{
-			ProcessedLogs: prevGroupData.ProcessedLogs + 1,
-		}, nil
-	}
-
-	cs := khifilev6.NewTimelineChangeSet(l)
-	cs.AddEvent(m.path)
-
-	return cs, mockLogToTimelineMapperGroupData{
-		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
-	}, nil
-}
-
-var _ TimelineMapper[mockLogToTimelineMapperGroupData] = (*mockLogToTimelineMapper)(nil)
-
 // inputPathMapper is a TimelineMapper that reads the timeline path through an input handle.
 type inputPathMapper struct {
 	passCount int
@@ -100,8 +63,19 @@ func (m *inputPathMapper) PreProcessLogByGroup(ctx context.Context, passIndex in
 }
 
 func (m *inputPathMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (*khifilev6.TimelineChangeSet, mockLogToTimelineMapperGroupData, error) {
-	mapper := &mockLogToTimelineMapper{passCount: m.passCount, path: m.path.Get(ctx)}
-	return mapper.ProcessLogByGroup(ctx, l, prevGroupData)
+	if l.ReadBoolOrDefault(pathMockError, false) {
+		return nil, prevGroupData, fmt.Errorf("test error")
+	}
+	nextGroupData := mockLogToTimelineMapperGroupData{
+		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
+	}
+	if l.ReadBoolOrDefault(pathMockSkip, false) {
+		return nil, nextGroupData, nil
+	}
+
+	cs := khifilev6.NewTimelineChangeSet(l)
+	cs.AddEvent(m.path.Get(ctx))
+	return cs, nextGroupData, nil
 }
 
 var _ TimelineMapper[mockLogToTimelineMapperGroupData] = (*inputPathMapper)(nil)
