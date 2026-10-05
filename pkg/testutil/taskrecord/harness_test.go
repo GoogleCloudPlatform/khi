@@ -81,17 +81,18 @@ func setupTestServer(t *testing.T) *harnessTestContext {
 		},
 	)
 
-	downstreamTask := coretask.NewTask[[]string](
+	downstreamTask := coretask.Define(
 		downstreamTaskID,
-		[]coretask.Dependency{upstreamTaskID.Ref()},
-		func(ctx context.Context) ([]string, error) {
-			downstreamExecs.Add(1)
-			logs := coretask.GetTaskResult(ctx, upstreamTaskID.Ref())
-			var msgs []string
-			for _, l := range logs {
-				msgs = append(msgs, l.ReadStringOrDefault(pathHarnessTestTextPayload, ""))
+		func(b *coretask.Binder) func(ctx context.Context) ([]string, error) {
+			upstream := coretask.Use(b, upstreamTaskID.Ref())
+			return func(ctx context.Context) ([]string, error) {
+				downstreamExecs.Add(1)
+				var msgs []string
+				for _, l := range upstream.Get(ctx) {
+					msgs = append(msgs, l.ReadStringOrDefault(pathHarnessTestTextPayload, ""))
+				}
+				return msgs, nil
 			}
-			return msgs, nil
 		},
 		inspectioncore.FeatureTaskLabel("Downstream Task", "Downstream Task", 0, true),
 	)

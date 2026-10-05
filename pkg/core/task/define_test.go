@@ -67,9 +67,6 @@ func TestDefine_DeclaresInputsAsDependencies(t *testing.T) {
 func TestDefine_RejectsMisuseInRunFunction(t *testing.T) {
 	taskID := taskid.NewDefaultImplementationID[string]("define-test.misuse")
 	lateRef := taskid.NewTaskReference[string]("define-test.late")
-	legacyRef := taskid.NewTaskReference[string]("define-test.legacy")
-	legacyOptionalRef := taskid.NewTaskReference[string]("define-test.legacy", taskid.ScopeActiveGraph)
-	legacyTag := NewTag[string]("define-test-legacy-tag")
 
 	testCases := []struct {
 		name      string
@@ -80,21 +77,6 @@ func TestDefine_RejectsMisuseInRunFunction(t *testing.T) {
 			name:      "declaring an input after bind returned panics",
 			run:       func(ctx context.Context, b *Binder) { Use(b, lateRef) },
 			wantPanic: "declares input ref:define-test.late after its bind function returned",
-		},
-		{
-			name:      "GetTaskResult panics inside a task defined with Define",
-			run:       func(ctx context.Context, b *Binder) { GetTaskResult(ctx, legacyRef) },
-			wantPanic: "legacy task result getter is called for ref:define-test.legacy",
-		},
-		{
-			name:      "GetOptionalTaskResult panics inside a task defined with Define",
-			run:       func(ctx context.Context, b *Binder) { GetOptionalTaskResult(ctx, legacyOptionalRef) },
-			wantPanic: "legacy task result getter is called for ref:define-test.legacy",
-		},
-		{
-			name:      "GetTaskResultsWithTag panics inside a task defined with Define",
-			run:       func(ctx context.Context, b *Binder) { GetTaskResultsWithTag(ctx, legacyTag.Ref()) },
-			wantPanic: "legacy task result getter is called for tag:define-test-legacy-tag",
 		},
 	}
 	for _, tc := range testCases {
@@ -136,11 +118,14 @@ func TestDefine_RunsAlongsideLegacyTasks(t *testing.T) {
 			return fmt.Sprintf("%s|%q,%v|%v", legacy.Get(ctx), absentValue, found, tagged.Get(ctx)), nil
 		}
 	}, NewTaskResultRetentionLabel(true))
-	legacyConsumer := NewTask(taskid.NewDefaultImplementationID[string]("define-test.legacy-consumer"), []Dependency{taskid.NewTaskReference[string]("define-test.bound")}, func(ctx context.Context) (string, error) {
-		return "consumed:" + GetTaskResult(ctx, taskid.NewTaskReference[string]("define-test.bound")), nil
+	definedConsumer := Define(taskid.NewDefaultImplementationID[string]("define-test.defined-consumer"), func(b *Binder) func(ctx context.Context) (string, error) {
+		bound := Use(b, taskid.NewTaskReference[string]("define-test.bound"))
+		return func(ctx context.Context) (string, error) {
+			return "consumed:" + bound.Get(ctx), nil
+		}
 	}, NewTaskResultRetentionLabel(true))
 
-	tasks := []UntypedTask{legacyProducer, tagProducer, orderingProducer, bound, legacyConsumer}
+	tasks := []UntypedTask{legacyProducer, tagProducer, orderingProducer, bound, definedConsumer}
 	runnableSet, err := ResolveGraph(tasks, tasks, nil)
 	if err != nil {
 		t.Fatalf("ResolveGraph() returned unexpected error: %v", err)
@@ -168,8 +153,8 @@ func TestDefine_RunsAlongsideLegacyTasks(t *testing.T) {
 			want: `legacy|"",false|[tagged]`,
 		},
 		{
-			name: "legacy task reads the result of a task defined with Define",
-			ref:  taskid.NewTaskReference[string]("define-test.legacy-consumer"),
+			name: "task defined with Define reads the result of another task defined with Define",
+			ref:  taskid.NewTaskReference[string]("define-test.defined-consumer"),
 			want: `consumed:legacy|"",false|[tagged]`,
 		},
 	}

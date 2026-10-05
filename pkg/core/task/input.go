@@ -29,12 +29,6 @@ func withActiveDefinedTask(ctx context.Context, owner taskid.UntypedTaskImplemen
 	return context.WithValue(ctx, activeDefinedTaskKey{}, owner.String())
 }
 
-// hasActiveDefinedTask reports whether ctx is running a task defined with Define.
-func hasActiveDefinedTask(ctx context.Context) bool {
-	_, found := ctx.Value(activeDefinedTaskKey{}).(string)
-	return found
-}
-
 // mustMatchActiveDefinedTask panics unless ctx is running the task that declared the handle.
 // A handle read from another task would bypass that task's input declarations.
 func mustMatchActiveDefinedTask(ctx context.Context, owner taskid.UntypedTaskImplementationID, input string) {
