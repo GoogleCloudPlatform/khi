@@ -83,7 +83,7 @@ func (b *Binder) add(dep Dependency, kind InputKind) {
 		panic(fmt.Sprintf("task %s declares input %s after its bind function returned; declare inputs in the bind function, not in the run function", b.owner, key))
 	}
 	if _, found := b.keys[key]; found {
-		panic(fmt.Sprintf("task %s declares input %s twice", b.owner, key))
+		panic(fmt.Sprintf("declares input %s twice", key))
 	}
 	b.keys[key] = struct{}{}
 	b.specs = append(b.specs, InputSpec{Dependency: dep, Kind: kind})
@@ -103,7 +103,7 @@ func (b *Binder) dependencies() []Dependency {
 // Use UseOptional for references with a narrower scope.
 func Use[T any](b *Binder, ref taskid.TaskReference[T]) Input[T] {
 	if ref.DescriptorScope() != taskid.ScopeAll {
-		panic(fmt.Sprintf("task %s declares required input %s with a scope other than ScopeAll; use UseOptional for inputs whose producer may be absent", b.owner, ref.ReferenceIDString()))
+		panic(fmt.Sprintf("declares required input %s with a scope other than ScopeAll; use UseOptional for inputs whose producer may be absent", ref.ReferenceIDString()))
 	}
 	b.add(ref, InputKindRequired)
 	return Input[T]{owner: b.owner, ref: ref}
@@ -113,7 +113,7 @@ func Use[T any](b *Binder, ref taskid.TaskReference[T]) Input[T] {
 // The reference must use a scope narrower than ScopeAll, such as ScopeActiveGraph or ScopeActiveFeatures.
 func UseOptional[T any](b *Binder, ref taskid.TaskReference[T]) OptionalInput[T] {
 	if ref.DescriptorScope() == taskid.ScopeAll {
-		panic(fmt.Sprintf("task %s declares optional input %s with ScopeAll; pass a reference with a narrower scope such as FromActiveGraph, or use Use for a required input", b.owner, ref.ReferenceIDString()))
+		panic(fmt.Sprintf("declares optional input %s with ScopeAll; pass a reference with a narrower scope such as FromActiveGraph, or use Use for a required input", ref.ReferenceIDString()))
 	}
 	b.add(ref, InputKindOptional)
 	return OptionalInput[T]{owner: b.owner, ref: ref}

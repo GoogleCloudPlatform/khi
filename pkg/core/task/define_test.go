@@ -215,7 +215,7 @@ func TestDefineTailTask(t *testing.T) {
 		gotPanic := panicMessage(func() {
 			DefineTailTask(taskID, []Dependency{dupRef, dupRef})
 		})
-		wantSubstring := "declares input ref:tail-test.dup twice"
+		wantSubstring := "task tail-test.dup-task#default: declares input ref:tail-test.dup twice"
 		if !strings.Contains(gotPanic, wantSubstring) {
 			t.Errorf("DefineTailTask() panic = %q, want substring %q", gotPanic, wantSubstring)
 		}
@@ -273,10 +273,10 @@ func TestDefine_BuildsRunnableTask(t *testing.T) {
 			wantPanic: "Invalid taskID",
 		},
 		{
-			name:      "panics when a declared input is nil",
+			name:      "panics with the task ID when a declared input is nil",
 			taskID:    taskID,
 			deps:      []Dependency{depA, nil},
-			wantPanic: "unsupported dependency <nil>",
+			wantPanic: "task task.test#default: unsupported dependency <nil>",
 		},
 		{
 			name:   "panics when label contains empty key",
