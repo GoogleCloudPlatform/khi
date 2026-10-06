@@ -33,51 +33,35 @@ var Module = coreinspection.Module{
 
 KHI の「New Inspection」画面では、選択された環境やログ種別に応じて、どのタスクをグラフに含めて実行するかが動的に決定されます。これらを制御するために、インスペクションタスクには特別なラベルを付与できます。
 
-### 2.1 `InspectionTypeLabelSelector` によるタスクの絞り込み
+### 2.1 `Module.Scope` によるタスクの絞り込み
 
 KHI では、各 `InspectionType` が対象環境やログソース、プラットフォームを表すキー・バリュー形式のラベルを保持しています。代表的なキーは以下の通りです。
 
-- `inspectioncore_contract.InspectionTypeLabelKeyEnvironment` (`"khi.google.com/environment"`)
-- `inspectioncore_contract.InspectionTypeLabelKeyLogSource` (`"khi.google.com/log_source"`)
-- `inspectioncore_contract.InspectionTypeLabelKeyBasePlatform` (`"khi.google.com/base_platform"`)
+- `inspectioncore.InspectionTypeLabelKeyEnvironment` (`"khi.google.com/environment"`)
+- `inspectioncore.InspectionTypeLabelKeyLogSource` (`"khi.google.com/log_source"`)
+- `inspectioncore.InspectionTypeLabelKeyBasePlatform` (`"khi.google.com/base_platform"`)
 
-特定のインスペクションタイプでのみタスクを実行可能にするには、タスク定義時に `InspectionTypeLabelSelector` ラベルオプションを指定して必要なキー・バリューのペアを設定します。
-
-```go
-var AdvancedTask = coretask.Define(
-    AdvancedTaskID,
-    func(b *coretask.Binder) func(ctx context.Context) (any, error) {
-        return func(ctx context.Context) (any, error) {
-            return nil, nil
-        }
-    },
-    inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
-        inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
-        inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
-    }),
-)
-```
-
-インスペクション開始時、ランナーはセレクタに含まれるすべてのキー・バリューが選択された `InspectionType.Labels` に一致するかを検証します。`InspectionTypeLabelSelector` が指定されていないタスクはグローバルタスクとして扱われ、すべてのインスペクションタイプで利用可能になります。
-
-また、パッケージ内の全タスクに一括してセレクタを適用する場合は、`coreinspection.Module` の `Scope` フィールドを設定します。さらに特定のタスクに対してのみ条件を追加して絞り込む場合は `SubModules` を使用できます。
+特定のインスペクションタイプでのみタスクを実行可能にするには、`impl/module.go` の `coreinspection.Module` で `Scope` フィールドを設定します。さらに特定のタスクに対してのみ条件を追加して絞り込む場合は `SubModules` を使用できます。
 
 ```go
 var Module = coreinspection.Module{
     Name: "googlecloud/example",
     Scope: coreinspection.Scope{
-        inspectioncore_contract.InspectionTypeLabelKeyEnvironment: "googlecloud",
+        inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+        inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
     },
     Tasks: []coretask.UntypedTask{TaskA, TaskB},
     SubModules: []coreinspection.Module{
         {
             Name:  "cloud-logging",
-            Scope: coreinspection.Scope{inspectioncore_contract.InspectionTypeLabelKeyLogSource: "cloud_logging"},
+            Scope: coreinspection.Scope{inspectioncore.InspectionTypeLabelKeyLogSource: "cloud_logging"},
             Tasks: []coretask.UntypedTask{CloudLoggingOnlyTask},
         },
     },
 }
 ```
+
+インスペクション開始時、ランナーはモジュールのスコープに含まれるすべてのキー・バリューが選択された `InspectionType.Labels` に一致するかを検証します。`Scope` が指定されていないモジュール内のタスクはグローバルタスクとして扱われ、すべてのインスペクションタイプで利用可能になります。
 
 ### 2.2 FeatureTask ラベル
 

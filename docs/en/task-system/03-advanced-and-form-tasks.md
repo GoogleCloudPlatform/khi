@@ -33,51 +33,35 @@ var Module = coreinspection.Module{
 
 On the "New Inspection" screen in KHI, the system dynamically determines which tasks to include and run in the graph based on the selected environment and log types. To control this behavior, you can attach special labels to inspection tasks.
 
-### 2.1 Filtering Tasks with `InspectionTypeLabelSelector`
+### 2.1 Filtering Tasks with `Module.Scope`
 
 In KHI, each `InspectionType` defines a set of key-value labels indicating its target environment, log source, and platform:
 
-- `inspectioncore_contract.InspectionTypeLabelKeyEnvironment` (`"khi.google.com/environment"`)
-- `inspectioncore_contract.InspectionTypeLabelKeyLogSource` (`"khi.google.com/log_source"`)
-- `inspectioncore_contract.InspectionTypeLabelKeyBasePlatform` (`"khi.google.com/base_platform"`)
+- `inspectioncore.InspectionTypeLabelKeyEnvironment` (`"khi.google.com/environment"`)
+- `inspectioncore.InspectionTypeLabelKeyLogSource` (`"khi.google.com/log_source"`)
+- `inspectioncore.InspectionTypeLabelKeyBasePlatform` (`"khi.google.com/base_platform"`)
 
-To restrict a task so that it only runs for compatible inspection types, attach an `InspectionTypeLabelSelector` label option specifying the required label key-value pairs:
-
-```go
-var AdvancedTask = coretask.Define(
-    AdvancedTaskID,
-    func(b *coretask.Binder) func(ctx context.Context) (any, error) {
-        return func(ctx context.Context) (any, error) {
-            return nil, nil
-        }
-    },
-    inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
-        inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
-        inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
-    }),
-)
-```
-
-When an inspection starts, the runner checks that all key-value pairs in the selector match the selected `InspectionType.Labels`. Tasks without an `InspectionTypeLabelSelector` are treated as global tasks and are included for all inspection types.
-
-You can also apply an `InspectionTypeLabelSelector` to all tasks in a package by setting `Scope` on its `coreinspection.Module` (and narrowing the scope further for specific tasks using `SubModules`):
+To restrict tasks so that they only run for compatible inspection types, set `Scope` on `coreinspection.Module` in `impl/module.go` (and narrow the scope further for specific tasks using `SubModules`):
 
 ```go
 var Module = coreinspection.Module{
     Name: "googlecloud/example",
     Scope: coreinspection.Scope{
-        inspectioncore_contract.InspectionTypeLabelKeyEnvironment: "googlecloud",
+        inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+        inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
     },
     Tasks: []coretask.UntypedTask{TaskA, TaskB},
     SubModules: []coreinspection.Module{
         {
             Name:  "cloud-logging",
-            Scope: coreinspection.Scope{inspectioncore_contract.InspectionTypeLabelKeyLogSource: "cloud_logging"},
+            Scope: coreinspection.Scope{inspectioncore.InspectionTypeLabelKeyLogSource: "cloud_logging"},
             Tasks: []coretask.UntypedTask{CloudLoggingOnlyTask},
         },
     },
 }
 ```
+
+When an inspection starts, the runner checks that all key-value pairs in the module's scope match the selected `InspectionType.Labels`. Tasks in a module without a `Scope` are treated as global tasks and are included for all inspection types.
 
 ### 2.2 FeatureTask Labels
 
