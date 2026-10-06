@@ -19,18 +19,8 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-// LabelSelector represents a set of labels to match against target resources/features.
+// LabelSelector represents a set of inspection type label conditions attached to a task via Module.Scope.
 type LabelSelector map[string]string
-
-// Match returns true if all keys defined in the selector are present in the target with matching values.
-func (s LabelSelector) Match(target map[string]string) bool {
-	for k, v := range s {
-		if tv, ok := target[k]; !ok || tv != v {
-			return false
-		}
-	}
-	return true
-}
 
 const (
 	// InspectionTypeLabelKeyLogSource is the label key for the log source of the inspection.
@@ -49,7 +39,7 @@ const (
 var (
 	LabelKeyInspectionFeatureFlag        = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "feature")
 	LabelKeyInspectionDefaultFeatureFlag = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "default-feature")
-	// LabelKeyInspectionTypeLabelSelector is a task label key used to specify target inspection types using a label selector.
+	// LabelKeyInspectionTypeLabelSelector is a task label key populated from Module.Scope to restrict a task to matching inspection types.
 	LabelKeyInspectionTypeLabelSelector = coretask.NewTaskLabelKey[LabelSelector](InspectionTaskPrefix + "inspection-type-selector")
 	LabelKeyFeatureTaskTitle            = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/title")
 	LabelKeyFeatureTaskDescription      = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/description")
@@ -85,23 +75,5 @@ func FeatureTaskLabel(title string, description string, featureOrder int, isDefa
 		description:      description,
 		featureOrder:     featureOrder,
 		isDefaultFeature: isDefaultFeature,
-	}
-}
-
-type InspectionTypeLabelSelectorImpl struct {
-	selector LabelSelector
-}
-
-// Write implements task.LabelOpt.
-func (itl *InspectionTypeLabelSelectorImpl) Write(label *typedmap.TypedMap) {
-	typedmap.Set(label, LabelKeyInspectionTypeLabelSelector, itl.selector)
-}
-
-var _ coretask.LabelOpt = (*InspectionTypeLabelSelectorImpl)(nil)
-
-// InspectionTypeLabelSelector returns a LabelOpt to mark the task to match against InspectionType labels using the given selector.
-func InspectionTypeLabelSelector(selector map[string]string) *InspectionTypeLabelSelectorImpl {
-	return &InspectionTypeLabelSelectorImpl{
-		selector: LabelSelector(selector),
 	}
 }

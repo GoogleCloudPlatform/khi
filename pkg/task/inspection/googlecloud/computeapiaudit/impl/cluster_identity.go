@@ -21,7 +21,7 @@ import (
 )
 
 // clusterIdentityAliasTask provides the cluster identity of Compute API audit log tasks from the shared k8scommon cluster identity task.
-var clusterIdentityAliasTask = coretask.NewAliasTask(
+var clusterIdentityAliasTask = coretask.DefineAliasTask(
 	computeapiaudit.ClusterIdentityTaskID,
 	k8scommon.ClusterIdentityTaskID.Ref(),
 )

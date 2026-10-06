@@ -19,9 +19,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -73,12 +75,33 @@ func TestResolveTaskTypeFromTask(t *testing.T) {
 func TestResolveTaskTypeFromTaskSet(t *testing.T) {
 	testUpstreamID := taskid.NewDefaultImplementationID[[]*log.Log]("test/upstream")
 	testDownstreamID := taskid.NewDefaultImplementationID[[]string]("test/downstream")
+	testScopedID := taskid.NewDefaultImplementationID[map[string]int]("test/scoped")
 
-	task1 := coretask.DefineConstant[[]*log.Log](testUpstreamID, nil)
-	task2 := coretask.DefineConstant[[]string](testDownstreamID, nil)
-	taskSet, err := coretask.NewTaskSet([]coretask.UntypedTask{task1, task2})
+	ioConfig, err := inspectioncore.NewIOConfigForTest()
 	if err != nil {
-		t.Fatalf("failed to create task set: %v", err)
+		t.Fatalf("failed to create ioConfig: %v", err)
+	}
+	server, err := coreinspection.NewServer(ioConfig)
+	if err != nil {
+		t.Fatalf("failed to create server: %v", err)
+	}
+	err = server.AddModules(coreinspection.Module{
+		Name: "test",
+		Tasks: []coretask.UntypedTask{
+			coretask.DefineConstant[[]*log.Log](testUpstreamID, nil),
+			coretask.DefineConstant[[]string](testDownstreamID, nil),
+		},
+		SubModules: []coreinspection.Module{
+			{
+				Scope: coreinspection.Scope{"env": "test"},
+				Tasks: []coretask.UntypedTask{
+					coretask.DefineConstant[map[string]int](testScopedID, nil),
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to add module: %v", err)
 	}
 
 	testCases := []struct {
@@ -100,6 +123,12 @@ func TestResolveTaskTypeFromTaskSet(t *testing.T) {
 			wantOk:   true,
 		},
 		{
+			name:     "finds task type when wrapped by Module.Scope",
+			taskRef:  testScopedID.Ref(),
+			wantType: "map[string]int",
+			wantOk:   true,
+		},
+		{
 			name:     "unknown task reference returns false",
 			taskRef:  taskid.NewTaskReference[int]("test/unknown"),
 			wantType: "",
@@ -109,7 +138,7 @@ func TestResolveTaskTypeFromTaskSet(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotType, gotOk := ResolveTaskTypeFromTaskSet(taskSet, tc.taskRef)
+			gotType, gotOk := ResolveTaskTypeFromTaskSet(server.RootTaskSet, tc.taskRef)
 			if diff := cmp.Diff(tc.wantOk, gotOk); diff != "" {
 				t.Errorf("ResolveTaskTypeFromTaskSet() ok mismatch (-want +got):\n%s", diff)
 			}

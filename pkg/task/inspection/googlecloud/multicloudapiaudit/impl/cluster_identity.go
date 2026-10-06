@@ -21,7 +21,7 @@ import (
 )
 
 // clusterIdentityAliasTask provides the cluster identity of GKE multi-cloud inspections from the shared k8scommon cluster identity task.
-var clusterIdentityAliasTask = coretask.NewAliasTask(
+var clusterIdentityAliasTask = coretask.DefineAliasTask(
 	multicloudapiaudit.ClusterIdentityTaskID,
 	k8scommon.ClusterIdentityTaskID.Ref(),
 )

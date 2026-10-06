@@ -101,8 +101,8 @@ func TestDefineSetForm_FormField(t *testing.T) {
 			Name: "A set form with custom configuration",
 			Spec: SetFormSpec[[]string]{
 				AllowCustomValue: ConstantBool(true),
-				AllowAddAll:      ConstantBool(false),
-				AllowRemoveAll:   ConstantBool(false),
+				DisableAddAll:    ConstantBool(true),
+				DisableRemoveAll: ConstantBool(true),
 			},
 			RequestValue:  []string{"custom"},
 			ExpectedValue: []string{"custom"},

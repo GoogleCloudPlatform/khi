@@ -21,7 +21,7 @@ import (
 )
 
 // clusterIdentityAliasTask provides the cluster identity of serial port log tasks from the shared k8scommon cluster identity task.
-var clusterIdentityAliasTask = coretask.NewAliasTask(
+var clusterIdentityAliasTask = coretask.DefineAliasTask(
 	serialport.ClusterIdentityTaskID,
 	k8scommon.ClusterIdentityTaskID.Ref(),
 )

@@ -1,6 +1,6 @@
 ---
 name: log-timeline-mapper
-description: Guidelines for implementing and testing LogIngesterTask and LogToTimelineMapper tasks in KHI.
+description: Guidelines for implementing and testing DefineLogIngesterTask and DefineLogToTimelineMapperTask tasks in KHI.
 ---
 
 # KHI Log Ingestion & Timeline Mapping Guidelines
@@ -250,7 +250,7 @@ var MyTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 
 ## 3. Testing Guidelines
 
-Tests for V2 tasks must follow the standard Table-Driven testing pattern. To verify mappers or ingesters produced correct outcomes across various scenarios, you should write unit tests utilizing `testchangeset` fluent assertions.
+Tests for tasks must follow the standard Table-Driven testing pattern. To verify mappers or ingesters produce correct outcomes across various scenarios, write unit tests utilizing `testchangeset` fluent assertions.
 
 ### Table-Driven Fluent Assertions
 
@@ -286,7 +286,6 @@ func TestMyLogIngester_ProcessLog(t *testing.T) {
  ingester := &MyLogIngester{}
  for _, tc := range testCases {
   t.Run(tc.name, func(t *testing.T) {
-   // Obtain context dynamically using t.Context()
    ctx := t.Context()
 
    cs, err := ingester.ProcessLog(ctx, tc.input)
@@ -302,15 +301,15 @@ func TestMyLogIngester_ProcessLog(t *testing.T) {
 
 #### TimelineMapper Table-Driven Assertion Example
 
-Mappers translate structured logs into timeline changes. Isolate mapper tests using `testlog.NewMockLog` and execute assertions using the fluent `changeset` asserter.
+Mappers translate structured logs into timeline changes. When a mapper reads upstream task results via `coretask.Input[T]`, extract the per-log mapping logic into a pure helper function (e.g., `mapMyLog(ctx, l, prevState, depValue)`) so `ProcessLogByGroup` simply resolves `m.dep.Get(ctx)` and delegates to `mapMyLog`. Unit tests can then call `mapMyLog` directly with `testlog.NewMockLog` and `testchangeset.AssertTimeline` without needing a `Binder` or task harness.
 
 > [!IMPORTANT]
-> **Shared Builder Reference:** When unit testing mappers that dynamically construct timeline paths via context builder, you MUST initialize a single `khifilev6.Builder` and resolve all comparison `TimelinePath` instances using this builder. Crucially, the same builder instance must be injected into the execution context using `khictx.WithValue` to ensure pointer equality during assertions.
+> **Shared Builder Reference:** When unit testing mappers that dynamically construct timeline paths via context builder, you MUST initialize a single `khifilev6.Builder` (or `khifilev6.NewTestBuilder`) and resolve all comparison `TimelinePath` instances using this builder. Crucially, the same builder instance must be injected into the execution context using `khictx.WithValue` to ensure pointer equality during assertions.
 
 ```go
-func TestMyTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapMyLog(t *testing.T) {
  // 1. Initialize the Builder first.
- builder := khifilev6.NewBuilder()
+ builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
  // 2. Resolve comparative path instances using the Builder's accumulator.
  // TimelineTypes must be imported from the feature root package.
@@ -359,19 +358,32 @@ func TestMyTimelineMapper_ProcessLogByGroup(t *testing.T) {
   },
  }
 
- mapper := &MySimpleMapper{}
  for _, tc := range testCases {
   t.Run(tc.name, func(t *testing.T) {
    // 3. Set up the context using t.Context() and SAME builder instance.
    ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-   cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, tc.prevState)
+   cs, _, err := mapMyLog(ctx, tc.inputLog, tc.prevState)
    if err != nil {
-    t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+    t.Fatalf("mapMyLog() returned unexpected error: %v", err)
    }
 
    tc.assert(t, cs)
   })
  }
 }
+```
+
+To also verify task-level `Binder` wiring and end-to-end execution of `MyTimelineMapperTask`, use `inspectiontest.Run` with `tasktest.Given`:
+
+```go
+_, err := inspectiontest.Run(
+ t,
+ ctx,
+ MyTimelineMapperTask,
+ inspectioncore.TaskModeRun,
+ nil,
+ tasktest.Given(myfeature.MyLogIngesterTaskID, struct{}{}),
+ tasktest.Given(myfeature.MyLogGrouperTaskID, groupedLogs),
+)
 ```

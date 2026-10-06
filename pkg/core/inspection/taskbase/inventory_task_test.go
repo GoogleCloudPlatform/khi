@@ -68,7 +68,7 @@ func TestInventoryTask(t *testing.T) {
 		coretask.WithFeatureGate(discovery2ParentTaskID.Ref()),
 	)
 
-	mergerTask := NewInventoryTask(
+	mergerTask := DefineInventoryTask(
 		mergerTaskID,
 		inventoryTag,
 		func(results []map[string]struct{}) (map[string]struct{}, error) {
@@ -194,7 +194,7 @@ func TestInventoryTask(t *testing.T) {
 func TestInventoryTask_Inputs(t *testing.T) {
 	inventoryTag := coretask.NewTag[map[string]struct{}]("test-inventory-tag")
 	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test-merger")
-	mergerTask := NewInventoryTask(
+	mergerTask := DefineInventoryTask(
 		mergerTaskID,
 		inventoryTag,
 		func(results []map[string]struct{}) (map[string]struct{}, error) {

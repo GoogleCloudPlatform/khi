@@ -56,12 +56,12 @@ func (s *mockStructuredLogQuerySource) DefaultResourceNames(ctx context.Context)
 	return s.resourceNames, nil
 }
 
-func (s *mockStructuredLogQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *mockStructuredLogQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	return s.queries, nil
 }
 
-func (s *mockStructuredLogQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return s.timePartitionCount, nil
+func (s *mockStructuredLogQuerySource) TimePartitionCount() int {
+	return s.timePartitionCount
 }
 
 var _ StructuredLogQuerySource = (*mockStructuredLogQuerySource)(nil)
@@ -599,7 +599,7 @@ func (s *projectQuerySource) DefaultResourceNames(ctx context.Context) ([]string
 	return []string{"projects/" + s.projectID.Get(ctx)}, nil
 }
 
-func (s *projectQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *projectQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	if s.noQueries {
 		return nil, nil
 	}
@@ -613,8 +613,8 @@ func (s *projectQuerySource) Queries(ctx context.Context) ([]*logestimator.Struc
 	}}, nil
 }
 
-func (s *projectQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return s.timePartitionCount, nil
+func (s *projectQuerySource) TimePartitionCount() int {
+	return s.timePartitionCount
 }
 
 var _ StructuredLogQuerySource = (*projectQuerySource)(nil)

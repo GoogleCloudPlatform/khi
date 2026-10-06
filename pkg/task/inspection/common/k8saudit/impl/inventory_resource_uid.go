@@ -25,7 +25,7 @@ import (
 )
 
 // resourceUIDInventoryTask merges resource UID to resource identity mappings discovered across tasks.
-var resourceUIDInventoryTask = inspectiontaskbase.NewInventoryTask(
+var resourceUIDInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	k8saudit.ResourceUIDInventoryTaskID,
 	k8saudit.TagResourceUIDDiscovery,
 	mergeResourceUIDs,

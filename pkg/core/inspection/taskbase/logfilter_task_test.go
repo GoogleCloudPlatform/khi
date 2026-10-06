@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -40,7 +41,10 @@ func TestDefineLogFilterTask(t *testing.T) {
 		return func(ctx context.Context, l *log.Log) bool {
 			return slices.Contains(keepIDs.Get(ctx), l.ReadStringOrDefault(pathFilterTestID, "unknown"))
 		}
-	})
+	}, coretask.WithTaskDescription("filters logs by ID"))
+	if got := typedmap.GetOrDefault(task.Labels(), coretask.LabelKeyTaskDescription, ""); got != "filters logs by ID" {
+		t.Errorf("LabelKeyTaskDescription = %q, want %q", got, "filters logs by ID")
+	}
 	wantInputs := []string{"required source", "required keep-ids"}
 
 	testCases := []struct {

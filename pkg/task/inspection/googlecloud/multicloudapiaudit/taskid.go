@@ -26,7 +26,7 @@ var MultiCloudAPIAuditLogTaskIDPrefix = "cloud.google.com/log/multicloud-api/"
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.
 var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[k8scommon.GoogleCloudClusterIdentity](MultiCloudAPIAuditLogTaskIDPrefix + "cluster-identity")
 
-// ListLogEntriesTaskID is the task id for the task that queries compute API logs from Cloud Logging.
+// ListLogEntriesTaskID is the task ID for the task that queries Multi-Cloud API audit logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloudAPIAuditLogTaskIDPrefix + "query")
 
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.

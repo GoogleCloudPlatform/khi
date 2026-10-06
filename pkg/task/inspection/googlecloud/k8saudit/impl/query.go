@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // k8sAuditQuerySource builds the Cloud Logging query for the Kubernetes audit logs of the cluster.
@@ -42,7 +43,7 @@ func (s *k8sAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]strin
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *k8sAuditQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *k8sAuditQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := s.clusterIdentity.Get(ctx)
 	kindFilter := s.kindFilter.Get(ctx)
 	namespaceFilter := s.namespaceFilter.Get(ctx)
@@ -51,8 +52,8 @@ func (s *k8sAuditQuerySource) Queries(ctx context.Context) ([]*logestimator.Stru
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *k8sAuditQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 10, nil
+func (s *k8sAuditQuerySource) TimePartitionCount() int {
+	return 10
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*k8sAuditQuerySource)(nil)

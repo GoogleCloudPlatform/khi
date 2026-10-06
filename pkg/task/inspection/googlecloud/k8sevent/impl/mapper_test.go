@@ -33,7 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestLogToTimelineMapperTask(t *testing.T) {
+func TestMapK8sEventLog(t *testing.T) {
 	// Initialize the shared Builder reference.
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 

@@ -25,7 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestNewAliasTask(t *testing.T) {
+func TestDefineAliasTask(t *testing.T) {
 	tests := []struct {
 		name        string
 		sourceValue string
@@ -43,7 +43,7 @@ func TestNewAliasTask(t *testing.T) {
 			sourceTaskID := taskid.NewDefaultImplementationID[string]("source-task")
 			aliasTaskID := taskid.NewDefaultImplementationID[string]("alias-task")
 
-			aliasTask := NewAliasTask(aliasTaskID, sourceTaskID.Ref())
+			aliasTask := DefineAliasTask(aliasTaskID, sourceTaskID.Ref())
 
 			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](sourceTaskID.ReferenceIDString()), tc.sourceValue)
 			ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)

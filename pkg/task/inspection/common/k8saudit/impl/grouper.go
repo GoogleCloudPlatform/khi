@@ -42,9 +42,9 @@ var nonSuccessLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	k8saudit.NonSuccessLogGrouperTaskID,
 	k8saudit.NonSuccessLogFilterTaskID.Ref(),
 	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
-		extractorInput := coretask.UseOptional(b, k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph))
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
 		return func(ctx context.Context, l *log.Log) string {
-			extractor, _ := extractorInput.Get(ctx)
+			extractor := extractorInput.Get(ctx)
 			fieldSet, _ := k8saudit.ExtractK8sAuditLog(l.NodeReader, extractor)
 			return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s,name=%s, subresource=%s", fieldSet.APIVersion, fieldSet.PluralKind, fieldSet.Namespace, fieldSet.ResourceName, fieldSet.SubresourceName)
 		}
@@ -59,14 +59,14 @@ var changeTargetGrouperTask = inspectiontaskbase.DefineInspectionTask[k8saudit.R
 	k8saudit.ChangeTargetGrouperTaskID,
 	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ResourceLogGroupMap] {
 		logsInput := coretask.Use(b, k8saudit.SuccessLogFilterTaskID.Ref())
-		extractorInput := coretask.UseOptional(b, k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph))
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
 		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceLogGroupMap, error) {
 			if taskMode != inspectioncore.TaskModeRun {
 				return k8saudit.ResourceLogGroupMap{}, nil
 			}
 
 			logs := logsInput.Get(ctx)
-			extractor, _ := extractorInput.Get(ctx)
+			extractor := extractorInput.Get(ctx)
 			tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
 			defer tracker.Done()
 			result := k8saudit.ResourceLogGroupMap{}

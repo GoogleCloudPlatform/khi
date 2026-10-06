@@ -106,12 +106,10 @@ func mapK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.Patter
 	cs.AddEvent(primaryResourcePath)
 
 	if event.Message != "" {
-		if finder != nil {
-			matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, k8saudit.EventMessageUIDStarterRunes...)
-			for _, match := range matches {
-				matchedPath := k8saudit.MustResourceTimeline(ctx, event.ClusterName, match.Value)
-				cs.AddEvent(matchedPath)
-			}
+		matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, k8saudit.EventMessageUIDStarterRunes...)
+		for _, match := range matches {
+			matchedPath := k8saudit.MustResourceTimeline(ctx, event.ClusterName, match.Value)
+			cs.AddEvent(matchedPath)
 		}
 	}
 

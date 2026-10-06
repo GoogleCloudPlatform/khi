@@ -31,7 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
+func TestMapControllerManagerLog(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 

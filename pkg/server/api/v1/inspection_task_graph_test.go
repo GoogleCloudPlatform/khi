@@ -68,10 +68,13 @@ func TestInspectionTaskGraphServer_GetInspectionTaskRegistry(t *testing.T) {
 
 	task := createServerTestTask("my.ref", "impl1", nil,
 		coretask.WithSelectionPriority(10),
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
 	)
-	if err := inspectionServer.AddTask(task); err != nil {
-		t.Fatalf("failed to add task: %v", err)
+	if err := inspectionServer.AddModules(coreinspection.Module{
+		Name:  "gke",
+		Scope: coreinspection.Scope{"environment": "googlecloud"},
+		Tasks: []coretask.UntypedTask{task},
+	}); err != nil {
+		t.Fatalf("failed to add module: %v", err)
 	}
 
 	server := NewInspectionTaskGraphServer(inspectionServer, DefaultStreamCycleDuration, DefaultUpdateInterval)
@@ -142,20 +145,19 @@ func TestInspectionTaskGraphServer_ResolveInspectionTaskGraph(t *testing.T) {
 	}
 
 	taskA := createServerTestTask("feature.a", "impl1", nil,
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
 		inspectioncore.FeatureTaskLabel("Feature A", "Description A", 1, true),
 	)
 	refA := taskid.NewTaskReference[any]("feature.a")
 	taskB := createServerTestTask("task.b", "impl1", []coretask.Dependency{refA},
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
 		inspectioncore.FeatureTaskLabel("Feature B", "Description B", 2, true),
 	)
 
-	if err := inspectionServer.AddTask(taskA); err != nil {
-		t.Fatalf("failed to add taskA: %v", err)
-	}
-	if err := inspectionServer.AddTask(taskB); err != nil {
-		t.Fatalf("failed to add taskB: %v", err)
+	if err := inspectionServer.AddModules(coreinspection.Module{
+		Name:  "gke",
+		Scope: coreinspection.Scope{"environment": "googlecloud"},
+		Tasks: []coretask.UntypedTask{taskA, taskB},
+	}); err != nil {
+		t.Fatalf("failed to add module: %v", err)
 	}
 
 	server := NewInspectionTaskGraphServer(inspectionServer, DefaultStreamCycleDuration, DefaultUpdateInterval)

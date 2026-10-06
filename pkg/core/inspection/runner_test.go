@@ -177,15 +177,13 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 func TestIsTaskCompatible(t *testing.T) {
 	tests := []struct {
 		name           string
-		labelOpts      []coretask.LabelOpt
+		scope          Scope
 		inspectionType *InspectionType
 		want           bool
 	}{
 		{
-			name: "Selector matches target labels",
-			labelOpts: []coretask.LabelOpt{
-				inspectioncore.InspectionTypeLabelSelector(inspectioncore.LabelSelector{"platform": "gke"}),
-			},
+			name:  "Selector matches target labels",
+			scope: Scope{"platform": "gke"},
 			inspectionType: &InspectionType{
 				Id:     "some-env",
 				Labels: map[string]string{"platform": "gke", "provider": "google"},
@@ -193,10 +191,8 @@ func TestIsTaskCompatible(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "Selector does not match target labels due to value mismatch",
-			labelOpts: []coretask.LabelOpt{
-				inspectioncore.InspectionTypeLabelSelector(inspectioncore.LabelSelector{"platform": "gke"}),
-			},
+			name:  "Selector does not match target labels due to value mismatch",
+			scope: Scope{"platform": "gke"},
 			inspectionType: &InspectionType{
 				Id:     "some-env",
 				Labels: map[string]string{"platform": "gdc"},
@@ -204,10 +200,8 @@ func TestIsTaskCompatible(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "Selector does not match target labels due to missing key in target",
-			labelOpts: []coretask.LabelOpt{
-				inspectioncore.InspectionTypeLabelSelector(inspectioncore.LabelSelector{"platform": "gke"}),
-			},
+			name:  "Selector does not match target labels due to missing key in target",
+			scope: Scope{"platform": "gke"},
 			inspectionType: &InspectionType{
 				Id:     "some-env",
 				Labels: map[string]string{"provider": "google"},
@@ -216,11 +210,9 @@ func TestIsTaskCompatible(t *testing.T) {
 		},
 		{
 			name: "Multi-key selector matches when all keys match",
-			labelOpts: []coretask.LabelOpt{
-				inspectioncore.InspectionTypeLabelSelector(inspectioncore.LabelSelector{
-					"platform": "gke",
-					"provider": "google",
-				}),
+			scope: Scope{
+				"platform": "gke",
+				"provider": "google",
 			},
 			inspectionType: &InspectionType{
 				Id:     "some-env",
@@ -230,11 +222,9 @@ func TestIsTaskCompatible(t *testing.T) {
 		},
 		{
 			name: "Multi-key selector fails when only some keys match",
-			labelOpts: []coretask.LabelOpt{
-				inspectioncore.InspectionTypeLabelSelector(inspectioncore.LabelSelector{
-					"platform": "gke",
-					"provider": "aws",
-				}),
+			scope: Scope{
+				"platform": "gke",
+				"provider": "aws",
 			},
 			inspectionType: &InspectionType{
 				Id:     "some-env",
@@ -243,8 +233,8 @@ func TestIsTaskCompatible(t *testing.T) {
 			want: false,
 		},
 		{
-			name:      "No selector (Global task)",
-			labelOpts: []coretask.LabelOpt{},
+			name:  "No selector (Global task)",
+			scope: nil,
 			inspectionType: &InspectionType{
 				Id: "any-env",
 			},
@@ -254,11 +244,13 @@ func TestIsTaskCompatible(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			task := coretask.DefineConstant[any](
+			task, err := applyScope(coretask.DefineConstant[any](
 				taskid.NewDefaultImplementationID[any]("test-task"),
 				nil,
-				tt.labelOpts...,
-			)
+			), tt.scope)
+			if err != nil {
+				t.Fatalf("applyScope() failed: %v", err)
+			}
 
 			got, _ := EvaluateTaskCompatibility(task, tt.inspectionType)
 			if got != tt.want {
@@ -353,7 +345,7 @@ func TestDeduplicateTasksByPriority(t *testing.T) {
 func TestSetInspectionType_SelectionPriority(t *testing.T) {
 	tests := []struct {
 		name                 string
-		tasks                []coretask.UntypedTask
+		modules              []Module
 		inspectionType       InspectionType
 		wantAvailableTaskIDs []string
 		wantFeatureListIDs   []string
@@ -366,22 +358,32 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 				Name:   "GKE Inspection",
 				Labels: map[string]string{"platform": "gke"},
 			},
-			tasks: []coretask.UntypedTask{
-				// Generic implementation with priority 0, default feature
-				coretask.DefineConstant[any](
-					taskid.NewImplementationID(taskid.NewTaskReference[any]("audit-log-parser"), "generic"),
-					nil,
-					inspectioncore.FeatureTaskLabel("Generic Audit Logs", "Generic description", 100, true),
-					coretask.WithSelectionPriority(0),
-				),
-				// GKE specialized implementation with priority 100, default feature
-				coretask.DefineConstant[any](
-					taskid.NewImplementationID(taskid.NewTaskReference[any]("audit-log-parser"), "gke"),
-					nil,
-					inspectioncore.FeatureTaskLabel("GKE Audit Logs", "GKE description", 100, true),
-					inspectioncore.InspectionTypeLabelSelector(map[string]string{"platform": "gke"}),
-					coretask.WithSelectionPriority(100),
-				),
+			modules: []Module{
+				{
+					Name: "generic",
+					Tasks: []coretask.UntypedTask{
+						// Generic implementation with priority 0, default feature
+						coretask.DefineConstant[any](
+							taskid.NewImplementationID(taskid.NewTaskReference[any]("audit-log-parser"), "generic"),
+							nil,
+							inspectioncore.FeatureTaskLabel("Generic Audit Logs", "Generic description", 100, true),
+							coretask.WithSelectionPriority(0),
+						),
+					},
+				},
+				{
+					Name:  "gke",
+					Scope: Scope{"platform": "gke"},
+					Tasks: []coretask.UntypedTask{
+						// GKE specialized implementation with priority 100, default feature
+						coretask.DefineConstant[any](
+							taskid.NewImplementationID(taskid.NewTaskReference[any]("audit-log-parser"), "gke"),
+							nil,
+							inspectioncore.FeatureTaskLabel("GKE Audit Logs", "GKE description", 100, true),
+							coretask.WithSelectionPriority(100),
+						),
+					},
+				},
 			},
 			wantAvailableTaskIDs: []string{"audit-log-parser#gke"},
 			wantFeatureListIDs:   []string{"audit-log-parser#gke"},
@@ -394,22 +396,32 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 				Name:   "GKE Inspection",
 				Labels: map[string]string{"platform": "gke"},
 			},
-			tasks: []coretask.UntypedTask{
-				// Generic implementation with priority 0, default feature = true
-				coretask.DefineConstant[any](
-					taskid.NewImplementationID(taskid.NewTaskReference[any]("custom-feature"), "generic"),
-					nil,
-					inspectioncore.FeatureTaskLabel("Generic Feature", "Generic description", 100, true),
-					coretask.WithSelectionPriority(0),
-				),
-				// GKE specialized implementation with priority 50, default feature = false
-				coretask.DefineConstant[any](
-					taskid.NewImplementationID(taskid.NewTaskReference[any]("custom-feature"), "gke"),
-					nil,
-					inspectioncore.FeatureTaskLabel("GKE Feature", "GKE description", 100, false),
-					inspectioncore.InspectionTypeLabelSelector(map[string]string{"platform": "gke"}),
-					coretask.WithSelectionPriority(50),
-				),
+			modules: []Module{
+				{
+					Name: "generic",
+					Tasks: []coretask.UntypedTask{
+						// Generic implementation with priority 0, default feature = true
+						coretask.DefineConstant[any](
+							taskid.NewImplementationID(taskid.NewTaskReference[any]("custom-feature"), "generic"),
+							nil,
+							inspectioncore.FeatureTaskLabel("Generic Feature", "Generic description", 100, true),
+							coretask.WithSelectionPriority(0),
+						),
+					},
+				},
+				{
+					Name:  "gke",
+					Scope: Scope{"platform": "gke"},
+					Tasks: []coretask.UntypedTask{
+						// GKE specialized implementation with priority 50, default feature = false
+						coretask.DefineConstant[any](
+							taskid.NewImplementationID(taskid.NewTaskReference[any]("custom-feature"), "gke"),
+							nil,
+							inspectioncore.FeatureTaskLabel("GKE Feature", "GKE description", 100, false),
+							coretask.WithSelectionPriority(50),
+						),
+					},
+				},
 			},
 			wantAvailableTaskIDs: []string{"custom-feature#gke"},
 			wantFeatureListIDs:   []string{"custom-feature#gke"},
@@ -428,10 +440,8 @@ func TestSetInspectionType_SelectionPriority(t *testing.T) {
 				t.Fatalf("AddInspectionType failed: %v", err)
 			}
 
-			for _, task := range tc.tasks {
-				if err := server.AddTask(task); err != nil {
-					t.Fatalf("AddTask failed: %v", err)
-				}
+			if err := server.AddModules(tc.modules...); err != nil {
+				t.Fatalf("AddModules failed: %v", err)
 			}
 
 			inspectionID, err := server.CreateInspection(tc.inspectionType.Id)

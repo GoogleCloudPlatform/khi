@@ -8,7 +8,7 @@
 
 ## 1. インスペクションタスクサーバーへのタスク登録
 
-KHI のビルドスクリプトは、`pkg/task/inspection/<プロバイダ>/<機能>/impl` 以下に `module.go` が存在する場合、初期化時にそのパッケージの `Module` を自動で登録するよう構成します。
+KHI のビルドスクリプトは、`pkg/task/inspection` 配下の `impl` ディレクトリに `module.go` が存在する場合、初期化時にそのパッケージの `Module` を自動で登録するよう構成します。
 新しいタスクや Inspection Type を追加するパッケージを定義するには、`module.go` 内で `coreinspection.Module` 型の公開変数 `Module` を宣言します。
 
 ```go
@@ -16,11 +16,11 @@ KHI のビルドスクリプトは、`pkg/task/inspection/<プロバイダ>/<機
 var Module = coreinspection.Module{
     Name: "oss/k8s",
     Scope: coreinspection.Scope{
-        inspectioncore_contract.InspectionTypeLabelKeyLogSource:    "file",
-        inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "oss",
-        inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+        inspectioncore.InspectionTypeLabelKeyLogSource:    "file",
+        inspectioncore.InspectionTypeLabelKeyEnvironment:  "oss",
+        inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
     },
-    InspectionTypes: []coreinspection.InspectionType{ossclusterk8s_contract.OSSKubernetesLogFilesInspectionType},
+    InspectionTypes: []coreinspection.InspectionType{ossk8s.OSSKubernetesLogFilesInspectionType},
     Tasks: []coretask.UntypedTask{
         InputAuditLogFilesTask,
         InputNodeLogFilesTask,
@@ -33,51 +33,35 @@ var Module = coreinspection.Module{
 
 KHI の「New Inspection」画面では、選択された環境やログ種別に応じて、どのタスクをグラフに含めて実行するかが動的に決定されます。これらを制御するために、インスペクションタスクには特別なラベルを付与できます。
 
-### 2.1 `InspectionTypeLabelSelector` によるタスクの絞り込み
+### 2.1 `Module.Scope` によるタスクの絞り込み
 
 KHI では、各 `InspectionType` が対象環境やログソース、プラットフォームを表すキー・バリュー形式のラベルを保持しています。代表的なキーは以下の通りです。
 
-- `inspectioncore_contract.InspectionTypeLabelKeyEnvironment` (`"khi.google.com/environment"`)
-- `inspectioncore_contract.InspectionTypeLabelKeyLogSource` (`"khi.google.com/log_source"`)
-- `inspectioncore_contract.InspectionTypeLabelKeyBasePlatform` (`"khi.google.com/base_platform"`)
+- `inspectioncore.InspectionTypeLabelKeyEnvironment` (`"khi.google.com/environment"`)
+- `inspectioncore.InspectionTypeLabelKeyLogSource` (`"khi.google.com/log_source"`)
+- `inspectioncore.InspectionTypeLabelKeyBasePlatform` (`"khi.google.com/base_platform"`)
 
-特定のインスペクションタイプでのみタスクを実行可能にするには、タスク定義時に `InspectionTypeLabelSelector` ラベルオプションを指定して必要なキー・バリューのペアを設定します。
-
-```go
-var AdvancedTask = coretask.Define(
-    AdvancedTaskID,
-    func(b *coretask.Binder) func(ctx context.Context) (any, error) {
-        return func(ctx context.Context) (any, error) {
-            return nil, nil
-        }
-    },
-    inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
-        inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
-        inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
-    }),
-)
-```
-
-インスペクション開始時、ランナーはセレクタに含まれるすべてのキー・バリューが選択された `InspectionType.Labels` に一致するかを検証します。`InspectionTypeLabelSelector` が指定されていないタスクはグローバルタスクとして扱われ、すべてのインスペクションタイプで利用可能になります。
-
-また、パッケージ内の全タスクに一括してセレクタを適用する場合は、`coreinspection.Module` の `Scope` フィールドを設定します。さらに特定のタスクに対してのみ条件を追加して絞り込む場合は `SubModules` を使用できます。
+特定のインスペクションタイプでのみタスクを実行可能にするには、`impl/module.go` の `coreinspection.Module` で `Scope` フィールドを設定します。さらに特定のタスクに対してのみ条件を追加して絞り込む場合は `SubModules` を使用できます。
 
 ```go
 var Module = coreinspection.Module{
     Name: "googlecloud/example",
     Scope: coreinspection.Scope{
-        inspectioncore_contract.InspectionTypeLabelKeyEnvironment: "googlecloud",
+        inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+        inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
     },
     Tasks: []coretask.UntypedTask{TaskA, TaskB},
     SubModules: []coreinspection.Module{
         {
             Name:  "cloud-logging",
-            Scope: coreinspection.Scope{inspectioncore_contract.InspectionTypeLabelKeyLogSource: "cloud_logging"},
+            Scope: coreinspection.Scope{inspectioncore.InspectionTypeLabelKeyLogSource: "cloud_logging"},
             Tasks: []coretask.UntypedTask{CloudLoggingOnlyTask},
         },
     },
 }
 ```
+
+インスペクション開始時、ランナーはモジュールのスコープに含まれるすべてのキー・バリューが選択された `InspectionType.Labels` に一致するかを検証します。`Scope` が指定されていないモジュール内のタスクはグローバルタスクとして扱われ、すべてのインスペクションタイプで利用可能になります。
 
 ### 2.2 FeatureTask ラベル
 
@@ -85,7 +69,7 @@ FeatureTask ラベルは、そのタスクを KHI の「New Inspection」画面�
 マッパータスクなどの主機能となるタスクに指定することで、ユーザーは機能の有効/無効を選択できます。
 
 ```go
-inspectioncore_contract.FeatureTaskLabel("機能ラベル", "機能詳細の説明文", 1000, true)
+inspectioncore.FeatureTaskLabel("機能ラベル", "機能詳細の説明文", 1000, true)
 ```
 
 ## 3. ログから情報を発見するためのタスクユーティリティ (`Inventory` と `Discovery` タスク)
@@ -121,28 +105,28 @@ flowchart TD
 
 ### 3.2 Discovery タスクの作成と Inventory タスクによる統合
 
-KHI では、インベントリ型に対応する `coretask.Tag[T]` を宣言し、各ログソースから `coretask.ProvidesTag` でタグを提供する **個別の Discovery タスク** と、それらを `inspectiontaskbase.NewInventoryTask` で統合する **単一の Inventory タスク** を組み合わせて構築します。
+KHI では、インベントリ型に対応する `coretask.Tag[T]` を宣言し、各ログソースから `coretask.ProvidesTag` でタグを提供する **個別の Discovery タスク** と、それらを `inspectiontaskbase.DefineInventoryTask` で統合する **単一の Inventory タスク** を組み合わせて構築します。
 
 1. **Discovery タスクは `coretask.ProvidesTag(tag)` で結果を提供する**:
    各 Discovery タスクは、自身の `Binder` 上で前提となるログパーサー入力を宣言し、`coretask.ProvidesTag(tag)` を付与します。
-2. **`NewInventoryTask` による有効な機能からの結果統合**:
-   `inspectiontaskbase.NewInventoryTask` は内部で `coretask.UseTag(b, tag.Ref(coretask.FromActiveFeatures))` をバインドし、**今回のインスペクションで有効化された機能に属するデータソースを持つ Discovery タスクの結果のみ**を引き込んでマージします。
+2. **`DefineInventoryTask` による有効な機能からの結果統合**:
+   `inspectiontaskbase.DefineInventoryTask` は内部で `coretask.UseTag(b, tag.Ref(coretask.FromActiveFeatures))` をバインドし、**今回のインスペクションで有効化された機能に属するデータソースを持つ Discovery タスクの結果のみ**を引き込んでマージします。
 
 #### 実装サンプル: ノードログと監査ログの 2 つの Discovery タスクと統合 Inventory タスク
 
 ```go
-// 1. 発見されたコンテナ識別情報のマップに対応するタグを contract で宣言
-var ContainerIDInventoryTag = coretask.NewTag[commonlogk8saudit_contract.ContainerIDToContainerIdentity](
+// 1. 発見されたコンテナ識別情報のマップに対応するタグをルートパッケージで宣言
+var ContainerIDInventoryTag = coretask.NewTag[k8saudit.ContainerIDToContainerIdentity](
     "khi.google.com/inventory/container-id",
 )
 
 // 2-A. ノードログからのコンテナ ID 発見タスク
 var NodeLogContainerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
     NodeLogContainerIDDiscoveryTaskID,
-    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[commonlogk8saudit_contract.ContainerIDToContainerIdentity] {
+    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ContainerIDToContainerIdentity] {
         logsInput := coretask.Use(b, NodeLogParserTaskID.Ref())
-        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
-            if taskMode == inspectioncore_contract.TaskModeDryRun {
+        return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ContainerIDToContainerIdentity, error) {
+            if taskMode == inspectioncore.TaskModeDryRun {
                 return nil, nil
             }
             return extractContainersFromNodeLogs(logsInput.Get(ctx)), nil
@@ -154,10 +138,10 @@ var NodeLogContainerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 // 2-B. 監査ログからのコンテナ ID 発見タスク
 var AuditLogContainerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
     AuditLogContainerIDDiscoveryTaskID,
-    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[commonlogk8saudit_contract.ContainerIDToContainerIdentity] {
+    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ContainerIDToContainerIdentity] {
         logsInput := coretask.Use(b, AuditLogParserTaskID.Ref())
-        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
-            if taskMode == inspectioncore_contract.TaskModeDryRun {
+        return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ContainerIDToContainerIdentity, error) {
+            if taskMode == inspectioncore.TaskModeDryRun {
                 return nil, nil
             }
             return extractContainersFromAuditLogs(logsInput.Get(ctx)), nil
@@ -167,8 +151,8 @@ var AuditLogContainerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 )
 
 // 3. 複数ソースからの結果を重複排除・結合するマージ関数
-func mergeContainerIDs(results []commonlogk8saudit_contract.ContainerIDToContainerIdentity) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
-    result := map[string]*commonlogk8saudit_contract.ContainerIdentity{}
+func mergeContainerIDs(results []k8saudit.ContainerIDToContainerIdentity) (k8saudit.ContainerIDToContainerIdentity, error) {
+    result := map[string]*k8saudit.ContainerIdentity{}
     for _, r := range results {
         for cid, s := range r {
             if current, ok := result[cid]; ok {
@@ -183,7 +167,7 @@ func mergeContainerIDs(results []commonlogk8saudit_contract.ContainerIDToContain
 }
 
 // 4. 有効になっている Discovery タスクの結果のみを集計・マージする Inventory タスク
-var ContainerIDInventoryTask = inspectiontaskbase.NewInventoryTask(
+var ContainerIDInventoryTask = inspectiontaskbase.DefineInventoryTask(
     ContainerIDInventoryTaskID,
     ContainerIDInventoryTag,
     mergeContainerIDs,
@@ -211,7 +195,7 @@ var ContainerIDInventoryTask = inspectiontaskbase.NewInventoryTask(
 ```go
 type MyMapper struct {
     inspectiontaskbase.SinglePassMapperBase[MyGroupData]
-    containerFinder coretask.Input[patternfinder.PatternFinder[*commonlogk8saudit_contract.ContainerIdentity]]
+    containerFinder coretask.Input[patternfinder.PatternFinder[*k8saudit.ContainerIdentity]]
 }
 
 func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData MyGroupData) (*khifilev6.TimelineChangeSet, MyGroupData, error) {
@@ -225,7 +209,7 @@ func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData M
     cs := khifilev6.NewTimelineChangeSet(l)
     for _, res := range results {
         // 発見されたコンテナ情報をもとに Pod のタイムラインイベントを追加
-        podPath := commonlogk8saudit_contract.MustK8sPodTimeline(ctx, clusterName, res.Value.PodNamespace, res.Value.PodName)
+        podPath := MustK8sPodTimeline(ctx, clusterName, res.Value.PodNamespace, res.Value.PodName)
         cs.AddEvent(podPath)
     }
     return cs, prevData, nil
@@ -239,7 +223,7 @@ var MyMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
     },
     func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[MyGroupData] {
         return &MyMapper{
-            containerFinder: coretask.Use(b, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref()),
+            containerFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
         }
     },
 )
@@ -251,10 +235,11 @@ KHI の「New Inspection」ダイアログで、プロジェクト ID、ロケ�
 
 ### 4.1 フォーム定義関数の種類
 
-入力形式に応じて、以下の 3 種類の定義関数を使い分けます:
+入力形式に応じて、以下の 4 種類の定義関数を使い分けます:
 
 - **`formtask.DefineTextForm(...)`**: オートコンプリート、型変換、および正規表現バリデーションに対応した、文字列やテキスト入力用のフォームタスクを定義します。
 - **`formtask.DefineSetForm(...)`**: ドロップダウンやチェックリストなど、選択肢から単一または複数の値を選択させるフォームタスクを定義します。
+- **`formtask.DefineCheckboxForm(...)`**: 真偽値のチェックボックストグル用のフォームタスクを定義します。
 - **`formtask.DefineFileForm(...)`**: ユーザーのローカル環境からのログファイルアップロードやファイルパス選択を受け取るフォームタスクを定義します。
 
 ### 4.2 リッチな入力フォームの構築とオートコンプリート連携
@@ -273,12 +258,12 @@ KHI の「New Inspection」ダイアログで、プロジェクト ID、ロケ�
 
 ```go
 var InputLocationsTask = formtask.DefineTextForm(
-    googlecloudcommon_contract.InputLocationsTaskID,
-    googlecloudcommon_contract.PriorityForResourceIdentifierGroup+3000,
+    gcpcommon.InputLocationsTaskID,
+    gcpcommon.PriorityForResourceIdentifierGroup+3000,
     "Location",
     "The location (region) to specify where the resource exists",
     func(b *coretask.Binder) formtask.TextFormSpec[string] {
-        autocompleteLocation := coretask.Use(b, googlecloudcommon_contract.AutocompleteLocationTaskID.Ref())
+        autocompleteLocation := coretask.Use(b, gcpcommon.AutocompleteLocationTaskID.Ref())
         return formtask.TextFormSpec[string]{
             DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
                 locations := autocompleteLocation.Get(ctx)
@@ -311,11 +296,11 @@ var InputLocationsTask = formtask.DefineTextForm(
 
 ```go
 var ClusterIdentityTask = inspectiontaskbase.DefineInspectionTask(
-    googlecloudk8scommon_contract.ClusterIdentityTaskID,
+    k8scommon.ClusterIdentityTaskID,
     func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[GoogleCloudClusterIdentity] {
-        locationInput := coretask.Use(b, googlecloudcommon_contract.InputLocationsTaskID.Ref())
-        clusterNameInput := coretask.Use(b, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
-        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (GoogleCloudClusterIdentity, error) {
+        locationInput := coretask.Use(b, gcpcommon.InputLocationsTaskID.Ref())
+        clusterNameInput := coretask.Use(b, k8scommon.InputClusterNameTaskID.Ref())
+        return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (GoogleCloudClusterIdentity, error) {
             return GoogleCloudClusterIdentity{
                 Location:    locationInput.Get(ctx),
                 ClusterName: clusterNameInput.Get(ctx),
@@ -338,7 +323,7 @@ var HeavyProcessingTask = inspectiontaskbase.DefineInspectionTask(
     HeavyProcessingTaskID,
     func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[ResultType] {
         logsInput := coretask.Use(b, SourceLogsTaskID.Ref())
-        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
+        return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (ResultType, error) {
             // タスクの実装...
         }
     },
@@ -355,8 +340,8 @@ var HeavyProcessingTask = inspectiontaskbase.DefineInspectionTask(
     HeavyProcessingTaskID,
     func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[ResultType] {
         logsInput := coretask.Use(b, SourceLogsTaskID.Ref())
-        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
-            if taskMode != inspectioncore_contract.TaskModeRun {
+        return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (ResultType, error) {
+            if taskMode != inspectioncore.TaskModeRun {
                 return ResultType{}, nil
             }
 
@@ -395,9 +380,9 @@ err := progress.ForEach(ctx, logs, func(i int, l *log.Log) error {
 var UnknownLengthTask = inspectiontaskbase.DefineInspectionTask(
     UnknownLengthTaskID,
     func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[ResultType] {
-        _ = coretask.Use(b, SomeDependencyTaskID.Ref())
-        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
-            if taskMode != inspectioncore_contract.TaskModeRun {
+        coretask.After(b, SomeDependencyTaskID.Ref())
+        return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (ResultType, error) {
+            if taskMode != inspectioncore.TaskModeRun {
                 return ResultType{}, nil
             }
 
@@ -455,7 +440,7 @@ var CachedHeavyTask = inspectiontaskbase.DefineCachedTask(
 > `CacheScopeInspection` を指定した `DefineCachedTask` で生成されたキャッシュデータや割り当てたリソースをインスペクションの破棄時にクリーンアップしたい場合は、以下のように `context.AfterFunc` を使用してライフサイクルを紐付けることができます:
 >
 > ```go
-> inspectionContext := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionContext)
+> inspectionContext := khictx.MustGetValue(ctx, inspectioncore.InspectionContext)
 > context.AfterFunc(inspectionContext, func() {
 >     // ソケットのクローズやテンポラリファイルの削除などの解放処理
 > })

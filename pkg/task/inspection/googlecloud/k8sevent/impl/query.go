@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8sevent"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // generateK8sEventStructuredQuery generates a structured query for Kubernetes Event logs.
@@ -99,15 +100,15 @@ func (s *k8sEventQuerySource) DefaultResourceNames(ctx context.Context) ([]strin
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *k8sEventQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *k8sEventQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := s.clusterIdentity.Get(ctx)
 	namespaceFilter := s.namespaceFilter.Get(ctx)
 	return []*logestimator.StructuredLogQuery{generateK8sEventStructuredQuery(cluster, namespaceFilter)}, nil
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *k8sEventQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 10, nil
+func (s *k8sEventQuerySource) TimePartitionCount() int {
+	return 10
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*k8sEventQuerySource)(nil)

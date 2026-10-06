@@ -48,7 +48,7 @@ var manifestGeneratorTask = inspectiontaskbase.DefineInspectionTask(
 	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ResourceManifestLogGroupMap] {
 		logGroupsInput := coretask.Use(b, k8saudit.ChangeTargetGrouperTaskID.Ref())
 		mergeConfigRegistryInput := coretask.Use(b, k8saudit.K8sResourceMergeConfigTaskID.Ref())
-		extractorInput := coretask.UseOptional(b, k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph))
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
 		initialStateProviderInput := coretask.Use(b, k8saudit.InitialResourceStateProviderRef)
 		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceManifestLogGroupMap, error) {
 			if taskMode == inspectioncore.TaskModeDryRun {
@@ -57,7 +57,7 @@ var manifestGeneratorTask = inspectiontaskbase.DefineInspectionTask(
 
 			logGroups := logGroupsInput.Get(ctx)
 			mergeConfigRegistry := mergeConfigRegistryInput.Get(ctx)
-			extractor, _ := extractorInput.Get(ctx)
+			extractor := extractorInput.Get(ctx)
 			initialStateProvider := initialStateProviderInput.Get(ctx)
 			result := k8saudit.ResourceManifestLogGroupMap{}
 			resultLock := sync.Mutex{}

@@ -41,7 +41,7 @@ var (
 )
 
 // ipLeaseHistoryInventoryTask merges IP lease histories discovered across tasks.
-var ipLeaseHistoryInventoryTask = inspectiontaskbase.NewInventoryTask(
+var ipLeaseHistoryInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	k8saudit.IPLeaseHistoryInventoryTaskID,
 	k8saudit.TagIPLeaseHistoryDiscovery,
 	func(results []k8saudit.IPLeaseHistory) (k8saudit.IPLeaseHistory, error) {

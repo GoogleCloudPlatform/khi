@@ -49,10 +49,10 @@ type StructuredLogQuerySource interface {
 	DefaultResourceNames(ctx context.Context) ([]string, error)
 
 	// Queries returns the list of structured log queries for estimation and execution.
-	Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error)
+	Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error)
 
 	// TimePartitionCount returns the number of time partitions to gather logs in parallel.
-	TimePartitionCount(ctx context.Context) (int, error)
+	TimePartitionCount() int
 }
 
 // DefineStructuredListLogEntriesTask defines a task that queries logs from Cloud Logging using the StructuredLogQuery list of the source returned by bind.
@@ -70,7 +70,7 @@ func DefineStructuredListLogEntriesTask(taskID taskid.TaskImplementationID[[]*lo
 			callOptionInjector := coretask.Use(b, APIClientCallOptionsInjectorTaskID.Ref())
 			source := bind(b)
 			return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*log.Log, error) {
-				groups, queries, err := resolveStructuredQueries(ctx, taskID, resourceNamesInput.Get(ctx), source)
+				groups, queries, err := resolveStructuredQueries(ctx, taskID, taskMode, resourceNamesInput.Get(ctx), source)
 				if err != nil {
 					return nil, err
 				}
@@ -82,7 +82,7 @@ func DefineStructuredListLogEntriesTask(taskID taskid.TaskImplementationID[[]*lo
 					return nil, estimateAndRecordQueries(ctx, taskID.String(), clientFactory.Get(ctx), callOptionInjector.Get(ctx), groups, queries, startTime.Get(ctx), endTime.Get(ctx), queryName)
 				}
 
-				timePartitionCount, err := resolveTimePartitionCount(ctx, source)
+				timePartitionCount, err := resolveTimePartitionCount(source)
 				if err != nil {
 					return nil, err
 				}
@@ -96,13 +96,13 @@ func DefineStructuredListLogEntriesTask(taskID taskid.TaskImplementationID[[]*lo
 
 // resolveStructuredQueries determines the resource names and queries of a structured list log entries task and groups the resource names by container.
 // It returns no queries when the source has none, so that the caller can skip fetching logs.
-func resolveStructuredQueries(ctx context.Context, taskID taskid.TaskImplementationID[[]*log.Log], resourceNamesInput *ResourceNamesInput, source StructuredLogQuerySource) ([]*resourceContainerLogQueryGroup, []*logestimator.StructuredLogQuery, error) {
+func resolveStructuredQueries(ctx context.Context, taskID taskid.TaskImplementationID[[]*log.Log], taskMode inspectioncore.InspectionTaskModeType, resourceNamesInput *ResourceNamesInput, source StructuredLogQuerySource) ([]*resourceContainerLogQueryGroup, []*logestimator.StructuredLogQuery, error) {
 	resourceNames, err := handleResourceNames(ctx, taskID, resourceNamesInput, source.DefaultResourceNames)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to determine resource names list for structured log query: %w", err)
 	}
 
-	queries, err := source.Queries(ctx)
+	queries, err := source.Queries(ctx, taskMode)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Queries returned an error: %w", err)
 	}
@@ -119,11 +119,8 @@ func resolveStructuredQueries(ctx context.Context, taskID taskid.TaskImplementat
 }
 
 // resolveTimePartitionCount returns the time partition count of the source after checking that it is positive.
-func resolveTimePartitionCount(ctx context.Context, source StructuredLogQuerySource) (int, error) {
-	timePartitionCount, err := source.TimePartitionCount(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("TimePartitionCount returned an error: %w", err)
-	}
+func resolveTimePartitionCount(source StructuredLogQuerySource) (int, error) {
+	timePartitionCount := source.TimePartitionCount()
 	if timePartitionCount < 1 {
 		return 0, fmt.Errorf("TimePartitionCount returned an invalid value %d, it must be bigger than 0", timePartitionCount)
 	}

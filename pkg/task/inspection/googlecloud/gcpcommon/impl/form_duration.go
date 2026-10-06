@@ -33,9 +33,9 @@ var inputDurationTask = formtask.DefineTextForm(
 	"Duration",
 	"The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)",
 	func(b *coretask.Binder) formtask.TextFormSpec[time.Duration] {
-		inspectionTimeHandle := coretask.Use(b, inspectioncore.InspectionTimeTaskID.Ref())
-		endTimeHandle := coretask.Use(b, gcpcommon.InputEndTimeTaskID.Ref())
-		timezoneShiftHandle := coretask.Use(b, inspectioncore.TimeZoneShiftInputTaskID.Ref())
+		inspectionTimeInput := coretask.Use(b, inspectioncore.InspectionTimeTaskID.Ref())
+		endTimeInput := coretask.Use(b, gcpcommon.InputEndTimeTaskID.Ref())
+		timezoneShiftInput := coretask.Use(b, inspectioncore.TimeZoneShiftInputTaskID.Ref())
 
 		return formtask.TextFormSpec[time.Duration]{
 			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
@@ -59,9 +59,9 @@ var inputDurationTask = formtask.DefineTextForm(
 				return time.ParseDuration(value)
 			},
 			Hint: func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-				inspectionTime := inspectionTimeHandle.Get(ctx)
-				endTime := endTimeHandle.Get(ctx)
-				timezoneShift := timezoneShiftHandle.Get(ctx)
+				inspectionTime := inspectionTimeInput.Get(ctx)
+				endTime := endTimeInput.Get(ctx)
+				timezoneShift := timezoneShiftInput.Get(ctx)
 
 				duration := convertedValue.(time.Duration)
 				startTime := endTime.Add(-duration)

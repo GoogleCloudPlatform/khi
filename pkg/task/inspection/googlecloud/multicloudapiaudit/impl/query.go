@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/multicloudapiaudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // generateMultiCloudAPIStructuredQuery generates a structured query for multicloud API logs.
@@ -51,13 +52,13 @@ func (s *multiCloudAuditQuerySource) DefaultResourceNames(ctx context.Context) (
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *multiCloudAuditQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *multiCloudAuditQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	return []*logestimator.StructuredLogQuery{generateMultiCloudAPIStructuredQuery(s.clusterIdentity.Get(ctx))}, nil
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *multiCloudAuditQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
+func (s *multiCloudAuditQuerySource) TimePartitionCount() int {
+	return 1
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*multiCloudAuditQuerySource)(nil)

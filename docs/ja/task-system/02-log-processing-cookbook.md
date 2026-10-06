@@ -43,10 +43,10 @@ flowchart TD
 ## 2. Extractor 関数によるフィールド抽出
 
 KHI のログは、`l.NodeReader` を介して高速・ゼロコピーな `*structured.NodeReader` を提供します。
-生ログから構造化フィールドを抽出するには、`contract` パッケージに Extractor 関数と型付き構造体を定義します:
+生ログから構造化フィールドを抽出するには、機能パッケージのルートに Extractor 関数と型付き構造体を定義します:
 
 ```go
-package myapp_contract
+package myapp
 
 import (
     "github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -64,8 +64,8 @@ type MyFields struct {
 
 func ExtractMyFields(reader *structured.NodeReader) (MyFields, error) {
     return MyFields{
-        Foo: reader.ReadStringOrDefaultByPath(pathFoo, ""),
-        Bar: reader.ReadIntOrDefaultByPath(pathBar, 0),
+        Foo: reader.ReadStringOrDefault(pathFoo, ""),
+        Bar: reader.ReadIntOrDefault(pathBar, 0),
     }, nil
 }
 ```
@@ -84,7 +84,7 @@ var MyFilterTask = inspectiontaskbase.DefineLogFilterTask(
     SourceLogsTaskID.Ref(),
     func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
         return func(ctx context.Context, l *log.Log) bool {
-            fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
+            fields, err := myapp.ExtractMyFields(l.NodeReader)
             return err == nil && fields.Bar > 0
         }
     },
@@ -104,7 +104,7 @@ var MyGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
     SourceLogsTaskID.Ref(),
     func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
         return func(ctx context.Context, l *log.Log) string {
-            fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
+            fields, err := myapp.ExtractMyFields(l.NodeReader)
             if err == nil && fields.Foo != "" {
                 return fields.Foo
             }
@@ -133,9 +133,9 @@ var MyLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
             }
 
             cs.SetTimestamp(l.Timestamp)
-            cs.SetLogType(myapp_contract.LogTypeMyApp)
+            cs.SetLogType(myapp.LogTypeMyApp)
 
-            if fields, err := myapp_contract.ExtractMyFields(l.NodeReader); err == nil {
+            if fields, err := myapp.ExtractMyFields(l.NodeReader); err == nil {
                 cs.SetSummary(fmt.Sprintf("[%s] count=%d", fields.Foo, fields.Bar))
             }
 
@@ -175,16 +175,16 @@ var _ inspectiontaskbase.TimelineMapper[MyGroupData] = (*MyMapper)(nil)
 現在の KHI 実装では、マッパー内で生の文字列からパスを直接構築するのではなく、リソースのツリー構造を明確に型で表現する **`*khifilev6.TimelinePath`** を用いてイベントを追加・解決します。
 さらに、親階層を `TimelineAccumulator.GetPath` でゼロから再構築するのではなく、`MustXXXTimeline` といった既存の親タイムラインヘルパー関数を合成して子リソースのパスを生成する**タイムラインパス生成ユーティリティ**を作成する実装パターンを採用しています。
 
-#### 1. タイムラインパス生成ヘルパーの作成例 (`contract` または `impl` パッケージに定義)
+#### 1. タイムラインパス生成ヘルパーの作成例
 
 ```go
 // 親タイムラインヘルパー関数を合成する複合 TimelinePath ヘルパー関数の作成例
 func MustK8sPodTimeline(ctx context.Context, clusterName string, namespace string, podName string) *khifilev6.TimelinePath {
-    clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-    apiVersionPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-    kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
-    namespacePath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, namespace)
-    return commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespacePath, podName)
+    clusterPath := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+    apiVersionPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+    kindPath := k8saudit.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
+    namespacePath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, namespace)
+    return k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespacePath, podName)
 }
 ```
 
@@ -215,7 +215,7 @@ var MyMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
     func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[MyGroupData] {
         return &MyMapper{}
     },
-    inspectioncore_contract.FeatureTaskLabel(
+    inspectioncore.FeatureTaskLabel(
         "Custom App Logs",
         "Parser and timeline mapping for Custom App logs.",
         9000,
@@ -227,7 +227,9 @@ var MyMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 ### 6.3 マッパーのユニットテスト (`testchangeset.AssertTimeline`)
 
 マッパーのテストでは、`testchangeset.AssertTimeline(t, cs)` を使用して、生成された `TimelineChangeSet` の内容を宣言的に検証します。
-文字列パスや非推奨の API は使用せず、期待される `*khifilev6.TimelinePath` を作成して検証します。
+生の文字列パスは使用せず、期待される `*khifilev6.TimelinePath` を作成して検証します。
+
+バインドされた `coretask.Input[T]` ハンドルを持たないマッパーであれば、`ProcessLogByGroup` を直接呼び出してテストできます。マッパーが `input.Get(ctx)` で上流入力を読み取る場合は、マッピングロジックを解決済みの値を直接受け取る純粋なヘルパー関数として切り出してテストし、タスクレベルの `Binder` 配線は `inspectiontest.Run(t, ctx, MyMapperTask, inspectioncore.TaskModeRun, nil, tasktest.Given(...))` で検証します。
 
 ```go
 func TestMyMapper_ProcessLogByGroup(t *testing.T) {

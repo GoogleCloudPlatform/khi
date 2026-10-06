@@ -35,7 +35,7 @@ func mergeNEGNames(results []k8scommon.NEGNameToResourceIdentityMap) (k8scommon.
 }
 
 // negNamesInventoryTask is an inventory task that merges discovered NEG names.
-var negNamesInventoryTask = inspectiontaskbase.NewInventoryTask(
+var negNamesInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	k8scommon.NEGNamesInventoryTaskID,
 	k8scommon.TagNEGNamesDiscovery,
 	mergeNEGNames,

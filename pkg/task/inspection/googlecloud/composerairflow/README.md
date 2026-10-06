@@ -39,7 +39,7 @@ Logs are filtered into specific component streams using extractors. Each stream 
 
 ### 4. Aggregation
 
-- **`composerLogsTailTask`**: Collects the outputs of all `...LogToTimelineMapperTask` tasks to unify the Composer logs feature on the timeline.
+- **`composerLogsTailTask`**: Waits for all `...LogToTimelineMapperTask` tasks to complete and exposes the Composer logs feature toggle.
 
 ## Task Relationship Diagram
 
@@ -55,11 +55,11 @@ graph TD
     classDef external fill:#e0f7fa,stroke:#33691e,stroke-width:2px,stroke-dasharray: 5 5;
 
     %% External Tasks
-    ProjectIDInput[InputProjectIdTask]:::external
-    LocationInput[InputLocationTask]:::external
-    StartTime[InputStartTimeTask]:::external
-    EndTime[InputEndTimeTask]:::external
-    ClusterIdentity[ClusterIdentityTask]:::pipeline
+    ProjectIDInput[inputProjectIdTask]:::external
+    LocationInput[inputLocationsTask]:::external
+    StartTime[inputStartTimeTask]:::external
+    EndTime[inputEndTimeTask]:::external
+    ClusterIdentity[clusterIdentityTask]:::pipeline
 
     %% Composer Discovery & Input
     EnvIdentityAuto[autocompleteComposerEnvironmentIdentityTask]:::pipeline

@@ -72,7 +72,11 @@ func (m Module) flattenInto(result *flattenedModule, parentPath string, parentSc
 	}
 	result.inspectionTypes = append(result.inspectionTypes, m.InspectionTypes...)
 	for _, task := range m.Tasks {
-		result.tasks = append(result.tasks, applyScope(task, scope))
+		scoped, err := applyScope(task, scope)
+		if err != nil {
+			return fmt.Errorf("module %s: %w", path, err)
+		}
+		result.tasks = append(result.tasks, scoped)
 	}
 	for _, subModule := range m.SubModules {
 		if err := subModule.flattenInto(result, path, scope); err != nil {
@@ -84,32 +88,30 @@ func (m Module) flattenInto(result *flattenedModule, parentPath string, parentSc
 
 // applyScope labels the task with the inspection type selector of the scope.
 // A task in an empty scope stays available for all inspection types.
-func applyScope(task coretask.UntypedTask, scope Scope) coretask.UntypedTask {
+// It returns an error if the task already carries LabelKeyInspectionTypeLabelSelector.
+func applyScope(task coretask.UntypedTask, scope Scope) (coretask.UntypedTask, error) {
+	if _, found := typedmap.Get(task.Labels(), inspectioncore.LabelKeyInspectionTypeLabelSelector); found {
+		return nil, fmt.Errorf("task %s already has label %s; use Module.Scope or SubModules instead", task.UntypedID().String(), inspectioncore.LabelKeyInspectionTypeLabelSelector.Key())
+	}
 	if len(scope) == 0 {
-		return task
+		return task, nil
 	}
-	return &wrappedTaskWithLabels{
+	scopeLabels := coretask.NewLabelSet(coretask.WithLabelValue(inspectioncore.LabelKeyInspectionTypeLabelSelector, inspectioncore.LabelSelector(scope)))
+	return &scopedTask{
 		UntypedTask: task,
-		opts:        []coretask.LabelOpt{inspectioncore.InspectionTypeLabelSelector(scope)},
-	}
+		labels:      typedmap.Merge(task.Labels(), scopeLabels),
+	}, nil
 }
 
-// wrappedTaskWithLabels adds labels to a task without changing its behavior.
-type wrappedTaskWithLabels struct {
+// scopedTask attaches precomputed scope labels to a task without changing its behavior.
+type scopedTask struct {
 	coretask.UntypedTask
-	opts []coretask.LabelOpt
+	labels *typedmap.ReadonlyTypedMap
 }
 
-// Labels returns the merged labels of the base task and additional options.
-func (w *wrappedTaskWithLabels) Labels() *typedmap.ReadonlyTypedMap {
-	baseLabels := w.UntypedTask.Labels()
-
-	optMap := typedmap.NewTypedMap()
-	for _, opt := range w.opts {
-		opt.Write(optMap)
-	}
-
-	return typedmap.Merge(baseLabels, optMap)
+// Labels returns the precomputed merged labels of the base task and the module scope.
+func (s *scopedTask) Labels() *typedmap.ReadonlyTypedMap {
+	return s.labels
 }
 
-var _ coretask.UntypedTask = (*wrappedTaskWithLabels)(nil)
+var _ coretask.UntypedTask = (*scopedTask)(nil)

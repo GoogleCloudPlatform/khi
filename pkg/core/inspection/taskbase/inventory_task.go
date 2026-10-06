@@ -19,7 +19,7 @@
 //
 // This framework introduces a demand-driven approach:
 //  1. Discovery Tasks: Extract inventory data from individual sources and publish it via coretask.ProvidesTag(tag).
-//  2. Inventory Tasks: Demand-driven aggregators created via NewInventoryTask, which use tag references
+//  2. Inventory Tasks: Demand-driven aggregators created via DefineInventoryTask, which use tag references
 //     (coretask.FromActiveFeatures) to pull in and merge data only from producers whose prerequisite data sources are active.
 package inspectiontaskbase
 
@@ -31,10 +31,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// NewInventoryTask creates an inventory task that dynamically discovers and aggregates outputs
+// DefineInventoryTask defines an inventory task that dynamically discovers and aggregates outputs
 // from all producer tasks that provide the specified tag within active features.
 // The tag input is declared on a Binder.
-func NewInventoryTask[T any, R any](
+func DefineInventoryTask[T any, R any](
 	id taskid.TaskImplementationID[R],
 	tag coretask.Tag[T],
 	mergeFunc func(results []T) (R, error),

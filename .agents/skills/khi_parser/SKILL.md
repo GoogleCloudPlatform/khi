@@ -169,7 +169,7 @@ func ExtractCustomApp(reader *structured.NodeReader) (CustomAppFieldSet, error) 
 
 Used when the same log entity can originate from different sources with distinct field layouts (for example, K8s audit logs ingested from GCP Cloud Logging vs. OSS Kubernetes JSONL files).
 
-The common contract defines an extractor function type and a wrapper function that accepts the extractor bound by the calling task via `coretask.Use(b, K8sAuditLogExtractorRef)`:
+The common root package defines an extractor function type and a wrapper function that accepts the extractor bound by the calling task via `coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)`:
 
 ```go
 package k8saudit
@@ -351,6 +351,7 @@ import (
  "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/customapp"
  "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
  "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // LogQueryTask executes Cloud Logging queries to fetch logs.
@@ -373,7 +374,7 @@ type customAppQuerySource struct {
 
 var _ gcpcommon.StructuredLogQuerySource = (*customAppQuerySource)(nil)
 
-func (s *customAppQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *customAppQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
  cluster := s.cluster.Get(ctx)
  keyword := s.keyword.Get(ctx)
  return []*logestimator.StructuredLogQuery{{
@@ -392,8 +393,8 @@ func (s *customAppQuerySource) DefaultResourceNames(ctx context.Context) ([]stri
  return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
-func (s *customAppQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
- return 5, nil
+func (s *customAppQuerySource) TimePartitionCount() int {
+ return 5
 }
 ```
 
@@ -589,7 +590,7 @@ func (m *MyManifestMapper) ProcessLog(ctx context.Context, event k8saudit.MultiG
 }
 
 var MyManifestMapperTask = k8saudit.DefineManifestLogToTimelineMapper(
- mycontract.MyManifestMapperTaskID,
+ myapp.MyManifestMapperTaskID,
  func(b *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*MyState] {
   return &MyManifestMapper{}
  },

@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -94,14 +93,10 @@ func (s *serialPortQuerySource) DefaultResourceNames(ctx context.Context) ([]str
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *serialPortQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *serialPortQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	nodeNames := s.nodeNames.Get(ctx)
 	nodeNameSubstrings := s.nodeNameSubstrings.Get(ctx)
 	clusterIdentity := s.clusterIdentity.Get(ctx)
-	taskMode := inspectioncore.TaskModeRun
-	if val, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode); err == nil {
-		taskMode = val
-	}
 	queries := generateSerialPortStructuredQuery(taskMode, nodeNames, nodeNameSubstrings)
 	if clusterIdentity.ProjectID == "" {
 		for _, q := range queries {
@@ -112,8 +107,8 @@ func (s *serialPortQuerySource) Queries(ctx context.Context) ([]*logestimator.St
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *serialPortQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 10, nil
+func (s *serialPortQuerySource) TimePartitionCount() int {
+	return 10
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*serialPortQuerySource)(nil)

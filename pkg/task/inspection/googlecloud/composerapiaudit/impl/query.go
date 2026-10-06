@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // generateComposerAuditStructuredQuery generates a structured query for Cloud Composer audit logs.
@@ -61,15 +62,15 @@ func (s *composerAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *composerAuditQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *composerAuditQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	clusterIdentity := s.clusterIdentity.Get(ctx)
 	environmentName := s.environmentName.Get(ctx)
 	return []*logestimator.StructuredLogQuery{generateComposerAuditStructuredQuery(clusterIdentity.ProjectID, clusterIdentity.Location, environmentName)}, nil
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *composerAuditQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
+func (s *composerAuditQuerySource) TimePartitionCount() int {
+	return 1
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*composerAuditQuerySource)(nil)

@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8snode"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // generateK8sNodeStructuredQuery generates a structured query for GKE node logs.
@@ -58,15 +59,15 @@ func (s *nodeLogQuerySource) DefaultResourceNames(ctx context.Context) ([]string
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *nodeLogQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *nodeLogQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := s.clusterIdentity.Get(ctx)
 	nodeNameSubstrings := s.nodeNameSubstrings.Get(ctx)
 	return []*logestimator.StructuredLogQuery{generateK8sNodeStructuredQuery(cluster, nodeNameSubstrings)}, nil
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *nodeLogQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 10, nil
+func (s *nodeLogQuerySource) TimePartitionCount() int {
+	return 10
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*nodeLogQuerySource)(nil)

@@ -27,7 +27,7 @@ import (
 )
 
 // containerIDInventoryTask merges container ID to container identity mappings discovered across tasks.
-var containerIDInventoryTask = inspectiontaskbase.NewInventoryTask(
+var containerIDInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	k8saudit.ContainerIDInventoryTaskID,
 	k8saudit.TagContainerIDDiscovery,
 	mergeContainerIDs,

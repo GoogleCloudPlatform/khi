@@ -160,7 +160,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 	}
 }
 
-func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapComputeAuditLog(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 

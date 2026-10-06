@@ -25,7 +25,7 @@ import (
 )
 
 // nodeNameInventoryTask provides list of node name found in this inspection for later task usage.
-var nodeNameInventoryTask = inspectiontaskbase.NewInventoryTask(
+var nodeNameInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	k8saudit.NodeNameInventoryTaskID,
 	k8saudit.TagNodeNameDiscovery,
 	mergeNodeNames,

@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // generateCSMTrafficLogsStructuredQuery generates a structured query for CSM Traffic logs.
@@ -111,7 +112,7 @@ func (s *csmTrafficLogQuerySource) DefaultResourceNames(ctx context.Context) ([]
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *csmTrafficLogQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *csmTrafficLogQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := s.clusterIdentity.Get(ctx)
 	namespaceFilter := s.namespaceFilter.Get(ctx)
 	responseFlagsFilter := s.responseFlagsFilter.Get(ctx)
@@ -119,8 +120,8 @@ func (s *csmTrafficLogQuerySource) Queries(ctx context.Context) ([]*logestimator
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *csmTrafficLogQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 10, nil
+func (s *csmTrafficLogQuerySource) TimePartitionCount() int {
+	return 10
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*csmTrafficLogQuerySource)(nil)

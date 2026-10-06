@@ -21,7 +21,7 @@ import (
 )
 
 // clusterIdentityAliasTask aliases the cluster identity task for Composer API audit log inspection.
-var clusterIdentityAliasTask = coretask.NewAliasTask(
+var clusterIdentityAliasTask = coretask.DefineAliasTask(
 	composerapiaudit.ClusterIdentityTaskID,
 	k8scommon.ClusterIdentityTaskID.Ref(),
 )

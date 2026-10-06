@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
@@ -74,11 +73,7 @@ func (s *networkAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]s
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *networkAuditQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	taskMode, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
-	if err != nil {
-		taskMode = inspectioncore.TaskModeRun
-	}
+func (s *networkAuditQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	var negNames []string
 	if taskMode == inspectioncore.TaskModeRun {
 		negs := s.negs.Get(ctx)
@@ -97,8 +92,8 @@ func (s *networkAuditQuerySource) Queries(ctx context.Context) ([]*logestimator.
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *networkAuditQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
+func (s *networkAuditQuerySource) TimePartitionCount() int {
+	return 1
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*networkAuditQuerySource)(nil)

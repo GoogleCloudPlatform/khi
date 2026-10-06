@@ -33,7 +33,7 @@ var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sE
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
 var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](GKEK8sEventLogTaskIDPrefix + "log-ingester")
 
-// LogGrouperTaskID is the task id to group logs by target instance to process logs in TimelineMapper in parallel.
+// LogGrouperTaskID is the task ID for the task that groups Kubernetes Event Logs by involved object (cluster, kind, namespace, and name) to process them in LogToTimelineMapperTask in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GKEK8sEventLogTaskIDPrefix + "grouper")
 
 // LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.

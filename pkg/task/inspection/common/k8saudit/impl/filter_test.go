@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	inspectiontaskbasetest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbasetest"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
@@ -38,7 +39,7 @@ func TestSuccessLogFilterTask(t *testing.T) {
 			}),
 			WantIncluded: false,
 		},
-	})
+	}, tasktest.Given(k8saudit.K8sAuditLogErrorExtractorRef, k8saudit.K8sAuditLogErrorExtractor(nil)))
 }
 
 func TestNonSuccessLogFilterTask(t *testing.T) {
@@ -57,5 +58,5 @@ func TestNonSuccessLogFilterTask(t *testing.T) {
 			}),
 			WantIncluded: true,
 		},
-	})
+	}, tasktest.Given(k8saudit.K8sAuditLogErrorExtractorRef, k8saudit.K8sAuditLogErrorExtractor(nil)))
 }

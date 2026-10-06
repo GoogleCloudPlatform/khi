@@ -31,6 +31,7 @@ type CacheScope int
 const (
 	// CacheScopeInspection keeps the cached value in InspectionSharedMap, so it is reused across dry runs and the run of the same inspection.
 	// This is the zero value and the default.
+	// To release resources when the inspection finishes, register a cleanup callback on khictx.MustGetValue(ctx, inspectioncore.InspectionContext) using context.AfterFunc inside Compute.
 	CacheScopeInspection CacheScope = iota
 	// CacheScopeGlobal keeps the cached value in GlobalSharedMap, so it is reused across inspections.
 	CacheScopeGlobal

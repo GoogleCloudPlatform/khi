@@ -45,8 +45,8 @@ var inputNamespaceFilterTask = formtask.DefineSetForm(
 		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{
 			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@all_cluster_scoped", "@all_namespaced"}),
 			AllowCustomValue: formtask.ConstantBool(true),
-			AllowAddAll:      formtask.ConstantBool(false),
-			AllowRemoveAll:   formtask.ConstantBool(false),
+			DisableAddAll:    formtask.ConstantBool(true),
+			DisableRemoveAll: formtask.ConstantBool(true),
 			Options: func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 				result := []inspectionmetadata.SetParameterFormFieldOptionItem{
 					{ID: "@all_cluster_scoped", Description: "[Alias] An alias matches any of the cluster scoped resources"},

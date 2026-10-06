@@ -71,7 +71,7 @@ func TestProcessSerialPortLog(t *testing.T) {
 	}
 }
 
-func TestSerialPortLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapSerialPortLog(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 	wantSerialPortPath := serialport.MustSerialPortTimeline(ctx, "test-cluster", "node-name-bar", "serial_port_output_qux")

@@ -135,6 +135,21 @@ func TestModuleFlatten(t *testing.T) {
 			},
 			wantErrSubstr: `module parent/child/grandchild: scope condition cluster="gdcv" conflicts with cluster="gke" in the parent scope`,
 		},
+		{
+			name: "task already carrying inspection type selector label returns error",
+			module: Module{
+				Name:  "parent",
+				Scope: Scope{"env": "cloud"},
+				Tasks: []coretask.UntypedTask{
+					coretask.DefineConstant(
+						taskid.NewDefaultImplementationID[struct{}]("task-a"),
+						struct{}{},
+						coretask.WithLabelValue(inspectioncore.LabelKeyInspectionTypeLabelSelector, inspectioncore.LabelSelector{"env": "cloud"}),
+					),
+				},
+			},
+			wantErrSubstr: `module parent: task task-a#default already has label khi.google.com/inspection/inspection-type-selector; use Module.Scope or SubModules instead`,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

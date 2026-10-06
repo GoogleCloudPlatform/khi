@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package k8scontainer_impl defines the inspection tasks for Kubernetes container logs.
 package k8scontainer_impl
 
 import (

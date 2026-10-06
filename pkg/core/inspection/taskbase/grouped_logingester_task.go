@@ -61,11 +61,14 @@ func (SinglePassGroupedIngesterBase[T]) PreProcessLogByGroup(ctx context.Context
 }
 
 // DefineGroupedLogIngesterTask returns a task that ingests metadata of the logs grouped by groupedLogTask into the KHI v6 builder using group-sequential processing.
-// bind declares the additional inputs the ingester reads and returns the ingester. The task declares groupedLogTask itself.
-func DefineGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[struct{}], groupedLogTask taskid.TaskReference[LogGroupMap], bind func(b *coretask.Binder) GroupedLogIngester[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
+//
+// The task registers groupedLogTask on the Binder before calling bind.
+// bind is called once at task definition time to declare additional inputs and return the GroupedLogIngester[T] instance.
+// Because the returned GroupedLogIngester[T] is shared across inspections and concurrent worker goroutines, any per-group mutable state must be stored in T rather than on the ingester struct.
+func DefineGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[struct{}], groupedLogTask taskid.TaskReference[LogGroupMap], bind func(b *coretask.Binder) GroupedLogIngester[T], labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(TagLogIngester),
-	}, labels...)
+	}, labelOpts...)
 	return DefineInspectionTask(taskID, func(b *coretask.Binder) InspectionTaskFunc[struct{}] {
 		groupedLogs := coretask.Use(b, groupedLogTask)
 		ingester := bind(b)

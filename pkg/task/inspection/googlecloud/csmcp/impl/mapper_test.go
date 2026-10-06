@@ -82,7 +82,7 @@ resource:
 	inspectiontaskbasetest.AssertFilterTask(t, istiodLogFilterTask, k8scontainer.ListLogEntriesTaskID.Ref(), testCases)
 }
 
-func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapCSMCPLog(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	clusterIdentity := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
@@ -307,7 +307,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}
 }
 
-func TestCSMCPTimelineMapper_ProcessLogByGroup_ClusterNameFallback(t *testing.T) {
+func TestMapCSMCPLog_ClusterNameFallback(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	clusterIdentity := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "",
@@ -338,7 +338,7 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_ClusterNameFallback(t *testing.T)
 	testchangeset.AssertTimeline(t, cs).HasEvent(csmcpPodPath)
 }
 
-func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T) {
+func TestMapCSMCPLog_SequentialProcessing(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	clusterIdentity := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",

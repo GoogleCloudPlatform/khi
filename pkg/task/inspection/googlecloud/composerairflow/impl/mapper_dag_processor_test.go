@@ -34,7 +34,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
+func TestMapDagProcessorManagerLog(t *testing.T) {
 	timestamp2 := time.Date(2024, 5, 8, 2, 44, 1, 0, time.UTC)
 	timestamp3 := time.Date(2024, 5, 8, 2, 44, 2, 0, time.UTC)
 	timestamp4 := time.Date(2024, 5, 8, 2, 44, 3, 0, time.UTC)

@@ -24,23 +24,19 @@ import (
 // ossK8sAuditLogExtractorTask provides K8sAuditLogExtractor for OSS audit logs.
 var ossK8sAuditLogExtractorTask = coretask.DefineConstant(
 	ossk8s.OSSK8sAuditLogExtractorTaskID,
-	k8saudit.K8sAuditLogExtractor(ossk8s.ExtractOSSK8sAuditLog),
-	coretask.NewTaskResultRetentionLabel(true),
+	ossk8s.ExtractOSSK8sAuditLog,
 )
 
 // ossK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for OSS audit logs.
 var ossK8sAuditLogErrorExtractorTask = coretask.DefineConstant(
 	ossk8s.OSSK8sAuditLogErrorExtractorTaskID,
-	k8saudit.K8sAuditLogErrorExtractor(ossk8s.ExtractOSSK8sAuditLogError),
-	coretask.NewTaskResultRetentionLabel(true),
+	ossk8s.ExtractOSSK8sAuditLogError,
 )
 
-// ossK8sAuditLogParserTailTask waits for the OSS audit log extractors and all Kubernetes audit log mappers so that selecting the Kubernetes Audit Logs feature runs them.
+// ossK8sAuditLogParserTailTask waits for all Kubernetes audit log mappers so that selecting the Kubernetes Audit Logs feature runs them.
 var ossK8sAuditLogParserTailTask = coretask.DefineTailTask(
 	ossk8s.OSSK8sAuditLogParserTailTaskID,
 	[]coretask.Dependency{
-		k8saudit.K8sAuditLogExtractorRef,
-		k8saudit.K8sAuditLogErrorExtractorRef,
 		k8saudit.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
 		k8saudit.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
 		k8saudit.ResourceRevisionLogToTimelineMapperTaskID.Ref(),
