@@ -28,9 +28,9 @@ var successLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	k8saudit.SuccessLogFilterTaskID,
 	k8saudit.K8sAuditLogProviderRef,
 	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
-		errorExtractor := coretask.UseOptional(b, k8saudit.K8sAuditLogErrorExtractorRef.Ref(coretask.FromActiveGraph))
+		errorExtractor := coretask.Use(b, k8saudit.K8sAuditLogErrorExtractorRef)
 		return func(ctx context.Context, l *log.Log) bool {
-			extractor, _ := errorExtractor.Get(ctx)
+			extractor := errorExtractor.Get(ctx)
 			isError, _ := k8saudit.ExtractK8sAuditLogError(l.NodeReader, extractor)
 			return !isError
 		}
@@ -42,9 +42,9 @@ var nonSuccessLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	k8saudit.NonSuccessLogFilterTaskID,
 	k8saudit.K8sAuditLogProviderRef,
 	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
-		errorExtractor := coretask.UseOptional(b, k8saudit.K8sAuditLogErrorExtractorRef.Ref(coretask.FromActiveGraph))
+		errorExtractor := coretask.Use(b, k8saudit.K8sAuditLogErrorExtractorRef)
 		return func(ctx context.Context, l *log.Log) bool {
-			extractor, _ := errorExtractor.Get(ctx)
+			extractor := errorExtractor.Get(ctx)
 			isError, _ := k8saudit.ExtractK8sAuditLogError(l.NodeReader, extractor)
 			return isError
 		}

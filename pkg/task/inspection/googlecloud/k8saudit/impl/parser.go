@@ -25,22 +25,18 @@ import (
 var gcpK8sAuditLogExtractorTask = coretask.DefineConstant(
 	k8saudit.GCPK8sAuditLogExtractorTaskID,
 	k8saudit.ExtractGCPK8sAuditLog,
-	coretask.NewTaskResultRetentionLabel(true),
 )
 
 // gcpK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for GCP audit logs.
 var gcpK8sAuditLogErrorExtractorTask = coretask.DefineConstant(
 	k8saudit.GCPK8sAuditLogErrorExtractorTaskID,
 	k8saudit.ExtractGCPK8sAuditLogError,
-	coretask.NewTaskResultRetentionLabel(true),
 )
 
-// gcpK8sAuditLogParserTailTask waits for the GCP audit log extractors and all Kubernetes audit log mappers so that selecting the Kubernetes Audit Logs feature runs them.
+// gcpK8sAuditLogParserTailTask waits for all Kubernetes audit log mappers so that selecting the Kubernetes Audit Logs feature runs them.
 var gcpK8sAuditLogParserTailTask = coretask.DefineTailTask(
 	k8saudit.GCPK8sAuditLogParserTailTaskID,
 	[]coretask.Dependency{
-		commonk8saudit.K8sAuditLogExtractorRef,
-		commonk8saudit.K8sAuditLogErrorExtractorRef,
 		commonk8saudit.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
 		commonk8saudit.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
 		commonk8saudit.ResourceRevisionLogToTimelineMapperTaskID.Ref(),

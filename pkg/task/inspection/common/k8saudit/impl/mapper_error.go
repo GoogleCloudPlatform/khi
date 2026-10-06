@@ -34,7 +34,7 @@ var nonSuccessLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelin
 	},
 	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
 		return &nonSuccessLogLogToTimelineMapperTaskSetting{
-			extractor: coretask.UseOptional(b, k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph)),
+			extractor: coretask.Use(b, k8saudit.K8sAuditLogExtractorRef),
 			subresourceMapToWriteToParent: map[string]struct{}{
 				"status":   {},
 				"finalize": {},
@@ -47,14 +47,14 @@ var nonSuccessLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelin
 type nonSuccessLogLogToTimelineMapperTaskSetting struct {
 	inspectiontaskbase.StatelessMapperBase
 
-	extractor coretask.OptionalInput[k8saudit.K8sAuditLogExtractor]
+	extractor coretask.Input[k8saudit.K8sAuditLogExtractor]
 	// subresourceMapToWriteToParent is the map of subresources to write to the parent resource.
 	subresourceMapToWriteToParent map[string]struct{}
 }
 
 // ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
 func (e *nonSuccessLogLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	extractor, _ := e.extractor.Get(ctx)
+	extractor := e.extractor.Get(ctx)
 	cs, err := e.mapLog(ctx, l, extractor)
 	return cs, struct{}{}, err
 }

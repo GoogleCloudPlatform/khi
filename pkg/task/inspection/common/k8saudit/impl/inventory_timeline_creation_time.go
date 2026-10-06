@@ -77,14 +77,14 @@ var resourceTimelineCreationTimeDiscoveryTask = inspectiontaskbase.DefineInspect
 	k8saudit.ResourceTimelineCreationTimeDiscoveryTaskID,
 	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.TimelineCreationTimes] {
 		resourceLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
-		extractorInput := coretask.UseOptional(b, k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph))
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
 		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.TimelineCreationTimes, error) {
 			if taskMode == inspectioncore.TaskModeDryRun {
 				return k8saudit.TimelineCreationTimes{}, nil
 			}
 			result := k8saudit.TimelineCreationTimes{}
 			resourceLogs := resourceLogsInput.Get(ctx)
-			extractor, _ := extractorInput.Get(ctx)
+			extractor := extractorInput.Get(ctx)
 			tracker := progress.NewTracker(ctx, len(resourceLogs), progress.WithUnit("groups"))
 			defer tracker.Done()
 			for _, group := range resourceLogs {
@@ -123,14 +123,14 @@ var podPhaseTimelineCreationTimeDiscoveryTask = inspectiontaskbase.DefineInspect
 	k8saudit.PodPhaseTimelineCreationTimeDiscoveryTaskID,
 	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.TimelineCreationTimes] {
 		resourceLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
-		extractorInput := coretask.UseOptional(b, k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph))
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
 		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.TimelineCreationTimes, error) {
 			if taskMode == inspectioncore.TaskModeDryRun {
 				return k8saudit.TimelineCreationTimes{}, nil
 			}
 			result := k8saudit.TimelineCreationTimes{}
 			resourceLogs := resourceLogsInput.Get(ctx)
-			extractor, _ := extractorInput.Get(ctx)
+			extractor := extractorInput.Get(ctx)
 			tracker := progress.NewTracker(ctx, len(resourceLogs), progress.WithUnit("groups"))
 			defer tracker.Done()
 			for _, group := range resourceLogs {

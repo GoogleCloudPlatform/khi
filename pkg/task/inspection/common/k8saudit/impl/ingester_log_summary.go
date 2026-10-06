@@ -31,9 +31,9 @@ var k8sAuditLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	k8saudit.K8sAuditLogIngesterTaskID,
 	k8saudit.K8sAuditLogProviderRef,
 	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
-		extractorInput := coretask.UseOptional(b, k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph))
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
 		return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-			extractor, _ := extractorInput.Get(ctx)
+			extractor := extractorInput.Get(ctx)
 			return processK8sAuditLog(l, extractor)
 		}
 	},

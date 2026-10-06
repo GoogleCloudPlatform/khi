@@ -169,7 +169,7 @@ func ExtractCustomApp(reader *structured.NodeReader) (CustomAppFieldSet, error) 
 
 Used when the same log entity can originate from different sources with distinct field layouts (for example, K8s audit logs ingested from GCP Cloud Logging vs. OSS Kubernetes JSONL files).
 
-The common root package defines an extractor function type and a wrapper function that accepts the extractor bound by the calling task via `coretask.UseOptional(b, k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph))`:
+The common root package defines an extractor function type and a wrapper function that accepts the extractor bound by the calling task via `coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)`:
 
 ```go
 package k8saudit
