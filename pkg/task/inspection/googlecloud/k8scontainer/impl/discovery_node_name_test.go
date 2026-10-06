@@ -27,6 +27,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+// TestNodeNameDiscoveryTask tests nodeNameDiscoveryTask.
 func TestNodeNameDiscoveryTask(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -83,8 +84,8 @@ func TestNodeNameDiscoveryTask(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			result, _, err := inspectiontest.RunInspectionTask(ctx, NodeNameDiscoveryTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(k8scontainer.ListLogEntriesTaskID.Ref(), tc.logs),
+			result, _, err := inspectiontest.Run(t, ctx, nodeNameDiscoveryTask, tc.taskMode, map[string]any{},
+				tasktest.Given(k8scontainer.ListLogEntriesTaskID.Ref(), tc.logs),
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

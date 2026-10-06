@@ -28,8 +28,6 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type InspectionRegistrationFunc = func(registry InspectionTaskRegistry) error
-
 type InspectionType struct {
 	Id          string            `json:"id"`
 	Name        string            `json:"name"`
@@ -94,7 +92,7 @@ func NewServer(ioConfig *inspectioncore.IOConfig) (*InspectionTaskServer, error)
 	}
 
 	// Register mandatory tasks for inspection task
-	err = inspectioncore_impl.Register(server)
+	err = server.AddModules(Module{Name: "inspectioncore", Tasks: inspectioncore_impl.Tasks})
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +121,28 @@ func (s *InspectionTaskServer) AddInspectionType(newInspectionType InspectionTyp
 // AddTask register a task usable for the inspection task graph execution.
 func (s *InspectionTaskServer) AddTask(task coretask.UntypedTask) error {
 	return s.RootTaskSet.Add(task)
+}
+
+// AddModules registers the inspection types and the scoped tasks of the given modules.
+// It returns an error when a module scope conflicts with its parent scope, or when a task ID or an inspection type ID is duplicated.
+func (s *InspectionTaskServer) AddModules(modules ...Module) error {
+	for _, module := range modules {
+		flattened, err := module.flatten()
+		if err != nil {
+			return err
+		}
+		for _, inspectionType := range flattened.inspectionTypes {
+			if err := s.AddInspectionType(inspectionType); err != nil {
+				return fmt.Errorf("module %s: %w", module.Name, err)
+			}
+		}
+		for _, task := range flattened.tasks {
+			if err := s.AddTask(task); err != nil {
+				return fmt.Errorf("module %s: %w", module.Name, err)
+			}
+		}
+	}
+	return nil
 }
 
 // AddInspectionInterceptor adds an interceptor that will be applied to all new inspection runners.
@@ -219,5 +239,3 @@ func (s *InspectionTaskServer) RegisterImportedInspection(id string, store inspe
 	s.inspectionsMu.Unlock()
 	return runner
 }
-
-var _ InspectionTaskRegistry = (*InspectionTaskServer)(nil)

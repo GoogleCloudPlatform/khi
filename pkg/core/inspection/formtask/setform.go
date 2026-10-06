@@ -44,23 +44,23 @@ type SetFormHintGenerator = func(ctx context.Context, value []string, convertedV
 // SetFormBoolProvider is a function type to provide boolean flags dynamically.
 type SetFormBoolProvider = func(ctx context.Context) (bool, error)
 
-// SetFormTaskBuilder is an utility to construct an instance of task for input form field.
-type SetFormTaskBuilder[T any] struct {
-	FormTaskBuilderBase[T]
+// setFormTask holds the settings of a set form task defined with DefineSetForm.
+type setFormTask[T any] struct {
+	formTaskBase[T]
 	defaultValue     SetFormDefaultValueGenerator
 	validator        SetFormValidator
 	optionsProvider  SetFormOptionsProvider
 	hintGenerator    SetFormHintGenerator
 	converter        SetFormValueConverter[T]
 	allowCustomValue SetFormBoolProvider
-	allowAddAll      SetFormBoolProvider
-	allowRemoveAll   SetFormBoolProvider
+	disableAddAll    SetFormBoolProvider
+	disableRemoveAll SetFormBoolProvider
 }
 
-// NewSetFormTaskBuilder constructs an instance of SetFormTaskBuilder.
-func NewSetFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority int, fieldLabel string) *SetFormTaskBuilder[T] {
-	return &SetFormTaskBuilder[T]{
-		FormTaskBuilderBase: NewFormTaskBuilderBase(id, priority, fieldLabel),
+// newSetFormTask creates a set form task with the default settings described in SetFormSpec.
+func newSetFormTask[T any](id taskid.TaskImplementationID[T], priority int, label string, description string) *setFormTask[T] {
+	return &setFormTask[T]{
+		formTaskBase: newFormTaskBase(id, priority, label, description),
 		defaultValue: func(ctx context.Context, previousValues []string) ([]string, error) {
 			return nil, nil
 		},
@@ -81,229 +81,212 @@ func NewSetFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority in
 			return "", inspectionmetadata.Info, nil
 		},
 		allowCustomValue: func(ctx context.Context) (bool, error) { return false, nil },
-		allowAddAll:      func(ctx context.Context) (bool, error) { return true, nil },
-		allowRemoveAll:   func(ctx context.Context) (bool, error) { return true, nil },
+		disableAddAll:    func(ctx context.Context) (bool, error) { return false, nil },
+		disableRemoveAll: func(ctx context.Context) (bool, error) { return false, nil },
 	}
 }
 
-func (b *SetFormTaskBuilder[T]) WithDependencies(dependencies []coretask.Dependency) *SetFormTaskBuilder[T] {
-	b.FormTaskBuilderBase.WithDependencies(dependencies)
-	return b
-}
+// run computes the form field metadata and returns the converted value of the current input.
+func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
+	m := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+	req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
+	taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
+	globalSharedMap := khictx.MustGetValue(ctx, inspectioncore.GlobalSharedMap)
 
-func (b *SetFormTaskBuilder[T]) WithDescription(description string) *SetFormTaskBuilder[T] {
-	b.FormTaskBuilderBase.WithDescription(description)
-	return b
-}
+	previousValueStoreKey := typedmap.NewTypedKey[[]string](fmt.Sprintf("set-form-pv-%s", b.id))
+	prevValue := typedmap.GetOrDefault(globalSharedMap, previousValueStoreKey, []string{})
 
-func (b *SetFormTaskBuilder[T]) WithValidator(validator SetFormValidator) *SetFormTaskBuilder[T] {
-	b.validator = validator
-	return b
-}
+	allowCustomValue, err := b.allowCustomValue(ctx)
+	if err != nil {
+		return *new(T), fmt.Errorf("allowCustomValue provider for task `%s` returned an error\n%v", b.id, err)
+	}
+	disableAddAll, err := b.disableAddAll(ctx)
+	if err != nil {
+		return *new(T), fmt.Errorf("disableAddAll provider for task `%s` returned an error\n%v", b.id, err)
+	}
+	disableRemoveAll, err := b.disableRemoveAll(ctx)
+	if err != nil {
+		return *new(T), fmt.Errorf("disableRemoveAll provider for task `%s` returned an error\n%v", b.id, err)
+	}
 
-func (b *SetFormTaskBuilder[T]) WithDefaultValueFunc(defFunc SetFormDefaultValueGenerator) *SetFormTaskBuilder[T] {
-	b.defaultValue = defFunc
-	return b
-}
+	field := inspectionmetadata.SetParameterFormField{}
+	field.AllowCustomValue = allowCustomValue
+	field.AllowAddAll = !disableAddAll
+	field.AllowRemoveAll = !disableRemoveAll
 
-func (b *SetFormTaskBuilder[T]) WithDefaultValueConstant(defValue []string, preferPrevValue bool) *SetFormTaskBuilder[T] {
-	return b.WithDefaultValueFunc(func(ctx context.Context, previousValues []string) ([]string, error) {
-		if preferPrevValue {
-			if len(previousValues) > 0 {
-				return previousValues, nil
+	// Compute the default value
+	var currentValue []string
+	defaultValue, err := b.defaultValue(ctx, prevValue)
+	if err != nil {
+		return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
+	}
+	field.Default = defaultValue
+	currentValue = defaultValue
+
+	if valueRaw, exist := req[b.id.ReferenceIDString()]; exist && valueRaw != nil {
+		valueSlice, isSlice := valueRaw.([]interface{})
+		if !isSlice {
+			// Also try to handle string[] (though json unmarshal usually gives []interface{})
+			if strSlice, ok := valueRaw.([]string); ok {
+				currentValue = strSlice
+			} else {
+				return *new(T), fmt.Errorf("request parameter `%s` was not given in array in task %s", b.id, b.id)
 			}
-		}
-		return defValue, nil
-	})
-}
-
-func (b *SetFormTaskBuilder[T]) WithOptionsFunc(optionsFunc SetFormOptionsProvider) *SetFormTaskBuilder[T] {
-	b.optionsProvider = optionsFunc
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithOptionsConstant(options []inspectionmetadata.SetParameterFormFieldOptionItem) *SetFormTaskBuilder[T] {
-	return b.WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		return options, nil
-	})
-}
-
-func (b *SetFormTaskBuilder[T]) WithOptionsSimple(options []string) *SetFormTaskBuilder[T] {
-	return b.WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		result := make([]inspectionmetadata.SetParameterFormFieldOptionItem, len(options))
-		for i, opt := range options {
-			result[i] = inspectionmetadata.SetParameterFormFieldOptionItem{
-				ID: opt,
+		} else {
+			// Convert []interface{} to []string
+			strs := make([]string, len(valueSlice))
+			for i, v := range valueSlice {
+				str, ok := v.(string)
+				if !ok {
+					return *new(T), fmt.Errorf("request parameter `%s` contains non-string value at index %d", b.id, i)
+				}
+				strs[i] = str
 			}
+			currentValue = strs
 		}
-		return result, nil
-	})
-}
+	}
 
-func (b *SetFormTaskBuilder[T]) WithAllowCustomValueFunc(allowFunc SetFormBoolProvider) *SetFormTaskBuilder[T] {
-	b.allowCustomValue = allowFunc
-	return b
-}
+	field.Type = inspectionmetadata.Set
+	field.HintType = inspectionmetadata.Info
 
-func (b *SetFormTaskBuilder[T]) WithAllowCustomValue(allow bool) *SetFormTaskBuilder[T] {
-	return b.WithAllowCustomValueFunc(func(ctx context.Context) (bool, error) {
-		return allow, nil
-	})
-}
+	b.setupBaseFormField(&field.ParameterFormFieldBase)
 
-func (b *SetFormTaskBuilder[T]) WithAllowAddAllFunc(allowFunc SetFormBoolProvider) *SetFormTaskBuilder[T] {
-	b.allowAddAll = allowFunc
-	return b
-}
+	options, err := b.optionsProvider(ctx, prevValue)
+	if err != nil {
+		return *new(T), fmt.Errorf("options provider for task `%s` returned an error\n%v", b.id, err)
+	}
+	field.Options = options
 
-func (b *SetFormTaskBuilder[T]) WithAllowAddAll(allow bool) *SetFormTaskBuilder[T] {
-	return b.WithAllowAddAllFunc(func(ctx context.Context) (bool, error) {
-		return allow, nil
-	})
-}
-
-func (b *SetFormTaskBuilder[T]) WithAllowRemoveAllFunc(allowFunc SetFormBoolProvider) *SetFormTaskBuilder[T] {
-	b.allowRemoveAll = allowFunc
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithAllowRemoveAll(allow bool) *SetFormTaskBuilder[T] {
-	return b.WithAllowRemoveAllFunc(func(ctx context.Context) (bool, error) {
-		return allow, nil
-	})
-}
-
-func (b *SetFormTaskBuilder[T]) WithHintFunc(hintFunc SetFormHintGenerator) *SetFormTaskBuilder[T] {
-	b.hintGenerator = hintFunc
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) WithConverter(converter SetFormValueConverter[T]) *SetFormTaskBuilder[T] {
-	b.converter = converter
-	return b
-}
-
-func (b *SetFormTaskBuilder[T]) Build(labelOpts ...coretask.LabelOpt) coretask.Task[T] {
-	return coretask.NewTask(b.id, b.dependencies, func(ctx context.Context) (T, error) {
-		m := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
-		req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
-		taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
-		globalSharedMap := khictx.MustGetValue(ctx, inspectioncore.GlobalSharedMap)
-
-		previousValueStoreKey := typedmap.NewTypedKey[[]string](fmt.Sprintf("set-form-pv-%s", b.id))
-		prevValue := typedmap.GetOrDefault(globalSharedMap, previousValueStoreKey, []string{})
-
-		allowCustomValue, err := b.allowCustomValue(ctx)
-		if err != nil {
-			return *new(T), fmt.Errorf("allowCustomValue provider for task `%s` returned an error\n%v", b.id, err)
-		}
-		allowAddAll, err := b.allowAddAll(ctx)
-		if err != nil {
-			return *new(T), fmt.Errorf("allowAddAll provider for task `%s` returned an error\n%v", b.id, err)
-		}
-		allowRemoveAll, err := b.allowRemoveAll(ctx)
-		if err != nil {
-			return *new(T), fmt.Errorf("allowRemoveAll provider for task `%s` returned an error\n%v", b.id, err)
-		}
-
-		field := inspectionmetadata.SetParameterFormField{}
-		field.AllowCustomValue = allowCustomValue
-		field.AllowAddAll = allowAddAll
-		field.AllowRemoveAll = allowRemoveAll
-
-		// Compute the default value
-		var currentValue []string
-		defaultValue, err := b.defaultValue(ctx, prevValue)
+	validationErr, err := b.validator(ctx, currentValue)
+	if err != nil {
+		return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%v", b.id, err)
+	}
+	if validationErr != "" {
+		// When invalid, fallback to default
+		currentValue, err = b.defaultValue(ctx, prevValue)
 		if err != nil {
 			return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
 		}
-		field.Default = defaultValue
-		currentValue = defaultValue
+	}
+	if validationErr != "" && taskMode == inspectioncore.TaskModeRun {
+		return *new(T), fmt.Errorf("validator for task `%s` returned a validation error in Run mode. \n%v", b.id, validationErr)
+	}
 
-		if valueRaw, exist := req[b.id.ReferenceIDString()]; exist && valueRaw != nil {
-			valueSlice, isSlice := valueRaw.([]interface{})
-			if !isSlice {
-				// Also try to handle string[] (though json unmarshal usually gives []interface{})
-				if strSlice, ok := valueRaw.([]string); ok {
-					currentValue = strSlice
-				} else {
-					return *new(T), fmt.Errorf("request parameter `%s` was not given in array in task %s", b.id, b.id)
-				}
-			} else {
-				// Convert []interface{} to []string
-				strs := make([]string, len(valueSlice))
-				for i, v := range valueSlice {
-					str, ok := v.(string)
-					if !ok {
-						return *new(T), fmt.Errorf("request parameter `%s` contains non-string value at index %d", b.id, i)
-					}
-					strs[i] = str
-				}
-				currentValue = strs
-			}
-		}
+	convertedValue, err := b.converter(ctx, currentValue)
+	if err != nil {
+		return *new(T), fmt.Errorf("failed to convert the value `%v` to the dedicated value in task %s\n%v", currentValue, b.id, err)
+	}
 
-		field.Type = inspectionmetadata.Set
-		field.HintType = inspectionmetadata.Info
-
-		b.SetupBaseFormField(&field.ParameterFormFieldBase)
-
-		options, err := b.optionsProvider(ctx, prevValue)
+	if validationErr != "" {
+		field.HintType = inspectionmetadata.Error
+		field.Hint = validationErr
+	} else {
+		hint, hintType, err := b.hintGenerator(ctx, currentValue, convertedValue)
 		if err != nil {
-			return *new(T), fmt.Errorf("options provider for task `%s` returned an error\n%v", b.id, err)
+			return *new(T), fmt.Errorf("failed to generate a hint for task %s\n%v", b.id, err)
 		}
-		field.Options = options
+		if hint == "" {
+			hintType = inspectionmetadata.None
+		}
+		field.Hint = hint
+		field.HintType = hintType
+		if taskMode == inspectioncore.TaskModeRun {
+			newValueHistory := currentValue // Store current value as history
+			typedmap.Set(globalSharedMap, previousValueStoreKey, newValueHistory)
+		}
+	}
 
-		validationErr, err := b.validator(ctx, currentValue)
-		if err != nil {
-			return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%v", b.id, err)
-		}
-		if validationErr != "" {
-			// When invalid, fallback to default
-			currentValue, err = b.defaultValue(ctx, prevValue)
-			if err != nil {
-				return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
-			}
-		}
-		if validationErr != "" && taskMode == inspectioncore.TaskModeRun {
-			return *new(T), fmt.Errorf("validator for task `%s` returned a validation error in Run mode. \n%v", b.id, validationErr)
-		}
+	formFields, found := typedmap.Get(m, inspectionmetadata.FormFieldSetMetadataKey)
+	if !found {
+		return *new(T), fmt.Errorf("form field set was not found in the metadata set")
+	}
+	err = formFields.SetField(field)
+	if err != nil {
+		return *new(T), fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
+	}
+	return convertedValue, nil
+}
 
-		convertedValue, err := b.converter(ctx, currentValue)
-		if err != nil {
-			return *new(T), fmt.Errorf("failed to convert the value `%v` to the dedicated value in task %s\n%v", currentValue, b.id, err)
-		}
+// SetFormSpec holds the optional settings of a set form defined with DefineSetForm.
+// Callbacks may read inputs declared on the Binder passed to the bind function.
+// A nil callback or a zero value uses the default.
+type SetFormSpec[T any] struct {
+	// AllowCustomValue reports whether users can input custom values. Defaults to false.
+	AllowCustomValue SetFormBoolProvider
+	// DisableAddAll reports whether the "Add All" option is disabled. Defaults to false.
+	DisableAddAll SetFormBoolProvider
+	// DisableRemoveAll reports whether the "Remove All" option is disabled. Defaults to false.
+	DisableRemoveAll SetFormBoolProvider
+	// DefaultValue generates the default value of the set form. Defaults to nil.
+	DefaultValue SetFormDefaultValueGenerator
+	// Options provides the available options for the set form. Defaults to an empty slice.
+	Options SetFormOptionsProvider
+	// Validator validates the input string slice. Defaults to a validator that accepts any input.
+	Validator SetFormValidator
+	// Converter converts the input string slice to T. Defaults to a conversion that only works when T is []string.
+	Converter SetFormValueConverter[T]
+	// Hint generates a hint message for the form field. Defaults to no hint.
+	Hint SetFormHintGenerator
+}
 
-		if validationErr != "" {
-			field.HintType = inspectionmetadata.Error
-			field.Hint = validationErr
-		} else {
-			hint, hintType, err := b.hintGenerator(ctx, currentValue, convertedValue)
-			if err != nil {
-				return *new(T), fmt.Errorf("failed to generate a hint for task %s\n%v", b.id, err)
-			}
-			if hint == "" {
-				hintType = inspectionmetadata.None
-			}
-			field.Hint = hint
-			field.HintType = hintType
-			if taskMode == inspectioncore.TaskModeRun {
-				newValueHistory := currentValue // Store current value as history
-				typedmap.Set(globalSharedMap, previousValueStoreKey, newValueHistory)
-			}
-		}
+func (b *setFormTask[T]) applySpec(spec SetFormSpec[T]) {
+	if spec.AllowCustomValue != nil {
+		b.allowCustomValue = spec.AllowCustomValue
+	}
+	if spec.DisableAddAll != nil {
+		b.disableAddAll = spec.DisableAddAll
+	}
+	if spec.DisableRemoveAll != nil {
+		b.disableRemoveAll = spec.DisableRemoveAll
+	}
+	if spec.DefaultValue != nil {
+		b.defaultValue = spec.DefaultValue
+	}
+	if spec.Options != nil {
+		b.optionsProvider = spec.Options
+	}
+	if spec.Validator != nil {
+		b.validator = spec.Validator
+	}
+	if spec.Converter != nil {
+		b.converter = spec.Converter
+	}
+	if spec.Hint != nil {
+		b.hintGenerator = spec.Hint
+	}
+}
 
-		formFields, found := typedmap.Get(m, inspectionmetadata.FormFieldSetMetadataKey)
-		if !found {
-			return *new(T), fmt.Errorf("form field set was not found in the metadata set")
+// DefineSetForm defines a set form task with a Binder.
+// id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
+// and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
+func DefineSetForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) SetFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
+	form := newSetFormTask(id, priority, label, description)
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
+		form.applySpec(bind(b))
+		return form.run
+	}, form.formLabelOpts(labelOpts)...)
+}
+
+// ConstantBool returns a SetFormBoolProvider that always returns value.
+func ConstantBool(value bool) SetFormBoolProvider {
+	return func(ctx context.Context) (bool, error) {
+		return value, nil
+	}
+}
+
+// ConstantOptions returns a SetFormOptionsProvider that always returns options.
+func ConstantOptions(options ...inspectionmetadata.SetParameterFormFieldOptionItem) SetFormOptionsProvider {
+	return func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+		return options, nil
+	}
+}
+
+// PreviousOrConstantDefaultValue returns a SetFormDefaultValueGenerator that returns the previous values when they exist, otherwise values.
+func PreviousOrConstantDefaultValue(values []string) SetFormDefaultValueGenerator {
+	return func(ctx context.Context, previousValues []string) ([]string, error) {
+		if len(previousValues) > 0 {
+			return previousValues, nil
 		}
-		err = formFields.SetField(field)
-		if err != nil {
-			return *new(T), fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
-		}
-		return convertedValue, nil
-	}, append(labelOpts, inspectioncore.NewFormTaskLabelOpt(
-		b.label,
-		b.description,
-	))...)
+		return values, nil
+	}
 }

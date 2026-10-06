@@ -9,47 +9,46 @@ It constructs a timeline of resource changes by analyzing audit logs, generating
 graph TD
     %% External Dependencies
     Provider[K8sAuditLogProviderRef]
-    MergeConfig[K8sResourceMergeConfigTask]
+    MergeConfig[defaultK8sResourceMergeConfigTask]
 
     classDef external stroke-dasharray: 5 5;
     class Provider,MergeConfig external;
 
-    Serializer[K8sAuditLogSerializerTask]
-    SuccessFilter[SuccessLogFilterTask]
-    NonSuccessFilter[NonSuccessLogFilterTask]
+    Ingester[k8sAuditLogIngesterTask]
+    SuccessFilter[successLogFilterTask]
+    NonSuccessFilter[nonSuccessLogFilterTask]
     
     %% Groupers
-    LogSummaryGrouper[LogSummaryGrouperTask]
-    NonSuccessGrouper[NonSuccessLogGrouperTask]
-    ChangeTargetGrouper[ChangeTargetGrouperTask]
+    NonSuccessGrouper[nonSuccessLogGrouperTask]
+    ChangeTargetGrouper[changeTargetGrouperTask]
     
     %% Manifest, Lifetime & Inventory
-    ManifestGenerator[ManifestGeneratorTask]
-    LifetimeTracker[ResourceLifetimeTrackerTask]
+    ManifestGenerator[manifestGeneratorTask]
+    LifetimeTracker[resourceLifetimeTrackerTask]
 
-    NodeNameDiscovery[NodeNameDiscoveryTask]
-    ResourceUIDDiscovery[ResourceUIDDiscoveryTask]
-    ResourceUIDPF[ResourceUIDPatternFinderTask]
-    ContainerIDDiscovery[ContainerIDDiscoveryTask]
-    ContainerIDPF[ContainerIDPatternFinderTask]
-    IPLeaseDiscovery[IPLeaseHistoryDiscoveryTask]
+    NodeNameDiscovery[nodeNameDiscoveryTask]
+    ResourceUIDDiscovery[resourceUIDDiscoveryTask]
+    ResourceUIDPF[uidPatternFinderTask]
+    ContainerIDDiscovery[containerIDDiscoveryTask]
+    ContainerIDPF[containerIDPatternFinderTask]
+    IPLeaseDiscovery[ipLeaseHistoryDiscoveryTask]
+    ResourceCreationTimeDiscovery[resourceTimelineCreationTimeDiscoveryTask]
+    PodPhaseCreationTimeDiscovery[podPhaseTimelineCreationTimeDiscoveryTask]
     
-    %% History Modifiers
-    NamespaceRequestHM[NamespaceRequestHistoryModifierTask]
-    LogSummaryHM[LogSummaryHistoryModifierTask]
-    NonSuccessHM[NonSuccessLogHistoryModifierTask]
-    RevisionHM[ResourceRevisionHistoryModifierTask]
-    OwnerRefHM[ResourceOwnerReferenceModifierTask]
-    EndpointHM[EndpointResourceHistoryModifierTask]
-    PodPhaseHM[PodPhaseHistoryModifierTask]
-    ContainerHM[ContainerHistoryModifierTask]
-    ConditionHM[ConditionHistoryModifierTask]
+    %% Timeline Mappers
+    NamespaceRequestMapper[namespaceRequestLogToTimelineMapperTask]
+    NonSuccessMapper[nonSuccessLogLogToTimelineMapperTask]
+    RevisionMapper[resourceRevisionLogToTimelineMapperTask]
+    OwnerRefMapper[resourceOwnerReferenceTimelineMapperTask]
+    EndpointMapper[endpointResourceLogToTimelineMapperTask]
+    PodPhaseMapper[podPhaseLogToTimelineMapperTask]
+    ContainerMapper[containerLogToTimelineMapperTask]
+    ConditionMapper[conditionLogToTimelineMapperTask]
 
     %% Connections
-    Provider --> Serializer
+    Provider --> Ingester
     Provider --> SuccessFilter
     Provider --> NonSuccessFilter
-    Provider --> LogSummaryGrouper
     Provider --> NodeNameDiscovery
     Provider --> ResourceUIDDiscovery
     Provider --> ContainerIDDiscovery
@@ -65,73 +64,70 @@ graph TD
     MergeConfig --> ManifestGenerator
     
     ManifestGenerator --> LifetimeTracker
-    Serializer --> LifetimeTracker
+    ManifestGenerator --> ResourceCreationTimeDiscovery
+    ManifestGenerator --> PodPhaseCreationTimeDiscovery
 
-    ManifestGenerator --> NamespaceRequestHM
-    Serializer --> NamespaceRequestHM
+    ManifestGenerator --> NamespaceRequestMapper
+    Ingester --> NamespaceRequestMapper
     
-    %% Modifiers dependencies
-    LogSummaryGrouper --> LogSummaryHM
-    Serializer --> LogSummaryHM
+    %% Timeline Mapper dependencies
+    NonSuccessGrouper --> NonSuccessMapper
+    Ingester --> NonSuccessMapper
     
-    NonSuccessGrouper --> NonSuccessHM
-    Serializer --> NonSuccessHM
+    LifetimeTracker --> RevisionMapper
+    Ingester --> RevisionMapper
     
-    LifetimeTracker --> RevisionHM
-    Serializer --> RevisionHM
+    LifetimeTracker --> OwnerRefMapper
+    Ingester --> OwnerRefMapper
     
-    LifetimeTracker --> OwnerRefHM
-    Serializer --> OwnerRefHM
+    LifetimeTracker --> EndpointMapper
+    Ingester --> EndpointMapper
     
-    LifetimeTracker --> EndpointHM
-    Serializer --> EndpointHM
+    LifetimeTracker --> PodPhaseMapper
+    Ingester --> PodPhaseMapper
     
-    LifetimeTracker --> PodPhaseHM
-    Serializer --> PodPhaseHM
+    LifetimeTracker --> ContainerMapper
+    Ingester --> ContainerMapper
     
-    LifetimeTracker --> ContainerHM
-    Serializer --> ContainerHM
-    
-    LifetimeTracker --> ConditionHM
-    Serializer --> ConditionHM
+    LifetimeTracker --> ConditionMapper
+    Ingester --> ConditionMapper
 ```
 
 ## Task Descriptions
 
-### Common tasks (filter, grouper, serializers, etc.)
+### Common tasks (filter, grouper, ingester, etc.)
 
 - **`K8sAuditLogProviderRef`**: Reference to the external task that provides the raw Kubernetes Audit Logs.
-- **`K8sAuditLogSerializerTask`**: Registers logs into the history data before relating them with any events or revisions.
-- **`SuccessLogFilterTask`**: Filters out non-success logs (e.g., error responses) to focus on successful operations that likely changed the cluster state.
-- **`NonSuccessLogFilterTask`**: Filters out success logs to focus on failed operations (errors, forbidden, etc.).
-- **`LogSummaryGrouperTask`**: Groups logs by their resource path to generate a summary of operations on each resource.
-- **`NonSuccessLogGrouperTask`**: Groups non-success logs by their resource path.
-- **`ChangeTargetGrouperTask`**: Groups logs by the *target* resource being modified. It handles complex cases like subresources (e.g., `status`, `scale`) and delete collection operations, ensuring they are associated with the correct parent resource.
+- **`k8sAuditLogIngesterTask`**: Serializes audit logs into the history data and populates log-level metadata (timestamp, severity, and request summary).
+- **`successLogFilterTask`**: Filters out non-success logs (e.g., error responses) to focus on successful operations that likely changed the cluster state.
+- **`nonSuccessLogFilterTask`**: Filters out success logs to focus on failed operations (errors, forbidden, etc.).
+- **`nonSuccessLogGrouperTask`**: Groups non-success logs by their resource path.
+- **`changeTargetGrouperTask`**: Groups logs by the *target* resource being modified. It handles complex cases like subresources (e.g., `status`, `scale`) and delete collection operations, ensuring they are associated with the correct parent resource.
 
 ### Manifest & Lifetime
 
-- **`ManifestGeneratorTask`**: Reconstructs the resource manifest at each point in time by applying the changes from the audit logs. It uses `K8sResourceMergeConfigTask` to handle specific merge strategies for different Kubernetes resources.
-- **`ResourceLifetimeTrackerTask`**: Tracks the lifetime of each resource (creation and deletion). It determines when a resource is created or deleted based on the audit logs and manifest changes.
+- **`manifestGeneratorTask`**: Reconstructs the resource manifest at each point in time by applying the changes from the audit logs. It uses `defaultK8sResourceMergeConfigTask` (`K8sResourceMergeConfigTaskID`) to handle specific merge strategies for different Kubernetes resources.
+- **`resourceLifetimeTrackerTask`**: Tracks the lifetime of each resource (creation and deletion). It determines when a resource is created or deleted based on the audit logs and manifest changes.
 
 ### Discovery & Inventory Tasks
 
-- **`NodeNameDiscoveryTask`**: Scans audit logs to discover and collect cluster node names.
-- **`ResourceUIDDiscoveryTask`**: Collects mappings between resource UIDs and their identity (Kind, Namespace, Name).
-- **`ResourceUIDPatternFinderTask`**: Builds a pattern finder (`PatternFinder`) from aggregated UIDs for efficient reference resolution.
-- **`ContainerIDDiscoveryTask`**: Collects mappings between container IDs and container identities from pod creation logs.
-- **`ContainerIDPatternFinderTask`**: Builds a pattern finder from aggregated container IDs.
-- **`IPLeaseHistoryDiscoveryTask`**: Discovers IP lease histories from audit logs to resolve IP-to-Pod associations at any timestamp.
+- **`nodeNameDiscoveryTask`**: Scans audit logs to discover and collect cluster node names.
+- **`resourceUIDDiscoveryTask`**: Collects mappings between resource UIDs and their identity (Kind, Namespace, Name).
+- **`uidPatternFinderTask`**: Builds a pattern finder (`PatternFinder`) from aggregated UIDs for efficient reference resolution.
+- **`containerIDDiscoveryTask`**: Collects mappings between container IDs and container identities from pod creation logs.
+- **`containerIDPatternFinderTask`**: Builds a pattern finder from aggregated container IDs.
+- **`ipLeaseHistoryDiscoveryTask`**: Discovers IP lease histories from audit logs to resolve IP-to-Pod associations at any timestamp.
+- **`resourceTimelineCreationTimeDiscoveryTask`** / **`podPhaseTimelineCreationTimeDiscoveryTask`**: Discover earliest creation timestamps for resource and Pod phase timelines from generated manifests.
 
-### History Modifiers
+### Timeline Mappers
 
-These tasks generate the actual timeline events (revisions) for the resources.
+These tasks generate the timeline events and revisions for the resources.
 
-- **`LogSummaryHistoryModifierTask`**: Generates a simple summary of log events (verb, URI) for the timeline. Summaries are handled in this task. The other tasks mustn't generate summaries.
-- **`NonSuccessLogHistoryModifierTask`**: Generates events for failed operations, marking them as errors in the timeline.
-- **`ResourceRevisionHistoryModifierTask`**: Generates the main resource revisions, showing the state of the resource body over time. It handles standard CRUD operations.
-- **`ResourceOwnerReferenceModifierTask`**: Adds owner reference information to the timeline, allowing KHI to link resources (e.g., Pod to ReplicaSet).
-- **`EndpointResourceHistoryModifierTask`**: Specifically tracks `Endpoint` and `EndpointSlice` resources, generating revisions that show the status of individual endpoints (ready, terminating, etc.).
-- **`PodPhaseHistoryModifierTask`**: Tracks the phase of Pods (Pending, Running, Succeeded, Failed) and their node assignment.
-- **`ContainerHistoryModifierTask`**: Tracks the status of containers within Pods (Waiting, Running, Terminated) and their state details (reason, exit code).
-- **`ConditionHistoryModifierTask`**: Tracks the `status.conditions` of resources, generating revisions when conditions change (e.g., NodeReady, PodScheduled).
-- **`NamespaceRequestHistoryModifierTask`**: Records events for requests against entire resources in namespace.
+- **`nonSuccessLogLogToTimelineMapperTask`**: Generates events for failed operations, marking them as errors in the timeline.
+- **`resourceRevisionLogToTimelineMapperTask`**: Generates the main resource revisions, showing the state of the resource body over time. It handles standard CRUD operations.
+- **`resourceOwnerReferenceTimelineMapperTask`**: Adds owner reference information to the timeline, allowing KHI to link resources (e.g., Pod to ReplicaSet).
+- **`endpointResourceLogToTimelineMapperTask`**: Specifically tracks `Endpoint` and `EndpointSlice` resources, generating revisions that show the status of individual endpoints (ready, terminating, etc.).
+- **`podPhaseLogToTimelineMapperTask`**: Tracks the phase of Pods (Pending, Running, Succeeded, Failed) and their node assignment.
+- **`containerLogToTimelineMapperTask`**: Tracks the status of containers within Pods (Waiting, Running, Terminated) and their state details (reason, exit code).
+- **`conditionLogToTimelineMapperTask`**: Tracks the `status.conditions` of resources, generating revisions when conditions change (e.g., NodeReady, PodScheduled).
+- **`namespaceRequestLogToTimelineMapperTask`**: Records events for requests against entire resources in a namespace.

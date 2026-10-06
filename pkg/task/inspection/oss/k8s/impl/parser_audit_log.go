@@ -15,39 +15,28 @@
 package ossk8s_impl
 
 import (
-	"context"
-
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	ossk8s "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/oss/k8s"
 )
 
-// OSSK8sAuditLogExtractorTask provides K8sAuditLogExtractor for OSS audit logs.
-var OSSK8sAuditLogExtractorTask = coretask.NewTask(
+// ossK8sAuditLogExtractorTask provides K8sAuditLogExtractor for OSS audit logs.
+var ossK8sAuditLogExtractorTask = coretask.DefineConstant(
 	ossk8s.OSSK8sAuditLogExtractorTaskID,
-	[]coretask.Dependency{},
-	func(ctx context.Context) (k8saudit.K8sAuditLogExtractor, error) {
-		return ossk8s.ExtractOSSK8sAuditLog, nil
-	},
-	coretask.NewTaskResultRetentionLabel(true),
+	ossk8s.ExtractOSSK8sAuditLog,
 )
 
-// OSSK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for OSS audit logs.
-var OSSK8sAuditLogErrorExtractorTask = coretask.NewTask(
+// ossK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for OSS audit logs.
+var ossK8sAuditLogErrorExtractorTask = coretask.DefineConstant(
 	ossk8s.OSSK8sAuditLogErrorExtractorTaskID,
-	[]coretask.Dependency{},
-	func(ctx context.Context) (k8saudit.K8sAuditLogErrorExtractor, error) {
-		return ossk8s.ExtractOSSK8sAuditLogError, nil
-	},
-	coretask.NewTaskResultRetentionLabel(true),
+	ossk8s.ExtractOSSK8sAuditLogError,
 )
 
-var OSSK8sAuditLogParserTailTask = coretask.NewTailTask(
+// ossK8sAuditLogParserTailTask waits for all Kubernetes audit log mappers so that selecting the Kubernetes Audit Logs feature runs them.
+var ossK8sAuditLogParserTailTask = coretask.DefineTailTask(
 	ossk8s.OSSK8sAuditLogParserTailTaskID,
 	[]coretask.Dependency{
-		k8saudit.K8sAuditLogExtractorRef,
-		k8saudit.K8sAuditLogErrorExtractorRef,
 		k8saudit.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
 		k8saudit.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
 		k8saudit.ResourceRevisionLogToTimelineMapperTaskID.Ref(),

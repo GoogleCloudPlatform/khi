@@ -37,8 +37,13 @@ import (
 func createServerTestTask(refID, implHash string, deps []coretask.Dependency, opts ...coretask.LabelOpt) coretask.UntypedTask {
 	ref := taskid.NewTaskReference[any](refID)
 	id := taskid.NewImplementationID[any](ref, implHash)
-	return coretask.NewTask[any](id, deps, func(ctx context.Context) (any, error) {
-		return nil, nil
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+		for _, dep := range deps {
+			coretask.After(b, dep)
+		}
+		return func(ctx context.Context) (any, error) {
+			return nil, nil
+		}
 	}, opts...)
 }
 
@@ -63,10 +68,13 @@ func TestInspectionTaskGraphServer_GetInspectionTaskRegistry(t *testing.T) {
 
 	task := createServerTestTask("my.ref", "impl1", nil,
 		coretask.WithSelectionPriority(10),
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
 	)
-	if err := inspectionServer.AddTask(task); err != nil {
-		t.Fatalf("failed to add task: %v", err)
+	if err := inspectionServer.AddModules(coreinspection.Module{
+		Name:  "gke",
+		Scope: coreinspection.Scope{"environment": "googlecloud"},
+		Tasks: []coretask.UntypedTask{task},
+	}); err != nil {
+		t.Fatalf("failed to add module: %v", err)
 	}
 
 	server := NewInspectionTaskGraphServer(inspectionServer, DefaultStreamCycleDuration, DefaultUpdateInterval)
@@ -137,20 +145,19 @@ func TestInspectionTaskGraphServer_ResolveInspectionTaskGraph(t *testing.T) {
 	}
 
 	taskA := createServerTestTask("feature.a", "impl1", nil,
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
 		inspectioncore.FeatureTaskLabel("Feature A", "Description A", 1, true),
 	)
 	refA := taskid.NewTaskReference[any]("feature.a")
 	taskB := createServerTestTask("task.b", "impl1", []coretask.Dependency{refA},
-		inspectioncore.InspectionTypeLabelSelector(map[string]string{"environment": "googlecloud"}),
 		inspectioncore.FeatureTaskLabel("Feature B", "Description B", 2, true),
 	)
 
-	if err := inspectionServer.AddTask(taskA); err != nil {
-		t.Fatalf("failed to add taskA: %v", err)
-	}
-	if err := inspectionServer.AddTask(taskB); err != nil {
-		t.Fatalf("failed to add taskB: %v", err)
+	if err := inspectionServer.AddModules(coreinspection.Module{
+		Name:  "gke",
+		Scope: coreinspection.Scope{"environment": "googlecloud"},
+		Tasks: []coretask.UntypedTask{taskA, taskB},
+	}); err != nil {
+		t.Fatalf("failed to add module: %v", err)
 	}
 
 	server := NewInspectionTaskGraphServer(inspectionServer, DefaultStreamCycleDuration, DefaultUpdateInterval)
@@ -252,12 +259,9 @@ func newInspectionServerWithTask(t *testing.T, task coretask.UntypedTask) (*core
 // was created but never started.
 func newRunTaskGraphFixture(t *testing.T) runTaskGraphFixture {
 	t.Helper()
-	dummyTask := coretask.NewTask(
+	dummyTask := coretask.DefineConstant[any](
 		taskid.NewDefaultImplementationID[any]("dummy-task"),
-		nil,
-		func(ctx context.Context) (any, error) {
-			return "success", nil
-		},
+		"success",
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
 	)
@@ -477,15 +481,16 @@ func TestInspectionTaskGraphServer_WatchInspectionRunTaskGraphClosesAfterStreamC
 func newBlockingRunInspection(t *testing.T) (*coreinspection.InspectionTaskServer, string, func()) {
 	t.Helper()
 	release := make(chan struct{})
-	blockingTask := coretask.NewTask(
+	blockingTask := coretask.Define(
 		taskid.NewDefaultImplementationID[any]("blocking-task"),
-		nil,
-		func(ctx context.Context) (any, error) {
-			select {
-			case <-release:
-				return "success", nil
-			case <-ctx.Done():
-				return nil, ctx.Err()
+		func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+			return func(ctx context.Context) (any, error) {
+				select {
+				case <-release:
+					return "success", nil
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
 			}
 		},
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),

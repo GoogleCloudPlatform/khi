@@ -187,33 +187,38 @@ type InternalLogPayload struct {
 
 ### Anti-Pattern 6: Task DAG Optional Dependencies & Feature Flags
 
-When modifying the KHI Task DAG, do not use `coretask.GetOptionalTaskResult` or add flags like `useLegacyMode` to support older, obsolete task graphs. All task definitions and registration points are maintained in the repository.
+When modifying the KHI Task DAG, do not use `coretask.UseOptional` or add flags like `useLegacyMode` to support older, obsolete task graphs. All task definitions and registration points are maintained in the repository.
 
 **Bad:**
 
 ```go
 // BAD: Falls back to legacy logic if an upstream task is missing from the graph.
-func MyTaskFunc(ctx context.Context, mode contract.InspectionTaskModeType) (*MyResult, error) {
- upstream, ok := coretask.GetOptionalTaskResult(ctx, UpstreamTaskID.Ref())
- if !ok {
-  return runLegacyFallbackLogic(ctx)
- }
- return runCurrentLogic(ctx, upstream)
-}
+var MyTask = coretask.Define(
+ MyTaskID,
+ func(b *coretask.Binder) func(ctx context.Context) (*MyResult, error) {
+  upstream := coretask.UseOptional(b, UpstreamTaskID.Ref(coretask.FromActiveGraph))
+  return func(ctx context.Context) (*MyResult, error) {
+   val, ok := upstream.Get(ctx)
+   if !ok {
+    return runLegacyFallbackLogic(ctx)
+   }
+   return runCurrentLogic(ctx, val)
+  }
+ },
+)
 ```
 
 **Good:**
 
 ```go
 // GOOD: Declare the dependency as required and update pipeline definitions accordingly.
-var MyTask = coretask.NewTask(
+var MyTask = coretask.Define(
  MyTaskID,
- []taskid.UntypedTaskReference{
-  UpstreamTaskID.Ref(),
- },
- func(ctx context.Context, mode contract.InspectionTaskModeType) (*MyResult, error) {
-  upstream := coretask.GetTaskResult(ctx, UpstreamTaskID.Ref())
-  return runCurrentLogic(ctx, upstream)
+ func(b *coretask.Binder) func(ctx context.Context) (*MyResult, error) {
+  upstream := coretask.Use(b, UpstreamTaskID.Ref())
+  return func(ctx context.Context) (*MyResult, error) {
+   return runCurrentLogic(ctx, upstream.Get(ctx))
+  }
  },
 )
 ```

@@ -41,19 +41,19 @@ type CheckboxFormReadonlyProvider = func(ctx context.Context) (bool, error)
 // CheckboxFormHintGenerator generates a hint message and its severity type for the checkbox field.
 type CheckboxFormHintGenerator = func(ctx context.Context, value bool) (string, inspectionmetadata.ParameterHintType, error)
 
-// CheckboxFormTaskBuilder builds a DAG task that renders and processes a checkbox form field.
-type CheckboxFormTaskBuilder struct {
-	FormTaskBuilderBase[bool]
+// checkboxFormTask holds the settings of a checkbox form task defined with DefineCheckboxForm.
+type checkboxFormTask struct {
+	formTaskBase[bool]
 	defaultValue     CheckboxFormDefaultValueGenerator
 	validator        CheckboxFormValidator
 	readonlyProvider CheckboxFormReadonlyProvider
 	hintGenerator    CheckboxFormHintGenerator
 }
 
-// NewCheckboxFormTaskBuilder constructs a new CheckboxFormTaskBuilder instance.
-func NewCheckboxFormTaskBuilder(id taskid.TaskImplementationID[bool], priority int, fieldLabel string) *CheckboxFormTaskBuilder {
-	return &CheckboxFormTaskBuilder{
-		FormTaskBuilderBase: NewFormTaskBuilderBase(id, priority, fieldLabel),
+// newCheckboxFormTask creates a checkbox form task with the default settings described in CheckboxFormSpec.
+func newCheckboxFormTask(id taskid.TaskImplementationID[bool], priority int, label string, description string) *checkboxFormTask {
+	return &checkboxFormTask{
+		formTaskBase: newFormTaskBase(id, priority, label, description),
 		defaultValue: func(ctx context.Context) (bool, error) {
 			return false, nil
 		},
@@ -69,135 +69,120 @@ func NewCheckboxFormTaskBuilder(id taskid.TaskImplementationID[bool], priority i
 	}
 }
 
-// WithDependencies sets upstream task dependencies for this checkbox task.
-func (b *CheckboxFormTaskBuilder) WithDependencies(dependencies []coretask.Dependency) *CheckboxFormTaskBuilder {
-	b.FormTaskBuilderBase.WithDependencies(dependencies)
-	return b
-}
+// run computes the form field metadata and returns the checked state of the current input.
+func (b *checkboxFormTask) run(ctx context.Context) (bool, error) {
+	m := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+	req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
+	taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
 
-// WithDescription sets the explanatory description for the checkbox field.
-func (b *CheckboxFormTaskBuilder) WithDescription(description string) *CheckboxFormTaskBuilder {
-	b.FormTaskBuilderBase.WithDescription(description)
-	return b
-}
+	readonly, err := b.readonlyProvider(ctx)
+	if err != nil {
+		return false, fmt.Errorf("readonly provider for task `%s` returned an error: %w", b.id, err)
+	}
 
-// WithValidator sets the validation function for the checkbox value.
-func (b *CheckboxFormTaskBuilder) WithValidator(validator CheckboxFormValidator) *CheckboxFormTaskBuilder {
-	b.validator = validator
-	return b
-}
+	field := inspectionmetadata.CheckboxParameterFormField{}
+	field.Readonly = readonly
 
-// WithDefaultValue sets a constant default checked state.
-func (b *CheckboxFormTaskBuilder) WithDefaultValue(defValue bool) *CheckboxFormTaskBuilder {
-	return b.WithDefaultValueFunc(func(ctx context.Context) (bool, error) {
-		return defValue, nil
-	})
-}
+	defaultValue, err := b.defaultValue(ctx)
+	if err != nil {
+		return false, fmt.Errorf("default value generator for task `%s` returned an error: %w", b.id, err)
+	}
+	field.Default = defaultValue
+	currentValue := defaultValue
 
-// WithDefaultValueFunc sets dynamic generator for the default checked state.
-func (b *CheckboxFormTaskBuilder) WithDefaultValueFunc(defFunc CheckboxFormDefaultValueGenerator) *CheckboxFormTaskBuilder {
-	b.defaultValue = defFunc
-	return b
-}
-
-// WithReadonly sets a constant readonly state for the checkbox.
-func (b *CheckboxFormTaskBuilder) WithReadonly(readonly bool) *CheckboxFormTaskBuilder {
-	return b.WithReadonlyFunc(func(ctx context.Context) (bool, error) {
-		return readonly, nil
-	})
-}
-
-// WithReadonlyFunc sets dynamic provider for the readonly state.
-func (b *CheckboxFormTaskBuilder) WithReadonlyFunc(readonlyFunc CheckboxFormReadonlyProvider) *CheckboxFormTaskBuilder {
-	b.readonlyProvider = readonlyFunc
-	return b
-}
-
-// WithHintFunc sets dynamic generator for hint message and hint type.
-func (b *CheckboxFormTaskBuilder) WithHintFunc(hintFunc CheckboxFormHintGenerator) *CheckboxFormTaskBuilder {
-	b.hintGenerator = hintFunc
-	return b
-}
-
-// Build creates a DAG task instance from this builder definition.
-func (b *CheckboxFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask.Task[bool] {
-	return coretask.NewTask(b.id, b.dependencies, func(ctx context.Context) (bool, error) {
-		m := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
-		req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
-		taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
-
-		readonly, err := b.readonlyProvider(ctx)
-		if err != nil {
-			return false, fmt.Errorf("readonly provider for task `%s` returned an error: %w", b.id, err)
-		}
-
-		field := inspectionmetadata.CheckboxParameterFormField{}
-		field.Readonly = readonly
-
-		defaultValue, err := b.defaultValue(ctx)
-		if err != nil {
-			return false, fmt.Errorf("default value generator for task `%s` returned an error: %w", b.id, err)
-		}
-		field.Default = defaultValue
-		currentValue := defaultValue
-
-		if valueRaw, exist := req[b.id.ReferenceIDString()]; exist && !readonly {
-			switch v := valueRaw.(type) {
-			case bool:
-				currentValue = v
-			case string:
-				parsed, err := strconv.ParseBool(v)
-				if err != nil {
-					return false, fmt.Errorf("request parameter `%s` was not a valid boolean in task %s: %w", b.id.ReferenceIDString(), b.id, err)
-				}
-				currentValue = parsed
-			default:
-				return false, fmt.Errorf("request parameter `%s` was not given as boolean or boolean string in task %s", b.id.ReferenceIDString(), b.id)
-			}
-		}
-
-		field.Type = inspectionmetadata.Checkbox
-		field.HintType = inspectionmetadata.Info
-
-		b.SetupBaseFormField(&field.ParameterFormFieldBase)
-
-		validationErr, err := b.validator(ctx, currentValue)
-		if err != nil {
-			return false, fmt.Errorf("validator for task `%s` returned an unrecoverable error: %w", b.id, err)
-		}
-		if validationErr != "" {
-			currentValue = defaultValue
-		}
-		if validationErr != "" && taskMode == inspectioncore.TaskModeRun {
-			return false, fmt.Errorf("validator for task `%s` returned a validation error. All validations must be resolved before running: %s", b.id, validationErr)
-		}
-
-		if validationErr != "" {
-			field.HintType = inspectionmetadata.Error
-			field.Hint = validationErr
-		} else {
-			hint, hintType, err := b.hintGenerator(ctx, currentValue)
+	if valueRaw, exist := req[b.id.ReferenceIDString()]; exist && !readonly {
+		switch v := valueRaw.(type) {
+		case bool:
+			currentValue = v
+		case string:
+			parsed, err := strconv.ParseBool(v)
 			if err != nil {
-				return false, fmt.Errorf("failed to generate a hint for task %s: %w", b.id, err)
+				return false, fmt.Errorf("request parameter `%s` was not a valid boolean in task %s: %w", b.id.ReferenceIDString(), b.id, err)
 			}
-			if hint == "" {
-				hintType = inspectionmetadata.None
-			}
-			field.Hint = hint
-			field.HintType = hintType
+			currentValue = parsed
+		default:
+			return false, fmt.Errorf("request parameter `%s` was not given as boolean or boolean string in task %s", b.id.ReferenceIDString(), b.id)
 		}
+	}
 
-		formFields, found := typedmap.Get(m, inspectionmetadata.FormFieldSetMetadataKey)
-		if !found {
-			return false, fmt.Errorf("form field set was not found in the metadata set")
-		}
-		err = formFields.SetField(field)
+	field.Type = inspectionmetadata.Checkbox
+	field.HintType = inspectionmetadata.Info
+
+	b.setupBaseFormField(&field.ParameterFormFieldBase)
+
+	validationErr, err := b.validator(ctx, currentValue)
+	if err != nil {
+		return false, fmt.Errorf("validator for task `%s` returned an unrecoverable error: %w", b.id, err)
+	}
+	if validationErr != "" {
+		currentValue = defaultValue
+	}
+	if validationErr != "" && taskMode == inspectioncore.TaskModeRun {
+		return false, fmt.Errorf("validator for task `%s` returned a validation error. All validations must be resolved before running: %s", b.id, validationErr)
+	}
+
+	if validationErr != "" {
+		field.HintType = inspectionmetadata.Error
+		field.Hint = validationErr
+	} else {
+		hint, hintType, err := b.hintGenerator(ctx, currentValue)
 		if err != nil {
-			return false, fmt.Errorf("failed to configure the form metadata in task `%s`: %w", b.id, err)
+			return false, fmt.Errorf("failed to generate a hint for task %s: %w", b.id, err)
 		}
-		return currentValue, nil
-	}, append(labelOpts, inspectioncore.NewFormTaskLabelOpt(
-		b.label,
-		b.description,
-	))...)
+		if hint == "" {
+			hintType = inspectionmetadata.None
+		}
+		field.Hint = hint
+		field.HintType = hintType
+	}
+
+	formFields, found := typedmap.Get(m, inspectionmetadata.FormFieldSetMetadataKey)
+	if !found {
+		return false, fmt.Errorf("form field set was not found in the metadata set")
+	}
+	err = formFields.SetField(field)
+	if err != nil {
+		return false, fmt.Errorf("failed to configure the form metadata in task `%s`: %w", b.id, err)
+	}
+	return currentValue, nil
+}
+
+// CheckboxFormSpec holds the optional settings of a checkbox form defined with DefineCheckboxForm.
+// Callbacks may read inputs declared on the Binder passed to the bind function.
+// A nil callback uses the default.
+type CheckboxFormSpec struct {
+	// Readonly reports whether the field is read only. Defaults to false.
+	Readonly CheckboxFormReadonlyProvider
+	// DefaultValue generates the default checked state. Defaults to false.
+	DefaultValue CheckboxFormDefaultValueGenerator
+	// Validator validates the checked state. Defaults to a validator that accepts any value.
+	Validator CheckboxFormValidator
+	// Hint generates a hint message for the form field. Defaults to no hint.
+	Hint CheckboxFormHintGenerator
+}
+
+func (b *checkboxFormTask) applySpec(spec CheckboxFormSpec) {
+	if spec.Readonly != nil {
+		b.readonlyProvider = spec.Readonly
+	}
+	if spec.DefaultValue != nil {
+		b.defaultValue = spec.DefaultValue
+	}
+	if spec.Validator != nil {
+		b.validator = spec.Validator
+	}
+	if spec.Hint != nil {
+		b.hintGenerator = spec.Hint
+	}
+}
+
+// DefineCheckboxForm defines a checkbox form task with a Binder.
+// id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
+// and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
+func DefineCheckboxForm(id taskid.TaskImplementationID[bool], priority int, label string, description string, bind func(b *coretask.Binder) CheckboxFormSpec, labelOpts ...coretask.LabelOpt) coretask.Task[bool] {
+	form := newCheckboxFormTask(id, priority, label, description)
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (bool, error) {
+		form.applySpec(bind(b))
+		return form.run
+	}, form.formLabelOpts(labelOpts)...)
 }

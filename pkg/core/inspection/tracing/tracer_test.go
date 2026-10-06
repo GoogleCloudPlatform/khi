@@ -143,7 +143,7 @@ func (m *mockTask) UntypedID() taskid.UntypedTaskImplementationID {
 	return m.id
 }
 
-func (m *mockTask) Dependencies() []coretask.Dependency {
+func (m *mockTask) Inputs() []coretask.InputSpec {
 	return nil
 }
 

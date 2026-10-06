@@ -31,7 +31,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-var mockGroupedRawTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-grouped-raw")
 var mockGroupedLogTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-grouped-log")
 
 type testState struct {
@@ -40,21 +39,7 @@ type testState struct {
 
 type mockGroupedLogIngester struct {
 	SinglePassGroupedIngesterBase[testState]
-	rawTask   taskid.TaskReference[[]*log.Log]
-	groupTask taskid.TaskReference[LogGroupMap]
 	processFn func(ctx context.Context, l *log.Log, state testState) (*khifilev6.LogChangeSet, testState, error)
-}
-
-func (m *mockGroupedLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return m.rawTask
-}
-
-func (m *mockGroupedLogIngester) GroupedLogTask() taskid.TaskReference[LogGroupMap] {
-	return m.groupTask
-}
-
-func (m *mockGroupedLogIngester) Dependencies() []coretask.Dependency {
-	return nil
 }
 
 func (m *mockGroupedLogIngester) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData testState) (*khifilev6.LogChangeSet, testState, error) {
@@ -66,7 +51,7 @@ func (m *mockGroupedLogIngester) ProcessLogByGroup(ctx context.Context, l *log.L
 
 var _ GroupedLogIngester[testState] = (*mockGroupedLogIngester)(nil)
 
-func TestNewGroupedLogIngesterTask(t *testing.T) {
+func TestDefineGroupedLogIngesterTask(t *testing.T) {
 	testCases := []struct {
 		name          string
 		rawLogs       func(ctx context.Context) []*log.Log
@@ -155,13 +140,13 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 			}
 
 			ingester := &mockGroupedLogIngester{
-				rawTask:   mockGroupedRawTaskID.Ref(),
-				groupTask: mockGroupedLogTaskID.Ref(),
 				processFn: processFn,
 			}
 
 			tid := taskid.NewDefaultImplementationID[struct{}]("test-grouped-ingester")
-			task := NewGroupedLogIngesterTask(tid, ingester)
+			task := DefineGroupedLogIngesterTask(tid, mockGroupedLogTaskID.Ref(), func(b *coretask.Binder) GroupedLogIngester[testState] {
+				return ingester
+			})
 
 			if tc.cancelContext {
 				var cancel context.CancelFunc
@@ -169,13 +154,13 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 				cancel()
 			}
 
-			_, _, err := inspectiontest.RunInspectionTask(
+			_, _, err := inspectiontest.Run(
+				t,
 				ctx,
 				task,
 				inspectioncore.TaskModeRun,
 				map[string]any{},
-				tasktest.NewTaskDependencyValuePair(mockGroupedRawTaskID.Ref(), rawLogs),
-				tasktest.NewTaskDependencyValuePair(mockGroupedLogTaskID.Ref(), groups),
+				tasktest.Given(mockGroupedLogTaskID.Ref(), groups),
 			)
 
 			if (err != nil) != tc.wantErr {
@@ -206,7 +191,7 @@ func TestNewGroupedLogIngesterTask(t *testing.T) {
 	}
 }
 
-func TestNewGroupedLogIngesterTask_ErrorHandling(t *testing.T) {
+func TestDefineGroupedLogIngesterTask_ErrorHandling(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	rawLogs := []*log.Log{
 		mustNewLogFromYAML(t, ctx, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`),
@@ -220,26 +205,97 @@ func TestNewGroupedLogIngesterTask_ErrorHandling(t *testing.T) {
 	expectedErr := errors.New("mock process error")
 
 	ingester := &mockGroupedLogIngester{
-		rawTask:   mockGroupedRawTaskID.Ref(),
-		groupTask: mockGroupedLogTaskID.Ref(),
 		processFn: func(ctx context.Context, l *log.Log, state testState) (*khifilev6.LogChangeSet, testState, error) {
 			return nil, state, expectedErr
 		},
 	}
 
 	tid := taskid.NewDefaultImplementationID[struct{}]("test-grouped-ingester-error")
-	task := NewGroupedLogIngesterTask(tid, ingester)
+	task := DefineGroupedLogIngesterTask(tid, mockGroupedLogTaskID.Ref(), func(b *coretask.Binder) GroupedLogIngester[testState] {
+		return ingester
+	})
 
-	_, _, err := inspectiontest.RunInspectionTask(
+	_, _, err := inspectiontest.Run(
+		t,
 		ctx,
 		task,
 		inspectioncore.TaskModeRun,
 		map[string]any{},
-		tasktest.NewTaskDependencyValuePair(mockGroupedRawTaskID.Ref(), rawLogs),
-		tasktest.NewTaskDependencyValuePair(mockGroupedLogTaskID.Ref(), groups),
+		tasktest.Given(mockGroupedLogTaskID.Ref(), groups),
 	)
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
+	}
+}
+
+func TestDefineGroupedLogIngesterTask_BindInputs(t *testing.T) {
+	suffixTaskID := taskid.NewDefaultImplementationID[string]("mock-suffix")
+	tid := taskid.NewDefaultImplementationID[struct{}]("test-grouped-ingester-bind")
+	wantInputs := []string{"required mock-grouped-log", "required mock-suffix"}
+
+	testCases := []struct {
+		name         string
+		taskMode     inspectioncore.InspectionTaskModeType
+		wantSuffixes []string
+	}{
+		{
+			name:         "reads the input declared in bind on run mode",
+			taskMode:     inspectioncore.TaskModeRun,
+			wantSuffixes: []string{"-suffix"},
+		},
+		{
+			name:         "processes no logs on dry run",
+			taskMode:     inspectioncore.TaskModeDryRun,
+			wantSuffixes: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			rawLogs := []*log.Log{
+				mustNewLogFromYAML(t, ctx, `{"apiVersion": "v1", "kind": "Pod", "namespace": "default", "name": "pod-1"}`),
+			}
+			groups := LogGroupMap{
+				"group1": {
+					Group: "group1",
+					Logs:  rawLogs,
+				},
+			}
+
+			var gotSuffixes []string
+			task := DefineGroupedLogIngesterTask(tid, mockGroupedLogTaskID.Ref(), func(b *coretask.Binder) GroupedLogIngester[testState] {
+				suffix := coretask.Use(b, suffixTaskID.Ref())
+				return &mockGroupedLogIngester{
+					// There is only one group with a single log, so no locking is needed.
+					processFn: func(ctx context.Context, l *log.Log, state testState) (*khifilev6.LogChangeSet, testState, error) {
+						gotSuffixes = append(gotSuffixes, suffix.Get(ctx))
+						return nil, state, nil
+					},
+				}
+			})
+
+			if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+				t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+			}
+
+			_, _, err := inspectiontest.Run(
+				t,
+				ctx,
+				task,
+				tc.taskMode,
+				map[string]any{},
+				tasktest.Given(mockGroupedLogTaskID.Ref(), groups),
+				tasktest.Given(suffixTaskID.Ref(), "-suffix"),
+			)
+			if err != nil {
+				t.Fatalf("Run() returned an unexpected error: %v", err)
+			}
+
+			if diff := cmp.Diff(tc.wantSuffixes, gotSuffixes); diff != "" {
+				t.Errorf("suffixes mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

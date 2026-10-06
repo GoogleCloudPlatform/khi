@@ -16,6 +16,7 @@ package inspectiontest
 
 import (
 	"context"
+	"testing"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
@@ -45,12 +46,7 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionSharedMap, typedmap.NewTypedMap())
 	taskCtx = khictx.WithValue[inspectioncore.InspectionNameRegistry](taskCtx, inspectioncore.InspectionNameRegistryKey, inspectioncore.NewInMemoryInspectionNameRegistry())
 
-	// If this context is used with the task runner, it should have the task result map. But if not, then this must complement the value with the default value.
-	_, err := khictx.GetValue(taskCtx, core_contract.TaskResultMapContextKey)
-	if err != nil {
-		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskResultMapContextKey, typedmap.NewTypedMap())
-	}
-	_, err = khictx.GetValue(taskCtx, core_contract.TaskImplementationIDContextKey)
+	_, err := khictx.GetValue(taskCtx, core_contract.TaskImplementationIDContextKey)
 	if err != nil {
 		fakeTaskID := taskid.NewDefaultImplementationID[struct{}]("khi.google.com/fake-test-id")
 		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskImplementationIDContextKey, fakeTaskID.(taskid.UntypedTaskImplementationID))
@@ -79,16 +75,19 @@ func NextRunTaskContext(originalCtx context.Context, prevRunCtx context.Context)
 	return khictx.WithValue(originalCtx, inspectioncore.InspectionSharedMap, inspectionSharedMap)
 }
 
-// RunInspectionTask execute a single task with given context. Use WithDefaultTestInspectionTaskContext to get the context.
-func RunInspectionTask[T any](baseContext context.Context, task coretask.Task[T], mode inspectioncore.InspectionTaskModeType, input map[string]any, taskDependencyValues ...tasktest.TaskDependencyValues) (T, *typedmap.ReadonlyTypedMap, error) {
-	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionTaskInput, input)
+// Run validates inputs against the inputs declared by task and runs the task in the given inspection mode.
+// It fails t on invalid inputs in the same way as tasktest.Run. Use WithDefaultTestInspectionTaskContext to get the base context.
+// It returns the task result, the inspection metadata and the error returned by the task.
+func Run[T any](t testing.TB, baseContext context.Context, task coretask.Task[T], mode inspectioncore.InspectionTaskModeType, inspectionInput map[string]any, inputs ...tasktest.InputValue) (T, *typedmap.ReadonlyTypedMap, error) {
+	t.Helper()
+	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionTaskInput, inspectionInput)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskMode, mode)
 	metadata := khictx.MustGetValue(taskCtx, inspectionmetadata.MapContextKey)
 
 	var result T
 	_, err := progress.TaskInterceptor(taskCtx, task, func(ctx context.Context) (any, error) {
 		var runErr error
-		result, runErr = tasktest.RunTask(ctx, task, taskDependencyValues...)
+		result, runErr = tasktest.Run(t, ctx, task, inputs...)
 		return result, runErr
 	})
 	return result, metadata, err

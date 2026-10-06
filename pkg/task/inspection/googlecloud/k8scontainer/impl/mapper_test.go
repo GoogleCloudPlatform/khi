@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -36,8 +35,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-// TestLogIngester_ProcessLog tests the containerLogIngester.ProcessLog function.
-func TestLogIngester_ProcessLog(t *testing.T) {
+// TestProcessContainerLog tests processContainerLog.
+func TestProcessContainerLog(t *testing.T) {
 	testCases := []struct {
 		name   string
 		input  *log.Log
@@ -156,19 +155,18 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := &containerLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cs, err := ingester.ProcessLog(t.Context(), tc.input)
+			cs, err := processContainerLog(t.Context(), tc.input)
 			if err != nil {
-				t.Fatalf("ProcessLog() returned unexpected error: %v", err)
+				t.Fatalf("processContainerLog() returned unexpected error: %v", err)
 			}
 			tc.assert(t, cs)
 		})
 	}
 }
 
-// TestLogToTimelineMapper_ProcessLogByGroup tests the containerLogLogToTimelineMapper.ProcessLogByGroup function.
+// TestLogToTimelineMapper_ProcessLogByGroup tests mapContainerLog, which containerLogTimelineMapper.ProcessLogByGroup delegates to.
 func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
@@ -224,15 +222,13 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &containerLogLogToTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, k8scontainer.ClusterIdentityTaskID.Ref(), tc.cluster)
 
-			cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, struct{}{})
+			cs, err := mapContainerLog(ctx, tc.inputLog, tc.cluster.ClusterName)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+				t.Fatalf("mapContainerLog() returned unexpected error: %v", err)
 			}
 			tc.assert(t, ctx, cs)
 		})
@@ -253,7 +249,7 @@ func (m *mockInitialResourceStateProvider) InitialResourceState(identity *k8saud
 
 var _ k8saudit.InitialResourceStateProvider = (*mockInitialResourceStateProvider)(nil)
 
-// TestPodPhaseTimelineMapper_ProcessLogByGroup tests the containerLogPodPhaseTimelineMapper.ProcessLogByGroup function.
+// TestPodPhaseTimelineMapper_ProcessLogByGroup tests mapContainerLogPodPhase, which containerLogPodPhaseTimelineMapper.ProcessLogByGroup delegates to.
 func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
@@ -972,29 +968,25 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &containerLogPodPhaseTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, k8scontainer.ClusterIdentityTaskID.Ref(), tc.cluster)
 			var provider k8saudit.InitialResourceStateProvider = &mockInitialResourceStateProvider{}
 			if tc.initialStateProvider != nil {
 				provider = tc.initialStateProvider
 			}
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.InitialResourceStateProviderRef, provider)
 
 			creationTimes := k8saudit.TimelineCreationTimes{}
 			if tc.timelineCreationTimes != nil {
 				creationTimes = tc.timelineCreationTimes()
 			}
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.TimelineCreationTimeInventoryTaskID.Ref(), creationTimes)
 
 			var css []*khifilev6.TimelineChangeSet
 			var state *containerLogPodPhaseMapperState
 			for _, l := range tc.inputLogs {
-				cs, nextState, err := mapper.ProcessLogByGroup(ctx, l, state)
+				cs, nextState, err := mapContainerLogPodPhase(ctx, l, state, tc.cluster.ClusterName, provider, creationTimes)
 				if err != nil {
-					t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+					t.Fatalf("mapContainerLogPodPhase() returned unexpected error: %v", err)
 				}
 				css = append(css, cs)
 				state = nextState

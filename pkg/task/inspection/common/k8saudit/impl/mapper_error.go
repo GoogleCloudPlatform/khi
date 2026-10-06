@@ -20,51 +20,47 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
-// NonSuccessLogLogToTimelineMapperTask is the task to generate history from non-success logs.
-var NonSuccessLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
+// nonSuccessLogLogToTimelineMapperTask is the task to generate history from non-success logs.
+var nonSuccessLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask[struct{}](
 	k8saudit.NonSuccessLogLogToTimelineMapperTaskID,
-	&nonSuccessLogLogToTimelineMapperTaskSetting{
-		subresourceMapToWriteToParent: map[string]struct{}{
-			"status":   {},
-			"finalize": {},
-			"approve":  {},
-		},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8saudit.K8sAuditLogIngesterTaskID.Ref(),
+		GroupedLogs: k8saudit.NonSuccessLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &nonSuccessLogLogToTimelineMapperTaskSetting{
+			extractor: coretask.Use(b, k8saudit.K8sAuditLogExtractorRef),
+			subresourceMapToWriteToParent: map[string]struct{}{
+				"status":   {},
+				"finalize": {},
+				"approve":  {},
+			},
+		}
 	},
 )
 
 type nonSuccessLogLogToTimelineMapperTaskSetting struct {
 	inspectiontaskbase.StatelessMapperBase
 
+	extractor coretask.Input[k8saudit.K8sAuditLogExtractor]
 	// subresourceMapToWriteToParent is the map of subresources to write to the parent resource.
 	subresourceMapToWriteToParent map[string]struct{}
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (e *nonSuccessLogLogToTimelineMapperTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
-	}
-}
-
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (e *nonSuccessLogLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return k8saudit.NonSuccessLogGrouperTaskID.Ref()
-}
-
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (e *nonSuccessLogLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8saudit.K8sAuditLogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
 func (e *nonSuccessLogLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	fieldSet, _ := k8saudit.ExtractK8sAuditLog(ctx, l.NodeReader)
+	extractor := e.extractor.Get(ctx)
+	cs, err := e.mapLog(ctx, l, extractor)
+	return cs, struct{}{}, err
+}
+
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) mapLog(ctx context.Context, l *log.Log, extractor k8saudit.K8sAuditLogExtractor) (*khifilev6.TimelineChangeSet, error) {
+	fieldSet, _ := k8saudit.ExtractK8sAuditLog(l.NodeReader, extractor)
 
 	subresource := fieldSet.SubresourceName
 	if _, ok := e.subresourceMapToWriteToParent[subresource]; subresource != "" && ok {
@@ -91,7 +87,7 @@ func (e *nonSuccessLogLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx cont
 	cs := khifilev6.NewTimelineChangeSet(l)
 	cs.AddEvent(resPath)
 
-	return cs, struct{}{}, nil
+	return cs, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*nonSuccessLogLogToTimelineMapperTaskSetting)(nil)
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*nonSuccessLogLogToTimelineMapperTaskSetting)(nil)

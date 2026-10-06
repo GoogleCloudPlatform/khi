@@ -91,10 +91,10 @@ protoPayload.resourceName:"gsmrsvd-dummy" -- The actual resource name selector w
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			sq := GenerateCSMTrafficDirectorStructuredQuery(tc.fleetProjectID, tc.clusterIdentifiers, tc.isDryRun)
+			sq := generateCSMTrafficDirectorStructuredQuery(tc.fleetProjectID, tc.clusterIdentifiers, tc.isDryRun)
 			if sq == nil {
 				if tc.wantQuery != "" {
-					t.Errorf("GenerateCSMTrafficDirectorStructuredQuery() = nil, want %q", tc.wantQuery)
+					t.Errorf("generateCSMTrafficDirectorStructuredQuery() = nil, want %q", tc.wantQuery)
 				}
 				return
 			}
@@ -122,13 +122,16 @@ func TestListCSMTrafficDirectorLogEntriesTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ListCSMTrafficDirectorLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
-		tasktest.NewTaskDependencyValuePair(csm.InputFleetProjectIDTaskID.Ref(), "fleet-project"),
-		tasktest.NewTaskDependencyValuePair(csm.CSMClusterIdentifierTaskID.Ref(), []string{}),
+	gotLogs, _, err := inspectiontest.Run(t, ctx, listCSMTrafficDirectorLogEntriesTask, inspectioncore.TaskModeDryRun, map[string]any{},
+		tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.Given(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		// Dry run records the query without fetching logs.
+		tasktest.Given[gcpcommon.LogFetcher](gcpcommon.LoggingFetcherTaskID.Ref(), nil),
+		tasktest.Given(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.Given(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+		tasktest.Given(csm.InputFleetProjectIDTaskID.Ref(), "fleet-project"),
+		tasktest.Given(csm.CSMClusterIdentifierTaskID.Ref(), []string{}),
 	)
 	if err != nil {
 		t.Fatalf("dry run returned unexpected error: %v", err)

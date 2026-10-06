@@ -201,26 +201,29 @@ func TestComposerLogsQueryTask_DryRun(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	gotLogs, _, err := inspectiontest.RunInspectionTask(ctx, ComposerLogsQueryTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
-		tasktest.NewTaskDependencyValuePair(composercluster.ClusterIdentityTaskID.Ref(), cluster),
-		tasktest.NewTaskDependencyValuePair(composercluster.InputComposerEnvironmentNameTaskID.Ref(), "test-env"),
-		tasktest.NewTaskDependencyValuePair(composerairflow.InputComposerComponentsTaskID.Ref(), []string{"scheduler"}),
+	gotLogs, _, err := inspectiontest.Run(t, ctx, composerLogsQueryTask, inspectioncore.TaskModeDryRun, map[string]any{},
+		tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), startTime),
+		tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
+		tasktest.Given(gcpcommon.InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
+		// Dry run records the query without fetching logs.
+		tasktest.Given[gcpcommon.LogFetcher](gcpcommon.LoggingFetcherTaskID.Ref(), nil),
+		tasktest.Given(gcpcommon.APIClientFactoryTaskID.Ref(), clientFactory),
+		tasktest.Given(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), googlecloud.NewCallOptionInjector()),
+		tasktest.Given(composercluster.ClusterIdentityTaskID.Ref(), cluster),
+		tasktest.Given(composercluster.InputComposerEnvironmentNameTaskID.Ref(), "test-env"),
+		tasktest.Given(composerairflow.InputComposerComponentsTaskID.Ref(), []string{"scheduler"}),
 	)
 	if err != nil {
-		t.Fatalf("DryRun returned unexpected error: %v", err)
+		t.Fatalf("dry run returned unexpected error: %v", err)
 	}
 	if len(gotLogs) != 0 {
-		t.Errorf("DryRun should return 0 logs, got %d", len(gotLogs))
+		t.Errorf("dry run should return 0 logs, got %d", len(gotLogs))
 	}
 
 	metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 	queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 	if !found {
-		t.Fatalf("QueryMetadata not found in metadata")
+		t.Fatalf("queryMetadata not found in metadata")
 	}
 
 	serialized := queryMetadata.ToSerializable().([]*inspectionmetadata.QueryItem)
@@ -239,9 +242,9 @@ timestamp >= "2025-01-01T01:00:00+0000"
 timestamp <= "2025-01-01T01:01:00+0000"`
 
 	if diff := cmp.Diff(wantQuery, serialized[0].Query); diff != "" {
-		t.Errorf("Query mismatch (-want +got):\n%s", diff)
+		t.Errorf("query mismatch (-want +got):\n%s", diff)
 	}
 	if serialized[0].Name != "Composer Environment Logs" {
-		t.Errorf("Query Name mismatch: got %q, want %q", serialized[0].Name, "Composer Environment Logs")
+		t.Errorf("query name mismatch: got %q, want %q", serialized[0].Name, "Composer Environment Logs")
 	}
 }

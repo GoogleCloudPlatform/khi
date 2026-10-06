@@ -20,15 +20,14 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/onpremapiaudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GenerateOnPremAPIStructuredQuery generates a structured query for OnPrem API audit logs.
-func GenerateOnPremAPIStructuredQuery(clusterIdentity k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
+// generateOnPremAPIStructuredQuery generates a structured query for OnPrem API audit logs.
+func generateOnPremAPIStructuredQuery(clusterIdentity k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
 	return &logestimator.StructuredLogQuery{
 		Incomplete:    !clusterIdentity.IsComplete(),
 		ResourceTypes: []string{"audited_resource"},
@@ -42,43 +41,29 @@ func GenerateOnPremAPIStructuredQuery(clusterIdentity k8scommon.GoogleCloudClust
 	}
 }
 
-type onpremAPIListLogEntriesTaskSetting struct {
+// onPremAuditQuerySource builds the on-prem API audit log query for the cluster read through the cluster identity input.
+type onPremAuditQuerySource struct {
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
 }
 
-// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (o *onpremAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, onpremapiaudit.ClusterIdentityTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *onPremAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	return []string{fmt.Sprintf("projects/%s", s.clusterIdentity.Get(ctx).ProjectID)}, nil
 }
 
-// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (o *onpremAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		onpremapiaudit.ClusterIdentityTaskID.Ref(),
-	}
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *onPremAuditQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
+	return []*logestimator.StructuredLogQuery{generateOnPremAPIStructuredQuery(s.clusterIdentity.Get(ctx))}, nil
 }
 
-// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (o *onpremAPIListLogEntriesTaskSetting) QueryName() string {
-	return "OnPrem API Logs"
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *onPremAuditQuerySource) TimePartitionCount() int {
+	return 1
 }
 
-// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (o *onpremAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, onpremapiaudit.ClusterIdentityTaskID.Ref())
-	return []*logestimator.StructuredLogQuery{GenerateOnPremAPIStructuredQuery(clusterIdentity)}, nil
-}
+var _ gcpcommon.StructuredLogQuerySource = (*onPremAuditQuerySource)(nil)
 
-// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (o *onpremAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return onpremapiaudit.ListLogEntriesTaskID
-}
-
-// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (o *onpremAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
-}
-
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*onpremAPIListLogEntriesTaskSetting)(nil)
-
-var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&onpremAPIListLogEntriesTaskSetting{})
+// listLogEntriesTask queries on-prem API logs from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(onpremapiaudit.ListLogEntriesTaskID, "OnPrem API Logs", func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+	return &onPremAuditQuerySource{clusterIdentity: coretask.Use(b, onpremapiaudit.ClusterIdentityTaskID.Ref())}
+})

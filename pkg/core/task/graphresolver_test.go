@@ -26,14 +26,14 @@ import (
 )
 
 type mockUntypedTask struct {
-	id           taskid.UntypedTaskImplementationID
-	labels       *typedmap.ReadonlyTypedMap
-	dependencies []Dependency
+	id     taskid.UntypedTaskImplementationID
+	labels *typedmap.ReadonlyTypedMap
+	inputs []InputSpec
 }
 
 func (m *mockUntypedTask) UntypedID() taskid.UntypedTaskImplementationID { return m.id }
 func (m *mockUntypedTask) Labels() *typedmap.ReadonlyTypedMap            { return m.labels }
-func (m *mockUntypedTask) Dependencies() []Dependency                    { return m.dependencies }
+func (m *mockUntypedTask) Inputs() []InputSpec                           { return m.inputs }
 func (m *mockUntypedTask) ResultType() reflect.Type                      { return reflect.TypeFor[any]() }
 func (m *mockUntypedTask) UntypedRun(ctx context.Context) (any, error)   { return nil, nil }
 
@@ -41,10 +41,20 @@ var _ UntypedTask = (*mockUntypedTask)(nil)
 
 func createMockTask(refID, implHash string, deps []Dependency, labelOpts ...LabelOpt) UntypedTask {
 	id := taskid.NewImplementationID(taskid.NewTaskReference[any](refID), implHash)
+	var inputs []InputSpec
+	if deps != nil {
+		inputs = make([]InputSpec, 0, len(deps))
+		for _, dep := range deps {
+			inputs = append(inputs, InputSpec{
+				Dependency: dep,
+				Kind:       InputKindOrdering,
+			})
+		}
+	}
 	return &mockUntypedTask{
-		id:           id,
-		labels:       NewLabelSet(labelOpts...),
-		dependencies: deps,
+		id:     id,
+		labels: NewLabelSet(labelOpts...),
+		inputs: inputs,
 	}
 }
 
@@ -1104,6 +1114,99 @@ func TestResolveGraph_FeatureGate(t *testing.T) {
 
 			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
 				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestResolveGraph_DependencyResultType(t *testing.T) {
+	type stringer interface{ String() string }
+	tagString := NewTag[string]("tag-string")
+	newStringProducer := func(labelOpts ...LabelOpt) UntypedTask {
+		return DefineConstant(taskid.NewDefaultImplementationID[string]("producer"), "", labelOpts...)
+	}
+	newConsumer := func(deps ...Dependency) UntypedTask {
+		return Define(taskid.NewDefaultImplementationID[struct{}]("consumer"), func(b *Binder) func(ctx context.Context) (struct{}, error) {
+			for _, dep := range deps {
+				After(b, dep)
+			}
+			return func(ctx context.Context) (struct{}, error) { return struct{}{}, nil }
+		})
+	}
+
+	testCases := []struct {
+		name       string
+		tasks      []UntypedTask
+		wantErrMsg string
+	}{
+		{
+			name: "point-to-point dependency with matching type",
+			tasks: []UntypedTask{
+				newStringProducer(),
+				newConsumer(taskid.NewTaskReference[string]("producer")),
+			},
+		},
+		{
+			name: "point-to-point dependency expecting any accepts concrete producer",
+			tasks: []UntypedTask{
+				newStringProducer(),
+				newConsumer(taskid.NewTaskReference[any]("producer")),
+			},
+		},
+		{
+			name: "point-to-point dependency expecting interface accepts implementing producer",
+			tasks: []UntypedTask{
+				DefineConstant(taskid.NewDefaultImplementationID[*strings.Builder]("producer"), &strings.Builder{}),
+				newConsumer(taskid.NewTaskReference[stringer]("producer")),
+			},
+		},
+		{
+			name: "point-to-point dependency with mismatched type returns error",
+			tasks: []UntypedTask{
+				newStringProducer(),
+				newConsumer(taskid.NewTaskReference[int]("producer")),
+			},
+			wantErrMsg: `expects result type int from dependency "ref:producer"`,
+		},
+		{
+			name: "optional point-to-point dependency with mismatched type returns error",
+			tasks: []UntypedTask{
+				newStringProducer(),
+				newConsumer(taskid.NewTaskReference[int]("producer", taskid.ScopeActiveGraph)),
+			},
+			wantErrMsg: `expects result type int from dependency "ref:producer"`,
+		},
+		{
+			name: "fan-in dependency with matching type",
+			tasks: []UntypedTask{
+				newStringProducer(ProvidesTag(tagString)),
+				newConsumer(tagString.Ref()),
+			},
+		},
+		{
+			name: "fan-in dependency with mismatched producer type returns error",
+			tasks: []UntypedTask{
+				DefineConstant(taskid.NewDefaultImplementationID[int]("producer"), 0, ProvidesTag(tagString)),
+				newConsumer(tagString.Ref()),
+			},
+			wantErrMsg: `expects result type string from dependency "tag:tag-string"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ResolveGraph(tc.tasks, tc.tasks, nil)
+			if tc.wantErrMsg == "" {
+				if err != nil {
+					t.Fatalf("ResolveGraph() returned unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("ResolveGraph() returned nil error, want error containing %q", tc.wantErrMsg)
+			}
+			if !strings.Contains(err.Error(), tc.wantErrMsg) {
+				t.Errorf("ResolveGraph() error = %q, want substring %q", err.Error(), tc.wantErrMsg)
 			}
 		})
 	}

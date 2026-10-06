@@ -45,8 +45,15 @@ func extractClusterCreateTimeFromLogs(logs []*log.Log) time.Time {
 	return time.Time{}
 }
 
-func resolveGKETargetTimeline(ctx context.Context, identity gkeResourceIdentity) *khifilev6.TimelinePath {
-	clusterIdentity := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+func bindGKEResourceInitialRevisionMapper(b *coretask.Binder) gcpcommon.CAIInitialRevisionMapper[gkeResourceIdentity] {
+	clusterIdentity := coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref())
+	rawLogs := coretask.Use(b, caik8s.GKEResourceTaskIDs.RawLog.Ref())
+	return func(ctx context.Context, l *log.Log, identity gkeResourceIdentity, observedTime time.Time) (gcpcommon.CAIInitialSnapshotRevisionSpec, bool, error) {
+		return mapGKEResourceInitialRevision(ctx, l, clusterIdentity.Get(ctx), rawLogs.Get(ctx), identity, observedTime)
+	}
+}
+
+func resolveGKETargetTimeline(ctx context.Context, clusterIdentity k8scommon.GoogleCloudClusterIdentity, identity gkeResourceIdentity) *khifilev6.TimelinePath {
 	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, clusterIdentity.ProjectID)
 	clusterTimeline := gcpcommon.MustGKEClusterTimeline(ctx, projectTimeline, clusterIdentity.ClusterName)
 
@@ -56,8 +63,15 @@ func resolveGKETargetTimeline(ctx context.Context, identity gkeResourceIdentity)
 	return clusterTimeline
 }
 
-func mapGKEResourceInitialRevision(ctx context.Context, l *log.Log, identity gkeResourceIdentity, observedTime time.Time) (gcpcommon.CAIInitialSnapshotRevisionSpec, bool, error) {
-	targetTimeline := resolveGKETargetTimeline(ctx, identity)
+func mapGKEResourceInitialRevision(
+	ctx context.Context,
+	l *log.Log,
+	clusterIdentity k8scommon.GoogleCloudClusterIdentity,
+	rawLogs []*log.Log,
+	identity gkeResourceIdentity,
+	observedTime time.Time,
+) (gcpcommon.CAIInitialSnapshotRevisionSpec, bool, error) {
+	targetTimeline := resolveGKETargetTimeline(ctx, clusterIdentity, identity)
 	resourceBody := extractGKEResourceBody(l.NodeReader)
 
 	if identity.IsCluster() {
@@ -72,8 +86,7 @@ func mapGKEResourceInitialRevision(ctx context.Context, l *log.Log, identity gke
 		}, false, nil
 	}
 
-	logs := coretask.GetTaskResult(ctx, caik8s.GKEResourceTaskIDs.RawLog.Ref())
-	clusterCreateTime := extractClusterCreateTimeFromLogs(logs)
+	clusterCreateTime := extractClusterCreateTimeFromLogs(rawLogs)
 	return gcpcommon.CAIInitialSnapshotRevisionSpec{
 		TargetTimeline:    targetTimeline,
 		CreationTime:      clusterCreateTime,

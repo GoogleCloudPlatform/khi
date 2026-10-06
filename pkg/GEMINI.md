@@ -45,12 +45,12 @@ We follow Google's Go coding standards and the conventions outlined in the root 
 - **Packages**:
   - Packages under `pkg/task/inspection` are grouped hierarchically by provider/domain: `pkg/task/inspection/<provider>/<feature>` (e.g., `pkg/task/inspection/googlecloud/k8snode`, `pkg/task/inspection/googlecloud/cluster/gke`, `pkg/task/inspection/common/k8saudit`, `pkg/task/inspection/oss/k8s`).
   - The feature root directory (`pkg/task/inspection/<provider>/<feature>`) contains the contract (Task IDs, public types, extractors, timeline path helpers).
-    - Root package name is `<feature>` (e.g., `package k8snode`, `package gkecluster`).
+    - Root package name is `<feature>` (e.g., `package k8snode`, `package gke`).
     - Root package must not depend on the `impl` subpackage.
-  - The `impl` subdirectory (`pkg/task/inspection/<provider>/<feature>/impl`) contains the concrete task implementations and `registration.go`.
-    - `impl` package name is `<feature>_impl` (e.g., `package k8snode_impl`, `package gkecluster_impl`).
+  - The `impl` subdirectory (`pkg/task/inspection/<provider>/<feature>/impl`) contains the concrete task implementations and `module.go`.
+    - `impl` package name is `<feature>_impl` (e.g., `package k8snode_impl`, `package gke_impl`).
 - **Task Implementation & File Naming**:
-  - Task implementation files in `impl/` use `snake_case` named by their DAG pipeline role without redundant `_task.go` / `_tasks.go` suffixes (e.g., `registration.go`, `form.go`, `query.go`, `ingester.go`, `grouper.go`, `mapper.go`, `mapper_<target>.go`, `discovery_<target>.go`, `inventory_<target>.go`).
+  - Task implementation files in `impl/` use `snake_case` named by their DAG pipeline role without redundant `_task.go` / `_tasks.go` suffixes (e.g., `module.go`, `form.go`, `query.go`, `ingester.go`, `grouper.go`, `mapper.go`, `mapper_<target>.go`, `discovery_<target>.go`, `inventory_<target>.go`).
   - Task IDs should be defined in `taskid.go` at the feature package root.
 
 ## 3. Testing Strategy
@@ -59,7 +59,7 @@ We follow Google's Go coding standards and the conventions outlined in the root 
 - **Avoid Assertion Libraries**: Do not use third-party assertion libraries. Check conditions using simple `if` statements and report test failures with standard functions like `t.Errorf()` or `t.Fatalf()`.
   - **Complex Struct Comparison**: Use `cmp.Diff` from `github.com/google/go-cmp/cmp` when comparing complex structs.
 - **Prefer Table-Driven Tests**: Structure tests as table-driven tests. Define a test case struct within the test function and iterate over a slice of test cases, calling `t.Run()` for each one.
-  - **ChangeSet Comparison**: When testing `history.ChangeSet`, use `testchangeset.ChangeSetAsserter` and its implementations (e.g., `HasRevision`, `HasEvent`) from `pkg/testutil/testchangeset`.
+  - **ChangeSet Comparison**: When testing `khifilev6.TimelineChangeSet` or `khifilev6.LogChangeSet`, use `testchangeset.AssertTimeline` or `testchangeset.AssertLog` from `pkg/testutil/testchangeset`.
 - **Test Utilities**: Use the `testutil` package for common test setup and helper functions. Avoid duplicating test logic.
   - **Task Testing**: Use `tasktest` and `inspectiontest` packages for testing tasks. See `pkg/task/inspection/googlecloud/k8scommon/impl/form_cluster_name_test.go` for a reference implementation.
 - **Mocks**: When testing interactions between packages, use interfaces and mock implementations.

@@ -20,7 +20,6 @@ import (
 
 	inspectiontaskbasetest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbasetest"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -80,15 +79,15 @@ resource:
 		},
 	}
 
-	inspectiontaskbasetest.AssertFilterTask(t, IstiodLogFilterTask, k8scontainer.ListLogEntriesTaskID.Ref(), testCases)
+	inspectiontaskbasetest.AssertFilterTask(t, istiodLogFilterTask, k8scontainer.ListLogEntriesTaskID.Ref(), testCases)
 }
 
-func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapCSMCPLog(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	ctx = tasktest.WithTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
+	clusterIdentity := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
 		Location:    "test-location",
-	})
+	}
 
 	testTime := time.Date(2026, time.May, 22, 10, 0, 0, 0, time.UTC)
 
@@ -287,10 +286,9 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			}
 			logObj := testlog.NewMockLog(testTime, fs)
 
-			mapper := &csmcpTimelineMapper{}
-			cs, nextState, err := mapper.ProcessLogByGroup(ctx, logObj, tc.prevGroupData)
+			cs, nextState, err := mapCSMCPLog(ctx, logObj, tc.prevGroupData, clusterIdentity)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() failed: %v", err)
+				t.Fatalf("mapCSMCPLog() failed: %v", err)
 			}
 
 			if tc.assert != nil {
@@ -299,21 +297,21 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 			if tc.wantNextConns != nil {
 				if nextState == nil {
-					t.Fatalf("ProcessLogByGroup() returned nil nextState, want non-nil")
+					t.Fatalf("mapCSMCPLog() returned nil nextState, want non-nil")
 				}
 				if diff := cmp.Diff(tc.wantNextConns, nextState.ObservedConnections); diff != "" {
-					t.Errorf("ProcessLogByGroup() nextState mismatch (-want +got):\n%s", diff)
+					t.Errorf("mapCSMCPLog() nextState mismatch (-want +got):\n%s", diff)
 				}
 			}
 		})
 	}
 }
 
-func TestCSMCPTimelineMapper_ProcessLogByGroup_ClusterNameFallback(t *testing.T) {
+func TestMapCSMCPLog_ClusterNameFallback(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	ctx = tasktest.WithTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
+	clusterIdentity := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "",
-	})
+	}
 
 	testTime := time.Date(2026, time.May, 22, 10, 0, 0, 0, time.UTC)
 	clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "fallback-cluster")
@@ -332,21 +330,20 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_ClusterNameFallback(t *testing.T)
 	}
 	logObj := testlog.NewMockLog(testTime, fs)
 
-	mapper := &csmcpTimelineMapper{}
-	cs, _, err := mapper.ProcessLogByGroup(ctx, logObj, nil)
+	cs, _, err := mapCSMCPLog(ctx, logObj, nil, clusterIdentity)
 	if err != nil {
-		t.Fatalf("ProcessLogByGroup() failed: %v", err)
+		t.Fatalf("mapCSMCPLog() failed: %v", err)
 	}
 
 	testchangeset.AssertTimeline(t, cs).HasEvent(csmcpPodPath)
 }
 
-func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T) {
+func TestMapCSMCPLog_SequentialProcessing(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-	ctx = tasktest.WithTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
+	clusterIdentity := k8scommon.GoogleCloudClusterIdentity{
 		ClusterName: "test-cluster",
 		Location:    "test-location",
-	})
+	}
 
 	testTime1 := time.Date(2026, time.May, 22, 10, 0, 0, 0, time.UTC)
 	testTime2 := time.Date(2026, time.May, 22, 10, 5, 0, 0, time.UTC)
@@ -359,8 +356,6 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T
 	csmcpPodPath := commoncsmcp.MustCSMCPPodLogTimeline(ctx, clientPodPath)
 	connPath := commoncsmcp.MustCSMCPConnectionTimeline(ctx, clientPodPath, "1")
 
-	mapper := &csmcpTimelineMapper{}
-
 	// Log 1: connected
 	fs1 := csmcp.FieldSet{
 		Message: "ADS: new connection for node:test-pod.default-1",
@@ -369,9 +364,9 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T
 		},
 	}
 	log1 := testlog.NewMockLog(testTime1, fs1)
-	cs1, state1, err := mapper.ProcessLogByGroup(ctx, log1, nil)
+	cs1, state1, err := mapCSMCPLog(ctx, log1, nil, clusterIdentity)
 	if err != nil {
-		t.Fatalf("ProcessLogByGroup() for log1 failed: %v", err)
+		t.Fatalf("mapCSMCPLog() for log1 failed: %v", err)
 	}
 	testchangeset.AssertTimeline(t, cs1).
 		HasEvent(csmcpPodPath).
@@ -391,9 +386,9 @@ func TestCSMCPTimelineMapper_ProcessLogByGroup_SequentialProcessing(t *testing.T
 		},
 	}
 	log2 := testlog.NewMockLog(testTime2, fs2)
-	cs2, _, err := mapper.ProcessLogByGroup(ctx, log2, state1)
+	cs2, _, err := mapCSMCPLog(ctx, log2, state1, clusterIdentity)
 	if err != nil {
-		t.Fatalf("ProcessLogByGroup() for log2 failed: %v", err)
+		t.Fatalf("mapCSMCPLog() for log2 failed: %v", err)
 	}
 
 	// Should have exactly 1 revision (Terminated), without ConnectedLogNotFound synthetic revision

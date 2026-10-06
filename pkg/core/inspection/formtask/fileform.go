@@ -29,85 +29,66 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-type FileFormTaskBuilder struct {
-	FormTaskBuilderBase[upload.UploadResult]
-	verifier upload.UploadFileVerifier
-}
+// DefineFileForm defines a form task that receives a file uploaded by the user and returns the upload result.
+// verifier checks the uploaded file. The form reads no input, so it declares nothing on the Binder.
+func DefineFileForm(id taskid.TaskImplementationID[upload.UploadResult], priority int, label string, description string, verifier upload.UploadFileVerifier, labelOpts ...coretask.LabelOpt) coretask.Task[upload.UploadResult] {
+	form := newFormTaskBase(id, priority, label, description)
+	return coretask.Define(id, func(_ *coretask.Binder) func(ctx context.Context) (upload.UploadResult, error) {
+		return func(ctx context.Context) (upload.UploadResult, error) {
+			metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 
-func NewFileFormTaskBuilder(id taskid.TaskImplementationID[upload.UploadResult], priority int, label string, verifier upload.UploadFileVerifier) *FileFormTaskBuilder {
-	return &FileFormTaskBuilder{
-		FormTaskBuilderBase: NewFormTaskBuilderBase(id, priority, label),
-		verifier:            verifier,
-	}
-}
+			req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
+			taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
 
-// WithDependencies sets the task dependencies
-func (b *FileFormTaskBuilder) WithDependencies(dependencies []coretask.Dependency) *FileFormTaskBuilder {
-	b.FormTaskBuilderBase.WithDependencies(dependencies)
-	return b
-}
+			fieldID := id.ReferenceIDString()
+			token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, fieldID), verifier, fieldID)
 
-// WithDescription sets the description for the form field
-func (b *FileFormTaskBuilder) WithDescription(description string) *FileFormTaskBuilder {
-	b.FormTaskBuilderBase.WithDescription(description)
-	return b
-}
-
-func (b *FileFormTaskBuilder) Build(labelOpts ...coretask.LabelOpt) coretask.Task[upload.UploadResult] {
-	return coretask.NewTask(b.FormTaskBuilderBase.id, b.FormTaskBuilderBase.dependencies, func(ctx context.Context) (upload.UploadResult, error) {
-		metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
-
-		req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
-		taskMode := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskMode)
-
-		fieldID := b.FormTaskBuilderBase.id.ReferenceIDString()
-		token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, fieldID), b.verifier, fieldID)
-
-		var uploadResult upload.UploadResult
-		var err error
-		if taskMode == inspectioncore.TaskModeRun {
-			uploadResult, err = upload.DefaultUploadFileStore.GetCompletedResult(ctx, token, req)
-		} else {
-			uploadResult, err = upload.DefaultUploadFileStore.GetResult(token, req)
-		}
-		if err != nil {
-			return upload.UploadResult{}, err
-		}
-		field := inspectionmetadata.FileParameterFormField{
-			ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-				Type:     inspectionmetadata.File,
-				HintType: inspectionmetadata.None,
-				Hint:     "",
-			},
-			Token:  token,
-			Status: uploadResult.Status,
-		}
-		b.FormTaskBuilderBase.SetupBaseFormField(&field.ParameterFormFieldBase)
-
-		field = setFormHintsFromUploadResult(uploadResult, field)
-		formFields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
-		if !found {
-			return upload.UploadResult{}, fmt.Errorf("failed to get form fields from metadata")
-		}
-		err = formFields.SetField(field)
-		if err != nil {
-			return upload.UploadResult{}, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.FormTaskBuilderBase.id, err)
-		}
-
-		if taskMode == inspectioncore.TaskModeRun {
-			if uploadResult.UploadError != nil {
-				return upload.UploadResult{}, fmt.Errorf("file upload failed in task %s: %w", b.FormTaskBuilderBase.id, uploadResult.UploadError)
+			var uploadResult upload.UploadResult
+			var err error
+			if taskMode == inspectioncore.TaskModeRun {
+				uploadResult, err = upload.DefaultUploadFileStore.GetCompletedResult(ctx, token, req)
+			} else {
+				uploadResult, err = upload.DefaultUploadFileStore.GetResult(token, req)
 			}
-			if uploadResult.VerificationError != nil {
-				return upload.UploadResult{}, fmt.Errorf("file verification failed in task %s: %w", b.FormTaskBuilderBase.id, uploadResult.VerificationError)
+			if err != nil {
+				return upload.UploadResult{}, err
 			}
-			if uploadResult.Status != upload.UploadStatusCompleted {
-				return upload.UploadResult{}, fmt.Errorf("file upload is not completed in task %s (current status: %d)", b.FormTaskBuilderBase.id, uploadResult.Status)
+			field := inspectionmetadata.FileParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+					Type:     inspectionmetadata.File,
+					HintType: inspectionmetadata.None,
+					Hint:     "",
+				},
+				Token:  token,
+				Status: uploadResult.Status,
 			}
-		}
+			form.setupBaseFormField(&field.ParameterFormFieldBase)
 
-		return uploadResult, nil
-	}, append(labelOpts, inspectioncore.NewFormTaskLabelOpt(b.label, b.description))...)
+			field = setFormHintsFromUploadResult(uploadResult, field)
+			formFields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
+			if !found {
+				return upload.UploadResult{}, fmt.Errorf("failed to get form fields from metadata")
+			}
+			err = formFields.SetField(field)
+			if err != nil {
+				return upload.UploadResult{}, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", id, err)
+			}
+
+			if taskMode == inspectioncore.TaskModeRun {
+				if uploadResult.UploadError != nil {
+					return upload.UploadResult{}, fmt.Errorf("file upload failed in task %s: %w", id, uploadResult.UploadError)
+				}
+				if uploadResult.VerificationError != nil {
+					return upload.UploadResult{}, fmt.Errorf("file verification failed in task %s: %w", id, uploadResult.VerificationError)
+				}
+				if uploadResult.Status != upload.UploadStatusCompleted {
+					return upload.UploadResult{}, fmt.Errorf("file upload is not completed in task %s (current status: %d)", id, uploadResult.Status)
+				}
+			}
+
+			return uploadResult, nil
+		}
+	}, form.formLabelOpts(labelOpts)...)
 }
 
 // setFormHintsFromUploadResult sets the appropriate hint and hint type on a form field

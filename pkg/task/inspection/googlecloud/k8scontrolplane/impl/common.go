@@ -19,7 +19,6 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
@@ -27,7 +26,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-var TailTask = coretask.NewTailTask(
+// tailTask is the feature task of Kubernetes control plane component logs that completes after all control plane log mappers.
+var tailTask = coretask.DefineTailTask(
 	k8scontrolplane.TailTaskID,
 	[]coretask.Dependency{
 		k8scontrolplane.SchedulerLogToTimelineMapperTaskID.Ref(),
@@ -43,21 +43,8 @@ var TailTask = coretask.NewTailTask(
 	),
 )
 
-// K8sControlPlaneLogIngester is a log ingester for Kubernetes control plane component logs.
-type K8sControlPlaneLogIngester struct{}
-
-// RawLogTask implements inspectiontaskbase.LogIngester.
-func (i *K8sControlPlaneLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return k8scontrolplane.ListLogEntriesTaskID.Ref()
-}
-
-// Dependencies implements inspectiontaskbase.LogIngester.
-func (i *K8sControlPlaneLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// ProcessLog implements inspectiontaskbase.LogIngester.
-func (i *K8sControlPlaneLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+// processK8sControlPlaneLog sets the log type, timestamp, severity and summary of a Kubernetes control plane component log.
+func processK8sControlPlaneLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err
@@ -85,7 +72,11 @@ func (i *K8sControlPlaneLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngester = (*K8sControlPlaneLogIngester)(nil)
-
-// LogIngesterTask serializes logs to history for timeline mappers to associate event or revisions in later tasks.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(k8scontrolplane.LogIngesterTaskID, &K8sControlPlaneLogIngester{})
+// logIngesterTask serializes logs to history for timeline mappers to associate event or revisions in later tasks.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
+	k8scontrolplane.LogIngesterTaskID,
+	k8scontrolplane.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return processK8sControlPlaneLog
+	},
+)

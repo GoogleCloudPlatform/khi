@@ -27,8 +27,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// TimelineCreationTimeInventoryTask aggregates creation timestamps per timeline path discovered from audit logs.
-var TimelineCreationTimeInventoryTask = inspectiontaskbase.NewInventoryTask(
+// timelineCreationTimeInventoryTask aggregates creation timestamps per timeline path discovered from audit logs.
+var timelineCreationTimeInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	k8saudit.TimelineCreationTimeInventoryTaskID,
 	k8saudit.TagTimelineCreationTimeDiscovery,
 	mergeTimelineCreationTimes,
@@ -72,44 +72,45 @@ func extractLogCreationTime(l *k8saudit.ResourceManifestLog, verb *pb.Verb) (tim
 	return time.Time{}, false
 }
 
-// ResourceTimelineCreationTimeDiscoveryTask extracts resource timeline creation timestamps from audit logs.
-var ResourceTimelineCreationTimeDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// resourceTimelineCreationTimeDiscoveryTask extracts resource timeline creation timestamps from audit logs.
+var resourceTimelineCreationTimeDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.ResourceTimelineCreationTimeDiscoveryTaskID,
-	[]coretask.Dependency{
-		k8saudit.ManifestGeneratorTaskID.Ref(),
-		k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.TimelineCreationTimes, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return k8saudit.TimelineCreationTimes{}, nil
-		}
-		result := k8saudit.TimelineCreationTimes{}
-		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
-		tracker := progress.NewTracker(ctx, len(resourceLogs), progress.WithUnit("groups"))
-		defer tracker.Done()
-		for _, group := range resourceLogs {
-			if group.Resource.Type() == k8saudit.Namespace {
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.TimelineCreationTimes] {
+		resourceLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.TimelineCreationTimes, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return k8saudit.TimelineCreationTimes{}, nil
+			}
+			result := k8saudit.TimelineCreationTimes{}
+			resourceLogs := resourceLogsInput.Get(ctx)
+			extractor := extractorInput.Get(ctx)
+			tracker := progress.NewTracker(ctx, len(resourceLogs), progress.WithUnit("groups"))
+			defer tracker.Done()
+			for _, group := range resourceLogs {
+				if group.Resource.Type() == k8saudit.Namespace {
+					tracker.Inc()
+					continue
+				}
+				for _, l := range group.Logs {
+					k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(l.Log.NodeReader, extractor)
+					if err != nil || k8sFieldSet == nil || k8sFieldSet.IsDryRun {
+						continue
+					}
+					creationTime, hasCreationTime := extractLogCreationTime(l, k8sFieldSet.Verb)
+					if !hasCreationTime {
+						continue
+					}
+					targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, group.Resource)
+					result[targetPath] = append(result[targetPath], creationTime)
+				}
 				tracker.Inc()
-				continue
 			}
-			for _, l := range group.Logs {
-				k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(ctx, l.Log.NodeReader)
-				if err != nil || k8sFieldSet == nil || k8sFieldSet.IsDryRun {
-					continue
-				}
-				creationTime, hasCreationTime := extractLogCreationTime(l, k8sFieldSet.Verb)
-				if !hasCreationTime {
-					continue
-				}
-				targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, group.Resource)
-				result[targetPath] = append(result[targetPath], creationTime)
+			for path, times := range result {
+				result[path] = deduplicateAndSortTimes(times)
 			}
-			tracker.Inc()
+			return result, nil
 		}
-		for path, times := range result {
-			result[path] = deduplicateAndSortTimes(times)
-		}
-		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagTimelineCreationTimeDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
@@ -117,51 +118,52 @@ var ResourceTimelineCreationTimeDiscoveryTask = inspectiontaskbase.NewInspection
 	coretask.WithTaskDescription("Extracts resource timeline creation timestamps from Kubernetes audit logs."),
 )
 
-// PodPhaseTimelineCreationTimeDiscoveryTask extracts Pod phase timeline creation timestamps from audit logs.
-var PodPhaseTimelineCreationTimeDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// podPhaseTimelineCreationTimeDiscoveryTask extracts Pod phase timeline creation timestamps from audit logs.
+var podPhaseTimelineCreationTimeDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.PodPhaseTimelineCreationTimeDiscoveryTaskID,
-	[]coretask.Dependency{
-		k8saudit.ManifestGeneratorTaskID.Ref(),
-		k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.TimelineCreationTimes, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return k8saudit.TimelineCreationTimes{}, nil
-		}
-		result := k8saudit.TimelineCreationTimes{}
-		resourceLogs := coretask.GetTaskResult(ctx, k8saudit.ManifestGeneratorTaskID.Ref())
-		tracker := progress.NewTracker(ctx, len(resourceLogs), progress.WithUnit("groups"))
-		defer tracker.Done()
-		for _, group := range resourceLogs {
-			if group.Resource.Type() != k8saudit.Resource || group.Resource.APIVersion != "core/v1" || group.Resource.Kind != "pod" {
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.TimelineCreationTimes] {
+		resourceLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.TimelineCreationTimes, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return k8saudit.TimelineCreationTimes{}, nil
+			}
+			result := k8saudit.TimelineCreationTimes{}
+			resourceLogs := resourceLogsInput.Get(ctx)
+			extractor := extractorInput.Get(ctx)
+			tracker := progress.NewTracker(ctx, len(resourceLogs), progress.WithUnit("groups"))
+			defer tracker.Done()
+			for _, group := range resourceLogs {
+				if group.Resource.Type() != k8saudit.Resource || group.Resource.APIVersion != "core/v1" || group.Resource.Kind != "pod" {
+					tracker.Inc()
+					continue
+				}
+				for _, l := range group.Logs {
+					if l.ResourceBodyReader == nil {
+						continue
+					}
+					k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(l.Log.NodeReader, extractor)
+					if err != nil || k8sFieldSet == nil || k8sFieldSet.IsDryRun {
+						continue
+					}
+					creationTime, hasCreationTime := extractLogCreationTime(l, k8sFieldSet.Verb)
+					if !hasCreationTime {
+						continue
+					}
+					uid, foundUID := GetUID(l.ResourceBodyReader)
+					nodeName, foundNode := GetNodeNameOfPod(l.ResourceBodyReader)
+					if foundUID && uid != "" && foundNode && nodeName != "" {
+						podPhasePath := MustPodPhaseTimelinePath(ctx, k8sFieldSet.ClusterName, nodeName, group.Resource.Namespace, group.Resource.Name, uid)
+						result[podPhasePath] = append(result[podPhasePath], creationTime)
+					}
+				}
 				tracker.Inc()
-				continue
 			}
-			for _, l := range group.Logs {
-				if l.ResourceBodyReader == nil {
-					continue
-				}
-				k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(ctx, l.Log.NodeReader)
-				if err != nil || k8sFieldSet == nil || k8sFieldSet.IsDryRun {
-					continue
-				}
-				creationTime, hasCreationTime := extractLogCreationTime(l, k8sFieldSet.Verb)
-				if !hasCreationTime {
-					continue
-				}
-				uid, foundUID := GetUID(l.ResourceBodyReader)
-				nodeName, foundNode := GetNodeNameOfPod(l.ResourceBodyReader)
-				if foundUID && uid != "" && foundNode && nodeName != "" {
-					podPhasePath := MustPodPhaseTimelinePath(ctx, k8sFieldSet.ClusterName, nodeName, group.Resource.Namespace, group.Resource.Name, uid)
-					result[podPhasePath] = append(result[podPhasePath], creationTime)
-				}
+			for path, times := range result {
+				result[path] = deduplicateAndSortTimes(times)
 			}
-			tracker.Inc()
+			return result, nil
 		}
-		for path, times := range result {
-			result[path] = deduplicateAndSortTimes(times)
-		}
-		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagTimelineCreationTimeDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),

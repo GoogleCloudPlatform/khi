@@ -30,25 +30,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// K8sNodeLogIngester implements LogIngester for GKE Node component logs.
-type K8sNodeLogIngester struct{}
-
-// RawLogTask returns the raw log provider task.
-func (i *K8sNodeLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return k8snode.ListLogEntriesTaskID.Ref()
-}
-
-// Dependencies returns the dependencies of the log ingester.
-func (i *K8sNodeLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8snode.PodSandboxIDDiscoveryTaskID.Ref(),
-		k8saudit.ContainerIDPatternFinderTaskID.Ref(),
-		k8saudit.ResourceUIDPatternFinderTaskID.Ref(),
-	}
-}
-
-// ProcessLog populates the LogChangeSet for GKE Node logs.
-func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+// processK8sNodeLog sets the log type, timestamp, severity and summary of a Kubernetes node log.
+// The summary shows the pods, containers and resources that the finders resolve from the IDs in the log message.
+func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity], resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err
@@ -72,8 +56,6 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 	raw := nodeLogFS.Message.Raw()
 	summaryReplaceMap := map[string]string{}
 
-	podSandboxIDFinder := coretask.GetTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
-	containerIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref())
 	pods, containerRefs := findPodAndContainerReferences(raw, podSandboxIDFinder, containerIDPatternFinder)
 	for _, pod := range pods {
 		summaryReplaceMap[pod.PodSandboxID] = toReadablePodSandboxName(pod.PodNamespace, pod.PodName)
@@ -82,7 +64,6 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 		summaryReplaceMap[containerRef.Container.ContainerID] = toReadableContainerName(containerRef.Pod.PodNamespace, containerRef.Pod.PodName, containerRef.Container.ContainerName)
 	}
 
-	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 	if resourceUIDPatternFinder != nil {
 		resourceFindResults := patternfinder.FindAllWithStarterRunes(raw, resourceUIDPatternFinder, false, '"', '=')
 		for _, result := range resourceFindResults {
@@ -148,16 +129,22 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngester = (*K8sNodeLogIngester)(nil)
-
-// LogIngesterTask registers the LogIngester for GKE Node logs.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+// logIngesterTask ingests the metadata of Kubernetes node logs.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	k8snode.LogIngesterTaskID,
-	&K8sNodeLogIngester{},
+	k8snode.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		podSandboxIDFinder := coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
+		containerIDPatternFinder := coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref())
+		resourceUIDPatternFinder := coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
+		return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+			return processK8sNodeLog(ctx, l, podSandboxIDFinder.Get(ctx), containerIDPatternFinder.Get(ctx), resourceUIDPatternFinder.Get(ctx))
+		}
+	},
 )
 
-// TailTask is a nop task that depends on all node component mappers and other child tasks to group them.
-var TailTask = coretask.NewTailTask(
+// tailTask is the feature task of Kubernetes node logs that completes after all node component log mappers.
+var tailTask = coretask.DefineTailTask(
 	k8snode.TailTaskID,
 	[]coretask.Dependency{
 		k8snode.ContainerdLogLogToTimelineMapperTaskID.Ref(),
@@ -172,28 +159,28 @@ var TailTask = coretask.NewTailTask(
 	),
 )
 
-// newParserTypeFilterTask creates a new filter task that filters only for specific parserType.
-func newParserTypeFilterTask(taskid taskid.TaskImplementationID[[]*log.Log], logSource taskid.TaskReference[[]*log.Log], parserType k8snode.K8sNodeParserType) coretask.Task[[]*log.Log] {
-	return inspectiontaskbase.NewLogFilterTask(
-		taskid,
-		logSource,
-		func(ctx context.Context, l *log.Log) bool {
+// defineParserTypeFilterTask defines a filter task that passes only the logs of the given parser type.
+func defineParserTypeFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], logSource taskid.TaskReference[[]*log.Log], parserType k8snode.K8sNodeParserType) coretask.Task[[]*log.Log] {
+	return inspectiontaskbase.DefineLogFilterTask(taskID, logSource, func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		return func(ctx context.Context, l *log.Log) bool {
 			gotParserType, err := k8snode.ExtractK8sNodeParserType(l.NodeReader)
 			if err != nil {
 				return false
 			}
 			return gotParserType == parserType
-		},
-	)
+		}
+	})
 }
 
-// newNodeAndComponentNameGrouperTask creates a new grouper task with grouping by node name and component name.
-func newNodeAndComponentNameGrouperTask(taskid taskid.TaskImplementationID[inspectiontaskbase.LogGroupMap], logSource taskid.TaskReference[[]*log.Log]) coretask.Task[inspectiontaskbase.LogGroupMap] {
-	return inspectiontaskbase.NewLogGrouperTask(taskid, logSource, func(ctx context.Context, l *log.Log) string {
-		componentFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
-		if err != nil {
-			return ""
+// defineNodeAndComponentNameGrouperTask defines a grouper task that groups logs by node name and component name.
+func defineNodeAndComponentNameGrouperTask(taskID taskid.TaskImplementationID[inspectiontaskbase.LogGroupMap], logSource taskid.TaskReference[[]*log.Log]) coretask.Task[inspectiontaskbase.LogGroupMap] {
+	return inspectiontaskbase.DefineLogGrouperTask(taskID, logSource, func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			componentFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
+			if err != nil {
+				return ""
+			}
+			return fmt.Sprintf("%s-%s", componentFieldSet.NodeName, componentFieldSet.Component)
 		}
-		return fmt.Sprintf("%s-%s", componentFieldSet.NodeName, componentFieldSet.Component)
 	})
 }

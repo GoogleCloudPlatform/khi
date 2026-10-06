@@ -23,7 +23,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -33,7 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestOSSK8sEventLogIngester_ProcessLog(t *testing.T) {
+func TestProcessOSSK8sEventLog(t *testing.T) {
 	testCases := []struct {
 		desc                    string
 		input                   *log.Log
@@ -126,7 +125,6 @@ func TestOSSK8sEventLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := &OSSK8sEventLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			finder := patternfinder.NewNaivePatternFinder[*k8saudit.ResourceIdentity]()
@@ -135,11 +133,10 @@ func TestOSSK8sEventLogIngester_ProcessLog(t *testing.T) {
 					_ = finder.AddPattern(k, v)
 				}
 			}
-			ctx := tasktest.WithTaskResult(t.Context(), k8saudit.ResourceUIDPatternFinderTaskID.Ref(), finder)
 
-			cs, err := ingester.ProcessLog(ctx, tc.input)
+			cs, err := processOSSK8sEventLog(t.Context(), tc.input, finder)
 			if err != nil {
-				t.Fatalf("ProcessLog() returned unexpected error: %v", err)
+				t.Fatalf("processOSSK8sEventLog() returned unexpected error: %v", err)
 			}
 
 			tc.assert(t, cs)
@@ -147,7 +144,7 @@ func TestOSSK8sEventLogIngester_ProcessLog(t *testing.T) {
 	}
 }
 
-func TestOSSK8sEventTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapOSSK8sEventLog(t *testing.T) {
 	// Initialize the shared Builder reference.
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
@@ -379,12 +376,9 @@ func TestOSSK8sEventTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					_ = finder.AddPattern(k, v)
 				}
 			}
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref(), finder)
-			mapper := OSSK8sEventTimelineMapper{}
-
-			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
+			cs, err := mapOSSK8sEventLog(ctx, l, finder)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup returned an unexpected error: %v", err)
+				t.Fatalf("mapOSSK8sEventLog() returned an unexpected error: %v", err)
 			}
 
 			tc.assert(t, ctx, cs)

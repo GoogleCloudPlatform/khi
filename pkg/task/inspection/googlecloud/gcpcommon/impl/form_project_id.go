@@ -21,38 +21,46 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
-var projectIdValidator = regexp.MustCompile(`^\s*[0-9a-z\.:\-]+\s*$`)
+var projectIDValidator = regexp.MustCompile(`^\s*[0-9a-z\.:\-]+\s*$`)
 
-// InputProjectIdTask defines a form task for inputting the Google Cloud project ID.
-var InputProjectIdTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputProjectIdTaskID, gcpcommon.PriorityForResourceIdentifierGroup+5000, "Project ID").
-	WithDescription("The project ID containing logs of the cluster to query").
-	WithValidatingTiming(inspectionmetadata.Blur).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		if !projectIdValidator.Match([]byte(value)) {
-			return "Project ID must match `^*[0-9a-z\\.:\\-]+$`", nil
+// inputProjectIDTask defines a form task for inputting the Google Cloud project ID.
+var inputProjectIDTask = formtask.DefineTextForm(
+	gcpcommon.InputProjectIdTaskID,
+	gcpcommon.PriorityForResourceIdentifierGroup+5000,
+	"Project ID",
+	"The project ID containing logs of the cluster to query",
+	func(b *coretask.Binder) formtask.TextFormSpec[string] {
+		return formtask.TextFormSpec[string]{
+			ValidationTiming: inspectionmetadata.Blur,
+			Validator: func(ctx context.Context, value string) (string, error) {
+				if !projectIDValidator.Match([]byte(value)) {
+					return "Project ID must match `^*[0-9a-z\\.:\\-]+$`", nil
+				}
+				return "", nil
+			},
+			Readonly: func(ctx context.Context) (bool, error) {
+				if parameters.Auth.FixedProjectID == nil {
+					return false, nil
+				}
+				return *parameters.Auth.FixedProjectID != "", nil
+			},
+			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
+				if parameters.Auth.FixedProjectID != nil && *parameters.Auth.FixedProjectID != "" {
+					return *parameters.Auth.FixedProjectID, nil
+				}
+				if len(previousValues) > 0 {
+					return previousValues[0], nil
+				}
+				return "", nil
+			},
+			Converter: func(ctx context.Context, value string) (string, error) {
+				return strings.TrimSpace(value), nil
+			},
 		}
-		return "", nil
-	}).
-	WithReadonlyFunc(func(ctx context.Context) (bool, error) {
-		if parameters.Auth.FixedProjectID == nil {
-			return false, nil
-		}
-		return *parameters.Auth.FixedProjectID != "", nil
-	}).
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		if parameters.Auth.FixedProjectID != nil && *parameters.Auth.FixedProjectID != "" {
-			return *parameters.Auth.FixedProjectID, nil
-		}
-		if len(previousValues) > 0 {
-			return previousValues[0], nil
-		}
-		return "", nil
-	}).
-	WithConverter(func(ctx context.Context, value string) (string, error) {
-		return strings.TrimSpace(value), nil
-	}).
-	Build()
+	},
+)

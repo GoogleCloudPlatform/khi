@@ -28,57 +28,57 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// SerializeTask is a subsequent task that must be included in the task graph after tasks like TimelineMapper and LogIngester.
+// serializerTask is a subsequent task that must be included in the task graph after tasks like TimelineMapper and LogIngester.
 // It retrieves the Builder instance populated by its preceding tasks and serializes its accumulated contents into the final KHI file.
-var SerializeTask = inspectiontaskbase.NewInspectionTask(
+var serializerTask = inspectiontaskbase.DefineInspectionTask(
 	inspectioncore.SerializerTaskID,
-	[]coretask.Dependency{
-		JobModeCommandTaskID.Ref(),
-		inspectioncore.InputInspectionNameTaskID.Ref(),
-		inspectiontaskbase.TagLogIngester.Ref(coretask.FromActiveGraph),
-		inspectiontaskbase.TagTimelineMapper.Ref(coretask.FromActiveGraph),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (*inspectioncore.FileSystemStore, error) {
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[*inspectioncore.FileSystemStore] {
+		coretask.After(b, jobModeCommandTaskID.Ref())
+		coretask.After(b, inspectioncore.InputInspectionNameTaskID.Ref())
+		coretask.After(b, inspectiontaskbase.TagLogIngester.Ref(coretask.FromActiveGraph))
+		coretask.After(b, inspectiontaskbase.TagTimelineMapper.Ref(coretask.FromActiveGraph))
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (*inspectioncore.FileSystemStore, error) {
 
-		if taskMode == inspectioncore.TaskModeDryRun {
-			slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
-			return nil, nil
-		}
-		inspectionID := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInspectionID)
-		metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
-		ioConfig := khictx.MustGetValue(ctx, inspectioncore.CurrentIOConfig)
-		builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-
-		// 1. Collect metadata to the v6 builder
-		for _, key := range metadataSet.Keys() {
-			metadata, found := typedmap.Get(metadataSet, inspectionmetadata.NewMetadataLabelsKey[inspectionmetadata.Metadata](key))
-			if !found {
-				return nil, fmt.Errorf("expected metadata not found: %s", key)
+			if taskMode == inspectioncore.TaskModeDryRun {
+				slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
+				return nil, nil
 			}
-			if err := builder.MetadataAccumulator.AddMetadata(metadata); err != nil {
+			inspectionID := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInspectionID)
+			metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+			ioConfig := khictx.MustGetValue(ctx, inspectioncore.CurrentIOConfig)
+			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+
+			// 1. Collect metadata to the v6 builder
+			for _, key := range metadataSet.Keys() {
+				metadata, found := typedmap.Get(metadataSet, inspectionmetadata.NewMetadataLabelsKey[inspectionmetadata.Metadata](key))
+				if !found {
+					return nil, fmt.Errorf("expected metadata not found: %s", key)
+				}
+				if err := builder.MetadataAccumulator.AddMetadata(metadata); err != nil {
+					return nil, err
+				}
+			}
+
+			// 2. Prepare Output File Store for size reporting
+			store := inspectioncore.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
+
+			// 3. Build KHI v6 format and flush remaining chunks
+			if err := builder.Build(ctx); err != nil {
 				return nil, err
 			}
-		}
 
-		// 2. Prepare Output File Store for size reporting
-		store := inspectioncore.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
+			// 4. Update final file size in metadata
+			fileSize, err := store.GetInspectionResultSizeInBytes()
+			if err != nil {
+				return nil, err
+			}
 
-		// 3. Build KHI v6 format and flush remaining chunks
-		if err := builder.Build(ctx); err != nil {
-			return nil, err
+			header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey)
+			if found {
+				header.FileSize = fileSize
+			}
+			return store, nil
 		}
-
-		// 4. Update final file size in metadata
-		fileSize, err := store.GetInspectionResultSizeInBytes()
-		if err != nil {
-			return nil, err
-		}
-
-		header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey)
-		if found {
-			header.FileSize = fileSize
-		}
-		return store, nil
 	},
 	coretask.NewTaskResultRetentionLabel(true),
 	coretask.NewRequiredTaskLabel(),

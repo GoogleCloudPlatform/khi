@@ -24,28 +24,30 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// EventLogNEGDiscoveryTask is the discovery task that extracts NEG to BackendService mappings from Kubernetes Event logs.
-var EventLogNEGDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// eventLogNEGDiscoveryTask is the discovery task that extracts NEG to BackendService mappings from Kubernetes Event logs.
+var eventLogNEGDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8sevent.NEGToBackendServiceDiscoveryTaskID,
-	[]coretask.Dependency{k8sevent.ListLogEntriesTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.NEGToBackendServiceMap, error) {
-		if taskMode != inspectioncore.TaskModeRun {
-			return nil, nil
-		}
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8scommon.NEGToBackendServiceMap] {
+		eventLogs := coretask.Use(b, k8sevent.ListLogEntriesTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.NEGToBackendServiceMap, error) {
+			if taskMode != inspectioncore.TaskModeRun {
+				return nil, nil
+			}
 
-		logs := coretask.GetTaskResult(ctx, k8sevent.ListLogEntriesTaskID.Ref())
-		result := make(k8scommon.NEGToBackendServiceMap)
+			logs := eventLogs.Get(ctx)
+			result := make(k8scommon.NEGToBackendServiceMap)
 
-		for _, l := range logs {
-			fs, err := k8sevent.ExtractKubernetesEvent(l.NodeReader)
-			if err == nil {
-				neg, bs := k8scommon.ExtractNEGToBackendService(fs.Message)
-				if neg != "" && bs != "" {
-					result[neg] = bs
+			for _, l := range logs {
+				fs, err := k8sevent.ExtractKubernetesEvent(l.NodeReader)
+				if err == nil {
+					neg, bs := k8scommon.ExtractNEGToBackendService(fs.Message)
+					if neg != "" && bs != "" {
+						result[neg] = bs
+					}
 				}
 			}
+			return result, nil
 		}
-		return result, nil
 	},
 	coretask.ProvidesTag(k8scommon.TagNEGToBackendServiceDiscovery),
 	coretask.WithFeatureGate(k8sevent.LogToTimelineMapperTaskID.Ref()),

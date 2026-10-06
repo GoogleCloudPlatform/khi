@@ -20,7 +20,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8snode"
@@ -29,8 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
-	ingester := &K8sNodeLogIngester{}
+func TestProcessK8sNodeLog(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
@@ -281,10 +279,6 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 				resourceUIDFinder = naiveFinder
 			}
 
-			ctx := tasktest.WithTaskResult(t.Context(), k8snode.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref(), resourceUIDFinder)
-
 			// Detect type of parser needed for test message
 			var message *logutil.ParseStructuredLogResult
 			switch tc.inputNodeLogFieldSet.Component {
@@ -305,9 +299,9 @@ func TestK8sNodeLogIngester_ProcessLog(t *testing.T) {
 				*tc.inputNodeLogFieldSet,
 			)
 
-			cs, err := ingester.ProcessLog(ctx, l)
+			cs, err := processK8sNodeLog(t.Context(), l, podIDFinder, containerIDFinder, resourceUIDFinder)
 			if err != nil {
-				t.Fatalf("ProcessLog() returned unexpected error: %v", err)
+				t.Fatalf("processK8sNodeLog() returned unexpected error: %v", err)
 			}
 
 			tc.assert(t, cs)

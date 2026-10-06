@@ -18,12 +18,13 @@ import (
 	"testing"
 
 	inspectiontaskbasetest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbasetest"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func TestSuccessLogFilterTask(t *testing.T) {
-	inspectiontaskbasetest.AssertFilterTask(t, SuccessLogFilterTask, k8saudit.K8sAuditLogProviderRef, []inspectiontaskbasetest.FilterTaskTestCase{
+	inspectiontaskbasetest.AssertFilterTask(t, successLogFilterTask, k8saudit.K8sAuditLogProviderRef, []inspectiontaskbasetest.FilterTaskTestCase{
 		{
 			Description: "success log",
 			Log: testlog.NewMockLog(k8saudit.K8sAuditLogFieldSet{
@@ -38,11 +39,11 @@ func TestSuccessLogFilterTask(t *testing.T) {
 			}),
 			WantIncluded: false,
 		},
-	})
+	}, tasktest.Given(k8saudit.K8sAuditLogErrorExtractorRef, k8saudit.K8sAuditLogErrorExtractor(nil)))
 }
 
 func TestNonSuccessLogFilterTask(t *testing.T) {
-	inspectiontaskbasetest.AssertFilterTask(t, NonSuccessLogFilterTask, k8saudit.K8sAuditLogProviderRef, []inspectiontaskbasetest.FilterTaskTestCase{
+	inspectiontaskbasetest.AssertFilterTask(t, nonSuccessLogFilterTask, k8saudit.K8sAuditLogProviderRef, []inspectiontaskbasetest.FilterTaskTestCase{
 		{
 			Description: "success log",
 			Log: testlog.NewMockLog(k8saudit.K8sAuditLogFieldSet{
@@ -57,5 +58,5 @@ func TestNonSuccessLogFilterTask(t *testing.T) {
 			}),
 			WantIncluded: true,
 		},
-	})
+	}, tasktest.Given(k8saudit.K8sAuditLogErrorExtractorRef, k8saudit.K8sAuditLogErrorExtractor(nil)))
 }

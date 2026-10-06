@@ -26,13 +26,13 @@ var GKEAPIAuditLogTaskIDPrefix = "cloud.google.com/log/gke-api/"
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.
 var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[k8scommon.GoogleCloudClusterIdentity](GKEAPIAuditLogTaskIDPrefix + "cluster-identity")
 
-// ListLogEntriesTaskID is the task id for the task that queries compute API logs from Cloud Logging.
+// ListLogEntriesTaskID is the task ID for the task that queries GKE API audit logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEAPIAuditLogTaskIDPrefix + "query")
 
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
 var LogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}](GKEAPIAuditLogTaskIDPrefix + "log-ingester")
 
-// LogGrouperTaskID is the task id to group logs by target instance to process logs in LogToTimelineMapper in parallel.
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in TimelineMapper in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GKEAPIAuditLogTaskIDPrefix + "grouper")
 
 // LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.

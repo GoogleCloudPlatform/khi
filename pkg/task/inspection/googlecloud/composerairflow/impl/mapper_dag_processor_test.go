@@ -20,26 +20,21 @@ import (
 	"time"
 	"unique"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
+func TestMapDagProcessorManagerLog(t *testing.T) {
 	timestamp2 := time.Date(2024, 5, 8, 2, 44, 1, 0, time.UTC)
 	timestamp3 := time.Date(2024, 5, 8, 2, 44, 2, 0, time.UTC)
 	timestamp4 := time.Date(2024, 5, 8, 2, 44, 3, 0, time.UTC)
@@ -130,25 +125,14 @@ func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &dagProcessorManagerTimelineMapper{
-		targetLogType: composerairflow.LogTypeManagedAirflowEnvironment,
-		dagFilePath:   "/home/airflow/gcs/dags",
-	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-			taskDependentValues := typedmap.NewTypedMap()
-			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](composercluster.InputComposerEnvironmentNameTaskID.ReferenceIDString()), "test-environment")
-			ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
-
 			state := tc.initialState
 			for i, l := range tc.logs {
-				cs, nextState, err := mapper.ProcessLogByGroup(ctx, l, state)
-				if err != nil {
-					t.Fatalf("ProcessLogByGroup failed at message %d: %v", i, err)
-				}
+				cs, nextState := mapDagProcessorManagerLog(ctx, l, state, "test-environment")
 				tc.asserts[i](t, ctx, cs)
 				state = nextState
 			}

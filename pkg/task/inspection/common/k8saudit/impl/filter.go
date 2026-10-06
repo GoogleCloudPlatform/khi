@@ -23,24 +23,30 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
-// SuccessLogFilterTask filters out non-success logs.
-var SuccessLogFilterTask = inspectiontaskbase.NewLogFilterTaskWithDependencies(
+// successLogFilterTask filters out non-success logs.
+var successLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	k8saudit.SuccessLogFilterTaskID,
 	k8saudit.K8sAuditLogProviderRef,
-	[]coretask.Dependency{k8saudit.K8sAuditLogErrorExtractorRef.Ref(coretask.FromActiveGraph)},
-	func(ctx context.Context, l *log.Log) bool {
-		isError, _ := k8saudit.ExtractK8sAuditLogError(ctx, l.NodeReader)
-		return !isError
+	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		errorExtractor := coretask.Use(b, k8saudit.K8sAuditLogErrorExtractorRef)
+		return func(ctx context.Context, l *log.Log) bool {
+			extractor := errorExtractor.Get(ctx)
+			isError, _ := k8saudit.ExtractK8sAuditLogError(l.NodeReader, extractor)
+			return !isError
+		}
 	},
 )
 
-// NonSuccessLogFilterTask filters out success logs.
-var NonSuccessLogFilterTask = inspectiontaskbase.NewLogFilterTaskWithDependencies(
+// nonSuccessLogFilterTask filters out success logs.
+var nonSuccessLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	k8saudit.NonSuccessLogFilterTaskID,
 	k8saudit.K8sAuditLogProviderRef,
-	[]coretask.Dependency{k8saudit.K8sAuditLogErrorExtractorRef.Ref(coretask.FromActiveGraph)},
-	func(ctx context.Context, l *log.Log) bool {
-		isError, _ := k8saudit.ExtractK8sAuditLogError(ctx, l.NodeReader)
-		return isError
+	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		errorExtractor := coretask.Use(b, k8saudit.K8sAuditLogErrorExtractorRef)
+		return func(ctx context.Context, l *log.Log) bool {
+			extractor := errorExtractor.Get(ctx)
+			isError, _ := k8saudit.ExtractK8sAuditLogError(l.NodeReader, extractor)
+			return isError
+		}
 	},
 )

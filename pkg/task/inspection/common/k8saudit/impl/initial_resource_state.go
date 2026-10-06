@@ -19,6 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -35,12 +36,13 @@ func (p *emptyInitialResourceStateProvider) InitialResourceState(*k8saudit.Resou
 	return nil, false
 }
 
-// EmptyInitialResourceStateProviderTask is the fallback provider used where no resource inventory exists.
+// emptyInitialResourceStateProviderTask is the fallback provider used where no resource inventory exists.
 // An environment with an inventory overrides it with a higher task selection priority.
-var EmptyInitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
+var emptyInitialResourceStateProviderTask = inspectiontaskbase.DefineInspectionTask(
 	taskid.NewImplementationID(k8saudit.InitialResourceStateProviderRef, "empty"),
-	nil,
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.InitialResourceStateProvider, error) {
-		return &emptyInitialResourceStateProvider{}, nil
+	func(_ *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.InitialResourceStateProvider] {
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.InitialResourceStateProvider, error) {
+			return &emptyInitialResourceStateProvider{}, nil
+		}
 	},
 )

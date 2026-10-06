@@ -19,12 +19,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeapiaudit"
@@ -81,7 +84,7 @@ var compareNodeOption = cmp.Transformer("StructuredNodeToYAML", func(n structure
 	return string(bytes)
 })
 
-func TestLogToTimelineMapperTask(t *testing.T) {
+func TestMapGKEAuditLog(t *testing.T) {
 	// 1. Initialize the Builder.
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
@@ -887,8 +890,6 @@ name: test-nodepool`).Node
 		},
 	}
 
-	mapperSetting := &gkeAuditLogLogToTimelineMapperSetting{}
-
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := testlog.NewMockLog(testTime, tc.inputAudit, tc.inputResource)
@@ -898,11 +899,10 @@ name: test-nodepool`).Node
 			if provider == nil {
 				provider = &mockInitialResourceStateProvider{}
 			}
-			ctx = tasktest.WithTaskResult(ctx, gkeapiaudit.InitialResourceStateProviderRef, provider)
 
-			cs, tracker, err := mapperSetting.ProcessLogByGroup(ctx, l, tc.inputTracker)
+			cs, tracker, err := mapGKEAuditLog(ctx, l, tc.inputTracker, provider)
 			if err != nil {
-				t.Errorf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
+				t.Errorf("mapGKEAuditLog() returned an unexpected error, err=%v", err)
 			}
 
 			if tc.assert != nil {
@@ -910,6 +910,46 @@ name: test-nodepool`).Node
 			}
 			if tc.assertTracker != nil {
 				tc.assertTracker(t, tracker)
+			}
+		})
+	}
+}
+
+func TestLogToTimelineMapperTask(t *testing.T) {
+	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
+	testCases := []struct {
+		desc      string
+		taskMode  inspectioncore.InspectionTaskModeType
+		wantItems bool
+	}{
+		{desc: "dry run does not map logs", taskMode: inspectioncore.TaskModeDryRun, wantItems: false},
+		{desc: "run maps logs to the cluster timeline", taskMode: inspectioncore.TaskModeRun, wantItems: true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+			l := testlog.NewMockLog(testTime, gcpcommon.GCPAuditLogFieldSet{ProjectID: "test-project", OperationID: "op-1", OperationFirst: true, MethodName: "google.container.v1.ClusterManager.CreateCluster", PrincipalEmail: "foobar@qux.test"}, gkeapiaudit.GKEAuditLogResourceFieldSet{ClusterName: "test-cluster"})
+			// The mapper flushes timeline changes only for logs whose metadata is already ingested.
+			severityID := uint32(1)
+			logTypeID := uint32(2)
+			if err := builder.LogAccumulator.AddLog(&khifilev6.StagingLog{Log: l, Summary: "test", Timestamp: testTime, Severity: &pb.Severity{Id: &severityID}, LogType: &pb.LogType{Id: &logTypeID}}); err != nil {
+				t.Fatalf("failed to add log to the log accumulator: %v", err)
+			}
+			groupedLogs := inspectiontaskbase.LogGroupMap{"cluster/test-cluster": {Group: "cluster/test-cluster", Logs: []*log.Log{l}}}
+
+			_, _, err := inspectiontest.Run(t, ctx, logToTimelineMapperTask, tc.taskMode, map[string]any{},
+				tasktest.Given(gkeapiaudit.LogGrouperTaskID.Ref(), groupedLogs),
+				tasktest.Given[gkeapiaudit.InitialResourceStateProvider](gkeapiaudit.InitialResourceStateProviderRef, &mockInitialResourceStateProvider{}),
+			)
+			if err != nil {
+				t.Fatalf("Run() returned an unexpected error: %v", err)
+			}
+
+			projectPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "test-project", Type: gcpcommon.TimelineTypeGCPProject})
+			clusterPath := builder.TimelineAccumulator.GetPath(projectPath, khifilev6.PathSegment{Name: "test-cluster", Type: gcpcommon.TimelineTypeGKE})
+			if got := builder.TimelineAccumulator.GetBuilder(clusterPath).HasItems(); got != tc.wantItems {
+				t.Errorf("HasItems() = %v, want %v", got, tc.wantItems)
 			}
 		})
 	}

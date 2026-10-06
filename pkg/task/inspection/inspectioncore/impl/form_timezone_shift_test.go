@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// TestTimeZoneShiftInputTask verifies that TimeZoneShiftInputTask parses the timezone offset
+// TestTimeZoneShiftInputTask verifies that timeZoneShiftInputTask parses the timezone offset
 // parameter and returns the corresponding time.Location or falls back to UTC.
 func TestTimeZoneShiftInputTask(t *testing.T) {
 	baseTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -81,7 +81,7 @@ func TestTimeZoneShiftInputTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, TimeZoneShiftInputTask, inspectioncore.TaskModeRun, tc.input)
+			got, _, err := inspectiontest.Run(t, ctx, timeZoneShiftInputTask, inspectioncore.TaskModeRun, tc.input)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

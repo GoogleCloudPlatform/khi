@@ -36,10 +36,9 @@ func TestInputStartTime(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-	startTime, _, err := inspectiontest.RunInspectionTask(ctx, InputStartTimeTask, inspectioncore.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputDurationTaskID.Ref(), duration),
-		tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(inspectioncore.TimeZoneShiftInputTaskID.Ref(), time.UTC),
+	startTime, _, err := inspectiontest.Run(t, ctx, inputStartTimeTask, inspectioncore.TaskModeDryRun, map[string]any{},
+		tasktest.Given(gcpcommon.InputDurationTaskID.Ref(), duration),
+		tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), endTime),
 	)
 	if err != nil {
 		t.Errorf("unexpected error\n%v", err)

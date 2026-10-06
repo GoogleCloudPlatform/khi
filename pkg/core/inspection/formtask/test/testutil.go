@@ -22,6 +22,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -33,9 +34,10 @@ type TextFormTestCase struct {
 	Input             string
 	ExpectedValue     any
 	ExpectedFormField inspectionmetadata.TextParameterFormField
-	Dependencies      []coretask.UntypedTask
-	Before            func()
-	After             func()
+	// TaskInputs are the task input values given to the form task.
+	TaskInputs []tasktest.InputValue
+	Before     func()
+	After      func()
 }
 
 // TestTextForms tests an inspection task generating a TextForm in the metadata.
@@ -50,9 +52,10 @@ func TestTextForms[T any](t *testing.T, label string, formTask coretask.Task[T],
 			}
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			_, metadata, err := inspectiontest.RunInspectionTaskWithDependency(ctx, formTask, testCase.Dependencies, inspectioncore.TaskModeDryRun, map[string]any{
+			input := map[string]any{
 				formTask.ID().ReferenceIDString(): testCase.Input,
-			})
+			}
+			_, metadata, err := inspectiontest.Run(t, ctx, formTask, inspectioncore.TaskModeDryRun, input, testCase.TaskInputs...)
 
 			if err != nil {
 				t.Errorf("form field task returned an error %v", err)

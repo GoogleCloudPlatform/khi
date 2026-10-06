@@ -356,17 +356,17 @@ metadata:
 				return nil, nil
 			})
 
-			got, _, err := inspectiontest.RunInspectionTask(ctx, ResourceTimelineCreationTimeDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(k8saudit.ManifestGeneratorTaskID.Ref(), input),
-				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
+			got, _, err := inspectiontest.Run(t, ctx, resourceTimelineCreationTimeDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.Given(k8saudit.ManifestGeneratorTaskID.Ref(), input),
+				tasktest.Given(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
 			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask failed: %v", err)
+				t.Fatalf("inspectiontest.Run() failed: %v", err)
 			}
 
 			want := tc.wantFunc(ctx)
 			if diff := cmp.Diff(want, got, cmp.Comparer(func(a, b *khifilev6.TimelinePath) bool { return a == b })); diff != "" {
-				t.Errorf("ResourceTimelineCreationTimeDiscoveryTask mismatch (-want +got):\n%s", diff)
+				t.Errorf("resourceTimelineCreationTimeDiscoveryTask mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -629,17 +629,17 @@ spec:
 				return nil, nil
 			})
 
-			got, _, err := inspectiontest.RunInspectionTask(ctx, PodPhaseTimelineCreationTimeDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(k8saudit.ManifestGeneratorTaskID.Ref(), input),
-				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
+			got, _, err := inspectiontest.Run(t, ctx, podPhaseTimelineCreationTimeDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.Given(k8saudit.ManifestGeneratorTaskID.Ref(), input),
+				tasktest.Given(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
 			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask failed: %v", err)
+				t.Fatalf("inspectiontest.Run() failed: %v", err)
 			}
 
 			want := tc.wantFunc(ctx)
 			if diff := cmp.Diff(want, got, cmp.Comparer(func(a, b *khifilev6.TimelinePath) bool { return a == b })); diff != "" {
-				t.Errorf("PodPhaseTimelineCreationTimeDiscoveryTask mismatch (-want +got):\n%s", diff)
+				t.Errorf("podPhaseTimelineCreationTimeDiscoveryTask mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

@@ -21,7 +21,6 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
@@ -29,49 +28,38 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
-var LogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
+// logIngesterTask serializes On-Prem API audit logs for storage in the history builder.
+var logIngesterTask = gcpcommon.DefineGCPOperationLogIngesterTask(
 	onpremapiaudit.LogIngesterTaskID,
 	onpremapiaudit.ListLogEntriesTaskID.Ref(),
 	onpremapiaudit.LogTypeOnPremAPI,
 )
 
-// LogGrouperTask is a task that groups MulticloudAPI audit logs by their resource path.
+// logGrouperTask groups On-Prem API audit logs by their resource path.
 // This grouping allows for parallel processing of logs related to the same resource.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	onpremapiaudit.LogGrouperTaskID,
 	onpremapiaudit.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		resourceFieldSet, err := onpremapiaudit.ExtractOnPremAPIAuditResource(l.NodeReader)
-		if err != nil {
-			return ""
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			resourceFieldSet, err := onpremapiaudit.ExtractOnPremAPIAuditResource(l.NodeReader)
+			if err != nil {
+				return ""
+			}
+			return fmt.Sprintf("%s/%s/%s", resourceFieldSet.Project, resourceFieldSet.ClusterName, resourceFieldSet.NodepoolName)
 		}
-		return fmt.Sprintf("%s/%s/%s", resourceFieldSet.Project, resourceFieldSet.ClusterName, resourceFieldSet.NodepoolName)
 	},
 )
 
-// OnPremAPIAuditTimelineMapper maps On-Prem API audit logs to timeline elements.
-type OnPremAPIAuditTimelineMapper struct {
+// onPremAuditTimelineMapper maps On-Prem API audit logs to timeline elements.
+type onPremAuditTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
 
-// LogIngesterTask returns the task reference providing the ingested logs.
-func (m *OnPremAPIAuditTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return onpremapiaudit.LogIngesterTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies of the mapper.
-func (m *OnPremAPIAuditTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask returns a reference to the task that provides the grouped logs.
-func (m *OnPremAPIAuditTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return onpremapiaudit.LogGrouperTaskID.Ref()
-}
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*onPremAuditTimelineMapper)(nil)
 
 // ProcessLogByGroup maps log entries to timeline elements.
-func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
+func (m *onPremAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	if tracker == nil {
 		tracker = gcpcommon.NewGCPOperationTracker()
 	}
@@ -114,12 +102,16 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	return cs, tracker, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*OnPremAPIAuditTimelineMapper)(nil)
-
-// LogToTimelineMapperTask is a task that adds revisions/events regarding logs.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+// logToTimelineMapperTask adds revisions/events regarding logs.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	onpremapiaudit.LogToTimelineMapperTaskID,
-	&OnPremAPIAuditTimelineMapper{},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: onpremapiaudit.LogIngesterTaskID.Ref(),
+		GroupedLogs: onpremapiaudit.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
+		return &onPremAuditTimelineMapper{}
+	},
 	inspectioncore.FeatureTaskLabel(
 		"On-Premises API Logs",
 		"Gather Anthos On-Premises audit logs to visualize cluster lifecycle events (creation, deletion, enrollment, unenrollment, and upgrades) on timelines.",

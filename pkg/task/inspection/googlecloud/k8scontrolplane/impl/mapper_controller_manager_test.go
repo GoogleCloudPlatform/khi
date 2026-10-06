@@ -22,7 +22,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
@@ -32,7 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
+func TestMapControllerManagerLog(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
@@ -140,13 +139,11 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			finder := patternfinder.NewRadixPatternFinder[*k8saudit.ResourceIdentity]()
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref(), finder)
 
 			l := testlog.NewMockLog(tc.inputComponentField, tc.inputControllerManagerFieldSet, tc.inputMessageField)
-			mapper := &ControllerManagerTimelineMapper{}
-			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
+			cs, err := mapControllerManagerLog(ctx, l, finder)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
+				t.Fatalf("mapControllerManagerLog() returned an unexpected error, err=%v", err)
 			}
 			tc.assert(t, ctx, cs)
 		})

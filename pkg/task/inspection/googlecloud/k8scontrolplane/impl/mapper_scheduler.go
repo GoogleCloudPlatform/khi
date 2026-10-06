@@ -19,7 +19,6 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -27,48 +26,39 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scontrolplane"
 )
 
-var SchedulerLogFilterTask = inspectiontaskbase.NewLogFilterTask(
+// schedulerLogFilterTask filters kube-scheduler logs.
+var schedulerLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	k8scontrolplane.SchedulerLogFilterTaskID,
 	k8scontrolplane.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) bool {
-		parserType, err := k8scontrolplane.ExtractK8sControlplaneComponentParserType(l.NodeReader)
-		if err != nil {
-			return false
+	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		return func(ctx context.Context, l *log.Log) bool {
+			parserType, err := k8scontrolplane.ExtractK8sControlplaneComponentParserType(l.NodeReader)
+			if err != nil {
+				return false
+			}
+			return parserType == k8scontrolplane.ComponentParserTypeScheduler
 		}
-		return parserType == k8scontrolplane.ComponentParserTypeScheduler
 	},
 )
 
-var SchedulerGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+// schedulerLogGrouperTask puts all kube-scheduler logs into one group.
+var schedulerLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	k8scontrolplane.SchedulerLogGrouperTaskID,
 	k8scontrolplane.SchedulerLogFilterTaskID.Ref(),
-	func(ctx context.Context, log *log.Log) string {
-		return "" // No grouping needed
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			return "" // No grouping needed
+		}
 	},
 )
 
-// SchedulerTimelineMapper maps scheduler logs to timeline paths.
-type SchedulerTimelineMapper struct {
+// schedulerTimelineMapper maps scheduler logs to timeline paths.
+type schedulerTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (m *SchedulerTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (m *SchedulerTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return k8scontrolplane.SchedulerLogGrouperTaskID.Ref()
-}
-
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (m *SchedulerTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8scontrolplane.LogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (m *SchedulerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (m *schedulerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	componentFieldSet, err := k8scontrolplane.ExtractK8sControlplaneComponent(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
@@ -97,6 +87,16 @@ func (m *SchedulerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*SchedulerTimelineMapper)(nil)
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*schedulerTimelineMapper)(nil)
 
-var SchedulerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(k8scontrolplane.SchedulerLogToTimelineMapperTaskID, &SchedulerTimelineMapper{})
+// schedulerLogToTimelineMapperTask maps kube-scheduler logs to the timelines of the scheduler and the Pods they mention.
+var schedulerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8scontrolplane.SchedulerLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8scontrolplane.SchedulerLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &schedulerTimelineMapper{}
+	},
+)

@@ -24,30 +24,36 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
-// InputLocationsTask defines a form task for inputting the resource location.
-var InputLocationsTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputLocationsTaskID, gcpcommon.PriorityForResourceIdentifierGroup+3000, "Location").
-	WithDependencies([]coretask.Dependency{gcpcommon.AutocompleteLocationTaskID.Ref()}).
-	WithDescription(
-		"The location(region) to specify the resource exist(s|ed)",
-	).
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		locations := coretask.GetTaskResult(ctx, gcpcommon.AutocompleteLocationTaskID.Ref())
-		if len(previousValues) > 0 && slices.Contains(locations.Values, previousValues[0]) {
-			return previousValues[0], nil
+// inputLocationsTask defines a form task for inputting the resource location.
+var inputLocationsTask = formtask.DefineTextForm(
+	gcpcommon.InputLocationsTaskID,
+	gcpcommon.PriorityForResourceIdentifierGroup+3000,
+	"Location",
+	"The location(region) to specify the resource exist(s|ed)",
+	func(b *coretask.Binder) formtask.TextFormSpec[string] {
+		locationsInput := coretask.Use(b, gcpcommon.AutocompleteLocationTaskID.Ref())
+
+		return formtask.TextFormSpec[string]{
+			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
+				locations := locationsInput.Get(ctx)
+				if len(previousValues) > 0 && slices.Contains(locations.Values, previousValues[0]) {
+					return previousValues[0], nil
+				}
+				if len(locations.Values) == 0 {
+					return "", nil
+				}
+				return locations.Values[0], nil
+			},
+			Suggestions: func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+				regions := locationsInput.Get(ctx)
+				return common.SortForAutocomplete(value, regions.Values), nil
+			},
+			Validator: func(ctx context.Context, value string) (string, error) {
+				if value == "" {
+					return "location is required", nil
+				}
+				return "", nil
+			},
 		}
-		if len(locations.Values) == 0 {
-			return "", nil
-		}
-		return locations.Values[0], nil
-	}).
-	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		regions := coretask.GetTaskResult(ctx, gcpcommon.AutocompleteLocationTaskID.Ref())
-		return common.SortForAutocomplete(value, regions.Values), nil
-	}).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		if value == "" {
-			return "location is required", nil
-		}
-		return "", nil
-	}).
-	Build()
+	},
+)

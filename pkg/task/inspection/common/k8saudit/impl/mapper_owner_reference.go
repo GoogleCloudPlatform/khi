@@ -21,17 +21,21 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
-// ResourceOwnerReferenceTimelineMapperTask is the task to map logs into resource owner reference aliases.
-var ResourceOwnerReferenceTimelineMapperTask = k8saudit.NewManifestLogToTimelineMapper[struct{}](&resourceOwnerReferenceTimelineMapperTaskSetting{
-	nonNamespacedOwnerTypes: map[string]struct{}{
-		"core/v1#node": {},
+// resourceOwnerReferenceTimelineMapperTask is the task to map logs into resource owner reference aliases.
+var resourceOwnerReferenceTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[struct{}](
+	k8saudit.ResourceOwnerReferenceTimelineMapperTaskID,
+	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[struct{}] {
+		return &resourceOwnerReferenceTimelineMapperTaskSetting{
+			nonNamespacedOwnerTypes: map[string]struct{}{
+				"core/v1#node": {},
+			},
+		}
 	},
-})
+)
 
 // resourceOwnerReferenceTimelineMapperTaskSetting maps resource owner references to timeline aliases under the model.
 type resourceOwnerReferenceTimelineMapperTaskSetting struct {
@@ -39,26 +43,6 @@ type resourceOwnerReferenceTimelineMapperTaskSetting struct {
 
 	// nonNamespacedOwnerTypes is the set of owner types that are not namespaced.
 	nonNamespacedOwnerTypes map[string]struct{}
-}
-
-// Dependencies implements k8saudit.ManifestLogToTimelineMapper.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask implements k8saudit.ManifestLogToTimelineMapper.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[k8saudit.ResourceManifestLogGroupMap] {
-	return k8saudit.ResourceLifetimeTrackerTaskID.Ref()
-}
-
-// LogIngesterTask implements k8saudit.ManifestLogToTimelineMapper.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8saudit.K8sAuditLogIngesterTaskID.Ref()
-}
-
-// TaskID implements k8saudit.ManifestLogToTimelineMapper.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return k8saudit.ResourceOwnerReferenceTimelineMapperTaskID
 }
 
 // ResolveRelatedGroupSets implements k8saudit.ManifestLogToTimelineMapper.
@@ -96,7 +80,7 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 	if err != nil {
 		return cs, struct{}{}, nil
 	}
-	k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
+	k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 	if err != nil {
 		return cs, struct{}{}, err
 	}

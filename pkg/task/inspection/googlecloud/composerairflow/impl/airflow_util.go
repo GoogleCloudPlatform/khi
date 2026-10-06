@@ -15,10 +15,35 @@
 package composerairflow_impl
 
 import (
+	"context"
+
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
+
+// processAirflowLog extracts common metadata such as log type, timestamp, severity, and summary from an Airflow log.
+func processAirflowLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+	cs, err := khifilev6.NewLogChangeSet(l)
+	if err != nil {
+		return nil, err
+	}
+	cs.SetLogType(composerairflow.LogTypeManagedAirflowEnvironment)
+	cs.SetTimestamp(l.Timestamp)
+
+	if severity, err := gcpcommon.ExtractGCPSeverity(l.NodeReader); err == nil {
+		cs.SetSeverity(severity)
+	}
+
+	if message, err := gcpcommon.ExtractGCPMainMessage(l.NodeReader); err == nil {
+		cs.SetSummary(message)
+	}
+
+	return cs, nil
+}
 
 // tiStatusToVerb converts Taskinstance status to (*pb.Verb, *pb.RevisionState).
 func tiStatusToVerb(ti *composerairflow.AirflowTaskInstance) (*pb.Verb, *pb.RevisionState) {

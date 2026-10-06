@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
@@ -47,22 +46,23 @@ func TestHeaderSuggestedFileNameTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			inspectiontest.RunInspectionTask(ctx, HeaderSuggestedFileNameTask, inspectioncore.TaskModeRun, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(k8scommon.InputClusterNameTaskID.Ref(), tc.ClusterName),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), tc.StartTime),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), tc.EndTime),
+			_, metadata, err := inspectiontest.Run(t, ctx, headerSuggestedFileNameTask, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.Given(k8scommon.InputClusterNameTaskID.Ref(), tc.ClusterName),
+				tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), tc.StartTime),
+				tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), tc.EndTime),
 			)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
-			metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 			header, found := typedmap.Get(metadata, inspectionmetadata.HeaderMetadataKey)
 			if !found {
 				t.Fatalf("header metadata not found")
 			}
 
 			if header.SuggestedFileName != tc.SuggestedFileName {
-				t.Fatalf("suggested file name mismatch. expected: %s, got: %s", tc.SuggestedFileName, header.SuggestedFileName)
+				t.Errorf("header.SuggestedFileName = %q, want %q", header.SuggestedFileName, tc.SuggestedFileName)
 			}
 		})
 	}

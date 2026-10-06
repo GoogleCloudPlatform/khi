@@ -34,113 +34,112 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// LogIngester defines the interface for ingesting log metadata into KHI v6 format.
-type LogIngester interface {
-	// RawLogTask returns the task reference that provides the raw logs to ingest.
-	RawLogTask() taskid.TaskReference[[]*log.Log]
-	// Dependencies returns additional task dependencies of the ingester.
-	Dependencies() []coretask.Dependency
-	// ProcessLog is called for each log entry to customize log metadata (summary, severity, timestamp, etc.).
-	ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error)
-}
+// LogIngesterFunc converts a log into the change set of its metadata, such as summary, severity, and timestamp.
+// It returns a nil change set to skip the log.
+type LogIngesterFunc = func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error)
 
-// NewLogIngesterTask returns a task that ingests log metadata into the KHI v6 builder.
-func NewLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], ingester LogIngester, labels ...coretask.LabelOpt) coretask.Task[struct{}] {
-	rawLogTaskID := ingester.RawLogTask()
-	dependencies := append([]coretask.Dependency{rawLogTaskID}, ingester.Dependencies()...)
+// DefineLogIngesterTask returns a task that ingests metadata of the logs provided by rawLogTask into the KHI v6 builder.
+//
+// The task registers rawLogTask on the Binder before calling bind.
+// bind is called once at task definition time to declare additional inputs and return the LogIngesterFunc that processes each log concurrently across worker goroutines.
+func DefineLogIngesterTask(taskID taskid.TaskImplementationID[struct{}], rawLogTask taskid.TaskReference[[]*log.Log], bind func(b *coretask.Binder) LogIngesterFunc, labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(TagLogIngester),
-	}, labels...)
-	return NewInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return struct{}{}, nil
-		}
-		logs := coretask.GetTaskResult(ctx, rawLogTaskID)
-		builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-
-		if err := ctx.Err(); err != nil {
-			return struct{}{}, err
-		}
-
-		concurrency := runtime.GOMAXPROCS(0)
-		pool := worker.NewPool(concurrency)
-		var skippedLogCount atomic.Uint32
-
-		tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
-		defer tracker.Done()
-
-		var sharedErr error
-		var errMu sync.Mutex
-
-		setErr := func(err error) {
-			errMu.Lock()
-			defer errMu.Unlock()
-			if sharedErr == nil {
-				sharedErr = err
+	}, labelOpts...)
+	return DefineInspectionTask(taskID, func(b *coretask.Binder) InspectionTaskFunc[struct{}] {
+		logs := coretask.Use(b, rawLogTask)
+		processLog := bind(b)
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return struct{}{}, nil
 			}
+			return struct{}{}, ingestLogs(ctx, taskID, logs.Get(ctx), processLog)
 		}
-
-		hasErr := func() bool {
-			if ctx.Err() != nil {
-				return true
-			}
-			errMu.Lock()
-			defer errMu.Unlock()
-			return sharedErr != nil
-		}
-
-		for c := 0; c < concurrency; c++ {
-			if ctx.Err() != nil {
-				break
-			}
-			pool.Run(func() {
-				for i := c; i < len(logs); i += concurrency {
-					if hasErr() {
-						return
-					}
-					if err := ctx.Err(); err != nil {
-						setErr(err)
-						return
-					}
-					l := logs[i]
-					cs, err := ingester.ProcessLog(ctx, l)
-					tracker.Inc()
-					if err != nil {
-						logTaskError(ctx, "failed to process log in ingester", err, l)
-						setErr(err)
-						return
-					}
-					if cs != nil {
-						err = cs.Flush(builder.LogAccumulator)
-						if err != nil {
-							logTaskError(ctx, "failed to flush log changeset in ingester", err, l)
-							setErr(err)
-							return
-						}
-					} else {
-						skippedLogCount.Add(1)
-					}
-				}
-			})
-		}
-
-		pool.Wait()
-
-		if ctx.Err() != nil {
-			return struct{}{}, ctx.Err()
-		}
-		if sharedErr != nil {
-			return struct{}{}, sharedErr
-		}
-
-		slog.DebugContext(ctx, fmt.Sprintf("LogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), len(logs), skippedLogCount.Load()))
-
-		tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
-		if tracingActive {
-			trace.SpanFromContext(ctx).SetAttributes(
-				attribute.String("log_count", fmt.Sprintf("%d", len(logs))),
-			)
-		}
-		return struct{}{}, nil
 	}, allLabels...)
+}
+
+// ingestLogs processes logs in parallel with processLog and flushes the resulting change sets to the builder in the context.
+func ingestLogs(ctx context.Context, taskID taskid.TaskImplementationID[struct{}], logs []*log.Log, processLog LogIngesterFunc) error {
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	concurrency := runtime.GOMAXPROCS(0)
+	pool := worker.NewPool(concurrency)
+	var skippedLogCount atomic.Uint32
+
+	tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
+	defer tracker.Done()
+
+	var sharedErr error
+	var errMu sync.Mutex
+
+	setErr := func(err error) {
+		errMu.Lock()
+		defer errMu.Unlock()
+		if sharedErr == nil {
+			sharedErr = err
+		}
+	}
+
+	hasErr := func() bool {
+		if ctx.Err() != nil {
+			return true
+		}
+		errMu.Lock()
+		defer errMu.Unlock()
+		return sharedErr != nil
+	}
+
+	for c := 0; c < concurrency; c++ {
+		if ctx.Err() != nil {
+			break
+		}
+		pool.Run(func() {
+			for i := c; i < len(logs); i += concurrency {
+				if hasErr() {
+					return
+				}
+				l := logs[i]
+				cs, err := processLog(ctx, l)
+				tracker.Inc()
+				if err != nil {
+					logTaskError(ctx, "failed to process log in ingester", err, l)
+					setErr(err)
+					return
+				}
+				if cs != nil {
+					err = cs.Flush(builder.LogAccumulator)
+					if err != nil {
+						logTaskError(ctx, "failed to flush log changeset in ingester", err, l)
+						setErr(err)
+						return
+					}
+				} else {
+					skippedLogCount.Add(1)
+				}
+			}
+		})
+	}
+
+	pool.Wait()
+
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if sharedErr != nil {
+		return sharedErr
+	}
+
+	slog.DebugContext(ctx, fmt.Sprintf("LogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), len(logs), skippedLogCount.Load()))
+
+	tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
+	if tracingActive {
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("log_count", fmt.Sprintf("%d", len(logs))),
+		)
+	}
+	return nil
 }

@@ -22,29 +22,31 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
-// LocationFetcherTask is the task to inject the reference to LocationFetcher.
-// This is primarily utilized by the default fallback AutocompleteLocationTask.
-var LocationFetcherTask = coretask.NewTask(gcpcommon.LocationFetcherTaskID, []coretask.Dependency{
-	gcpcommon.InputProjectIdTaskID.Ref(),
-	gcpcommon.APIClientFactoryTaskID.Ref(),
-	gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(),
-}, func(ctx context.Context) (gcpcommon.LocationFetcher, error) {
-	clientFactory := coretask.GetTaskResult(ctx, gcpcommon.APIClientFactoryTaskID.Ref())
-	callOptionInjector := coretask.GetTaskResult(ctx, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
-	projectID := coretask.GetTaskResult(ctx, gcpcommon.InputProjectIdTaskID.Ref())
-	regionClient, err := clientFactory.RegionsClient(ctx, googlecloud.Project(projectID))
-	if err != nil {
-		return nil, err
+// locationFetcherTask is the task to inject the reference to LocationFetcher.
+// This is primarily utilized by the default fallback autocompleteLocationTask.
+var locationFetcherTask = coretask.Define(gcpcommon.LocationFetcherTaskID, func(b *coretask.Binder) func(ctx context.Context) (gcpcommon.LocationFetcher, error) {
+	projectID := coretask.Use(b, gcpcommon.InputProjectIdTaskID.Ref())
+	clientFactory := coretask.Use(b, gcpcommon.APIClientFactoryTaskID.Ref())
+	callOptionInjector := coretask.Use(b, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
+	return func(ctx context.Context) (gcpcommon.LocationFetcher, error) {
+		factory := clientFactory.Get(ctx)
+		injector := callOptionInjector.Get(ctx)
+		pid := projectID.Get(ctx)
+		regionClient, err := factory.RegionsClient(ctx, googlecloud.Project(pid))
+		if err != nil {
+			return nil, err
+		}
+		return gcpcommon.NewLocationFetcher(regionClient, injector), nil
 	}
-	return gcpcommon.NewLocationFetcher(regionClient, callOptionInjector), nil
 })
 
-// LoggingFetcherTask is a task to inject the reference to LogFetcher.
-var LoggingFetcherTask = coretask.NewTask(gcpcommon.LoggingFetcherTaskID, []coretask.Dependency{
-	gcpcommon.APIClientFactoryTaskID.Ref(),
-	gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(),
-}, func(ctx context.Context) (gcpcommon.LogFetcher, error) {
-	clientFactory := coretask.GetTaskResult(ctx, gcpcommon.APIClientFactoryTaskID.Ref())
-	callOptionInjector := coretask.GetTaskResult(ctx, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
-	return gcpcommon.NewLogFetcher(clientFactory, callOptionInjector, 1000), nil
+// loggingFetcherTask is a task to inject the reference to LogFetcher.
+var loggingFetcherTask = coretask.Define(gcpcommon.LoggingFetcherTaskID, func(b *coretask.Binder) func(ctx context.Context) (gcpcommon.LogFetcher, error) {
+	clientFactory := coretask.Use(b, gcpcommon.APIClientFactoryTaskID.Ref())
+	callOptionInjector := coretask.Use(b, gcpcommon.APIClientCallOptionsInjectorTaskID.Ref())
+	return func(ctx context.Context) (gcpcommon.LogFetcher, error) {
+		factory := clientFactory.Get(ctx)
+		injector := callOptionInjector.Get(ctx)
+		return gcpcommon.NewLogFetcher(factory, injector, 1000), nil
+	}
 })

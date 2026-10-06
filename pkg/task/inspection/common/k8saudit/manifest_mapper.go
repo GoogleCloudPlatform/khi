@@ -98,14 +98,6 @@ func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestL
 
 // ManifestLogToTimelineMapper defines the interface for manifest timeline mappers.
 type ManifestLogToTimelineMapper[T any] interface {
-	// TaskID returns the task ID.
-	TaskID() taskid.TaskImplementationID[struct{}]
-	// LogIngesterTask returns the task reference for the log ingester task.
-	LogIngesterTask() taskid.TaskReference[struct{}]
-	// GroupedLogTask returns the task reference for the grouped log task.
-	GroupedLogTask() taskid.TaskReference[ResourceManifestLogGroupMap]
-	// Dependencies returns additional task dependencies of the mapper.
-	Dependencies() []coretask.Dependency
 	// PassCount returns the number of pre-processing passes.
 	PassCount() int
 	// ResolveRelatedGroupSets resolves log groups into related group sets to be processed together.
@@ -142,107 +134,115 @@ func (ManifestStatelessMapperBase) PreProcessLog(ctx context.Context, passIndex 
 	return struct{}{}, nil
 }
 
-// NewManifestLogToTimelineMapper creates a new timeline mapper task utilizing the mapper interface.
-func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T], labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
-	groupedLogTaskID := setting.GroupedLogTask()
-	dependencies := append([]coretask.Dependency{setting.LogIngesterTask(), setting.GroupedLogTask()}, setting.Dependencies()...)
+// DefineManifestLogToTimelineMapper defines a timeline mapper task utilizing the ManifestLogToTimelineMapper interface.
+//
+// It automatically registers K8sAuditLogIngesterTaskID (via coretask.After) and ResourceLifetimeTrackerTaskID (via coretask.Use) on the Binder before calling bind.
+// bind is called once at task definition time to declare additional inputs and return the ManifestLogToTimelineMapper[T] instance.
+// Because the returned mapper is shared across inspections and concurrent worker goroutines, any per-group mutable state must be stored in T rather than on the mapper struct.
+func DefineManifestLogToTimelineMapper[T any](taskID taskid.TaskImplementationID[struct{}], bind func(b *coretask.Binder) ManifestLogToTimelineMapper[T], labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(inspectiontaskbase.TagTimelineMapper),
 	}, labelOpts...)
 
-	return inspectiontaskbase.NewInspectionTask(setting.TaskID(), dependencies, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
-			return struct{}{}, nil
-		}
-
-		builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-		groupedLogs := coretask.GetTaskResult(ctx, groupedLogTaskID)
-
-		progress.ReportIndeterminate(ctx, "Resolving related group sets...")
-		relatedGroupSets, err := setting.ResolveRelatedGroupSets(ctx, groupedLogs)
-		if err != nil {
-			return struct{}{}, err
-		}
-
-		tracker := progress.NewTracker(ctx, len(relatedGroupSets), progress.WithUnit("groups"))
-		defer tracker.Done()
-
-		var sharedErr error
-		var errMu sync.Mutex
-
-		setErr := func(err error) {
-			errMu.Lock()
-			defer errMu.Unlock()
-			if sharedErr == nil {
-				sharedErr = err
+	return inspectiontaskbase.DefineInspectionTask(taskID, func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[struct{}] {
+		// Ensure the audit log ingester has populated log metadata before mapping to timelines.
+		coretask.After(b, K8sAuditLogIngesterTaskID.Ref())
+		groupedLogsInput := coretask.Use(b, ResourceLifetimeTrackerTaskID.Ref())
+		setting := bind(b)
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				slog.DebugContext(ctx, "Skipping task because this is dry run mode")
+				return struct{}{}, nil
 			}
-		}
 
-		hasErr := func() bool {
-			errMu.Lock()
-			defer errMu.Unlock()
-			return sharedErr != nil
-		}
+			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+			groupedLogs := groupedLogsInput.Get(ctx)
 
-		pool := worker.NewPool(runtime.GOMAXPROCS(0))
-		passCount := setting.PassCount()
+			progress.ReportIndeterminate(ctx, "Resolving related group sets...")
+			relatedGroupSets, err := setting.ResolveRelatedGroupSets(ctx, groupedLogs)
+			if err != nil {
+				return struct{}{}, err
+			}
 
-		for _, groupSet := range relatedGroupSets {
-			pool.Run(func() {
-				defer tracker.Inc()
-				if hasErr() {
-					return
+			tracker := progress.NewTracker(ctx, len(relatedGroupSets), progress.WithUnit("groups"))
+			defer tracker.Done()
+
+			var sharedErr error
+			var errMu sync.Mutex
+
+			setErr := func(err error) {
+				errMu.Lock()
+				defer errMu.Unlock()
+				if sharedErr == nil {
+					sharedErr = err
 				}
+			}
 
-				var state T
+			hasErr := func() bool {
+				errMu.Lock()
+				defer errMu.Unlock()
+				return sharedErr != nil
+			}
 
-				// 1. Pre-processing passes
-				for passIdx := 0; passIdx < passCount; passIdx++ {
+			pool := worker.NewPool(runtime.GOMAXPROCS(0))
+			passCount := setting.PassCount()
+
+			for _, groupSet := range relatedGroupSets {
+				pool.Run(func() {
+					defer tracker.Inc()
+					if hasErr() {
+						return
+					}
+
+					var state T
+
+					// 1. Pre-processing passes
+					for passIdx := 0; passIdx < passCount; passIdx++ {
+						for event := range iterateMultiGroupLog(groupSet) {
+							if hasErr() {
+								return
+							}
+							nextState, err := setting.PreProcessLog(ctx, passIdx, event, state)
+							if err != nil {
+								setErr(err)
+								return
+							}
+							state = nextState
+						}
+					}
+
+					// 2. Final processing pass
 					for event := range iterateMultiGroupLog(groupSet) {
 						if hasErr() {
 							return
 						}
-						nextState, err := setting.PreProcessLog(ctx, passIdx, event, state)
+						cs, nextState, err := setting.ProcessLog(ctx, event, state)
 						if err != nil {
 							setErr(err)
 							return
 						}
 						state = nextState
-					}
-				}
 
-				// 2. Final processing pass
-				for event := range iterateMultiGroupLog(groupSet) {
-					if hasErr() {
-						return
-					}
-					cs, nextState, err := setting.ProcessLog(ctx, event, state)
-					if err != nil {
-						setErr(err)
-						return
-					}
-					state = nextState
-
-					if cs != nil {
-						err := cs.Flush(builder.TimelineAccumulator, builder.LogAccumulator)
-						cs.Release()
-						if err != nil {
-							setErr(err)
-							return
+						if cs != nil {
+							err := cs.Flush(builder.TimelineAccumulator, builder.LogAccumulator)
+							cs.Release()
+							if err != nil {
+								setErr(err)
+								return
+							}
 						}
 					}
-				}
-			})
+				})
+			}
+
+			pool.Wait()
+
+			if sharedErr != nil {
+				return struct{}{}, sharedErr
+			}
+
+			return struct{}{}, nil
 		}
-
-		pool.Wait()
-
-		if sharedErr != nil {
-			return struct{}{}, sharedErr
-		}
-
-		return struct{}{}, nil
 	}, allLabels...)
 }
 

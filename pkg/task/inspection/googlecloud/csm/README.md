@@ -15,17 +15,17 @@ The CSM inspection pipeline handles the following:
 
 These tasks are used to discover associations that are not directly present in the traffic logs but are required for proper resource mapping. They are provided by shared Google Cloud components and log provider packages.
 
-- **`EventLogNEGDiscoveryTask`** (in `googlecloud/k8sevent`): Discovers NEG to BackendService mappings by parsing Kubernetes Event logs.
-- **`AuditLogNEGDiscoveryTask`** (in `googlecloud/k8saudit`): Discovers NEG to BackendService mappings by parsing Kubernetes Audit logs (via resource manifests).
-- **`NEGToBackendServiceInventoryTask`** (in `googlecloud/k8scommon`): Aggregates the discovery results into a single consolidated inventory map.
+- **`eventLogNEGDiscoveryTask`** (in `googlecloud/k8sevent`): Discovers NEG to BackendService mappings by parsing Kubernetes Event logs.
+- **`auditLogNEGDiscoveryTask`** (in `googlecloud/k8saudit`): Discovers NEG to BackendService mappings by parsing Kubernetes Audit logs (via resource manifests).
+- **`negToBackendServiceInventoryTask`** (in `googlecloud/k8scommon`): Aggregates the discovery results into a single consolidated inventory map.
 
 ### CSM Traffic Log Pipeline
 
-- **`InputCSMResponseFlagsTask`**: Form input for filtering logs by Envoy response flags.
-- **`ListLogEntriesTask`**: Fetches CSM traffic logs from Cloud Logging.
-- **`LogIngesterTask`**: Ingests the logs into the final KHI history.
-- **`LogGrouperTask`**: Groups logs by the reporter pod.
-- **`LogToTimelineMapperTask`**: Maps CSM traffic log events to resource timelines, utilizing the NEG inventory for accurate service association.
+- **`inputCSMResponseFlagsTask`**: Form input for filtering logs by Envoy response flags.
+- **`listLogEntriesTask`**: Fetches CSM traffic logs from Cloud Logging.
+- **`logIngesterTask`**: Ingests the logs into the final KHI history.
+- **`logGrouperTask`**: Groups logs by the reporter pod.
+- **`logToTimelineMapperTask`**: Maps CSM traffic log events to resource timelines, utilizing the NEG inventory for accurate service association.
 
 ## Task Relationship Diagram
 
@@ -43,17 +43,17 @@ graph TD
     ManifestGen[Manifest Generator]:::external
 
     %% Inventory
-    EventLogs --> EventDiscovery[EventLogNEGDiscoveryTask]:::inventory
-    ManifestGen --> AuditDiscovery[AuditLogNEGDiscoveryTask]:::inventory
-    EventDiscovery --> Inventory[NEGToBackendServiceInventoryTask]:::inventory
+    EventLogs --> EventDiscovery[eventLogNEGDiscoveryTask]:::inventory
+    ManifestGen --> AuditDiscovery[auditLogNEGDiscoveryTask]:::inventory
+    EventDiscovery --> Inventory[negToBackendServiceInventoryTask]:::inventory
     AuditDiscovery --> Inventory
 
     %% CSM Traffic Log Pipeline
-    FlagsInput[InputCSMResponseFlagsTask]:::input
-    FlagsInput --> ListLogs[ListLogEntriesTask]:::query
-    ListLogs --> Ingester[LogIngesterTask]:::pipeline
-    ListLogs --> Grouper[LogGrouperTask]:::pipeline
-    Grouper --> Mapper[LogToTimelineMapperTask]:::pipeline
+    FlagsInput[inputCSMResponseFlagsTask]:::input
+    FlagsInput --> ListLogs[listLogEntriesTask]:::query
+    ListLogs --> Ingester[logIngesterTask]:::pipeline
+    ListLogs --> Grouper[logGrouperTask]:::pipeline
+    Grouper --> Mapper[logToTimelineMapperTask]:::pipeline
     Ingester --> Mapper
     Inventory --> Mapper
 ```

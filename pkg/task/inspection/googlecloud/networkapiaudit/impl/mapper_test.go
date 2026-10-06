@@ -21,13 +21,10 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
@@ -110,7 +107,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := gcpcommon.NewGCPOperationLogIngester(networkapiaudit.ListLogEntriesTaskID.Ref(), networkapiaudit.LogTypeNetworkAPI)
+	ingester := gcpcommon.NewGCPOperationLogIngester(networkapiaudit.LogTypeNetworkAPI)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
@@ -122,7 +119,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 	}
 }
 
-func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2026, 5, 27, 12, 0, 0, 0, time.UTC)
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
@@ -134,7 +131,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 		inputLog      *log.Log
 		prevGroupData *perNEGHistoryModificationStatus
 		wantGroupData *perNEGHistoryModificationStatus
-		setupContext  func(ctx context.Context) context.Context
+		setupInputs   func(inputs *networkAuditInputs)
 		assert        func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -171,7 +168,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					"pod:10.0.0.1:80": true,
 				},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -187,10 +184,9 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.ipLeases = ipLeases
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := networkapiaudit.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints", "op-1")
@@ -264,7 +260,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			wantGroupData: &perNEGHistoryModificationStatus{
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -280,10 +276,9 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.ipLeases = ipLeases
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := networkapiaudit.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints", "op-1")
@@ -355,7 +350,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					"node:test-node": true,
 				},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -365,9 +360,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := networkapiaudit.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints", "op-2")
@@ -439,7 +433,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			wantGroupData: &perNEGHistoryModificationStatus{
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -449,9 +443,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := networkapiaudit.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints", "op-2")
@@ -522,7 +515,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					"node:test-node": true,
 				},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -532,9 +525,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := networkapiaudit.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-3")
@@ -618,7 +610,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			wantGroupData: &perNEGHistoryModificationStatus{
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -628,9 +620,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := networkapiaudit.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-3")
@@ -702,7 +693,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					"pod:10.0.0.1:80": true,
 				},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -718,10 +709,9 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.ipLeases = ipLeases
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := networkapiaudit.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-4")
@@ -807,7 +797,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			wantGroupData: &perNEGHistoryModificationStatus{
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -823,10 +813,9 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.ipLeases = ipLeases
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := networkapiaudit.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-4")
@@ -921,7 +910,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					},
 				},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -931,9 +920,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
@@ -968,14 +956,14 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			wantGroupData: &perNEGHistoryModificationStatus{
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
 						Name:      "test-neg",
 					},
 				}
-				return tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
+				inputs.negs = negs
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := networkapiaudit.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.detachNetworkEndpoints", "op-missing")
@@ -1028,7 +1016,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 			wantGroupData: &perNEGHistoryModificationStatus{
 				PendingOperations: map[string]*pendingNEGOperation{},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -1038,9 +1026,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				wantOpPath := networkapiaudit.MustNEGOperationTimeline(ctx, wantNEGPath, "v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints", "op-fail")
@@ -1102,7 +1089,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					"node:test-node": true,
 				},
 			},
-			setupContext: func(ctx context.Context) context.Context {
+			setupInputs: func(inputs *networkAuditInputs) {
 				negs := k8scommon.NEGNameToResourceIdentityMap{
 					"test-neg": {
 						Namespace: "test-ns",
@@ -1112,9 +1099,8 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				negToBS := k8scommon.NEGToBackendServiceMap{
 					"test-neg": "test-bs",
 				}
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-				ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-				return ctx
+				inputs.negs = negs
+				inputs.negToBackendService = negToBS
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
@@ -1138,32 +1124,27 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &networkAPITimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := khictx.WithValue(t.Context(), core_contract.TaskImplementationIDContextKey, networkapiaudit.LogToTimelineMapperTaskID.(taskid.UntypedTaskImplementationID))
-			ctx = khictx.WithValue(ctx, inspectioncore.Builder, builder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 			// Provide default empty inventories.
-			clusterIdentity := k8scommon.GoogleCloudClusterIdentity{
-				ClusterName: "cluster",
-				ProjectID:   "test-project",
+			inputs := networkAuditInputs{
+				clusterIdentity: k8scommon.GoogleCloudClusterIdentity{
+					ClusterName: "cluster",
+					ProjectID:   "test-project",
+				},
+				negs:                k8scommon.NEGNameToResourceIdentityMap{},
+				ipLeases:            resourcelease.NewResourceLeaseHistory[*k8saudit.ResourceIdentity](),
+				negToBackendService: k8scommon.NEGToBackendServiceMap{},
 			}
-			negs := k8scommon.NEGNameToResourceIdentityMap{}
-			ipLeases := resourcelease.NewResourceLeaseHistory[*k8saudit.ResourceIdentity]()
-			negToBS := k8scommon.NEGToBackendServiceMap{}
-
-			ctx = tasktest.WithTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref(), clusterIdentity)
-			ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGNamesInventoryTaskID.Ref(), negs)
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.IPLeaseHistoryInventoryTaskID.Ref(), ipLeases)
-			ctx = tasktest.WithTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref(), negToBS)
-			if tc.setupContext != nil {
-				ctx = tc.setupContext(ctx)
+			if tc.setupInputs != nil {
+				tc.setupInputs(&inputs)
 			}
 
-			cs, gotGroupData, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, tc.prevGroupData)
+			cs, gotGroupData, err := mapNetworkAuditLog(ctx, tc.inputLog, tc.prevGroupData, inputs)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+				t.Fatalf("mapNetworkAuditLog() returned unexpected error: %v", err)
 			}
 
 			if tc.assert != nil {

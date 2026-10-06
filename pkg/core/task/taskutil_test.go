@@ -87,9 +87,8 @@ func TestWrapErrorWithTaskInformation(t *testing.T) {
 	}
 }
 
-func TestGetTaskResult(t *testing.T) {
+func TestLookupTaskResult(t *testing.T) {
 	strRef := taskid.NewTaskReference[string]("test.string")
-	nonExistentRef := taskid.NewTaskReference[bool]("test.nonexistent")
 	taskID := taskid.NewDefaultImplementationID[any]("test.id")
 
 	testCases := []struct {
@@ -100,19 +99,7 @@ func TestGetTaskResult(t *testing.T) {
 		wantErrMatch string
 	}{
 		{
-			name: "success with declared dependency",
-			setupCtx: func(ctx context.Context) context.Context {
-				taskResults := typedmap.NewTypedMap()
-				typedmap.Set(taskResults, typedmap.NewTypedKey[string](strRef.ReferenceIDString()), "test-value")
-				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{strRef})
-				return ctx
-			},
-			targetRef: strRef,
-			want:      "test-value",
-		},
-		{
-			name: "success when task dependencies context key is omitted",
+			name: "returns the result stored in the result map",
 			setupCtx: func(ctx context.Context) context.Context {
 				taskResults := typedmap.NewTypedMap()
 				typedmap.Set(taskResults, typedmap.NewTypedKey[string](strRef.ReferenceIDString()), "test-value")
@@ -122,25 +109,11 @@ func TestGetTaskResult(t *testing.T) {
 			want:      "test-value",
 		},
 		{
-			name: "panic when dependency is not declared in task dependencies",
-			setupCtx: func(ctx context.Context) context.Context {
-				taskResults := typedmap.NewTypedMap()
-				typedmap.Set(taskResults, typedmap.NewTypedKey[string](strRef.ReferenceIDString()), "test-value")
-				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{})
-				return ctx
-			},
-			targetRef:    strRef,
-			wantErrMatch: "undeclared task dependency access",
-		},
-		{
 			name: "panic when result is missing in result map and lists available results",
 			setupCtx: func(ctx context.Context) context.Context {
 				taskResults := typedmap.NewTypedMap()
 				typedmap.Set(taskResults, typedmap.NewTypedKey[string]("other.task"), "other-val")
-				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{nonExistentRef})
-				return ctx
+				return khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
 			},
 			targetRef:    taskid.NewTaskReference[string]("test.nonexistent"),
 			wantErrMatch: "Available task results:\n* other.task",
@@ -174,17 +147,17 @@ func TestGetTaskResult(t *testing.T) {
 				}()
 			}
 
-			got := GetTaskResult(ctx, tc.targetRef)
+			got := lookupTaskResult(ctx, tc.targetRef)
 			if tc.wantErrMatch == "" {
 				if got != tc.want {
-					t.Errorf("GetTaskResult() = %q, want %q", got, tc.want)
+					t.Errorf("lookupTaskResult() = %q, want %q", got, tc.want)
 				}
 			}
 		})
 	}
 }
 
-func TestGetOptionalTaskResult(t *testing.T) {
+func TestLookupOptionalTaskResult(t *testing.T) {
 	strRef := taskid.NewTaskReference[string]("test.string", taskid.ScopeActiveGraph)
 	taskID := taskid.NewDefaultImplementationID[any]("test.id")
 
@@ -205,9 +178,7 @@ func TestGetOptionalTaskResult(t *testing.T) {
 					boundTasks: map[string]bool{strRef.ReferenceIDString(): true},
 				}
 				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{strRef})
-				return ctx
+				return khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
 			},
 			targetRef: strRef,
 			wantVal:   "opt-bound-value",
@@ -221,9 +192,7 @@ func TestGetOptionalTaskResult(t *testing.T) {
 					boundTasks: map[string]bool{strRef.ReferenceIDString(): false},
 				}
 				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{strRef})
-				return ctx
+				return khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
 			},
 			targetRef: strRef,
 			wantVal:   "",
@@ -237,9 +206,7 @@ func TestGetOptionalTaskResult(t *testing.T) {
 					boundTasks: map[string]bool{strRef.ReferenceIDString(): true},
 				}
 				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{strRef})
-				return ctx
+				return khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
 			},
 			targetRef:    strRef,
 			wantErrMatch: "was bound in DAG but result is missing",
@@ -248,27 +215,10 @@ func TestGetOptionalTaskResult(t *testing.T) {
 			name: "panic when task graph metadata is missing",
 			setupCtx: func(ctx context.Context) context.Context {
 				taskResults := typedmap.NewTypedMap()
-				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{strRef})
-				return ctx
+				return khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
 			},
 			targetRef:    strRef,
 			wantErrMatch: "value not found for key: khi.google.com/task-graph-metadata",
-		},
-		{
-			name: "panic when dependency is not declared in task dependencies",
-			setupCtx: func(ctx context.Context) context.Context {
-				taskResults := typedmap.NewTypedMap()
-				meta := &mockGraphMetadata{
-					boundTasks: map[string]bool{strRef.ReferenceIDString(): true},
-				}
-				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{})
-				return ctx
-			},
-			targetRef:    strRef,
-			wantErrMatch: "undeclared task dependency access",
 		},
 	}
 
@@ -299,20 +249,20 @@ func TestGetOptionalTaskResult(t *testing.T) {
 				}()
 			}
 
-			val, ok := GetOptionalTaskResult(ctx, tc.targetRef)
+			val, ok := lookupOptionalTaskResult(ctx, tc.targetRef)
 			if tc.wantErrMatch == "" {
 				if ok != tc.wantOk {
-					t.Errorf("GetOptionalTaskResult() ok = %v, want %v", ok, tc.wantOk)
+					t.Errorf("lookupOptionalTaskResult() ok = %v, want %v", ok, tc.wantOk)
 				}
 				if val != tc.wantVal {
-					t.Errorf("GetOptionalTaskResult() val = %q, want %q", val, tc.wantVal)
+					t.Errorf("lookupOptionalTaskResult() val = %q, want %q", val, tc.wantVal)
 				}
 			}
 		})
 	}
 }
 
-func TestGetTaskResultsWithTag(t *testing.T) {
+func TestLookupTaskResultsWithTag(t *testing.T) {
 	tag := NewTag[string]("test/tag")
 	tagRef := tag.Ref()
 	taskID := taskid.NewDefaultImplementationID[any]("test.consumer")
@@ -336,9 +286,7 @@ func TestGetTaskResultsWithTag(t *testing.T) {
 					},
 				}
 				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
-				return ctx
+				return khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
 			},
 			targetRef: tagRef,
 			want:      []string{"apple", "banana"},
@@ -356,9 +304,7 @@ func TestGetTaskResultsWithTag(t *testing.T) {
 					},
 				}
 				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
-				return ctx
+				return khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
 			},
 			targetRef: tagRef,
 			want:      []string{"apple"},
@@ -373,9 +319,7 @@ func TestGetTaskResultsWithTag(t *testing.T) {
 					},
 				}
 				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
-				return ctx
+				return khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
 			},
 			targetRef: tagRef,
 			want:      []string{},
@@ -388,9 +332,7 @@ func TestGetTaskResultsWithTag(t *testing.T) {
 					boundFanInRefIDsByTaskImplID: nil,
 				}
 				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
-				return ctx
+				return khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
 			},
 			targetRef: tagRef,
 			want:      []string{},
@@ -405,37 +347,16 @@ func TestGetTaskResultsWithTag(t *testing.T) {
 					},
 				}
 				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
-				return ctx
+				return khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
 			},
 			targetRef:    tagRef,
 			wantErrMatch: "task missing-p providing tag test/tag result missing",
 		},
 		{
-			name: "panic when tag reference undeclared",
-			setupCtx: func(ctx context.Context) context.Context {
-				taskResults := typedmap.NewTypedMap()
-				meta := &mockGraphMetadata{
-					boundFanInRefIDsByTaskImplID: map[string]map[string][]string{
-						taskID.String(): {tag.ID(): {}},
-					},
-				}
-				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, meta)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{})
-				return ctx
-			},
-			targetRef:    tagRef,
-			wantErrMatch: "undeclared task dependency access",
-		},
-		{
 			name: "panic when task graph metadata is missing",
 			setupCtx: func(ctx context.Context) context.Context {
 				taskResults := typedmap.NewTypedMap()
-				ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
-				ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, []taskid.DependencyDescriptor{tagRef})
-				return ctx
+				return khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
 			},
 			targetRef:    tagRef,
 			wantErrMatch: "value not found for key: khi.google.com/task-graph-metadata",
@@ -469,142 +390,10 @@ func TestGetTaskResultsWithTag(t *testing.T) {
 				}()
 			}
 
-			got := GetTaskResultsWithTag(ctx, tc.targetRef)
+			got := lookupTaskResultsWithTag(ctx, tc.targetRef)
 			if tc.wantErrMatch == "" {
 				if diff := cmp.Diff(tc.want, got); diff != "" {
-					t.Errorf("GetTaskResultsWithTag() mismatch (-want +got):\n%s", diff)
-				}
-			}
-		})
-	}
-}
-
-func TestNewTailTask(t *testing.T) {
-	tailID := taskid.NewDefaultImplementationID[struct{}]("tail.test")
-	depA := taskid.NewTaskReference[string]("task.a")
-	depB := taskid.NewTaskReference[string]("task.b", taskid.ScopeActiveGraph)
-	tag := NewTag[int]("tag.test")
-	tailLabelKey := NewTaskLabelKey[string]("tail-label")
-
-	testCases := []struct {
-		name         string
-		taskID       taskid.TaskImplementationID[struct{}]
-		deps         []Dependency
-		wantDepCount int
-		shouldPanic  bool
-		panicMatch   string
-		verifyDeps   func(t *testing.T, deps []Dependency)
-	}{
-		{
-			name:         "empty dependencies",
-			taskID:       tailID,
-			deps:         nil,
-			wantDepCount: 0,
-		},
-		{
-			name:         "preserves all dependencies and attributes",
-			taskID:       tailID,
-			deps:         []Dependency{depA, depB, tag.Ref()},
-			wantDepCount: 3,
-			verifyDeps: func(t *testing.T, deps []Dependency) {
-				if len(deps) != 3 {
-					t.Fatalf("expected 3 dependencies, got %d", len(deps))
-				}
-				if got := deps[1].DescriptorScope(); got != taskid.ScopeActiveGraph {
-					t.Errorf("dep[1].DescriptorScope() = %v, want %v", got, taskid.ScopeActiveGraph)
-				}
-				if fanIn, ok := deps[2].(taskid.FanInDescriptor); !ok || fanIn.Tag() != "tag.test" {
-					t.Errorf("dep[2] tag mismatch, want tag.test, got %v", deps[2])
-				}
-			},
-		},
-		{
-			name:         "deduplicates duplicate dependencies",
-			taskID:       tailID,
-			deps:         []Dependency{depA, depA},
-			wantDepCount: 1,
-			verifyDeps: func(t *testing.T, deps []Dependency) {
-				if len(deps) != 1 {
-					t.Fatalf("expected 1 dependency, got %d", len(deps))
-				}
-			},
-		},
-		{
-			name:        "panics when taskID is nil",
-			taskID:      nil,
-			deps:        []Dependency{},
-			shouldPanic: true,
-			panicMatch:  "Invalid taskID",
-		},
-		{
-			name:        "panics when dependencies contains nil",
-			taskID:      tailID,
-			deps:        []Dependency{depA, nil},
-			shouldPanic: true,
-			panicMatch:  "contains a nil reference",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.shouldPanic {
-				defer func() {
-					r := recover()
-					if r == nil {
-						t.Errorf("expected panic containing %q, but none occurred", tc.panicMatch)
-						return
-					}
-					msg := ""
-					if err, ok := r.(error); ok {
-						msg = err.Error()
-					} else if s, ok := r.(string); ok {
-						msg = s
-					}
-					if !strings.Contains(msg, tc.panicMatch) {
-						t.Errorf("expected panic message to contain %q, got %q", tc.panicMatch, msg)
-					}
-				}()
-			}
-
-			tailTask := NewTailTask(tc.taskID, tc.deps, labelOptFunc(func(labels *typedmap.TypedMap) {
-				typedmap.Set(labels, tailLabelKey, "tail-label-val")
-			}))
-
-			if !tc.shouldPanic {
-				if got := tailTask.ID().String(); got != tailID.String() {
-					t.Errorf("tailTask.ID() = %q, want %q", got, tailID.String())
-				}
-				if got := tailTask.UntypedID().String(); got != tailID.String() {
-					t.Errorf("tailTask.UntypedID() = %q, want %q", got, tailID.String())
-				}
-
-				val, ok := typedmap.Get(tailTask.Labels(), tailLabelKey)
-				if !ok || val != "tail-label-val" {
-					t.Errorf("expected tail task label tail-label-val, got %v (found: %v)", val, ok)
-				}
-
-				if got := len(tailTask.Dependencies()); got != tc.wantDepCount {
-					t.Errorf("len(tailTask.Dependencies()) = %d, want %d", got, tc.wantDepCount)
-				}
-
-				if tc.verifyDeps != nil {
-					tc.verifyDeps(t, tailTask.Dependencies())
-				}
-
-				res, err := tailTask.Run(t.Context())
-				if err != nil {
-					t.Fatalf("tailTask.Run() unexpected error: %v", err)
-				}
-				if res != (struct{}{}) {
-					t.Errorf("tailTask.Run() = %v, want %v", res, struct{}{})
-				}
-
-				untypedRes, err := tailTask.UntypedRun(t.Context())
-				if err != nil {
-					t.Fatalf("tailTask.UntypedRun() unexpected error: %v", err)
-				}
-				if untypedRes != (struct{}{}) {
-					t.Errorf("tailTask.UntypedRun() = %v, want %v", untypedRes, struct{}{})
+					t.Errorf("lookupTaskResultsWithTag() mismatch (-want +got):\n%s", diff)
 				}
 			}
 		})

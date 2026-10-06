@@ -28,42 +28,48 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// InputEndTimeTask defines a form task to input the end time for log queries.
-var InputEndTimeTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputEndTimeTaskID, gcpcommon.PriorityForQueryTimeGroup+5000, "End time").
-	WithDependencies([]coretask.Dependency{
-		inspectioncore.TimeZoneShiftInputTaskID.Ref(),
-	}).
-	WithDescription(`The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)`).
-	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		return previousValues, nil
-	}).
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		if len(previousValues) > 0 {
-			return previousValues[0], nil
-		}
-		creationTime := khictx.MustGetValue(ctx, inspectioncore.InspectionCreationTime)
-		timezoneShift := coretask.GetTaskResult(ctx, inspectioncore.TimeZoneShiftInputTaskID.Ref())
+// inputEndTimeTask defines a form task to input the end time for log queries.
+var inputEndTimeTask = formtask.DefineTextForm(
+	gcpcommon.InputEndTimeTaskID,
+	gcpcommon.PriorityForQueryTimeGroup+5000,
+	"End time",
+	`The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)`,
+	func(b *coretask.Binder) formtask.TextFormSpec[time.Time] {
+		timezoneShiftInput := coretask.Use(b, inspectioncore.TimeZoneShiftInputTaskID.Ref())
 
-		return creationTime.In(timezoneShift).Format(time.RFC3339), nil
-	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		creationTime := khictx.MustGetValue(ctx, inspectioncore.InspectionCreationTime)
+		return formtask.TextFormSpec[time.Time]{
+			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
+				if len(previousValues) > 0 {
+					return previousValues[0], nil
+				}
+				creationTime := khictx.MustGetValue(ctx, inspectioncore.InspectionCreationTime)
+				timezoneShift := timezoneShiftInput.Get(ctx)
 
-		specifiedTime := convertedValue.(time.Time)
-		if creationTime.Sub(specifiedTime) < 0 {
-			return fmt.Sprintf("Specified time `%s` is pointing the future. Please make sure if you specified the right value", value), inspectionmetadata.Warning, nil
+				return creationTime.In(timezoneShift).Format(time.RFC3339), nil
+			},
+			Suggestions: func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+				return previousValues, nil
+			},
+			Validator: func(ctx context.Context, value string) (string, error) {
+				_, err := common.ParseTime(value)
+				if err != nil {
+					return "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)", nil
+				}
+				return "", nil
+			},
+			Converter: func(ctx context.Context, value string) (time.Time, error) {
+				return common.ParseTime(value)
+			},
+			Hint: func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+				creationTime := khictx.MustGetValue(ctx, inspectioncore.InspectionCreationTime)
+
+				specifiedTime := convertedValue.(time.Time)
+				if creationTime.Sub(specifiedTime) < 0 {
+					return fmt.Sprintf("Specified time `%s` is pointing the future. Please make sure if you specified the right value", value), inspectionmetadata.Warning, nil
+				}
+				return "", inspectionmetadata.Info, nil
+			},
 		}
-		return "", inspectionmetadata.Info, nil
-	}).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		_, err := common.ParseTime(value)
-		if err != nil {
-			return "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)", nil
-		}
-		return "", nil
-	}).
-	WithConverter(func(ctx context.Context, value string) (time.Time, error) {
-		return common.ParseTime(value)
-	}).
-	Build()
+	},
+)

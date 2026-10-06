@@ -16,43 +16,45 @@ Every task in KHI has an associated "type" for its output. These are written usi
 The following example shows how to declare a task that returns an `int` value:
 
 ```go
-var IntGeneratorTask = task.NewTask(
+var IntGeneratorTask = coretask.Define(
     IntGeneratorTaskID,
-    []coretask.Dependency{},
-    func(ctx context.Context) (int, error) {
-        return 1, nil
+    func(b *coretask.Binder) func(ctx context.Context) (int, error) {
+        return func(ctx context.Context) (int, error) {
+            return 1, nil
+        }
     },
 )
 ```
 
 In this example, the following key elements are declared:
 
-1. **`IntGeneratorTask` type**: The Go compiler infers the task type as `task.Task[int]` using generic inference.
+1. **`IntGeneratorTask` type**: The Go compiler infers the task type as `coretask.Task[int]` using generic inference.
 2. **First argument (`IntGeneratorTaskID`)**: This indicates the ID of the task implementation in the task graph. It must have the type `taskid.TaskImplementationID[int]`. You can use this ID to reference the task from other tasks.
-3. **Second argument (`[]coretask.Dependency`)**: This is the list of dependencies that this task depends on. It accepts point-to-point task references (`TaskReference[T]`) and tag references (`TagReference[T]`).
-4. **Third argument (execution function)**: The return value of this function must match the task's type parameter (`int` in this case), and it must always return an error as the second return value.
+3. **Second argument (`bind` function)**: At task construction time, `Define` passes a `*coretask.Binder` to this outer function so the task can declare its inputs (`coretask.Use`, `coretask.UseOptional`, `coretask.UseTag`, or `coretask.After`). The `bind` function returns the execution closure (`func(ctx context.Context) (int, error)`), whose return type must match the task's type parameter (`int` in this case). For static constant outputs, you can also use `coretask.DefineConstant(IntGeneratorTaskID, 1)`.
 
 ## 3. Reading Values from Tasks
 
-### 3.1 Point-to-Point Dependencies (`GetTaskResult`)
+### 3.1 Point-to-Point Dependencies (`coretask.Use`)
 
-To read a value from an upstream task, include its reference (`taskID.Ref()`) in the dependency list:
+To read a value from an upstream task, bind its reference (`taskID.Ref()`) on `*coretask.Binder` using `coretask.Use` and read the returned `coretask.Input[T]` handle inside the execution closure:
 
 ```go
-var DoubleIntTask = task.NewTask(
+var DoubleIntTask = coretask.Define(
     DoubleIntTaskID,
-    []coretask.Dependency{IntGeneratorTaskID.Ref()}, // Specify the dependency task reference
-    func(ctx context.Context) (int, error) {
-        // Pass the context and reference ID to get the result
-        value := coretask.GetTaskResult(ctx, IntGeneratorTaskID.Ref())
-        return value * 2, nil
+    func(b *coretask.Binder) func(ctx context.Context) (int, error) {
+        // Bind the required input on the Binder
+        intInput := coretask.Use(b, IntGeneratorTaskID.Ref())
+        return func(ctx context.Context) (int, error) {
+            // Read the value from the typed input handle
+            return intInput.Get(ctx) * 2, nil
+        }
     },
 )
 ```
 
 > [!IMPORTANT]
-> **Do not access undeclared dependencies**
-> Calling `coretask.GetTaskResult` for a task that is not declared in the dependency list causes a runtime panic. Always include the target task reference in the dependency list passed as the second argument.
+> **Bind all inputs before the `bind` function returns**
+> The `*coretask.Binder` is sealed as soon as the outer `bind` function returns. Because values can only be read through an `Input[T]`, `OptionalInput[T]`, or `TagInput[T]` handle obtained from `b`, a task cannot accidentally read an undeclared dependency at runtime. For ordering-only dependencies where the result value is not read, register them with `coretask.After(b, dep)`.
 
 #### Dependency Scopes
 
@@ -62,49 +64,56 @@ When you declare a dependency using `taskID.Ref()`, the graph resolver uses a **
 - **`taskid.ScopeActiveFeatures` (`coretask.FromActiveFeatures`)**: Pulls in producer tasks only if they belong to features that are enabled for the current inspection. This is the **default for tag fan-in references** (`tag.Ref()`).
 - **`taskid.ScopeActiveGraph` (`coretask.FromActiveGraph`)**: Lazily binds only to tasks that are already included in the active graph by other dependencies. It never pulls new upstream tasks into the graph on its own.
 
-You can override the default scope when declaring dependencies (see [3.4 Explicit Dependency Scope Specification](#34-explicit-dependency-scope-specification-taskidscope)).
+You can override the default scope when declaring dependencies (see [3.4 Explicit Dependency Scope Specification](#34-explicit-dependency-scope-specification-coretaskfrom)).
 
-### 3.2 Optional Dependencies (`GetOptionalTaskResult`)
+### 3.2 Optional Dependencies (`coretask.UseOptional`)
 
-When a dependency is not guaranteed to be active in the task graph (for example, if it belongs to an optional feature that the user may disable), mark it with `taskid.Optional`:
+When a dependency is not guaranteed to be active in the task graph (for example, if it belongs to an optional feature that the user may disable), bind a scoped reference (`coretask.FromActiveGraph` or `coretask.FromActiveFeatures`) using `coretask.UseOptional`:
 
 ```go
-var SafeConsumerTask = task.NewTask(
+var SafeConsumerTask = coretask.Define(
     SafeConsumerTaskID,
-    []coretask.Dependency{OptionalTaskID.Ref(taskid.Optional)},
-    func(ctx context.Context) (string, error) {
-        // You can pass standard Ref() without flags when retrieving the result
-        if val, ok := coretask.GetOptionalTaskResult(ctx, OptionalTaskID.Ref()); ok {
-            return val, nil
+    func(b *coretask.Binder) func(ctx context.Context) (string, error) {
+        // UseOptional requires a scope narrower than ScopeAll (such as FromActiveGraph or FromActiveFeatures)
+        optInput := coretask.UseOptional(b, OptionalTaskID.Ref(coretask.FromActiveGraph))
+        return func(ctx context.Context) (string, error) {
+            if val, ok := optInput.Get(ctx); ok {
+                return val, nil
+            }
+            return "fallback", nil
         }
-        return "fallback", nil
     },
 )
 ```
 
-### 3.3 Tag-based Fan-In Dependencies (`GetTaskResultsWithTag`)
+### 3.3 Tag-based Fan-In Dependencies (`coretask.UseTag`)
 
-When multiple producers contribute items of the same type (for example, multiple log parsers producing log summaries), use a `Tag[T]`:
+When multiple producers contribute items of the same type (for example, multiple log parsers producing log summaries), use a `Tag[T]` and bind it with `coretask.UseTag`:
 
 ```go
-// 1. Declare a tag in contract
+// 1. Declare a tag in the feature root package
 var LogItemTag = coretask.NewTag[*LogItem]("khi.google.com/log-items")
 
 // 2. Producer tasks declare that they provide the tag (optionally specifying WithTagPriority)
-var ParserTaskA = task.NewTask(
+var ParserTaskA = coretask.Define(
     ParserTaskAID,
-    []coretask.Dependency{SourceLogRef},
-    runParserA,
+    func(b *coretask.Binder) func(ctx context.Context) (*LogItem, error) {
+        sourceLogs := coretask.Use(b, SourceLogRef)
+        return func(ctx context.Context) (*LogItem, error) {
+            return parseLogA(ctx, sourceLogs.Get(ctx))
+        }
+    },
     coretask.ProvidesTag(LogItemTag, coretask.WithTagPriority(10)),
 )
 
-// 3. Consumer task aggregates all active producers with GetTaskResultsWithTag
-var AggregatorTask = task.NewTask(
+// 3. Consumer task aggregates all active producers with UseTag
+var AggregatorTask = coretask.Define(
     AggregatorTaskID,
-    []coretask.Dependency{LogItemTag.Ref()},
-    func(ctx context.Context) ([]*LogItem, error) {
-        items := coretask.GetTaskResultsWithTag(ctx, LogItemTag.Ref())
-        return items, nil
+    func(b *coretask.Binder) func(ctx context.Context) ([]*LogItem, error) {
+        itemsInput := coretask.UseTag(b, LogItemTag.Ref())
+        return func(ctx context.Context) ([]*LogItem, error) {
+            return itemsInput.Get(ctx), nil
+        }
     },
 )
 ```
@@ -122,21 +131,26 @@ When using fan-in aggregation, circular dependencies (cycles) can arise under th
 
 For architectural details, see [Concept Guide: 5. Prerequisites of Fan-In Cycles and Graph Stabilization via Priority](../khi-task-system-concept.md#5-prerequisites-of-fan-in-cycles-and-graph-stabilization-via-priority).
 
-### 3.4 Explicit Dependency Scope Specification (`taskid.Scope*`)
+### 3.4 Explicit Dependency Scope Specification (`coretask.From*`)
 
-To override the default scope resolution (`ScopeAll` for point-to-point references, `ScopeActiveFeatures` for tag fan-in references), pass a scope constant or scope option when creating the reference:
+When binding optional dependencies (`coretask.UseOptional`), ordering dependencies (`coretask.After`), or narrowing tag fan-in (`coretask.UseTag`), pass a scope option (`coretask.FromActiveGraph` or `coretask.FromActiveFeatures`) when creating the reference (`coretask.Use` always requires the default `ScopeAll`):
 
 ```go
-var AdvancedConsumerTask = task.NewTask(
+var AdvancedConsumerTask = coretask.Define(
     AdvancedConsumerTaskID,
-    []coretask.Dependency{
+    func(b *coretask.Binder) func(ctx context.Context) (ResultType, error) {
         // Lazily bind to tag producers that are already in the active graph
-        LogItemTag.Ref(taskid.ScopeActiveGraph),
+        itemsInput := coretask.UseTag(b, LogItemTag.Ref(coretask.FromActiveGraph))
 
-        // Eagerly pull an optional task from the entire task pool if available
-        OptionalTaskID.Ref(taskid.Optional, taskid.ScopeAll),
+        // Bind an optional task if its feature is enabled for the current inspection
+        optInput := coretask.UseOptional(b, OptionalTaskID.Ref(coretask.FromActiveFeatures))
+
+        return func(ctx context.Context) (ResultType, error) {
+            items := itemsInput.Get(ctx)
+            optVal, _ := optInput.Get(ctx)
+            return computeResult(items, optVal), nil
+        }
     },
-    runAdvancedConsumer,
 )
 ```
 
@@ -153,35 +167,32 @@ This automatically includes the inspection trace ID and execution context inform
 ## 5. Task Package Structure and Naming Conventions
 
 All inspection tasks in KHI follow an architectural principle of **isolating each feature into a dedicated package**.
-Define each task in its own folder under `pkg/task/inspection/<package-name>/`, and separate the contents into two distinct directories:
+Define each task in its own folder under `pkg/task/inspection/<domain>/<feature>/`, separating the public contract at the package root from the implementation in `impl/`:
 
 ```text
-pkg/task/inspection/<package-name>/
-├── contract/  # Contains only public interfaces, task IDs, and type definitions (no implementation logic)
-└── impl/      # Contains actual task definitions and log processing logic (implementation)
+pkg/task/inspection/<domain>/<feature>/
+├── taskid.go  # Package <feature>: public task IDs, interfaces, extractors, and type definitions
+└── impl/      # Package <feature>_impl: actual task definitions, log processing logic, and module.go
 ```
 
-### 1. Responsibilities of `contract` Folder
+### 1. Responsibilities of the Feature Root Package
 
-- It defines only **task IDs**, **interfaces**, and **public data structures (such as structs or enums)** that the feature exposes to other tasks.
-- **It must not contain any functions with actual processing logic or task definitions (`task.NewTask(...)`).**
-- It is the only public layer that can be imported by any other task packages.
+- It defines only **task IDs** (`taskid.go`), **interfaces**, **extractor functions**, and **public data structures (such as structs or enums)** that the feature exposes to other tasks.
+- **It must not import `impl` or contain task definitions (`coretask.Define(...)`).**
+- It is the public layer that can be imported by any other task packages.
 
-### 2. Responsibilities of `impl` Folder
+### 2. Responsibilities of the `impl` Folder
 
-- It contains the actual tasks (`var SomeTask = task.NewTask(...)`) and parser or mapper logic bound to the task IDs defined in `contract`.
-- It contains `init()` or initialization functions (such as `Register(...)`).
-- **You must not import the `impl` package of other features.** When depending on another feature, import only its `contract` package and connect via task dependencies on the task graph.
+- It contains the actual tasks (`var SomeTask = coretask.Define(...)` or `inspectiontaskbase.DefineInspectionTask(...)`) and parser or mapper logic bound to the task IDs defined in the root package.
+- It exports `var Module = coreinspection.Module{...}` in `module.go` to declare its inspection scope and tasks.
+- **You must not import the `impl` package of other features.** When depending on another feature, import only its root package and connect via task dependencies on the task graph.
 
 ### 3. Naming Conventions for Package Names (`package` declaration)
 
-In Go, declaring packages simply as `contract` or `impl` causes name collisions when importing multiple packages and obscures where code originates.
-Therefore, Go source files under `contract` and `impl` directories must **use the parent feature name combined with `_contract` or `_impl` as the package name**:
+- **Files at the feature root (`pkg/task/inspection/<domain>/<feature>/`)**: `package <feature>` (e.g., `package k8snode`)
+- **Files under `impl/`**: `package <feature>_impl` (e.g., `package k8snode_impl`)
 
-- **Files under `contract/`**: `package <feature-name>_contract` (e.g., `package example_contract`)
-- **Files under `impl/`**: `package <feature-name>_impl` (e.g., `package example_impl`)
-
-When referencing types or IDs from other tasks, always import only this `<feature-name>_contract` package.
+When referencing types or task IDs from other tasks, always import only the `<feature>` root package.
 
 ## 6. Inspection Task Execution Modes (`Run` and `DryRun`)
 
@@ -192,26 +203,27 @@ Inspection tasks in KHI are invoked in either **`Run` mode** or **`DryRun` mode*
 
 ### Example Code for Checking Execution Mode
 
-Every inspection task (or low-level task utility) should check `inspectioncore_contract.InspectionTaskModeType` (`taskMode`) passed as an argument and switch its behavior based on the current mode.
+Every inspection task (or low-level task utility) should check `inspectioncore.InspectionTaskModeType` (`taskMode`) passed as an argument and switch its behavior based on the current mode.
 The following is a standard Go implementation example that returns an empty result or necessary UI metadata without heavy processing during `DryRun`, and executes actual parsing only in `Run` mode:
 
 ```go
-var ExampleInspectionTask = inspectiontaskbase.NewInspectionTask(
+var ExampleInspectionTask = inspectiontaskbase.DefineInspectionTask(
     ExampleInspectionTaskID,
-    []taskid.UntypedTaskReference{SourceLogsTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
-        // 1. Check DryRun mode: Return immediately to skip heavy log fetching and parsing for form setup or lightweight runs
-        if taskMode == inspectioncore_contract.TaskModeDryRun {
-            return ResultType{}, nil
-        }
+    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[ResultType] {
+        logsInput := coretask.Use(b, SourceLogsTaskID.Ref())
+        return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (ResultType, error) {
+            // 1. Check DryRun mode: Return immediately to skip heavy log fetching and parsing for form setup or lightweight runs
+            if taskMode == inspectioncore.TaskModeDryRun {
+                return ResultType{}, nil
+            }
 
-        // 2. Run mode: Perform actual log fetching and time-consuming analysis or calculation
-        logs := coretask.GetTaskResult(ctx, SourceLogsTaskID.Ref())
-        result, err := doHeavyAnalysis(ctx, logs)
-        if err != nil {
-            return ResultType{}, err
+            // 2. Run mode: Perform actual log fetching and time-consuming analysis or calculation
+            result, err := doHeavyAnalysis(ctx, logsInput.Get(ctx))
+            if err != nil {
+                return ResultType{}, err
+            }
+            return result, nil
         }
-        return result, nil
     },
     progress.WithTitle("Analyze source logs"),
 )
@@ -224,13 +236,13 @@ By consistently applying this "early return by mode" pattern across all tasks, K
 You can test individual tasks and task graphs independently using the testing utilities provided by KHI.
 This section describes testing using the `tasktest` package.
 
-### 7.1 `tasktest.RunTask`
+### 7.1 `tasktest.Run`
 
-To verify the behavior of a single task simply, you can call `tasktest.RunTask`.
+To verify the behavior of a single task in isolation, call `tasktest.Run` and provide upstream input values with `tasktest.Given` (for point-to-point references) or `tasktest.GivenTag` (for tag fan-in references):
 
 ```go
 func TestIntGeneratorTask(t *testing.T) {
-    res, err := tasktest.RunTask(t.Context(), IntGeneratorTask, map[taskid.UntypedTaskImplementationID]any{})
+    res, err := tasktest.Run(t, t.Context(), IntGeneratorTask)
     if err != nil {
         t.Fatalf("unexpected error: %v", err)
     }
@@ -238,10 +250,24 @@ func TestIntGeneratorTask(t *testing.T) {
         t.Errorf("res mismatch (-want +got):\n- %v\n+ %v", 1, res)
     }
 }
+
+func TestDoubleIntTask(t *testing.T) {
+    res, err := tasktest.Run(
+        t,
+        t.Context(),
+        DoubleIntTask,
+        tasktest.Given(IntGeneratorTaskID.Ref(), 5),
+    )
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+    if res != 10 {
+        t.Errorf("res mismatch (-want +got):\n- %v\n+ %v", 10, res)
+    }
+}
 ```
 
-The third argument allows you to pass a map that mocks return values from dependency tasks.
-For tasks without dependencies, pass an empty map.
+`tasktest.Run` validates that every required input declared on the task's `Binder` is supplied via `tasktest.Given` and that no undeclared inputs are passed.
 
 ### 7.2 `tasktest.RunTaskWithDependency`
 

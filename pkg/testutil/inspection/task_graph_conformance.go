@@ -100,8 +100,8 @@ func runGlobalStaticConformance(t *testing.T, allTasks []coretask.UntypedTask) {
 		}
 
 		for _, task := range allTasks {
-			for _, dep := range task.Dependencies() {
-				if ptp, ok := dep.(taskid.PointToPointDescriptor); ok {
+			for _, input := range task.Inputs() {
+				if ptp, ok := input.Dependency.(taskid.PointToPointDescriptor); ok {
 					refID := ptp.ReferenceID()
 					if _, exists := registeredRefs[refID]; !exists {
 						t.Errorf("task %q depends on unregistered reference ID %q", task.UntypedID().String(), refID)
@@ -141,8 +141,8 @@ func runGlobalStaticConformance(t *testing.T, allTasks []coretask.UntypedTask) {
 	t.Run("NoSelfDependency", func(t *testing.T) {
 		for _, task := range allTasks {
 			taskRef := task.UntypedID().ReferenceIDString()
-			for _, dep := range task.Dependencies() {
-				if ptp, ok := dep.(taskid.PointToPointDescriptor); ok {
+			for _, input := range task.Inputs() {
+				if ptp, ok := input.Dependency.(taskid.PointToPointDescriptor); ok {
 					if ptp.ReferenceID() == taskRef {
 						t.Errorf("task %q has self-dependency on its own reference ID %q", task.UntypedID().String(), taskRef)
 					}
@@ -162,7 +162,8 @@ func runInspectionTypeConformance(t *testing.T, server *coreinspection.Inspectio
 
 	t.Run("MandatoryDependencyCompleteness", func(t *testing.T) {
 		for _, task := range availableTasks {
-			for _, dep := range task.Dependencies() {
+			for _, input := range task.Inputs() {
+				dep := input.Dependency
 				if dep.DescriptorScope() == taskid.ScopeAll && dep.DescriptorCardinality() == taskid.CardinalityPointToPoint {
 					ptp, ok := dep.(taskid.PointToPointDescriptor)
 					if !ok {
@@ -445,7 +446,8 @@ func mandatoryClosureRefIDs(roots []coretask.UntypedTask, availableByRef map[str
 	for len(queue) > 0 {
 		curr := queue[0]
 		queue = queue[1:]
-		for _, dep := range curr.Dependencies() {
+		for _, input := range curr.Inputs() {
+			dep := input.Dependency
 			if dep.DescriptorScope() != taskid.ScopeAll || dep.DescriptorCardinality() != taskid.CardinalityPointToPoint {
 				continue
 			}
@@ -498,7 +500,8 @@ func runFormTaskAndTypeContracts(t *testing.T, server *coreinspection.Inspection
 		}
 
 		for _, task := range availableTasks {
-			for _, dep := range task.Dependencies() {
+			for _, input := range task.Inputs() {
+				dep := input.Dependency
 				if ptp, ok := dep.(taskid.PointToPointDescriptor); ok {
 					expectedType := dep.ResultType()
 					if expectedType == nil {
@@ -520,7 +523,8 @@ func runFormTaskAndTypeContracts(t *testing.T, server *coreinspection.Inspection
 
 	t.Run("TagFanInTypeCompatibility", func(t *testing.T) {
 		for _, task := range availableTasks {
-			for _, dep := range task.Dependencies() {
+			for _, input := range task.Inputs() {
+				dep := input.Dependency
 				fanInDesc, ok := dep.(taskid.FanInDescriptor)
 				if !ok {
 					continue

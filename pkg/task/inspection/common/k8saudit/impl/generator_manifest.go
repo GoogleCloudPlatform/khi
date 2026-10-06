@@ -42,72 +42,78 @@ var (
 	pathMetadataNamespace = structured.CompileFieldPath("metadata.namespace")
 )
 
-// ManifestGeneratorTask is the task to generate manifest from k8s audit logs.
-var ManifestGeneratorTask = inspectiontaskbase.NewInspectionTask(k8saudit.ManifestGeneratorTaskID, []coretask.Dependency{
-	k8saudit.ChangeTargetGrouperTaskID.Ref(),
-	k8saudit.K8sResourceMergeConfigTaskID.Ref(),
-	k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
-	k8saudit.InitialResourceStateProviderRef,
-}, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceManifestLogGroupMap, error) {
-	if taskMode == inspectioncore.TaskModeDryRun {
-		return map[string]*k8saudit.ResourceManifestLogGroup{}, nil
-	}
-
-	logGroups := coretask.GetTaskResult(ctx, k8saudit.ChangeTargetGrouperTaskID.Ref())
-	mergeConfigRegistry := coretask.GetTaskResult(ctx, k8saudit.K8sResourceMergeConfigTaskID.Ref())
-	initialStateProvider := coretask.GetTaskResult(ctx, k8saudit.InitialResourceStateProviderRef)
-	result := k8saudit.ResourceManifestLogGroupMap{}
-	resultLock := sync.Mutex{}
-
-	tracker := progress.NewTracker(ctx, len(logGroups), progress.WithUnit("groups"))
-	defer tracker.Done()
-
-	grp, childCtx := errgroup.WithContext(ctx)
-	grp.SetLimit(runtime.GOMAXPROCS(0))
-	blockStore := structured.NewDefaultLazyJSONBlockStore()
-
-	for path, group := range logGroups {
-		grp.Go(func() error {
-			defer tracker.Inc()
-			resourceLogs := []*k8saudit.ResourceManifestLog{}
-			generator := groupManifestGenerator{
-				mergeConfigRegistry: mergeConfigRegistry,
-				resourceName:        group.Resource.Name,
-				blockStore:          blockStore,
+// manifestGeneratorTask is the task to generate manifest from k8s audit logs.
+var manifestGeneratorTask = inspectiontaskbase.DefineInspectionTask(
+	k8saudit.ManifestGeneratorTaskID,
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ResourceManifestLogGroupMap] {
+		logGroupsInput := coretask.Use(b, k8saudit.ChangeTargetGrouperTaskID.Ref())
+		mergeConfigRegistryInput := coretask.Use(b, k8saudit.K8sResourceMergeConfigTaskID.Ref())
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
+		initialStateProviderInput := coretask.Use(b, k8saudit.InitialResourceStateProviderRef)
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceManifestLogGroupMap, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return map[string]*k8saudit.ResourceManifestLogGroup{}, nil
 			}
-			// Merging the first partial patch onto the state observed before the logs keeps the rendered
-			// manifest complete instead of showing only the patched fields.
-			if initialBody, found := initialStateProvider.InitialResourceState(group.Resource); found {
-				generator.prevRevisionReader = initialBody
-			}
-			for _, l := range group.Logs {
-				select {
-				case <-childCtx.Done():
-					return context.Canceled
-				default:
-					r, err := generator.Process(childCtx, l)
-					if err != nil {
-						return err
+
+			logGroups := logGroupsInput.Get(ctx)
+			mergeConfigRegistry := mergeConfigRegistryInput.Get(ctx)
+			extractor := extractorInput.Get(ctx)
+			initialStateProvider := initialStateProviderInput.Get(ctx)
+			result := k8saudit.ResourceManifestLogGroupMap{}
+			resultLock := sync.Mutex{}
+
+			tracker := progress.NewTracker(ctx, len(logGroups), progress.WithUnit("groups"))
+			defer tracker.Done()
+
+			grp, childCtx := errgroup.WithContext(ctx)
+			grp.SetLimit(runtime.GOMAXPROCS(0))
+			blockStore := structured.NewDefaultLazyJSONBlockStore()
+
+			for path, group := range logGroups {
+				grp.Go(func() error {
+					defer tracker.Inc()
+					resourceLogs := []*k8saudit.ResourceManifestLog{}
+					generator := groupManifestGenerator{
+						mergeConfigRegistry: mergeConfigRegistry,
+						resourceName:        group.Resource.Name,
+						blockStore:          blockStore,
+						extractor:           extractor,
 					}
-					resourceLogs = append(resourceLogs, r)
-				}
+					// Merging the first partial patch onto the state observed before the logs keeps the rendered
+					// manifest complete instead of showing only the patched fields.
+					if initialBody, found := initialStateProvider.InitialResourceState(group.Resource); found {
+						generator.prevRevisionReader = initialBody
+					}
+					for _, l := range group.Logs {
+						select {
+						case <-childCtx.Done():
+							return context.Canceled
+						default:
+							r, err := generator.Process(childCtx, l)
+							if err != nil {
+								return err
+							}
+							resourceLogs = append(resourceLogs, r)
+						}
+					}
+					resultLock.Lock()
+					defer resultLock.Unlock()
+					result[path] = &k8saudit.ResourceManifestLogGroup{
+						Resource: group.Resource,
+						Logs:     resourceLogs,
+					}
+					return nil
+				})
 			}
-			resultLock.Lock()
-			defer resultLock.Unlock()
-			result[path] = &k8saudit.ResourceManifestLogGroup{
-				Resource: group.Resource,
-				Logs:     resourceLogs,
+
+			if err := grp.Wait(); err != nil {
+				return nil, err
 			}
-			return nil
-		})
-	}
 
-	if err := grp.Wait(); err != nil {
-		return nil, err
-	}
-
-	return result, nil
-})
+			return result, nil
+		}
+	},
+)
 
 type groupManifestGenerator struct {
 	// prevRevisionReader is the reader for the previous revision.
@@ -118,11 +124,13 @@ type groupManifestGenerator struct {
 	resourceName string
 	// blockStore is the store for compressing manifest nodes.
 	blockStore *structured.LazyJSONBlockStore
+	// extractor extracts fields from the audit log when not already cached.
+	extractor k8saudit.K8sAuditLogExtractor
 }
 
 // Process processes the log to generate manifest.
 func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*k8saudit.ResourceManifestLog, error) {
-	fieldSet, _ := k8saudit.ExtractK8sAuditLog(ctx, l.NodeReader)
+	fieldSet, _ := k8saudit.ExtractK8sAuditLog(l.NodeReader, g.extractor)
 	if fieldSet.IsDryRun {
 		return &k8saudit.ResourceManifestLog{
 			Log:                l,

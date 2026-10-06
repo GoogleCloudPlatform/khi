@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -30,141 +31,74 @@ import (
 
 var pathGroupTestID = structured.CompileFieldPath("id")
 
-func TestNwewLogGrouperTask(t *testing.T) {
-	sourceLogs := []string{
-		`id: foo`,
-		`id: bar`,
-		`id: qux`,
-		`id: quux`,
+func TestDefineLogGrouperTask(t *testing.T) {
+	sourceTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("source")
+	prefixTaskID := taskid.NewDefaultImplementationID[string]("prefix")
+	task := DefineLogGrouperTask(taskid.NewDefaultImplementationID[LogGroupMap]("dest"), sourceTaskID.Ref(), func(b *coretask.Binder) LogGrouperFunc {
+		prefix := coretask.Use(b, prefixTaskID.Ref())
+		return func(ctx context.Context, l *log.Log) string {
+			return prefix.Get(ctx) + l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
+		}
+	}, coretask.WithTaskDescription("groups logs by ID prefix"))
+	if got := typedmap.GetOrDefault(task.Labels(), coretask.LabelKeyTaskDescription, ""); got != "groups logs by ID prefix" {
+		t.Errorf("LabelKeyTaskDescription = %q, want %q", got, "groups logs by ID prefix")
 	}
-	testCases := []struct {
-		name         string
-		taskMode     inspectioncore.InspectionTaskModeType
-		logYamls     []string
-		logGrouper   LogGrouperFunc
-		resultLogIDs map[string][]string
-	}{
-		{
-			name:     "should return an empty map for empty log input on task run mode",
-			taskMode: inspectioncore.TaskModeRun,
-			logYamls: []string{},
-			logGrouper: func(ctx context.Context, l *log.Log) string {
-				return l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
-			},
-			resultLogIDs: map[string][]string{},
-		},
-		{
-			name:     "should group logs correctly based on the provided function on task run mode",
-			taskMode: inspectioncore.TaskModeRun,
-			logYamls: sourceLogs,
-			logGrouper: func(ctx context.Context, l *log.Log) string {
-				return l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
-			},
-			resultLogIDs: map[string][]string{
-				"f": {"foo"},
-				"b": {"bar"},
-				"q": {"qux", "quux"},
-			},
-		},
-		{
-			name:     "should return an empty map on task dry run mode",
-			taskMode: inspectioncore.TaskModeDryRun,
-			logYamls: sourceLogs,
-			logGrouper: func(ctx context.Context, l *log.Log) string {
-				return l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
-			},
-			resultLogIDs: map[string][]string{},
-		},
-	}
+	wantInputs := []string{"required source", "required prefix"}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			logs := []*log.Log{}
-			for _, logYaml := range tc.logYamls {
-				logs = append(logs, mustNewLogFromYAML(t, ctx, logYaml))
-			}
-
-			testSourceTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("source")
-			testTaskID := taskid.NewDefaultImplementationID[LogGroupMap]("dest")
-			task := NewLogGrouperTask(testTaskID, testSourceTaskID.Ref(), tc.logGrouper)
-			result, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(testSourceTaskID.Ref(), logs))
-			if err != nil {
-				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
-			}
-
-			if len(result) != len(tc.resultLogIDs) {
-				t.Fatalf("unexpected number of groups: got %d, want %d", len(result), len(tc.resultLogIDs))
-			}
-
-			for key, gotLogGroup := range result {
-				wantLogIDs, groupFound := tc.resultLogIDs[key]
-				if !groupFound {
-					t.Fatalf("unexpected group key found: %q", key)
-				}
-				gotLogIDs := []string{}
-				for _, l := range gotLogGroup.Logs {
-					gotLogIDs = append(gotLogIDs, l.ReadStringOrDefault(pathGroupTestID, "unknown"))
-				}
-				if diff := cmp.Diff(wantLogIDs, gotLogIDs); diff != "" {
-					t.Errorf("log IDs for group %q mismatch (-want +got):\n%s", key, diff)
-				}
-			}
-		})
-	}
-}
-
-func TestNewLogGrouperTaskWithDependencies(t *testing.T) {
 	testCases := []struct {
 		name       string
-		extraValue string
-		logYamls   []string
+		taskMode   inspectioncore.InspectionTaskModeType
+		logYAMLs   []string
 		wantGroups map[string][]string
 	}{
 		{
-			name:       "accesses extra dependency within grouper",
-			extraValue: "prefix-",
-			logYamls: []string{
+			name:     "groups logs with the key built from an input declared in bind",
+			taskMode: inspectioncore.TaskModeRun,
+			logYAMLs: []string{
 				`id: foo`,
 				`id: bar`,
+				`id: qux`,
+				`id: quux`,
 			},
 			wantGroups: map[string][]string{
 				"prefix-f": {"foo"},
 				"prefix-b": {"bar"},
+				"prefix-q": {"qux", "quux"},
 			},
+		},
+		{
+			name:       "returns an empty map for empty logs",
+			taskMode:   inspectioncore.TaskModeRun,
+			logYAMLs:   []string{},
+			wantGroups: map[string][]string{},
+		},
+		{
+			name:     "returns an empty map on dry run",
+			taskMode: inspectioncore.TaskModeDryRun,
+			logYAMLs: []string{
+				`id: foo`,
+			},
+			wantGroups: map[string][]string{},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			logs := []*log.Log{}
-			for _, logYaml := range tc.logYamls {
-				logs = append(logs, mustNewLogFromYAML(t, ctx, logYaml))
+			if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+				t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
 			}
 
-			testSourceTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("source")
-			testExtraTaskID := taskid.NewDefaultImplementationID[string]("extra")
-			testTaskID := taskid.NewDefaultImplementationID[LogGroupMap]("dest")
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			logs := []*log.Log{}
+			for _, logYAML := range tc.logYAMLs {
+				logs = append(logs, mustNewLogFromYAML(t, ctx, logYAML))
+			}
 
-			task := NewLogGrouperTaskWithDependencies(
-				testTaskID,
-				testSourceTaskID.Ref(),
-				[]coretask.Dependency{testExtraTaskID.Ref()},
-				func(ctx context.Context, l *log.Log) string {
-					extra := coretask.GetTaskResult(ctx, testExtraTaskID.Ref())
-					return extra + l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
-				},
-			)
-			result, _, err := inspectiontest.RunInspectionTask(
-				ctx,
-				task,
-				inspectioncore.TaskModeRun,
-				map[string]any{},
-				tasktest.NewTaskDependencyValuePair(testSourceTaskID.Ref(), logs),
-				tasktest.NewTaskDependencyValuePair(testExtraTaskID.Ref(), tc.extraValue),
+			result, _, err := inspectiontest.Run(t, ctx, task, tc.taskMode, map[string]any{},
+				tasktest.Given(sourceTaskID.Ref(), logs),
+				tasktest.Given(prefixTaskID.Ref(), "prefix-"),
 			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+				t.Fatalf("Run() returned an unexpected error: %v", err)
 			}
 
 			gotGroups := map[string][]string{}

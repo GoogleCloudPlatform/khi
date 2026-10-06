@@ -75,7 +75,7 @@ func TestOtherLogToTimelineMapperTask(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 			l := testlog.NewMockLog(tc.inputComponentField, tc.inputMessageField)
-			mapper := &OtherTimelineMapper{}
+			mapper := &otherTimelineMapper{}
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
 			if err != nil {
 				t.Fatalf("ProcessLogByGroup() returned an unexpected error, err=%v", err)

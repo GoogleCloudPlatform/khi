@@ -20,87 +20,46 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
-// AirflowWorkerLogGrouperTask groups Airflow worker logs.
-var AirflowWorkerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+// airflowWorkerLogGrouperTask groups Airflow worker logs.
+var airflowWorkerLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	composerairflow.AirflowWorkerLogGrouperTaskID,
 	composerairflow.AirflowWorkerLogFilterTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		return ""
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			return ""
+		}
 	},
 )
 
-type workerLogIngester struct{}
-
-// RawLogTask returns the task reference that provides the raw logs to ingest.
-func (i *workerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return composerairflow.AirflowWorkerLogFilterTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies of the ingester.
-func (i *workerLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// ProcessLog is called for each log entry to customize log metadata (summary, severity, timestamp, etc.).
-func (i *workerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-	cs, err := khifilev6.NewLogChangeSet(l)
-	if err != nil {
-		return nil, err
-	}
-	cs.SetLogType(composerairflow.LogTypeManagedAirflowEnvironment)
-	cs.SetTimestamp(l.Timestamp)
-
-	if severity, err := gcpcommon.ExtractGCPSeverity(l.NodeReader); err == nil {
-		cs.SetSeverity(severity)
-	}
-
-	if message, err := gcpcommon.ExtractGCPMainMessage(l.NodeReader); err == nil {
-		cs.SetSummary(message)
-	}
-
-	return cs, nil
-}
-
-var _ inspectiontaskbase.LogIngester = (*workerLogIngester)(nil)
-
-// AirflowWorkerLogIngesterTask is the task that ingests Airflow worker logs.
-var AirflowWorkerLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+// airflowWorkerLogIngesterTask is the task that ingests Airflow worker logs.
+var airflowWorkerLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	composerairflow.AirflowWorkerLogIngesterTaskID,
-	&workerLogIngester{},
+	composerairflow.AirflowWorkerLogFilterTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return processAirflowLog
+	},
 )
 
 type workerLogToTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
-}
-
-// LogIngesterTask returns a reference to the ingester task.
-func (m *workerLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return composerairflow.AirflowWorkerLogIngesterTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies of the mapper.
-func (m *workerLogToTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		composercluster.InputComposerEnvironmentNameTaskID.Ref(),
-	}
-}
-
-// GroupedLogTask returns a reference to the task that provides the grouped logs.
-func (m *workerLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return composerairflow.AirflowWorkerLogGrouperTaskID.Ref()
+	environmentName coretask.Input[string]
 }
 
 // ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
 func (m *workerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	environmentName := coretask.GetTaskResult(ctx, composercluster.InputComposerEnvironmentNameTaskID.Ref())
+	return mapWorkerLog(ctx, l, m.environmentName.Get(ctx)), struct{}{}, nil
+}
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*workerLogToTimelineMapper)(nil)
+
+// mapWorkerLog maps an Airflow worker log to timeline changes for the given environment.
+func mapWorkerLog(ctx context.Context, l *log.Log, environmentName string) *khifilev6.TimelineChangeSet {
 	envPath := composerairflow.MustAirflowTimeline(ctx, environmentName)
 
 	workerField, err := composerairflow.ExtractComposer(l.NodeReader)
@@ -115,7 +74,7 @@ func (m *workerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *lo
 
 	workerTiField, err := composerairflow.ExtractComposerWorkerTaskInstance(l.NodeReader)
 	if err != nil || workerTiField.TaskInstance == nil {
-		return cs, struct{}{}, nil
+		return cs
 	}
 	ti := workerTiField.TaskInstance
 	var detail = ti.TaskId()
@@ -142,13 +101,19 @@ func (m *workerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *lo
 		})
 	}
 
-	return cs, struct{}{}, nil
+	return cs
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*workerLogToTimelineMapper)(nil)
-
-// AirflowWorkerLogToTimelineMapperTask is the task that maps Airflow worker logs to timeline events.
-var AirflowWorkerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+// airflowWorkerLogToTimelineMapperTask is the task that maps Airflow worker logs to timeline events.
+var airflowWorkerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	composerairflow.AirflowWorkerLogToTimelineMapperTaskID,
-	&workerLogToTimelineMapper{},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: composerairflow.AirflowWorkerLogIngesterTaskID.Ref(),
+		GroupedLogs: composerairflow.AirflowWorkerLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &workerLogToTimelineMapper{
+			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
+		}
+	},
 )
