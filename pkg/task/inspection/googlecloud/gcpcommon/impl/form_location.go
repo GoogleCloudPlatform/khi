@@ -31,11 +31,11 @@ var inputLocationsTask = formtask.DefineTextForm(
 	"Location",
 	"The location(region) to specify the resource exist(s|ed)",
 	func(b *coretask.Binder) formtask.TextFormSpec[string] {
-		locationsHandle := coretask.Use(b, gcpcommon.AutocompleteLocationTaskID.Ref())
+		locationsInput := coretask.Use(b, gcpcommon.AutocompleteLocationTaskID.Ref())
 
 		return formtask.TextFormSpec[string]{
 			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
-				locations := locationsHandle.Get(ctx)
+				locations := locationsInput.Get(ctx)
 				if len(previousValues) > 0 && slices.Contains(locations.Values, previousValues[0]) {
 					return previousValues[0], nil
 				}
@@ -45,7 +45,7 @@ var inputLocationsTask = formtask.DefineTextForm(
 				return locations.Values[0], nil
 			},
 			Suggestions: func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-				regions := locationsHandle.Get(ctx)
+				regions := locationsInput.Get(ctx)
 				return common.SortForAutocomplete(value, regions.Values), nil
 			},
 			Validator: func(ctx context.Context, value string) (string, error) {

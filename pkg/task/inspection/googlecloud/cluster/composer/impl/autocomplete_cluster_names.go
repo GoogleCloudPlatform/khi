@@ -37,7 +37,6 @@ var autocompleteComposerClusterNamesTask = inspectiontaskbase.DefineCachedTask(
 		projectID := coretask.Use(b, gcpcommon.InputProjectIdTaskID.Ref())
 		location := coretask.Use(b, gcpcommon.InputLocationsTaskID.Ref())
 		environment := coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref())
-		coretask.After(b, composercluster.AutocompleteComposerEnvironmentIdentityTaskID.Ref())
 		startTime := coretask.Use(b, gcpcommon.InputStartTimeTaskID.Ref())
 		endTime := coretask.Use(b, gcpcommon.InputEndTimeTaskID.Ref())
 

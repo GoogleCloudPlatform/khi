@@ -24,14 +24,14 @@ import (
 // ossK8sAuditLogExtractorTask provides K8sAuditLogExtractor for OSS audit logs.
 var ossK8sAuditLogExtractorTask = coretask.DefineConstant(
 	ossk8s.OSSK8sAuditLogExtractorTaskID,
-	k8saudit.K8sAuditLogExtractor(ossk8s.ExtractOSSK8sAuditLog),
+	ossk8s.ExtractOSSK8sAuditLog,
 	coretask.NewTaskResultRetentionLabel(true),
 )
 
 // ossK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for OSS audit logs.
 var ossK8sAuditLogErrorExtractorTask = coretask.DefineConstant(
 	ossk8s.OSSK8sAuditLogErrorExtractorTaskID,
-	k8saudit.K8sAuditLogErrorExtractor(ossk8s.ExtractOSSK8sAuditLogError),
+	ossk8s.ExtractOSSK8sAuditLogError,
 	coretask.NewTaskResultRetentionLabel(true),
 )
 

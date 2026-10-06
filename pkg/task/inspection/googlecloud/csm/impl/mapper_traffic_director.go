@@ -118,7 +118,6 @@ var csmTrafficDirectorLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTi
 		GroupedLogs: csm.CSMTrafficDirectorLogGrouperTaskID.Ref(),
 	},
 	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
-		coretask.After(b, csm.ClusterIdentityTaskID.Ref())
 		return &csmTrafficDirectorTimelineMapper{}
 	},
 	inspectioncore.FeatureTaskLabel(

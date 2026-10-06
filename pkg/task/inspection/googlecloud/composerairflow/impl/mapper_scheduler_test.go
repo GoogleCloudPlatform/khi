@@ -33,7 +33,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
+func TestMapSchedulerLog(t *testing.T) {
 	timestamp := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	testCases := []struct {

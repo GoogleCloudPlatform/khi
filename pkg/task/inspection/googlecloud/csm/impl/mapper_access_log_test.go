@@ -108,7 +108,7 @@ func TestProcessCSMTrafficLog(t *testing.T) {
 	}
 }
 
-func TestCSMTrafficLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapCSMTrafficLog(t *testing.T) {
 	testCases := []struct {
 		desc                string
 		inputGCPAccessLog   *gcpcommon.GCPAccessLogFieldSet

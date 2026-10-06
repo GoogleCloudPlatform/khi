@@ -36,7 +36,7 @@ var inputEndTimeTask = formtask.DefineTextForm(
 	`The endtime of query. Please input it in the format of RFC3339
 (example: 2006-01-02T15:04:05-07:00)`,
 	func(b *coretask.Binder) formtask.TextFormSpec[time.Time] {
-		timezoneShiftHandle := coretask.Use(b, inspectioncore.TimeZoneShiftInputTaskID.Ref())
+		timezoneShiftInput := coretask.Use(b, inspectioncore.TimeZoneShiftInputTaskID.Ref())
 
 		return formtask.TextFormSpec[time.Time]{
 			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
@@ -44,7 +44,7 @@ var inputEndTimeTask = formtask.DefineTextForm(
 					return previousValues[0], nil
 				}
 				creationTime := khictx.MustGetValue(ctx, inspectioncore.InspectionCreationTime)
-				timezoneShift := timezoneShiftHandle.Get(ctx)
+				timezoneShift := timezoneShiftInput.Get(ctx)
 
 				return creationTime.In(timezoneShift).Format(time.RFC3339), nil
 			},

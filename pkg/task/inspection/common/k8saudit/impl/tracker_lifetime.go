@@ -171,7 +171,6 @@ var resourceLifetimeTrackerTask = inspectiontaskbase.DefineInspectionTask[k8saud
 	k8saudit.ResourceLifetimeTrackerTaskID,
 	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ResourceManifestLogGroupMap] {
 		groupedLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
-		coretask.After(b, k8saudit.K8sAuditLogIngesterTaskID.Ref())
 		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceManifestLogGroupMap, error) {
 			if taskMode == inspectioncore.TaskModeDryRun {
 				slog.DebugContext(ctx, "Skipping task because this is dry run mode")
