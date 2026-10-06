@@ -23,11 +23,11 @@ flowchart LR
 ```
 
 1. **[タスクシステムの基本文法と実行モード](./task-system/01-syntax-and-modes.md)**
-   - DAG の基本形式、`coretask.Define` によるタスクの型 (`Task[T]`) の定義、入力および依存関係モデル (`Binder`: `Use`, `UseOptional`, `UseTag`, `After`、ポイント・ツー・ポイントとタグによるファンイン、スコープ)、バインドされた入力ハンドルからの値の取得 (`.Get(ctx)`)、構造化ログ (`slog`)、パッケージ構成と命名規約 (`_contract`/`_impl`)、**インスペクション実行モード (`Run` と `DryRun`)**、**単体テスト (`tasktest`)** を収録しています。
+   - DAG の基本形式、`coretask.Define` によるタスクの型 (`Task[T]`) の定義、入力および依存関係モデル (`Binder`: `Use`, `UseOptional`, `UseTag`, `After`、ポイント・ツー・ポイントとタグによるファンイン、スコープ)、バインドされた入力ハンドルからの値の取得 (`.Get(ctx)`)、構造化ログ (`slog`)、パッケージ構成と命名規約 (ルートパッケージと `impl/`)、**インスペクション実行モード (`Run` と `DryRun`)**、**単体テスト (`tasktest`)** を収録しています。
 2. **[ログ解析のためのタスク実装パターン (実践ガイド)](./task-system/02-log-processing-cookbook.md)**
    - ログ解析パイプラインの全体像と、**4 種類の主要タスク定義ユーティリティ (`DefineLogFilterTask`, `DefineLogGrouperTask`, `DefineLogIngesterTask`, `DefineLogToTimelineMapperTask`)** の実践レシピ、および最新の `*khifilev6.TimelinePath` と `testchangeset.AssertTimeline` を用いたタイムライン変換を収録しています。
 3. **[高度なタスクパターンとユーティリティ](./task-system/03-advanced-and-form-tasks.md)**
-   - インスペクションサーバーへの自動登録 (`Register`)、ラベルセレクタ (`LabelSelector`, `FeatureTask`)、複数ログソースから名前解決を行う **`Inventory` - `Discovery` タスクパターン (`NewInventoryTask` とタグベースのディスカバリ)**、UI にリッチな入力欄を提示する **フォームタスク (`formtask` / オートコンプリート)**、および **進捗報告 / キャッシュ制御 (`DefineCachedTask`)** を収録しています。
+   - モジュールによるインスペクションサーバーへの自動登録 (`coreinspection.Module`)、対象環境のスコープ指定 (`Scope`, `FeatureTaskLabel`)、複数ログソースから名前解決を行う **`Inventory` - `Discovery` タスクパターン (`DefineInventoryTask` とタグベースのディスカバリ)**、UI にリッチな入力欄を提示する **フォームタスク (`formtask` / オートコンプリート)**、および **進捗報告 / キャッシュ制御 (`DefineCachedTask`)** を収録しています。
 
 ---
 
@@ -157,8 +157,8 @@ KHI は、多数のクラウドプロバイダ、ログ種別、分析パーサ�
 
 参照作成時にスコープオプションを省略した場合、以下のデフォルトスコープが適用されます:
 
-- **ポイント・ツー・ポイント参照 (`taskID.Ref()`)**: `ScopeAll` がデフォルトです (`coretask.Use` にそのまま渡せます)。`coretask.UseOptional` に渡す場合は、`coretask.FromActiveGraph` または `coretask.FromActiveFeatures` を明示的に指定します。
-- **タグによるファンイン参照 (`tag.Ref()`)**: `ScopeActiveFeatures` がデフォルトです。
+- **ポイント・ツー・ポイント参照 (`taskID.Ref()`)**: `ScopeAll` がデフォルトであり、`coretask.Use` にそのまま渡せます。`coretask.UseOptional` に渡す場合は、`coretask.FromActiveGraph` または `coretask.FromActiveFeatures` を明示的に指定します。
+- **タグによるファンイン参照 (`tag.Ref()`)**: `ScopeActiveFeatures` がデフォルトです。タグ参照では `ScopeAll` は使用できず、`coretask.FromActiveGraph` のみ指定可能です。
 
 #### 4. 入力の重複排除と自動マージ
 

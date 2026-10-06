@@ -91,7 +91,7 @@ var SafeConsumerTask = coretask.Define(
 複数のログパーサーがログサマリーを生成する場合のように、複数のプロデューサが同一型のアイテムを生成するケースでは、`Tag[T]` と `coretask.UseTag` を使用します:
 
 ```go
-// 1. contract でタグを宣言
+// 1. 機能ルートパッケージでタグを宣言
 var LogItemTag = coretask.NewTag[*LogItem]("khi.google.com/log-items")
 
 // 2. プロデューサタスクが ProvidesTag でタグの提供を宣言。必要に応じて WithTagPriority で優先度を指定可能
@@ -133,7 +133,7 @@ var AggregatorTask = coretask.Define(
 
 ### 3.4 依存関係スコープの明示指定 (`coretask.From*`)
 
-`coretask.Use` のデフォルトである `ScopeAll` や、`coretask.UseTag` のデフォルトである `ScopeActiveFeatures` といったスコープ解決を上書きしたい場合は、参照作成時に `coretask.FromActiveGraph` や `coretask.FromActiveFeatures` のスコープオプションを渡します:
+オプショナル依存 (`coretask.UseOptional`) や順序指定 (`coretask.After`) を登録する場合、あるいはタグによるファンイン (`coretask.UseTag`) のスコープを絞り込む場合は、参照作成時に `coretask.FromActiveGraph` や `coretask.FromActiveFeatures` のスコープオプションを渡します。なお、`coretask.Use` は常にデフォルトの `ScopeAll` を要求します。
 
 ```go
 var AdvancedConsumerTask = coretask.Define(
@@ -167,35 +167,32 @@ slog.InfoContext(ctx, "processing int value", "intValue", value)
 ## 5. タスクのパッケージ構造とパッケージ名規約
 
 KHI のすべての検査タスクは、**単一機能ごとに専用のパッケージとして分離する** アーキテクチャ原則を採用しています。
-各タスクは `pkg/task/inspection/<パッケージ名>/` 配下の固有のフォルダー内に定義し、さらにその配下で以下の 2 つのディレクトリへと明確に分離する必要があります:
+各タスクは `pkg/task/inspection/<ドメイン>/<機能名>/` 配下のフォルダー内に定義し、パッケージ直下の公開レイヤーと `impl/` サブパッケージへと明確に分離します:
 
 ```text
-pkg/task/inspection/<パッケージ名>/
-├── contract/  # 公開インターフェース・タスク ID・型定義のみを置く
-└── impl/      # 実際のタスク定義やログ処理ロジックを置く
+pkg/task/inspection/<ドメイン>/<機能名>/
+├── taskid.go  # package <機能名>: 公開タスク ID・インターフェース・Extractor・型定義
+└── impl/      # package <機能名>_impl: 実際のタスク定義・ログ処理ロジック・module.go
 ```
 
-### 1. `contract` フォルダーの責務
+### 1. 機能ルートパッケージの責務
 
-- その機能が他のタスクへと公開する **タスク ID**、**インターフェース**、および構造体や列挙型といった **公開データ構造** のみを定義します。
-- **実処理を含む関数や `coretask.Define(...)` によるタスク実装自体を記述してはなりません。**
-- 他のあらゆるタスクパッケージからインポート可能な唯一の公開レイヤーです。
+- その機能が他のタスクへと公開する **タスク ID** (`taskid.go`)、**インターフェース**、**Extractor 関数**、および構造体や列挙型といった **公開データ構造** を定義します。
+- **`impl` パッケージをインポートしたり、`coretask.Define(...)` によるタスク実装自体を記述してはなりません。**
+- 他のタスクパッケージからインポート可能な公開レイヤーです。
 
 ### 2. `impl` フォルダーの責務
 
-- `contract` で定義されたタスク ID に紐づく `var SomeTask = coretask.Define(...)` や `inspectiontaskbase.DefineInspectionTask(...)` といった実際のタスク、およびパーサー・マッパーロジックの実装コードを記述します。
-- `init()` や `Register(...)` といった初期化関数を配置します。
-- **他の機能パッケージの `impl` をインポートすることは禁止されています。** 別の機能に依存する場合は、必ずその機能の `contract` のみをインポートし、タスク依存関係としてタスクグラフ上で連携してください。
+- 機能ルートパッケージで定義されたタスク ID に紐づく `var SomeTask = coretask.Define(...)` や `inspectiontaskbase.DefineInspectionTask(...)` といった実際のタスク、およびパーサー・マッパーロジックの実装コードを記述します。
+- `module.go` 内で `var Module = coreinspection.Module{...}` をエクスポートし、対象スコープとタスク一覧を宣言します。
+- **他の機能パッケージの `impl` をインポートすることは禁止されています。** 別の機能に依存する場合は、必ずその機能のルートパッケージのみをインポートし、タスク依存関係としてタスクグラフ上で連携してください。
 
 ### 3. パッケージ名 (`package` 宣言) の命名規約
 
-Go では、単に `contract` や `impl` というパッケージ名で宣言すると、異なる機能間でインポート時の識別名が衝突したりコード上で出処が分かりにくくなります。
-そのため、`contract` ディレクトリおよび `impl` ディレクトリ内の Go ソースファイルでは、**親の機能パッケージ名に `_contract` または `_impl` のサフィックスを結合したパッケージ名で宣言する** 規約を採用しています:
+- **機能ルート (`pkg/task/inspection/<ドメイン>/<機能名>/`) 配下のファイル**: `package k8snode` のように `package <機能名>` と宣言します。
+- **`impl/` 配下のファイル**: `package k8snode_impl` のように `package <機能名>_impl` と宣言します。
 
-- **`contract/` 配下のファイル**: `package example_contract` のように `package <機能名>_contract` と宣言します。
-- **`impl/` 配下のファイル**: `package example_impl` のように `package <機能名>_impl` と宣言します。
-
-他のタスクから型や ID を参照する際は、必ずこの `<機能名>_contract` パッケージのみをインポートしてください。
+他のタスクから型やタスク ID を参照する際は、必ずこの `<機能名>` ルートパッケージのみをインポートしてください。
 
 ## 6. インスペクションタスクの実行モード (`Run` と `DryRun`)
 
@@ -206,7 +203,7 @@ KHI のインスペクションタスクは、実行されるシチュエーシ�
 
 ### 実行モードを判定する具体的なコード例
 
-すべてのインスペクションタスクおよび低レベルタスクユーティリティは、引数として渡される `inspectioncore_contract.InspectionTaskModeType` (`taskMode`) を評価し、現在の実行モードに応じて処理を切り替える実装にします。
+すべてのインスペクションタスクおよび低レベルタスクユーティリティは、引数として渡される `inspectioncore.InspectionTaskModeType` (`taskMode`) を評価し、現在の実行モードに応じて処理を切り替える実装にします。
 以下は、`DryRun` 時には重い処理を行わずに軽量な空結果や必要な UI メタデータのみを返し、`Run` モード時にのみ実際の解析処理を実行する標準的な Go 実装例です:
 
 ```go
@@ -214,9 +211,9 @@ var ExampleInspectionTask = inspectiontaskbase.DefineInspectionTask(
     ExampleInspectionTaskID,
     func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[ResultType] {
         logsInput := coretask.Use(b, SourceLogsTaskID.Ref())
-        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
+        return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (ResultType, error) {
             // 1. DryRun モードの判定: フォーム設定用や軽量実行時は、重いログ取得や解析をスキップして即座に返す
-            if taskMode == inspectioncore_contract.TaskModeDryRun {
+            if taskMode == inspectioncore.TaskModeDryRun {
                 return ResultType{}, nil
             }
 

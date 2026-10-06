@@ -47,7 +47,8 @@ type TimelineMapper[T any] interface {
 	ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData T) (*khifilev6.TimelineChangeSet, T, error)
 }
 
-// TimelineMapperInputs holds the references that every log-to-timeline mapper task reads.
+// TimelineMapperInputs specifies the log ingester the mapper waits for and the grouped log task it reads.
+// DefineLogToTimelineMapperTask registers both on the Binder before calling bind.
 type TimelineMapperInputs struct {
 	// LogIngester is the task that must ingest the log metadata before the mapper runs. The mapper does not read its value.
 	LogIngester taskid.TaskReference[struct{}]
@@ -84,12 +85,14 @@ func (StatelessMapperBase) PreProcessLogByGroup(ctx context.Context, passIndex i
 }
 
 // DefineLogToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry based on the logs grouped by inputs.GroupedLogs.
-// The task waits for inputs.LogIngester and reads inputs.GroupedLogs itself.
-// bind declares the additional inputs the mapper reads and returns the mapper that processes each log group in parallel.
-func DefineLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}], inputs TimelineMapperInputs, bind func(b *coretask.Binder) TimelineMapper[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
+//
+// inputs specifies the log ingester the mapper waits for and the grouped log task it reads; DefineLogToTimelineMapperTask registers both on the Binder before calling bind.
+// bind is called once at task definition time to declare additional inputs and return the TimelineMapper[T] instance.
+// Because the returned TimelineMapper[T] is shared across inspections and concurrent worker goroutines, any per-group mutable state must be stored in T rather than on the mapper struct.
+func DefineLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}], inputs TimelineMapperInputs, bind func(b *coretask.Binder) TimelineMapper[T], labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(TagTimelineMapper),
-	}, labels...)
+	}, labelOpts...)
 	return DefineInspectionTask(tid, func(b *coretask.Binder) InspectionTaskFunc[struct{}] {
 		coretask.After(b, inputs.LogIngester)
 		groupedLogs := coretask.Use(b, inputs.GroupedLogs)

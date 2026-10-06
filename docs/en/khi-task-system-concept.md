@@ -23,11 +23,11 @@ flowchart LR
 ```
 
 1. **[Task System Syntax and Execution Modes](./task-system/01-syntax-and-modes.md)**
-   - Covers DAG basics, task type (`Task[T]`) definitions with `coretask.Define`, the input and dependency model (`Binder`: `Use`, `UseOptional`, `UseTag`, `After`, point-to-point and tag fan-in, scopes), reading values via bound input handles (`.Get(ctx)`), structured logging (`slog`), package structures and naming conventions (`_contract`/`_impl`), **inspection execution modes (`Run` and `DryRun`)**, and **unit testing (`tasktest`)**.
+   - Covers DAG basics, task type (`Task[T]`) definitions with `coretask.Define`, the input and dependency model (`Binder`: `Use`, `UseOptional`, `UseTag`, `After`, point-to-point and tag fan-in, scopes), reading values via bound input handles (`.Get(ctx)`), structured logging (`slog`), package structures and naming conventions (root package and `impl/`), **inspection execution modes (`Run` and `DryRun`)**, and **unit testing (`tasktest`)**.
 2. **[Log Processing Task Implementation Patterns (Cookbook)](./task-system/02-log-processing-cookbook.md)**
    - Covers the overall log processing pipeline, practical recipes for the **4 major task definition utilities (`DefineLogFilterTask`, `DefineLogGrouperTask`, `DefineLogIngesterTask`, `DefineLogToTimelineMapperTask`)**, and timeline mapping using modern `*khifilev6.TimelinePath` and `testchangeset.AssertTimeline` objects.
 3. **[Advanced Task Patterns and Utilities](./task-system/03-advanced-and-form-tasks.md)**
-   - Covers automatic inspection server registration (`Register`), label selectors (`LabelSelector`, `FeatureTask`), the **`Inventory`-`Discovery` task pattern (`NewInventoryTask` and tag-based discovery)** for resolving names across multiple log sources, **form tasks (`formtask` / autocomplete)** for rich UI input fields, and **progress reporting / cache control (`DefineCachedTask`)**.
+   - Covers module-based inspection server registration (`coreinspection.Module`), inspection type scoping (`Scope`, `FeatureTaskLabel`), the **`Inventory`-`Discovery` task pattern (`DefineInventoryTask` and tag-based discovery)** for resolving names across multiple log sources, **form tasks (`formtask` / autocomplete)** for rich UI input fields, and **progress reporting / cache control (`DefineCachedTask`)**.
 
 ---
 
@@ -158,7 +158,7 @@ To prevent this, KHI introduces **scopes (`DependencyScope`)** to define **how f
 When creating a reference without an explicit scope option:
 
 - **Point-to-Point (`taskID.Ref()`)**: Defaults to `ScopeAll` (ensures required upstream tasks are pulled in when passed to `coretask.Use`). When passed to `coretask.UseOptional`, you must explicitly pass a narrower scope such as `coretask.FromActiveGraph` or `coretask.FromActiveFeatures`.
-- **Tag Fan-In (`tag.Ref()`)**: Defaults to `ScopeActiveFeatures` (aggregates from producers whose prerequisites are active in the current inspection).
+- **Tag Fan-In (`tag.Ref()`)**: Defaults to `ScopeActiveFeatures` (aggregates from producers whose prerequisites are active in the current inspection). Tag references do not allow `ScopeAll`; only `coretask.FromActiveGraph` may be passed to narrow the scope.
 
 #### 4. Automatic Input Deduplication and Merging
 

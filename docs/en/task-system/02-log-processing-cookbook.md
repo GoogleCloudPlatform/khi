@@ -43,10 +43,10 @@ You create all of these using utility functions in the `pkg/core/inspection/task
 ## 2. Field Extraction with Extractor Functions
 
 Logs in KHI provide a fast, zero-copy `*structured.NodeReader` via `l.NodeReader`.
-To extract structured fields from raw logs, define an extractor function and a typed struct in the `contract` package:
+To extract structured fields from raw logs, define an extractor function and a typed struct in the feature's root package:
 
 ```go
-package myapp_contract
+package myapp
 
 import (
     "github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -64,8 +64,8 @@ type MyFields struct {
 
 func ExtractMyFields(reader *structured.NodeReader) (MyFields, error) {
     return MyFields{
-        Foo: reader.ReadStringOrDefaultByPath(pathFoo, ""),
-        Bar: reader.ReadIntOrDefaultByPath(pathBar, 0),
+        Foo: reader.ReadStringOrDefault(pathFoo, ""),
+        Bar: reader.ReadIntOrDefault(pathBar, 0),
     }, nil
 }
 ```
@@ -84,7 +84,7 @@ var MyFilterTask = inspectiontaskbase.DefineLogFilterTask(
     SourceLogsTaskID.Ref(),
     func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
         return func(ctx context.Context, l *log.Log) bool {
-            fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
+            fields, err := myapp.ExtractMyFields(l.NodeReader)
             return err == nil && fields.Bar > 0
         }
     },
@@ -104,7 +104,7 @@ var MyGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
     SourceLogsTaskID.Ref(),
     func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
         return func(ctx context.Context, l *log.Log) string {
-            fields, err := myapp_contract.ExtractMyFields(l.NodeReader)
+            fields, err := myapp.ExtractMyFields(l.NodeReader)
             if err == nil && fields.Foo != "" {
                 return fields.Foo
             }
@@ -133,9 +133,9 @@ var MyLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
             }
 
             cs.SetTimestamp(l.Timestamp)
-            cs.SetLogType(myapp_contract.LogTypeMyApp)
+            cs.SetLogType(myapp.LogTypeMyApp)
 
-            if fields, err := myapp_contract.ExtractMyFields(l.NodeReader); err == nil {
+            if fields, err := myapp.ExtractMyFields(l.NodeReader); err == nil {
                 cs.SetSummary(fmt.Sprintf("[%s] count=%d", fields.Foo, fields.Bar))
             }
 
@@ -175,16 +175,16 @@ var _ inspectiontaskbase.TimelineMapper[MyGroupData] = (*MyMapper)(nil)
 In current KHI implementations, mappers do not construct raw string paths directly. Instead, they use **`*khifilev6.TimelinePath`**, which clearly expresses resource hierarchies (tree structures) with types, to add and resolve events.
 Furthermore, KHI uses a common implementation pattern where you create **timeline path helper utilities** (`MustXXXTimeline`) that compose parent timeline helper functions rather than rebuilding parent hierarchies with `TimelineAccumulator.GetPath` from scratch.
 
-#### 1. Example of Creating a Timeline Path Helper (defined in `contract` or `impl` package)
+#### 1. Example of Creating a Timeline Path Helper
 
 ```go
 // Example of a composite TimelinePath helper function in KHI composing parent helpers
 func MustK8sPodTimeline(ctx context.Context, clusterName string, namespace string, podName string) *khifilev6.TimelinePath {
-    clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-    apiVersionPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-    kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
-    namespacePath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, namespace)
-    return commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespacePath, podName)
+    clusterPath := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+    apiVersionPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+    kindPath := k8saudit.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
+    namespacePath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, namespace)
+    return k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespacePath, podName)
 }
 ```
 
@@ -215,7 +215,7 @@ var MyMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
     func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[MyGroupData] {
         return &MyMapper{}
     },
-    inspectioncore_contract.FeatureTaskLabel(
+    inspectioncore.FeatureTaskLabel(
         "Custom App Logs",
         "Parser and timeline mapping for Custom App logs.",
         9000,
@@ -227,7 +227,9 @@ var MyMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 ### 6.3 Unit Testing Mappers (`testchangeset.AssertTimeline`)
 
 When testing mappers, use `testchangeset.AssertTimeline(t, cs)` to declaratively verify the contents of the generated `TimelineChangeSet`.
-Do not use string paths or deprecated APIs; create and assert expected `*khifilev6.TimelinePath` objects.
+Do not construct raw string paths; create and assert expected `*khifilev6.TimelinePath` objects.
+
+If the mapper has no bound `coretask.Input[T]` handles, you can call `ProcessLogByGroup` directly. When the mapper reads bound inputs via `input.Get(ctx)`, extract the mapping logic into a pure helper function that accepts the resolved values directly (e.g., `mapMyLog(ctx, l, prevData, clusterIdentity)`), and test the task-level `Binder` wiring with `inspectiontest.Run(t, ctx, MyMapperTask, inspectioncore.TaskModeRun, nil, tasktest.Given(...))`.
 
 ```go
 func TestMyMapper_ProcessLogByGroup(t *testing.T) {

@@ -135,6 +135,10 @@ func (ManifestStatelessMapperBase) PreProcessLog(ctx context.Context, passIndex 
 }
 
 // DefineManifestLogToTimelineMapper defines a timeline mapper task utilizing the ManifestLogToTimelineMapper interface.
+//
+// It automatically registers K8sAuditLogIngesterTaskID (via coretask.After) and ResourceLifetimeTrackerTaskID (via coretask.Use) on the Binder before calling bind.
+// bind is called once at task definition time to declare additional inputs and return the ManifestLogToTimelineMapper[T] instance.
+// Because the returned mapper is shared across inspections and concurrent worker goroutines, any per-group mutable state must be stored in T rather than on the mapper struct.
 func DefineManifestLogToTimelineMapper[T any](taskID taskid.TaskImplementationID[struct{}], bind func(b *coretask.Binder) ManifestLogToTimelineMapper[T], labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(inspectiontaskbase.TagTimelineMapper),

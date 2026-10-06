@@ -46,18 +46,18 @@ import (
  "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
  "github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
  "github.com/GoogleCloudPlatform/khi/pkg/generated"
- inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
  "github.com/GoogleCloudPlatform/khi/pkg/testutil/taskrecord"
 
- // Import task contracts required by your pipeline
- mycontract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/mypackage/contract"
+ // Import task packages required by your pipeline
+ "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/mypackage"
 )
 
 // setupInspectionServer initializes the test server with all required plugins registered.
 func setupInspectionServer(t testing.TB) *coreinspection.InspectionTaskServer {
  t.Helper()
  logger.InitGlobalKHILogger()
- ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
+ ioConfig, err := inspectioncore.NewIOConfigForTest()
  if err != nil {
   t.Fatalf("failed to create ioConfig: %v", err)
  }
@@ -90,7 +90,7 @@ func getJobTestConfig() *taskrecord.JobTestConfig {
   RecordedTasks: []taskid.UntypedTaskReference{
    upstreamLogTaskID.Ref(), // Upstream tasks to cache (e.g. log query task)
   },
-  TargetTask: mycontract.MyTargetTaskID.Ref(), // Single task to benchmark
+  TargetTask: mypackage.MyTargetTaskID.Ref(), // Single task to benchmark
  }
 }
 
@@ -133,7 +133,7 @@ When measuring the performance of a log ingester or grouper task:
 ```go
 func getAuditLogIngesterConfig() *taskrecord.JobTestConfig {
  return &taskrecord.JobTestConfig{
-  InspectionType: googlecloudclustergke_contract.InspectionTypeID,
+  InspectionType: gke.InspectionTypeID,
   InspectionFeatures: []string{
    "khi.google.com/k8s-common-auditlog/k8s-auditlog-parser-tail#gcp",
   },
@@ -148,9 +148,9 @@ func getAuditLogIngesterConfig() *taskrecord.JobTestConfig {
    "cloud.google.com/k8s/input-namespaces":   []any{"@all_cluster_scoped", "@all_namespaced"},
   },
   RecordedTasks: []taskid.UntypedTaskReference{
-   googlecloudlogk8saudit_contract.GCPK8sAuditLogListLogEntriesTaskID.Ref(),
+   gcpk8saudit.GCPK8sAuditLogListLogEntriesTaskID.Ref(),
   },
-  TargetTask: commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref(),
+  TargetTask: k8saudit.K8sAuditLogIngesterTaskID.Ref(),
  }
 }
 ```
@@ -167,7 +167,7 @@ To benchmark a timeline mapper:
 ```go
 func getTimelineMapperConfig() *taskrecord.JobTestConfig {
  return &taskrecord.JobTestConfig{
-  InspectionType: googlecloudclustergke_contract.InspectionTypeID,
+  InspectionType: gke.InspectionTypeID,
   InspectionFeatures: []string{
    "khi.google.com/k8s-common-auditlog/k8s-auditlog-parser-tail#gcp",
   },
@@ -175,9 +175,9 @@ func getTimelineMapperConfig() *taskrecord.JobTestConfig {
    // ...
   },
   RecordedTasks: []taskid.UntypedTaskReference{
-   googlecloudlogk8saudit_contract.GCPK8sAuditLogListLogEntriesTaskID.Ref(),
+   gcpk8saudit.GCPK8sAuditLogListLogEntriesTaskID.Ref(),
   },
-  TargetTask: commonlogk8saudit_contract.PodTimelineMapperTaskID.Ref(),
+  TargetTask: k8saudit.PodPhaseLogToTimelineMapperTaskID.Ref(),
  }
 }
 ```
@@ -278,7 +278,7 @@ go tool pprof -http=:8080 -sample_index=alloc_space ./pprof/BenchmarkMyTask/mem.
 
 | Field | Purpose | Recommendation |
 | :--- | :--- | :--- |
-| `InspectionType` | Specifies the inspection pipeline ID. | Use the ID from contract (e.g. `googlecloudclustergke_contract.InspectionTypeID`). |
+| `InspectionType` | Specifies the inspection pipeline ID. | Use the ID from the cluster package (e.g. `gke.InspectionTypeID`). |
 | `InspectionFeatures` | List of feature IDs to enable. | Include only the features necessary for the target task to minimize setup overhead. |
 | `InspectionValues` | Input parameters map passed to the inspection runner. | Set query duration, end-time, cluster name, and project ID matching the recording environment. |
 | `RecordedTasks` | List of task references to record and replace with stubs. | Usually the upstream data fetcher task (e.g. `ListLogEntriesTaskID`). |

@@ -91,7 +91,7 @@ var SafeConsumerTask = coretask.Define(
 When multiple producers contribute items of the same type (for example, multiple log parsers producing log summaries), use a `Tag[T]` and bind it with `coretask.UseTag`:
 
 ```go
-// 1. Declare a tag in contract
+// 1. Declare a tag in the feature root package
 var LogItemTag = coretask.NewTag[*LogItem]("khi.google.com/log-items")
 
 // 2. Producer tasks declare that they provide the tag (optionally specifying WithTagPriority)
@@ -133,7 +133,7 @@ For architectural details, see [Concept Guide: 5. Prerequisites of Fan-In Cycles
 
 ### 3.4 Explicit Dependency Scope Specification (`coretask.From*`)
 
-To override the default scope resolution (`ScopeAll` for `coretask.Use`, `ScopeActiveFeatures` for `coretask.UseTag`), pass a scope option (`coretask.FromActiveGraph` or `coretask.FromActiveFeatures`) when creating the reference:
+When binding optional dependencies (`coretask.UseOptional`), ordering dependencies (`coretask.After`), or narrowing tag fan-in (`coretask.UseTag`), pass a scope option (`coretask.FromActiveGraph` or `coretask.FromActiveFeatures`) when creating the reference (`coretask.Use` always requires the default `ScopeAll`):
 
 ```go
 var AdvancedConsumerTask = coretask.Define(
@@ -167,35 +167,32 @@ This automatically includes the inspection trace ID and execution context inform
 ## 5. Task Package Structure and Naming Conventions
 
 All inspection tasks in KHI follow an architectural principle of **isolating each feature into a dedicated package**.
-Define each task in its own folder under `pkg/task/inspection/<package-name>/`, and separate the contents into two distinct directories:
+Define each task in its own folder under `pkg/task/inspection/<domain>/<feature>/`, separating the public contract at the package root from the implementation in `impl/`:
 
 ```text
-pkg/task/inspection/<package-name>/
-├── contract/  # Contains only public interfaces, task IDs, and type definitions (no implementation logic)
-└── impl/      # Contains actual task definitions and log processing logic (implementation)
+pkg/task/inspection/<domain>/<feature>/
+├── taskid.go  # Package <feature>: public task IDs, interfaces, extractors, and type definitions
+└── impl/      # Package <feature>_impl: actual task definitions, log processing logic, and module.go
 ```
 
-### 1. Responsibilities of `contract` Folder
+### 1. Responsibilities of the Feature Root Package
 
-- It defines only **task IDs**, **interfaces**, and **public data structures (such as structs or enums)** that the feature exposes to other tasks.
-- **It must not contain any functions with actual processing logic or task definitions (`coretask.Define(...)`).**
-- It is the only public layer that can be imported by any other task packages.
+- It defines only **task IDs** (`taskid.go`), **interfaces**, **extractor functions**, and **public data structures (such as structs or enums)** that the feature exposes to other tasks.
+- **It must not import `impl` or contain task definitions (`coretask.Define(...)`).**
+- It is the public layer that can be imported by any other task packages.
 
-### 2. Responsibilities of `impl` Folder
+### 2. Responsibilities of the `impl` Folder
 
-- It contains the actual tasks (`var SomeTask = coretask.Define(...)` or `inspectiontaskbase.DefineInspectionTask(...)`) and parser or mapper logic bound to the task IDs defined in `contract`.
-- It contains `init()` or initialization functions (such as `Register(...)`).
-- **You must not import the `impl` package of other features.** When depending on another feature, import only its `contract` package and connect via task dependencies on the task graph.
+- It contains the actual tasks (`var SomeTask = coretask.Define(...)` or `inspectiontaskbase.DefineInspectionTask(...)`) and parser or mapper logic bound to the task IDs defined in the root package.
+- It exports `var Module = coreinspection.Module{...}` in `module.go` to declare its inspection scope and tasks.
+- **You must not import the `impl` package of other features.** When depending on another feature, import only its root package and connect via task dependencies on the task graph.
 
 ### 3. Naming Conventions for Package Names (`package` declaration)
 
-In Go, declaring packages simply as `contract` or `impl` causes name collisions when importing multiple packages and obscures where code originates.
-Therefore, Go source files under `contract` and `impl` directories must **use the parent feature name combined with `_contract` or `_impl` as the package name**:
+- **Files at the feature root (`pkg/task/inspection/<domain>/<feature>/`)**: `package <feature>` (e.g., `package k8snode`)
+- **Files under `impl/`**: `package <feature>_impl` (e.g., `package k8snode_impl`)
 
-- **Files under `contract/`**: `package <feature-name>_contract` (e.g., `package example_contract`)
-- **Files under `impl/`**: `package <feature-name>_impl` (e.g., `package example_impl`)
-
-When referencing types or IDs from other tasks, always import only this `<feature-name>_contract` package.
+When referencing types or task IDs from other tasks, always import only the `<feature>` root package.
 
 ## 6. Inspection Task Execution Modes (`Run` and `DryRun`)
 
@@ -206,7 +203,7 @@ Inspection tasks in KHI are invoked in either **`Run` mode** or **`DryRun` mode*
 
 ### Example Code for Checking Execution Mode
 
-Every inspection task (or low-level task utility) should check `inspectioncore_contract.InspectionTaskModeType` (`taskMode`) passed as an argument and switch its behavior based on the current mode.
+Every inspection task (or low-level task utility) should check `inspectioncore.InspectionTaskModeType` (`taskMode`) passed as an argument and switch its behavior based on the current mode.
 The following is a standard Go implementation example that returns an empty result or necessary UI metadata without heavy processing during `DryRun`, and executes actual parsing only in `Run` mode:
 
 ```go
@@ -214,9 +211,9 @@ var ExampleInspectionTask = inspectiontaskbase.DefineInspectionTask(
     ExampleInspectionTaskID,
     func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[ResultType] {
         logsInput := coretask.Use(b, SourceLogsTaskID.Ref())
-        return func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
+        return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (ResultType, error) {
             // 1. Check DryRun mode: Return immediately to skip heavy log fetching and parsing for form setup or lightweight runs
-            if taskMode == inspectioncore_contract.TaskModeDryRun {
+            if taskMode == inspectioncore.TaskModeDryRun {
                 return ResultType{}, nil
             }
 
