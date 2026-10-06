@@ -99,15 +99,13 @@ func GenerateJobModeCommand(inspectionType string, enabledFeatures []string, tas
 		valuesStr = strings.ReplaceAll(string(valuesBytes), "'", "'\\''")
 	}
 
-	command := fmt.Sprintf(`./khi \
-  --job-mode \
-  --job-inspection-type="%s" \
-  --job-inspection-features="%s" \
-  --job-inspection-values='%s' \
-  --job-export-destination="output.khi"`,
-		inspectionType,
-		featuresStr,
-		valuesStr,
-	)
-	return command, nil
+	args := []string{
+		"./khi",
+		"--job-mode",
+		fmt.Sprintf(`--job-inspection-type="%s"`, inspectionType),
+		fmt.Sprintf(`--job-inspection-features="%s"`, featuresStr),
+		fmt.Sprintf("--job-inspection-values='%s'", valuesStr),
+		`--job-export-destination="output.khi"`,
+	}
+	return strings.Join(args, " \\\n  "), nil
 }
