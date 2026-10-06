@@ -40,8 +40,8 @@ var inputKindFilterTask = formtask.DefineSetForm(
 		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{
 			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@any", "-leases"}),
 			AllowCustomValue: formtask.ConstantBool(true),
-			AllowAddAll:      formtask.ConstantBool(false),
-			AllowRemoveAll:   formtask.ConstantBool(false),
+			DisableAddAll:    formtask.ConstantBool(true),
+			DisableRemoveAll: formtask.ConstantBool(true),
 			Options: formtask.ConstantOptions(
 				inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@any", Description: "[Alias] An alias matches any of the kinds"},
 				inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@legacy_default", Description: "[Alias] An alias matches a set of kinds frequently queried in legacy KHI versions."},

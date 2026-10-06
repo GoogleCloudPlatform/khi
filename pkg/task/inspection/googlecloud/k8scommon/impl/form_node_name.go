@@ -41,8 +41,8 @@ var inputNodeNameFilterTask = formtask.DefineSetForm(
 		return formtask.SetFormSpec[[]string]{
 			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{}),
 			AllowCustomValue: formtask.ConstantBool(true),
-			AllowAddAll:      formtask.ConstantBool(false),
-			AllowRemoveAll:   formtask.ConstantBool(false),
+			DisableAddAll:    formtask.ConstantBool(true),
+			DisableRemoveAll: formtask.ConstantBool(true),
 			Validator:        validateNodeNameFilter,
 			Options: func(ctx context.Context, prevValue []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 				result := []inspectionmetadata.SetParameterFormFieldOptionItem{}

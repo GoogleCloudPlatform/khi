@@ -53,8 +53,8 @@ type setFormTask[T any] struct {
 	hintGenerator    SetFormHintGenerator
 	converter        SetFormValueConverter[T]
 	allowCustomValue SetFormBoolProvider
-	allowAddAll      SetFormBoolProvider
-	allowRemoveAll   SetFormBoolProvider
+	disableAddAll    SetFormBoolProvider
+	disableRemoveAll SetFormBoolProvider
 }
 
 // newSetFormTask creates a set form task with the default settings described in SetFormSpec.
@@ -81,8 +81,8 @@ func newSetFormTask[T any](id taskid.TaskImplementationID[T], priority int, labe
 			return "", inspectionmetadata.Info, nil
 		},
 		allowCustomValue: func(ctx context.Context) (bool, error) { return false, nil },
-		allowAddAll:      func(ctx context.Context) (bool, error) { return true, nil },
-		allowRemoveAll:   func(ctx context.Context) (bool, error) { return true, nil },
+		disableAddAll:    func(ctx context.Context) (bool, error) { return false, nil },
+		disableRemoveAll: func(ctx context.Context) (bool, error) { return false, nil },
 	}
 }
 
@@ -100,19 +100,19 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 	if err != nil {
 		return *new(T), fmt.Errorf("allowCustomValue provider for task `%s` returned an error\n%v", b.id, err)
 	}
-	allowAddAll, err := b.allowAddAll(ctx)
+	disableAddAll, err := b.disableAddAll(ctx)
 	if err != nil {
-		return *new(T), fmt.Errorf("allowAddAll provider for task `%s` returned an error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("disableAddAll provider for task `%s` returned an error\n%v", b.id, err)
 	}
-	allowRemoveAll, err := b.allowRemoveAll(ctx)
+	disableRemoveAll, err := b.disableRemoveAll(ctx)
 	if err != nil {
-		return *new(T), fmt.Errorf("allowRemoveAll provider for task `%s` returned an error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("disableRemoveAll provider for task `%s` returned an error\n%v", b.id, err)
 	}
 
 	field := inspectionmetadata.SetParameterFormField{}
 	field.AllowCustomValue = allowCustomValue
-	field.AllowAddAll = allowAddAll
-	field.AllowRemoveAll = allowRemoveAll
+	field.AllowAddAll = !disableAddAll
+	field.AllowRemoveAll = !disableRemoveAll
 
 	// Compute the default value
 	var currentValue []string
@@ -213,10 +213,10 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 type SetFormSpec[T any] struct {
 	// AllowCustomValue reports whether users can input custom values. Defaults to false.
 	AllowCustomValue SetFormBoolProvider
-	// AllowAddAll reports whether the "Add All" option is enabled. Defaults to true.
-	AllowAddAll SetFormBoolProvider
-	// AllowRemoveAll reports whether the "Remove All" option is enabled. Defaults to true.
-	AllowRemoveAll SetFormBoolProvider
+	// DisableAddAll reports whether the "Add All" option is disabled. Defaults to false.
+	DisableAddAll SetFormBoolProvider
+	// DisableRemoveAll reports whether the "Remove All" option is disabled. Defaults to false.
+	DisableRemoveAll SetFormBoolProvider
 	// DefaultValue generates the default value of the set form. Defaults to nil.
 	DefaultValue SetFormDefaultValueGenerator
 	// Options provides the available options for the set form. Defaults to an empty slice.
@@ -233,11 +233,11 @@ func (b *setFormTask[T]) applySpec(spec SetFormSpec[T]) {
 	if spec.AllowCustomValue != nil {
 		b.allowCustomValue = spec.AllowCustomValue
 	}
-	if spec.AllowAddAll != nil {
-		b.allowAddAll = spec.AllowAddAll
+	if spec.DisableAddAll != nil {
+		b.disableAddAll = spec.DisableAddAll
 	}
-	if spec.AllowRemoveAll != nil {
-		b.allowRemoveAll = spec.AllowRemoveAll
+	if spec.DisableRemoveAll != nil {
+		b.disableRemoveAll = spec.DisableRemoveAll
 	}
 	if spec.DefaultValue != nil {
 		b.defaultValue = spec.DefaultValue

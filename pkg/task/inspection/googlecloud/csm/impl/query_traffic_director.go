@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
@@ -74,13 +73,9 @@ func (s *csmTrafficDirectorQuerySource) DefaultResourceNames(ctx context.Context
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *csmTrafficDirectorQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *csmTrafficDirectorQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	fleetProjectID := s.fleetProjectID.Get(ctx)
 	clusterIdentifiers := s.clusterIdentifiers.Get(ctx)
-	taskMode := inspectioncore.TaskModeRun
-	if val, err := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode); err == nil {
-		taskMode = val
-	}
 	isDryRun := taskMode == inspectioncore.TaskModeDryRun
 
 	sq := generateCSMTrafficDirectorStructuredQuery(fleetProjectID, clusterIdentifiers, isDryRun)
@@ -95,8 +90,8 @@ func (s *csmTrafficDirectorQuerySource) Queries(ctx context.Context) ([]*logesti
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *csmTrafficDirectorQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
+func (s *csmTrafficDirectorQuerySource) TimePartitionCount() int {
+	return 1
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*csmTrafficDirectorQuerySource)(nil)

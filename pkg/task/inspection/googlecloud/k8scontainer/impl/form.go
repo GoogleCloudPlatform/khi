@@ -49,8 +49,8 @@ Specify the space splitted namespace lists to query container logs only in the s
 		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{
 			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@managed"}),
 			AllowCustomValue: formtask.ConstantBool(true),
-			AllowAddAll:      formtask.ConstantBool(false),
-			AllowRemoveAll:   formtask.ConstantBool(false),
+			DisableAddAll:    formtask.ConstantBool(true),
+			DisableRemoveAll: formtask.ConstantBool(true),
 			Options: func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 				result := []inspectionmetadata.SetParameterFormFieldOptionItem{
 					{
@@ -115,8 +115,8 @@ var inputContainerQueryPodNamesFilterTask = formtask.DefineSetForm(
 		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{
 			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@any"}),
 			AllowCustomValue: formtask.ConstantBool(true),
-			AllowAddAll:      formtask.ConstantBool(false),
-			AllowRemoveAll:   formtask.ConstantBool(false),
+			DisableAddAll:    formtask.ConstantBool(true),
+			DisableRemoveAll: formtask.ConstantBool(true),
 			Options: func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 				result := []inspectionmetadata.SetParameterFormFieldOptionItem{
 					{

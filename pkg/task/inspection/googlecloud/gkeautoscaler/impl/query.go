@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeautoscaler"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // generateAutoscalerStructuredQuery generates a structured query for GKE cluster autoscaler logs.
@@ -56,14 +57,14 @@ func (s *autoscalerQuerySource) DefaultResourceNames(ctx context.Context) ([]str
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *autoscalerQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *autoscalerQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := s.clusterIdentity.Get(ctx)
 	return []*logestimator.StructuredLogQuery{generateAutoscalerStructuredQuery(cluster, true)}, nil
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *autoscalerQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
+func (s *autoscalerQuerySource) TimePartitionCount() int {
+	return 1
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*autoscalerQuerySource)(nil)

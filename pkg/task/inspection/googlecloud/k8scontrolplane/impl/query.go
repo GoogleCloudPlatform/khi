@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scontrolplane"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // generateK8sControlPlaneStructuredQuery generates a structured query for Kubernetes control plane logs.
@@ -71,15 +72,15 @@ func (s *controlPlaneLogQuerySource) DefaultResourceNames(ctx context.Context) (
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *controlPlaneLogQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *controlPlaneLogQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	cluster := s.clusterIdentity.Get(ctx)
 	controlplaneComponentNameFilter := s.componentNameFilter.Get(ctx)
 	return []*logestimator.StructuredLogQuery{generateK8sControlPlaneStructuredQuery(cluster, controlplaneComponentNameFilter)}, nil
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *controlPlaneLogQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 10, nil
+func (s *controlPlaneLogQuerySource) TimePartitionCount() int {
+	return 10
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*controlPlaneLogQuerySource)(nil)

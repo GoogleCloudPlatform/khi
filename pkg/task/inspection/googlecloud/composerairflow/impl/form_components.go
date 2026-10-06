@@ -34,8 +34,8 @@ var inputComposerComponentsTask = formtask.DefineSetForm(
 		components := coretask.Use(b, composerairflow.AutocompleteComposerComponentsTaskID.Ref())
 		return formtask.SetFormSpec[[]string]{
 			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@any"}),
-			AllowAddAll:      formtask.ConstantBool(false),
-			AllowRemoveAll:   formtask.ConstantBool(false),
+			DisableAddAll:    formtask.ConstantBool(true),
+			DisableRemoveAll: formtask.ConstantBool(true),
 			AllowCustomValue: formtask.ConstantBool(false),
 			Options: func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 				autocompleteResult := components.Get(ctx)

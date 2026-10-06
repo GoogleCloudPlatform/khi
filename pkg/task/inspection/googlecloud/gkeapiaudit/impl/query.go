@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // generateGKEAuditStructuredQuery generates a structured query for GKE API audit logs.
@@ -52,13 +53,13 @@ func (s *gkeAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]strin
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *gkeAuditQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *gkeAuditQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	return []*logestimator.StructuredLogQuery{generateGKEAuditStructuredQuery(s.clusterIdentity.Get(ctx))}, nil
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *gkeAuditQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
+func (s *gkeAuditQuerySource) TimePartitionCount() int {
+	return 1
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*gkeAuditQuerySource)(nil)

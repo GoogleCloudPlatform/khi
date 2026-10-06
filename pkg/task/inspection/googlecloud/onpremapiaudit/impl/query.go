@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/onpremapiaudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // generateOnPremAPIStructuredQuery generates a structured query for OnPrem API audit logs.
@@ -51,13 +52,13 @@ func (s *onPremAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]st
 }
 
 // Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *onPremAuditQuerySource) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
+func (s *onPremAuditQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
 	return []*logestimator.StructuredLogQuery{generateOnPremAPIStructuredQuery(s.clusterIdentity.Get(ctx))}, nil
 }
 
 // TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *onPremAuditQuerySource) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
+func (s *onPremAuditQuerySource) TimePartitionCount() int {
+	return 1
 }
 
 var _ gcpcommon.StructuredLogQuerySource = (*onPremAuditQuerySource)(nil)

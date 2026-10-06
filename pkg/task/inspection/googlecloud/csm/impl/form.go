@@ -59,8 +59,8 @@ var inputCSMResponseFlagsTask = formtask.DefineSetForm(
 	func(b *coretask.Binder) formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult] {
 		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{
 			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@any", "-OK"}),
-			AllowAddAll:      formtask.ConstantBool(false),
-			AllowRemoveAll:   formtask.ConstantBool(false),
+			DisableAddAll:    formtask.ConstantBool(true),
+			DisableRemoveAll: formtask.ConstantBool(true),
 			AllowCustomValue: formtask.ConstantBool(true),
 			Options: func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 				result := []inspectionmetadata.SetParameterFormFieldOptionItem{

@@ -40,8 +40,8 @@ var inputControlPlaneComponentNameFilterTask = formtask.DefineSetForm(
 		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{
 			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@any", "-apiserver"}),
 			AllowCustomValue: formtask.ConstantBool(true),
-			AllowAddAll:      formtask.ConstantBool(false),
-			AllowRemoveAll:   formtask.ConstantBool(false),
+			DisableAddAll:    formtask.ConstantBool(true),
+			DisableRemoveAll: formtask.ConstantBool(true),
 			Options: formtask.ConstantOptions(
 				inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@any", Description: "[Alias]Matches any component name"},
 				inspectionmetadata.SetParameterFormFieldOptionItem{ID: "apiserver", Description: "Matches logs from kube-apiserver"},
