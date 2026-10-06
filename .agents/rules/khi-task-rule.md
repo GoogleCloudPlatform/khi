@@ -11,7 +11,7 @@ When developing or modifying task-related files in the KHI project (under `pkg/t
 
 - There should be only 3 folders included in each task packages `pkg/task/inspection/<package-task-name>`.
   - `contract` folder defines TaskID, Extractor functions, FieldSets, or other types used for defining TaskIDs. This package must have the package name `packagetaskname_contract`.
-  - impl folder defines the actual tasks. This package must have the package name packagetaskname_impl. This package must have registration.go.
+  - impl folder defines the actual tasks. This package must have the package name packagetaskname_impl. This package must have module.go.
   - `internal` folder defines utility only used from the contract or impl folder. The package name must be `packagetaskname_internal`.
 - Add a README.md just under the task package summarizing details of tasks defined in the package and the expected structure.
 

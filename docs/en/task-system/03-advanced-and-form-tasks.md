@@ -8,22 +8,24 @@ This document explains the specifications and utilities used to build advanced a
 
 ## 1. Registering Tasks to the Inspection Task Server
 
-KHI build scripts automatically configure the system to call `Register()` during initialization if a `registration.go` file exists under `task/inspection/<package-name>/impl`.
-To define a package that adds new tasks, register your tasks and Inspection Types inside this `Register()` function.
+KHI build scripts automatically configure the system to register a package's `Module` during initialization if a `module.go` file exists under `pkg/task/inspection/<provider>/<feature>/impl`.
+To define a package that adds new tasks or Inspection Types, declare an exported `Module` variable of type `coreinspection.Module` in `module.go`.
 
 ```go
-// Register registers all googlecloudlogserialport inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-    err := registry.AddInspectionType(ossclusterk8s_contract.OSSKubernetesLogFilesInspectionType)
-    if err != nil {
-        return err
-    }
-
-    return coretask.RegisterTasks(registry,
+// Module declares the OSS Kubernetes log files inspection type and the tasks that build timelines from uploaded kube-apiserver audit logs.
+var Module = coreinspection.Module{
+    Name: "oss/k8s",
+    Scope: coreinspection.Scope{
+        inspectioncore_contract.InspectionTypeLabelKeyLogSource:    "file",
+        inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "oss",
+        inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+    },
+    InspectionTypes: []coreinspection.InspectionType{ossclusterk8s_contract.OSSKubernetesLogFilesInspectionType},
+    Tasks: []coretask.UntypedTask{
         InputAuditLogFilesTask,
         InputNodeLogFilesTask,
         SerialPortLogIngesterTask,
-    )
+    },
 }
 ```
 
@@ -58,14 +60,22 @@ var AdvancedTask = coretask.Define(
 
 When an inspection starts, the runner checks that all key-value pairs in the selector match the selected `InspectionType.Labels`. Tasks without an `InspectionTypeLabelSelector` are treated as global tasks and are included for all inspection types.
 
-You can also apply an `InspectionTypeLabelSelector` to all tasks registered in a package by wrapping the registry with `coreinspection.NewScopedRegistry`:
+You can also apply an `InspectionTypeLabelSelector` to all tasks in a package by setting `Scope` on its `coreinspection.Module` (and narrowing the scope further for specific tasks using `SubModules`):
 
 ```go
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-    scoped := coreinspection.NewScopedRegistry(registry, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+var Module = coreinspection.Module{
+    Name: "googlecloud/example",
+    Scope: coreinspection.Scope{
         inspectioncore_contract.InspectionTypeLabelKeyEnvironment: "googlecloud",
-    }))
-    return coretask.RegisterTasks(scoped, TaskA, TaskB)
+    },
+    Tasks: []coretask.UntypedTask{TaskA, TaskB},
+    SubModules: []coreinspection.Module{
+        {
+            Name:  "cloud-logging",
+            Scope: coreinspection.Scope{inspectioncore_contract.InspectionTypeLabelKeyLogSource: "cloud_logging"},
+            Tasks: []coretask.UntypedTask{CloudLoggingOnlyTask},
+        },
+    },
 }
 ```
 
