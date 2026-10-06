@@ -60,21 +60,13 @@ func loadRecordedTaskResultForType(fixtureDir string, taskRef taskid.UntypedTask
 	return DefaultCodecRegistry.DeserializeForType(data, t)
 }
 
-// ResolveTaskTypeFromTask returns the Go return type T of a Task[T] by inspecting its Run method.
+// ResolveTaskTypeFromTask returns the Go return type T of a Task[T].
 func ResolveTaskTypeFromTask(task coretask.UntypedTask) (reflect.Type, bool) {
 	if task == nil {
 		return nil, false
 	}
-	taskType := reflect.TypeOf(task)
-	method, ok := taskType.MethodByName("Run")
-	if !ok || method.Type.NumOut() != 2 {
-		return nil, false
-	}
-	errType := reflect.TypeOf((*error)(nil)).Elem()
-	if !method.Type.Out(1).Implements(errType) {
-		return nil, false
-	}
-	return method.Type.Out(0), true
+	t := task.ResultType()
+	return t, t != nil
 }
 
 // ResolveTaskTypeFromTaskSet finds the task in the TaskSet matching the given reference and returns its return type.
