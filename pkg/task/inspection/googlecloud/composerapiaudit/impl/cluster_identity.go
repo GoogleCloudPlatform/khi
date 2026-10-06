@@ -20,8 +20,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
-// ClusterIdentityAliasTask aliases the cluster identity task for Composer API audit log inspection.
-var ClusterIdentityAliasTask = coretask.NewAliasTask(
+// clusterIdentityAliasTask aliases the cluster identity task for Composer API audit log inspection.
+var clusterIdentityAliasTask = coretask.DefineAliasTask(
 	composerapiaudit.ClusterIdentityTaskID,
 	k8scommon.ClusterIdentityTaskID.Ref(),
 )

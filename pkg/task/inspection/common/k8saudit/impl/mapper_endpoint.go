@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -61,8 +60,13 @@ var (
 	pathEndpointConditionsReady       = structured.CompileFieldPath("conditions.ready")
 )
 
-// EndpointResourceLogToTimelineMapperTask is the task to generate endpoint resource history.
-var EndpointResourceLogToTimelineMapperTask = k8saudit.NewManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState](&endpointResourceLogToTimelineMapperTaskSetting{})
+// endpointResourceLogToTimelineMapperTask is the task to generate endpoint resource history.
+var endpointResourceLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState](
+	k8saudit.EndpointResourceLogToTimelineMapperTaskID,
+	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState] {
+		return &endpointResourceLogToTimelineMapperTaskSetting{}
+	},
+)
 
 type endpointResourceLogToTimelineMapperTaskSetting struct {
 }
@@ -70,26 +74,6 @@ type endpointResourceLogToTimelineMapperTaskSetting struct {
 // PassCount implements k8saudit.ManifestLogToTimelineMapper.
 func (e *endpointResourceLogToTimelineMapperTaskSetting) PassCount() int {
 	return 1
-}
-
-// Dependencies implements k8saudit.ManifestLogToTimelineMapper.
-func (e *endpointResourceLogToTimelineMapperTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask implements k8saudit.ManifestLogToTimelineMapper.
-func (e *endpointResourceLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[k8saudit.ResourceManifestLogGroupMap] {
-	return k8saudit.ResourceLifetimeTrackerTaskID.Ref()
-}
-
-// LogIngesterTask implements k8saudit.ManifestLogToTimelineMapper.
-func (e *endpointResourceLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8saudit.K8sAuditLogIngesterTaskID.Ref()
-}
-
-// TaskID implements k8saudit.ManifestLogToTimelineMapper.
-func (e *endpointResourceLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return k8saudit.EndpointResourceLogToTimelineMapperTaskID
 }
 
 // ResolveRelatedGroupSets implements k8saudit.ManifestLogToTimelineMapper.
@@ -187,7 +171,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 	eventTime := event.Log.Timestamp
-	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(ctx, event.Log.NodeReader)
+	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 	if k8sFieldSet.IsDryRun {
 		return cs, state, nil
 	}

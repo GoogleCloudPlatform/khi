@@ -1,6 +1,6 @@
 ---
 name: log-timeline-mapper
-description: Guidelines for implementing and testing LogIngesterTask and LogToTimelineMapper tasks in KHI.
+description: Guidelines for implementing and testing DefineLogIngesterTask and DefineLogToTimelineMapperTask tasks in KHI.
 ---
 
 # KHI Log Ingestion & Timeline Mapping Guidelines
@@ -9,44 +9,31 @@ This guide outlines the patterns, best practices, and testing methodologies for 
 
 ---
 
-## 1. LogIngester & LogIngesterTask
+## 1. LogIngesterFunc & DefineLogIngesterTask
 
-`LogIngester` is responsible for parsing raw logs and ingesting basic log metadata (summary, timestamp, severity, log type) into the KHI format.
+`LogIngesterFunc` is responsible for parsing raw logs and ingesting basic log metadata (summary, timestamp, severity, log type) into the KHI format.
 
-### Interface Definition
+### Function Signature
 
 ```go
-type LogIngester interface {
- // RawLogTask returns the task reference that provides the raw logs to ingest.
- RawLogTask() taskid.TaskReference[[]*log.Log]
- // Dependencies returns additional task dependencies of the ingester.
- Dependencies() []taskid.UntypedTaskReference
- // ProcessLog is called for each log entry to customize log metadata.
- ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error)
-}
+// LogIngesterFunc converts a log into the change set of its metadata, such as summary, severity, and timestamp.
+// It returns a nil change set to skip the log.
+type LogIngesterFunc = func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error)
 ```
 
 ### Key Implementation Guide
 
 > [!IMPORTANT]
-> **ChangeSet Metadata Ingestion:** `LogChangeSet` does NOT automatically fill metadata defaults. You MUST explicitly populate metadata on `LogChangeSet` (such as setting timestamp from `l.Timestamp`, severity, summary, and log type) in your `ProcessLog` implementation.
+> **ChangeSet Metadata Ingestion:** `LogChangeSet` does NOT automatically fill metadata defaults. You MUST explicitly populate metadata on `LogChangeSet` (such as setting timestamp from `l.Timestamp`, severity, summary, and log type) in your `LogIngesterFunc` implementation.
 >
-> **Skipping Logs:** If `ProcessLog` returns `(nil, nil)`, KHI will treat this log as skipped (ignored) without producing any errors.
+> **Skipping Logs:** If the function returns `(nil, nil)`, KHI will treat this log as skipped (ignored) without producing any errors.
 
 #### Implementer Example
 
 ```go
-type MyLogIngester struct {}
+type MyLogIngester struct{}
 
-func (i *MyLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
- return rawLogTaskID.Ref()
-}
-
-func (i *MyLogIngester) Dependencies() []taskid.UntypedTaskReference {
- return []taskid.UntypedTaskReference{}
-}
-
-// ProcessLog parses raw log entry and manually populates the LogChangeSet.
+// ProcessLog parses a raw log entry and manually populates the LogChangeSet.
 func (i *MyLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
  // 1. Create a new change set.
  cs, err := khifilev6.NewLogChangeSet(l)
@@ -63,42 +50,46 @@ func (i *MyLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.
 
  return cs, nil
 }
-
-// Explicit interface compliance assertion is mandatory.
-var _ inspectiontaskbase.LogIngester = (*MyLogIngester)(nil)
 ```
 
-### Registering the LogIngester Task
+### Defining and Registering the LogIngester Task
 
 > [!IMPORTANT]
 > **Package Boundaries:**
 >
 > - **TaskID** definitions (e.g., `LogIngesterTaskID`) MUST be defined in the feature root package (`pkg/task/inspection/<provider>/<feature>`).
-> - **Task Implementation** instantiations (e.g., `NewLogIngesterTask`) MUST be placed in the `impl` subpackage (`pkg/task/inspection/<provider>/<feature>/impl`).
+> - **Task Implementation** definitions (e.g., `DefineLogIngesterTask`) MUST be placed in the `impl` subpackage (`pkg/task/inspection/<provider>/<feature>/impl`).
 
 ```go
 // Defined in feature root package (e.g. package myfeature):
-var MyLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("my-log-ingester")
+var MyLogIngesterTaskID = taskid.NewDefaultImplementationID[struct{}]("my-log-ingester")
 
-// Instantiated in 'impl' package (e.g. package myfeature_impl):
-task := NewLogIngesterTask(myfeature.MyLogIngesterTaskID, &MyLogIngester{})
+// Defined in 'impl' package (e.g. package myfeature_impl):
+var MyLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
+ myfeature.MyLogIngesterTaskID,
+ myfeature.RawLogTaskID.Ref(),
+ func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+  ingester := &MyLogIngester{}
+  return ingester.ProcessLog
+ },
+)
 // Register task to core runner...
 ```
 
 ---
 
-## 2. LogToTimelineMapper
+## 2. TimelineMapper & DefineLogToTimelineMapperTask
 
-`LogToTimelineMapper` maps grouped logs to timeline elements (events or resource revisions). Depending on the complexity, you should choose one of the following three implementation patterns.
+`TimelineMapper` maps grouped logs to timeline elements (events or resource revisions). Depending on the complexity, you should choose one of the following three implementation patterns.
 
 ### Pattern 1: Multi-Pass with State
 
 Used for complex scenarios where you need to pre-collect information across all logs in a group before applying timeline changes (e.g., matching asynchronous request/response cycles).
 
-- **How to implement:** Implement the full `LogToTimelineMapper[T]` interface manually.
+- **How to implement:** Implement the full `TimelineMapper[T]` interface manually.
 
 ```go
-type ComplexMapper struct {}
+type ComplexMapper struct{}
 
 func (m *ComplexMapper) PassCount() int {
  return 1 // Run 1 pre-processing pass.
@@ -142,7 +133,7 @@ func (m *ComplexMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevG
 }
 
 // Explicit interface compliance assertion.
-var _ inspectiontaskbase.LogToTimelineMapper[MyState] = (*ComplexMapper)(nil)
+var _ inspectiontaskbase.TimelineMapper[MyState] = (*ComplexMapper)(nil)
 ```
 
 ---
@@ -155,7 +146,7 @@ Used when you need to maintain and propagate state sequentially through the logs
 
 ```go
 type StateTrackingMapper struct {
- SinglePassMapperBase[MyState] // Embeds single pass helper.
+ inspectiontaskbase.SinglePassMapperBase[MyState] // Embeds single pass helper.
 }
 
 func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData MyState) (*khifilev6.TimelineChangeSet, MyState, error) {
@@ -191,7 +182,7 @@ func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 }
 
 // Explicit interface compliance assertion.
-var _ inspectiontaskbase.LogToTimelineMapper[MyState] = (*StateTrackingMapper)(nil)
+var _ inspectiontaskbase.TimelineMapper[MyState] = (*StateTrackingMapper)(nil)
 ```
 
 ---
@@ -204,7 +195,7 @@ Used when timeline mapping for each log is completely independent and does not r
 
 ```go
 type SimpleEventMapper struct {
- StatelessMapperBase // Embeds stateless helper.
+ inspectiontaskbase.StatelessMapperBase // Embeds stateless helper.
 }
 
 func (m *SimpleEventMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
@@ -226,23 +217,32 @@ func (m *SimpleEventMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _
 }
 
 // Explicit interface compliance assertion.
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*SimpleEventMapper)(nil)
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*SimpleEventMapper)(nil)
 ```
 
-### Registering the TimelineMapper Task
+### Defining and Registering the TimelineMapper Task
 
 > [!IMPORTANT]
 > **Package Boundaries:**
 >
 > - **TaskID** definitions (e.g., `LogToTimelineMapperTaskID`) MUST be defined in the feature root package.
-> - **Task Implementation** instantiations (e.g., `NewLogToTimelineMapperTask`) MUST be placed in the `impl` subpackage.
+> - **Task Implementation** definitions (e.g., `DefineLogToTimelineMapperTask`) MUST be placed in the `impl` subpackage.
 
 ```go
 // Defined in feature root package:
 var MyTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}]("my-timeline-mapper")
 
-// Instantiated in 'impl' package:
-task := NewLogToTimelineMapperTask(myfeature.MyTimelineMapperTaskID, &SimpleEventMapper{})
+// Defined in 'impl' package:
+var MyTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+ myfeature.MyTimelineMapperTaskID,
+ inspectiontaskbase.TimelineMapperInputs{
+  LogIngester: myfeature.MyLogIngesterTaskID.Ref(),
+  GroupedLogs: myfeature.MyLogGrouperTaskID.Ref(),
+ },
+ func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+  return &SimpleEventMapper{}
+ },
+)
 // Register task to core runner...
 ```
 
@@ -250,7 +250,7 @@ task := NewLogToTimelineMapperTask(myfeature.MyTimelineMapperTaskID, &SimpleEven
 
 ## 3. Testing Guidelines
 
-Tests for V2 tasks must follow the standard Table-Driven testing pattern. To verify mappers or ingesters produced correct outcomes across various scenarios, you should write unit tests utilizing `testchangeset` fluent assertions.
+Tests for tasks must follow the standard Table-Driven testing pattern. To verify mappers or ingesters produce correct outcomes across various scenarios, write unit tests utilizing `testchangeset` fluent assertions.
 
 ### Table-Driven Fluent Assertions
 
@@ -286,7 +286,6 @@ func TestMyLogIngester_ProcessLog(t *testing.T) {
  ingester := &MyLogIngester{}
  for _, tc := range testCases {
   t.Run(tc.name, func(t *testing.T) {
-   // Obtain context dynamically using t.Context()
    ctx := t.Context()
 
    cs, err := ingester.ProcessLog(ctx, tc.input)
@@ -302,15 +301,15 @@ func TestMyLogIngester_ProcessLog(t *testing.T) {
 
 #### TimelineMapper Table-Driven Assertion Example
 
-Mappers translate structured logs into timeline changes. Isolate mapper tests using `testlog.NewMockLog` and execute assertions using the fluent `changeset` asserter.
+Mappers translate structured logs into timeline changes. When a mapper reads upstream task results via `coretask.Input[T]`, extract the per-log mapping logic into a pure helper function (e.g., `mapMyLog(ctx, l, prevState, depValue)`) so `ProcessLogByGroup` simply resolves `m.dep.Get(ctx)` and delegates to `mapMyLog`. Unit tests can then call `mapMyLog` directly with `testlog.NewMockLog` and `testchangeset.AssertTimeline` without needing a `Binder` or task harness.
 
 > [!IMPORTANT]
-> **Shared Builder Reference:** When unit testing mappers that dynamically construct timeline paths via context builder, you MUST initialize a single `khifilev6.Builder` and resolve all comparison `TimelinePath` instances using this builder. Crucially, the same builder instance must be injected into the execution context using `khictx.WithValue` to ensure pointer equality during assertions.
+> **Shared Builder Reference:** When unit testing mappers that dynamically construct timeline paths via context builder, you MUST initialize a single `khifilev6.Builder` (or `khifilev6.NewTestBuilder`) and resolve all comparison `TimelinePath` instances using this builder. Crucially, the same builder instance must be injected into the execution context using `khictx.WithValue` to ensure pointer equality during assertions.
 
 ```go
-func TestMyTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapMyLog(t *testing.T) {
  // 1. Initialize the Builder first.
- builder := khifilev6.NewBuilder()
+ builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
  // 2. Resolve comparative path instances using the Builder's accumulator.
  // TimelineTypes must be imported from the feature root package.
@@ -359,19 +358,32 @@ func TestMyTimelineMapper_ProcessLogByGroup(t *testing.T) {
   },
  }
 
- mapper := &MySimpleMapper{}
  for _, tc := range testCases {
   t.Run(tc.name, func(t *testing.T) {
    // 3. Set up the context using t.Context() and SAME builder instance.
    ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-   cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, tc.prevState)
+   cs, _, err := mapMyLog(ctx, tc.inputLog, tc.prevState)
    if err != nil {
-    t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+    t.Fatalf("mapMyLog() returned unexpected error: %v", err)
    }
 
    tc.assert(t, cs)
   })
  }
 }
+```
+
+To also verify task-level `Binder` wiring and end-to-end execution of `MyTimelineMapperTask`, use `inspectiontest.Run` with `tasktest.Given`:
+
+```go
+_, err := inspectiontest.Run(
+ t,
+ ctx,
+ MyTimelineMapperTask,
+ inspectioncore.TaskModeRun,
+ nil,
+ tasktest.Given(myfeature.MyLogIngesterTaskID, struct{}{}),
+ tasktest.Given(myfeature.MyLogGrouperTaskID, groupedLogs),
+)
 ```

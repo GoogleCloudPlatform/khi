@@ -22,7 +22,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -629,7 +628,7 @@ uid: "test-uid"`,
 		},
 	}
 
-	mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSetting{
+	mapperSetting := &resourceRevisionLogToTimelineMapperTaskSetting{
 		kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
 			"core/v1#pod": {},
 		},
@@ -647,7 +646,7 @@ uid: "test-uid"`,
 			subresourcePath = builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "binding", Type: inspectioncore.TimelineTypeSubresource})
 
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.InitialResourceStateProviderRef, newTestInitialResourceStateProvider(t, ""))
+			initialStateProvider := newTestInitialResourceStateProvider(t, "")
 
 			// Setup the Log and Mock Group Context dynamically for each test case.
 			logObj := testlog.NewMockLog(
@@ -725,9 +724,9 @@ uid: "test-uid"`,
 				GroupSet:         groupSet,
 			}
 
-			cs, nextState, err := mapperSetting.ProcessLog(ctx, event, tc.inputState)
+			cs, nextState, err := mapperSetting.processLog(ctx, event, tc.inputState, initialStateProvider)
 			if err != nil {
-				t.Fatalf("ProcessLog() failed: %v", err)
+				t.Fatalf("processLog() failed: %v", err)
 			}
 
 			if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(resourceRevisionLogToTimelineMapperState{}), cmpopts.EquateEmpty()); diff != "" {
@@ -988,8 +987,8 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.InitialResourceStateProviderRef, newTestInitialResourceStateProvider(t, tc.initialStateYAML))
-			mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSetting{}
+			initialStateProvider := newTestInitialResourceStateProvider(t, tc.initialStateYAML)
+			mapperSetting := &resourceRevisionLogToTimelineMapperTaskSetting{}
 
 			targetResource := &k8saudit.ResourceIdentity{
 				APIVersion: "core/v1",
@@ -1053,9 +1052,9 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 				if idx > 0 {
 					ev.EventType = k8saudit.ChangeEventTypeModification
 				}
-				cs, nextState, err := mapperSetting.ProcessLog(ctx, ev, state)
+				cs, nextState, err := mapperSetting.processLog(ctx, ev, state, initialStateProvider)
 				if err != nil {
-					t.Fatalf("ProcessLog() failed: %v", err)
+					t.Fatalf("processLog() failed: %v", err)
 				}
 				state = nextState
 				changeSets = append(changeSets, cs)

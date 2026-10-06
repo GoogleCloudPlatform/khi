@@ -15,25 +15,20 @@
 package k8scommon_impl
 
 import (
-	"context"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	gkecluster_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gke/impl"
-	gkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/gkeonaws/impl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestClusterNameInput(t *testing.T) {
 	wantDescription := "The cluster name to gather logs."
 
-	mockClusterNamesTask1 := tasktest.StubTaskFromReferenceID(k8scommon.AutocompleteClusterIdentityTaskID.Ref(), &inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]{
+	clusterNamesResult := &inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]{
 		Values: []k8scommon.GoogleCloudClusterIdentity{
 			{
 				ClusterName: "foo-cluster",
@@ -43,9 +38,9 @@ func TestClusterNameInput(t *testing.T) {
 			},
 		},
 		Error: "",
-	}, nil)
+	}
 
-	mockAWSClusterNamesTask := tasktest.StubTaskFromReferenceID(k8scommon.AutocompleteClusterIdentityTaskID.Ref(), &inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]{
+	awsClusterNamesResult := &inspectioncore.AutocompleteResult[k8scommon.GoogleCloudClusterIdentity]{
 		Values: []k8scommon.GoogleCloudClusterIdentity{
 			{
 				ClusterName: "foo-cluster",
@@ -71,13 +66,13 @@ func TestClusterNameInput(t *testing.T) {
 			},
 		},
 		Error: "",
-	}, nil)
-	form_task_test.TestTextForms(t, "cluster name", InputClusterNameTask, []*form_task_test.TextFormTestCase{
+	}
+	form_task_test.TestTextForms(t, "cluster name", inputClusterNameTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "with valid cluster name under GKE prefix task",
 			Input:         "foo-cluster",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, gkecluster_impl.GKEClusterNamePrefixTask},
+			TaskInputs:    []tasktest.InputValue{tasktest.Given(k8scommon.AutocompleteClusterIdentityTaskID.Ref(), clusterNamesResult)},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          k8scommon.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -95,7 +90,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "with valid cluster name under AWS prefix task",
 			Input:         "foo-cluster",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockAWSClusterNamesTask, gkeonaws_impl.AnthosOnAWSClusterNamePrefixTask},
+			TaskInputs:    []tasktest.InputValue{tasktest.Given(k8scommon.AutocompleteClusterIdentityTaskID.Ref(), awsClusterNamesResult)},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          k8scommon.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -114,7 +109,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "spaces around cluster name must be trimmed",
 			Input:         "  foo-cluster   ",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, gkecluster_impl.GKEClusterNamePrefixTask},
+			TaskInputs:    []tasktest.InputValue{tasktest.Given(k8scommon.AutocompleteClusterIdentityTaskID.Ref(), clusterNamesResult)},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          k8scommon.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -132,7 +127,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "invalid cluster name",
 			Input:         "An invalid cluster name",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, gkecluster_impl.GKEClusterNamePrefixTask},
+			TaskInputs:    []tasktest.InputValue{tasktest.Given(k8scommon.AutocompleteClusterIdentityTaskID.Ref(), clusterNamesResult)},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          k8scommon.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -151,7 +146,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "non existing cluster should show a hint",
 			Input:         "nonexisting-cluster",
 			ExpectedValue: "nonexisting-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, gkecluster_impl.GKEClusterNamePrefixTask},
+			TaskInputs:    []tasktest.InputValue{tasktest.Given(k8scommon.AutocompleteClusterIdentityTaskID.Ref(), clusterNamesResult)},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          k8scommon.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -218,12 +213,12 @@ func TestValidateClusterName(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			errStr, err := validateClusterName(context.Background(), tc.value)
+			errStr, err := validateClusterName(t.Context(), tc.value)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tc.expectedError, errStr); diff != "" {
-				t.Errorf("validateClusterName() mismatch (-want +got):\n%s", diff)
+			if errStr != tc.expectedError {
+				t.Errorf("validateClusterName(%q) = %q, want %q", tc.value, errStr, tc.expectedError)
 			}
 		})
 	}
@@ -259,12 +254,12 @@ func TestConvertClusterName(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := convertClusterName(context.Background(), tc.value)
+			got, err := convertClusterName(t.Context(), tc.value)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tc.expectedValue, got); diff != "" {
-				t.Errorf("convertClusterName() mismatch (-want +got):\n%s", diff)
+			if got != tc.expectedValue {
+				t.Errorf("convertClusterName(%q) = %q, want %q", tc.value, got, tc.expectedValue)
 			}
 		})
 	}

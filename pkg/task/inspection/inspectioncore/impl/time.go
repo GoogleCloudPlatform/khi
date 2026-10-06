@@ -18,23 +18,13 @@ import (
 	"context"
 	"time"
 
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// InspectionTimeProducer is a provider of inspection time.
-// Tasks shouldn't use time.Now() directly to make test easier.
-var InspectionTimeProducer common_task.Task[time.Time] = common_task.NewTask(inspectioncore.InspectionTimeTaskID, []common_task.Dependency{}, func(ctx context.Context) (time.Time, error) {
-	return time.Now(), nil
+// inspectionTimeTask provides the inspection time. Tasks read it instead of calling time.Now() so that tests can fix the time.
+var inspectionTimeTask = coretask.Define(inspectioncore.InspectionTimeTaskID, func(b *coretask.Binder) func(ctx context.Context) (time.Time, error) {
+	return func(ctx context.Context) (time.Time, error) {
+		return time.Now(), nil
+	}
 })
-
-// TestInspectionTimeTaskProducer is a function to generate a fake InspectionTimeProducer task with the given time string.
-var TestInspectionTimeTaskProducer func(timeStr string) common_task.Task[time.Time] = func(timeStr string) common_task.Task[time.Time] {
-	return common_task.NewTask(inspectioncore.InspectionTimeTaskID, []common_task.Dependency{}, func(ctx context.Context) (time.Time, error) {
-		t, err := time.Parse(time.RFC3339, timeStr)
-		if err != nil {
-			return time.Time{}, err
-		}
-		return t, nil
-	})
-}

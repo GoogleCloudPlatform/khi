@@ -36,12 +36,6 @@ import (
 
 // GroupedLogIngester defines the interface for ingesting log metadata into KHI v6 format using group-sequential processing.
 type GroupedLogIngester[T any] interface {
-	// RawLogTask returns the task reference that provides the raw logs to ingest.
-	RawLogTask() taskid.TaskReference[[]*log.Log]
-	// GroupedLogTask returns a reference to the task that provides the grouped logs.
-	GroupedLogTask() taskid.TaskReference[LogGroupMap]
-	// Dependencies returns additional task dependencies of the ingester.
-	Dependencies() []coretask.Dependency
 	// PassCount returns the number of pre-processing passes to perform on each group.
 	PassCount() int
 	// PreProcessLogByGroup is called during a pre-processing pass for each log in a group.
@@ -66,127 +60,137 @@ func (SinglePassGroupedIngesterBase[T]) PreProcessLogByGroup(ctx context.Context
 	return prevGroupData, nil
 }
 
-// NewGroupedLogIngesterTask returns a task that ingests log metadata into the KHI v6 builder using group-sequential processing.
-func NewGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[struct{}], ingester GroupedLogIngester[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
-	rawLogTaskID := ingester.RawLogTask()
-	groupedLogTaskID := ingester.GroupedLogTask()
-	dependencies := append([]coretask.Dependency{rawLogTaskID, groupedLogTaskID}, ingester.Dependencies()...)
+// DefineGroupedLogIngesterTask returns a task that ingests metadata of the logs grouped by groupedLogTask into the KHI v6 builder using group-sequential processing.
+//
+// The task registers groupedLogTask on the Binder before calling bind.
+// bind is called once at task definition time to declare additional inputs and return the GroupedLogIngester[T] instance.
+// Because the returned GroupedLogIngester[T] is shared across inspections and concurrent worker goroutines, any per-group mutable state must be stored in T rather than on the ingester struct.
+func DefineGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[struct{}], groupedLogTask taskid.TaskReference[LogGroupMap], bind func(b *coretask.Binder) GroupedLogIngester[T], labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(TagLogIngester),
-	}, labels...)
-	return NewInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return struct{}{}, nil
-		}
-		groupedLogs := coretask.GetTaskResult(ctx, groupedLogTaskID)
-		builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-
-		totalLogCount := 0
-		var skippedLogCount atomic.Uint32
-		for _, group := range groupedLogs {
-			totalLogCount += len(group.Logs)
-		}
-
-		passCount := ingester.PassCount()
-		totalSteps := totalLogCount * (passCount + 1)
-
-		tracker := progress.NewTracker(ctx, totalSteps, progress.WithUnit("steps"))
-		defer tracker.Done()
-
-		var sharedErr error
-		var errMu sync.Mutex
-
-		setErr := func(err error) {
-			errMu.Lock()
-			defer errMu.Unlock()
-			if sharedErr == nil {
-				sharedErr = err
+	}, labelOpts...)
+	return DefineInspectionTask(taskID, func(b *coretask.Binder) InspectionTaskFunc[struct{}] {
+		groupedLogs := coretask.Use(b, groupedLogTask)
+		ingester := bind(b)
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return struct{}{}, nil
 			}
+			return struct{}{}, ingestGroupedLogs(ctx, taskID, groupedLogs.Get(ctx), ingester)
 		}
+	}, allLabels...)
+}
 
-		hasErr := func() bool {
-			if ctx.Err() != nil {
-				return true
-			}
-			errMu.Lock()
-			defer errMu.Unlock()
-			return sharedErr != nil
+// ingestGroupedLogs processes each log group in parallel with ingester and flushes the resulting change sets to the builder in the context.
+// Logs in the same group are processed sequentially so that ingester can pass state from one log to the next.
+func ingestGroupedLogs[T any](ctx context.Context, taskID taskid.TaskImplementationID[struct{}], groupedLogs LogGroupMap, ingester GroupedLogIngester[T]) error {
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+
+	totalLogCount := 0
+	var skippedLogCount atomic.Uint32
+	for _, group := range groupedLogs {
+		totalLogCount += len(group.Logs)
+	}
+
+	passCount := ingester.PassCount()
+	totalSteps := totalLogCount * (passCount + 1)
+
+	tracker := progress.NewTracker(ctx, totalSteps, progress.WithUnit("steps"))
+	defer tracker.Done()
+
+	var sharedErr error
+	var errMu sync.Mutex
+
+	setErr := func(err error) {
+		errMu.Lock()
+		defer errMu.Unlock()
+		if sharedErr == nil {
+			sharedErr = err
 		}
+	}
 
-		pool := worker.NewPool(runtime.GOMAXPROCS(0))
-		for _, group := range groupedLogs {
-			if ctx.Err() != nil {
-				break
+	hasErr := func() bool {
+		if ctx.Err() != nil {
+			return true
+		}
+		errMu.Lock()
+		defer errMu.Unlock()
+		return sharedErr != nil
+	}
+
+	pool := worker.NewPool(runtime.GOMAXPROCS(0))
+	for _, group := range groupedLogs {
+		if ctx.Err() != nil {
+			break
+		}
+		pool.Run(func() {
+			if hasErr() {
+				return
 			}
-			pool.Run(func() {
-				if hasErr() {
-					return
-				}
-				var groupData T
+			var groupData T
 
-				// 1. Pre-processing passes
-				passCount := ingester.PassCount()
-				for passIdx := 0; passIdx < passCount; passIdx++ {
-					for _, l := range group.Logs {
-						if hasErr() {
-							return
-						}
-						nextGroupData, err := ingester.PreProcessLogByGroup(ctx, passIdx, l, groupData)
-						tracker.Inc()
-						if err != nil {
-							logTaskError(ctx, fmt.Sprintf("pre-processor ended with an error at passIndex %d", passIdx), err, l)
-							setErr(err)
-							return
-						}
-						groupData = nextGroupData
-					}
-				}
-
-				// 2. Final processing pass
+			// 1. Pre-processing passes
+			passCount := ingester.PassCount()
+			for passIdx := 0; passIdx < passCount; passIdx++ {
 				for _, l := range group.Logs {
 					if hasErr() {
 						return
 					}
-					cs, nextGroupData, err := ingester.ProcessLogByGroup(ctx, l, groupData)
+					nextGroupData, err := ingester.PreProcessLogByGroup(ctx, passIdx, l, groupData)
 					tracker.Inc()
 					if err != nil {
-						logTaskError(ctx, "parser ended with an error", err, l)
+						logTaskError(ctx, fmt.Sprintf("pre-processor ended with an error at passIndex %d", passIdx), err, l)
 						setErr(err)
 						return
 					}
 					groupData = nextGroupData
-
-					if cs != nil {
-						err = cs.Flush(builder.LogAccumulator)
-						if err != nil {
-							logTaskError(ctx, "failed to flush log changeset in ingester", err, l)
-							setErr(err)
-							return
-						}
-					} else {
-						skippedLogCount.Add(1)
-					}
 				}
-			})
-		}
+			}
 
-		pool.Wait()
+			// 2. Final processing pass
+			for _, l := range group.Logs {
+				if hasErr() {
+					return
+				}
+				cs, nextGroupData, err := ingester.ProcessLogByGroup(ctx, l, groupData)
+				tracker.Inc()
+				if err != nil {
+					logTaskError(ctx, "parser ended with an error", err, l)
+					setErr(err)
+					return
+				}
+				groupData = nextGroupData
 
-		if ctx.Err() != nil {
-			return struct{}{}, ctx.Err()
-		}
-		if sharedErr != nil {
-			return struct{}{}, sharedErr
-		}
+				if cs != nil {
+					err = cs.Flush(builder.LogAccumulator)
+					if err != nil {
+						logTaskError(ctx, "failed to flush log changeset in ingester", err, l)
+						setErr(err)
+						return
+					}
+				} else {
+					skippedLogCount.Add(1)
+				}
+			}
+		})
+	}
 
-		slog.DebugContext(ctx, fmt.Sprintf("GroupedLogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), totalLogCount, skippedLogCount.Load()))
+	pool.Wait()
 
-		tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
-		if tracingActive {
-			trace.SpanFromContext(ctx).SetAttributes(
-				attribute.String("log_count", fmt.Sprintf("%d", totalLogCount)),
-			)
-		}
-		return struct{}{}, nil
-	}, allLabels...)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if sharedErr != nil {
+		return sharedErr
+	}
+
+	slog.DebugContext(ctx, fmt.Sprintf("GroupedLogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), totalLogCount, skippedLogCount.Load()))
+
+	tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
+	if tracingActive {
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("log_count", fmt.Sprintf("%d", totalLogCount)),
+		)
+	}
+	return nil
 }

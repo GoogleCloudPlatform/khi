@@ -24,31 +24,31 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// NodeNameDiscoveryTask extracts node names from Kubernetes Node component logs and registers them to NodeNameInventoryTask.
-var NodeNameDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// nodeNameDiscoveryTask extracts node names from Kubernetes Node component logs and registers them to NodeNameInventoryTask.
+var nodeNameDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8snode.NodeNameDiscoveryTaskID,
-	[]coretask.Dependency{
-		k8snode.ListLogEntriesTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return nil, nil
-		}
-
-		foundNodeNames := map[string]struct{}{}
-		logs := coretask.GetTaskResult(ctx, k8snode.ListLogEntriesTaskID.Ref())
-		for _, l := range logs {
-			fs, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
-			if err == nil && fs.NodeName != "" {
-				foundNodeNames[fs.NodeName] = struct{}{}
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]string] {
+		nodeLogs := coretask.Use(b, k8snode.ListLogEntriesTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
 			}
-		}
 
-		var result []string
-		for k := range foundNodeNames {
-			result = append(result, k)
+			foundNodeNames := map[string]struct{}{}
+			logs := nodeLogs.Get(ctx)
+			for _, l := range logs {
+				fs, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
+				if err == nil && fs.NodeName != "" {
+					foundNodeNames[fs.NodeName] = struct{}{}
+				}
+			}
+
+			var result []string
+			for k := range foundNodeNames {
+				result = append(result, k)
+			}
+			return result, nil
 		}
-		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagNodeNameDiscovery),
 	coretask.WithFeatureGate(k8snode.TailTaskID.Ref()),

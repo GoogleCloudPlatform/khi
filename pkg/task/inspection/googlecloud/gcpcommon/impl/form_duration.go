@@ -26,60 +26,61 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// InputDurationTask defines a form task to input the duration for log queries.
-var InputDurationTask = formtask.NewTextFormTaskBuilder(gcpcommon.InputDurationTaskID, gcpcommon.PriorityForQueryTimeGroup+4000, "Duration").
-	WithDependencies([]coretask.Dependency{
-		inspectioncore.InspectionTimeTaskID.Ref(),
-		gcpcommon.InputEndTimeTaskID.Ref(),
-		inspectioncore.TimeZoneShiftInputTaskID.Ref(),
-	}).
-	WithDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		if len(previousValues) > 0 {
-			return previousValues[0], nil
-		} else {
-			return "1h", nil
-		}
-	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		inspectionTime := coretask.GetTaskResult(ctx, inspectioncore.InspectionTimeTaskID.Ref())
-		endTime := coretask.GetTaskResult(ctx, gcpcommon.InputEndTimeTaskID.Ref())
-		timezoneShift := coretask.GetTaskResult(ctx, inspectioncore.TimeZoneShiftInputTaskID.Ref())
+// inputDurationTask defines a form task to input the duration for log queries.
+var inputDurationTask = formtask.DefineTextForm(
+	gcpcommon.InputDurationTaskID,
+	gcpcommon.PriorityForQueryTimeGroup+4000,
+	"Duration",
+	"The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)",
+	func(b *coretask.Binder) formtask.TextFormSpec[time.Duration] {
+		inspectionTimeInput := coretask.Use(b, inspectioncore.InspectionTimeTaskID.Ref())
+		endTimeInput := coretask.Use(b, gcpcommon.InputEndTimeTaskID.Ref())
+		timezoneShiftInput := coretask.Use(b, inspectioncore.TimeZoneShiftInputTaskID.Ref())
 
-		duration := convertedValue.(time.Duration)
-		startTime := endTime.Add(-duration)
-		startToNow := inspectionTime.Sub(startTime)
-		hintString := ""
-		if startToNow > time.Hour*24*30 {
-			hintString += "Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.\n"
+		return formtask.TextFormSpec[time.Duration]{
+			DefaultValue: func(ctx context.Context, previousValues []string) (string, error) {
+				if len(previousValues) > 0 {
+					return previousValues[0], nil
+				}
+				return "1h", nil
+			},
+			Suggestions: formtask.ConstantSuggestions("1m", "10m", "1h", "3h", "12h", "24h"),
+			Validator: func(ctx context.Context, value string) (string, error) {
+				d, err := time.ParseDuration(value)
+				if err != nil {
+					return err.Error(), nil
+				}
+				if d <= 0 {
+					return "duration must be positive", nil
+				}
+				return "", nil
+			},
+			Converter: func(ctx context.Context, value string) (time.Duration, error) {
+				return time.ParseDuration(value)
+			},
+			Hint: func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+				inspectionTime := inspectionTimeInput.Get(ctx)
+				endTime := endTimeInput.Get(ctx)
+				timezoneShift := timezoneShiftInput.Get(ctx)
+
+				duration := convertedValue.(time.Duration)
+				startTime := endTime.Add(-duration)
+				startToNow := inspectionTime.Sub(startTime)
+				hintString := ""
+				if startToNow > time.Hour*24*30 {
+					hintString += "Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.\n"
+				}
+				if duration > time.Hour*3 {
+					hintString += "This duration can be too long for big clusters and lead OOM. Please retry with shorter duration when your machine crashed.\n"
+				}
+				hintString += fmt.Sprintf("Query range:\n%s\n", toTimeDurationWithTimezone(startTime, endTime, timezoneShift, true))
+				hintString += fmt.Sprintf("(UTC: %s)\n", toTimeDurationWithTimezone(startTime, endTime, time.UTC, false))
+				hintString += fmt.Sprintf("(PDT: %s)", toTimeDurationWithTimezone(startTime, endTime, time.FixedZone("PDT", -7*3600), false))
+				return hintString, inspectionmetadata.Info, nil
+			},
 		}
-		if duration > time.Hour*3 {
-			hintString += "This duration can be too long for big clusters and lead OOM. Please retry with shorter duration when your machine crashed.\n"
-		}
-		hintString += fmt.Sprintf("Query range:\n%s\n", toTimeDurationWithTimezone(startTime, endTime, timezoneShift, true))
-		hintString += fmt.Sprintf("(UTC: %s)\n", toTimeDurationWithTimezone(startTime, endTime, time.UTC, false))
-		hintString += fmt.Sprintf("(PDT: %s)", toTimeDurationWithTimezone(startTime, endTime, time.FixedZone("PDT", -7*3600), false))
-		return hintString, inspectionmetadata.Info, nil
-	}).
-	WithSuggestionsConstant([]string{"1m", "10m", "1h", "3h", "12h", "24h"}).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return err.Error(), nil
-		}
-		if d <= 0 {
-			return "duration must be positive", nil
-		}
-		return "", nil
-	}).
-	WithConverter(func(ctx context.Context, value string) (time.Duration, error) {
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return 0, err
-		}
-		return d, nil
-	}).
-	Build()
+	},
+)
 
 func toTimeDurationWithTimezone(startTime time.Time, endTime time.Time, timezone *time.Location, withTimezone bool) string {
 	timeFormat := "2006-01-02T15:04:05"

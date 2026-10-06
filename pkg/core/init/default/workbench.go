@@ -71,11 +71,12 @@ var WorkbenchServiceInitializer = &coreinit.Initializer{
 		router := coreinit.MustGet(ctx, GinRouterKey)
 		basePath := coreinit.MustGet(ctx, BasePathKey)
 		serverParams := coreinit.MustGet(ctx, ServerParametersKey)
+		connectOpts, _ := coreinit.Get(ctx, ConnectHandlerOptionsKey)
 
 		workbenchManager := workbench.NewWorkbenchManager(inspectionServer, indexManager, *serverParams.MaxLoadedInspections)
 		coreinit.Set(ctx, WorkbenchManagerKey, workbenchManager)
 
-		workbenchPath, workbenchHandler := apiv1connect.NewWorkbenchServiceHandler(apiv1impl.NewWorkbenchServiceServer(workbenchManager))
+		workbenchPath, workbenchHandler := apiv1connect.NewWorkbenchServiceHandler(apiv1impl.NewWorkbenchServiceServer(workbenchManager), connectOpts...)
 		coreinit.RegisterConnectServiceHandler(router, basePath, workbenchPath, workbenchHandler)
 		return nil
 	},

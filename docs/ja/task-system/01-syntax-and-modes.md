@@ -4,11 +4,11 @@
 
 ---
 
-本ドキュメントでは、KHI のタスクアーキテクチャを理解し開発するために必須となる**タスクシステムの基本文法、実行ライフサイクルモード（`Run` と `DryRun`）、およびテスト手法**について解説します。
+本ドキュメントでは、KHI のタスクアーキテクチャを理解し開発するために必須となる**タスクシステムの基本文法、`Run` と `DryRun` の実行ライフサイクルモード、およびテスト手法**について解説します。
 
 ## 1. DAG で使用される基本的な形式
 
-DAG (Directed Acyclic Graph: 有向非巡回グラフ) は、サイクルを持たずに一方向に流れるグラフです。KHI の文脈では、これはタスクが依存関係に基づいて特定の順序で実行されるワークフローを表します。グラフ内の各ノードはタスクであり、エッジはタスク間の依存関係を表します。
+DAG は、サイクルを持たずに一方向に流れる有向非巡回グラフです。KHI の文脈では、これはタスクが依存関係に基づいて特定の順序で実行されるワークフローを表します。グラフ内の各ノードはタスクであり、エッジはタスク間の依存関係を表します。
 
 ## 2. タスクの型 (`Task[T]`)
 
@@ -16,43 +16,45 @@ KHI のすべてのタスクには、その出力に関連付けられた「型�
 以下は `int` 値を返すタスクを宣言する例です:
 
 ```go
-var IntGeneratorTask = task.NewTask(
+var IntGeneratorTask = coretask.Define(
     IntGeneratorTaskID,
-    []coretask.Dependency{},
-    func(ctx context.Context) (int, error) {
-        return 1, nil
+    func(b *coretask.Binder) func(ctx context.Context) (int, error) {
+        return func(ctx context.Context) (int, error) {
+            return 1, nil
+        }
     },
 )
 ```
 
 この例では、以下の重要な要素を宣言しています:
 
-1. **`IntGeneratorTask` 型**: Go コンパイラはジェネリクス推論によりこのタスクの型を `task.Task[int]` と推論します。
+1. **`IntGeneratorTask` 型**: Go コンパイラはジェネリクス推論によりこのタスクの型を `coretask.Task[int]` と推論します。
 2. **第一引数 (`IntGeneratorTaskID`)**: タスクグラフにおけるそのタスク実装の ID を示します。これは `taskid.TaskImplementationID[int]` 型である必要があります。この ID を使用して、他のタスクからそのタスクへの参照を取得できます。
-3. **第二引数 (`[]coretask.Dependency`)**: このタスクが依存する依存関係のリストです。ポイント・ツー・ポイントのタスク参照 (`TaskReference[T]`) やタグ参照 (`TagReference[T]`) を指定できます。
-4. **第三引数 (実行関数)**: この関数の戻り値はタスクの型パラメータ（この場合は `int`）に準拠している必要があり、かつ戻り値の第二引数として常にエラーを返す必要があります。
+3. **第二引数 (`bind` 関数)**: タスクの構築時に `Define` から `*coretask.Binder` が渡され、`coretask.Use`、`coretask.UseOptional`、`coretask.UseTag`、または `coretask.After` を用いて入力の依存関係を宣言します。`bind` 関数は実行クロージャである `func(ctx context.Context) (int, error)` を返し、その戻り値の型はタスクの型パラメータに準拠している必要があります。静的な定数値を返すタスクの場合は、`coretask.DefineConstant(IntGeneratorTaskID, 1)` も利用できます。
 
 ## 3. タスク内部からの値の取得
 
-### 3.1 ポイント・ツー・ポイントの依存関係 (`GetTaskResult`)
+### 3.1 ポイント・ツー・ポイントの依存関係 (`coretask.Use`)
 
-先行タスクから値を読み取るには、そのタスクへの参照 (`taskID.Ref()`) を依存関係リストに含めます:
+先行タスクから値を読み取るには、`*coretask.Binder` に対して `coretask.Use` でタスク参照 (`taskID.Ref()`) をバインドし、返された `coretask.Input[T]` ハンドルから実行クロージャ内で値を取得します:
 
 ```go
-var DoubleIntTask = task.NewTask(
+var DoubleIntTask = coretask.Define(
     DoubleIntTaskID,
-    []coretask.Dependency{IntGeneratorTaskID.Ref()}, // 依存するタスク参照を指定
-    func(ctx context.Context) (int, error) {
-        // コンテキストと参照IDを渡して戻り値を取得
-        value := coretask.GetTaskResult(ctx, IntGeneratorTaskID.Ref())
-        return value * 2, nil
+    func(b *coretask.Binder) func(ctx context.Context) (int, error) {
+        // Binder に対して必須の入力タスク参照をバインド
+        intInput := coretask.Use(b, IntGeneratorTaskID.Ref())
+        return func(ctx context.Context) (int, error) {
+            // 型付き入力ハンドルから戻り値を取得
+            return intInput.Get(ctx) * 2, nil
+        }
     },
 )
 ```
 
 > [!IMPORTANT]
-> **未宣言の依存関係へのアクセス禁止**
-> 依存関係リストに宣言していないタスクに対して `coretask.GetTaskResult` を呼び出すと、実行時パニック (`panic`) が発生します。必ず第二引数の依存関係リストにアクセス対象のタスク参照を含めてください。
+> **すべての入力は `bind` 関数が返る前にバインドする**
+> `*coretask.Binder` は外側の `bind` 関数が返った時点で封印されます。先行タスクの戻り値は `b` から取得した `Input[T]`、`OptionalInput[T]`、または `TagInput[T]` ハンドル経由でしか読み取れないため、未宣言の依存関係に実行時アクセスしてしまうミスを構造的に防げます。戻り値を読み取らず実行順序のみを制御したい場合は、`coretask.After(b, dep)` で登録します。
 
 #### 依存関係スコープ
 
@@ -62,49 +64,56 @@ var DoubleIntTask = task.NewTask(
 - **`taskid.ScopeActiveFeatures` (`coretask.FromActiveFeatures`)**: 今回のインスペクションで有効化された機能に属するプロデューサタスクのみを引き込みます。**タグによるファンイン参照のデフォルト**です。
 - **`taskid.ScopeActiveGraph` (`coretask.FromActiveGraph`)**: 他の依存関係によってすでにアクティブグラフに含まれているタスクにのみ遅延バインドします。新たな上流タスクを自発的にグラフへ引き込むことはありません。
 
-必要に応じて、依存関係宣言時にスコープを明示的に指定して上書きできます。詳細は [3.4 依存関係スコープの明示指定 (`taskid.Scope*`)](#34-依存関係スコープの明示指定-taskidscope) を参照してください。
+必要に応じて、依存関係宣言時にスコープを明示的に指定して上書きできます。詳細は [3.4 依存関係スコープの明示指定 (`coretask.From*`)](#34-依存関係スコープの明示指定-coretaskfrom) を参照してください。
 
-### 3.2 オプショナルな依存関係 (`GetOptionalTaskResult`)
+### 3.2 オプショナルな依存関係 (`coretask.UseOptional`)
 
-依存先タスクがタスクグラフに必ず含まれるとは限らない場合（例: ユーザーが無効化できるオプショナル機能に属するタスクなど）は、`taskid.Optional` を指定します:
+ユーザーが無効化できるオプショナル機能に属するタスクのように、依存先タスクがタスクグラフに必ず含まれるとは限らない場合は、`coretask.FromActiveGraph` または `coretask.FromActiveFeatures` のスコープを指定した参照を `coretask.UseOptional` でバインドします:
 
 ```go
-var SafeConsumerTask = task.NewTask(
+var SafeConsumerTask = coretask.Define(
     SafeConsumerTaskID,
-    []coretask.Dependency{OptionalTaskID.Ref(taskid.Optional)},
-    func(ctx context.Context) (string, error) {
-        // 取得時はフラグ不要で通常の Ref() を渡せます
-        if val, ok := coretask.GetOptionalTaskResult(ctx, OptionalTaskID.Ref()); ok {
-            return val, nil
+    func(b *coretask.Binder) func(ctx context.Context) (string, error) {
+        // UseOptional には ScopeAll より狭いスコープである FromActiveGraph または FromActiveFeatures を指定します
+        optInput := coretask.UseOptional(b, OptionalTaskID.Ref(coretask.FromActiveGraph))
+        return func(ctx context.Context) (string, error) {
+            if val, ok := optInput.Get(ctx); ok {
+                return val, nil
+            }
+            return "fallback", nil
         }
-        return "fallback", nil
     },
 )
 ```
 
-### 3.3 タグによるファンイン (Fan-In) 依存関係 (`GetTaskResultsWithTag`)
+### 3.3 タグによるファンイン依存関係 (`coretask.UseTag`)
 
-複数のプロデューサが同一型のアイテムを生成する場合（例: 複数のログパーサーがログサマリーを生成する場合など）は、`Tag[T]` を使用します:
+複数のログパーサーがログサマリーを生成する場合のように、複数のプロデューサが同一型のアイテムを生成するケースでは、`Tag[T]` と `coretask.UseTag` を使用します:
 
 ```go
-// 1. contract でタグを宣言
+// 1. 機能ルートパッケージでタグを宣言
 var LogItemTag = coretask.NewTag[*LogItem]("khi.google.com/log-items")
 
 // 2. プロデューサタスクが ProvidesTag でタグの提供を宣言。必要に応じて WithTagPriority で優先度を指定可能
-var ParserTaskA = task.NewTask(
+var ParserTaskA = coretask.Define(
     ParserTaskAID,
-    []coretask.Dependency{SourceLogRef},
-    runParserA,
+    func(b *coretask.Binder) func(ctx context.Context) (*LogItem, error) {
+        sourceLogs := coretask.Use(b, SourceLogRef)
+        return func(ctx context.Context) (*LogItem, error) {
+            return parseLogA(ctx, sourceLogs.Get(ctx))
+        }
+    },
     coretask.ProvidesTag(LogItemTag, coretask.WithTagPriority(10)),
 )
 
-// 3. コンシューマタスクが GetTaskResultsWithTag で全アクティブプロデューサの結果を集約取得
-var AggregatorTask = task.NewTask(
+// 3. コンシューマタスクが UseTag で全アクティブプロデューサの結果を集約取得
+var AggregatorTask = coretask.Define(
     AggregatorTaskID,
-    []coretask.Dependency{LogItemTag.Ref()},
-    func(ctx context.Context) ([]*LogItem, error) {
-        items := coretask.GetTaskResultsWithTag(ctx, LogItemTag.Ref())
-        return items, nil
+    func(b *coretask.Binder) func(ctx context.Context) ([]*LogItem, error) {
+        itemsInput := coretask.UseTag(b, LogItemTag.Ref())
+        return func(ctx context.Context) ([]*LogItem, error) {
+            return itemsInput.Get(ctx), nil
+        }
     },
 )
 ```
@@ -118,31 +127,36 @@ var AggregatorTask = task.NewTask(
 2. **Priority による決定論的枝刈りと安定したグラフ**:
    循環を解消するためにエッジを任意に選んで切り落とすと、実行環境やタスク登録順序によって実行順序やデータフローが変動し、再現性のない不安定なグラフになってしまいます。
    - デフォルトで `DefaultTagPriority = 100` が設定される `coretask.WithTagPriority(priority)` により、プロデューサ側がデータの確度や寄与度を宣言します。数値が小さいほど高優先度として扱われます。
-   - グラフリゾルバはサイクルを形成するファンインエッジを決定論的に枝刈り（除外）し、常に安全で一意かつ安定した単一ステージの DAG を導出します。
+   - グラフリゾルバはサイクルを形成するファンインエッジを決定論的に枝刈りし、常に安全で一意かつ安定した単一ステージの DAG を導出します。
 
 詳細なアーキテクチャ背景は、[概念ガイド: 5. ファンインにおける循環依存の前提条件と Priority によるグラフ安定化](../khi-task-system-concept.md#5-ファンインにおける循環依存の前提条件と-priority-によるグラフ安定化) を参照してください。
 
-### 3.4 依存関係スコープの明示指定 (`taskid.Scope*`)
+### 3.4 依存関係スコープの明示指定 (`coretask.From*`)
 
-デフォルトのスコープ解決（ポイント・ツー・ポイント参照は `ScopeAll`、タグファンイン参照は `ScopeActiveFeatures`）を上書きしたい場合は、参照作成時にスコープ定数またはスコープオプションを渡します:
+オプショナル依存 (`coretask.UseOptional`) や順序指定 (`coretask.After`) を登録する場合、あるいはタグによるファンイン (`coretask.UseTag`) のスコープを絞り込む場合は、参照作成時に `coretask.FromActiveGraph` や `coretask.FromActiveFeatures` のスコープオプションを渡します。なお、`coretask.Use` は常にデフォルトの `ScopeAll` を要求します。
 
 ```go
-var AdvancedConsumerTask = task.NewTask(
+var AdvancedConsumerTask = coretask.Define(
     AdvancedConsumerTaskID,
-    []coretask.Dependency{
+    func(b *coretask.Binder) func(ctx context.Context) (ResultType, error) {
         // アクティブグラフにすでに含まれているタグプロデューサにのみ遅延バインドする
-        LogItemTag.Ref(taskid.ScopeActiveGraph),
+        itemsInput := coretask.UseTag(b, LogItemTag.Ref(coretask.FromActiveGraph))
 
-        // オプショナル依存において、全タスクプールから探索して引き込む
-        OptionalTaskID.Ref(taskid.Optional, taskid.ScopeAll),
+        // 今回のインスペクションで対象機能が有効な場合にのみオプショナル依存をバインドする
+        optInput := coretask.UseOptional(b, OptionalTaskID.Ref(coretask.FromActiveFeatures))
+
+        return func(ctx context.Context) (ResultType, error) {
+            items := itemsInput.Get(ctx)
+            optVal, _ := optInput.Get(ctx)
+            return computeResult(items, optVal), nil
+        }
     },
-    runAdvancedConsumer,
 )
 ```
 
 ## 4. タスク内でのログ出力 (`slog`)
 
-タスクのデバッグやエラー解析を行う際は、標準の `fmt.Println` ではなく、コンテキスト付きの構造化ロガーである `slog` (例: `slog.InfoContext`, `slog.ErrorContext` など) を使用してログを出力します。
+タスクのデバッグやエラー解析を行う際は、標準の `fmt.Println` ではなく、`slog.InfoContext` や `slog.ErrorContext` といったコンテキスト付きの構造化ロガーである `slog` を使用してログを出力します。
 
 ```go
 slog.InfoContext(ctx, "processing int value", "intValue", value)
@@ -153,65 +167,63 @@ slog.InfoContext(ctx, "processing int value", "intValue", value)
 ## 5. タスクのパッケージ構造とパッケージ名規約
 
 KHI のすべての検査タスクは、**単一機能ごとに専用のパッケージとして分離する** アーキテクチャ原則を採用しています。
-各タスクは `pkg/task/inspection/<パッケージ名>/` 配下の固有のフォルダー内に定義し、さらにその配下で以下の 2 つのディレクトリへと明確に分離する必要があります:
+各タスクは `pkg/task/inspection/<ドメイン>/<機能名>/` 配下のフォルダー内に定義し、パッケージ直下の公開レイヤーと `impl/` サブパッケージへと明確に分離します:
 
 ```text
-pkg/task/inspection/<パッケージ名>/
-├── contract/  # 公開インターフェース・タスク ID・型定義のみを置く (実処理は書かない)
-└── impl/      # 実際のタスク定義やログ処理ロジック (実装) を置く
+pkg/task/inspection/<ドメイン>/<機能名>/
+├── taskid.go  # package <機能名>: 公開タスク ID・インターフェース・Extractor・型定義
+└── impl/      # package <機能名>_impl: 実際のタスク定義・ログ処理ロジック・module.go
 ```
 
-### 1. `contract` フォルダーの責務
+### 1. 機能ルートパッケージの責務
 
-- その機能が他のタスクへと公開する **タスク ID**、**インターフェース**、および **公開データ構造（構造体や列挙型など）** のみを定義します。
-- **実処理を含む関数やタスク実装自体（`task.NewTask(...)`）を記述してはなりません。**
-- 他のあらゆるタスクパッケージからインポート可能な唯一の公開レイヤーです。
+- その機能が他のタスクへと公開する **タスク ID** (`taskid.go`)、**インターフェース**、**Extractor 関数**、および構造体や列挙型といった **公開データ構造** を定義します。
+- **`impl` パッケージをインポートしたり、`coretask.Define(...)` によるタスク実装自体を記述してはなりません。**
+- 他のタスクパッケージからインポート可能な公開レイヤーです。
 
 ### 2. `impl` フォルダーの責務
 
-- `contract` で定義されたタスク ID に紐づく実際のタスク（`var SomeTask = task.NewTask(...)` 等）や、パーサー・マッパーロジックの実装コードを記述します。
-- `init()` や初期化関数 (`Register(...)` 等) を配置します。
-- **他の機能パッケージの `impl` をインポートすることは禁止されています。** 別の機能に依存する場合は、必ずその機能の `contract` のみをインポートし、タスク依存関係としてタスクグラフ上で連携してください。
+- 機能ルートパッケージで定義されたタスク ID に紐づく `var SomeTask = coretask.Define(...)` や `inspectiontaskbase.DefineInspectionTask(...)` といった実際のタスク、およびパーサー・マッパーロジックの実装コードを記述します。
+- `module.go` 内で `var Module = coreinspection.Module{...}` をエクスポートし、対象スコープとタスク一覧を宣言します。
+- **他の機能パッケージの `impl` をインポートすることは禁止されています。** 別の機能に依存する場合は、必ずその機能のルートパッケージのみをインポートし、タスク依存関係としてタスクグラフ上で連携してください。
 
 ### 3. パッケージ名 (`package` 宣言) の命名規約
 
-Go では、単に `contract` や `impl` というパッケージ名で宣言すると、異なる機能間でインポート時の識別名が衝突したりコード上で出処が分かりにくくなります。
-そのため、`contract` ディレクトリおよび `impl` ディレクトリ内の Go ソースファイルでは、**親の機能パッケージ名に `_contract` または `_impl` のサフィックスを結合したパッケージ名で宣言する** 規約を採用しています:
+- **機能ルート (`pkg/task/inspection/<ドメイン>/<機能名>/`) 配下のファイル**: `package k8snode` のように `package <機能名>` と宣言します。
+- **`impl/` 配下のファイル**: `package k8snode_impl` のように `package <機能名>_impl` と宣言します。
 
-- **`contract/` 配下のファイル**: `package <機能名>_contract` (例: `package example_contract`)
-- **`impl/` 配下のファイル**: `package <機能名>_impl` (例: `package example_impl`)
-
-他のタスクから型や ID を参照する際は、必ずこの `<機能名>_contract` パッケージのみをインポートしてください。
+他のタスクから型やタスク ID を参照する際は、必ずこの `<機能名>` ルートパッケージのみをインポートしてください。
 
 ## 6. インスペクションタスクの実行モード (`Run` と `DryRun`)
 
 KHI のインスペクションタスクは、実行されるシチュエーションに応じて **`Run` モード** と **`DryRun` モード** のいずれかで呼び出されます。これはタスクグラフ実行における根本的なライフサイクル機能であり、重い解析処理と UI の軽量なインタラクションを明確に分離するために設計されています。
 
-- **`Run` モード (`TaskModeRun`)**: ユーザーが「Start Inspection」ボタンをクリックして分析を開始した際に選択される通常実行モードです。実際のログクエリ、構文解析、履歴ファイル（KHI ファイル）の生成・シリアライズを実行します。
+- **`Run` モード (`TaskModeRun`)**: ユーザーが「Start Inspection」ボタンをクリックして分析を開始した際に選択される通常実行モードです。実際のログクエリ、構文解析、履歴ファイルである KHI ファイルの生成・シリアライズを実行します。
 - **`DryRun` モード (`TaskModeDryRun`)**: ユーザーが「New Inspection」画面で入力パラメータを変更したり、フォーム項目やオートコンプリート候補を動的に取得する際に実行される軽量なモードです。UI の応答性を維持するため、時間のかかるログ取得や解析処理はこのモードではスキップされます。
 
 ### 実行モードを判定する具体的なコード例
 
-すべてのインスペクションタスク（または低レベルタスクユーティリティ）は、引数として渡される `inspectioncore_contract.InspectionTaskModeType` (`taskMode`) を評価し、現在の実行モードに応じて処理を切り替える実装にします。
+すべてのインスペクションタスクおよび低レベルタスクユーティリティは、引数として渡される `inspectioncore.InspectionTaskModeType` (`taskMode`) を評価し、現在の実行モードに応じて処理を切り替える実装にします。
 以下は、`DryRun` 時には重い処理を行わずに軽量な空結果や必要な UI メタデータのみを返し、`Run` モード時にのみ実際の解析処理を実行する標準的な Go 実装例です:
 
 ```go
-var ExampleInspectionTask = inspectiontaskbase.NewInspectionTask(
+var ExampleInspectionTask = inspectiontaskbase.DefineInspectionTask(
     ExampleInspectionTaskID,
-    []taskid.UntypedTaskReference{SourceLogsTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (ResultType, error) {
-        // 1. DryRun モードの判定: フォーム設定用や軽量実行時は、重いログ取得や解析をスキップして即座に返す
-        if taskMode == inspectioncore_contract.TaskModeDryRun {
-            return ResultType{}, nil
-        }
+    func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[ResultType] {
+        logsInput := coretask.Use(b, SourceLogsTaskID.Ref())
+        return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (ResultType, error) {
+            // 1. DryRun モードの判定: フォーム設定用や軽量実行時は、重いログ取得や解析をスキップして即座に返す
+            if taskMode == inspectioncore.TaskModeDryRun {
+                return ResultType{}, nil
+            }
 
-        // 2. Run モード時: 実際のログ取得および時間のかかる解析・計算処理を実行する
-        logs := coretask.GetTaskResult(ctx, SourceLogsTaskID.Ref())
-        result, err := doHeavyAnalysis(ctx, logs)
-        if err != nil {
-            return ResultType{}, err
+            // 2. Run モード時: 実際のログ取得および時間のかかる解析・計算処理を実行する
+            result, err := doHeavyAnalysis(ctx, logsInput.Get(ctx))
+            if err != nil {
+                return ResultType{}, err
+            }
+            return result, nil
         }
-        return result, nil
     },
     coretask.WithTitle("Analyze source logs"),
 )
@@ -224,13 +236,13 @@ var ExampleInspectionTask = inspectiontaskbase.NewInspectionTask(
 作成された個々のタスクやタスクグラフは、KHI が提供するテストユーティリティを使用して独立してテストできます。
 ここでは `tasktest` パッケージを利用したテストについて説明します。
 
-### 7.1 `tasktest.RunTask`
+### 7.1 `tasktest.Run`
 
-最もシンプルに単一タスクの振る舞いを検証する場合、`tasktest.RunTask` を呼び出すことができます。
+単一タスクの振る舞いを独立して検証する場合は `tasktest.Run` を呼び出し、上流タスクの入力値をポイント・ツー・ポイント参照向けの `tasktest.Given` やタグファンイン参照向けの `tasktest.GivenTag` で指定します。
 
 ```go
 func TestIntGeneratorTask(t *testing.T) {
-    res, err := tasktest.RunTask(t.Context(), IntGeneratorTask, map[taskid.UntypedTaskImplementationID]any{})
+    res, err := tasktest.Run(t, t.Context(), IntGeneratorTask)
     if err != nil {
         t.Fatalf("unexpected error: %v", err)
     }
@@ -238,10 +250,24 @@ func TestIntGeneratorTask(t *testing.T) {
         t.Errorf("res mismatch (-want +got):\n- %v\n+ %v", 1, res)
     }
 }
+
+func TestDoubleIntTask(t *testing.T) {
+    res, err := tasktest.Run(
+        t,
+        t.Context(),
+        DoubleIntTask,
+        tasktest.Given(IntGeneratorTaskID.Ref(), 5),
+    )
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+    if res != 10 {
+        t.Errorf("res mismatch (-want +got):\n- %v\n+ %v", 10, res)
+    }
+}
 ```
 
-第三引数には、依存タスクからの戻り値をモックアップするマップを渡すことができます。
-依存関係を持たないタスクの場合は、空のマップを指定します。
+`tasktest.Run` は、対象タスクの `Binder` に宣言されたすべての必須入力が `tasktest.Given` で与えられていること、および未宣言の入力が渡されていないことを検証します。
 
 ### 7.2 `tasktest.RunTaskWithDependency`
 

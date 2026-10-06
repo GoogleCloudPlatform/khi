@@ -18,13 +18,17 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"runtime"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/kwaymerge"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
@@ -40,124 +44,89 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// StructuredListLogEntriesTaskSetting defines the settings for a Cloud Logging task driven by StructuredLogQuery.
-type StructuredListLogEntriesTaskSetting interface {
-	// TaskID returns the task ID for the structured list log entries task.
-	TaskID() taskid.TaskImplementationID[[]*log.Log]
-
-	// Dependencies returns the list of dependencies for the task.
-	Dependencies() []coretask.Dependency
-
+// StructuredLogQuerySource provides the resource names, queries, and time partitions of a Cloud Logging task driven by StructuredLogQuery.
+type StructuredLogQuerySource interface {
 	// DefaultResourceNames returns default resource names (e.g. ["projects/<project-id>"]).
 	DefaultResourceNames(ctx context.Context) ([]string, error)
 
 	// Queries returns the list of structured log queries for estimation and execution.
-	Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error)
+	Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error)
 
 	// TimePartitionCount returns the number of time partitions to gather logs in parallel.
-	TimePartitionCount(ctx context.Context) (int, error)
-
-	// QueryName returns human-readable name of the query.
-	QueryName() string
+	TimePartitionCount() int
 }
 
-// NewStructuredListLogEntriesTask creates a new task that queries logs from Cloud Logging using StructuredLogQuery.
+// DefineStructuredListLogEntriesTask defines a task that queries logs from Cloud Logging using the StructuredLogQuery list of the source returned by bind.
+// It declares the time range, resource names, log fetcher, and API client inputs before it calls bind, so bind only declares the inputs of the source.
 // In DryRun mode, it estimates log volumes and populates QueryMetadata with estimated counts.
-func NewStructuredListLogEntriesTask(taskSetting StructuredListLogEntriesTaskSetting) coretask.Task[[]*log.Log] {
-	taskID := taskSetting.TaskID()
-	dependencies := []coretask.Dependency{}
-	dependencies = append(dependencies, taskSetting.Dependencies()...)
-	dependencies = append(dependencies,
-		InputStartTimeTaskID.Ref(),
-		InputEndTimeTaskID.Ref(),
-		InputLoggingFilterResourceNameTaskID.Ref(),
-		LoggingFetcherTaskID.Ref(),
-		APIClientFactoryTaskID.Ref(),
-		APIClientCallOptionsInjectorTaskID.Ref(),
-	)
-	queryName := taskSetting.QueryName()
-
-	return inspectiontaskbase.NewInspectionTask(
+func DefineStructuredListLogEntriesTask(taskID taskid.TaskImplementationID[[]*log.Log], queryName string, bind func(b *coretask.Binder) StructuredLogQuerySource) coretask.Task[[]*log.Log] {
+	return inspectiontaskbase.DefineInspectionTask(
 		taskID,
-		dependencies,
-		func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*log.Log, error) {
-			startTime := coretask.GetTaskResult(ctx, InputStartTimeTaskID.Ref())
-			endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
-			resourceNames, err := handleResourceNames(ctx, taskID, &resourceNamesSettingAdapter{taskSetting: taskSetting})
-			if err != nil {
-				return nil, fmt.Errorf("failed to determine resource names list for structured log query: %w", err)
-			}
+		func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]*log.Log] {
+			startTime := coretask.Use(b, InputStartTimeTaskID.Ref())
+			endTime := coretask.Use(b, InputEndTimeTaskID.Ref())
+			resourceNamesInput := coretask.Use(b, InputLoggingFilterResourceNameTaskID.Ref())
+			logFetcher := coretask.Use(b, LoggingFetcherTaskID.Ref())
+			clientFactory := coretask.Use(b, APIClientFactoryTaskID.Ref())
+			callOptionInjector := coretask.Use(b, APIClientCallOptionsInjectorTaskID.Ref())
+			source := bind(b)
+			return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*log.Log, error) {
+				groups, queries, err := resolveStructuredQueries(ctx, taskID, taskMode, resourceNamesInput.Get(ctx), source)
+				if err != nil {
+					return nil, err
+				}
+				if len(queries) == 0 {
+					return []*log.Log{}, nil
+				}
 
-			queries, err := taskSetting.Queries(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("Queries returned an error: %w", err)
-			}
-			if len(queries) == 0 {
-				slog.DebugContext(ctx, "Queries returned an empty list. Skipping fetching logs for this task.")
-				return []*log.Log{}, nil
-			}
+				if taskMode != inspectioncore.TaskModeRun {
+					return nil, estimateAndRecordQueries(ctx, taskID.String(), clientFactory.Get(ctx), callOptionInjector.Get(ctx), groups, queries, startTime.Get(ctx), endTime.Get(ctx), queryName)
+				}
 
-			groups, err := groupResourceNamesByContainer(resourceNames)
-			if err != nil {
-				return nil, err
+				timePartitionCount, err := resolveTimePartitionCount(source)
+				if err != nil {
+					return nil, err
+				}
+				return fetchLogsForStructuredQueries(ctx, taskID.String(), logFetcher.Get(ctx), groups, queries, startTime.Get(ctx), endTime.Get(ctx), queryName, timePartitionCount)
 			}
-
-			// In DryRun: perform volume estimation across all container groups and record query metadata.
-			if taskMode != inspectioncore.TaskModeRun {
-				clientFactory := coretask.GetTaskResult(ctx, APIClientFactoryTaskID.Ref())
-				callOptionInjector, _ := coretask.GetOptionalTaskResult(ctx, APIClientCallOptionsInjectorTaskID.Ref())
-				return nil, estimateAndRecordQueries(ctx, taskID.String(), clientFactory, callOptionInjector, groups, queries, startTime, endTime, queryName)
-			}
-
-			// In Run mode: fetch logs across partitions.
-			timePartitionCount, err := taskSetting.TimePartitionCount(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("TimePartitionCount returned an error: %w", err)
-			}
-			if timePartitionCount < 1 {
-				return nil, fmt.Errorf("TimePartitionCount returned an invalid value %d, it must be bigger than 0", timePartitionCount)
-			}
-
-			logFetcher := coretask.GetTaskResult(ctx, LoggingFetcherTaskID.Ref())
-			return fetchLogsForStructuredQueries(ctx, taskID.String(), logFetcher, groups, queries, startTime, endTime, queryName, timePartitionCount)
 		},
 		coretask.WithLabelValue(RequestOptionalInputResourceNameTaskLabel, taskID.ReferenceIDString()),
 		coretask.WithTitle(fmt.Sprintf("Fetch %s", queryName)),
 	)
 }
 
-// resourceNamesSettingAdapter adapts StructuredListLogEntriesTaskSetting to ListLogEntriesTaskSetting for resource name handling.
-type resourceNamesSettingAdapter struct {
-	taskSetting StructuredListLogEntriesTaskSetting
-}
-
-func (a *resourceNamesSettingAdapter) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return a.taskSetting.TaskID()
-}
-
-func (a *resourceNamesSettingAdapter) Dependencies() []coretask.Dependency {
-	return a.taskSetting.Dependencies()
-}
-
-func (a *resourceNamesSettingAdapter) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	return a.taskSetting.DefaultResourceNames(ctx)
-}
-
-func (a *resourceNamesSettingAdapter) LogFilters(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
-	return nil, nil
-}
-
-func (a *resourceNamesSettingAdapter) TimePartitionCount(ctx context.Context) (int, error) {
-	return a.taskSetting.TimePartitionCount(ctx)
-}
-
-func (a *resourceNamesSettingAdapter) Description() *ListLogEntriesTaskDescription {
-	return &ListLogEntriesTaskDescription{
-		QueryName: a.taskSetting.QueryName(),
+// resolveStructuredQueries determines the resource names and queries of a structured list log entries task and groups the resource names by container.
+// It returns no queries when the source has none, so that the caller can skip fetching logs.
+func resolveStructuredQueries(ctx context.Context, taskID taskid.TaskImplementationID[[]*log.Log], taskMode inspectioncore.InspectionTaskModeType, resourceNamesInput *ResourceNamesInput, source StructuredLogQuerySource) ([]*resourceContainerLogQueryGroup, []*logestimator.StructuredLogQuery, error) {
+	resourceNames, err := handleResourceNames(ctx, taskID, resourceNamesInput, source.DefaultResourceNames)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to determine resource names list for structured log query: %w", err)
 	}
+
+	queries, err := source.Queries(ctx, taskMode)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Queries returned an error: %w", err)
+	}
+	if len(queries) == 0 {
+		slog.DebugContext(ctx, "Queries returned an empty list. Skipping fetching logs for this task.")
+		return nil, nil, nil
+	}
+
+	groups, err := groupResourceNamesByContainer(resourceNames)
+	if err != nil {
+		return nil, nil, err
+	}
+	return groups, queries, nil
 }
 
-var _ ListLogEntriesTaskSetting = (*resourceNamesSettingAdapter)(nil)
+// resolveTimePartitionCount returns the time partition count of the source after checking that it is positive.
+func resolveTimePartitionCount(source StructuredLogQuerySource) (int, error) {
+	timePartitionCount := source.TimePartitionCount()
+	if timePartitionCount < 1 {
+		return 0, fmt.Errorf("TimePartitionCount returned an invalid value %d, it must be bigger than 0", timePartitionCount)
+	}
+	return timePartitionCount, nil
+}
 
 // LogEstimatorCacheKey is the key to retrieve or store CachedStructuredLogEstimator in the InspectionSharedMap.
 var LogEstimatorCacheKey = typedmap.NewTypedKey[*logestimator.CachedStructuredLogEstimator]("googlecloud.logestimator.cache")
@@ -350,4 +319,118 @@ func setStructuredQueryInfoWithPendingAndPreset(ctx context.Context, taskID, bas
 	}
 	summary.RecordQuery(ctx, taskID, logFilterName, finalFilter)
 	return nil
+}
+
+// maxResourceNameCountPerRequest is the maximum allowed count of resource names per single entries.list. The default quota is 100.
+var maxResourceNameCountPerRequest = 100
+
+func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogFetchProgress, tracker *progress.RatioTracker, baseLogCount int, listCallIndex int, totalListCalls int) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case p, ok := <-source:
+				if !ok {
+					return
+				}
+				totalLogCount := baseLogCount + p.LogCount
+				completeRatio := (float32(listCallIndex) + p.Progress) / float32(totalListCalls)
+				tracker.Update(completeRatio, totalLogCount, progress.WithStep(listCallIndex+1, totalListCalls))
+			}
+		}
+	}()
+}
+
+// handleResourceNames retrieves and validates resource names for a given task, updating default values if necessary.
+func handleResourceNames(ctx context.Context, taskID taskid.TaskImplementationID[[]*log.Log], resourceNamesInput *ResourceNamesInput, getDefaultResourceNames func(ctx context.Context) ([]string, error)) ([]string, error) {
+	queryResourceNamePair := resourceNamesInput.GetResourceNamesForQuery(ctx, taskID.ReferenceIDString())
+
+	defaultResourceNames, err := getDefaultResourceNames(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ResourceNames returned an error: %w", err)
+	}
+
+	resourceNamesInput.UpdateDefaultResourceNamesForQuery(taskID.ReferenceIDString(), defaultResourceNames)
+
+	return queryResourceNamePair.CurrentResourceNames, nil
+}
+
+// setErrorMetadataForFetchLogError extracts error information from a log fetching operation and adds it to the inspection run's error message set metadata.
+func setErrorMetadataForFetchLogError(ctx context.Context, err error) error {
+	metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+	errorMessageSet, found := typedmap.Get(metadata, inspectionmetadata.ErrorMessageSetMetadataKey)
+	if !found {
+		return fmt.Errorf("error message set metadata was not found. originalError=%w", err)
+	}
+	errorMessageSet.AddErrorMessage(&inspectionmetadata.ErrorMessage{
+		ErrorId: 0,
+		Message: err.Error(),
+	})
+	return err
+}
+
+// resourceContainerLogQueryGroup groups resource names under a common Google Cloud resource container.
+type resourceContainerLogQueryGroup struct {
+	container     googlecloud.ResourceContainer
+	resourceNames []string
+}
+
+// groupResourceNamesByContainer groups a list of resource names by their Google Cloud resource container.
+// It returns a slice of resourceContainerLogQueryGroup, where each group contains resource names
+// belonging to the same container (e.g., project).
+func groupResourceNamesByContainer(resourceNames []string) ([]*resourceContainerLogQueryGroup, error) {
+	groups := make(map[string]*resourceContainerLogQueryGroup)
+
+	for _, resourceName := range resourceNames {
+		var container googlecloud.ResourceContainer
+		switch {
+		case strings.HasPrefix(resourceName, "projects/"):
+			projectID := resourceName[len("projects/"):]
+			slashIndex := strings.Index(projectID, "/")
+			if slashIndex != -1 {
+				projectID = projectID[:slashIndex]
+			}
+			container = googlecloud.Project(projectID)
+		default:
+			// TODO: Add support for other resource containers like organizations, folders, and billingAccounts.
+			// Unsupported resource container types.
+		}
+		if container == nil {
+			return nil, fmt.Errorf("unsupported resource name %q : %w", resourceName, khierrors.ErrInvalidInput)
+		}
+		containerIdentifier := container.Identifier()
+		if _, ok := groups[containerIdentifier]; !ok {
+			groups[containerIdentifier] = &resourceContainerLogQueryGroup{
+				container: container,
+			}
+		}
+
+		group := groups[containerIdentifier]
+		group.resourceNames = append(group.resourceNames, resourceName)
+	}
+
+	result := slices.Collect(maps.Values(groups))
+	slices.SortFunc(result, func(a, b *resourceContainerLogQueryGroup) int {
+		return strings.Compare(a.container.Identifier(), b.container.Identifier())
+	})
+	return result, nil
+}
+
+// divideGroupByMaximumResourceName divides resourceContainerLogQueryGroup instances into smaller groups if their resourceNames slice exceeds maxResourceNamePerGroup.
+func divideGroupByMaximumResourceName(groups []*resourceContainerLogQueryGroup, maxResourceNamePerGroup int) []*resourceContainerLogQueryGroup {
+	var dividedGroups []*resourceContainerLogQueryGroup
+	for _, group := range groups {
+		for len(group.resourceNames) > maxResourceNamePerGroup {
+			dividedGroups = append(dividedGroups, &resourceContainerLogQueryGroup{
+				container:     group.container,
+				resourceNames: group.resourceNames[:maxResourceNamePerGroup],
+			})
+			group.resourceNames = group.resourceNames[maxResourceNamePerGroup:]
+		}
+		dividedGroups = append(dividedGroups, group)
+	}
+	return dividedGroups
 }

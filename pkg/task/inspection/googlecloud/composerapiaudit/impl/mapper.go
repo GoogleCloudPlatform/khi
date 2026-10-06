@@ -22,42 +22,48 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerapiaudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// LogIngesterTask ingests Cloud Composer audit logs into KHI v6 format.
-var LogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
+// logIngesterTask ingests Cloud Composer audit logs into KHI v6 format.
+var logIngesterTask = gcpcommon.DefineGCPOperationLogIngesterTask(
 	composerapiaudit.LogIngesterTaskID,
 	composerapiaudit.ListLogEntriesTaskID.Ref(),
 	composerapiaudit.LogTypeManagedAirflowAPI,
 )
 
-// LogGrouperTask groups Cloud Composer audit logs by environment name.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+// logGrouperTask groups Cloud Composer audit logs by environment name.
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	composerapiaudit.LogGrouperTaskID,
 	composerapiaudit.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		resourceFieldSet, err := composerapiaudit.ExtractComposerAuditLogResource(l.NodeReader)
-		if err != nil {
-			return "unknown"
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			resourceFieldSet, err := composerapiaudit.ExtractComposerAuditLogResource(l.NodeReader)
+			if err != nil {
+				return "unknown"
+			}
+			return resourceFieldSet.EnvironmentName
 		}
-		return resourceFieldSet.EnvironmentName
 	},
 )
 
-// LogToTimelineMapperTask maps Cloud Composer audit logs to timeline events and operation revisions.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*gcpcommon.GCPOperationTracker](
+// logToTimelineMapperTask maps Cloud Composer audit logs to timeline events and operation revisions.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	composerapiaudit.LogToTimelineMapperTaskID,
-	&composerAuditLogLogToTimelineMapperSetting{},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: composerapiaudit.LogIngesterTaskID.Ref(),
+		GroupedLogs: composerapiaudit.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
+		return &composerAuditTimelineMapper{}
+	},
 	inspectioncore.FeatureTaskLabel(
 		"Managed Airflow API Logs",
 		"Gather Managed Airflow API audit logs to visualize environment operations (creation, update, and deletion) on timelines.",
@@ -66,29 +72,17 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*gcp
 	),
 )
 
-type composerAuditLogLogToTimelineMapperSetting struct {
+// composerAuditTimelineMapper maps Cloud Composer audit logs to timeline events and operation revisions.
+type composerAuditTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
 
-// Dependencies returns additional task dependencies.
-func (s *composerAuditLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask returns a reference to the log grouper task.
-func (s *composerAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return composerapiaudit.LogGrouperTaskID.Ref()
-}
-
-// LogIngesterTask returns a reference to the log ingester task.
-func (s *composerAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return composerapiaudit.LogIngesterTaskID.Ref()
-}
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*composerAuditTimelineMapper)(nil)
 
 var pathEnvironment = structured.CompileFieldPath("environment")
 
 // ProcessLogByGroup maps a single Composer audit log entry to timeline events and revisions.
-func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
+func (s *composerAuditTimelineMapper) ProcessLogByGroup(
 	ctx context.Context,
 	l *log.Log,
 	tracker *gcpcommon.GCPOperationTracker,
@@ -207,5 +201,3 @@ func (s *composerAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(
 
 	return cs, tracker, nil
 }
-
-var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*composerAuditLogLogToTimelineMapperSetting)(nil)

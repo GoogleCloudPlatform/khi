@@ -25,7 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestNewAliasTask(t *testing.T) {
+func TestDefineAliasTask(t *testing.T) {
 	tests := []struct {
 		name        string
 		sourceValue string
@@ -43,20 +43,21 @@ func TestNewAliasTask(t *testing.T) {
 			sourceTaskID := taskid.NewDefaultImplementationID[string]("source-task")
 			aliasTaskID := taskid.NewDefaultImplementationID[string]("alias-task")
 
-			aliasTask := NewAliasTask(aliasTaskID, sourceTaskID.Ref())
+			aliasTask := DefineAliasTask(aliasTaskID, sourceTaskID.Ref())
 
 			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](sourceTaskID.ReferenceIDString()), tc.sourceValue)
 			ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 			ctx = khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, taskid.UntypedTaskImplementationID(aliasTaskID))
-			ctx = khictx.WithValue(ctx, core_contract.TaskDependenciesContextKey, aliasTask.Dependencies())
 
-			deps := aliasTask.Dependencies()
-			if len(deps) != 1 {
-				t.Fatalf("unexpected dependency count: %d", len(deps))
+			inputs := aliasTask.Inputs()
+			if len(inputs) != 1 {
+				t.Fatalf("unexpected input count: %d", len(inputs))
 			}
-			ptp, ok := deps[0].(taskid.PointToPointDescriptor)
-			if !ok || ptp.ReferenceID() != sourceTaskID.ReferenceIDString() {
-				t.Errorf("unexpected dependencies: %v", deps)
+			if inputs[0].Kind != InputKindRequired {
+				t.Errorf("inputs[0].Kind = %v, want %v", inputs[0].Kind, InputKindRequired)
+			}
+			if inputs[0].Dependency != sourceTaskID.Ref() {
+				t.Errorf("inputs[0].Dependency = %v, want %v", inputs[0].Dependency, sourceTaskID.Ref())
 			}
 
 			res, err := aliasTask.Run(ctx)

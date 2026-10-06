@@ -77,12 +77,13 @@ func TestAuditLogFileReaderTask(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			baseCtx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
-			gotLogs, _, err := inspectiontest.RunInspectionTask(
+			gotLogs, _, err := inspectiontest.Run(
+				t,
 				baseCtx,
-				AuditLogFileReaderTask,
+				auditLogFileReaderTask,
 				tc.taskMode,
 				nil,
-				tasktest.NewTaskDependencyValuePair(
+				tasktest.Given(
 					ossk8s.InputAuditLogFilesFormTaskID.Ref(),
 					upload.UploadResult{
 						Status:        upload.UploadStatusCompleted,
@@ -92,7 +93,7 @@ func TestAuditLogFileReaderTask(t *testing.T) {
 				),
 			)
 			if err != nil {
-				t.Fatalf("AuditLogFileReaderTask returned unexpected error: %v", err)
+				t.Fatalf("auditLogFileReaderTask returned unexpected error: %v", err)
 			}
 
 			if len(gotLogs) != tc.wantLogCount {

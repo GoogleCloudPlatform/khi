@@ -15,12 +15,13 @@
 package k8scommon_impl
 
 import (
-	"context"
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
@@ -82,28 +83,32 @@ func TestFilterAndTrimPrefixFromClusterNames(t *testing.T) {
 
 func TestClusterScopedAutocompleteTasks_IncompleteClusterIdentity(t *testing.T) {
 	testCases := []struct {
-		name     string
-		task     coretask.Task[*inspectioncore.AutocompleteResult[string]]
-		cluster  k8scommon.GoogleCloudClusterIdentity
-		wantHint string
+		name       string
+		task       coretask.Task[*inspectioncore.AutocompleteResult[string]]
+		metricsRef taskid.TaskReference[string]
+		cluster    k8scommon.GoogleCloudClusterIdentity
+		wantHint   string
 	}{
 		{
-			name:     "AutocompleteNamespacesTask returns hint when project ID is missing",
-			task:     AutocompleteNamespacesTask,
-			cluster:  k8scommon.GoogleCloudClusterIdentity{},
-			wantHint: "Namespace names are suggested after the project ID, cluster name, and location are provided.",
+			name:       "autocompleteNamespacesTask returns hint when project ID is missing",
+			task:       autocompleteNamespacesTask,
+			metricsRef: k8scommon.AutocompleteMetricsK8sContainerTaskID.Ref(),
+			cluster:    k8scommon.GoogleCloudClusterIdentity{},
+			wantHint:   "Namespace names are suggested after the project ID, cluster name, and location are provided.",
 		},
 		{
-			name: "AutocompletePodNamesTask returns hint when cluster name is missing",
-			task: AutocompletePodNamesTask,
+			name:       "autocompletePodNamesTask returns hint when cluster name is missing",
+			task:       autocompletePodNamesTask,
+			metricsRef: k8scommon.AutocompleteMetricsK8sContainerTaskID.Ref(),
 			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ProjectID: "test-project",
 			},
 			wantHint: "Pod names are suggested after the project ID, cluster name, and location are provided.",
 		},
 		{
-			name: "AutocompleteNodeNamesTask returns hint when location is missing",
-			task: AutocompleteNodeNamesTask,
+			name:       "autocompleteNodeNamesTask returns hint when location is missing",
+			task:       autocompleteNodeNamesTask,
+			metricsRef: k8scommon.AutocompleteMetricsK8sNodeTaskID.Ref(),
 			cluster: k8scommon.GoogleCloudClusterIdentity{
 				ProjectID:   "test-project",
 				ClusterName: "test-cluster",
@@ -114,18 +119,17 @@ func TestClusterScopedAutocompleteTasks_IncompleteClusterIdentity(t *testing.T) 
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			got, err := tasktest.RunTask(ctx, tc.task,
-				tasktest.NewTaskDependencyValuePair(k8scommon.ClusterIdentityTaskID.Ref(), tc.cluster),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), time.Unix(1000, 0)),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputEndTimeTaskID.Ref(), time.Unix(2000, 0)),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientFactoryTaskID.Ref(), nil),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), nil),
-				tasktest.NewTaskDependencyValuePair(k8scommon.AutocompleteMetricsK8sContainerTaskID.Ref(), "test-metric"),
-				tasktest.NewTaskDependencyValuePair(k8scommon.AutocompleteMetricsK8sNodeTaskID.Ref(), "test-metric"),
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			got, _, err := inspectiontest.Run(t, ctx, tc.task, inspectioncore.TaskModeDryRun, map[string]any{},
+				tasktest.Given(k8scommon.ClusterIdentityTaskID.Ref(), tc.cluster),
+				tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), time.Unix(1000, 0)),
+				tasktest.Given(gcpcommon.InputEndTimeTaskID.Ref(), time.Unix(2000, 0)),
+				tasktest.Given(gcpcommon.APIClientFactoryTaskID.Ref(), (*googlecloud.ClientFactory)(nil)),
+				tasktest.Given(gcpcommon.APIClientCallOptionsInjectorTaskID.Ref(), (*googlecloud.CallOptionInjector)(nil)),
+				tasktest.Given(tc.metricsRef, "test-metric"),
 			)
 			if err != nil {
-				t.Fatalf("RunTask() unexpected error: %v", err)
+				t.Fatalf("Run() unexpected error: %v", err)
 			}
 			want := &inspectioncore.AutocompleteResult[string]{
 				Values: []string{},
@@ -133,7 +137,7 @@ func TestClusterScopedAutocompleteTasks_IncompleteClusterIdentity(t *testing.T) 
 				Hint:   tc.wantHint,
 			}
 			if diff := cmp.Diff(want, got); diff != "" {
-				t.Errorf("RunTask() mismatch (-want +got):\n%s", diff)
+				t.Errorf("Run() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

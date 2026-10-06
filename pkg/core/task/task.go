@@ -63,8 +63,8 @@ type UntypedTask interface {
 	// The implementation of this function must return a constant value.
 	Labels() *typedmap.ReadonlyTypedMap
 
-	// Dependencies returns the list of task dependencies. Task runner will wait for these dependencies before running this task.
-	Dependencies() []Dependency
+	// Inputs returns the inputs declared for this task in declaration order.
+	Inputs() []InputSpec
 
 	// ResultType returns the reflection Type of the task output.
 	ResultType() reflect.Type
@@ -84,161 +84,10 @@ type Task[TaskResult any] interface {
 	Run(ctx context.Context) (TaskResult, error)
 }
 
-// TaskImpl provides the default implementation of Task.
-type TaskImpl[TaskResult any] struct {
-	id           taskid.TaskImplementationID[TaskResult]
-	labels       *typedmap.ReadonlyTypedMap
-	dependencies []Dependency
-	runFunc      func(ctx context.Context) (TaskResult, error)
-}
-
-// Run implements Task.
-func (c *TaskImpl[TaskResult]) Run(ctx context.Context) (TaskResult, error) {
-	return c.runFunc(ctx)
-}
-
-// Dependencies implements Task.
-func (c *TaskImpl[TaskResult]) Dependencies() []Dependency {
-	return c.dependencies
-}
-
-// ID implements Task.
-func (c *TaskImpl[TaskResult]) ID() taskid.TaskImplementationID[TaskResult] {
-	return c.id
-}
-
-// Labels implements Task.
-func (c *TaskImpl[TaskResult]) Labels() *typedmap.ReadonlyTypedMap {
-	return c.labels
-}
-
-// UntypedID implements UntypedTask.
-func (c *TaskImpl[TaskResult]) UntypedID() taskid.UntypedTaskImplementationID {
-	return c.ID()
-}
-
-// UntypedRun implements UntypedTask.
-func (c *TaskImpl[TaskResult]) UntypedRun(ctx context.Context) (any, error) {
-	return c.Run(ctx)
-}
-
-// ResultType implements UntypedTask.
-func (c *TaskImpl[TaskResult]) ResultType() reflect.Type {
-	return reflect.TypeFor[TaskResult]()
-}
-
-var _ Task[any] = (*TaskImpl[any])(nil)
-
-// NewTask constructs a new Task with the given implementation ID, dependencies, execution function, and label options.
-func NewTask[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], dependencies []Dependency, runFunc func(ctx context.Context) (TaskResult, error), labelOpts ...LabelOpt) *TaskImpl[TaskResult] {
-	verifyTaskID(taskID)
-	verifyNonNilDependencies(taskID, dependencies)
-	resultType := reflect.TypeFor[TaskResult]()
-	labelOpts = append([]LabelOpt{WithLabelValue(LabelKeyTaskResultType, resultType.String())}, labelOpts...)
-	labels := NewLabelSet(labelOpts...)
-	verifyLabelKeys(taskID, labels)
-	return &TaskImpl[TaskResult]{
-		id:           taskID,
-		labels:       labels,
-		dependencies: dedupeDependencies(dependencies),
-		runFunc:      runFunc,
-	}
-}
-
-// mergedPointToPointDescriptor wraps PointToPointDescriptor with an updated dependency scope.
-type mergedPointToPointDescriptor struct {
-	taskid.PointToPointDescriptor
-	scope taskid.DependencyScope
-}
-
-var _ taskid.PointToPointDescriptor = (*mergedPointToPointDescriptor)(nil)
-
-// DescriptorScope returns the merged dependency scope.
-func (m *mergedPointToPointDescriptor) DescriptorScope() taskid.DependencyScope {
-	return m.scope
-}
-
-// mergedFanInDescriptor wraps FanInDescriptor with an updated dependency scope.
-type mergedFanInDescriptor struct {
-	taskid.FanInDescriptor
-	scope taskid.DependencyScope
-}
-
-var _ taskid.FanInDescriptor = (*mergedFanInDescriptor)(nil)
-
-// DescriptorScope returns the merged dependency scope.
-func (m *mergedFanInDescriptor) DescriptorScope() taskid.DependencyScope {
-	return m.scope
-}
-
-// mergeDependencies combines two duplicate dependencies targeting the same task or tag,
-// selecting the broader scope (ScopeAll > ScopeActiveFeatures > ScopeActiveGraph).
-func mergeDependencies(a, b Dependency) Dependency {
-	scope := mergeScopes(a.DescriptorScope(), b.DescriptorScope())
-
-	switch d := a.(type) {
-	case taskid.PointToPointDescriptor:
-		return &mergedPointToPointDescriptor{
-			PointToPointDescriptor: d,
-			scope:                  scope,
-		}
-	case taskid.FanInDescriptor:
-		return &mergedFanInDescriptor{
-			FanInDescriptor: d,
-			scope:           scope,
-		}
-	default:
-		return a
-	}
-}
-
-// mergeScopes returns the broader dependency scope between a and b.
-// Scope breadth order: ScopeAll > ScopeActiveFeatures > ScopeActiveGraph > ScopeUnspecified.
-func mergeScopes(a, b taskid.DependencyScope) taskid.DependencyScope {
-	if a == taskid.ScopeAll || b == taskid.ScopeAll {
-		return taskid.ScopeAll
-	}
-	if a == taskid.ScopeActiveFeatures || b == taskid.ScopeActiveFeatures {
-		return taskid.ScopeActiveFeatures
-	}
-	if a == taskid.ScopeActiveGraph || b == taskid.ScopeActiveGraph {
-		return taskid.ScopeActiveGraph
-	}
-	return taskid.ScopeUnspecified
-}
-
-func dedupeDependencies(dependencies []Dependency) []Dependency {
-	result := make([]Dependency, 0, len(dependencies))
-	seen := make(map[string]int, len(dependencies))
-	for _, dep := range dependencies {
-		key := dependencyKey(dep)
-		if key == "" {
-			result = append(result, dep)
-			continue
-		}
-		if idx, ok := seen[key]; ok {
-			result[idx] = mergeDependencies(result[idx], dep)
-			continue
-		}
-		seen[key] = len(result)
-		result = append(result, dep)
-	}
-	return result
-}
-
 func verifyTaskID[TaskResult any](taskID taskid.TaskImplementationID[TaskResult]) {
 	if taskID == nil || taskID.String() == "" {
 		panic(`Invalid taskID. This may be caused because of initialization order issue of global variables.
 Please define task IDs and types used in its type parameter in a different package.`)
-	}
-}
-
-func verifyNonNilDependencies(taskID taskid.UntypedTaskImplementationID, dependencies []Dependency) {
-	for i, dependency := range dependencies {
-		if dependency == nil {
-			panic(fmt.Sprintf(`Invalid task definition: %s. Given task dependency list contains a nil reference at #%d. This may be caused because of initialization order issue of global variables.
-Please define task IDs and types used in its type parameter in a different package.`, taskID.String(), i))
-		}
 	}
 }
 

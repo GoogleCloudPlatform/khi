@@ -29,8 +29,8 @@ func mergeNEGToBackendService(maps []k8scommon.NEGToBackendServiceMap) (k8scommo
 	return result, nil
 }
 
-// NEGToBackendServiceInventoryTask is the inventory task that provides aggregated NEG to BackendService mappings.
-var NEGToBackendServiceInventoryTask = inspectiontaskbase.NewInventoryTask(
+// negToBackendServiceInventoryTask is the inventory task that provides aggregated NEG to BackendService mappings.
+var negToBackendServiceInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	k8scommon.NEGToBackendServiceInventoryTaskID,
 	k8scommon.TagNEGToBackendServiceDiscovery,
 	mergeNEGToBackendService,

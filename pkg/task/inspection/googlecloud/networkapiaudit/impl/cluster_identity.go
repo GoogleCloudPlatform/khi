@@ -20,7 +20,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/networkapiaudit"
 )
 
-var ClusterIdentityAliasTask = coretask.NewAliasTask(
+// clusterIdentityAliasTask provides the cluster identity of GCE Network API audit log tasks from the shared k8scommon cluster identity task.
+var clusterIdentityAliasTask = coretask.DefineAliasTask(
 	networkapiaudit.ClusterIdentityTaskID,
 	k8scommon.ClusterIdentityTaskID.Ref(),
 )

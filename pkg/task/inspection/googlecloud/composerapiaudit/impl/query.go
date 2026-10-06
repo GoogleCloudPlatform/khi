@@ -20,16 +20,15 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerapiaudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GenerateComposerAuditStructuredQuery generates a structured query for Cloud Composer audit logs.
-func GenerateComposerAuditStructuredQuery(projectID, location, environmentName string) *logestimator.StructuredLogQuery {
+// generateComposerAuditStructuredQuery generates a structured query for Cloud Composer audit logs.
+func generateComposerAuditStructuredQuery(projectID, location, environmentName string) *logestimator.StructuredLogQuery {
 	filters := []logestimator.LoggingMonitoringMatcher{
 		logestimator.ResourceLabel("project_id", logestimator.Exact(projectID)),
 	}
@@ -51,45 +50,35 @@ func GenerateComposerAuditStructuredQuery(projectID, location, environmentName s
 	}
 }
 
-type composerAPIListLogEntriesTaskSetting struct{}
-
-// DefaultResourceNames returns the resource name for Cloud Logging queries.
-func (s *composerAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, composerapiaudit.ClusterIdentityTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
+// composerAuditQuerySource builds the Cloud Composer audit log query for the cluster and environment read through the inputs.
+type composerAuditQuerySource struct {
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	environmentName coretask.Input[string]
 }
 
-// Dependencies returns task dependencies for query construction.
-func (s *composerAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		composerapiaudit.ClusterIdentityTaskID.Ref(),
-		composercluster.InputComposerEnvironmentNameTaskID.Ref(),
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *composerAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	return []string{fmt.Sprintf("projects/%s", s.clusterIdentity.Get(ctx).ProjectID)}, nil
+}
+
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *composerAuditQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
+	clusterIdentity := s.clusterIdentity.Get(ctx)
+	environmentName := s.environmentName.Get(ctx)
+	return []*logestimator.StructuredLogQuery{generateComposerAuditStructuredQuery(clusterIdentity.ProjectID, clusterIdentity.Location, environmentName)}, nil
+}
+
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *composerAuditQuerySource) TimePartitionCount() int {
+	return 1
+}
+
+var _ gcpcommon.StructuredLogQuerySource = (*composerAuditQuerySource)(nil)
+
+// listLogEntriesTask queries Cloud Composer audit logs from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(composerapiaudit.ListLogEntriesTaskID, "Composer API Audit logs", func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+	return &composerAuditQuerySource{
+		clusterIdentity: coretask.Use(b, composerapiaudit.ClusterIdentityTaskID.Ref()),
+		environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
 	}
-}
-
-// QueryName returns human-readable name of the query.
-func (s *composerAPIListLogEntriesTaskSetting) QueryName() string {
-	return "Composer API Audit logs"
-}
-
-// Queries returns the list of structured log queries for estimation and execution.
-func (s *composerAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, composerapiaudit.ClusterIdentityTaskID.Ref())
-	environmentName := coretask.GetTaskResult(ctx, composercluster.InputComposerEnvironmentNameTaskID.Ref())
-	return []*logestimator.StructuredLogQuery{GenerateComposerAuditStructuredQuery(clusterIdentity.ProjectID, clusterIdentity.Location, environmentName)}, nil
-}
-
-// TaskID returns the implementation ID of this query task.
-func (s *composerAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return composerapiaudit.ListLogEntriesTaskID
-}
-
-// TimePartitionCount returns the number of time partitions to use when querying logs.
-func (s *composerAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
-}
-
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*composerAPIListLogEntriesTaskSetting)(nil)
-
-// ListLogEntriesTask is the task that queries Cloud Composer audit logs from Cloud Logging.
-var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&composerAPIListLogEntriesTaskSetting{})
+})

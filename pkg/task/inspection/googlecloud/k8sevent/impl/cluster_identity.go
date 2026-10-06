@@ -20,7 +20,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8sevent"
 )
 
-var ClusterIdentityAliasTask = coretask.NewAliasTask(
+// clusterIdentityAliasTask provides the cluster identity of Kubernetes event log tasks from the shared k8scommon cluster identity task.
+var clusterIdentityAliasTask = coretask.DefineAliasTask(
 	k8sevent.ClusterIdentityTaskID,
 	k8scommon.ClusterIdentityTaskID.Ref(),
 )

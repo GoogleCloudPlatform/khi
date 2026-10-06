@@ -24,12 +24,15 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-var TimeZoneShiftInputTask = inspectiontaskbase.NewInspectionTask(inspectioncore.TimeZoneShiftInputTaskID, []coretask.Dependency{}, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (*time.Location, error) {
-	req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
-	if tzShiftAny, found := req[inspectioncore.TaskInputKeyTimezoneShiftHours]; found {
-		if tzShiftFloat, convertible := tzShiftAny.(float64); convertible && tzShiftFloat != 0 {
-			return time.FixedZone("Unknown", int(tzShiftFloat*3600)), nil
+// timeZoneShiftInputTask reads the timezone shift hours from the inspection input and returns the location used to show times.
+var timeZoneShiftInputTask = inspectiontaskbase.DefineInspectionTask(inspectioncore.TimeZoneShiftInputTaskID, func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[*time.Location] {
+	return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (*time.Location, error) {
+		req := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInput)
+		if tzShiftAny, found := req[inspectioncore.TaskInputKeyTimezoneShiftHours]; found {
+			if tzShiftFloat, convertible := tzShiftAny.(float64); convertible && tzShiftFloat != 0 {
+				return time.FixedZone("Unknown", int(tzShiftFloat*3600)), nil
+			}
 		}
+		return time.UTC, nil
 	}
-	return time.UTC, nil
 })

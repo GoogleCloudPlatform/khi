@@ -203,11 +203,11 @@ endpoints:
 					},
 				},
 			}
-			got, _, err := inspectiontest.RunInspectionTask(ctx, IPLeaseHistoryDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(k8saudit.ManifestGeneratorTaskID.Ref(), input),
+			got, _, err := inspectiontest.Run(t, ctx, ipLeaseHistoryDiscoveryTask, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.Given(k8saudit.ManifestGeneratorTaskID.Ref(), input),
 			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask failed: %v", err)
+				t.Fatalf("inspectiontest.Run() failed: %v", err)
 			}
 			for i, wantIdentifier := range test.wantIdentifiers {
 				result, err := got.GetResourceLeaseHolderAt(wantIdentifier.ip, testTime)

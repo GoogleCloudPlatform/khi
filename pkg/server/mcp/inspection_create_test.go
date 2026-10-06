@@ -263,16 +263,22 @@ func newToolsTestEnv(t *testing.T) *toolsTestEnv {
 		}
 	}
 
-	clusterNameTask := formtask.NewTextFormTaskBuilder(
+	clusterNameTask := formtask.DefineTextForm(
 		taskid.NewDefaultImplementationID[string]("cluster-name"),
 		1,
 		"Cluster Name",
-	).WithValidator(func(ctx context.Context, value string) (string, error) {
-		if value == "" {
-			return "cluster name is required", nil
-		}
-		return "", nil
-	}).Build()
+		"",
+		func(_ *coretask.Binder) formtask.TextFormSpec[string] {
+			return formtask.TextFormSpec[string]{
+				Validator: func(ctx context.Context, value string) (string, error) {
+					if value == "" {
+						return "cluster name is required", nil
+					}
+					return "", nil
+				},
+			}
+		},
+	)
 
 	blockingTaskStarted := make(chan struct{}, 1)
 	releaseCh := make(chan struct{})
@@ -281,72 +287,74 @@ func newToolsTestEnv(t *testing.T) *toolsTestEnv {
 		releaseOnce.Do(func() { close(releaseCh) })
 	}
 
-	blockingFeatureTask := coretask.NewTask(
+	blockingFeatureTask := coretask.Define(
 		taskid.NewDefaultImplementationID[any]("k8s-audit-log"),
-		[]coretask.Dependency{clusterNameTask.UntypedID().GetUntypedReference()},
-		func(ctx context.Context) (any, error) {
-			mode, _ := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
-			if mode == inspectioncore.TaskModeDryRun {
-				return nil, nil
-			}
-			progress.Report(ctx, 0.6, "91200 logs fetched")
-			select {
-			case blockingTaskStarted <- struct{}{}:
-			default:
-			}
-			select {
-			case <-releaseCh:
-				return nil, nil
-			case <-ctx.Done():
-				return nil, ctx.Err()
+		func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+			coretask.After(b, clusterNameTask.UntypedID().GetUntypedReference())
+			return func(ctx context.Context) (any, error) {
+				mode, _ := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
+				if mode == inspectioncore.TaskModeDryRun {
+					return nil, nil
+				}
+				progress.Report(ctx, 0.6, "91200 logs fetched")
+				select {
+				case blockingTaskStarted <- struct{}{}:
+				default:
+				}
+				select {
+				case <-releaseCh:
+					return nil, nil
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
 			}
 		},
 		inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "Audit logs", 1, true),
 		coretask.WithTitle("Query K8s audit logs"),
 	)
 
-	authFailTask := coretask.NewTask(
+	authFailTask := coretask.Define(
 		taskid.NewDefaultImplementationID[any]("auth-fail-feature"),
-		nil,
-		func(ctx context.Context) (any, error) {
-			// gRPC clients report a token fetch failure of expired credentials in this form.
-			return nil, status.Error(codes.Unauthenticated, "transport: per-RPC creds failed due to error: auth: cannot fetch token: 400\nResponse: {\"error\":\"invalid_grant\"}")
+		func(_ *coretask.Binder) func(ctx context.Context) (any, error) {
+			return func(ctx context.Context) (any, error) {
+				// gRPC clients report a token fetch failure of expired credentials in this form.
+				return nil, status.Error(codes.Unauthenticated, "transport: per-RPC creds failed due to error: auth: cannot fetch token: 400\nResponse: {\"error\":\"invalid_grant\"}")
+			}
 		},
 		inspectioncore.FeatureTaskLabel("Auth Fail Feature", "Fails with auth error", 3, false),
 	)
 
-	doneFeatureTask := coretask.NewTask(
+	doneFeatureTask := coretask.DefineConstant[any](
 		taskid.NewDefaultImplementationID[any]("done-feature"),
-		nil,
-		func(ctx context.Context) (any, error) {
-			return "done", nil
-		},
+		"done",
 		inspectioncore.FeatureTaskLabel("Done Feature", "Succeeds immediately", 4, false),
 	)
 
-	failFeatureTask := coretask.NewTask(
+	failFeatureTask := coretask.Define(
 		taskid.NewDefaultImplementationID[any]("fail-feature"),
-		nil,
-		func(ctx context.Context) (any, error) {
-			mode, _ := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
-			if mode == inspectioncore.TaskModeDryRun {
-				return nil, nil
+		func(_ *coretask.Binder) func(ctx context.Context) (any, error) {
+			return func(ctx context.Context) (any, error) {
+				mode, _ := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
+				if mode == inspectioncore.TaskModeDryRun {
+					return nil, nil
+				}
+				return nil, errors.New("network connection lost")
 			}
-			return nil, errors.New("network connection lost")
 		},
 		inspectioncore.FeatureTaskLabel("Fail Feature", "Fails in run mode", 5, false),
 		coretask.WithTitle("Fail task"),
 	)
 
-	untitledFailFeatureTask := coretask.NewTask(
+	untitledFailFeatureTask := coretask.Define(
 		taskid.NewDefaultImplementationID[any]("untitled-fail-feature"),
-		nil,
-		func(ctx context.Context) (any, error) {
-			mode, _ := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
-			if mode == inspectioncore.TaskModeDryRun {
-				return nil, nil
+		func(_ *coretask.Binder) func(ctx context.Context) (any, error) {
+			return func(ctx context.Context) (any, error) {
+				mode, _ := khictx.GetValue(ctx, inspectioncore.InspectionTaskMode)
+				if mode == inspectioncore.TaskModeDryRun {
+					return nil, nil
+				}
+				return nil, errors.New("disk quota exceeded")
 			}
-			return nil, errors.New("disk quota exceeded")
 		},
 		inspectioncore.FeatureTaskLabel("Untitled Fail Feature", "Fails in run mode without a title", 6, false),
 		coretask.WithTitle(""),

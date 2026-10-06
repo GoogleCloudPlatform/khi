@@ -37,7 +37,7 @@ type FilterTaskTestCase struct {
 
 // AssertFilterTask asserts that the given filter task behaves as expected for the given test cases.
 // It runs the task with the given log fields and checks if the log is included or excluded from the result.
-func AssertFilterTask(t *testing.T, task coretask.Task[[]*log.Log], sourceRef taskid.TaskReference[[]*log.Log], testCases []FilterTaskTestCase) {
+func AssertFilterTask(t *testing.T, task coretask.Task[[]*log.Log], sourceRef taskid.TaskReference[[]*log.Log], testCases []FilterTaskTestCase, inputs ...tasktest.InputValue) {
 	t.Helper()
 	for _, tc := range testCases {
 		t.Run(tc.Description, func(t *testing.T) {
@@ -47,9 +47,10 @@ func AssertFilterTask(t *testing.T, task coretask.Task[[]*log.Log], sourceRef ta
 			}
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
-			result, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(sourceRef, []*log.Log{l}))
+			allInputs := append([]tasktest.InputValue{tasktest.Given(sourceRef, []*log.Log{l})}, inputs...)
+			result, _, err := inspectiontest.Run(t, ctx, task, inspectioncore.TaskModeRun, map[string]any{}, allInputs...)
 			if err != nil {
-				t.Fatalf("RunInspectionTask failed: %v", err)
+				t.Fatalf("Run() failed: %v", err)
 			}
 			if tc.WantIncluded {
 				if len(result) == 0 {

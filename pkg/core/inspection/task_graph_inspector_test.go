@@ -32,8 +32,13 @@ import (
 func createTestTask(refID, implHash string, deps []coretask.Dependency, opts ...coretask.LabelOpt) coretask.UntypedTask {
 	ref := taskid.NewTaskReference[any](refID)
 	id := taskid.NewImplementationID[any](ref, implHash)
-	return coretask.NewTask[any](id, deps, func(ctx context.Context) (any, error) {
-		return nil, nil
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+		for _, dep := range deps {
+			coretask.After(b, dep)
+		}
+		return func(ctx context.Context) (any, error) {
+			return nil, nil
+		}
 	}, opts...)
 }
 
@@ -49,38 +54,38 @@ func TestEvaluateTaskCompatibility(t *testing.T) {
 
 	testCases := []struct {
 		name           string
-		task           coretask.UntypedTask
+		scope          Scope
 		wantCompatible bool
 		wantReasonSub  string
 	}{
 		{
 			name: "matches label selector",
-			task: createTestTask("task.a", "1", nil, inspectioncore.InspectionTypeLabelSelector(map[string]string{
+			scope: Scope{
 				"environment": "googlecloud",
 				"log_source":  "cloud_logging",
-			})),
+			},
 			wantCompatible: true,
 			wantReasonSub:  "Matched label selector",
 		},
 		{
 			name: "fails label selector with mismatched value",
-			task: createTestTask("task.a", "2", nil, inspectioncore.InspectionTypeLabelSelector(map[string]string{
+			scope: Scope{
 				"environment": "onprem",
-			})),
+			},
 			wantCompatible: false,
 			wantReasonSub:  "Mismatched label selector",
 		},
 		{
 			name: "fails label selector with missing key",
-			task: createTestTask("task.a", "3", nil, inspectioncore.InspectionTypeLabelSelector(map[string]string{
+			scope: Scope{
 				"cluster_type": "autopilot",
-			})),
+			},
 			wantCompatible: false,
 			wantReasonSub:  "missing on inspection type",
 		},
 		{
 			name:           "global task with no inspection constraints",
-			task:           createTestTask("task.c", "1", nil),
+			scope:          nil,
 			wantCompatible: true,
 			wantReasonSub:  "Global task",
 		},
@@ -88,7 +93,11 @@ func TestEvaluateTaskCompatibility(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotCompat, gotReason := EvaluateTaskCompatibility(tc.task, inspectionType)
+			task, err := applyScope(createTestTask("task.a", "1", nil), tc.scope)
+			if err != nil {
+				t.Fatalf("applyScope() failed: %v", err)
+			}
+			gotCompat, gotReason := EvaluateTaskCompatibility(task, inspectionType)
 			if gotCompat != tc.wantCompatible {
 				t.Errorf("EvaluateTaskCompatibility() compatible = %v, want %v", gotCompat, tc.wantCompatible)
 			}
@@ -130,7 +139,6 @@ func TestInspectRegistry(t *testing.T) {
 				depRef := taskid.NewTaskReference[any]("dep.ref")
 				task1 := createTestTask("group.ref", "impl1", []coretask.Dependency{depRef},
 					coretask.WithSelectionPriority(10),
-					inspectioncore.InspectionTypeLabelSelector(map[string]string{"env": "test"}),
 				)
 				task2 := createTestTask("group.ref", "impl2", nil,
 					coretask.WithSelectionPriority(20),
@@ -139,9 +147,19 @@ func TestInspectRegistry(t *testing.T) {
 				)
 				task3 := createTestTask("dep.ref", "impl1", nil)
 
-				_ = server.AddTask(task1)
-				_ = server.AddTask(task2)
-				_ = server.AddTask(task3)
+				if err := server.AddModules(
+					Module{
+						Name:  "scoped",
+						Scope: Scope{"env": "test"},
+						Tasks: []coretask.UntypedTask{task1},
+					},
+					Module{
+						Name:  "global",
+						Tasks: []coretask.UntypedTask{task2, task3},
+					},
+				); err != nil {
+					t.Fatalf("failed to add modules: %v", err)
+				}
 				return server
 			},
 			wantInspectionTypes: []*apiv1.RegisteredInspectionTypeInfo{
@@ -302,26 +320,36 @@ func TestInspectResolution(t *testing.T) {
 
 				taskA1 := createTestTask("feature.a", "impl1", nil,
 					coretask.WithSelectionPriority(10),
-					inspectioncore.InspectionTypeLabelSelector(map[string]string{"env": "gke"}),
 					inspectioncore.FeatureTaskLabel("Feature A", "Description A", 1, true),
 				)
 				taskA2 := createTestTask("feature.a", "impl2", nil,
 					coretask.WithSelectionPriority(20),
-					inspectioncore.InspectionTypeLabelSelector(map[string]string{"env": "gke"}),
 					inspectioncore.FeatureTaskLabel("Feature A", "Description A", 1, true),
 				)
-				taskB := createTestTask("task.b", "impl1", nil,
-					inspectioncore.InspectionTypeLabelSelector(map[string]string{"env": "onprem"}),
-				)
+				taskB := createTestTask("task.b", "impl1", nil)
 				refA := taskid.NewTaskReference[any]("feature.a")
 				taskC := createTestTask("task.c", "impl1", []coretask.Dependency{refA},
 					inspectioncore.FeatureTaskLabel("Feature C", "Description C", 2, true),
 				)
 
-				_ = server.AddTask(taskA1)
-				_ = server.AddTask(taskA2)
-				_ = server.AddTask(taskB)
-				_ = server.AddTask(taskC)
+				if err := server.AddModules(
+					Module{
+						Name:  "gke",
+						Scope: Scope{"env": "gke"},
+						Tasks: []coretask.UntypedTask{taskA1, taskA2},
+					},
+					Module{
+						Name:  "onprem",
+						Scope: Scope{"env": "onprem"},
+						Tasks: []coretask.UntypedTask{taskB},
+					},
+					Module{
+						Name:  "global",
+						Tasks: []coretask.UntypedTask{taskC},
+					},
+				); err != nil {
+					t.Fatalf("failed to add modules: %v", err)
+				}
 				return server
 			},
 			inspectionTypeID: "cluster-audit",

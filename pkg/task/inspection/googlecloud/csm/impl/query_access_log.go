@@ -22,15 +22,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GenerateCSMTrafficLogsStructuredQuery generates a structured query for CSM Traffic logs.
-func GenerateCSMTrafficLogsStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, responseFlagsSetFilter *gcpqueryutil.SetFilterParseResult, namespaceSetFilter *gcpqueryutil.SetFilterParseResult) *logestimator.StructuredLogQuery {
+// generateCSMTrafficLogsStructuredQuery generates a structured query for CSM Traffic logs.
+func generateCSMTrafficLogsStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, responseFlagsSetFilter *gcpqueryutil.SetFilterParseResult, namespaceSetFilter *gcpqueryutil.SetFilterParseResult) *logestimator.StructuredLogQuery {
 	filters := []logestimator.LoggingMonitoringMatcher{
 		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
 		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
@@ -99,46 +98,43 @@ func namespaceStructuredMatcher(filter *gcpqueryutil.SetFilterParseResult) loges
 	return logestimator.ResourceLabel("namespace_name", logestimator.ContainsAny(selectedNamespaces...))
 }
 
-type CSMTrafficLogListLogEntryTaskSetting struct{}
+// csmTrafficLogQuerySource builds the Cloud Logging query for the CSM traffic logs of the cluster.
+type csmTrafficLogQuerySource struct {
+	clusterIdentity     coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	namespaceFilter     coretask.Input[*gcpqueryutil.SetFilterParseResult]
+	responseFlagsFilter coretask.Input[*gcpqueryutil.SetFilterParseResult]
+}
 
-// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *CSMTrafficLogListLogEntryTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, csm.ClusterIdentityTaskID.Ref())
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *csmTrafficLogQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	cluster := s.clusterIdentity.Get(ctx)
 	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
-// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *CSMTrafficLogListLogEntryTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		csm.ClusterIdentityTaskID.Ref(),
-		k8scommon.InputNamespaceFilterTaskID.Ref(),
-		csm.InputCSMResponseFlagsTaskID.Ref(),
-	}
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *csmTrafficLogQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
+	cluster := s.clusterIdentity.Get(ctx)
+	namespaceFilter := s.namespaceFilter.Get(ctx)
+	responseFlagsFilter := s.responseFlagsFilter.Get(ctx)
+	return []*logestimator.StructuredLogQuery{generateCSMTrafficLogsStructuredQuery(cluster, responseFlagsFilter, namespaceFilter)}, nil
 }
 
-// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *CSMTrafficLogListLogEntryTaskSetting) QueryName() string {
-	return "CSM Traffic logs"
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *csmTrafficLogQuerySource) TimePartitionCount() int {
+	return 10
 }
 
-// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *CSMTrafficLogListLogEntryTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	cluster := coretask.GetTaskResult(ctx, csm.ClusterIdentityTaskID.Ref())
-	namespaceFilter := coretask.GetTaskResult(ctx, k8scommon.InputNamespaceFilterTaskID.Ref())
-	responseFlagsFilter := coretask.GetTaskResult(ctx, csm.InputCSMResponseFlagsTaskID.Ref())
-	return []*logestimator.StructuredLogQuery{GenerateCSMTrafficLogsStructuredQuery(cluster, responseFlagsFilter, namespaceFilter)}, nil
-}
+var _ gcpcommon.StructuredLogQuerySource = (*csmTrafficLogQuerySource)(nil)
 
-// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *CSMTrafficLogListLogEntryTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return csm.ListLogEntriesTaskID
-}
-
-// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *CSMTrafficLogListLogEntryTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
-	return 10, nil
-}
-
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*CSMTrafficLogListLogEntryTaskSetting)(nil)
-
-var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&CSMTrafficLogListLogEntryTaskSetting{})
+// listLogEntriesTask queries the CSM traffic logs of the cluster from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	csm.ListLogEntriesTaskID,
+	"CSM Traffic logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &csmTrafficLogQuerySource{
+			clusterIdentity:     coretask.Use(b, csm.ClusterIdentityTaskID.Ref()),
+			namespaceFilter:     coretask.Use(b, k8scommon.InputNamespaceFilterTaskID.Ref()),
+			responseFlagsFilter: coretask.Use(b, csm.InputCSMResponseFlagsTaskID.Ref()),
+		}
+	},
+)

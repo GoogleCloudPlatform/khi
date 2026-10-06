@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
@@ -34,8 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
-	mapper := &kubeletNodeLogLogToTimelineMapperSetting{}
+func TestKubeletLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
@@ -65,9 +63,9 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "kubelet")
-				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+				wantPodPath := mustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantComponentPath).
@@ -96,9 +94,9 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "kubelet")
-				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+				wantPodPath := mustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
 				wantContainerPath := k8saudit.MustK8sContainerTimeline(ctx, wantPodPath, "fluentbit-gke-init")
 
 				testchangeset.AssertTimeline(t, cs).
@@ -122,7 +120,7 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "kubelet")
 
 				wantResourceIdent := &k8saudit.ResourceIdentity{
@@ -155,7 +153,7 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "awsClusters/test-cluster", "node-1")
+				wantNodePath := mustK8sNodeTimeline(ctx, "awsClusters/test-cluster", "node-1")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "kubelet")
 
 				testchangeset.AssertTimeline(t, cs).
@@ -193,10 +191,6 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			}
 
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, k8snode.ClusterIdentityTaskID.Ref(), clusterIdent)
-			ctx = tasktest.WithTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.ResourceUIDPatternFinderTaskID.Ref(), finder)
 
 			klogParser := logutil.NewKLogTextParser(true)
 			message := klogParser.TryParse(tc.inputMessage)
@@ -207,9 +201,9 @@ func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				*tc.inputNodeLogFieldSet,
 			)
 
-			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
+			cs, err := mapKubeletLog(ctx, l, clusterIdent, podIDFinder, containerIDFinder, finder)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+				t.Fatalf("mapKubeletLog() returned unexpected error: %v", err)
 			}
 
 			tc.assert(t, ctx, cs)

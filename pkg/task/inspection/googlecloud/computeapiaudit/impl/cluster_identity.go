@@ -20,7 +20,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
-var ClusterIdentityAliasTask = coretask.NewAliasTask(
+// clusterIdentityAliasTask provides the cluster identity of Compute API audit log tasks from the shared k8scommon cluster identity task.
+var clusterIdentityAliasTask = coretask.DefineAliasTask(
 	computeapiaudit.ClusterIdentityTaskID,
 	k8scommon.ClusterIdentityTaskID.Ref(),
 )

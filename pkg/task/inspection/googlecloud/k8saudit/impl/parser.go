@@ -15,39 +15,28 @@
 package k8saudit_impl
 
 import (
-	"context"
-
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	commonk8saudit "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GCPK8sAuditLogExtractorTask provides K8sAuditLogExtractor for GCP audit logs.
-var GCPK8sAuditLogExtractorTask = coretask.NewTask(
+// gcpK8sAuditLogExtractorTask provides K8sAuditLogExtractor for GCP audit logs.
+var gcpK8sAuditLogExtractorTask = coretask.DefineConstant(
 	k8saudit.GCPK8sAuditLogExtractorTaskID,
-	[]coretask.Dependency{},
-	func(ctx context.Context) (commonk8saudit.K8sAuditLogExtractor, error) {
-		return k8saudit.ExtractGCPK8sAuditLog, nil
-	},
-	coretask.NewTaskResultRetentionLabel(true),
+	k8saudit.ExtractGCPK8sAuditLog,
 )
 
-// GCPK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for GCP audit logs.
-var GCPK8sAuditLogErrorExtractorTask = coretask.NewTask(
+// gcpK8sAuditLogErrorExtractorTask provides K8sAuditLogErrorExtractor for GCP audit logs.
+var gcpK8sAuditLogErrorExtractorTask = coretask.DefineConstant(
 	k8saudit.GCPK8sAuditLogErrorExtractorTaskID,
-	[]coretask.Dependency{},
-	func(ctx context.Context) (commonk8saudit.K8sAuditLogErrorExtractor, error) {
-		return k8saudit.ExtractGCPK8sAuditLogError, nil
-	},
-	coretask.NewTaskResultRetentionLabel(true),
+	k8saudit.ExtractGCPK8sAuditLogError,
 )
 
-var GCPK8sAuditLogParserTailTask = coretask.NewTailTask(
+// gcpK8sAuditLogParserTailTask waits for all Kubernetes audit log mappers so that selecting the Kubernetes Audit Logs feature runs them.
+var gcpK8sAuditLogParserTailTask = coretask.DefineTailTask(
 	k8saudit.GCPK8sAuditLogParserTailTaskID,
 	[]coretask.Dependency{
-		commonk8saudit.K8sAuditLogExtractorRef,
-		commonk8saudit.K8sAuditLogErrorExtractorRef,
 		commonk8saudit.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
 		commonk8saudit.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
 		commonk8saudit.ResourceRevisionLogToTimelineMapperTaskID.Ref(),

@@ -20,15 +20,14 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeautoscaler"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GenerateAutoscalerStructuredQuery generates a structured query for GKE cluster autoscaler logs.
-func GenerateAutoscalerStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, excludeStatus bool) *logestimator.StructuredLogQuery {
+// generateAutoscalerStructuredQuery generates a structured query for GKE cluster autoscaler logs.
+func generateAutoscalerStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, excludeStatus bool) *logestimator.StructuredLogQuery {
 	filters := []logestimator.LoggingMonitoringMatcher{
 		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
 		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
@@ -46,42 +45,37 @@ func GenerateAutoscalerStructuredQuery(cluster k8scommon.GoogleCloudClusterIdent
 	}
 }
 
-type autoscalerListLogEntriesTaskSetting struct{}
+// autoscalerQuerySource builds the GKE cluster autoscaler log queries for the cluster.
+type autoscalerQuerySource struct {
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+}
 
-// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (a *autoscalerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *autoscalerQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	cluster := s.clusterIdentity.Get(ctx)
 	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
-// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (a *autoscalerListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8scommon.ClusterIdentityTaskID.Ref(),
-	}
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *autoscalerQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
+	cluster := s.clusterIdentity.Get(ctx)
+	return []*logestimator.StructuredLogQuery{generateAutoscalerStructuredQuery(cluster, true)}, nil
 }
 
-// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (a *autoscalerListLogEntriesTaskSetting) QueryName() string {
-	return "Cluster autoscaler logs"
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *autoscalerQuerySource) TimePartitionCount() int {
+	return 1
 }
 
-// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (a *autoscalerListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
-	return []*logestimator.StructuredLogQuery{GenerateAutoscalerStructuredQuery(cluster, true)}, nil
-}
+var _ gcpcommon.StructuredLogQuerySource = (*autoscalerQuerySource)(nil)
 
-// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (a *autoscalerListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return gkeautoscaler.ListLogEntriesTaskID
-}
-
-// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (a *autoscalerListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
-}
-
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*autoscalerListLogEntriesTaskSetting)(nil)
-
-var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&autoscalerListLogEntriesTaskSetting{})
+// listLogEntriesTask queries the GKE cluster autoscaler visibility logs of the cluster from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	gkeautoscaler.ListLogEntriesTaskID,
+	"Cluster autoscaler logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &autoscalerQuerySource{
+			clusterIdentity: coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
+		}
+	},
+)

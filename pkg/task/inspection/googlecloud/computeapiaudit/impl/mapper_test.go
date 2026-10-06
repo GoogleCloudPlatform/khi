@@ -22,13 +22,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/computeapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -151,7 +148,7 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := gcpcommon.NewGCPOperationLogIngester(computeapiaudit.ListLogEntriesTaskID.Ref(), computeapiaudit.LogTypeComputeApi)
+	ingester := gcpcommon.NewGCPOperationLogIngester(computeapiaudit.LogTypeComputeApi)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
@@ -163,17 +160,9 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 	}
 }
 
-func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestMapComputeAuditLog(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-
-	// Setup context with task result mapping containing ClusterIdentity
-	taskResults := typedmap.NewTypedMap()
-	typedmap.Set(taskResults, typedmap.NewTypedKey[k8scommon.GoogleCloudClusterIdentity](computeapiaudit.ClusterIdentityTaskID.Ref().ReferenceIDString()), k8scommon.GoogleCloudClusterIdentity{
-		ClusterName: "test-cluster",
-	})
-
-	baseCtx := khictx.WithValue(t.Context(), core_contract.TaskResultMapContextKey, taskResults)
-	ctx := khictx.WithValue(baseCtx, inspectioncore.Builder, builder)
+	ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
 	// Independently build the expected paths segment-by-segment
 	clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
@@ -350,13 +339,12 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &gcpComputeAuditLogLogToTimelineMapperSetting{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			testCtx := khictx.WithValue(ctx, inspectioncore.Builder, builder)
-			cs, _, err := mapper.ProcessLogByGroup(testCtx, tc.inputLog, tc.state)
+			cs, _, err := mapComputeAuditLog(testCtx, tc.inputLog, tc.state, "test-cluster")
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+				t.Fatalf("mapComputeAuditLog() returned unexpected error: %v", err)
 			}
 
 			tc.assert(t, testCtx, cs)

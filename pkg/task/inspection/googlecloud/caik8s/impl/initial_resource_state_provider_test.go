@@ -241,12 +241,12 @@ func TestClusterResourceInitialStateProviderTask(t *testing.T) {
 			}
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			provider, _, err := inspectiontest.RunInspectionTask(ctx, ClusterResourceInitialStateProviderTask, inspectioncore.TaskModeRun, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(caik8s.ClusterResourceTaskIDs.RawLog.Ref(), logs),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
+			provider, _, err := inspectiontest.Run(t, ctx, clusterResourceInitialStateProviderTask, inspectioncore.TaskModeRun, map[string]any{},
+				tasktest.Given(caik8s.ClusterResourceTaskIDs.RawLog.Ref(), logs),
+				tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
 			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask() error: %v", err)
+				t.Fatalf("inspectiontest.Run() error: %v", err)
 			}
 			body, found := provider.InitialResourceState(tc.lookup)
 			if found != tc.wantFound {

@@ -18,35 +18,47 @@ import (
 	"context"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/csm"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// CSMClusterIdentifierTask extracts the unique cluster identifier(s) from BackendService names.
+// csmClusterIdentifierTask extracts the unique cluster identifier(s) from BackendService names.
 // CSM BackendService names follow the pattern: gsmrsvd-(cluster-identifier)-(neg-id).
-var CSMClusterIdentifierTask = coretask.NewTask(
+var csmClusterIdentifierTask = inspectiontaskbase.DefineInspectionTask(
 	csm.CSMClusterIdentifierTaskID,
-	[]coretask.Dependency{k8scommon.NEGToBackendServiceInventoryTaskID.Ref()},
-	func(ctx context.Context) ([]string, error) {
-		inventory := coretask.GetTaskResult(ctx, k8scommon.NEGToBackendServiceInventoryTaskID.Ref())
-
-		uniqueIds := make(map[string]struct{})
-
-		for _, bsName := range inventory {
-			if strings.HasPrefix(bsName, "gsmrsvd-") {
-				// gsmrsvd-<cluster-id>-<neg-id>
-				parts := strings.Split(bsName, "-")
-				if len(parts) >= 3 {
-					uniqueIds[parts[1]] = struct{}{}
-				}
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]string] {
+		negToBackendService := coretask.Use(b, k8scommon.NEGToBackendServiceInventoryTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
 			}
-		}
 
-		result := make([]string, 0, len(uniqueIds))
-		for id := range uniqueIds {
-			result = append(result, id)
+			inventory := negToBackendService.Get(ctx)
+			tracker := progress.NewTracker(ctx, len(inventory))
+			defer tracker.Done()
+
+			uniqueIds := make(map[string]struct{})
+
+			for _, bsName := range inventory {
+				if strings.HasPrefix(bsName, "gsmrsvd-") {
+					// gsmrsvd-<cluster-id>-<neg-id>
+					parts := strings.Split(bsName, "-")
+					if len(parts) >= 3 {
+						uniqueIds[parts[1]] = struct{}{}
+					}
+				}
+				tracker.Inc()
+			}
+
+			result := make([]string, 0, len(uniqueIds))
+			for id := range uniqueIds {
+				result = append(result, id)
+			}
+			return result, nil
 		}
-		return result, nil
 	},
 )

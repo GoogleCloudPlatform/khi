@@ -267,7 +267,6 @@ func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error 
 	task := r.resolvedTaskSet.GetAll()[taskDefIndex]
 	taskImplID := task.UntypedID().String()
 	taskCtx := khictx.WithValue(graphCtx, core_contract.TaskImplementationIDContextKey, task.UntypedID())
-	taskCtx = khictx.WithValue(taskCtx, core_contract.TaskDependenciesContextKey, task.Dependencies())
 	taskCtx = khictx.WithValue(taskCtx, core_contract.TaskGraphMetadataContextKey, core_contract.TaskGraphMetadata(r.resolvedTaskSet))
 
 	// Wait for completions of all concrete incoming edges.

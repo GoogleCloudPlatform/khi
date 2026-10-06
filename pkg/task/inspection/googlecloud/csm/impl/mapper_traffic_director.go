@@ -20,7 +20,6 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -30,50 +29,35 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// CSMTrafficDirectorLogIngesterTask is a task that ingests CSM Traffic Director logs.
-var CSMTrafficDirectorLogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
+// csmTrafficDirectorLogIngesterTask is a task that ingests CSM Traffic Director logs.
+var csmTrafficDirectorLogIngesterTask = gcpcommon.DefineGCPOperationLogIngesterTask(
 	csm.CSMTrafficDirectorLogIngesterTaskID,
 	csm.ListCSMTrafficDirectorLogEntriesTaskID.Ref(),
 	csm.LogTypeCSMTrafficLog,
 )
 
-// CSMTrafficDirectorLogGrouperTask is a task that groups CSM Traffic Director logs by their resource name.
-var CSMTrafficDirectorLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+// csmTrafficDirectorLogGrouperTask is a task that groups CSM Traffic Director logs by their resource name.
+var csmTrafficDirectorLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	csm.CSMTrafficDirectorLogGrouperTaskID,
 	csm.ListCSMTrafficDirectorLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		audit, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
-		if err != nil {
-			return "unknown"
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			audit, err := gcpcommon.ExtractGCPAuditLog(l.NodeReader)
+			if err != nil {
+				return "unknown"
+			}
+			return audit.ResourceName
 		}
-		return audit.ResourceName
 	},
 )
 
-// CSMTrafficDirectorLogToTimelineMapper maps CSM Traffic Director logs to resource timelines.
-type CSMTrafficDirectorLogToTimelineMapper struct {
+// csmTrafficDirectorTimelineMapper maps CSM Traffic Director logs to resource timelines.
+type csmTrafficDirectorTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
 
-// LogIngesterTask returns a reference to the task that provides ingested logs.
-func (m *CSMTrafficDirectorLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return csm.CSMTrafficDirectorLogIngesterTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies.
-func (m *CSMTrafficDirectorLogToTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		csm.ClusterIdentityTaskID.Ref(),
-	}
-}
-
-// GroupedLogTask returns a reference to the task that provides the grouped logs.
-func (m *CSMTrafficDirectorLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return csm.CSMTrafficDirectorLogGrouperTaskID.Ref()
-}
-
 // ProcessLogByGroup maps each log inside a group to one or more timeline events or revisions.
-func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
+func (m *csmTrafficDirectorTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	if tracker == nil {
 		tracker = gcpcommon.NewGCPOperationTracker()
 	}
@@ -124,6 +108,26 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 	return cs, tracker, nil
 }
 
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*csmTrafficDirectorTimelineMapper)(nil)
+
+// csmTrafficDirectorLogToTimelineMapperTask maps CSM Traffic Director logs to timelines.
+var csmTrafficDirectorLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	csm.CSMTrafficDirectorLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: csm.CSMTrafficDirectorLogIngesterTaskID.Ref(),
+		GroupedLogs: csm.CSMTrafficDirectorLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
+		return &csmTrafficDirectorTimelineMapper{}
+	},
+	inspectioncore.FeatureTaskLabel(
+		"CSM Resource Audit Logs",
+		"Gather audit logs for Traffic Director resources created by the TD-based CSM to map them to timelines alongside associated Kubernetes resource logs.",
+		10100,
+		false,
+	),
+)
+
 // parseGCPResource parses a GCP resource name string into type and name.
 func parseGCPResource(resourceName string) (string, string) {
 	if resourceName == "" || resourceName == "unknown" {
@@ -141,20 +145,6 @@ func parseGCPResource(resourceName string) (string, string) {
 	}
 	return resourceType, name
 }
-
-var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*CSMTrafficDirectorLogToTimelineMapper)(nil)
-
-// CSMTrafficDirectorLogToTimelineMapperTask maps CSM Traffic Director logs to timelines.
-var CSMTrafficDirectorLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
-	csm.CSMTrafficDirectorLogToTimelineMapperTaskID,
-	&CSMTrafficDirectorLogToTimelineMapper{},
-	inspectioncore.FeatureTaskLabel(
-		"CSM Resource Audit Logs",
-		"Gather audit logs for Traffic Director resources created by the TD-based CSM to map them to timelines alongside associated Kubernetes resource logs.",
-		10100,
-		false,
-	),
-)
 
 // guessRevisionVerb guesses the styled verb type based on the method name.
 func guessRevisionVerb(methodName string) *pb.Verb {

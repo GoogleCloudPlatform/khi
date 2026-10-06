@@ -16,9 +16,12 @@ package inspectiontaskbase
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -35,4 +38,13 @@ func mustNewLogFromYAML(t *testing.T, ctx context.Context, yaml string) *log.Log
 		t.Fatalf("failed to create log from YAML: %v", err)
 	}
 	return l
+}
+
+// describeInputs converts point-to-point input specs to comparable strings, because dependency descriptors hold unexported fields.
+func describeInputs(specs []coretask.InputSpec) []string {
+	result := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		result = append(result, fmt.Sprintf("%s %s", spec.Kind, spec.Dependency.(taskid.PointToPointDescriptor).ReferenceID()))
+	}
+	return result
 }

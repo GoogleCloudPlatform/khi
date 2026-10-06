@@ -36,62 +36,64 @@ var (
 	pathGrouperKind         = structured.CompileFieldPath("kind")
 )
 
-// NonSuccessLogGrouperTask groups logs by resource path.
+// nonSuccessLogGrouperTask groups logs by resource path.
 // K8s audit error logs are simply associated with timelines as events. They don't require any special grouping, so they use the resource associated with the original resource name modified by the request.
-var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTaskWithDependencies(
+var nonSuccessLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	k8saudit.NonSuccessLogGrouperTaskID,
 	k8saudit.NonSuccessLogFilterTaskID.Ref(),
-	[]coretask.Dependency{
-		k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
-	},
-	func(ctx context.Context, l *log.Log) string {
-		fieldSet, _ := k8saudit.ExtractK8sAuditLog(ctx, l.NodeReader)
-		return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s,name=%s, subresource=%s", fieldSet.APIVersion, fieldSet.PluralKind, fieldSet.Namespace, fieldSet.ResourceName, fieldSet.SubresourceName)
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
+		return func(ctx context.Context, l *log.Log) string {
+			extractor := extractorInput.Get(ctx)
+			fieldSet, _ := k8saudit.ExtractK8sAuditLog(l.NodeReader, extractor)
+			return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s,name=%s, subresource=%s", fieldSet.APIVersion, fieldSet.PluralKind, fieldSet.Namespace, fieldSet.ResourceName, fieldSet.SubresourceName)
+		}
 	},
 )
 
-// ChangeTargetGrouperTask groups logs by resource that is modified by the operation in the log.
+// changeTargetGrouperTask groups logs by resource that is modified by the operation in the log.
 // This task determines the group, specifically handling the following cases:
 // 1. When multiple resources are modified by the operation, the log entry is duplicated and assigned to each group.
 // 2. When a subresource is modified by the operation and its result contains its parent manifest, it uses the parent resource as the group key.
-var ChangeTargetGrouperTask = inspectiontaskbase.NewInspectionTask[k8saudit.ResourceLogGroupMap](
+var changeTargetGrouperTask = inspectiontaskbase.DefineInspectionTask[k8saudit.ResourceLogGroupMap](
 	k8saudit.ChangeTargetGrouperTaskID,
-	[]coretask.Dependency{
-		k8saudit.SuccessLogFilterTaskID.Ref(),
-		k8saudit.K8sAuditLogExtractorRef.Ref(coretask.FromActiveGraph),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceLogGroupMap, error) {
-		if taskMode != inspectioncore.TaskModeRun {
-			return k8saudit.ResourceLogGroupMap{}, nil
-		}
-
-		logs := coretask.GetTaskResult(ctx, k8saudit.SuccessLogFilterTaskID.Ref())
-		tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
-		defer tracker.Done()
-		result := k8saudit.ResourceLogGroupMap{}
-		scanner := targetResourceScanner{
-			ctx:                                 ctx,
-			resourcesByNamespaceKindAPIVersions: map[string]map[string]struct{}{},
-			subresourceDefaultBehaviorOverrides: defaultSubresourceDefaultBehaviorOverrides,
-		}
-
-		for _, l := range logs {
-			ops := scanner.scanTargetResource(l)
-			for _, op := range ops {
-				resource := k8saudit.ResourceIdentityFromKubernetesOperation(op)
-				path := resource.String()
-				if result[path] == nil {
-					result[path] = &k8saudit.ResourceLogGroup{
-						Logs:     []*log.Log{},
-						Resource: resource,
-					}
-				}
-				result[path].Logs = append(result[path].Logs, l)
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ResourceLogGroupMap] {
+		logsInput := coretask.Use(b, k8saudit.SuccessLogFilterTaskID.Ref())
+		extractorInput := coretask.Use(b, k8saudit.K8sAuditLogExtractorRef)
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceLogGroupMap, error) {
+			if taskMode != inspectioncore.TaskModeRun {
+				return k8saudit.ResourceLogGroupMap{}, nil
 			}
-			tracker.Inc()
-		}
 
-		return result, nil
+			logs := logsInput.Get(ctx)
+			extractor := extractorInput.Get(ctx)
+			tracker := progress.NewTracker(ctx, len(logs), progress.WithUnit("logs"))
+			defer tracker.Done()
+			result := k8saudit.ResourceLogGroupMap{}
+			scanner := targetResourceScanner{
+				extractor:                           extractor,
+				resourcesByNamespaceKindAPIVersions: map[string]map[string]struct{}{},
+				subresourceDefaultBehaviorOverrides: defaultSubresourceDefaultBehaviorOverrides,
+			}
+
+			for _, l := range logs {
+				ops := scanner.scanTargetResource(l)
+				for _, op := range ops {
+					resource := k8saudit.ResourceIdentityFromKubernetesOperation(op)
+					path := resource.String()
+					if result[path] == nil {
+						result[path] = &k8saudit.ResourceLogGroup{
+							Logs:     []*log.Log{},
+							Resource: resource,
+						}
+					}
+					result[path].Logs = append(result[path].Logs, l)
+				}
+				tracker.Inc()
+			}
+
+			return result, nil
+		}
 	},
 )
 
@@ -111,7 +113,7 @@ var defaultSubresourceDefaultBehaviorOverrides = map[string]subresourceDefaultBe
 }
 
 type targetResourceScanner struct {
-	ctx                                 context.Context
+	extractor                           k8saudit.K8sAuditLogExtractor
 	resourcesByNamespaceKindAPIVersions map[string]map[string]struct{}
 	subresourceDefaultBehaviorOverrides map[string]subresourceDefaultBehavior
 }
@@ -134,7 +136,7 @@ func (s *targetResourceScanner) scanTargetResource(l *log.Log) []*model.Kubernet
 }
 
 func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.KubernetesObjectOperation {
-	fieldSet, _ := k8saudit.ExtractK8sAuditLog(s.ctx, l.NodeReader)
+	fieldSet, _ := k8saudit.ExtractK8sAuditLog(l.NodeReader, s.extractor)
 	op := &model.KubernetesObjectOperation{
 		APIVersion:      fieldSet.APIVersion,
 		PluralKind:      fieldSet.PluralKind,

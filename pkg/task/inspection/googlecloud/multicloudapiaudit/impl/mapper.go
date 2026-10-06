@@ -21,7 +21,6 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
@@ -29,51 +28,41 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
-var LogIngesterTask = gcpcommon.NewGCPOperationLogIngesterTask(
+// logIngesterTask serializes MulticloudAPI audit logs for storage in the history builder.
+var logIngesterTask = gcpcommon.DefineGCPOperationLogIngesterTask(
 	multicloudapiaudit.LogIngesterTaskID,
 	multicloudapiaudit.ListLogEntriesTaskID.Ref(),
 	multicloudapiaudit.LogTypeMulticloudAPI,
 )
 
-// LogGrouperTask is a task that groups MulticloudAPI audit logs by resource identifier.
+// logGrouperTask groups MulticloudAPI audit logs by resource identifier.
 // This grouping allows for parallel processing of logs related to the same resource.
-var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	multicloudapiaudit.LogGrouperTaskID,
 	multicloudapiaudit.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		resourceFieldSet, err := multicloudapiaudit.ExtractMulticloudAPIAuditResource(l.NodeReader)
-		if err != nil {
-			return ""
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			resourceFieldSet, err := multicloudapiaudit.ExtractMulticloudAPIAuditResource(l.NodeReader)
+			if err != nil {
+				return ""
+			}
+			if resourceFieldSet.IsCluster() {
+				return fmt.Sprintf("cluster/%s/%s", resourceFieldSet.ClusterType, resourceFieldSet.ClusterName)
+			}
+			return fmt.Sprintf("nodepool/%s/%s/%s", resourceFieldSet.ClusterType, resourceFieldSet.ClusterName, resourceFieldSet.NodepoolName)
 		}
-		if resourceFieldSet.IsCluster() {
-			return fmt.Sprintf("cluster/%s/%s", resourceFieldSet.ClusterType, resourceFieldSet.ClusterName)
-		}
-		return fmt.Sprintf("nodepool/%s/%s/%s", resourceFieldSet.ClusterType, resourceFieldSet.ClusterName, resourceFieldSet.NodepoolName)
 	},
 )
 
-type multicloudAuditLogLogToTimelineMapperSetting struct {
+// multiCloudAuditTimelineMapper maps grouped logs to resource timelines and operations in KHI V6 format.
+type multiCloudAuditTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
 
-// Dependencies implements LogToTimelineMapper.
-func (m *multicloudAuditLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask implements LogToTimelineMapper.
-func (m *multicloudAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return multicloudapiaudit.LogGrouperTaskID.Ref()
-}
-
-// LogIngesterTask implements LogToTimelineMapper.
-func (m *multicloudAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return multicloudapiaudit.LogIngesterTaskID.Ref()
-}
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*multiCloudAuditTimelineMapper)(nil)
 
 // ProcessLogByGroup maps grouped logs to resource timelines and operations in KHI V6 format.
-func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
+func (m *multiCloudAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	if tracker == nil {
 		tracker = gcpcommon.NewGCPOperationTracker()
 	}
@@ -113,12 +102,16 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 	return cs, tracker, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[*gcpcommon.GCPOperationTracker] = (*multicloudAuditLogLogToTimelineMapperSetting)(nil)
-
-// LogToTimelineMapperTask is a task that adds revisions/events regarding logs.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*gcpcommon.GCPOperationTracker](
+// logToTimelineMapperTask adds revisions/events regarding logs.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	multicloudapiaudit.LogToTimelineMapperTaskID,
-	&multicloudAuditLogLogToTimelineMapperSetting{},
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: multicloudapiaudit.LogIngesterTaskID.Ref(),
+		GroupedLogs: multicloudapiaudit.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
+		return &multiCloudAuditTimelineMapper{}
+	},
 	inspectioncore.FeatureTaskLabel(`Multi-Cloud API Logs`,
 		`Gather Anthos Multi-Cloud audit logs to visualize cluster lifecycle events (creation, deletion, and upgrades) on timelines.`,
 		5000,

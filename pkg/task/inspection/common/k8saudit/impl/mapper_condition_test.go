@@ -1056,4 +1056,355 @@ status:
 		testchangeset.AssertTimeline(t, cs3).
 			HasNoRevision(conditionPath)
 	})
+
+	t.Run("Static Pod with lastTransitionTime earlier than creationTimestamp clamps to creationTimestamp without unavailable state", func(t *testing.T) {
+		builder := khifilev6.NewTestBuilder(id.NewGenerator())
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
+		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: k8saudit.TimelineTypeResourceCondition})
+
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
+
+		logObj := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 1, 0, 0, 0, time.UTC),
+			k8saudit.K8sAuditLogFieldSet{
+				Verb:        k8saudit.VerbUpdate,
+				Principal:   "user-1",
+				ClusterName: "k8s",
+			},
+		)
+
+		bodyYAML := `
+metadata:
+  uid: "uid-static"
+  creationTimestamp: "2024-01-01T00:00:05Z"
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:04Z"
+`
+		bodyNode := parseYAML(bodyYAML)
+		bodyReader := structured.NewNodeReader(bodyNode)
+
+		resIdentity := &k8saudit.ResourceIdentity{
+			APIVersion: "core/v1",
+			Kind:       "pod",
+			Namespace:  "default",
+			Name:       "nginx",
+		}
+
+		groupSet := k8saudit.RelatedGroupSet{
+			Roles: map[string]*k8saudit.ResourceManifestLogGroup{
+				"target": {
+					Resource: resIdentity,
+					Logs: []*k8saudit.ResourceManifestLog{
+						{Log: logObj, ResourceBodyReader: bodyReader},
+					},
+				},
+			},
+		}
+
+		event := k8saudit.MultiGroupLogEvent{
+			Log:              logObj,
+			GroupRole:        "target",
+			ResourceIdentity: resIdentity,
+			EventType:        k8saudit.ChangeEventTypeCreation,
+			GroupSet:         groupSet,
+		}
+
+		state, err := taskSetting.PreProcessLog(ctx, 0, event, nil)
+		if err != nil {
+			t.Fatalf("PreProcessLog failed: %v", err)
+		}
+
+		cs, _, err := taskSetting.ProcessLog(ctx, event, state)
+		if err != nil {
+			t.Fatalf("ProcessLog failed: %v", err)
+		}
+
+		if got := len(cs.GetRevisions(conditionPath)); got != 1 {
+			t.Errorf("expected 1 revision on conditionPath, got %d", got)
+		}
+
+		testchangeset.AssertTimeline(t, cs).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     k8saudit.VerbUpdate,
+				ResourceBody: parseYAML("lastTransitionTime: \"2024-01-01T00:00:04Z\"\nstatus: \"True\"\ntype: Ready\n"),
+				Principal:    "user-1",
+				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC),
+				StateType:    k8saudit.RevisionStateConditionTrue,
+			}, nodeComparer)
+	})
+
+	t.Run("Creation within minimumDeltaTimeToCreateInferredCreationRevision does not emit inferred unavailable state", func(t *testing.T) {
+		builder := khifilev6.NewTestBuilder(id.NewGenerator())
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
+		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: k8saudit.TimelineTypeResourceCondition})
+
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
+
+		logObj := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 0, 0, 1, 0, time.UTC),
+			k8saudit.K8sAuditLogFieldSet{
+				Verb:        k8saudit.VerbCreate,
+				Principal:   "user-1",
+				ClusterName: "k8s",
+			},
+		)
+
+		bodyYAML := `
+metadata:
+  uid: "uid-1"
+  creationTimestamp: "2024-01-01T00:00:00Z"
+status:
+  conditions:
+  - type: Ready
+    status: "False"
+    lastTransitionTime: "2024-01-01T00:00:01Z"
+`
+		bodyNode := parseYAML(bodyYAML)
+		bodyReader := structured.NewNodeReader(bodyNode)
+
+		resIdentity := &k8saudit.ResourceIdentity{
+			APIVersion: "core/v1",
+			Kind:       "pod",
+			Namespace:  "default",
+			Name:       "nginx",
+		}
+
+		groupSet := k8saudit.RelatedGroupSet{
+			Roles: map[string]*k8saudit.ResourceManifestLogGroup{
+				"target": {
+					Resource: resIdentity,
+					Logs: []*k8saudit.ResourceManifestLog{
+						{Log: logObj, ResourceBodyReader: bodyReader},
+					},
+				},
+			},
+		}
+
+		event := k8saudit.MultiGroupLogEvent{
+			Log:              logObj,
+			GroupRole:        "target",
+			ResourceIdentity: resIdentity,
+			EventType:        k8saudit.ChangeEventTypeCreation,
+			GroupSet:         groupSet,
+		}
+
+		state, err := taskSetting.PreProcessLog(ctx, 0, event, nil)
+		if err != nil {
+			t.Fatalf("PreProcessLog failed: %v", err)
+		}
+
+		cs, _, err := taskSetting.ProcessLog(ctx, event, state)
+		if err != nil {
+			t.Fatalf("ProcessLog failed: %v", err)
+		}
+
+		if got := len(cs.GetRevisions(conditionPath)); got != 1 {
+			t.Errorf("expected 1 revision on conditionPath, got %d", got)
+		}
+
+		testchangeset.AssertTimeline(t, cs).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     k8saudit.VerbCreate,
+				ResourceBody: parseYAML("lastTransitionTime: \"2024-01-01T00:00:01Z\"\nstatus: \"False\"\ntype: Ready\n"),
+				Principal:    "user-1",
+				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 1, 0, time.UTC),
+				StateType:    k8saudit.RevisionStateConditionFalse,
+			}, nodeComparer)
+	})
+
+	t.Run("Static Pod deletion and recreation clamps retained lastTransitionTime and sub-second creationTimestamp after deletionTime", func(t *testing.T) {
+		builder := khifilev6.NewTestBuilder(id.NewGenerator())
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore.TimelineTypeResource})
+		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: k8saudit.TimelineTypeResourceCondition})
+
+		ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
+
+		resIdentity := &k8saudit.ResourceIdentity{
+			APIVersion: "core/v1",
+			Kind:       "pod",
+			Namespace:  "default",
+			Name:       "nginx",
+		}
+
+		// Event 1: Creation at 2024-01-01T01:00:00Z
+		logObj1 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 1, 0, 0, 0, time.UTC),
+			k8saudit.K8sAuditLogFieldSet{
+				Verb:        k8saudit.VerbCreate,
+				Principal:   "user-1",
+				ClusterName: "k8s",
+			},
+		)
+		bodyYAML1 := `
+metadata:
+  uid: "uid-1"
+  creationTimestamp: "2024-01-01T00:00:05Z"
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:04Z"
+`
+		bodyReader1 := structured.NewNodeReader(parseYAML(bodyYAML1))
+
+		// Event 2: Deletion at 2024-01-01T01:00:10.500000000Z
+		delTime := time.Date(2024, 1, 1, 1, 0, 10, 500000000, time.UTC)
+		logObj2 := testlog.NewMockLog(
+			delTime,
+			k8saudit.K8sAuditLogFieldSet{
+				Verb:        k8saudit.VerbDelete,
+				Principal:   "user-1",
+				ClusterName: "k8s",
+			},
+		)
+		bodyYAML2 := `
+metadata:
+  uid: "uid-1"
+  creationTimestamp: "2024-01-01T00:00:05Z"
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:04Z"
+`
+		bodyReader2 := structured.NewNodeReader(parseYAML(bodyYAML2))
+
+		// Event 3: Recreation at 2024-01-01T01:00:10.800000000Z with creationTimestamp "2024-01-01T01:00:10Z"
+		logObj3 := testlog.NewMockLog(
+			time.Date(2024, 1, 1, 1, 0, 10, 800000000, time.UTC),
+			k8saudit.K8sAuditLogFieldSet{
+				Verb:        k8saudit.VerbCreate,
+				Principal:   "user-1",
+				ClusterName: "k8s",
+			},
+		)
+		bodyYAML3 := `
+metadata:
+  uid: "uid-2"
+  creationTimestamp: "2024-01-01T01:00:10Z"
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:04Z"
+`
+		bodyReader3 := structured.NewNodeReader(parseYAML(bodyYAML3))
+
+		groupSet := k8saudit.RelatedGroupSet{
+			Roles: map[string]*k8saudit.ResourceManifestLogGroup{
+				"target": {
+					Resource: resIdentity,
+					Logs: []*k8saudit.ResourceManifestLog{
+						{Log: logObj1, ResourceBodyReader: bodyReader1},
+						{Log: logObj2, ResourceBodyReader: bodyReader2},
+						{Log: logObj3, ResourceBodyReader: bodyReader3},
+					},
+				},
+			},
+		}
+
+		event1 := k8saudit.MultiGroupLogEvent{
+			Log:              logObj1,
+			GroupRole:        "target",
+			ResourceIdentity: resIdentity,
+			EventType:        k8saudit.ChangeEventTypeCreation,
+			GroupSet:         groupSet,
+		}
+		event2 := k8saudit.MultiGroupLogEvent{
+			Log:              logObj2,
+			GroupRole:        "target",
+			ResourceIdentity: resIdentity,
+			EventType:        k8saudit.ChangeEventTypeDeletion,
+			GroupSet:         groupSet,
+		}
+		event3 := k8saudit.MultiGroupLogEvent{
+			Log:              logObj3,
+			GroupRole:        "target",
+			ResourceIdentity: resIdentity,
+			EventType:        k8saudit.ChangeEventTypeCreation,
+			GroupSet:         groupSet,
+		}
+
+		// Run PreProcessLog for all 3 events
+		var state *conditionLogToTimelineMapperTaskState
+		var err error
+		state, err = taskSetting.PreProcessLog(ctx, 0, event1, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 1 failed: %v", err)
+		}
+		state, err = taskSetting.PreProcessLog(ctx, 1, event2, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 2 failed: %v", err)
+		}
+		state, err = taskSetting.PreProcessLog(ctx, 2, event3, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 3 failed: %v", err)
+		}
+
+		// ProcessLog 1
+		cs1, state, err := taskSetting.ProcessLog(ctx, event1, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 1 failed: %v", err)
+		}
+		if got := len(cs1.GetRevisions(conditionPath)); got != 1 {
+			t.Errorf("expected 1 revision in cs1, got %d", got)
+		}
+		testchangeset.AssertTimeline(t, cs1).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     k8saudit.VerbCreate,
+				ResourceBody: parseYAML("lastTransitionTime: \"2024-01-01T00:00:04Z\"\nstatus: \"True\"\ntype: Ready\n"),
+				Principal:    "user-1",
+				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC),
+				StateType:    k8saudit.RevisionStateConditionTrue,
+			}, nodeComparer)
+
+		// ProcessLog 2
+		cs2, state, err := taskSetting.ProcessLog(ctx, event2, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 2 failed: %v", err)
+		}
+		if got := len(cs2.GetRevisions(conditionPath)); got != 1 {
+			t.Errorf("expected 1 revision in cs2, got %d", got)
+		}
+		testchangeset.AssertTimeline(t, cs2).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     k8saudit.VerbDelete,
+				ResourceBody: nil,
+				Principal:    "user-1",
+				ChangedTime:  delTime,
+				StateType:    k8saudit.RevisionStateK8sResourceDeleted,
+			}, nodeComparer)
+
+		// ProcessLog 3
+		cs3, _, err := taskSetting.ProcessLog(ctx, event3, state)
+		if err != nil {
+			t.Fatalf("ProcessLog 3 failed: %v", err)
+		}
+		if got := len(cs3.GetRevisions(conditionPath)); got != 1 {
+			t.Errorf("expected 1 revision in cs3, got %d", got)
+		}
+		testchangeset.AssertTimeline(t, cs3).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     k8saudit.VerbCreate,
+				ResourceBody: parseYAML("lastTransitionTime: \"2024-01-01T00:00:04Z\"\nstatus: \"True\"\ntype: Ready\n"),
+				Principal:    "user-1",
+				ChangedTime:  delTime.Add(time.Nanosecond),
+				StateType:    k8saudit.RevisionStateConditionTrue,
+			}, nodeComparer)
+	})
 }

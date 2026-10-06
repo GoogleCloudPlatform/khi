@@ -17,9 +17,9 @@ package k8snode_impl
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
@@ -27,57 +27,52 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8snode"
 )
 
-// OtherLogFilterTask filters only the components logs that do not match kubelet or containerd.
-var OtherLogFilterTask = newParserTypeFilterTask(k8snode.OtherLogFilterTaskID, k8snode.ListLogEntriesTaskID.Ref(), k8snode.Other)
+// otherLogFilterTask filters only the components logs that do not match kubelet or containerd.
+var otherLogFilterTask = defineParserTypeFilterTask(k8snode.OtherLogFilterTaskID, k8snode.ListLogEntriesTaskID.Ref(), k8snode.Other)
 
-// OtherLogGroupTask groups other logs by node and component.
-var OtherLogGroupTask = newNodeAndComponentNameGrouperTask(k8snode.OtherLogGroupTaskID, k8snode.OtherLogFilterTaskID.Ref())
+// otherLogGroupTask groups other logs by node and component.
+var otherLogGroupTask = defineNodeAndComponentNameGrouperTask(k8snode.OtherLogGroupTaskID, k8snode.OtherLogFilterTaskID.Ref())
 
-type otherNodeLogLogToTimelineMapperSetting struct {
+// otherLogTimelineMapper maps the logs of node components other than containerd and kubelet to the timelines of their component and of the pods and containers they mention.
+type otherLogTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
-	StartingMessagesByComponent    map[string]string
-	TerminatingMessagesByComponent map[string]string
+	// startingMessagesByComponent maps a component name to the log message that marks the start of the component.
+	startingMessagesByComponent map[string]string
+	// terminatingMessagesByComponent maps a component name to the log message that marks the termination of the component.
+	terminatingMessagesByComponent map[string]string
+	clusterIdentity                coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	podSandboxIDFinder             coretask.Input[patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo]]
+	containerIDPatternFinder       coretask.Input[patternfinder.PatternFinder[*k8saudit.ContainerIdentity]]
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (o *otherNodeLogLogToTimelineMapperSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		k8snode.ClusterIdentityTaskID.Ref(),
-		k8snode.PodSandboxIDDiscoveryTaskID.Ref(),
-		k8saudit.ContainerIDPatternFinderTaskID.Ref(),
-	}
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (o *otherLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	cs, err := o.mapLog(ctx, l, o.clusterIdentity.Get(ctx), o.podSandboxIDFinder.Get(ctx), o.containerIDPatternFinder.Get(ctx))
+	return cs, struct{}{}, err
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *otherNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return k8snode.OtherLogGroupTaskID.Ref()
-}
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*otherLogTimelineMapper)(nil)
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *otherNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8snode.LogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (o *otherNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, k8snode.ClusterIdentityTaskID.Ref())
+// mapLog adds events for a node component log to the timeline of its component and to the timelines of the pods and containers it mentions.
+// It also adds a revision to the component timeline when the log message is the starting or terminating message of the component.
+func (o *otherLogTimelineMapper) mapLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon.GoogleCloudClusterIdentity, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity]) (*khifilev6.TimelineChangeSet, error) {
 	clusterName := clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sCluster)
 	componentFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, err
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
-	nodeTimelinePath := MustK8sNodeTimeline(ctx, clusterName, componentFieldSet.NodeName)
+	nodeTimelinePath := mustK8sNodeTimeline(ctx, clusterName, componentFieldSet.NodeName)
 	componentTimelinePath := k8snode.MustNodeComponentTimeline(ctx, nodeTimelinePath, componentFieldSet.Component)
 
 	var startingMessage string
 	var terminatingMessage string
-	if msg, found := o.StartingMessagesByComponent[componentFieldSet.Component]; found {
+	if msg, found := o.startingMessagesByComponent[componentFieldSet.Component]; found {
 		startingMessage = msg
 	}
-	if msg, found := o.TerminatingMessagesByComponent[componentFieldSet.Component]; found {
+	if msg, found := o.terminatingMessagesByComponent[componentFieldSet.Component]; found {
 		terminatingMessage = msg
 	}
 	checkStartingAndTerminationLog(ctx, cs, l, startingMessage, terminatingMessage, componentTimelinePath)
@@ -85,33 +80,41 @@ func (o *otherNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.C
 	cs.AddEvent(componentTimelinePath)
 
 	if componentFieldSet.Message != nil {
-		podSandboxIDFinder := coretask.GetTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
-		containerIDPatternFinder := coretask.GetTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref())
 		pods, containerRefs := findPodAndContainerReferences(componentFieldSet.Message.Raw(), podSandboxIDFinder, containerIDPatternFinder)
 		for _, pod := range pods {
-			cs.AddEvent(MustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
+			cs.AddEvent(mustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
 		}
 		for _, containerRef := range containerRefs {
-			podTimelinePath := MustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
+			podTimelinePath := mustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
 			cs.AddEvent(k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, containerRef.Container.ContainerName))
 		}
 	}
 
-	return cs, struct{}{}, nil
+	return cs, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*otherNodeLogLogToTimelineMapperSetting)(nil)
-
-// OtherLogLogToTimelineMapperTask registers the mapper for other node component logs.
-var OtherLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(k8snode.OtherLogLogToTimelineMapperTaskID, &otherNodeLogLogToTimelineMapperSetting{
-	StartingMessagesByComponent: map[string]string{
-		"dockerd":             "Starting up",
-		"configure.sh":        "Start to install kubernetes files",
-		"configure-helper.sh": "Start to configure instance for kubernetes",
+// otherLogLogToTimelineMapperTask maps the logs of the other node components to timelines.
+var otherLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8snode.OtherLogLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8snode.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8snode.OtherLogGroupTaskID.Ref(),
 	},
-	TerminatingMessagesByComponent: map[string]string{
-		"dockerd":             "Daemon shutdown complete",
-		"configure.sh":        "Done for installing kubernetes files",
-		"configure-helper.sh": "Done for the configuration for kubernetes",
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &otherLogTimelineMapper{
+			startingMessagesByComponent: map[string]string{
+				"dockerd":             "Starting up",
+				"configure.sh":        "Start to install kubernetes files",
+				"configure-helper.sh": "Start to configure instance for kubernetes",
+			},
+			terminatingMessagesByComponent: map[string]string{
+				"dockerd":             "Daemon shutdown complete",
+				"configure.sh":        "Done for installing kubernetes files",
+				"configure-helper.sh": "Done for the configuration for kubernetes",
+			},
+			clusterIdentity:          coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
+			podSandboxIDFinder:       coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref()),
+			containerIDPatternFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
+		}
 	},
-})
+)

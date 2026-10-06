@@ -75,9 +75,7 @@ func TestResolveTitle(t *testing.T) {
 			} else {
 				id = taskid.NewDefaultImplementationID[any](tc.baseID)
 			}
-			task := coretask.NewTask(id, nil, func(ctx context.Context) (any, error) {
-				return nil, nil
-			}, tc.opts...)
+			task := coretask.DefineConstant[any](id, nil, tc.opts...)
 
 			got := ResolveTitle(task)
 			if got != tc.wantTitle {
@@ -194,7 +192,7 @@ func TestTaskInterceptor(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, prog := tc.setupCtx()
 			taskID := taskid.NewDefaultImplementationID[any]("test-task")
-			task := coretask.NewTask(taskID, nil, func(ctx context.Context) (any, error) { return nil, nil }, coretask.WithTitle("Test Task"))
+			task := coretask.DefineConstant[any](taskID, nil, coretask.WithTitle("Test Task"))
 
 			var capturedCtx context.Context
 			_, err := TaskInterceptor(ctx, task, func(tCtx context.Context) (any, error) {

@@ -26,6 +26,8 @@ import (
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 )
 
+// dependencyKey identifies a dependency by its reference ID or tag.
+// It panics for nil and any other dependency type because such a dependency cannot be resolved in the task graph.
 func dependencyKey(dep Dependency) string {
 	switch d := dep.(type) {
 	case taskid.PointToPointDescriptor:
@@ -33,35 +35,12 @@ func dependencyKey(dep Dependency) string {
 	case taskid.FanInDescriptor:
 		return "tag:" + d.Tag()
 	default:
-		return ""
+		panic(fmt.Sprintf("unsupported dependency %T; a dependency must be a task reference or a tag reference", dep))
 	}
 }
 
-// verifyDependencyDeclared verifies that the given dependency descriptor was declared
-// in the running task's dependencies.
-func verifyDependencyDeclared(ctx context.Context, dep Dependency) {
-	deps, err := khictx.GetValue(ctx, core_contract.TaskDependenciesContextKey)
-	if err != nil || deps == nil {
-		return
-	}
-	targetKey := dependencyKey(dep)
-	if targetKey == "" {
-		return
-	}
-
-	for _, declared := range deps {
-		if dependencyKey(declared) == targetKey {
-			return
-		}
-	}
-
-	panic(WrapErrorWithTaskInformation(ctx, fmt.Errorf("undeclared task dependency access: %s", targetKey)))
-}
-
-// GetTaskResult retrieves the result of a previously executed required task.
-// Panics if the dependency is undeclared or the result is missing.
-func GetTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]) T {
-	verifyDependencyDeclared(ctx, reference)
+// lookupTaskResult reads the result of a required task from the task result map in ctx.
+func lookupTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]) T {
 	taskResults := khictx.MustGetValue(ctx, core_contract.TaskResultMapContextKey)
 	result, found := typedmap.Get(taskResults, typedmap.NewTypedKey[T](reference.ReferenceIDString()))
 	if !found {
@@ -76,11 +55,8 @@ func GetTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]
 	return result
 }
 
-// GetOptionalTaskResult retrieves the result from an optional previously executed task.
-// If the task was not included in the execution graph, it safely returns (zeroValue, false).
-// If the task was bound in the graph but the result is missing, it panics.
-func GetOptionalTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]) (T, bool) {
-	verifyDependencyDeclared(ctx, reference)
+// lookupOptionalTaskResult reads the result of an optional task, returning false when the task is not bound in the graph.
+func lookupOptionalTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]) (T, bool) {
 	refID := reference.ReferenceIDString()
 	graphMetadata := khictx.MustGetValue(ctx, core_contract.TaskGraphMetadataContextKey)
 	if !graphMetadata.IsBound(refID) {
@@ -96,12 +72,8 @@ func GetOptionalTaskResult[T any](ctx context.Context, reference taskid.TaskRefe
 	return result, true
 }
 
-// GetTaskResultsWithTag retrieves all results of tasks providing the given tag as a slice.
-// Producer task results are returned in deterministic order.
-// If no tasks match the tag, an empty slice is returned.
-// Panics if the dependency is undeclared, or task graph metadata or task implementation ID is not available in the context.
-func GetTaskResultsWithTag[T any](ctx context.Context, tagReference TagReference[T]) []T {
-	verifyDependencyDeclared(ctx, tagReference)
+// lookupTaskResultsWithTag reads the results of all producers bound to the tag for the running task.
+func lookupTaskResultsWithTag[T any](ctx context.Context, tagReference TagReference[T]) []T {
 	graphMetadata := khictx.MustGetValue(ctx, core_contract.TaskGraphMetadataContextKey)
 	taskResults := khictx.MustGetValue(ctx, core_contract.TaskResultMapContextKey)
 	taskImplementationID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
@@ -123,18 +95,4 @@ func WrapErrorWithTaskInformation(ctx context.Context, err error) error {
 	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
 	errorMessage := fmt.Sprintf("An error occurred in task `%s`", taskID.String())
 	return errors.Join(errors.New(errorMessage), err)
-}
-
-// NewTailTask creates a no-op barrier task that waits for all given dependencies.
-func NewTailTask(taskID taskid.TaskImplementationID[struct{}], dependencies []Dependency, labelOpts ...LabelOpt) *TaskImpl[struct{}] {
-	verifyTaskID(taskID)
-	verifyNonNilDependencies(taskID, dependencies)
-	return NewTask(
-		taskID,
-		dependencies,
-		func(ctx context.Context) (struct{}, error) {
-			return struct{}{}, nil
-		},
-		labelOpts...,
-	)
 }

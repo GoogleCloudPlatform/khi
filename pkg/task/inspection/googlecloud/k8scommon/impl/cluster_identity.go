@@ -25,32 +25,32 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(k8scommon.ClusterIdentityTaskID, []coretask.Dependency{
-	gcpcommon.InputProjectIdTaskID.Ref(),
-	k8scommon.InputClusterNameTaskID.Ref(),
-	gcpcommon.InputLocationsTaskID.Ref(),
-	k8scommon.ClusterNamePrefixTaskRef,
-}, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.GoogleCloudClusterIdentity, error) {
-	projectID := coretask.GetTaskResult(ctx, gcpcommon.InputProjectIdTaskID.Ref())
-	clusterName := coretask.GetTaskResult(ctx, k8scommon.InputClusterNameTaskID.Ref())
-	location := coretask.GetTaskResult(ctx, gcpcommon.InputLocationsTaskID.Ref())
-	prefixPolicy := coretask.GetTaskResult(ctx, k8scommon.ClusterNamePrefixTaskRef)
-	if taskMode == inspectioncore.TaskModeRun {
-		if projectID != "" {
-			summary.SetCoreLabel(ctx, "projectId", projectID)
+// clusterIdentityTask creates the cluster identity from form inputs and prefix policy.
+var clusterIdentityTask = inspectiontaskbase.DefineInspectionTask(k8scommon.ClusterIdentityTaskID, func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8scommon.GoogleCloudClusterIdentity] {
+	projectID := coretask.Use(b, gcpcommon.InputProjectIdTaskID.Ref())
+	clusterName := coretask.Use(b, k8scommon.InputClusterNameTaskID.Ref())
+	location := coretask.Use(b, gcpcommon.InputLocationsTaskID.Ref())
+	prefixPolicy := coretask.Use(b, k8scommon.ClusterNamePrefixTaskRef)
+	return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.GoogleCloudClusterIdentity, error) {
+		pID := projectID.Get(ctx)
+		cName := clusterName.Get(ctx)
+		loc := location.Get(ctx)
+		if taskMode == inspectioncore.TaskModeRun {
+			if pID != "" {
+				summary.SetCoreLabel(ctx, "projectId", pID)
+			}
+			if cName != "" {
+				summary.SetCoreLabel(ctx, "clusterName", cName)
+			}
+			if loc != "" {
+				summary.SetCoreLabel(ctx, "location", loc)
+			}
 		}
-		if clusterName != "" {
-			summary.SetCoreLabel(ctx, "clusterName", clusterName)
-		}
-		if location != "" {
-			summary.SetCoreLabel(ctx, "location", location)
-		}
+		return k8scommon.GoogleCloudClusterIdentity{
+			ProjectID:    pID,
+			PrefixPolicy: prefixPolicy.Get(ctx),
+			ClusterName:  cName,
+			Location:     loc,
+		}, nil
 	}
-	return k8scommon.GoogleCloudClusterIdentity{
-		ProjectID:    projectID,
-		PrefixPolicy: prefixPolicy,
-		ClusterName:  clusterName,
-		Location:     location,
-	}, nil
-
 })

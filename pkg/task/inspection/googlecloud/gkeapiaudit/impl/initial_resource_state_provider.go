@@ -18,6 +18,7 @@ import (
 	"context"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -38,11 +39,12 @@ func (p *emptyInitialResourceStateProvider) NodePoolInitialState(clusterName, no
 	return nil, false
 }
 
-// EmptyInitialResourceStateProviderTask is the fallback provider task when CAI is not enabled.
-var EmptyInitialResourceStateProviderTask = inspectiontaskbase.NewInspectionTask(
+// emptyInitialResourceStateProviderTask is the fallback provider task when CAI is not enabled.
+var emptyInitialResourceStateProviderTask = inspectiontaskbase.DefineInspectionTask(
 	taskid.NewImplementationID(gkeapiaudit.InitialResourceStateProviderRef, "empty"),
-	nil,
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (gkeapiaudit.InitialResourceStateProvider, error) {
-		return &emptyInitialResourceStateProvider{}, nil
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[gkeapiaudit.InitialResourceStateProvider] {
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (gkeapiaudit.InitialResourceStateProvider, error) {
+			return &emptyInitialResourceStateProvider{}, nil
+		}
 	},
 )

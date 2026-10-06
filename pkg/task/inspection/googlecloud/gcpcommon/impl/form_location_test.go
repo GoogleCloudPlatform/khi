@@ -15,28 +15,27 @@
 package gcpcommon_impl
 
 import (
-	"context"
 	"testing"
 
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func TestLocationInput(t *testing.T) {
-	mockAutocompleteLocationsTask := coretask.NewTask(gcpcommon.AutocompleteLocationTaskID, []coretask.Dependency{}, func(ctx context.Context) (*inspectioncore.AutocompleteResult[string], error) {
-		return &inspectioncore.AutocompleteResult[string]{
-			Values: []string{"asia-northeast1", "us-central1"},
-		}, nil
-	})
-	form_task_test.TestTextForms(t, "gcp-location", InputLocationsTask, []*form_task_test.TextFormTestCase{
+	autocompleteResult := &inspectioncore.AutocompleteResult[string]{
+		Values: []string{"asia-northeast1", "us-central1"},
+	}
+	form_task_test.TestTextForms(t, "gcp-location", inputLocationsTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "With valid location",
 			Input:         "asia-northeast1",
 			ExpectedValue: "asia-northeast1",
-			Dependencies:  []coretask.UntypedTask{mockAutocompleteLocationsTask, InputProjectIdTask},
+			TaskInputs: []tasktest.InputValue{
+				tasktest.Given(gcpcommon.AutocompleteLocationTaskID.Ref(), autocompleteResult),
+			},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          gcpcommon.GoogleCloudCommonTaskIDPrefix + "input-location",
@@ -57,7 +56,9 @@ func TestLocationInput(t *testing.T) {
 			Name:          "Location suggestion is sorted by the distance from the input",
 			Input:         "us",
 			ExpectedValue: "us",
-			Dependencies:  []coretask.UntypedTask{mockAutocompleteLocationsTask, InputProjectIdTask},
+			TaskInputs: []tasktest.InputValue{
+				tasktest.Given(gcpcommon.AutocompleteLocationTaskID.Ref(), autocompleteResult),
+			},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          gcpcommon.GoogleCloudCommonTaskIDPrefix + "input-location",

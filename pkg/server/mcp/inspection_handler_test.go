@@ -39,10 +39,9 @@ import (
 )
 
 func newTestTask(id string, labelOpts ...coretask.LabelOpt) coretask.UntypedTask {
-	return coretask.NewTask(
+	return coretask.DefineConstant[any](
 		taskid.NewDefaultImplementationID[any](id),
 		nil,
-		func(ctx context.Context) (any, error) { return nil, nil },
 		labelOpts...,
 	)
 }

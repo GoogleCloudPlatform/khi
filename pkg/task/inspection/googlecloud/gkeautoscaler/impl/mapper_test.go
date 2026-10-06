@@ -34,7 +34,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
+func TestProcessAutoscalerLog(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	testCases := []struct {
 		name         string
@@ -187,16 +187,15 @@ func TestAutoscalerLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := &autoscalerLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			l := testlog.NewMockLog(
 				testTime,
 				*tc.input,
 			)
-			cs, err := ingester.ProcessLog(t.Context(), l)
+			cs, err := processAutoscalerLog(t.Context(), l)
 			if err != nil {
-				t.Fatalf("ProcessLog() error = %v", err)
+				t.Fatalf("processAutoscalerLog() error = %v", err)
 			}
 
 			testchangeset.AssertLog(t, cs).

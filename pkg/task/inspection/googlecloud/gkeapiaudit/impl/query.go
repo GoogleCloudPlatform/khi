@@ -20,15 +20,14 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GenerateGKEAuditStructuredQuery generates a structured query for GKE API audit logs.
-func GenerateGKEAuditStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
+// generateGKEAuditStructuredQuery generates a structured query for GKE API audit logs.
+func generateGKEAuditStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
 	return &logestimator.StructuredLogQuery{
 		Incomplete:                !cluster.IsComplete(),
 		ResourceTypes:             []string{"gke_cluster", "gke_nodepool"},
@@ -43,43 +42,29 @@ func GenerateGKEAuditStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentit
 	}
 }
 
-type gkeAPIListLogEntriesTaskSetting struct {
+// gkeAuditQuerySource builds the GKE audit log query for the cluster read through the cluster identity input.
+type gkeAuditQuerySource struct {
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
 }
 
-// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *gkeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, gkeapiaudit.ClusterIdentityTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *gkeAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	return []string{fmt.Sprintf("projects/%s", s.clusterIdentity.Get(ctx).ProjectID)}, nil
 }
 
-// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *gkeAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		gkeapiaudit.ClusterIdentityTaskID.Ref(),
-	}
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *gkeAuditQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
+	return []*logestimator.StructuredLogQuery{generateGKEAuditStructuredQuery(s.clusterIdentity.Get(ctx))}, nil
 }
 
-// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *gkeAPIListLogEntriesTaskSetting) QueryName() string {
-	return "GKE Audit logs"
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *gkeAuditQuerySource) TimePartitionCount() int {
+	return 1
 }
 
-// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *gkeAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	cluster := coretask.GetTaskResult(ctx, gkeapiaudit.ClusterIdentityTaskID.Ref())
-	return []*logestimator.StructuredLogQuery{GenerateGKEAuditStructuredQuery(cluster)}, nil
-}
+var _ gcpcommon.StructuredLogQuerySource = (*gkeAuditQuerySource)(nil)
 
-// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *gkeAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return gkeapiaudit.ListLogEntriesTaskID
-}
-
-// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *gkeAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
-}
-
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*gkeAPIListLogEntriesTaskSetting)(nil)
-
-var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&gkeAPIListLogEntriesTaskSetting{})
+// listLogEntriesTask queries GKE audit logs of the cluster from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(gkeapiaudit.ListLogEntriesTaskID, "GKE Audit logs", func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+	return &gkeAuditQuerySource{clusterIdentity: coretask.Use(b, gkeapiaudit.ClusterIdentityTaskID.Ref())}
+})

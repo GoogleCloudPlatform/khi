@@ -21,11 +21,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 // GenerateComposerLogsStructuredQuery generates a structured query for Composer environment logs.
@@ -54,54 +54,44 @@ func GenerateComposerLogsQuery(projectID, location, environmentName string, sele
 	return GenerateComposerLogsStructuredQuery(projectID, location, environmentName, selectedComponents).GenerateCloudLoggingQuery()
 }
 
-type composerListLogEntriesTaskSetting struct {
-	taskId    taskid.TaskImplementationID[[]*log.Log]
-	queryName string
+// composerLogsQuerySource builds the Cloud Composer logs query for the cluster, environment, and components read through the inputs.
+type composerLogsQuerySource struct {
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	environmentName coretask.Input[string]
+	components      coretask.Input[[]string]
 }
 
-// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *composerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, composercluster.ClusterIdentityTaskID.Ref())
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *composerLogsQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	clusterIdentity := s.clusterIdentity.Get(ctx)
 	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
-// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *composerListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		composercluster.ClusterIdentityTaskID.Ref(),
-		composercluster.InputComposerEnvironmentNameTaskID.Ref(),
-		composerairflow.InputComposerComponentsTaskID.Ref(),
-	}
-}
-
-// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *composerListLogEntriesTaskSetting) QueryName() string {
-	return c.queryName
-}
-
-// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *composerListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, composercluster.ClusterIdentityTaskID.Ref())
-	environmentName := coretask.GetTaskResult(ctx, composercluster.InputComposerEnvironmentNameTaskID.Ref())
-	selectedComponents := coretask.GetTaskResult(ctx, composerairflow.InputComposerComponentsTaskID.Ref())
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *composerLogsQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
+	clusterIdentity := s.clusterIdentity.Get(ctx)
+	environmentName := s.environmentName.Get(ctx)
+	selectedComponents := s.components.Get(ctx)
 
 	return []*logestimator.StructuredLogQuery{GenerateComposerLogsStructuredQuery(clusterIdentity.ProjectID, clusterIdentity.Location, environmentName, selectedComponents)}, nil
 }
 
-// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *composerListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return c.taskId
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *composerLogsQuerySource) TimePartitionCount() int {
+	return 10
 }
 
-// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (c *composerListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
-	return 10, nil
-}
+var _ gcpcommon.StructuredLogQuerySource = (*composerLogsQuerySource)(nil)
 
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*composerListLogEntriesTaskSetting)(nil)
-
-// ComposerLogsQueryTask defines a task that gathers logs from Cloud Logging for multiple Composer components.
-var ComposerLogsQueryTask = gcpcommon.NewStructuredListLogEntriesTask(&composerListLogEntriesTaskSetting{
-	taskId:    composerairflow.ComposerLogsQueryTaskID,
-	queryName: "Composer Environment Logs",
-})
+// composerLogsQueryTask defines a task that gathers logs from Cloud Logging for multiple Composer components.
+var composerLogsQueryTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	composerairflow.ComposerLogsQueryTaskID,
+	"Composer Environment Logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &composerLogsQuerySource{
+			clusterIdentity: coretask.Use(b, composercluster.ClusterIdentityTaskID.Ref()),
+			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
+			components:      coretask.Use(b, composerairflow.InputComposerComponentsTaskID.Ref()),
+		}
+	},
+)

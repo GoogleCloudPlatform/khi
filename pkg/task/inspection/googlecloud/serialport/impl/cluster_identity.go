@@ -20,7 +20,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/serialport"
 )
 
-var ClusterIdentityAliasTask = coretask.NewAliasTask(
+// clusterIdentityAliasTask provides the cluster identity of serial port log tasks from the shared k8scommon cluster identity task.
+var clusterIdentityAliasTask = coretask.DefineAliasTask(
 	serialport.ClusterIdentityTaskID,
 	k8scommon.ClusterIdentityTaskID.Ref(),
 )

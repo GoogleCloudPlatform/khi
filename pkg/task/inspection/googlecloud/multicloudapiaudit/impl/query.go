@@ -20,15 +20,14 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/multicloudapiaudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// GenerateMultiCloudAPIStructuredQuery generates a structured query for multicloud API logs.
-func GenerateMultiCloudAPIStructuredQuery(clusterIdentity k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
+// generateMultiCloudAPIStructuredQuery generates a structured query for multicloud API logs.
+func generateMultiCloudAPIStructuredQuery(clusterIdentity k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
 	return &logestimator.StructuredLogQuery{
 		Incomplete:    !clusterIdentity.IsComplete(),
 		ResourceTypes: []string{"audited_resource"},
@@ -42,43 +41,29 @@ func GenerateMultiCloudAPIStructuredQuery(clusterIdentity k8scommon.GoogleCloudC
 	}
 }
 
-type multicloudAPIListLogEntriesTaskSetting struct {
+// multiCloudAuditQuerySource builds the multicloud API audit log query for the cluster read through the cluster identity input.
+type multiCloudAuditQuerySource struct {
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
 }
 
-// DefaultResourceNames implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *multicloudAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, multicloudapiaudit.ClusterIdentityTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *multiCloudAuditQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	return []string{fmt.Sprintf("projects/%s", s.clusterIdentity.Get(ctx).ProjectID)}, nil
 }
 
-// Dependencies implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *multicloudAPIListLogEntriesTaskSetting) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		multicloudapiaudit.ClusterIdentityTaskID.Ref(),
-	}
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *multiCloudAuditQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
+	return []*logestimator.StructuredLogQuery{generateMultiCloudAPIStructuredQuery(s.clusterIdentity.Get(ctx))}, nil
 }
 
-// QueryName implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *multicloudAPIListLogEntriesTaskSetting) QueryName() string {
-	return "Multicloud API Logs"
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *multiCloudAuditQuerySource) TimePartitionCount() int {
+	return 1
 }
 
-// Queries implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *multicloudAPIListLogEntriesTaskSetting) Queries(ctx context.Context) ([]*logestimator.StructuredLogQuery, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, multicloudapiaudit.ClusterIdentityTaskID.Ref())
-	return []*logestimator.StructuredLogQuery{GenerateMultiCloudAPIStructuredQuery(clusterIdentity)}, nil
-}
+var _ gcpcommon.StructuredLogQuerySource = (*multiCloudAuditQuerySource)(nil)
 
-// TaskID implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *multicloudAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
-	return multicloudapiaudit.ListLogEntriesTaskID
-}
-
-// TimePartitionCount implements gcpcommon.StructuredListLogEntriesTaskSetting.
-func (g *multicloudAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
-	return 1, nil
-}
-
-var _ gcpcommon.StructuredListLogEntriesTaskSetting = (*multicloudAPIListLogEntriesTaskSetting)(nil)
-
-var ListLogEntriesTask = gcpcommon.NewStructuredListLogEntriesTask(&multicloudAPIListLogEntriesTaskSetting{})
+// listLogEntriesTask queries multicloud API logs from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(multicloudapiaudit.ListLogEntriesTaskID, "Multicloud API Logs", func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+	return &multiCloudAuditQuerySource{clusterIdentity: coretask.Use(b, multicloudapiaudit.ClusterIdentityTaskID.Ref())}
+})

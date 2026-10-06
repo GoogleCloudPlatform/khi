@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
@@ -34,12 +33,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
-	mapper := &otherNodeLogLogToTimelineMapperSetting{
-		StartingMessagesByComponent: map[string]string{
+func TestOtherLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
+	mapper := &otherLogTimelineMapper{
+		startingMessagesByComponent: map[string]string{
 			"component-A": "component-A start",
 		},
-		TerminatingMessagesByComponent: map[string]string{
+		terminatingMessagesByComponent: map[string]string{
 			"component-A": "component-A terminate",
 		},
 	}
@@ -64,7 +63,7 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			component:    "component-A",
 			nodeName:     "node-1",
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "component-A")
 
 				testchangeset.AssertTimeline(t, cs).
@@ -83,7 +82,7 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			component:    "component-A",
 			nodeName:     "node-1",
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "component-A")
 
 				testchangeset.AssertTimeline(t, cs).
@@ -111,7 +110,7 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "awsClusters/test-cluster", "node-1")
+				wantNodePath := mustK8sNodeTimeline(ctx, "awsClusters/test-cluster", "node-1")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "component-A")
 
 				testchangeset.AssertTimeline(t, cs).
@@ -138,9 +137,9 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "gcfsd")
-				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+				wantPodPath := mustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
 				wantContainerPath := k8saudit.MustK8sContainerTimeline(ctx, wantPodPath, "fluentbit-gke-init")
 
 				testchangeset.AssertTimeline(t, cs).
@@ -161,9 +160,9 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
 				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "gcfsd")
-				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+				wantPodPath := mustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantComponentPath).
@@ -202,15 +201,12 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				clusterIdent = *tc.inputClusterIdentity
 			}
 
-			// 2. Setup context with SAME builder and mock tasks
+			// 2. Setup context with SAME builder
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, k8snode.ClusterIdentityTaskID.Ref(), clusterIdent)
-			ctx = tasktest.WithTaskResult(ctx, k8snode.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
-			ctx = tasktest.WithTaskResult(ctx, k8saudit.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
 
-			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
+			cs, err := mapper.mapLog(ctx, l, clusterIdent, podIDFinder, containerIDFinder)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+				t.Fatalf("mapLog() returned unexpected error: %v", err)
 			}
 
 			tc.assert(t, ctx, cs)

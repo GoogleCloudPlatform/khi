@@ -17,10 +17,13 @@ package inspectiontaskbase
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -30,37 +33,47 @@ import (
 
 var pathFilterTestID = structured.CompileFieldPath("id")
 
-func TestNewLogFilterTask(t *testing.T) {
-	sourceLogs := []string{
-		`id: foo`,
-		`id: bar`,
-		`id: qux`,
+func TestDefineLogFilterTask(t *testing.T) {
+	sourceTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("source")
+	keepIDsTaskID := taskid.NewDefaultImplementationID[[]string]("keep-ids")
+	task := DefineLogFilterTask(taskid.NewDefaultImplementationID[[]*log.Log]("dest"), sourceTaskID.Ref(), func(b *coretask.Binder) LogFilterFunc {
+		keepIDs := coretask.Use(b, keepIDsTaskID.Ref())
+		return func(ctx context.Context, l *log.Log) bool {
+			return slices.Contains(keepIDs.Get(ctx), l.ReadStringOrDefault(pathFilterTestID, "unknown"))
+		}
+	}, coretask.WithDescription("filters logs by ID"))
+	if got := typedmap.GetOrDefault(task.Labels(), coretask.LabelKeyTaskDescription, ""); got != "filters logs by ID" {
+		t.Errorf("LabelKeyTaskDescription = %q, want %q", got, "filters logs by ID")
 	}
+	wantInputs := []string{"required source", "required keep-ids"}
+
 	testCases := []struct {
-		name         string
-		taskMode     inspectioncore.InspectionTaskModeType
-		logYAMLs     []string
-		logFilter    LogFilterFunc
-		resultLogIDs []string
+		name       string
+		taskMode   inspectioncore.InspectionTaskModeType
+		logYAMLs   []string
+		keepIDs    []string
+		wantLogIDs []string
 	}{
 		{
-			name:         "should return an empty slice for an empty log input on run mode",
-			taskMode:     inspectioncore.TaskModeRun,
-			logYAMLs:     []string{},
-			resultLogIDs: []string{},
+			name:       "returns an empty slice for empty logs on run mode",
+			taskMode:   inspectioncore.TaskModeRun,
+			logYAMLs:   []string{},
+			keepIDs:    []string{},
+			wantLogIDs: []string{},
 		},
 		{
-			name:     "should filter logs based on the provided function on run mode",
+			name:     "keeps the logs selected by the input declared in bind on run mode",
 			taskMode: inspectioncore.TaskModeRun,
-			logYAMLs: sourceLogs,
-			logFilter: func(ctx context.Context, l *log.Log) bool {
-				id := l.ReadStringOrDefault(pathFilterTestID, "unknown")
-				return id == "foo" || id == "qux"
+			logYAMLs: []string{
+				`id: foo`,
+				`id: bar`,
+				`id: qux`,
 			},
-			resultLogIDs: []string{"foo", "qux"},
+			keepIDs:    []string{"foo", "qux"},
+			wantLogIDs: []string{"foo", "qux"},
 		},
 		{
-			name:     "should preserve order when filtering a large number of logs concurrently",
+			name:     "preserves order when filtering many logs concurrently",
 			taskMode: inspectioncore.TaskModeRun,
 			logYAMLs: func() []string {
 				yamls := make([]string, 100)
@@ -69,16 +82,14 @@ func TestNewLogFilterTask(t *testing.T) {
 				}
 				return yamls
 			}(),
-			logFilter: func(ctx context.Context, l *log.Log) bool {
-				id := l.ReadStringOrDefault(pathFilterTestID, "unknown")
-				// Keep only even numbered items
-				var idx int
-				if n, _ := fmt.Sscanf(id, "item-%03d", &idx); n == 1 {
-					return idx%2 == 0
+			keepIDs: func() []string {
+				ids := make([]string, 50)
+				for i := 0; i < 50; i++ {
+					ids[i] = fmt.Sprintf("item-%03d", i*2)
 				}
-				return false
-			},
-			resultLogIDs: func() []string {
+				return ids
+			}(),
+			wantLogIDs: func() []string {
 				ids := make([]string, 50)
 				for i := 0; i < 50; i++ {
 					ids[i] = fmt.Sprintf("item-%03d", i*2)
@@ -87,29 +98,36 @@ func TestNewLogFilterTask(t *testing.T) {
 			}(),
 		},
 		{
-			name:     "should return an empty slice and perform no filtering for dryrun mode",
+			name:     "returns an empty slice without filtering on dry run",
 			taskMode: inspectioncore.TaskModeDryRun,
-			logFilter: func(ctx context.Context, l *log.Log) bool {
-				return true
+			logYAMLs: []string{
+				`id: foo`,
+				`id: bar`,
+				`id: qux`,
 			},
-			resultLogIDs: []string{},
+			keepIDs:    []string{"foo"},
+			wantLogIDs: []string{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			logs := []*log.Log{}
-			for _, logYaml := range tc.logYAMLs {
-				logs = append(logs, mustNewLogFromYAML(t, ctx, logYaml))
+			if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+				t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
 			}
 
-			testSourceTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("source")
-			testTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("dest")
-			task := NewLogFilterTask(testTaskID, testSourceTaskID.Ref(), tc.logFilter)
-			result, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(testSourceTaskID.Ref(), logs))
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			logs := []*log.Log{}
+			for _, logYAML := range tc.logYAMLs {
+				logs = append(logs, mustNewLogFromYAML(t, ctx, logYAML))
+			}
+
+			result, _, err := inspectiontest.Run(t, ctx, task, tc.taskMode, map[string]any{},
+				tasktest.Given(sourceTaskID.Ref(), logs),
+				tasktest.Given(keepIDsTaskID.Ref(), tc.keepIDs),
+			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+				t.Fatalf("Run() returned an unexpected error: %v", err)
 			}
 
 			logIDs := []string{}
@@ -117,8 +135,8 @@ func TestNewLogFilterTask(t *testing.T) {
 				logIDs = append(logIDs, resultLog.ReadStringOrDefault(pathFilterTestID, "unknown"))
 			}
 
-			if diff := cmp.Diff(tc.resultLogIDs, logIDs); diff != "" {
-				t.Errorf("Log IDs mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.wantLogIDs, logIDs); diff != "" {
+				t.Errorf("log IDs mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

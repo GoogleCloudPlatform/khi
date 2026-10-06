@@ -37,110 +37,127 @@ var inputNamespacesAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][
 	"managed": {"kube-system", "gke-system", "istio-system", "asm-system", "gmp-system", "gke-mcs", "configconnector-operator-system", "cnrm-system"},
 }
 
-// InputContainerQueryNamespaceFilterTask is a form task that allows users to specify which namespaces to query for container logs.
-var InputContainerQueryNamespaceFilterTask = formtask.NewSetFormTaskBuilder(k8scontainer.InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
-	WithDependencies([]coretask.Dependency{k8scommon.AutocompleteNamespacesTaskID.Ref()}).
-	WithDefaultValueConstant([]string{"@managed"}, true).
-	WithAllowAddAll(false).
-	WithAllowRemoveAll(false).
-	WithAllowCustomValue(true).
-	WithDescription(`Container logs tend to be a lot and take very long time to query.
-Specify the space splitted namespace lists to query container logs only in the specific namespaces.`).
-	WithOptionsFunc(func(ctx context.Context, value []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		result := []inspectionmetadata.SetParameterFormFieldOptionItem{}
-		namespaces := coretask.GetTaskResult(ctx, k8scommon.AutocompleteNamespacesTaskID.Ref())
-		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{
-			ID:          "@managed",
-			Description: "[Alias] An alias matches the managed namespaces(e.g kube-system,gke-system,...etc).",
-		}, inspectionmetadata.SetParameterFormFieldOptionItem{
-			ID:          "@any",
-			Description: "[Alias] An alias matches any pod namespaces.",
-		})
-		for i, namespace := range namespaces.Values {
-			if i >= maxNamespaceFilterOptions {
-				break
-			}
-			result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{
-				ID: namespace,
-			})
+// inputContainerQueryNamespaceFilterTask is a form task that allows users to specify which namespaces to query for container logs.
+var inputContainerQueryNamespaceFilterTask = formtask.DefineSetForm(
+	k8scontainer.InputContainerQueryNamespacesTaskID,
+	priorityForContainerGroup+1000,
+	"Namespaces(Container logs)",
+	`Container logs tend to be a lot and take very long time to query.
+Specify the space splitted namespace lists to query container logs only in the specific namespaces.`,
+	func(b *coretask.Binder) formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult] {
+		namespaces := coretask.Use(b, k8scommon.AutocompleteNamespacesTaskID.Ref())
+		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{
+			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@managed"}),
+			AllowCustomValue: formtask.ConstantBool(true),
+			DisableAddAll:    formtask.ConstantBool(true),
+			DisableRemoveAll: formtask.ConstantBool(true),
+			Options: func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+				result := []inspectionmetadata.SetParameterFormFieldOptionItem{
+					{
+						ID:          "@managed",
+						Description: "[Alias] An alias matches the managed namespaces(e.g kube-system,gke-system,...etc).",
+					},
+					{
+						ID:          "@any",
+						Description: "[Alias] An alias matches any pod namespaces.",
+					},
+				}
+				ns := namespaces.Get(ctx)
+				for i, namespace := range ns.Values {
+					if i >= maxNamespaceFilterOptions {
+						break
+					}
+					result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{
+						ID: namespace,
+					})
+				}
+				return result, nil
+			},
+			Hint: func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+				ns := namespaces.Get(ctx)
+				if len(ns.Values) > maxNamespaceFilterOptions {
+					return fmt.Sprintf("Some namespaces are not shown on the suggestion list because the number of namespaces is %d, which is more than %d.", len(ns.Values), maxNamespaceFilterOptions), inspectionmetadata.Warning, nil
+				}
+				return "", inspectionmetadata.None, nil
+			},
+			Validator: func(ctx context.Context, value []string) (string, error) {
+				setFilterStr := strings.Join(value, " ")
+				result, err := gcpqueryutil.ParseSetFilter(setFilterStr, inputNamespacesAliasMap, true, true, true)
+				if err != nil {
+					return "", err
+				}
+				return result.ValidationError, nil
+			},
+			Converter: func(ctx context.Context, value []string) (*gcpqueryutil.SetFilterParseResult, error) {
+				setFilterStr := strings.Join(value, " ")
+				result, err := gcpqueryutil.ParseSetFilter(setFilterStr, inputNamespacesAliasMap, true, true, true)
+				if err != nil {
+					return nil, err
+				}
+				return result, nil
+			},
 		}
-		return result, nil
-	}).
-	WithHintFunc(func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		namespaces := coretask.GetTaskResult(ctx, k8scommon.AutocompleteNamespacesTaskID.Ref())
-		if len(namespaces.Values) > maxNamespaceFilterOptions {
-			return fmt.Sprintf("Some namespaces are not shown on the suggestion list because the number of namespaces is %d, which is more than %d.", len(namespaces.Values), maxNamespaceFilterOptions), inspectionmetadata.Warning, nil
-		}
-		return "", inspectionmetadata.None, nil
-	}).
-	WithValidator(func(ctx context.Context, value []string) (string, error) {
-		setFilterStr := strings.Join(value, " ")
-		result, err := gcpqueryutil.ParseSetFilter(setFilterStr, inputNamespacesAliasMap, true, true, true)
-		if err != nil {
-			return "", err
-		}
-		return result.ValidationError, nil
-	}).
-	WithConverter(func(ctx context.Context, value []string) (*gcpqueryutil.SetFilterParseResult, error) {
-		setFilterStr := strings.Join(value, " ")
-		result, err := gcpqueryutil.ParseSetFilter(setFilterStr, inputNamespacesAliasMap, true, true, true)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	}).
-	Build()
+	},
+)
 
 var inputPodNamesAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]string{}
 
-// InputContainerQueryPodNamesFilterMask is a form task that allows users to specify which pod names to query for container logs.
-var InputContainerQueryPodNamesFilterMask = formtask.NewSetFormTaskBuilder(k8scontainer.InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
-	WithDependencies([]coretask.Dependency{k8scommon.AutocompletePodNamesTaskID.Ref()}).
-	WithDefaultValueConstant([]string{"@any"}, true).
-	WithAllowAddAll(false).
-	WithAllowRemoveAll(false).
-	WithAllowCustomValue(true).
-	WithDescription(`Container logs tend to be a lot and take very long time to query.
+// inputContainerQueryPodNamesFilterTask is a form task that allows users to specify which pod names to query for container logs.
+var inputContainerQueryPodNamesFilterTask = formtask.DefineSetForm(
+	k8scontainer.InputContainerQueryPodNamesTaskID,
+	priorityForContainerGroup+2000,
+	"Pod names(Container logs)",
+	`Container logs tend to be a lot and take very long time to query.
 	Specify the space splitted pod names lists to query container logs only in the specific pods.
-	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.`).
-	WithOptionsFunc(func(ctx context.Context, value []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		result := []inspectionmetadata.SetParameterFormFieldOptionItem{}
-		podNames := coretask.GetTaskResult(ctx, k8scommon.AutocompletePodNamesTaskID.Ref())
-		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{
-			ID:          "@any",
-			Description: "[Alias] An alias matches any pod names.",
-		})
-		for i, podName := range podNames.Values {
-			if i >= maxPodNameFilterOptions {
-				break
-			}
-			result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{
-				ID: podName,
-			})
+	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.`,
+	func(b *coretask.Binder) formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult] {
+		podNames := coretask.Use(b, k8scommon.AutocompletePodNamesTaskID.Ref())
+		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{
+			DefaultValue:     formtask.PreviousOrConstantDefaultValue([]string{"@any"}),
+			AllowCustomValue: formtask.ConstantBool(true),
+			DisableAddAll:    formtask.ConstantBool(true),
+			DisableRemoveAll: formtask.ConstantBool(true),
+			Options: func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+				result := []inspectionmetadata.SetParameterFormFieldOptionItem{
+					{
+						ID:          "@any",
+						Description: "[Alias] An alias matches any pod names.",
+					},
+				}
+				names := podNames.Get(ctx)
+				for i, podName := range names.Values {
+					if i >= maxPodNameFilterOptions {
+						break
+					}
+					result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{
+						ID: podName,
+					})
+				}
+				return result, nil
+			},
+			Hint: func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+				names := podNames.Get(ctx)
+				if len(names.Values) > maxPodNameFilterOptions {
+					return fmt.Sprintf("Some pod names are not shown on the suggestion list because the number of pod names is %d, which is more than %d.", len(names.Values), maxPodNameFilterOptions), inspectionmetadata.Warning, nil
+				}
+				return "", inspectionmetadata.None, nil
+			},
+			Validator: func(ctx context.Context, value []string) (string, error) {
+				setFilterStr := strings.Join(value, " ")
+				result, err := gcpqueryutil.ParseSetFilter(setFilterStr, inputPodNamesAliasMap, true, true, true)
+				if err != nil {
+					return "", err
+				}
+				return result.ValidationError, nil
+			},
+			Converter: func(ctx context.Context, value []string) (*gcpqueryutil.SetFilterParseResult, error) {
+				setFilterStr := strings.Join(value, " ")
+				result, err := gcpqueryutil.ParseSetFilter(setFilterStr, inputPodNamesAliasMap, true, true, true)
+				if err != nil {
+					return nil, err
+				}
+				return result, nil
+			},
 		}
-		return result, nil
-	}).
-	WithHintFunc(func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		podNames := coretask.GetTaskResult(ctx, k8scommon.AutocompletePodNamesTaskID.Ref())
-		if len(podNames.Values) > maxPodNameFilterOptions {
-			return fmt.Sprintf("Some pod names are not shown on the suggestion list because the number of pod names is %d, which is more than %d.", len(podNames.Values), maxPodNameFilterOptions), inspectionmetadata.Warning, nil
-		}
-		return "", inspectionmetadata.None, nil
-	}).
-	WithValidator(func(ctx context.Context, value []string) (string, error) {
-		setFilterStr := strings.Join(value, " ")
-		result, err := gcpqueryutil.ParseSetFilter(setFilterStr, inputPodNamesAliasMap, true, true, true)
-		if err != nil {
-			return "", err
-		}
-		return result.ValidationError, nil
-	}).
-	WithConverter(func(ctx context.Context, value []string) (*gcpqueryutil.SetFilterParseResult, error) {
-		setFilterStr := strings.Join(value, " ")
-		result, err := gcpqueryutil.ParseSetFilter(setFilterStr, inputPodNamesAliasMap, true, true, true)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	}).
-	Build()
+	},
+)

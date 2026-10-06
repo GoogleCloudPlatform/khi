@@ -25,7 +25,6 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var defaultSupportedKindsToAssetTypes = map[string]string{
@@ -58,19 +57,29 @@ var defaultSupportedKindsToAssetTypes = map[string]string{
 	"validatingwebhookconfiguration": "admissionregistration.k8s.io/ValidatingWebhookConfiguration",
 }
 
-func resolveClusterResourceSearchTarget(ctx context.Context, _ inspectioncore.InspectionTaskModeType) (string, gcpcommon.CAIAssetSearchTarget, bool, error) {
-	cluster := coretask.GetTaskResult(ctx, k8scommon.ClusterIdentityTaskID.Ref())
+func bindClusterResourceSearchTargetResolver(b *coretask.Binder) gcpcommon.CAISearchTargetResolver {
+	cluster := coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref())
+	kindFilter := coretask.Use(b, k8scommon.InputKindFilterTaskID.Ref())
+	namespaceFilter := coretask.Use(b, k8scommon.InputNamespaceFilterTaskID.Ref())
+	return func(ctx context.Context) (string, gcpcommon.CAIAssetSearchTarget, bool, error) {
+		return resolveClusterResourceSearchTarget(cluster.Get(ctx), kindFilter.Get(ctx), namespaceFilter.Get(ctx))
+	}
+}
+
+func resolveClusterResourceSearchTarget(
+	cluster k8scommon.GoogleCloudClusterIdentity,
+	kindFilter *gcpqueryutil.SetFilterParseResult,
+	namespaceFilter *gcpqueryutil.SetFilterParseResult,
+) (string, gcpcommon.CAIAssetSearchTarget, bool, error) {
 	if !cluster.IsComplete() {
 		return "", gcpcommon.CAIAssetSearchTarget{}, true, nil
 	}
 
-	kindFilter := coretask.GetTaskResult(ctx, k8scommon.InputKindFilterTaskID.Ref())
 	assetTypes := resolveAssetTypes(kindFilter)
 	if len(assetTypes) == 0 {
 		return "", gcpcommon.CAIAssetSearchTarget{}, true, nil
 	}
 
-	namespaceFilter := coretask.GetTaskResult(ctx, k8scommon.InputNamespaceFilterTaskID.Ref())
 	target := clusterResourceDiscoveryTarget{
 		scope:                      fmt.Sprintf("projects/%s", cluster.ProjectID),
 		clusterAssetNameCandidates: clusterAssetNameCandidates(cluster),

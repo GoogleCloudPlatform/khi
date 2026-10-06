@@ -24,31 +24,31 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// NodeNameDiscoveryTask extracts node names from Kubernetes Container log labels and registers them to NodeNameInventoryTask.
-var NodeNameDiscoveryTask = inspectiontaskbase.NewInspectionTask(
+// nodeNameDiscoveryTask extracts node names from Kubernetes Container log labels and registers them to NodeNameInventoryTask.
+var nodeNameDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8scontainer.NodeNameDiscoveryTaskID,
-	[]coretask.Dependency{
-		k8scontainer.ListLogEntriesTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			return nil, nil
-		}
-
-		foundNodeNames := map[string]struct{}{}
-		logs := coretask.GetTaskResult(ctx, k8scontainer.ListLogEntriesTaskID.Ref())
-		for _, l := range logs {
-			fs, err := k8scontainer.ExtractGCPContainerLogNodeNameLabel(l.NodeReader)
-			if err == nil && fs.NodeName != "" {
-				foundNodeNames[fs.NodeName] = struct{}{}
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]string] {
+		containerLogs := coretask.Use(b, k8scontainer.ListLogEntriesTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]string, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				return nil, nil
 			}
-		}
 
-		var result []string
-		for k := range foundNodeNames {
-			result = append(result, k)
+			foundNodeNames := map[string]struct{}{}
+			logs := containerLogs.Get(ctx)
+			for _, l := range logs {
+				fs, err := k8scontainer.ExtractGCPContainerLogNodeNameLabel(l.NodeReader)
+				if err == nil && fs.NodeName != "" {
+					foundNodeNames[fs.NodeName] = struct{}{}
+				}
+			}
+
+			result := make([]string, 0, len(foundNodeNames))
+			for k := range foundNodeNames {
+				result = append(result, k)
+			}
+			return result, nil
 		}
-		return result, nil
 	},
 	coretask.ProvidesTag(k8saudit.TagNodeNameDiscovery),
 	coretask.WithFeatureGate(k8scontainer.TailTaskID.Ref()),

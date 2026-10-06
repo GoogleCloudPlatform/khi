@@ -54,12 +54,9 @@ func createTestInspectionServer(t *testing.T) (*coreinspection.InspectionTaskSer
 	}
 
 	dummyTaskID := taskid.NewDefaultImplementationID[any]("dummy-task")
-	dummyTask := coretask.NewTask(
+	dummyTask := coretask.DefineConstant[any](
 		dummyTaskID,
-		nil,
-		func(ctx context.Context) (any, error) {
-			return "success", nil
-		},
+		"success",
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
 	)

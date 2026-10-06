@@ -34,14 +34,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// LogToTimelineMapper defines the interface for mapping logs to timeline elements (events or revisions) in KHI file v6 format.
-type LogToTimelineMapper[T any] interface {
-	// LogIngesterTask is one of prerequisite task of LogToTimelineMapper ingesting logs before processing with this mapper.
-	LogIngesterTask() taskid.TaskReference[struct{}]
-	// Dependencies are the additional references used in timeline mapper.
-	Dependencies() []coretask.Dependency
-	// GroupedLogTask returns a reference to the task that provides the grouped logs.
-	GroupedLogTask() taskid.TaskReference[LogGroupMap]
+// TimelineMapper maps the logs of each log group to timeline elements (events or revisions) in KHI file v6 format.
+// T is the state passed from one log to the next log in the same group.
+type TimelineMapper[T any] interface {
 	// PassCount returns the number of pre-processing passes to perform on each group.
 	PassCount() int
 	// PreProcessLogByGroup is called during a pre-processing pass for each log in a group.
@@ -52,7 +47,16 @@ type LogToTimelineMapper[T any] interface {
 	ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData T) (*khifilev6.TimelineChangeSet, T, error)
 }
 
-// SinglePassMapperBase provides a base implementation of LogToTimelineMapper
+// TimelineMapperInputs specifies the log ingester the mapper waits for and the grouped log task it reads.
+// DefineLogToTimelineMapperTask registers both on the Binder before calling bind.
+type TimelineMapperInputs struct {
+	// LogIngester is the task that must ingest the log metadata before the mapper runs. The mapper does not read its value.
+	LogIngester taskid.TaskReference[struct{}]
+	// GroupedLogs is the task that provides the logs to map, grouped by the unit processed sequentially.
+	GroupedLogs taskid.TaskReference[LogGroupMap]
+}
+
+// SinglePassMapperBase provides a base implementation of TimelineMapper
 // for mappers that only require a single pass over the logs.
 type SinglePassMapperBase[T any] struct{}
 
@@ -66,7 +70,7 @@ func (SinglePassMapperBase[T]) PreProcessLogByGroup(ctx context.Context, passInd
 	return prevGroupData, nil
 }
 
-// StatelessMapperBase provides a base implementation of LogToTimelineMapper
+// StatelessMapperBase provides a base implementation of TimelineMapper
 // for mappers that are both stateless and only require a single pass.
 type StatelessMapperBase struct{}
 
@@ -80,130 +84,140 @@ func (StatelessMapperBase) PreProcessLogByGroup(ctx context.Context, passIndex i
 	return struct{}{}, nil
 }
 
-// NewLogToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry based on grouped logs.
-// It processes logs in parallel and applies the logic from the provided LogToTimelineMapper.
-func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}], mapper LogToTimelineMapper[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
-	groupedLogTaskID := mapper.GroupedLogTask()
-	dependencies := append([]coretask.Dependency{mapper.LogIngesterTask(), mapper.GroupedLogTask()}, mapper.Dependencies()...)
+// DefineLogToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry based on the logs grouped by inputs.GroupedLogs.
+//
+// inputs specifies the log ingester the mapper waits for and the grouped log task it reads; DefineLogToTimelineMapperTask registers both on the Binder before calling bind.
+// bind is called once at task definition time to declare additional inputs and return the TimelineMapper[T] instance.
+// Because the returned TimelineMapper[T] is shared across inspections and concurrent worker goroutines, any per-group mutable state must be stored in T rather than on the mapper struct.
+func DefineLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}], inputs TimelineMapperInputs, bind func(b *coretask.Binder) TimelineMapper[T], labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	allLabels := append([]coretask.LabelOpt{
 		coretask.ProvidesTag(TagTimelineMapper),
-	}, labels...)
-	return NewInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
-		if taskMode == inspectioncore.TaskModeDryRun {
-			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
-			return struct{}{}, nil
-		}
-
-		builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-		groupedLogs := coretask.GetTaskResult(ctx, groupedLogTaskID)
-
-		totalLogCount := 0
-		var skippedLogCount atomic.Uint32
-		for _, group := range groupedLogs {
-			totalLogCount += len(group.Logs)
-		}
-
-		passCount := mapper.PassCount()
-		totalSteps := totalLogCount * (passCount + 1)
-
-		tracker := progress.NewTracker(ctx, totalSteps, progress.WithUnit("steps"))
-		defer tracker.Done()
-
-		var sharedErr error
-		var errMu sync.Mutex
-
-		setErr := func(err error) {
-			errMu.Lock()
-			defer errMu.Unlock()
-			if sharedErr == nil {
-				sharedErr = err
+	}, labelOpts...)
+	return DefineInspectionTask(tid, func(b *coretask.Binder) InspectionTaskFunc[struct{}] {
+		coretask.After(b, inputs.LogIngester)
+		groupedLogs := coretask.Use(b, inputs.GroupedLogs)
+		mapper := bind(b)
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (struct{}, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				slog.DebugContext(ctx, "Skipping task because this is dry run mode")
+				return struct{}{}, nil
 			}
+			return struct{}{}, mapGroupedLogs(ctx, tid, groupedLogs.Get(ctx), mapper)
 		}
+	}, allLabels...)
+}
 
-		hasErr := func() bool {
-			if ctx.Err() != nil {
-				return true
-			}
-			errMu.Lock()
-			defer errMu.Unlock()
-			return sharedErr != nil
+// mapGroupedLogs processes each log group in parallel with mapper and flushes the resulting change sets to the builder in the context.
+// Logs in the same group are processed sequentially so that mapper can pass state from one log to the next.
+func mapGroupedLogs[T any](ctx context.Context, tid taskid.TaskImplementationID[struct{}], groupedLogs LogGroupMap, mapper TimelineMapper[T]) error {
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+
+	totalLogCount := 0
+	var skippedLogCount atomic.Uint32
+	for _, group := range groupedLogs {
+		totalLogCount += len(group.Logs)
+	}
+
+	passCount := mapper.PassCount()
+	totalSteps := totalLogCount * (passCount + 1)
+
+	tracker := progress.NewTracker(ctx, totalSteps, progress.WithUnit("steps"))
+	defer tracker.Done()
+
+	var sharedErr error
+	var errMu sync.Mutex
+
+	setErr := func(err error) {
+		errMu.Lock()
+		defer errMu.Unlock()
+		if sharedErr == nil {
+			sharedErr = err
 		}
+	}
 
-		pool := worker.NewPool(runtime.GOMAXPROCS(0))
-		for _, group := range groupedLogs {
-			if ctx.Err() != nil {
-				break
+	hasErr := func() bool {
+		if ctx.Err() != nil {
+			return true
+		}
+		errMu.Lock()
+		defer errMu.Unlock()
+		return sharedErr != nil
+	}
+
+	pool := worker.NewPool(runtime.GOMAXPROCS(0))
+	for _, group := range groupedLogs {
+		if ctx.Err() != nil {
+			break
+		}
+		pool.Run(func() {
+			if hasErr() {
+				return
 			}
-			pool.Run(func() {
-				if hasErr() {
-					return
-				}
-				var groupData T
+			var groupData T
 
-				// 1. Pre-processing passes
-				passCount := mapper.PassCount()
-				for passIdx := 0; passIdx < passCount; passIdx++ {
-					for _, l := range group.Logs {
-						if hasErr() {
-							return
-						}
-						nextGroupData, err := mapper.PreProcessLogByGroup(ctx, passIdx, l, groupData)
-						tracker.Inc()
-						if err != nil {
-							logTaskError(ctx, fmt.Sprintf("pre-processor ended with an error at passIndex %d", passIdx), err, l)
-							setErr(err)
-							return
-						}
-						groupData = nextGroupData
-					}
-				}
-
-				// 2. Final processing pass
+			// 1. Pre-processing passes
+			passCount := mapper.PassCount()
+			for passIdx := 0; passIdx < passCount; passIdx++ {
 				for _, l := range group.Logs {
 					if hasErr() {
 						return
 					}
-					cs, nextGroupData, err := mapper.ProcessLogByGroup(ctx, l, groupData)
+					nextGroupData, err := mapper.PreProcessLogByGroup(ctx, passIdx, l, groupData)
 					tracker.Inc()
 					if err != nil {
-						logTaskError(ctx, "parser ended with an error", err, l)
+						logTaskError(ctx, fmt.Sprintf("pre-processor ended with an error at passIndex %d", passIdx), err, l)
 						setErr(err)
 						return
 					}
 					groupData = nextGroupData
-
-					if cs != nil {
-						err := cs.Flush(builder.TimelineAccumulator, builder.LogAccumulator)
-						cs.Release()
-						if err != nil {
-							logTaskError(ctx, "failed to flush the changeset to timeline registry", err, l)
-							setErr(err)
-							return
-						}
-					} else {
-						skippedLogCount.Add(1)
-					}
 				}
-			})
-		}
-		pool.Wait()
+			}
 
-		if ctx.Err() != nil {
-			return struct{}{}, ctx.Err()
-		}
-		if sharedErr != nil {
-			return struct{}{}, sharedErr
-		}
+			// 2. Final processing pass
+			for _, l := range group.Logs {
+				if hasErr() {
+					return
+				}
+				cs, nextGroupData, err := mapper.ProcessLogByGroup(ctx, l, groupData)
+				tracker.Inc()
+				if err != nil {
+					logTaskError(ctx, "parser ended with an error", err, l)
+					setErr(err)
+					return
+				}
+				groupData = nextGroupData
 
-		slog.DebugContext(ctx, fmt.Sprintf("LogToTimelineMapperTask %s finished: processed %d logs (skipped %d logs)", tid.String(), totalLogCount, skippedLogCount.Load()))
+				if cs != nil {
+					err := cs.Flush(builder.TimelineAccumulator, builder.LogAccumulator)
+					cs.Release()
+					if err != nil {
+						logTaskError(ctx, "failed to flush the changeset to timeline registry", err, l)
+						setErr(err)
+						return
+					}
+				} else {
+					skippedLogCount.Add(1)
+				}
+			}
+		})
+	}
+	pool.Wait()
 
-		tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
-		if tracingActive {
-			trace.SpanFromContext(ctx).SetAttributes(
-				attribute.String("log_count", fmt.Sprintf("%d", totalLogCount)),
-			)
-		}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if sharedErr != nil {
+		return sharedErr
+	}
 
-		return struct{}{}, nil
-	}, allLabels...)
+	slog.DebugContext(ctx, fmt.Sprintf("LogToTimelineMapperTask %s finished: processed %d logs (skipped %d logs)", tid.String(), totalLogCount, skippedLogCount.Load()))
+
+	tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
+	if tracingActive {
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("log_count", fmt.Sprintf("%d", totalLogCount)),
+		)
+	}
+
+	return nil
 }

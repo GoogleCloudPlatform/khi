@@ -19,59 +19,49 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scontrolplane"
 )
 
-var OtherLogFilterTask = inspectiontaskbase.NewLogFilterTask(
+// otherLogFilterTask filters the control plane component logs that no dedicated mapper handles.
+var otherLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 	k8scontrolplane.OtherLogFilterTaskID,
 	k8scontrolplane.ListLogEntriesTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) bool {
-		parserType, err := k8scontrolplane.ExtractK8sControlplaneComponentParserType(l.NodeReader)
-		if err != nil {
-			return false
+	func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+		return func(ctx context.Context, l *log.Log) bool {
+			parserType, err := k8scontrolplane.ExtractK8sControlplaneComponentParserType(l.NodeReader)
+			if err != nil {
+				return false
+			}
+			return parserType == k8scontrolplane.ComponentParserTypeOther
 		}
-		return parserType == k8scontrolplane.ComponentParserTypeOther
 	},
 )
 
-var OtherGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+// otherLogGrouperTask groups the other control plane component logs by component name.
+var otherLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	k8scontrolplane.OtherLogGrouperTaskID,
 	k8scontrolplane.OtherLogFilterTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		componentFieldSet, err := k8scontrolplane.ExtractK8sControlplaneComponent(l.NodeReader)
-		if err != nil {
-			return ""
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			componentFieldSet, err := k8scontrolplane.ExtractK8sControlplaneComponent(l.NodeReader)
+			if err != nil {
+				return ""
+			}
+			return componentFieldSet.ComponentName
 		}
-		return componentFieldSet.ComponentName
 	},
 )
 
-// OtherTimelineMapper maps other control plane logs to timeline paths.
-type OtherTimelineMapper struct {
+// otherTimelineMapper maps other control plane logs to timeline paths.
+type otherTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (o *OtherTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
-}
-
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *OtherTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return k8scontrolplane.OtherLogGrouperTaskID.Ref()
-}
-
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *OtherTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return k8scontrolplane.LogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (o *OtherTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (o *otherTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	componentFieldSet, err := k8scontrolplane.ExtractK8sControlplaneComponent(l.NodeReader)
 	if err != nil {
 		return nil, struct{}{}, err
@@ -86,6 +76,16 @@ func (o *OtherTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*OtherTimelineMapper)(nil)
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*otherTimelineMapper)(nil)
 
-var OtherLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](k8scontrolplane.OtherLogToTimelineMapperTaskID, &OtherTimelineMapper{})
+// otherLogToTimelineMapperTask maps the other control plane component logs to the timelines of their components.
+var otherLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8scontrolplane.OtherLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8scontrolplane.OtherLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &otherTimelineMapper{}
+	},
+)

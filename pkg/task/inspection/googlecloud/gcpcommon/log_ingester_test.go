@@ -18,18 +18,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 	testTime := time.Date(2026, 6, 24, 10, 0, 0, 0, time.UTC)
-	dummyTaskRef := taskid.NewTaskReference[[]*log.Log]("dummy")
 	dummyLogType := style.MustRegisterLogType("dummy", "Dummy", style.MustForceConvertSRGBHex("#123456"), style.ColorWhite)
 
 	testCases := []struct {
@@ -168,7 +171,7 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := NewGCPOperationLogIngester(dummyTaskRef, dummyLogType)
+	ingester := NewGCPOperationLogIngester(dummyLogType)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
@@ -176,6 +179,57 @@ func TestGCPOperationLogIngester_ProcessLog(t *testing.T) {
 				t.Fatalf("ProcessLog() returned unexpected error: %v", err)
 			}
 			tc.assert(t, cs)
+		})
+	}
+}
+
+func TestDefineGCPOperationLogIngesterTask(t *testing.T) {
+	rawLogTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("gcp-operation-raw-logs")
+	logType := style.MustRegisterLogType("define-gcp-operation", "Define GCP Operation", style.ColorBlack, style.ColorWhite)
+	task := DefineGCPOperationLogIngesterTask(taskid.NewDefaultImplementationID[struct{}]("gcp-operation-log-ingester"), rawLogTaskID.Ref(), logType)
+	wantInputs := []string{"required gcp-operation-raw-logs"}
+
+	testCases := []struct {
+		desc         string
+		taskMode     inspectioncore.InspectionTaskModeType
+		wantIngested bool
+	}{
+		{
+			desc:         "DryRun mode does not ingest logs",
+			taskMode:     inspectioncore.TaskModeDryRun,
+			wantIngested: false,
+		},
+		{
+			desc:         "Run mode ingests the raw logs",
+			taskMode:     inspectioncore.TaskModeRun,
+			wantIngested: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if diff := cmp.Diff(wantInputs, describeInputs(task.Inputs())); diff != "" {
+				t.Errorf("Inputs() mismatch (-want +got):\n%s", diff)
+			}
+
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+			l := testlog.NewMockLog(
+				time.Date(2026, 6, 24, 10, 0, 0, 0, time.UTC),
+				inspectioncore.DefaultSeverityFieldSet{Severity: inspectioncore.SeverityInfo},
+				GCPAuditLogFieldSet{MethodName: "compute.instances.insert", OperationFirst: true, Status: -1},
+			)
+
+			_, _, err := inspectiontest.Run(t, ctx, task, tc.taskMode, map[string]any{},
+				tasktest.Given(rawLogTaskID.Ref(), []*log.Log{l}),
+			)
+			if err != nil {
+				t.Fatalf("Run() returned an unexpected error: %v", err)
+			}
+
+			if _, gotIngested := builder.LogAccumulator.ResolveLogID(l.ID); gotIngested != tc.wantIngested {
+				t.Errorf("log ingested = %v, want %v", gotIngested, tc.wantIngested)
+			}
 		})
 	}
 }

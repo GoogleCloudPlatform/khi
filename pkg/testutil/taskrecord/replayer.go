@@ -60,21 +60,13 @@ func loadRecordedTaskResultForType(fixtureDir string, taskRef taskid.UntypedTask
 	return DefaultCodecRegistry.DeserializeForType(data, t)
 }
 
-// ResolveTaskTypeFromTask returns the Go return type T of a Task[T] by inspecting its Run method.
+// ResolveTaskTypeFromTask returns the Go return type T of a Task[T].
 func ResolveTaskTypeFromTask(task coretask.UntypedTask) (reflect.Type, bool) {
 	if task == nil {
 		return nil, false
 	}
-	taskType := reflect.TypeOf(task)
-	method, ok := taskType.MethodByName("Run")
-	if !ok || method.Type.NumOut() != 2 {
-		return nil, false
-	}
-	errType := reflect.TypeOf((*error)(nil)).Elem()
-	if !method.Type.Out(1).Implements(errType) {
-		return nil, false
-	}
-	return method.Type.Out(0), true
+	t := task.ResultType()
+	return t, t != nil
 }
 
 // ResolveTaskTypeFromTaskSet finds the task in the TaskSet matching the given reference and returns its return type.
@@ -93,18 +85,28 @@ func ResolveTaskTypeFromTaskSet(taskSet *coretask.TaskSet, taskRef taskid.Untype
 	return nil, false
 }
 
+// replayStubTask returns a recorded value while reporting the result type of the recorded task.
+// Graph resolution checks producer result types, so the stub must report the type that consumers expect instead of any.
+type replayStubTask struct {
+	coretask.Task[any]
+	resultType reflect.Type
+}
+
+var _ coretask.UntypedTask = (*replayStubTask)(nil)
+
+// ResultType implements coretask.UntypedTask.
+func (s *replayStubTask) ResultType() reflect.Type {
+	return s.resultType
+}
+
 // newReplayStubTask creates a stub task with highest selection priority and no upstream dependencies.
-func newReplayStubTask(taskRef taskid.UntypedTaskReference, val any) coretask.UntypedTask {
+func newReplayStubTask(taskRef taskid.UntypedTaskReference, resultType reflect.Type, val any) coretask.UntypedTask {
 	typedRef := taskid.NewTaskReference[any](taskRef.ReferenceIDString())
 	implID := taskid.NewImplementationID(typedRef, "replay")
-	return coretask.NewTask[any](
-		implID,
-		[]coretask.Dependency{},
-		func(ctx context.Context) (any, error) {
-			return val, nil
-		},
-		coretask.WithSelectionPriority(1000000),
-	)
+	return &replayStubTask{
+		Task:       coretask.DefineConstant(implID, val, coretask.WithSelectionPriority(1000000)),
+		resultType: resultType,
+	}
 }
 
 // newReplayInspectionInterceptor creates an InspectionInterceptor managing isolated execution and profiling.

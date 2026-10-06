@@ -21,7 +21,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -262,13 +261,13 @@ func TestMapClusterResourceInitialRevision(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := tasktest.WithTaskResult(ctxWithBuilder, k8scommon.ClusterIdentityTaskID.Ref(), k8scommon.GoogleCloudClusterIdentity{
+			cluster := k8scommon.GoogleCloudClusterIdentity{
 				ProjectID:   "test-project",
 				ClusterName: clusterName,
 				Location:    "us-central1-a",
-			})
+			}
 
-			spec, skip, err := mapClusterResourceInitialRevision(ctx, tc.inputLog, podIdent, tc.observedTime)
+			spec, skip, err := mapClusterResourceInitialRevision(ctxWithBuilder, tc.inputLog, cluster, podIdent, tc.observedTime)
 			if err != nil {
 				t.Fatalf("mapClusterResourceInitialRevision() returned error: %v", err)
 			}

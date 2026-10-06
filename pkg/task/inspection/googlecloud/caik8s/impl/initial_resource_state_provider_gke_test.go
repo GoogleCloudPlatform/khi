@@ -231,16 +231,17 @@ func TestGKEResourceInitialStateProviderTask_ActiveSnapshots(t *testing.T) {
 			}
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			provider, _, err := inspectiontest.RunInspectionTask(
+			provider, _, err := inspectiontest.Run(
+				t,
 				ctx,
-				GKEResourceInitialStateProviderTask,
+				gkeResourceInitialStateProviderTask,
 				inspectioncore.TaskModeRun,
 				map[string]any{},
-				tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceTaskIDs.RawLog.Ref(), snapshotsToLogs(t, snapshots)),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
+				tasktest.Given(caik8s.GKEResourceTaskIDs.RawLog.Ref(), snapshotsToLogs(t, snapshots)),
+				tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
 			)
 			if err != nil {
-				t.Fatalf("unexpected error running GKEResourceInitialStateProviderTask: %v", err)
+				t.Fatalf("unexpected error running gkeResourceInitialStateProviderTask: %v", err)
 			}
 
 			clusterState, gotCluster := provider.ClusterInitialState(tc.queryCluster)
@@ -318,9 +319,9 @@ func TestGKEResourceInitialStateProviderTask_Modes(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			provider, _, err := inspectiontest.RunInspectionTask(ctx, GKEResourceInitialStateProviderTask, tc.mode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(caik8s.GKEResourceTaskIDs.RawLog.Ref(), snapshotsToLogs(t, tc.snapshots)),
-				tasktest.NewTaskDependencyValuePair(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
+			provider, _, err := inspectiontest.Run(t, ctx, gkeResourceInitialStateProviderTask, tc.mode, map[string]any{},
+				tasktest.Given(caik8s.GKEResourceTaskIDs.RawLog.Ref(), snapshotsToLogs(t, tc.snapshots)),
+				tasktest.Given(gcpcommon.InputStartTimeTaskID.Ref(), queryStartTime),
 			)
 			if err != nil {
 				t.Fatalf("unexpected error running task: %v", err)

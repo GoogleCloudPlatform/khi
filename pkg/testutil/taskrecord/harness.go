@@ -239,7 +239,7 @@ func (h *JobTestHarness) Replay(ctx context.Context) (*JobTestResult, error) {
 				h.stubsInitErr = fmt.Errorf("failed to load fixture for %s: %w", ref.ReferenceIDString(), err)
 				return
 			}
-			stubTask := newReplayStubTask(ref, val)
+			stubTask := newReplayStubTask(ref, targetType, val)
 			if err := h.server.AddTask(stubTask); err != nil {
 				h.stubsInitErr = fmt.Errorf("failed to add stub task for %s: %w", ref.ReferenceIDString(), err)
 				return

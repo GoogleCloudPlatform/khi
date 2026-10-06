@@ -74,20 +74,6 @@ func WithLabelValue[T any](labelKey TaskLabelKey[T], value T) LabelOpt {
 	}
 }
 
-// FromLabels creates a list of LabelOpt to clone the set of labels from a task to the other.
-func FromLabels(labels *typedmap.ReadonlyTypedMap) []LabelOpt {
-	result := make([]LabelOpt, 0)
-	for _, key := range labels.Keys() {
-		labelKey := typedmap.NewTypedKey[any](key)
-		value, found := typedmap.Get(labels, labelKey)
-		if !found {
-			panic("unreachable")
-		}
-		result = append(result, WithLabelValue(labelKey, value))
-	}
-	return result
-}
-
 type requiredTaskLabelImpl struct{}
 
 func (r *requiredTaskLabelImpl) Write(label *typedmap.TypedMap) {

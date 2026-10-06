@@ -15,17 +15,17 @@ CSM インスペクションパイプラインは以下を処理します:
 
 これらのタスクは、トラフィックログ内に直接存在しないものの、適切なリソースマッピングに必要な関連付けを発見するために使用されます。共通の Google Cloud コンポーネントおよびログプロバイダーパッケージから提供されます。
 
-- **`EventLogNEGDiscoveryTask`**: `googlecloud/k8sevent` パッケージ内で Kubernetes Event ログをパースして NEG と BackendService のマッピングを発見。
-- **`AuditLogNEGDiscoveryTask`**: `googlecloud/k8saudit` パッケージ内でリソースマニフェストを経由して Kubernetes Audit ログをパースし、NEG と BackendService のマッピングを発見。
-- **`NEGToBackendServiceInventoryTask`**: `googlecloud/k8scommon` パッケージ内で発見結果を統合された 1 つのインベントリマップに集約。
+- **`eventLogNEGDiscoveryTask`**: `googlecloud/k8sevent` パッケージ内で Kubernetes Event ログをパースして NEG と BackendService のマッピングを発見。
+- **`auditLogNEGDiscoveryTask`**: `googlecloud/k8saudit` パッケージ内でリソースマニフェストを経由して Kubernetes Audit ログをパースし、NEG と BackendService のマッピングを発見。
+- **`negToBackendServiceInventoryTask`**: `googlecloud/k8scommon` パッケージ内で発見結果を統合された 1 つのインベントリマップに集約。
 
 ### CSM トラフィックログパイプライン
 
-- **`InputCSMResponseFlagsTask`**: Envoy レスポンスフラグによるログフィルタリング用フォーム入力。
-- **`ListLogEntriesTask`**: Cloud Logging から CSM トラフィックログを取得。
-- **`LogIngesterTask`**: ログを最終的な KHI 履歴に登録。
-- **`LogGrouperTask`**: レポーター Pod ごとにログをグループ化。
-- **`LogToTimelineMapperTask`**: 正確なサービス関連付けのために NEG インベントリを利用して、CSM トラフィックログイベントをリソースタイムラインにマッピング。
+- **`inputCSMResponseFlagsTask`**: Envoy レスポンスフラグによるログフィルタリング用フォーム入力。
+- **`listLogEntriesTask`**: Cloud Logging から CSM トラフィックログを取得。
+- **`logIngesterTask`**: ログを最終的な KHI 履歴に登録。
+- **`logGrouperTask`**: レポーター Pod ごとにログをグループ化。
+- **`logToTimelineMapperTask`**: 正確なサービス関連付けのために NEG インベントリを利用して、CSM トラフィックログイベントをリソースタイムラインにマッピング。
 
 ## タスク関係図
 
@@ -43,17 +43,17 @@ graph TD
     ManifestGen[Manifest Generator]:::external
 
     %% インベントリ
-    EventLogs --> EventDiscovery[EventLogNEGDiscoveryTask]:::inventory
-    ManifestGen --> AuditDiscovery[AuditLogNEGDiscoveryTask]:::inventory
-    EventDiscovery --> Inventory[NEGToBackendServiceInventoryTask]:::inventory
+    EventLogs --> EventDiscovery[eventLogNEGDiscoveryTask]:::inventory
+    ManifestGen --> AuditDiscovery[auditLogNEGDiscoveryTask]:::inventory
+    EventDiscovery --> Inventory[negToBackendServiceInventoryTask]:::inventory
     AuditDiscovery --> Inventory
 
     %% CSM トラフィックログパイプライン
-    FlagsInput[InputCSMResponseFlagsTask]:::input
-    FlagsInput --> ListLogs[ListLogEntriesTask]:::query
-    ListLogs --> Ingester[LogIngesterTask]:::pipeline
-    ListLogs --> Grouper[LogGrouperTask]:::pipeline
-    Grouper --> Mapper[LogToTimelineMapperTask]:::pipeline
+    FlagsInput[inputCSMResponseFlagsTask]:::input
+    FlagsInput --> ListLogs[listLogEntriesTask]:::query
+    ListLogs --> Ingester[logIngesterTask]:::pipeline
+    ListLogs --> Grouper[logGrouperTask]:::pipeline
+    Grouper --> Mapper[logToTimelineMapperTask]:::pipeline
     Ingester --> Mapper
     Inventory --> Mapper
 ```

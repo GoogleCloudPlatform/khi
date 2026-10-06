@@ -33,8 +33,5 @@ var TaskResultMapContextKey = typedmap.NewTypedKey[*typedmap.TypedMap]("khi.goog
 // TaskImplementationIDContextKey is the key to get the current task implementation ID.
 var TaskImplementationIDContextKey = typedmap.NewTypedKey[taskid.UntypedTaskImplementationID]("khi.google.com/task-implementation-id")
 
-// TaskDependenciesContextKey is the key to get the dependencies declared by the running task.
-var TaskDependenciesContextKey = typedmap.NewTypedKey[[]taskid.DependencyDescriptor]("khi.google.com/task-dependencies")
-
 // TaskGraphMetadataContextKey is the key to get the TaskGraphMetadata.
 var TaskGraphMetadataContextKey = typedmap.NewTypedKey[TaskGraphMetadata]("khi.google.com/task-graph-metadata")

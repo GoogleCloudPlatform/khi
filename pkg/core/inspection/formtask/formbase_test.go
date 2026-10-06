@@ -18,92 +18,23 @@ import (
 	"testing"
 
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/google/go-cmp/cmp"
 )
 
-func TestNewFormTaskBuilderBase(t *testing.T) {
-	testID := "test-id"
-	testPriority := 5
-	testLabel := "Test Label"
+func TestFormTaskBase_SetupBaseFormField(t *testing.T) {
+	base := newFormTaskBase(taskid.NewDefaultImplementationID[string]("test-id"), 5, "Test Label", "Test Description")
 
-	builder := NewFormTaskBuilderBase(taskid.NewDefaultImplementationID[string](testID), testPriority, testLabel)
+	got := inspectionmetadata.ParameterFormFieldBase{}
+	base.setupBaseFormField(&got)
 
-	if builder.id.ReferenceIDString() != testID {
-		t.Errorf("Expected id to be %s, got %s", testID, builder.id)
+	want := inspectionmetadata.ParameterFormFieldBase{
+		ID:          "test-id",
+		Priority:    5,
+		Label:       "Test Label",
+		Description: "Test Description",
 	}
-	if builder.priority != testPriority {
-		t.Errorf("Expected priority to be %d, got %d", testPriority, builder.priority)
-	}
-	if builder.label != testLabel {
-		t.Errorf("Expected label to be %s, got %s", testLabel, builder.label)
-	}
-	if len(builder.dependencies) != 0 {
-		t.Errorf("Expected dependencies to be an empty slice, got %v", builder.dependencies)
-	}
-	if builder.description != "" {
-		t.Errorf("Expected description to be empty, got %s", builder.description)
-	}
-}
-
-func TestFormTaskBuilderBase_WithDescription(t *testing.T) {
-	builder := NewFormTaskBuilderBase(taskid.NewDefaultImplementationID[string]("test-id"), 1, "Test Label")
-	testDescription := "Test Description"
-
-	result := builder.WithDescription(testDescription)
-
-	if builder.description != testDescription {
-		t.Errorf("Expected description to be %s, got %s", testDescription, builder.description)
-	}
-
-	if result != &builder {
-		t.Errorf("Expected method to return the builder pointer, got a different pointer")
-	}
-}
-
-func TestFormTaskBuilderBase_WithDependencies(t *testing.T) {
-	builder := NewFormTaskBuilderBase(taskid.NewDefaultImplementationID[string]("test-id"), 1, "Test Label")
-	testDependencies := []coretask.Dependency{taskid.NewTaskReference[string]("dep1"), taskid.NewTaskReference[string]("dep2")}
-
-	result := builder.WithDependencies(testDependencies)
-
-	if len(builder.dependencies) != len(testDependencies) {
-		t.Errorf("Expected dependencies length to be %d, got %d", len(testDependencies), len(builder.dependencies))
-	}
-
-	for i, dep := range testDependencies {
-		if builder.dependencies[i] != dep {
-			t.Errorf("Expected dependency at index %d to be %s, got %s", i, dep, builder.dependencies[i])
-		}
-	}
-
-	if result != &builder {
-		t.Errorf("Expected method to return the builder pointer, got a different pointer")
-	}
-}
-
-func TestFormTaskBuilderBase_SetupBaseFormField(t *testing.T) {
-	testID := "test-id"
-	testPriority := 5
-	testLabel := "Test Label"
-	testDescription := "Test Description"
-
-	builder := NewFormTaskBuilderBase(taskid.NewDefaultImplementationID[string](testID), testPriority, testLabel)
-	builder.WithDescription(testDescription)
-
-	field := &inspectionmetadata.ParameterFormFieldBase{}
-	builder.SetupBaseFormField(field)
-
-	if field.ID != testID {
-		t.Errorf("Expected field ID to be %s, got %s", testID, field.ID)
-	}
-	if field.Priority != testPriority {
-		t.Errorf("Expected field Priority to be %d, got %d", testPriority, field.Priority)
-	}
-	if field.Label != testLabel {
-		t.Errorf("Expected field Label to be %s, got %s", testLabel, field.Label)
-	}
-	if field.Description != testDescription {
-		t.Errorf("Expected field Description to be %s, got %s", testDescription, field.Description)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("setupBaseFormField() mismatch (-want +got):\n%s", diff)
 	}
 }

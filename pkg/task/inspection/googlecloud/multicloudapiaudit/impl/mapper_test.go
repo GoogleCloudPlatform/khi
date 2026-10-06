@@ -361,7 +361,7 @@ name: test-nodepool`).Node,
 		},
 	}
 
-	mapper := &multicloudAuditLogLogToTimelineMapperSetting{}
+	mapper := &multiCloudAuditTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := testlog.NewMockLog(testTime, tc.inputAudit, tc.inputResource)

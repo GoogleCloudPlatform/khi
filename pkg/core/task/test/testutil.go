@@ -17,54 +17,28 @@ package tasktest
 import (
 	"context"
 	"fmt"
-	"slices"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 )
 
-type TaskDependencyValues interface {
-	Register(resultMap *typedmap.TypedMap)
+// retainedTask overlays the result retention label on a task so that its result stays readable after the graph finishes.
+type retainedTask[T any] struct {
+	coretask.Task[T]
 }
 
-type taskDependencyValuePair[T any] struct {
-	Value T
-	Key   taskid.TaskReference[T]
-}
+var _ coretask.Task[any] = (*retainedTask[any])(nil)
 
-// Register implements TaskDependencyValuePair.
-func (t *taskDependencyValuePair[T]) Register(resultMap *typedmap.TypedMap) {
-	typedmap.Set(resultMap, typedmap.NewTypedKey[T](t.Key.ReferenceIDString()), t.Value)
-}
-
-var _ TaskDependencyValues = (*taskDependencyValuePair[any])(nil)
-
-// NewTaskDependencyValuePair returns a new pair of a task reference and its value.
-func NewTaskDependencyValuePair[T any](key taskid.TaskReference[T], value T) TaskDependencyValues {
-	return &taskDependencyValuePair[T]{
-		Value: value,
-		Key:   key,
-	}
-}
-
-// RunTask runs a single task.
-func RunTask[T any](baseContext context.Context, task coretask.Task[T], taskDependencyValues ...TaskDependencyValues) (T, error) {
-	taskCtx := prepareTaskContext(baseContext, task, taskDependencyValues...)
-	return task.Run(taskCtx)
+// Labels returns the labels of the wrapped task with the result retention label set to true.
+func (r *retainedTask[T]) Labels() *typedmap.ReadonlyTypedMap {
+	retentionLabels := typedmap.NewTypedMap()
+	coretask.NewTaskResultRetentionLabel(true).Write(retentionLabels)
+	return typedmap.Merge(r.Task.Labels(), retentionLabels)
 }
 
 // RunTaskWithDependency runs a task as a graph. Supply the dependencies of the main task to resolve the graph correctly.
 func RunTaskWithDependency[T any](baseContext context.Context, mainTask coretask.Task[T], dependencies []coretask.UntypedTask, interceptors ...coretask.Interceptor) (T, error) {
-	retainedMainTask := coretask.NewTask(
-		mainTask.ID(),
-		mainTask.Dependencies(),
-		mainTask.Run,
-		append(coretask.FromLabels(mainTask.Labels()), coretask.NewTaskResultRetentionLabel(true))...,
-	)
-	taskCtx := prepareTaskContext(baseContext, retainedMainTask)
+	retainedMainTask := &retainedTask[T]{Task: mainTask}
 
 	availableTasks := make([]coretask.UntypedTask, 0, len(dependencies)+1)
 	availableTasks = append(availableTasks, retainedMainTask)
@@ -83,7 +57,7 @@ func RunTaskWithDependency[T any](baseContext context.Context, mainTask coretask
 		runner.AddInterceptor(interceptor)
 	}
 
-	err = runner.Run(taskCtx)
+	err = runner.Run(baseContext)
 	if err != nil {
 		return *new(T), err
 	}
@@ -101,67 +75,4 @@ func RunTaskWithDependency[T any](baseContext context.Context, mainTask coretask
 	}
 
 	return result, nil
-}
-
-type testGraphMetadata struct {
-	resultMap *typedmap.TypedMap
-}
-
-func (m *testGraphMetadata) IsBound(referenceID string) bool {
-	return slices.Contains(m.resultMap.Keys(), referenceID)
-}
-
-func (m *testGraphMetadata) BoundReferenceIDsForTaskImplWithTag(taskImplementationID string, tag string) []string {
-	return nil
-}
-
-var _ core_contract.TaskGraphMetadata = (*testGraphMetadata)(nil)
-
-func prepareTaskContext(baseContext context.Context, task coretask.UntypedTask, taskDependencyValues ...TaskDependencyValues) context.Context {
-	taskCtx := khictx.WithValue(baseContext, core_contract.TaskImplementationIDContextKey, task.UntypedID())
-
-	resultMap := typedmap.NewTypedMap()
-	for _, taskDependencyValue := range taskDependencyValues {
-		taskDependencyValue.Register(resultMap)
-	}
-
-	taskCtx = khictx.WithValue(taskCtx, core_contract.TaskResultMapContextKey, resultMap)
-	if _, err := khictx.GetValue(baseContext, core_contract.TaskGraphMetadataContextKey); err != nil {
-		taskCtx = khictx.WithValue[core_contract.TaskGraphMetadata](taskCtx, core_contract.TaskGraphMetadataContextKey, &testGraphMetadata{resultMap: resultMap})
-	}
-
-	return taskCtx
-}
-
-// StubTask wraps a given task to return the constant values given without calling the original task.
-func StubTask[T any](mockTarget coretask.Task[T], mockResult T, mockError error) coretask.Task[T] {
-	return coretask.NewTask(mockTarget.ID(), []coretask.Dependency{}, func(ctx context.Context) (T, error) {
-		return mockResult, mockError
-	}, coretask.FromLabels(mockTarget.Labels())...)
-}
-
-// StubTaskFromReferenceID creates a new test task return the given constant value of its result.
-func StubTaskFromReferenceID[T any](mockTargetReference taskid.TaskReference[T], mockResult T, mockError error) coretask.Task[T] {
-	return coretask.NewTask(taskid.NewDefaultImplementationID[T](mockTargetReference.ReferenceIDString()), []coretask.Dependency{}, func(ctx context.Context) (T, error) {
-		return mockResult, mockError
-	})
-}
-
-// WithTaskResult adds task result to the given context. It's for testing a function using coretask.GetTaskResult inside.
-func WithTaskResult[T any](ctx context.Context, taskRef taskid.TaskReference[T], value T) context.Context {
-	resultMap, err := khictx.GetValue(ctx, core_contract.TaskResultMapContextKey)
-	if err != nil {
-		resultMap = typedmap.NewTypedMap()
-		ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, resultMap)
-	}
-	typedmap.Set(resultMap, typedmap.NewTypedKey[T](taskRef.ReferenceIDString()), value)
-	if _, err := khictx.GetValue(ctx, core_contract.TaskGraphMetadataContextKey); err != nil {
-		ctx = khictx.WithValue[core_contract.TaskGraphMetadata](ctx, core_contract.TaskGraphMetadataContextKey, &testGraphMetadata{resultMap: resultMap})
-	}
-	return ctx
-}
-
-// WithTaskGraphMetadata adds custom TaskGraphMetadata to the given context for testing.
-func WithTaskGraphMetadata(ctx context.Context, meta core_contract.TaskGraphMetadata) context.Context {
-	return khictx.WithValue(ctx, core_contract.TaskGraphMetadataContextKey, meta)
 }

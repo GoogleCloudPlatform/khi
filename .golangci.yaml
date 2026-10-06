@@ -33,6 +33,13 @@ linters:
         - shadow
         - inline
       enable-all: true
+      settings:
+        unusedresult:
+          # Discarding a Binder handle leaves a declared input that the task never reads.
+          funcs:
+            - github.com/GoogleCloudPlatform/khi/pkg/core/task.Use
+            - github.com/GoogleCloudPlatform/khi/pkg/core/task.UseOptional
+            - github.com/GoogleCloudPlatform/khi/pkg/core/task.UseTag
     staticcheck:
       checks:
         - -SA1006

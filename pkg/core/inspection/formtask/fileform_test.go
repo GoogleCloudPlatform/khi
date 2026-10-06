@@ -207,7 +207,7 @@ func (m *mockFileFormStore) GetCompletedResult(ctx context.Context, token upload
 
 var _ upload.Store = (*mockFileFormStore)(nil)
 
-func TestFileFormTaskBuilder_Build(t *testing.T) {
+func TestDefineFileForm(t *testing.T) {
 	mockToken := mockUploadToken{id: "test-token"}
 	verifyErr := errors.New("invalid file format")
 	uploadErr := errors.New("network disconnect during upload")
@@ -310,17 +310,10 @@ func TestFileFormTaskBuilder_Build(t *testing.T) {
 			upload.DefaultUploadFileStore = store
 
 			taskId := taskid.NewDefaultImplementationID[upload.UploadResult]("test-field")
-			builder := NewFileFormTaskBuilder(taskId, 10, "Test File", nil)
-			task := builder.Build()
+			task := DefineFileForm(taskId, 10, "Test File", "", nil)
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-			result, metadata, err := inspectiontest.RunInspectionTaskWithDependency(
-				ctx,
-				task,
-				nil,
-				tc.mode,
-				map[string]any{},
-			)
+			result, metadata, err := inspectiontest.Run(t, ctx, task, tc.mode, map[string]any{})
 
 			if tc.wantResultCall != store.getResultCalled {
 				t.Errorf("getResultCalled = %v, want %v", store.getResultCalled, tc.wantResultCall)

@@ -22,30 +22,29 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	composercluster "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/cluster/composer"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// AirflowDagProcessorManagerLogGrouperTask groups Airflow DAG processor manager logs.
-var AirflowDagProcessorManagerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
+// airflowDagProcessorManagerLogGrouperTask groups Airflow DAG processor manager logs.
+var airflowDagProcessorManagerLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	composerairflow.AirflowDagProcessorManagerLogGrouperTaskID,
 	composerairflow.AirflowDagProcessorManagerLogFilterTaskID.Ref(),
-	func(ctx context.Context, l *log.Log) string {
-		fs, err := composerairflow.ExtractComposer(l.NodeReader)
-		if err != nil {
-			return ""
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			fs, err := composerairflow.ExtractComposer(l.NodeReader)
+			if err != nil {
+				return ""
+			}
+			if fs.SchedulerID != "" {
+				return fs.SchedulerID
+			}
+			return fs.DagProcessorManagerID
 		}
-		if fs.SchedulerID != "" {
-			return fs.SchedulerID
-		}
-		return fs.DagProcessorManagerID
 	},
 )
 
@@ -66,21 +65,6 @@ type DagProcessorState struct {
 
 type dagProcessorManagerLogIngester struct {
 	inspectiontaskbase.SinglePassGroupedIngesterBase[*DagProcessorState]
-}
-
-// RawLogTask returns the task reference that provides the raw logs to ingest.
-func (i *dagProcessorManagerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return composerairflow.AirflowDagProcessorManagerLogFilterTaskID.Ref()
-}
-
-// GroupedLogTask returns a reference to the task that provides the grouped logs.
-func (i *dagProcessorManagerLogIngester) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return composerairflow.AirflowDagProcessorManagerLogGrouperTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies of the ingester.
-func (i *dagProcessorManagerLogIngester) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{}
 }
 
 // ProcessLogByGroup is called for each log entry in a group to customize log metadata.
@@ -138,43 +122,35 @@ func (i *dagProcessorManagerLogIngester) ProcessLogByGroup(ctx context.Context, 
 
 var _ inspectiontaskbase.GroupedLogIngester[*DagProcessorState] = (*dagProcessorManagerLogIngester)(nil)
 
-// AirflowDagProcessorManagerLogIngesterTask is the task that ingests Airflow DAG processor manager logs.
-var AirflowDagProcessorManagerLogIngesterTask = inspectiontaskbase.NewGroupedLogIngesterTask(
+// airflowDagProcessorManagerLogIngesterTask is the task that ingests Airflow DAG processor manager logs.
+var airflowDagProcessorManagerLogIngesterTask = inspectiontaskbase.DefineGroupedLogIngesterTask(
 	composerairflow.AirflowDagProcessorManagerLogIngesterTaskID,
-	&dagProcessorManagerLogIngester{},
+	composerairflow.AirflowDagProcessorManagerLogGrouperTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.GroupedLogIngester[*DagProcessorState] {
+		return &dagProcessorManagerLogIngester{}
+	},
 )
 
 type dagProcessorManagerTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*DagProcessorState]
-	targetLogType *pb.LogType
-	dagFilePath   string
-}
-
-// LogIngesterTask returns a reference to the ingester task.
-func (m *dagProcessorManagerTimelineMapper) LogIngesterTask() taskid.TaskReference[struct{}] {
-	return composerairflow.AirflowDagProcessorManagerLogIngesterTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies of the mapper.
-func (m *dagProcessorManagerTimelineMapper) Dependencies() []coretask.Dependency {
-	return []coretask.Dependency{
-		composercluster.InputComposerEnvironmentNameTaskID.Ref(),
-	}
-}
-
-// GroupedLogTask returns a reference to the task that provides the grouped logs.
-func (m *dagProcessorManagerTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return composerairflow.AirflowDagProcessorManagerLogGrouperTaskID.Ref()
+	environmentName coretask.Input[string]
 }
 
 // ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
 func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *DagProcessorState) (*khifilev6.TimelineChangeSet, *DagProcessorState, error) {
-	environmentName := coretask.GetTaskResult(ctx, composercluster.InputComposerEnvironmentNameTaskID.Ref())
+	cs, state := mapDagProcessorManagerLog(ctx, l, prevGroupData, m.environmentName.Get(ctx))
+	return cs, state, nil
+}
+
+var _ inspectiontaskbase.TimelineMapper[*DagProcessorState] = (*dagProcessorManagerTimelineMapper)(nil)
+
+// mapDagProcessorManagerLog maps an Airflow DAG processor manager log to timeline changes for the given environment.
+func mapDagProcessorManagerLog(ctx context.Context, l *log.Log, prevGroupData *DagProcessorState, environmentName string) (*khifilev6.TimelineChangeSet, *DagProcessorState) {
 	envPath := composerairflow.MustAirflowTimeline(ctx, environmentName)
 
 	rawLog, err := gcpcommon.ExtractGCPMainMessage(l.NodeReader)
 	if err != nil || rawLog == "" {
-		return nil, prevGroupData, nil
+		return nil, prevGroupData
 	}
 	dpmField, err := composerairflow.ExtractComposer(l.NodeReader)
 	cs := khifilev6.NewTimelineChangeSet(l)
@@ -203,11 +179,11 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 
 	res, err := prevGroupData.Reader.ParseLine(rawLog)
 	if err != nil {
-		return cs, prevGroupData, nil
+		return cs, prevGroupData
 	}
 
 	if res.Type != logutil.TabulateLineTypeBody {
-		return cs, prevGroupData, nil
+		return cs, prevGroupData
 	}
 
 	condition := composerairflow.RevisionStateComposerDagProcessorNoError
@@ -224,16 +200,19 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 		StateType:   condition,
 	})
 
-	return cs, prevGroupData, nil
+	return cs, prevGroupData
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[*DagProcessorState] = (*dagProcessorManagerTimelineMapper)(nil)
-
-// AirflowDagProcessorManagerLogToTimelineMapperTask is the task that maps Airflow DAG processor manager logs to timeline events.
-var AirflowDagProcessorManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+// airflowDagProcessorManagerLogToTimelineMapperTask is the task that maps Airflow DAG processor manager logs to timeline events.
+var airflowDagProcessorManagerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	composerairflow.AirflowDagProcessorManagerLogToTimelineMapperTaskID,
-	&dagProcessorManagerTimelineMapper{
-		targetLogType: composerairflow.LogTypeManagedAirflowEnvironment,
-		dagFilePath:   "/home/airflow/gcs/dags",
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: composerairflow.AirflowDagProcessorManagerLogIngesterTaskID.Ref(),
+		GroupedLogs: composerairflow.AirflowDagProcessorManagerLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*DagProcessorState] {
+		return &dagProcessorManagerTimelineMapper{
+			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
+		}
 	},
 )

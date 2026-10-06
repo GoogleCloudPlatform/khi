@@ -30,61 +30,63 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// APIClientFactoryOptionsTask is the default implementation to provide the list of googlecloud.ClientFactoryOption.
+// apiClientFactoryOptionsTask is the default implementation to provide the list of googlecloud.ClientFactoryOption.
 // User can extend this behavior with defining new task for gcpcommon.APIClientFactoryOptionsTaskID with higher selection priority.
-var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
+var apiClientFactoryOptionsTask = inspectiontaskbase.DefineInspectionTask(
 	gcpcommon.APIClientFactoryOptionsTaskID,
-	[]coretask.Dependency{},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]googlecloud.ClientFactoryOption, error) {
-		var options []googlecloud.ClientFactoryOption
-		optionsFromContext, err := khictx.GetValue(ctx, gcpcommon.APIClientFactoryOptionsContextKey)
-		if err != nil && !errors.Is(err, khierrors.ErrNotFound) {
-			return nil, err
-		}
-		if optionsFromContext != nil {
-			options = *optionsFromContext
-		}
-
-		if parameters.RateLimit.LoggingAdaptiveRateLimitEnabled == nil || *parameters.RateLimit.LoggingAdaptiveRateLimitEnabled {
-			quotaProjectID := ""
-			if parameters.Auth.QuotaProjectID != nil {
-				quotaProjectID = *parameters.Auth.QuotaProjectID
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[[]googlecloud.ClientFactoryOption] {
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]googlecloud.ClientFactoryOption, error) {
+			var options []googlecloud.ClientFactoryOption
+			optionsFromContext, err := khictx.GetValue(ctx, gcpcommon.APIClientFactoryOptionsContextKey)
+			if err != nil && !errors.Is(err, khierrors.ErrNotFound) {
+				return nil, err
 			}
-			cfg := ratelimit.DefaultAdaptiveRateLimiterConfig()
-			if parameters.RateLimit.LoggingInitialQPS != nil {
-				cfg.InitialQPS = *parameters.RateLimit.LoggingInitialQPS
-			}
-			if parameters.RateLimit.LoggingMinQPS != nil {
-				cfg.MinQPS = *parameters.RateLimit.LoggingMinQPS
-			}
-			if parameters.RateLimit.LoggingMaxQPS != nil {
-				cfg.MaxQPS = *parameters.RateLimit.LoggingMaxQPS
+			if optionsFromContext != nil {
+				options = *optionsFromContext
 			}
 
-			limiterPool := ratelimit.NewPool(cfg, quotaProjectID)
-			options = append(options, optionspkg.AdaptiveRateLimiter(limiterPool))
-		}
+			if parameters.RateLimit.LoggingAdaptiveRateLimitEnabled == nil || *parameters.RateLimit.LoggingAdaptiveRateLimitEnabled {
+				quotaProjectID := ""
+				if parameters.Auth.QuotaProjectID != nil {
+					quotaProjectID = *parameters.Auth.QuotaProjectID
+				}
+				cfg := ratelimit.DefaultAdaptiveRateLimiterConfig()
+				if parameters.RateLimit.LoggingInitialQPS != nil {
+					cfg.InitialQPS = *parameters.RateLimit.LoggingInitialQPS
+				}
+				if parameters.RateLimit.LoggingMinQPS != nil {
+					cfg.MinQPS = *parameters.RateLimit.LoggingMinQPS
+				}
+				if parameters.RateLimit.LoggingMaxQPS != nil {
+					cfg.MaxQPS = *parameters.RateLimit.LoggingMaxQPS
+				}
 
-		return options, nil
+				limiterPool := ratelimit.NewPool(cfg, quotaProjectID)
+				options = append(options, optionspkg.AdaptiveRateLimiter(limiterPool))
+			}
+
+			return options, nil
+		}
 	},
 	coretask.WithSelectionPriority(gcpcommon.DefaultAPIClientOptionTasksPriority),
 )
 
-// APICallOptionsInjectorTask is the default implementation to provide the CallOptionInjector.
+// apiClientCallOptionsInjectorTask is the default implementation to provide the CallOptionInjector.
 // Each APIClient use must call this injector method before to supply parameters correctly.
-var APICallOptionsInjectorTask = inspectiontaskbase.NewInspectionTask(
+var apiClientCallOptionsInjectorTask = inspectiontaskbase.DefineInspectionTask(
 	gcpcommon.APIClientCallOptionsInjectorTaskID,
-	[]coretask.Dependency{},
-	func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (*googlecloud.CallOptionInjector, error) {
-		var options []googlecloud.CallOptionInjectorOption
-		optionsFromContext, err := khictx.GetValue(ctx, gcpcommon.APICallOptionsInjectorContextKey)
-		if err != nil && !errors.Is(err, khierrors.ErrNotFound) {
-			return nil, err
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[*googlecloud.CallOptionInjector] {
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (*googlecloud.CallOptionInjector, error) {
+			var options []googlecloud.CallOptionInjectorOption
+			optionsFromContext, err := khictx.GetValue(ctx, gcpcommon.APICallOptionsInjectorContextKey)
+			if err != nil && !errors.Is(err, khierrors.ErrNotFound) {
+				return nil, err
+			}
+			if optionsFromContext != nil {
+				options = *optionsFromContext
+			}
+			return googlecloud.NewCallOptionInjector(options...), nil
 		}
-		if optionsFromContext != nil {
-			options = *optionsFromContext
-		}
-		return googlecloud.NewCallOptionInjector(options...), nil
 	},
 	coretask.WithSelectionPriority(gcpcommon.DefaultAPIClientOptionTasksPriority),
 )

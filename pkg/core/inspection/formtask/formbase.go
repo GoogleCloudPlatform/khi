@@ -18,43 +18,36 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// FormTaskBuilderBase provides common functionality for form task builders
-type FormTaskBuilderBase[T any] struct {
-	id           taskid.TaskImplementationID[T]
-	label        string
-	priority     int
-	dependencies []coretask.Dependency
-	description  string
+// formTaskBase holds the field settings shared by every form task.
+type formTaskBase[T any] struct {
+	id          taskid.TaskImplementationID[T]
+	label       string
+	priority    int
+	description string
 }
 
-// NewFormTaskBuilderBase creates a new instance of the base builder
-func NewFormTaskBuilderBase[T any](id taskid.TaskImplementationID[T], priority int, label string) FormTaskBuilderBase[T] {
-	return FormTaskBuilderBase[T]{
-		id:           id,
-		priority:     priority,
-		label:        label,
-		dependencies: []coretask.Dependency{},
+// newFormTaskBase creates the shared field settings of a form task.
+func newFormTaskBase[T any](id taskid.TaskImplementationID[T], priority int, label string, description string) formTaskBase[T] {
+	return formTaskBase[T]{
+		id:          id,
+		priority:    priority,
+		label:       label,
+		description: description,
 	}
 }
 
-// WithDescription sets the description for the form field
-func (b *FormTaskBuilderBase[T]) WithDescription(description string) *FormTaskBuilderBase[T] {
-	b.description = description
-	return b
-}
-
-// WithDependencies sets the task dependencies
-func (b *FormTaskBuilderBase[T]) WithDependencies(dependencies []coretask.Dependency) *FormTaskBuilderBase[T] {
-	b.dependencies = dependencies
-	return b
-}
-
-// SetupBaseFormField configures common form field properties
-func (b *FormTaskBuilderBase[T]) SetupBaseFormField(field *inspectionmetadata.ParameterFormFieldBase) {
+// setupBaseFormField configures the form field properties shared by every form type.
+func (b *formTaskBase[T]) setupBaseFormField(field *inspectionmetadata.ParameterFormFieldBase) {
 	field.ID = b.id.ReferenceIDString()
 	field.Label = b.label
 	field.Priority = b.priority
 	field.Description = b.description
+}
+
+// formLabelOpts appends the form task label to the given label options.
+func (b *formTaskBase[T]) formLabelOpts(labelOpts []coretask.LabelOpt) []coretask.LabelOpt {
+	return append(labelOpts, inspectioncore.NewFormTaskLabelOpt(b.label, b.description))
 }

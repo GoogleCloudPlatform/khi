@@ -34,7 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestNonSuccessLogLogToTimelineMapperTaskSetting_ProcessLogByGroup(t *testing.T) {
+func TestMapNonSuccessLog(t *testing.T) {
 	// 1. Set up the mock Builder and construct comparison paths hierarchically.
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
@@ -90,9 +90,9 @@ func TestNonSuccessLogLogToTimelineMapperTaskSetting_ProcessLogByGroup(t *testin
 			)
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-			cs, _, err := mapperSetting.ProcessLogByGroup(ctx, logObj, struct{}{})
+			cs, err := mapperSetting.mapLog(ctx, logObj, nil)
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() failed: %v", err)
+				t.Fatalf("mapLog() failed: %v", err)
 			}
 
 			testchangeset.AssertTimeline(t, cs).
@@ -156,17 +156,17 @@ func TestNonSuccessLogLogToTimelineMapperTask(t *testing.T) {
 				},
 			}
 
-			_, _, err := inspectiontest.RunInspectionTask(
+			_, _, err := inspectiontest.Run(
+				t,
 				ctx,
-				NonSuccessLogLogToTimelineMapperTask,
+				nonSuccessLogLogToTimelineMapperTask,
 				inspectioncore.TaskModeRun,
 				map[string]any{},
-				tasktest.NewTaskDependencyValuePair(k8saudit.NonSuccessLogGrouperTaskID.Ref(), logGroupMap),
-				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogIngesterTaskID.Ref(), struct{}{}),
-				tasktest.NewTaskDependencyValuePair(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
+				tasktest.Given(k8saudit.NonSuccessLogGrouperTaskID.Ref(), logGroupMap),
+				tasktest.Given(k8saudit.K8sAuditLogExtractorRef, mockExtractor),
 			)
 			if err != nil {
-				t.Fatalf("RunInspectionTask returned an unexpected error: %v", err)
+				t.Fatalf("Run() returned an unexpected error: %v", err)
 			}
 
 			cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore.TimelineTypeK8sCluster})
@@ -175,7 +175,8 @@ func TestNonSuccessLogLogToTimelineMapperTask(t *testing.T) {
 			ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace})
 			wantPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "pod-1", Type: inspectioncore.TimelineTypeResource})
 
-			if !builder.TimelineAccumulator.HasEvent(wantPath) {
+			protoItems := builder.TimelineAccumulator.GetBuilder(wantPath).ToProto()
+			if protoItems == nil || len(protoItems.GetEvents()) == 0 {
 				t.Errorf("expected timeline %v to have events, but none found", wantPath)
 			}
 		})
