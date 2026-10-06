@@ -148,6 +148,26 @@ func TestBinder(t *testing.T) {
 			wantPanic: "declares optional input required with ScopeAll",
 		},
 		{
+			name: "panics when a tag input uses ScopeAll",
+			bind: func(b *Binder) {
+				UseTag(b, &tagReferenceImpl[string]{
+					tag:    "binder-test-tag",
+					config: taskid.DependencyConfig{Cardinality: taskid.CardinalityFanIn, Scope: taskid.ScopeAll},
+				})
+			},
+			wantPanic: "declares tag input binder-test-tag with ScopeAll",
+		},
+		{
+			name: "panics when an ordering dependency on a tag uses ScopeAll",
+			bind: func(b *Binder) {
+				After(b, &tagReferenceImpl[string]{
+					tag:    "binder-test-tag",
+					config: taskid.DependencyConfig{Cardinality: taskid.CardinalityFanIn, Scope: taskid.ScopeAll},
+				})
+			},
+			wantPanic: "declares ordering dependency on tag binder-test-tag with ScopeAll",
+		},
+		{
 			name: "panics when an input is nil",
 			bind: func(b *Binder) {
 				After(b, nil)

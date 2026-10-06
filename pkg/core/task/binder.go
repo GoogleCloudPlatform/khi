@@ -150,7 +150,11 @@ func UseOptional[T any](b *Binder, ref taskid.TaskReference[T]) OptionalInput[T]
 }
 
 // UseTag declares a fan-in input over all producers of a tag and returns the handle to read their results.
+// The tag reference must not use ScopeAll because fan-in resolution only supports ScopeActiveFeatures and ScopeActiveGraph.
 func UseTag[T any](b *Binder, ref TagReference[T]) TagInput[T] {
+	if ref.DescriptorScope() == taskid.ScopeAll {
+		panic(fmt.Sprintf("declares tag input %s with ScopeAll; tag references only support FromActiveFeatures or FromActiveGraph", ref.Tag()))
+	}
 	b.add(ref, InputKindTag)
 	return TagInput[T]{owner: b.owner, ref: ref}
 }
@@ -158,5 +162,8 @@ func UseTag[T any](b *Binder, ref TagReference[T]) TagInput[T] {
 // After declares a dependency that the task only waits for. It intentionally returns no handle,
 // so the task cannot read the value and the declaration cannot become an unused input.
 func After(b *Binder, dep Dependency) {
+	if tag, ok := dep.(taskid.FanInDescriptor); ok && tag.DescriptorScope() == taskid.ScopeAll {
+		panic(fmt.Sprintf("declares ordering dependency on tag %s with ScopeAll; tag references only support FromActiveFeatures or FromActiveGraph", tag.Tag()))
+	}
 	b.add(dep, InputKindOrdering)
 }

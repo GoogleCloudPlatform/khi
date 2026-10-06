@@ -28,7 +28,7 @@ import (
 )
 
 // timelineCreationTimeInventoryTask aggregates creation timestamps per timeline path discovered from audit logs.
-var timelineCreationTimeInventoryTask = inspectiontaskbase.NewInventoryTask(
+var timelineCreationTimeInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	k8saudit.TimelineCreationTimeInventoryTaskID,
 	k8saudit.TagTimelineCreationTimeDiscovery,
 	mergeTimelineCreationTimes,

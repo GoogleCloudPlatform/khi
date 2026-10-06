@@ -20,9 +20,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// NewAliasTask generates a new task implementation that proxies the result of another task.
+// DefineAliasTask defines a task implementation that proxies the result of another task.
 // This is useful for selectively overriding dependencies on a per-task basis.
-func NewAliasTask[TaskResult any](taskId taskid.TaskImplementationID[TaskResult], sourceTaskReference taskid.TaskReference[TaskResult], labelOpts ...LabelOpt) Task[TaskResult] {
+func DefineAliasTask[TaskResult any](taskId taskid.TaskImplementationID[TaskResult], sourceTaskReference taskid.TaskReference[TaskResult], labelOpts ...LabelOpt) Task[TaskResult] {
 	return Define(taskId, func(b *Binder) func(ctx context.Context) (TaskResult, error) {
 		source := Use(b, sourceTaskReference)
 		return func(ctx context.Context) (TaskResult, error) {
