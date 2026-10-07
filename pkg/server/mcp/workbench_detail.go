@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
@@ -77,83 +76,6 @@ type GetResourceDiffInput struct {
 	ByteOffset    int    `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated diff."`
 }
 
-type linkedTimelineTemplateData struct {
-	TimelineID string
-	Segments   []workbench.TimelineSegment
-	LogCount   int
-}
-
-type timelineLogTemplateData struct {
-	LogID      string
-	Time       time.Time
-	Severity   string
-	LogType    string
-	Summary    string
-	AlsoOnCell string
-}
-
-type timelineLogsTemplateData struct {
-	TimelineID              string
-	Segments                []workbench.TimelineSegment
-	Applied                 workbench.AppliedFilter
-	Start                   int
-	End                     int
-	Total                   int
-	TotalOtherTimelineCount int
-	OtherTimelines          []linkedTimelineTemplateData
-	Logs                    []timelineLogTemplateData
-	NextPageToken           string
-}
-
-type logTemplateData struct {
-	LogID           string
-	Time            time.Time
-	Severity        string
-	LogType         string
-	Summary         string
-	LinkedTimelines []linkedTimelineTemplateData
-	BodySection     string
-}
-
-type revisionTemplateData struct {
-	Index     int
-	Time      time.Time
-	Verb      string
-	State     string
-	Principal string
-	LogID     string
-	Changes   string
-}
-
-type resourceRevisionsTemplateData struct {
-	TimelineID   string
-	Segments     []workbench.TimelineSegment
-	MatchedCount int
-	// Start and End are the 1-based positions of the page within the matched revisions.
-	Start         int
-	End           int
-	FirstIndex    int
-	LastIndex     int
-	Revisions     []revisionTemplateData
-	NextPageToken string
-}
-
-type resourceManifestTemplateData struct {
-	TimelineID  string
-	Segments    []workbench.TimelineSegment
-	Revision    revisionTemplateData
-	BodySection string
-}
-
-type resourceDiffTemplateData struct {
-	TimelineID   string
-	Segments     []workbench.TimelineSegment
-	RevisionLine string
-	PreviousLine string
-	Changes      string
-	DiffSection  string
-}
-
 func (h *WorkbenchHandler) handleGetTimelineLogs(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetTimelineLogsInput) (*mcpsdk.CallToolResult, any, error) {
 	if input.InspectionID == "" {
 		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "inspectionId is required.")
@@ -186,40 +108,6 @@ func (h *WorkbenchHandler) handleGetTimelineLogs(ctx context.Context, _ *mcpsdk.
 	return h.templates.ToolResult("get_timeline_logs.md.tmpl", buildTimelineLogsTemplateData(res, page))
 }
 
-func buildTimelineLogsTemplateData(res *workbench.TimelineLogsResult, page mdtemplate.PageResult[workbench.TimelineLogEntry]) timelineLogsTemplateData {
-	others := make([]linkedTimelineTemplateData, len(res.OtherTimelines))
-	for i, o := range res.OtherTimelines {
-		others[i] = linkedTimelineTemplateData{
-			TimelineID: formatID(o.TimelineID),
-			Segments:   o.Segments,
-			LogCount:   o.LogCount,
-		}
-	}
-	logs := make([]timelineLogTemplateData, len(page.Items))
-	for i, l := range page.Items {
-		logs[i] = timelineLogTemplateData{
-			LogID:      formatID(l.LogID),
-			Time:       l.Time,
-			Severity:   l.Severity.GetLabel(),
-			LogType:    l.LogType,
-			Summary:    l.Summary,
-			AlsoOnCell: formatTimelineIDsCell(l.OtherTimelineIDs),
-		}
-	}
-	return timelineLogsTemplateData{
-		TimelineID:              formatID(res.TimelineID),
-		Segments:                res.Segments,
-		Applied:                 res.Applied,
-		Start:                   page.Start,
-		End:                     page.End,
-		Total:                   page.Total,
-		TotalOtherTimelineCount: res.TotalOtherTimelineCount,
-		OtherTimelines:          others,
-		Logs:                    logs,
-		NextPageToken:           page.NextPageToken,
-	}
-}
-
 func (h *WorkbenchHandler) handleGetLog(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetLogInput) (*mcpsdk.CallToolResult, any, error) {
 	if input.InspectionID == "" {
 		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "inspectionId is required.")
@@ -247,27 +135,11 @@ func (h *WorkbenchHandler) handleGetLog(ctx context.Context, _ *mcpsdk.CallToolR
 	if err != nil {
 		return nil, nil, err
 	}
+	if errRes, ok := byteOffsetBeyondBodyResult(input.ByteOffset, detail.Body.TotalBytes); ok {
+		return errRes, nil, nil
+	}
 
 	return h.templates.ToolResult("get_log.md.tmpl", buildLogTemplateData(detail))
-}
-
-func buildLogTemplateData(detail *workbench.LogDetail) logTemplateData {
-	linked := make([]linkedTimelineTemplateData, len(detail.LinkedTimelines))
-	for i, lt := range detail.LinkedTimelines {
-		linked[i] = linkedTimelineTemplateData{
-			TimelineID: formatID(lt.TimelineID),
-			Segments:   lt.Segments,
-		}
-	}
-	return logTemplateData{
-		LogID:           formatID(detail.LogID),
-		Time:            detail.Time,
-		Severity:        detail.Severity.GetLabel(),
-		LogType:         detail.LogType,
-		Summary:         detail.Summary,
-		LinkedTimelines: linked,
-		BodySection:     formatBodySection("Body", "yaml", detail.Body),
-	}
 }
 
 func (h *WorkbenchHandler) handleGetResourceRevisions(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetResourceRevisionsInput) (*mcpsdk.CallToolResult, any, error) {
@@ -309,31 +181,6 @@ func (h *WorkbenchHandler) handleGetResourceRevisions(ctx context.Context, _ *mc
 	return h.templates.ToolResult("get_resource_revisions.md.tmpl", buildResourceRevisionsTemplateData(res, offset))
 }
 
-func buildResourceRevisionsTemplateData(res *workbench.ResourceRevisionsResult, offset int) resourceRevisionsTemplateData {
-	revisions := make([]revisionTemplateData, len(res.Revisions))
-	for i, rev := range res.Revisions {
-		revisions[i] = toRevisionTemplateData(rev.ResourceRevision)
-		revisions[i].Changes = formatLineChanges(rev.Changes)
-	}
-	data := resourceRevisionsTemplateData{
-		TimelineID:   formatID(res.TimelineID),
-		Segments:     res.Segments,
-		MatchedCount: res.MatchedCount,
-		Revisions:    revisions,
-	}
-	if len(res.Revisions) == 0 {
-		return data
-	}
-	data.Start = offset + 1
-	data.End = offset + len(res.Revisions)
-	data.FirstIndex = res.Revisions[0].Index
-	data.LastIndex = res.Revisions[len(res.Revisions)-1].Index
-	if data.End < res.MatchedCount {
-		data.NextPageToken = mdtemplate.EncodePageToken(data.End)
-	}
-	return data
-}
-
 func (h *WorkbenchHandler) handleGetResourceManifest(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetResourceManifestInput) (*mcpsdk.CallToolResult, any, error) {
 	if input.InspectionID == "" {
 		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "inspectionId is required.")
@@ -364,13 +211,11 @@ func (h *WorkbenchHandler) handleGetResourceManifest(ctx context.Context, _ *mcp
 	if err != nil {
 		return nil, nil, err
 	}
+	if errRes, ok := byteOffsetBeyondBodyResult(input.ByteOffset, manifest.Body.TotalBytes); ok {
+		return errRes, nil, nil
+	}
 
-	return h.templates.ToolResult("get_resource_manifest.md.tmpl", resourceManifestTemplateData{
-		TimelineID:  formatID(manifest.TimelineID),
-		Segments:    manifest.Segments,
-		Revision:    toRevisionTemplateData(manifest.Revision),
-		BodySection: formatBodySection("Body", "yaml", manifest.Body),
-	})
+	return h.templates.ToolResult("get_resource_manifest.md.tmpl", buildResourceManifestTemplateData(manifest))
 }
 
 func (h *WorkbenchHandler) handleGetResourceDiff(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetResourceDiffInput) (*mcpsdk.CallToolResult, any, error) {
@@ -397,27 +242,11 @@ func (h *WorkbenchHandler) handleGetResourceDiff(ctx context.Context, _ *mcpsdk.
 	if err != nil {
 		return nil, nil, err
 	}
+	if errRes, ok := byteOffsetBeyondBodyResult(input.ByteOffset, diff.Diff.TotalBytes); ok {
+		return errRes, nil, nil
+	}
 
 	return h.templates.ToolResult("get_resource_diff.md.tmpl", buildResourceDiffTemplateData(diff))
-}
-
-func buildResourceDiffTemplateData(diff *workbench.ResourceDiff) resourceDiffTemplateData {
-	previousLine := "none"
-	if diff.Previous != nil {
-		previousLine = formatRevisionLine(*diff.Previous)
-	}
-	diffSection := formatBodySection("Diff", "diff", diff.Diff)
-	if diff.Diff.TotalBytes == 0 {
-		diffSection = "## Diff (0 bytes)\n\nThe manifest is identical to the previous revision."
-	}
-	return resourceDiffTemplateData{
-		TimelineID:   formatID(diff.TimelineID),
-		Segments:     diff.Segments,
-		RevisionLine: formatRevisionLine(diff.Revision),
-		PreviousLine: previousLine,
-		Changes:      formatLineChanges(diff.Changes),
-		DiffSection:  diffSection,
-	}
 }
 
 // revisionLookupErrorResult converts a timeline or revision lookup error into an MCP error result.
@@ -457,6 +286,20 @@ func negativeByteOffsetResult(byteOffset int) (*mcpsdk.CallToolResult, any, erro
 	return mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("byteOffset must not be negative, got %s.", mdtemplate.Code(strconv.Itoa(byteOffset))), "Pass the byteOffset value from the last line of the previous response as is.")
 }
 
+// byteOffsetBeyondBodyResult returns an INVALID_ARGUMENT result when byteOffset points past the end of a body of totalBytes bytes.
+// A byteOffset equal to totalBytes is accepted because it reads the empty remainder of the body.
+// It returns false when byteOffset is within the body.
+func byteOffsetBeyondBodyResult(byteOffset, totalBytes int) (*mcpsdk.CallToolResult, bool) {
+	if byteOffset <= totalBytes {
+		return nil, false
+	}
+	res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT",
+		fmt.Sprintf("byteOffset %s exceeds the body size of %d bytes.", mdtemplate.Code(strconv.Itoa(byteOffset)), totalBytes),
+		"Pass the byteOffset value from the last line of the previous response as is.",
+	)
+	return res, true
+}
+
 // parseIDArgument parses a timeline or log ID passed as a decimal string. IDs start from 1.
 func parseIDArgument(value string) (uint32, bool) {
 	id, err := strconv.ParseUint(value, 10, 32)
@@ -464,41 +307,4 @@ func parseIDArgument(value string) (uint32, bool) {
 		return 0, false
 	}
 	return uint32(id), true
-}
-
-func formatID(id uint32) string {
-	return strconv.FormatUint(uint64(id), 10)
-}
-
-func formatLineChanges(c workbench.LineChangeCount) string {
-	return fmt.Sprintf("+%d -%d", c.Added, c.Deleted)
-}
-
-func toRevisionTemplateData(rev workbench.ResourceRevision) revisionTemplateData {
-	return revisionTemplateData{
-		Index:     rev.Index,
-		Time:      rev.Time,
-		Verb:      rev.Verb,
-		State:     rev.State,
-		Principal: rev.Principal,
-		LogID:     formatID(rev.LogID),
-	}
-}
-
-// formatRevisionLine formats a revision on one line, such as "1, 2026-09-24T01:20:05Z, UPDATE by user, state Running, log `12`".
-func formatRevisionLine(rev workbench.ResourceRevision) string {
-	return fmt.Sprintf("%d, %s, %s by %s, state %s, log %s",
-		rev.Index, mdtemplate.FormatTime(rev.Time), rev.Verb, rev.Principal, rev.State, mdtemplate.Code(formatID(rev.LogID)))
-}
-
-// formatBodySection renders a "## <heading> (N bytes)" section with the body in a fenced code block.
-// When the body is truncated, it ends with a "byteOffset: N" line, so the section must be the last part of a response.
-func formatBodySection(heading, lang string, body workbench.TruncatedBody) string {
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "## %s (%d bytes)\n\n", heading, body.TotalBytes)
-	sb.WriteString(mdtemplate.Fence(lang, body.Content))
-	if body.Truncated {
-		fmt.Fprintf(&sb, "\n\nbyteOffset: %d", body.NextByteOffset)
-	}
-	return sb.String()
 }

@@ -18,7 +18,7 @@ Showing {{ len .OtherTimelines }} of {{ .TotalOtherTimelineCount }} timelines, s
 | Timeline | ID | Logs |
 | --- | --- | --- |
 {{- range .OtherTimelines }}
-| {{ cell (timelinePath .Segments) }} | {{ code .TimelineID }} | {{ .LogCount }} |
+| {{ cell (timelinePath .Segments) }} | {{ code .TimelineID }} | {{ .MatchedLogCount }} |
 {{- end }}
 {{- end }}
 
