@@ -282,11 +282,10 @@ func (e *TimelineEvaluator) Evaluate(ctx context.Context, t *TimelineData) (bool
 	e.currentTimeline = t
 	defer func() { e.currentTimeline = nil }()
 
-	path := t.ComputePath(e.timelineMap)
 	tVars := map[string]any{
 		"name":         t.Name,
 		"timelineType": t.TimelineType,
-		"path":         path,
+		"path":         newPathMap(t.ComputePath(e.timelineMap)),
 		"UNKNOWN":      int64(0),
 		"INFO":         int64(1),
 		"WARNING":      int64(2),
