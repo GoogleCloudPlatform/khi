@@ -236,10 +236,22 @@ func TestTimelineEvaluator_PathLevels(t *testing.T) {
 			want:       false,
 		},
 		{
-			name:       "missing pod level does not match on root timeline",
+			name:       "missing pod level does not match on namespace timeline",
 			expression: `path.pod == "pod-sample"`,
 			timeline:   nsTimeline,
 			want:       false,
+		},
+		{
+			name:       "inequality on missing pod level matches on kind timeline",
+			expression: `path["pod"] != "pod-sample"`,
+			timeline:   kindTimeline,
+			want:       true,
+		},
+		{
+			name:       "missing pod level in conjunction evaluates without error",
+			expression: `path.pod != "pod-sample" && name == "Pod"`,
+			timeline:   kindTimeline,
+			want:       true,
 		},
 		{
 			name:       "ancestor level matches on pod timeline",
