@@ -286,15 +286,16 @@ func negativeByteOffsetResult(byteOffset int) (*mcpsdk.CallToolResult, any, erro
 	return mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("byteOffset must not be negative, got %s.", mdtemplate.Code(strconv.Itoa(byteOffset))), "Pass the byteOffset value from the last line of the previous response as is.")
 }
 
-// byteOffsetBeyondBodyResult returns an INVALID_ARGUMENT result when byteOffset points past the end of a body of totalBytes bytes.
-// A byteOffset equal to totalBytes is accepted because it reads the empty remainder of the body.
-// It returns false when byteOffset is within the body.
+// byteOffsetBeyondBodyResult returns an INVALID_ARGUMENT result when byteOffset points past the end of content of totalBytes bytes,
+// such as a log body, a manifest, or a diff.
+// A byteOffset equal to totalBytes is accepted because it reads the empty remainder of the content.
+// It returns false when byteOffset is within the content.
 func byteOffsetBeyondBodyResult(byteOffset, totalBytes int) (*mcpsdk.CallToolResult, bool) {
 	if byteOffset <= totalBytes {
 		return nil, false
 	}
 	res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT",
-		fmt.Sprintf("byteOffset %s exceeds the body size of %d bytes.", mdtemplate.Code(strconv.Itoa(byteOffset)), totalBytes),
+		fmt.Sprintf("byteOffset %s exceeds the content size of %d bytes.", mdtemplate.Code(strconv.Itoa(byteOffset)), totalBytes),
 		"Pass the byteOffset value from the last line of the previous response as is.",
 	)
 	return res, true

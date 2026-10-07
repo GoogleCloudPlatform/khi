@@ -288,7 +288,7 @@ func TestByteOffsetBeyondBodyResult(t *testing.T) {
 			totalBytes: 20,
 			wantOK:     true,
 			wantText: mdtemplate.FormatError("INVALID_ARGUMENT",
-				"byteOffset `21` exceeds the body size of 20 bytes.",
+				"byteOffset `21` exceeds the content size of 20 bytes.",
 				"Pass the byteOffset value from the last line of the previous response as is."),
 		},
 	}

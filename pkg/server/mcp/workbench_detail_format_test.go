@@ -92,7 +92,7 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 	}
 	singleLogWithOther := singleLog
 	singleLogWithOther.OtherTimelineIDs = []uint32{11}
-	timelineLogsWithAllOthers := &workbench.TimelineLogsResult{
+	timelineLogsListingEveryOther := &workbench.TimelineLogsResult{
 		TimelineID:              10,
 		Segments:                testPodSegments,
 		TotalOtherTimelineCount: 1,
@@ -221,7 +221,7 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 		{
 			name:         "get_timeline_logs.md.tmpl listing every other timeline omits the partial count line",
 			templateName: "get_timeline_logs.md.tmpl",
-			data:         buildTimelineLogsTemplateData(timelineLogsWithAllOthers, mustPaginate(t, timelineLogsWithAllOthers.Logs, 0, "")),
+			data:         buildTimelineLogsTemplateData(timelineLogsListingEveryOther, mustPaginate(t, timelineLogsListingEveryOther.Logs, 0, "")),
 			want: strings.Join(slices.Concat(
 				[]string{
 					"# Logs of [Namespace] default > [Pod] nginx (`10`)",

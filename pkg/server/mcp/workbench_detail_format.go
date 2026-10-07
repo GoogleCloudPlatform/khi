@@ -25,8 +25,12 @@ import (
 )
 
 type linkedTimelineTemplateData struct {
-	TimelineID      string
-	Segments        []workbench.TimelineSegment
+	TimelineID string
+	Segments   []workbench.TimelineSegment
+}
+
+type otherTimelineTemplateData struct {
+	linkedTimelineTemplateData
 	MatchedLogCount int
 }
 
@@ -47,7 +51,7 @@ type timelineLogsTemplateData struct {
 	End                     int
 	Total                   int
 	TotalOtherTimelineCount int
-	OtherTimelines          []linkedTimelineTemplateData
+	OtherTimelines          []otherTimelineTemplateData
 	Logs                    []timelineLogTemplateData
 	NextPageToken           string
 }
@@ -102,10 +106,12 @@ type resourceDiffTemplateData struct {
 }
 
 func buildTimelineLogsTemplateData(res *workbench.TimelineLogsResult, page mdtemplate.PageResult[workbench.TimelineLogEntry]) timelineLogsTemplateData {
-	others := make([]linkedTimelineTemplateData, len(res.OtherTimelines))
+	otherTimelines := make([]otherTimelineTemplateData, len(res.OtherTimelines))
 	for i, o := range res.OtherTimelines {
-		others[i] = toLinkedTimelineTemplateData(o.LinkedTimeline)
-		others[i].MatchedLogCount = o.MatchedLogCount
+		otherTimelines[i] = otherTimelineTemplateData{
+			linkedTimelineTemplateData: toLinkedTimelineTemplateData(o.LinkedTimeline),
+			MatchedLogCount:            o.MatchedLogCount,
+		}
 	}
 	logs := make([]timelineLogTemplateData, len(page.Items))
 	for i, l := range page.Items {
@@ -126,7 +132,7 @@ func buildTimelineLogsTemplateData(res *workbench.TimelineLogsResult, page mdtem
 		End:                     page.End,
 		Total:                   page.Total,
 		TotalOtherTimelineCount: res.TotalOtherTimelineCount,
-		OtherTimelines:          others,
+		OtherTimelines:          otherTimelines,
 		Logs:                    logs,
 		NextPageToken:           page.NextPageToken,
 	}
@@ -188,9 +194,9 @@ func buildResourceDiffTemplateData(diff *workbench.ResourceDiff) resourceDiffTem
 	if diff.Previous != nil {
 		previousLine = formatRevisionLine(*diff.Previous)
 	}
-	diffSection := formatBodySection("Diff", "diff", diff.Diff)
-	if diff.Diff.TotalBytes == 0 {
-		diffSection = "## Diff (0 bytes)\n\nThe manifest is identical to the previous revision."
+	diffSection := "## Diff (0 bytes)\n\nThe manifest is identical to the previous revision."
+	if diff.Diff.TotalBytes > 0 {
+		diffSection = formatBodySection("Diff", "diff", diff.Diff)
 	}
 	return resourceDiffTemplateData{
 		TimelineID:   formatID(diff.TimelineID),
