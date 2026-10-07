@@ -47,9 +47,16 @@ func NewWorkbenchHandler(manager *workbench.WorkbenchManager) *WorkbenchHandler 
 }
 
 // Register registers workbench tools to the MCP server.
-// Read tools are registered in #1043 and #1044.
 func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
-	// No-op for now; read tools are registered in #1043 and #1044.
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "search_timelines",
+		Description: `Search the resource timeline tree with a filter and return matching nodes with event and revision counts and per-severity log counts including descendants. Timeline CEL uses path["kind"], path["namespace"], path["resource"], path["subresource"], name, timelineType, match(), revision_body(), minSeverity(WARNING), hasSeverity(ERROR). Log CEL uses severity >= WARNING, logType, body("regex"), body("field.path", "regex").`,
+	}, h.handleSearchTimelines)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "search_logs",
+		Description: `Search logs across all timelines with a filter and return severity counts, top linked timelines, and evenly spaced sample logs. Timeline CEL uses path["kind"], path["namespace"], path["resource"], path["subresource"], name, timelineType, match(), revision_body(), minSeverity(WARNING), hasSeverity(ERROR). Log CEL uses severity >= WARNING, logType, body("regex"), body("field.path", "regex").`,
+	}, h.handleSearchLogs)
 }
 
 type workbenchLoadingData struct {
