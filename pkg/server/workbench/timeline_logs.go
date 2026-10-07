@@ -252,10 +252,7 @@ func (w *Workbench) GetLogDetail(logID uint32, byteOffset int) (*LogDetail, erro
 	slices.Sort(linkedIDs)
 	linked := make([]LinkedTimeline, 0, len(linkedIDs))
 	for _, linkedID := range linkedIDs {
-		segments, ok := index.TimelineSegments(linkedID)
-		if !ok {
-			continue
-		}
+		segments, _ := index.TimelineSegments(linkedID)
 		linked = append(linked, LinkedTimeline{
 			TimelineID: linkedID,
 			Segments:   segments,
