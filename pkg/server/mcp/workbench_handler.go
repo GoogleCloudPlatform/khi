@@ -57,6 +57,31 @@ func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 		Name:        "search_logs",
 		Description: `Search logs across all timelines with a filter and return severity counts, top linked timelines, and evenly spaced sample logs. Timeline CEL uses path["kind"], path["namespace"], path["resource"], path["subresource"], name, timelineType, match(), revision_body(), minSeverity(WARNING), hasSeverity(ERROR). Log CEL uses severity >= WARNING, logType, body("regex"), body("field.path", "regex").`,
 	}, h.handleSearchLogs)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "get_timeline_logs",
+		Description: `List logs on one timeline, oldest first, with an optional log CEL and time range filter, and count the other timelines linked to the matching logs. Log CEL uses severity >= WARNING, logType, body("regex"), body("field.path", "regex"). Results are paginated; pass the pageToken from the last line to read the next page.`,
+	}, h.handleGetTimelineLogs)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "get_log",
+		Description: `Get one log with its metadata, linked timelines, and full body in YAML. Long bodies are truncated; pass the byteOffset from the last line to read the rest.`,
+	}, h.handleGetLog)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "get_resource_revisions",
+		Description: `List the manifest revisions of a resource timeline, oldest first, with verb, state, principal, source log, and added/deleted line counts against the previous revision. Results are paginated; pass the pageToken from the last line to read the next page.`,
+	}, h.handleGetResourceRevisions)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "get_resource_manifest",
+		Description: `Get the manifest of a resource at a revision index or at a point in time. Long manifests are truncated; pass the byteOffset from the last line together with the revisionIndex shown in the response to read the rest.`,
+	}, h.handleGetResourceManifest)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "get_resource_diff",
+		Description: `Get the unified diff between a resource revision and the revision right before it. Long diffs are truncated; pass the byteOffset from the last line to read the rest.`,
+	}, h.handleGetResourceDiff)
 }
 
 type workbenchLoadingData struct {

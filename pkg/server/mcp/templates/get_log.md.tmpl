@@ -1,0 +1,19 @@
+# Log {{ code .LogID }}
+
+- Time: {{ time .Time }}
+- Severity: {{ .Severity }}
+- Type: {{ .LogType }}
+- Summary: {{ cell .Summary }}
+
+## Linked timelines
+{{ if .LinkedTimelines }}
+| Timeline | ID |
+| --- | --- |
+{{- range .LinkedTimelines }}
+| {{ cell (timelinePath .Segments) }} | {{ code .TimelineID }} |
+{{- end }}
+{{- else }}
+This log is not linked to any timeline.
+{{- end }}
+
+{{ .BodySection }}
