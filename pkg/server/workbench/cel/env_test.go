@@ -188,6 +188,101 @@ spec:
 	}
 }
 
+func TestTimelineEvaluator_PathLevels(t *testing.T) {
+	nsTimeline := &TimelineData{
+		ID:           1,
+		Name:         "default",
+		TimelineType: "Namespace",
+	}
+	kindTimeline := &TimelineData{
+		ID:           2,
+		ParentID:     1,
+		Name:         "Pod",
+		TimelineType: "Kind",
+	}
+	podTimeline := &TimelineData{
+		ID:           3,
+		ParentID:     2,
+		Name:         "pod-sample",
+		TimelineType: "Pod",
+	}
+
+	eval, err := NewTimelineEvaluator()
+	if err != nil {
+		t.Fatalf("failed to create TimelineEvaluator: %v", err)
+	}
+	eval.SetTimelineMap(map[uint32]*TimelineData{
+		1: nsTimeline,
+		2: kindTimeline,
+		3: podTimeline,
+	})
+
+	testCases := []struct {
+		name       string
+		expression string
+		timeline   *TimelineData
+		want       bool
+	}{
+		{
+			name:       "pod level matches on pod timeline",
+			expression: `path["pod"] == "pod-sample"`,
+			timeline:   podTimeline,
+			want:       true,
+		},
+		{
+			name:       "missing pod level does not match on kind timeline",
+			expression: `path["pod"] == "pod-sample"`,
+			timeline:   kindTimeline,
+			want:       false,
+		},
+		{
+			name:       "missing pod level does not match on namespace timeline",
+			expression: `path.pod == "pod-sample"`,
+			timeline:   nsTimeline,
+			want:       false,
+		},
+		{
+			name:       "inequality on missing pod level matches on kind timeline",
+			expression: `path["pod"] != "pod-sample"`,
+			timeline:   kindTimeline,
+			want:       true,
+		},
+		{
+			name:       "missing pod level in conjunction evaluates without error",
+			expression: `path.pod != "pod-sample" && name == "Pod"`,
+			timeline:   kindTimeline,
+			want:       true,
+		},
+		{
+			name:       "ancestor level matches on pod timeline",
+			expression: `path.namespace == "default" && path.kind == "Pod"`,
+			timeline:   podTimeline,
+			want:       true,
+		},
+		{
+			name:       "presence test reports missing level",
+			expression: `has(path.pod)`,
+			timeline:   kindTimeline,
+			want:       false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := eval.Compile(tc.expression); err != nil {
+				t.Fatalf("Compile(%q) error = %v", tc.expression, err)
+			}
+			got, err := eval.Evaluate(context.Background(), tc.timeline)
+			if err != nil {
+				t.Fatalf("Evaluate() unexpected error = %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("Evaluate() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestLogEvaluator(t *testing.T) {
 	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 	logNode, err := structured.FromYAML(`verb: create
