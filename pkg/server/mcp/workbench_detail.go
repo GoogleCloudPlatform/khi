@@ -201,10 +201,13 @@ func (h *WorkbenchHandler) handleGetResourceManifest(ctx context.Context, _ *mcp
 		return errRes, nil, err
 	}
 
-	manifest, err := wb.GetResourceManifest(timelineID, workbench.RevisionSelector{
-		Index: input.RevisionIndex,
-		Time:  input.Time,
-	}, input.ByteOffset)
+	var selector workbench.RevisionSelector
+	if input.RevisionIndex != nil {
+		selector = workbench.RevisionAtIndex(*input.RevisionIndex)
+	} else {
+		selector = workbench.RevisionAtTime(*input.Time)
+	}
+	manifest, err := wb.GetResourceManifest(timelineID, selector, input.ByteOffset)
 	if errRes, ok := revisionLookupErrorResult(err, input.InspectionID, input.TimelineID); ok {
 		return errRes, nil, nil
 	}
