@@ -35,8 +35,8 @@ var (
 	ErrLogNotFound = errors.New("log not found")
 )
 
-// DefaultMaxOtherTimelines is the default maximum number of other linked timelines returned by GetTimelineLogs.
-const DefaultMaxOtherTimelines = 20
+// maxOtherTimelines is the maximum number of other linked timelines returned by GetTimelineLogs.
+const maxOtherTimelines = 20
 
 // TimelineLogFilter specifies log CEL and time range filter parameters for reading logs on a single timeline.
 type TimelineLogFilter struct {
@@ -90,12 +90,8 @@ type LogDetail struct {
 }
 
 // GetTimelineLogs filters logs on the specified timeline and aggregates other timelines linked to those logs across all matched entries.
-// If maxOtherTimelines <= 0, DefaultMaxOtherTimelines is used.
-func (w *Workbench) GetTimelineLogs(ctx context.Context, timelineID uint32, filter TimelineLogFilter, maxOtherTimelines int) (*TimelineLogsResult, error) {
-	if maxOtherTimelines <= 0 {
-		maxOtherTimelines = DefaultMaxOtherTimelines
-	}
-
+// OtherTimelines keeps at most maxOtherTimelines timelines with the most matched logs.
+func (w *Workbench) GetTimelineLogs(ctx context.Context, timelineID uint32, filter TimelineLogFilter) (*TimelineLogsResult, error) {
 	w.mu.RLock()
 	if w.closed {
 		w.mu.RUnlock()
@@ -109,11 +105,11 @@ func (w *Workbench) GetTimelineLogs(ctx context.Context, timelineID uint32, filt
 	styles := w.styles
 	w.mu.RUnlock()
 
-	tl := index.TimelineMap[timelineID]
 	segments, ok := index.TimelineSegments(timelineID)
-	if !ok || tl == nil {
+	if !ok {
 		return nil, fmt.Errorf("%w: %d", ErrTimelineNotFound, timelineID)
 	}
+	tl := index.TimelineMap[timelineID]
 
 	excludeNoLogs := true
 	fullFilter := Filter{
@@ -152,28 +148,20 @@ func (w *Workbench) GetTimelineLogs(ctx context.Context, timelineID uint32, filt
 	}, nil
 }
 
+// collectTimelineMatchedLogIDs returns the IDs of logs on tl that passed the filter and fall in the applied time range.
+// A zero applied bound leaves that side of the range open.
 func collectTimelineMatchedLogIDs(tl *cel.TimelineData, filterOut *FilterOutput) *roaring.Bitmap {
-	matched := roaring.NewBitmap()
-	hasRange := !filterOut.Applied.StartTime.IsZero() || !filterOut.Applied.EndTime.IsZero()
-	if hasRange {
-		startNs := int64(math.MinInt64)
-		if !filterOut.Applied.StartTime.IsZero() {
-			startNs = filterOut.Applied.StartTime.UnixNano()
-		}
-		endNs := int64(math.MaxInt64)
-		if !filterOut.Applied.EndTime.IsZero() {
-			endNs = filterOut.Applied.EndTime.UnixNano()
-		}
-		tl.ForEachLogIDInRange(startNs, endNs, func(logID uint32) bool {
-			if logID > 0 && filterOut.LogIDs.Contains(logID) {
-				matched.Add(logID)
-			}
-			return true
-		})
-		return matched
+	startNs := int64(math.MinInt64)
+	if !filterOut.Applied.StartTime.IsZero() {
+		startNs = filterOut.Applied.StartTime.UnixNano()
+	}
+	endNs := int64(math.MaxInt64)
+	if !filterOut.Applied.EndTime.IsZero() {
+		endNs = filterOut.Applied.EndTime.UnixNano()
 	}
 
-	tl.ForEachLogID(func(logID uint32) bool {
+	matched := roaring.NewBitmap()
+	tl.ForEachLogIDInRange(startNs, endNs, func(logID uint32) bool {
 		if logID > 0 && filterOut.LogIDs.Contains(logID) {
 			matched.Add(logID)
 		}
@@ -194,26 +182,7 @@ func buildTimelineLogEntriesAndOtherTimelines(
 
 	entries := make([]TimelineLogEntry, 0, len(matchedLogs))
 	otherCounts := make(map[uint32]int)
-
-	var severityMap map[uint32]*khifilev6.Severity
-	if styles != nil {
-		severityMap = styles.severityMap
-	}
-
 	for _, l := range matchedLogs {
-		var logType string
-		if index.StyleResolver != nil {
-			logType = index.StyleResolver.ResolveLogType(l.LogTypeID)
-		}
-		var summary string
-		if index.InternPool != nil {
-			summary = index.InternPool.ResolveStringFromID(l.SummaryStringID)
-		}
-		var logTime time.Time
-		if l.Timestamp > 0 {
-			logTime = time.Unix(0, l.Timestamp).UTC()
-		}
-
 		var otherIDs []uint32
 		for _, linkedID := range index.GetTimelineIDsForLog(l.ID) {
 			if linkedID == timelineID {
@@ -226,10 +195,10 @@ func buildTimelineLogEntriesAndOtherTimelines(
 
 		entries = append(entries, TimelineLogEntry{
 			LogID:            l.ID,
-			Time:             logTime,
-			Severity:         severityMap[l.SeverityTypeID],
-			LogType:          logType,
-			Summary:          summary,
+			Time:             logTime(l),
+			Severity:         styles.severityMap[l.SeverityTypeID],
+			LogType:          index.StyleResolver.ResolveLogType(l.LogTypeID),
+			Summary:          index.InternPool.ResolveStringFromID(l.SummaryStringID),
 			OtherTimelineIDs: otherIDs,
 		})
 	}
@@ -251,9 +220,16 @@ func buildTimelineLogEntriesAndOtherTimelines(
 	return entries, allOther
 }
 
-// GetLogDetail returns the metadata, all linked timelines, and the truncated YAML body for a single log ID.
-// If byteLimit <= 0, DefaultBodyByteLimit is used.
-func (w *Workbench) GetLogDetail(logID uint32, byteOffset, byteLimit int) (*LogDetail, error) {
+// logTime converts the log timestamp to UTC time, or returns the zero time when the log has no timestamp.
+func logTime(l *cel.LogData) time.Time {
+	if l.Timestamp <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, l.Timestamp).UTC()
+}
+
+// GetLogDetail returns the metadata, all linked timelines, and the YAML body sliced from byteOffset for a single log ID.
+func (w *Workbench) GetLogDetail(logID uint32, byteOffset int) (*LogDetail, error) {
 	w.mu.RLock()
 	if w.closed {
 		w.mu.RUnlock()
@@ -272,33 +248,16 @@ func (w *Workbench) GetLogDetail(logID uint32, byteOffset, byteLimit int) (*LogD
 		return nil, fmt.Errorf("%w: %d", ErrLogNotFound, logID)
 	}
 
-	var logType string
-	if index.StyleResolver != nil {
-		logType = index.StyleResolver.ResolveLogType(l.LogTypeID)
-	}
-	var summary string
-	if index.InternPool != nil {
-		summary = index.InternPool.ResolveStringFromID(l.SummaryStringID)
-	}
-	var logTime time.Time
-	if l.Timestamp > 0 {
-		logTime = time.Unix(0, l.Timestamp).UTC()
-	}
-	var severity *khifilev6.Severity
-	if styles != nil {
-		severity = styles.severityMap[l.SeverityTypeID]
-	}
-
-	rawTLIDs := slices.Clone(index.GetTimelineIDsForLog(l.ID))
-	slices.Sort(rawTLIDs)
-	linked := make([]LinkedTimeline, 0, len(rawTLIDs))
-	for _, tlID := range rawTLIDs {
-		segments, ok := index.TimelineSegments(tlID)
+	linkedIDs := slices.Clone(index.GetTimelineIDsForLog(l.ID))
+	slices.Sort(linkedIDs)
+	linked := make([]LinkedTimeline, 0, len(linkedIDs))
+	for _, linkedID := range linkedIDs {
+		segments, ok := index.TimelineSegments(linkedID)
 		if !ok {
 			continue
 		}
 		linked = append(linked, LinkedTimeline{
-			TimelineID: tlID,
+			TimelineID: linkedID,
 			Segments:   segments,
 		})
 	}
@@ -307,15 +266,14 @@ func (w *Workbench) GetLogDetail(logID uint32, byteOffset, byteLimit int) (*LogD
 	if err != nil {
 		return nil, err
 	}
-	bodyYAML := yamls[l.BodyStructID]
 
 	return &LogDetail{
 		LogID:           l.ID,
-		Time:            logTime,
-		Severity:        severity,
-		LogType:         logType,
-		Summary:         summary,
+		Time:            logTime(l),
+		Severity:        styles.severityMap[l.SeverityTypeID],
+		LogType:         index.StyleResolver.ResolveLogType(l.LogTypeID),
+		Summary:         index.InternPool.ResolveStringFromID(l.SummaryStringID),
 		LinkedTimelines: linked,
-		Body:            TruncateBody(bodyYAML, byteOffset, byteLimit),
+		Body:            truncateBody(yamls[l.BodyStructID], byteOffset, bodyByteLimit),
 	}, nil
 }

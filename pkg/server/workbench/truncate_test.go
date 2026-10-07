@@ -28,7 +28,6 @@ func TestTruncateBody(t *testing.T) {
 		byteOffset int
 		byteLimit  int
 		want       TruncatedBody
-		wantMarker string
 	}{
 		{
 			name:       "body within limit is returned in full without truncation",
@@ -41,7 +40,6 @@ func TestTruncateBody(t *testing.T) {
 				NextByteOffset: 0,
 				Truncated:      false,
 			},
-			wantMarker: "apiVersion: v1\nkind: Pod\n",
 		},
 		{
 			name:       "body exceeding limit is cut at line boundary",
@@ -54,7 +52,6 @@ func TestTruncateBody(t *testing.T) {
 				NextByteOffset: 24,
 				Truncated:      true,
 			},
-			wantMarker: "line1: aaaa\nline2: bbbb\n# [KHI] truncated: showing 24 of 36 bytes. Call again with byteOffset=24 to read the rest.",
 		},
 		{
 			name:       "continuation from NextByteOffset returns remaining lines",
@@ -67,7 +64,18 @@ func TestTruncateBody(t *testing.T) {
 				NextByteOffset: 0,
 				Truncated:      false,
 			},
-			wantMarker: "line3: cccc\n",
+		},
+		{
+			name:       "continuation that is truncated again reports an absolute next offset",
+			body:       "line1: aaaa\nline2: bbbb\nline3: cccc\n",
+			byteOffset: 12,
+			byteLimit:  12,
+			want: TruncatedBody{
+				Content:        "line2: bbbb\n",
+				TotalBytes:     36,
+				NextByteOffset: 24,
+				Truncated:      true,
+			},
 		},
 		{
 			name:       "offset at or beyond total length returns empty non-truncated chunk",
@@ -80,7 +88,6 @@ func TestTruncateBody(t *testing.T) {
 				NextByteOffset: 0,
 				Truncated:      false,
 			},
-			wantMarker: "",
 		},
 		{
 			name:       "single line exceeding limit without newline cuts at UTF-8 rune boundary",
@@ -93,19 +100,14 @@ func TestTruncateBody(t *testing.T) {
 				NextByteOffset: 6,
 				Truncated:      true,
 			},
-			wantMarker: "あい\n# [KHI] truncated: showing 6 of 16 bytes. Call again with byteOffset=6 to read the rest.",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := TruncateBody(tc.body, tc.byteOffset, tc.byteLimit)
+			got := truncateBody(tc.body, tc.byteOffset, tc.byteLimit)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("TruncateBody() mismatch (-want +got):\n%s", diff)
-			}
-			gotMarker := got.FormatWithMarker()
-			if diff := cmp.Diff(tc.wantMarker, gotMarker); diff != "" {
-				t.Errorf("FormatWithMarker() mismatch (-want +got):\n%s", diff)
+				t.Errorf("truncateBody() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -135,7 +137,7 @@ func TestTruncateBody_RoundTripReconstruction(t *testing.T) {
 			offset := 0
 			chunks := 0
 			for {
-				res := TruncateBody(tc.body, offset, tc.byteLimit)
+				res := truncateBody(tc.body, offset, tc.byteLimit)
 				reconstructed.WriteString(res.Content)
 				chunks++
 				if !res.Truncated {

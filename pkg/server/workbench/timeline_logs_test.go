@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +31,8 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
+const testLogBodyYAML = "apiVersion: v1\nkind: Event\nmessage: Container nginx was OOMKilled\n"
+
 func setupTimelineLogsTestWorkbench(t *testing.T) *Workbench {
 	t.Helper()
 	wb := setupSearchLogsTestWorkbench()
@@ -41,7 +42,7 @@ func setupTimelineLogsTestWorkbench(t *testing.T) *Workbench {
 		l := &wb.searchIndex.Logs[i]
 		l.SummaryStringID = pool.InternString(fmt.Sprintf("summary-%d", l.ID)).ID()
 	}
-	body, err := structured.FromYAML("apiVersion: v1\nkind: Event\nmessage: Container nginx was OOMKilled\n")
+	body, err := structured.FromYAML(testLogBodyYAML)
 	if err != nil {
 		t.Fatalf("failed to parse body yaml: %v", err)
 	}
@@ -73,7 +74,10 @@ func setupTimelineLogsTestWorkbench(t *testing.T) *Workbench {
 	wb.internPool = readonlyPool
 	wb.searchIndex.InternPool = readonlyPool
 
-	// Also link log 4 to timeline 3 so timeline 2 has two other timelines (tl 4 with 1 log, tl 3 with 1 log).
+	// Link log 1 to timeline 4 and log 4 to timeline 3 so the logs on timeline 2 are shared with
+	// timeline 4 (logs 1 and 2) more often than with timeline 3 (log 4).
+	tl4 := wb.searchIndex.TimelineMap[4]
+	tl4.Events = append([]cel.EventInfo{{LogID: 1, Timestamp: 1000}}, tl4.Events...)
 	wb.searchIndex.TimelineMap[3].Events = append(wb.searchIndex.TimelineMap[3].Events, cel.EventInfo{
 		LogID:     4,
 		Timestamp: 4000,
@@ -83,105 +87,124 @@ func setupTimelineLogsTestWorkbench(t *testing.T) *Workbench {
 	return wb
 }
 
+// addTimelinesLinkedToLog1 adds count Pod timelines under timeline 1, each linked to log 1, and rebuilds the log-timeline index.
+func addTimelinesLinkedToLog1(wb *Workbench, count int) {
+	tl1 := wb.searchIndex.TimelineMap[1]
+	for i := range count {
+		tl := &cel.TimelineData{
+			ID:           uint32(100 + i),
+			ParentID:     1,
+			Name:         fmt.Sprintf("extra-pod-%d", i),
+			TimelineType: "Pod",
+			Events:       []cel.EventInfo{{LogID: 1, Timestamp: 1000}},
+		}
+		tl1.ChildrenIDs = append(tl1.ChildrenIDs, tl.ID)
+		wb.searchIndex.Timelines = append(wb.searchIndex.Timelines, tl)
+		wb.searchIndex.TimelineMap[tl.ID] = tl
+	}
+	wb.searchIndex.LogTimelineIndex = NewLogTimelineCSRIndex(uint32(len(wb.searchIndex.Logs)), wb.searchIndex.Timelines)
+}
+
+var (
+	testTimeline3Segments = []TimelineSegment{
+		{Type: "Namespace", Name: "default"},
+		{Type: "Pod", Name: "pod-b"},
+	}
+	testTimeline4Segments = []TimelineSegment{
+		{Type: "Namespace", Name: "default"},
+		{Type: "Pod", Name: "pod-a"},
+		{Type: "Container", Name: "container-a1"},
+	}
+	testTimelineLog1 = TimelineLogEntry{
+		LogID:            1,
+		Time:             time.Unix(0, 1000).UTC(),
+		Severity:         testSeverityInfo,
+		LogType:          "k8s-event",
+		Summary:          "summary-1",
+		OtherTimelineIDs: []uint32{4},
+	}
+	testTimelineLog2 = TimelineLogEntry{
+		LogID:            2,
+		Time:             time.Unix(0, 2000).UTC(),
+		Severity:         testSeverityWarning,
+		LogType:          "k8s-event",
+		Summary:          "summary-2",
+		OtherTimelineIDs: []uint32{4},
+	}
+	testTimelineLog4 = TimelineLogEntry{
+		LogID:            4,
+		Time:             time.Unix(0, 4000).UTC(),
+		Severity:         testSeverityError,
+		LogType:          "k8s-event",
+		Summary:          "summary-4",
+		OtherTimelineIDs: []uint32{3},
+	}
+)
+
+func timeAtNs(ns int64) *time.Time {
+	t := time.Unix(0, ns).UTC()
+	return &t
+}
+
 func TestGetTimelineLogs(t *testing.T) {
 	testCases := []struct {
 		name                    string
 		timelineID              uint32
 		filter                  TimelineLogFilter
-		maxOtherTimelines       int
 		wantTotalOtherTimelines int
 		wantOtherTimelines      []OtherTimelineLogCount
 		wantLogs                []TimelineLogEntry
 		wantErrTarget           error
 	}{
 		{
-			name:                    "returns chronological logs on timeline and aggregates other linked timelines",
+			name:                    "returns chronological logs and orders other timelines by matched log count",
 			timelineID:              2,
 			filter:                  TimelineLogFilter{},
-			maxOtherTimelines:       10,
 			wantTotalOtherTimelines: 2,
 			wantOtherTimelines: []OtherTimelineLogCount{
-				{
-					TimelineID: 3,
-					Segments: []TimelineSegment{
-						{Type: "Namespace", Name: "default"},
-						{Type: "Pod", Name: "pod-b"},
-					},
-					LogCount: 1,
-				},
-				{
-					TimelineID: 4,
-					Segments: []TimelineSegment{
-						{Type: "Namespace", Name: "default"},
-						{Type: "Pod", Name: "pod-a"},
-						{Type: "Container", Name: "container-a1"},
-					},
-					LogCount: 1,
-				},
+				{TimelineID: 4, Segments: testTimeline4Segments, LogCount: 2},
+				{TimelineID: 3, Segments: testTimeline3Segments, LogCount: 1},
 			},
-			wantLogs: []TimelineLogEntry{
-				{
-					LogID:            1,
-					Time:             time.Unix(0, 1000).UTC(),
-					Severity:         testSeverityInfo,
-					LogType:          "k8s-event",
-					Summary:          "summary-1",
-					OtherTimelineIDs: nil,
-				},
-				{
-					LogID:            2,
-					Time:             time.Unix(0, 2000).UTC(),
-					Severity:         testSeverityWarning,
-					LogType:          "k8s-event",
-					Summary:          "summary-2",
-					OtherTimelineIDs: []uint32{4},
-				},
-				{
-					LogID:            4,
-					Time:             time.Unix(0, 4000).UTC(),
-					Severity:         testSeverityError,
-					LogType:          "k8s-event",
-					Summary:          "summary-4",
-					OtherTimelineIDs: []uint32{3},
-				},
-			},
+			wantLogs: []TimelineLogEntry{testTimelineLog1, testTimelineLog2, testTimelineLog4},
 		},
 		{
-			name:       "filters logs by logQuery and truncates other timelines when exceeding limit",
+			name:       "filters logs by logQuery and orders tied other timelines by ID",
 			timelineID: 2,
 			filter: TimelineLogFilter{
 				LogQuery: "severity >= WARNING",
 			},
-			maxOtherTimelines:       1,
 			wantTotalOtherTimelines: 2,
 			wantOtherTimelines: []OtherTimelineLogCount{
-				{
-					TimelineID: 3,
-					Segments: []TimelineSegment{
-						{Type: "Namespace", Name: "default"},
-						{Type: "Pod", Name: "pod-b"},
-					},
-					LogCount: 1,
-				},
+				{TimelineID: 3, Segments: testTimeline3Segments, LogCount: 1},
+				{TimelineID: 4, Segments: testTimeline4Segments, LogCount: 1},
 			},
-			wantLogs: []TimelineLogEntry{
-				{
-					LogID:            2,
-					Time:             time.Unix(0, 2000).UTC(),
-					Severity:         testSeverityWarning,
-					LogType:          "k8s-event",
-					Summary:          "summary-2",
-					OtherTimelineIDs: []uint32{4},
-				},
-				{
-					LogID:            4,
-					Time:             time.Unix(0, 4000).UTC(),
-					Severity:         testSeverityError,
-					LogType:          "k8s-event",
-					Summary:          "summary-4",
-					OtherTimelineIDs: []uint32{3},
-				},
+			wantLogs: []TimelineLogEntry{testTimelineLog2, testTimelineLog4},
+		},
+		{
+			name:       "filters logs by inclusive start and end time",
+			timelineID: 2,
+			filter: TimelineLogFilter{
+				StartTime: timeAtNs(2000),
+				EndTime:   timeAtNs(4000),
 			},
+			wantTotalOtherTimelines: 2,
+			wantOtherTimelines: []OtherTimelineLogCount{
+				{TimelineID: 3, Segments: testTimeline3Segments, LogCount: 1},
+				{TimelineID: 4, Segments: testTimeline4Segments, LogCount: 1},
+			},
+			wantLogs: []TimelineLogEntry{testTimelineLog2, testTimelineLog4},
+		},
+		{
+			name:       "filters logs by start time only",
+			timelineID: 2,
+			filter: TimelineLogFilter{
+				StartTime: timeAtNs(2001),
+			},
+			wantTotalOtherTimelines: 1,
+			wantOtherTimelines: []OtherTimelineLogCount{
+				{TimelineID: 3, Segments: testTimeline3Segments, LogCount: 1},
+			},
+			wantLogs: []TimelineLogEntry{testTimelineLog4},
 		},
 		{
 			name:          "non-existent timeline returns ErrTimelineNotFound",
@@ -193,7 +216,7 @@ func TestGetTimelineLogs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupTimelineLogsTestWorkbench(t)
-			got, err := wb.GetTimelineLogs(context.Background(), tc.timelineID, tc.filter, tc.maxOtherTimelines)
+			got, err := wb.GetTimelineLogs(context.Background(), tc.timelineID, tc.filter)
 			if tc.wantErrTarget != nil {
 				if !errors.Is(err, tc.wantErrTarget) {
 					t.Fatalf("GetTimelineLogs() err = %v, want %v", err, tc.wantErrTarget)
@@ -211,6 +234,52 @@ func TestGetTimelineLogs(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantLogs, got.Logs, protocmp.Transform()); diff != "" {
 				t.Errorf("Logs mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetTimelineLogs_OtherTimelinesLimit(t *testing.T) {
+	testCases := []struct {
+		name                     string
+		extraTimelineCount       int
+		wantTotalOtherTimelines  int
+		wantOtherTimelinesLen    int
+		wantFirstOtherTimelineID uint32
+	}{
+		{
+			name:                     "keeps all other timelines at the limit",
+			extraTimelineCount:       18,
+			wantTotalOtherTimelines:  20,
+			wantOtherTimelinesLen:    20,
+			wantFirstOtherTimelineID: 4,
+		},
+		{
+			name:                     "keeps timelines with the most matched logs when exceeding the limit",
+			extraTimelineCount:       21,
+			wantTotalOtherTimelines:  23,
+			wantOtherTimelinesLen:    20,
+			wantFirstOtherTimelineID: 4,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			wb := setupTimelineLogsTestWorkbench(t)
+			addTimelinesLinkedToLog1(wb, tc.extraTimelineCount)
+
+			got, err := wb.GetTimelineLogs(context.Background(), 2, TimelineLogFilter{})
+			if err != nil {
+				t.Fatalf("GetTimelineLogs() unexpected error = %v", err)
+			}
+			if got.TotalOtherTimelineCount != tc.wantTotalOtherTimelines {
+				t.Errorf("TotalOtherTimelineCount = %d, want %d", got.TotalOtherTimelineCount, tc.wantTotalOtherTimelines)
+			}
+			if len(got.OtherTimelines) != tc.wantOtherTimelinesLen {
+				t.Fatalf("len(OtherTimelines) = %d, want %d", len(got.OtherTimelines), tc.wantOtherTimelinesLen)
+			}
+			if got.OtherTimelines[0].TimelineID != tc.wantFirstOtherTimelineID {
+				t.Errorf("OtherTimelines[0].TimelineID = %d, want %d", got.OtherTimelines[0].TimelineID, tc.wantFirstOtherTimelineID)
 			}
 		})
 	}
@@ -234,12 +303,20 @@ func TestGetTimelineLogs_WebUIAppliedFilterParity(t *testing.T) {
 				LogQuery: "severity >= WARNING",
 			},
 		},
+		{
+			name:       "time range filtered timeline logs match Web UI pipeline with AppliedFilter",
+			timelineID: 2,
+			filter: TimelineLogFilter{
+				StartTime: timeAtNs(2000),
+				EndTime:   timeAtNs(4000),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupTimelineLogsTestWorkbench(t)
-			res, err := wb.GetTimelineLogs(context.Background(), tc.timelineID, tc.filter, 20)
+			res, err := wb.GetTimelineLogs(context.Background(), tc.timelineID, tc.filter)
 			if err != nil {
 				t.Fatalf("GetTimelineLogs() unexpected error = %v", err)
 			}
@@ -294,29 +371,29 @@ func TestGetLogDetail(t *testing.T) {
 		name            string
 		logID           uint32
 		byteOffset      int
-		byteLimit       int
 		wantLinkedTLIDs []uint32
-		wantTruncated   bool
-		wantBodyContain string
+		wantBody        TruncatedBody
 		wantErrTarget   error
 	}{
 		{
 			name:            "returns full log metadata linked timelines and YAML body",
 			logID:           2,
 			byteOffset:      0,
-			byteLimit:       1024,
 			wantLinkedTLIDs: []uint32{2, 4},
-			wantTruncated:   false,
-			wantBodyContain: "message: Container nginx was OOMKilled",
+			wantBody: TruncatedBody{
+				Content:    testLogBodyYAML,
+				TotalBytes: len(testLogBodyYAML),
+			},
 		},
 		{
-			name:            "truncates log body at line boundary when exceeding byteLimit",
+			name:            "returns the YAML body from byteOffset",
 			logID:           2,
-			byteOffset:      0,
-			byteLimit:       30,
+			byteOffset:      len("apiVersion: v1\nkind: Event\n"),
 			wantLinkedTLIDs: []uint32{2, 4},
-			wantTruncated:   true,
-			wantBodyContain: "apiVersion: v1\nkind: Event\n",
+			wantBody: TruncatedBody{
+				Content:    "message: Container nginx was OOMKilled\n",
+				TotalBytes: len(testLogBodyYAML),
+			},
 		},
 		{
 			name:          "non-existent log ID returns ErrLogNotFound",
@@ -328,7 +405,7 @@ func TestGetLogDetail(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupTimelineLogsTestWorkbench(t)
-			got, err := wb.GetLogDetail(tc.logID, tc.byteOffset, tc.byteLimit)
+			got, err := wb.GetLogDetail(tc.logID, tc.byteOffset)
 			if tc.wantErrTarget != nil {
 				if !errors.Is(err, tc.wantErrTarget) {
 					t.Fatalf("GetLogDetail() err = %v, want %v", err, tc.wantErrTarget)
@@ -338,11 +415,8 @@ func TestGetLogDetail(t *testing.T) {
 			if err != nil {
 				t.Fatalf("GetLogDetail() unexpected error = %v", err)
 			}
-			if got.Body.Truncated != tc.wantTruncated {
-				t.Errorf("Body.Truncated = %v, want %v", got.Body.Truncated, tc.wantTruncated)
-			}
-			if !strings.Contains(got.Body.Content, tc.wantBodyContain) {
-				t.Errorf("Body.Content = %q, want substring %q", got.Body.Content, tc.wantBodyContain)
+			if diff := cmp.Diff(tc.wantBody, got.Body); diff != "" {
+				t.Errorf("Body mismatch (-want +got):\n%s", diff)
 			}
 			var gotTLIDs []uint32
 			for _, lt := range got.LinkedTimelines {
