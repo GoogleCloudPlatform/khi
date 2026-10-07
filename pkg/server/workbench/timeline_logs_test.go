@@ -21,9 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
-	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
@@ -42,35 +39,10 @@ func setupTimelineLogsTestWorkbench(t *testing.T) *Workbench {
 		l := &wb.searchIndex.Logs[i]
 		l.SummaryStringID = pool.InternString(fmt.Sprintf("summary-%d", l.ID)).ID()
 	}
-	body, err := structured.FromYAML(testLogBodyYAML)
-	if err != nil {
-		t.Fatalf("failed to parse body yaml: %v", err)
-	}
-	bodyRef, err := khifilev6model.ToInternedStruct(body, pool)
-	if err != nil {
-		t.Fatalf("failed to intern body struct: %v", err)
-	}
 	// Log ID 2 is stored at index 1.
-	wb.searchIndex.Logs[1].BodyStructID = bodyRef.ID()
+	wb.searchIndex.Logs[1].BodyStructID = internTestYAML(t, pool, testLogBodyYAML)
 
-	readonlyPool := khifilev6model.NewReadonlyInternPool()
-	var strs []*khifilev6.InternString
-	for sRef := range pool.SortedStringRefs() {
-		strs = append(strs, sRef.ToProto())
-	}
-	var fieldSets []*khifilev6.InternFieldPathSet
-	for fsRef := range pool.FieldSetRefs() {
-		fieldSets = append(fieldSets, fsRef.ToProto())
-	}
-	var structs []*pb.InternedStruct
-	for sRef := range pool.StructRefs() {
-		structs = append(structs, sRef.ToProto())
-	}
-	readonlyPool.IngestChunk(&khifilev6.InterningPoolChunk{
-		Strings:       strs,
-		FieldPathSets: fieldSets,
-		Structs:       structs,
-	})
+	readonlyPool := newReadonlyInternPool(pool)
 	wb.internPool = readonlyPool
 	wb.searchIndex.InternPool = readonlyPool
 
