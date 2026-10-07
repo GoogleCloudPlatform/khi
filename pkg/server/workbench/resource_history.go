@@ -107,14 +107,14 @@ func (w *Workbench) GetResourceRevisions(timelineID uint32, query ResourceRevisi
 	}
 
 	matchedStart, matchedEnd := revisionIndexRange(tl.Revisions, query.StartTime, query.EndTime)
-	matched := matchedEnd - matchedStart
-	windowStart := matchedStart + min(max(query.Offset, 0), matched)
+	matchedCount := matchedEnd - matchedStart
+	windowStart := matchedStart + min(max(query.Offset, 0), matchedCount)
 	windowEnd := min(windowStart+max(query.Limit, 0), matchedEnd)
 
 	result := &ResourceRevisionsResult{
 		TimelineID:   timelineID,
 		Segments:     segments,
-		MatchedCount: matched,
+		MatchedCount: matchedCount,
 	}
 	if windowStart == windowEnd {
 		return result, nil
