@@ -16,7 +16,6 @@ package workbench
 
 import (
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -314,7 +313,7 @@ func TestGetResourceManifest(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupResourceHistoryTestWorkbench(t)
-			got, err := wb.GetResourceManifest(testPodTimelineID, tc.selector, 0, 0)
+			got, err := wb.GetResourceManifest(testPodTimelineID, tc.selector, 0)
 			if tc.wantErrTarget != nil {
 				if !errors.Is(err, tc.wantErrTarget) {
 					t.Fatalf("GetResourceManifest() err = %v, want %v", err, tc.wantErrTarget)
@@ -337,35 +336,39 @@ func TestGetResourceManifest(t *testing.T) {
 	}
 }
 
-func TestGetResourceManifest_ByteOffsetReassemblesBody(t *testing.T) {
+func TestGetResourceManifest_ByteOffset(t *testing.T) {
 	testCases := []struct {
-		name      string
-		byteLimit int
+		name       string
+		byteOffset int
+		wantBody   TruncatedBody
 	}{
-		{name: "limit shorter than every line", byteLimit: 5},
-		{name: "limit spanning several lines", byteLimit: 20},
-		{name: "limit larger than the body", byteLimit: 1024},
+		{
+			name:       "offset at a line boundary returns the rest of the manifest",
+			byteOffset: len("kind: Pod\n"),
+			wantBody: TruncatedBody{
+				Content:    "status:\n  phase: Running\n  ready: true\n",
+				TotalBytes: len(testRevision1Body),
+			},
+		},
+		{
+			name:       "offset at the end returns no content",
+			byteOffset: len(testRevision1Body),
+			wantBody: TruncatedBody{
+				TotalBytes: len(testRevision1Body),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupResourceHistoryTestWorkbench(t)
 			index := 1
-			var sb strings.Builder
-			offset := 0
-			for range len(testRevision1Body) + 1 {
-				got, err := wb.GetResourceManifest(testPodTimelineID, RevisionSelector{Index: &index}, offset, tc.byteLimit)
-				if err != nil {
-					t.Fatalf("GetResourceManifest() unexpected error = %v", err)
-				}
-				sb.WriteString(got.Body.Content)
-				if !got.Body.Truncated {
-					break
-				}
-				offset = got.Body.NextByteOffset
+			got, err := wb.GetResourceManifest(testPodTimelineID, RevisionSelector{Index: &index}, tc.byteOffset)
+			if err != nil {
+				t.Fatalf("GetResourceManifest() unexpected error = %v", err)
 			}
-			if diff := cmp.Diff(testRevision1Body, sb.String()); diff != "" {
-				t.Errorf("reassembled body mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.wantBody, got.Body); diff != "" {
+				t.Errorf("Body mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -375,6 +378,7 @@ func TestGetResourceDiff(t *testing.T) {
 	testCases := []struct {
 		name          string
 		revisionIndex int
+		byteOffset    int
 		want          *ResourceDiff
 		wantErrTarget error
 	}{
@@ -408,6 +412,22 @@ func TestGetResourceDiff(t *testing.T) {
 			},
 		},
 		{
+			name:          "byteOffset slices the diff text but keeps the change counts of the whole diff",
+			revisionIndex: 1,
+			byteOffset:    len("--- revision 0\n+++ revision 1\n"),
+			want: &ResourceDiff{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision1,
+				Previous:   &testRevision0,
+				Changes:    LineChangeCount{Added: 2, Deleted: 1},
+				Diff: TruncatedBody{
+					Content:    "@@ -1,3 +1,4 @@\n kind: Pod\n status:\n-  phase: Pending\n+  phase: Running\n+  ready: true\n",
+					TotalBytes: 117,
+				},
+			},
+		},
+		{
 			name:          "out of range index returns ErrRevisionNotFound",
 			revisionIndex: 3,
 			wantErrTarget: ErrRevisionNotFound,
@@ -417,7 +437,7 @@ func TestGetResourceDiff(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupResourceHistoryTestWorkbench(t)
-			got, err := wb.GetResourceDiff(testPodTimelineID, tc.revisionIndex, 0, 0)
+			got, err := wb.GetResourceDiff(testPodTimelineID, tc.revisionIndex, tc.byteOffset)
 			if tc.wantErrTarget != nil {
 				if !errors.Is(err, tc.wantErrTarget) {
 					t.Fatalf("GetResourceDiff() err = %v, want %v", err, tc.wantErrTarget)
@@ -442,8 +462,8 @@ func TestGetResourceDiff_ChangesMatchRevisionList(t *testing.T) {
 	}
 	for _, rev := range list.Revisions {
 		t.Run(revisionLabel(rev.Index), func(t *testing.T) {
-			// A tiny byte limit truncates the diff text, which must not affect the change counts.
-			got, err := wb.GetResourceDiff(testPodTimelineID, rev.Index, 0, 10)
+			// A byteOffset past the end leaves no diff text, which must not affect the change counts.
+			got, err := wb.GetResourceDiff(testPodTimelineID, rev.Index, 1<<20)
 			if err != nil {
 				t.Fatalf("GetResourceDiff() unexpected error = %v", err)
 			}

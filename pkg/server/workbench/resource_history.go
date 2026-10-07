@@ -139,8 +139,7 @@ func (w *Workbench) GetResourceRevisions(timelineID uint32, query ResourceRevisi
 }
 
 // GetResourceManifest returns the manifest YAML of the selected revision, sliced from byteOffset.
-// If byteLimit <= 0, DefaultBodyByteLimit is used.
-func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSelector, byteOffset, byteLimit int) (*ResourceManifest, error) {
+func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSelector, byteOffset int) (*ResourceManifest, error) {
 	index, err := w.readyIndex()
 	if err != nil {
 		return nil, err
@@ -162,14 +161,13 @@ func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSele
 		TimelineID: timelineID,
 		Segments:   segments,
 		Revision:   toResourceRevision(index, tl.Revisions, revIdx),
-		Body:       TruncateBody(bodies[tl.Revisions[revIdx].ResourceBodyStructID], byteOffset, byteLimit),
+		Body:       truncateBody(bodies[tl.Revisions[revIdx].ResourceBodyStructID], byteOffset, bodyByteLimit),
 	}, nil
 }
 
 // GetResourceDiff returns the unified diff from the previous revision to the revision at revisionIndex, sliced from byteOffset.
 // The initial revision is compared against an empty manifest, so all of its lines are reported as added.
-// If byteLimit <= 0, DefaultBodyByteLimit is used.
-func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex int, byteOffset, byteLimit int) (*ResourceDiff, error) {
+func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex, byteOffset int) (*ResourceDiff, error) {
 	index, err := w.readyIndex()
 	if err != nil {
 		return nil, err
@@ -201,7 +199,7 @@ func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex int, byteOf
 	}
 	diff := computeUnifiedDiff(prevBody, bodies[tl.Revisions[revisionIndex].ResourceBodyStructID], prevLabel, revisionLabel(revisionIndex))
 	result.Changes = diff.Changes
-	result.Diff = TruncateBody(diff.Text, byteOffset, byteLimit)
+	result.Diff = truncateBody(diff.Text, byteOffset, bodyByteLimit)
 	return result, nil
 }
 
@@ -219,12 +217,11 @@ func (w *Workbench) readyIndex() (*SearchIndex, error) {
 }
 
 func lookupTimeline(index *SearchIndex, timelineID uint32) (*cel.TimelineData, []TimelineSegment, error) {
-	tl := index.TimelineMap[timelineID]
 	segments, ok := index.TimelineSegments(timelineID)
-	if !ok || tl == nil {
+	if !ok {
 		return nil, nil, fmt.Errorf("%w: %d", ErrTimelineNotFound, timelineID)
 	}
-	return tl, segments, nil
+	return index.TimelineMap[timelineID], segments, nil
 }
 
 // readRevisionBodies returns the manifest YAMLs of revs keyed by their resource body struct IDs.

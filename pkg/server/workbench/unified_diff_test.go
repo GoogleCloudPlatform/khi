@@ -15,6 +15,7 @@
 package workbench
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -35,7 +36,26 @@ func numberedLines(prefix string, count int, replace map[int]string) string {
 	return sb.String()
 }
 
+// fullyReplacedMiddle returns texts whose n middle lines all differ between a shared first and last line,
+// together with the hunk expected when the middle is reported as a full replacement.
+func fullyReplacedMiddle(n int) (oldText, newText, wantHunk string) {
+	var oldLines, newLines, deletes, inserts strings.Builder
+	for i := range n {
+		fmt.Fprintf(&oldLines, "old%04d\n", i)
+		fmt.Fprintf(&newLines, "new%04d\n", i)
+		fmt.Fprintf(&deletes, "-old%04d\n", i)
+		fmt.Fprintf(&inserts, "+new%04d\n", i)
+	}
+	oldText = "head\n" + oldLines.String() + "tail\n"
+	newText = "head\n" + newLines.String() + "tail\n"
+	wantHunk = fmt.Sprintf("@@ -1,%d +1,%d @@\n head\n", n+2, n+2) + deletes.String() + inserts.String() + " tail\n"
+	return oldText, newText, wantHunk
+}
+
 func TestComputeUnifiedDiff(t *testing.T) {
+	// Replacing this many lines needs an edit distance of twice the count, beyond maxMyersEditDistance.
+	replacedLineCount := maxMyersEditDistance/2 + 100
+	replacedOld, replacedNew, replacedHunk := fullyReplacedMiddle(replacedLineCount)
 	testCases := []struct {
 		name        string
 		oldText     string
@@ -125,6 +145,15 @@ func TestComputeUnifiedDiff(t *testing.T) {
 			wantText: "--- revision 0\n+++ revision 1\n@@ -1,9 +1,9 @@\n" +
 				"-lx\n+A\n lxx\n lxxx\n lxxxx\n lxxxxx\n lxxxxxx\n lxxxxxxx\n-lxxxxxxxx\n+B\n lxxxxxxxxx\n",
 			wantChanges: LineChangeCount{Added: 2, Deleted: 2},
+		},
+		{
+			name:        "edit distance beyond maxMyersEditDistance reports the differing middle as a full replacement",
+			oldText:     replacedOld,
+			newText:     replacedNew,
+			oldLabel:    "revision 0",
+			newLabel:    "revision 1",
+			wantText:    "--- revision 0\n+++ revision 1\n" + replacedHunk,
+			wantChanges: LineChangeCount{Added: replacedLineCount, Deleted: replacedLineCount},
 		},
 	}
 
