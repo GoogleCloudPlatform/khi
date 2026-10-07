@@ -126,9 +126,12 @@ type revisionTemplateData struct {
 }
 
 type resourceRevisionsTemplateData struct {
-	TimelineID    string
-	Segments      []workbench.TimelineSegment
-	MatchedCount  int
+	TimelineID   string
+	Segments     []workbench.TimelineSegment
+	MatchedCount int
+	// Start and End are the 1-based positions of the page within the matched revisions.
+	Start         int
+	End           int
 	FirstIndex    int
 	LastIndex     int
 	Revisions     []revisionTemplateData
@@ -168,7 +171,7 @@ func (h *WorkbenchHandler) handleGetTimelineLogs(ctx context.Context, _ *mcpsdk.
 		return errRes, nil, err
 	}
 
-	res, err := wb.GetTimelineLogs(ctx, timelineID, input.Filter, 0)
+	res, err := wb.GetTimelineLogs(ctx, timelineID, input.Filter)
 	if errors.Is(err, workbench.ErrTimelineNotFound) {
 		return timelineNotFoundResult(input.InspectionID, input.TimelineID)
 	}
@@ -225,13 +228,16 @@ func (h *WorkbenchHandler) handleGetLog(ctx context.Context, _ *mcpsdk.CallToolR
 	if !ok {
 		return invalidIDResult("logId", input.LogID)
 	}
+	if input.ByteOffset < 0 {
+		return negativeByteOffsetResult(input.ByteOffset)
+	}
 
 	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
 	if err != nil || errRes != nil {
 		return errRes, nil, err
 	}
 
-	detail, err := wb.GetLogDetail(logID, input.ByteOffset, workbench.DefaultBodyByteLimit)
+	detail, err := wb.GetLogDetail(logID, input.ByteOffset)
 	if errors.Is(err, workbench.ErrLogNotFound) {
 		return mdtemplate.ErrorResult("LOG_NOT_FOUND",
 			fmt.Sprintf("No log with ID %s exists in inspection %s.", mdtemplate.Code(input.LogID), mdtemplate.Code(input.InspectionID)),
@@ -318,10 +324,12 @@ func buildResourceRevisionsTemplateData(res *workbench.ResourceRevisionsResult, 
 	if len(res.Revisions) == 0 {
 		return data
 	}
+	data.Start = offset + 1
+	data.End = offset + len(res.Revisions)
 	data.FirstIndex = res.Revisions[0].Index
 	data.LastIndex = res.Revisions[len(res.Revisions)-1].Index
-	if next := offset + len(res.Revisions); next < res.MatchedCount {
-		data.NextPageToken = mdtemplate.EncodePageToken(next)
+	if data.End < res.MatchedCount {
+		data.NextPageToken = mdtemplate.EncodePageToken(data.End)
 	}
 	return data
 }
@@ -337,6 +345,9 @@ func (h *WorkbenchHandler) handleGetResourceManifest(ctx context.Context, _ *mcp
 	if (input.RevisionIndex == nil) == (input.Time == nil) {
 		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "Specify exactly one of revisionIndex or time.")
 	}
+	if input.ByteOffset < 0 {
+		return negativeByteOffsetResult(input.ByteOffset)
+	}
 
 	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
 	if err != nil || errRes != nil {
@@ -346,7 +357,7 @@ func (h *WorkbenchHandler) handleGetResourceManifest(ctx context.Context, _ *mcp
 	manifest, err := wb.GetResourceManifest(timelineID, workbench.RevisionSelector{
 		Index: input.RevisionIndex,
 		Time:  input.Time,
-	}, input.ByteOffset, workbench.DefaultBodyByteLimit)
+	}, input.ByteOffset)
 	if errRes, ok := revisionLookupErrorResult(err, input.InspectionID, input.TimelineID); ok {
 		return errRes, nil, nil
 	}
@@ -370,13 +381,16 @@ func (h *WorkbenchHandler) handleGetResourceDiff(ctx context.Context, _ *mcpsdk.
 	if !ok {
 		return invalidIDResult("timelineId", input.TimelineID)
 	}
+	if input.ByteOffset < 0 {
+		return negativeByteOffsetResult(input.ByteOffset)
+	}
 
 	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
 	if err != nil || errRes != nil {
 		return errRes, nil, err
 	}
 
-	diff, err := wb.GetResourceDiff(timelineID, input.RevisionIndex, input.ByteOffset, workbench.DefaultBodyByteLimit)
+	diff, err := wb.GetResourceDiff(timelineID, input.RevisionIndex, input.ByteOffset)
 	if errRes, ok := revisionLookupErrorResult(err, input.InspectionID, input.TimelineID); ok {
 		return errRes, nil, nil
 	}
@@ -439,6 +453,10 @@ func invalidPageTokenResult(err error) (*mcpsdk.CallToolResult, any, error) {
 	return mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("pageToken is invalid: %s.", err.Error()), "Pass the pageToken value from the previous response as is.")
 }
 
+func negativeByteOffsetResult(byteOffset int) (*mcpsdk.CallToolResult, any, error) {
+	return mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("byteOffset must not be negative, got %s.", mdtemplate.Code(strconv.Itoa(byteOffset))), "Pass the byteOffset value from the last line of the previous response as is.")
+}
+
 // parseIDArgument parses a timeline or log ID passed as a decimal string. IDs start from 1.
 func parseIDArgument(value string) (uint32, bool) {
 	id, err := strconv.ParseUint(value, 10, 32)
@@ -478,7 +496,7 @@ func formatRevisionLine(rev workbench.ResourceRevision) string {
 func formatBodySection(heading, lang string, body workbench.TruncatedBody) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "## %s (%d bytes)\n\n", heading, body.TotalBytes)
-	sb.WriteString(mdtemplate.Fence(lang, body.FormatWithMarker()))
+	sb.WriteString(mdtemplate.Fence(lang, body.Content))
 	if body.Truncated {
 		fmt.Fprintf(&sb, "\n\nbyteOffset: %d", body.NextByteOffset)
 	}

@@ -4,7 +4,7 @@ No revisions of this timeline matched the time range.
 {{- else if not .Revisions }}
 No revisions on this page. {{ .MatchedCount }} revisions matched the time range.
 {{- else }}
-Showing revisions {{ .FirstIndex }}-{{ .LastIndex }} of {{ .MatchedCount }}, oldest first.
+Showing {{ .Start }}-{{ .End }} of {{ .MatchedCount }} matched revisions (revision indexes {{ .FirstIndex }}-{{ .LastIndex }}), oldest first.
 
 | # | Time | Verb | State | Principal | Log ID | Diff |
 | --- | --- | --- | --- | --- | --- | --- |

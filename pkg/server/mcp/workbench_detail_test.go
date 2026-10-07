@@ -217,7 +217,6 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 				"",
 				"```yaml",
 				"kind: Pod",
-				"# [KHI] truncated: showing 10 of 20 bytes. Call again with byteOffset=10 to read the rest.",
 				"```",
 				"",
 				"byteOffset: 10",
@@ -268,11 +267,34 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 			want: strings.Join([]string{
 				"# Revisions of [Namespace] default > [Pod] nginx (`10`)",
 				"",
-				"Showing revisions 0-1 of 3, oldest first.",
+				"Showing 1-2 of 3 matched revisions (revision indexes 0-1), oldest first.",
 				"",
 				"| # | Time | Verb | State | Principal | Log ID | Diff |",
 				"| --- | --- | --- | --- | --- | --- | --- |",
 				"| 0 | 2026-10-01T10:00:00Z | CREATE | Pending | user@example.com | `11` | +3 -0 |",
+				"| 1 | 2026-10-01T10:05:00Z | UPDATE | Running | system:node\\|x | `12` | +1 -1 |",
+				"",
+				`pageToken: "` + mdtemplate.EncodePageToken(2) + `"`,
+			}, "\n"),
+		},
+		{
+			name:         "get_resource_revisions.md.tmpl on a later page",
+			templateName: "get_resource_revisions.md.tmpl",
+			data: buildResourceRevisionsTemplateData(&workbench.ResourceRevisionsResult{
+				TimelineID:   10,
+				Segments:     testPodSegments,
+				MatchedCount: 3,
+				Revisions: []workbench.ResourceRevisionSummary{
+					{ResourceRevision: testUpdateRevision, Changes: workbench.LineChangeCount{Added: 1, Deleted: 1}},
+				},
+			}, 1),
+			want: strings.Join([]string{
+				"# Revisions of [Namespace] default > [Pod] nginx (`10`)",
+				"",
+				"Showing 2-2 of 3 matched revisions (revision indexes 1-1), oldest first.",
+				"",
+				"| # | Time | Verb | State | Principal | Log ID | Diff |",
+				"| --- | --- | --- | --- | --- | --- | --- |",
 				"| 1 | 2026-10-01T10:05:00Z | UPDATE | Running | system:node\\|x | `12` | +1 -1 |",
 				"",
 				`pageToken: "` + mdtemplate.EncodePageToken(2) + `"`,
@@ -617,6 +639,27 @@ func TestWorkbenchHandler_DetailToolErrors(t *testing.T) {
 				return handler.handleGetResourceDiff(context.Background(), nil, GetResourceDiffInput{InspectionID: inspectionID, TimelineID: unknownTimelineID})
 			},
 			want: []string{"Error: TIMELINE_NOT_FOUND"},
+		},
+		{
+			name: "get_log with a negative byteOffset",
+			call: func() (*mcpsdk.CallToolResult, any, error) {
+				return handler.handleGetLog(context.Background(), nil, GetLogInput{InspectionID: inspectionID, LogID: "1", ByteOffset: -1})
+			},
+			want: []string{"Error: INVALID_ARGUMENT", "byteOffset must not be negative, got `-1`."},
+		},
+		{
+			name: "get_resource_manifest with a negative byteOffset",
+			call: func() (*mcpsdk.CallToolResult, any, error) {
+				return handler.handleGetResourceManifest(context.Background(), nil, GetResourceManifestInput{InspectionID: inspectionID, TimelineID: "1", RevisionIndex: &revisionIndex, ByteOffset: -1})
+			},
+			want: []string{"Error: INVALID_ARGUMENT", "byteOffset must not be negative, got `-1`."},
+		},
+		{
+			name: "get_resource_diff with a negative byteOffset",
+			call: func() (*mcpsdk.CallToolResult, any, error) {
+				return handler.handleGetResourceDiff(context.Background(), nil, GetResourceDiffInput{InspectionID: inspectionID, TimelineID: "1", ByteOffset: -1})
+			},
+			want: []string{"Error: INVALID_ARGUMENT", "byteOffset must not be negative, got `-1`."},
 		},
 	}
 
