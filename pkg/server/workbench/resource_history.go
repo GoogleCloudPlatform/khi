@@ -66,11 +66,22 @@ type ResourceRevisionsResult struct {
 }
 
 // RevisionSelector identifies a revision either by its index or by a point in time.
-// Exactly one of Index and Time must be set.
+// Build it with RevisionAtIndex or RevisionAtTime. The zero value selects the revision at index 0.
 type RevisionSelector struct {
-	Index *int
-	// Time selects the revision effective at that time, i.e. the latest revision changed at or before it.
-	Time *time.Time
+	// byTime reports whether the selector uses time instead of index.
+	byTime bool
+	index  int
+	time   time.Time
+}
+
+// RevisionAtIndex returns a selector for the revision at the 0-based index among all revisions of the timeline.
+func RevisionAtIndex(index int) RevisionSelector {
+	return RevisionSelector{index: index}
+}
+
+// RevisionAtTime returns a selector for the revision effective at t, i.e. the latest revision changed at or before t.
+func RevisionAtTime(t time.Time) RevisionSelector {
+	return RevisionSelector{byTime: true, time: t}
 }
 
 // ResourceManifest contains the selected revision and its truncated manifest YAML.
@@ -229,18 +240,18 @@ func revisionIndexRange(revs []cel.RevisionInfo, start, end *time.Time) (int, in
 
 // selectRevision resolves selector to a revision index in revs, which must be sorted by ChangedTime.
 func selectRevision(revs []cel.RevisionInfo, selector RevisionSelector) (int, error) {
-	if selector.Index != nil {
-		idx := *selector.Index
+	if !selector.byTime {
+		idx := selector.index
 		if idx < 0 || idx >= len(revs) {
 			return 0, fmt.Errorf("%w: index %d", ErrRevisionNotFound, idx)
 		}
 		return idx, nil
 	}
-	tNs := selector.Time.UnixNano()
+	tNs := selector.time.UnixNano()
 	// The first revision changed after t is one past the revision effective at t.
 	idx := sort.Search(len(revs), func(i int) bool { return revs[i].ChangedTime > tNs }) - 1
 	if idx < 0 {
-		return 0, fmt.Errorf("%w: no revision at or before %s", ErrRevisionNotFound, selector.Time.UTC().Format(time.RFC3339))
+		return 0, fmt.Errorf("%w: no revision at or before %s", ErrRevisionNotFound, selector.time.UTC().Format(time.RFC3339))
 	}
 	return idx, nil
 }

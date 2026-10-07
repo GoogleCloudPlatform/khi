@@ -299,8 +299,6 @@ func TestGetResourceRevisions_PagingCoversEveryRevisionOnce(t *testing.T) {
 }
 
 func TestGetResourceManifest(t *testing.T) {
-	intPtr := func(i int) *int { return &i }
-	timePtr := func(t time.Time) *time.Time { return &t }
 	testCases := []struct {
 		name          string
 		selector      RevisionSelector
@@ -310,36 +308,42 @@ func TestGetResourceManifest(t *testing.T) {
 	}{
 		{
 			name:         "selects the revision by index",
-			selector:     RevisionSelector{Index: intPtr(1)},
+			selector:     RevisionAtIndex(1),
 			wantRevision: testRevision1,
 			wantBody:     testRevision1Body,
 		},
 		{
+			name:         "zero value selector selects the revision at index 0",
+			selector:     RevisionSelector{},
+			wantRevision: testRevision0,
+			wantBody:     testRevision0Body,
+		},
+		{
 			name:         "time equal to a change selects that revision",
-			selector:     RevisionSelector{Time: timePtr(testRevision1Time)},
+			selector:     RevisionAtTime(testRevision1Time),
 			wantRevision: testRevision1,
 			wantBody:     testRevision1Body,
 		},
 		{
 			name:         "time between changes selects the revision effective at that time",
-			selector:     RevisionSelector{Time: timePtr(testRevision1Time.Add(500 * time.Second))},
+			selector:     RevisionAtTime(testRevision1Time.Add(500 * time.Second)),
 			wantRevision: testRevision1,
 			wantBody:     testRevision1Body,
 		},
 		{
 			name:         "time after the last change selects the last revision",
-			selector:     RevisionSelector{Time: timePtr(testRevision2Time.Add(time.Hour))},
+			selector:     RevisionAtTime(testRevision2Time.Add(time.Hour)),
 			wantRevision: testRevision2,
 			wantBody:     "",
 		},
 		{
 			name:          "time before the first change returns ErrRevisionNotFound",
-			selector:      RevisionSelector{Time: timePtr(testRevision0Time.Add(-time.Second))},
+			selector:      RevisionAtTime(testRevision0Time.Add(-time.Second)),
 			wantErrTarget: ErrRevisionNotFound,
 		},
 		{
 			name:          "out of range index returns ErrRevisionNotFound",
-			selector:      RevisionSelector{Index: intPtr(3)},
+			selector:      RevisionAtIndex(3),
 			wantErrTarget: ErrRevisionNotFound,
 		},
 	}
@@ -396,8 +400,7 @@ func TestGetResourceManifest_ByteOffset(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupResourceHistoryTestWorkbench(t)
-			index := 1
-			got, err := wb.GetResourceManifest(testPodTimelineID, RevisionSelector{Index: &index}, tc.byteOffset)
+			got, err := wb.GetResourceManifest(testPodTimelineID, RevisionAtIndex(1), tc.byteOffset)
 			if err != nil {
 				t.Fatalf("GetResourceManifest() unexpected error = %v", err)
 			}
