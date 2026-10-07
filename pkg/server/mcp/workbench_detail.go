@@ -1,0 +1,486 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package mcp
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+const (
+	// defaultDetailPageSize is the page size of get_timeline_logs and get_resource_revisions when pageSize is omitted.
+	defaultDetailPageSize = 50
+	// maxDetailPageSize caps pageSize so that a single response stays readable.
+	maxDetailPageSize = 500
+)
+
+// GetTimelineLogsInput defines the input parameters for the get_timeline_logs MCP tool.
+type GetTimelineLogsInput struct {
+	InspectionID string                      `json:"inspectionId" jsonschema:"The target inspection ID."`
+	TimelineID   string                      `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
+	Filter       workbench.TimelineLogFilter `json:"filter,omitempty" jsonschema:"Log CEL and time range filter parameters."`
+	PageSize     int                         `json:"pageSize,omitempty" jsonschema:"Maximum number of logs per page (default 50, max 500)."`
+	PageToken    string                      `json:"pageToken,omitempty" jsonschema:"The pageToken value from the last line of the previous response."`
+}
+
+// GetLogInput defines the input parameters for the get_log MCP tool.
+type GetLogInput struct {
+	InspectionID string `json:"inspectionId" jsonschema:"The target inspection ID."`
+	LogID        string `json:"logId" jsonschema:"The log ID from search_logs or get_timeline_logs."`
+	ByteOffset   int    `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated body."`
+}
+
+// GetResourceRevisionsInput defines the input parameters for the get_resource_revisions MCP tool.
+type GetResourceRevisionsInput struct {
+	InspectionID string     `json:"inspectionId" jsonschema:"The target inspection ID."`
+	TimelineID   string     `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
+	StartTime    *time.Time `json:"startTime,omitempty" jsonschema:"Inclusive start of the revision time range in RFC3339 format."`
+	EndTime      *time.Time `json:"endTime,omitempty" jsonschema:"Inclusive end of the revision time range in RFC3339 format."`
+	PageSize     int        `json:"pageSize,omitempty" jsonschema:"Maximum number of revisions per page (default 50, max 500)."`
+	PageToken    string     `json:"pageToken,omitempty" jsonschema:"The pageToken value from the last line of the previous response."`
+}
+
+// GetResourceManifestInput defines the input parameters for the get_resource_manifest MCP tool.
+type GetResourceManifestInput struct {
+	InspectionID  string     `json:"inspectionId" jsonschema:"The target inspection ID."`
+	TimelineID    string     `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
+	RevisionIndex *int       `json:"revisionIndex,omitempty" jsonschema:"The revision index from get_resource_revisions. Specify either revisionIndex or time."`
+	Time          *time.Time `json:"time,omitempty" jsonschema:"Selects the revision effective at this time in RFC3339 format. Specify either revisionIndex or time."`
+	ByteOffset    int        `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated body. Pass it with the revisionIndex of that response."`
+}
+
+// GetResourceDiffInput defines the input parameters for the get_resource_diff MCP tool.
+type GetResourceDiffInput struct {
+	InspectionID  string `json:"inspectionId" jsonschema:"The target inspection ID."`
+	TimelineID    string `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
+	RevisionIndex int    `json:"revisionIndex" jsonschema:"The revision index from get_resource_revisions. The diff is taken against the revision right before it."`
+	ByteOffset    int    `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated diff."`
+}
+
+type linkedTimelineTemplateData struct {
+	TimelineID string
+	Segments   []workbench.TimelineSegment
+	LogCount   int
+}
+
+type timelineLogTemplateData struct {
+	LogID      string
+	Time       time.Time
+	Severity   string
+	LogType    string
+	Summary    string
+	AlsoOnCell string
+}
+
+type timelineLogsTemplateData struct {
+	TimelineID              string
+	Segments                []workbench.TimelineSegment
+	Applied                 workbench.AppliedFilter
+	Start                   int
+	End                     int
+	Total                   int
+	TotalOtherTimelineCount int
+	OtherTimelines          []linkedTimelineTemplateData
+	Logs                    []timelineLogTemplateData
+	NextPageToken           string
+}
+
+type logTemplateData struct {
+	LogID           string
+	Time            time.Time
+	Severity        string
+	LogType         string
+	Summary         string
+	LinkedTimelines []linkedTimelineTemplateData
+	BodySection     string
+}
+
+type revisionTemplateData struct {
+	Index     int
+	Time      time.Time
+	Verb      string
+	State     string
+	Principal string
+	LogID     string
+	Changes   string
+}
+
+type resourceRevisionsTemplateData struct {
+	TimelineID    string
+	Segments      []workbench.TimelineSegment
+	MatchedCount  int
+	FirstIndex    int
+	LastIndex     int
+	Revisions     []revisionTemplateData
+	NextPageToken string
+}
+
+type resourceManifestTemplateData struct {
+	TimelineID  string
+	Segments    []workbench.TimelineSegment
+	Revision    revisionTemplateData
+	BodySection string
+}
+
+type resourceDiffTemplateData struct {
+	TimelineID   string
+	Segments     []workbench.TimelineSegment
+	RevisionLine string
+	PreviousLine string
+	Changes      string
+	DiffSection  string
+}
+
+func (h *WorkbenchHandler) handleGetTimelineLogs(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetTimelineLogsInput) (*mcpsdk.CallToolResult, any, error) {
+	if input.InspectionID == "" {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "inspectionId is required.")
+	}
+	timelineID, ok := parseIDArgument(input.TimelineID)
+	if !ok {
+		return invalidIDResult("timelineId", input.TimelineID)
+	}
+	if field, err := workbench.ValidateFilter(workbench.Filter{LogQuery: input.Filter.LogQuery}); err != nil {
+		return mdtemplate.CELErrorResult(field, input.Filter.LogQuery, err)
+	}
+
+	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
+	if err != nil || errRes != nil {
+		return errRes, nil, err
+	}
+
+	res, err := wb.GetTimelineLogs(ctx, timelineID, input.Filter, 0)
+	if errors.Is(err, workbench.ErrTimelineNotFound) {
+		return timelineNotFoundResult(input.InspectionID, input.TimelineID)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	page, err := mdtemplate.Paginate(res.Logs, input.PageSize, defaultDetailPageSize, maxDetailPageSize, input.PageToken)
+	if err != nil {
+		return invalidPageTokenResult(err)
+	}
+
+	return h.templates.ToolResult("get_timeline_logs.md.tmpl", buildTimelineLogsTemplateData(res, page))
+}
+
+func buildTimelineLogsTemplateData(res *workbench.TimelineLogsResult, page mdtemplate.PageResult[workbench.TimelineLogEntry]) timelineLogsTemplateData {
+	others := make([]linkedTimelineTemplateData, len(res.OtherTimelines))
+	for i, o := range res.OtherTimelines {
+		others[i] = linkedTimelineTemplateData{
+			TimelineID: formatID(o.TimelineID),
+			Segments:   o.Segments,
+			LogCount:   o.LogCount,
+		}
+	}
+	logs := make([]timelineLogTemplateData, len(page.Items))
+	for i, l := range page.Items {
+		logs[i] = timelineLogTemplateData{
+			LogID:      formatID(l.LogID),
+			Time:       l.Time,
+			Severity:   l.Severity.GetLabel(),
+			LogType:    l.LogType,
+			Summary:    l.Summary,
+			AlsoOnCell: formatTimelineIDsCell(l.OtherTimelineIDs),
+		}
+	}
+	return timelineLogsTemplateData{
+		TimelineID:              formatID(res.TimelineID),
+		Segments:                res.Segments,
+		Applied:                 res.Applied,
+		Start:                   page.Start,
+		End:                     page.End,
+		Total:                   page.Total,
+		TotalOtherTimelineCount: res.TotalOtherTimelineCount,
+		OtherTimelines:          others,
+		Logs:                    logs,
+		NextPageToken:           page.NextPageToken,
+	}
+}
+
+func (h *WorkbenchHandler) handleGetLog(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetLogInput) (*mcpsdk.CallToolResult, any, error) {
+	if input.InspectionID == "" {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "inspectionId is required.")
+	}
+	logID, ok := parseIDArgument(input.LogID)
+	if !ok {
+		return invalidIDResult("logId", input.LogID)
+	}
+
+	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
+	if err != nil || errRes != nil {
+		return errRes, nil, err
+	}
+
+	detail, err := wb.GetLogDetail(logID, input.ByteOffset, workbench.DefaultBodyByteLimit)
+	if errors.Is(err, workbench.ErrLogNotFound) {
+		return mdtemplate.ErrorResult("LOG_NOT_FOUND",
+			fmt.Sprintf("No log with ID %s exists in inspection %s.", mdtemplate.Code(input.LogID), mdtemplate.Code(input.InspectionID)),
+			"Use a log ID from `search_logs` or `get_timeline_logs`.",
+		)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return h.templates.ToolResult("get_log.md.tmpl", buildLogTemplateData(detail))
+}
+
+func buildLogTemplateData(detail *workbench.LogDetail) logTemplateData {
+	linked := make([]linkedTimelineTemplateData, len(detail.LinkedTimelines))
+	for i, lt := range detail.LinkedTimelines {
+		linked[i] = linkedTimelineTemplateData{
+			TimelineID: formatID(lt.TimelineID),
+			Segments:   lt.Segments,
+		}
+	}
+	return logTemplateData{
+		LogID:           formatID(detail.LogID),
+		Time:            detail.Time,
+		Severity:        detail.Severity.GetLabel(),
+		LogType:         detail.LogType,
+		Summary:         detail.Summary,
+		LinkedTimelines: linked,
+		BodySection:     formatBodySection("Body", "yaml", detail.Body),
+	}
+}
+
+func (h *WorkbenchHandler) handleGetResourceRevisions(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetResourceRevisionsInput) (*mcpsdk.CallToolResult, any, error) {
+	if input.InspectionID == "" {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "inspectionId is required.")
+	}
+	timelineID, ok := parseIDArgument(input.TimelineID)
+	if !ok {
+		return invalidIDResult("timelineId", input.TimelineID)
+	}
+	offset, err := mdtemplate.DecodePageToken(input.PageToken)
+	if err != nil {
+		return invalidPageTokenResult(err)
+	}
+	pageSize := input.PageSize
+	if pageSize <= 0 {
+		pageSize = defaultDetailPageSize
+	}
+	pageSize = min(pageSize, maxDetailPageSize)
+
+	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
+	if err != nil || errRes != nil {
+		return errRes, nil, err
+	}
+
+	res, err := wb.GetResourceRevisions(timelineID, workbench.ResourceRevisionsQuery{
+		StartTime: input.StartTime,
+		EndTime:   input.EndTime,
+		Offset:    offset,
+		Limit:     pageSize,
+	})
+	if errors.Is(err, workbench.ErrTimelineNotFound) {
+		return timelineNotFoundResult(input.InspectionID, input.TimelineID)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return h.templates.ToolResult("get_resource_revisions.md.tmpl", buildResourceRevisionsTemplateData(res, offset))
+}
+
+func buildResourceRevisionsTemplateData(res *workbench.ResourceRevisionsResult, offset int) resourceRevisionsTemplateData {
+	revisions := make([]revisionTemplateData, len(res.Revisions))
+	for i, rev := range res.Revisions {
+		revisions[i] = toRevisionTemplateData(rev.ResourceRevision)
+		revisions[i].Changes = formatLineChanges(rev.Changes)
+	}
+	data := resourceRevisionsTemplateData{
+		TimelineID:   formatID(res.TimelineID),
+		Segments:     res.Segments,
+		MatchedCount: res.MatchedCount,
+		Revisions:    revisions,
+	}
+	if len(res.Revisions) == 0 {
+		return data
+	}
+	data.FirstIndex = res.Revisions[0].Index
+	data.LastIndex = res.Revisions[len(res.Revisions)-1].Index
+	if next := offset + len(res.Revisions); next < res.MatchedCount {
+		data.NextPageToken = mdtemplate.EncodePageToken(next)
+	}
+	return data
+}
+
+func (h *WorkbenchHandler) handleGetResourceManifest(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetResourceManifestInput) (*mcpsdk.CallToolResult, any, error) {
+	if input.InspectionID == "" {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "inspectionId is required.")
+	}
+	timelineID, ok := parseIDArgument(input.TimelineID)
+	if !ok {
+		return invalidIDResult("timelineId", input.TimelineID)
+	}
+	if (input.RevisionIndex == nil) == (input.Time == nil) {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "Specify exactly one of revisionIndex or time.")
+	}
+
+	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
+	if err != nil || errRes != nil {
+		return errRes, nil, err
+	}
+
+	manifest, err := wb.GetResourceManifest(timelineID, workbench.RevisionSelector{
+		Index: input.RevisionIndex,
+		Time:  input.Time,
+	}, input.ByteOffset, workbench.DefaultBodyByteLimit)
+	if errRes, ok := revisionLookupErrorResult(err, input.InspectionID, input.TimelineID); ok {
+		return errRes, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return h.templates.ToolResult("get_resource_manifest.md.tmpl", resourceManifestTemplateData{
+		TimelineID:  formatID(manifest.TimelineID),
+		Segments:    manifest.Segments,
+		Revision:    toRevisionTemplateData(manifest.Revision),
+		BodySection: formatBodySection("Body", "yaml", manifest.Body),
+	})
+}
+
+func (h *WorkbenchHandler) handleGetResourceDiff(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetResourceDiffInput) (*mcpsdk.CallToolResult, any, error) {
+	if input.InspectionID == "" {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "inspectionId is required.")
+	}
+	timelineID, ok := parseIDArgument(input.TimelineID)
+	if !ok {
+		return invalidIDResult("timelineId", input.TimelineID)
+	}
+
+	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
+	if err != nil || errRes != nil {
+		return errRes, nil, err
+	}
+
+	diff, err := wb.GetResourceDiff(timelineID, input.RevisionIndex, input.ByteOffset, workbench.DefaultBodyByteLimit)
+	if errRes, ok := revisionLookupErrorResult(err, input.InspectionID, input.TimelineID); ok {
+		return errRes, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return h.templates.ToolResult("get_resource_diff.md.tmpl", buildResourceDiffTemplateData(diff))
+}
+
+func buildResourceDiffTemplateData(diff *workbench.ResourceDiff) resourceDiffTemplateData {
+	previousLine := "none"
+	if diff.Previous != nil {
+		previousLine = formatRevisionLine(*diff.Previous)
+	}
+	diffSection := formatBodySection("Diff", "diff", diff.Diff)
+	if diff.Diff.TotalBytes == 0 {
+		diffSection = "## Diff (0 bytes)\n\nThe manifest is identical to the previous revision."
+	}
+	return resourceDiffTemplateData{
+		TimelineID:   formatID(diff.TimelineID),
+		Segments:     diff.Segments,
+		RevisionLine: formatRevisionLine(diff.Revision),
+		PreviousLine: previousLine,
+		Changes:      formatLineChanges(diff.Changes),
+		DiffSection:  diffSection,
+	}
+}
+
+// revisionLookupErrorResult converts a timeline or revision lookup error into an MCP error result.
+// It returns false when err is not a lookup error.
+func revisionLookupErrorResult(err error, inspectionID, timelineID string) (*mcpsdk.CallToolResult, bool) {
+	switch {
+	case errors.Is(err, workbench.ErrTimelineNotFound):
+		res, _, _ := timelineNotFoundResult(inspectionID, timelineID)
+		return res, true
+	case errors.Is(err, workbench.ErrRevisionNotFound):
+		res, _, _ := mdtemplate.ErrorResult("REVISION_NOT_FOUND",
+			fmt.Sprintf("Timeline %s has no matching revision: %s.", mdtemplate.Code(timelineID), err.Error()),
+			"Use a revision index from `get_resource_revisions`.",
+		)
+		return res, true
+	default:
+		return nil, false
+	}
+}
+
+func timelineNotFoundResult(inspectionID, timelineID string) (*mcpsdk.CallToolResult, any, error) {
+	return mdtemplate.ErrorResult("TIMELINE_NOT_FOUND",
+		fmt.Sprintf("No timeline with ID %s exists in inspection %s.", mdtemplate.Code(timelineID), mdtemplate.Code(inspectionID)),
+		"Use a timeline ID from `search_timelines` or `search_logs`.",
+	)
+}
+
+func invalidIDResult(field, value string) (*mcpsdk.CallToolResult, any, error) {
+	return mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("%s must be a positive integer ID, got %s.", field, mdtemplate.Code(value)))
+}
+
+func invalidPageTokenResult(err error) (*mcpsdk.CallToolResult, any, error) {
+	return mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("pageToken is invalid: %s.", err.Error()), "Pass the pageToken value from the previous response as is.")
+}
+
+// parseIDArgument parses a timeline or log ID passed as a decimal string. IDs start from 1.
+func parseIDArgument(value string) (uint32, bool) {
+	id, err := strconv.ParseUint(value, 10, 32)
+	if err != nil || id == 0 {
+		return 0, false
+	}
+	return uint32(id), true
+}
+
+func formatID(id uint32) string {
+	return strconv.FormatUint(uint64(id), 10)
+}
+
+func formatLineChanges(c workbench.LineChangeCount) string {
+	return fmt.Sprintf("+%d -%d", c.Added, c.Deleted)
+}
+
+func toRevisionTemplateData(rev workbench.ResourceRevision) revisionTemplateData {
+	return revisionTemplateData{
+		Index:     rev.Index,
+		Time:      rev.Time,
+		Verb:      rev.Verb,
+		State:     rev.State,
+		Principal: rev.Principal,
+		LogID:     formatID(rev.LogID),
+	}
+}
+
+// formatRevisionLine formats a revision on one line, such as "1, 2026-09-24T01:20:05Z, UPDATE by user, state Running, log `12`".
+func formatRevisionLine(rev workbench.ResourceRevision) string {
+	return fmt.Sprintf("%d, %s, %s by %s, state %s, log %s",
+		rev.Index, mdtemplate.FormatTime(rev.Time), rev.Verb, rev.Principal, rev.State, mdtemplate.Code(formatID(rev.LogID)))
+}
+
+// formatBodySection renders a "## <heading> (N bytes)" section with the body in a fenced code block.
+// When the body is truncated, it ends with a "byteOffset: N" line, so the section must be the last part of a response.
+func formatBodySection(heading, lang string, body workbench.TruncatedBody) string {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "## %s (%d bytes)\n\n", heading, body.TotalBytes)
+	sb.WriteString(mdtemplate.Fence(lang, body.FormatWithMarker()))
+	if body.Truncated {
+		fmt.Fprintf(&sb, "\n\nbyteOffset: %d", body.NextByteOffset)
+	}
+	return sb.String()
+}

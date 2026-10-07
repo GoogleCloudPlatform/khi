@@ -1,0 +1,36 @@
+# Logs of {{ timelinePath .Segments }} ({{ code .TimelineID }})
+{{ if eq .Total 0 }}
+No logs on this timeline matched the filter.
+
+{{ appliedFilter .Applied }}
+{{- else }}
+Showing logs {{ .Start }}-{{ .End }} of {{ .Total }}, oldest first.
+
+{{ appliedFilter .Applied }}
+{{- if .OtherTimelines }}
+
+## Other timelines linked to these logs
+Counted over all {{ .Total }} logs, not only this page.
+{{- if gt .TotalOtherTimelineCount (len .OtherTimelines) }}
+Showing {{ len .OtherTimelines }} of {{ .TotalOtherTimelineCount }} timelines, sorted by the number of logs.
+{{- end }}
+
+| Timeline | ID | Logs |
+| --- | --- | --- |
+{{- range .OtherTimelines }}
+| {{ cell (timelinePath .Segments) }} | {{ code .TimelineID }} | {{ .LogCount }} |
+{{- end }}
+{{- end }}
+
+## Logs
+
+| Time | Severity | Type | Log ID | Summary | Also on |
+| --- | --- | --- | --- | --- | --- |
+{{- range .Logs }}
+| {{ time .Time }} | {{ .Severity }} | {{ cell .LogType }} | {{ code .LogID }} | {{ cell .Summary }} | {{ .AlsoOnCell }} |
+{{- end }}
+{{- with pageFooter .NextPageToken }}
+
+{{ . }}
+{{- end }}
+{{- end }}

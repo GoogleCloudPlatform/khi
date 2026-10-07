@@ -1,0 +1,10 @@
+# Manifest of {{ timelinePath .Segments }} ({{ code .TimelineID }})
+
+- Revision: {{ .Revision.Index }}
+- Time: {{ time .Revision.Time }}
+- Verb: {{ .Revision.Verb }}
+- State: {{ .Revision.State }}
+- Principal: {{ .Revision.Principal }}
+- Log ID: {{ code .Revision.LogID }}
+
+{{ .BodySection }}

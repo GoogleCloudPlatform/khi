@@ -1,0 +1,18 @@
+# Revisions of {{ timelinePath .Segments }} ({{ code .TimelineID }})
+{{ if eq .MatchedCount 0 }}
+No revisions of this timeline matched the time range.
+{{- else if not .Revisions }}
+No revisions on this page. {{ .MatchedCount }} revisions matched the time range.
+{{- else }}
+Showing revisions {{ .FirstIndex }}-{{ .LastIndex }} of {{ .MatchedCount }}, oldest first.
+
+| # | Time | Verb | State | Principal | Log ID | Diff |
+| --- | --- | --- | --- | --- | --- | --- |
+{{- range .Revisions }}
+| {{ .Index }} | {{ time .Time }} | {{ cell .Verb }} | {{ cell .State }} | {{ cell .Principal }} | {{ code .LogID }} | {{ .Changes }} |
+{{- end }}
+{{- with pageFooter .NextPageToken }}
+
+{{ . }}
+{{- end }}
+{{- end }}
