@@ -20,6 +20,7 @@ func TestPathMap(t *testing.T) {
 		name       string
 		expression string
 		want       bool
+		wantErr    bool
 	}{
 		{
 			name:       "index with existing level",
@@ -76,6 +77,11 @@ func TestPathMap(t *testing.T) {
 			expression: `path == {"namespace": "default", "kind": "Pod"}`,
 			want:       true,
 		},
+		{
+			name:       "index with non-string key is an error",
+			expression: `path[dyn(1)] == ""`,
+			wantErr:    true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -89,8 +95,11 @@ func TestPathMap(t *testing.T) {
 				t.Fatalf("failed to build program for %q: %v", tc.expression, err)
 			}
 			out, _, err := prg.Eval(map[string]any{"path": newPathMap(levels)})
-			if err != nil {
-				t.Fatalf("Eval(%q) returned error: %v", tc.expression, err)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Eval(%q) error = %v, wantErr = %v", tc.expression, err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
 			}
 			got, ok := out.Value().(bool)
 			if !ok {

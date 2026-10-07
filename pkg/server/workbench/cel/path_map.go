@@ -35,8 +35,10 @@ func newPathMap(levels map[string]string) pathMap {
 
 // Get returns the timeline name of the given path level, or an empty string when the level is missing.
 func (p pathMap) Get(key ref.Val) ref.Val {
-	val, found := p.levels.Find(key)
-	if found || types.IsError(val) {
+	if _, ok := key.(types.String); !ok {
+		return types.MaybeNoSuchOverloadErr(key)
+	}
+	if val, found := p.levels.Find(key); found {
 		return val
 	}
 	return types.String("")
