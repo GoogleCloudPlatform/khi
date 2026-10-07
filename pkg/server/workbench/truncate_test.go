@@ -134,6 +134,16 @@ func TestTruncateBody_RoundTripReconstruction(t *testing.T) {
 			body:      "first: 1\n" + strings.Repeat("middle: abcdefghijklmnop\n", 20) + "last: true",
 			byteLimit: 90,
 		},
+		{
+			name:      "multi-byte body without newlines reconstructed across rune-boundary chunks",
+			body:      strings.Repeat("あ", 30),
+			byteLimit: 7,
+		},
+		{
+			name:      "invalid UTF-8 body without newlines reconstructed across fixed-size chunks",
+			body:      strings.Repeat("\x80", 10),
+			byteLimit: 3,
+		},
 	}
 
 	for _, tc := range testCases {
