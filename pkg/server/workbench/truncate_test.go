@@ -27,18 +27,17 @@ func TestTruncateBody(t *testing.T) {
 		body       string
 		byteOffset int
 		byteLimit  int
-		want       TruncatedBody
+		want       BodyChunk
 	}{
 		{
 			name:       "body within limit is returned in full without truncation",
 			body:       "apiVersion: v1\nkind: Pod\n",
 			byteOffset: 0,
 			byteLimit:  64,
-			want: TruncatedBody{
+			want: BodyChunk{
 				Content:        "apiVersion: v1\nkind: Pod\n",
 				TotalBytes:     25,
 				NextByteOffset: 0,
-				Truncated:      false,
 			},
 		},
 		{
@@ -46,11 +45,10 @@ func TestTruncateBody(t *testing.T) {
 			body:       "line1: aaaa\nline2: bbbb\nline3: cccc\n",
 			byteOffset: 0,
 			byteLimit:  28,
-			want: TruncatedBody{
+			want: BodyChunk{
 				Content:        "line1: aaaa\nline2: bbbb\n",
 				TotalBytes:     36,
 				NextByteOffset: 24,
-				Truncated:      true,
 			},
 		},
 		{
@@ -58,11 +56,10 @@ func TestTruncateBody(t *testing.T) {
 			body:       "line1: aaaa\nline2: bbbb\nline3: cccc\n",
 			byteOffset: 24,
 			byteLimit:  28,
-			want: TruncatedBody{
+			want: BodyChunk{
 				Content:        "line3: cccc\n",
 				TotalBytes:     36,
 				NextByteOffset: 0,
-				Truncated:      false,
 			},
 		},
 		{
@@ -70,11 +67,10 @@ func TestTruncateBody(t *testing.T) {
 			body:       "line1: aaaa\nline2: bbbb\nline3: cccc\n",
 			byteOffset: 12,
 			byteLimit:  12,
-			want: TruncatedBody{
+			want: BodyChunk{
 				Content:        "line2: bbbb\n",
 				TotalBytes:     36,
 				NextByteOffset: 24,
-				Truncated:      true,
 			},
 		},
 		{
@@ -82,11 +78,10 @@ func TestTruncateBody(t *testing.T) {
 			body:       "line1: aaaa\n",
 			byteOffset: 12,
 			byteLimit:  28,
-			want: TruncatedBody{
+			want: BodyChunk{
 				Content:        "",
 				TotalBytes:     12,
 				NextByteOffset: 0,
-				Truncated:      false,
 			},
 		},
 		{
@@ -94,11 +89,21 @@ func TestTruncateBody(t *testing.T) {
 			body:       "あいうえお\n",
 			byteOffset: 0,
 			byteLimit:  7,
-			want: TruncatedBody{
+			want: BodyChunk{
 				Content:        "あい",
 				TotalBytes:     16,
 				NextByteOffset: 6,
-				Truncated:      true,
+			},
+		},
+		{
+			name:       "invalid UTF-8 without any rune start within limit is cut at the limit to keep advancing",
+			body:       "\x80\x80\x80\x80\x80",
+			byteOffset: 0,
+			byteLimit:  3,
+			want: BodyChunk{
+				Content:        "\x80\x80\x80",
+				TotalBytes:     5,
+				NextByteOffset: 3,
 			},
 		},
 	}
@@ -140,10 +145,7 @@ func TestTruncateBody_RoundTripReconstruction(t *testing.T) {
 				res := truncateBody(tc.body, offset, tc.byteLimit)
 				reconstructed.WriteString(res.Content)
 				chunks++
-				if !res.Truncated {
-					if res.NextByteOffset != 0 {
-						t.Errorf("final chunk NextByteOffset = %d, want 0", res.NextByteOffset)
-					}
+				if !res.Truncated() {
 					break
 				}
 				if res.NextByteOffset <= offset {

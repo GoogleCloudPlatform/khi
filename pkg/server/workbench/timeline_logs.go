@@ -45,13 +45,6 @@ type TimelineLogFilter struct {
 	EndTime   *time.Time `json:"endTime,omitempty" jsonschema:"Inclusive end of the time range in RFC3339 format."`
 }
 
-// OtherTimelineLogCount represents a timeline other than the queried timeline that is linked to the matched logs.
-type OtherTimelineLogCount struct {
-	TimelineID uint32
-	Segments   []TimelineSegment
-	LogCount   int
-}
-
 // TimelineLogEntry represents a single log entry on a timeline along with other timeline IDs linked to it.
 type TimelineLogEntry struct {
 	LogID            uint32
@@ -68,7 +61,7 @@ type TimelineLogsResult struct {
 	Segments                []TimelineSegment
 	Applied                 AppliedFilter
 	TotalOtherTimelineCount int
-	OtherTimelines          []OtherTimelineLogCount
+	OtherTimelines          []OtherTimeline
 	Logs                    []TimelineLogEntry
 }
 
@@ -76,6 +69,13 @@ type TimelineLogsResult struct {
 type LinkedTimeline struct {
 	TimelineID uint32
 	Segments   []TimelineSegment
+}
+
+// OtherTimeline is a timeline other than the queried timeline that is linked to some of the matched logs.
+type OtherTimeline struct {
+	LinkedTimeline
+	// MatchedLogCount is the number of matched logs linked to this timeline.
+	MatchedLogCount int
 }
 
 // LogDetail contains metadata, linked timelines, and the truncated YAML body for a single log entry.
@@ -86,30 +86,20 @@ type LogDetail struct {
 	LogType         string
 	Summary         string
 	LinkedTimelines []LinkedTimeline
-	Body            TruncatedBody
+	Body            BodyChunk
 }
 
 // GetTimelineLogs filters logs on the specified timeline and aggregates other timelines linked to those logs across all matched entries.
 // OtherTimelines keeps at most maxOtherTimelines timelines with the most matched logs.
 func (w *Workbench) GetTimelineLogs(ctx context.Context, timelineID uint32, filter TimelineLogFilter) (*TimelineLogsResult, error) {
-	w.mu.RLock()
-	if w.closed {
-		w.mu.RUnlock()
-		return nil, ErrWorkbenchClosed
+	index, styles, err := w.readyIndex()
+	if err != nil {
+		return nil, err
 	}
-	if w.searchIndex == nil {
-		w.mu.RUnlock()
-		return nil, fmt.Errorf("search index is not ready")
+	tl, segments, err := lookupTimeline(index, timelineID)
+	if err != nil {
+		return nil, err
 	}
-	index := w.searchIndex
-	styles := w.styles
-	w.mu.RUnlock()
-
-	segments, ok := index.TimelineSegments(timelineID)
-	if !ok {
-		return nil, fmt.Errorf("%w: %d", ErrTimelineNotFound, timelineID)
-	}
-	tl := index.TimelineMap[timelineID]
 
 	excludeNoLogs := true
 	fullFilter := Filter{
@@ -128,14 +118,13 @@ func (w *Workbench) GetTimelineLogs(ctx context.Context, timelineID uint32, filt
 	matchedLogBitmap := collectTimelineMatchedLogIDs(tl, filterOut)
 	matchedLogs := collectSortedMatchedLogs(index, matchedLogBitmap)
 
-	entries, allOther := buildTimelineLogEntriesAndOtherTimelines(matchedLogs, timelineID, index, styles)
-	totalOther := len(allOther)
-	if len(allOther) > maxOtherTimelines {
-		allOther = allOther[:maxOtherTimelines]
+	entries, otherTimelines := buildTimelineLogEntriesAndOtherTimelines(matchedLogs, timelineID, index, styles)
+	totalOther := len(otherTimelines)
+	if len(otherTimelines) > maxOtherTimelines {
+		otherTimelines = otherTimelines[:maxOtherTimelines]
 	}
-	for i := range allOther {
-		otherSegs, _ := index.TimelineSegments(allOther[i].TimelineID)
-		allOther[i].Segments = otherSegs
+	for i := range otherTimelines {
+		otherTimelines[i].Segments, _ = index.TimelineSegments(otherTimelines[i].TimelineID)
 	}
 
 	return &TimelineLogsResult{
@@ -143,9 +132,31 @@ func (w *Workbench) GetTimelineLogs(ctx context.Context, timelineID uint32, filt
 		Segments:                segments,
 		Applied:                 filterOut.Applied,
 		TotalOtherTimelineCount: totalOther,
-		OtherTimelines:          allOther,
+		OtherTimelines:          otherTimelines,
 		Logs:                    entries,
 	}, nil
+}
+
+// readyIndex returns the search index and the style maps, or an error when the workbench is closed or not indexed yet.
+func (w *Workbench) readyIndex() (*SearchIndex, *styleMaps, error) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.closed {
+		return nil, nil, ErrWorkbenchClosed
+	}
+	if w.searchIndex == nil {
+		return nil, nil, fmt.Errorf("search index is not ready")
+	}
+	return w.searchIndex, w.styles, nil
+}
+
+// lookupTimeline returns the timeline and its hierarchy segments, or ErrTimelineNotFound when timelineID is unknown.
+func lookupTimeline(index *SearchIndex, timelineID uint32) (*cel.TimelineData, []TimelineSegment, error) {
+	segments, ok := index.TimelineSegments(timelineID)
+	if !ok {
+		return nil, nil, fmt.Errorf("%w: %d", ErrTimelineNotFound, timelineID)
+	}
+	return index.TimelineMap[timelineID], segments, nil
 }
 
 // collectTimelineMatchedLogIDs returns the IDs of logs on tl that passed the filter and fall in the applied time range.
@@ -175,7 +186,7 @@ func buildTimelineLogEntriesAndOtherTimelines(
 	timelineID uint32,
 	index *SearchIndex,
 	styles *styleMaps,
-) ([]TimelineLogEntry, []OtherTimelineLogCount) {
+) ([]TimelineLogEntry, []OtherTimeline) {
 	if len(matchedLogs) == 0 {
 		return nil, nil
 	}
@@ -203,21 +214,21 @@ func buildTimelineLogEntriesAndOtherTimelines(
 		})
 	}
 
-	allOther := make([]OtherTimelineLogCount, 0, len(otherCounts))
+	otherTimelines := make([]OtherTimeline, 0, len(otherCounts))
 	for id, count := range otherCounts {
-		allOther = append(allOther, OtherTimelineLogCount{
-			TimelineID: id,
-			LogCount:   count,
+		otherTimelines = append(otherTimelines, OtherTimeline{
+			LinkedTimeline:  LinkedTimeline{TimelineID: id},
+			MatchedLogCount: count,
 		})
 	}
-	slices.SortFunc(allOther, func(a, b OtherTimelineLogCount) int {
-		if c := cmp.Compare(b.LogCount, a.LogCount); c != 0 {
+	slices.SortFunc(otherTimelines, func(a, b OtherTimeline) int {
+		if c := cmp.Compare(b.MatchedLogCount, a.MatchedLogCount); c != 0 {
 			return c
 		}
 		return cmp.Compare(a.TimelineID, b.TimelineID)
 	})
 
-	return entries, allOther
+	return entries, otherTimelines
 }
 
 // logTime converts the log timestamp to UTC time, or returns the zero time when the log has no timestamp.
@@ -230,18 +241,10 @@ func logTime(l *cel.LogData) time.Time {
 
 // GetLogDetail returns the metadata, all linked timelines, and the YAML body sliced from byteOffset for a single log ID.
 func (w *Workbench) GetLogDetail(logID uint32, byteOffset int) (*LogDetail, error) {
-	w.mu.RLock()
-	if w.closed {
-		w.mu.RUnlock()
-		return nil, ErrWorkbenchClosed
+	index, styles, err := w.readyIndex()
+	if err != nil {
+		return nil, err
 	}
-	if w.searchIndex == nil {
-		w.mu.RUnlock()
-		return nil, fmt.Errorf("search index is not ready")
-	}
-	index := w.searchIndex
-	styles := w.styles
-	w.mu.RUnlock()
 
 	l := index.GetLog(logID)
 	if l == nil || l.ID == 0 {

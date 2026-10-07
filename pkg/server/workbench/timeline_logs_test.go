@@ -146,13 +146,20 @@ func timeAtNs(ns int64) *time.Time {
 	return &t
 }
 
+func otherTimeline(timelineID uint32, segments []TimelineSegment, matchedLogCount int) OtherTimeline {
+	return OtherTimeline{
+		LinkedTimeline:  LinkedTimeline{TimelineID: timelineID, Segments: segments},
+		MatchedLogCount: matchedLogCount,
+	}
+}
+
 func TestGetTimelineLogs(t *testing.T) {
 	testCases := []struct {
 		name                    string
 		timelineID              uint32
 		filter                  TimelineLogFilter
 		wantTotalOtherTimelines int
-		wantOtherTimelines      []OtherTimelineLogCount
+		wantOtherTimelines      []OtherTimeline
 		wantLogs                []TimelineLogEntry
 		wantErrTarget           error
 	}{
@@ -161,9 +168,9 @@ func TestGetTimelineLogs(t *testing.T) {
 			timelineID:              2,
 			filter:                  TimelineLogFilter{},
 			wantTotalOtherTimelines: 2,
-			wantOtherTimelines: []OtherTimelineLogCount{
-				{TimelineID: 4, Segments: testTimeline4Segments, LogCount: 2},
-				{TimelineID: 3, Segments: testTimeline3Segments, LogCount: 1},
+			wantOtherTimelines: []OtherTimeline{
+				otherTimeline(4, testTimeline4Segments, 2),
+				otherTimeline(3, testTimeline3Segments, 1),
 			},
 			wantLogs: []TimelineLogEntry{testTimelineLog1, testTimelineLog2, testTimelineLog4},
 		},
@@ -174,9 +181,9 @@ func TestGetTimelineLogs(t *testing.T) {
 				LogQuery: "severity >= WARNING",
 			},
 			wantTotalOtherTimelines: 2,
-			wantOtherTimelines: []OtherTimelineLogCount{
-				{TimelineID: 3, Segments: testTimeline3Segments, LogCount: 1},
-				{TimelineID: 4, Segments: testTimeline4Segments, LogCount: 1},
+			wantOtherTimelines: []OtherTimeline{
+				otherTimeline(3, testTimeline3Segments, 1),
+				otherTimeline(4, testTimeline4Segments, 1),
 			},
 			wantLogs: []TimelineLogEntry{testTimelineLog2, testTimelineLog4},
 		},
@@ -188,9 +195,9 @@ func TestGetTimelineLogs(t *testing.T) {
 				EndTime:   timeAtNs(4000),
 			},
 			wantTotalOtherTimelines: 2,
-			wantOtherTimelines: []OtherTimelineLogCount{
-				{TimelineID: 3, Segments: testTimeline3Segments, LogCount: 1},
-				{TimelineID: 4, Segments: testTimeline4Segments, LogCount: 1},
+			wantOtherTimelines: []OtherTimeline{
+				otherTimeline(3, testTimeline3Segments, 1),
+				otherTimeline(4, testTimeline4Segments, 1),
 			},
 			wantLogs: []TimelineLogEntry{testTimelineLog2, testTimelineLog4},
 		},
@@ -201,8 +208,8 @@ func TestGetTimelineLogs(t *testing.T) {
 				StartTime: timeAtNs(2001),
 			},
 			wantTotalOtherTimelines: 1,
-			wantOtherTimelines: []OtherTimelineLogCount{
-				{TimelineID: 3, Segments: testTimeline3Segments, LogCount: 1},
+			wantOtherTimelines: []OtherTimeline{
+				otherTimeline(3, testTimeline3Segments, 1),
 			},
 			wantLogs: []TimelineLogEntry{testTimelineLog4},
 		},
@@ -240,26 +247,29 @@ func TestGetTimelineLogs(t *testing.T) {
 }
 
 func TestGetTimelineLogs_OtherTimelinesLimit(t *testing.T) {
+	// Timeline 4 shares 2 matched logs; timeline 3 and every extra timeline share 1, so ties are ordered by ID.
+	wantKeptIDs := []uint32{4, 3}
+	for id := uint32(100); id <= 117; id++ {
+		wantKeptIDs = append(wantKeptIDs, id)
+	}
+
 	testCases := []struct {
-		name                     string
-		extraTimelineCount       int
-		wantTotalOtherTimelines  int
-		wantOtherTimelinesLen    int
-		wantFirstOtherTimelineID uint32
+		name                    string
+		extraTimelineCount      int
+		wantTotalOtherTimelines int
+		wantOtherTimelineIDs    []uint32
 	}{
 		{
-			name:                     "keeps all other timelines at the limit",
-			extraTimelineCount:       18,
-			wantTotalOtherTimelines:  20,
-			wantOtherTimelinesLen:    20,
-			wantFirstOtherTimelineID: 4,
+			name:                    "keeps all other timelines at the limit",
+			extraTimelineCount:      18,
+			wantTotalOtherTimelines: 20,
+			wantOtherTimelineIDs:    wantKeptIDs,
 		},
 		{
-			name:                     "keeps timelines with the most matched logs when exceeding the limit",
-			extraTimelineCount:       21,
-			wantTotalOtherTimelines:  23,
-			wantOtherTimelinesLen:    20,
-			wantFirstOtherTimelineID: 4,
+			name:                    "keeps timelines with the most matched logs and the smallest IDs when exceeding the limit",
+			extraTimelineCount:      21,
+			wantTotalOtherTimelines: 23,
+			wantOtherTimelineIDs:    wantKeptIDs,
 		},
 	}
 
@@ -275,11 +285,12 @@ func TestGetTimelineLogs_OtherTimelinesLimit(t *testing.T) {
 			if got.TotalOtherTimelineCount != tc.wantTotalOtherTimelines {
 				t.Errorf("TotalOtherTimelineCount = %d, want %d", got.TotalOtherTimelineCount, tc.wantTotalOtherTimelines)
 			}
-			if len(got.OtherTimelines) != tc.wantOtherTimelinesLen {
-				t.Fatalf("len(OtherTimelines) = %d, want %d", len(got.OtherTimelines), tc.wantOtherTimelinesLen)
+			var gotIDs []uint32
+			for _, other := range got.OtherTimelines {
+				gotIDs = append(gotIDs, other.TimelineID)
 			}
-			if got.OtherTimelines[0].TimelineID != tc.wantFirstOtherTimelineID {
-				t.Errorf("OtherTimelines[0].TimelineID = %d, want %d", got.OtherTimelines[0].TimelineID, tc.wantFirstOtherTimelineID)
+			if diff := cmp.Diff(tc.wantOtherTimelineIDs, gotIDs); diff != "" {
+				t.Errorf("OtherTimelines IDs mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -367,32 +378,49 @@ func TestGetTimelineLogs_WebUIAppliedFilterParity(t *testing.T) {
 }
 
 func TestGetLogDetail(t *testing.T) {
+	log2LinkedTimelines := []LinkedTimeline{
+		{TimelineID: 2, Segments: []TimelineSegment{{Type: "Namespace", Name: "default"}, {Type: "Pod", Name: "pod-a"}}},
+		{TimelineID: 4, Segments: testTimeline4Segments},
+	}
 	testCases := []struct {
-		name            string
-		logID           uint32
-		byteOffset      int
-		wantLinkedTLIDs []uint32
-		wantBody        TruncatedBody
-		wantErrTarget   error
+		name          string
+		logID         uint32
+		byteOffset    int
+		want          *LogDetail
+		wantErrTarget error
 	}{
 		{
-			name:            "returns full log metadata linked timelines and YAML body",
-			logID:           2,
-			byteOffset:      0,
-			wantLinkedTLIDs: []uint32{2, 4},
-			wantBody: TruncatedBody{
-				Content:    testLogBodyYAML,
-				TotalBytes: len(testLogBodyYAML),
+			name:       "returns full log metadata linked timelines and YAML body",
+			logID:      2,
+			byteOffset: 0,
+			want: &LogDetail{
+				LogID:           2,
+				Time:            time.Unix(0, 2000).UTC(),
+				Severity:        testSeverityWarning,
+				LogType:         "k8s-event",
+				Summary:         "summary-2",
+				LinkedTimelines: log2LinkedTimelines,
+				Body: BodyChunk{
+					Content:    testLogBodyYAML,
+					TotalBytes: len(testLogBodyYAML),
+				},
 			},
 		},
 		{
-			name:            "returns the YAML body from byteOffset",
-			logID:           2,
-			byteOffset:      len("apiVersion: v1\nkind: Event\n"),
-			wantLinkedTLIDs: []uint32{2, 4},
-			wantBody: TruncatedBody{
-				Content:    "message: Container nginx was OOMKilled\n",
-				TotalBytes: len(testLogBodyYAML),
+			name:       "returns the YAML body from byteOffset",
+			logID:      2,
+			byteOffset: len("apiVersion: v1\nkind: Event\n"),
+			want: &LogDetail{
+				LogID:           2,
+				Time:            time.Unix(0, 2000).UTC(),
+				Severity:        testSeverityWarning,
+				LogType:         "k8s-event",
+				Summary:         "summary-2",
+				LinkedTimelines: log2LinkedTimelines,
+				Body: BodyChunk{
+					Content:    "message: Container nginx was OOMKilled\n",
+					TotalBytes: len(testLogBodyYAML),
+				},
 			},
 		},
 		{
@@ -415,15 +443,8 @@ func TestGetLogDetail(t *testing.T) {
 			if err != nil {
 				t.Fatalf("GetLogDetail() unexpected error = %v", err)
 			}
-			if diff := cmp.Diff(tc.wantBody, got.Body); diff != "" {
-				t.Errorf("Body mismatch (-want +got):\n%s", diff)
-			}
-			var gotTLIDs []uint32
-			for _, lt := range got.LinkedTimelines {
-				gotTLIDs = append(gotTLIDs, lt.TimelineID)
-			}
-			if diff := cmp.Diff(tc.wantLinkedTLIDs, gotTLIDs); diff != "" {
-				t.Errorf("LinkedTimelines IDs mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("GetLogDetail() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
