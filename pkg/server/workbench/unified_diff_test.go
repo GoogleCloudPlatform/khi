@@ -147,6 +147,25 @@ func TestComputeUnifiedDiff(t *testing.T) {
 			wantChanges: LineChangeCount{Added: 2, Deleted: 2},
 		},
 		{
+			name:     "changes separated by exactly seven unchanged lines produce separate hunks",
+			oldText:  numberedLines("l", 12, nil),
+			newText:  numberedLines("l", 12, map[int]string{1: "A", 9: "B"}),
+			oldLabel: "revision 0",
+			newLabel: "revision 1",
+			wantText: "--- revision 0\n+++ revision 1\n" +
+				"@@ -1,4 +1,4 @@\n-lx\n+A\n lxx\n lxxx\n lxxxx\n" +
+				"@@ -6,7 +6,7 @@\n" +
+				" l" + strings.Repeat("x", 6) + "\n" +
+				" l" + strings.Repeat("x", 7) + "\n" +
+				" l" + strings.Repeat("x", 8) + "\n" +
+				"-l" + strings.Repeat("x", 9) + "\n" +
+				"+B\n" +
+				" l" + strings.Repeat("x", 10) + "\n" +
+				" l" + strings.Repeat("x", 11) + "\n" +
+				" l" + strings.Repeat("x", 12) + "\n",
+			wantChanges: LineChangeCount{Added: 2, Deleted: 2},
+		},
+		{
 			name:        "edit distance beyond maxMyersEditDistance reports the differing middle as a full replacement",
 			oldText:     replacedOld,
 			newText:     replacedNew,

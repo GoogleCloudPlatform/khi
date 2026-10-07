@@ -120,7 +120,7 @@ func diffLines(a, b []string) []diffOp {
 	midB := b[prefix : len(b)-suffix]
 	midOps, ok := myersDiff(midA, midB, maxMyersEditDistance)
 	if !ok {
-		midOps = replaceAll(midA, midB)
+		midOps = fullReplacementOps(midA, midB)
 	}
 	for _, op := range midOps {
 		op.oldPos += prefix
@@ -136,8 +136,8 @@ func diffLines(a, b []string) []diffOp {
 	return ops
 }
 
-// replaceAll returns an edit script that deletes every line of a and then inserts every line of b.
-func replaceAll(a, b []string) []diffOp {
+// fullReplacementOps returns an edit script that deletes every line of a and then inserts every line of b.
+func fullReplacementOps(a, b []string) []diffOp {
 	ops := make([]diffOp, 0, len(a)+len(b))
 	for i, line := range a {
 		ops = append(ops, diffOp{kind: diffOpDelete, line: line, oldPos: i, newPos: 0})

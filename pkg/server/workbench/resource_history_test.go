@@ -172,6 +172,40 @@ func TestGetResourceRevisions(t *testing.T) {
 			},
 		},
 		{
+			name:       "start time equal to a change includes that revision",
+			timelineID: testPodTimelineID,
+			query: ResourceRevisionsQuery{
+				StartTime: timePtr(testRevision1Time),
+				Limit:     50,
+			},
+			want: &ResourceRevisionsResult{
+				TimelineID:   testPodTimelineID,
+				Segments:     testPodSegments,
+				MatchedCount: 2,
+				Revisions: []ResourceRevisionSummary{
+					{ResourceRevision: testRevision1, Changes: LineChangeCount{Added: 2, Deleted: 1}},
+					{ResourceRevision: testRevision2, Changes: LineChangeCount{Deleted: 4}},
+				},
+			},
+		},
+		{
+			name:       "offset counts from the first revision in the time range",
+			timelineID: testPodTimelineID,
+			query: ResourceRevisionsQuery{
+				StartTime: timePtr(testRevision0Time.Add(time.Second)),
+				Offset:    1,
+				Limit:     1,
+			},
+			want: &ResourceRevisionsResult{
+				TimelineID:   testPodTimelineID,
+				Segments:     testPodSegments,
+				MatchedCount: 2,
+				Revisions: []ResourceRevisionSummary{
+					{ResourceRevision: testRevision2, Changes: LineChangeCount{Deleted: 4}},
+				},
+			},
+		},
+		{
 			name:       "offset and limit select a window within the matched revisions",
 			timelineID: testPodTimelineID,
 			query:      ResourceRevisionsQuery{Offset: 1, Limit: 1},
@@ -340,12 +374,12 @@ func TestGetResourceManifest_ByteOffset(t *testing.T) {
 	testCases := []struct {
 		name       string
 		byteOffset int
-		wantBody   TruncatedBody
+		wantBody   BodyChunk
 	}{
 		{
 			name:       "offset at a line boundary returns the rest of the manifest",
 			byteOffset: len("kind: Pod\n"),
-			wantBody: TruncatedBody{
+			wantBody: BodyChunk{
 				Content:    "status:\n  phase: Running\n  ready: true\n",
 				TotalBytes: len(testRevision1Body),
 			},
@@ -353,7 +387,7 @@ func TestGetResourceManifest_ByteOffset(t *testing.T) {
 		{
 			name:       "offset at the end returns no content",
 			byteOffset: len(testRevision1Body),
-			wantBody: TruncatedBody{
+			wantBody: BodyChunk{
 				TotalBytes: len(testRevision1Body),
 			},
 		},
@@ -390,7 +424,7 @@ func TestGetResourceDiff(t *testing.T) {
 				Segments:   testPodSegments,
 				Revision:   testRevision0,
 				Changes:    LineChangeCount{Added: 3},
-				Diff: TruncatedBody{
+				Diff: BodyChunk{
 					Content:    "--- none\n+++ revision 0\n@@ -0,0 +1,3 @@\n+kind: Pod\n+status:\n+  phase: Pending\n",
 					TotalBytes: 78,
 				},
@@ -405,7 +439,7 @@ func TestGetResourceDiff(t *testing.T) {
 				Revision:   testRevision1,
 				Previous:   &testRevision0,
 				Changes:    LineChangeCount{Added: 2, Deleted: 1},
-				Diff: TruncatedBody{
+				Diff: BodyChunk{
 					Content:    "--- revision 0\n+++ revision 1\n@@ -1,3 +1,4 @@\n kind: Pod\n status:\n-  phase: Pending\n+  phase: Running\n+  ready: true\n",
 					TotalBytes: 117,
 				},
@@ -421,7 +455,7 @@ func TestGetResourceDiff(t *testing.T) {
 				Revision:   testRevision1,
 				Previous:   &testRevision0,
 				Changes:    LineChangeCount{Added: 2, Deleted: 1},
-				Diff: TruncatedBody{
+				Diff: BodyChunk{
 					Content:    "@@ -1,3 +1,4 @@\n kind: Pod\n status:\n-  phase: Pending\n+  phase: Running\n+  ready: true\n",
 					TotalBytes: 117,
 				},

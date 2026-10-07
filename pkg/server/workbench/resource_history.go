@@ -78,7 +78,7 @@ type ResourceManifest struct {
 	TimelineID uint32
 	Segments   []TimelineSegment
 	Revision   ResourceRevision
-	Body       TruncatedBody
+	Body       BodyChunk
 }
 
 // ResourceDiff contains the unified diff between a revision and its previous revision.
@@ -90,14 +90,14 @@ type ResourceDiff struct {
 	Previous *ResourceRevision
 	// Changes counts the lines over the whole diff, even when Diff is truncated.
 	Changes LineChangeCount
-	Diff    TruncatedBody
+	Diff    BodyChunk
 }
 
 // GetResourceRevisions returns the revisions of a timeline within the query time range, oldest first,
 // together with the line change counts from each previous revision.
 // Bodies are read only for the returned window so that long revision histories stay cheap to page through.
 func (w *Workbench) GetResourceRevisions(timelineID uint32, query ResourceRevisionsQuery) (*ResourceRevisionsResult, error) {
-	index, err := w.readyIndex()
+	index, _, err := w.readyIndex()
 	if err != nil {
 		return nil, err
 	}
@@ -106,10 +106,10 @@ func (w *Workbench) GetResourceRevisions(timelineID uint32, query ResourceRevisi
 		return nil, err
 	}
 
-	first, last := revisionIndexRange(tl.Revisions, query.StartTime, query.EndTime)
-	matched := last - first
-	windowStart := first + min(max(query.Offset, 0), matched)
-	windowEnd := min(windowStart+max(query.Limit, 0), last)
+	matchedStart, matchedEnd := revisionIndexRange(tl.Revisions, query.StartTime, query.EndTime)
+	matched := matchedEnd - matchedStart
+	windowStart := matchedStart + min(max(query.Offset, 0), matched)
+	windowEnd := min(windowStart+max(query.Limit, 0), matchedEnd)
 
 	result := &ResourceRevisionsResult{
 		TimelineID:   timelineID,
@@ -140,7 +140,7 @@ func (w *Workbench) GetResourceRevisions(timelineID uint32, query ResourceRevisi
 
 // GetResourceManifest returns the manifest YAML of the selected revision, sliced from byteOffset.
 func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSelector, byteOffset int) (*ResourceManifest, error) {
-	index, err := w.readyIndex()
+	index, _, err := w.readyIndex()
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSele
 // GetResourceDiff returns the unified diff from the previous revision to the revision at revisionIndex, sliced from byteOffset.
 // The initial revision is compared against an empty manifest, so all of its lines are reported as added.
 func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex, byteOffset int) (*ResourceDiff, error) {
-	index, err := w.readyIndex()
+	index, _, err := w.readyIndex()
 	if err != nil {
 		return nil, err
 	}
@@ -203,27 +203,6 @@ func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex, byteOffset
 	return result, nil
 }
 
-// readyIndex returns the search index or an error when the workbench is closed or not indexed yet.
-func (w *Workbench) readyIndex() (*SearchIndex, error) {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	if w.closed {
-		return nil, ErrWorkbenchClosed
-	}
-	if w.searchIndex == nil {
-		return nil, fmt.Errorf("search index is not ready")
-	}
-	return w.searchIndex, nil
-}
-
-func lookupTimeline(index *SearchIndex, timelineID uint32) (*cel.TimelineData, []TimelineSegment, error) {
-	segments, ok := index.TimelineSegments(timelineID)
-	if !ok {
-		return nil, nil, fmt.Errorf("%w: %d", ErrTimelineNotFound, timelineID)
-	}
-	return index.TimelineMap[timelineID], segments, nil
-}
-
 // readRevisionBodies returns the manifest YAMLs of revs keyed by their resource body struct IDs.
 func (w *Workbench) readRevisionBodies(revs []cel.RevisionInfo) (map[uint32]string, error) {
 	structIDs := make([]uint32, len(revs))
@@ -233,19 +212,19 @@ func (w *Workbench) readRevisionBodies(revs []cel.RevisionInfo) (map[uint32]stri
 	return w.ReadStructYAMLs(structIDs)
 }
 
-// revisionIndexRange returns the half-open index range [first, last) of revisions whose ChangedTime falls in [start, end].
+// revisionIndexRange returns the half-open index range [startIdx, endIdx) of revisions whose ChangedTime falls in [start, end].
 func revisionIndexRange(revs []cel.RevisionInfo, start, end *time.Time) (int, int) {
-	first := 0
+	startIdx := 0
 	if start != nil {
 		startNs := start.UnixNano()
-		first = sort.Search(len(revs), func(i int) bool { return revs[i].ChangedTime >= startNs })
+		startIdx = sort.Search(len(revs), func(i int) bool { return revs[i].ChangedTime >= startNs })
 	}
-	last := len(revs)
+	endIdx := len(revs)
 	if end != nil {
 		endNs := end.UnixNano()
-		last = sort.Search(len(revs), func(i int) bool { return revs[i].ChangedTime > endNs })
+		endIdx = sort.Search(len(revs), func(i int) bool { return revs[i].ChangedTime > endNs })
 	}
-	return first, max(first, last)
+	return startIdx, max(startIdx, endIdx)
 }
 
 // selectRevision resolves selector to a revision index in revs, which must be sorted by ChangedTime.
