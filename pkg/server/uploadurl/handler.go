@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 )
 
-// StatusProcessing is the upload status reported after a file is stored and while it is verified asynchronously.
+// StatusProcessing is the upload status reported while a file is being stored or verified.
 const StatusProcessing = "PROCESSING"
 
 // errIncompleteBody marks failures caused by a request body shorter than its Content-Length.
