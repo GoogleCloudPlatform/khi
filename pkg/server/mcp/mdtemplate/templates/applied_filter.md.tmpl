@@ -2,9 +2,9 @@
 Enter these values in the KHI Web UI filter to see the same data.
 
 ```yaml
-timelineQuery: {{ if .TimelineQuery }}{{ .TimelineQuery }}{{ else }}""{{ end }}
-timelineExclusionQuery: {{ if .TimelineExclusionQuery }}{{ .TimelineExclusionQuery }}{{ else }}""{{ end }}
-logQuery: {{ if .LogQuery }}{{ .LogQuery }}{{ else }}""{{ end }}
+timelineQuery: {{ yamlBlock .TimelineQuery }}
+timelineExclusionQuery: {{ yamlBlock .TimelineExclusionQuery }}
+logQuery: {{ yamlBlock .LogQuery }}
 startTime: {{ if not .StartTime.IsZero }}{{ time .StartTime }}{{ else }}""{{ end }}
 endTime: {{ if not .EndTime.IsZero }}{{ time .EndTime }}{{ else }}""{{ end }}
 excludeTimelinesWithoutLogs: {{ .ExcludeTimelinesWithoutLogs }}
