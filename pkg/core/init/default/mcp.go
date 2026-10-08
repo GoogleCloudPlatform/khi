@@ -36,6 +36,7 @@ var MCPServerInitializer = &coreinit.Initializer{
 		InitializerIDGinServer,
 		InitializerIDInspectionTaskServer,
 		InitializerIDWorkbenchService,
+		InitializerIDFileParameterUpload,
 	},
 	Before: []coreinit.InitializerID{
 		InitializerIDServerRunner,
@@ -47,7 +48,8 @@ var MCPServerInitializer = &coreinit.Initializer{
 		}
 		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
 		workbenchManager := coreinit.MustGet(ctx, WorkbenchManagerKey)
-		srv := mcp.NewServer(mcp.NewInspectionHandler(inspectionServer), mcp.NewWorkbenchHandler(workbenchManager))
+		uploadURLIssuer := coreinit.MustGet(ctx, UploadURLIssuerKey)
+		srv := mcp.NewServer(mcp.NewInspectionHandler(inspectionServer, uploadURLIssuer), mcp.NewWorkbenchHandler(workbenchManager))
 		coreinit.Set(ctx, MCPServerKey, srv)
 
 		router := coreinit.MustGet(ctx, GinRouterKey)

@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -33,6 +34,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -51,7 +55,8 @@ func TestInspectionCreate_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create server: %v", err)
 	}
-	handler := NewInspectionHandler(server)
+	// Template rendering does not issue upload URLs.
+	handler := NewInspectionHandler(server, nil)
 
 	testCases := []struct {
 		name       string
@@ -69,13 +74,11 @@ func TestInspectionCreate_Golden(t *testing.T) {
 						ID:          "gcp-gke",
 						Name:        "Google Kubernetes Engine",
 						Description: "Gather and parse Google Kubernetes Engine (GKE) cluster logs ...",
-						Available:   "yes",
 					},
 					{
 						ID:          "oss-kubernetes-from-files",
 						Name:        "OSS Kubernetes Log Files",
 						Description: "Parse uploaded OSS Kubernetes log files to visualize cluster operations on timelines.",
-						Available:   "no: requires file uploads, which are not supported via MCP yet. Use the KHI Web UI.",
 					},
 				},
 			},
@@ -211,6 +214,8 @@ type toolsTestEnv struct {
 	server  *coreinspection.InspectionTaskServer
 	session *mcpsdk.ClientSession
 	ctx     context.Context
+	// serverURL is the base URL of the test HTTP server that serves MCP and upload URLs.
+	serverURL string
 	// blockingTaskStarted receives a value each time the blocking feature task starts in run mode.
 	blockingTaskStarted chan struct{}
 	// releaseBlockingTask lets every running and future blocking feature task finish successfully.
@@ -224,12 +229,18 @@ const (
 	failFeatureID     = "fail-feature#default"
 	// untitledFailFeatureID fails in run mode and has no progress title.
 	untitledFailFeatureID = "untitled-fail-feature#default"
+	// fileFeatureID depends on the JSONL file form logFileFieldID.
+	fileFeatureID  = "file-feature#default"
+	logFileFieldID = "log-file"
+	// testMaxUploadSizeBytes is the largest file that the upload URLs of the test env accept.
+	testMaxUploadSizeBytes = 1024
 )
 
 // newToolsTestEnv starts an MCP server backed by an inspection server with these feature tasks:
 // a default-enabled task that blocks until released and depends on a required cluster-name form,
 // a task failing with a Google auth error, a task succeeding immediately, a task failing in run mode,
-// and a task without a title failing in run mode.
+// a task without a title failing in run mode, and a task depending on a JSONL file form.
+// The test HTTP server also serves the upload URLs that request_file_upload issues.
 func newToolsTestEnv(t *testing.T) *toolsTestEnv {
 	t.Helper()
 	server, err := coreinspection.NewServer(&inspectioncore.IOConfig{
@@ -240,27 +251,13 @@ func newToolsTestEnv(t *testing.T) *toolsTestEnv {
 		t.Fatalf("failed to create server: %v", err)
 	}
 
-	inspectionTypes := []coreinspection.InspectionType{
-		{
-			Id:          "gcp-gke",
-			Name:        "Google Kubernetes Engine",
-			Description: "Gather and parse Google Kubernetes Engine (GKE) cluster logs",
-			Priority:    100,
-		},
-		{
-			Id:          "oss-kubernetes-from-files",
-			Name:        "OSS Kubernetes Log Files",
-			Description: "Parse uploaded OSS Kubernetes log files to visualize cluster operations on timelines.",
-			Priority:    50,
-			Labels: map[string]string{
-				inspectioncore.InspectionTypeLabelKeyLogSource: "file",
-			},
-		},
-	}
-	for _, inspType := range inspectionTypes {
-		if err := server.AddInspectionType(inspType); err != nil {
-			t.Fatalf("failed to add inspection type %s: %v", inspType.Id, err)
-		}
+	if err := server.AddInspectionType(coreinspection.InspectionType{
+		Id:          "gcp-gke",
+		Name:        "Google Kubernetes Engine",
+		Description: "Gather and parse Google Kubernetes Engine (GKE) cluster logs",
+		Priority:    100,
+	}); err != nil {
+		t.Fatalf("failed to add inspection type: %v", err)
 	}
 
 	clusterNameTask := formtask.DefineTextForm(
@@ -360,16 +357,49 @@ func newToolsTestEnv(t *testing.T) *toolsTestEnv {
 		coretask.WithTitle(""),
 	)
 
-	for _, task := range []coretask.UntypedTask{clusterNameTask, blockingFeatureTask, authFailTask, doneFeatureTask, failFeatureTask, untitledFailFeatureTask} {
+	logFileTask := formtask.DefineFileForm(
+		taskid.NewDefaultImplementationID[upload.UploadResult](logFileFieldID),
+		2,
+		"Log File",
+		"",
+		&upload.JSONLineUploadFileVerifier{MaxLineSizeInBytes: testMaxUploadSizeBytes},
+	)
+
+	fileFeatureTask := coretask.Define(
+		taskid.NewDefaultImplementationID[any]("file-feature"),
+		func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+			coretask.After(b, logFileTask.UntypedID().GetUntypedReference())
+			return func(ctx context.Context) (any, error) {
+				return nil, nil
+			}
+		},
+		inspectioncore.FeatureTaskLabel("File Feature", "Reads an uploaded JSONL file", 7, false),
+	)
+
+	for _, task := range []coretask.UntypedTask{clusterNameTask, blockingFeatureTask, authFailTask, doneFeatureTask, failFeatureTask, untitledFailFeatureTask, logFileTask, fileFeatureTask} {
 		if err := server.AddTask(task); err != nil {
 			t.Fatalf("failed to add task %s: %v", task.UntypedID(), err)
 		}
 	}
 
+	// File forms register their upload tokens on the global store, as in the KHI server.
+	uploadDir := t.TempDir()
+	uploadStore := upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(filepath.Join(uploadDir, "store")))
+	previousStore := upload.DefaultUploadFileStore
+	upload.DefaultUploadFileStore = uploadStore
+	t.Cleanup(func() { upload.DefaultUploadFileStore = previousStore })
+	chunkManager := chunkedupload.NewChunkSessionManager(filepath.Join(uploadDir, "chunks"))
+	t.Cleanup(chunkManager.Close)
+
 	mux := http.NewServeMux()
-	mux.Handle("/mcp", NewServer(NewInspectionHandler(server)).HTTPHandler())
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
+	issuer := uploadurl.NewIssuer(ts.URL+"/api/v1/file-upload/", testMaxUploadSizeBytes, uploadurl.DefaultTTL)
+	uploadHandler := uploadurl.NewHandler(issuer, upload.NewFileParameterUploadManager(uploadStore, chunkManager))
+	mux.HandleFunc("PUT /api/v1/file-upload/{urlToken}", func(w http.ResponseWriter, r *http.Request) {
+		uploadHandler.ServeUpload(w, r, r.PathValue("urlToken"))
+	})
+	mux.Handle("/mcp", NewServer(NewInspectionHandler(server, issuer)).HTTPHandler())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	t.Cleanup(cancel)
@@ -390,6 +420,7 @@ func newToolsTestEnv(t *testing.T) *toolsTestEnv {
 		server:              server,
 		session:             session,
 		ctx:                 ctx,
+		serverURL:           ts.URL,
 		blockingTaskStarted: blockingTaskStarted,
 		releaseBlockingTask: releaseBlockingTask,
 	}
@@ -405,6 +436,7 @@ func TestInspectionTools_InspectionNotFound(t *testing.T) {
 	}{
 		{tool: "update_inspection_features", args: map[string]any{"inspectionId": "nonexistent-id", "enabledFeatureIds": []string{doneFeatureID}}},
 		{tool: "dry_run_inspection", args: map[string]any{"inspectionId": "nonexistent-id"}},
+		{tool: "request_file_upload", args: map[string]any{"inspectionId": "nonexistent-id", "fieldId": logFileFieldID}},
 		{tool: "run_inspection", args: map[string]any{"inspectionId": "nonexistent-id"}},
 		{tool: "wait_inspection", args: map[string]any{"inspectionId": "nonexistent-id"}},
 		{tool: "cancel_inspection", args: map[string]any{"inspectionId": "nonexistent-id"}},
@@ -426,11 +458,6 @@ func TestInspectionTools_CreateInspectionErrors(t *testing.T) {
 		typeID string
 		want   string
 	}{
-		{
-			name:   "type requiring file uploads",
-			typeID: "oss-kubernetes-from-files",
-			want:   "Error: INSPECTION_TYPE_NOT_AVAILABLE\n\n- Inspection type `oss-kubernetes-from-files` requires file uploads, which are not supported via MCP yet.\n- Ask the user to create this inspection in the KHI Web UI.",
-		},
 		{
 			name:   "unknown type",
 			typeID: "unknown-type",
@@ -493,6 +520,7 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 			fmt.Sprintf("| `%s` | Done Feature | Succeeds immediately | no |", doneFeatureID),
 			fmt.Sprintf("| `%s` | Fail Feature | Fails in run mode | no |", failFeatureID),
 			fmt.Sprintf("| `%s` | Untitled Fail Feature | Fails in run mode without a title | no |", untitledFailFeatureID),
+			fmt.Sprintf("| `%s` | File Feature | Reads an uploaded JSONL file | no |", fileFeatureID),
 		)
 		checkToolResult(t, "create_inspection", text, isError, want, false)
 	})
@@ -549,6 +577,7 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 			"| `done-feature#default` | Done Feature | Succeeds immediately | yes |",
 			"| `fail-feature#default` | Fail Feature | Fails in run mode | no |",
 			"| `untitled-fail-feature#default` | Untitled Fail Feature | Fails in run mode without a title | no |",
+			"| `file-feature#default` | File Feature | Reads an uploaded JSONL file | no |",
 		)
 		checkToolResult(t, "update_inspection_features", text, isError, want, false)
 	})
@@ -598,6 +627,7 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 		}{
 			{tool: "update_inspection_features", args: map[string]any{"inspectionId": id, "enabledFeatureIds": []string{doneFeatureID}}},
 			{tool: "dry_run_inspection", args: map[string]any{"inspectionId": id}},
+			{tool: "request_file_upload", args: map[string]any{"inspectionId": id, "fieldId": logFileFieldID}},
 			{tool: "run_inspection", args: map[string]any{"inspectionId": id}},
 		}
 		for _, tc := range testCases {

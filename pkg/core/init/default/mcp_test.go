@@ -24,6 +24,7 @@ import (
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/gin-gonic/gin"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -81,6 +82,7 @@ func TestMCPServerInitializer(t *testing.T) {
 			indexMgr := workbench.NewInspectionIndexManager(taskServer, t.TempDir())
 			workbenchMgr := workbench.NewWorkbenchManager(taskServer, indexMgr, 3)
 			coreinit.Set(ctx, WorkbenchManagerKey, workbenchMgr)
+			coreinit.Set(ctx, UploadURLIssuerKey, uploadurl.NewIssuer("http://127.0.0.1:8080/api/v1/file-upload/", 1024, uploadurl.DefaultTTL))
 
 			ginEngine := gin.New()
 			var router gin.IRouter = ginEngine.Group(tc.basePath)

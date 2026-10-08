@@ -26,6 +26,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -58,7 +59,8 @@ func TestInspectionRun_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create server: %v", err)
 	}
-	handler := NewInspectionHandler(server)
+	// Template rendering does not issue upload URLs.
+	handler := NewInspectionHandler(server, nil)
 
 	testCases := []struct {
 		name       string
@@ -94,6 +96,12 @@ func TestInspectionRun_Golden(t *testing.T) {
 								Suggestions: "`us-central1`",
 								HintType:    "Error",
 								Hint:        "Location is required.",
+							},
+							{
+								ID:           "auditLogFile",
+								Label:        "Audit log file",
+								Type:         "file",
+								UploadStatus: "COMPLETED, `audit.jsonl`, 20480311 bytes",
 							},
 						},
 					},
@@ -352,13 +360,17 @@ func TestGroupFormFields(t *testing.T) {
 			},
 		},
 		{
-			name: "file fields are skipped and empty groups are dropped",
+			name: "file fields carry the upload status",
 			fields: []inspectionmetadata.ParameterFormField{
 				inspectionmetadata.FileParameterFormField{
 					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-						ID:   "topFile",
-						Type: inspectionmetadata.File,
+						ID:       "topFile",
+						Type:     inspectionmetadata.File,
+						HintType: inspectionmetadata.Error,
+						Hint:     "Waiting a file to be uploaded.",
 					},
+					Token:  &upload.DirectUploadToken{ID: "inspection-1_task_topFile"},
+					Status: upload.UploadStatusWaiting,
 				},
 				inspectionmetadata.GroupParameterFormField{
 					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
@@ -372,7 +384,40 @@ func TestGroupFormFields(t *testing.T) {
 								ID:   "childFile",
 								Type: inspectionmetadata.File,
 							},
+							Token:     &upload.DirectUploadToken{ID: "inspection-1_task_childFile"},
+							Status:    upload.UploadStatusCompleted,
+							SizeBytes: 2048,
 						},
+					},
+				},
+			},
+			params: map[string]any{},
+			want: groupResult{
+				Groups: []formGroupData{
+					{
+						Title: "General",
+						Fields: []formFieldData{
+							{ID: "topFile", Type: "file", UploadStatus: "WAITING", HintType: "Error", Hint: "Waiting a file to be uploaded."},
+						},
+					},
+					{
+						Title: "Upload",
+						Fields: []formFieldData{
+							{ID: "childFile", Type: "file", UploadStatus: "COMPLETED, 2048 bytes"},
+						},
+					},
+				},
+				Errors: 1,
+			},
+		},
+		{
+			name: "groups without children are dropped",
+			fields: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.GroupParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:    "empty",
+						Label: "Empty",
+						Type:  inspectionmetadata.Group,
 					},
 				},
 			},
@@ -504,6 +549,58 @@ func TestGroupFormFields(t *testing.T) {
 			got := groupResult{Groups: groups, Errors: errs, Warnings: warns}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("groupFormFields() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestFileUploadStatus(t *testing.T) {
+	testCases := []struct {
+		name  string
+		field inspectionmetadata.FileParameterFormField
+		want  string
+	}{
+		{
+			name:  "waiting for an upload",
+			field: inspectionmetadata.FileParameterFormField{Status: upload.UploadStatusWaiting},
+			want:  "WAITING",
+		},
+		{
+			name:  "uploading",
+			field: inspectionmetadata.FileParameterFormField{Status: upload.UploadStatusUploading},
+			want:  "PROCESSING",
+		},
+		{
+			name:  "verifying",
+			field: inspectionmetadata.FileParameterFormField{Status: upload.UploadStatusVerifying},
+			want:  "PROCESSING",
+		},
+		{
+			name: "verification failed",
+			field: inspectionmetadata.FileParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{HintType: inspectionmetadata.Error, Hint: "invalid JSONL"},
+				Status:                 upload.UploadStatusCompleted,
+				SizeBytes:              2048,
+			},
+			want: "ERROR",
+		},
+		{
+			name:  "completed without a file name",
+			field: inspectionmetadata.FileParameterFormField{Status: upload.UploadStatusCompleted, SizeBytes: 2048},
+			want:  "COMPLETED, 2048 bytes",
+		},
+		{
+			name:  "completed with a file name",
+			field: inspectionmetadata.FileParameterFormField{Status: upload.UploadStatusCompleted, FileName: "audit.jsonl", SizeBytes: 20480311},
+			want:  "COMPLETED, `audit.jsonl`, 20480311 bytes",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := fileUploadStatus(tc.field)
+			if got != tc.want {
+				t.Errorf("fileUploadStatus() = %q, want %q", got, tc.want)
 			}
 		})
 	}

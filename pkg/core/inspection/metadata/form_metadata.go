@@ -144,6 +144,10 @@ type FileParameterFormField struct {
 	Token upload.UploadToken `json:"token"`
 	// Status is the current status of the file.
 	Status upload.UploadStatus `json:"status"`
+	// FileName is the name of the uploaded file. It is empty when the client gave no name, such as uploads to upload URLs.
+	FileName string `json:"-"`
+	// SizeBytes is the size in bytes of the uploaded file.
+	SizeBytes int64 `json:"-"`
 }
 
 // CheckboxParameterFormField represents Checkbox type parameter specific data.

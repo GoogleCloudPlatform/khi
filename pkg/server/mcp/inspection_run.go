@@ -28,6 +28,8 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/grpc/codes"
@@ -55,8 +57,10 @@ type formFieldData struct {
 	Default     string
 	Suggestions string
 	Options     string
-	HintType    string
-	Hint        string
+	// UploadStatus is the upload status line of a file field. It is empty for other field types.
+	UploadStatus string
+	HintType     string
+	Hint         string
 }
 
 type formGroupData struct {
@@ -138,35 +142,45 @@ func (h *InspectionHandler) prepareParameters(id string, rawParams map[string]an
 	return preparedParams, nil, nil
 }
 
-// dryRun prepares rawParams with prepareParameters and runs a dry run of runner, shared by dry_run_inspection
-// and run_inspection.
+// dryRunResult is the outcome of a successful dry run.
+type dryRunResult struct {
+	// renderData is the render model of dry_run_inspection.
+	renderData *dryRunData
+	// formFields are the form fields that the dry run returned, before they are converted for rendering.
+	formFields []inspectionmetadata.ParameterFormField
+	// preparedParams are the parameters that the dry run used, which run_inspection passes to the run.
+	preparedParams map[string]any
+}
+
+// dryRun prepares rawParams with prepareParameters and runs a dry run of runner, shared by dry_run_inspection,
+// run_inspection, and request_file_upload.
 // Exactly one of the following holds on return:
-//   - Success: the dry run data and the prepared parameters are non-nil, and the rest are nil.
+//   - Success: the dryRunResult is non-nil, and the rest are nil.
 //   - Tool error: the CallToolResult is non-nil with IsError set, for problems the agent can fix,
 //     such as invalid parameter types or expired Google Cloud credentials.
 //   - Go error: the error is non-nil for unexpected failures that become protocol errors.
 //
 // retryTool is the tool name that the GOOGLE_CLOUD_AUTH error tells the agent to call again after login.
-func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *coreinspection.InspectionTaskRunner, rawParams map[string]any, retryTool string) (*dryRunData, map[string]any, *mcpsdk.CallToolResult, error) {
+func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *coreinspection.InspectionTaskRunner, rawParams map[string]any, retryTool string) (*dryRunResult, *mcpsdk.CallToolResult, error) {
 	preparedParams, errRes, err := h.prepareParameters(id, rawParams)
 	if errRes != nil || err != nil {
-		return nil, nil, errRes, err
+		return nil, errRes, err
 	}
 
-	result, err := runner.DryRun(ctx, &inspectioncore.InspectionRequest{
+	coreResult, err := runner.DryRun(ctx, &inspectioncore.InspectionRequest{
 		Values: preparedParams,
 	})
 	if err != nil {
 		if isGoogleCloudAuthError(err) {
 			authRes, _, _ := h.googleCloudAuthErrorResult(retryTool)
-			return nil, nil, authRes, nil
+			return nil, authRes, nil
 		}
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
-	mdMap, ok := result.Metadata.(map[string]interface{})
+	mdMap, ok := coreResult.Metadata.(map[string]interface{})
 	if !ok {
-		return nil, nil, nil, fmt.Errorf("unexpected dryrun metadata format")
+		return nil, nil, fmt.Errorf("unexpected dryrun metadata format")
 	}
 
 	var formFields []inspectionmetadata.ParameterFormField
@@ -182,13 +196,17 @@ func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *corei
 	groups, errCount, warnCount := groupFormFields(formFields, preparedParams)
 	queries := toQueryData(queryItems)
 
-	return &dryRunData{
-		ID:           id,
-		ErrorCount:   errCount,
-		WarningCount: warnCount,
-		Groups:       groups,
-		Queries:      queries,
-	}, preparedParams, nil, nil
+	return &dryRunResult{
+		renderData: &dryRunData{
+			ID:           id,
+			ErrorCount:   errCount,
+			WarningCount: warnCount,
+			Groups:       groups,
+			Queries:      queries,
+		},
+		formFields:     formFields,
+		preparedParams: preparedParams,
+	}, nil, nil
 }
 
 func (h *InspectionHandler) handleDryRunInspection(ctx context.Context, req *mcpsdk.CallToolRequest, in DryRunInspectionInput) (*mcpsdk.CallToolResult, any, error) {
@@ -201,12 +219,12 @@ func (h *InspectionHandler) handleDryRunInspection(ctx context.Context, req *mcp
 		return inspectionAlreadyStartedResult(in.InspectionID)
 	}
 
-	data, _, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "dry_run_inspection")
+	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "dry_run_inspection")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}
 
-	return h.templates.ToolResult("dry_run_inspection.md.tmpl", *data)
+	return h.templates.ToolResult("dry_run_inspection.md.tmpl", *dryRunOutcome.renderData)
 }
 
 type inspectionIDData struct {
@@ -223,13 +241,13 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 		return inspectionAlreadyStartedResult(in.InspectionID)
 	}
 
-	data, preparedParams, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "run_inspection")
+	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "run_inspection")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}
 
 	var bullets []string
-	for _, group := range data.Groups {
+	for _, group := range dryRunOutcome.renderData.Groups {
 		for _, field := range group.Fields {
 			if field.HintType == "Error" && field.Hint != "" {
 				bullets = append(bullets, fmt.Sprintf("%s: %s", mdtemplate.Code(field.ID), field.Hint))
@@ -242,7 +260,7 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 	}
 
 	if err := runner.Run(context.WithoutCancel(ctx), &inspectioncore.InspectionRequest{
-		Values: preparedParams,
+		Values: dryRunOutcome.preparedParams,
 	}); err != nil {
 		return nil, nil, err
 	}
@@ -263,10 +281,7 @@ func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[
 		if group, ok := field.(inspectionmetadata.GroupParameterFormField); ok {
 			var groupFields []formFieldData
 			for _, child := range group.Children {
-				data, ok := toFormFieldData(child, params)
-				if !ok {
-					continue
-				}
+				data := toFormFieldData(child, params)
 				groupFields = append(groupFields, data)
 				if data.HintType == "Error" {
 					totalErrors++
@@ -281,10 +296,7 @@ func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[
 				})
 			}
 		} else {
-			data, ok := toFormFieldData(field, params)
-			if !ok {
-				continue
-			}
+			data := toFormFieldData(field, params)
 			generalFields = append(generalFields, data)
 			if data.HintType == "Error" {
 				totalErrors++
@@ -305,13 +317,8 @@ func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[
 }
 
 // toFormFieldData converts a ParameterFormField into formFieldData for template rendering.
-// File-type form fields are omitted because file uploads are not supported via MCP.
-func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[string]any) (formFieldData, bool) {
+func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[string]any) formFieldData {
 	base := inspectionmetadata.GetParameterFormFieldBase(field)
-	if base.Type == inspectionmetadata.File {
-		return formFieldData{}, false
-	}
-
 	data := formFieldData{
 		ID:          base.ID,
 		Label:       base.Label,
@@ -383,9 +390,29 @@ func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[str
 		if tf.Default {
 			data.Default = mdtemplate.Code("true")
 		}
+	case inspectionmetadata.FileParameterFormField:
+		data.UploadStatus = fileUploadStatus(tf)
 	}
 
-	return data, true
+	return data
+}
+
+// fileUploadStatus returns the upload status line of a file field: WAITING, PROCESSING, ERROR, or COMPLETED with the file size.
+// A failed upload waits for another upload, so it is WAITING and its hint explains the failure.
+// A file that fails verification is ERROR and its hint explains the verification error.
+func fileUploadStatus(field inspectionmetadata.FileParameterFormField) string {
+	switch {
+	case field.Status == upload.UploadStatusWaiting:
+		return "WAITING"
+	case field.Status != upload.UploadStatusCompleted:
+		return uploadurl.StatusProcessing
+	case field.HintType == inspectionmetadata.Error:
+		return "ERROR"
+	case field.FileName == "":
+		return fmt.Sprintf("COMPLETED, %d bytes", field.SizeBytes)
+	default:
+		return fmt.Sprintf("COMPLETED, %s, %d bytes", mdtemplate.Code(field.FileName), field.SizeBytes)
+	}
 }
 
 // toQueryData converts QueryItem pointers from dry run metadata into queryData for template rendering.

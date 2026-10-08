@@ -20,6 +20,11 @@ Errors: 1, warnings: 0. Fix the fields with errors and call `dry_run_inspection`
 - Suggestions: `us-central1`
 - Error: Location is required.
 
+#### `auditLogFile`
+- Label: Audit log file
+- Type: file
+- Upload: COMPLETED, `audit.jsonl`, 20480311 bytes
+
 ### Time range
 
 #### `endTime`
