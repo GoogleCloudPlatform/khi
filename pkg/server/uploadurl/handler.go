@@ -27,8 +27,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 )
 
-// uploadedStatus is the status reported after a file is stored. Verification runs asynchronously after that.
-const uploadedStatus = "PROCESSING"
+// StatusProcessing is the upload status reported after a file is stored and while it is verified asynchronously.
+const StatusProcessing = "PROCESSING"
 
 // errIncompleteBody marks failures caused by a request body shorter than its Content-Length.
 var errIncompleteBody = errors.New("request body ended before Content-Length bytes were received")
@@ -112,7 +112,7 @@ func (h *Handler) ServeUpload(w http.ResponseWriter, r *http.Request, urlToken s
 
 	writeJSON(w, http.StatusOK, uploadResponse{
 		FieldID:   target.fieldID,
-		Status:    uploadedStatus,
+		Status:    StatusProcessing,
 		SizeBytes: storedSize,
 	})
 }

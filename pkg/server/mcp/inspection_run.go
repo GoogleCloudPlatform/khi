@@ -29,6 +29,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/grpc/codes"
@@ -393,7 +394,7 @@ func fileUploadStatus(field inspectionmetadata.FileParameterFormField) string {
 	case field.Status == upload.UploadStatusWaiting:
 		return "WAITING"
 	case field.Status != upload.UploadStatusCompleted:
-		return "PROCESSING"
+		return uploadurl.StatusProcessing
 	case field.HintType == inspectionmetadata.Error:
 		return "ERROR"
 	case field.FileName == "":
