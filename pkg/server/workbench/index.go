@@ -45,6 +45,8 @@ type SearchIndex struct {
 	TrigramIndex     *cel.TrigramIndex
 	StyleResolver    cel.StyleResolver
 	LogTimelineIndex *LogTimelineCSRIndex
+	// FilterVocabulary lists the timeline types and log types in the index for filter CEL.
+	FilterVocabulary FilterVocabulary
 }
 
 // GetLog retrieves a log entry by its 1-based log ID in O(1) time.
@@ -155,6 +157,7 @@ func (w *Workbench) BuildBaseSearchIndex() (*SearchIndex, error) {
 		TrigramIndex:     nil,
 		StyleResolver:    styles,
 		LogTimelineIndex: logTimelineIndex,
+		FilterVocabulary: buildFilterVocabulary(timelines, logs, styles),
 	}, nil
 }
 

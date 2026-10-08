@@ -132,6 +132,10 @@ func TestServerTransportsAndDomainHandler(t *testing.T) {
 			}
 			defer session.Close()
 
+			if got := session.InitializeResult().Instructions; got != serverInstructions {
+				t.Errorf("InitializeResult().Instructions = %q, want %q", got, serverInstructions)
+			}
+
 			// Verify tool discovery
 			toolsRes, err := session.ListTools(ctx, nil)
 			if err != nil {

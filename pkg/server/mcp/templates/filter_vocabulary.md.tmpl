@@ -1,0 +1,11 @@
+{{ define "filterVocabulary" -}}
+## Filter vocabulary
+These are the values that filter CEL can match in this inspection.
+- path keys: {{ template "codeList" .PathKeys }}
+- timelineType: {{ template "codeList" .TimelineTypes }}
+- logType: {{ template "codeList" .LogTypes }}
+{{- end }}
+
+{{- define "codeList" }}
+{{- range $i, $v := . }}{{ if $i }}, {{ end }}{{ code $v }}{{ else }}none{{ end }}
+{{- end }}

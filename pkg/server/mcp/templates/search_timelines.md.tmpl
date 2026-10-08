@@ -21,3 +21,5 @@ Matched {{ .MatchedTimelineCount }} timelines. Showing {{ .ReturnedNodeCount }} 
 {{- else }}
 No timelines matched the filter.
 {{- end }}
+
+{{ template "filterVocabulary" .FilterVocabulary }}

@@ -50,6 +50,7 @@ type searchTimelinesTemplateData struct {
 	Applied              workbench.AppliedFilter
 	TimelineTypes        []workbench.TimelineTypeDescription
 	TreeLines            []string
+	FilterVocabulary     workbench.FilterVocabulary
 }
 
 type timelineLogGroupTemplateData struct {
@@ -79,6 +80,7 @@ type searchLogsTemplateData struct {
 	Applied              workbench.AppliedFilter
 	TimelineGroups       []timelineLogGroupTemplateData
 	SampleLogs           []sampleLogTemplateData
+	FilterVocabulary     workbench.FilterVocabulary
 }
 
 func (h *WorkbenchHandler) handleSearchTimelines(ctx context.Context, _ *mcpsdk.CallToolRequest, input SearchTimelinesInput) (*mcpsdk.CallToolResult, any, error) {
@@ -113,6 +115,7 @@ func (h *WorkbenchHandler) handleSearchTimelines(ctx context.Context, _ *mcpsdk.
 		Applied:              treeRes.Applied,
 		TimelineTypes:        treeRes.TimelineTypes,
 		TreeLines:            treeLines,
+		FilterVocabulary:     treeRes.FilterVocabulary,
 	})
 }
 
@@ -167,6 +170,7 @@ func (h *WorkbenchHandler) handleSearchLogs(ctx context.Context, _ *mcpsdk.CallT
 		Applied:              logRes.Applied,
 		TimelineGroups:       groups,
 		SampleLogs:           samples,
+		FilterVocabulary:     logRes.FilterVocabulary,
 	})
 }
 

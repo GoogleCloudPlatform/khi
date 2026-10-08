@@ -338,6 +338,11 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 					"[pod] test-pod id=1 ev=2 rev=1",
 					"  [container] main id=2 ev=1 rev=0",
 				},
+				FilterVocabulary: workbench.FilterVocabulary{
+					PathKeys:      []string{"container", "k8scluster", "pod"},
+					TimelineTypes: []string{"container", "k8sCluster", "pod"},
+					LogTypes:      []string{"k8s audit", "k8s event"},
+				},
 			},
 			want: strings.Join([]string{
 				"# Timeline tree",
@@ -366,10 +371,16 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"[pod] test-pod id=1 ev=2 rev=1",
 				"  [container] main id=2 ev=1 rev=0",
 				"```",
+				"",
+				"## Filter vocabulary",
+				"These are the values that filter CEL can match in this inspection.",
+				"- path keys: `container`, `k8scluster`, `pod`",
+				"- timelineType: `container`, `k8sCluster`, `pod`",
+				"- logType: `k8s audit`, `k8s event`",
 			}, "\n"),
 		},
 		{
-			name:         "search_timelines.md.tmpl with empty tree",
+			name:         "search_timelines.md.tmpl with empty tree and no vocabulary",
 			templateName: "search_timelines.md.tmpl",
 			data: searchTimelinesTemplateData{
 				MatchedTimelineCount: 0,
@@ -400,6 +411,12 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"## Tree",
 				"",
 				"No timelines matched the filter.",
+				"",
+				"## Filter vocabulary",
+				"These are the values that filter CEL can match in this inspection.",
+				"- path keys: none",
+				"- timelineType: none",
+				"- logType: none",
 			}, "\n"),
 		},
 		{
@@ -436,6 +453,11 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 						TimelinesCell: "`1`",
 					},
 				},
+				FilterVocabulary: workbench.FilterVocabulary{
+					PathKeys:      []string{"container", "pod"},
+					TimelineTypes: []string{"container", "pod"},
+					LogTypes:      []string{"container"},
+				},
 			},
 			want: strings.Join([]string{
 				"# Logs matching the filter",
@@ -470,6 +492,12 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"| Time | Severity | Type | Log ID | Summary | Timelines |",
 				"| --- | --- | --- | --- | --- | --- |",
 				"| 2026-10-01T10:15:00Z | ERROR | container | `101` | CrashLoopBackOff | `1` |",
+				"",
+				"## Filter vocabulary",
+				"These are the values that filter CEL can match in this inspection.",
+				"- path keys: `container`, `pod`",
+				"- timelineType: `container`, `pod`",
+				"- logType: `container`",
 			}, "\n"),
 		},
 		{
@@ -479,6 +507,11 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				MatchedLogCount: 0,
 				Applied: workbench.AppliedFilter{
 					ExcludeTimelinesWithoutLogs: false,
+				},
+				FilterVocabulary: workbench.FilterVocabulary{
+					PathKeys:      []string{"kind", "namespace"},
+					TimelineTypes: []string{"kind", "namespace"},
+					LogTypes:      []string{"k8s audit"},
 				},
 			},
 			want: strings.Join([]string{
@@ -497,6 +530,12 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				`endTime: ""`,
 				"excludeTimelinesWithoutLogs: false",
 				"```",
+				"",
+				"## Filter vocabulary",
+				"These are the values that filter CEL can match in this inspection.",
+				"- path keys: `kind`, `namespace`",
+				"- timelineType: `kind`, `namespace`",
+				"- logType: `k8s audit`",
 			}, "\n"),
 		},
 	}

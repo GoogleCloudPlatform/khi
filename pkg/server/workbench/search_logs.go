@@ -63,6 +63,8 @@ type LogSearchResult struct {
 	Applied              AppliedFilter
 	TimelineGroups       []TimelineLogGroup
 	SampleLogs           []SampleLogEntry
+	// FilterVocabulary lists the values that filter CEL can match in the inspection.
+	FilterVocabulary FilterVocabulary
 }
 
 type timelineLogStats struct {
@@ -116,7 +118,8 @@ func (w *Workbench) SearchLogs(ctx context.Context, filter Filter, maxTimelines,
 	w.mu.RUnlock()
 
 	res := &LogSearchResult{
-		Applied: filterOut.Applied,
+		Applied:          filterOut.Applied,
+		FilterVocabulary: index.FilterVocabulary,
 	}
 
 	matchedLogs := collectSortedMatchedLogs(index, filterOut.LogIDs)

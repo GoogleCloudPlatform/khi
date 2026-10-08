@@ -50,17 +50,17 @@ func NewWorkbenchHandler(manager *workbench.WorkbenchManager) *WorkbenchHandler 
 func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "search_timelines",
-		Description: `Search the resource timeline tree with a filter and return matching nodes with event and revision counts and per-severity log counts including descendants. Timeline CEL uses path["kind"], path["namespace"], path["resource"], path["subresource"], name, timelineType, match(), revision_body(), minSeverity(WARNING), hasSeverity(ERROR). Log CEL uses severity >= WARNING, logType, body("regex"), body("field.path", "regex").`,
+		Description: `Search the resource timeline tree with a filter and return matching nodes with event and revision counts and per-severity log counts including descendants. Timeline CEL uses path["<key>"], name, timelineType, match(), revision_body(), minSeverity(WARNING), hasSeverity(ERROR). Log CEL uses severity >= WARNING, logType, body("regex"), body("field.path", "regex"). The Filter vocabulary section of the response lists the path keys, timelineType values, and logType values of the inspection.`,
 	}, h.handleSearchTimelines)
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "search_logs",
-		Description: `Search logs across all timelines with a filter and return severity counts, top linked timelines, and evenly spaced sample logs. Timeline CEL uses path["kind"], path["namespace"], path["resource"], path["subresource"], name, timelineType, match(), revision_body(), minSeverity(WARNING), hasSeverity(ERROR). Log CEL uses severity >= WARNING, logType, body("regex"), body("field.path", "regex").`,
+		Description: `Search logs across all timelines with a filter and return severity counts, top linked timelines, and evenly spaced sample logs. Timeline CEL uses path["<key>"], name, timelineType, match(), revision_body(), minSeverity(WARNING), hasSeverity(ERROR). Log CEL uses severity >= WARNING, logType, body("regex"), body("field.path", "regex"). The Filter vocabulary section of the response lists the path keys, timelineType values, and logType values of the inspection.`,
 	}, h.handleSearchLogs)
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "get_timeline_logs",
-		Description: `List logs on one timeline, oldest first, with an optional log CEL and time range filter, and count the other timelines linked to the matching logs. Log CEL uses severity >= WARNING, logType, body("regex"), body("field.path", "regex"). Results are paginated; pass the pageToken from the last line to read the next page.`,
+		Description: `List logs on one timeline, oldest first, with an optional log CEL and time range filter, and count the other timelines linked to the matching logs. Log CEL uses severity >= WARNING, logType, body("regex"), body("field.path", "regex"). The logType values are listed in the Filter vocabulary section of search_timelines and search_logs. Results are paginated; pass the pageToken from the last line to read the next page.`,
 	}, h.handleGetTimelineLogs)
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{

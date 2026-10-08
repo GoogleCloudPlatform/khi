@@ -58,6 +58,8 @@ type TimelineTreeResult struct {
 	Applied              AppliedFilter
 	TimelineTypes        []TimelineTypeDescription
 	Nodes                []TimelineTreeNode
+	// FilterVocabulary lists the values that filter CEL can match in the inspection.
+	FilterVocabulary FilterVocabulary
 }
 
 // logSeverityResolver returns the severity definition of the log with the given ID.
@@ -125,6 +127,7 @@ func (w *Workbench) SearchTimelines(ctx context.Context, filter Filter, maxDepth
 		MaxDepth:             maxDepth,
 		MaxNodes:             maxNodes,
 		Applied:              filterOut.Applied,
+		FilterVocabulary:     index.FilterVocabulary,
 	}
 	if matchedCount == 0 {
 		return res, nil
