@@ -146,3 +146,13 @@ func TestIssuer_IssueSweepsExpiredURLTokens(t *testing.T) {
 		t.Errorf("len(targetsByURLToken) = %d after issuing twice with zero TTL, want 1", got)
 	}
 }
+
+func TestIssuer_IssueKeepsUnexpiredURLTokens(t *testing.T) {
+	issuer := NewIssuer(testBaseURL, 1024, time.Hour)
+	firstURLToken := strings.TrimPrefix(issuer.Issue("upload-token-1", "field-1").URL, testBaseURL)
+	issuer.Issue("upload-token-2", "field-2")
+
+	if _, err := issuer.resolve(firstURLToken); err != nil {
+		t.Errorf("resolve() of the first URL token after issuing another URL returned an unexpected error: %v", err)
+	}
+}

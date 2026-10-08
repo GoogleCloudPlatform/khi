@@ -411,6 +411,20 @@ func TestGroupFormFields(t *testing.T) {
 			},
 		},
 		{
+			name: "groups without children are dropped",
+			fields: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.GroupParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:    "empty",
+						Label: "Empty",
+						Type:  inspectionmetadata.Group,
+					},
+				},
+			},
+			params: map[string]any{},
+			want:   groupResult{},
+		},
+		{
 			name: "hints are rendered and errors and warnings are counted",
 			fields: []inspectionmetadata.ParameterFormField{
 				inspectionmetadata.GroupParameterFormField{

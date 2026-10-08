@@ -236,6 +236,28 @@ func TestInspectionTools_FileUpload(t *testing.T) {
 		checkToolResult(t, "dry_run_inspection", text, false, want, false)
 	})
 
+	t.Run("a new upload replaces a file that failed verification", func(t *testing.T) {
+		env := newToolsTestEnv(t)
+		id := env.createInspection(t, fileFeatureID)
+
+		status, body := putFile(t, env.requestUploadURL(t, id), "not json\n")
+		if status != http.StatusOK {
+			t.Fatalf("first upload status = %d, want %d: %s", status, http.StatusOK, body)
+		}
+		text := env.dryRunUntilUploadSettles(t, id)
+		if !strings.Contains(text, "- Upload: ERROR") {
+			t.Fatalf("dry_run_inspection after the invalid upload does not report ERROR:\n%s", text)
+		}
+
+		status, body = putFile(t, env.requestUploadURL(t, id), "{\"a\":1}\n")
+		if status != http.StatusOK {
+			t.Fatalf("second upload status = %d, want %d: %s", status, http.StatusOK, body)
+		}
+		text = env.dryRunUntilUploadSettles(t, id)
+		want := logFileDryRunText(id, "Errors: 0, warnings: 0. Ready to run. Call `run_inspection` with the parameters to start the inspection.", "- Upload: COMPLETED, 8 bytes")
+		checkToolResult(t, "dry_run_inspection", text, false, want, false)
+	})
+
 	t.Run("field that is not a file field", func(t *testing.T) {
 		env := newToolsTestEnv(t)
 		id := env.createInspection(t, fileFeatureID)
