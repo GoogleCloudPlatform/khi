@@ -96,11 +96,7 @@ func (s *UploadFileStore) GetResult(token UploadToken, req map[string]any) (Uplo
 	s.verifierLock.RUnlock()
 
 	if verifier == nil {
-		return UploadResult{
-			Token:         token,
-			StoreProvider: s.StoreProvider,
-			Status:        UploadStatusCompleted,
-		}, nil
+		return result, nil
 	}
 
 	// Non-blockingly query or launch the async verifier
@@ -110,25 +106,11 @@ func (s *UploadFileStore) GetResult(token UploadToken, req map[string]any) (Uplo
 
 	switch asyncRes.Status {
 	case asynctask.StatusRunning, asynctask.StatusPending:
-		return UploadResult{
-			Token:         token,
-			StoreProvider: s.StoreProvider,
-			Status:        UploadStatusVerifying,
-		}, nil
+		result.Status = UploadStatusVerifying
 	case asynctask.StatusFailed:
-		return UploadResult{
-			Token:             token,
-			StoreProvider:     s.StoreProvider,
-			Status:            UploadStatusCompleted,
-			VerificationError: asyncRes.Error,
-		}, nil
-	default:
-		return UploadResult{
-			Token:         token,
-			StoreProvider: s.StoreProvider,
-			Status:        UploadStatusCompleted,
-		}, nil
+		result.VerificationError = asyncRes.Error
 	}
+	return result, nil
 }
 
 // GetCompletedResult waits for any asynchronous verification to complete and returns the upload result.
@@ -154,11 +136,7 @@ func (s *UploadFileStore) GetCompletedResult(ctx context.Context, token UploadTo
 	s.verifierLock.RUnlock()
 
 	if verifier == nil {
-		return UploadResult{
-			Token:         token,
-			StoreProvider: s.StoreProvider,
-			Status:        UploadStatusCompleted,
-		}, nil
+		return result, nil
 	}
 
 	_, verifyErr := s.asyncVerifierManager.DoSyncOrGet(ctx, token.GetID(), token.GetHash(), func(ctx context.Context) (struct{}, error) {
@@ -169,23 +147,12 @@ func (s *UploadFileStore) GetCompletedResult(ctx context.Context, token UploadTo
 		return UploadResult{}, err
 	}
 
-	if verifyErr != nil {
-		return UploadResult{
-			Token:             token,
-			StoreProvider:     s.StoreProvider,
-			Status:            UploadStatusCompleted,
-			VerificationError: verifyErr,
-		}, nil
-	}
-
-	return UploadResult{
-		Token:         token,
-		StoreProvider: s.StoreProvider,
-		Status:        UploadStatusCompleted,
-	}, nil
+	result.VerificationError = verifyErr
+	return result, nil
 }
 
 // NotifyFileUploaded records that a file upload has completed and resets any cached verification.
+// It keeps the file name and size recorded by SetResultOnStartingUpload.
 func (s *UploadFileStore) NotifyFileUploaded(token UploadToken) error {
 	err := s.ensureIssuedToken(token)
 	if err != nil {
@@ -195,17 +162,20 @@ func (s *UploadFileStore) NotifyFileUploaded(token UploadToken) error {
 	s.resultLock.Lock()
 	defer s.resultLock.Unlock()
 
+	started := s.results[token.GetID()]
 	s.results[token.GetID()] = UploadResult{
 		Token:         token,
 		StoreProvider: s.StoreProvider,
 		Status:        UploadStatusCompleted,
+		FileName:      started.FileName,
+		SizeBytes:     started.SizeBytes,
 	}
 	s.asyncVerifierManager.Reset(token.GetID())
 	return nil
 }
 
-// SetResultOnStartingUpload sets the upload status to Uploading.
-func (s *UploadFileStore) SetResultOnStartingUpload(token UploadToken) error {
+// SetResultOnStartingUpload sets the upload status to Uploading and records the file name and size of the upload.
+func (s *UploadFileStore) SetResultOnStartingUpload(token UploadToken, fileName string, sizeBytes int64) error {
 	err := s.ensureIssuedToken(token)
 	if err != nil {
 		return err
@@ -218,6 +188,8 @@ func (s *UploadFileStore) SetResultOnStartingUpload(token UploadToken) error {
 		Token:         token,
 		StoreProvider: s.StoreProvider,
 		Status:        UploadStatusUploading,
+		FileName:      fileName,
+		SizeBytes:     sizeBytes,
 	}
 	return nil
 }

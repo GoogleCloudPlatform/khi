@@ -1,0 +1,133 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package uploadurl
+
+import (
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/google/go-cmp/cmp"
+)
+
+const testBaseURL = "http://127.0.0.1:8080/api/v1/file-upload/"
+
+func TestIssuer_Issue(t *testing.T) {
+	issuer := NewIssuer(testBaseURL, 1024, time.Hour)
+	before := time.Now()
+
+	grant := issuer.Issue("upload-token-1", "field-1")
+
+	token, found := strings.CutPrefix(grant.URL, testBaseURL)
+	if !found || token == "" {
+		t.Fatalf("Issue().URL = %q, want %q followed by a token", grant.URL, testBaseURL)
+	}
+	if grant.FieldID != "field-1" {
+		t.Errorf("Issue().FieldID = %q, want %q", grant.FieldID, "field-1")
+	}
+	if grant.MaxSizeBytes != 1024 {
+		t.Errorf("Issue().MaxSizeBytes = %d, want %d", grant.MaxSizeBytes, 1024)
+	}
+	if grant.ExpiresAt.Before(before.Add(time.Hour)) {
+		t.Errorf("Issue().ExpiresAt = %v, want at least %v", grant.ExpiresAt, before.Add(time.Hour))
+	}
+
+	got, err := issuer.resolve(token)
+	if err != nil {
+		t.Fatalf("resolve() returned an unexpected error: %v", err)
+	}
+	want := grantTarget{uploadTokenID: "upload-token-1", fieldID: "field-1", expiresAt: grant.ExpiresAt}
+	if diff := cmp.Diff(want, got, cmp.AllowUnexported(grantTarget{})); diff != "" {
+		t.Errorf("resolve() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestIssuer_IssueReturnsDistinctURLs(t *testing.T) {
+	issuer := NewIssuer(testBaseURL, 1024, time.Hour)
+
+	first := issuer.Issue("upload-token-1", "field-1")
+	second := issuer.Issue("upload-token-1", "field-1")
+
+	if first.URL == second.URL {
+		t.Errorf("Issue() returned the same URL %q twice, want distinct URLs", first.URL)
+	}
+}
+
+func TestIssuer_Resolve(t *testing.T) {
+	testCases := []struct {
+		name    string
+		ttl     time.Duration
+		token   func(grant Grant) string
+		wantErr error
+	}{
+		{
+			name: "issued token resolves",
+			ttl:  time.Hour,
+			token: func(grant Grant) string {
+				return strings.TrimPrefix(grant.URL, testBaseURL)
+			},
+		},
+		{
+			name: "token never issued is unknown",
+			ttl:  time.Hour,
+			token: func(grant Grant) string {
+				return "not-issued"
+			},
+			wantErr: ErrUnknownURL,
+		},
+		{
+			name: "token past its expiry is expired",
+			ttl:  0,
+			token: func(grant Grant) string {
+				return strings.TrimPrefix(grant.URL, testBaseURL)
+			},
+			wantErr: ErrExpiredURL,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			issuer := NewIssuer(testBaseURL, 1024, tc.ttl)
+			grant := issuer.Issue("upload-token-1", "field-1")
+
+			_, err := issuer.resolve(tc.token(grant))
+			if !errors.Is(err, tc.wantErr) {
+				t.Errorf("resolve() error = %v, want %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestIssuer_ResolveForgetsExpiredToken(t *testing.T) {
+	issuer := NewIssuer(testBaseURL, 1024, 0)
+	token := strings.TrimPrefix(issuer.Issue("upload-token-1", "field-1").URL, testBaseURL)
+
+	if _, err := issuer.resolve(token); !errors.Is(err, ErrExpiredURL) {
+		t.Fatalf("first resolve() error = %v, want %v", err, ErrExpiredURL)
+	}
+	if _, err := issuer.resolve(token); !errors.Is(err, ErrUnknownURL) {
+		t.Errorf("second resolve() error = %v, want %v", err, ErrUnknownURL)
+	}
+}
+
+func TestIssuer_IssueSweepsExpiredTokens(t *testing.T) {
+	issuer := NewIssuer(testBaseURL, 1024, 0)
+	issuer.Issue("upload-token-1", "field-1")
+	issuer.Issue("upload-token-2", "field-2")
+
+	if got := len(issuer.targets); got != 1 {
+		t.Errorf("len(targets) = %d after issuing twice with zero TTL, want 1", got)
+	}
+}

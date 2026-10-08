@@ -179,3 +179,93 @@ func TestFileParameterUploadManager_Errors(t *testing.T) {
 		})
 	}
 }
+
+func TestFileParameterUploadManager_KeepsFileNameAndSizeThroughCompletion(t *testing.T) {
+	tempDir := t.TempDir()
+	uploadStore := NewUploadFileStore(NewLocalUploadFileStoreProvider(filepath.Join(tempDir, "store")))
+	chunkManager := chunkedupload.NewChunkSessionManager(filepath.Join(tempDir, "upload"))
+	defer chunkManager.Close()
+	mgr := NewFileParameterUploadManager(uploadStore, chunkManager)
+	token := uploadStore.GetUploadToken("field-upload-3", nil, "field-3")
+
+	session, err := mgr.StartUploadSession(token.GetID(), "audit.jsonl", 5)
+	if err != nil {
+		t.Fatalf("StartUploadSession failed: %v", err)
+	}
+	assertFileNameAndSize(t, uploadStore, token, "audit.jsonl", 5)
+
+	if _, err := mgr.WriteChunk(session.Token, 0, []byte("hello")); err != nil {
+		t.Fatalf("WriteChunk failed: %v", err)
+	}
+	if _, err := mgr.CompleteUploadSession(session.Token); err != nil {
+		t.Fatalf("CompleteUploadSession failed: %v", err)
+	}
+	assertFileNameAndSize(t, uploadStore, token, "audit.jsonl", 5)
+}
+
+func assertFileNameAndSize(t *testing.T, store *UploadFileStore, token UploadToken, wantFileName string, wantSizeBytes int64) {
+	t.Helper()
+	res, err := store.GetResult(token, nil)
+	if err != nil {
+		t.Fatalf("GetResult failed: %v", err)
+	}
+	if res.FileName != wantFileName {
+		t.Errorf("FileName = %q, want %q", res.FileName, wantFileName)
+	}
+	if res.SizeBytes != wantSizeBytes {
+		t.Errorf("SizeBytes = %d, want %d", res.SizeBytes, wantSizeBytes)
+	}
+}
+
+func TestFileParameterUploadManager_RecordUploadFailure(t *testing.T) {
+	cause := errors.New("connection reset")
+	testCases := []struct {
+		name            string
+		uploadTokenID   string
+		wantErrIs       error
+		wantStatus      UploadStatus
+		wantUploadError error
+	}{
+		{
+			name:            "known upload token waits for another upload with the cause",
+			uploadTokenID:   "field-upload-4",
+			wantStatus:      UploadStatusWaiting,
+			wantUploadError: cause,
+		},
+		{
+			name:          "unknown upload token is rejected",
+			uploadTokenID: "non-existent-token-id",
+			wantErrIs:     ErrUploadTokenNotFound,
+			wantStatus:    UploadStatusUploading,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			uploadStore := NewUploadFileStore(NewLocalUploadFileStoreProvider(filepath.Join(tempDir, "store")))
+			chunkManager := chunkedupload.NewChunkSessionManager(filepath.Join(tempDir, "upload"))
+			defer chunkManager.Close()
+			mgr := NewFileParameterUploadManager(uploadStore, chunkManager)
+			token := uploadStore.GetUploadToken("field-upload-4", nil, "field-4")
+			if _, err := mgr.StartUploadSession(token.GetID(), "test.log", 10); err != nil {
+				t.Fatalf("StartUploadSession failed: %v", err)
+			}
+
+			err := mgr.RecordUploadFailure(tc.uploadTokenID, cause)
+
+			if !errors.Is(err, tc.wantErrIs) {
+				t.Errorf("RecordUploadFailure() error = %v, want %v", err, tc.wantErrIs)
+			}
+			res, err := uploadStore.GetResult(token, nil)
+			if err != nil {
+				t.Fatalf("GetResult failed: %v", err)
+			}
+			if res.Status != tc.wantStatus {
+				t.Errorf("Status = %v, want %v", res.Status, tc.wantStatus)
+			}
+			if res.UploadError != tc.wantUploadError {
+				t.Errorf("UploadError = %v, want %v", res.UploadError, tc.wantUploadError)
+			}
+		})
+	}
+}

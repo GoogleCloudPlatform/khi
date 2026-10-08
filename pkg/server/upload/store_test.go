@@ -71,7 +71,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		token := store.GetUploadToken("test-id-2", verifier, "test-field")
 
-		err := store.SetResultOnStartingUpload(token)
+		err := store.SetResultOnStartingUpload(token, "test.log", 10)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -110,7 +110,7 @@ func TestUploadFileStore(t *testing.T) {
 	t.Run("SetResultOnStartingUpload_NotFound", func(t *testing.T) {
 		store := NewUploadFileStore(provider)
 
-		err := store.SetResultOnStartingUpload(&DirectUploadToken{ID: "non-existing-token"})
+		err := store.SetResultOnStartingUpload(&DirectUploadToken{ID: "non-existing-token"}, "test.log", 10)
 		if err == nil {
 			t.Error("Expected error, got nil")
 		}
@@ -143,7 +143,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		token := store.GetUploadToken("uploaderror-id", verifier, "test-field")
 
-		err := store.SetResultOnStartingUpload(token) // Set initial status
+		err := store.SetResultOnStartingUpload(token, "test.log", 10) // Set initial status
 		if err != nil {
 			t.Fatalf("Unexpected error on SetResultOnStartingUpload: %v", err)
 		}
@@ -182,7 +182,7 @@ func TestUploadFileStore(t *testing.T) {
 		}
 
 		token := store.GetUploadToken("verifyerror-id", verifier, "test-field")
-		err := store.SetResultOnStartingUpload(token)
+		err := store.SetResultOnStartingUpload(token, "test.log", 10)
 		if err != nil {
 			t.Fatalf("Unexpected error on SetResultOnStartingUpload: %v", err)
 		}
@@ -229,7 +229,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		token := store.GetUploadToken("test-id-4", verifier, "test-field")
 
-		err := store.SetResultOnStartingUpload(token)
+		err := store.SetResultOnStartingUpload(token, "test.log", 10)
 		if err != nil {
 			t.Fatalf("SetResultOnStartingUpload 1 error: %v", err)
 		}
@@ -241,7 +241,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		<-time.After(50 * time.Millisecond) // Start a new upload before the verification completes
 
-		err = store.SetResultOnStartingUpload(token)
+		err = store.SetResultOnStartingUpload(token, "test.log", 10)
 		if err != nil {
 			t.Fatalf("SetResultOnStartingUpload 2 error: %v", err)
 		}
@@ -285,7 +285,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		token := store.GetUploadToken("sync-verify-id", verifier, "test-field")
 
-		err := store.SetResultOnStartingUpload(token)
+		err := store.SetResultOnStartingUpload(token, "test.log", 10)
 		if err != nil {
 			t.Fatalf("SetResultOnStartingUpload error: %v", err)
 		}
@@ -320,7 +320,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		token := store.GetUploadToken("sync-verify-err-id", verifier, "test-field")
 
-		err := store.SetResultOnStartingUpload(token)
+		err := store.SetResultOnStartingUpload(token, "test.log", 10)
 		if err != nil {
 			t.Fatalf("SetResultOnStartingUpload error: %v", err)
 		}
