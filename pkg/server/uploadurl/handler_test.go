@@ -230,6 +230,47 @@ func TestHandler_ServeUploadOnlyWritesItsOwnField(t *testing.T) {
 	}
 }
 
+func TestHandler_ServeUploadAcceptsOneUploadPerURL(t *testing.T) {
+	testCases := []struct {
+		name             string
+		firstBody        string
+		wantSecondStatus int
+		wantState        uploadState
+	}{
+		{
+			name:             "a URL that stored a file rejects another upload",
+			firstBody:        "hello",
+			wantSecondStatus: http.StatusNotFound,
+			wantState:        uploadState{Status: upload.UploadStatusCompleted, SizeBytes: 5},
+		},
+		{
+			name:             "a URL whose request was rejected before storing accepts another upload",
+			firstBody:        "",
+			wantSecondStatus: http.StatusOK,
+			wantState:        uploadState{Status: upload.UploadStatusCompleted, SizeBytes: 3},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newHandlerTestEnv(t, time.Hour)
+			uploadToken := env.store.GetUploadToken("upload-token-1", nil, "field-1")
+			grant := env.issuer.Issue(uploadToken.GetID(), "field-1")
+			urlToken := strings.TrimPrefix(grant.URL, testBaseURL)
+			env.handler.ServeUpload(httptest.NewRecorder(), httptest.NewRequest(http.MethodPut, grant.URL, strings.NewReader(tc.firstBody)), urlToken)
+			rec := httptest.NewRecorder()
+
+			env.handler.ServeUpload(rec, httptest.NewRequest(http.MethodPut, grant.URL, strings.NewReader("abc")), urlToken)
+
+			if rec.Code != tc.wantSecondStatus {
+				t.Errorf("status code of the second upload = %d, want %d", rec.Code, tc.wantSecondStatus)
+			}
+			if diff := cmp.Diff(tc.wantState, env.state(t, uploadToken)); diff != "" {
+				t.Errorf("upload state mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestHandler_ServeUploadRecordsSessionStartFailure(t *testing.T) {
 	tempDir := t.TempDir()
 	store := upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(filepath.Join(tempDir, "store")))

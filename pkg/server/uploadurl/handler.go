@@ -85,6 +85,13 @@ func (h *Handler) ServeUpload(w http.ResponseWriter, r *http.Request, urlToken s
 		return
 	}
 
+	// An upload URL accepts a single upload so that concurrent uploads cannot overwrite each other.
+	// Requests rejected above leave the URL usable because they did not touch the stored file.
+	if !h.issuer.consume(urlToken) {
+		writeJSON(w, http.StatusNotFound, errorResponse{Error: ErrUnknownURL.Error() + ". Request a new upload URL."})
+		return
+	}
+
 	// The body of a PUT request carries no file name, so the upload is recorded without one.
 	session, err := h.manager.StartUploadSession(target.uploadTokenID, "", size)
 	if err != nil {

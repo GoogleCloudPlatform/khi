@@ -122,6 +122,21 @@ func TestIssuer_ResolveForgetsExpiredURLToken(t *testing.T) {
 	}
 }
 
+func TestIssuer_Consume(t *testing.T) {
+	issuer := NewIssuer(testBaseURL, 1024, time.Hour)
+	urlToken := strings.TrimPrefix(issuer.Issue("upload-token-1", "field-1").URL, testBaseURL)
+
+	if !issuer.consume(urlToken) {
+		t.Fatal("first consume() = false, want true")
+	}
+	if issuer.consume(urlToken) {
+		t.Error("second consume() = true, want false")
+	}
+	if _, err := issuer.resolve(urlToken); !errors.Is(err, ErrUnknownURL) {
+		t.Errorf("resolve() after consume() error = %v, want %v", err, ErrUnknownURL)
+	}
+}
+
 func TestIssuer_IssueSweepsExpiredURLTokens(t *testing.T) {
 	issuer := NewIssuer(testBaseURL, 1024, 0)
 	issuer.Issue("upload-token-1", "field-1")

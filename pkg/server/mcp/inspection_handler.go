@@ -98,7 +98,7 @@ func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "request_file_upload",
-		Description: "Get a short-lived URL that accepts the file for a form field with `Type: file` in one PUT request, such as with curl. Upload the file to the URL, then call dry_run_inspection and check that the upload status is COMPLETED.",
+		Description: "Get a short-lived URL that accepts the file for a form field with `Type: file` in one PUT request, such as with curl. Each URL accepts only one upload; call this tool again to retry. Upload the file to the URL, then call dry_run_inspection and check that the upload status is COMPLETED.",
 	}, h.handleRequestFileUpload)
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{

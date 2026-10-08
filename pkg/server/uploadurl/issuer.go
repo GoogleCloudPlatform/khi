@@ -115,3 +115,15 @@ func (i *Issuer) resolve(urlToken string) (grantTarget, error) {
 	}
 	return target, nil
 }
+
+// consume removes urlToken so that its URL accepts no further uploads.
+// It returns false when another request already consumed urlToken.
+func (i *Issuer) consume(urlToken string) bool {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	if _, found := i.targets[urlToken]; !found {
+		return false
+	}
+	delete(i.targets, urlToken)
+	return true
+}

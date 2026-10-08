@@ -5,7 +5,7 @@
 - Max size: {{ .MaxSizeBytes }} bytes
 - Expires at: {{ time .ExpiresAt }}
 
-Send the file body in one request:
+Send the file body in one request. The URL accepts only one upload; if the upload fails, call `request_file_upload` again for a new URL:
 
 {{ fence "sh" (printf "curl --fail-with-body -X PUT --data-binary @./path/to/file '%s'" .URL) }}
 
