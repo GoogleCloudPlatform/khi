@@ -124,7 +124,8 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create server: %v", err)
 	}
-	handler := NewInspectionHandler(server)
+	// Template rendering does not issue upload URLs.
+	handler := NewInspectionHandler(server, nil)
 
 	startTime := time.Unix(header.StartTimeUnixSeconds, 0)
 	endTime := time.Unix(header.EndTimeUnixSeconds, 0)
@@ -151,44 +152,6 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 	}
 }
 
-func TestMCPUnavailableReason(t *testing.T) {
-	testCases := []struct {
-		name string
-		in   *coreinspection.InspectionType
-		want string
-	}{
-		{
-			name: "file log source",
-			in: &coreinspection.InspectionType{
-				Labels: map[string]string{inspectioncore.InspectionTypeLabelKeyLogSource: "file"},
-			},
-			want: "requires file uploads, which are not supported via MCP yet.",
-		},
-		{
-			name: "cloud log source",
-			in: &coreinspection.InspectionType{
-				Labels: map[string]string{inspectioncore.InspectionTypeLabelKeyLogSource: "cloud"},
-			},
-			want: "",
-		},
-		{
-			name: "nil labels",
-			in: &coreinspection.InspectionType{
-				Labels: nil,
-			},
-			want: "",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := mcpUnavailableReason(tc.in)
-			if got != tc.want {
-				t.Errorf("mcpUnavailableReason() = %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestInspectionHandler_E2E(t *testing.T) {
 	server, err := coreinspection.NewServer(nil)
 	if err != nil {
@@ -209,7 +172,6 @@ func TestInspectionHandler_E2E(t *testing.T) {
 		Name:        "OSS Kubernetes Log Files",
 		Description: "Parse uploaded OSS Kubernetes log files to visualize cluster operations on timelines.",
 		Priority:    50,
-		Labels:      map[string]string{inspectioncore.InspectionTypeLabelKeyLogSource: "file"},
 	}); err != nil {
 		t.Fatalf("failed to add oss-kubernetes-from-files inspection type: %v", err)
 	}
@@ -221,7 +183,8 @@ func TestInspectionHandler_E2E(t *testing.T) {
 		t.Fatalf("failed to add k8s-event-log task: %v", err)
 	}
 
-	handler := NewInspectionHandler(server)
+	// This test does not call request_file_upload.
+	handler := NewInspectionHandler(server, nil)
 	mcpServer := NewServer(handler)
 
 	mux := http.NewServeMux()
@@ -249,14 +212,14 @@ func TestInspectionHandler_E2E(t *testing.T) {
 		if err != nil {
 			t.Fatalf("session.ListTools() failed: %v", err)
 		}
-		if len(toolsRes.Tools) != 6 {
-			t.Errorf("len(toolsRes.Tools) = %d, want 6", len(toolsRes.Tools))
+		if len(toolsRes.Tools) != 7 {
+			t.Errorf("len(toolsRes.Tools) = %d, want 7", len(toolsRes.Tools))
 		}
 		toolNames := make(map[string]bool)
 		for _, tool := range toolsRes.Tools {
 			toolNames[tool.Name] = true
 		}
-		for _, want := range []string{"create_inspection", "update_inspection_features", "dry_run_inspection", "run_inspection", "wait_inspection", "cancel_inspection"} {
+		for _, want := range []string{"create_inspection", "update_inspection_features", "dry_run_inspection", "request_file_upload", "run_inspection", "wait_inspection", "cancel_inspection"} {
 			if !toolNames[want] {
 				t.Errorf("missing tool: %s", want)
 			}

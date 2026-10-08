@@ -28,6 +28,7 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/grpc/codes"
@@ -55,8 +56,12 @@ type formFieldData struct {
 	Default     string
 	Suggestions string
 	Options     string
-	HintType    string
-	Hint        string
+	// Upload is the upload status line of a file field. It is empty for other field types.
+	Upload   string
+	HintType string
+	Hint     string
+	// uploadTokenID is the upload token that request_file_upload binds an upload URL to. It is empty for non-file fields.
+	uploadTokenID string
 }
 
 type formGroupData struct {
@@ -263,10 +268,7 @@ func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[
 		if group, ok := field.(inspectionmetadata.GroupParameterFormField); ok {
 			var groupFields []formFieldData
 			for _, child := range group.Children {
-				data, ok := toFormFieldData(child, params)
-				if !ok {
-					continue
-				}
+				data := toFormFieldData(child, params)
 				groupFields = append(groupFields, data)
 				if data.HintType == "Error" {
 					totalErrors++
@@ -281,10 +283,7 @@ func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[
 				})
 			}
 		} else {
-			data, ok := toFormFieldData(field, params)
-			if !ok {
-				continue
-			}
+			data := toFormFieldData(field, params)
 			generalFields = append(generalFields, data)
 			if data.HintType == "Error" {
 				totalErrors++
@@ -305,13 +304,8 @@ func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[
 }
 
 // toFormFieldData converts a ParameterFormField into formFieldData for template rendering.
-// File-type form fields are omitted because file uploads are not supported via MCP.
-func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[string]any) (formFieldData, bool) {
+func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[string]any) formFieldData {
 	base := inspectionmetadata.GetParameterFormFieldBase(field)
-	if base.Type == inspectionmetadata.File {
-		return formFieldData{}, false
-	}
-
 	data := formFieldData{
 		ID:          base.ID,
 		Label:       base.Label,
@@ -383,9 +377,30 @@ func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[str
 		if tf.Default {
 			data.Default = mdtemplate.Code("true")
 		}
+	case inspectionmetadata.FileParameterFormField:
+		data.Upload = fileUploadStatus(tf)
+		data.uploadTokenID = tf.Token.GetID()
 	}
 
-	return data, true
+	return data
+}
+
+// fileUploadStatus returns the upload status line of a file field: WAITING, PROCESSING, ERROR, or COMPLETED with the file size.
+// A failed upload waits for another upload, so it is WAITING and its hint explains the failure.
+// A file that fails verification is ERROR and its hint explains the verification error.
+func fileUploadStatus(field inspectionmetadata.FileParameterFormField) string {
+	switch {
+	case field.Status == upload.UploadStatusWaiting:
+		return "WAITING"
+	case field.Status != upload.UploadStatusCompleted:
+		return "PROCESSING"
+	case field.HintType == inspectionmetadata.Error:
+		return "ERROR"
+	case field.FileName == "":
+		return fmt.Sprintf("COMPLETED, %d bytes", field.SizeBytes)
+	default:
+		return fmt.Sprintf("COMPLETED, %s, %d bytes", mdtemplate.Code(field.FileName), field.SizeBytes)
+	}
 }
 
 // toQueryData converts QueryItem pointers from dry run metadata into queryData for template rendering.

@@ -29,7 +29,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -39,6 +39,7 @@ var templateFS embed.FS
 // InspectionHandler exposes inspection types, inspection listing, inspection summaries, and inspection lifecycle tools over MCP.
 type InspectionHandler struct {
 	server       *coreinspection.InspectionTaskServer
+	uploadURLs   *uploadurl.Issuer
 	templates    *mdtemplate.Set
 	summaryCache map[string]string
 	cacheMu      sync.Mutex
@@ -47,9 +48,11 @@ type InspectionHandler struct {
 var _ DomainHandler = (*InspectionHandler)(nil)
 
 // NewInspectionHandler creates a new InspectionHandler using the provided InspectionTaskServer.
-func NewInspectionHandler(server *coreinspection.InspectionTaskServer) *InspectionHandler {
+// uploadURLs issues the URLs that agents upload files for file form fields to.
+func NewInspectionHandler(server *coreinspection.InspectionTaskServer, uploadURLs *uploadurl.Issuer) *InspectionHandler {
 	return &InspectionHandler{
 		server:       server,
+		uploadURLs:   uploadURLs,
 		templates:    mdtemplate.MustParse(templateFS, "templates/*.md.tmpl"),
 		summaryCache: make(map[string]string),
 	}
@@ -60,7 +63,7 @@ func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
 	srv.AddResource(&mcpsdk.Resource{
 		URI:         "khi://inspection-types",
 		Name:        "inspection-types",
-		Description: "List all inspection types and their availability over MCP.",
+		Description: "List all inspection types.",
 		MIMEType:    "text/markdown",
 	}, h.handleListInspectionTypes)
 
@@ -90,8 +93,13 @@ func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "dry_run_inspection",
-		Description: "Dry-run the inspection task DAG with parameters to validate inputs and view planned log queries. Must always be run before run_inspection until all errors are resolved. All times are UTC RFC3339. Warnings do not block run_inspection. Wider time ranges increase execution time and memory usage.",
+		Description: "Dry-run the inspection task DAG with parameters to validate inputs and view planned log queries. Must always be run before run_inspection until all errors are resolved. All times are UTC RFC3339. Warnings do not block run_inspection. Wider time ranges increase execution time and memory usage. Fields with `Type: file` are not set in parameters; upload the file with request_file_upload instead.",
 	}, h.handleDryRunInspection)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "request_file_upload",
+		Description: "Get a short-lived URL that accepts the file for a form field with `Type: file` in one PUT request, such as with curl. Upload the file to the URL, then call dry_run_inspection and check that the upload status is COMPLETED.",
+	}, h.handleRequestFileUpload)
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "run_inspection",
@@ -109,20 +117,10 @@ func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
 	}, h.handleCancelInspection)
 }
 
-// mcpUnavailableReason returns a non-empty explanation if the inspection type cannot be used via MCP.
-// TODO(#1047): Remove this check when file uploads are supported via MCP.
-func mcpUnavailableReason(t *coreinspection.InspectionType) string {
-	if t.Labels[inspectioncore.InspectionTypeLabelKeyLogSource] == "file" {
-		return "requires file uploads, which are not supported via MCP yet."
-	}
-	return ""
-}
-
 type inspectionTypeRow struct {
 	ID          string
 	Name        string
 	Description string
-	Available   string
 }
 
 type inspectionTypesData struct {
@@ -140,15 +138,10 @@ func (h *InspectionHandler) handleListInspectionTypes(ctx context.Context, req *
 
 	rows := make([]inspectionTypeRow, 0, len(types))
 	for _, t := range types {
-		available := "yes"
-		if reason := mcpUnavailableReason(t); reason != "" {
-			available = fmt.Sprintf("no: %s Use the KHI Web UI.", reason)
-		}
 		rows = append(rows, inspectionTypeRow{
 			ID:          t.Id,
 			Name:        t.Name,
 			Description: t.Description,
-			Available:   available,
 		})
 	}
 

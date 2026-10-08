@@ -111,12 +111,6 @@ func (h *InspectionHandler) handleCreateInspection(ctx context.Context, req *mcp
 			"Read `khi://inspection-types` to see available types.")
 	}
 
-	if reason := mcpUnavailableReason(inspType); reason != "" {
-		return mdtemplate.ErrorResult("INSPECTION_TYPE_NOT_AVAILABLE",
-			fmt.Sprintf("Inspection type %s %s", mdtemplate.Code(inspType.Id), reason),
-			"Ask the user to create this inspection in the KHI Web UI.")
-	}
-
 	customName := strings.TrimSpace(in.Name)
 	if customName != "" {
 		// Checking before CreateInspection avoids leaving a runner behind on a duplicate name.

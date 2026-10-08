@@ -12,6 +12,9 @@ Errors: {{ .ErrorCount }}, warnings: {{ .WarningCount }}. {{ if gt .ErrorCount 0
 - Description: {{ .Description }}
 {{- end }}
 - Type: {{ .Type }}
+{{- if .Upload }}
+- Upload: {{ .Upload }}
+{{- end }}
 {{- if .Value }}
 - Value: {{ .Value }}
 {{- end }}

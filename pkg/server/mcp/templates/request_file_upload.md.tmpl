@@ -1,0 +1,12 @@
+# Upload URL for {{ code .FieldID }}
+
+- URL: {{ code .URL }}
+- Method: PUT
+- Max size: {{ .MaxSizeBytes }} bytes
+- Expires at: {{ time .ExpiresAt }}
+
+Send the file body in one request:
+
+{{ fence "sh" (printf "curl --fail-with-body -X PUT --data-binary @./path/to/file '%s'" .URL) }}
+
+Then call `dry_run_inspection` and check that the upload status is COMPLETED.
