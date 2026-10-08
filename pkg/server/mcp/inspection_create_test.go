@@ -396,8 +396,8 @@ func newToolsTestEnv(t *testing.T) *toolsTestEnv {
 	t.Cleanup(ts.Close)
 	issuer := uploadurl.NewIssuer(ts.URL+"/api/v1/file-upload/", testMaxUploadSizeBytes, uploadurl.DefaultTTL)
 	uploadHandler := uploadurl.NewHandler(issuer, upload.NewFileParameterUploadManager(uploadStore, chunkManager))
-	mux.HandleFunc("PUT /api/v1/file-upload/{token}", func(w http.ResponseWriter, r *http.Request) {
-		uploadHandler.ServeUpload(w, r, r.PathValue("token"))
+	mux.HandleFunc("PUT /api/v1/file-upload/{urlToken}", func(w http.ResponseWriter, r *http.Request) {
+		uploadHandler.ServeUpload(w, r, r.PathValue("urlToken"))
 	})
 	mux.Handle("/mcp", NewServer(NewInspectionHandler(server, issuer)).HTTPHandler())
 

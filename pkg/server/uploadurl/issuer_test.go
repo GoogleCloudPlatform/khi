@@ -31,9 +31,9 @@ func TestIssuer_Issue(t *testing.T) {
 
 	grant := issuer.Issue("upload-token-1", "field-1")
 
-	token, found := strings.CutPrefix(grant.URL, testBaseURL)
-	if !found || token == "" {
-		t.Fatalf("Issue().URL = %q, want %q followed by a token", grant.URL, testBaseURL)
+	urlToken, found := strings.CutPrefix(grant.URL, testBaseURL)
+	if !found || urlToken == "" {
+		t.Fatalf("Issue().URL = %q, want %q followed by a URL token", grant.URL, testBaseURL)
 	}
 	if grant.FieldID != "field-1" {
 		t.Errorf("Issue().FieldID = %q, want %q", grant.FieldID, "field-1")
@@ -45,7 +45,7 @@ func TestIssuer_Issue(t *testing.T) {
 		t.Errorf("Issue().ExpiresAt = %v, want at least %v", grant.ExpiresAt, before.Add(time.Hour))
 	}
 
-	got, err := issuer.resolve(token)
+	got, err := issuer.resolve(urlToken)
 	if err != nil {
 		t.Fatalf("resolve() returned an unexpected error: %v", err)
 	}
@@ -68,30 +68,30 @@ func TestIssuer_IssueReturnsDistinctURLs(t *testing.T) {
 
 func TestIssuer_Resolve(t *testing.T) {
 	testCases := []struct {
-		name    string
-		ttl     time.Duration
-		token   func(grant Grant) string
-		wantErr error
+		name     string
+		ttl      time.Duration
+		urlToken func(grant Grant) string
+		wantErr  error
 	}{
 		{
-			name: "issued token resolves",
+			name: "issued URL token resolves",
 			ttl:  time.Hour,
-			token: func(grant Grant) string {
+			urlToken: func(grant Grant) string {
 				return strings.TrimPrefix(grant.URL, testBaseURL)
 			},
 		},
 		{
-			name: "token never issued is unknown",
+			name: "URL token never issued is unknown",
 			ttl:  time.Hour,
-			token: func(grant Grant) string {
+			urlToken: func(grant Grant) string {
 				return "not-issued"
 			},
 			wantErr: ErrUnknownURL,
 		},
 		{
-			name: "token past its expiry is expired",
+			name: "URL token past its expiry is expired",
 			ttl:  0,
-			token: func(grant Grant) string {
+			urlToken: func(grant Grant) string {
 				return strings.TrimPrefix(grant.URL, testBaseURL)
 			},
 			wantErr: ErrExpiredURL,
@@ -102,7 +102,7 @@ func TestIssuer_Resolve(t *testing.T) {
 			issuer := NewIssuer(testBaseURL, 1024, tc.ttl)
 			grant := issuer.Issue("upload-token-1", "field-1")
 
-			_, err := issuer.resolve(tc.token(grant))
+			_, err := issuer.resolve(tc.urlToken(grant))
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("resolve() error = %v, want %v", err, tc.wantErr)
 			}
@@ -110,19 +110,19 @@ func TestIssuer_Resolve(t *testing.T) {
 	}
 }
 
-func TestIssuer_ResolveForgetsExpiredToken(t *testing.T) {
+func TestIssuer_ResolveForgetsExpiredURLToken(t *testing.T) {
 	issuer := NewIssuer(testBaseURL, 1024, 0)
-	token := strings.TrimPrefix(issuer.Issue("upload-token-1", "field-1").URL, testBaseURL)
+	urlToken := strings.TrimPrefix(issuer.Issue("upload-token-1", "field-1").URL, testBaseURL)
 
-	if _, err := issuer.resolve(token); !errors.Is(err, ErrExpiredURL) {
+	if _, err := issuer.resolve(urlToken); !errors.Is(err, ErrExpiredURL) {
 		t.Fatalf("first resolve() error = %v, want %v", err, ErrExpiredURL)
 	}
-	if _, err := issuer.resolve(token); !errors.Is(err, ErrUnknownURL) {
+	if _, err := issuer.resolve(urlToken); !errors.Is(err, ErrUnknownURL) {
 		t.Errorf("second resolve() error = %v, want %v", err, ErrUnknownURL)
 	}
 }
 
-func TestIssuer_IssueSweepsExpiredTokens(t *testing.T) {
+func TestIssuer_IssueSweepsExpiredURLTokens(t *testing.T) {
 	issuer := NewIssuer(testBaseURL, 1024, 0)
 	issuer.Issue("upload-token-1", "field-1")
 	issuer.Issue("upload-token-2", "field-2")

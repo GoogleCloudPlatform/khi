@@ -45,14 +45,14 @@ type Grant struct {
 	ExpiresAt time.Time
 }
 
-// grantTarget is what an issued token resolves to.
+// grantTarget is what an issued URL token resolves to.
 type grantTarget struct {
 	uploadTokenID string
 	fieldID       string
 	expiresAt     time.Time
 }
 
-// Issuer issues upload URLs and resolves the tokens in them. Each URL is bound to the upload token of one file form field.
+// Issuer issues upload URLs and resolves the URL tokens in them. Each URL is bound to the upload token of one file form field.
 type Issuer struct {
 	baseURL      string
 	maxSizeBytes int64
@@ -62,7 +62,7 @@ type Issuer struct {
 	targets map[string]grantTarget
 }
 
-// NewIssuer returns an Issuer whose URLs are baseURL followed by a random token.
+// NewIssuer returns an Issuer whose URLs are baseURL followed by a random URL token.
 // baseURL must end with the path that routes to Handler, including the trailing slash.
 func NewIssuer(baseURL string, maxSizeBytes int64, ttl time.Duration) *Issuer {
 	return &Issuer{
@@ -75,42 +75,42 @@ func NewIssuer(baseURL string, maxSizeBytes int64, ttl time.Duration) *Issuer {
 
 // Issue returns a new upload URL that stores the file for the upload token uploadTokenID of the file form field fieldID.
 func (i *Issuer) Issue(uploadTokenID, fieldID string) Grant {
-	token := rand.Text()
+	urlToken := rand.Text()
 	now := time.Now()
 	expiresAt := now.Add(i.ttl)
 
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	// Expired tokens can never be used again, so dropping them here keeps the map from growing with every issued URL.
-	for t, target := range i.targets {
+	// Expired URL tokens can never be used again, so dropping them here keeps the map from growing with every issued URL.
+	for issuedURLToken, target := range i.targets {
 		if !now.Before(target.expiresAt) {
-			delete(i.targets, t)
+			delete(i.targets, issuedURLToken)
 		}
 	}
-	i.targets[token] = grantTarget{
+	i.targets[urlToken] = grantTarget{
 		uploadTokenID: uploadTokenID,
 		fieldID:       fieldID,
 		expiresAt:     expiresAt,
 	}
 
 	return Grant{
-		URL:          i.baseURL + token,
+		URL:          i.baseURL + urlToken,
 		FieldID:      fieldID,
 		MaxSizeBytes: i.maxSizeBytes,
 		ExpiresAt:    expiresAt,
 	}
 }
 
-// resolve returns the target of token, or ErrUnknownURL or ErrExpiredURL when the token cannot be used.
-func (i *Issuer) resolve(token string) (grantTarget, error) {
+// resolve returns the target of urlToken, or ErrUnknownURL or ErrExpiredURL when the URL token cannot be used.
+func (i *Issuer) resolve(urlToken string) (grantTarget, error) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	target, found := i.targets[token]
+	target, found := i.targets[urlToken]
 	if !found {
 		return grantTarget{}, ErrUnknownURL
 	}
 	if !time.Now().Before(target.expiresAt) {
-		delete(i.targets, token)
+		delete(i.targets, urlToken)
 		return grantTarget{}, ErrExpiredURL
 	}
 	return target, nil

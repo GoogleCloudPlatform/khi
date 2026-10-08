@@ -33,7 +33,7 @@ var (
 	UploadURLIssuerKey = typedmap.NewTypedKey[*uploadurl.Issuer]("khi.google.com/init/upload-url-issuer")
 )
 
-// uploadURLPath is the route of upload URLs under the base path. The token follows it.
+// uploadURLPath is the route of upload URLs under the base path. The URL token follows it.
 const uploadURLPath = "/api/v1/file-upload/"
 
 // InitializerIDFileParameterUpload mounts Connect-RPC FileParameterUploadService onto Gin engine.
@@ -78,8 +78,8 @@ var FileParameterUploadInitializer = &coreinit.Initializer{
 			uploadurl.DefaultTTL,
 		)
 		uploadURLHandler := uploadurl.NewHandler(issuer, manager)
-		router.PUT(uploadURLPath+":token", func(c *gin.Context) {
-			uploadURLHandler.ServeUpload(c.Writer, c.Request, c.Param("token"))
+		router.PUT(uploadURLPath+":urlToken", func(c *gin.Context) {
+			uploadURLHandler.ServeUpload(c.Writer, c.Request, c.Param("urlToken"))
 		})
 		coreinit.Set(ctx, UploadURLIssuerKey, issuer)
 

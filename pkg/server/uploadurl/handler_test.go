@@ -107,7 +107,7 @@ func TestHandler_ServeUpload(t *testing.T) {
 			wantContent:  "12345678",
 		},
 		{
-			name: "rejects a token that was never issued",
+			name: "rejects a URL token that was never issued",
 			ttl:  time.Hour,
 			urlToken: func(grant Grant) string {
 				return "not-issued"
