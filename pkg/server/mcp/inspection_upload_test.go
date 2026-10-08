@@ -23,6 +23,8 @@ import (
 	"time"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/google/go-cmp/cmp"
 )
@@ -49,37 +51,51 @@ func TestRequestFileUpload_Golden(t *testing.T) {
 	}
 }
 
-func TestFindUploadTokenID(t *testing.T) {
-	groups := []formGroupData{
-		{
-			Title: "General",
-			Fields: []formFieldData{
-				{ID: "name", Type: "text"},
-			},
+func TestFindFileField(t *testing.T) {
+	fields := []inspectionmetadata.ParameterFormField{
+		inspectionmetadata.TextParameterFormField{
+			ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "name", Type: inspectionmetadata.Text},
 		},
-		{
-			Title: "Logs",
-			Fields: []formFieldData{
-				{ID: "audit-log", Type: "file", uploadTokenID: "inspection-1_task_audit-log"},
+		inspectionmetadata.FileParameterFormField{
+			ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "top-log", Type: inspectionmetadata.File},
+			Token:                  &upload.DirectUploadToken{ID: "inspection-1_task_top-log"},
+		},
+		inspectionmetadata.GroupParameterFormField{
+			ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "logs", Type: inspectionmetadata.Group},
+			Children: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.FileParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "audit-log", Type: inspectionmetadata.File},
+					Token:                  &upload.DirectUploadToken{ID: "inspection-1_task_audit-log"},
+				},
 			},
 		},
 	}
 
 	testCases := []struct {
-		name      string
-		fieldID   string
-		wantID    string
-		wantFound bool
+		name              string
+		fieldID           string
+		wantUploadTokenID string
+		wantFound         bool
 	}{
 		{
-			name:      "file field",
-			fieldID:   "audit-log",
-			wantID:    "inspection-1_task_audit-log",
-			wantFound: true,
+			name:              "top-level file field",
+			fieldID:           "top-log",
+			wantUploadTokenID: "inspection-1_task_top-log",
+			wantFound:         true,
+		},
+		{
+			name:              "file field in a group",
+			fieldID:           "audit-log",
+			wantUploadTokenID: "inspection-1_task_audit-log",
+			wantFound:         true,
 		},
 		{
 			name:    "field that is not a file field",
 			fieldID: "name",
+		},
+		{
+			name:    "group field",
+			fieldID: "logs",
 		},
 		{
 			name:    "missing field",
@@ -89,9 +105,15 @@ func TestFindUploadTokenID(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotID, gotFound := findUploadTokenID(groups, tc.fieldID)
-			if gotID != tc.wantID || gotFound != tc.wantFound {
-				t.Errorf("findUploadTokenID(%q) = (%q, %v), want (%q, %v)", tc.fieldID, gotID, gotFound, tc.wantID, tc.wantFound)
+			got, gotFound := findFileField(fields, tc.fieldID)
+			if gotFound != tc.wantFound {
+				t.Fatalf("findFileField(%q) found = %v, want %v", tc.fieldID, gotFound, tc.wantFound)
+			}
+			if !gotFound {
+				return
+			}
+			if gotID := got.Token.GetID(); gotID != tc.wantUploadTokenID {
+				t.Errorf("findFileField(%q).Token.GetID() = %q, want %q", tc.fieldID, gotID, tc.wantUploadTokenID)
 			}
 		})
 	}

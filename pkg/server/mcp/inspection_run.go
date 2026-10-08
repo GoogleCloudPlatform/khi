@@ -61,8 +61,6 @@ type formFieldData struct {
 	UploadStatus string
 	HintType     string
 	Hint         string
-	// uploadTokenID is the upload token that request_file_upload binds an upload URL to. It is empty for non-file fields.
-	uploadTokenID string
 }
 
 type formGroupData struct {
@@ -144,19 +142,29 @@ func (h *InspectionHandler) prepareParameters(id string, rawParams map[string]an
 	return preparedParams, nil, nil
 }
 
-// dryRun prepares rawParams with prepareParameters and runs a dry run of runner, shared by dry_run_inspection
-// and run_inspection.
+// dryRunResult is the outcome of a successful dry run.
+type dryRunResult struct {
+	// data is the render model of dry_run_inspection.
+	data *dryRunData
+	// formFields are the form fields that the dry run returned, before they are converted for rendering.
+	formFields []inspectionmetadata.ParameterFormField
+	// preparedParams are the parameters that the dry run used, which run_inspection passes to the run.
+	preparedParams map[string]any
+}
+
+// dryRun prepares rawParams with prepareParameters and runs a dry run of runner, shared by dry_run_inspection,
+// run_inspection, and request_file_upload.
 // Exactly one of the following holds on return:
-//   - Success: the dry run data and the prepared parameters are non-nil, and the rest are nil.
+//   - Success: the dryRunResult is non-nil, and the rest are nil.
 //   - Tool error: the CallToolResult is non-nil with IsError set, for problems the agent can fix,
 //     such as invalid parameter types or expired Google Cloud credentials.
 //   - Go error: the error is non-nil for unexpected failures that become protocol errors.
 //
 // retryTool is the tool name that the GOOGLE_CLOUD_AUTH error tells the agent to call again after login.
-func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *coreinspection.InspectionTaskRunner, rawParams map[string]any, retryTool string) (*dryRunData, map[string]any, *mcpsdk.CallToolResult, error) {
+func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *coreinspection.InspectionTaskRunner, rawParams map[string]any, retryTool string) (*dryRunResult, *mcpsdk.CallToolResult, error) {
 	preparedParams, errRes, err := h.prepareParameters(id, rawParams)
 	if errRes != nil || err != nil {
-		return nil, nil, errRes, err
+		return nil, errRes, err
 	}
 
 	result, err := runner.DryRun(ctx, &inspectioncore.InspectionRequest{
@@ -165,14 +173,14 @@ func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *corei
 	if err != nil {
 		if isGoogleCloudAuthError(err) {
 			authRes, _, _ := h.googleCloudAuthErrorResult(retryTool)
-			return nil, nil, authRes, nil
+			return nil, authRes, nil
 		}
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	mdMap, ok := result.Metadata.(map[string]interface{})
 	if !ok {
-		return nil, nil, nil, fmt.Errorf("unexpected dryrun metadata format")
+		return nil, nil, fmt.Errorf("unexpected dryrun metadata format")
 	}
 
 	var formFields []inspectionmetadata.ParameterFormField
@@ -188,13 +196,17 @@ func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *corei
 	groups, errCount, warnCount := groupFormFields(formFields, preparedParams)
 	queries := toQueryData(queryItems)
 
-	return &dryRunData{
-		ID:           id,
-		ErrorCount:   errCount,
-		WarningCount: warnCount,
-		Groups:       groups,
-		Queries:      queries,
-	}, preparedParams, nil, nil
+	return &dryRunResult{
+		data: &dryRunData{
+			ID:           id,
+			ErrorCount:   errCount,
+			WarningCount: warnCount,
+			Groups:       groups,
+			Queries:      queries,
+		},
+		formFields:     formFields,
+		preparedParams: preparedParams,
+	}, nil, nil
 }
 
 func (h *InspectionHandler) handleDryRunInspection(ctx context.Context, req *mcpsdk.CallToolRequest, in DryRunInspectionInput) (*mcpsdk.CallToolResult, any, error) {
@@ -207,12 +219,12 @@ func (h *InspectionHandler) handleDryRunInspection(ctx context.Context, req *mcp
 		return inspectionAlreadyStartedResult(in.InspectionID)
 	}
 
-	data, _, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "dry_run_inspection")
+	dryRunRes, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "dry_run_inspection")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}
 
-	return h.templates.ToolResult("dry_run_inspection.md.tmpl", *data)
+	return h.templates.ToolResult("dry_run_inspection.md.tmpl", *dryRunRes.data)
 }
 
 type inspectionIDData struct {
@@ -229,13 +241,13 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 		return inspectionAlreadyStartedResult(in.InspectionID)
 	}
 
-	data, preparedParams, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "run_inspection")
+	dryRunRes, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "run_inspection")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}
 
 	var bullets []string
-	for _, group := range data.Groups {
+	for _, group := range dryRunRes.data.Groups {
 		for _, field := range group.Fields {
 			if field.HintType == "Error" && field.Hint != "" {
 				bullets = append(bullets, fmt.Sprintf("%s: %s", mdtemplate.Code(field.ID), field.Hint))
@@ -248,7 +260,7 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 	}
 
 	if err := runner.Run(context.WithoutCancel(ctx), &inspectioncore.InspectionRequest{
-		Values: preparedParams,
+		Values: dryRunRes.preparedParams,
 	}); err != nil {
 		return nil, nil, err
 	}
@@ -380,7 +392,6 @@ func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[str
 		}
 	case inspectionmetadata.FileParameterFormField:
 		data.UploadStatus = fileUploadStatus(tf)
-		data.uploadTokenID = tf.Token.GetID()
 	}
 
 	return data

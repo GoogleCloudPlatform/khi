@@ -360,7 +360,7 @@ func TestGroupFormFields(t *testing.T) {
 			},
 		},
 		{
-			name: "file fields carry the upload status and the upload token",
+			name: "file fields carry the upload status",
 			fields: []inspectionmetadata.ParameterFormField{
 				inspectionmetadata.FileParameterFormField{
 					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
@@ -397,13 +397,13 @@ func TestGroupFormFields(t *testing.T) {
 					{
 						Title: "General",
 						Fields: []formFieldData{
-							{ID: "topFile", Type: "file", UploadStatus: "WAITING", HintType: "Error", Hint: "Waiting a file to be uploaded.", uploadTokenID: "inspection-1_task_topFile"},
+							{ID: "topFile", Type: "file", UploadStatus: "WAITING", HintType: "Error", Hint: "Waiting a file to be uploaded."},
 						},
 					},
 					{
 						Title: "Upload",
 						Fields: []formFieldData{
-							{ID: "childFile", Type: "file", UploadStatus: "COMPLETED, 2048 bytes", uploadTokenID: "inspection-1_task_childFile"},
+							{ID: "childFile", Type: "file", UploadStatus: "COMPLETED, 2048 bytes"},
 						},
 					},
 				},
@@ -533,7 +533,7 @@ func TestGroupFormFields(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			groups, errs, warns := groupFormFields(tc.fields, tc.params)
 			got := groupResult{Groups: groups, Errors: errs, Warnings: warns}
-			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(formFieldData{})); diff != "" {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("groupFormFields() mismatch (-want +got):\n%s", diff)
 			}
 		})

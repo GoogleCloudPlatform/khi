@@ -20,6 +20,7 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 )
 
@@ -40,30 +41,35 @@ func (h *InspectionHandler) handleRequestFileUpload(ctx context.Context, req *mc
 	}
 
 	// The dry run registers the upload token of each file field, so the URL is bound to a token that the run reads.
-	data, _, errRes, err := h.dryRun(ctx, in.InspectionID, runner, nil, "request_file_upload")
+	dryRunRes, errRes, err := h.dryRun(ctx, in.InspectionID, runner, nil, "request_file_upload")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}
 
-	uploadTokenID, found := findUploadTokenID(data.Groups, in.FieldID)
+	fileField, found := findFileField(dryRunRes.formFields, in.FieldID)
 	if !found {
 		return mdtemplate.ErrorResult("FILE_FIELD_NOT_FOUND",
 			fmt.Sprintf("Inspection %s has no field %s with `Type: file`.", mdtemplate.Code(in.InspectionID), mdtemplate.Code(in.FieldID)),
 			"Call `dry_run_inspection` and use the ID of a field with `Type: file`.")
 	}
 
-	return h.templates.ToolResult("request_file_upload.md.tmpl", h.uploadURLIssuer.Issue(uploadTokenID, in.FieldID))
+	return h.templates.ToolResult("request_file_upload.md.tmpl", h.uploadURLIssuer.Issue(fileField.Token.GetID(), in.FieldID))
 }
 
-// findUploadTokenID returns the upload token ID of the file field fieldID in groups.
+// findFileField returns the file field fieldID in fields, including the children of group fields.
 // It returns false when no field has the ID or the field is not a file field.
-func findUploadTokenID(groups []formGroupData, fieldID string) (string, bool) {
-	for _, group := range groups {
-		for _, field := range group.Fields {
-			if field.ID == fieldID && field.uploadTokenID != "" {
-				return field.uploadTokenID, true
+func findFileField(fields []inspectionmetadata.ParameterFormField, fieldID string) (inspectionmetadata.FileParameterFormField, bool) {
+	for _, field := range fields {
+		switch f := field.(type) {
+		case inspectionmetadata.FileParameterFormField:
+			if f.ID == fieldID {
+				return f, true
+			}
+		case inspectionmetadata.GroupParameterFormField:
+			if fileField, found := findFileField(f.Children, fieldID); found {
+				return fileField, true
 			}
 		}
 	}
-	return "", false
+	return inspectionmetadata.FileParameterFormField{}, false
 }
