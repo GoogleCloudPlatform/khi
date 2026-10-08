@@ -234,18 +234,21 @@ func TestHandler_ServeUploadAcceptsOneUploadPerURL(t *testing.T) {
 	testCases := []struct {
 		name             string
 		firstBody        string
+		wantFirstStatus  int
 		wantSecondStatus int
 		wantState        uploadState
 	}{
 		{
 			name:             "a URL that stored a file rejects another upload",
 			firstBody:        "hello",
+			wantFirstStatus:  http.StatusOK,
 			wantSecondStatus: http.StatusNotFound,
 			wantState:        uploadState{Status: upload.UploadStatusCompleted, SizeBytes: 5},
 		},
 		{
-			name:             "a URL whose request was rejected before storing accepts another upload",
+			name:             "a URL whose request was rejected by the size checks accepts another upload",
 			firstBody:        "",
+			wantFirstStatus:  http.StatusBadRequest,
 			wantSecondStatus: http.StatusOK,
 			wantState:        uploadState{Status: upload.UploadStatusCompleted, SizeBytes: 3},
 		},
@@ -256,7 +259,11 @@ func TestHandler_ServeUploadAcceptsOneUploadPerURL(t *testing.T) {
 			uploadToken := env.store.GetUploadToken("upload-token-1", nil, "field-1")
 			grant := env.issuer.Issue(uploadToken.GetID(), "field-1")
 			urlToken := strings.TrimPrefix(grant.URL, testBaseURL)
-			env.handler.ServeUpload(httptest.NewRecorder(), httptest.NewRequest(http.MethodPut, grant.URL, strings.NewReader(tc.firstBody)), urlToken)
+			first := httptest.NewRecorder()
+			env.handler.ServeUpload(first, httptest.NewRequest(http.MethodPut, grant.URL, strings.NewReader(tc.firstBody)), urlToken)
+			if first.Code != tc.wantFirstStatus {
+				t.Fatalf("status code of the first upload = %d, want %d", first.Code, tc.wantFirstStatus)
+			}
 			rec := httptest.NewRecorder()
 
 			env.handler.ServeUpload(rec, httptest.NewRequest(http.MethodPut, grant.URL, strings.NewReader("abc")), urlToken)
