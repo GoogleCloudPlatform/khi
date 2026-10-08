@@ -38,23 +38,23 @@ var templateFS embed.FS
 
 // InspectionHandler exposes inspection types, inspection listing, inspection summaries, and inspection lifecycle tools over MCP.
 type InspectionHandler struct {
-	server       *coreinspection.InspectionTaskServer
-	uploadURLs   *uploadurl.Issuer
-	templates    *mdtemplate.Set
-	summaryCache map[string]string
-	cacheMu      sync.Mutex
+	server          *coreinspection.InspectionTaskServer
+	uploadURLIssuer *uploadurl.Issuer
+	templates       *mdtemplate.Set
+	summaryCache    map[string]string
+	cacheMu         sync.Mutex
 }
 
 var _ DomainHandler = (*InspectionHandler)(nil)
 
 // NewInspectionHandler creates a new InspectionHandler using the provided InspectionTaskServer.
-// uploadURLs issues the URLs that agents upload files for file form fields to.
-func NewInspectionHandler(server *coreinspection.InspectionTaskServer, uploadURLs *uploadurl.Issuer) *InspectionHandler {
+// uploadURLIssuer issues the URLs that agents upload files for file form fields to.
+func NewInspectionHandler(server *coreinspection.InspectionTaskServer, uploadURLIssuer *uploadurl.Issuer) *InspectionHandler {
 	return &InspectionHandler{
-		server:       server,
-		uploadURLs:   uploadURLs,
-		templates:    mdtemplate.MustParse(templateFS, "templates/*.md.tmpl"),
-		summaryCache: make(map[string]string),
+		server:          server,
+		uploadURLIssuer: uploadURLIssuer,
+		templates:       mdtemplate.MustParse(templateFS, "templates/*.md.tmpl"),
+		summaryCache:    make(map[string]string),
 	}
 }
 

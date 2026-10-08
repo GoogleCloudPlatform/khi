@@ -142,7 +142,7 @@ func TestIssuer_IssueSweepsExpiredURLTokens(t *testing.T) {
 	issuer.Issue("upload-token-1", "field-1")
 	issuer.Issue("upload-token-2", "field-2")
 
-	if got := len(issuer.targets); got != 1 {
-		t.Errorf("len(targets) = %d after issuing twice with zero TTL, want 1", got)
+	if got := len(issuer.targetsByURLToken); got != 1 {
+		t.Errorf("len(targetsByURLToken) = %d after issuing twice with zero TTL, want 1", got)
 	}
 }

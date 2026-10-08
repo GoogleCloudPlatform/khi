@@ -98,10 +98,10 @@ func TestInspectionRun_Golden(t *testing.T) {
 								Hint:        "Location is required.",
 							},
 							{
-								ID:     "auditLogFile",
-								Label:  "Audit log file",
-								Type:   "file",
-								Upload: "COMPLETED, `audit.jsonl`, 20480311 bytes",
+								ID:           "auditLogFile",
+								Label:        "Audit log file",
+								Type:         "file",
+								UploadStatus: "COMPLETED, `audit.jsonl`, 20480311 bytes",
 							},
 						},
 					},
@@ -397,13 +397,13 @@ func TestGroupFormFields(t *testing.T) {
 					{
 						Title: "General",
 						Fields: []formFieldData{
-							{ID: "topFile", Type: "file", Upload: "WAITING", HintType: "Error", Hint: "Waiting a file to be uploaded.", uploadTokenID: "inspection-1_task_topFile"},
+							{ID: "topFile", Type: "file", UploadStatus: "WAITING", HintType: "Error", Hint: "Waiting a file to be uploaded.", uploadTokenID: "inspection-1_task_topFile"},
 						},
 					},
 					{
 						Title: "Upload",
 						Fields: []formFieldData{
-							{ID: "childFile", Type: "file", Upload: "COMPLETED, 2048 bytes", uploadTokenID: "inspection-1_task_childFile"},
+							{ID: "childFile", Type: "file", UploadStatus: "COMPLETED, 2048 bytes", uploadTokenID: "inspection-1_task_childFile"},
 						},
 					},
 				},

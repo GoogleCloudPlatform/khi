@@ -62,9 +62,9 @@ func newHandlerTestEnv(t *testing.T, ttl time.Duration) handlerTestEnv {
 	}
 }
 
-func (e handlerTestEnv) state(t *testing.T, token upload.UploadToken) uploadState {
+func (e handlerTestEnv) state(t *testing.T, uploadToken upload.UploadToken) uploadState {
 	t.Helper()
-	result, err := e.store.GetResult(token, nil)
+	result, err := e.store.GetResult(uploadToken, nil)
 	if err != nil {
 		t.Fatalf("GetResult() returned an unexpected error: %v", err)
 	}

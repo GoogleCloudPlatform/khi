@@ -52,7 +52,7 @@ func (h *InspectionHandler) handleRequestFileUpload(ctx context.Context, req *mc
 			"Call `dry_run_inspection` and use the ID of a field with `Type: file`.")
 	}
 
-	return h.templates.ToolResult("request_file_upload.md.tmpl", h.uploadURLs.Issue(uploadTokenID, in.FieldID))
+	return h.templates.ToolResult("request_file_upload.md.tmpl", h.uploadURLIssuer.Issue(uploadTokenID, in.FieldID))
 }
 
 // findUploadTokenID returns the upload token ID of the file field fieldID in groups.

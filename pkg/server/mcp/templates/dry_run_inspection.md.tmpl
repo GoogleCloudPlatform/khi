@@ -12,8 +12,8 @@ Errors: {{ .ErrorCount }}, warnings: {{ .WarningCount }}. {{ if gt .ErrorCount 0
 - Description: {{ .Description }}
 {{- end }}
 - Type: {{ .Type }}
-{{- if .Upload }}
-- Upload: {{ .Upload }}
+{{- if .UploadStatus }}
+- Upload: {{ .UploadStatus }}
 {{- end }}
 {{- if .Value }}
 - Value: {{ .Value }}

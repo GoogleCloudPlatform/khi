@@ -57,10 +57,10 @@ type formFieldData struct {
 	Default     string
 	Suggestions string
 	Options     string
-	// Upload is the upload status line of a file field. It is empty for other field types.
-	Upload   string
-	HintType string
-	Hint     string
+	// UploadStatus is the upload status line of a file field. It is empty for other field types.
+	UploadStatus string
+	HintType     string
+	Hint         string
 	// uploadTokenID is the upload token that request_file_upload binds an upload URL to. It is empty for non-file fields.
 	uploadTokenID string
 }
@@ -379,7 +379,7 @@ func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[str
 			data.Default = mdtemplate.Code("true")
 		}
 	case inspectionmetadata.FileParameterFormField:
-		data.Upload = fileUploadStatus(tf)
+		data.UploadStatus = fileUploadStatus(tf)
 		data.uploadTokenID = tf.Token.GetID()
 	}
 

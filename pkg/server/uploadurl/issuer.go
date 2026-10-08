@@ -58,18 +58,18 @@ type Issuer struct {
 	maxSizeBytes int64
 	ttl          time.Duration
 
-	mu      sync.Mutex
-	targets map[string]grantTarget
+	mu                sync.Mutex
+	targetsByURLToken map[string]grantTarget
 }
 
 // NewIssuer returns an Issuer whose URLs are baseURL followed by a random URL token.
 // baseURL must end with the path that routes to Handler, including the trailing slash.
 func NewIssuer(baseURL string, maxSizeBytes int64, ttl time.Duration) *Issuer {
 	return &Issuer{
-		baseURL:      baseURL,
-		maxSizeBytes: maxSizeBytes,
-		ttl:          ttl,
-		targets:      make(map[string]grantTarget),
+		baseURL:           baseURL,
+		maxSizeBytes:      maxSizeBytes,
+		ttl:               ttl,
+		targetsByURLToken: make(map[string]grantTarget),
 	}
 }
 
@@ -82,12 +82,12 @@ func (i *Issuer) Issue(uploadTokenID, fieldID string) Grant {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	// Expired URL tokens can never be used again, so dropping them here keeps the map from growing with every issued URL.
-	for issuedURLToken, target := range i.targets {
+	for issuedURLToken, target := range i.targetsByURLToken {
 		if !now.Before(target.expiresAt) {
-			delete(i.targets, issuedURLToken)
+			delete(i.targetsByURLToken, issuedURLToken)
 		}
 	}
-	i.targets[urlToken] = grantTarget{
+	i.targetsByURLToken[urlToken] = grantTarget{
 		uploadTokenID: uploadTokenID,
 		fieldID:       fieldID,
 		expiresAt:     expiresAt,
@@ -105,12 +105,12 @@ func (i *Issuer) Issue(uploadTokenID, fieldID string) Grant {
 func (i *Issuer) resolve(urlToken string) (grantTarget, error) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	target, found := i.targets[urlToken]
+	target, found := i.targetsByURLToken[urlToken]
 	if !found {
 		return grantTarget{}, ErrUnknownURL
 	}
 	if !time.Now().Before(target.expiresAt) {
-		delete(i.targets, urlToken)
+		delete(i.targetsByURLToken, urlToken)
 		return grantTarget{}, ErrExpiredURL
 	}
 	return target, nil
@@ -121,9 +121,9 @@ func (i *Issuer) resolve(urlToken string) (grantTarget, error) {
 func (i *Issuer) consume(urlToken string) bool {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	if _, found := i.targets[urlToken]; !found {
+	if _, found := i.targetsByURLToken[urlToken]; !found {
 		return false
 	}
-	delete(i.targets, urlToken)
+	delete(i.targetsByURLToken, urlToken)
 	return true
 }
