@@ -88,6 +88,11 @@ func (h *Handler) ServeUpload(w http.ResponseWriter, r *http.Request, token stri
 	// The body of a PUT request carries no file name, so the upload is recorded without one.
 	session, err := h.manager.StartUploadSession(target.uploadTokenID, "", size)
 	if err != nil {
+		// StartUploadSession marks the field as uploading before it creates the session, so the failure must be recorded
+		// or the field keeps reporting PROCESSING.
+		if recordErr := h.manager.RecordUploadFailure(target.uploadTokenID, err); recordErr != nil {
+			slog.WarnContext(r.Context(), "failed to record the upload failure", "error", recordErr)
+		}
 		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: fmt.Sprintf("failed to start the upload: %v", err)})
 		return
 	}

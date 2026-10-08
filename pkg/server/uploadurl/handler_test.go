@@ -18,6 +18,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -226,5 +227,39 @@ func TestHandler_ServeUploadOnlyWritesItsOwnField(t *testing.T) {
 	}
 	if diff := cmp.Diff(uploadState{Status: upload.UploadStatusWaiting}, env.state(t, tokenB)); diff != "" {
 		t.Errorf("state of the other field mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestHandler_ServeUploadRecordsSessionStartFailure(t *testing.T) {
+	tempDir := t.TempDir()
+	store := upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(filepath.Join(tempDir, "store")))
+	// A regular file at the upload directory path makes creating the chunk session fail.
+	uploadDir := filepath.Join(tempDir, "upload")
+	if err := os.WriteFile(uploadDir, nil, 0o644); err != nil {
+		t.Fatalf("WriteFile() returned an unexpected error: %v", err)
+	}
+	chunkManager := chunkedupload.NewChunkSessionManager(uploadDir)
+	t.Cleanup(chunkManager.Close)
+	issuer := NewIssuer(testBaseURL, testMaxSizeBytes, time.Hour)
+	handler := NewHandler(issuer, upload.NewFileParameterUploadManager(store, chunkManager))
+	uploadToken := store.GetUploadToken("upload-token-1", nil, "field-1")
+	grant := issuer.Issue(uploadToken.GetID(), "field-1")
+	req := httptest.NewRequest(http.MethodPut, grant.URL, strings.NewReader("hello"))
+	rec := httptest.NewRecorder()
+
+	handler.ServeUpload(rec, req, strings.TrimPrefix(grant.URL, testBaseURL))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("status code = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+	result, err := store.GetResult(uploadToken, nil)
+	if err != nil {
+		t.Fatalf("GetResult() returned an unexpected error: %v", err)
+	}
+	if result.Status != upload.UploadStatusWaiting {
+		t.Errorf("status = %v, want %v", result.Status, upload.UploadStatusWaiting)
+	}
+	if result.UploadError == nil {
+		t.Errorf("UploadError = nil, want the session start failure")
 	}
 }
