@@ -17,8 +17,10 @@ package mcp
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/auth"
@@ -61,6 +63,31 @@ func TestInspectionRun_Golden(t *testing.T) {
 	}
 	// Template rendering does not issue upload URLs.
 	handler := NewInspectionHandler(server, nil)
+
+	defaultedClusterField := formFieldData{
+		ID:             "clusterName",
+		Label:          "Cluster name",
+		Type:           "text",
+		Value:          "`prod-cluster-1`",
+		ValueIsDefault: true,
+		Default:        "`prod-cluster-1`",
+		Suggestions:    "`prod-cluster-1`, `staging-cluster`",
+	}
+	defaultedCheckboxField := formFieldData{
+		ID:             "includeEvents",
+		Label:          "Include events",
+		Type:           "checkbox",
+		Value:          "`false`",
+		ValueIsDefault: true,
+		Default:        "`false`",
+	}
+	passedEndTimeField := formFieldData{
+		ID:      "endTime",
+		Label:   "End time",
+		Type:    "text",
+		Value:   "`2026-09-24T02:00:00Z`",
+		Default: "`2026-09-24T06:40:00Z`",
+	}
 
 	testCases := []struct {
 		name       string
@@ -130,11 +157,38 @@ func TestInspectionRun_Golden(t *testing.T) {
 			},
 		},
 		{
+			name:       "DryRunInspectionWithDefaults",
+			template:   "dry_run_inspection.md.tmpl",
+			goldenFile: "testdata/dry_run_inspection_defaults.golden.md",
+			data: dryRunData{
+				ID:              "2026-09-24-0130-a1b2",
+				DefaultedFields: []formFieldData{defaultedClusterField, defaultedCheckboxField},
+				Groups: []formGroupData{
+					{
+						Title:  "General",
+						Fields: []formFieldData{defaultedClusterField, defaultedCheckboxField},
+					},
+					{
+						Title:  "Time range",
+						Fields: []formFieldData{passedEndTimeField},
+					},
+				},
+				Queries: []queryData{
+					{
+						ID:    "k8s-audit",
+						Name:  "K8s audit logs",
+						Query: "resource.type=\"k8s_cluster\"",
+					},
+				},
+			},
+		},
+		{
 			name:       "RunInspection",
 			template:   "run_inspection.md.tmpl",
 			goldenFile: "testdata/run_inspection.golden.md",
-			data: inspectionIDData{
-				ID: "2026-09-24-0130-a1b2",
+			data: runInspectionData{
+				ID:     "2026-09-24-0130-a1b2",
+				Fields: []formFieldData{defaultedClusterField, defaultedCheckboxField, passedEndTimeField},
 			},
 		},
 		{
@@ -360,6 +414,39 @@ func TestGroupFormFields(t *testing.T) {
 			},
 		},
 		{
+			name: "fields without parameters use their defaults as values",
+			fields: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.TextParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "clusterName", Type: inspectionmetadata.Text},
+					Default:                "default-cluster",
+				},
+				inspectionmetadata.TextParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "noDefault", Type: inspectionmetadata.Text},
+				},
+				inspectionmetadata.SetParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "namespaces", Type: inspectionmetadata.Set},
+					Default:                []string{"default", "kube-system"},
+				},
+				inspectionmetadata.CheckboxParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "includeEvents", Type: inspectionmetadata.Checkbox},
+				},
+			},
+			params: map[string]any{},
+			want: groupResult{
+				Groups: []formGroupData{
+					{
+						Title: "General",
+						Fields: []formFieldData{
+							{ID: "clusterName", Type: "text", Value: "`default-cluster`", ValueIsDefault: true, Default: "`default-cluster`"},
+							{ID: "noDefault", Type: "text"},
+							{ID: "namespaces", Type: "set", Value: "`default`, `kube-system`", ValueIsDefault: true, Default: "`default`, `kube-system`"},
+							{ID: "includeEvents", Type: "checkbox", Value: "`false`", ValueIsDefault: true, Default: "`false`"},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "file fields carry the upload status",
 			fields: []inspectionmetadata.ParameterFormField{
 				inspectionmetadata.FileParameterFormField{
@@ -554,6 +641,113 @@ func TestGroupFormFields(t *testing.T) {
 	}
 }
 
+func TestWithDefaults(t *testing.T) {
+	clusterField := inspectionmetadata.TextParameterFormField{
+		ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "clusterName", Type: inspectionmetadata.Text},
+		Default:                "default-cluster",
+	}
+	testCases := []struct {
+		name   string
+		params map[string]any
+		fields []inspectionmetadata.ParameterFormField
+		want   map[string]any
+	}{
+		{
+			name:   "text, set, and checkbox fields without parameters get their defaults",
+			params: map[string]any{},
+			fields: []inspectionmetadata.ParameterFormField{
+				clusterField,
+				inspectionmetadata.SetParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "namespaces", Type: inspectionmetadata.Set},
+					Default:                []string{"default"},
+				},
+				inspectionmetadata.CheckboxParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "includeEvents", Type: inspectionmetadata.Checkbox},
+				},
+			},
+			want: map[string]any{"clusterName": "default-cluster", "namespaces": []string{"default"}, "includeEvents": false},
+		},
+		{
+			name:   "passed parameters are kept",
+			params: map[string]any{"clusterName": "prod-cluster-1"},
+			fields: []inspectionmetadata.ParameterFormField{clusterField},
+			want:   map[string]any{"clusterName": "prod-cluster-1"},
+		},
+		{
+			name:   "fields in groups get their defaults",
+			params: map[string]any{},
+			fields: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.GroupParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "target", Type: inspectionmetadata.Group},
+					Children:               []inspectionmetadata.ParameterFormField{clusterField},
+				},
+			},
+			want: map[string]any{"clusterName": "default-cluster"},
+		},
+		{
+			name:   "file fields and empty defaults are skipped",
+			params: map[string]any{},
+			fields: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.FileParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "logFile", Type: inspectionmetadata.File},
+				},
+				inspectionmetadata.TextParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "location", Type: inspectionmetadata.Text},
+				},
+				inspectionmetadata.SetParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "namespaces", Type: inspectionmetadata.Set},
+				},
+			},
+			want: map[string]any{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			paramsBefore := maps.Clone(tc.params)
+			got := withDefaults(tc.params, tc.fields)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("withDefaults() mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(paramsBefore, tc.params); diff != "" {
+				t.Errorf("withDefaults() modified params (-before +after):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestFieldsWhere(t *testing.T) {
+	groups := []formGroupData{
+		{Title: "General", Fields: []formFieldData{{ID: "a", ValueIsDefault: true}, {ID: "b"}}},
+		{Title: "Target", Fields: []formFieldData{{ID: "c", ValueIsDefault: true}}},
+	}
+	testCases := []struct {
+		name string
+		keep func(field formFieldData) bool
+		want []formFieldData
+	}{
+		{
+			name: "matching fields of every group in display order",
+			keep: func(field formFieldData) bool { return field.ValueIsDefault },
+			want: []formFieldData{{ID: "a", ValueIsDefault: true}, {ID: "c", ValueIsDefault: true}},
+		},
+		{
+			name: "no matching fields",
+			keep: func(field formFieldData) bool { return false },
+			want: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := fieldsWhere(groups, tc.keep)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("fieldsWhere() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestFileUploadStatus(t *testing.T) {
 	testCases := []struct {
 		name  string
@@ -674,13 +868,33 @@ func TestIsGoogleCloudAuthError(t *testing.T) {
 }
 
 // runInspection starts the inspection and fails the test if run_inspection does not report RUNNING.
+// It checks only the header because the parameters list depends on the enabled features.
+// TestInspectionTools_RunInspection checks the full response.
 func (e *toolsTestEnv) runInspection(t *testing.T, id string, params map[string]any) {
 	t.Helper()
 	text, isError := callTool(t, e.ctx, e.session, "run_inspection", map[string]any{
 		"inspectionId": id,
 		"parameters":   params,
 	})
-	want := fmt.Sprintf("# Started `%s`\n\nStatus: RUNNING. Call `wait_inspection` to wait for the result.", id)
+	header := fmt.Sprintf("# Started `%s`\n\nStatus: RUNNING. Call `wait_inspection` to wait for the result.", id)
+	if isError || !strings.HasPrefix(text, header) {
+		t.Fatalf("run_inspection = %q (isError %v), want a result starting with %q", text, isError, header)
+	}
+}
+
+func TestInspectionTools_RunInspection(t *testing.T) {
+	env := newToolsTestEnv(t)
+	id := env.createInspection(t)
+
+	text, isError := callTool(t, env.ctx, env.session, "run_inspection", map[string]any{
+		"inspectionId": id,
+		"parameters":   map[string]any{"cluster-name": "prod-cluster-1"},
+	})
+	want := fmt.Sprintf("# Started `%s`\n\n"+
+		"Status: RUNNING. Call `wait_inspection` to wait for the result.\n\n"+
+		"## Parameters\n\n"+
+		"- `khi.google.com/inspection/input/inspection-name`: `Google Kubernetes Engine`\n"+
+		"- `cluster-name`: `prod-cluster-1`", id)
 	checkToolResult(t, "run_inspection", text, isError, want, false)
 }
 
@@ -727,7 +941,7 @@ func TestInspectionTools_DryRunInspection(t *testing.T) {
 		},
 	})
 	want := fmt.Sprintf("# Dry run of `%s`\n\n"+
-		"Errors: 0, warnings: 0. Ready to run. Call `run_inspection` with the parameters to start the inspection.\n\n"+
+		"Errors: 0, warnings: 0. Ready to run with the values below. Call `run_inspection` with the parameters to start the inspection.\n\n"+
 		"## Fields\n\n"+
 		"### General\n\n"+
 		"#### `khi.google.com/inspection/input/inspection-name`\n- Label: Inspection name\n- Description: The display name of this inspection.\n- Type: text\n"+

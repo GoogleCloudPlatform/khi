@@ -53,10 +53,13 @@ type formFieldData struct {
 	Label       string
 	Description string
 	Type        string
-	Value       string
-	Default     string
-	Suggestions string
-	Options     string
+	// Value is the value that the inspection uses: the passed parameter, or the default when the parameter is not passed.
+	Value string
+	// ValueIsDefault reports that the parameter is not passed and Value is the default.
+	ValueIsDefault bool
+	Default        string
+	Suggestions    string
+	Options        string
 	// UploadStatus is the upload status line of a file field. It is empty for other field types.
 	UploadStatus string
 	HintType     string
@@ -79,8 +82,16 @@ type dryRunData struct {
 	ID           string
 	ErrorCount   int
 	WarningCount int
-	Groups       []formGroupData
-	Queries      []queryData
+	// DefaultedFields are the fields whose value is the default because the parameter is not passed.
+	DefaultedFields []formFieldData
+	Groups          []formGroupData
+	Queries         []queryData
+}
+
+type runInspectionData struct {
+	ID string
+	// Fields are the fields with a value that the run uses.
+	Fields []formFieldData
 }
 
 type invalidParameterError struct {
@@ -201,8 +212,11 @@ func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *corei
 			ID:           id,
 			ErrorCount:   errCount,
 			WarningCount: warnCount,
-			Groups:       groups,
-			Queries:      queries,
+			DefaultedFields: fieldsWhere(groups, func(field formFieldData) bool {
+				return field.ValueIsDefault
+			}),
+			Groups:  groups,
+			Queries: queries,
 		},
 		formFields:     formFields,
 		preparedParams: preparedParams,
@@ -259,15 +273,71 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 		return mdtemplate.ErrorResult("INVALID_PARAMETERS", bullets...)
 	}
 
+	// Pass the defaults that the dry run showed so that a default computed again at run time cannot differ from them.
 	if err := runner.Run(context.WithoutCancel(ctx), &inspectioncore.InspectionRequest{
-		Values: dryRunOutcome.preparedParams,
+		Values: withDefaults(dryRunOutcome.preparedParams, dryRunOutcome.formFields),
 	}); err != nil {
 		return nil, nil, err
 	}
 
-	return h.templates.ToolResult("run_inspection.md.tmpl", inspectionIDData{
+	return h.templates.ToolResult("run_inspection.md.tmpl", runInspectionData{
 		ID: in.InspectionID,
+		Fields: fieldsWhere(dryRunOutcome.renderData.Groups, func(field formFieldData) bool {
+			return field.Value != ""
+		}),
 	})
+}
+
+// withDefaults returns a copy of params with the default of every text, set, and checkbox field that params does not have,
+// including the fields in groups.
+func withDefaults(params map[string]any, fields []inspectionmetadata.ParameterFormField) map[string]any {
+	result := maps.Clone(params)
+	var addDefaults func(fields []inspectionmetadata.ParameterFormField)
+	addDefaults = func(fields []inspectionmetadata.ParameterFormField) {
+		for _, field := range fields {
+			if group, ok := field.(inspectionmetadata.GroupParameterFormField); ok {
+				addDefaults(group.Children)
+				continue
+			}
+			id := inspectionmetadata.GetParameterFormFieldBase(field).ID
+			if _, passed := result[id]; passed {
+				continue
+			}
+			if value, ok := defaultValue(field); ok {
+				result[id] = value
+			}
+		}
+	}
+	addDefaults(fields)
+	return result
+}
+
+// defaultValue returns the default of a text, set, or checkbox field in the type that the form task accepts.
+// It returns false for other fields and for text and set fields with an empty default.
+func defaultValue(field inspectionmetadata.ParameterFormField) (any, bool) {
+	switch tf := field.(type) {
+	case inspectionmetadata.TextParameterFormField:
+		return tf.Default, tf.Default != ""
+	case inspectionmetadata.SetParameterFormField:
+		return tf.Default, len(tf.Default) > 0
+	case inspectionmetadata.CheckboxParameterFormField:
+		return tf.Default, true
+	default:
+		return nil, false
+	}
+}
+
+// fieldsWhere returns the fields of groups that keep reports true for, in display order.
+func fieldsWhere(groups []formGroupData, keep func(field formFieldData) bool) []formFieldData {
+	var result []formFieldData
+	for _, group := range groups {
+		for _, field := range group.Fields {
+			if keep(field) {
+				result = append(result, field)
+			}
+		}
+	}
+	return result
 }
 
 // groupFormFields organizes flat/nested form fields into Web UI groups and counts errors/warnings.
@@ -340,61 +410,58 @@ func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[str
 		}
 	}
 
-	if val, ok := params[base.ID]; ok {
-		switch v := val.(type) {
-		case []string:
-			if len(v) > 0 {
-				items := make([]string, len(v))
-				for i, s := range v {
-					items[i] = mdtemplate.Code(s)
-				}
-				data.Value = strings.Join(items, ", ")
-			}
-		case string:
-			if v != "" {
-				data.Value = mdtemplate.Code(v)
-			}
-		case bool:
-			data.Value = mdtemplate.Code(strconv.FormatBool(v))
-		}
+	def, hasDefault := defaultValue(field)
+	if hasDefault {
+		data.Default = formatParameterValue(def)
+	}
+	if val, passed := params[base.ID]; passed {
+		data.Value = formatParameterValue(val)
+	} else if hasDefault {
+		data.Value = data.Default
+		data.ValueIsDefault = true
 	}
 
 	switch tf := field.(type) {
 	case inspectionmetadata.TextParameterFormField:
-		if tf.Default != "" {
-			data.Default = mdtemplate.Code(tf.Default)
-		}
-		if len(tf.Suggestions) > 0 {
-			items := make([]string, len(tf.Suggestions))
-			for i, s := range tf.Suggestions {
-				items[i] = mdtemplate.Code(s)
-			}
-			data.Suggestions = strings.Join(items, ", ")
-		}
+		data.Suggestions = codeList(tf.Suggestions)
 	case inspectionmetadata.SetParameterFormField:
-		if len(tf.Default) > 0 {
-			items := make([]string, len(tf.Default))
-			for i, s := range tf.Default {
-				items[i] = mdtemplate.Code(s)
-			}
-			data.Default = strings.Join(items, ", ")
+		ids := make([]string, len(tf.Options))
+		for i, opt := range tf.Options {
+			ids[i] = opt.ID
 		}
-		if len(tf.Options) > 0 {
-			items := make([]string, len(tf.Options))
-			for i, opt := range tf.Options {
-				items[i] = mdtemplate.Code(opt.ID)
-			}
-			data.Options = strings.Join(items, ", ")
-		}
-	case inspectionmetadata.CheckboxParameterFormField:
-		if tf.Default {
-			data.Default = mdtemplate.Code("true")
-		}
+		data.Options = codeList(ids)
 	case inspectionmetadata.FileParameterFormField:
 		data.UploadStatus = fileUploadStatus(tf)
 	}
 
 	return data
+}
+
+// formatParameterValue renders a parameter value of a text, set, or checkbox field as inline code.
+// It returns an empty string for an empty text or set value.
+func formatParameterValue(value any) string {
+	switch v := value.(type) {
+	case []string:
+		return codeList(v)
+	case string:
+		if v == "" {
+			return ""
+		}
+		return mdtemplate.Code(v)
+	case bool:
+		return mdtemplate.Code(strconv.FormatBool(v))
+	default:
+		return ""
+	}
+}
+
+// codeList renders items as a comma separated list of inline code.
+func codeList(items []string) string {
+	codes := make([]string, len(items))
+	for i, item := range items {
+		codes[i] = mdtemplate.Code(item)
+	}
+	return strings.Join(codes, ", ")
 }
 
 // fileUploadStatus returns the upload status line of a file field: WAITING, PROCESSING, ERROR, or COMPLETED with the file size.

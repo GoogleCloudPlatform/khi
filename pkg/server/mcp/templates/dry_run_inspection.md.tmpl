@@ -1,6 +1,12 @@
 # Dry run of {{ code .ID }}
 
-Errors: {{ .ErrorCount }}, warnings: {{ .WarningCount }}. {{ if gt .ErrorCount 0 }}Fix the fields with errors and call `dry_run_inspection` again.{{ else }}Ready to run. Call `run_inspection` with the parameters to start the inspection.{{ end }}
+Errors: {{ .ErrorCount }}, warnings: {{ .WarningCount }}. {{ if gt .ErrorCount 0 }}Fix the fields with errors and call `dry_run_inspection` again.{{ else }}Ready to run with the values below. Call `run_inspection` with the parameters to start the inspection.{{ end }}
+{{- if and (eq .ErrorCount 0) .DefaultedFields }}
+These fields use default values because you did not specify them. Pass them explicitly if they are not what you intend:
+{{- range .DefaultedFields }}
+- {{ code .ID }}: {{ .Value }}
+{{- end }}
+{{- end }}
 
 ## Fields
 {{ range .Groups }}
@@ -16,9 +22,9 @@ Errors: {{ .ErrorCount }}, warnings: {{ .WarningCount }}. {{ if gt .ErrorCount 0
 - Upload: {{ .UploadStatus }}
 {{- end }}
 {{- if .Value }}
-- Value: {{ .Value }}
+- Value: {{ .Value }}{{ if .ValueIsDefault }} (default){{ end }}
 {{- end }}
-{{- if .Default }}
+{{- if and .Default (not .ValueIsDefault) }}
 - Default: {{ .Default }}
 {{- end }}
 {{- if .Suggestions }}

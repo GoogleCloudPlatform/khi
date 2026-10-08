@@ -191,6 +191,7 @@ func logFileDryRunText(id, summary, fieldLines string) string {
 
 func TestInspectionTools_FileUpload(t *testing.T) {
 	const notReadySummary = "Errors: 1, warnings: 0. Fix the fields with errors and call `dry_run_inspection` again."
+	const readySummary = "Errors: 0, warnings: 0. Ready to run with the values below. Call `run_inspection` with the parameters to start the inspection."
 
 	t.Run("upload, verify and run", func(t *testing.T) {
 		env := newToolsTestEnv(t)
@@ -210,7 +211,7 @@ func TestInspectionTools_FileUpload(t *testing.T) {
 		}
 
 		text = env.dryRunUntilUploadSettles(t, id)
-		want = logFileDryRunText(id, "Errors: 0, warnings: 0. Ready to run. Call `run_inspection` with the parameters to start the inspection.", "- Upload: COMPLETED, 8 bytes")
+		want = logFileDryRunText(id, readySummary, "- Upload: COMPLETED, 8 bytes")
 		checkToolResult(t, "dry_run_inspection", text, false, want, false)
 
 		env.runInspection(t, id, map[string]any{})
@@ -254,7 +255,7 @@ func TestInspectionTools_FileUpload(t *testing.T) {
 			t.Fatalf("second upload status = %d, want %d: %s", status, http.StatusOK, body)
 		}
 		text = env.dryRunUntilUploadSettles(t, id)
-		want := logFileDryRunText(id, "Errors: 0, warnings: 0. Ready to run. Call `run_inspection` with the parameters to start the inspection.", "- Upload: COMPLETED, 8 bytes")
+		want := logFileDryRunText(id, readySummary, "- Upload: COMPLETED, 8 bytes")
 		checkToolResult(t, "dry_run_inspection", text, false, want, false)
 	})
 
