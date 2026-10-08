@@ -107,14 +107,14 @@ func PageFooter(nextPageToken string) string {
 //go:embed templates/*.md.tmpl
 var builtinTemplateFS embed.FS
 
-// yamlBlock formats s as a YAML literal block scalar indented by two spaces so that query text such as `!has(x)` or `a: b` stays verbatim.
-// It returns an empty quoted string for an empty s, and adds an explicit indentation indicator when the text starts with spaces because YAML would otherwise take them as indentation.
+// yamlBlock formats s as a YAML literal block scalar indented by two spaces so that query text such as `!has(x)` or `a: b` stays verbatim except for trailing newlines.
+// It returns an empty quoted string for an empty s, and adds an explicit indentation indicator when the first non-empty line starts with spaces or tabs because YAML would otherwise detect the indentation from them.
 func yamlBlock(s string) string {
 	if s == "" {
 		return `""`
 	}
 	header := "|-"
-	if strings.HasPrefix(strings.TrimLeft(s, "\n"), " ") {
+	if body := strings.TrimLeft(s, "\n"); strings.HasPrefix(body, " ") || strings.HasPrefix(body, "\t") {
 		header = "|2-"
 	}
 	return header + "\n  " + strings.ReplaceAll(s, "\n", "\n  ")

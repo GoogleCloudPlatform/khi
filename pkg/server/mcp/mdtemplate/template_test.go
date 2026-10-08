@@ -736,6 +736,24 @@ func TestFormatAppliedFilter(t *testing.T) {
 				"```",
 		},
 		{
+			name: "queries led by tabs or blank lines",
+			input: workbench.AppliedFilter{
+				TimelineQuery:          "\tt.name == \"a\"",
+				TimelineExclusionQuery: "\n\tt.name == \"b\"",
+				LogQuery:               "\n  severity >= WARNING",
+			},
+			want: "## Applied filter\n" +
+				"Enter these values in the KHI Web UI filter to see the same data.\n\n" +
+				"```yaml\n" +
+				"timelineQuery: |2-\n  \tt.name == \"a\"\n" +
+				"timelineExclusionQuery: |2-\n  \n  \tt.name == \"b\"\n" +
+				"logQuery: |2-\n  \n    severity >= WARNING\n" +
+				"startTime: \"\"\n" +
+				"endTime: \"\"\n" +
+				"excludeTimelinesWithoutLogs: false\n" +
+				"```",
+		},
+		{
 			name: "empty filter with zero timestamps",
 			input: workbench.AppliedFilter{
 				ExcludeTimelinesWithoutLogs: false,
