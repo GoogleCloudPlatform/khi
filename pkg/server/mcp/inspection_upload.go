@@ -41,12 +41,12 @@ func (h *InspectionHandler) handleRequestFileUpload(ctx context.Context, req *mc
 	}
 
 	// The dry run registers the upload token of each file field, so the URL is bound to a token that the run reads.
-	dryRunRes, errRes, err := h.dryRun(ctx, in.InspectionID, runner, nil, "request_file_upload")
+	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, nil, "request_file_upload")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}
 
-	fileField, found := findFileField(dryRunRes.formFields, in.FieldID)
+	fileField, found := findFileField(dryRunOutcome.formFields, in.FieldID)
 	if !found {
 		return mdtemplate.ErrorResult("FILE_FIELD_NOT_FOUND",
 			fmt.Sprintf("Inspection %s has no field %s with `Type: file`.", mdtemplate.Code(in.InspectionID), mdtemplate.Code(in.FieldID)),

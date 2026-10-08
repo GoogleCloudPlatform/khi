@@ -144,8 +144,8 @@ func (h *InspectionHandler) prepareParameters(id string, rawParams map[string]an
 
 // dryRunResult is the outcome of a successful dry run.
 type dryRunResult struct {
-	// data is the render model of dry_run_inspection.
-	data *dryRunData
+	// renderData is the render model of dry_run_inspection.
+	renderData *dryRunData
 	// formFields are the form fields that the dry run returned, before they are converted for rendering.
 	formFields []inspectionmetadata.ParameterFormField
 	// preparedParams are the parameters that the dry run used, which run_inspection passes to the run.
@@ -167,7 +167,7 @@ func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *corei
 		return nil, errRes, err
 	}
 
-	result, err := runner.DryRun(ctx, &inspectioncore.InspectionRequest{
+	coreResult, err := runner.DryRun(ctx, &inspectioncore.InspectionRequest{
 		Values: preparedParams,
 	})
 	if err != nil {
@@ -178,7 +178,7 @@ func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *corei
 		return nil, nil, err
 	}
 
-	mdMap, ok := result.Metadata.(map[string]interface{})
+	mdMap, ok := coreResult.Metadata.(map[string]interface{})
 	if !ok {
 		return nil, nil, fmt.Errorf("unexpected dryrun metadata format")
 	}
@@ -197,7 +197,7 @@ func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *corei
 	queries := toQueryData(queryItems)
 
 	return &dryRunResult{
-		data: &dryRunData{
+		renderData: &dryRunData{
 			ID:           id,
 			ErrorCount:   errCount,
 			WarningCount: warnCount,
@@ -219,12 +219,12 @@ func (h *InspectionHandler) handleDryRunInspection(ctx context.Context, req *mcp
 		return inspectionAlreadyStartedResult(in.InspectionID)
 	}
 
-	dryRunRes, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "dry_run_inspection")
+	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "dry_run_inspection")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}
 
-	return h.templates.ToolResult("dry_run_inspection.md.tmpl", *dryRunRes.data)
+	return h.templates.ToolResult("dry_run_inspection.md.tmpl", *dryRunOutcome.renderData)
 }
 
 type inspectionIDData struct {
@@ -241,13 +241,13 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 		return inspectionAlreadyStartedResult(in.InspectionID)
 	}
 
-	dryRunRes, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "run_inspection")
+	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "run_inspection")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}
 
 	var bullets []string
-	for _, group := range dryRunRes.data.Groups {
+	for _, group := range dryRunOutcome.renderData.Groups {
 		for _, field := range group.Fields {
 			if field.HintType == "Error" && field.Hint != "" {
 				bullets = append(bullets, fmt.Sprintf("%s: %s", mdtemplate.Code(field.ID), field.Hint))
@@ -260,7 +260,7 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 	}
 
 	if err := runner.Run(context.WithoutCancel(ctx), &inspectioncore.InspectionRequest{
-		Values: dryRunRes.preparedParams,
+		Values: dryRunOutcome.preparedParams,
 	}); err != nil {
 		return nil, nil, err
 	}
