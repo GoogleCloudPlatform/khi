@@ -330,6 +330,46 @@ func TestDefineSetForm(t *testing.T) {
 			sourceValue:  []string{"opt1"},
 			wantErr:      true,
 		},
+		{
+			name:         "a string value becomes a validation error in dry run",
+			task:         makeTask(nil),
+			taskMode:     inspectioncore.TaskModeDryRun,
+			requestValue: map[string]any{formID.ReferenceIDString(): "opt1 opt2"},
+			sourceValue:  []string{"opt1"},
+			wantValue:    []string{"opt1"},
+			checkField: func(t *testing.T, field inspectionmetadata.SetParameterFormField) {
+				if field.HintType != inspectionmetadata.Error {
+					t.Errorf("field.HintType = %v, want %v", field.HintType, inspectionmetadata.Error)
+				}
+				if field.Hint != setFormNotStringArrayHint {
+					t.Errorf("field.Hint = %q, want %q", field.Hint, setFormNotStringArrayHint)
+				}
+			},
+		},
+		{
+			name:         "an array with a non-string element becomes a validation error in dry run",
+			task:         makeTask(nil),
+			taskMode:     inspectioncore.TaskModeDryRun,
+			requestValue: map[string]any{formID.ReferenceIDString(): []any{"opt1", 2.0}},
+			sourceValue:  []string{"opt1"},
+			wantValue:    []string{"opt1"},
+			checkField: func(t *testing.T, field inspectionmetadata.SetParameterFormField) {
+				if field.HintType != inspectionmetadata.Error {
+					t.Errorf("field.HintType = %v, want %v", field.HintType, inspectionmetadata.Error)
+				}
+				if field.Hint != setFormNotStringArrayHint {
+					t.Errorf("field.Hint = %q, want %q", field.Hint, setFormNotStringArrayHint)
+				}
+			},
+		},
+		{
+			name:         "run mode rejects a value that is not an array",
+			task:         makeTask(nil),
+			taskMode:     inspectioncore.TaskModeRun,
+			requestValue: map[string]any{formID.ReferenceIDString(): "opt1"},
+			sourceValue:  []string{"opt1"},
+			wantErr:      true,
+		},
 	}
 
 	for _, tc := range testCases {

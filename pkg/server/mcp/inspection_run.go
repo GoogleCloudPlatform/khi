@@ -39,13 +39,13 @@ import (
 // DryRunInspectionInput defines the input parameters for the dry_run_inspection tool.
 type DryRunInspectionInput struct {
 	InspectionID string         `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
-	Parameters   map[string]any `json:"parameters,omitempty" jsonschema:"Key-value map of form parameters. Time range parameters should be in UTC RFC3339 format. Wider time ranges increase execution time and memory usage."`
+	Parameters   map[string]any `json:"parameters,omitempty" jsonschema:"Key-value map of form parameters. Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. File fields cannot be set here; upload the file with request_file_upload. Time range parameters should be in UTC RFC3339 format. Wider time ranges increase execution time and memory usage."`
 }
 
 // RunInspectionInput defines the input parameters for the run_inspection tool.
 type RunInspectionInput struct {
 	InspectionID string         `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
-	Parameters   map[string]any `json:"parameters,omitempty" jsonschema:"Key-value map of form parameters. Time range parameters should be in UTC RFC3339 format. Wider time ranges increase execution time and memory usage."`
+	Parameters   map[string]any `json:"parameters,omitempty" jsonschema:"Key-value map of form parameters. Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. File fields cannot be set here; upload the file with request_file_upload. Time range parameters should be in UTC RFC3339 format. Wider time ranges increase execution time and memory usage."`
 }
 
 type formFieldData struct {

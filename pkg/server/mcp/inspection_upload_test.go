@@ -183,6 +183,7 @@ func (e *toolsTestEnv) dryRunUntilUploadSettles(t *testing.T, id string) string 
 func logFileDryRunText(id, summary, fieldLines string) string {
 	return fmt.Sprintf("# Dry run of `%s`\n\n%s\n\n"+
 		"## Fields\n\n"+
+		"Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`.\n\n"+
 		"### General\n\n"+
 		"#### `khi.google.com/inspection/input/inspection-name`\n- Label: Inspection name\n- Description: The display name of this inspection.\n- Type: text\n"+
 		"- Value: `Google Kubernetes Engine`\n- Default: `Google Kubernetes Engine`\n\n"+

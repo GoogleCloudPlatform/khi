@@ -943,6 +943,7 @@ func TestInspectionTools_DryRunInspection(t *testing.T) {
 	want := fmt.Sprintf("# Dry run of `%s`\n\n"+
 		"Errors: 0, warnings: 0. Ready to run with the values below. Call `run_inspection` with the parameters to start the inspection.\n\n"+
 		"## Fields\n\n"+
+		"Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`.\n\n"+
 		"### General\n\n"+
 		"#### `khi.google.com/inspection/input/inspection-name`\n- Label: Inspection name\n- Description: The display name of this inspection.\n- Type: text\n"+
 		"- Value: `Google Kubernetes Engine`\n- Default: `Google Kubernetes Engine`\n\n"+

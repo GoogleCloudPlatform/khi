@@ -43,7 +43,7 @@ var inputContainerQueryNamespaceFilterTask = formtask.DefineSetForm(
 	priorityForContainerGroup+1000,
 	"Namespaces(Container logs)",
 	`Container logs tend to be a lot and take very long time to query.
-Specify the space splitted namespace lists to query container logs only in the specific namespaces.`,
+Specify the namespaces to query container logs from.`,
 	func(b *coretask.Binder) formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult] {
 		namespaces := coretask.Use(b, k8scommon.AutocompleteNamespacesTaskID.Ref())
 		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{
@@ -108,7 +108,7 @@ var inputContainerQueryPodNamesFilterTask = formtask.DefineSetForm(
 	priorityForContainerGroup+2000,
 	"Pod names(Container logs)",
 	`Container logs tend to be a lot and take very long time to query.
-	Specify the space splitted pod names lists to query container logs only in the specific pods.
+	Specify the pod names to query container logs from.
 	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.`,
 	func(b *coretask.Binder) formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult] {
 		podNames := coretask.Use(b, k8scommon.AutocompletePodNamesTaskID.Ref())

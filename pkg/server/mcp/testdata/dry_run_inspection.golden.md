@@ -4,6 +4,8 @@ Errors: 1, warnings: 0. Fix the fields with errors and call `dry_run_inspection`
 
 ## Fields
 
+Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`.
+
 ### Target
 
 #### `clusterName`

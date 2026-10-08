@@ -86,6 +86,30 @@ func newSetFormTask[T any](id taskid.TaskImplementationID[T], priority int, labe
 	}
 }
 
+// setFormNotStringArrayHint is the validation error of a set form given a value that is not an array of strings.
+const setFormNotStringArrayHint = "The value must be an array of strings."
+
+// toStringSlice converts a request value to a string slice.
+// JSON decoding gives []any and MCP parameters give []string; it returns false for any other value.
+func toStringSlice(value any) ([]string, bool) {
+	switch v := value.(type) {
+	case []string:
+		return v, true
+	case []any:
+		strs := make([]string, len(v))
+		for i, elem := range v {
+			str, ok := elem.(string)
+			if !ok {
+				return nil, false
+			}
+			strs[i] = str
+		}
+		return strs, true
+	default:
+		return nil, false
+	}
+}
+
 // run computes the form field metadata and returns the converted value of the current input.
 func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 	m := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
@@ -123,26 +147,12 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 	field.Default = defaultValue
 	currentValue = defaultValue
 
+	var validationErr string
 	if valueRaw, exist := req[b.id.ReferenceIDString()]; exist && valueRaw != nil {
-		valueSlice, isSlice := valueRaw.([]interface{})
-		if !isSlice {
-			// Also try to handle string[] (though json unmarshal usually gives []interface{})
-			if strSlice, ok := valueRaw.([]string); ok {
-				currentValue = strSlice
-			} else {
-				return *new(T), fmt.Errorf("request parameter `%s` was not given in array in task %s", b.id, b.id)
-			}
-		} else {
-			// Convert []interface{} to []string
-			strs := make([]string, len(valueSlice))
-			for i, v := range valueSlice {
-				str, ok := v.(string)
-				if !ok {
-					return *new(T), fmt.Errorf("request parameter `%s` contains non-string value at index %d", b.id, i)
-				}
-				strs[i] = str
-			}
+		if strs, ok := toStringSlice(valueRaw); ok {
 			currentValue = strs
+		} else {
+			validationErr = setFormNotStringArrayHint
 		}
 	}
 
@@ -157,9 +167,11 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 	}
 	field.Options = options
 
-	validationErr, err := b.validator(ctx, currentValue)
-	if err != nil {
-		return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%v", b.id, err)
+	if validationErr == "" {
+		validationErr, err = b.validator(ctx, currentValue)
+		if err != nil {
+			return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%v", b.id, err)
+		}
 	}
 	if validationErr != "" {
 		// When invalid, fallback to default

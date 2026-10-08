@@ -7,6 +7,8 @@ These fields use default values because you did not specify them. Pass them expl
 
 ## Fields
 
+Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`.
+
 ### General
 
 #### `clusterName`
