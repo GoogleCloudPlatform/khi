@@ -259,7 +259,7 @@ func TestHandler_ServeUploadRecordsSessionStartFailure(t *testing.T) {
 	if result.Status != upload.UploadStatusWaiting {
 		t.Errorf("status = %v, want %v", result.Status, upload.UploadStatusWaiting)
 	}
-	if result.UploadError == nil {
-		t.Errorf("UploadError = nil, want the session start failure")
+	if result.UploadError == nil || !strings.Contains(result.UploadError.Error(), "failed to create upload directory") {
+		t.Errorf("UploadError = %v, want the session start failure", result.UploadError)
 	}
 }

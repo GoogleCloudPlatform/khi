@@ -66,6 +66,10 @@ func (m *FileParameterUploadManager) StartUploadSession(uploadTokenID string, fi
 
 	session, err := m.chunkManager.StartSession(fileName, totalSizeBytes)
 	if err != nil {
+		// The status is already Uploading, so record the failure to let the form accept another upload.
+		if recordErr := m.uploadStore.SetResultOnCompletedUpload(token, err); recordErr != nil {
+			return nil, errors.Join(err, recordErr)
+		}
 		return nil, err
 	}
 

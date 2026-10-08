@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
@@ -267,5 +268,34 @@ func TestFileParameterUploadManager_RecordUploadFailure(t *testing.T) {
 				t.Errorf("UploadError = %v, want %v", res.UploadError, tc.wantUploadError)
 			}
 		})
+	}
+}
+
+func TestFileParameterUploadManager_StartUploadSessionRecordsSessionStartFailure(t *testing.T) {
+	tempDir := t.TempDir()
+	uploadStore := NewUploadFileStore(NewLocalUploadFileStoreProvider(filepath.Join(tempDir, "store")))
+	// A regular file at the upload directory path makes creating the chunk session fail.
+	uploadDir := filepath.Join(tempDir, "upload")
+	if err := os.WriteFile(uploadDir, nil, 0o644); err != nil {
+		t.Fatalf("WriteFile() returned an unexpected error: %v", err)
+	}
+	chunkManager := chunkedupload.NewChunkSessionManager(uploadDir)
+	defer chunkManager.Close()
+	mgr := NewFileParameterUploadManager(uploadStore, chunkManager)
+	token := uploadStore.GetUploadToken("field-upload-5", nil, "field-5")
+
+	if _, err := mgr.StartUploadSession(token.GetID(), "test.log", 10); err == nil {
+		t.Fatal("StartUploadSession() error = nil, want the session start failure")
+	}
+
+	res, err := uploadStore.GetResult(token, nil)
+	if err != nil {
+		t.Fatalf("GetResult failed: %v", err)
+	}
+	if res.Status != UploadStatusWaiting {
+		t.Errorf("Status = %v, want %v", res.Status, UploadStatusWaiting)
+	}
+	if res.UploadError == nil || !strings.Contains(res.UploadError.Error(), "failed to create upload directory") {
+		t.Errorf("UploadError = %v, want the session start failure", res.UploadError)
 	}
 }
