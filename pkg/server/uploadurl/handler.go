@@ -78,12 +78,12 @@ func (h *Handler) ServeUpload(w http.ResponseWriter, r *http.Request, urlToken s
 	// An upload URL accepts a single upload so that concurrent uploads cannot overwrite each other.
 	// The size checks run before the claim so that requests rejected by them leave the URL usable.
 	target, err := h.issuer.claim(urlToken)
-	switch {
-	case errors.Is(err, ErrUnknownURL):
-		writeJSON(w, http.StatusNotFound, errorResponse{Error: err.Error() + ". Request a new upload URL."})
-		return
-	case errors.Is(err, ErrExpiredURL):
-		writeJSON(w, http.StatusGone, errorResponse{Error: err.Error() + ". Request a new upload URL."})
+	if err != nil {
+		status := http.StatusNotFound
+		if errors.Is(err, ErrExpiredURL) {
+			status = http.StatusGone
+		}
+		writeJSON(w, status, errorResponse{Error: err.Error() + ". Request a new upload URL."})
 		return
 	}
 
