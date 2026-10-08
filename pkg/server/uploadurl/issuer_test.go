@@ -45,13 +45,13 @@ func TestIssuer_Issue(t *testing.T) {
 		t.Errorf("Issue().ExpiresAt = %v, want at least %v", grant.ExpiresAt, before.Add(time.Hour))
 	}
 
-	got, err := issuer.resolve(urlToken)
+	got, err := issuer.claim(urlToken)
 	if err != nil {
-		t.Fatalf("resolve() returned an unexpected error: %v", err)
+		t.Fatalf("claim() returned an unexpected error: %v", err)
 	}
 	want := grantTarget{uploadTokenID: "upload-token-1", fieldID: "field-1", expiresAt: grant.ExpiresAt}
 	if diff := cmp.Diff(want, got, cmp.AllowUnexported(grantTarget{})); diff != "" {
-		t.Errorf("resolve() mismatch (-want +got):\n%s", diff)
+		t.Errorf("claim() mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -66,19 +66,21 @@ func TestIssuer_IssueReturnsDistinctURLs(t *testing.T) {
 	}
 }
 
-func TestIssuer_Resolve(t *testing.T) {
+func TestIssuer_Claim(t *testing.T) {
 	testCases := []struct {
-		name     string
-		ttl      time.Duration
-		urlToken func(grant Grant) string
-		wantErr  error
+		name          string
+		ttl           time.Duration
+		urlToken      func(grant Grant) string
+		wantErr       error
+		wantSecondErr error
 	}{
 		{
-			name: "issued URL token resolves",
+			name: "issued URL token is claimed once",
 			ttl:  time.Hour,
 			urlToken: func(grant Grant) string {
 				return strings.TrimPrefix(grant.URL, testBaseURL)
 			},
+			wantSecondErr: ErrUnknownURL,
 		},
 		{
 			name: "URL token never issued is unknown",
@@ -86,54 +88,31 @@ func TestIssuer_Resolve(t *testing.T) {
 			urlToken: func(grant Grant) string {
 				return "not-issued"
 			},
-			wantErr: ErrUnknownURL,
+			wantErr:       ErrUnknownURL,
+			wantSecondErr: ErrUnknownURL,
 		},
 		{
-			name: "URL token past its expiry is expired",
+			name: "URL token past its expiry is expired and then forgotten",
 			ttl:  0,
 			urlToken: func(grant Grant) string {
 				return strings.TrimPrefix(grant.URL, testBaseURL)
 			},
-			wantErr: ErrExpiredURL,
+			wantErr:       ErrExpiredURL,
+			wantSecondErr: ErrUnknownURL,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			issuer := NewIssuer(testBaseURL, 1024, tc.ttl)
-			grant := issuer.Issue("upload-token-1", "field-1")
+			urlToken := tc.urlToken(issuer.Issue("upload-token-1", "field-1"))
 
-			_, err := issuer.resolve(tc.urlToken(grant))
-			if !errors.Is(err, tc.wantErr) {
-				t.Errorf("resolve() error = %v, want %v", err, tc.wantErr)
+			if _, err := issuer.claim(urlToken); !errors.Is(err, tc.wantErr) {
+				t.Errorf("first claim() error = %v, want %v", err, tc.wantErr)
+			}
+			if _, err := issuer.claim(urlToken); !errors.Is(err, tc.wantSecondErr) {
+				t.Errorf("second claim() error = %v, want %v", err, tc.wantSecondErr)
 			}
 		})
-	}
-}
-
-func TestIssuer_ResolveForgetsExpiredURLToken(t *testing.T) {
-	issuer := NewIssuer(testBaseURL, 1024, 0)
-	urlToken := strings.TrimPrefix(issuer.Issue("upload-token-1", "field-1").URL, testBaseURL)
-
-	if _, err := issuer.resolve(urlToken); !errors.Is(err, ErrExpiredURL) {
-		t.Fatalf("first resolve() error = %v, want %v", err, ErrExpiredURL)
-	}
-	if _, err := issuer.resolve(urlToken); !errors.Is(err, ErrUnknownURL) {
-		t.Errorf("second resolve() error = %v, want %v", err, ErrUnknownURL)
-	}
-}
-
-func TestIssuer_Consume(t *testing.T) {
-	issuer := NewIssuer(testBaseURL, 1024, time.Hour)
-	urlToken := strings.TrimPrefix(issuer.Issue("upload-token-1", "field-1").URL, testBaseURL)
-
-	if !issuer.consume(urlToken) {
-		t.Fatal("first consume() = false, want true")
-	}
-	if issuer.consume(urlToken) {
-		t.Error("second consume() = true, want false")
-	}
-	if _, err := issuer.resolve(urlToken); !errors.Is(err, ErrUnknownURL) {
-		t.Errorf("resolve() after consume() error = %v, want %v", err, ErrUnknownURL)
 	}
 }
 
@@ -152,7 +131,7 @@ func TestIssuer_IssueKeepsUnexpiredURLTokens(t *testing.T) {
 	firstURLToken := strings.TrimPrefix(issuer.Issue("upload-token-1", "field-1").URL, testBaseURL)
 	issuer.Issue("upload-token-2", "field-2")
 
-	if _, err := issuer.resolve(firstURLToken); err != nil {
-		t.Errorf("resolve() of the first URL token after issuing another URL returned an unexpected error: %v", err)
+	if _, err := issuer.claim(firstURLToken); err != nil {
+		t.Errorf("claim() of the first URL token after issuing another URL returned an unexpected error: %v", err)
 	}
 }

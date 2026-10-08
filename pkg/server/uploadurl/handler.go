@@ -60,16 +60,6 @@ func NewHandler(issuer *Issuer, manager *upload.FileParameterUploadManager) *Han
 // ServeUpload stores the request body as the file of the field that urlToken was issued for.
 // The request must declare the body size in Content-Length.
 func (h *Handler) ServeUpload(w http.ResponseWriter, r *http.Request, urlToken string) {
-	target, err := h.issuer.resolve(urlToken)
-	switch {
-	case errors.Is(err, ErrUnknownURL):
-		writeJSON(w, http.StatusNotFound, errorResponse{Error: err.Error() + ". Request a new upload URL."})
-		return
-	case errors.Is(err, ErrExpiredURL):
-		writeJSON(w, http.StatusGone, errorResponse{Error: err.Error() + ". Request a new upload URL."})
-		return
-	}
-
 	size := r.ContentLength
 	switch {
 	case size < 0:
@@ -86,9 +76,14 @@ func (h *Handler) ServeUpload(w http.ResponseWriter, r *http.Request, urlToken s
 	}
 
 	// An upload URL accepts a single upload so that concurrent uploads cannot overwrite each other.
-	// Requests rejected above leave the URL usable because they did not touch the stored file.
-	if !h.issuer.consume(urlToken) {
-		writeJSON(w, http.StatusNotFound, errorResponse{Error: ErrUnknownURL.Error() + ". Request a new upload URL."})
+	// The size checks run before the claim so that requests rejected by them leave the URL usable.
+	target, err := h.issuer.claim(urlToken)
+	switch {
+	case errors.Is(err, ErrUnknownURL):
+		writeJSON(w, http.StatusNotFound, errorResponse{Error: err.Error() + ". Request a new upload URL."})
+		return
+	case errors.Is(err, ErrExpiredURL):
+		writeJSON(w, http.StatusGone, errorResponse{Error: err.Error() + ". Request a new upload URL."})
 		return
 	}
 

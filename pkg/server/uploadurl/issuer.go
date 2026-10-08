@@ -27,7 +27,7 @@ import (
 const DefaultTTL = 30 * time.Minute
 
 var (
-	// ErrUnknownURL is returned when an upload URL token was never issued.
+	// ErrUnknownURL is returned when an upload URL token was never issued or has already been claimed.
 	ErrUnknownURL = errors.New("unknown upload URL")
 	// ErrExpiredURL is returned when an upload URL token is used after it expires.
 	ErrExpiredURL = errors.New("upload URL has expired")
@@ -45,14 +45,14 @@ type Grant struct {
 	ExpiresAt time.Time
 }
 
-// grantTarget is what an issued URL token resolves to.
+// grantTarget is what claim returns for an issued URL token.
 type grantTarget struct {
 	uploadTokenID string
 	fieldID       string
 	expiresAt     time.Time
 }
 
-// Issuer issues upload URLs and resolves the URL tokens in them. Each URL is bound to the upload token of one file form field.
+// Issuer issues upload URLs and claims the URL tokens in them. Each URL is bound to the upload token of one file form field.
 type Issuer struct {
 	baseURL      string
 	maxSizeBytes int64
@@ -101,29 +101,18 @@ func (i *Issuer) Issue(uploadTokenID, fieldID string) Grant {
 	}
 }
 
-// resolve returns the target of urlToken, or ErrUnknownURL or ErrExpiredURL when the URL token cannot be used.
-func (i *Issuer) resolve(urlToken string) (grantTarget, error) {
+// claim returns the target of urlToken and removes urlToken so that its URL accepts no further uploads.
+// It returns ErrUnknownURL when urlToken was never issued or was already claimed, and ErrExpiredURL when urlToken has expired.
+func (i *Issuer) claim(urlToken string) (grantTarget, error) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	target, found := i.targetsByURLToken[urlToken]
 	if !found {
 		return grantTarget{}, ErrUnknownURL
 	}
+	delete(i.targetsByURLToken, urlToken)
 	if !time.Now().Before(target.expiresAt) {
-		delete(i.targetsByURLToken, urlToken)
 		return grantTarget{}, ErrExpiredURL
 	}
 	return target, nil
-}
-
-// consume removes urlToken so that its URL accepts no further uploads.
-// It returns false when another request already consumed urlToken.
-func (i *Issuer) consume(urlToken string) bool {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	if _, found := i.targetsByURLToken[urlToken]; !found {
-		return false
-	}
-	delete(i.targetsByURLToken, urlToken)
-	return true
 }
