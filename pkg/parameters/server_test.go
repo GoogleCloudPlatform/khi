@@ -41,6 +41,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				PublicURL:                testutil.P(""),
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -57,6 +58,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				PublicURL:                testutil.P(""),
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/bar/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -73,6 +75,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				PublicURL:                testutil.P(""),
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -89,6 +92,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				PublicURL:                testutil.P(""),
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -110,6 +114,7 @@ func TestServerParameters(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			prepareFlagParsingTest(t)
+			t.Setenv("KHI_PUBLIC_URL", "")
 			store := &ServerParameters{}
 			tc.before()
 			ResetStore()
@@ -129,6 +134,67 @@ func TestServerParameters(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, store); diff != "" {
 				t.Errorf("unexpected result (-want +got)\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestServerParameters_PublicURL(t *testing.T) {
+	testCases := []struct {
+		name            string
+		args            []string
+		env             string
+		want            string
+		wantErrContains string
+	}{
+		{name: "unset"},
+		{name: "HTTP URL", args: []string{"--public-url=http://khi.example.com:9000"}, want: "http://khi.example.com:9000"},
+		{name: "HTTPS URL with prefix", args: []string{"--public-url=https://khi.example.com/proxy/khi/"}, want: "https://khi.example.com/proxy/khi/"},
+		{name: "IPv6 URL", args: []string{"--public-url=http://[::1]:8080/khi"}, want: "http://[::1]:8080/khi"},
+		{name: "escaped path", args: []string{"--public-url=https://khi.example.com/team%20one"}, want: "https://khi.example.com/team%20one"},
+		{name: "environment variable", env: "https://khi.example.com/khi", want: "https://khi.example.com/khi"},
+		{name: "flag overrides environment", args: []string{"--public-url=http://localhost:9000"}, env: "https://khi.example.com/khi", want: "http://localhost:9000"},
+		{name: "explicit empty flag overrides environment", args: []string{"--public-url="}, env: "https://khi.example.com/khi"},
+		{name: "relative URL", args: []string{"--public-url=/khi"}, wantErrContains: "--public-url must be an absolute HTTP or HTTPS URL"},
+		{name: "unsupported scheme", args: []string{"--public-url=ftp://khi.example.com"}, wantErrContains: "--public-url must be an absolute HTTP or HTTPS URL"},
+		{name: "missing host", args: []string{"--public-url=https:///khi"}, wantErrContains: "--public-url must be an absolute HTTP or HTTPS URL"},
+		{name: "empty hostname with port", args: []string{"--public-url=http://:8080"}, wantErrContains: "--public-url must be an absolute HTTP or HTTPS URL"},
+		{name: "credentials", args: []string{"--public-url=https://user:password@khi.example.com"}, wantErrContains: "without credentials, a query, or a fragment"},
+		{name: "query", args: []string{"--public-url=https://khi.example.com/khi?key=value"}, wantErrContains: "without credentials, a query, or a fragment"},
+		{name: "empty query", args: []string{"--public-url=https://khi.example.com/khi?"}, wantErrContains: "without credentials, a query, or a fragment"},
+		{name: "fragment", args: []string{"--public-url=https://khi.example.com/khi#section"}, wantErrContains: "without credentials, a query, or a fragment"},
+		{name: "empty fragment", args: []string{"--public-url=https://khi.example.com/khi#"}, wantErrContains: "without credentials, a query, or a fragment"},
+		{name: "invalid escape", args: []string{"--public-url=https://khi.example.com/%zz"}, wantErrContains: "--public-url is invalid"},
+		{name: "invalid environment URL", env: "khi.example.com", wantErrContains: "--public-url must be an absolute HTTP or HTTPS URL"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			prepareFlagParsingTest(t)
+			t.Setenv("KHI_PUBLIC_URL", tc.env)
+			originalArgs, originalCommandLine := os.Args, flag.CommandLine
+			t.Cleanup(func() {
+				os.Args, flag.CommandLine = originalArgs, originalCommandLine
+			})
+			os.Args = append([]string{originalArgs[0]}, tc.args...)
+			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+			store := &ServerParameters{}
+			ResetStore()
+			AddStore(store)
+			err := Parse()
+			if tc.wantErrContains != "" {
+				if err == nil {
+					t.Fatal("Parse() returned nil error, want an error")
+				}
+				if !strings.Contains(err.Error(), tc.wantErrContains) {
+					t.Errorf("Parse() error = %q, want error containing %q", err.Error(), tc.wantErrContains)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Parse() failed: %v", err)
+			}
+			if *store.PublicURL != tc.want {
+				t.Errorf("PublicURL = %q, want %q", *store.PublicURL, tc.want)
 			}
 		})
 	}

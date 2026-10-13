@@ -16,6 +16,8 @@ package parameters
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 )
@@ -27,6 +29,9 @@ type ServerParameters struct {
 	Port *int
 	// Host is the host address where KHI server serves.
 	Host *string
+	// PublicURL is the client-facing base URL, including any proxy path prefix, used for MCP file uploads.
+	// When empty, upload URLs use Host, Port, and BasePath.
+	PublicURL *string
 	// BasePath specifies the base address of API endpoints. This path always ends with `/`.
 	BasePath *string
 	// FrontendResourceBasePath is another base address only for frontend assets. If this value is not set, this uses the BasePath value by default.
@@ -41,6 +46,16 @@ type ServerParameters struct {
 
 // PostProcess implements ParameterStore.
 func (s *ServerParameters) PostProcess() error {
+	if *s.PublicURL != "" {
+		publicURL, err := url.Parse(*s.PublicURL)
+		if err != nil {
+			return fmt.Errorf("--public-url is invalid: %w", err)
+		}
+		if (publicURL.Scheme != "http" && publicURL.Scheme != "https") || publicURL.Hostname() == "" ||
+			publicURL.User != nil || publicURL.RawQuery != "" || publicURL.ForceQuery || strings.Contains(*s.PublicURL, "#") {
+			return fmt.Errorf("--public-url must be an absolute HTTP or HTTPS URL with a host and without credentials, a query, or a fragment")
+		}
+	}
 	ensureEndsWithSlash(s.BasePath)
 	if *s.FrontendResourceBasePath == "" {
 		*s.FrontendResourceBasePath = *s.BasePath
@@ -56,6 +71,7 @@ func (s *ServerParameters) PostProcess() error {
 func (s *ServerParameters) Prepare() error {
 	s.Port = flag.Int("port", 8080, "The port number where KHI server listens.", "PORT")
 	s.Host = flag.String("host", "127.0.0.1", "The host address where KHI server serves.", "HOST")
+	s.PublicURL = flag.String("public-url", "", "The client-facing HTTP or HTTPS base URL of KHI, including any proxy path prefix. Used for MCP file upload URLs instead of host, port, and base-path when set.", "KHI_PUBLIC_URL")
 	s.BasePath = flag.String("base-path", "/", "The base address of API endpoints.", "KHI_BASE_PATH")
 	s.FrontendResourceBasePath = flag.String("frontend-resource-base-path", "", "Another base address only for frontend assets. If this value is not set, this uses `--base-path` value by default.", "KHI_FRONTEND_RESOURCE_PATH")
 	s.FrontendAssetFolder = flag.String("frontend-asset-folder", "", "The root folder of the assets used in frontend including index.html. If this value is not set, the assets embedded into the executable are used.", "KHI_FRONTEND_ASSET_FOLDER")

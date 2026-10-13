@@ -17,10 +17,12 @@ package defaultinit
 import (
 	"net"
 	"strconv"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	serverapiv1 "github.com/GoogleCloudPlatform/khi/pkg/server/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
@@ -73,7 +75,7 @@ var FileParameterUploadInitializer = &coreinit.Initializer{
 		coreinit.RegisterConnectServiceHandler(router, basePath, fileUploadPath, fileUploadHandler)
 
 		issuer := uploadurl.NewIssuer(
-			uploadURLBase(*serverParams.Host, *serverParams.Port, basePath),
+			uploadURLBase(serverParams, basePath),
 			int64(*serverParams.MaxUploadFileSizeInBytes),
 			uploadurl.DefaultTTL,
 		)
@@ -88,14 +90,18 @@ var FileParameterUploadInitializer = &coreinit.Initializer{
 }
 
 // uploadURLBase returns the absolute URL that upload URL tokens are appended to.
-// Upload URLs are used by clients on the same machine as the server, so wildcard listen addresses,
-// which clients cannot connect to, are replaced with the loopback address.
-func uploadURLBase(host string, port int, basePath string) string {
+// PublicURL includes the external base path, which can differ from the server's base path behind a proxy.
+// Without it, wildcard listen addresses are replaced with loopback for local clients.
+func uploadURLBase(serverParams *parameters.ServerParameters, basePath string) string {
+	if *serverParams.PublicURL != "" {
+		return strings.TrimRight(*serverParams.PublicURL, "/") + uploadURLPath
+	}
+	host := *serverParams.Host
 	switch host {
 	case "", "0.0.0.0", "::":
 		host = "127.0.0.1"
 	}
-	return "http://" + net.JoinHostPort(host, strconv.Itoa(port)) + basePath + uploadURLPath
+	return "http://" + net.JoinHostPort(host, strconv.Itoa(*serverParams.Port)) + basePath + uploadURLPath
 }
 
 func init() {

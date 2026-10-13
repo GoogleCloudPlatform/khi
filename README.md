@@ -98,6 +98,20 @@ gcr.io/kubernetes-history-inspector/release:latest
 - To build KHI from source code, see the [Development Guide](/docs/en/development-contribution/development-guide.md).
 - For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
 
+### MCP file uploads through a reverse proxy
+
+When an MCP client accesses KHI through a reverse proxy, set `--public-url` to the base URL that the client can reach, including the full external path prefix:
+
+```bash
+./khi --public-url=https://khi.example.com/khi
+```
+
+You can also set the `KHI_PUBLIC_URL` environment variable. The command-line flag takes precedence.
+In this example, `request_file_upload` returns `https://khi.example.com/khi/api/v1/file-upload/<token>`.
+Configure the proxy to forward PUT requests from this URL to KHI's upload endpoint under `--base-path`, rewriting the prefix if needed.
+The public URL replaces the listening host, port, and base path when generating upload URLs. It must use HTTP or HTTPS and must not contain credentials, a query, or a fragment.
+When it is unset, upload URLs keep using the local server address, with wildcard hosts replaced by `127.0.0.1`.
+
 ## Supported Products & Environments
 
 ### Kubernetes cluster
