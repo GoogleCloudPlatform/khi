@@ -52,12 +52,16 @@ type TimelineTreeNode struct {
 // TimelineTreeResult contains the filtered timeline tree, summary counts, and timeline type descriptions.
 type TimelineTreeResult struct {
 	MatchedTimelineCount int
-	ReturnedNodeCount    int
-	MaxDepth             int
-	MaxNodes             int
-	Applied              AppliedFilter
-	TimelineTypes        []TimelineTypeDescription
-	Nodes                []TimelineTreeNode
+	// DirectMatchCount is the number of timelines in the tree that have matched events/revisions or are leaf matches.
+	DirectMatchCount int
+	// AncestorNodeCount is the number of internal ancestor nodes without their own matched events/revisions kept to form the tree.
+	AncestorNodeCount int
+	ReturnedNodeCount int
+	MaxDepth          int
+	MaxNodes          int
+	Applied           AppliedFilter
+	TimelineTypes     []TimelineTypeDescription
+	Nodes             []TimelineTreeNode
 	// FilterVocabulary lists the values that filter CEL can match in the inspection.
 	FilterVocabulary FilterVocabulary
 }
@@ -138,6 +142,13 @@ func (w *Workbench) SearchTimelines(ctx context.Context, filter Filter, maxDepth
 		return styles.severityMap[index.GetLog(logID).SeverityTypeID]
 	}
 	roots, filteredChildren, metricsMap := collectFilteredTimelineHierarchy(index, filterOut)
+	for id, m := range metricsMap {
+		if m.ownEv == 0 && m.ownRev == 0 && len(filteredChildren[id]) > 0 {
+			res.AncestorNodeCount++
+		} else {
+			res.DirectMatchCount++
+		}
+	}
 	aggregateTimelineSeverities(roots, filteredChildren, metricsMap, resolveLogSeverity)
 	selected, nodeDepth := selectBFSNodes(roots, filteredChildren, maxDepth, maxNodes, matchedCount)
 	nodes, timelineTypes := emitTimelineTreeNodes(roots, filteredChildren, selected, nodeDepth, metricsMap, index, styles.timelineTypeDescriptionMap)

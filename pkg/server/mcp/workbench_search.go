@@ -44,6 +44,8 @@ type SearchLogsInput struct {
 
 type searchTimelinesTemplateData struct {
 	MatchedTimelineCount int
+	DirectMatchCount     int
+	AncestorNodeCount    int
 	ReturnedNodeCount    int
 	MaxDepth             int
 	MaxNodes             int
@@ -109,6 +111,8 @@ func (h *WorkbenchHandler) handleSearchTimelines(ctx context.Context, _ *mcpsdk.
 
 	return h.templates.ToolResult("search_timelines.md.tmpl", searchTimelinesTemplateData{
 		MatchedTimelineCount: treeRes.MatchedTimelineCount,
+		DirectMatchCount:     treeRes.DirectMatchCount,
+		AncestorNodeCount:    treeRes.AncestorNodeCount,
 		ReturnedNodeCount:    treeRes.ReturnedNodeCount,
 		MaxDepth:             treeRes.MaxDepth,
 		MaxNodes:             treeRes.MaxNodes,

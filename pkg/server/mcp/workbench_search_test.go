@@ -357,6 +357,8 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 			templateName: "search_timelines.md.tmpl",
 			data: searchTimelinesTemplateData{
 				MatchedTimelineCount: 5,
+				DirectMatchCount:     3,
+				AncestorNodeCount:    2,
 				ReturnedNodeCount:    2,
 				MaxDepth:             2,
 				MaxNodes:             100,
@@ -383,7 +385,8 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 			want: strings.Join([]string{
 				"# Timeline tree",
 				"",
-				"Matched 5 timelines. Showing 2 nodes (depth <= 2, maxNodes 100).",
+				"Matched 5 timelines (3 with matched events/revisions + 2 ancestor nodes). Showing 2 nodes (depth <= 2, maxNodes 100).",
+				"Narrow with `filter.timelineQuery` (using path keys from Filter vocabulary below) or `filter.logQuery` (`severity`, `logType`) to inspect omitted nodes.",
 				"",
 				"## Applied filter",
 				"Enter these values in the KHI Web UI filter to see the same data.",

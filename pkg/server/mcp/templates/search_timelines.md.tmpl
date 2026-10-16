@@ -1,6 +1,9 @@
 # Timeline tree
 
-Matched {{ .MatchedTimelineCount }} timelines. Showing {{ .ReturnedNodeCount }} nodes ({{ if gt .MaxDepth 0 }}depth <= {{ .MaxDepth }}, {{ end }}maxNodes {{ .MaxNodes }}).
+Matched {{ .MatchedTimelineCount }} timelines{{ if gt .AncestorNodeCount 0 }} ({{ .DirectMatchCount }} with matched events/revisions + {{ .AncestorNodeCount }} ancestor nodes){{ end }}. Showing {{ .ReturnedNodeCount }} nodes ({{ if gt .MaxDepth 0 }}depth <= {{ .MaxDepth }}, {{ end }}maxNodes {{ .MaxNodes }}).
+{{- if lt .ReturnedNodeCount .MatchedTimelineCount }}
+Narrow with `filter.timelineQuery` (using path keys from Filter vocabulary below) or `filter.logQuery` (`severity`, `logType`) to inspect omitted nodes.
+{{- end }}
 
 {{ appliedFilter .Applied }}
 {{- if .TimelineTypes }}

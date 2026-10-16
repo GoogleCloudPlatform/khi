@@ -524,6 +524,14 @@ func TestSearchTimelines(t *testing.T) {
 			if got.MatchedTimelineCount != tc.wantMatchedCount {
 				t.Errorf("SearchTimelines() MatchedTimelineCount = %d, want %d", got.MatchedTimelineCount, tc.wantMatchedCount)
 			}
+			if got.DirectMatchCount+got.AncestorNodeCount != got.MatchedTimelineCount {
+				t.Errorf("SearchTimelines() DirectMatchCount (%d) + AncestorNodeCount (%d) != MatchedTimelineCount (%d)",
+					got.DirectMatchCount, got.AncestorNodeCount, got.MatchedTimelineCount)
+			}
+			if tc.wantMatchedCount == 5 && (got.DirectMatchCount != 4 || got.AncestorNodeCount != 1) {
+				t.Errorf("SearchTimelines() DirectMatchCount = %d, AncestorNodeCount = %d; want 4, 1",
+					got.DirectMatchCount, got.AncestorNodeCount)
+			}
 			if got.ReturnedNodeCount != tc.wantReturnedCount {
 				t.Errorf("SearchTimelines() ReturnedNodeCount = %d, want %d", got.ReturnedNodeCount, tc.wantReturnedCount)
 			}
