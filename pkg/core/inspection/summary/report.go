@@ -130,6 +130,18 @@ func (c *Collector) recordQuery(callerID, id, name, text string) {
 	}
 }
 
+func (c *Collector) recordQueryLogCount(callerID, id string, logCount int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	dest := c.resolver.destinationOf(callerID)
+	switch dest.kind {
+	case destinationFeature, destinationFeatureMember:
+		c.getOrCreateSection(dest.featureID).recordQueryLogCount(id, logCount)
+	case destinationForm, destinationShared:
+		c.getOrCreateShared().recordQueryLogCount(id, logCount)
+	}
+}
+
 // SetCoreLabel records a core label describing the target environment or resource.
 func SetCoreLabel(ctx context.Context, key, value string) {
 	c, _ := resolveCollectorAndCaller(ctx)
@@ -170,4 +182,10 @@ func AppendMarkdown(ctx context.Context, markdown string) {
 func RecordQuery(ctx context.Context, id, name, text string) {
 	c, callerID := resolveCollectorAndCaller(ctx)
 	c.recordQuery(callerID, id, name, text)
+}
+
+// RecordQueryLogCount records the number of logs fetched for a query in the section.
+func RecordQueryLogCount(ctx context.Context, id string, logCount int) {
+	c, callerID := resolveCollectorAndCaller(ctx)
+	c.recordQueryLogCount(callerID, id, logCount)
 }

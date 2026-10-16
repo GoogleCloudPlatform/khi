@@ -39,7 +39,7 @@
 ### Executed Queries
 {{- range . }}
 
-#### {{ .Name }}
+#### {{ .Name }}{{ if .LogCount }} ({{ .LogCount }} logs){{ end }}
 {{ fence "text" .Text }}
 {{- end }}
 {{- end }}

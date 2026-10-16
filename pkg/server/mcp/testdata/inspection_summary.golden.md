@@ -23,7 +23,7 @@
 
 ### Executed Queries
 
-#### K8s audit logs
+#### K8s audit logs (1520 logs)
 ```text
 resource.type="k8s_cluster"
 resource.labels.cluster_name="prod-cluster-1"

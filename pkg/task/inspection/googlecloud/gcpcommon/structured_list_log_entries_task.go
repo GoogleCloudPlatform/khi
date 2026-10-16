@@ -273,6 +273,7 @@ func fetchLogsForStructuredQueries(
 	allLogs := kwaymerge.Merge(allLogSlices, func(a, b *log.Log) int {
 		return a.Timestamp.Compare(b.Timestamp)
 	})
+	summary.RecordQueryLogCount(ctx, taskID, len(allLogs))
 
 	tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 	if tracingActive {

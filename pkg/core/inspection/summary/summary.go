@@ -43,6 +43,8 @@ type Query struct {
 	Name string
 	// Text holds the query statement or filter string.
 	Text string
+	// LogCount holds the number of logs fetched by the query, or nil if not recorded.
+	LogCount *int
 }
 
 // TaskReport represents summarized observations reported by an individual task.
@@ -225,10 +227,18 @@ func (sec *section) appendInsight(md string) {
 }
 
 func (sec *section) recordQuery(id, name, text string) {
+	existing := sec.queries[id]
 	sec.queries[id] = Query{
-		Name: name,
-		Text: text,
+		Name:     name,
+		Text:     text,
+		LogCount: existing.LogCount,
 	}
+}
+
+func (sec *section) recordQueryLogCount(id string, logCount int) {
+	q := sec.queries[id]
+	q.LogCount = &logCount
+	sec.queries[id] = q
 }
 
 func (sec *section) hasWrites() bool {
@@ -293,7 +303,12 @@ func (c *Collector) renderSection(title string, sec *section) Section {
 		slices.Sort(queryIDs)
 		queries = make([]Query, len(queryIDs))
 		for i, qid := range queryIDs {
-			queries[i] = sec.queries[qid]
+			q := sec.queries[qid]
+			if q.LogCount != nil {
+				count := *q.LogCount
+				q.LogCount = &count
+			}
+			queries[i] = q
 		}
 	}
 

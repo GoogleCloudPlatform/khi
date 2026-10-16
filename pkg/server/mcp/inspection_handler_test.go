@@ -93,6 +93,7 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 
 	ctxListAudit := taskContext(c, listAuditTask.UntypedID())
 	summary.RecordQuery(ctxListAudit, "k8s-audit", "K8s audit logs", "resource.type=\"k8s_cluster\"\nresource.labels.cluster_name=\"prod-cluster-1\"")
+	summary.RecordQueryLogCount(ctxListAudit, "k8s-audit", 1520)
 	summary.AddIntProperty(ctxListAudit, "fetchedLogs", 1520)
 	summary.AppendMarkdown(ctxListAudit, "Split the query into 4 time ranges because of the log volume.")
 

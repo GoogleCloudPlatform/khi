@@ -29,6 +29,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func intPtr(v int) *int {
+	return &v
+}
+
 func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
 	formTask := newTestTask("form-cluster-name", inspectioncore.NewFormTaskLabelOpt("Cluster Name", "Form field"))
 	listAuditTask := newTestTask("list-audit-logs", coretask.WithTitle("List Audit Logs"))
@@ -247,13 +251,15 @@ func TestReportAPI(t *testing.T) {
 			},
 		},
 		{
-			name: "RecordQuery routing",
+			name: "RecordQuery and RecordQueryLogCount routing",
 			run: func(c *Collector) {
 				ctxFeat := buildTaskContext(c, tasks["feature-audit#default"])
 				RecordQuery(ctxFeat, "q2", "Query Two", "text two")
+				RecordQueryLogCount(ctxFeat, "q2", 0)
 
 				ctxMember := buildTaskContext(c, tasks["audit-log-mapper#default"])
 				RecordQuery(ctxMember, "q1", "Query One", "text one")
+				RecordQueryLogCount(ctxMember, "q1", 42)
 
 				ctxShared := buildTaskContext(c, tasks["inventory-node-names#default"])
 				RecordQuery(ctxShared, "qShared", "Shared Query", "text shared")
@@ -263,8 +269,8 @@ func TestReportAPI(t *testing.T) {
 					{
 						Title: "Kubernetes Audit Logs",
 						Queries: []Query{
-							{Name: "Query One", Text: "text one"},
-							{Name: "Query Two", Text: "text two"},
+							{Name: "Query One", Text: "text one", LogCount: intPtr(42)},
+							{Name: "Query Two", Text: "text two", LogCount: intPtr(0)},
 						},
 					},
 					{
