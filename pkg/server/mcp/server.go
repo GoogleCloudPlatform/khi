@@ -34,15 +34,12 @@ type Server struct {
 }
 
 // serverInstructions is the guidance that the initialize response gives to agents.
-// It stays around 500 characters because some clients truncate longer instructions, and detailed usage belongs to skills.
-const serverInstructions = "KHI shows the history of Kubernetes clusters as timelines built from logs. " +
-	"To use an existing inspection, read khi://inspections. " +
-	"To create one, read khi://inspection-types, call create_inspection and update_inspection_features, " +
-	"repeat dry_run_inspection until it reports Errors: 0 and check the values it will use, " +
-	"then call run_inspection and wait_inspection until the status is not RUNNING. " +
-	"Investigate with search_timelines and search_logs, then drill down with the get_* tools. " +
-	"Filters use CEL; the Filter vocabulary section of search results lists the values you can match. " +
-	"Always show the Applied filter values to the user so that they can see the same data in the KHI Web UI."
+// It stays within 500 characters because some clients truncate longer instructions, and detailed usage belongs to skills.
+const serverInstructions = "KHI builds Kubernetes resource timelines from logs. " +
+	"Read khi://inspections for existing inspections, or read khi://inspection-types, call create_inspection and update_inspection_features, " +
+	"repeat dry_run_inspection until Errors: 0, then call run_inspection and wait_inspection until not RUNNING. " +
+	"Investigate with search_timelines and search_logs, then drill down with get_* tools. " +
+	"Use CEL values from Filter vocabulary, and show Applied filter values so the user can view the same data in the Web UI."
 
 // NewServer creates a new Server instance and registers the provided domain handlers.
 func NewServer(handlers ...DomainHandler) *Server {

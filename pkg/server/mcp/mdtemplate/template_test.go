@@ -754,6 +754,24 @@ func TestFormatAppliedFilter(t *testing.T) {
 				"```",
 		},
 		{
+			name: "queries with CRLF and CR line endings are normalized to LF",
+			input: workbench.AppliedFilter{
+				TimelineQuery:          "t.name == \"a\"\r\nt.name == \"b\"",
+				TimelineExclusionQuery: "\r\n  t.name == \"c\"",
+				LogQuery:               "severity >= WARNING\rl.summary.contains(\"err\")",
+			},
+			want: "## Applied filter\n" +
+				"Enter these values in the KHI Web UI filter to see the same data.\n\n" +
+				"```yaml\n" +
+				"timelineQuery: |-\n  t.name == \"a\"\n  t.name == \"b\"\n" +
+				"timelineExclusionQuery: |2-\n  \n    t.name == \"c\"\n" +
+				"logQuery: |-\n  severity >= WARNING\n  l.summary.contains(\"err\")\n" +
+				"startTime: \"\"\n" +
+				"endTime: \"\"\n" +
+				"excludeTimelinesWithoutLogs: false\n" +
+				"```",
+		},
+		{
 			name: "empty filter with zero timestamps",
 			input: workbench.AppliedFilter{
 				ExcludeTimelinesWithoutLogs: false,
@@ -791,10 +809,13 @@ func TestFormatAppliedFilter(t *testing.T) {
 			if err := yaml.Unmarshal([]byte(strings.TrimSuffix(yamlBody, "```")), &gotQueries); err != nil {
 				t.Fatalf("failed to parse the yaml block: %v", err)
 			}
+			normalizeLF := func(s string) string {
+				return strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\r", "\n")
+			}
 			wantQueries := parsedQueries{
-				TimelineQuery:          tc.input.TimelineQuery,
-				TimelineExclusionQuery: tc.input.TimelineExclusionQuery,
-				LogQuery:               tc.input.LogQuery,
+				TimelineQuery:          normalizeLF(tc.input.TimelineQuery),
+				TimelineExclusionQuery: normalizeLF(tc.input.TimelineExclusionQuery),
+				LogQuery:               normalizeLF(tc.input.LogQuery),
 			}
 			if diff := cmp.Diff(wantQueries, gotQueries); diff != "" {
 				t.Errorf("parsed yaml queries mismatch (-want +got):\n%s", diff)

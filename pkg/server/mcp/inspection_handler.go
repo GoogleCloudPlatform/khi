@@ -108,7 +108,7 @@ func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "wait_inspection",
-		Description: "Wait until the inspection finishes or timeoutSeconds (default 30, max 50) elapses, then return the status and the progress of running tasks. A timeout is not a failure; call again to keep waiting. This is the only way to read progress.",
+		Description: "Wait until the inspection finishes or timeoutSeconds (default 30, max 45) elapses, then return the status and the progress of running tasks. A timeout is not a failure; call again to keep waiting. This is the only way to read progress.",
 	}, h.handleWaitInspection)
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{

@@ -24,9 +24,9 @@ Pass text fields as strings, set fields as arrays of strings, and checkbox field
 - Upload: {{ .UploadStatus }}
 {{- end }}
 {{- if .Value }}
-- Value: {{ .Value }}{{ if .ValueIsDefault }} (default){{ end }}
+- Value: {{ .Value }}{{ if .IsDefaulted }} (default){{ end }}
 {{- end }}
-{{- if and .Default (not .ValueIsDefault) }}
+{{- if and .Default (not .IsDefaulted) }}
 - Default: {{ .Default }}
 {{- end }}
 {{- if .Suggestions }}

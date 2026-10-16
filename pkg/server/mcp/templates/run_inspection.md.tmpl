@@ -1,10 +1,10 @@
 # Started {{ code .ID }}
 
 Status: RUNNING. Call `wait_inspection` to wait for the result.
-{{- if .Fields }}
+{{- if .Parameters }}
 
 ## Parameters
-{{ range .Fields }}
-- {{ code .ID }}: {{ .Value }}{{ if .ValueIsDefault }} (default){{ end }}
+{{ range .Parameters }}
+- {{ code .ID }}: {{ .Value }}{{ if .IsDefaulted }} (default){{ end }}
 {{- end }}
 {{- end }}

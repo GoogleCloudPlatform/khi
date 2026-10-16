@@ -33,7 +33,7 @@ import (
 type WaitInspectionInput struct {
 	InspectionID string `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
 	// TimeoutSeconds is a pointer to distinguish an omitted value (default wait) from an explicit 0 (no wait).
-	TimeoutSeconds *int `json:"timeoutSeconds,omitempty" jsonschema:"Maximum seconds to wait for completion. Defaults to 30 and is capped at 50 to stay below client tool call timeouts; call again to keep waiting. Pass 0 to return the current status without waiting."`
+	TimeoutSeconds *int `json:"timeoutSeconds,omitempty" jsonschema:"Maximum seconds to wait for completion. Defaults to 30 and is capped at 45 to stay below client tool call timeouts; call again to keep waiting. Pass 0 to return the current status without waiting."`
 }
 
 // CancelInspectionInput defines the input parameters for the cancel_inspection tool.
@@ -55,7 +55,7 @@ func inspectionAlreadyFinishedResult() (*mcpsdk.CallToolResult, any, error) {
 // Agents call wait_inspection again to keep waiting.
 const (
 	defaultWaitTimeoutSeconds = 30
-	maxWaitTimeoutSeconds     = 50
+	maxWaitTimeoutSeconds     = 45
 	cancelWaitTimeout         = 10 * time.Second
 )
 

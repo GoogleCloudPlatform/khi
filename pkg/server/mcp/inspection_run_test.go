@@ -65,21 +65,21 @@ func TestInspectionRun_Golden(t *testing.T) {
 	handler := NewInspectionHandler(server, nil)
 
 	defaultedClusterField := formFieldData{
-		ID:             "clusterName",
-		Label:          "Cluster name",
-		Type:           "text",
-		Value:          "`prod-cluster-1`",
-		ValueIsDefault: true,
-		Default:        "`prod-cluster-1`",
-		Suggestions:    "`prod-cluster-1`, `staging-cluster`",
+		ID:          "clusterName",
+		Label:       "Cluster name",
+		Type:        "text",
+		Value:       "`prod-cluster-1`",
+		IsDefaulted: true,
+		Default:     "`prod-cluster-1`",
+		Suggestions: "`prod-cluster-1`, `staging-cluster`",
 	}
 	defaultedCheckboxField := formFieldData{
-		ID:             "includeEvents",
-		Label:          "Include events",
-		Type:           "checkbox",
-		Value:          "`false`",
-		ValueIsDefault: true,
-		Default:        "`false`",
+		ID:          "includeEvents",
+		Label:       "Include events",
+		Type:        "checkbox",
+		Value:       "`false`",
+		IsDefaulted: true,
+		Default:     "`false`",
 	}
 	passedEndTimeField := formFieldData{
 		ID:      "endTime",
@@ -100,9 +100,10 @@ func TestInspectionRun_Golden(t *testing.T) {
 			template:   "dry_run_inspection.md.tmpl",
 			goldenFile: "testdata/dry_run_inspection.golden.md",
 			data: dryRunData{
-				ID:           "2026-09-24-0130-a1b2",
-				ErrorCount:   1,
-				WarningCount: 0,
+				ID:              "2026-09-24-0130-a1b2",
+				ErrorCount:      1,
+				WarningCount:    0,
+				DefaultedFields: []formFieldData{defaultedClusterField},
 				Groups: []formGroupData{
 					{
 						Title: "Target",
@@ -187,8 +188,8 @@ func TestInspectionRun_Golden(t *testing.T) {
 			template:   "run_inspection.md.tmpl",
 			goldenFile: "testdata/run_inspection.golden.md",
 			data: runInspectionData{
-				ID:     "2026-09-24-0130-a1b2",
-				Fields: []formFieldData{defaultedClusterField, defaultedCheckboxField, passedEndTimeField},
+				ID:         "2026-09-24-0130-a1b2",
+				Parameters: []formFieldData{defaultedClusterField, defaultedCheckboxField, passedEndTimeField},
 			},
 		},
 		{
@@ -437,10 +438,10 @@ func TestGroupFormFields(t *testing.T) {
 					{
 						Title: "General",
 						Fields: []formFieldData{
-							{ID: "clusterName", Type: "text", Value: "`default-cluster`", ValueIsDefault: true, Default: "`default-cluster`"},
+							{ID: "clusterName", Type: "text", Value: "`default-cluster`", IsDefaulted: true, Default: "`default-cluster`"},
 							{ID: "noDefault", Type: "text"},
-							{ID: "namespaces", Type: "set", Value: "`default`, `kube-system`", ValueIsDefault: true, Default: "`default`, `kube-system`"},
-							{ID: "includeEvents", Type: "checkbox", Value: "`false`", ValueIsDefault: true, Default: "`false`"},
+							{ID: "namespaces", Type: "set", Value: "`default`, `kube-system`", IsDefaulted: true, Default: "`default`, `kube-system`"},
+							{ID: "includeEvents", Type: "checkbox", Value: "`false`", IsDefaulted: true, Default: "`false`"},
 						},
 					},
 				},
@@ -718,8 +719,8 @@ func TestWithDefaults(t *testing.T) {
 
 func TestFieldsWhere(t *testing.T) {
 	groups := []formGroupData{
-		{Title: "General", Fields: []formFieldData{{ID: "a", ValueIsDefault: true}, {ID: "b"}}},
-		{Title: "Target", Fields: []formFieldData{{ID: "c", ValueIsDefault: true}}},
+		{Title: "General", Fields: []formFieldData{{ID: "a", IsDefaulted: true}, {ID: "b"}}},
+		{Title: "Target", Fields: []formFieldData{{ID: "c", IsDefaulted: true}}},
 	}
 	testCases := []struct {
 		name string
@@ -728,8 +729,8 @@ func TestFieldsWhere(t *testing.T) {
 	}{
 		{
 			name: "matching fields of every group in display order",
-			keep: func(field formFieldData) bool { return field.ValueIsDefault },
-			want: []formFieldData{{ID: "a", ValueIsDefault: true}, {ID: "c", ValueIsDefault: true}},
+			keep: func(field formFieldData) bool { return field.IsDefaulted },
+			want: []formFieldData{{ID: "a", IsDefaulted: true}, {ID: "c", IsDefaulted: true}},
 		},
 		{
 			name: "no matching fields",

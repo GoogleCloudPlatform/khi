@@ -219,6 +219,9 @@ func TestServerTransportsAndDomainHandler(t *testing.T) {
 }
 
 func TestServerRegisterHandler(t *testing.T) {
+	if len(serverInstructions) > 500 {
+		t.Errorf("len(serverInstructions) = %d, want <= 500", len(serverInstructions))
+	}
 	server := NewServer()
 
 	handler := &testDomainHandler{

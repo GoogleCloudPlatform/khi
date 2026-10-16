@@ -35,7 +35,7 @@ var inputNodeNameFilterTask = formtask.DefineSetForm(
 	k8scommon.InputNodeNameFilterTaskID,
 	gcpcommon.PriorityForK8sResourceFilterGroup+3000,
 	"Node names",
-	"A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.",
+	"A list of node name substrings used to collect node-related logs. If left empty, KHI gathers logs from all nodes in the cluster.",
 	func(b *coretask.Binder) formtask.SetFormSpec[[]string] {
 		nodeNames := coretask.Use(b, k8scommon.AutocompleteNodeNamesTaskID.Ref())
 		return formtask.SetFormSpec[[]string]{

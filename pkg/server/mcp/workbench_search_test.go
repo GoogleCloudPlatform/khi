@@ -60,6 +60,24 @@ func TestWorkbenchHandler_HandleSearchTimelines(t *testing.T) {
 				"# Timeline tree",
 				"## Applied filter",
 				"## Tree",
+				"## Filter vocabulary",
+				"- path keys (lowercased timelineType):",
+				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL`",
+			},
+		},
+		{
+			name: "zero matching timelines still returns Filter vocabulary",
+			input: SearchTimelinesInput{
+				InspectionID: inspectionID,
+				Filter: workbench.Filter{
+					TimelineQuery: `name == "no-such-timeline"`,
+				},
+			},
+			wantIsError: false,
+			wantSubstring: []string{
+				"Matched 0 timelines.",
+				"## Filter vocabulary",
+				"- path keys (lowercased timelineType):",
 			},
 		},
 		{
@@ -148,6 +166,24 @@ func TestWorkbenchHandler_HandleSearchLogs(t *testing.T) {
 			wantSubstring: []string{
 				"# Logs matching the filter",
 				"## Applied filter",
+				"## Filter vocabulary",
+				"- path keys (lowercased timelineType):",
+				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL`",
+			},
+		},
+		{
+			name: "zero matching logs still returns Filter vocabulary",
+			input: SearchLogsInput{
+				InspectionID: inspectionID,
+				Filter: workbench.Filter{
+					LogQuery: `logType == "no-such-log-type"`,
+				},
+			},
+			wantIsError: false,
+			wantSubstring: []string{
+				"No logs matched the filter.",
+				"## Filter vocabulary",
+				"- path keys (lowercased timelineType):",
 			},
 		},
 		{
@@ -374,9 +410,10 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"",
 				"## Filter vocabulary",
 				"These are the values that filter CEL can match in this inspection.",
-				"- path keys: `container`, `k8scluster`, `pod`",
+				"- path keys (lowercased timelineType): `container`, `k8scluster`, `pod`",
 				"- timelineType: `container`, `k8sCluster`, `pod`",
 				"- logType: `k8s audit`, `k8s event`",
+				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body(\"severity\", \"ERROR\")` for the raw Cloud Logging field)",
 			}, "\n"),
 		},
 		{
@@ -414,9 +451,10 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"",
 				"## Filter vocabulary",
 				"These are the values that filter CEL can match in this inspection.",
-				"- path keys: none",
+				"- path keys (lowercased timelineType): none",
 				"- timelineType: none",
 				"- logType: none",
+				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body(\"severity\", \"ERROR\")` for the raw Cloud Logging field)",
 			}, "\n"),
 		},
 		{
@@ -495,9 +533,10 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"",
 				"## Filter vocabulary",
 				"These are the values that filter CEL can match in this inspection.",
-				"- path keys: `container`, `pod`",
+				"- path keys (lowercased timelineType): `container`, `pod`",
 				"- timelineType: `container`, `pod`",
 				"- logType: `container`",
+				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body(\"severity\", \"ERROR\")` for the raw Cloud Logging field)",
 			}, "\n"),
 		},
 		{
@@ -533,9 +572,10 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"",
 				"## Filter vocabulary",
 				"These are the values that filter CEL can match in this inspection.",
-				"- path keys: `kind`, `namespace`",
+				"- path keys (lowercased timelineType): `kind`, `namespace`",
 				"- timelineType: `kind`, `namespace`",
 				"- logType: `k8s audit`",
+				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body(\"severity\", \"ERROR\")` for the raw Cloud Logging field)",
 			}, "\n"),
 		},
 	}

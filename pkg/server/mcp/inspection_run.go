@@ -55,9 +55,9 @@ type formFieldData struct {
 	Type        string
 	// Value is the value that the inspection uses: the passed parameter, or the default when the parameter is not passed.
 	Value string
-	// ValueIsDefault reports that the parameter is not passed and Value is the default.
-	ValueIsDefault bool
-	Default        string
+	// IsDefaulted reports that the parameter is not passed and Value is the default.
+	IsDefaulted bool
+	Default     string
 	Suggestions    string
 	Options        string
 	// UploadStatus is the upload status line of a file field. It is empty for other field types.
@@ -90,8 +90,8 @@ type dryRunData struct {
 
 type runInspectionData struct {
 	ID string
-	// Fields are the fields with a value that the run uses.
-	Fields []formFieldData
+	// Parameters are the fields with a value that the run uses.
+	Parameters []formFieldData
 }
 
 type invalidParameterError struct {
@@ -213,7 +213,7 @@ func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *corei
 			ErrorCount:   errCount,
 			WarningCount: warnCount,
 			DefaultedFields: fieldsWhere(groups, func(field formFieldData) bool {
-				return field.ValueIsDefault
+				return field.IsDefaulted
 			}),
 			Groups:  groups,
 			Queries: queries,
@@ -282,7 +282,7 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 
 	return h.templates.ToolResult("run_inspection.md.tmpl", runInspectionData{
 		ID: in.InspectionID,
-		Fields: fieldsWhere(dryRunOutcome.renderData.Groups, func(field formFieldData) bool {
+		Parameters: fieldsWhere(dryRunOutcome.renderData.Groups, func(field formFieldData) bool {
 			return field.Value != ""
 		}),
 	})
@@ -418,7 +418,7 @@ func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[str
 		data.Value = formatParameterValue(val)
 	} else if hasDefault {
 		data.Value = data.Default
-		data.ValueIsDefault = true
+		data.IsDefaulted = true
 	}
 
 	switch tf := field.(type) {
