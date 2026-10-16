@@ -41,7 +41,7 @@ func (h *InspectionHandler) handleRequestFileUpload(ctx context.Context, req *mc
 	}
 
 	// The dry run registers the upload token of each file field, so the URL is bound to a token that the run reads.
-	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, nil, "request_file_upload")
+	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, nil, "", "request_file_upload")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}

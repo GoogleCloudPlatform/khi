@@ -21,15 +21,12 @@ import (
 	"maps"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 
 	"cloud.google.com/go/auth"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/grpc/codes"
@@ -40,35 +37,13 @@ import (
 type DryRunInspectionInput struct {
 	InspectionID string         `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
 	Parameters   map[string]any `json:"parameters,omitempty" jsonschema:"Key-value map of form parameters. Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. File fields cannot be set here; upload the file with request_file_upload. Time range parameters should be in UTC RFC3339 format. Wider time ranges increase execution time and memory usage."`
+	FieldID      string         `json:"fieldId,omitempty" jsonschema:"Optional field ID to expand without truncating its suggestions or options."`
 }
 
 // RunInspectionInput defines the input parameters for the run_inspection tool.
 type RunInspectionInput struct {
 	InspectionID string         `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
 	Parameters   map[string]any `json:"parameters,omitempty" jsonschema:"Key-value map of form parameters. Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. File fields cannot be set here; upload the file with request_file_upload. Time range parameters should be in UTC RFC3339 format. Wider time ranges increase execution time and memory usage."`
-}
-
-type formFieldData struct {
-	ID          string
-	Label       string
-	Description string
-	Type        string
-	// Value is the value that the inspection uses: the passed parameter, or the default when the parameter is not passed.
-	Value string
-	// IsDefaulted reports that the parameter is not passed and Value is the default.
-	IsDefaulted bool
-	Default     string
-	Suggestions string
-	Options     string
-	// UploadStatus is the upload status line of a file field. It is empty for other field types.
-	UploadStatus string
-	HintType     string
-	Hint         string
-}
-
-type formGroupData struct {
-	Title  string
-	Fields []formFieldData
 }
 
 type queryData struct {
@@ -172,7 +147,7 @@ type dryRunResult struct {
 //   - Go error: the error is non-nil for unexpected failures that become protocol errors.
 //
 // retryTool is the tool name that the GOOGLE_CLOUD_AUTH error tells the agent to call again after login.
-func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *coreinspection.InspectionTaskRunner, rawParams map[string]any, retryTool string) (*dryRunResult, *mcpsdk.CallToolResult, error) {
+func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *coreinspection.InspectionTaskRunner, rawParams map[string]any, expandFieldID string, retryTool string) (*dryRunResult, *mcpsdk.CallToolResult, error) {
 	preparedParams, errRes, err := h.prepareParameters(id, rawParams)
 	if errRes != nil || err != nil {
 		return nil, errRes, err
@@ -204,7 +179,7 @@ func (h *InspectionHandler) dryRun(ctx context.Context, id string, runner *corei
 		queryItems = q
 	}
 
-	groups, errCount, warnCount := groupFormFields(formFields, preparedParams)
+	groups, errCount, warnCount := groupFormFields(formFields, preparedParams, expandFieldID)
 	queries := toQueryData(queryItems)
 
 	return &dryRunResult{
@@ -233,7 +208,7 @@ func (h *InspectionHandler) handleDryRunInspection(ctx context.Context, req *mcp
 		return inspectionAlreadyStartedResult(in.InspectionID)
 	}
 
-	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "dry_run_inspection")
+	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, in.FieldID, "dry_run_inspection")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}
@@ -255,7 +230,7 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 		return inspectionAlreadyStartedResult(in.InspectionID)
 	}
 
-	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "run_inspection")
+	dryRunOutcome, errRes, err := h.dryRun(ctx, in.InspectionID, runner, in.Parameters, "", "run_inspection")
 	if errRes != nil || err != nil {
 		return errRes, nil, err
 	}
@@ -286,200 +261,6 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 			return field.Value != ""
 		}),
 	})
-}
-
-// withDefaults returns a copy of params with the default of every text, set, and checkbox field that params does not have,
-// including the fields in groups.
-func withDefaults(params map[string]any, fields []inspectionmetadata.ParameterFormField) map[string]any {
-	result := maps.Clone(params)
-	var addDefaults func(fields []inspectionmetadata.ParameterFormField)
-	addDefaults = func(fields []inspectionmetadata.ParameterFormField) {
-		for _, field := range fields {
-			if group, ok := field.(inspectionmetadata.GroupParameterFormField); ok {
-				addDefaults(group.Children)
-				continue
-			}
-			id := inspectionmetadata.GetParameterFormFieldBase(field).ID
-			if _, passed := result[id]; passed {
-				continue
-			}
-			if value, ok := defaultValue(field); ok {
-				result[id] = value
-			}
-		}
-	}
-	addDefaults(fields)
-	return result
-}
-
-// defaultValue returns the default of a text, set, or checkbox field in the type that the form task accepts.
-// It returns false for other fields and for text and set fields with an empty default.
-func defaultValue(field inspectionmetadata.ParameterFormField) (any, bool) {
-	switch tf := field.(type) {
-	case inspectionmetadata.TextParameterFormField:
-		return tf.Default, tf.Default != ""
-	case inspectionmetadata.SetParameterFormField:
-		return tf.Default, len(tf.Default) > 0
-	case inspectionmetadata.CheckboxParameterFormField:
-		return tf.Default, true
-	default:
-		return nil, false
-	}
-}
-
-// fieldsWhere returns the fields of groups that keep reports true for, in display order.
-func fieldsWhere(groups []formGroupData, keep func(field formFieldData) bool) []formFieldData {
-	var result []formFieldData
-	for _, group := range groups {
-		for _, field := range group.Fields {
-			if keep(field) {
-				result = append(result, field)
-			}
-		}
-	}
-	return result
-}
-
-// groupFormFields organizes flat/nested form fields into Web UI groups and counts errors/warnings.
-func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[string]any) ([]formGroupData, int, int) {
-	var generalFields []formFieldData
-	var groups []formGroupData
-	totalErrors := 0
-	totalWarnings := 0
-
-	for _, field := range fields {
-		if group, ok := field.(inspectionmetadata.GroupParameterFormField); ok {
-			var groupFields []formFieldData
-			for _, child := range group.Children {
-				data := toFormFieldData(child, params)
-				groupFields = append(groupFields, data)
-				if data.HintType == "Error" {
-					totalErrors++
-				} else if data.HintType == "Warning" {
-					totalWarnings++
-				}
-			}
-			if len(groupFields) > 0 {
-				groups = append(groups, formGroupData{
-					Title:  group.Label,
-					Fields: groupFields,
-				})
-			}
-		} else {
-			data := toFormFieldData(field, params)
-			generalFields = append(generalFields, data)
-			if data.HintType == "Error" {
-				totalErrors++
-			} else if data.HintType == "Warning" {
-				totalWarnings++
-			}
-		}
-	}
-
-	if len(generalFields) > 0 {
-		groups = append([]formGroupData{{
-			Title:  "General",
-			Fields: generalFields,
-		}}, groups...)
-	}
-
-	return groups, totalErrors, totalWarnings
-}
-
-// toFormFieldData converts a ParameterFormField into formFieldData for template rendering.
-func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[string]any) formFieldData {
-	base := inspectionmetadata.GetParameterFormFieldBase(field)
-	data := formFieldData{
-		ID:          base.ID,
-		Label:       base.Label,
-		Description: base.Description,
-		Type:        string(base.Type),
-	}
-
-	if base.Hint != "" {
-		switch base.HintType {
-		case inspectionmetadata.Error:
-			data.HintType = "Error"
-		case inspectionmetadata.Warning:
-			data.HintType = "Warning"
-		case inspectionmetadata.Info:
-			data.HintType = "Info"
-		}
-		if data.HintType != "" {
-			data.Hint = base.Hint
-		}
-	}
-
-	def, hasDefault := defaultValue(field)
-	if hasDefault {
-		data.Default = formatParameterValue(def)
-	}
-	if val, passed := params[base.ID]; passed {
-		data.Value = formatParameterValue(val)
-	} else if hasDefault {
-		data.Value = data.Default
-		data.IsDefaulted = true
-	}
-
-	switch tf := field.(type) {
-	case inspectionmetadata.TextParameterFormField:
-		data.Suggestions = codeList(tf.Suggestions)
-	case inspectionmetadata.SetParameterFormField:
-		ids := make([]string, len(tf.Options))
-		for i, opt := range tf.Options {
-			ids[i] = opt.ID
-		}
-		data.Options = codeList(ids)
-	case inspectionmetadata.FileParameterFormField:
-		data.UploadStatus = fileUploadStatus(tf)
-	}
-
-	return data
-}
-
-// formatParameterValue renders a parameter value of a text, set, or checkbox field as inline code.
-// It returns an empty string for an empty text or set value.
-func formatParameterValue(value any) string {
-	switch v := value.(type) {
-	case []string:
-		return codeList(v)
-	case string:
-		if v == "" {
-			return ""
-		}
-		return mdtemplate.Code(v)
-	case bool:
-		return mdtemplate.Code(strconv.FormatBool(v))
-	default:
-		return ""
-	}
-}
-
-// codeList renders items as a comma separated list of inline code.
-func codeList(items []string) string {
-	codes := make([]string, len(items))
-	for i, item := range items {
-		codes[i] = mdtemplate.Code(item)
-	}
-	return strings.Join(codes, ", ")
-}
-
-// fileUploadStatus returns the upload status line of a file field: WAITING, PROCESSING, ERROR, or COMPLETED with the file size.
-// A failed upload waits for another upload, so it is WAITING and its hint explains the failure.
-// A file that fails verification is ERROR and its hint explains the verification error.
-func fileUploadStatus(field inspectionmetadata.FileParameterFormField) string {
-	switch {
-	case field.Status == upload.UploadStatusWaiting:
-		return "WAITING"
-	case field.Status != upload.UploadStatusCompleted:
-		return uploadurl.StatusProcessing
-	case field.HintType == inspectionmetadata.Error:
-		return "ERROR"
-	case field.FileName == "":
-		return fmt.Sprintf("COMPLETED, %d bytes", field.SizeBytes)
-	default:
-		return fmt.Sprintf("COMPLETED, %s, %d bytes", mdtemplate.Code(field.FileName), field.SizeBytes)
-	}
 }
 
 // toQueryData converts QueryItem pointers from dry run metadata into queryData for template rendering.

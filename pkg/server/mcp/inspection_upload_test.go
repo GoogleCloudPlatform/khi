@@ -181,13 +181,17 @@ func (e *toolsTestEnv) dryRunUntilUploadSettles(t *testing.T, id string) string 
 
 // logFileDryRunText builds the expected dry_run_inspection output of an inspection with only the file feature enabled.
 func logFileDryRunText(id, summary, fieldLines string) string {
+	descLine := "- Description: The display name of this inspection.\n"
+	if strings.HasPrefix(summary, "Errors: 0,") {
+		descLine = ""
+	}
 	return fmt.Sprintf("# Dry run of `%s`\n\n%s\n\n"+
 		"## Fields\n\n"+
 		"Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`.\n\n"+
 		"### General\n\n"+
-		"#### `khi.google.com/inspection/input/inspection-name`\n- Label: Inspection name\n- Description: The display name of this inspection.\n- Type: text\n"+
+		"#### `khi.google.com/inspection/input/inspection-name`\n- Label: Inspection name\n%s- Type: text\n"+
 		"- Value: `Google Kubernetes Engine`\n- Default: `Google Kubernetes Engine`\n\n"+
-		"#### `log-file`\n- Label: Log File\n- Type: file\n%s", id, summary, fieldLines)
+		"#### `log-file`\n- Label: Log File\n- Type: file\n%s", id, summary, descLine, fieldLines)
 }
 
 func TestInspectionTools_FileUpload(t *testing.T) {

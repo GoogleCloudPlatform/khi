@@ -301,13 +301,14 @@ func TestGroupFormFields(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name   string
-		fields []inspectionmetadata.ParameterFormField
-		params map[string]any
-		want   groupResult
+		name          string
+		fields        []inspectionmetadata.ParameterFormField
+		params        map[string]any
+		expandFieldID string
+		want          groupResult
 	}{
 		{
-			name: "text field with value, default and suggestions",
+			name: "text field with value, default and suggestions omits description when there are no errors",
 			fields: []inspectionmetadata.ParameterFormField{
 				inspectionmetadata.TextParameterFormField{
 					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
@@ -329,11 +330,83 @@ func TestGroupFormFields(t *testing.T) {
 							{
 								ID:          "clusterName",
 								Label:       "Cluster name",
-								Description: "The name of the GKE cluster.",
 								Type:        "text",
 								Value:       "`prod-cluster-1`",
 								Default:     "`default-cluster`",
 								Suggestions: "`prod-cluster-1`, `staging-cluster`",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "expandFieldID keeps description and expands choices past the limit",
+			fields: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.TextParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:          "clusterName",
+						Label:       "Cluster name",
+						Description: "The name of the GKE cluster.",
+						Type:        inspectionmetadata.Text,
+					},
+					Suggestions: []string{
+						"c01", "c02", "c03", "c04", "c05",
+						"c06", "c07", "c08", "c09", "c10",
+						"c11", "c12", "c13", "c14", "c15",
+						"c16", "c17", "c18", "c19", "c20",
+						"c21", "c22",
+					},
+				},
+			},
+			params:        map[string]any{},
+			expandFieldID: "clusterName",
+			want: groupResult{
+				Groups: []formGroupData{
+					{
+						Title: "General",
+						Fields: []formFieldData{
+							{
+								ID:          "clusterName",
+								Label:       "Cluster name",
+								Description: "The name of the GKE cluster.",
+								Type:        "text",
+								Suggestions: "`c01`, `c02`, `c03`, `c04`, `c05`, `c06`, `c07`, `c08`, `c09`, `c10`, `c11`, `c12`, `c13`, `c14`, `c15`, `c16`, `c17`, `c18`, `c19`, `c20`, `c21`, `c22`",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "suggestions and options exceeding 20 items are truncated when not expanded",
+			fields: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.SetParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:    "nodeNames",
+						Label: "Node names",
+						Type:  inspectionmetadata.Set,
+					},
+					Options: []inspectionmetadata.SetParameterFormFieldOptionItem{
+						{ID: "n01"}, {ID: "n02"}, {ID: "n03"}, {ID: "n04"}, {ID: "n05"},
+						{ID: "n06"}, {ID: "n07"}, {ID: "n08"}, {ID: "n09"}, {ID: "n10"},
+						{ID: "n11"}, {ID: "n12"}, {ID: "n13"}, {ID: "n14"}, {ID: "n15"},
+						{ID: "n16"}, {ID: "n17"}, {ID: "n18"}, {ID: "n19"}, {ID: "n20"},
+						{ID: "n21"}, {ID: "n22"},
+					},
+				},
+			},
+			params: map[string]any{},
+			want: groupResult{
+				Groups: []formGroupData{
+					{
+						Title: "General",
+						Fields: []formFieldData{
+							{
+								ID:      "nodeNames",
+								Label:   "Node names",
+								Type:    "set",
+								Options: "`n01`, `n02`, `n03`, `n04`, `n05`, `n06`, `n07`, `n08`, `n09`, `n10`, `n11`, `n12`, `n13`, `n14`, `n15`, `n16`, `n17`, `n18`, `n19`, `n20` ... and 2 more (call `dry_run_inspection` with `fieldId: \"nodeNames\"` to list all)",
 							},
 						},
 					},
@@ -633,7 +706,7 @@ func TestGroupFormFields(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			groups, errs, warns := groupFormFields(tc.fields, tc.params)
+			groups, errs, warns := groupFormFields(tc.fields, tc.params, tc.expandFieldID)
 			got := groupResult{Groups: groups, Errors: errs, Warnings: warns}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("groupFormFields() mismatch (-want +got):\n%s", diff)
@@ -946,7 +1019,7 @@ func TestInspectionTools_DryRunInspection(t *testing.T) {
 		"## Fields\n\n"+
 		"Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`.\n\n"+
 		"### General\n\n"+
-		"#### `khi.google.com/inspection/input/inspection-name`\n- Label: Inspection name\n- Description: The display name of this inspection.\n- Type: text\n"+
+		"#### `khi.google.com/inspection/input/inspection-name`\n- Label: Inspection name\n- Type: text\n"+
 		"- Value: `Google Kubernetes Engine`\n- Default: `Google Kubernetes Engine`\n\n"+
 		"#### `cluster-name`\n- Label: Cluster Name\n- Type: text\n- Value: `prod-cluster-1`", id)
 	checkToolResult(t, "dry_run_inspection", text, isError, want, false)
