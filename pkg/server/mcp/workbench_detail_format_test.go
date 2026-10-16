@@ -41,6 +41,7 @@ var (
 		State:     "Pending",
 		Principal: "user@example.com",
 		LogID:     11,
+		HasBody:   true,
 	}
 	testUpdateRevision = workbench.ResourceRevision{
 		Index:     1,
@@ -49,6 +50,16 @@ var (
 		State:     "Running",
 		Principal: "system:node|x",
 		LogID:     12,
+		HasBody:   true,
+	}
+	testNoBodyRevision = workbench.ResourceRevision{
+		Index:     2,
+		Time:      time.Date(2026, 10, 1, 10, 10, 0, 0, time.UTC),
+		Verb:      "DELETE",
+		State:     "Deleted",
+		Principal: "user@example.com",
+		LogID:     13,
+		HasBody:   false,
 	}
 )
 
@@ -406,6 +417,27 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 			}, "\n"),
 		},
 		{
+			name:         "get_resource_revisions.md.tmpl with a revision without a body",
+			templateName: "get_resource_revisions.md.tmpl",
+			data: buildResourceRevisionsTemplateData(&workbench.ResourceRevisionsResult{
+				TimelineID:   10,
+				Segments:     testPodSegments,
+				MatchedCount: 1,
+				Revisions: []workbench.ResourceRevisionSummary{
+					{ResourceRevision: testNoBodyRevision},
+				},
+			}, 0),
+			want: strings.Join([]string{
+				"# Revisions of [Namespace] default > [Pod] nginx (`10`)",
+				"",
+				"Showing 1-1 of 1 matched revisions (revision indexes 2-2), oldest first.",
+				"",
+				"| # | Time | Verb | State | Principal | Log ID | Diff |",
+				"| --- | --- | --- | --- | --- | --- | --- |",
+				"| 2 | 2026-10-01T10:10:00Z | DELETE | Deleted | user@example.com | `13` | no body |",
+			}, "\n"),
+		},
+		{
 			name:         "get_resource_manifest.md.tmpl",
 			templateName: "get_resource_manifest.md.tmpl",
 			data: buildResourceManifestTemplateData(&workbench.ResourceManifest{
@@ -431,6 +463,29 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 				"status:",
 				"  phase: Pending",
 				"```",
+			}, "\n"),
+		},
+		{
+			name:         "get_resource_manifest.md.tmpl without a recorded body",
+			templateName: "get_resource_manifest.md.tmpl",
+			data: buildResourceManifestTemplateData(&workbench.ResourceManifest{
+				TimelineID: 10,
+				Segments:   testPodSegments,
+				Revision:   testNoBodyRevision,
+			}),
+			want: strings.Join([]string{
+				"# Manifest of [Namespace] default > [Pod] nginx (`10`)",
+				"",
+				"- Revision: 2",
+				"- Time: 2026-10-01T10:10:00Z",
+				"- Verb: DELETE",
+				"- State: Deleted",
+				"- Principal: user@example.com",
+				"- Log ID: `13`",
+				"",
+				"## Body (0 bytes)",
+				"",
+				"No manifest body is recorded for this revision in the logs.",
 			}, "\n"),
 		},
 		{
@@ -462,6 +517,59 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 				"@@ -3 +3 @@",
 				"-  phase: Pending",
 				"+  phase: Running",
+				"```",
+			}, "\n"),
+		},
+		{
+			name:         "get_resource_diff.md.tmpl for a revision without a recorded body",
+			templateName: "get_resource_diff.md.tmpl",
+			data: buildResourceDiffTemplateData(&workbench.ResourceDiff{
+				TimelineID: 10,
+				Segments:   testPodSegments,
+				Revision:   testNoBodyRevision,
+				Previous:   &testUpdateRevision,
+				Changes:    workbench.LineChangeCount{Deleted: 4},
+			}),
+			want: strings.Join([]string{
+				"# Diff of [Namespace] default > [Pod] nginx (`10`)",
+				"",
+				"- Revision: 2, 2026-10-01T10:10:00Z, DELETE by user@example.com, state Deleted, log `13`",
+				"- Previous revision: 1, 2026-10-01T10:05:00Z, UPDATE by system:node|x, state Running, log `12`",
+				"- Changes: no body",
+				"",
+				"## Diff (0 bytes)",
+				"",
+				"No manifest body is recorded for this revision in the logs.",
+			}, "\n"),
+		},
+		{
+			name:         "get_resource_diff.md.tmpl when previous revision had no recorded body",
+			templateName: "get_resource_diff.md.tmpl",
+			data: buildResourceDiffTemplateData(&workbench.ResourceDiff{
+				TimelineID: 10,
+				Segments:   testPodSegments,
+				Revision:   testUpdateRevision,
+				Previous:   &testNoBodyRevision,
+				Changes:    workbench.LineChangeCount{Added: 1},
+				Diff: workbench.BodyChunk{
+					Content:    "--- revision 2\n+++ revision 1\n@@ -0,0 +1 @@\n+kind: Pod\n",
+					TotalBytes: 55,
+				},
+			}),
+			want: strings.Join([]string{
+				"# Diff of [Namespace] default > [Pod] nginx (`10`)",
+				"",
+				"- Revision: 1, 2026-10-01T10:05:00Z, UPDATE by system:node|x, state Running, log `12`",
+				"- Previous revision: 2, 2026-10-01T10:10:00Z, DELETE by user@example.com, state Deleted, log `13`",
+				"- Changes: +1 -0",
+				"",
+				"## Diff (previous revision had no recorded manifest body) (55 bytes)",
+				"",
+				"```diff",
+				"--- revision 2",
+				"+++ revision 1",
+				"@@ -0,0 +1 @@",
+				"+kind: Pod",
 				"```",
 			}, "\n"),
 		},

@@ -158,7 +158,11 @@ func buildResourceRevisionsTemplateData(res *workbench.ResourceRevisionsResult, 
 	revisions := make([]revisionTemplateData, len(res.Revisions))
 	for i, rev := range res.Revisions {
 		revisions[i] = toRevisionTemplateData(rev.ResourceRevision)
-		revisions[i].Changes = formatLineChanges(rev.Changes)
+		if !rev.HasBody {
+			revisions[i].Changes = "no body"
+		} else {
+			revisions[i].Changes = formatLineChanges(rev.Changes)
+		}
 	}
 	data := resourceRevisionsTemplateData{
 		TimelineID:   formatID(res.TimelineID),
@@ -181,11 +185,15 @@ func buildResourceRevisionsTemplateData(res *workbench.ResourceRevisionsResult, 
 }
 
 func buildResourceManifestTemplateData(manifest *workbench.ResourceManifest) resourceManifestTemplateData {
+	bodySection := "## Body (0 bytes)\n\nNo manifest body is recorded for this revision in the logs."
+	if manifest.Revision.HasBody {
+		bodySection = formatBodySection("Body", "yaml", manifest.Body)
+	}
 	return resourceManifestTemplateData{
 		TimelineID:  formatID(manifest.TimelineID),
 		Segments:    manifest.Segments,
 		Revision:    toRevisionTemplateData(manifest.Revision),
-		BodySection: formatBodySection("Body", "yaml", manifest.Body),
+		BodySection: bodySection,
 	}
 }
 
@@ -194,16 +202,24 @@ func buildResourceDiffTemplateData(diff *workbench.ResourceDiff) resourceDiffTem
 	if diff.Previous != nil {
 		previousLine = formatRevisionLine(*diff.Previous)
 	}
+	changes := formatLineChanges(diff.Changes)
 	diffSection := "## Diff (0 bytes)\n\nThe manifest is identical to the previous revision."
-	if diff.Diff.TotalBytes > 0 {
-		diffSection = formatBodySection("Diff", "diff", diff.Diff)
+	if !diff.Revision.HasBody {
+		changes = "no body"
+		diffSection = "## Diff (0 bytes)\n\nNo manifest body is recorded for this revision in the logs."
+	} else if diff.Diff.TotalBytes > 0 {
+		heading := "Diff"
+		if diff.Previous != nil && !diff.Previous.HasBody {
+			heading = "Diff (previous revision had no recorded manifest body)"
+		}
+		diffSection = formatBodySection(heading, "diff", diff.Diff)
 	}
 	return resourceDiffTemplateData{
 		TimelineID:   formatID(diff.TimelineID),
 		Segments:     diff.Segments,
 		RevisionLine: formatRevisionLine(diff.Revision),
 		PreviousLine: previousLine,
-		Changes:      formatLineChanges(diff.Changes),
+		Changes:      changes,
 		DiffSection:  diffSection,
 	}
 }

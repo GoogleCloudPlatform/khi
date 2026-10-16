@@ -124,9 +124,9 @@ var (
 		{Type: "Namespace", Name: "default"},
 		{Type: "Pod", Name: "nginx"},
 	}
-	testRevision0 = ResourceRevision{Index: 0, Time: testRevision0Time, Verb: "CREATE", State: "Pending", Principal: testRevisionPrincipalA, LogID: 1}
-	testRevision1 = ResourceRevision{Index: 1, Time: testRevision1Time, Verb: "UPDATE", State: "Running", Principal: testRevisionPrincipalB, LogID: 2}
-	testRevision2 = ResourceRevision{Index: 2, Time: testRevision2Time, Verb: "DELETE", State: "Deleted", Principal: testRevisionPrincipalA, LogID: 3}
+	testRevision0 = ResourceRevision{Index: 0, Time: testRevision0Time, Verb: "CREATE", State: "Pending", Principal: testRevisionPrincipalA, LogID: 1, HasBody: true}
+	testRevision1 = ResourceRevision{Index: 1, Time: testRevision1Time, Verb: "UPDATE", State: "Running", Principal: testRevisionPrincipalB, LogID: 2, HasBody: true}
+	testRevision2 = ResourceRevision{Index: 2, Time: testRevision2Time, Verb: "DELETE", State: "Deleted", Principal: testRevisionPrincipalA, LogID: 3, HasBody: false}
 )
 
 func TestGetResourceRevisions(t *testing.T) {

@@ -36,6 +36,8 @@ type ResourceRevision struct {
 	State     string
 	Principal string
 	LogID     uint32
+	// HasBody reports whether a resource manifest body was recorded for this revision.
+	HasBody bool
 }
 
 // ResourceRevisionSummary is a ResourceRevision with the line change counts from its previous revision.
@@ -141,9 +143,10 @@ func (w *Workbench) GetResourceRevisions(timelineID uint32, query ResourceRevisi
 		if i > 0 {
 			prevBody = bodies[tl.Revisions[i-1].ResourceBodyStructID]
 		}
+		body := bodies[tl.Revisions[i].ResourceBodyStructID]
 		result.Revisions = append(result.Revisions, ResourceRevisionSummary{
-			ResourceRevision: toResourceRevision(index, tl.Revisions, i),
-			Changes:          countLineChanges(prevBody, bodies[tl.Revisions[i].ResourceBodyStructID]),
+			ResourceRevision: toResourceRevision(index, tl.Revisions, i, body != ""),
+			Changes:          countLineChanges(prevBody, body),
 		})
 	}
 	return result, nil
@@ -168,11 +171,12 @@ func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSele
 	if err != nil {
 		return nil, err
 	}
+	body := bodies[tl.Revisions[revIdx].ResourceBodyStructID]
 	return &ResourceManifest{
 		TimelineID: timelineID,
 		Segments:   segments,
-		Revision:   toResourceRevision(index, tl.Revisions, revIdx),
-		Body:       truncateBody(bodies[tl.Revisions[revIdx].ResourceBodyStructID], byteOffset, bodyByteLimit),
+		Revision:   toResourceRevision(index, tl.Revisions, revIdx, body != ""),
+		Body:       truncateBody(body, byteOffset, bodyByteLimit),
 	}, nil
 }
 
@@ -195,20 +199,21 @@ func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex, byteOffset
 	if err != nil {
 		return nil, err
 	}
+	body := bodies[tl.Revisions[revisionIndex].ResourceBodyStructID]
 	result := &ResourceDiff{
 		TimelineID: timelineID,
 		Segments:   segments,
-		Revision:   toResourceRevision(index, tl.Revisions, revisionIndex),
+		Revision:   toResourceRevision(index, tl.Revisions, revisionIndex, body != ""),
 	}
 	prevBody := ""
 	prevLabel := "none"
 	if revisionIndex > 0 {
-		prev := toResourceRevision(index, tl.Revisions, revisionIndex-1)
-		result.Previous = &prev
 		prevBody = bodies[tl.Revisions[revisionIndex-1].ResourceBodyStructID]
+		prev := toResourceRevision(index, tl.Revisions, revisionIndex-1, prevBody != "")
+		result.Previous = &prev
 		prevLabel = revisionLabel(revisionIndex - 1)
 	}
-	diff := computeUnifiedDiff(prevBody, bodies[tl.Revisions[revisionIndex].ResourceBodyStructID], prevLabel, revisionLabel(revisionIndex))
+	diff := computeUnifiedDiff(prevBody, body, prevLabel, revisionLabel(revisionIndex))
 	result.Changes = diff.Changes
 	result.Diff = truncateBody(diff.Text, byteOffset, bodyByteLimit)
 	return result, nil
@@ -256,7 +261,7 @@ func selectRevision(revs []cel.RevisionInfo, selector RevisionSelector) (int, er
 	return idx, nil
 }
 
-func toResourceRevision(index *SearchIndex, revs []cel.RevisionInfo, i int) ResourceRevision {
+func toResourceRevision(index *SearchIndex, revs []cel.RevisionInfo, i int, hasBody bool) ResourceRevision {
 	rev := revs[i]
 	var changedTime time.Time
 	if rev.ChangedTime > 0 {
@@ -269,6 +274,7 @@ func toResourceRevision(index *SearchIndex, revs []cel.RevisionInfo, i int) Reso
 		State:     rev.State,
 		Principal: index.InternPool.ResolveStringFromID(rev.PrincipalStringID),
 		LogID:     rev.LogID,
+		HasBody:   hasBody,
 	}
 }
 
