@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -910,14 +911,13 @@ func TestInspectionTaskRunner_RunContextErrorDoesNotCorruptState(t *testing.T) {
 	runner := server.GetInspection(inspectionID)
 
 	failSetup := true
-	cleanupCalled := false
+	cleanupDone := make(chan struct{})
 	setupErr := errors.New("run context setup failed")
 	runner.runContextOptions = append(runner.runContextOptions, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (context.Context, error) {
-		cleanups := khictx.MustGetValue(ctx, runCleanupKey)
-		*cleanups = append(*cleanups, func() {
-			cleanupCalled = true
-		})
 		if failSetup {
+			context.AfterFunc(ctx, func() {
+				close(cleanupDone)
+			})
 			return ctx, setupErr
 		}
 		return ctx, nil
@@ -928,8 +928,10 @@ func TestInspectionTaskRunner_RunContextErrorDoesNotCorruptState(t *testing.T) {
 	if !errors.Is(err, setupErr) {
 		t.Fatalf("first Run() error = %v, want %v", err, setupErr)
 	}
-	if !cleanupCalled {
-		t.Errorf("cleanupCalled = false after failed RunContextOption, want true")
+	select {
+	case <-cleanupDone:
+	case <-time.After(time.Second):
+		t.Errorf("timed out waiting for run context AfterFunc cleanup after failed RunContextOption")
 	}
 	if runner.Started() {
 		t.Errorf("runner.Started() = true after failed RunContextOption, want false")

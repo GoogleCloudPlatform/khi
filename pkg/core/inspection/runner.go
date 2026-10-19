@@ -49,8 +49,6 @@ type InspectionInterceptor func(ctx context.Context, req *inspectioncore.Inspect
 
 var inspectionRunnerGlobalSharedMap = typedmap.NewTypedMap()
 
-var runCleanupKey = typedmap.NewTypedKey[*[]func()]("run-cleanup")
-
 // onceWriteCloser wraps an io.WriteCloser so that Close is executed at most once.
 type onceWriteCloser struct {
 	io.WriteCloser
@@ -184,8 +182,7 @@ func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
 				closer = onceCloser
 			}
 			builder := khifilev6.NewBuilder(khictx.MustGetValue(ctx, inspectioncore.IDGenerator), writer)
-			cleanups := khictx.MustGetValue(ctx, runCleanupKey)
-			*cleanups = append(*cleanups, func() {
+			context.AfterFunc(ctx, func() {
 				builder.Dispose()
 				if closer != nil {
 					_ = closer.Close()
@@ -356,8 +353,9 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 	return nil
 }
 
-// withRunContextValues returns a context with the value specific to a single run of task and a cleanup function.
-func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runner coretask.TaskRunner, runMode inspectioncore.InspectionTaskModeType, taskInput map[string]any) (context.Context, func(), error) {
+// withRunContextValues returns a cancelable context populated with the values specific to a single task run and its cancel function.
+func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runner coretask.TaskRunner, runMode inspectioncore.InspectionTaskModeType, taskInput map[string]any) (context.Context, context.CancelFunc, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	opts := make([]RunContextOption, 0, len(i.runContextOptions)+3)
 	opts = append(opts, i.runContextOptions...)
 	// Add option values determined for this run call.
@@ -365,22 +363,14 @@ func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runner 
 	opts = append(opts, RunContextOptionFromValue(inspectioncore.InspectionTaskInput, taskInput))
 	opts = append(opts, RunContextOptionFromValue(inspectioncore.InspectionTaskMode, runMode))
 
-	cleanups := &[]func(){}
-	ctx = khictx.WithValue(ctx, runCleanupKey, cleanups)
-	cleanup := func() {
-		for _, fn := range *cleanups {
-			fn()
-		}
-	}
-
 	var err error
 	for _, opt := range opts {
 		if ctx, err = opt(ctx, runMode); err != nil {
-			cleanup()
+			cancel()
 			return nil, nil, err
 		}
 	}
-	return ctx, cleanup, nil
+	return ctx, cancel, nil
 }
 
 // Run executes the inspection. It resolves the task graph, sets up the context
@@ -403,7 +393,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore.Insp
 	}
 	runner.AddInterceptor(progress.TaskInterceptor)
 
-	runCtx, cleanup, err := i.withRunContextValues(context.WithoutCancel(ctx), runner, inspectioncore.TaskModeRun, req.Values)
+	runCtx, runCancel, err := i.withRunContextValues(context.WithoutCancel(ctx), runner, inspectioncore.TaskModeRun, req.Values)
 	if err != nil {
 		return err
 	}
@@ -458,8 +448,8 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore.Insp
 	go func() {
 		defer close(i.runComplete)
 		defer i.inspectionCancel()
+		defer runCancel()
 		defer cancel()
-		defer cleanup()
 		_ = runFunc(cancelableCtx)
 	}()
 	return nil
@@ -518,11 +508,11 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspectioncore.I
 		return nil, err
 	}
 
-	runCtx, cleanup, err := i.withRunContextValues(ctx, runner, inspectioncore.TaskModeDryRun, req.Values)
+	runCtx, runCancel, err := i.withRunContextValues(ctx, runner, inspectioncore.TaskModeDryRun, req.Values)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer runCancel()
 
 	dryrunMetadata := i.generateMetadataForDryRun(runCtx, &inspectionmetadata.HeaderMetadata{}, runnableTaskGraph)
 
