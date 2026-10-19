@@ -910,8 +910,13 @@ func TestInspectionTaskRunner_RunContextErrorDoesNotCorruptState(t *testing.T) {
 	runner := server.GetInspection(inspectionID)
 
 	failSetup := true
+	cleanupCalled := false
 	setupErr := errors.New("run context setup failed")
 	runner.runContextOptions = append(runner.runContextOptions, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (context.Context, error) {
+		cleanups := khictx.MustGetValue(ctx, runCleanupKey)
+		*cleanups = append(*cleanups, func() {
+			cleanupCalled = true
+		})
 		if failSetup {
 			return ctx, setupErr
 		}
@@ -922,6 +927,9 @@ func TestInspectionTaskRunner_RunContextErrorDoesNotCorruptState(t *testing.T) {
 	err := runner.Run(context.Background(), req)
 	if !errors.Is(err, setupErr) {
 		t.Fatalf("first Run() error = %v, want %v", err, setupErr)
+	}
+	if !cleanupCalled {
+		t.Errorf("cleanupCalled = false after failed RunContextOption, want true")
 	}
 	if runner.Started() {
 		t.Errorf("runner.Started() = true after failed RunContextOption, want false")
