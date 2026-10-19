@@ -58,8 +58,8 @@ type formFieldData struct {
 	// IsDefaulted reports that the parameter is not passed and Value is the default.
 	IsDefaulted bool
 	Default     string
-	Suggestions    string
-	Options        string
+	Suggestions string
+	Options     string
 	// UploadStatus is the upload status line of a file field. It is empty for other field types.
 	UploadStatus string
 	HintType     string
