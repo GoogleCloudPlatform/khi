@@ -75,7 +75,7 @@ func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "get_resource_manifest",
-		Description: `Get the manifest of a resource at a revision index or at a point in time. Long manifests are truncated; pass the byteOffset from the last line together with the revisionIndex shown in the response to read the rest.`,
+		Description: `Get the manifest of a resource at a revision index or at a point in time (metadata.managedFields is omitted by default; set includeManagedFields to true to include it). Long manifests are truncated; pass the byteOffset from the last line together with the revisionIndex shown in the response to read the rest.`,
 	}, h.handleGetResourceManifest)
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
@@ -153,7 +154,8 @@ func (w *Workbench) GetResourceRevisions(timelineID uint32, query ResourceRevisi
 }
 
 // GetResourceManifest returns the manifest YAML of the selected revision, sliced from byteOffset.
-func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSelector, byteOffset int) (*ResourceManifest, error) {
+// When includeManagedFields is false, metadata.managedFields is omitted from the manifest.
+func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSelector, byteOffset int, includeManagedFields bool) (*ResourceManifest, error) {
 	index, _, err := w.readyIndex()
 	if err != nil {
 		return nil, err
@@ -172,10 +174,14 @@ func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSele
 		return nil, err
 	}
 	body := bodies[tl.Revisions[revIdx].ResourceBodyStructID]
+	hasBody := body != ""
+	if !includeManagedFields {
+		body = stripManagedFields(body)
+	}
 	return &ResourceManifest{
 		TimelineID: timelineID,
 		Segments:   segments,
-		Revision:   toResourceRevision(index, tl.Revisions, revIdx, body != ""),
+		Revision:   toResourceRevision(index, tl.Revisions, revIdx, hasBody),
 		Body:       truncateBody(body, byteOffset, bodyByteLimit),
 	}, nil
 }
@@ -280,4 +286,51 @@ func toResourceRevision(index *SearchIndex, revs []cel.RevisionInfo, i int, hasB
 
 func revisionLabel(i int) string {
 	return "revision " + strconv.Itoa(i)
+}
+
+// stripManagedFields removes the top-level metadata.managedFields block from a DirectYAMLSerializer manifest.
+func stripManagedFields(yamlStr string) string {
+	if !strings.Contains(yamlStr, "managedFields:") {
+		return yamlStr
+	}
+	lines := strings.Split(yamlStr, "\n")
+	out := make([]string, 0, len(lines))
+	inMetadata := false
+	inManagedFields := false
+	strippedInMetadata := false
+
+	for _, line := range lines {
+		if line != "" && line[0] != ' ' {
+			if strippedInMetadata && len(out) > 0 && out[len(out)-1] == "metadata:" {
+				out = out[:len(out)-1]
+			}
+			inMetadata = line == "metadata:"
+			inManagedFields = false
+			strippedInMetadata = false
+			out = append(out, line)
+			continue
+		}
+		if inMetadata {
+			if line == "  managedFields:" || strings.HasPrefix(line, "  managedFields: ") {
+				inManagedFields = true
+				strippedInMetadata = true
+				continue
+			}
+			if inManagedFields {
+				if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "  -") {
+					continue
+				}
+				inManagedFields = false
+			}
+		}
+		out = append(out, line)
+	}
+	if strippedInMetadata {
+		if len(out) > 0 && out[len(out)-1] == "metadata:" {
+			out = out[:len(out)-1]
+		} else if len(out) > 1 && out[len(out)-1] == "" && out[len(out)-2] == "metadata:" {
+			out = append(out[:len(out)-2], "")
+		}
+	}
+	return strings.Join(out, "\n")
 }

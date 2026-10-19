@@ -61,11 +61,12 @@ type GetResourceRevisionsInput struct {
 
 // GetResourceManifestInput defines the input parameters for the get_resource_manifest MCP tool.
 type GetResourceManifestInput struct {
-	InspectionID  string     `json:"inspectionId" jsonschema:"The target inspection ID."`
-	TimelineID    string     `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
-	RevisionIndex *int       `json:"revisionIndex,omitempty" jsonschema:"The revision index from get_resource_revisions. Specify either revisionIndex or time."`
-	Time          *time.Time `json:"time,omitempty" jsonschema:"Selects the revision effective at this time in RFC3339 format. Specify either revisionIndex or time."`
-	ByteOffset    int        `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated body. Pass it with the revisionIndex of that response."`
+	InspectionID         string     `json:"inspectionId" jsonschema:"The target inspection ID."`
+	TimelineID           string     `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
+	RevisionIndex        *int       `json:"revisionIndex,omitempty" jsonschema:"The revision index from get_resource_revisions. Specify either revisionIndex or time."`
+	Time                 *time.Time `json:"time,omitempty" jsonschema:"Selects the revision effective at this time in RFC3339 format. Specify either revisionIndex or time."`
+	ByteOffset           int        `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated body. Pass it with the revisionIndex of that response."`
+	IncludeManagedFields bool       `json:"includeManagedFields,omitempty" jsonschema:"Include metadata.managedFields in the returned manifest. Defaults to false because managedFields is large and rarely needed."`
 }
 
 // GetResourceDiffInput defines the input parameters for the get_resource_diff MCP tool.
@@ -207,7 +208,7 @@ func (h *WorkbenchHandler) handleGetResourceManifest(ctx context.Context, _ *mcp
 	} else {
 		selector = workbench.RevisionAtTime(*input.Time)
 	}
-	manifest, err := wb.GetResourceManifest(timelineID, selector, input.ByteOffset)
+	manifest, err := wb.GetResourceManifest(timelineID, selector, input.ByteOffset, input.IncludeManagedFields)
 	if errRes, ok := revisionLookupErrorResult(err, input.InspectionID, input.TimelineID); ok {
 		return errRes, nil, nil
 	}

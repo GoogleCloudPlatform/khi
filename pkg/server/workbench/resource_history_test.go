@@ -351,7 +351,7 @@ func TestGetResourceManifest(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupResourceHistoryTestWorkbench(t)
-			got, err := wb.GetResourceManifest(testPodTimelineID, tc.selector, 0)
+			got, err := wb.GetResourceManifest(testPodTimelineID, tc.selector, 0, false)
 			if tc.wantErrTarget != nil {
 				if !errors.Is(err, tc.wantErrTarget) {
 					t.Fatalf("GetResourceManifest() err = %v, want %v", err, tc.wantErrTarget)
@@ -400,12 +400,129 @@ func TestGetResourceManifest_ByteOffset(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupResourceHistoryTestWorkbench(t)
-			got, err := wb.GetResourceManifest(testPodTimelineID, RevisionAtIndex(1), tc.byteOffset)
+			got, err := wb.GetResourceManifest(testPodTimelineID, RevisionAtIndex(1), tc.byteOffset, false)
 			if err != nil {
 				t.Fatalf("GetResourceManifest() unexpected error = %v", err)
 			}
 			if diff := cmp.Diff(tc.wantBody, got.Body); diff != "" {
 				t.Errorf("Body mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetResourceManifest_IncludeManagedFields(t *testing.T) {
+	const fullManifest = "apiVersion: v1\nkind: Pod\nmetadata:\n  managedFields:\n  - apiVersion: v1\n    fieldsType: FieldsV1\n    manager: kubelet\n  name: nginx\n  namespace: default\nstatus:\n  phase: Running\n"
+	const strippedManifest = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: nginx\n  namespace: default\nstatus:\n  phase: Running\n"
+
+	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
+	principalA := pool.InternString(testRevisionPrincipalA).ID()
+	bodyID := internTestYAML(t, pool, fullManifest)
+	readonlyPool := newReadonlyInternPool(pool)
+
+	podTimeline := &cel.TimelineData{
+		ID:           testPodTimelineID,
+		Name:         "nginx",
+		TimelineType: "Pod",
+		Revisions: []cel.RevisionInfo{
+			{LogID: 1, ChangedTime: testRevision0Time.UnixNano(), PrincipalStringID: principalA, Verb: "CREATE", State: "Running", ResourceBodyStructID: bodyID},
+		},
+	}
+	wb := NewWorkbench("wb-test", "test-inspection")
+	wb.internPool = readonlyPool
+	wb.searchIndex = &SearchIndex{
+		InternPool:  readonlyPool,
+		Timelines:   []*cel.TimelineData{podTimeline},
+		TimelineMap: map[uint32]*cel.TimelineData{podTimeline.ID: podTimeline},
+	}
+
+	testCases := []struct {
+		name                 string
+		includeManagedFields bool
+		byteOffset           int
+		wantBody             BodyChunk
+	}{
+		{
+			name:                 "omits metadata.managedFields by default",
+			includeManagedFields: false,
+			wantBody: BodyChunk{
+				Content:    strippedManifest,
+				TotalBytes: len(strippedManifest),
+			},
+		},
+		{
+			name:                 "includes metadata.managedFields when requested",
+			includeManagedFields: true,
+			wantBody: BodyChunk{
+				Content:    fullManifest,
+				TotalBytes: len(fullManifest),
+			},
+		},
+		{
+			name:                 "byteOffset applies to the stripped manifest when includeManagedFields is false",
+			includeManagedFields: false,
+			byteOffset:           len("apiVersion: v1\nkind: Pod\n"),
+			wantBody: BodyChunk{
+				Content:    "metadata:\n  name: nginx\n  namespace: default\nstatus:\n  phase: Running\n",
+				TotalBytes: len(strippedManifest),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := wb.GetResourceManifest(testPodTimelineID, RevisionAtIndex(0), tc.byteOffset, tc.includeManagedFields)
+			if err != nil {
+				t.Fatalf("GetResourceManifest() unexpected error = %v", err)
+			}
+			if !got.Revision.HasBody {
+				t.Errorf("got.Revision.HasBody = false, want true")
+			}
+			if diff := cmp.Diff(tc.wantBody, got.Body); diff != "" {
+				t.Errorf("Body mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestStripManagedFields(t *testing.T) {
+	testCases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "removes metadata.managedFields before sibling metadata keys",
+			in:   "kind: Pod\nmetadata:\n  managedFields:\n  - manager: kubectl\n    operation: Apply\n  name: pod-1\nspec: {}\n",
+			want: "kind: Pod\nmetadata:\n  name: pod-1\nspec: {}\n",
+		},
+		{
+			name: "removes metadata.managedFields at the end of metadata",
+			in:   "kind: Pod\nmetadata:\n  name: pod-1\n  managedFields:\n  - manager: kubectl\nspec: {}\n",
+			want: "kind: Pod\nmetadata:\n  name: pod-1\nspec: {}\n",
+		},
+		{
+			name: "removes empty metadata block when managedFields was its only child",
+			in:   "kind: Pod\nmetadata:\n  managedFields:\n  - manager: kubectl\nstatus:\n  phase: Running\n",
+			want: "kind: Pod\nstatus:\n  phase: Running\n",
+		},
+		{
+			name: "removes empty metadata block at EOF when managedFields was its only child",
+			in:   "kind: Pod\nmetadata:\n  managedFields:\n  - manager: kubectl\n",
+			want: "kind: Pod\n",
+		},
+		{
+			name: "preserves non-top-level managedFields under spec",
+			in:   "kind: Custom\nmetadata:\n  name: c1\nspec:\n  managedFields:\n  - keep: true\n",
+			want: "kind: Custom\nmetadata:\n  name: c1\nspec:\n  managedFields:\n  - keep: true\n",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := stripManagedFields(tc.in)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("stripManagedFields() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
