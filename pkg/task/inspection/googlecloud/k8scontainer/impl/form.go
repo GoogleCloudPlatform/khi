@@ -43,7 +43,7 @@ var inputContainerQueryNamespaceFilterTask = formtask.DefineSetForm(
 	priorityForContainerGroup+1000,
 	"Namespaces(Container logs)",
 	`Container logs tend to be a lot and take very long time to query.
-Specify the namespaces to query container logs from.`,
+Specify the namespaces to query container logs from. The default "@managed" queries only system-managed namespaces (such as kube-system and gke-system); specify "@any" or target namespace names to query application pod container logs.`,
 	func(b *coretask.Binder) formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult] {
 		namespaces := coretask.Use(b, k8scommon.AutocompleteNamespacesTaskID.Ref())
 		return formtask.SetFormSpec[*gcpqueryutil.SetFilterParseResult]{

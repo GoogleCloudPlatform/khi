@@ -308,7 +308,7 @@ func TestGroupFormFields(t *testing.T) {
 		want          groupResult
 	}{
 		{
-			name: "text field with value, default and suggestions omits description when there are no errors",
+			name: "text field with value, default, suggestions, and description",
 			fields: []inspectionmetadata.ParameterFormField{
 				inspectionmetadata.TextParameterFormField{
 					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
@@ -330,6 +330,7 @@ func TestGroupFormFields(t *testing.T) {
 							{
 								ID:          "clusterName",
 								Label:       "Cluster name",
+								Description: "The name of the GKE cluster.",
 								Type:        "text",
 								Value:       "`prod-cluster-1`",
 								Default:     "`default-cluster`",
@@ -341,7 +342,7 @@ func TestGroupFormFields(t *testing.T) {
 			},
 		},
 		{
-			name: "expandFieldID keeps description and expands choices past the limit",
+			name: "expandFieldID expands choices past the limit",
 			fields: []inspectionmetadata.ParameterFormField{
 				inspectionmetadata.TextParameterFormField{
 					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
@@ -1019,7 +1020,7 @@ func TestInspectionTools_DryRunInspection(t *testing.T) {
 		"## Fields\n\n"+
 		"Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`.\n\n"+
 		"### General\n\n"+
-		"#### `khi.google.com/inspection/input/inspection-name`\n- Label: Inspection name\n- Type: text\n"+
+		"#### `khi.google.com/inspection/input/inspection-name`\n- Label: Inspection name\n- Description: The display name of this inspection.\n- Type: text\n"+
 		"- Value: `Google Kubernetes Engine`\n- Default: `Google Kubernetes Engine`\n\n"+
 		"#### `cluster-name`\n- Label: Cluster Name\n- Type: text\n- Value: `prod-cluster-1`", id)
 	checkToolResult(t, "dry_run_inspection", text, isError, want, false)

@@ -104,8 +104,7 @@ func fieldsWhere(groups []formGroupData, keep func(field formFieldData) bool) []
 	return result
 }
 
-// groupFormFields organizes flat/nested form fields into Web UI groups and counts errors/warnings.
-// When totalErrors is 0, descriptions on fields without hints are omitted unless the field matches expandFieldID.
+// groupFormFields organizes flat and nested form fields into groups and counts errors and warnings.
 func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[string]any, expandFieldID string) ([]formGroupData, int, int) {
 	var generalFields []formFieldData
 	var groups []formGroupData
@@ -116,14 +115,10 @@ func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[
 		if group, ok := field.(inspectionmetadata.GroupParameterFormField); ok {
 			var groupFields []formFieldData
 			for _, child := range group.Children {
-				base := inspectionmetadata.GetParameterFormFieldBase(child)
-				data := toFormFieldData(child, params, expandFieldID != "" && base.ID == expandFieldID)
+				data, errs, warns := convertFormField(child, params, expandFieldID)
 				groupFields = append(groupFields, data)
-				if data.HintType == "Error" {
-					totalErrors++
-				} else if data.HintType == "Warning" {
-					totalWarnings++
-				}
+				totalErrors += errs
+				totalWarnings += warns
 			}
 			if len(groupFields) > 0 {
 				groups = append(groups, formGroupData{
@@ -131,16 +126,12 @@ func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[
 					Fields: groupFields,
 				})
 			}
-		} else {
-			base := inspectionmetadata.GetParameterFormFieldBase(field)
-			data := toFormFieldData(field, params, expandFieldID != "" && base.ID == expandFieldID)
-			generalFields = append(generalFields, data)
-			if data.HintType == "Error" {
-				totalErrors++
-			} else if data.HintType == "Warning" {
-				totalWarnings++
-			}
+			continue
 		}
+		data, errs, warns := convertFormField(field, params, expandFieldID)
+		generalFields = append(generalFields, data)
+		totalErrors += errs
+		totalWarnings += warns
 	}
 
 	if len(generalFields) > 0 {
@@ -150,18 +141,21 @@ func groupFormFields(fields []inspectionmetadata.ParameterFormField, params map[
 		}}, groups...)
 	}
 
-	if totalErrors == 0 {
-		for gi := range groups {
-			for fi := range groups[gi].Fields {
-				f := &groups[gi].Fields[fi]
-				if f.Hint == "" && (expandFieldID == "" || f.ID != expandFieldID) {
-					f.Description = ""
-				}
-			}
-		}
-	}
-
 	return groups, totalErrors, totalWarnings
+}
+
+// convertFormField converts a ParameterFormField into formFieldData and returns its error and warning counts (0 or 1).
+func convertFormField(field inspectionmetadata.ParameterFormField, params map[string]any, expandFieldID string) (formFieldData, int, int) {
+	base := inspectionmetadata.GetParameterFormFieldBase(field)
+	data := toFormFieldData(field, params, expandFieldID != "" && base.ID == expandFieldID)
+	switch data.HintType {
+	case "Error":
+		return data, 1, 0
+	case "Warning":
+		return data, 0, 1
+	default:
+		return data, 0, 0
+	}
 }
 
 // toFormFieldData converts a ParameterFormField into formFieldData for template rendering.
