@@ -412,7 +412,7 @@ func TestGetResourceManifest_ByteOffset(t *testing.T) {
 }
 
 func TestGetResourceManifest_IncludeManagedFields(t *testing.T) {
-	const fullManifest = "apiVersion: v1\nkind: Pod\nmetadata:\n  managedFields:\n  - apiVersion: v1\n    fieldsType: FieldsV1\n    manager: kubelet\n  name: nginx\n  namespace: default\nstatus:\n  phase: Running\n"
+	const fullManifest = "apiVersion: v1\nkind: Pod\nmetadata:\n  managedFields: \n  - apiVersion: v1\n    fieldsType: FieldsV1\n    manager: kubelet\n  name: nginx\n  namespace: default\nstatus:\n  phase: Running\n"
 	const strippedManifest = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: nginx\n  namespace: default\nstatus:\n  phase: Running\n"
 
 	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
