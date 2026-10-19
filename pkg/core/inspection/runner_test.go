@@ -902,3 +902,40 @@ func TestInspectionTaskRunner_ErrorUnwrapping(t *testing.T) {
 		})
 	}
 }
+
+func TestInspectionTaskRunner_RunContextErrorDoesNotCorruptState(t *testing.T) {
+	logger.InitGlobalKHILogger()
+
+	server, inspectionID, _ := newTestInspectionServer(t, nil)
+	runner := server.GetInspection(inspectionID)
+
+	failSetup := true
+	setupErr := errors.New("run context setup failed")
+	runner.runContextOptions = append(runner.runContextOptions, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (context.Context, error) {
+		if failSetup {
+			return ctx, setupErr
+		}
+		return ctx, nil
+	})
+
+	req := &inspectioncore.InspectionRequest{Values: map[string]any{}}
+	err := runner.Run(context.Background(), req)
+	if !errors.Is(err, setupErr) {
+		t.Fatalf("first Run() error = %v, want %v", err, setupErr)
+	}
+	if runner.Started() {
+		t.Errorf("runner.Started() = true after failed RunContextOption, want false")
+	}
+	if cancelErr := runner.Cancel(); cancelErr == nil || !strings.Contains(cancelErr.Error(), "this task is not yet started") {
+		t.Errorf("runner.Cancel() error = %v, want error containing %q", cancelErr, "this task is not yet started")
+	}
+
+	failSetup = false
+	if err := runner.Run(context.Background(), req); err != nil {
+		t.Fatalf("retry Run() failed: %v", err)
+	}
+	<-runner.Wait()
+	if _, err := runner.Result(); err != nil {
+		t.Errorf("runner.Result() after retry = %v, want nil", err)
+	}
+}

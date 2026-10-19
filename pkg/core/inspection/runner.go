@@ -367,10 +367,8 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore.Insp
 		return err
 	}
 	runner.AddInterceptor(progress.TaskInterceptor)
-	i.runner = runner
-	i.runTaskGraph = runnableTaskGraph
 
-	runCtx, err := i.withRunContextValues(context.WithoutCancel(ctx), i.runner, inspectioncore.TaskModeRun, req.Values)
+	runCtx, err := i.withRunContextValues(context.WithoutCancel(ctx), runner, inspectioncore.TaskModeRun, req.Values)
 	if err != nil {
 		return err
 	}
@@ -387,8 +385,9 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore.Insp
 	runCtx = khictx.WithValue(runCtx, inspectionmetadata.MapContextKey, runMetadata)
 
 	cancelableCtx, cancel := context.WithCancel(runCtx)
+	i.runner = runner
+	i.runTaskGraph = runnableTaskGraph
 	i.cancel = cancel
-
 	i.metadata = runMetadata
 
 	// Run the inspection with interceptors.
