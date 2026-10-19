@@ -150,3 +150,121 @@ func TestGetParameterFormFieldBase(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateGroupChildTextFieldDefault(t *testing.T) {
+	initialGroup := func() GroupParameterFormField {
+		return GroupParameterFormField{
+			ParameterFormFieldBase: ParameterFormFieldBase{
+				ID:    "group-1",
+				Label: "Group 1",
+				Type:  Group,
+			},
+			Children: []ParameterFormField{
+				TextParameterFormField{
+					ParameterFormFieldBase: ParameterFormFieldBase{
+						ID:    "child-1",
+						Label: "Child 1",
+						Type:  Text,
+					},
+					Default:     "projects/",
+					Suggestions: []string{"projects/"},
+				},
+				CheckboxParameterFormField{
+					ParameterFormFieldBase: ParameterFormFieldBase{
+						ID:    "child-2",
+						Label: "Child 2",
+						Type:  Checkbox,
+					},
+					Default: true,
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		name        string
+		groupID     string
+		childID     string
+		defaultVal  string
+		suggestions []string
+		wantGroup   GroupParameterFormField
+	}{
+		{
+			name:        "updates matching text child default and suggestions while preserving siblings",
+			groupID:     "group-1",
+			childID:     "child-1",
+			defaultVal:  "projects/my-project",
+			suggestions: []string{"projects/my-project", "projects/other"},
+			wantGroup: GroupParameterFormField{
+				ParameterFormFieldBase: ParameterFormFieldBase{
+					ID:    "group-1",
+					Label: "Group 1",
+					Type:  Group,
+				},
+				Children: []ParameterFormField{
+					TextParameterFormField{
+						ParameterFormFieldBase: ParameterFormFieldBase{
+							ID:    "child-1",
+							Label: "Child 1",
+							Type:  Text,
+						},
+						Default:     "projects/my-project",
+						Suggestions: []string{"projects/my-project", "projects/other"},
+					},
+					CheckboxParameterFormField{
+						ParameterFormFieldBase: ParameterFormFieldBase{
+							ID:    "child-2",
+							Label: "Child 2",
+							Type:  Checkbox,
+						},
+						Default: true,
+					},
+				},
+			},
+		},
+		{
+			name:        "no-op when group ID does not match",
+			groupID:     "other-group",
+			childID:     "child-1",
+			defaultVal:  "projects/my-project",
+			suggestions: []string{"projects/my-project"},
+			wantGroup:   initialGroup(),
+		},
+		{
+			name:        "no-op when child ID does not match",
+			groupID:     "group-1",
+			childID:     "unknown-child",
+			defaultVal:  "projects/my-project",
+			suggestions: []string{"projects/my-project"},
+			wantGroup:   initialGroup(),
+		},
+		{
+			name:        "no-op when matching child is not a text field",
+			groupID:     "group-1",
+			childID:     "child-2",
+			defaultVal:  "projects/my-project",
+			suggestions: []string{"projects/my-project"},
+			wantGroup:   initialGroup(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fs := NewFormFieldSetMetadata()
+			if err := fs.SetField(initialGroup()); err != nil {
+				t.Fatalf("SetField() failed: %v", err)
+			}
+
+			inputSuggestions := append([]string(nil), tc.suggestions...)
+			fs.UpdateGroupChildTextFieldDefault(tc.groupID, tc.childID, tc.defaultVal, inputSuggestions)
+			if len(inputSuggestions) > 0 {
+				inputSuggestions[0] = "mutated-by-caller"
+			}
+
+			got := fs.DangerouslyGetField("group-1")
+			if diff := cmp.Diff(tc.wantGroup, got); diff != "" {
+				t.Errorf("UpdateGroupChildTextFieldDefault() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

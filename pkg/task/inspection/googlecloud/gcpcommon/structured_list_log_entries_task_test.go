@@ -33,6 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -789,6 +790,21 @@ timestamp < "2025-01-01T01:01:00+0000"`
 			gotQueries := queryMetadata.ToSerializable().([]*inspectionmetadata.QueryItem)
 			if diff := cmp.Diff(tc.wantQueries, gotQueries, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("QueryItem mismatch (-want +got):\n%s", diff)
+			}
+
+			if tc.taskMode == inspectioncore.TaskModeRun && len(tc.wantQueries) > 0 {
+				summaryCollector, found := typedmap.Get(metadata, summary.MetadataKey)
+				if !found {
+					t.Fatalf("summary collector metadata not found")
+				}
+				snap := summaryCollector.Snapshot()
+				if len(snap.Sections) != 1 || len(snap.Sections[0].Queries) != len(tc.wantQueries) {
+					t.Fatalf("summary sections = %+v, want 1 section with %d query", snap.Sections, len(tc.wantQueries))
+				}
+				gotCount := snap.Sections[0].Queries[0].LogCount
+				if gotCount == nil || *gotCount != len(tc.wantLogs) {
+					t.Errorf("summary query LogCount = %v, want %d", gotCount, len(tc.wantLogs))
+				}
 			}
 
 			queryResourceNames, found := typeddict.Get(resourceNamesInput.resourceNames, taskID.ReferenceIDString())
