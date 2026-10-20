@@ -22,6 +22,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
@@ -136,110 +137,165 @@ func setupSearchTimelinesTestWorkbench() *Workbench {
 }
 
 func TestSearchTimelines(t *testing.T) {
+	allTimelineTypes := []TimelineTypeDescription{
+		{Type: "Namespace", Description: "Kubernetes namespace"},
+		{Type: "Pod", Description: "Kubernetes pod"},
+		{Type: "Container", Description: "Container inside pod"},
+	}
+	truncatedTimelineTypes := []TimelineTypeDescription{
+		{Type: "Namespace", Description: "Kubernetes namespace"},
+		{Type: "Pod", Description: "Kubernetes pod"},
+	}
+	fullTreeNodes := []TimelineTreeNode{
+		{
+			ID:            1,
+			Depth:         0,
+			Type:          "Namespace",
+			Name:          "ns-1",
+			EventCount:    0,
+			RevisionCount: 0,
+			SeverityCounts: []SeverityCount{
+				{Severity: testSeverityError, Count: 2},
+				{Severity: testSeverityWarning, Count: 2},
+				{Severity: testSeverityInfo, Count: 2},
+			},
+			OmittedChildren: 0,
+			FirstMatchTime:  time.Time{},
+			LastMatchTime:   time.Time{},
+		},
+		{
+			ID:            2,
+			Depth:         1,
+			Type:          "Pod",
+			Name:          "pod-a",
+			EventCount:    2,
+			RevisionCount: 1,
+			SeverityCounts: []SeverityCount{
+				{Severity: testSeverityError, Count: 1},
+				{Severity: testSeverityWarning, Count: 2},
+				{Severity: testSeverityInfo, Count: 1},
+			},
+			OmittedChildren: 0,
+			FirstMatchTime:  time.Unix(0, 1000).UTC(),
+			LastMatchTime:   time.Unix(0, 2500).UTC(),
+		},
+		{
+			ID:            4,
+			Depth:         2,
+			Type:          "Container",
+			Name:          "container-a1",
+			EventCount:    1,
+			RevisionCount: 1,
+			SeverityCounts: []SeverityCount{
+				{Severity: testSeverityError, Count: 1},
+			},
+			OmittedChildren: 0,
+			FirstMatchTime:  time.Unix(0, 4000).UTC(),
+			LastMatchTime:   time.Unix(0, 4500).UTC(),
+		},
+		{
+			ID:            3,
+			Depth:         1,
+			Type:          "Pod",
+			Name:          "pod-b",
+			EventCount:    1,
+			RevisionCount: 0,
+			SeverityCounts: []SeverityCount{
+				{Severity: testSeverityError, Count: 1},
+				{Severity: testSeverityInfo, Count: 1},
+			},
+			OmittedChildren: 0,
+			FirstMatchTime:  time.Unix(0, 3000).UTC(),
+			LastMatchTime:   time.Unix(0, 3000).UTC(),
+		},
+		{
+			ID:            5,
+			Depth:         2,
+			Type:          "Container",
+			Name:          "container-b1",
+			EventCount:    1,
+			RevisionCount: 1,
+			SeverityCounts: []SeverityCount{
+				{Severity: testSeverityError, Count: 1},
+			},
+			OmittedChildren: 0,
+			FirstMatchTime:  time.Unix(0, 5000).UTC(),
+			LastMatchTime:   time.Unix(0, 5000).UTC(),
+		},
+	}
+	truncatedNodes := []TimelineTreeNode{
+		{
+			ID:            1,
+			Depth:         0,
+			Type:          "Namespace",
+			Name:          "ns-1",
+			EventCount:    0,
+			RevisionCount: 0,
+			SeverityCounts: []SeverityCount{
+				{Severity: testSeverityError, Count: 2},
+				{Severity: testSeverityWarning, Count: 2},
+				{Severity: testSeverityInfo, Count: 2},
+			},
+			OmittedChildren: 0,
+			FirstMatchTime:  time.Time{},
+			LastMatchTime:   time.Time{},
+		},
+		{
+			ID:            2,
+			Depth:         1,
+			Type:          "Pod",
+			Name:          "pod-a",
+			EventCount:    2,
+			RevisionCount: 1,
+			SeverityCounts: []SeverityCount{
+				{Severity: testSeverityError, Count: 1},
+				{Severity: testSeverityWarning, Count: 2},
+				{Severity: testSeverityInfo, Count: 1},
+			},
+			OmittedChildren: 1,
+			FirstMatchTime:  time.Unix(0, 1000).UTC(),
+			LastMatchTime:   time.Unix(0, 2500).UTC(),
+		},
+		{
+			ID:            3,
+			Depth:         1,
+			Type:          "Pod",
+			Name:          "pod-b",
+			EventCount:    1,
+			RevisionCount: 0,
+			SeverityCounts: []SeverityCount{
+				{Severity: testSeverityError, Count: 1},
+				{Severity: testSeverityInfo, Count: 1},
+			},
+			OmittedChildren: 1,
+			FirstMatchTime:  time.Unix(0, 3000).UTC(),
+			LastMatchTime:   time.Unix(0, 3000).UTC(),
+		},
+	}
+
 	testCases := []struct {
-		name              string
-		filter            Filter
-		maxDepth          int
-		maxNodes          int
-		setupWorkbench    func() *Workbench
-		wantErr           bool
-		wantMatchedCount  int
-		wantReturnedCount int
-		wantMaxDepth      int
-		wantMaxNodes      int
-		wantTimelineTypes []TimelineTypeDescription
-		wantNodes         []TimelineTreeNode
+		name           string
+		filter         Filter
+		maxDepth       int
+		maxNodes       int
+		setupWorkbench func() *Workbench
+		wantErr        bool
+		want           *TimelineTreeResult
 	}{
 		{
-			name:              "full tree returned when maxNodes is large enough",
-			filter:            Filter{},
-			maxDepth:          0,
-			maxNodes:          10,
-			wantMatchedCount:  5,
-			wantReturnedCount: 5,
-			wantMaxDepth:      0,
-			wantMaxNodes:      10,
-			wantTimelineTypes: []TimelineTypeDescription{
-				{Type: "Namespace", Description: "Kubernetes namespace"},
-				{Type: "Pod", Description: "Kubernetes pod"},
-				{Type: "Container", Description: "Container inside pod"},
-			},
-			wantNodes: []TimelineTreeNode{
-				{
-					ID:            1,
-					Depth:         0,
-					Type:          "Namespace",
-					Name:          "ns-1",
-					EventCount:    0,
-					RevisionCount: 0,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 2},
-						{Severity: testSeverityWarning, Count: 2},
-						{Severity: testSeverityInfo, Count: 2},
-					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Time{},
-					LastMatchTime:   time.Time{},
-				},
-				{
-					ID:            2,
-					Depth:         1,
-					Type:          "Pod",
-					Name:          "pod-a",
-					EventCount:    2,
-					RevisionCount: 1,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
-						{Severity: testSeverityWarning, Count: 2},
-						{Severity: testSeverityInfo, Count: 1},
-					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Unix(0, 1000).UTC(),
-					LastMatchTime:   time.Unix(0, 2500).UTC(),
-				},
-				{
-					ID:            4,
-					Depth:         2,
-					Type:          "Container",
-					Name:          "container-a1",
-					EventCount:    1,
-					RevisionCount: 1,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
-					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Unix(0, 4000).UTC(),
-					LastMatchTime:   time.Unix(0, 4500).UTC(),
-				},
-				{
-					ID:            3,
-					Depth:         1,
-					Type:          "Pod",
-					Name:          "pod-b",
-					EventCount:    1,
-					RevisionCount: 0,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
-						{Severity: testSeverityInfo, Count: 1},
-					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Unix(0, 3000).UTC(),
-					LastMatchTime:   time.Unix(0, 3000).UTC(),
-				},
-				{
-					ID:            5,
-					Depth:         2,
-					Type:          "Container",
-					Name:          "container-b1",
-					EventCount:    1,
-					RevisionCount: 1,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
-					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Unix(0, 5000).UTC(),
-					LastMatchTime:   time.Unix(0, 5000).UTC(),
-				},
+			name:     "full tree returned when maxNodes is large enough",
+			filter:   Filter{},
+			maxDepth: 0,
+			maxNodes: 10,
+			want: &TimelineTreeResult{
+				MatchedTimelineCount: 5,
+				DirectMatchCount:     4,
+				AncestorNodeCount:    1,
+				ReturnedNodeCount:    5,
+				MaxDepth:             0,
+				MaxNodes:             10,
+				TimelineTypes:        allTimelineTypes,
+				Nodes:                fullTreeNodes,
 			},
 		},
 		{
@@ -257,212 +313,123 @@ func TestSearchTimelines(t *testing.T) {
 				)
 				return wb
 			},
-			wantMatchedCount:  5,
-			wantReturnedCount: 5,
-			wantMaxDepth:      0,
-			wantMaxNodes:      10,
-			wantNodes: []TimelineTreeNode{
-				{
-					ID:            1,
-					Depth:         0,
-					Type:          "Namespace",
-					Name:          "ns-1",
-					EventCount:    0,
-					RevisionCount: 0,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 2},
-						{Severity: testSeverityWarning, Count: 2},
-						{Severity: testSeverityInfo, Count: 2},
+			want: &TimelineTreeResult{
+				MatchedTimelineCount: 5,
+				DirectMatchCount:     4,
+				AncestorNodeCount:    1,
+				ReturnedNodeCount:    5,
+				MaxDepth:             0,
+				MaxNodes:             10,
+				TimelineTypes:        allTimelineTypes,
+				Nodes: []TimelineTreeNode{
+					{
+						ID:            1,
+						Depth:         0,
+						Type:          "Namespace",
+						Name:          "ns-1",
+						EventCount:    0,
+						RevisionCount: 0,
+						SeverityCounts: []SeverityCount{
+							{Severity: testSeverityError, Count: 2},
+							{Severity: testSeverityWarning, Count: 2},
+							{Severity: testSeverityInfo, Count: 2},
+						},
+						OmittedChildren: 0,
+						FirstMatchTime:  time.Time{},
+						LastMatchTime:   time.Time{},
 					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Time{},
-					LastMatchTime:   time.Time{},
-				},
-				{
-					ID:            2,
-					Depth:         1,
-					Type:          "Pod",
-					Name:          "pod-a",
-					EventCount:    4,
-					RevisionCount: 1,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
-						{Severity: testSeverityWarning, Count: 2},
-						{Severity: testSeverityInfo, Count: 2},
+					{
+						ID:            2,
+						Depth:         1,
+						Type:          "Pod",
+						Name:          "pod-a",
+						EventCount:    4,
+						RevisionCount: 1,
+						SeverityCounts: []SeverityCount{
+							{Severity: testSeverityError, Count: 1},
+							{Severity: testSeverityWarning, Count: 2},
+							{Severity: testSeverityInfo, Count: 2},
+						},
+						OmittedChildren: 0,
+						FirstMatchTime:  time.Unix(0, 1000).UTC(),
+						LastMatchTime:   time.Unix(0, 4000).UTC(),
 					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Unix(0, 1000).UTC(),
-					LastMatchTime:   time.Unix(0, 4000).UTC(),
-				},
-				{
-					ID:            4,
-					Depth:         2,
-					Type:          "Container",
-					Name:          "container-a1",
-					EventCount:    1,
-					RevisionCount: 1,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
+					{
+						ID:            4,
+						Depth:         2,
+						Type:          "Container",
+						Name:          "container-a1",
+						EventCount:    1,
+						RevisionCount: 1,
+						SeverityCounts: []SeverityCount{
+							{Severity: testSeverityError, Count: 1},
+						},
+						OmittedChildren: 0,
+						FirstMatchTime:  time.Unix(0, 4000).UTC(),
+						LastMatchTime:   time.Unix(0, 4500).UTC(),
 					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Unix(0, 4000).UTC(),
-					LastMatchTime:   time.Unix(0, 4500).UTC(),
-				},
-				{
-					ID:            3,
-					Depth:         1,
-					Type:          "Pod",
-					Name:          "pod-b",
-					EventCount:    1,
-					RevisionCount: 0,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
-						{Severity: testSeverityInfo, Count: 1},
+					{
+						ID:            3,
+						Depth:         1,
+						Type:          "Pod",
+						Name:          "pod-b",
+						EventCount:    1,
+						RevisionCount: 0,
+						SeverityCounts: []SeverityCount{
+							{Severity: testSeverityError, Count: 1},
+							{Severity: testSeverityInfo, Count: 1},
+						},
+						OmittedChildren: 0,
+						FirstMatchTime:  time.Unix(0, 3000).UTC(),
+						LastMatchTime:   time.Unix(0, 3000).UTC(),
 					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Unix(0, 3000).UTC(),
-					LastMatchTime:   time.Unix(0, 3000).UTC(),
-				},
-				{
-					ID:            5,
-					Depth:         2,
-					Type:          "Container",
-					Name:          "container-b1",
-					EventCount:    1,
-					RevisionCount: 1,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
+					{
+						ID:            5,
+						Depth:         2,
+						Type:          "Container",
+						Name:          "container-b1",
+						EventCount:    1,
+						RevisionCount: 1,
+						SeverityCounts: []SeverityCount{
+							{Severity: testSeverityError, Count: 1},
+						},
+						OmittedChildren: 0,
+						FirstMatchTime:  time.Unix(0, 5000).UTC(),
+						LastMatchTime:   time.Unix(0, 5000).UTC(),
 					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Unix(0, 5000).UTC(),
-					LastMatchTime:   time.Unix(0, 5000).UTC(),
-				},
-			},
-		},
-		{
-			name:              "breadth-first truncation by maxNodes",
-			filter:            Filter{},
-			maxDepth:          0,
-			maxNodes:          3,
-			wantMatchedCount:  5,
-			wantReturnedCount: 3,
-			wantMaxDepth:      0,
-			wantMaxNodes:      3,
-			wantTimelineTypes: []TimelineTypeDescription{
-				{Type: "Namespace", Description: "Kubernetes namespace"},
-				{Type: "Pod", Description: "Kubernetes pod"},
-			},
-			wantNodes: []TimelineTreeNode{
-				{
-					ID:            1,
-					Depth:         0,
-					Type:          "Namespace",
-					Name:          "ns-1",
-					EventCount:    0,
-					RevisionCount: 0,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 2},
-						{Severity: testSeverityWarning, Count: 2},
-						{Severity: testSeverityInfo, Count: 2},
-					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Time{},
-					LastMatchTime:   time.Time{},
-				},
-				{
-					ID:            2,
-					Depth:         1,
-					Type:          "Pod",
-					Name:          "pod-a",
-					EventCount:    2,
-					RevisionCount: 1,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
-						{Severity: testSeverityWarning, Count: 2},
-						{Severity: testSeverityInfo, Count: 1},
-					},
-					OmittedChildren: 1,
-					FirstMatchTime:  time.Unix(0, 1000).UTC(),
-					LastMatchTime:   time.Unix(0, 2500).UTC(),
-				},
-				{
-					ID:            3,
-					Depth:         1,
-					Type:          "Pod",
-					Name:          "pod-b",
-					EventCount:    1,
-					RevisionCount: 0,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
-						{Severity: testSeverityInfo, Count: 1},
-					},
-					OmittedChildren: 1,
-					FirstMatchTime:  time.Unix(0, 3000).UTC(),
-					LastMatchTime:   time.Unix(0, 3000).UTC(),
 				},
 			},
 		},
 		{
-			name:              "truncation by maxDepth",
-			filter:            Filter{},
-			maxDepth:          1,
-			maxNodes:          10,
-			wantMatchedCount:  5,
-			wantReturnedCount: 3,
-			wantMaxDepth:      1,
-			wantMaxNodes:      10,
-			wantTimelineTypes: []TimelineTypeDescription{
-				{Type: "Namespace", Description: "Kubernetes namespace"},
-				{Type: "Pod", Description: "Kubernetes pod"},
+			name:     "breadth-first truncation by maxNodes",
+			filter:   Filter{},
+			maxDepth: 0,
+			maxNodes: 3,
+			want: &TimelineTreeResult{
+				MatchedTimelineCount: 5,
+				DirectMatchCount:     4,
+				AncestorNodeCount:    1,
+				ReturnedNodeCount:    3,
+				MaxDepth:             0,
+				MaxNodes:             3,
+				TimelineTypes:        truncatedTimelineTypes,
+				Nodes:                truncatedNodes,
 			},
-			wantNodes: []TimelineTreeNode{
-				{
-					ID:            1,
-					Depth:         0,
-					Type:          "Namespace",
-					Name:          "ns-1",
-					EventCount:    0,
-					RevisionCount: 0,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 2},
-						{Severity: testSeverityWarning, Count: 2},
-						{Severity: testSeverityInfo, Count: 2},
-					},
-					OmittedChildren: 0,
-					FirstMatchTime:  time.Time{},
-					LastMatchTime:   time.Time{},
-				},
-				{
-					ID:            2,
-					Depth:         1,
-					Type:          "Pod",
-					Name:          "pod-a",
-					EventCount:    2,
-					RevisionCount: 1,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
-						{Severity: testSeverityWarning, Count: 2},
-						{Severity: testSeverityInfo, Count: 1},
-					},
-					OmittedChildren: 1,
-					FirstMatchTime:  time.Unix(0, 1000).UTC(),
-					LastMatchTime:   time.Unix(0, 2500).UTC(),
-				},
-				{
-					ID:            3,
-					Depth:         1,
-					Type:          "Pod",
-					Name:          "pod-b",
-					EventCount:    1,
-					RevisionCount: 0,
-					SeverityCounts: []SeverityCount{
-						{Severity: testSeverityError, Count: 1},
-						{Severity: testSeverityInfo, Count: 1},
-					},
-					OmittedChildren: 1,
-					FirstMatchTime:  time.Unix(0, 3000).UTC(),
-					LastMatchTime:   time.Unix(0, 3000).UTC(),
-				},
+		},
+		{
+			name:     "truncation by maxDepth",
+			filter:   Filter{},
+			maxDepth: 1,
+			maxNodes: 10,
+			want: &TimelineTreeResult{
+				MatchedTimelineCount: 5,
+				DirectMatchCount:     4,
+				AncestorNodeCount:    1,
+				ReturnedNodeCount:    3,
+				MaxDepth:             1,
+				MaxNodes:             10,
+				TimelineTypes:        truncatedTimelineTypes,
+				Nodes:                truncatedNodes,
 			},
 		},
 		{
@@ -473,24 +440,34 @@ func TestSearchTimelines(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			name:              "default maxNodes is used when non-positive",
-			filter:            Filter{},
-			maxDepth:          0,
-			maxNodes:          0,
-			wantMatchedCount:  5,
-			wantReturnedCount: 5,
-			wantMaxDepth:      0,
-			wantMaxNodes:      DefaultMaxTimelineNodes,
+			name:     "default maxNodes is used when non-positive",
+			filter:   Filter{},
+			maxDepth: 0,
+			maxNodes: 0,
+			want: &TimelineTreeResult{
+				MatchedTimelineCount: 5,
+				DirectMatchCount:     4,
+				AncestorNodeCount:    1,
+				ReturnedNodeCount:    5,
+				MaxDepth:             0,
+				MaxNodes:             DefaultMaxTimelineNodes,
+				TimelineTypes:        allTimelineTypes,
+				Nodes:                fullTreeNodes,
+			},
 		},
 		{
-			name:              "zero matching timelines returns empty result",
-			filter:            Filter{TimelineQuery: `name == "non-existent"`},
-			maxDepth:          0,
-			maxNodes:          10,
-			wantMatchedCount:  0,
-			wantReturnedCount: 0,
-			wantMaxDepth:      0,
-			wantMaxNodes:      10,
+			name:     "zero matching timelines returns empty result",
+			filter:   Filter{TimelineQuery: `name == "non-existent"`},
+			maxDepth: 0,
+			maxNodes: 10,
+			want: &TimelineTreeResult{
+				MatchedTimelineCount: 0,
+				DirectMatchCount:     0,
+				AncestorNodeCount:    0,
+				ReturnedNodeCount:    0,
+				MaxDepth:             0,
+				MaxNodes:             10,
+			},
 		},
 		{
 			name:     "closed workbench returns error",
@@ -521,35 +498,8 @@ func TestSearchTimelines(t *testing.T) {
 				return
 			}
 
-			if got.MatchedTimelineCount != tc.wantMatchedCount {
-				t.Errorf("SearchTimelines() MatchedTimelineCount = %d, want %d", got.MatchedTimelineCount, tc.wantMatchedCount)
-			}
-			if got.DirectMatchCount+got.AncestorNodeCount != got.MatchedTimelineCount {
-				t.Errorf("SearchTimelines() DirectMatchCount (%d) + AncestorNodeCount (%d) != MatchedTimelineCount (%d)",
-					got.DirectMatchCount, got.AncestorNodeCount, got.MatchedTimelineCount)
-			}
-			if tc.wantMatchedCount == 5 && (got.DirectMatchCount != 4 || got.AncestorNodeCount != 1) {
-				t.Errorf("SearchTimelines() DirectMatchCount = %d, AncestorNodeCount = %d; want 4, 1",
-					got.DirectMatchCount, got.AncestorNodeCount)
-			}
-			if got.ReturnedNodeCount != tc.wantReturnedCount {
-				t.Errorf("SearchTimelines() ReturnedNodeCount = %d, want %d", got.ReturnedNodeCount, tc.wantReturnedCount)
-			}
-			if got.MaxDepth != tc.wantMaxDepth {
-				t.Errorf("SearchTimelines() MaxDepth = %d, want %d", got.MaxDepth, tc.wantMaxDepth)
-			}
-			if got.MaxNodes != tc.wantMaxNodes {
-				t.Errorf("SearchTimelines() MaxNodes = %d, want %d", got.MaxNodes, tc.wantMaxNodes)
-			}
-			if tc.wantTimelineTypes != nil {
-				if diff := cmp.Diff(tc.wantTimelineTypes, got.TimelineTypes); diff != "" {
-					t.Errorf("SearchTimelines() TimelineTypes mismatch (-want +got):\n%s", diff)
-				}
-			}
-			if tc.wantNodes != nil {
-				if diff := cmp.Diff(tc.wantNodes, got.Nodes, protocmp.Transform()); diff != "" {
-					t.Errorf("SearchTimelines() Nodes mismatch (-want +got):\n%s", diff)
-				}
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform(), cmpopts.IgnoreFields(TimelineTreeResult{}, "Applied", "FilterVocabulary")); diff != "" {
+				t.Errorf("SearchTimelines() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
