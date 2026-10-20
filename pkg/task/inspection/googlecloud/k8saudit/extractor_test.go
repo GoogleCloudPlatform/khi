@@ -305,6 +305,74 @@ func TestExtractGCPK8sAuditLog(t *testing.T) {
 				IsTruncated:  true,
 			},
 		},
+		{
+			name: "error log with generateName in request",
+			input: `{
+				"operation": {
+					"id": "test-op-6"
+				},
+				"protoPayload": {
+					"resourceName": "core/v1/namespaces/default/pods",
+					"methodName": "io.k8s.core.v1.pods.create",
+					"status": {
+						"code": 3,
+						"message": "pods \"nginx-deployment-abcdef-12345\" is forbidden: exceeded quota"
+					},
+					"request": {
+						"metadata": {
+							"generateName": "nginx-deployment-abcdef-"
+						}
+					}
+				}
+			}`,
+			want: commonk8saudit.K8sAuditLogFieldSet{
+				OperationID:   "test-op-6",
+				APIVersion:    "core/v1",
+				PluralKind:    "pods",
+				Namespace:     "default",
+				ResourceName:  "nginx-deployment-abcdef-?????",
+				ClusterName:   "unknown",
+				Verb:          commonk8saudit.VerbCreate,
+				RequestURI:    "core/v1/namespaces/default/pods",
+				StatusCode:    3,
+				StatusMessage: "pods \"nginx-deployment-abcdef-12345\" is forbidden: exceeded quota",
+				IsError:       true,
+			},
+		},
+		{
+			name: "error log with explicit metadata.name in request",
+			input: `{
+				"operation": {
+					"id": "test-op-7"
+				},
+				"protoPayload": {
+					"resourceName": "core/v1/namespaces/default/pods",
+					"methodName": "io.k8s.core.v1.pods.create",
+					"status": {
+						"code": 3,
+						"message": "Invalid value"
+					},
+					"request": {
+						"metadata": {
+							"name": "nginx-pod"
+						}
+					}
+				}
+			}`,
+			want: commonk8saudit.K8sAuditLogFieldSet{
+				OperationID:   "test-op-7",
+				APIVersion:    "core/v1",
+				PluralKind:    "pods",
+				Namespace:     "default",
+				ResourceName:  "nginx-pod",
+				ClusterName:   "unknown",
+				Verb:          commonk8saudit.VerbCreate,
+				RequestURI:    "core/v1/namespaces/default/pods",
+				StatusCode:    3,
+				StatusMessage: "Invalid value",
+				IsError:       true,
+			},
+		},
 	}
 
 	for _, tc := range testCases {

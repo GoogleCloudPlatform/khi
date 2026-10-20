@@ -21,6 +21,43 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
+var (
+	pathAPIVersion           = structured.CompileFieldPath("apiVersion")
+	pathKind                 = structured.CompileFieldPath("kind")
+	pathMetadataName         = structured.CompileFieldPath("metadata.name")
+	pathMetadataGenerateName = structured.CompileFieldPath("metadata.generateName")
+)
+
+// GeneratedNameWildcardSuffix is appended to metadata.generateName when a resource's final name
+// was not yet assigned by kube-apiserver (for example, when a create request fails).
+const GeneratedNameWildcardSuffix = "?????"
+
+// ResolveResourceName determines the resource name by falling back to the response or request metadata
+// when the primary resource name is empty.
+func ResolveResourceName(primaryName string, request, response *structured.NodeReader) string {
+	if primaryName != "" {
+		return primaryName
+	}
+	if response != nil {
+		apiVersion := response.ReadStringOrDefault(pathAPIVersion, "")
+		kind := response.ReadStringOrDefault(pathKind, "")
+		if !(apiVersion == "v1" && kind == "Status") {
+			if name := response.ReadStringOrDefault(pathMetadataName, ""); name != "" {
+				return name
+			}
+		}
+	}
+	if request != nil {
+		if name := request.ReadStringOrDefault(pathMetadataName, ""); name != "" {
+			return name
+		}
+		if generateName := request.ReadStringOrDefault(pathMetadataGenerateName, ""); generateName != "" {
+			return generateName + GeneratedNameWildcardSuffix
+		}
+	}
+	return ""
+}
+
 var irregularPluralToSingularSuffixMap = map[string]string{
 	"classes":      "class",
 	"ingresses":    "ingress",
