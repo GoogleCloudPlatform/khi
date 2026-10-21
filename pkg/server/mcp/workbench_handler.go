@@ -91,6 +91,11 @@ func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 			Description: `Render resource timelines and events visually as a PNG image matching the KHI frontend timeline view, alongside a Markdown summary with the applied filter. Select target timelines via filter (same CEL and time range syntax as search_timelines) and/or explicit timelineIds (ancestor hierarchy rows are automatically included). When filter.startTime and filter.endTime are omitted, the entire inspection duration is rendered; when specified, the chart zooms horizontally to that time window.`,
 		}, h.handleRenderTimelines)
 	}
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "validate_report",
+		Description: "Validate a Markdown troubleshooting report or writeup against the inspection data to detect potential hallucinations, such as inline code spans (`...`) containing IDs, resource names, or values that do not exist in the inspection logs.",
+	}, h.handleValidateReport)
 }
 
 type workbenchLoadingData struct {
