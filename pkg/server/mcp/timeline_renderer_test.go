@@ -77,7 +77,7 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 			case "Runtime.evaluate":
 				expr, _ := req.Params["expression"].(string)
 				switch {
-				case strings.Contains(expr, "typeof window.__khiTimelineRenderer"):
+				case strings.Contains(expr, "typeof window.__khiCDPBridge?.timelineRenderer"):
 					result = map[string]any{
 						"result": map[string]any{
 							"type":  "boolean",
@@ -297,7 +297,7 @@ func TestChromeTimelineImageRenderer_ErrorAndRecoveryWithMockCDP(t *testing.T) {
 			case "Runtime.evaluate":
 				expr, _ := req.Params["expression"].(string)
 				switch {
-				case strings.Contains(expr, "typeof window.__khiTimelineRenderer"):
+				case strings.Contains(expr, "typeof window.__khiCDPBridge?.timelineRenderer"):
 					result = map[string]any{
 						"result": map[string]any{"type": "boolean", "value": true},
 					}

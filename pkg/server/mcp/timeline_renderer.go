@@ -379,7 +379,7 @@ func (r *ChromeTimelineImageRenderer) navigateToRenderPageLocked(ctx context.Con
 
 	for {
 		var ready bool
-		if err := r.client.evaluate(ctx, "typeof window.__khiTimelineRenderer !== 'undefined'", false, &ready); err == nil && ready {
+		if err := r.client.evaluate(ctx, "typeof window.__khiCDPBridge?.timelineRenderer !== 'undefined'", false, &ready); err == nil && ready {
 			return nil
 		}
 		select {
@@ -397,7 +397,7 @@ func (r *ChromeTimelineImageRenderer) executeRenderLocked(ctx context.Context, r
 	}
 
 	var measure timelineMeasurePayload
-	applyExpr := fmt.Sprintf("window.__khiTimelineRenderer.applyAndMeasure(%s)", string(reqJSON))
+	applyExpr := fmt.Sprintf("window.__khiCDPBridge.timelineRenderer.applyAndMeasure(%s)", string(reqJSON))
 	if err := r.client.evaluate(ctx, applyExpr, true, &measure); err != nil {
 		return nil, fmt.Errorf("failed to apply timeline render parameters: %w", err)
 	}
@@ -411,7 +411,7 @@ func (r *ChromeTimelineImageRenderer) executeRenderLocked(ctx context.Context, r
 		return nil, fmt.Errorf("failed to set viewport dimensions: %w", err)
 	}
 
-	if err := r.client.evaluate(ctx, "window.__khiTimelineRenderer.waitForStableFrame()", true, nil); err != nil {
+	if err := r.client.evaluate(ctx, "window.__khiCDPBridge.timelineRenderer.waitForStableFrame()", true, nil); err != nil {
 		return nil, fmt.Errorf("failed waiting for stable timeline frame: %w", err)
 	}
 
