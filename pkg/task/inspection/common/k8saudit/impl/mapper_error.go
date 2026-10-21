@@ -72,18 +72,13 @@ func (e *nonSuccessLogLogToTimelineMapperTaskSetting) mapLog(ctx context.Context
 	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, fieldSet.APIVersion)
 	kind := k8saudit.MustK8sKindTimeline(ctx, api, strings.ToLower(k8saudit.GetSingularKindName(fieldSet.PluralKind)))
 
-	nsName := fieldSet.Namespace
-	if nsName == "" {
-		nsName = k8saudit.ClusterScopeNamespace
+	var resPath *khifilev6.TimelinePath
+	if fieldSet.Namespace != k8saudit.ClusterScopeNamespace && fieldSet.Namespace != "" {
+		ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, fieldSet.Namespace)
+		resPath = k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, fieldSet.ResourceName)
+	} else {
+		resPath = k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, fieldSet.ResourceName)
 	}
-	ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, nsName)
-	if fieldSet.ResourceName == "" {
-		cs := khifilev6.NewTimelineChangeSet(l)
-		cs.AddEvent(ns)
-		return cs, nil
-	}
-
-	resPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, fieldSet.ResourceName)
 
 	if subresource != "" {
 		resPath = k8saudit.MustK8sSubresourceTimeline(ctx, resPath, subresource)

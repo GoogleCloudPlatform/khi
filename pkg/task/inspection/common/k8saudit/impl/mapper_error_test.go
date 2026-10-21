@@ -47,33 +47,23 @@ func TestMapNonSuccessLog(t *testing.T) {
 
 	testCases := []struct {
 		name            string
-		resourceName    string
 		subresourceName string
 		wantPath        *khifilev6.TimelinePath
 	}{
 		{
 			name:            "standard pod mapping",
-			resourceName:    "test-pod",
 			subresourceName: "",
 			wantPath:        parentPath,
 		},
 		{
 			name:            "status subresource mapped to parent",
-			resourceName:    "test-pod",
 			subresourceName: "status",
 			wantPath:        parentPath,
 		},
 		{
 			name:            "non-status subresource proxy NOT mapped to parent",
-			resourceName:    "test-pod",
 			subresourceName: "proxy",
 			wantPath:        otherSubresourcePath,
-		},
-		{
-			name:            "empty resource name mapped to namespace timeline",
-			resourceName:    "",
-			subresourceName: "",
-			wantPath:        ns,
 		},
 	}
 
@@ -93,7 +83,7 @@ func TestMapNonSuccessLog(t *testing.T) {
 					APIVersion:      "core/v1",
 					PluralKind:      "pods",
 					Namespace:       "default",
-					ResourceName:    tc.resourceName,
+					ResourceName:    "test-pod",
 					SubresourceName: tc.subresourceName,
 					ClusterName:     "k8s",
 				},
