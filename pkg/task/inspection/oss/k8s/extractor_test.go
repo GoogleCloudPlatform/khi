@@ -102,6 +102,45 @@ responseStatus:
 			},
 		},
 		{
+			desc: "error status with generateName in requestObject",
+			input: `
+auditID: "test-audit-id-gen"
+verb: "create"
+objectRef:
+  apiGroup: "core"
+  apiVersion: "v1"
+  resource: "pods"
+  namespace: "default"
+requestObject:
+  metadata:
+    generateName: "nginx-deployment-abcdef-"
+responseObject:
+  apiVersion: "v1"
+  kind: "Status"
+  status: "Failure"
+responseStatus:
+  code: 403
+  message: "Forbidden"
+`,
+			want: k8saudit.K8sAuditLogFieldSet{
+				OperationID:     "test-audit-id-gen",
+				IsFirst:         true,
+				IsLast:          true,
+				Principal:       "unknown",
+				StatusCode:      403,
+				StatusMessage:   "Forbidden",
+				IsError:         true,
+				RequestURI:      "",
+				APIVersion:      "core/v1",
+				PluralKind:      "pods",
+				Namespace:       "default",
+				ResourceName:    "nginx-deployment-abcdef-?????",
+				SubresourceName: "",
+				ClusterName:     "cluster",
+				Verb:            k8saudit.VerbCreate,
+			},
+		},
+		{
 			desc: "error status",
 			input: `
 auditID: "error-audit-id"
