@@ -378,6 +378,77 @@ func TestChromeTimelineImageRenderer_ErrorAndRecoveryWithMockCDP(t *testing.T) {
 	}
 }
 
+func TestChromeTimelineImageRenderer_NavigateTransportErrorFailsFast(t *testing.T) {
+	var evaluatePollCount int
+
+	wsServer := httptest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
+		for {
+			var raw string
+			if err := websocket.Message.Receive(ws, &raw); err != nil {
+				return
+			}
+			var req cdpRequest
+			if err := json.Unmarshal([]byte(raw), &req); err != nil {
+				return
+			}
+
+			switch req.Method {
+			case "Page.enable", "Runtime.enable":
+				respBytes, _ := json.Marshal(map[string]any{"id": req.ID, "result": map[string]any{}})
+				_ = websocket.Message.Send(ws, string(respBytes))
+			case "Page.navigate":
+				respBytes, _ := json.Marshal(map[string]any{"id": req.ID, "result": map[string]any{"frameId": "frame-1"}})
+				_ = websocket.Message.Send(ws, string(respBytes))
+			case "Runtime.evaluate":
+				evaluatePollCount++
+				if evaluatePollCount == 1 {
+					// Simulate transient CDP protocol error during navigation.
+					respBytes, _ := json.Marshal(map[string]any{
+						"id": req.ID,
+						"error": map[string]any{
+							"code":    -32000,
+							"message": "Cannot find context with specified id",
+						},
+					})
+					_ = websocket.Message.Send(ws, string(respBytes))
+					continue
+				}
+				// On second poll, close the WebSocket connection to simulate browser crash / disconnect.
+				_ = ws.Close()
+				return
+			}
+		}
+	}))
+	defer wsServer.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
+	renderer := &ChromeTimelineImageRenderer{
+		baseURL:   "http://127.0.0.1:8080",
+		pageWSURL: wsURL,
+	}
+	defer renderer.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	_, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
+		InspectionID: "insp-crash",
+		MaxNodes:     50,
+		Width:        1200,
+	})
+	elapsed := time.Since(start)
+	if err == nil {
+		t.Fatal("RenderTimeline() expected transport error, got nil")
+	}
+	if elapsed >= 2*time.Second {
+		t.Errorf("RenderTimeline() took %v on transport disconnect, want fast failure (<2s)", elapsed)
+	}
+	if evaluatePollCount != 2 {
+		t.Errorf("evaluatePollCount = %d, want 2 (1 transient protocol error + 1 transport disconnect)", evaluatePollCount)
+	}
+}
+
 func setupRealisticTimelineTestServer(t *testing.T) (*coreinspection.InspectionTaskServer, string) {
 	t.Helper()
 	ioConfig, err := inspectioncore.NewIOConfigForTest()

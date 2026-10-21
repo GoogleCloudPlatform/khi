@@ -116,6 +116,20 @@ type cdpTargetInfo struct {
 	WebSocketDebuggerURL string `json:"webSocketDebuggerUrl"`
 }
 
+// cdpTransportError wraps WebSocket send/receive transport failures so callers can distinguish
+// unrecoverable connection errors from transient CDP protocol or JavaScript evaluation errors.
+type cdpTransportError struct {
+	err error
+}
+
+func (e *cdpTransportError) Error() string {
+	return e.err.Error()
+}
+
+func (e *cdpTransportError) Unwrap() error {
+	return e.err
+}
+
 // cdpClient manages a single Chrome DevTools Protocol WebSocket connection.
 type cdpClient struct {
 	ws     *websocket.Conn
@@ -160,13 +174,13 @@ func (c *cdpClient) call(ctx context.Context, method string, params map[string]a
 		Method: method,
 		Params: params,
 	}); err != nil {
-		return fmt.Errorf("failed to send CDP command %s: %w", method, err)
+		return &cdpTransportError{err: fmt.Errorf("failed to send CDP command %s: %w", method, err)}
 	}
 
 	for {
 		var raw string
 		if err := websocket.Message.Receive(c.ws, &raw); err != nil {
-			return fmt.Errorf("failed to receive CDP response for %s: %w", method, err)
+			return &cdpTransportError{err: fmt.Errorf("failed to receive CDP response for %s: %w", method, err)}
 		}
 		var resp cdpResponse
 		if err := json.Unmarshal([]byte(raw), &resp); err != nil {
@@ -379,8 +393,13 @@ func (r *ChromeTimelineImageRenderer) navigateToRenderPageLocked(ctx context.Con
 
 	for {
 		var ready bool
-		if err := r.client.evaluate(ctx, "typeof window.__khiCDPBridge?.timelineRenderer !== 'undefined'", false, &ready); err == nil && ready {
+		err := r.client.evaluate(ctx, "typeof window.__khiCDPBridge?.timelineRenderer !== 'undefined'", false, &ready)
+		if err == nil && ready {
 			return nil
+		}
+		var transportErr *cdpTransportError
+		if errors.As(err, &transportErr) {
+			return fmt.Errorf("CDP connection failed while waiting for /render/timeline bridge initialization: %w", err)
 		}
 		select {
 		case <-ctx.Done():
