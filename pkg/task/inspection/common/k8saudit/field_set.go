@@ -22,7 +22,6 @@ import (
 )
 
 var (
-	pathAPIVersion           = structured.CompileFieldPath("apiVersion")
 	pathKind                 = structured.CompileFieldPath("kind")
 	pathMetadataName         = structured.CompileFieldPath("metadata.name")
 	pathMetadataGenerateName = structured.CompileFieldPath("metadata.generateName")
@@ -38,20 +37,27 @@ func ResolveResourceName(primaryName string, request, response *structured.NodeR
 	if primaryName != "" {
 		return primaryName
 	}
+	var validResponse *structured.NodeReader
 	if response != nil {
-		apiVersion := response.ReadStringOrDefault(pathAPIVersion, "")
 		kind := response.ReadStringOrDefault(pathKind, "")
-		if !(apiVersion == "v1" && kind == "Status") {
-			if name := response.ReadStringOrDefault(pathMetadataName, ""); name != "" {
-				return name
-			}
+		if !strings.EqualFold(kind, "Status") {
+			validResponse = response
 		}
 	}
-	if request != nil {
-		if name := request.ReadStringOrDefault(pathMetadataName, ""); name != "" {
+	sources := []*structured.NodeReader{validResponse, request}
+	for _, src := range sources {
+		if src == nil {
+			continue
+		}
+		if name := src.ReadStringOrDefault(pathMetadataName, ""); name != "" {
 			return name
 		}
-		if generateName := request.ReadStringOrDefault(pathMetadataGenerateName, ""); generateName != "" {
+	}
+	for _, src := range sources {
+		if src == nil {
+			continue
+		}
+		if generateName := src.ReadStringOrDefault(pathMetadataGenerateName, ""); generateName != "" {
 			return generateName + GeneratedNameWildcardSuffix
 		}
 	}

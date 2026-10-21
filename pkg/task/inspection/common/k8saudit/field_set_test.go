@@ -50,7 +50,7 @@ metadata:
 			want: "nginx-deployment-abcdef-12345",
 		},
 		{
-			desc:        "ignores v1 Status response and falls back to request metadata.name",
+			desc:        "ignores Status response and falls back to request metadata.name",
 			primaryName: "",
 			requestYAML: `metadata:
   name: nginx-pod`,
@@ -59,6 +59,16 @@ kind: Status
 metadata:
   name: ignored-status-name`,
 			want: "nginx-pod",
+		},
+		{
+			desc:        "falls back to response metadata.generateName with wildcard suffix when metadata.name is absent",
+			primaryName: "",
+			requestYAML: `{}`,
+			responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  generateName: response-gen-pod-`,
+			want: "response-gen-pod-?????",
 		},
 		{
 			desc:        "falls back to request metadata.generateName with wildcard suffix when primary and request name are empty",
