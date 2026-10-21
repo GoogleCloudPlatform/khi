@@ -32,32 +32,24 @@ var (
 const GeneratedNameWildcardSuffix = "?????"
 
 // ResolveResourceName determines the resource name by falling back to the response or request metadata
-// when the primary resource name is empty.
-func ResolveResourceName(primaryName string, request, response *structured.NodeReader) string {
-	if primaryName != "" {
-		return primaryName
+// when the resource name from log fields is empty.
+func ResolveResourceName(nameFromLogFields string, request, response *structured.NodeReader) string {
+	if nameFromLogFields != "" {
+		return nameFromLogFields
 	}
-	var validResponse *structured.NodeReader
 	if response != nil {
 		kind := response.ReadStringOrDefault(pathKind, "")
 		if !strings.EqualFold(kind, "Status") {
-			validResponse = response
+			if name := response.ReadStringOrDefault(pathMetadataName, ""); name != "" {
+				return name
+			}
 		}
 	}
-	sources := []*structured.NodeReader{validResponse, request}
-	for _, src := range sources {
-		if src == nil {
-			continue
-		}
-		if name := src.ReadStringOrDefault(pathMetadataName, ""); name != "" {
+	if request != nil {
+		if name := request.ReadStringOrDefault(pathMetadataName, ""); name != "" {
 			return name
 		}
-	}
-	for _, src := range sources {
-		if src == nil {
-			continue
-		}
-		if generateName := src.ReadStringOrDefault(pathMetadataGenerateName, ""); generateName != "" {
+		if generateName := request.ReadStringOrDefault(pathMetadataGenerateName, ""); generateName != "" {
 			return generateName + GeneratedNameWildcardSuffix
 		}
 	}

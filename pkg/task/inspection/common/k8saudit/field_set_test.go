@@ -22,15 +22,15 @@ import (
 
 func TestResolveResourceName(t *testing.T) {
 	testCases := []struct {
-		desc         string
-		primaryName  string
-		requestYAML  string
-		responseYAML string
-		want         string
+		desc              string
+		nameFromLogFields string
+		requestYAML       string
+		responseYAML      string
+		want              string
 	}{
 		{
-			desc:        "primary name is already present",
-			primaryName: "explicit-pod",
+			desc:              "nameFromLogFields is already present",
+			nameFromLogFields: "explicit-pod",
 			requestYAML: `metadata:
   name: request-pod
   generateName: gen-pod-`,
@@ -39,8 +39,8 @@ func TestResolveResourceName(t *testing.T) {
 			want: "explicit-pod",
 		},
 		{
-			desc:        "falls back to response metadata.name when primary name is empty",
-			primaryName: "",
+			desc:              "falls back to response metadata.name when nameFromLogFields is empty",
+			nameFromLogFields: "",
 			requestYAML: `metadata:
   generateName: nginx-deployment-abcdef-`,
 			responseYAML: `apiVersion: v1
@@ -50,8 +50,8 @@ metadata:
 			want: "nginx-deployment-abcdef-12345",
 		},
 		{
-			desc:        "ignores Status response and falls back to request metadata.name",
-			primaryName: "",
+			desc:              "ignores Status response and falls back to request metadata.name",
+			nameFromLogFields: "",
 			requestYAML: `metadata:
   name: nginx-pod`,
 			responseYAML: `apiVersion: v1
@@ -61,18 +61,8 @@ metadata:
 			want: "nginx-pod",
 		},
 		{
-			desc:        "falls back to response metadata.generateName with wildcard suffix when metadata.name is absent",
-			primaryName: "",
-			requestYAML: `{}`,
-			responseYAML: `apiVersion: v1
-kind: Pod
-metadata:
-  generateName: response-gen-pod-`,
-			want: "response-gen-pod-?????",
-		},
-		{
-			desc:        "falls back to request metadata.generateName with wildcard suffix when primary and request name are empty",
-			primaryName: "",
+			desc:              "falls back to request metadata.generateName with wildcard suffix when nameFromLogFields and request name are empty",
+			nameFromLogFields: "",
 			requestYAML: `metadata:
   generateName: nginx-deployment-abcdef-`,
 			responseYAML: `apiVersion: v1
@@ -81,18 +71,18 @@ status: Failure`,
 			want: "nginx-deployment-abcdef-?????",
 		},
 		{
-			desc:         "returns empty string when no name or generateName is available",
-			primaryName:  "",
-			requestYAML:  `{}`,
-			responseYAML: `{}`,
-			want:         "",
+			desc:              "returns empty string when no name or generateName is available",
+			nameFromLogFields: "",
+			requestYAML:       `{}`,
+			responseYAML:      `{}`,
+			want:              "",
 		},
 		{
-			desc:         "returns empty string when request and response readers are nil",
-			primaryName:  "",
-			requestYAML:  "",
-			responseYAML: "",
-			want:         "",
+			desc:              "returns empty string when request and response readers are nil",
+			nameFromLogFields: "",
+			requestYAML:       "",
+			responseYAML:      "",
+			want:              "",
 		},
 	}
 
@@ -114,7 +104,7 @@ status: Failure`,
 				respReader = structured.NewNodeReader(node)
 			}
 
-			got := ResolveResourceName(tc.primaryName, reqReader, respReader)
+			got := ResolveResourceName(tc.nameFromLogFields, reqReader, respReader)
 			if got != tc.want {
 				t.Errorf("ResolveResourceName() = %q, want %q", got, tc.want)
 			}
