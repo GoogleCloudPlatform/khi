@@ -40,6 +40,7 @@ var MCPServerInitializer = &coreinit.Initializer{
 		InitializerIDInspectionTaskServer,
 		InitializerIDWorkbenchService,
 		InitializerIDFileParameterUpload,
+		InitializerIDCDPBrowser,
 	},
 	Before: []coreinit.InitializerID{
 		InitializerIDServerRunner,
@@ -53,12 +54,16 @@ var MCPServerInitializer = &coreinit.Initializer{
 		workbenchManager := coreinit.MustGet(ctx, WorkbenchManagerKey)
 		uploadURLIssuer := coreinit.MustGet(ctx, UploadURLIssuerKey)
 
-		serverParams := coreinit.MustGet(ctx, ServerParametersKey)
-		basePath := coreinit.MustGet(ctx, BasePathKey)
-		timelineRenderer := mcp.NewChromeTimelineImageRenderer(localServerBaseURL(*serverParams.Host, *serverParams.Port, basePath))
-		ctx.OnTerminate(func() error {
-			return timelineRenderer.Close()
-		})
+		var timelineRenderer mcp.TimelineImageRenderer
+		if browser, found := coreinit.Get(ctx, CDPBrowserKey); found && browser != nil {
+			serverParams := coreinit.MustGet(ctx, ServerParametersKey)
+			basePath := coreinit.MustGet(ctx, BasePathKey)
+			renderer := mcp.NewChromeTimelineImageRenderer(browser, localServerBaseURL(*serverParams.Host, *serverParams.Port, basePath))
+			ctx.OnTerminate(func() error {
+				return renderer.Close()
+			})
+			timelineRenderer = renderer
+		}
 
 		srv := mcp.NewServer(
 			mcp.NewInspectionHandler(inspectionServer, uploadURLIssuer),

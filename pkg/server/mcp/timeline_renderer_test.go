@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -38,6 +37,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	serverapiv1 "github.com/GoogleCloudPlatform/khi/pkg/server/api/v1"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/cdp"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -45,6 +45,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/net/websocket"
 )
+
+type mockCDPRequest struct {
+	ID     int            `json:"id"`
+	Method string         `json:"method"`
+	Params map[string]any `json:"params,omitempty"`
+}
 
 func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 	wantPNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03, 0x04}
@@ -60,7 +66,7 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 			if err := websocket.Message.Receive(ws, &raw); err != nil {
 				return
 			}
-			var req cdpRequest
+			var req mockCDPRequest
 			if err := json.Unmarshal([]byte(raw), &req); err != nil {
 				return
 			}
@@ -130,10 +136,9 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 	defer wsServer.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
-	renderer := &ChromeTimelineImageRenderer{
-		baseURL:   "http://127.0.0.1:8080",
-		pageWSURL: wsURL,
-	}
+	browser := cdp.NewBrowserFromPageWSURL(wsURL)
+	defer browser.Close()
+	renderer := NewChromeTimelineImageRenderer(browser, "http://127.0.0.1:8080")
 	defer renderer.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -185,90 +190,6 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 	}
 }
 
-func TestWaitForDevToolsURL(t *testing.T) {
-	testCases := []struct {
-		name      string
-		stderr    string
-		wantURL   string
-		wantError bool
-	}{
-		{
-			name:    "extracts ws URL from stderr output",
-			stderr:  "some warning\nDevTools listening on ws://127.0.0.1:41234/devtools/browser/uuid-123\n",
-			wantURL: "ws://127.0.0.1:41234/devtools/browser/uuid-123",
-		},
-		{
-			name:      "returns error when stderr closes without URL",
-			stderr:    "fatal: failed to initialize sandbox\n",
-			wantError: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotURL, err := waitForDevToolsURL(context.Background(), strings.NewReader(tc.stderr))
-			if (err != nil) != tc.wantError {
-				t.Fatalf("waitForDevToolsURL() error = %v, wantError %v", err, tc.wantError)
-			}
-			if gotURL != tc.wantURL {
-				t.Errorf("waitForDevToolsURL() = %q, want %q", gotURL, tc.wantURL)
-			}
-		})
-	}
-}
-
-func TestResolvePageWebSocketURL(t *testing.T) {
-	testCases := []struct {
-		name         string
-		browserWSURL string
-		listBody     string
-		wantWSURL    string
-		wantError    bool
-	}{
-		{
-			name:      "returns existing page target from /json/list",
-			listBody:  `[{"id":"worker-1","type":"service_worker","webSocketDebuggerUrl":"ws://127.0.0.1:9222/devtools/worker/1"},{"id":"page-1","type":"page","webSocketDebuggerUrl":"ws://127.0.0.1:9222/devtools/page/1"}]`,
-			wantWSURL: "ws://127.0.0.1:9222/devtools/page/1",
-		},
-		{
-			name:      "returns error when /json/list has no page target",
-			listBody:  `[{"id":"worker-1","type":"service_worker","webSocketDebuggerUrl":"ws://127.0.0.1:9222/devtools/worker/1"}]`,
-			wantError: true,
-		},
-		{
-			name:         "returns error for malformed browser DevTools URL",
-			browserWSURL: "ws://invalid-without-slash",
-			wantError:    true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/json/list" {
-					w.Header().Set("Content-Type", "application/json")
-					_, _ = w.Write([]byte(tc.listBody))
-					return
-				}
-				http.NotFound(w, r)
-			}))
-			defer srv.Close()
-
-			browserWSURL := tc.browserWSURL
-			if browserWSURL == "" {
-				browserWSURL = "ws" + strings.TrimPrefix(srv.URL, "http") + "/devtools/browser/123"
-			}
-			gotURL, err := resolvePageWebSocketURL(context.Background(), browserWSURL)
-			if (err != nil) != tc.wantError {
-				t.Fatalf("resolvePageWebSocketURL() error = %v, wantError %v", err, tc.wantError)
-			}
-			if gotURL != tc.wantWSURL {
-				t.Errorf("resolvePageWebSocketURL() = %q, want %q", gotURL, tc.wantWSURL)
-			}
-		})
-	}
-}
-
 func TestChromeTimelineImageRenderer_ErrorAndRecoveryWithMockCDP(t *testing.T) {
 	wantPNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03, 0x04}
 	encodedPNG := base64.StdEncoding.EncodeToString(wantPNG)
@@ -282,7 +203,7 @@ func TestChromeTimelineImageRenderer_ErrorAndRecoveryWithMockCDP(t *testing.T) {
 			if err := websocket.Message.Receive(ws, &raw); err != nil {
 				return
 			}
-			var req cdpRequest
+			var req mockCDPRequest
 			if err := json.Unmarshal([]byte(raw), &req); err != nil {
 				return
 			}
@@ -345,10 +266,9 @@ func TestChromeTimelineImageRenderer_ErrorAndRecoveryWithMockCDP(t *testing.T) {
 	defer wsServer.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
-	renderer := &ChromeTimelineImageRenderer{
-		baseURL:   "http://127.0.0.1:8080",
-		pageWSURL: wsURL,
-	}
+	browser := cdp.NewBrowserFromPageWSURL(wsURL)
+	defer browser.Close()
+	renderer := NewChromeTimelineImageRenderer(browser, "http://127.0.0.1:8080")
 	defer renderer.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -387,7 +307,7 @@ func TestChromeTimelineImageRenderer_NavigateTransportErrorFailsFast(t *testing.
 			if err := websocket.Message.Receive(ws, &raw); err != nil {
 				return
 			}
-			var req cdpRequest
+			var req mockCDPRequest
 			if err := json.Unmarshal([]byte(raw), &req); err != nil {
 				return
 			}
@@ -422,10 +342,9 @@ func TestChromeTimelineImageRenderer_NavigateTransportErrorFailsFast(t *testing.
 	defer wsServer.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
-	renderer := &ChromeTimelineImageRenderer{
-		baseURL:   "http://127.0.0.1:8080",
-		pageWSURL: wsURL,
-	}
+	browser := cdp.NewBrowserFromPageWSURL(wsURL)
+	defer browser.Close()
+	renderer := NewChromeTimelineImageRenderer(browser, "http://127.0.0.1:8080")
 	defer renderer.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -733,7 +652,7 @@ func setupRealisticTimelineTestServer(t *testing.T) (*coreinspection.InspectionT
 }
 
 func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
-	if _, err := findChromeBinary(); err != nil {
+	if _, err := cdp.FindChromeBinary(); err != nil {
 		t.Skipf("skipping browser integration test: %v", err)
 	}
 	gin.SetMode(gin.TestMode)
@@ -762,14 +681,19 @@ func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
 	httpServer := httptest.NewServer(ginEngine)
 	defer httpServer.Close()
 
-	renderer := NewChromeTimelineImageRenderer(httpServer.URL)
-	defer func() {
-		_ = renderer.Close()
-		httpServer.CloseClientConnections()
-	}()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	browser, err := cdp.StartBrowser(ctx)
+	if err != nil {
+		t.Fatalf("cdp.StartBrowser() failed: %v", err)
+	}
+	renderer := NewChromeTimelineImageRenderer(browser, httpServer.URL)
+	defer func() {
+		_ = renderer.Close()
+		_ = browser.Close()
+		httpServer.CloseClientConnections()
+	}()
 
 	res, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
 		InspectionID: inspectionID,
