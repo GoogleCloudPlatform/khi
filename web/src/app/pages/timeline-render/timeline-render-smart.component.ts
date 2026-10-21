@@ -61,7 +61,7 @@ const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
 /**
  * Smart component that renders only the timeline frame for headless screenshot capture.
  *
- * It exposes a global automation bridge on window.__khiTimelineRenderer so the backend MCP
+ * It exposes a browser automation bridge on window.__khiCDPBridge.timelineRenderer so the backend MCP
  * renderer can dynamically switch filters, timeline subsets, and time ranges without reloading.
  */
 @Component({
@@ -183,17 +183,20 @@ export class TimelineRenderSmartComponent implements OnInit {
   });
 
   /**
-   * Registers the window.__khiTimelineRenderer bridge and applies any initial URL query parameters.
+   * Registers the window.__khiCDPBridge.timelineRenderer bridge and applies any initial URL query parameters.
    */
   public ngOnInit(): void {
     const bridge: KhiTimelineRendererBridge = {
       applyAndMeasure: (params) => this.applyAndMeasure(params),
       waitForStableFrame: () => this.waitForStableFrame(),
     };
-    window.__khiTimelineRenderer = bridge;
+    window.__khiCDPBridge = {
+      ...window.__khiCDPBridge,
+      timelineRenderer: bridge,
+    };
     this.destroyRef.onDestroy(() => {
-      if (window.__khiTimelineRenderer === bridge) {
-        delete window.__khiTimelineRenderer;
+      if (window.__khiCDPBridge?.timelineRenderer === bridge) {
+        delete window.__khiCDPBridge.timelineRenderer;
       }
     });
 

@@ -54,7 +54,7 @@ export interface TimelineRenderMeasureResult {
 }
 
 /**
- * Global browser automation bridge exposed on window.__khiTimelineRenderer.
+ * Browser automation bridge for timeline rendering exposed on window.__khiCDPBridge.timelineRenderer.
  */
 export interface KhiTimelineRendererBridge {
   /**
@@ -70,8 +70,15 @@ export interface KhiTimelineRendererBridge {
   waitForStableFrame(): Promise<void>;
 }
 
+/**
+ * Container for Chrome DevTools Protocol automation bridges exposed on window.__khiCDPBridge.
+ */
+export interface KhiCDPBridge {
+  timelineRenderer?: KhiTimelineRendererBridge;
+}
+
 declare global {
   interface Window {
-    __khiTimelineRenderer?: KhiTimelineRendererBridge;
+    __khiCDPBridge?: KhiCDPBridge;
   }
 }

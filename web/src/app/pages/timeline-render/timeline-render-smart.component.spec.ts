@@ -198,10 +198,10 @@ describe('TimelineRenderSmartComponent', () => {
     fixture.destroy();
   });
 
-  it('should register and clean up window.__khiTimelineRenderer on lifecycle', () => {
-    expect(window.__khiTimelineRenderer).toBeDefined();
+  it('should register and clean up window.__khiCDPBridge.timelineRenderer on lifecycle', () => {
+    expect(window.__khiCDPBridge?.timelineRenderer).toBeDefined();
     fixture.destroy();
-    expect(window.__khiTimelineRenderer).toBeUndefined();
+    expect(window.__khiCDPBridge?.timelineRenderer).toBeUndefined();
   });
 
   it('should load inspection data once and reuse it on subsequent calls for the same inspectionId', async () => {
