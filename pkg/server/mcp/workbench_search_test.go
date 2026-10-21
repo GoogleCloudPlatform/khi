@@ -38,7 +38,7 @@ func TestWorkbenchHandler_HandleSearchTimelines(t *testing.T) {
 	server, inspectionID := setupTestInspectionServer(t)
 	indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
 	mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
-	handler := NewWorkbenchHandler(mgr)
+	handler := NewWorkbenchHandler(mgr, nil)
 
 	t.Cleanup(func() {
 		indexMgr.Wait()
@@ -145,7 +145,7 @@ func TestWorkbenchHandler_HandleSearchLogs(t *testing.T) {
 	server, inspectionID := setupTestInspectionServer(t)
 	indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
 	mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
-	handler := NewWorkbenchHandler(mgr)
+	handler := NewWorkbenchHandler(mgr, nil)
 
 	t.Cleanup(func() {
 		indexMgr.Wait()

@@ -33,16 +33,18 @@ type WorkbenchHandler struct {
 	manager     *workbench.WorkbenchManager
 	templates   *mdtemplate.Set
 	waitTimeout time.Duration
+	renderer    TimelineImageRenderer
 }
 
 var _ DomainHandler = (*WorkbenchHandler)(nil)
 
 // NewWorkbenchHandler creates a new WorkbenchHandler.
-func NewWorkbenchHandler(manager *workbench.WorkbenchManager) *WorkbenchHandler {
+func NewWorkbenchHandler(manager *workbench.WorkbenchManager, renderer TimelineImageRenderer) *WorkbenchHandler {
 	return &WorkbenchHandler{
 		manager:     manager,
 		templates:   mdtemplate.MustParse(templateFS, "templates/*.md.tmpl"),
 		waitTimeout: defaultWorkbenchWaitTimeout,
+		renderer:    renderer,
 	}
 }
 
@@ -82,6 +84,11 @@ func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 		Name:        "get_resource_diff",
 		Description: `Get the unified diff between a resource revision and the revision right before it. Long diffs are truncated; pass the byteOffset from the last line to read the rest.`,
 	}, h.handleGetResourceDiff)
+
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{
+		Name:        "render_timelines",
+		Description: `Render resource timelines and events visually as a PNG image matching the KHI frontend timeline view, alongside a Markdown summary with the applied filter. Select target timelines via filter (same CEL and time range syntax as search_timelines) and/or explicit timelineIds (ancestor hierarchy rows are automatically included). When filter.startTime and filter.endTime are omitted, the entire inspection duration is rendered; when specified, the chart zooms horizontally to that time window.`,
+	}, h.handleRenderTimelines)
 }
 
 type workbenchLoadingData struct {

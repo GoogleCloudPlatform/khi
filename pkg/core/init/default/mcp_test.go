@@ -72,6 +72,13 @@ func TestMCPServerInitializer(t *testing.T) {
 			coreinit.Set(ctx, JobParametersKey, &parameters.JobParameters{
 				JobMode: &tc.jobMode,
 			})
+			host := "127.0.0.1"
+			port := 8080
+			coreinit.Set(ctx, ServerParametersKey, &parameters.ServerParameters{
+				Host: &host,
+				Port: &port,
+			})
+			coreinit.Set(ctx, BasePathKey, tc.basePath)
 
 			taskServer, err := coreinspection.NewServer(nil)
 			if err != nil {

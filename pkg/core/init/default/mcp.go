@@ -15,6 +15,9 @@
 package defaultinit
 
 import (
+	"net"
+	"strconv"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	mcp "github.com/GoogleCloudPlatform/khi/pkg/server/mcp"
@@ -49,7 +52,18 @@ var MCPServerInitializer = &coreinit.Initializer{
 		inspectionServer := coreinit.MustGet(ctx, InspectionTaskServerKey)
 		workbenchManager := coreinit.MustGet(ctx, WorkbenchManagerKey)
 		uploadURLIssuer := coreinit.MustGet(ctx, UploadURLIssuerKey)
-		srv := mcp.NewServer(mcp.NewInspectionHandler(inspectionServer, uploadURLIssuer), mcp.NewWorkbenchHandler(workbenchManager))
+
+		serverParams := coreinit.MustGet(ctx, ServerParametersKey)
+		basePath := coreinit.MustGet(ctx, BasePathKey)
+		timelineRenderer := mcp.NewChromeTimelineImageRenderer(localServerBaseURL(*serverParams.Host, *serverParams.Port, basePath))
+		ctx.OnTerminate(func() error {
+			return timelineRenderer.Close()
+		})
+
+		srv := mcp.NewServer(
+			mcp.NewInspectionHandler(inspectionServer, uploadURLIssuer),
+			mcp.NewWorkbenchHandler(workbenchManager, timelineRenderer),
+		)
 		coreinit.Set(ctx, MCPServerKey, srv)
 
 		router := coreinit.MustGet(ctx, GinRouterKey)
@@ -57,6 +71,14 @@ var MCPServerInitializer = &coreinit.Initializer{
 		router.Any("/mcp/sse", gin.WrapH(srv.SSEHandler()))
 		return nil
 	},
+}
+
+func localServerBaseURL(host string, port int, basePath string) string {
+	switch host {
+	case "", "0.0.0.0", "::":
+		host = "127.0.0.1"
+	}
+	return "http://" + net.JoinHostPort(host, strconv.Itoa(port)) + basePath
 }
 
 func init() {

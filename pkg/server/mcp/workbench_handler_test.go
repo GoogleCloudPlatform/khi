@@ -136,7 +136,7 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 				server, inspectionID := setupTestInspectionServer(t)
 				indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
 				mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
-				handler := NewWorkbenchHandler(mgr)
+				handler := NewWorkbenchHandler(mgr, nil)
 
 				ctx := context.Background()
 				browserWB, err := mgr.Open(ctx, inspectionID, workbench.AccessorBrowser, func(apiv1.OpenWorkbenchResponse_Stage, float64, string) error { return nil })
@@ -175,7 +175,7 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 				server, _ := setupTestInspectionServer(t)
 				indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
 				mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
-				handler := NewWorkbenchHandler(mgr)
+				handler := NewWorkbenchHandler(mgr, nil)
 
 				t.Cleanup(func() {
 					indexMgr.Wait()
@@ -210,7 +210,7 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 				server, inspectionID := setupTestInspectionServer(t)
 				indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
 				mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
-				handler := NewWorkbenchHandler(mgr)
+				handler := NewWorkbenchHandler(mgr, nil)
 				handler.waitTimeout = 0
 
 				var loadedWB *workbench.Workbench
