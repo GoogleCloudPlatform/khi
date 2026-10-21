@@ -369,4 +369,59 @@ describe('TimelineFrameComponent - time range selection', () => {
 
     expect(clearedEmitted).toBeTrue();
   });
+
+  it('should hide legend and resizer handle when showLegend and showResizerHandle are false', () => {
+    expect(frameFixture.nativeElement.querySelector('.legend')).not.toBeNull();
+    expect(
+      frameFixture.nativeElement.querySelector('.gutter-hint'),
+    ).not.toBeNull();
+
+    frameFixture.componentRef.setInput('showLegend', false);
+    frameFixture.componentRef.setInput('showResizerHandle', false);
+    frameFixture.detectChanges();
+
+    expect(frameFixture.nativeElement.querySelector('.legend')).toBeNull();
+    expect(frameFixture.nativeElement.querySelector('.gutter-hint')).toBeNull();
+  });
+
+  it('should report readyToRender true only when all child timeline charts are ready', () => {
+    const chartDebugEls = frameFixture.debugElement.queryAll(
+      (el) => el.componentInstance instanceof TimelineChartComponent,
+    );
+    expect(chartDebugEls.length).toBeGreaterThan(0);
+    expect(frameComponent.readyToRender()).toBeFalse();
+
+    for (const chartEl of chartDebugEls) {
+      (chartEl.componentInstance as TimelineChartComponent).readyToRender.set(
+        true,
+      );
+    }
+    frameFixture.detectChanges();
+
+    expect(frameComponent.readyToRender()).toBeTrue();
+  });
+
+  it('should synchronize container scroll position and invalidate child charts in syncViewportAndInvalidate', () => {
+    frameFixture.componentRef.setInput('minQueryLogTimeMS', 1000);
+    frameFixture.componentRef.setInput('maxQueryLogTimeMS', 5000);
+    frameFixture.componentRef.setInput('horizontalOverdrawInPx', 300);
+    frameFixture.detectChanges();
+
+    const chartDebugEls = frameFixture.debugElement.queryAll(
+      (el) => el.componentInstance instanceof TimelineChartComponent,
+    );
+    for (const chartEl of chartDebugEls) {
+      (chartEl.componentInstance as TimelineChartComponent).invalidate = false;
+    }
+
+    frameComponent.syncViewportAndInvalidate(2000, 2);
+
+    expect(frameComponent.viewportLeftTimeMS()).toBe(2000);
+    expect(frameComponent.pixelsPerMs()).toBe(2);
+    for (const chartEl of chartDebugEls) {
+      expect(
+        (chartEl.componentInstance as TimelineChartComponent).invalidate,
+      ).toBeTrue();
+    }
+  });
 });

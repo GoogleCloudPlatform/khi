@@ -167,7 +167,7 @@ export class TimelineChartComponent implements AfterViewInit {
   /**
    * Flag to indicate that the timeline is ready to render.
    */
-  private readonly readyToRender = signal(false);
+  readonly readyToRender = signal(false);
 
   /**
    * Flag to indicate that the loading screen should be shown.
@@ -187,6 +187,10 @@ export class TimelineChartComponent implements AfterViewInit {
       }
       this.leftEdgeTime();
       this.pixelsPerMs();
+      this.filteredLogIds();
+      this.selectedLogIndex();
+      this.highlightedLogIndexBitset();
+      this.timelineHighlights();
       this.invalidate = true;
       this.updateRendererParams();
     });
@@ -199,17 +203,6 @@ export class TimelineChartComponent implements AfterViewInit {
       throw new Error('Failed to get 2D context');
     }
     this.backgroundRenderer = new TimelineBackgroundRenderer(bgContext);
-    this.contextManager = new GLContextManager<TimelineRendererRenderArgs>(
-      this.glCanvas()!.nativeElement,
-      this.timelineRenderer,
-      (readyToRender: boolean) => {
-        this.readyToRender.set(readyToRender);
-      },
-    );
-    await this.contextManager.setup();
-    this.destroyRef.onDestroy(() => {
-      this.contextManager.dispose();
-    });
 
     this.resizeObserver = new ResizeObserver(() => {
       this.ngZone.runOutsideAngular(() => {
@@ -221,6 +214,7 @@ export class TimelineChartComponent implements AfterViewInit {
       this.resizeObserver?.disconnect();
     });
 
+    this.handleResize();
     this.updateRendererParams();
     this.renderingLoopManager.registerRenderHandler(this.destroyRef, () => {
       if (!this.invalidate) {
@@ -233,6 +227,26 @@ export class TimelineChartComponent implements AfterViewInit {
       this.backgroundRenderer.render(this.leftEdgeTime(), this.pixelsPerMs());
       this.invalidate = false;
     });
+
+    this.contextManager = new GLContextManager<TimelineRendererRenderArgs>(
+      this.glCanvas()!.nativeElement,
+      this.timelineRenderer,
+      (readyToRender: boolean) => {
+        this.readyToRender.set(readyToRender);
+      },
+    );
+    await this.contextManager.setup();
+    this.destroyRef.onDestroy(() => {
+      this.contextManager.dispose();
+    });
+  }
+
+  /**
+   * Synchronizes canvas dimensions and renderer parameters with the current container bounding box.
+   */
+  public syncCanvasSize(): void {
+    this.handleResize();
+    this.updateRendererParams();
   }
 
   /**
@@ -262,10 +276,13 @@ export class TimelineChartComponent implements AfterViewInit {
   }
 
   private handleResize() {
-    const container = this.container()!.nativeElement;
+    const container = this.container()?.nativeElement;
+    const canvas = this.background2dCanvas()?.nativeElement;
+    const glCanvas = this.glCanvas()?.nativeElement;
+    if (!container || !canvas || !glCanvas || !this.backgroundRenderer) {
+      return;
+    }
     const rect = container.getBoundingClientRect();
-    const canvas = this.background2dCanvas()!.nativeElement;
-    const glCanvas = this.glCanvas()!.nativeElement;
     const dpr = window.devicePixelRatio || 1;
 
     canvas.style.width = `${rect.width}px`;
