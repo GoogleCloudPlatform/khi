@@ -25,6 +25,11 @@ import {
   viewChild,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import {
+  KhiTimelineRendererBridge,
+  TimelineRenderMeasureResult,
+  TimelineRenderParams,
+} from 'src/app/common/schema/timeline-render-types';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import {
@@ -46,62 +51,6 @@ import {
   generateDefaultRulerStyle,
 } from 'src/app/timeline/components/style-model';
 import { TimelineFrameComponent } from 'src/app/timeline/components/timeline-frame.component';
-
-/**
- * Request parameters for rendering a timeline view in the headless renderer page.
- */
-export interface TimelineRenderParams {
-  readonly inspectionId: string;
-  readonly timelineQuery?: string;
-  readonly timelineExclusionQuery?: string;
-  readonly logQuery?: string;
-  readonly excludeNoLogs?: boolean;
-  readonly filterStartTimeNs?: string;
-  readonly filterEndTimeNs?: string;
-  readonly viewStartTimeMs?: number;
-  readonly viewEndTimeMs?: number;
-  readonly timelineIds?: readonly number[];
-  readonly maxDepth?: number;
-  readonly maxNodes?: number;
-  readonly width?: number;
-  readonly timezoneShiftHours?: number;
-}
-
-/**
- * Layout measurement and match count metadata returned after applying timeline render parameters.
- */
-export interface TimelineRenderMeasureResult {
-  readonly width: number;
-  readonly height: number;
-  readonly renderedCount: number;
-  readonly totalMatched: number;
-  readonly hasMore: boolean;
-  readonly viewStartTimeMs: number;
-  readonly viewEndTimeMs: number;
-}
-
-/**
- * Global browser automation bridge exposed on window.__khiTimelineRenderer.
- */
-export interface KhiTimelineRendererBridge {
-  /**
-   * Loads inspection data if needed, applies filters, and returns the required viewport dimensions.
-   */
-  applyAndMeasure(
-    params: TimelineRenderParams,
-  ): Promise<TimelineRenderMeasureResult>;
-
-  /**
-   * Waits until WebGL and 2D canvas rendering have settled for the current viewport size.
-   */
-  waitForStableFrame(): Promise<void>;
-}
-
-declare global {
-  interface Window {
-    __khiTimelineRenderer?: KhiTimelineRendererBridge;
-  }
-}
 
 const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
   show: () => undefined,
