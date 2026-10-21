@@ -215,18 +215,6 @@ export class TimelineChartComponent implements AfterViewInit {
     });
 
     this.handleResize();
-    this.updateRendererParams();
-    this.renderingLoopManager.registerRenderHandler(this.destroyRef, () => {
-      if (!this.invalidate) {
-        return;
-      }
-      this.contextManager.render({
-        leftEdgeTime: this.leftEdgeTime(),
-        pixelsPerMs: this.pixelsPerMs(),
-      });
-      this.backgroundRenderer.render(this.leftEdgeTime(), this.pixelsPerMs());
-      this.invalidate = false;
-    });
 
     this.contextManager = new GLContextManager<TimelineRendererRenderArgs>(
       this.glCanvas()!.nativeElement,
@@ -238,6 +226,19 @@ export class TimelineChartComponent implements AfterViewInit {
     await this.contextManager.setup();
     this.destroyRef.onDestroy(() => {
       this.contextManager.dispose();
+    });
+
+    this.updateRendererParams();
+    this.renderingLoopManager.registerRenderHandler(this.destroyRef, () => {
+      if (!this.invalidate || !this.readyToRender()) {
+        return;
+      }
+      this.contextManager.render({
+        leftEdgeTime: this.leftEdgeTime(),
+        pixelsPerMs: this.pixelsPerMs(),
+      });
+      this.backgroundRenderer.render(this.leftEdgeTime(), this.pixelsPerMs());
+      this.invalidate = false;
     });
   }
 
