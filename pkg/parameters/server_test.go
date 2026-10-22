@@ -41,6 +41,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				PublicHost:               testutil.P(""),
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -58,6 +59,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				PublicHost:               testutil.P(""),
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/bar/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -75,6 +77,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				PublicHost:               testutil.P(""),
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -92,6 +95,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				PublicHost:               testutil.P(""),
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -131,6 +135,7 @@ func TestServerParameters(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			prepareFlagParsingTest(t)
+			t.Setenv("KHI_PUBLIC_HOST", "")
 			store := &ServerParameters{}
 			tc.before()
 			ResetStore()
@@ -150,6 +155,72 @@ func TestServerParameters(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, store); diff != "" {
 				t.Errorf("unexpected result (-want +got)\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestServerParameters_PublicHost(t *testing.T) {
+	testCases := []struct {
+		name            string
+		args            []string
+		env             string
+		want            string
+		wantErrContains string
+	}{
+		{name: "unset"},
+		{name: "HTTP URL", args: []string{"--public-host=http://khi.example.com:9000"}, want: "http://khi.example.com:9000"},
+		{name: "HTTPS URL with base path", args: []string{"--public-host=https://khi.example.com", "--base-path=/proxy/khi"}, want: "https://khi.example.com"},
+		{name: "IPv6 URL", args: []string{"--public-host=http://[::1]:8080"}, want: "http://[::1]:8080"},
+		{name: "trailing slash", args: []string{"--public-host=https://khi.example.com/"}, want: "https://khi.example.com/"},
+		{name: "path prefix", args: []string{"--public-host=https://khi.example.com/proxy/khi/"}, wantErrContains: "use --base-path for the path prefix"},
+		{name: "escaped path", args: []string{"--public-host=https://khi.example.com/team%20one"}, wantErrContains: "use --base-path for the path prefix"},
+		{name: "escaped slash", args: []string{"--public-host=https://khi.example.com/%2f"}, wantErrContains: "use --base-path for the path prefix"},
+		{name: "multiple trailing slashes", args: []string{"--public-host=https://khi.example.com//"}, wantErrContains: "use --base-path for the path prefix"},
+		{name: "environment variable", env: "https://khi.example.com", want: "https://khi.example.com"},
+		{name: "flag overrides environment", args: []string{"--public-host=http://localhost:9000"}, env: "https://khi.example.com", want: "http://localhost:9000"},
+		{name: "explicit empty flag overrides environment", args: []string{"--public-host="}, env: "https://khi.example.com"},
+		{name: "relative URL", args: []string{"--public-host=/khi"}, wantErrContains: "--public-host must be an absolute HTTP or HTTPS URL"},
+		{name: "unsupported scheme", args: []string{"--public-host=ftp://khi.example.com"}, wantErrContains: "--public-host must be an absolute HTTP or HTTPS URL"},
+		{name: "missing host", args: []string{"--public-host=https:///khi"}, wantErrContains: "--public-host must be an absolute HTTP or HTTPS URL"},
+		{name: "empty hostname with port", args: []string{"--public-host=http://:8080"}, wantErrContains: "--public-host must be an absolute HTTP or HTTPS URL"},
+		{name: "credentials", args: []string{"--public-host=https://user:password@khi.example.com"}, wantErrContains: "without a path, credentials, a query, or a fragment"},
+		{name: "query", args: []string{"--public-host=https://khi.example.com?key=value"}, wantErrContains: "without a path, credentials, a query, or a fragment"},
+		{name: "empty query", args: []string{"--public-host=https://khi.example.com?"}, wantErrContains: "without a path, credentials, a query, or a fragment"},
+		{name: "fragment", args: []string{"--public-host=https://khi.example.com#section"}, wantErrContains: "without a path, credentials, a query, or a fragment"},
+		{name: "empty fragment", args: []string{"--public-host=https://khi.example.com#"}, wantErrContains: "without a path, credentials, a query, or a fragment"},
+		{name: "invalid escape", args: []string{"--public-host=https://khi.example.com/%zz"}, wantErrContains: "--public-host is invalid"},
+		{name: "invalid environment URL", env: "khi.example.com", wantErrContains: "--public-host must be an absolute HTTP or HTTPS URL"},
+		{name: "environment path prefix", env: "https://khi.example.com/khi", wantErrContains: "use --base-path for the path prefix"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			prepareFlagParsingTest(t)
+			t.Setenv("KHI_PUBLIC_HOST", tc.env)
+			originalArgs, originalCommandLine := os.Args, flag.CommandLine
+			t.Cleanup(func() {
+				os.Args, flag.CommandLine = originalArgs, originalCommandLine
+			})
+			os.Args = append([]string{originalArgs[0]}, tc.args...)
+			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+			store := &ServerParameters{}
+			ResetStore()
+			AddStore(store)
+			err := Parse()
+			if tc.wantErrContains != "" {
+				if err == nil {
+					t.Fatal("Parse() returned nil error, want an error")
+				}
+				if !strings.Contains(err.Error(), tc.wantErrContains) {
+					t.Errorf("Parse() error = %q, want error containing %q", err.Error(), tc.wantErrContains)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Parse() failed: %v", err)
+			}
+			if *store.PublicHost != tc.want {
+				t.Errorf("PublicHost = %q, want %q", *store.PublicHost, tc.want)
 			}
 		})
 	}

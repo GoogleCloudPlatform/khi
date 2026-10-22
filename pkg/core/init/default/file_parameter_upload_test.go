@@ -16,8 +16,11 @@ package defaultinit
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -34,6 +37,7 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 	testCases := []struct {
 		name     string
 		basePath string
+		useProxy bool
 	}{
 		{
 			name:     "empty base path",
@@ -42,6 +46,15 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 		{
 			name:     "non-empty base path",
 			basePath: "/khi",
+		},
+		{
+			name:     "HTTPS proxy with root base path",
+			useProxy: true,
+		},
+		{
+			name:     "HTTPS proxy with non-empty base path",
+			basePath: "/gateway/khi",
+			useProxy: true,
 		},
 	}
 	for _, tc := range testCases {
@@ -56,6 +69,22 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 			host := "127.0.0.1"
 			port := 8080
 			maxUploadSize := 1024
+			ginEngine := gin.New()
+			var router gin.IRouter = ginEngine.Group(tc.basePath)
+			publicHost := ""
+			var proxyServer *httptest.Server
+			if tc.useProxy {
+				upstream := httptest.NewServer(ginEngine)
+				t.Cleanup(upstream.Close)
+				upstreamURL, err := url.Parse(upstream.URL)
+				if err != nil {
+					t.Fatalf("failed to parse upstream URL: %v", err)
+				}
+				proxy := httputil.NewSingleHostReverseProxy(upstreamURL)
+				proxyServer = httptest.NewTLSServer(proxy)
+				t.Cleanup(proxyServer.Close)
+				publicHost = proxyServer.URL + "/"
+			}
 			coreinit.Set(ctx, JobParametersKey, &parameters.JobParameters{JobMode: &jobMode})
 			coreinit.Set(ctx, UploadStoreKey, uploadStore)
 			coreinit.Set(ctx, BasePathKey, tc.basePath)
@@ -63,10 +92,9 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 			coreinit.Set(ctx, ServerParametersKey, &parameters.ServerParameters{
 				Host:                     &host,
 				Port:                     &port,
+				PublicHost:               &publicHost,
 				MaxUploadFileSizeInBytes: &maxUploadSize,
 			})
-			ginEngine := gin.New()
-			var router gin.IRouter = ginEngine.Group(tc.basePath)
 			coreinit.Set(ctx, GinRouterKey, router)
 
 			if err := FileParameterUploadInitializer.Init(ctx); err != nil {
@@ -79,8 +107,35 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 			}
 			uploadToken := uploadStore.GetUploadToken("upload-token-1", nil, "field-1")
 			grant := issuer.Issue(uploadToken.GetID(), "field-1")
+			wantURLBase := "http://127.0.0.1:8080" + tc.basePath + "/api/v1/file-upload/"
+			if proxyServer != nil {
+				wantURLBase = proxyServer.URL + tc.basePath + "/api/v1/file-upload/"
+			}
+			if !strings.HasPrefix(grant.URL, wantURLBase) {
+				t.Fatalf("issued URL = %q, want prefix %q", grant.URL, wantURLBase)
+			}
 
-			// The issued URL must route to the upload URL handler registered under the same base path.
+			// Proxy uploads must use the issued URL so an incorrect external host or path fails the request.
+			if proxyServer != nil {
+				req, err := http.NewRequest(http.MethodPut, grant.URL, strings.NewReader("hello"))
+				if err != nil {
+					t.Fatalf("failed to create upload request: %v", err)
+				}
+				res, err := proxyServer.Client().Do(req)
+				if err != nil {
+					t.Fatalf("PUT %s failed: %v", grant.URL, err)
+				}
+				defer res.Body.Close()
+				body, err := io.ReadAll(res.Body)
+				if err != nil {
+					t.Fatalf("failed to read upload response: %v", err)
+				}
+				if res.StatusCode != http.StatusOK {
+					t.Errorf("PUT %s returned %d, want %d: %s", grant.URL, res.StatusCode, http.StatusOK, body)
+				}
+				return
+			}
+
 			req := httptest.NewRequest(http.MethodPut, grant.URL, strings.NewReader("hello"))
 			rec := httptest.NewRecorder()
 			ginEngine.ServeHTTP(rec, req)
@@ -94,11 +149,12 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 
 func TestUploadURLBase(t *testing.T) {
 	testCases := []struct {
-		name     string
-		host     string
-		port     int
-		basePath string
-		want     string
+		name       string
+		host       string
+		port       int
+		basePath   string
+		publicHost string
+		want       string
 	}{
 		{
 			name: "loopback IPv4 host is used as is",
@@ -137,12 +193,57 @@ func TestUploadURLBase(t *testing.T) {
 			basePath: "/khi",
 			want:     "http://localhost:9000/khi/api/v1/file-upload/",
 		},
+		{
+			name:       "public host overrides the listen address",
+			host:       "0.0.0.0",
+			port:       8080,
+			publicHost: "https://khi.example.com",
+			want:       "https://khi.example.com/api/v1/file-upload/",
+		},
+		{
+			name:       "public host uses the configured base path",
+			host:       "127.0.0.1",
+			port:       8080,
+			basePath:   "/proxy/khi",
+			publicHost: "https://khi.example.com",
+			want:       "https://khi.example.com/proxy/khi/api/v1/file-upload/",
+		},
+		{
+			name:       "public host with a trailing slash preserves the base path",
+			host:       "127.0.0.1",
+			port:       8080,
+			basePath:   "/khi",
+			publicHost: "http://khi.example.com:9000/",
+			want:       "http://khi.example.com:9000/khi/api/v1/file-upload/",
+		},
+		{
+			name:       "public host trailing slash is removed",
+			basePath:   "/khi",
+			publicHost: "https://khi.example.com/",
+			want:       "https://khi.example.com/khi/api/v1/file-upload/",
+		},
+		{
+			name:       "public host preserves escaped base path segments",
+			basePath:   "/team%20one/khi",
+			publicHost: "https://khi.example.com",
+			want:       "https://khi.example.com/team%20one/khi/api/v1/file-upload/",
+		},
+		{
+			name:       "public host supports IPv6 and a custom port",
+			basePath:   "/khi",
+			publicHost: "http://[2001:db8::1]:9000",
+			want:       "http://[2001:db8::1]:9000/khi/api/v1/file-upload/",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := uploadURLBase(tc.host, tc.port, tc.basePath)
+			got := uploadURLBase(&parameters.ServerParameters{
+				Host:       &tc.host,
+				Port:       &tc.port,
+				PublicHost: &tc.publicHost,
+			}, tc.basePath)
 			if got != tc.want {
-				t.Errorf("uploadURLBase(%q, %d, %q) = %q, want %q", tc.host, tc.port, tc.basePath, got, tc.want)
+				t.Errorf("uploadURLBase() = %q, want %q", got, tc.want)
 			}
 		})
 	}

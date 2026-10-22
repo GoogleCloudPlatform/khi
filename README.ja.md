@@ -100,6 +100,20 @@ gcr.io/kubernetes-history-inspector/release:latest
 - ソースコードから KHI をビルドする場合は [開発ガイド](/docs/ja/development-contribution/development-guide.md) を参照してください。
 - 詳細は [Getting Started](/docs/en/tutorial/getting-started.md) を参照してください。
 
+### リバースプロキシ経由での MCP ファイルアップロード
+
+MCP クライアントがリバースプロキシ経由で KHI にアクセスする場合は、クライアントから到達できる HTTP または HTTPS のオリジン（スキームとホスト、必要に応じてポート）を `--public-host` に指定します。パスプレフィックスは `--base-path` に指定してください。
+
+```bash
+./khi --public-host=https://khi.example.com --base-path=/khi
+```
+
+環境変数 `KHI_PUBLIC_HOST` でも設定できます。コマンドラインのフラグが優先されます。
+この例では、`request_file_upload` が `https://khi.example.com/khi/api/v1/file-upload/<token>` を返します。
+この URL への PUT リクエストを、`--base-path` のプレフィックスを維持したまま KHI のアップロードエンドポイントへ転送するようにプロキシを設定してください。
+アップロード URL の生成時には、公開ホストが待ち受けスキーム、ホスト、ポートに優先します。HTTP または HTTPS を使用し、パスプレフィックス、認証情報、クエリ、フラグメントを含めることはできません。末尾のスラッシュは指定できます。
+未設定の場合は従来どおりローカルのサーバアドレスを使用し、ワイルドカードのホストは `127.0.0.1` に置き換えます。
+
 ## サポートされている製品・環境
 
 ### Kubernetes クラスタ
