@@ -35,10 +35,10 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 	})
 
 	testCases := []struct {
-		name          string
-		input         ValidateReportInput
-		wantIsError   bool
-		wantSubstring []string
+		name        string
+		input       ValidateReportInput
+		wantIsError bool
+		wantText    string
 	}{
 		{
 			name: "flags ungrounded inline code spans in report",
@@ -47,14 +47,21 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 				Report:       "Pod `hallucinated-pod-xyz` failed.",
 			},
 			wantIsError: false,
-			wantSubstring: []string{
+			wantText: strings.Join([]string{
 				"# Report validation",
+				"",
 				"Found 1 potential grounding issues.",
+				"",
 				"## Rules checked",
-				"`log-existence`",
+				"- `log-existence`: Inline code spans (`...`) must exist in the inspection logs. (1 findings)",
+				"",
 				"## Findings",
-				"`hallucinated-pod-xyz`",
-			},
+				"Verify each flagged item with `search_timelines`, `search_logs`, or `get_log`, and remove or correct values that do not exist in the inspection.",
+				"",
+				"| Line | Rule | Target | Message |",
+				"| --- | --- | --- | --- |",
+				"| 1 | `log-existence` | `hallucinated-pod-xyz` | Not found in inspection logs. |",
+			}, "\n"),
 		},
 		{
 			name: "missing inspectionId returns INVALID_ARGUMENT",
@@ -63,10 +70,7 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 				Report:       "Report text",
 			},
 			wantIsError: true,
-			wantSubstring: []string{
-				"Error: INVALID_ARGUMENT",
-				"inspectionId is required.",
-			},
+			wantText:    mdtemplate.FormatError("INVALID_ARGUMENT", "inspectionId is required."),
 		},
 		{
 			name: "empty report returns INVALID_ARGUMENT",
@@ -75,10 +79,7 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 				Report:       "   ",
 			},
 			wantIsError: true,
-			wantSubstring: []string{
-				"Error: INVALID_ARGUMENT",
-				"report is required.",
-			},
+			wantText:    mdtemplate.FormatError("INVALID_ARGUMENT", "report is required."),
 		},
 		{
 			name: "unknown inspectionId returns INSPECTION_NOT_FOUND",
@@ -87,10 +88,9 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 				Report:       "Report text",
 			},
 			wantIsError: true,
-			wantSubstring: []string{
-				"Error: INSPECTION_NOT_FOUND",
+			wantText: mdtemplate.FormatError("INSPECTION_NOT_FOUND",
 				"Inspection `non-existent-inspection` not found.",
-			},
+				"Read `khi://inspections` to see existing inspections."),
 		},
 	}
 
@@ -107,10 +107,8 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 				t.Errorf("res.IsError = %v, want %v", res.IsError, tc.wantIsError)
 			}
 			gotText := extractToolResultText(t, res)
-			for _, sub := range tc.wantSubstring {
-				if !strings.Contains(gotText, sub) {
-					t.Errorf("result text does not contain %q; got:\n%s", sub, gotText)
-				}
+			if diff := cmp.Diff(tc.wantText, gotText); diff != "" {
+				t.Errorf("handleValidateReport() text mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
