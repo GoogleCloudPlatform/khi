@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"golang.org/x/net/websocket"
@@ -72,6 +73,7 @@ func (e *TransportError) Unwrap() error {
 
 // Client manages a single Chrome DevTools Protocol WebSocket connection.
 type Client struct {
+	mu     sync.Mutex
 	ws     *websocket.Conn
 	nextID int
 }
@@ -97,6 +99,9 @@ func Dial(ctx context.Context, wsURL string) (*Client, error) {
 
 // Call invokes a CDP method with the given parameters and decodes the response into out.
 func (c *Client) Call(ctx context.Context, method string, params map[string]any, out any) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.nextID++
 	reqID := c.nextID
 
@@ -171,5 +176,7 @@ func (c *Client) Evaluate(ctx context.Context, expression string, awaitPromise b
 
 // Close closes the underlying WebSocket connection.
 func (c *Client) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.ws.Close()
 }
