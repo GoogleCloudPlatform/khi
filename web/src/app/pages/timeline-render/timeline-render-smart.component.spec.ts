@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, model, signal } from '@angular/core';
+import { Component, input, model, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { TimelineRenderSmartComponent } from './timeline-render-smart.component';
@@ -42,6 +42,20 @@ import { TimelineView } from 'src/app/store/domain/timeline-view';
   ],
 })
 class StubTimelineFrameComponent {
+  readonly inspectionDataUniqueID = input<unknown>();
+  readonly styleStore = input<unknown>();
+  readonly chartStyle = input<unknown>();
+  readonly rulerStyle = input<unknown>();
+  readonly timelines = input<unknown>();
+  readonly collapsedTimelineIds = input<unknown>();
+  readonly timezoneShiftHours = input<unknown>();
+  readonly minQueryLogTimeMS = input<unknown>();
+  readonly maxQueryLogTimeMS = input<unknown>();
+  readonly initialScaleApplied = input<unknown>();
+  readonly allLogs = input<unknown>();
+  readonly filteredLogIds = input<unknown>();
+  readonly showLegend = input<unknown>();
+  readonly showResizerHandle = input<unknown>();
   readonly readyToRender = signal(true);
   readonly pixelsPerMs = model<number>(1.0);
   readonly viewportLeftTimeMS = model<number>(0);
