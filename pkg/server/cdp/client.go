@@ -16,6 +16,7 @@ package cdp
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -97,8 +98,78 @@ func Dial(ctx context.Context, wsURL string) (*Client, error) {
 	return &Client{ws: conn}, nil
 }
 
-// Call invokes a CDP method with the given parameters and decodes the response into out.
-func (c *Client) Call(ctx context.Context, method string, params map[string]any, out any) error {
+// Navigate enables the Page and Runtime domains and navigates the page to url.
+func (c *Client) Navigate(ctx context.Context, url string) error {
+	if err := c.call(ctx, "Page.enable", nil, nil); err != nil {
+		return err
+	}
+	if err := c.call(ctx, "Runtime.enable", nil, nil); err != nil {
+		return err
+	}
+	return c.call(ctx, "Page.navigate", map[string]any{"url": url}, nil)
+}
+
+// Evaluate executes a JavaScript expression via Runtime.evaluate and decodes the returned value into out.
+func (c *Client) Evaluate(ctx context.Context, expression string, awaitPromise bool, out any) error {
+	var evalRes evaluateResult
+	err := c.call(ctx, "Runtime.evaluate", map[string]any{
+		"expression":    expression,
+		"awaitPromise":  awaitPromise,
+		"returnByValue": true,
+	}, &evalRes)
+	if err != nil {
+		return err
+	}
+	if evalRes.ExceptionDetails != nil {
+		msg := evalRes.ExceptionDetails.Text
+		if evalRes.ExceptionDetails.Exception != nil && evalRes.ExceptionDetails.Exception.Description != "" {
+			msg = evalRes.ExceptionDetails.Exception.Description
+		}
+		return fmt.Errorf("javascript evaluation error: %s", msg)
+	}
+	if out != nil && len(evalRes.Result.Value) > 0 {
+		if err := json.Unmarshal(evalRes.Result.Value, out); err != nil {
+			return fmt.Errorf("failed to decode evaluation result: %w", err)
+		}
+	}
+	return nil
+}
+
+// SetViewportSize overrides the browser device metrics with the specified viewport width and height.
+func (c *Client) SetViewportSize(ctx context.Context, width, height int) error {
+	return c.call(ctx, "Emulation.setDeviceMetricsOverride", map[string]any{
+		"width":             width,
+		"height":            height,
+		"deviceScaleFactor": 1,
+		"mobile":            false,
+	}, nil)
+}
+
+// CapturePNGScreenshot captures a PNG screenshot of the current page and returns the decoded PNG bytes.
+func (c *Client) CapturePNGScreenshot(ctx context.Context) ([]byte, error) {
+	var screenshotRes struct {
+		Data string `json:"data"`
+	}
+	if err := c.call(ctx, "Page.captureScreenshot", map[string]any{
+		"format": "png",
+	}, &screenshotRes); err != nil {
+		return nil, err
+	}
+	pngBytes, err := base64.StdEncoding.DecodeString(screenshotRes.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode screenshot PNG data: %w", err)
+	}
+	return pngBytes, nil
+}
+
+// Close closes the underlying WebSocket connection.
+func (c *Client) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.ws.Close()
+}
+
+func (c *Client) call(ctx context.Context, method string, params map[string]any, out any) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -146,37 +217,4 @@ func (c *Client) Call(ctx context.Context, method string, params map[string]any,
 		}
 		return nil
 	}
-}
-
-// Evaluate executes a JavaScript expression via Runtime.evaluate and decodes the returned value into out.
-func (c *Client) Evaluate(ctx context.Context, expression string, awaitPromise bool, out any) error {
-	var evalRes evaluateResult
-	err := c.Call(ctx, "Runtime.evaluate", map[string]any{
-		"expression":    expression,
-		"awaitPromise":  awaitPromise,
-		"returnByValue": true,
-	}, &evalRes)
-	if err != nil {
-		return err
-	}
-	if evalRes.ExceptionDetails != nil {
-		msg := evalRes.ExceptionDetails.Text
-		if evalRes.ExceptionDetails.Exception != nil && evalRes.ExceptionDetails.Exception.Description != "" {
-			msg = evalRes.ExceptionDetails.Exception.Description
-		}
-		return fmt.Errorf("javascript evaluation error: %s", msg)
-	}
-	if out != nil && len(evalRes.Result.Value) > 0 {
-		if err := json.Unmarshal(evalRes.Result.Value, out); err != nil {
-			return fmt.Errorf("failed to decode evaluation result: %w", err)
-		}
-	}
-	return nil
-}
-
-// Close closes the underlying WebSocket connection.
-func (c *Client) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.ws.Close()
 }
