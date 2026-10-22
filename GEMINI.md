@@ -19,7 +19,7 @@ All the following `make` commands must be run from the root folder:
 
 ## Technical stack
 
-* Go version is `1.25.x`
+* Go version is `1.27.x`
 * Angular version is `21.x`
 
 ## Common rules

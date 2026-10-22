@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOLANGCILINT_VERSION := v2.12.2
+GOLANGCILINT_VERSION := v2.15.0
 GOLANGCILINT_CMD ?= $(shell command -v golangci-lint)
 CONTAINER_CMD ?= $(shell command -v docker || command -v podman)
 NODE_MAX_OLD_SPACE_SIZE ?= 12288
@@ -39,7 +39,7 @@ endif
 
 .PHONY: format-go
 format-go: ## Format backend source code
-	golangci-lint run --config=.golangci.yaml --fix
+	$(GOLANGCILINT_CMD) run --config=.golangci.yaml --fix
 
 .PHONY: format-web
 format-web: $(GENERATE_FRONTEND_DUMMY) ## Format frontend source code
