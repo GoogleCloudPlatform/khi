@@ -68,7 +68,7 @@
     "karma-jasmine-html-reporter": "~2.2.0",
     "postcss": "^8.5.26",
     "prettier": "^3.9.6",
-    "storybook": "~10.5.6",
+    "storybook": "~10.6.3",
     "stylelint": "^17.14.1",
     "stylelint-config-sass-guidelines": "^13.0.0",
     "stylelint-config-standard": "^40.0.0",
