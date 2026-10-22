@@ -101,9 +101,9 @@ func TestParseReportDocument(t *testing.T) {
 			},
 		},
 		{
-			name:      "ignores unmatched backticks and whitespace-only code spans",
-			report:    "Unmatched `backtick on line 1\nEmpty `   ` span on line 2.",
-			wantSpans: nil,
+			name:      "ignores unmatched backticks, escaped backticks, and whitespace-only code spans",
+			report:    "Unmatched `backtick on line 1\nEmpty `   ` span on line 2.\nEscaped \\`not-a-span\\` and \\\\`valid-after-double-backslash` on line 3.",
+			wantSpans: []InlineCodeSpan{{Text: "valid-after-double-backslash", Line: 3}},
 		},
 	}
 
@@ -246,5 +246,26 @@ func TestValidateReport_ClosedWorkbench(t *testing.T) {
 	_, err := wb.ValidateReport(context.Background(), "`frontend-pod-7f8b9c`")
 	if !errors.Is(err, ErrWorkbenchClosed) {
 		t.Errorf("ValidateReport() error = %v, want %v", err, ErrWorkbenchClosed)
+	}
+}
+
+func TestValidateReport_NilTrigramIndexFallback(t *testing.T) {
+	wb := setupValidateReportTestWorkbench(t)
+	wb.searchIndex.TrigramIndex = nil
+
+	res, err := wb.ValidateReport(context.Background(), "Valid `frontend-pod-7f8b9c` and missing `ghost-pod`")
+	if err != nil {
+		t.Fatalf("ValidateReport() unexpected error = %v", err)
+	}
+	want := []ValidationFinding{
+		{
+			RuleID:  RuleIDUngroundedInlineCode,
+			Line:    1,
+			Target:  "ghost-pod",
+			Message: "Not found in inspection logs.",
+		},
+	}
+	if diff := cmp.Diff(want, res.Findings); diff != "" {
+		t.Errorf("ValidateReport() Findings mismatch (-want +got):\n%s", diff)
 	}
 }

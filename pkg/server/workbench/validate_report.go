@@ -248,6 +248,14 @@ func extractLineInlineCodeSpans(line string, lineNum int) []InlineCodeSpan {
 			i++
 			continue
 		}
+		backslashCount := 0
+		for k := i - 1; k >= 0 && line[k] == '\\'; k-- {
+			backslashCount++
+		}
+		if backslashCount%2 != 0 {
+			i++
+			continue
+		}
 		openLen := countLeadingByte(line[i:], '`')
 		contentStart := i + openLen
 
@@ -464,17 +472,20 @@ func (m *logTermMatcher) isTermGrounded(term string) bool {
 }
 
 func (m *logTermMatcher) searchLogsForTerm(term string) bool {
-	// FindCandidateLogs returns nil when the query is shorter than 3 bytes (no trigrams),
-	// in which case we fall back to scanning all logs.
-	if candidates := m.index.TrigramIndex.FindCandidateLogs(regexp.QuoteMeta(term)); candidates != nil {
-		it := candidates.Iterator()
-		for it.HasNext() {
-			logID := it.Next()
-			if m.logContainsTerm(m.index.GetLog(logID), term) {
-				return true
+	// TrigramIndex is nil when only the base SearchIndex has been built without async indexing;
+	// FindCandidateLogs also returns nil when the query is shorter than 3 bytes (no trigrams).
+	// In both cases we fall back to scanning all logs.
+	if m.index.TrigramIndex != nil {
+		if candidates := m.index.TrigramIndex.FindCandidateLogs(regexp.QuoteMeta(term)); candidates != nil {
+			it := candidates.Iterator()
+			for it.HasNext() {
+				logID := it.Next()
+				if m.logContainsTerm(m.index.GetLog(logID), term) {
+					return true
+				}
 			}
+			return false
 		}
-		return false
 	}
 
 	for i := range m.index.Logs {
