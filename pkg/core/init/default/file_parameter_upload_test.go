@@ -35,9 +35,9 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	testCases := []struct {
-		name        string
-		basePath    string
-		proxyPrefix string
+		name     string
+		basePath string
+		useProxy bool
 	}{
 		{
 			name:     "empty base path",
@@ -48,13 +48,13 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 			basePath: "/khi",
 		},
 		{
-			name:        "proxy adds a prefix to the root base path",
-			proxyPrefix: "/gateway/khi",
+			name:     "HTTPS proxy with root base path",
+			useProxy: true,
 		},
 		{
-			name:        "proxy adds a prefix to a non-empty base path",
-			basePath:    "/khi",
-			proxyPrefix: "/gateway",
+			name:     "HTTPS proxy with non-empty base path",
+			basePath: "/gateway/khi",
+			useProxy: true,
 		},
 	}
 	for _, tc := range testCases {
@@ -71,9 +71,9 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 			maxUploadSize := 1024
 			ginEngine := gin.New()
 			var router gin.IRouter = ginEngine.Group(tc.basePath)
-			publicURL := ""
+			publicHost := ""
 			var proxyServer *httptest.Server
-			if tc.proxyPrefix != "" {
+			if tc.useProxy {
 				upstream := httptest.NewServer(ginEngine)
 				t.Cleanup(upstream.Close)
 				upstreamURL, err := url.Parse(upstream.URL)
@@ -81,9 +81,9 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 					t.Fatalf("failed to parse upstream URL: %v", err)
 				}
 				proxy := httputil.NewSingleHostReverseProxy(upstreamURL)
-				proxyServer = httptest.NewTLSServer(http.StripPrefix(tc.proxyPrefix, proxy))
+				proxyServer = httptest.NewTLSServer(proxy)
 				t.Cleanup(proxyServer.Close)
-				publicURL = proxyServer.URL + tc.proxyPrefix + tc.basePath + "/"
+				publicHost = proxyServer.URL + "/"
 			}
 			coreinit.Set(ctx, JobParametersKey, &parameters.JobParameters{JobMode: &jobMode})
 			coreinit.Set(ctx, UploadStoreKey, uploadStore)
@@ -92,7 +92,7 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 			coreinit.Set(ctx, ServerParametersKey, &parameters.ServerParameters{
 				Host:                     &host,
 				Port:                     &port,
-				PublicURL:                &publicURL,
+				PublicHost:               &publicHost,
 				MaxUploadFileSizeInBytes: &maxUploadSize,
 			})
 			coreinit.Set(ctx, GinRouterKey, router)
@@ -109,7 +109,7 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 			grant := issuer.Issue(uploadToken.GetID(), "field-1")
 			wantURLBase := "http://127.0.0.1:8080" + tc.basePath + "/api/v1/file-upload/"
 			if proxyServer != nil {
-				wantURLBase = proxyServer.URL + tc.proxyPrefix + tc.basePath + "/api/v1/file-upload/"
+				wantURLBase = proxyServer.URL + tc.basePath + "/api/v1/file-upload/"
 			}
 			if !strings.HasPrefix(grant.URL, wantURLBase) {
 				t.Fatalf("issued URL = %q, want prefix %q", grant.URL, wantURLBase)
@@ -149,12 +149,12 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 
 func TestUploadURLBase(t *testing.T) {
 	testCases := []struct {
-		name      string
-		host      string
-		port      int
-		basePath  string
-		publicURL string
-		want      string
+		name       string
+		host       string
+		port       int
+		basePath   string
+		publicHost string
+		want       string
 	}{
 		{
 			name: "loopback IPv4 host is used as is",
@@ -194,50 +194,53 @@ func TestUploadURLBase(t *testing.T) {
 			want:     "http://localhost:9000/khi/api/v1/file-upload/",
 		},
 		{
-			name:      "public URL overrides the listen address",
-			host:      "0.0.0.0",
-			port:      8080,
-			publicURL: "https://khi.example.com",
-			want:      "https://khi.example.com/api/v1/file-upload/",
+			name:       "public host overrides the listen address",
+			host:       "0.0.0.0",
+			port:       8080,
+			publicHost: "https://khi.example.com",
+			want:       "https://khi.example.com/api/v1/file-upload/",
 		},
 		{
-			name:      "public URL includes the complete external base path",
-			host:      "127.0.0.1",
-			port:      8080,
-			basePath:  "/internal/khi",
-			publicURL: "https://khi.example.com/proxy/khi",
-			want:      "https://khi.example.com/proxy/khi/api/v1/file-upload/",
+			name:       "public host uses the configured base path",
+			host:       "127.0.0.1",
+			port:       8080,
+			basePath:   "/proxy/khi",
+			publicHost: "https://khi.example.com",
+			want:       "https://khi.example.com/proxy/khi/api/v1/file-upload/",
 		},
 		{
-			name:      "public URL root overrides a non-empty server base path",
-			host:      "127.0.0.1",
-			port:      8080,
-			basePath:  "/khi",
-			publicURL: "http://khi.example.com:9000/",
-			want:      "http://khi.example.com:9000/api/v1/file-upload/",
+			name:       "public host with a trailing slash preserves the base path",
+			host:       "127.0.0.1",
+			port:       8080,
+			basePath:   "/khi",
+			publicHost: "http://khi.example.com:9000/",
+			want:       "http://khi.example.com:9000/khi/api/v1/file-upload/",
 		},
 		{
-			name:      "public URL trailing slashes are removed",
-			publicURL: "https://khi.example.com/khi///",
-			want:      "https://khi.example.com/khi/api/v1/file-upload/",
+			name:       "public host trailing slash is removed",
+			basePath:   "/khi",
+			publicHost: "https://khi.example.com/",
+			want:       "https://khi.example.com/khi/api/v1/file-upload/",
 		},
 		{
-			name:      "public URL preserves escaped path segments",
-			publicURL: "https://khi.example.com/team%20one/khi/",
-			want:      "https://khi.example.com/team%20one/khi/api/v1/file-upload/",
+			name:       "public host preserves escaped base path segments",
+			basePath:   "/team%20one/khi",
+			publicHost: "https://khi.example.com",
+			want:       "https://khi.example.com/team%20one/khi/api/v1/file-upload/",
 		},
 		{
-			name:      "public URL supports IPv6 and a custom port",
-			publicURL: "http://[2001:db8::1]:9000/khi",
-			want:      "http://[2001:db8::1]:9000/khi/api/v1/file-upload/",
+			name:       "public host supports IPv6 and a custom port",
+			basePath:   "/khi",
+			publicHost: "http://[2001:db8::1]:9000",
+			want:       "http://[2001:db8::1]:9000/khi/api/v1/file-upload/",
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := uploadURLBase(&parameters.ServerParameters{
-				Host:      &tc.host,
-				Port:      &tc.port,
-				PublicURL: &tc.publicURL,
+				Host:       &tc.host,
+				Port:       &tc.port,
+				PublicHost: &tc.publicHost,
 			}, tc.basePath)
 			if got != tc.want {
 				t.Errorf("uploadURLBase() = %q, want %q", got, tc.want)

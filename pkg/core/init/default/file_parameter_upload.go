@@ -90,11 +90,11 @@ var FileParameterUploadInitializer = &coreinit.Initializer{
 }
 
 // uploadURLBase returns the absolute URL that upload URL tokens are appended to.
-// PublicURL includes the external base path, which can differ from the server's base path behind a proxy.
+// PublicHost overrides the listen address while BasePath supplies the path prefix.
 // Without it, wildcard listen addresses are replaced with loopback for local clients.
 func uploadURLBase(serverParams *parameters.ServerParameters, basePath string) string {
-	if *serverParams.PublicURL != "" {
-		return strings.TrimRight(*serverParams.PublicURL, "/") + uploadURLPath
+	if *serverParams.PublicHost != "" {
+		return strings.TrimSuffix(*serverParams.PublicHost, "/") + basePath + uploadURLPath
 	}
 	host := *serverParams.Host
 	switch host {

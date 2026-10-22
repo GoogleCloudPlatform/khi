@@ -100,16 +100,16 @@ gcr.io/kubernetes-history-inspector/release:latest
 
 ### MCP file uploads through a reverse proxy
 
-When an MCP client accesses KHI through a reverse proxy, set `--public-url` to the base URL that the client can reach, including the full external path prefix:
+When an MCP client accesses KHI through a reverse proxy, set `--public-host` to the HTTP or HTTPS origin that the client can reach (scheme and host, with an optional port). Use `--base-path` for the path prefix:
 
 ```bash
-./khi --public-url=https://khi.example.com/khi
+./khi --public-host=https://khi.example.com --base-path=/khi
 ```
 
-You can also set the `KHI_PUBLIC_URL` environment variable. The command-line flag takes precedence.
+You can also set the `KHI_PUBLIC_HOST` environment variable. The command-line flag takes precedence.
 In this example, `request_file_upload` returns `https://khi.example.com/khi/api/v1/file-upload/<token>`.
-Configure the proxy to forward PUT requests from this URL to KHI's upload endpoint under `--base-path`, rewriting the prefix if needed.
-The public URL replaces the listening host, port, and base path when generating upload URLs. It must use HTTP or HTTPS and must not contain credentials, a query, or a fragment.
+Configure the proxy to forward PUT requests from this URL to KHI's upload endpoint, preserving the `--base-path` prefix.
+The public host replaces the listening scheme, host, and port when generating upload URLs. It must use HTTP or HTTPS and must not contain a path prefix, credentials, a query, or a fragment. A trailing slash is allowed.
 When it is unset, upload URLs keep using the local server address, with wildcard hosts replaced by `127.0.0.1`.
 
 ## Supported Products & Environments

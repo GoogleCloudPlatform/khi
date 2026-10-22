@@ -41,7 +41,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
-				PublicURL:                testutil.P(""),
+				PublicHost:               testutil.P(""),
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -58,7 +58,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
-				PublicURL:                testutil.P(""),
+				PublicHost:               testutil.P(""),
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/bar/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -75,7 +75,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
-				PublicURL:                testutil.P(""),
+				PublicHost:               testutil.P(""),
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -92,7 +92,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
-				PublicURL:                testutil.P(""),
+				PublicHost:               testutil.P(""),
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -114,7 +114,7 @@ func TestServerParameters(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			prepareFlagParsingTest(t)
-			t.Setenv("KHI_PUBLIC_URL", "")
+			t.Setenv("KHI_PUBLIC_HOST", "")
 			store := &ServerParameters{}
 			tc.before()
 			ResetStore()
@@ -139,7 +139,7 @@ func TestServerParameters(t *testing.T) {
 	}
 }
 
-func TestServerParameters_PublicURL(t *testing.T) {
+func TestServerParameters_PublicHost(t *testing.T) {
 	testCases := []struct {
 		name            string
 		args            []string
@@ -148,29 +148,34 @@ func TestServerParameters_PublicURL(t *testing.T) {
 		wantErrContains string
 	}{
 		{name: "unset"},
-		{name: "HTTP URL", args: []string{"--public-url=http://khi.example.com:9000"}, want: "http://khi.example.com:9000"},
-		{name: "HTTPS URL with prefix", args: []string{"--public-url=https://khi.example.com/proxy/khi/"}, want: "https://khi.example.com/proxy/khi/"},
-		{name: "IPv6 URL", args: []string{"--public-url=http://[::1]:8080/khi"}, want: "http://[::1]:8080/khi"},
-		{name: "escaped path", args: []string{"--public-url=https://khi.example.com/team%20one"}, want: "https://khi.example.com/team%20one"},
-		{name: "environment variable", env: "https://khi.example.com/khi", want: "https://khi.example.com/khi"},
-		{name: "flag overrides environment", args: []string{"--public-url=http://localhost:9000"}, env: "https://khi.example.com/khi", want: "http://localhost:9000"},
-		{name: "explicit empty flag overrides environment", args: []string{"--public-url="}, env: "https://khi.example.com/khi"},
-		{name: "relative URL", args: []string{"--public-url=/khi"}, wantErrContains: "--public-url must be an absolute HTTP or HTTPS URL"},
-		{name: "unsupported scheme", args: []string{"--public-url=ftp://khi.example.com"}, wantErrContains: "--public-url must be an absolute HTTP or HTTPS URL"},
-		{name: "missing host", args: []string{"--public-url=https:///khi"}, wantErrContains: "--public-url must be an absolute HTTP or HTTPS URL"},
-		{name: "empty hostname with port", args: []string{"--public-url=http://:8080"}, wantErrContains: "--public-url must be an absolute HTTP or HTTPS URL"},
-		{name: "credentials", args: []string{"--public-url=https://user:password@khi.example.com"}, wantErrContains: "without credentials, a query, or a fragment"},
-		{name: "query", args: []string{"--public-url=https://khi.example.com/khi?key=value"}, wantErrContains: "without credentials, a query, or a fragment"},
-		{name: "empty query", args: []string{"--public-url=https://khi.example.com/khi?"}, wantErrContains: "without credentials, a query, or a fragment"},
-		{name: "fragment", args: []string{"--public-url=https://khi.example.com/khi#section"}, wantErrContains: "without credentials, a query, or a fragment"},
-		{name: "empty fragment", args: []string{"--public-url=https://khi.example.com/khi#"}, wantErrContains: "without credentials, a query, or a fragment"},
-		{name: "invalid escape", args: []string{"--public-url=https://khi.example.com/%zz"}, wantErrContains: "--public-url is invalid"},
-		{name: "invalid environment URL", env: "khi.example.com", wantErrContains: "--public-url must be an absolute HTTP or HTTPS URL"},
+		{name: "HTTP URL", args: []string{"--public-host=http://khi.example.com:9000"}, want: "http://khi.example.com:9000"},
+		{name: "HTTPS URL with base path", args: []string{"--public-host=https://khi.example.com", "--base-path=/proxy/khi"}, want: "https://khi.example.com"},
+		{name: "IPv6 URL", args: []string{"--public-host=http://[::1]:8080"}, want: "http://[::1]:8080"},
+		{name: "trailing slash", args: []string{"--public-host=https://khi.example.com/"}, want: "https://khi.example.com/"},
+		{name: "path prefix", args: []string{"--public-host=https://khi.example.com/proxy/khi/"}, wantErrContains: "use --base-path for the path prefix"},
+		{name: "escaped path", args: []string{"--public-host=https://khi.example.com/team%20one"}, wantErrContains: "use --base-path for the path prefix"},
+		{name: "escaped slash", args: []string{"--public-host=https://khi.example.com/%2f"}, wantErrContains: "use --base-path for the path prefix"},
+		{name: "multiple trailing slashes", args: []string{"--public-host=https://khi.example.com//"}, wantErrContains: "use --base-path for the path prefix"},
+		{name: "environment variable", env: "https://khi.example.com", want: "https://khi.example.com"},
+		{name: "flag overrides environment", args: []string{"--public-host=http://localhost:9000"}, env: "https://khi.example.com", want: "http://localhost:9000"},
+		{name: "explicit empty flag overrides environment", args: []string{"--public-host="}, env: "https://khi.example.com"},
+		{name: "relative URL", args: []string{"--public-host=/khi"}, wantErrContains: "--public-host must be an absolute HTTP or HTTPS URL"},
+		{name: "unsupported scheme", args: []string{"--public-host=ftp://khi.example.com"}, wantErrContains: "--public-host must be an absolute HTTP or HTTPS URL"},
+		{name: "missing host", args: []string{"--public-host=https:///khi"}, wantErrContains: "--public-host must be an absolute HTTP or HTTPS URL"},
+		{name: "empty hostname with port", args: []string{"--public-host=http://:8080"}, wantErrContains: "--public-host must be an absolute HTTP or HTTPS URL"},
+		{name: "credentials", args: []string{"--public-host=https://user:password@khi.example.com"}, wantErrContains: "without a path, credentials, a query, or a fragment"},
+		{name: "query", args: []string{"--public-host=https://khi.example.com?key=value"}, wantErrContains: "without a path, credentials, a query, or a fragment"},
+		{name: "empty query", args: []string{"--public-host=https://khi.example.com?"}, wantErrContains: "without a path, credentials, a query, or a fragment"},
+		{name: "fragment", args: []string{"--public-host=https://khi.example.com#section"}, wantErrContains: "without a path, credentials, a query, or a fragment"},
+		{name: "empty fragment", args: []string{"--public-host=https://khi.example.com#"}, wantErrContains: "without a path, credentials, a query, or a fragment"},
+		{name: "invalid escape", args: []string{"--public-host=https://khi.example.com/%zz"}, wantErrContains: "--public-host is invalid"},
+		{name: "invalid environment URL", env: "khi.example.com", wantErrContains: "--public-host must be an absolute HTTP or HTTPS URL"},
+		{name: "environment path prefix", env: "https://khi.example.com/khi", wantErrContains: "use --base-path for the path prefix"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			prepareFlagParsingTest(t)
-			t.Setenv("KHI_PUBLIC_URL", tc.env)
+			t.Setenv("KHI_PUBLIC_HOST", tc.env)
 			originalArgs, originalCommandLine := os.Args, flag.CommandLine
 			t.Cleanup(func() {
 				os.Args, flag.CommandLine = originalArgs, originalCommandLine
@@ -193,8 +198,8 @@ func TestServerParameters_PublicURL(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse() failed: %v", err)
 			}
-			if *store.PublicURL != tc.want {
-				t.Errorf("PublicURL = %q, want %q", *store.PublicURL, tc.want)
+			if *store.PublicHost != tc.want {
+				t.Errorf("PublicHost = %q, want %q", *store.PublicHost, tc.want)
 			}
 		})
 	}
