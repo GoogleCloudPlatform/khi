@@ -67,7 +67,7 @@ func setupValidateReportTestWorkbench(t *testing.T) *Workbench {
 	return wb
 }
 
-func TestInlineCodeGroundingRule(t *testing.T) {
+func TestLogExistenceRule(t *testing.T) {
 	wb := setupValidateReportTestWorkbench(t)
 
 	testCases := []struct {
@@ -99,25 +99,25 @@ func TestInlineCodeGroundingRule(t *testing.T) {
 			wantCount: 5,
 			want: []ValidationFinding{
 				{
-					RuleID:  RuleIDUngroundedInlineCode,
+					RuleID:  RuleIDLogExistence,
 					Line:    1,
 					Target:  "hallucinated-insert-id",
 					Message: "Not found in inspection logs.",
 				},
 				{
-					RuleID:  RuleIDUngroundedInlineCode,
+					RuleID:  RuleIDLogExistence,
 					Line:    2,
 					Target:  "default/ghost-pod-999",
 					Message: "Not found in inspection logs (unmatched component: `ghost-pod-999`).",
 				},
 				{
-					RuleID:  RuleIDUngroundedInlineCode,
+					RuleID:  RuleIDLogExistence,
 					Line:    3,
 					Target:  "ghost-ns/ghost-pod",
 					Message: "Not found in inspection logs (unmatched components: `ghost-ns`, `ghost-pod`).",
 				},
 				{
-					RuleID:  RuleIDUngroundedInlineCode,
+					RuleID:  RuleIDLogExistence,
 					Line:    4,
 					Target:  "app=ghost-app",
 					Message: "Not found in inspection logs (unmatched component: `ghost-app`).",
@@ -142,7 +142,7 @@ func TestInlineCodeGroundingRule(t *testing.T) {
 	}
 }
 
-func TestInlineCodeGroundingRule_NilTrigramIndexFallback(t *testing.T) {
+func TestLogExistenceRule_NilTrigramIndexFallback(t *testing.T) {
 	wb := setupValidateReportTestWorkbench(t)
 	wb.searchIndex.TrigramIndex = nil
 
@@ -152,7 +152,7 @@ func TestInlineCodeGroundingRule_NilTrigramIndexFallback(t *testing.T) {
 	}
 	want := []ValidationFinding{
 		{
-			RuleID:  RuleIDUngroundedInlineCode,
+			RuleID:  RuleIDLogExistence,
 			Line:    1,
 			Target:  "ghost-pod",
 			Message: "Not found in inspection logs.",

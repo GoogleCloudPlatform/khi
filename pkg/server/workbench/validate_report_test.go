@@ -87,7 +87,7 @@ func TestValidateReport_MultipleRules(t *testing.T) {
 	wb := setupValidateReportTestWorkbench(t)
 
 	rules := []ValidationRule{
-		NewInlineCodeGroundingRule(),
+		NewLogExistenceRule(),
 		&stubValidationRule{
 			id:          "custom-rule",
 			description: "Custom validation rule.",
@@ -117,7 +117,7 @@ func TestValidateReport_MultipleRules(t *testing.T) {
 			Message: "Custom finding on line 1.",
 		},
 		{
-			RuleID:  RuleIDUngroundedInlineCode,
+			RuleID:  RuleIDLogExistence,
 			Line:    2,
 			Target:  "missing-pod",
 			Message: "Not found in inspection logs.",

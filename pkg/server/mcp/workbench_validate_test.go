@@ -51,7 +51,7 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 				"# Report validation",
 				"Found 1 potential grounding issues across 1 inline code spans.",
 				"## Rules checked",
-				"`ungrounded-inline-code`",
+				"`log-existence`",
 				"## Findings",
 				"`hallucinated-pod-xyz`",
 			},
@@ -130,7 +130,7 @@ func TestWorkbenchValidate_Template(t *testing.T) {
 				InlineCodeSpanCount: 4,
 				Rules: []workbench.ValidationRuleSummary{
 					{
-						ID:           workbench.RuleIDUngroundedInlineCode,
+						ID:           workbench.RuleIDLogExistence,
 						Description:  "Inline code spans (`...`) must exist in the inspection logs.",
 						FindingCount: 0,
 					},
@@ -142,7 +142,7 @@ func TestWorkbenchValidate_Template(t *testing.T) {
 				"Found 0 issues across 4 inline code spans.",
 				"",
 				"## Rules checked",
-				"- `ungrounded-inline-code`: Inline code spans (`...`) must exist in the inspection logs. (0 findings)",
+				"- `log-existence`: Inline code spans (`...`) must exist in the inspection logs. (0 findings)",
 			}, "\n"),
 		},
 		{
@@ -151,20 +151,20 @@ func TestWorkbenchValidate_Template(t *testing.T) {
 				InlineCodeSpanCount: 3,
 				Rules: []workbench.ValidationRuleSummary{
 					{
-						ID:           workbench.RuleIDUngroundedInlineCode,
+						ID:           workbench.RuleIDLogExistence,
 						Description:  "Inline code spans (`...`) must exist in the inspection logs.",
 						FindingCount: 2,
 					},
 				},
 				Findings: []workbench.ValidationFinding{
 					{
-						RuleID:  workbench.RuleIDUngroundedInlineCode,
+						RuleID:  workbench.RuleIDLogExistence,
 						Line:    5,
 						Target:  "ghost-insert-id",
 						Message: "Not found in inspection logs.",
 					},
 					{
-						RuleID:  workbench.RuleIDUngroundedInlineCode,
+						RuleID:  workbench.RuleIDLogExistence,
 						Line:    12,
 						Target:  "default/ghost-pod",
 						Message: "Not found in inspection logs (unmatched component: `ghost-pod`).",
@@ -177,15 +177,15 @@ func TestWorkbenchValidate_Template(t *testing.T) {
 				"Found 2 potential grounding issues across 3 inline code spans.",
 				"",
 				"## Rules checked",
-				"- `ungrounded-inline-code`: Inline code spans (`...`) must exist in the inspection logs. (2 findings)",
+				"- `log-existence`: Inline code spans (`...`) must exist in the inspection logs. (2 findings)",
 				"",
 				"## Findings",
 				"Verify each flagged item with `search_timelines`, `search_logs`, or `get_log`, and remove or correct values that do not exist in the inspection.",
 				"",
 				"| Line | Rule | Target | Message |",
 				"| --- | --- | --- | --- |",
-				"| 5 | `ungrounded-inline-code` | `ghost-insert-id` | Not found in inspection logs. |",
-				"| 12 | `ungrounded-inline-code` | `default/ghost-pod` | Not found in inspection logs (unmatched component: `ghost-pod`). |",
+				"| 5 | `log-existence` | `ghost-insert-id` | Not found in inspection logs. |",
+				"| 12 | `log-existence` | `default/ghost-pod` | Not found in inspection logs (unmatched component: `ghost-pod`). |",
 			}, "\n"),
 		},
 	}

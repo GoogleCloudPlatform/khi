@@ -66,7 +66,7 @@ type ReportValidationResult struct {
 // DefaultValidationRules returns the standard set of report validation rules.
 func DefaultValidationRules() []ValidationRule {
 	return []ValidationRule{
-		NewInlineCodeGroundingRule(),
+		NewLogExistenceRule(),
 	}
 }
 

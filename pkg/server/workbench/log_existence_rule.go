@@ -26,27 +26,27 @@ import (
 )
 
 const (
-	// RuleIDUngroundedInlineCode identifies the validation rule that checks inline code spans against inspection logs.
-	RuleIDUngroundedInlineCode = "ungrounded-inline-code"
+	// RuleIDLogExistence identifies the validation rule that checks whether inline code spans exist in the inspection logs.
+	RuleIDLogExistence = "log-existence"
 )
 
-// InlineCodeGroundingRule verifies that inline code spans in a Markdown report exist in the inspection logs.
-type InlineCodeGroundingRule struct{}
+// LogExistenceRule verifies that inline code spans in a Markdown report exist in the inspection logs.
+type LogExistenceRule struct{}
 
-var _ ValidationRule = (*InlineCodeGroundingRule)(nil)
+var _ ValidationRule = (*LogExistenceRule)(nil)
 
-// NewInlineCodeGroundingRule creates a new InlineCodeGroundingRule.
-func NewInlineCodeGroundingRule() *InlineCodeGroundingRule {
-	return &InlineCodeGroundingRule{}
+// NewLogExistenceRule creates a new LogExistenceRule.
+func NewLogExistenceRule() *LogExistenceRule {
+	return &LogExistenceRule{}
 }
 
 // ID returns the rule identifier.
-func (r *InlineCodeGroundingRule) ID() string {
-	return RuleIDUngroundedInlineCode
+func (r *LogExistenceRule) ID() string {
+	return RuleIDLogExistence
 }
 
 // Description returns a short summary of the rule.
-func (r *InlineCodeGroundingRule) Description() string {
+func (r *LogExistenceRule) Description() string {
 	return "Inline code spans (`...`) must exist in the inspection logs."
 }
 
@@ -56,7 +56,7 @@ type spanValidationOutcome struct {
 }
 
 // Validate checks every inline code span in doc against the workbench's search index and trigram index.
-func (r *InlineCodeGroundingRule) Validate(ctx context.Context, doc *ReportDocument, wb *Workbench) ([]ValidationFinding, error) {
+func (r *LogExistenceRule) Validate(ctx context.Context, doc *ReportDocument, wb *Workbench) ([]ValidationFinding, error) {
 	index, _, err := wb.readyIndex()
 	if err != nil {
 		return nil, err
