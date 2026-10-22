@@ -37,6 +37,8 @@ type ServerParameters struct {
 	MaxUploadFileSizeInBytes *int
 	// MaxLoadedInspections is the maximum number of inspections kept loaded in memory for the browser and MCP at the same time.
 	MaxLoadedInspections *int
+	// MCPDisableRenderer disables the headless Chrome renderer and omits the render_timelines MCP tool when true.
+	MCPDisableRenderer *bool
 }
 
 // PostProcess implements ParameterStore.
@@ -61,6 +63,7 @@ func (s *ServerParameters) Prepare() error {
 	s.FrontendAssetFolder = flag.String("frontend-asset-folder", "", "The root folder of the assets used in frontend including index.html. If this value is not set, the assets embedded into the executable are used.", "KHI_FRONTEND_ASSET_FOLDER")
 	s.MaxUploadFileSizeInBytes = flag.Int("max-upload-file-size-in-bytes", 1024*1024*1024, "The maximum limit of uploaded file. Server returns 400 when the request exceeds it.", "")
 	s.MaxLoadedInspections = flag.Int("max-loaded-inspections", 3, "The maximum number of inspections kept loaded in memory at the same time. When loading another inspection would exceed it, the least recently used inspection that is not in use is released from memory.", "KHI_MAX_LOADED_INSPECTIONS")
+	s.MCPDisableRenderer = flag.Bool("mcp-disable-renderer", false, "Disable the headless Chrome renderer and omit the render_timelines MCP tool.", "KHI_MCP_DISABLE_RENDERER")
 	return nil
 }
 

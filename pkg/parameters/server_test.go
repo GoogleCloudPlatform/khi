@@ -46,6 +46,7 @@ func TestServerParameters(t *testing.T) {
 				FrontendAssetFolder:      testutil.P(""),
 				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
 				MaxLoadedInspections:     testutil.P(3),
+				MCPDisableRenderer:       testutil.P(false),
 			},
 		},
 		{
@@ -62,6 +63,7 @@ func TestServerParameters(t *testing.T) {
 				FrontendAssetFolder:      testutil.P(""),
 				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
 				MaxLoadedInspections:     testutil.P(3),
+				MCPDisableRenderer:       testutil.P(false),
 			},
 		},
 		{
@@ -78,6 +80,7 @@ func TestServerParameters(t *testing.T) {
 				FrontendAssetFolder:      testutil.P(""),
 				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
 				MaxLoadedInspections:     testutil.P(3),
+				MCPDisableRenderer:       testutil.P(false),
 			},
 		},
 		{
@@ -94,6 +97,24 @@ func TestServerParameters(t *testing.T) {
 				FrontendAssetFolder:      testutil.P(""),
 				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
 				MaxLoadedInspections:     testutil.P(1),
+				MCPDisableRenderer:       testutil.P(false),
+			},
+		},
+		{
+			before: func() {
+				os.Args = []string{os.Args[0], "--mcp-disable-renderer"}
+				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+			},
+			name: "MCPDisableRenderer can be enabled via flag",
+			want: &ServerParameters{
+				Port:                     testutil.P(8080),
+				Host:                     testutil.P("127.0.0.1"),
+				BasePath:                 testutil.P("/"),
+				FrontendResourceBasePath: testutil.P("/"),
+				FrontendAssetFolder:      testutil.P(""),
+				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
+				MaxLoadedInspections:     testutil.P(3),
+				MCPDisableRenderer:       testutil.P(true),
 			},
 		},
 		{
