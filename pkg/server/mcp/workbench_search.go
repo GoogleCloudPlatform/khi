@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -245,7 +246,7 @@ func formatTimelineIDsCell(ids []uint32) string {
 	}
 	parts := make([]string, len(ids))
 	for i, id := range ids {
-		parts[i] = mdtemplate.Code(strconv.FormatUint(uint64(id), 10))
+		parts[i] = md.Code(strconv.FormatUint(uint64(id), 10))
 	}
 	return strings.Join(parts, ", ")
 }

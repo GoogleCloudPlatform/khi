@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
@@ -253,7 +254,7 @@ func formatLineChanges(c workbench.LineChangeCount) string {
 // formatRevisionLine formats a revision on one line, such as "1, 2026-09-24T01:20:05Z, UPDATE by user, state Running, log `12`".
 func formatRevisionLine(rev workbench.ResourceRevision) string {
 	return fmt.Sprintf("%d, %s, %s by %s, state %s, log %s",
-		rev.Index, mdtemplate.FormatTime(rev.Time), rev.Verb, rev.Principal, rev.State, mdtemplate.Code(formatID(rev.LogID)))
+		rev.Index, mdtemplate.FormatTime(rev.Time), rev.Verb, rev.Principal, rev.State, md.Code(formatID(rev.LogID)))
 }
 
 // formatBodySection renders a "## <heading> (N bytes)" section with the body in a fenced code block.
@@ -261,7 +262,7 @@ func formatRevisionLine(rev workbench.ResourceRevision) string {
 func formatBodySection(heading, lang string, body workbench.BodyChunk) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "## %s (%d bytes)\n\n", heading, body.TotalBytes)
-	sb.WriteString(mdtemplate.Fence(lang, body.Content))
+	sb.WriteString(md.Fence(lang, body.Content))
 	if body.Truncated() {
 		fmt.Fprintf(&sb, "\n\nbyteOffset: %d", body.NextByteOffset)
 	}

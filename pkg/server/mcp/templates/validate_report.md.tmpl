@@ -1,8 +1,8 @@
 # Report validation
 {{ if eq (len .Findings) 0 }}
-Found 0 issues across {{ .InlineCodeSpanCount }} inline code spans.
+Found 0 issues.
 {{- else }}
-Found {{ len .Findings }} potential grounding issues across {{ .InlineCodeSpanCount }} inline code spans.
+Found {{ len .Findings }} potential grounding issues.
 {{- end }}
 
 ## Rules checked

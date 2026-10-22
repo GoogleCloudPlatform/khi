@@ -21,6 +21,7 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 )
 
@@ -49,7 +50,7 @@ func (h *InspectionHandler) handleRequestFileUpload(ctx context.Context, req *mc
 	fileField, found := findFileField(dryRunOutcome.formFields, in.FieldID)
 	if !found {
 		return mdtemplate.ErrorResult("FILE_FIELD_NOT_FOUND",
-			fmt.Sprintf("Inspection %s has no field %s with `Type: file`.", mdtemplate.Code(in.InspectionID), mdtemplate.Code(in.FieldID)),
+			fmt.Sprintf("Inspection %s has no field %s with `Type: file`.", md.Code(in.InspectionID), md.Code(in.FieldID)),
 			"Call `dry_run_inspection` and use the ID of a field with `Type: file`.")
 	}
 

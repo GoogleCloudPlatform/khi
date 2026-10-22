@@ -22,55 +22,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestParseReportDocument(t *testing.T) {
-	testCases := []struct {
-		name      string
-		report    string
-		wantSpans []InlineCodeSpan
-	}{
-		{
-			name:   "extracts single and multiple inline code spans with line numbers",
-			report: "# Report\nPod `pod-a` failed with `OOMKilled`.\nInsert ID: `abc123`.",
-			wantSpans: []InlineCodeSpan{
-				{Text: "pod-a", Line: 2},
-				{Text: "OOMKilled", Line: 2},
-				{Text: "abc123", Line: 3},
-			},
-		},
-		{
-			name:   "skips backtick and tilde fenced code blocks including blockquote fences",
-			report: "Before `outside-1`\n```yaml\nname: `inside-backtick-fence`\n```\nMiddle `outside-2`\n> ~~~bash\n> echo `inside-tilde-fence`\n> ~~~\nAfter `outside-3`",
-			wantSpans: []InlineCodeSpan{
-				{Text: "outside-1", Line: 1},
-				{Text: "outside-2", Line: 5},
-				{Text: "outside-3", Line: 9},
-			},
-		},
-		{
-			name:   "supports multi-backtick inline code spans and strips one symmetric space",
-			report: "Inline `` `nested` `` and ```triple-inline``` on one line.",
-			wantSpans: []InlineCodeSpan{
-				{Text: "`nested`", Line: 1},
-				{Text: "triple-inline", Line: 1},
-			},
-		},
-		{
-			name:      "ignores unmatched backticks, escaped backticks, and whitespace-only code spans",
-			report:    "Unmatched `backtick on line 1\nEmpty `   ` span on line 2.\nEscaped \\`not-a-span\\` and \\\\`valid-after-double-backslash` on line 3.",
-			wantSpans: []InlineCodeSpan{{Text: "valid-after-double-backslash", Line: 3}},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			doc := ParseReportDocument(tc.report)
-			if diff := cmp.Diff(tc.wantSpans, doc.InlineCodeSpans); diff != "" {
-				t.Errorf("ParseReportDocument() InlineCodeSpans mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
 type stubValidationRule struct {
 	id          string
 	description string
@@ -79,7 +30,7 @@ type stubValidationRule struct {
 
 func (r *stubValidationRule) ID() string          { return r.id }
 func (r *stubValidationRule) Description() string { return r.description }
-func (r *stubValidationRule) Validate(_ context.Context, _ *ReportDocument, _ *Workbench) ([]ValidationFinding, error) {
+func (r *stubValidationRule) Validate(_ context.Context, _ string, _ *Workbench) ([]ValidationFinding, error) {
 	return r.findings, nil
 }
 
@@ -105,9 +56,6 @@ func TestValidateReport_MultipleRules(t *testing.T) {
 	res, err := wb.ValidateReport(context.Background(), "Line 1 `frontend-pod-7f8b9c`\nLine 2 `missing-pod`", rules...)
 	if err != nil {
 		t.Fatalf("ValidateReport() unexpected error = %v", err)
-	}
-	if res.InlineCodeSpanCount != 2 {
-		t.Errorf("InlineCodeSpanCount = %d, want 2", res.InlineCodeSpanCount)
 	}
 	want := []ValidationFinding{
 		{

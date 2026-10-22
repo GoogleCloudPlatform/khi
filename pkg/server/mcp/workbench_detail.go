@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -129,7 +130,7 @@ func (h *WorkbenchHandler) handleGetLog(ctx context.Context, _ *mcpsdk.CallToolR
 	detail, err := wb.GetLogDetail(logID, input.ByteOffset)
 	if errors.Is(err, workbench.ErrLogNotFound) {
 		return mdtemplate.ErrorResult("LOG_NOT_FOUND",
-			fmt.Sprintf("No log with ID %s exists in inspection %s.", mdtemplate.Code(input.LogID), mdtemplate.Code(input.InspectionID)),
+			fmt.Sprintf("No log with ID %s exists in inspection %s.", md.Code(input.LogID), md.Code(input.InspectionID)),
 			"Use a log ID from `search_logs` or `get_timeline_logs`.",
 		)
 	}
@@ -262,7 +263,7 @@ func revisionLookupErrorResult(err error, inspectionID, timelineID string) (*mcp
 		return res, true
 	case errors.Is(err, workbench.ErrRevisionNotFound):
 		res, _, _ := mdtemplate.ErrorResult("REVISION_NOT_FOUND",
-			fmt.Sprintf("Timeline %s has no matching revision: %s.", mdtemplate.Code(timelineID), err.Error()),
+			fmt.Sprintf("Timeline %s has no matching revision: %s.", md.Code(timelineID), err.Error()),
 			"Use a revision index from `get_resource_revisions`.",
 		)
 		return res, true
@@ -273,13 +274,13 @@ func revisionLookupErrorResult(err error, inspectionID, timelineID string) (*mcp
 
 func timelineNotFoundResult(inspectionID, timelineID string) (*mcpsdk.CallToolResult, any, error) {
 	return mdtemplate.ErrorResult("TIMELINE_NOT_FOUND",
-		fmt.Sprintf("No timeline with ID %s exists in inspection %s.", mdtemplate.Code(timelineID), mdtemplate.Code(inspectionID)),
+		fmt.Sprintf("No timeline with ID %s exists in inspection %s.", md.Code(timelineID), md.Code(inspectionID)),
 		"Use a timeline ID from `search_timelines` or `search_logs`.",
 	)
 }
 
 func invalidIDResult(field, value string) (*mcpsdk.CallToolResult, any, error) {
-	return mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("%s must be a positive integer ID, got %s.", field, mdtemplate.Code(value)))
+	return mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("%s must be a positive integer ID, got %s.", field, md.Code(value)))
 }
 
 func invalidPageTokenResult(err error) (*mcpsdk.CallToolResult, any, error) {
@@ -287,7 +288,7 @@ func invalidPageTokenResult(err error) (*mcpsdk.CallToolResult, any, error) {
 }
 
 func negativeByteOffsetResult(byteOffset int) (*mcpsdk.CallToolResult, any, error) {
-	return mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("byteOffset must not be negative, got %s.", mdtemplate.Code(strconv.Itoa(byteOffset))), "Pass the byteOffset value from the last line of the previous response as is.")
+	return mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("byteOffset must not be negative, got %s.", md.Code(strconv.Itoa(byteOffset))), "Pass the byteOffset value from the last line of the previous response as is.")
 }
 
 // byteOffsetBeyondBodyResult returns an INVALID_ARGUMENT result when byteOffset points past the end of content of totalBytes bytes,
@@ -299,7 +300,7 @@ func byteOffsetBeyondBodyResult(byteOffset, totalBytes int) (*mcpsdk.CallToolRes
 		return nil, false
 	}
 	res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT",
-		fmt.Sprintf("byteOffset %s exceeds the content size of %d bytes.", mdtemplate.Code(strconv.Itoa(byteOffset)), totalBytes),
+		fmt.Sprintf("byteOffset %s exceeds the content size of %d bytes.", md.Code(strconv.Itoa(byteOffset)), totalBytes),
 		"Pass the byteOffset value from the last line of the previous response as is.",
 	)
 	return res, true

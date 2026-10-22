@@ -33,14 +33,14 @@ type ValidationFinding struct {
 	Message string
 }
 
-// ValidationRule defines a modular validation check executed against a ReportDocument using Workbench inspection data.
+// ValidationRule defines a modular validation check executed against a Markdown report using Workbench inspection data.
 type ValidationRule interface {
 	// ID returns the unique identifier of the validation rule.
 	ID() string
 	// Description returns a short summary of what the rule checks.
 	Description() string
-	// Validate inspects the parsed ReportDocument against the Workbench and returns any findings.
-	Validate(ctx context.Context, doc *ReportDocument, wb *Workbench) ([]ValidationFinding, error)
+	// Validate inspects the Markdown report against the Workbench and returns any findings.
+	Validate(ctx context.Context, report string, wb *Workbench) ([]ValidationFinding, error)
 }
 
 // ValidationRuleSummary describes a validation rule executed during report validation.
@@ -57,8 +57,6 @@ type ValidationRuleSummary struct {
 type ReportValidationResult struct {
 	// Rules holds the summaries of all validation rules that were executed.
 	Rules []ValidationRuleSummary
-	// InlineCodeSpanCount is the total number of inline code spans inspected in the report.
-	InlineCodeSpanCount int
 	// Findings lists all validation issues sorted by line number and rule ID.
 	Findings []ValidationFinding
 }
@@ -70,7 +68,7 @@ func DefaultValidationRules() []ValidationRule {
 	}
 }
 
-// ValidateReport parses the Markdown report and executes the specified validation rules against the workbench.
+// ValidateReport executes the specified validation rules on the Markdown report against the workbench.
 // When no rules are passed, DefaultValidationRules() is used.
 func (w *Workbench) ValidateReport(ctx context.Context, report string, rules ...ValidationRule) (*ReportValidationResult, error) {
 	if _, _, err := w.readyIndex(); err != nil {
@@ -80,7 +78,6 @@ func (w *Workbench) ValidateReport(ctx context.Context, report string, rules ...
 		rules = DefaultValidationRules()
 	}
 
-	doc := ParseReportDocument(report)
 	summaries := make([]ValidationRuleSummary, 0, len(rules))
 	var allFindings []ValidationFinding
 
@@ -88,7 +85,7 @@ func (w *Workbench) ValidateReport(ctx context.Context, report string, rules ...
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		findings, err := rule.Validate(ctx, doc, w)
+		findings, err := rule.Validate(ctx, report, w)
 		if err != nil {
 			return nil, fmt.Errorf("validation rule %s failed: %w", rule.ID(), err)
 		}
@@ -111,8 +108,7 @@ func (w *Workbench) ValidateReport(ctx context.Context, report string, rules ...
 	})
 
 	return &ReportValidationResult{
-		Rules:               summaries,
-		InlineCodeSpanCount: len(doc.InlineCodeSpans),
-		Findings:            allFindings,
+		Rules:    summaries,
+		Findings: allFindings,
 	}, nil
 }

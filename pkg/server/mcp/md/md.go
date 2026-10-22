@@ -12,11 +12,64 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workbench
+package md
 
 import "strings"
 
-// InlineCodeSpan represents a single inline code span extracted from a Markdown report.
+// Code encloses s in markdown backticks, handling embedded backticks per CommonMark.
+func Code(s string) string {
+	if !strings.Contains(s, "`") {
+		return "`" + s + "`"
+	}
+	maxRun := 0
+	currentRun := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '`' {
+			currentRun++
+			if currentRun > maxRun {
+				maxRun = currentRun
+			}
+		} else {
+			currentRun = 0
+		}
+	}
+	delim := strings.Repeat("`", maxRun+1)
+	if strings.HasPrefix(s, "`") || strings.HasSuffix(s, "`") {
+		return delim + " " + s + " " + delim
+	}
+	return delim + s + delim
+}
+
+// Cell escapes pipes and converts newlines to spaces for markdown table cells.
+func Cell(s string) string {
+	s = strings.ReplaceAll(s, "|", `\|`)
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	return s
+}
+
+// Fence wraps body in a markdown fenced code block with the given language.
+func Fence(lang, body string) string {
+	maxRun := 0
+	currentRun := 0
+	for i := 0; i < len(body); i++ {
+		if body[i] == '`' {
+			currentRun++
+			if currentRun > maxRun {
+				maxRun = currentRun
+			}
+		} else {
+			currentRun = 0
+		}
+	}
+	fenceLen := max(3, maxRun+1)
+	fence := strings.Repeat("`", fenceLen)
+	trimmedBody := strings.TrimSuffix(strings.TrimSuffix(body, "\n"), "\r")
+	return fence + lang + "\n" + trimmedBody + "\n" + fence
+}
+
+// InlineCodeSpan represents a single inline code span extracted from a Markdown document.
 type InlineCodeSpan struct {
 	// Text is the unescaped content inside the inline backticks.
 	Text string
@@ -24,19 +77,9 @@ type InlineCodeSpan struct {
 	Line int
 }
 
-// ReportDocument holds the parsed structure of a Markdown report for validation rules.
-type ReportDocument struct {
-	// Raw is the normalized Markdown text.
-	Raw string
-	// Lines contains the individual lines of the Markdown report.
-	Lines []string
-	// InlineCodeSpans lists all non-empty inline code spans outside fenced code blocks.
-	InlineCodeSpans []InlineCodeSpan
-}
-
-// ParseReportDocument parses a Markdown report and extracts inline code spans while skipping fenced code blocks.
-func ParseReportDocument(report string) *ReportDocument {
-	normalized := strings.ReplaceAll(report, "\r\n", "\n")
+// ExtractInlineCodeSpans extracts non-empty CommonMark inline code spans from a Markdown document while skipping fenced code blocks.
+func ExtractInlineCodeSpans(markdown string) []InlineCodeSpan {
+	normalized := strings.ReplaceAll(markdown, "\r\n", "\n")
 	normalized = strings.ReplaceAll(normalized, "\r", "\n")
 	lines := strings.Split(normalized, "\n")
 
@@ -64,11 +107,7 @@ func ParseReportDocument(report string) *ReportDocument {
 		}
 	}
 
-	return &ReportDocument{
-		Raw:             normalized,
-		Lines:           lines,
-		InlineCodeSpans: spans,
-	}
+	return spans
 }
 
 // stripBlockquoteAndIndent removes leading blockquote markers ('>') and whitespace from a line so fence markers inside blockquotes or lists are recognized.

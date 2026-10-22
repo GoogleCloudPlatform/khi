@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -54,13 +55,13 @@ type inspectionFeaturesData struct {
 
 func inspectionNotFoundResult(id string) (*mcpsdk.CallToolResult, any, error) {
 	return mdtemplate.ErrorResult("INSPECTION_NOT_FOUND",
-		fmt.Sprintf("Inspection %s not found.", mdtemplate.Code(id)),
+		fmt.Sprintf("Inspection %s not found.", md.Code(id)),
 		"Read `khi://inspections` to see existing inspections.")
 }
 
 func inspectionAlreadyStartedResult(id string) (*mcpsdk.CallToolResult, any, error) {
 	return mdtemplate.ErrorResult("INSPECTION_ALREADY_STARTED",
-		fmt.Sprintf("Inspection %s has already been started.", mdtemplate.Code(id)),
+		fmt.Sprintf("Inspection %s has already been started.", md.Code(id)),
 		"Create a new inspection with `create_inspection`.")
 }
 
@@ -107,7 +108,7 @@ func (h *InspectionHandler) handleCreateInspection(ctx context.Context, req *mcp
 	inspType := h.server.GetInspectionType(in.InspectionTypeID)
 	if inspType == nil {
 		return mdtemplate.ErrorResult("UNKNOWN_INSPECTION_TYPE",
-			fmt.Sprintf("Unknown inspection type ID: %s", mdtemplate.Code(in.InspectionTypeID)),
+			fmt.Sprintf("Unknown inspection type ID: %s", md.Code(in.InspectionTypeID)),
 			"Read `khi://inspection-types` to see available types.")
 	}
 
@@ -171,7 +172,7 @@ func (h *InspectionHandler) handleUpdateInspectionFeatures(ctx context.Context, 
 	var unknown []string
 	for _, fid := range featureIDs {
 		if !validMap[fid] {
-			unknown = append(unknown, mdtemplate.Code(fid))
+			unknown = append(unknown, md.Code(fid))
 		}
 	}
 	if len(unknown) > 0 {

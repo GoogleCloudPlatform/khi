@@ -26,42 +26,10 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
-
-// Code encloses s in markdown backticks, handling embedded backticks per CommonMark.
-func Code(s string) string {
-	if !strings.Contains(s, "`") {
-		return "`" + s + "`"
-	}
-	maxRun := 0
-	currentRun := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == '`' {
-			currentRun++
-			if currentRun > maxRun {
-				maxRun = currentRun
-			}
-		} else {
-			currentRun = 0
-		}
-	}
-	delim := strings.Repeat("`", maxRun+1)
-	if strings.HasPrefix(s, "`") || strings.HasSuffix(s, "`") {
-		return delim + " " + s + " " + delim
-	}
-	return delim + s + delim
-}
-
-// Cell escapes pipes and converts newlines to spaces for markdown table cells.
-func Cell(s string) string {
-	s = strings.ReplaceAll(s, "|", `\|`)
-	s = strings.ReplaceAll(s, "\r\n", " ")
-	s = strings.ReplaceAll(s, "\r", " ")
-	s = strings.ReplaceAll(s, "\n", " ")
-	return s
-}
 
 // FormatTime formats t in UTC RFC3339, or returns an empty string if t is zero.
 func FormatTime(t time.Time) string {
@@ -74,26 +42,6 @@ func FormatTime(t time.Time) string {
 // Percent formats ratio as a rounded integer percentage.
 func Percent(ratio float64) string {
 	return fmt.Sprintf("%.0f%%", math.Round(ratio*100))
-}
-
-// Fence wraps body in a markdown fenced code block with the given language.
-func Fence(lang, body string) string {
-	maxRun := 0
-	currentRun := 0
-	for i := 0; i < len(body); i++ {
-		if body[i] == '`' {
-			currentRun++
-			if currentRun > maxRun {
-				maxRun = currentRun
-			}
-		} else {
-			currentRun = 0
-		}
-	}
-	fenceLen := max(3, maxRun+1)
-	fence := strings.Repeat("`", fenceLen)
-	trimmedBody := strings.TrimSuffix(strings.TrimSuffix(body, "\n"), "\r")
-	return fence + lang + "\n" + trimmedBody + "\n" + fence
 }
 
 // PageFooter formats the pagination footer containing nextPageToken, or returns an empty string if empty.
@@ -141,11 +89,11 @@ func FormatAppliedFilter(f workbench.AppliedFilter) string {
 // DefaultFuncMap returns the default template functions for markdown templates.
 func DefaultFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"code":          Code,
-		"cell":          Cell,
+		"code":          md.Code,
+		"cell":          md.Cell,
 		"time":          FormatTime,
 		"percent":       Percent,
-		"fence":         Fence,
+		"fence":         md.Fence,
 		"pageFooter":    PageFooter,
 		"timelinePath":  workbench.FormatTimelinePath,
 		"appliedFilter": FormatAppliedFilter,
@@ -264,8 +212,8 @@ func ErrorResult(code string, bullets ...string) (*mcp.CallToolResult, any, erro
 // FormatCELError formats a CEL validation error into markdown.
 func FormatCELError(field, expression string, err error) string {
 	return FormatError("INVALID_CEL",
-		fmt.Sprintf("Field: %s", Code(field)),
-		fmt.Sprintf("Expression: %s", Code(expression)),
+		fmt.Sprintf("Field: %s", md.Code(field)),
+		fmt.Sprintf("Expression: %s", md.Code(expression)),
 		fmt.Sprintf("Message: %s", err.Error()),
 	)
 }

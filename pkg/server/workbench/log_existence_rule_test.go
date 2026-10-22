@@ -71,10 +71,9 @@ func TestLogExistenceRule(t *testing.T) {
 	wb := setupValidateReportTestWorkbench(t)
 
 	testCases := []struct {
-		name      string
-		report    string
-		wantCount int
-		want      []ValidationFinding
+		name   string
+		report string
+		want   []ValidationFinding
 	}{
 		{
 			name: "passes when all inline code spans match log summaries, YAML bodies, or composite notations",
@@ -85,8 +84,7 @@ func TestLogExistenceRule(t *testing.T) {
 				"insertId: `hallucinated-inside-fenced-block-is-ignored`",
 				"```",
 			}, "\n"),
-			wantCount: 9,
-			want:      nil,
+			want: nil,
 		},
 		{
 			name: "flags hallucinated insertId, pod name, and unmatched composite components",
@@ -96,7 +94,6 @@ func TestLogExistenceRule(t *testing.T) {
 				"3. Completely hallucinated composite `ghost-ns/ghost-pod`.",
 				"4. Partially hallucinated label `app=ghost-app`.",
 			}, "\n"),
-			wantCount: 5,
 			want: []ValidationFinding{
 				{
 					RuleID:  RuleIDLogExistence,
@@ -131,9 +128,6 @@ func TestLogExistenceRule(t *testing.T) {
 			res, err := wb.ValidateReport(context.Background(), tc.report)
 			if err != nil {
 				t.Fatalf("ValidateReport() unexpected error = %v", err)
-			}
-			if res.InlineCodeSpanCount != tc.wantCount {
-				t.Errorf("InlineCodeSpanCount = %d, want %d", res.InlineCodeSpanCount, tc.wantCount)
 			}
 			if diff := cmp.Diff(tc.want, res.Findings); diff != "" {
 				t.Errorf("ValidateReport() Findings mismatch (-want +got):\n%s", diff)

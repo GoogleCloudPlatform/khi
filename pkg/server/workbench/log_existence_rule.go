@@ -22,6 +22,7 @@ import (
 	"unicode/utf8"
 
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
@@ -55,13 +56,14 @@ type spanValidationOutcome struct {
 	message  string
 }
 
-// Validate checks every inline code span in doc against the workbench's search index and trigram index.
-func (r *LogExistenceRule) Validate(ctx context.Context, doc *ReportDocument, wb *Workbench) ([]ValidationFinding, error) {
+// Validate checks every inline code span in report against the workbench's search index and trigram index.
+func (r *LogExistenceRule) Validate(ctx context.Context, report string, wb *Workbench) ([]ValidationFinding, error) {
 	index, _, err := wb.readyIndex()
 	if err != nil {
 		return nil, err
 	}
-	if len(doc.InlineCodeSpans) == 0 {
+	spans := md.ExtractInlineCodeSpans(report)
+	if len(spans) == 0 {
 		return nil, nil
 	}
 
@@ -69,7 +71,7 @@ func (r *LogExistenceRule) Validate(ctx context.Context, doc *ReportDocument, wb
 	spanCache := make(map[string]spanValidationOutcome)
 	var findings []ValidationFinding
 
-	for _, span := range doc.InlineCodeSpans {
+	for _, span := range spans {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}

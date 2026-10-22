@@ -26,6 +26,7 @@ import (
 	"cloud.google.com/go/auth"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -112,7 +113,7 @@ func (h *InspectionHandler) prepareParameters(id string, rawParams map[string]an
 		var invErr *invalidParameterError
 		if errors.As(err, &invErr) {
 			res, _, _ := mdtemplate.ErrorResult("INVALID_PARAMETERS",
-				fmt.Sprintf("Parameter %s must be a string, boolean, or an array of strings.", mdtemplate.Code(invErr.Key)))
+				fmt.Sprintf("Parameter %s must be a string, boolean, or an array of strings.", md.Code(invErr.Key)))
 			return nil, res, nil
 		}
 		return nil, nil, err
@@ -239,7 +240,7 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 	for _, group := range dryRunOutcome.renderData.Groups {
 		for _, field := range group.Fields {
 			if field.HintType == "Error" && field.Hint != "" {
-				bullets = append(bullets, fmt.Sprintf("%s: %s", mdtemplate.Code(field.ID), field.Hint))
+				bullets = append(bullets, fmt.Sprintf("%s: %s", md.Code(field.ID), field.Hint))
 			}
 		}
 	}

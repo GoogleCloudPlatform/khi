@@ -49,7 +49,7 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 			wantIsError: false,
 			wantSubstring: []string{
 				"# Report validation",
-				"Found 1 potential grounding issues across 1 inline code spans.",
+				"Found 1 potential grounding issues.",
 				"## Rules checked",
 				"`log-existence`",
 				"## Findings",
@@ -127,7 +127,6 @@ func TestWorkbenchValidate_Template(t *testing.T) {
 		{
 			name: "zero findings",
 			data: &workbench.ReportValidationResult{
-				InlineCodeSpanCount: 4,
 				Rules: []workbench.ValidationRuleSummary{
 					{
 						ID:           workbench.RuleIDLogExistence,
@@ -139,7 +138,7 @@ func TestWorkbenchValidate_Template(t *testing.T) {
 			want: strings.Join([]string{
 				"# Report validation",
 				"",
-				"Found 0 issues across 4 inline code spans.",
+				"Found 0 issues.",
 				"",
 				"## Rules checked",
 				"- `log-existence`: Inline code spans (`...`) must exist in the inspection logs. (0 findings)",
@@ -148,7 +147,6 @@ func TestWorkbenchValidate_Template(t *testing.T) {
 		{
 			name: "with findings",
 			data: &workbench.ReportValidationResult{
-				InlineCodeSpanCount: 3,
 				Rules: []workbench.ValidationRuleSummary{
 					{
 						ID:           workbench.RuleIDLogExistence,
@@ -174,7 +172,7 @@ func TestWorkbenchValidate_Template(t *testing.T) {
 			want: strings.Join([]string{
 				"# Report validation",
 				"",
-				"Found 2 potential grounding issues across 3 inline code spans.",
+				"Found 2 potential grounding issues.",
 				"",
 				"## Rules checked",
 				"- `log-existence`: Inline code spans (`...`) must exist in the inspection logs. (2 findings)",

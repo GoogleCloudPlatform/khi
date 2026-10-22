@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 )
@@ -229,9 +229,9 @@ func formatParameterValue(value any) string {
 		if v == "" {
 			return ""
 		}
-		return mdtemplate.Code(v)
+		return md.Code(v)
 	case bool:
-		return mdtemplate.Code(strconv.FormatBool(v))
+		return md.Code(strconv.FormatBool(v))
 	default:
 		return ""
 	}
@@ -241,7 +241,7 @@ func formatParameterValue(value any) string {
 func codeList(items []string) string {
 	codes := make([]string, len(items))
 	for i, item := range items {
-		codes[i] = mdtemplate.Code(item)
+		codes[i] = md.Code(item)
 	}
 	return strings.Join(codes, ", ")
 }
@@ -260,6 +260,6 @@ func fileUploadStatus(field inspectionmetadata.FileParameterFormField) string {
 	case field.FileName == "":
 		return fmt.Sprintf("COMPLETED, %d bytes", field.SizeBytes)
 	default:
-		return fmt.Sprintf("COMPLETED, %s, %d bytes", mdtemplate.Code(field.FileName), field.SizeBytes)
+		return fmt.Sprintf("COMPLETED, %s, %d bytes", md.Code(field.FileName), field.SizeBytes)
 	}
 }
