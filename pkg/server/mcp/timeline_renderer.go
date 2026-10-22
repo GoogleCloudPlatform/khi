@@ -16,7 +16,6 @@ package mcp
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -148,15 +147,8 @@ func (r *ChromeTimelineImageRenderer) ensurePageReadyLocked(ctx context.Context)
 }
 
 func (r *ChromeTimelineImageRenderer) navigateToRenderPageLocked(ctx context.Context) error {
-	if err := r.client.Call(ctx, "Page.enable", nil, nil); err != nil {
-		return err
-	}
-	if err := r.client.Call(ctx, "Runtime.enable", nil, nil); err != nil {
-		return err
-	}
-
 	renderURL := r.baseURL + "/render/timeline"
-	if err := r.client.Call(ctx, "Page.navigate", map[string]any{"url": renderURL}, nil); err != nil {
+	if err := r.client.Navigate(ctx, renderURL); err != nil {
 		return fmt.Errorf("failed to navigate to %s: %w", renderURL, err)
 	}
 
@@ -193,12 +185,7 @@ func (r *ChromeTimelineImageRenderer) executeRenderLocked(ctx context.Context, r
 		return nil, fmt.Errorf("failed to apply timeline render parameters: %w", err)
 	}
 
-	if err := r.client.Call(ctx, "Emulation.setDeviceMetricsOverride", map[string]any{
-		"width":             measure.Width,
-		"height":            measure.Height,
-		"deviceScaleFactor": 1,
-		"mobile":            false,
-	}, nil); err != nil {
+	if err := r.client.SetViewportSize(ctx, measure.Width, measure.Height); err != nil {
 		return nil, fmt.Errorf("failed to set viewport dimensions: %w", err)
 	}
 
@@ -206,18 +193,9 @@ func (r *ChromeTimelineImageRenderer) executeRenderLocked(ctx context.Context, r
 		return nil, fmt.Errorf("failed waiting for stable timeline frame: %w", err)
 	}
 
-	var screenshotRes struct {
-		Data string `json:"data"`
-	}
-	if err := r.client.Call(ctx, "Page.captureScreenshot", map[string]any{
-		"format": "png",
-	}, &screenshotRes); err != nil {
-		return nil, fmt.Errorf("failed to capture timeline screenshot: %w", err)
-	}
-
-	pngBytes, err := base64.StdEncoding.DecodeString(screenshotRes.Data)
+	pngBytes, err := r.client.CapturePNGScreenshot(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode screenshot PNG data: %w", err)
+		return nil, fmt.Errorf("failed to capture timeline screenshot: %w", err)
 	}
 
 	return &TimelineRenderResult{
