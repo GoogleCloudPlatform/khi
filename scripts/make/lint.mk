@@ -39,7 +39,15 @@ endif
 
 .PHONY: format-go
 format-go: ## Format backend source code
+ifeq ($(GOLANGCILINT_CMD),)
+	ifeq ($(CONTAINER_CMD),)
+		$(error "format-go requires golangci-lint,docker or podman, but neither was found.")
+	else
+		$(CONTAINER_CMD) run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml --fix
+	endif
+else
 	$(GOLANGCILINT_CMD) run --config=.golangci.yaml --fix
+endif
 
 .PHONY: format-web
 format-web: $(GENERATE_FRONTEND_DUMMY) ## Format frontend source code
