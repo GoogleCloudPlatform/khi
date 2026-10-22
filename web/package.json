@@ -45,7 +45,7 @@
     "@angular-devkit/build-angular": "~21",
     "@angular-devkit/core": "~21",
     "@angular/build": "~21",
-    "@angular/cli": "~21",
+    "@angular/cli": "~22",
     "@angular/compiler-cli": "~21",
     "@compodoc/compodoc": "^2.0.0",
     "@eslint/eslintrc": "^3.3.6",
