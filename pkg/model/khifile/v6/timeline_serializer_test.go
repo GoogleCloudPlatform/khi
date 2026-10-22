@@ -91,14 +91,14 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 				childItemsID := reg.GetBuilder(paths["child"]).TimelineItemsID
 
 				return []*pb.Timeline{
-						{Id: &rootID, TimelineType: typeA.Id, NameStringId: &rootNameID, TimelineItemsId: &rootItemsID},
-						{Id: &childID, ParentTimelineId: &rootID, TimelineType: typeB.Id, NameStringId: &childNameID, TimelineItemsId: &childItemsID},
-						{Id: &aliasID, TimelineType: typeA.Id, NameStringId: &aliasNameID, TimelineItemsId: &rootItemsID},
-						{Id: &emptyID, TimelineType: typeA.Id, NameStringId: &emptyNameID},
-					}, []*pb.TimelineItems{
-						{Id: &rootItemsID, Events: []*pb.Event{{LogId: &id1}}},
-						{Id: &childItemsID, Revisions: []*pb.Revision{{LogId: &id2}}},
-					}
+					{Id: &rootID, TimelineType: typeA.Id, NameStringId: &rootNameID, TimelineItemsId: &rootItemsID},
+					{Id: &childID, ParentTimelineId: &rootID, TimelineType: typeB.Id, NameStringId: &childNameID, TimelineItemsId: &childItemsID},
+					{Id: &aliasID, TimelineType: typeA.Id, NameStringId: &aliasNameID, TimelineItemsId: &rootItemsID},
+					{Id: &emptyID, TimelineType: typeA.Id, NameStringId: &emptyNameID},
+				}, []*pb.TimelineItems{
+					{Id: &rootItemsID, Events: []*pb.Event{{LogId: &id1}}},
+					{Id: &childItemsID, Revisions: []*pb.Revision{{LogId: &id2}}},
+				}
 			},
 		},
 		{
@@ -142,12 +142,12 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 				cItemsID := reg.GetBuilder(paths["timelineC"]).TimelineItemsID
 
 				return []*pb.Timeline{ // Timelines should be serialized for any path segments.
-						{Id: &aID, TimelineType: typeA.Id, NameStringId: &aNameID},
-						{Id: &bID, ParentTimelineId: &aID, TimelineType: typeA.Id, NameStringId: &bNameID},
-						{Id: &cID, ParentTimelineId: &bID, TimelineType: typeA.Id, NameStringId: &cNameID, TimelineItemsId: &cItemsID},
-					}, []*pb.TimelineItems{ // TimelineItems should be serialized only for path segments with items.
-						{Id: &cItemsID, Revisions: []*pb.Revision{{LogId: &id1}}},
-					}
+					{Id: &aID, TimelineType: typeA.Id, NameStringId: &aNameID},
+					{Id: &bID, ParentTimelineId: &aID, TimelineType: typeA.Id, NameStringId: &bNameID},
+					{Id: &cID, ParentTimelineId: &bID, TimelineType: typeA.Id, NameStringId: &cNameID, TimelineItemsId: &cItemsID},
+				}, []*pb.TimelineItems{ // TimelineItems should be serialized only for path segments with items.
+					{Id: &cItemsID, Revisions: []*pb.Revision{{LogId: &id1}}},
+				}
 			},
 		},
 	}

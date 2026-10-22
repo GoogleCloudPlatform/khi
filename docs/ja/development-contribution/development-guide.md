@@ -9,7 +9,7 @@ Language: [English](/docs/en/development-contribution/development-guide.md) | �
 
 ### ビルドに必要な依存関係
 
-- Go 1.26.\*
+- Go 1.27.\*
 - Node.js 環境 26.\*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - [`jq`コマンド](https://jqlang.org/)

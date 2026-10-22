@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.26-trixie AS golang
+FROM golang:1.27-trixie AS golang
 FROM node:26-trixie
 
 COPY --from=golang /usr/local/go /usr/local/go
