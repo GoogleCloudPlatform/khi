@@ -289,23 +289,58 @@ func TestFormatKLogString(t *testing.T) {
 }
 
 func TestFormatKLogString_ParsableByKLogTextParser(t *testing.T) {
-	line := FormatKLogString(inspectioncore.SeverityWarning, time.Date(2025, 9, 29, 8, 20, 24, 205299000, time.UTC), 0, "", 0, `"Starting watch" path="/apis" timeout="9m16s"`)
-	want := &ParseStructuredLogResult{
-		Fields: map[string]any{
-			OriginalMessageFieldKey:          line,
-			SeverityStructuredFieldKey:       inspectioncore.SeverityWarning,
-			KLogHeaderDateFieldKey:           "0929",
-			KLogHeaderTimeFieldKey:           "08:20:24.205299",
-			KLogHeaderThreadIDFieldKey:       "0",
-			KLogHeaderSourceLocationFieldKey: "unknown:0",
-			MainMessageStructuredFieldKey:    "Starting watch",
-			"path":                           "/apis",
-			"timeout":                        "9m16s",
+	baseTime := time.Date(2025, 9, 29, 8, 20, 24, 205299000, time.UTC)
+	testCases := []struct {
+		desc     string
+		severity *pb.Severity
+		file     string
+		line     int
+		message  string
+		want     *ParseStructuredLogResult
+	}{
+		{
+			desc:     "structured message without source location",
+			severity: inspectioncore.SeverityWarning,
+			message:  `"Starting watch" path="/apis" timeout="9m16s"`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					SeverityStructuredFieldKey:       inspectioncore.SeverityWarning,
+					KLogHeaderDateFieldKey:           "0929",
+					KLogHeaderTimeFieldKey:           "08:20:24.205299",
+					KLogHeaderThreadIDFieldKey:       "0",
+					KLogHeaderSourceLocationFieldKey: "unknown:0",
+					MainMessageStructuredFieldKey:    "Starting watch",
+					"path":                           "/apis",
+					"timeout":                        "9m16s",
+				},
+			},
+		},
+		{
+			desc:     "plain text message with source location",
+			severity: inspectioncore.SeverityError,
+			file:     "controller.go",
+			line:     42,
+			message:  `Some plain text message`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					SeverityStructuredFieldKey:       inspectioncore.SeverityError,
+					KLogHeaderDateFieldKey:           "0929",
+					KLogHeaderTimeFieldKey:           "08:20:24.205299",
+					KLogHeaderThreadIDFieldKey:       "0",
+					KLogHeaderSourceLocationFieldKey: "controller.go:42",
+					MainMessageStructuredFieldKey:    "Some plain text message",
+				},
+			},
 		},
 	}
-
-	got := NewKLogTextParser().TryParse(line)
-	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
-		t.Errorf("TryParse(FormatKLogString(...)) mismatch (-want +got):\n%s", diff)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			line := FormatKLogString(tc.severity, baseTime, 0, tc.file, tc.line, tc.message)
+			tc.want.Fields[OriginalMessageFieldKey] = line
+			got := NewKLogTextParser().TryParse(line)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("TryParse(FormatKLogString(...)) mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
