@@ -28,30 +28,20 @@ func TestCDPBrowserInitializer(t *testing.T) {
 		jobMode            bool
 		mcpDisableRenderer bool
 		chromeBin          string
-		wantBrowserSet     bool
 		wantErr            bool
 	}{
 		{
-			name:               "skips browser startup in job mode",
-			jobMode:            true,
-			mcpDisableRenderer: false,
-			wantBrowserSet:     false,
-			wantErr:            false,
+			name:    "skips browser startup in job mode",
+			jobMode: true,
 		},
 		{
 			name:               "skips browser startup when --mcp-disable-renderer is true",
-			jobMode:            false,
 			mcpDisableRenderer: true,
-			wantBrowserSet:     false,
-			wantErr:            false,
 		},
 		{
-			name:               "fails fast when renderer is enabled and Chrome binary is missing",
-			jobMode:            false,
-			mcpDisableRenderer: false,
-			chromeBin:          "/nonexistent/chrome-binary-for-test",
-			wantBrowserSet:     false,
-			wantErr:            true,
+			name:      "fails fast when renderer is enabled and Chrome binary is missing",
+			chromeBin: "/nonexistent/chrome-binary-for-test",
+			wantErr:   true,
 		},
 	}
 
@@ -78,9 +68,8 @@ func TestCDPBrowserInitializer(t *testing.T) {
 				t.Fatalf("CDPBrowserInitializer.Init() error = %v, wantErr %v", err, tc.wantErr)
 			}
 
-			_, found := coreinit.Get(ctx, CDPBrowserKey)
-			if found != tc.wantBrowserSet {
-				t.Errorf("coreinit.Get(CDPBrowserKey) found = %v, want %v", found, tc.wantBrowserSet)
+			if _, found := coreinit.Get(ctx, CDPBrowserKey); found {
+				t.Errorf("coreinit.Get(CDPBrowserKey) found = true, want false")
 			}
 		})
 	}

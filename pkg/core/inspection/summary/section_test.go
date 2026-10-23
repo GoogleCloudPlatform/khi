@@ -193,26 +193,13 @@ func TestSectionResolverTieBreak(t *testing.T) {
 	taskGraph := coretask.NewResolvedTaskSet(tasks, edges, nil)
 	resolver := newSectionResolver(taskGraph)
 
-	testCases := []struct {
-		name string
-		want destination
-	}{
-		{
-			name: "picks feature with lower order at equal distance",
-			want: destination{
-				kind:      destinationFeatureMember,
-				featureID: feature2.UntypedID().String(),
-			},
-		},
+	want := destination{
+		kind:      destinationFeatureMember,
+		featureID: feature2.UntypedID().String(),
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := resolver.destinationOf(taskSharedChild.UntypedID().String())
-			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(destination{})); diff != "" {
-				t.Errorf("destinationOf() tie-break mismatch (-want +got):\n%s", diff)
-			}
-		})
+	got := resolver.destinationOf(taskSharedChild.UntypedID().String())
+	if diff := cmp.Diff(want, got, cmp.AllowUnexported(destination{})); diff != "" {
+		t.Errorf("destinationOf() tie-break mismatch (-want +got):\n%s", diff)
 	}
 }
 

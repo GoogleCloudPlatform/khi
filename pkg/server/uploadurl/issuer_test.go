@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 const testBaseURL = "http://127.0.0.1:8080/api/v1/file-upload/"
@@ -35,11 +36,9 @@ func TestIssuer_Issue(t *testing.T) {
 	if !found || urlToken == "" {
 		t.Fatalf("Issue().URL = %q, want %q followed by a URL token", grant.URL, testBaseURL)
 	}
-	if grant.FieldID != "field-1" {
-		t.Errorf("Issue().FieldID = %q, want %q", grant.FieldID, "field-1")
-	}
-	if grant.MaxSizeBytes != 1024 {
-		t.Errorf("Issue().MaxSizeBytes = %d, want %d", grant.MaxSizeBytes, 1024)
+	wantGrant := Grant{FieldID: "field-1", MaxSizeBytes: 1024}
+	if diff := cmp.Diff(wantGrant, grant, cmpopts.IgnoreFields(Grant{}, "URL", "ExpiresAt")); diff != "" {
+		t.Errorf("Issue() grant mismatch (-want +got):\n%s", diff)
 	}
 	if grant.ExpiresAt.Before(before.Add(time.Hour)) {
 		t.Errorf("Issue().ExpiresAt = %v, want at least %v", grant.ExpiresAt, before.Add(time.Hour))
@@ -116,22 +115,38 @@ func TestIssuer_Claim(t *testing.T) {
 	}
 }
 
-func TestIssuer_IssueSweepsExpiredURLTokens(t *testing.T) {
-	issuer := NewIssuer(testBaseURL, 1024, 0)
-	issuer.Issue("upload-token-1", "field-1")
-	issuer.Issue("upload-token-2", "field-2")
-
-	if got := len(issuer.targetsByURLToken); got != 1 {
-		t.Errorf("len(targetsByURLToken) = %d after issuing twice with zero TTL, want 1", got)
+func TestIssuer_IssueSweepsExpiredTokens(t *testing.T) {
+	testCases := []struct {
+		name         string
+		ttl          time.Duration
+		wantMapLen   int
+		wantClaimErr error
+	}{
+		{
+			name:         "sweeps expired URL tokens",
+			ttl:          0,
+			wantMapLen:   1,
+			wantClaimErr: ErrUnknownURL,
+		},
+		{
+			name:       "keeps unexpired URL tokens",
+			ttl:        time.Hour,
+			wantMapLen: 2,
+		},
 	}
-}
 
-func TestIssuer_IssueKeepsUnexpiredURLTokens(t *testing.T) {
-	issuer := NewIssuer(testBaseURL, 1024, time.Hour)
-	firstURLToken := strings.TrimPrefix(issuer.Issue("upload-token-1", "field-1").URL, testBaseURL)
-	issuer.Issue("upload-token-2", "field-2")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			issuer := NewIssuer(testBaseURL, 1024, tc.ttl)
+			firstURLToken := strings.TrimPrefix(issuer.Issue("upload-token-1", "field-1").URL, testBaseURL)
+			issuer.Issue("upload-token-2", "field-2")
 
-	if _, err := issuer.claim(firstURLToken); err != nil {
-		t.Errorf("claim() of the first URL token after issuing another URL returned an unexpected error: %v", err)
+			if got := len(issuer.targetsByURLToken); got != tc.wantMapLen {
+				t.Errorf("len(targetsByURLToken) = %d, want %d", got, tc.wantMapLen)
+			}
+			if _, err := issuer.claim(firstURLToken); !errors.Is(err, tc.wantClaimErr) {
+				t.Errorf("claim() of first URL token error = %v, want %v", err, tc.wantClaimErr)
+			}
+		})
 	}
 }

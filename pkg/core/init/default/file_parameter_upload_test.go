@@ -47,6 +47,9 @@ func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			engine := coreinit.NewEngine(context.Background())
+			t.Cleanup(func() {
+				_ = engine.Terminate()
+			})
 			ctx := engine.Context()
 
 			tempDir := t.TempDir()

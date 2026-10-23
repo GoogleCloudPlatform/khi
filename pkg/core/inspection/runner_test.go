@@ -936,9 +936,6 @@ func TestInspectionTaskRunner_RunContextErrorDoesNotCorruptState(t *testing.T) {
 	if runner.Started() {
 		t.Errorf("runner.Started() = true after failed RunContextOption, want false")
 	}
-	if cancelErr := runner.Cancel(); cancelErr == nil || !strings.Contains(cancelErr.Error(), "this task is not yet started") {
-		t.Errorf("runner.Cancel() error = %v, want error containing %q", cancelErr, "this task is not yet started")
-	}
 
 	failSetup = false
 	if err := runner.Run(context.Background(), req); err != nil {

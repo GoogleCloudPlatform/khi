@@ -28,7 +28,6 @@ func TestServerParameters(t *testing.T) {
 	testCases := []struct {
 		name            string
 		want            *ServerParameters
-		wantErr         bool
 		wantErrContains string
 		before          func()
 	}{
@@ -123,7 +122,6 @@ func TestServerParameters(t *testing.T) {
 				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 			},
 			name:            "MaxLoadedInspections rejects values below 1",
-			wantErr:         true,
 			wantErrContains: "--max-loaded-inspections must be 1 or greater",
 		},
 	}
@@ -136,11 +134,11 @@ func TestServerParameters(t *testing.T) {
 			ResetStore()
 			AddStore(store)
 			err := Parse()
-			if tc.wantErr {
+			if tc.wantErrContains != "" {
 				if err == nil {
 					t.Fatal("Parse() returned nil error, want an error")
 				}
-				if tc.wantErrContains != "" && !strings.Contains(err.Error(), tc.wantErrContains) {
+				if !strings.Contains(err.Error(), tc.wantErrContains) {
 					t.Errorf("Parse() error = %q, want error containing %q", err.Error(), tc.wantErrContains)
 				}
 				return
