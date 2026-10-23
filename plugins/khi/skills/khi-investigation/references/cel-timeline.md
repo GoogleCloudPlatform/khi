@@ -74,7 +74,7 @@ path["namespace"] == "kube-system"
 Filter by resource kind:
 
 ```cel
-path["kind"] == "pods"
+path["kind"] == "pod"
 ```
 
 Filter by resource name regex:
@@ -98,5 +98,5 @@ revision_body("status.phase", "Failed")
 Combine conditions:
 
 ```cel
-path["kind"] == "pods" && path["namespace"] == "default" && minSeverity(WARNING)
+path["kind"] == "pod" && path["namespace"] == "default" && minSeverity(WARNING)
 ```

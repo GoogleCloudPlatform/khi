@@ -153,7 +153,7 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 					ExampleNames: []string{"kube-system", "default"},
 				},
 			},
-			LogTypes: []string{"k8s_audit", "k8s_event"},
+			LogTypes: []string{"k8s audit", "k8s event"},
 		},
 	}
 
@@ -323,7 +323,7 @@ func TestInspectionHandler_E2E(t *testing.T) {
 		TimelineTypes: []inspectionmetadata.TimelineTypeVocabulary{
 			{Label: "kind", NameCount: 2, ExampleNames: []string{"node", "pod"}},
 		},
-		LogTypes: []string{"k8s_audit"},
+		LogTypes: []string{"k8s audit"},
 	})
 	typedmap.Set(md1, inspectionmetadata.FilterVocabularyMetadataKey, vocab1)
 
@@ -396,7 +396,7 @@ func TestInspectionHandler_E2E(t *testing.T) {
 		if !strings.Contains(readDone.Contents[0].Text, "`kind` → `path.kind`: `node`, `pod` (all 2 names)") {
 			t.Errorf("ReadResource DONE missing timeline filter vocabulary: %s", readDone.Contents[0].Text)
 		}
-		if !strings.Contains(readDone.Contents[0].Text, "- logType: `k8s_audit`") {
+		if !strings.Contains(readDone.Contents[0].Text, "- logType: `k8s audit`") {
 			t.Errorf("ReadResource DONE missing logType filter vocabulary: %s", readDone.Contents[0].Text)
 		}
 

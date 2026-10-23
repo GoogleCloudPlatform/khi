@@ -75,5 +75,5 @@ These are the values that filter CEL can match in this inspection.
   - `apiVersion` → `path.apiversion`: `core/v1` (all 1 name)
   - `kind` → `path.kind`: `node`, `pod`, `service`, `replicaset`, `deployment`, … (6 names)
   - `namespace` → `path.namespace`: `kube-system`, `default` (all 2 names)
-- logType: `k8s_audit`, `k8s_event`
+- logType: `k8s audit`, `k8s event`
 - severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body("severity", "ERROR")` for the raw Cloud Logging field)
