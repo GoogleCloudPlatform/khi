@@ -33,6 +33,7 @@ import {
   generateDefaultRulerStyle,
 } from 'src/app/timeline/components/style-model';
 import { TimeRangeFilter } from 'src/app/services/view-state.service';
+import { GLContextManager } from './canvas/glcontextmanager';
 import { TimelineChartComponent } from './timeline-chart.component';
 import { TimelineRulerComponent } from './timeline-ruler.component';
 
@@ -240,6 +241,8 @@ describe('TimelineFrameComponent - time range selection', () => {
   let frameComponent: TimelineFrameComponent;
 
   beforeEach(async () => {
+    spyOn(GLContextManager.prototype, 'setup').and.resolveTo();
+    spyOn(GLContextManager.prototype, 'dispose').and.stub();
     spyOn(TimelineChartComponent.prototype, 'ngAfterViewInit').and.stub();
     spyOn(TimelineRulerComponent.prototype, 'ngAfterViewInit').and.stub();
     TestBed.configureTestingModule({
