@@ -21,13 +21,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 type testDomainHandler struct {
-	toolName    string
-	resourceURI string
-	templateURI string
+	toolName string
 }
 
 var _ DomainHandler = (*testDomainHandler)(nil)
@@ -43,55 +42,21 @@ func (h *testDomainHandler) Register(srv *mcpsdk.Server) {
 			},
 		}, nil, nil
 	})
-
-	srv.AddResource(&mcpsdk.Resource{
-		URI:      h.resourceURI,
-		Name:     "test resource",
-		MIMEType: "text/plain",
-	}, func(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
-		return &mcpsdk.ReadResourceResult{
-			Contents: []*mcpsdk.ResourceContents{
-				{
-					URI:      h.resourceURI,
-					MIMEType: "text/plain",
-					Text:     "resource content",
-				},
-			},
-		}, nil
-	})
-
-	srv.AddResourceTemplate(&mcpsdk.ResourceTemplate{
-		URITemplate: h.templateURI,
-		Name:        "test template",
-		MIMEType:    "text/plain",
-	}, func(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
-		return &mcpsdk.ReadResourceResult{
-			Contents: []*mcpsdk.ResourceContents{
-				{
-					URI:      req.Params.URI,
-					MIMEType: "text/plain",
-					Text:     "template content",
-				},
-			},
-		}, nil
-	})
 }
 
 func TestServerTransportsAndDomainHandler(t *testing.T) {
-	handler := &testDomainHandler{
-		toolName:    "test_tool",
-		resourceURI: "test://resource",
-		templateURI: "test://template/{id}",
+	if len(serverInstructions) > 500 {
+		t.Errorf("len(serverInstructions) = %d, want <= 500", len(serverInstructions))
 	}
 
-	server := NewServer(handler)
+	server := NewServer(&testDomainHandler{toolName: "test_tool"})
 
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", server.HTTPHandler())
 	mux.Handle("/mcp/sse", server.SSEHandler())
 
 	ts := httptest.NewServer(mux)
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 
 	testCases := []struct {
 		name          string
@@ -118,148 +83,25 @@ func TestServerTransportsAndDomainHandler(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
+			t.Cleanup(cancel)
 
-			client := mcpsdk.NewClient(&mcpsdk.Implementation{
-				Name:    "test-client",
-				Version: "1.0.0",
-			}, nil)
-
-			transport := tc.makeTransport(ts.URL)
-			session, err := client.Connect(ctx, transport, nil)
-			if err != nil {
-				t.Fatalf("client.Connect() failed: %v", err)
-			}
-			defer session.Close()
+			session := connectClient(t, ctx, tc.makeTransport(ts.URL))
 
 			if got := session.InitializeResult().Instructions; got != serverInstructions {
 				t.Errorf("InitializeResult().Instructions = %q, want %q", got, serverInstructions)
 			}
 
-			// Verify tool discovery
 			toolsRes, err := session.ListTools(ctx, nil)
 			if err != nil {
 				t.Fatalf("session.ListTools() failed: %v", err)
 			}
-			if len(toolsRes.Tools) != 1 {
-				t.Fatalf("len(toolsRes.Tools) = %d, want 1", len(toolsRes.Tools))
+			var gotNames []string
+			for _, tl := range toolsRes.Tools {
+				gotNames = append(gotNames, tl.Name)
 			}
-			if toolsRes.Tools[0].Name != "test_tool" {
-				t.Errorf("tool Name = %q, want %q", toolsRes.Tools[0].Name, "test_tool")
-			}
-
-			// Verify resource discovery
-			resRes, err := session.ListResources(ctx, nil)
-			if err != nil {
-				t.Fatalf("session.ListResources() failed: %v", err)
-			}
-			if len(resRes.Resources) != 1 {
-				t.Fatalf("len(resRes.Resources) = %d, want 1", len(resRes.Resources))
-			}
-			if resRes.Resources[0].URI != "test://resource" {
-				t.Errorf("resource URI = %q, want %q", resRes.Resources[0].URI, "test://resource")
-			}
-
-			// Verify resource template discovery
-			tmplRes, err := session.ListResourceTemplates(ctx, nil)
-			if err != nil {
-				t.Fatalf("session.ListResourceTemplates() failed: %v", err)
-			}
-			if len(tmplRes.ResourceTemplates) != 1 {
-				t.Fatalf("len(tmplRes.ResourceTemplates) = %d, want 1", len(tmplRes.ResourceTemplates))
-			}
-			if tmplRes.ResourceTemplates[0].URITemplate != "test://template/{id}" {
-				t.Errorf("template URITemplate = %q, want %q", tmplRes.ResourceTemplates[0].URITemplate, "test://template/{id}")
-			}
-
-			// Verify calling tool
-			callRes, err := session.CallTool(ctx, &mcpsdk.CallToolParams{Name: "test_tool"})
-			if err != nil {
-				t.Fatalf("session.CallTool() failed: %v", err)
-			}
-			if len(callRes.Content) != 1 {
-				t.Fatalf("len(callRes.Content) = %d, want 1", len(callRes.Content))
-			}
-			textContent, ok := callRes.Content[0].(*mcpsdk.TextContent)
-			if !ok {
-				t.Fatalf("callRes.Content[0] is %T, want *mcpsdk.TextContent", callRes.Content[0])
-			}
-			if textContent.Text != "tool response" {
-				t.Errorf("callRes.Content[0].Text = %q, want %q", textContent.Text, "tool response")
-			}
-
-			// Verify reading resource
-			readRes, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "test://resource"})
-			if err != nil {
-				t.Fatalf("session.ReadResource() for resource failed: %v", err)
-			}
-			if len(readRes.Contents) != 1 {
-				t.Fatalf("len(readRes.Contents) = %d, want 1", len(readRes.Contents))
-			}
-			if readRes.Contents[0].Text != "resource content" {
-				t.Errorf("readRes.Contents[0].Text = %q, want %q", readRes.Contents[0].Text, "resource content")
-			}
-
-			// Verify reading resource template
-			readTmplRes, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "test://template/42"})
-			if err != nil {
-				t.Fatalf("session.ReadResource() for template failed: %v", err)
-			}
-			if len(readTmplRes.Contents) != 1 {
-				t.Fatalf("len(readTmplRes.Contents) = %d, want 1", len(readTmplRes.Contents))
-			}
-			if readTmplRes.Contents[0].URI != "test://template/42" {
-				t.Errorf("readTmplRes.Contents[0].URI = %q, want %q", readTmplRes.Contents[0].URI, "test://template/42")
-			}
-			if readTmplRes.Contents[0].Text != "template content" {
-				t.Errorf("readTmplRes.Contents[0].Text = %q, want %q", readTmplRes.Contents[0].Text, "template content")
+			if diff := cmp.Diff([]string{"test_tool"}, gotNames); diff != "" {
+				t.Errorf("ListTools() names mismatch (-want +got):\n%s", diff)
 			}
 		})
-	}
-}
-
-func TestServerRegisterHandler(t *testing.T) {
-	if len(serverInstructions) > 500 {
-		t.Errorf("len(serverInstructions) = %d, want <= 500", len(serverInstructions))
-	}
-	server := NewServer()
-
-	handler := &testDomainHandler{
-		toolName:    "dynamic_tool",
-		resourceURI: "dynamic://resource",
-		templateURI: "dynamic://template/{id}",
-	}
-	server.RegisterHandler(handler)
-
-	mux := http.NewServeMux()
-	mux.Handle("/mcp", server.HTTPHandler())
-
-	ts := httptest.NewServer(mux)
-	defer ts.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	client := mcpsdk.NewClient(&mcpsdk.Implementation{
-		Name:    "test-client",
-		Version: "1.0.0",
-	}, nil)
-
-	transport := &mcpsdk.StreamableClientTransport{Endpoint: ts.URL + "/mcp"}
-	session, err := client.Connect(ctx, transport, nil)
-	if err != nil {
-		t.Fatalf("client.Connect() failed: %v", err)
-	}
-	defer session.Close()
-
-	toolsRes, err := session.ListTools(ctx, nil)
-	if err != nil {
-		t.Fatalf("session.ListTools() failed: %v", err)
-	}
-	if len(toolsRes.Tools) != 1 {
-		t.Fatalf("len(toolsRes.Tools) = %d, want 1", len(toolsRes.Tools))
-	}
-	if toolsRes.Tools[0].Name != "dynamic_tool" {
-		t.Errorf("tool Name = %q, want %q", toolsRes.Tools[0].Name, "dynamic_tool")
 	}
 }

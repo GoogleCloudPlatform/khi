@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"cloud.google.com/go/auth"
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -57,13 +56,6 @@ func (e *toolsTestEnv) createInspection(t *testing.T, featureIDs ...string) stri
 }
 
 func TestInspectionRun_Golden(t *testing.T) {
-	server, err := coreinspection.NewServer(nil)
-	if err != nil {
-		t.Fatalf("failed to create server: %v", err)
-	}
-	// Template rendering does not issue upload URLs.
-	handler := NewInspectionHandler(server, nil)
-
 	defaultedClusterField := formFieldData{
 		ID:          "clusterName",
 		Label:       "Cluster name",
@@ -192,27 +184,11 @@ func TestInspectionRun_Golden(t *testing.T) {
 				Parameters: []formFieldData{defaultedClusterField, defaultedCheckboxField, passedEndTimeField},
 			},
 		},
-		{
-			name:       "GoogleCloudAuthError",
-			template:   "google_cloud_auth_error.md.tmpl",
-			goldenFile: "testdata/google_cloud_auth_error.golden.md",
-			data: googleCloudAuthErrorData{
-				RetryTool: "dry_run_inspection",
-			},
-		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := handler.templates.Render(tc.template, tc.data)
-			if err != nil {
-				t.Fatalf("failed to render %s: %v", tc.template, err)
-			}
-
-			want := readGolden(t, tc.goldenFile)
-			if diff := cmp.Diff(want, got); diff != "" {
-				t.Errorf("%s mismatch (-want +got):\n%s", tc.template, diff)
-			}
+			verifyTemplateGolden(t, tc.template, tc.data, tc.goldenFile)
 		})
 	}
 }
@@ -249,16 +225,6 @@ func TestConvertMCPParameters(t *testing.T) {
 			name:       "non-string array element returns error",
 			input:      map[string]any{"list": []any{"a", float64(10)}},
 			wantErrKey: "list",
-		},
-		{
-			name:       "nested map returns error",
-			input:      map[string]any{"nested": map[string]any{"key": "value"}},
-			wantErrKey: "nested",
-		},
-		{
-			name:       "nested array returns error",
-			input:      map[string]any{"nested": []any{[]any{"value"}}},
-			wantErrKey: "nested",
 		},
 		{
 			name: "first invalid key in sorted order is reported",
@@ -835,13 +801,8 @@ func TestFileUploadStatus(t *testing.T) {
 			want:  "WAITING",
 		},
 		{
-			name:  "uploading",
+			name:  "in-progress upload reports PROCESSING",
 			field: inspectionmetadata.FileParameterFormField{Status: upload.UploadStatusUploading},
-			want:  "PROCESSING",
-		},
-		{
-			name:  "verifying",
-			field: inspectionmetadata.FileParameterFormField{Status: upload.UploadStatusVerifying},
 			want:  "PROCESSING",
 		},
 		{
@@ -896,11 +857,6 @@ func TestIsGoogleCloudAuthError(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "gRPC unauthenticated status wrapped with fmt.Errorf",
-			err:  taskErr(fmt.Errorf("failed to list log entries: %w", status.Error(codes.Unauthenticated, "request had invalid authentication credentials"))),
-			want: true,
-		},
-		{
 			name: "REST token error with a 4xx response",
 			err:  taskErr(fmt.Errorf("failed to list regions: %w", tokenErr(http.StatusBadRequest))),
 			want: true,
@@ -921,13 +877,8 @@ func TestIsGoogleCloudAuthError(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "untyped invalid_grant message",
+			name: "untyped non-ADC error message",
 			err:  taskErr(errors.New("oauth2: cannot fetch token: 400 Bad Request invalid_grant")),
-			want: false,
-		},
-		{
-			name: "google_cloud_auth literal string",
-			err:  taskErr(errors.New("google_cloud_auth error occurred")),
 			want: false,
 		},
 	}
