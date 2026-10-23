@@ -205,6 +205,46 @@ jsonPayload:
 	}
 }
 
+func TestReconstructKLogLine(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		inputYAML string
+		want      string
+	}{
+		{
+			desc: "all fields present",
+			inputYAML: `
+timestamp: "2025-09-29T08:20:24.205299Z"
+severity: WARNING
+sourceLocation:
+  file: scheduler.go
+  line: "100"
+jsonPayload:
+  message: '"Attempting to schedule pod" pod="foo/bar"'
+`,
+			want: `W0929 08:20:24.205299 0 scheduler.go:100] "Attempting to schedule pod" pod="foo/bar"`,
+		},
+		{
+			desc: "only jsonPayload.message present",
+			inputYAML: `
+jsonPayload:
+  message: '"Attempting to schedule pod" pod="foo/bar"'
+`,
+			want: `I0101 00:00:00.000000 0 unknown:0] "Attempting to schedule pod" pod="foo/bar"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := testlog.MustLogFromYAML(tc.inputYAML)
+			got := reconstructKLogLine(l.NodeReader)
+			if got != tc.want {
+				t.Errorf("reconstructKLogLine() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestExtractK8sSchedulerComponent(t *testing.T) {
 	testCases := []struct {
 		desc      string

@@ -18,12 +18,14 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
 var (
@@ -67,6 +69,8 @@ var (
 	pathFinalTargetRefName       = structured.CompileFieldPath("jsonPayload.finalRecommendation.targetRef.name")
 	pathFinalTopLevelLimit       = structured.CompileFieldPath("jsonPayload.finalRecommendation.topLevelLimit")
 	pathFinalTopLevelOverride    = structured.CompileFieldPath("jsonPayload.finalRecommendation.topLevelOverride")
+	pathTimestamp                = structured.CompileFieldPath("timestamp")
+	pathSourceLine               = structured.CompileFieldPath("sourceLocation.line")
 )
 
 // ControlplaneComponentParserType defines the parser type for control plane components.
@@ -146,6 +150,17 @@ func ExtractK8sControlplaneCommonMessage(reader *structured.NodeReader) (string,
 	return reader.ReadStringOrDefault(pathMessage, ""), nil
 }
 
+// reconstructKLogLine rebuilds a full klog formatted line from the structured fields of a control plane log.
+func reconstructKLogLine(reader *structured.NodeReader) string {
+	severity, _ := gcpcommon.ExtractGCPSeverity(reader)
+	timestamp, _ := reader.ReadTimestamp(pathTimestamp)
+	file := reader.ReadStringOrDefault(pathSourceFile, "")
+	// sourceLocation.line is an int64 field, which protojson serializes as a string.
+	line, _ := strconv.Atoi(reader.ReadStringOrDefault(pathSourceLine, ""))
+	message := reader.ReadStringOrDefault(pathMessage, "")
+	return logutil.FormatKLogString(severity, timestamp, 0, file, line, message)
+}
+
 // K8sSchedulerComponentFieldSet contains scheduler-specific fields.
 type K8sSchedulerComponentFieldSet struct {
 	PodName      string
@@ -163,7 +178,6 @@ func ExtractK8sSchedulerComponent(reader *structured.NodeReader, parser *logutil
 		return mock, nil
 	}
 	var result K8sSchedulerComponentFieldSet
-	message := reader.ReadStringOrDefault(pathMessage, "")
 
 	if parser == nil {
 		parser = DefaultControlplaneLogParser
@@ -172,7 +186,7 @@ func ExtractK8sSchedulerComponent(reader *structured.NodeReader, parser *logutil
 		ComponentName: "scheduler",
 	}
 
-	structuredRes := parser.TryParse(ctx, message)
+	structuredRes := parser.TryParse(ctx, reconstructKLogLine(reader))
 	if structuredRes != nil {
 		if podFQDN, err := structuredRes.StringField("pod"); err == nil && podFQDN != "" {
 			podNameFragments := strings.Split(podFQDN, "/")
@@ -222,7 +236,6 @@ func (k *K8sControllerManagerComponentExtractor) Extract(reader *structured.Node
 		return mock, nil
 	}
 	var result K8sControllerManagerComponentFieldSet
-	message := reader.ReadStringOrDefault(pathMessage, "")
 	sourceFile := reader.ReadStringOrDefault(pathSourceFile, "")
 
 	parser := k.StructuredLogParser
@@ -233,7 +246,7 @@ func (k *K8sControllerManagerComponentExtractor) Extract(reader *structured.Node
 		ComponentName: "controller-manager",
 	}
 
-	structuredRes := parser.TryParse(ctx, message)
+	structuredRes := parser.TryParse(ctx, reconstructKLogLine(reader))
 	controller, _ := k.ReadController(structuredRes, sourceFile)
 	result.Controller = controller
 	if structuredRes != nil {
