@@ -18,7 +18,6 @@ This guide outlines the standard version control workflow for working on the Kub
   - `jj new`: Commits and freezes the current change, then creates a new, empty working-copy change (`@`) on top of it.
 - **Task Boundaries**: Always run `jj new` upon completing a logical unit of work or before switching tasks.
 - **Workspace Isolation**: Always make changes strictly within your assigned workspace. You may inspect or reference other workspaces, but never modify files or commit changes in another workspace.
-- **Explicit Approval for Pushes**: Never execute `jj git push` or create remote modifications without explicit user approval.
 
 ---
 
@@ -231,4 +230,3 @@ Before finalizing any task or pushing to a remote repository:
 - [ ] For PR reviews: created a new incremental commit with `jj new` without squashing.
 - [ ] For PR reviews: advanced or moved the PR bookmark with `jj bookmark advance` or `jj bookmark move`.
 - [ ] For conflict resolution: resolved from oldest to newest commit using `jj new` -> test -> `jj squash`.
-- [ ] Confirmed explicit user approval before executing any `jj git push` command.

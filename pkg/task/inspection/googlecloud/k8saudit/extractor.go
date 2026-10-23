@@ -76,7 +76,6 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (*commonk8saudit.K8sAu
 	result.APIVersion = apiVersion
 	result.PluralKind = pluralKind
 	result.Namespace = namespace
-	result.ResourceName = name
 	result.SubresourceName = subResourceName
 	result.Verb = verb
 
@@ -86,6 +85,7 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (*commonk8saudit.K8sAu
 	result.IsError = result.StatusCode != 0
 	result.Request, _ = reader.GetReader(pathProtoRequest)
 	result.Response, _ = reader.GetReader(pathProtoResponse)
+	result.ResourceName = commonk8saudit.ResolveResourceName(name, result.Request, result.Response)
 	labelsReader, _ := reader.GetReader(pathLabels)
 	result.MutatingWebhookResults = extractMutatingWebhookResults(labelsReader)
 

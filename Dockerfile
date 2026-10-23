@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.26 AS builder
+FROM golang:1.27 AS builder
 
 ENV ROOT=/go/src/app
 RUN mkdir /built

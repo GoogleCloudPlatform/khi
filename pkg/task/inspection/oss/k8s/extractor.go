@@ -35,7 +35,6 @@ var (
 	pathObjectRefName         = structured.CompileFieldPath("objectRef.name")
 	pathObjectRefSubresource  = structured.CompileFieldPath("objectRef.subresource")
 	pathVerb                  = structured.CompileFieldPath("verb")
-	pathResponseObjectName    = structured.CompileFieldPath("responseObject.metadata.name")
 	pathRequestURI            = structured.CompileFieldPath("requestURI")
 	pathUserUsername          = structured.CompileFieldPath("user.username")
 	pathResponseStatusCode    = structured.CompileFieldPath("responseStatus.code")
@@ -125,19 +124,13 @@ func ExtractOSSK8sAuditLog(reader *structured.NodeReader) (*k8saudit.K8sAuditLog
 	apiVersion := reader.ReadStringOrDefault(pathObjectRefAPIVersion, "unknown")
 	kind := reader.ReadStringOrDefault(pathObjectRefResource, "unknown")
 	namespace := reader.ReadStringOrDefault(pathObjectRefNamespace, "cluster-scope")
-	name := reader.ReadStringOrDefault(pathObjectRefName, "unknown")
+	name := reader.ReadStringOrDefault(pathObjectRefName, "")
 	subresource := reader.ReadStringOrDefault(pathObjectRefSubresource, "")
 	verb := reader.ReadStringOrDefault(pathVerb, "")
-
-	if name == "unknown" && verb == "create" {
-		// the name may be generated from the server side.
-		name = reader.ReadStringOrDefault(pathResponseObjectName, "unknown")
-	}
 
 	result.APIVersion = fmt.Sprintf("%s/%s", apiGroup, apiVersion)
 	result.PluralKind = kind
 	result.Namespace = namespace
-	result.ResourceName = name
 	result.SubresourceName = subresource
 	result.ClusterName = "cluster"
 	result.Verb = verbStringToVerb(verb)
@@ -149,6 +142,7 @@ func ExtractOSSK8sAuditLog(reader *structured.NodeReader) (*k8saudit.K8sAuditLog
 	result.IsError = result.StatusCode < 200 || result.StatusCode >= 300
 	result.Request, _ = reader.GetReader(pathRequestObject)
 	result.Response, _ = reader.GetReader(pathResponseObject)
+	result.ResourceName = k8saudit.ResolveResourceName(name, result.Request, result.Response)
 
 	structured.SetCache(reader, k8saudit.K8sAuditLogCacheKey, result)
 	return result, nil

@@ -5,7 +5,7 @@ This directory contains the Dockerfile for building the unified CI builder image
 ## Included Dependencies
 
 - Debian Trixie (base OS)
-- Go 1.26.x (copied from `golang:1.26-trixie`)
+- Go 1.27.x (copied from `golang:1.27-trixie`)
 - Node.js 26.x, npm, npx (base from `node:26-trixie`)
 - System utilities: `jq`, `make`, `git`, `curl`
 
