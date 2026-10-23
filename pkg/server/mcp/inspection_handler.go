@@ -77,7 +77,7 @@ func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
 	srv.AddResourceTemplate(&mcpsdk.ResourceTemplate{
 		URITemplate: "khi://inspections/{id}",
 		Name:        "inspection",
-		Description: "Inspection summary or current progress status.",
+		Description: "Inspection summary and filter vocabulary, or current progress status.",
 		MIMEType:    "text/markdown",
 	}, h.handleInspectionResource)
 
@@ -243,10 +243,11 @@ type inspectionStatusData struct {
 }
 
 type inspectionSummaryData struct {
-	ID        string
-	Header    *inspectionmetadata.HeaderMetadata
-	TimeRange string
-	Summary   summary.Snapshot
+	ID               string
+	Header           *inspectionmetadata.HeaderMetadata
+	TimeRange        string
+	Summary          summary.Snapshot
+	FilterVocabulary *inspectionmetadata.FilterVocabulary
 }
 
 func (h *InspectionHandler) handleInspectionResource(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
@@ -330,11 +331,18 @@ func (h *InspectionHandler) renderSummary(id string, metadata *typedmap.Readonly
 		snap = s.Snapshot()
 	}
 
+	var filterVocabulary *inspectionmetadata.FilterVocabulary
+	if v, found := typedmap.Get(metadata, inspectionmetadata.FilterVocabularyMetadataKey); found && v != nil {
+		vocab := v.Get()
+		filterVocabulary = &vocab
+	}
+
 	text, err := h.templates.Render("inspection_summary.md.tmpl", inspectionSummaryData{
-		ID:        id,
-		Header:    header,
-		TimeRange: timeRange,
-		Summary:   snap,
+		ID:               id,
+		Header:           header,
+		TimeRange:        timeRange,
+		Summary:          snap,
+		FilterVocabulary: filterVocabulary,
 	})
 	if err != nil {
 		return "", err

@@ -72,3 +72,12 @@
 {{ . }}
 {{- end }}
 {{- end }}
+
+---
+
+{{ with .FilterVocabulary -}}
+{{ template "inspectionFilterVocabulary" . }}
+{{- else -}}
+## Filter vocabulary
+This inspection file does not record a filter vocabulary in its metadata. Call `search_timelines` or `search_logs` to see the available `path` keys, `timelineType` values, and `logType` values in the response.
+{{- end }}

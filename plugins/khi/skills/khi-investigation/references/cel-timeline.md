@@ -7,8 +7,8 @@ Timeline CEL expressions filter which resource timelines are displayed or exclud
 The following variables are available in the timeline evaluation scope:
 
 - `name` (`string`): The name of the resource represented by the timeline (e.g. pod name, node name).
-- `timelineType` (`string`): The type of the timeline (e.g. `pod`, `resource`, `namespace`). Available values for the current inspection are listed in the `Filter vocabulary` section of `search_timelines` and `search_logs` responses.
-- `path` (`map<string, string>`): Hierarchical resource path properties (e.g. `path["namespace"]`, `path["kind"]`, `path["resource"]`, `path["subresource"]`). Available keys for the current inspection are listed in the `Filter vocabulary` section of `search_timelines` and `search_logs` responses. Missing keys evaluate to `""`.
+- `timelineType` (`string`): The type of the timeline (e.g. `pod`, `resource`, `namespace`). Available values and example timeline names for the current inspection are listed in the `Filter vocabulary` section of `khi://inspections/{id}`; available values are also listed in `search_timelines` and `search_logs` responses.
+- `path` (`map<string, string>`): Hierarchical resource path properties (e.g. `path["namespace"]`, `path["kind"]`, `path["resource"]`, `path["subresource"]`). Available keys and example timeline names for the current inspection are listed in the `Filter vocabulary` section of `khi://inspections/{id}`; available keys are also listed in `search_timelines` and `search_logs` responses. Missing keys evaluate to `""`.
 - `t` (`map<string, dyn>`): The root timeline object, exposing `t.name`, `t.timelineType`, and `t.path`.
 
 ## Severity Constants

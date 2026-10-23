@@ -4,7 +4,26 @@ These are the values that filter CEL can match in this inspection.
 - path keys (lowercased timelineType): {{ template "codeListOrNone" .PathKeys }}
 - timelineType: {{ template "codeListOrNone" .TimelineTypes }}
 - logType: {{ template "codeListOrNone" .LogTypes }}
-- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body("severity", "ERROR")` for the raw Cloud Logging field)
+- severity: {{ template "filterVocabularySeverity" }}
+{{- end }}
+
+{{- define "inspectionFilterVocabulary" -}}
+## Filter vocabulary
+These are the values that filter CEL can match in this inspection.
+{{- if .TimelineTypes }}
+- Timeline names by timelineType, matched with `path.<key>`. Each line shows up to 5 example names and the number of distinct names.
+{{- range .TimelineTypes }}
+  - {{ code .Label }} → {{ code (printf "path.%s" .PathKey) }}: {{ range $i, $n := .ExampleNames }}{{ if $i }}, {{ end }}{{ code $n }}{{ end }}{{ if gt .NameCount (len .ExampleNames) }}, … ({{ .NameCount }} names){{ else }} (all {{ .NameCount }} {{ if eq .NameCount 1 }}name{{ else }}names{{ end }}){{ end }}
+{{- end }}
+{{- else }}
+- Timeline names by timelineType: none
+{{- end }}
+- logType: {{ template "codeListOrNone" .LogTypes }}
+- severity: {{ template "filterVocabularySeverity" }}
+{{- end }}
+
+{{- define "filterVocabularySeverity" -}}
+`UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body("severity", "ERROR")` for the raw Cloud Logging field)
 {{- end }}
 
 {{- define "codeListOrNone" }}

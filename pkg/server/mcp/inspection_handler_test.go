@@ -135,6 +135,26 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 		Header:    header,
 		TimeRange: fmt.Sprintf("%s - %s", mdtemplate.FormatTime(startTime), mdtemplate.FormatTime(endTime)),
 		Summary:   c.Snapshot(),
+		FilterVocabulary: &inspectionmetadata.FilterVocabulary{
+			TimelineTypes: []inspectionmetadata.TimelineTypeVocabulary{
+				{
+					Label:        "apiVersion",
+					NameCount:    1,
+					ExampleNames: []string{"core/v1"},
+				},
+				{
+					Label:        "kind",
+					NameCount:    6,
+					ExampleNames: []string{"node", "pod", "service", "replicaset", "deployment"},
+				},
+				{
+					Label:        "namespace",
+					NameCount:    2,
+					ExampleNames: []string{"kube-system", "default"},
+				},
+			},
+			LogTypes: []string{"k8s_audit", "k8s_event"},
+		},
 	}
 
 	got, err := handler.templates.Render("inspection_summary.md.tmpl", data)
@@ -151,6 +171,19 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("inspection summary mismatch (-want +got):\n%s", diff)
 	}
+
+	t.Run("WithoutFilterVocabulary", func(t *testing.T) {
+		dataWithoutVocab := data
+		dataWithoutVocab.FilterVocabulary = nil
+		gotWithoutVocab, err := handler.templates.Render("inspection_summary.md.tmpl", dataWithoutVocab)
+		if err != nil {
+			t.Fatalf("failed to render inspection summary without filter vocabulary: %v", err)
+		}
+		wantNotice := "This inspection file does not record a filter vocabulary in its metadata. Call `search_timelines` or `search_logs` to see the available `path` keys, `timelineType` values, and `logType` values in the response."
+		if !strings.Contains(gotWithoutVocab, wantNotice) {
+			t.Errorf("expected summary without filter vocabulary to contain %q, got:\n%s", wantNotice, gotWithoutVocab)
+		}
+	})
 }
 
 func TestInspectionHandler_E2E(t *testing.T) {
@@ -285,6 +318,15 @@ func TestInspectionHandler_E2E(t *testing.T) {
 	summary.SetCoreLabel(ctxTask1, "projectId", "my-gcp-project")
 	typedmap.Set(md1, summary.MetadataKey, summary1)
 
+	vocab1 := inspectionmetadata.NewFilterVocabularyMetadata()
+	vocab1.Set(inspectionmetadata.FilterVocabulary{
+		TimelineTypes: []inspectionmetadata.TimelineTypeVocabulary{
+			{Label: "kind", NameCount: 2, ExampleNames: []string{"node", "pod"}},
+		},
+		LogTypes: []string{"k8s_audit"},
+	})
+	typedmap.Set(md1, inspectionmetadata.FilterVocabularyMetadataKey, vocab1)
+
 	server.RegisterImportedInspection("2026-09-24-0130-a1b2", nil, md1.AsReadonly())
 
 	// Register running inspection (RUNNING, newer InspectTime)
@@ -350,6 +392,12 @@ func TestInspectionHandler_E2E(t *testing.T) {
 		}
 		if !strings.Contains(readDone.Contents[0].Text, "# Inspection Summary: prod-cluster-1 restart investigation") {
 			t.Errorf("ReadResource DONE unexpected text: %s", readDone.Contents[0].Text)
+		}
+		if !strings.Contains(readDone.Contents[0].Text, "`kind` → `path.kind`: `node`, `pod` (all 2 names)") {
+			t.Errorf("ReadResource DONE missing timeline filter vocabulary: %s", readDone.Contents[0].Text)
+		}
+		if !strings.Contains(readDone.Contents[0].Text, "- logType: `k8s_audit`") {
+			t.Errorf("ReadResource DONE missing logType filter vocabulary: %s", readDone.Contents[0].Text)
 		}
 
 		// Read again to verify cached result

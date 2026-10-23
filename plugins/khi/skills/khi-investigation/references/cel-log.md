@@ -6,7 +6,7 @@ Log CEL expressions filter individual log entries within timelines. Logs matchin
 
 The following variables are available in the log evaluation scope:
 
-- `logType` (`string`): The type label of the log entry (e.g. `"k8s audit"`, `"container"`, `"k8s event"`). Available values for the current inspection are listed in the `Filter vocabulary` section of `search_timelines` and `search_logs` responses.
+- `logType` (`string`): The type label of the log entry (e.g. `"k8s audit"`, `"container"`, `"k8s event"`). Available values for the current inspection are listed in the `Filter vocabulary` section of `khi://inspections/{id}`, `search_timelines`, and `search_logs`.
 - `severity` (`int`): The integer severity level of the log entry (`INFO`, `WARNING`, `ERROR`, `FATAL`).
 - `l` (`map<string, dyn>`): The root log object, exposing `l.logType` and `l.severity`.
 
