@@ -18,7 +18,6 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -205,7 +204,7 @@ func (a *TimelineAccumulator) TimelineTypeVocabulary(limit int) []inspectionmeta
 	slices.SortFunc(buckets, func(x, y *timelineTypeBucket) int {
 		return cmp.Or(
 			cmp.Compare(x.timelineType.GetSortPriority(), y.timelineType.GetSortPriority()),
-			strings.Compare(x.timelineType.GetLabel(), y.timelineType.GetLabel()),
+			cmp.Compare(x.timelineType.GetLabel(), y.timelineType.GetLabel()),
 		)
 	})
 
