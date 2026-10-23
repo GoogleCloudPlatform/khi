@@ -152,12 +152,16 @@ func ExtractK8sControlplaneCommonMessage(reader *structured.NodeReader) (string,
 
 // reconstructKLogLine rebuilds a full klog formatted line from the structured fields of a control plane log.
 func reconstructKLogLine(reader *structured.NodeReader) string {
+	message := reader.ReadStringOrDefault(pathMessage, "")
+	// Return a message that already has a klog header as is to avoid an extra allocation and keep its original thread ID.
+	if logutil.HasKLogHeader(message) {
+		return message
+	}
 	severity, _ := gcpcommon.ExtractGCPSeverity(reader)
 	timestamp, _ := reader.ReadTimestamp(pathTimestamp)
 	file := reader.ReadStringOrDefault(pathSourceFile, "")
 	// sourceLocation.line is an int64 field, which protojson serializes as a string.
 	line, _ := strconv.Atoi(reader.ReadStringOrDefault(pathSourceLine, ""))
-	message := reader.ReadStringOrDefault(pathMessage, "")
 	return logutil.FormatKLogString(severity, timestamp, 0, file, line, message)
 }
 

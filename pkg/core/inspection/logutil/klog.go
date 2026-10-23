@@ -252,3 +252,21 @@ func FormatKLogString(severity *pb.Severity, timestamp time.Time, threadID int, 
 	ts := timestamp.UTC().Format(klogTimestampLayout)
 	return fmt.Sprintf("%s%s %d %s:%d] %s", letter, ts, threadID, file, line, message)
 }
+
+// HasKLogHeader reports whether the message starts with a klog header prefix (e.g. "I0929 ").
+func HasKLogHeader(message string) bool {
+	if len(message) < 6 {
+		return false
+	}
+	switch message[0] {
+	case 'I', 'W', 'E', 'F':
+	default:
+		return false
+	}
+	for i := 1; i <= 4; i++ {
+		if message[i] < '0' || message[i] > '9' {
+			return false
+		}
+	}
+	return message[5] == ' '
+}

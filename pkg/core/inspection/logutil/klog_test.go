@@ -344,3 +344,30 @@ func TestFormatKLogString_ParsableByKLogTextParser(t *testing.T) {
 		})
 	}
 }
+
+func TestHasKLogHeader(t *testing.T) {
+	testCases := []struct {
+		desc    string
+		message string
+		want    bool
+	}{
+		{desc: "info header", message: `I0929 08:20:24.205299    1949 scheduler.go:100] "msg"`, want: true},
+		{desc: "warning header", message: `W0929 08:20:24.205299 0 a.go:1] msg`, want: true},
+		{desc: "error header", message: `E0929 08:20:24.205299 0 a.go:1] msg`, want: true},
+		{desc: "fatal header", message: `F0929 08:20:24.205299 0 a.go:1] msg`, want: true},
+		{desc: "headerless structured message", message: `"Starting watch" path="/apis"`, want: false},
+		{desc: "plain text starting with a severity letter", message: `Error syncing pod`, want: false},
+		{desc: "letter followed by non-digits", message: `E2E test started`, want: false},
+		{desc: "date without trailing space", message: `I09291234`, want: false},
+		{desc: "unsupported severity letter", message: `D0929 08:20:24.205299 0 a.go:1] msg`, want: false},
+		{desc: "shorter than header prefix", message: `I0929`, want: false},
+		{desc: "empty", message: ``, want: false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if got := HasKLogHeader(tc.message); got != tc.want {
+				t.Errorf("HasKLogHeader(%q) = %v, want %v", tc.message, got, tc.want)
+			}
+		})
+	}
+}

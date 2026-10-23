@@ -238,6 +238,19 @@ jsonPayload:
 `,
 			want: `I0101 00:00:00.000000 0 unknown:0] "Attempting to schedule pod" pod="foo/bar"`,
 		},
+		{
+			desc: "message with klog header is returned as is",
+			inputYAML: `
+timestamp: "2025-09-29T08:20:24.205299Z"
+severity: WARNING
+sourceLocation:
+  file: scheduler.go
+  line: "100"
+jsonPayload:
+  message: 'E0930 01:02:03.000004    1949 other.go:7] "Attempting to schedule pod" pod="foo/bar"'
+`,
+			want: `E0930 01:02:03.000004    1949 other.go:7] "Attempting to schedule pod" pod="foo/bar"`,
+		},
 	}
 
 	for _, tc := range testCases {
