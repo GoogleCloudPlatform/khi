@@ -33,6 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 // TestSerializeTask verifies that serializerTask successfully converts accumulated
@@ -144,14 +145,18 @@ func TestSerializeTask(t *testing.T) {
 				if !foundTestHeader {
 					t.Error("Could not find the expected header metadata with type 'test-type' and name 'test-name' inside the MetadataChunk.")
 				}
-				if gotVocabProto == nil {
-					t.Fatal("Expected FilterVocabularyMetadata inside the MetadataChunk.")
+				wantVocabProto := &pb.FilterVocabularyMetadata{
+					TimelineTypes: []*pb.TimelineTypeVocabulary{
+						{
+							Label:        proto.String("kind"),
+							NameCount:    proto.Uint32(1),
+							ExampleNames: []string{"pod"},
+						},
+					},
+					LogTypes: []string{"k8s_audit"},
 				}
-				if len(gotVocabProto.GetTimelineTypes()) != 1 || gotVocabProto.GetTimelineTypes()[0].GetLabel() != "kind" {
-					t.Errorf("unexpected timeline types in FilterVocabularyMetadata proto: %v", gotVocabProto.GetTimelineTypes())
-				}
-				if diff := cmp.Diff([]string{"k8s_audit"}, gotVocabProto.GetLogTypes()); diff != "" {
-					t.Errorf("LogTypes in FilterVocabularyMetadata proto mismatch (-want +got):\n%s", diff)
+				if diff := cmp.Diff(wantVocabProto, gotVocabProto, protocmp.Transform()); diff != "" {
+					t.Errorf("FilterVocabularyMetadata proto mismatch (-want +got):\n%s", diff)
 				}
 			},
 			wantErr:  false,
