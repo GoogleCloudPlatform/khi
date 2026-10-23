@@ -225,33 +225,41 @@ func TestSearchLogs_Aggregation(t *testing.T) {
 }
 
 func TestSearchLogs_TimelineFiltering(t *testing.T) {
+	type wantTimelineFilterResult struct {
+		MatchedLogCount int
+		MatchedTLCount  int
+		TimelineIDs     []uint32
+		Log2TimelineIDs []uint32
+	}
+
 	testCases := []struct {
-		name                string
-		filter              Filter
-		wantMatchedLogCount int
-		wantMatchedTLCount  int
-		wantTimelineIDs     []uint32
-		wantLog2TimelineIDs []uint32
+		name   string
+		filter Filter
+		want   wantTimelineFilterResult
 	}{
 		{
 			name: "timeline exclusion query excludes timeline from groups and sample logs",
 			filter: Filter{
 				TimelineExclusionQuery: "name == 'container-a1'",
 			},
-			wantMatchedLogCount: 5,
-			wantMatchedTLCount:  2,
-			wantTimelineIDs:     []uint32{2, 3},
-			wantLog2TimelineIDs: []uint32{2},
+			want: wantTimelineFilterResult{
+				MatchedLogCount: 5,
+				MatchedTLCount:  2,
+				TimelineIDs:     []uint32{2, 3},
+				Log2TimelineIDs: []uint32{2},
+			},
 		},
 		{
 			name: "timeline include query filters to matching timeline",
 			filter: Filter{
 				TimelineQuery: "name == 'pod-b'",
 			},
-			wantMatchedLogCount: 2,
-			wantMatchedTLCount:  1,
-			wantTimelineIDs:     []uint32{3},
-			wantLog2TimelineIDs: nil,
+			want: wantTimelineFilterResult{
+				MatchedLogCount: 2,
+				MatchedTLCount:  1,
+				TimelineIDs:     []uint32{3},
+				Log2TimelineIDs: nil,
+			},
 		},
 	}
 
@@ -262,21 +270,11 @@ func TestSearchLogs_TimelineFiltering(t *testing.T) {
 			if err != nil {
 				t.Fatalf("SearchLogs() unexpected error = %v", err)
 			}
-			if got.MatchedLogCount != tc.wantMatchedLogCount {
-				t.Errorf("MatchedLogCount = %d, want %d", got.MatchedLogCount, tc.wantMatchedLogCount)
-			}
-			if got.MatchedTimelineCount != tc.wantMatchedTLCount {
-				t.Errorf("MatchedTimelineCount = %d, want %d", got.MatchedTimelineCount, tc.wantMatchedTLCount)
-			}
 
 			var gotTLIDs []uint32
 			for _, g := range got.TimelineGroups {
 				gotTLIDs = append(gotTLIDs, g.TimelineID)
 			}
-			if diff := cmp.Diff(tc.wantTimelineIDs, gotTLIDs); diff != "" {
-				t.Errorf("TimelineGroups IDs mismatch (-want +got):\n%s", diff)
-			}
-
 			var log2TLs []uint32
 			for _, s := range got.SampleLogs {
 				if s.LogID == 2 {
@@ -284,38 +282,52 @@ func TestSearchLogs_TimelineFiltering(t *testing.T) {
 					break
 				}
 			}
-			if diff := cmp.Diff(tc.wantLog2TimelineIDs, log2TLs); diff != "" {
-				t.Errorf("log 2 TimelineIDs mismatch (-want +got):\n%s", diff)
+			gotSummary := wantTimelineFilterResult{
+				MatchedLogCount: got.MatchedLogCount,
+				MatchedTLCount:  got.MatchedTimelineCount,
+				TimelineIDs:     gotTLIDs,
+				Log2TimelineIDs: log2TLs,
+			}
+			if diff := cmp.Diff(tc.want, gotSummary); diff != "" {
+				t.Errorf("SearchLogs() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
 func TestSearchLogs_TruncationAndSampling(t *testing.T) {
+	type wantSamplingResult struct {
+		MatchedTLCount int
+		GroupCount     int
+		SampleLogIDs   []uint32
+	}
+
 	testCases := []struct {
-		name               string
-		modify             func(*Workbench)
-		maxTimelines       int
-		maxSampleLogs      int
-		wantMatchedTLCount int
-		wantGroupCount     int
-		wantSampleLogIDs   []uint32
+		name          string
+		modify        func(*Workbench)
+		maxTimelines  int
+		maxSampleLogs int
+		want          wantSamplingResult
 	}{
 		{
-			name:               "truncation by maxTimelines retains total count while limiting groups",
-			maxTimelines:       2,
-			maxSampleLogs:      10,
-			wantMatchedTLCount: 3,
-			wantGroupCount:     2,
-			wantSampleLogIDs:   []uint32{1, 2, 3, 4, 5},
+			name:          "truncation by maxTimelines retains total count while limiting groups",
+			maxTimelines:  2,
+			maxSampleLogs: 10,
+			want: wantSamplingResult{
+				MatchedTLCount: 3,
+				GroupCount:     2,
+				SampleLogIDs:   []uint32{1, 2, 3, 4, 5},
+			},
 		},
 		{
-			name:               "evenly spaced sampling picks first middle and last logs",
-			maxTimelines:       10,
-			maxSampleLogs:      3,
-			wantMatchedTLCount: 3,
-			wantGroupCount:     3,
-			wantSampleLogIDs:   []uint32{1, 3, 5},
+			name:          "evenly spaced sampling picks first middle and last logs",
+			maxTimelines:  10,
+			maxSampleLogs: 3,
+			want: wantSamplingResult{
+				MatchedTLCount: 3,
+				GroupCount:     3,
+				SampleLogIDs:   []uint32{1, 3, 5},
+			},
 		},
 		{
 			name: "time-based sampling avoids clustering in an initial log burst",
@@ -327,11 +339,13 @@ func TestSearchLogs_TruncationAndSampling(t *testing.T) {
 				wb.searchIndex.Logs[3].Timestamp = 3000
 				wb.searchIndex.Logs[4].Timestamp = 5000
 			},
-			maxTimelines:       10,
-			maxSampleLogs:      3,
-			wantMatchedTLCount: 3,
-			wantGroupCount:     3,
-			wantSampleLogIDs:   []uint32{1, 4, 5},
+			maxTimelines:  10,
+			maxSampleLogs: 3,
+			want: wantSamplingResult{
+				MatchedTLCount: 3,
+				GroupCount:     3,
+				SampleLogIDs:   []uint32{1, 4, 5},
+			},
 		},
 		{
 			name: "fallback to index-based sampling when all logs have identical timestamps",
@@ -340,11 +354,13 @@ func TestSearchLogs_TruncationAndSampling(t *testing.T) {
 					wb.searchIndex.Logs[i].Timestamp = 1000
 				}
 			},
-			maxTimelines:       10,
-			maxSampleLogs:      3,
-			wantMatchedTLCount: 3,
-			wantGroupCount:     3,
-			wantSampleLogIDs:   []uint32{1, 3, 5},
+			maxTimelines:  10,
+			maxSampleLogs: 3,
+			want: wantSamplingResult{
+				MatchedTLCount: 3,
+				GroupCount:     3,
+				SampleLogIDs:   []uint32{1, 3, 5},
+			},
 		},
 		{
 			name: "time-based sampling returns strictly increasing indices with duplicate timestamps",
@@ -356,27 +372,33 @@ func TestSearchLogs_TruncationAndSampling(t *testing.T) {
 				wb.searchIndex.Logs[3].Timestamp = 3000
 				wb.searchIndex.Logs[4].Timestamp = 5000
 			},
-			maxTimelines:       10,
-			maxSampleLogs:      4,
-			wantMatchedTLCount: 3,
-			wantGroupCount:     3,
-			wantSampleLogIDs:   []uint32{1, 2, 4, 5},
+			maxTimelines:  10,
+			maxSampleLogs: 4,
+			want: wantSamplingResult{
+				MatchedTLCount: 3,
+				GroupCount:     3,
+				SampleLogIDs:   []uint32{1, 2, 4, 5},
+			},
 		},
 		{
-			name:               "sampling single log picks the first log",
-			maxTimelines:       10,
-			maxSampleLogs:      1,
-			wantMatchedTLCount: 3,
-			wantGroupCount:     3,
-			wantSampleLogIDs:   []uint32{1},
+			name:          "sampling single log picks the first log",
+			maxTimelines:  10,
+			maxSampleLogs: 1,
+			want: wantSamplingResult{
+				MatchedTLCount: 3,
+				GroupCount:     3,
+				SampleLogIDs:   []uint32{1},
+			},
 		},
 		{
-			name:               "defaults used when max values are non-positive",
-			maxTimelines:       0,
-			maxSampleLogs:      -1,
-			wantMatchedTLCount: 3,
-			wantGroupCount:     3,
-			wantSampleLogIDs:   []uint32{1, 2, 3, 4, 5},
+			name:          "defaults used when max values are non-positive",
+			maxTimelines:  0,
+			maxSampleLogs: -1,
+			want: wantSamplingResult{
+				MatchedTLCount: 3,
+				GroupCount:     3,
+				SampleLogIDs:   []uint32{1, 2, 3, 4, 5},
+			},
 		},
 	}
 
@@ -390,19 +412,18 @@ func TestSearchLogs_TruncationAndSampling(t *testing.T) {
 			if err != nil {
 				t.Fatalf("SearchLogs() unexpected error = %v", err)
 			}
-			if got.MatchedTimelineCount != tc.wantMatchedTLCount {
-				t.Errorf("MatchedTimelineCount = %d, want %d", got.MatchedTimelineCount, tc.wantMatchedTLCount)
-			}
-			if len(got.TimelineGroups) != tc.wantGroupCount {
-				t.Errorf("len(TimelineGroups) = %d, want %d", len(got.TimelineGroups), tc.wantGroupCount)
-			}
 
 			var gotLogIDs []uint32
 			for _, s := range got.SampleLogs {
 				gotLogIDs = append(gotLogIDs, s.LogID)
 			}
-			if diff := cmp.Diff(tc.wantSampleLogIDs, gotLogIDs); diff != "" {
-				t.Errorf("SampleLogs IDs mismatch (-want +got):\n%s", diff)
+			gotSummary := wantSamplingResult{
+				MatchedTLCount: got.MatchedTimelineCount,
+				GroupCount:     len(got.TimelineGroups),
+				SampleLogIDs:   gotLogIDs,
+			}
+			if diff := cmp.Diff(tc.want, gotSummary); diff != "" {
+				t.Errorf("SearchLogs() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

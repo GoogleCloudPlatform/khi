@@ -57,13 +57,12 @@ func TestComputeUnifiedDiff(t *testing.T) {
 	replacedLineCount := maxMyersEditDistance/2 + 100
 	replacedOld, replacedNew, replacedHunk := fullyReplacedMiddle(replacedLineCount)
 	testCases := []struct {
-		name        string
-		oldText     string
-		newText     string
-		oldLabel    string
-		newLabel    string
-		wantText    string
-		wantChanges LineChangeCount
+		name     string
+		oldText  string
+		newText  string
+		oldLabel string
+		newLabel string
+		want     UnifiedDiff
 	}{
 		{
 			name:     "identical inputs produce an empty diff",
@@ -73,40 +72,48 @@ func TestComputeUnifiedDiff(t *testing.T) {
 			newLabel: "revision 1",
 		},
 		{
-			name:        "empty old text reports every line as added",
-			oldText:     "",
-			newText:     "a\nb\nc\n",
-			oldLabel:    "none",
-			newLabel:    "revision 0",
-			wantText:    "--- none\n+++ revision 0\n@@ -0,0 +1,3 @@\n+a\n+b\n+c\n",
-			wantChanges: LineChangeCount{Added: 3},
+			name:     "empty old text reports every line as added",
+			oldText:  "",
+			newText:  "a\nb\nc\n",
+			oldLabel: "none",
+			newLabel: "revision 0",
+			want: UnifiedDiff{
+				Text:    "--- none\n+++ revision 0\n@@ -0,0 +1,3 @@\n+a\n+b\n+c\n",
+				Changes: LineChangeCount{Added: 3},
+			},
 		},
 		{
-			name:        "empty new text reports every line as deleted",
-			oldText:     "a\nb\n",
-			newText:     "",
-			oldLabel:    "revision 0",
-			newLabel:    "revision 1",
-			wantText:    "--- revision 0\n+++ revision 1\n@@ -1,2 +0,0 @@\n-a\n-b\n",
-			wantChanges: LineChangeCount{Deleted: 2},
+			name:     "empty new text reports every line as deleted",
+			oldText:  "a\nb\n",
+			newText:  "",
+			oldLabel: "revision 0",
+			newLabel: "revision 1",
+			want: UnifiedDiff{
+				Text:    "--- revision 0\n+++ revision 1\n@@ -1,2 +0,0 @@\n-a\n-b\n",
+				Changes: LineChangeCount{Deleted: 2},
+			},
 		},
 		{
-			name:        "single line ranges omit the count",
-			oldText:     "a\n",
-			newText:     "b\n",
-			oldLabel:    "revision 0",
-			newLabel:    "revision 1",
-			wantText:    "--- revision 0\n+++ revision 1\n@@ -1 +1 @@\n-a\n+b\n",
-			wantChanges: LineChangeCount{Added: 1, Deleted: 1},
+			name:     "single line ranges omit the count",
+			oldText:  "a\n",
+			newText:  "b\n",
+			oldLabel: "revision 0",
+			newLabel: "revision 1",
+			want: UnifiedDiff{
+				Text:    "--- revision 0\n+++ revision 1\n@@ -1 +1 @@\n-a\n+b\n",
+				Changes: LineChangeCount{Added: 1, Deleted: 1},
+			},
 		},
 		{
-			name:        "missing trailing newline is treated like a terminated last line",
-			oldText:     "a\nb",
-			newText:     "a\nb\nc\n",
-			oldLabel:    "revision 0",
-			newLabel:    "revision 1",
-			wantText:    "--- revision 0\n+++ revision 1\n@@ -1,2 +1,3 @@\n a\n b\n+c\n",
-			wantChanges: LineChangeCount{Added: 1},
+			name:     "missing trailing newline is treated like a terminated last line",
+			oldText:  "a\nb",
+			newText:  "a\nb\nc\n",
+			oldLabel: "revision 0",
+			newLabel: "revision 1",
+			want: UnifiedDiff{
+				Text:    "--- revision 0\n+++ revision 1\n@@ -1,2 +1,3 @@\n a\n b\n+c\n",
+				Changes: LineChangeCount{Added: 1},
+			},
 		},
 		{
 			name:     "change in the middle shows three context lines on each side",
@@ -114,9 +121,11 @@ func TestComputeUnifiedDiff(t *testing.T) {
 			newText:  numberedLines("l", 10, map[int]string{5: "changed"}),
 			oldLabel: "revision 0",
 			newLabel: "revision 1",
-			wantText: "--- revision 0\n+++ revision 1\n@@ -2,7 +2,7 @@\n" +
-				" lxx\n lxxx\n lxxxx\n-lxxxxx\n+changed\n lxxxxxx\n lxxxxxxx\n lxxxxxxxx\n",
-			wantChanges: LineChangeCount{Added: 1, Deleted: 1},
+			want: UnifiedDiff{
+				Text: "--- revision 0\n+++ revision 1\n@@ -2,7 +2,7 @@\n" +
+					" lxx\n lxxx\n lxxxx\n-lxxxxx\n+changed\n lxxxxxx\n lxxxxxxx\n lxxxxxxxx\n",
+				Changes: LineChangeCount{Added: 1, Deleted: 1},
+			},
 		},
 		{
 			name:     "changes separated by exactly six unchanged lines share one hunk",
@@ -124,9 +133,11 @@ func TestComputeUnifiedDiff(t *testing.T) {
 			newText:  numberedLines("l", 9, map[int]string{1: "A", 8: "B"}),
 			oldLabel: "revision 0",
 			newLabel: "revision 1",
-			wantText: "--- revision 0\n+++ revision 1\n@@ -1,9 +1,9 @@\n" +
-				"-lx\n+A\n lxx\n lxxx\n lxxxx\n lxxxxx\n lxxxxxx\n lxxxxxxx\n-lxxxxxxxx\n+B\n lxxxxxxxxx\n",
-			wantChanges: LineChangeCount{Added: 2, Deleted: 2},
+			want: UnifiedDiff{
+				Text: "--- revision 0\n+++ revision 1\n@@ -1,9 +1,9 @@\n" +
+					"-lx\n+A\n lxx\n lxxx\n lxxxx\n lxxxxx\n lxxxxxx\n lxxxxxxx\n-lxxxxxxxx\n+B\n lxxxxxxxxx\n",
+				Changes: LineChangeCount{Added: 2, Deleted: 2},
+			},
 		},
 		{
 			name:     "changes separated by exactly seven unchanged lines produce separate hunks",
@@ -134,40 +145,41 @@ func TestComputeUnifiedDiff(t *testing.T) {
 			newText:  numberedLines("l", 12, map[int]string{1: "A", 9: "B"}),
 			oldLabel: "revision 0",
 			newLabel: "revision 1",
-			wantText: "--- revision 0\n+++ revision 1\n" +
-				"@@ -1,4 +1,4 @@\n-lx\n+A\n lxx\n lxxx\n lxxxx\n" +
-				"@@ -6,7 +6,7 @@\n" +
-				" l" + strings.Repeat("x", 6) + "\n" +
-				" l" + strings.Repeat("x", 7) + "\n" +
-				" l" + strings.Repeat("x", 8) + "\n" +
-				"-l" + strings.Repeat("x", 9) + "\n" +
-				"+B\n" +
-				" l" + strings.Repeat("x", 10) + "\n" +
-				" l" + strings.Repeat("x", 11) + "\n" +
-				" l" + strings.Repeat("x", 12) + "\n",
-			wantChanges: LineChangeCount{Added: 2, Deleted: 2},
+			want: UnifiedDiff{
+				Text: "--- revision 0\n+++ revision 1\n" +
+					"@@ -1,4 +1,4 @@\n-lx\n+A\n lxx\n lxxx\n lxxxx\n" +
+					"@@ -6,7 +6,7 @@\n" +
+					" l" + strings.Repeat("x", 6) + "\n" +
+					" l" + strings.Repeat("x", 7) + "\n" +
+					" l" + strings.Repeat("x", 8) + "\n" +
+					"-l" + strings.Repeat("x", 9) + "\n" +
+					"+B\n" +
+					" l" + strings.Repeat("x", 10) + "\n" +
+					" l" + strings.Repeat("x", 11) + "\n" +
+					" l" + strings.Repeat("x", 12) + "\n",
+				Changes: LineChangeCount{Added: 2, Deleted: 2},
+			},
 		},
 		{
-			name:        "edit distance beyond maxMyersEditDistance reports the differing middle as a full replacement",
-			oldText:     replacedOld,
-			newText:     replacedNew,
-			oldLabel:    "revision 0",
-			newLabel:    "revision 1",
-			wantText:    "--- revision 0\n+++ revision 1\n" + replacedHunk,
-			wantChanges: LineChangeCount{Added: replacedLineCount, Deleted: replacedLineCount},
+			name:     "edit distance beyond maxMyersEditDistance reports the differing middle as a full replacement",
+			oldText:  replacedOld,
+			newText:  replacedNew,
+			oldLabel: "revision 0",
+			newLabel: "revision 1",
+			want: UnifiedDiff{
+				Text:    "--- revision 0\n+++ revision 1\n" + replacedHunk,
+				Changes: LineChangeCount{Added: replacedLineCount, Deleted: replacedLineCount},
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := computeUnifiedDiff(tc.oldText, tc.newText, tc.oldLabel, tc.newLabel)
-			if diff := cmp.Diff(tc.wantText, got.Text); diff != "" {
-				t.Errorf("computeUnifiedDiff() text mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("computeUnifiedDiff() mismatch (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantChanges, got.Changes); diff != "" {
-				t.Errorf("computeUnifiedDiff() changes mismatch (-want +got):\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.wantChanges, countLineChanges(tc.oldText, tc.newText)); diff != "" {
+			if diff := cmp.Diff(tc.want.Changes, countLineChanges(tc.oldText, tc.newText)); diff != "" {
 				t.Errorf("countLineChanges() mismatch (-want +got):\n%s", diff)
 			}
 		})

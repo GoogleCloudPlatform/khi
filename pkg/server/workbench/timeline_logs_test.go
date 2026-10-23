@@ -251,6 +251,11 @@ func TestGetTimelineLogs(t *testing.T) {
 }
 
 func TestGetTimelineLogs_OtherTimelinesLimit(t *testing.T) {
+	type wantOtherTimelines struct {
+		TotalCount int
+		IDs        []uint32
+	}
+
 	// Timeline 4 shares 2 matched logs; timeline 3 and every extra timeline share 1, so ties are ordered by ID.
 	wantKeptIDs := []uint32{4, 3}
 	for id := uint32(100); id <= 117; id++ {
@@ -258,22 +263,25 @@ func TestGetTimelineLogs_OtherTimelinesLimit(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name                    string
-		extraTimelineCount      int
-		wantTotalOtherTimelines int
-		wantOtherTimelineIDs    []uint32
+		name               string
+		extraTimelineCount int
+		want               wantOtherTimelines
 	}{
 		{
-			name:                    "keeps all other timelines at the limit",
-			extraTimelineCount:      18,
-			wantTotalOtherTimelines: 20,
-			wantOtherTimelineIDs:    wantKeptIDs,
+			name:               "keeps all other timelines at the limit",
+			extraTimelineCount: 18,
+			want: wantOtherTimelines{
+				TotalCount: 20,
+				IDs:        wantKeptIDs,
+			},
 		},
 		{
-			name:                    "keeps timelines with the most matched logs and the smallest IDs when exceeding the limit",
-			extraTimelineCount:      21,
-			wantTotalOtherTimelines: 23,
-			wantOtherTimelineIDs:    wantKeptIDs,
+			name:               "keeps timelines with the most matched logs and the smallest IDs when exceeding the limit",
+			extraTimelineCount: 21,
+			want: wantOtherTimelines{
+				TotalCount: 23,
+				IDs:        wantKeptIDs,
+			},
 		},
 	}
 
@@ -286,15 +294,16 @@ func TestGetTimelineLogs_OtherTimelinesLimit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("GetTimelineLogs() unexpected error = %v", err)
 			}
-			if got.TotalOtherTimelineCount != tc.wantTotalOtherTimelines {
-				t.Errorf("TotalOtherTimelineCount = %d, want %d", got.TotalOtherTimelineCount, tc.wantTotalOtherTimelines)
-			}
 			var gotIDs []uint32
 			for _, other := range got.OtherTimelines {
 				gotIDs = append(gotIDs, other.TimelineID)
 			}
-			if diff := cmp.Diff(tc.wantOtherTimelineIDs, gotIDs); diff != "" {
-				t.Errorf("OtherTimelines IDs mismatch (-want +got):\n%s", diff)
+			gotOther := wantOtherTimelines{
+				TotalCount: got.TotalOtherTimelineCount,
+				IDs:        gotIDs,
+			}
+			if diff := cmp.Diff(tc.want, gotOther); diff != "" {
+				t.Errorf("GetTimelineLogs() other timelines mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

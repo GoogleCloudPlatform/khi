@@ -42,17 +42,20 @@ var testHeaderMetadataChunks = []*khifilev6.MetadataChunk{
 }
 
 func TestFormatTimelinePathAndBuildTimelineQuery(t *testing.T) {
+	type wantResult struct {
+		Path  string
+		Query string
+	}
+
 	testCases := []struct {
-		name      string
-		segments  []TimelineSegment
-		wantPath  string
-		wantQuery string
+		name     string
+		segments []TimelineSegment
+		want     wantResult
 	}{
 		{
-			name:      "empty segments",
-			segments:  nil,
-			wantPath:  "",
-			wantQuery: "",
+			name:     "empty segments",
+			segments: nil,
+			want:     wantResult{},
 		},
 		{
 			name: "hierarchy with cluster namespace pod",
@@ -62,8 +65,10 @@ func TestFormatTimelinePathAndBuildTimelineQuery(t *testing.T) {
 				{Type: "Namespace", Name: "kube-system"},
 				{Type: "Resource", Name: "coredns-123"},
 			},
-			wantPath:  "[APIVersion] core/v1 > [Kind] pod > [Namespace] kube-system > [Resource] coredns-123",
-			wantQuery: `path["apiversion"] == "core/v1" && path["kind"] == "pod" && path["namespace"] == "kube-system" && path["resource"] == "coredns-123"`,
+			want: wantResult{
+				Path:  "[APIVersion] core/v1 > [Kind] pod > [Namespace] kube-system > [Resource] coredns-123",
+				Query: `path["apiversion"] == "core/v1" && path["kind"] == "pod" && path["namespace"] == "kube-system" && path["resource"] == "coredns-123"`,
+			},
 		},
 		{
 			name: "hyphenated timeline type uses bracket syntax",
@@ -71,33 +76,35 @@ func TestFormatTimelinePathAndBuildTimelineQuery(t *testing.T) {
 				{Type: "Namespace", Name: "kube-system"},
 				{Type: "node-component", Name: "kubelet"},
 			},
-			wantPath:  "[Namespace] kube-system > [node-component] kubelet",
-			wantQuery: `path["namespace"] == "kube-system" && path["node-component"] == "kubelet"`,
+			want: wantResult{
+				Path:  "[Namespace] kube-system > [node-component] kubelet",
+				Query: `path["namespace"] == "kube-system" && path["node-component"] == "kubelet"`,
+			},
 		},
 		{
 			name: "escaping quotes and backslashes in type and value",
 			segments: []TimelineSegment{
 				{Type: `custom"type\name`, Name: `pod"s\name`},
 			},
-			wantPath:  `[custom"type\name] pod"s\name`,
-			wantQuery: `path["custom\"type\\name"] == "pod\"s\\name"`,
+			want: wantResult{
+				Path:  `[custom"type\name] pod"s\name`,
+				Query: `path["custom\"type\\name"] == "pod\"s\\name"`,
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotPath := FormatTimelinePath(tc.segments)
-			if gotPath != tc.wantPath {
-				t.Errorf("FormatTimelinePath() = %q, want %q", gotPath, tc.wantPath)
+			got := wantResult{
+				Path:  FormatTimelinePath(tc.segments),
+				Query: BuildTimelineQuery(tc.segments),
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("FormatTimelinePath/BuildTimelineQuery mismatch (-want +got):\n%s", diff)
 			}
 
-			gotQuery := BuildTimelineQuery(tc.segments)
-			if gotQuery != tc.wantQuery {
-				t.Errorf("BuildTimelineQuery() = %q, want %q", gotQuery, tc.wantQuery)
-			}
-
-			if err := cel.ValidateTimelineQuery(gotQuery); err != nil {
-				t.Errorf("ValidateTimelineQuery(%q) unexpected error: %v", gotQuery, err)
+			if err := cel.ValidateTimelineQuery(got.Query); err != nil {
+				t.Errorf("ValidateTimelineQuery(%q) unexpected error: %v", got.Query, err)
 			}
 		})
 	}
@@ -154,23 +161,31 @@ func TestTimelineSegments(t *testing.T) {
 }
 
 func TestInspectionTimeRange(t *testing.T) {
+	type wantTimeRange struct {
+		Start time.Time
+		End   time.Time
+	}
+
 	testCases := []struct {
 		name           string
 		metadataChunks []*khifilev6.MetadataChunk
-		wantStart      time.Time
-		wantEnd        time.Time
+		want           wantTimeRange
 	}{
 		{
 			name:           "from HeaderMetadata",
 			metadataChunks: testHeaderMetadataChunks,
-			wantStart:      time.Unix(1700000000, 0).UTC(),
-			wantEnd:        time.Unix(1700003600, 0).UTC(),
+			want: wantTimeRange{
+				Start: time.Unix(1700000000, 0).UTC(),
+				End:   time.Unix(1700003600, 0).UTC(),
+			},
 		},
 		{
 			name:           "fallback to indexed timestamps",
 			metadataChunks: nil,
-			wantStart:      time.Unix(0, 1000).UTC(),
-			wantEnd:        time.Unix(0, 3000).UTC(),
+			want: wantTimeRange{
+				Start: time.Unix(0, 1000).UTC(),
+				End:   time.Unix(0, 3000).UTC(),
+			},
 		},
 	}
 
@@ -179,11 +194,9 @@ func TestInspectionTimeRange(t *testing.T) {
 			wb := createSampleWorkbench()
 			wb.metadataChunks = tc.metadataChunks
 			start, end := wb.InspectionTimeRange()
-			if !start.Equal(tc.wantStart) {
-				t.Errorf("start time = %v, want %v", start, tc.wantStart)
-			}
-			if !end.Equal(tc.wantEnd) {
-				t.Errorf("end time = %v, want %v", end, tc.wantEnd)
+			got := wantTimeRange{Start: start, End: end}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("InspectionTimeRange() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -295,43 +308,55 @@ func TestValidateFilter(t *testing.T) {
 }
 
 func TestExecuteFilter(t *testing.T) {
+	type wantFilterOutput struct {
+		TimelineIDs []uint32
+		LogIDs      []uint32
+	}
+
 	testCases := []struct {
-		name            string
-		filter          Filter
-		modify          func(*Workbench)
-		wantTimelineIDs []uint32
-		wantLogIDs      []uint32
-		wantErr         bool
-		wantErrTarget   error
+		name          string
+		filter        Filter
+		modify        func(*Workbench)
+		want          wantFilterOutput
+		wantErr       bool
+		wantErrTarget error
 	}{
 		{
-			name:            "empty filter matches all timelines and logs",
-			wantTimelineIDs: []uint32{1, 2, 3, 4},
-			wantLogIDs:      []uint32{1, 2, 3},
+			name: "empty filter matches all timelines and logs",
+			want: wantFilterOutput{
+				TimelineIDs: []uint32{1, 2, 3, 4},
+				LogIDs:      []uint32{1, 2, 3},
+			},
 		},
 		{
 			name: "timeline include query keeps matched timeline and ancestors",
 			filter: Filter{
 				TimelineQuery: "name == 'pod-a'",
 			},
-			wantTimelineIDs: []uint32{1, 2},
-			wantLogIDs:      []uint32{1, 2},
+			want: wantFilterOutput{
+				TimelineIDs: []uint32{1, 2},
+				LogIDs:      []uint32{1, 2},
+			},
 		},
 		{
 			name: "timeline exclusion query removes excluded subtree",
 			filter: Filter{
 				TimelineExclusionQuery: "name == 'pod-a'",
 			},
-			wantTimelineIDs: []uint32{1, 3, 4},
-			wantLogIDs:      []uint32{3},
+			want: wantFilterOutput{
+				TimelineIDs: []uint32{1, 3, 4},
+				LogIDs:      []uint32{3},
+			},
 		},
 		{
 			name: "log query with default exclude timelines without logs",
 			filter: Filter{
 				LogQuery: "severity >= ERROR",
 			},
-			wantTimelineIDs: []uint32{1, 2},
-			wantLogIDs:      []uint32{2},
+			want: wantFilterOutput{
+				TimelineIDs: []uint32{1, 2},
+				LogIDs:      []uint32{2},
+			},
 		},
 		{
 			name: "invalid log query returns validation error",
@@ -368,11 +393,12 @@ func TestExecuteFilter(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(tc.wantTimelineIDs, out.TimelineIDs.ToArray()); diff != "" {
-				t.Errorf("ExecuteFilter() timeline IDs mismatch (-want +got):\n%s", diff)
+			got := wantFilterOutput{
+				TimelineIDs: out.TimelineIDs.ToArray(),
+				LogIDs:      out.LogIDs.ToArray(),
 			}
-			if diff := cmp.Diff(tc.wantLogIDs, out.LogIDs.ToArray()); diff != "" {
-				t.Errorf("ExecuteFilter() log IDs mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExecuteFilter() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
