@@ -61,6 +61,7 @@ func TestValidateAndExtractMetadata(t *testing.T) {
 		wantInspectionName string
 		wantInspectionType string
 		wantQueryCount     int
+		wantVocabulary     *inspectionmetadata.FilterVocabulary
 		wantErr            bool
 	}{
 		{
@@ -88,12 +89,52 @@ func TestValidateAndExtractMetadata(t *testing.T) {
 							},
 						},
 					},
+					{
+						Payload: &pb.MetadataItem_FilterVocabulary{
+							FilterVocabulary: &pb.FilterVocabularyMetadata{
+								TimelineTypes: []*pb.TimelineTypeVocabulary{
+									{
+										Label:        proto.String("kind"),
+										NameCount:    proto.Uint32(2),
+										ExampleNames: []string{"node", "pod"},
+									},
+								},
+								LogTypes: []string{"k8s_audit"},
+							},
+						},
+					},
 				}
 				return createTestKHIFile(t, dir, items)
 			},
 			wantInspectionName: "Cluster-Alpha",
 			wantInspectionType: "gcp-gke",
 			wantQueryCount:     1,
+			wantVocabulary: &inspectionmetadata.FilterVocabulary{
+				TimelineTypes: []inspectionmetadata.TimelineTypeVocabulary{
+					{Label: "kind", NameCount: 2, ExampleNames: []string{"node", "pod"}},
+				},
+				LogTypes: []string{"k8s_audit"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid KHI file without filter vocabulary leaves key unset",
+			setupFile: func(t *testing.T, dir string) string {
+				items := []*pb.MetadataItem{
+					{
+						Payload: &pb.MetadataItem_Header{
+							Header: &pb.HeaderMetadata{
+								InspectionName: proto.String("Legacy-Cluster"),
+								InspectionType: proto.String("gcp-gke"),
+							},
+						},
+					},
+				}
+				return createTestKHIFile(t, dir, items)
+			},
+			wantInspectionName: "Legacy-Cluster",
+			wantInspectionType: "gcp-gke",
+			wantVocabulary:     nil,
 			wantErr:            false,
 		},
 		{
@@ -157,6 +198,19 @@ func TestValidateAndExtractMetadata(t *testing.T) {
 				t.Errorf("expected ProgressMetadata to be present")
 			} else if snap := progressMetadata.Snapshot(); snap.Phase != inspectionmetadata.TaskPhaseDone {
 				t.Errorf("progress phase mismatch: got %v, want %v", snap.Phase, inspectionmetadata.TaskPhaseDone)
+			}
+
+			vocabMetadata, found := typedmap.Get(metadataMap, inspectionmetadata.FilterVocabularyMetadataKey)
+			if tc.wantVocabulary == nil {
+				if found {
+					t.Errorf("expected FilterVocabularyMetadataKey to be absent, got %+v", vocabMetadata.Get())
+				}
+			} else {
+				if !found {
+					t.Errorf("expected FilterVocabularyMetadataKey to be present")
+				} else if diff := cmp.Diff(*tc.wantVocabulary, vocabMetadata.Get()); diff != "" {
+					t.Errorf("FilterVocabularyMetadata mismatch (-want +got):\n%s", diff)
+				}
 			}
 		})
 	}

@@ -99,6 +99,33 @@ func TestMetadataAccumulator(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "filter vocabulary metadata is mapped to FilterVocabularyMetadata proto",
+			setupInput: func() inspectionmetadata.Metadata {
+				m := inspectionmetadata.NewFilterVocabularyMetadata()
+				m.Set(inspectionmetadata.FilterVocabulary{
+					TimelineTypes: []inspectionmetadata.TimelineTypeVocabulary{
+						{Label: "kind", NameCount: 3, ExampleNames: []string{"node", "pod"}},
+					},
+					LogTypes: []string{"k8s_audit", "k8s_event"},
+				})
+				return m
+			},
+			wantResult: &pb.MetadataItem{
+				Payload: &pb.MetadataItem_FilterVocabulary{
+					FilterVocabulary: &pb.FilterVocabularyMetadata{
+						TimelineTypes: []*pb.TimelineTypeVocabulary{
+							{
+								Label:        proto.String("kind"),
+								NameCount:    proto.Uint32(3),
+								ExampleNames: []string{"node", "pod"},
+							},
+						},
+						LogTypes: []string{"k8s_audit", "k8s_event"},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

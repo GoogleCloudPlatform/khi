@@ -23,6 +23,7 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -351,5 +352,61 @@ func TestLogAccumulator_StreamingSplit(t *testing.T) {
 
 	if chunkCount < 2 {
 		t.Errorf("expected at least 2 log chunks due to streaming split, got %d", chunkCount)
+	}
+}
+
+func TestLogAccumulator_LogTypes(t *testing.T) {
+	node := structured.NewStandardMap(
+		[]string{"msg"},
+		[]structured.Node{structured.NewStandardScalarNode("hello")},
+	)
+	sev := &pb.Severity{Id: proto.Uint32(1)}
+
+	testCases := []struct {
+		name     string
+		logTypes []*pb.LogType
+		want     []string
+	}{
+		{
+			name:     "empty accumulator",
+			logTypes: nil,
+			want:     nil,
+		},
+		{
+			name: "deduplicates and sorts labels alphabetically while ignoring empty labels",
+			logTypes: []*pb.LogType{
+				{Id: proto.Uint32(2), Label: proto.String("k8s_event")},
+				{Id: proto.Uint32(1), Label: proto.String("k8s_audit")},
+				{Id: proto.Uint32(2), Label: proto.String("k8s_event")},
+				{Id: proto.Uint32(3), Label: proto.String("")},
+			},
+			want: []string{"k8s_audit", "k8s_event"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			idGen := id.NewGenerator()
+			pool := NewTestInternPool(idGen)
+			serverPool := NewTestServerInternPool(pool, idGen)
+			acc := NewTestLogAccumulator(pool, serverPool, idGen)
+
+			for _, lt := range tc.logTypes {
+				err := acc.AddLog(&StagingLog{
+					Log:       log.NewLog(idGen, structured.NewNodeReader(node)),
+					Summary:   "s",
+					Timestamp: time.Now(),
+					Severity:  sev,
+					LogType:   lt,
+				})
+				if err != nil {
+					t.Fatalf("AddLog() error = %v", err)
+				}
+			}
+
+			if diff := cmp.Diff(tc.want, acc.LogTypes()); diff != "" {
+				t.Errorf("LogTypes() mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

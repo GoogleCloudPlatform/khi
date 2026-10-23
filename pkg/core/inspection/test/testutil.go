@@ -136,6 +136,7 @@ func generateTestMetadata() (*typedmap.TypedMap, *typedmap.ReadonlyTypedMap) {
 	typedmap.Set(writableMetadata, inspectionmetadata.ErrorMessageSetMetadataKey, inspectionmetadata.NewErrorMessageSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
+	typedmap.Set(writableMetadata, inspectionmetadata.FilterVocabularyMetadataKey, inspectionmetadata.NewFilterVocabularyMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.ProgressMetadataKey, inspectionmetadata.NewProgress())
 	typedmap.Set(writableMetadata, summary.MetadataKey, newTestSummaryCollector())
 	return writableMetadata, writableMetadata.AsReadonly()

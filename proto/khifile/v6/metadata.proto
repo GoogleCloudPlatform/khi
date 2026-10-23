@@ -33,6 +33,8 @@ message MetadataItem {
     HeaderMetadata header = 1;
     // Queries that were executed to generate the inspection data.
     QueryMetadata query = 2;
+    // Values that filter CEL can match in this inspection.
+    FilterVocabularyMetadata filter_vocabulary = 3;
   }
 }
 
@@ -70,4 +72,23 @@ message QueryItem {
 message QueryMetadata {
   // The list of queries executed.
   repeated QueryItem queries = 1;
+}
+
+// FilterVocabularyMetadata lists the values that filter CEL can match in this inspection.
+message FilterVocabularyMetadata {
+  // Timeline types in the inspection, ordered by their sort priority.
+  repeated TimelineTypeVocabulary timeline_types = 1;
+  // Labels of the log types in the inspection, sorted alphabetically.
+  repeated string log_types = 2;
+}
+
+// TimelineTypeVocabulary summarizes the timeline names of one timeline type.
+// Timeline filters match these names with path.<lowercased label>.
+message TimelineTypeVocabulary {
+  // The label of the timeline type.
+  string label = 1;
+  // The number of distinct timeline names of this type.
+  uint32 name_count = 2;
+  // A bounded number of example names: prioritized names of the type first, then alphabetical.
+  repeated string example_names = 3;
 }

@@ -16,6 +16,7 @@ package khifilev6
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -59,6 +60,8 @@ func (a *MetadataAccumulator) AddMetadata(m inspectionmetadata.Metadata) error {
 		item = toHeaderMetadataItem(v)
 	case []*inspectionmetadata.QueryItem:
 		item = toQueryMetadataItem(v)
+	case inspectionmetadata.FilterVocabulary:
+		item = toFilterVocabularyMetadataItem(v)
 	default:
 		return fmt.Errorf("unknown metadata type: %T", v)
 	}
@@ -100,6 +103,25 @@ func toQueryMetadataItem(v []*inspectionmetadata.QueryItem) *pb.MetadataItem {
 		Payload: &pb.MetadataItem_Query{
 			Query: &pb.QueryMetadata{
 				Queries: queries,
+			},
+		},
+	}
+}
+
+func toFilterVocabularyMetadataItem(v inspectionmetadata.FilterVocabulary) *pb.MetadataItem {
+	timelineTypes := make([]*pb.TimelineTypeVocabulary, len(v.TimelineTypes))
+	for i, tt := range v.TimelineTypes {
+		timelineTypes[i] = &pb.TimelineTypeVocabulary{
+			Label:        proto.String(tt.Label),
+			NameCount:    proto.Uint32(uint32(tt.NameCount)),
+			ExampleNames: slices.Clone(tt.ExampleNames),
+		}
+	}
+	return &pb.MetadataItem{
+		Payload: &pb.MetadataItem_FilterVocabulary{
+			FilterVocabulary: &pb.FilterVocabularyMetadata{
+				TimelineTypes: timelineTypes,
+				LogTypes:      slices.Clone(v.LogTypes),
 			},
 		},
 	}

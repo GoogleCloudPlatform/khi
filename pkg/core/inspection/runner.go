@@ -660,6 +660,7 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	typedmap.Set(writableMetadata, inspectionmetadata.ErrorMessageSetMetadataKey, inspectionmetadata.NewErrorMessageSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
+	typedmap.Set(writableMetadata, inspectionmetadata.FilterVocabularyMetadataKey, inspectionmetadata.NewFilterVocabularyMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.LogMetadataKey, inspectionmetadata.NewLogMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.JobModeCommandMetadataKey, inspectionmetadata.NewJobModeCommandMetadata(""))
 
