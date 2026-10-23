@@ -16,6 +16,7 @@
 
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { TimelineFrameComponent } from 'src/app/timeline/components/timeline-frame.component';
 import { Timeline, Event } from 'src/app/store/domain/timeline';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
@@ -32,6 +33,7 @@ import {
   generateDefaultRulerStyle,
 } from 'src/app/timeline/components/style-model';
 import { TimeRangeFilter } from 'src/app/services/view-state.service';
+import { GLContextManager } from './canvas/glcontextmanager';
 import { TimelineChartComponent } from './timeline-chart.component';
 import { TimelineRulerComponent } from './timeline-ruler.component';
 
@@ -104,7 +106,6 @@ class MockLog extends Log {
 @Component({
   selector: 'khi-testing-timeline-frame',
   standalone: true,
-  imports: [TimelineFrameComponent],
   template: '',
 })
 class TestingTimelineFrameComponent extends TimelineFrameComponent {
@@ -240,6 +241,8 @@ describe('TimelineFrameComponent - time range selection', () => {
   let frameComponent: TimelineFrameComponent;
 
   beforeEach(async () => {
+    spyOn(GLContextManager.prototype, 'setup').and.resolveTo();
+    spyOn(GLContextManager.prototype, 'dispose').and.stub();
     spyOn(TimelineChartComponent.prototype, 'ngAfterViewInit').and.stub();
     spyOn(TimelineRulerComponent.prototype, 'ngAfterViewInit').and.stub();
     TestBed.configureTestingModule({
@@ -370,6 +373,12 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(clearedEmitted).toBeTrue();
   });
 
+  function queryCharts(): TimelineChartComponent[] {
+    return frameFixture.debugElement
+      .queryAll(By.directive(TimelineChartComponent))
+      .map((el) => el.componentInstance as TimelineChartComponent);
+  }
+
   it('should hide legend and resizer handle when showLegend and showResizerHandle are false', () => {
     expect(frameFixture.nativeElement.querySelector('.legend')).not.toBeNull();
     expect(
@@ -384,44 +393,37 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(frameFixture.nativeElement.querySelector('.gutter-hint')).toBeNull();
   });
 
-  it('should report readyToRender true only when all child timeline charts are ready', () => {
-    const chartDebugEls = frameFixture.debugElement.queryAll(
-      (el) => el.componentInstance instanceof TimelineChartComponent,
-    );
-    expect(chartDebugEls.length).toBeGreaterThan(0);
-    expect(frameComponent.readyToRender()).toBeFalse();
+  it('should compute readyToRender only when all child charts are ready', () => {
+    const charts = queryCharts();
+    for (const tc of [
+      { ready: [false, false], want: false },
+      { ready: [true, false], want: false },
+      { ready: [true, true], want: true },
+    ]) {
+      expect(charts.length).toBe(tc.ready.length);
+      charts.forEach((chart, i) => chart.readyToRender.set(tc.ready[i]));
+      frameFixture.detectChanges();
 
-    for (const chartEl of chartDebugEls) {
-      (chartEl.componentInstance as TimelineChartComponent).readyToRender.set(
-        true,
-      );
+      expect(frameComponent.readyToRender()).toBe(tc.want);
     }
-    frameFixture.detectChanges();
-
-    expect(frameComponent.readyToRender()).toBeTrue();
   });
 
-  it('should synchronize container scroll position and invalidate child charts in syncViewportAndInvalidate', () => {
-    frameFixture.componentRef.setInput('minQueryLogTimeMS', 1000);
-    frameFixture.componentRef.setInput('maxQueryLogTimeMS', 5000);
-    frameFixture.componentRef.setInput('horizontalOverdrawInPx', 300);
-    frameFixture.detectChanges();
-
-    const chartDebugEls = frameFixture.debugElement.queryAll(
-      (el) => el.componentInstance instanceof TimelineChartComponent,
-    );
-    for (const chartEl of chartDebugEls) {
-      (chartEl.componentInstance as TimelineChartComponent).invalidate = false;
-    }
+  it('should update viewport models and invalidate all child charts in syncViewportAndInvalidate', () => {
+    const charts = queryCharts();
+    charts.forEach((chart) => {
+      chart.invalidate = false;
+    });
 
     frameComponent.syncViewportAndInvalidate(2000, 2);
 
-    expect(frameComponent.viewportLeftTimeMS()).toBe(2000);
-    expect(frameComponent.pixelsPerMs()).toBe(2);
-    for (const chartEl of chartDebugEls) {
-      expect(
-        (chartEl.componentInstance as TimelineChartComponent).invalidate,
-      ).toBeTrue();
-    }
+    expect({
+      viewportLeftTimeMS: frameComponent.viewportLeftTimeMS(),
+      pixelsPerMs: frameComponent.pixelsPerMs(),
+      invalidated: charts.map((chart) => chart.invalidate),
+    }).toEqual({
+      viewportLeftTimeMS: 2000,
+      pixelsPerMs: 2,
+      invalidated: charts.map(() => true),
+    });
   });
 });

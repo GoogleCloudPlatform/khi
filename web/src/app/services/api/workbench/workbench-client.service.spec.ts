@@ -995,13 +995,18 @@ describe('WorkbenchClientService', () => {
       ).and.returnValue(mockOpenWorkbenchReady('wb-1'));
       await service.openWorkbench('session-1', 'insp-1');
 
+      const notFoundErr = new ConnectError(
+        'workbench not found',
+        Code.NotFound,
+      );
       (
         mockConnectClient.workbenchClient.getArchitectureGraph as jasmine.Spy
-      ).and.returnValue(
-        Promise.reject(new ConnectError('workbench not found', Code.NotFound)),
-      );
+      ).and.returnValue(Promise.reject(notFoundErr));
+      expect(service.isWorkbenchExpired()).toBeFalse();
 
-      await expectAsync(service.getArchitectureGraph(1000n)).toBeRejected();
+      await expectAsync(service.getArchitectureGraph(1000n)).toBeRejectedWith(
+        notFoundErr,
+      );
       expect(service.isWorkbenchExpired()).toBeTrue();
     });
   });
