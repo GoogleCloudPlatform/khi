@@ -40,6 +40,7 @@ func TestMCPServerInitializer(t *testing.T) {
 		jobMode        bool
 		withCDPBrowser bool
 		basePath       string
+		wantMCP        bool
 		wantRenderTool bool
 		wantNotFound   []string
 	}{
@@ -50,11 +51,13 @@ func TestMCPServerInitializer(t *testing.T) {
 		{
 			name:     "mounts endpoints without render_timelines when CDPBrowserKey is absent",
 			basePath: "",
+			wantMCP:  true,
 		},
 		{
 			name:           "mounts endpoints with render_timelines when CDPBrowserKey is present",
 			withCDPBrowser: true,
 			basePath:       "/khi-base",
+			wantMCP:        true,
 			wantRenderTool: true,
 			wantNotFound: []string{
 				"/mcp",
@@ -105,13 +108,12 @@ func TestMCPServerInitializer(t *testing.T) {
 				t.Fatalf("MCPServerInitializer.Init() failed: %v", err)
 			}
 
-			wantMounted := !tc.jobMode
 			_, found := coreinit.Get(ctx, MCPServerKey)
-			if found != wantMounted {
-				t.Errorf("coreinit.Get(MCPServerKey) found = %v, want %v", found, wantMounted)
+			if found != tc.wantMCP {
+				t.Errorf("coreinit.Get(MCPServerKey) found = %v, want %v", found, tc.wantMCP)
 			}
 
-			if !wantMounted {
+			if !tc.wantMCP {
 				return
 			}
 
