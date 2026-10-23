@@ -41,8 +41,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/inspectionserver"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/net/websocket"
 )
 
@@ -52,14 +54,8 @@ type mockCDPRequest struct {
 	Params map[string]any `json:"params,omitempty"`
 }
 
-func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
-	wantPNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03, 0x04}
-	encodedPNG := base64.StdEncoding.EncodeToString(wantPNG)
-
-	var navigatedURLs []string
-	var viewportWidths []float64
-	var viewportHeights []float64
-
+func newMockCDPRenderer(t *testing.T, respond func(req mockCDPRequest) (resp map[string]any, keepOpen bool)) *ChromeTimelineImageRenderer {
+	t.Helper()
 	wsServer := httptest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
 		for {
 			var raw string
@@ -70,76 +66,85 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 			if err := json.Unmarshal([]byte(raw), &req); err != nil {
 				return
 			}
-
-			var result any
-			switch req.Method {
-			case "Page.enable", "Runtime.enable":
-				result = map[string]any{}
-			case "Page.navigate":
-				if u, ok := req.Params["url"].(string); ok {
-					navigatedURLs = append(navigatedURLs, u)
-				}
-				result = map[string]any{"frameId": "frame-1"}
-			case "Runtime.evaluate":
-				expr, _ := req.Params["expression"].(string)
-				switch {
-				case strings.Contains(expr, "typeof window.__khiCDPBridge?.timelineRenderer"):
-					result = map[string]any{
-						"result": map[string]any{
-							"type":  "boolean",
-							"value": true,
-						},
-					}
-				case strings.Contains(expr, "applyAndMeasure"):
-					result = map[string]any{
-						"result": map[string]any{
-							"type": "object",
-							"value": timelineMeasurePayload{
-								Width:           1600,
-								Height:          360,
-								RenderedCount:   6,
-								TotalMatched:    10,
-								HasMore:         true,
-								ViewStartTimeMs: 1700000000000,
-								ViewEndTimeMs:   1700003600000,
-							},
-						},
-					}
-				case strings.Contains(expr, "waitForStableFrame"):
-					result = map[string]any{
-						"result": map[string]any{
-							"type": "undefined",
-						},
-					}
-				}
-			case "Emulation.setDeviceMetricsOverride":
-				if w, ok := req.Params["width"].(float64); ok {
-					viewportWidths = append(viewportWidths, w)
-				}
-				if h, ok := req.Params["height"].(float64); ok {
-					viewportHeights = append(viewportHeights, h)
-				}
-				result = map[string]any{}
-			case "Page.captureScreenshot":
-				result = map[string]any{
-					"data": encodedPNG,
-				}
+			resp, keepOpen := respond(req)
+			if !keepOpen {
+				_ = ws.Close()
+				return
 			}
-
-			respBytes, _ := json.Marshal(map[string]any{
-				"id":     req.ID,
-				"result": result,
-			})
+			resp["id"] = req.ID
+			respBytes, _ := json.Marshal(resp)
 			_ = websocket.Message.Send(ws, string(respBytes))
 		}
 	}))
-	defer wsServer.Close()
-
 	wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
 	browser := cdp.NewBrowserFromPageWSURL(wsURL)
-	defer browser.Close()
 	renderer := NewChromeTimelineImageRenderer(browser, "http://127.0.0.1:8080")
-	defer renderer.Close()
+	t.Cleanup(func() {
+		_ = renderer.Close()
+		_ = browser.Close()
+		wsServer.Close()
+	})
+	return renderer
+}
+
+func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
+	wantPNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03, 0x04}
+	encodedPNG := base64.StdEncoding.EncodeToString(wantPNG)
+
+	var navigatedURLs []string
+	var viewportWidths []float64
+	var viewportHeights []float64
+
+	renderer := newMockCDPRenderer(t, func(req mockCDPRequest) (map[string]any, bool) {
+		var result any
+		switch req.Method {
+		case "Page.enable", "Runtime.enable":
+			result = map[string]any{}
+		case "Page.navigate":
+			if u, ok := req.Params["url"].(string); ok {
+				navigatedURLs = append(navigatedURLs, u)
+			}
+			result = map[string]any{"frameId": "frame-1"}
+		case "Runtime.evaluate":
+			expr, _ := req.Params["expression"].(string)
+			switch {
+			case strings.Contains(expr, "typeof window.__khiCDPBridge?.timelineRenderer"):
+				result = map[string]any{
+					"result": map[string]any{"type": "boolean", "value": true},
+				}
+			case strings.Contains(expr, "applyAndMeasure"):
+				result = map[string]any{
+					"result": map[string]any{
+						"type": "object",
+						"value": timelineMeasurePayload{
+							Width:           1600,
+							Height:          360,
+							RenderedCount:   6,
+							TotalMatched:    10,
+							HasMore:         true,
+							ViewStartTimeMs: 1700000000000,
+							ViewEndTimeMs:   1700003600000,
+						},
+					},
+				}
+			case strings.Contains(expr, "waitForStableFrame"):
+				result = map[string]any{
+					"result": map[string]any{"type": "undefined"},
+				}
+			}
+		case "Emulation.setDeviceMetricsOverride":
+			if w, ok := req.Params["width"].(float64); ok {
+				viewportWidths = append(viewportWidths, w)
+			}
+			if h, ok := req.Params["height"].(float64); ok {
+				viewportHeights = append(viewportHeights, h)
+			}
+			result = map[string]any{}
+		case "Page.captureScreenshot":
+			result = map[string]any{"data": encodedPNG}
+		}
+		return map[string]any{"result": result}, true
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -197,79 +202,56 @@ func TestChromeTimelineImageRenderer_ErrorAndRecoveryWithMockCDP(t *testing.T) {
 	var applyAttempts int
 	var navigateCount int
 
-	wsServer := httptest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
-		for {
-			var raw string
-			if err := websocket.Message.Receive(ws, &raw); err != nil {
-				return
-			}
-			var req mockCDPRequest
-			if err := json.Unmarshal([]byte(raw), &req); err != nil {
-				return
-			}
-
-			var result any
-			switch req.Method {
-			case "Page.enable", "Runtime.enable", "Emulation.setDeviceMetricsOverride":
-				result = map[string]any{}
-			case "Page.navigate":
-				navigateCount++
-				result = map[string]any{"frameId": "frame-1"}
-			case "Runtime.evaluate":
-				expr, _ := req.Params["expression"].(string)
-				switch {
-				case strings.Contains(expr, "typeof window.__khiCDPBridge?.timelineRenderer"):
+	renderer := newMockCDPRenderer(t, func(req mockCDPRequest) (map[string]any, bool) {
+		var result any
+		switch req.Method {
+		case "Page.enable", "Runtime.enable", "Emulation.setDeviceMetricsOverride":
+			result = map[string]any{}
+		case "Page.navigate":
+			navigateCount++
+			result = map[string]any{"frameId": "frame-1"}
+		case "Runtime.evaluate":
+			expr, _ := req.Params["expression"].(string)
+			switch {
+			case strings.Contains(expr, "typeof window.__khiCDPBridge?.timelineRenderer"):
+				result = map[string]any{
+					"result": map[string]any{"type": "boolean", "value": true},
+				}
+			case strings.Contains(expr, "applyAndMeasure"):
+				applyAttempts++
+				if applyAttempts == 1 {
 					result = map[string]any{
-						"result": map[string]any{"type": "boolean", "value": true},
+						"result": map[string]any{"type": "object"},
+						"exceptionDetails": map[string]any{
+							"text": "Uncaught Error: Failed to load inspection data",
+						},
 					}
-				case strings.Contains(expr, "applyAndMeasure"):
-					applyAttempts++
-					if applyAttempts == 1 {
-						result = map[string]any{
-							"result": map[string]any{"type": "object"},
-							"exceptionDetails": map[string]any{
-								"text": "Uncaught Error: Failed to load inspection data",
-							},
-						}
-					} else {
-						result = map[string]any{
-							"result": map[string]any{
-								"type": "object",
-								"value": timelineMeasurePayload{
-									Width:           1200,
-									Height:          240,
-									RenderedCount:   3,
-									TotalMatched:    3,
-									HasMore:         false,
-									ViewStartTimeMs: 1000,
-									ViewEndTimeMs:   2000,
-								},
-							},
-						}
-					}
-				case strings.Contains(expr, "waitForStableFrame"):
+				} else {
 					result = map[string]any{
-						"result": map[string]any{"type": "undefined"},
+						"result": map[string]any{
+							"type": "object",
+							"value": timelineMeasurePayload{
+								Width:           1200,
+								Height:          240,
+								RenderedCount:   3,
+								TotalMatched:    3,
+								HasMore:         false,
+								ViewStartTimeMs: 1000,
+								ViewEndTimeMs:   2000,
+							},
+						},
 					}
 				}
-			case "Page.captureScreenshot":
-				result = map[string]any{"data": encodedPNG}
+			case strings.Contains(expr, "waitForStableFrame"):
+				result = map[string]any{
+					"result": map[string]any{"type": "undefined"},
+				}
 			}
-
-			respBytes, _ := json.Marshal(map[string]any{
-				"id":     req.ID,
-				"result": result,
-			})
-			_ = websocket.Message.Send(ws, string(respBytes))
+		case "Page.captureScreenshot":
+			result = map[string]any{"data": encodedPNG}
 		}
-	}))
-	defer wsServer.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
-	browser := cdp.NewBrowserFromPageWSURL(wsURL)
-	defer browser.Close()
-	renderer := NewChromeTimelineImageRenderer(browser, "http://127.0.0.1:8080")
-	defer renderer.Close()
+		return map[string]any{"result": result}, true
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -293,59 +275,50 @@ func TestChromeTimelineImageRenderer_ErrorAndRecoveryWithMockCDP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second RenderTimeline() unexpected error = %v", err)
 	}
-	if got.RenderedCount != 3 || navigateCount != 2 {
-		t.Errorf("second RenderTimeline() renderedCount=%d, navigateCount=%d; want 3, 2", got.RenderedCount, navigateCount)
+	wantRes := &TimelineRenderResult{
+		PNGBytes:        wantPNG,
+		Width:           1200,
+		Height:          240,
+		RenderedCount:   3,
+		TotalMatched:    3,
+		HasMore:         false,
+		ViewStartTimeMs: 1000,
+		ViewEndTimeMs:   2000,
+	}
+	if diff := cmp.Diff(wantRes, got); diff != "" {
+		t.Errorf("second RenderTimeline() result mismatch (-want +got):\n%s", diff)
+	}
+	if navigateCount != 2 {
+		t.Errorf("navigateCount = %d, want 2", navigateCount)
 	}
 }
 
 func TestChromeTimelineImageRenderer_NavigateTransportErrorFailsFast(t *testing.T) {
 	var evaluatePollCount int
 
-	wsServer := httptest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
-		for {
-			var raw string
-			if err := websocket.Message.Receive(ws, &raw); err != nil {
-				return
+	renderer := newMockCDPRenderer(t, func(req mockCDPRequest) (map[string]any, bool) {
+		switch req.Method {
+		case "Page.enable", "Runtime.enable":
+			return map[string]any{"result": map[string]any{}}, true
+		case "Page.navigate":
+			return map[string]any{"result": map[string]any{"frameId": "frame-1"}}, true
+		case "Runtime.evaluate":
+			evaluatePollCount++
+			if evaluatePollCount == 1 {
+				// Simulate transient CDP protocol error during navigation.
+				return map[string]any{
+					"error": map[string]any{
+						"code":    -32000,
+						"message": "Cannot find context with specified id",
+					},
+				}, true
 			}
-			var req mockCDPRequest
-			if err := json.Unmarshal([]byte(raw), &req); err != nil {
-				return
-			}
-
-			switch req.Method {
-			case "Page.enable", "Runtime.enable":
-				respBytes, _ := json.Marshal(map[string]any{"id": req.ID, "result": map[string]any{}})
-				_ = websocket.Message.Send(ws, string(respBytes))
-			case "Page.navigate":
-				respBytes, _ := json.Marshal(map[string]any{"id": req.ID, "result": map[string]any{"frameId": "frame-1"}})
-				_ = websocket.Message.Send(ws, string(respBytes))
-			case "Runtime.evaluate":
-				evaluatePollCount++
-				if evaluatePollCount == 1 {
-					// Simulate transient CDP protocol error during navigation.
-					respBytes, _ := json.Marshal(map[string]any{
-						"id": req.ID,
-						"error": map[string]any{
-							"code":    -32000,
-							"message": "Cannot find context with specified id",
-						},
-					})
-					_ = websocket.Message.Send(ws, string(respBytes))
-					continue
-				}
-				// On second poll, close the WebSocket connection to simulate browser crash / disconnect.
-				_ = ws.Close()
-				return
-			}
+			// On second poll, close the WebSocket connection to simulate browser crash / disconnect.
+			return nil, false
+		default:
+			return map[string]any{"result": map[string]any{}}, true
 		}
-	}))
-	defer wsServer.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
-	browser := cdp.NewBrowserFromPageWSURL(wsURL)
-	defer browser.Close()
-	renderer := NewChromeTimelineImageRenderer(browser, "http://127.0.0.1:8080")
-	defer renderer.Close()
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -370,24 +343,6 @@ func TestChromeTimelineImageRenderer_NavigateTransportErrorFailsFast(t *testing.
 
 func setupRealisticTimelineTestServer(t *testing.T) (*coreinspection.InspectionTaskServer, string) {
 	t.Helper()
-	ioConfig, err := inspectioncore.NewIOConfigForTest()
-	if err != nil {
-		t.Fatalf("failed to create test IOConfig: %v", err)
-	}
-	tempDir := t.TempDir()
-	ioConfig.DataDestination = tempDir
-	ioConfig.TemporaryFolder = tempDir
-	inspectionServer, err := coreinspection.NewServer(ioConfig)
-	if err != nil {
-		t.Fatalf("failed to create inspection server: %v", err)
-	}
-
-	if err := inspectionServer.AddInspectionType(coreinspection.InspectionType{
-		Id:   "k8s-render-test",
-		Name: "Kubernetes Render Test",
-	}); err != nil {
-		t.Fatalf("failed to add inspection type: %v", err)
-	}
 
 	baseTime := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
 	populateTaskID := taskid.NewDefaultImplementationID[struct{}]("populate-render-timelines")
@@ -635,20 +590,7 @@ func setupRealisticTimelineTestServer(t *testing.T) (*coreinspection.InspectionT
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
 		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
 	)
-	if err := inspectionServer.AddTask(populateTask); err != nil {
-		t.Fatalf("failed to add populate task: %v", err)
-	}
-
-	inspectionID, err := inspectionServer.CreateInspection("k8s-render-test")
-	if err != nil {
-		t.Fatalf("failed to create inspection: %v", err)
-	}
-	runner := inspectionServer.GetInspection(inspectionID)
-	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
-		t.Fatalf("failed to run inspection: %v", err)
-	}
-	<-runner.Wait()
-	return inspectionServer, inspectionID
+	return inspectionserver.NewServerWithInspection(t, populateTask)
 }
 
 func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
@@ -660,9 +602,7 @@ func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
 	inspectionServer, inspectionID := setupRealisticTimelineTestServer(t)
 	indexMgr := workbench.NewInspectionIndexManager(inspectionServer, t.TempDir())
 	workbenchMgr := workbench.NewWorkbenchManager(inspectionServer, indexMgr, 5)
-	t.Cleanup(func() {
-		indexMgr.Wait()
-	})
+	t.Cleanup(indexMgr.Wait)
 
 	ginEngine := gin.New()
 	server.SetupFrontendMiddleware(ginEngine, "", "")
@@ -706,7 +646,19 @@ func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
 	if len(res.PNGBytes) < 8 || string(res.PNGBytes[:8]) != "\x89PNG\r\n\x1a\n" {
 		t.Fatalf("RenderTimeline() did not return valid PNG header, len=%d", len(res.PNGBytes))
 	}
-	if res.Width != 1600 || res.Height <= 60 || res.RenderedCount < 10 {
-		t.Errorf("RenderTimeline() dimensions/count = (%d, %d, %d), want width=1600, height>60, renderedCount>=10", res.Width, res.Height, res.RenderedCount)
+	if res.Height <= 60 {
+		t.Errorf("RenderTimeline() Height = %d, want > 60", res.Height)
+	}
+	baseTime := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	want := &TimelineRenderResult{
+		Width:           1600,
+		RenderedCount:   22,
+		TotalMatched:    22,
+		HasMore:         false,
+		ViewStartTimeMs: baseTime.UnixMilli(),
+		ViewEndTimeMs:   baseTime.Add(1 * time.Hour).UnixMilli(),
+	}
+	if diff := cmp.Diff(want, res, cmpopts.IgnoreFields(TimelineRenderResult{}, "PNGBytes", "Height")); diff != "" {
+		t.Errorf("RenderTimeline() result mismatch (-want +got):\n%s", diff)
 	}
 }

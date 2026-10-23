@@ -18,13 +18,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -33,6 +33,8 @@ type fakeTimelineImageRenderer struct {
 	result *TimelineRenderResult
 	err    error
 }
+
+var _ TimelineImageRenderer = (*fakeTimelineImageRenderer)(nil)
 
 func (f *fakeTimelineImageRenderer) RenderTimeline(_ context.Context, req TimelineRenderRequest) (*TimelineRenderResult, error) {
 	f.gotReq = &req
@@ -47,13 +49,7 @@ func (f *fakeTimelineImageRenderer) Close() error {
 }
 
 func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
-	server, inspectionID := setupTestInspectionServer(t)
-	indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
-	mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
-
-	t.Cleanup(func() {
-		indexMgr.Wait()
-	})
+	mgr, inspectionID := newTestWorkbenchManager(t)
 
 	fakePNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
 	startTime := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
@@ -66,12 +62,16 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	})
 	wantInvalidCELResult, _, _ := mdtemplate.CELErrorResult("filter.timelineQuery", "invalid &&& syntax", invalidCELErr)
 
+	type renderTestOutcome struct {
+		Result  *mcpsdk.CallToolResult
+		Request *TimelineRenderRequest
+	}
+
 	testCases := []struct {
-		name       string
-		renderer   *fakeTimelineImageRenderer
-		input      RenderTimelinesInput
-		wantResult *mcpsdk.CallToolResult
-		wantReq    *TimelineRenderRequest
+		name     string
+		renderer *fakeTimelineImageRenderer
+		input    RenderTimelinesInput
+		want     renderTestOutcome
 	}{
 		{
 			name: "valid render_timelines returns PNG ImageContent and Markdown TextContent",
@@ -90,21 +90,29 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 			input: RenderTimelinesInput{
 				InspectionID: inspectionID,
 			},
-			wantResult: &mcpsdk.CallToolResult{
-				Content: []mcpsdk.Content{
-					&mcpsdk.ImageContent{
-						MIMEType: "image/png",
-						Data:     fakePNG,
-					},
-					&mcpsdk.TextContent{
-						Text: "# Rendered timeline view\n\nRendered 8 of 8 matched timelines (1600x460 px, 2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).\n\n## Applied filter\nEnter these values in the KHI Web UI filter to see the same data.\n\n```yaml\ntimelineQuery: \"\"\ntimelineExclusionQuery: \"\"\nlogQuery: \"\"\nstartTime: \"\"\nendTime: \"\"\nexcludeTimelinesWithoutLogs: false\n```",
+			want: renderTestOutcome{
+				Result: &mcpsdk.CallToolResult{
+					Content: []mcpsdk.Content{
+						&mcpsdk.ImageContent{
+							MIMEType: "image/png",
+							Data:     fakePNG,
+						},
+						&mcpsdk.TextContent{
+							Text: strings.Join([]string{
+								"# Rendered timeline view",
+								"",
+								"Rendered 8 of 8 matched timelines (1600x460 px, 2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
+								"",
+								mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{}),
+							}, "\n"),
+						},
 					},
 				},
-			},
-			wantReq: &TimelineRenderRequest{
-				InspectionID: inspectionID,
-				MaxNodes:     defaultRenderMaxNodes,
-				Width:        defaultRenderWidth,
+				Request: &TimelineRenderRequest{
+					InspectionID: inspectionID,
+					MaxNodes:     defaultRenderMaxNodes,
+					Width:        defaultRenderWidth,
+				},
 			},
 		},
 		{
@@ -134,43 +142,53 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 				Width:              1200,
 				TimezoneShiftHours: 9,
 			},
-			wantResult: &mcpsdk.CallToolResult{
-				Content: []mcpsdk.Content{
-					&mcpsdk.ImageContent{
-						MIMEType: "image/png",
-						Data:     fakePNG,
-					},
-					&mcpsdk.TextContent{
-						Text: "# Rendered timeline view\n\nRendered 20 of 75 matched timelines (1200x800 px, 2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).\nNarrow with `filter.timelineQuery`, `filter.logQuery`, `timelineIds`, or increase `maxNodes` (up to 150) to render omitted timelines.\n\n## Applied filter\nEnter these values in the KHI Web UI filter to see the same data.\n\n```yaml\ntimelineQuery: |-\n  timelineType == \"Pod\"\ntimelineExclusionQuery: \"\"\nlogQuery: |-\n  severity >= WARNING\nstartTime: 2026-10-01T09:00:00Z\nendTime: 2026-10-01T10:00:00Z\nexcludeTimelinesWithoutLogs: true\n```",
+			want: renderTestOutcome{
+				Result: &mcpsdk.CallToolResult{
+					Content: []mcpsdk.Content{
+						&mcpsdk.ImageContent{
+							MIMEType: "image/png",
+							Data:     fakePNG,
+						},
+						&mcpsdk.TextContent{
+							Text: strings.Join([]string{
+								"# Rendered timeline view",
+								"",
+								"Rendered 20 of 75 matched timelines (1200x800 px, 2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
+								"Narrow with `filter.timelineQuery`, `filter.logQuery`, `timelineIds`, or increase `maxNodes` (up to 150) to render omitted timelines.",
+								"",
+								mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{
+									TimelineQuery:               `timelineType == "Pod"`,
+									LogQuery:                    `severity >= WARNING`,
+									StartTime:                   startTime,
+									EndTime:                     endTime,
+									ExcludeTimelinesWithoutLogs: true,
+								}),
+							}, "\n"),
+						},
 					},
 				},
-			},
-			wantReq: &TimelineRenderRequest{
-				InspectionID:       inspectionID,
-				TimelineQuery:      `timelineType == "Pod"`,
-				LogQuery:           `severity >= WARNING`,
-				ExcludeNoLogs:      true,
-				FilterStartTimeNs:  "1790845200000000000",
-				FilterEndTimeNs:    "1790848800000000000",
-				ViewStartTimeMs:    &startMs,
-				ViewEndTimeMs:      &endMs,
-				MaxDepth:           3,
-				MaxNodes:           20,
-				Width:              1200,
-				TimezoneShiftHours: 9,
+				Request: &TimelineRenderRequest{
+					InspectionID:       inspectionID,
+					TimelineQuery:      `timelineType == "Pod"`,
+					LogQuery:           `severity >= WARNING`,
+					ExcludeNoLogs:      true,
+					FilterStartTimeNs:  "1790845200000000000",
+					FilterEndTimeNs:    "1790848800000000000",
+					ViewStartTimeMs:    &startMs,
+					ViewEndTimeMs:      &endMs,
+					MaxDepth:           3,
+					MaxNodes:           20,
+					Width:              1200,
+					TimezoneShiftHours: 9,
+				},
 			},
 		},
 		{
 			name:     "missing inspectionId returns INVALID_ARGUMENT",
 			renderer: &fakeTimelineImageRenderer{},
 			input:    RenderTimelinesInput{},
-			wantResult: &mcpsdk.CallToolResult{
-				IsError: true,
-				Content: []mcpsdk.Content{
-					&mcpsdk.TextContent{
-						Text: mdtemplate.FormatError("INVALID_ARGUMENT", "inspectionId is required."),
-					},
-				},
+			want: renderTestOutcome{
+				Result: wantErrorResult("INVALID_ARGUMENT", "inspectionId is required."),
 			},
 		},
 		{
@@ -182,7 +200,9 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					TimelineQuery: "invalid &&& syntax",
 				},
 			},
-			wantResult: wantInvalidCELResult,
+			want: renderTestOutcome{
+				Result: wantInvalidCELResult,
+			},
 		},
 		{
 			name:     "endTime before startTime returns INVALID_ARGUMENT",
@@ -194,13 +214,8 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					EndTime:   &startTime,
 				},
 			},
-			wantResult: &mcpsdk.CallToolResult{
-				IsError: true,
-				Content: []mcpsdk.Content{
-					&mcpsdk.TextContent{
-						Text: mdtemplate.FormatError("INVALID_ARGUMENT", "filter.endTime must not be before filter.startTime."),
-					},
-				},
+			want: renderTestOutcome{
+				Result: wantErrorResult("INVALID_ARGUMENT", "filter.endTime must not be before filter.startTime."),
 			},
 		},
 		{
@@ -210,13 +225,8 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 				InspectionID: inspectionID,
 				TimelineIDs:  []string{"pod-1"},
 			},
-			wantResult: &mcpsdk.CallToolResult{
-				IsError: true,
-				Content: []mcpsdk.Content{
-					&mcpsdk.TextContent{
-						Text: mdtemplate.FormatError("INVALID_ARGUMENT", "timelineIds must be a positive integer ID, got `pod-1`."),
-					},
-				},
+			want: renderTestOutcome{
+				Result: wantErrorResult("INVALID_ARGUMENT", "timelineIds must be a positive integer ID, got `pod-1`."),
 			},
 		},
 		{
@@ -226,15 +236,10 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 				InspectionID: inspectionID,
 				TimelineIDs:  []string{"999999"},
 			},
-			wantResult: &mcpsdk.CallToolResult{
-				IsError: true,
-				Content: []mcpsdk.Content{
-					&mcpsdk.TextContent{
-						Text: mdtemplate.FormatError("TIMELINE_NOT_FOUND",
-							fmt.Sprintf("No timeline with ID `999999` exists in inspection `%s`.", inspectionID),
-							"Use a timeline ID from `search_timelines` or `search_logs`."),
-					},
-				},
+			want: renderTestOutcome{
+				Result: wantErrorResult("TIMELINE_NOT_FOUND",
+					fmt.Sprintf("No timeline with ID `999999` exists in inspection `%s`.", inspectionID),
+					"Use a timeline ID from `search_timelines` or `search_logs`."),
 			},
 		},
 		{
@@ -243,27 +248,17 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 				err: errors.New("chrome process crashed"),
 			},
 			input: RenderTimelinesInput{InspectionID: inspectionID},
-			wantResult: &mcpsdk.CallToolResult{
-				IsError: true,
-				Content: []mcpsdk.Content{
-					&mcpsdk.TextContent{
-						Text: mdtemplate.FormatError("RENDER_FAILED", "Failed to render timelines: chrome process crashed."),
-					},
+			want: renderTestOutcome{
+				Result: wantErrorResult("RENDER_FAILED", "Failed to render timelines: chrome process crashed."),
+				Request: &TimelineRenderRequest{
+					InspectionID: inspectionID,
+					MaxNodes:     defaultRenderMaxNodes,
+					Width:        defaultRenderWidth,
 				},
-			},
-			wantReq: &TimelineRenderRequest{
-				InspectionID: inspectionID,
-				MaxNodes:     defaultRenderMaxNodes,
-				Width:        defaultRenderWidth,
 			},
 		},
 	}
 
-	cmpOpt := cmpopts.IgnoreUnexported(
-		mcpsdk.CallToolResult{},
-		mcpsdk.ImageContent{},
-		mcpsdk.TextContent{},
-	)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			handler := NewWorkbenchHandler(mgr, tc.renderer)
@@ -272,11 +267,12 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 			if err != nil {
 				t.Fatalf("handleRenderTimelines() unexpected error = %v", err)
 			}
-			if diff := cmp.Diff(tc.wantResult, res, cmpOpt); diff != "" {
-				t.Errorf("CallToolResult mismatch (-want +got):\n%s", diff)
+			got := renderTestOutcome{
+				Result:  res,
+				Request: tc.renderer.gotReq,
 			}
-			if diff := cmp.Diff(tc.wantReq, tc.renderer.gotReq); diff != "" {
-				t.Errorf("TimelineRenderRequest mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, got, ignoreMCPUnexported); diff != "" {
+				t.Errorf("handleRenderTimelines() outcome mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

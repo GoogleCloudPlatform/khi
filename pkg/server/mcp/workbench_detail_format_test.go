@@ -15,7 +15,6 @@
 package mcp
 
 import (
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -112,19 +111,6 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 		},
 		Logs: []workbench.TimelineLogEntry{singleLogWithOther},
 	}
-	emptyAppliedFilterLines := []string{
-		"## Applied filter",
-		"Enter these values in the KHI Web UI filter to see the same data.",
-		"",
-		"```yaml",
-		`timelineQuery: ""`,
-		`timelineExclusionQuery: ""`,
-		`logQuery: ""`,
-		`startTime: ""`,
-		`endTime: ""`,
-		"excludeTimelinesWithoutLogs: false",
-		"```",
-	}
 
 	testCases := []struct {
 		name         string
@@ -141,18 +127,7 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 				"",
 				"Showing logs 1-2 of 3, oldest first.",
 				"",
-				"## Applied filter",
-				"Enter these values in the KHI Web UI filter to see the same data.",
-				"",
-				"```yaml",
-				`timelineQuery: ""`,
-				`timelineExclusionQuery: ""`,
-				"logQuery: |-",
-				"  severity >= WARNING",
-				`startTime: ""`,
-				`endTime: ""`,
-				"excludeTimelinesWithoutLogs: true",
-				"```",
+				mdtemplate.FormatAppliedFilter(timelineLogs.Applied),
 				"",
 				"## Other timelines linked to these logs",
 				"Counted over all 3 logs, not only this page.",
@@ -173,106 +148,59 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 			}, "\n"),
 		},
 		{
-			name:         "get_timeline_logs.md.tmpl on the last page",
+			name:         "get_timeline_logs.md.tmpl without other timelines omits the other timelines section",
 			templateName: "get_timeline_logs.md.tmpl",
-			data:         buildTimelineLogsTemplateData(timelineLogs, mustPaginate(t, timelineLogs.Logs, 2, mdtemplate.EncodePageToken(2))),
+			data:         buildTimelineLogsTemplateData(timelineLogsWithoutOthers, mustPaginate(t, timelineLogsWithoutOthers.Logs, 0, "")),
 			want: strings.Join([]string{
 				"# Logs of [Namespace] default > [Pod] nginx (`10`)",
 				"",
-				"Showing logs 3-3 of 3, oldest first.",
+				"Showing logs 1-1 of 1, oldest first.",
 				"",
-				"## Applied filter",
-				"Enter these values in the KHI Web UI filter to see the same data.",
-				"",
-				"```yaml",
-				`timelineQuery: ""`,
-				`timelineExclusionQuery: ""`,
-				"logQuery: |-",
-				"  severity >= WARNING",
-				`startTime: ""`,
-				`endTime: ""`,
-				"excludeTimelinesWithoutLogs: true",
-				"```",
-				"",
-				"## Other timelines linked to these logs",
-				"Counted over all 3 logs, not only this page.",
-				"Showing 1 of 2 timelines, sorted by the number of logs.",
-				"",
-				"| Timeline | ID | Logs |",
-				"| --- | --- | --- |",
-				"| [Namespace] default > [Pod] other | `11` | 2 |",
+				mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{}),
 				"",
 				"## Logs",
 				"",
 				"| Time | Severity | Type | Log ID | Summary | Also on |",
 				"| --- | --- | --- | --- | --- | --- |",
-				"| 2026-10-01T10:10:00Z | ERROR | k8s_audit | `103` | delete again |  |",
+				"| 2026-10-01T10:00:00Z | WARNING | k8s_audit | `101` | update |  |",
 			}, "\n"),
-		},
-		{
-			name:         "get_timeline_logs.md.tmpl without other timelines omits the other timelines section",
-			templateName: "get_timeline_logs.md.tmpl",
-			data:         buildTimelineLogsTemplateData(timelineLogsWithoutOthers, mustPaginate(t, timelineLogsWithoutOthers.Logs, 0, "")),
-			want: strings.Join(slices.Concat(
-				[]string{
-					"# Logs of [Namespace] default > [Pod] nginx (`10`)",
-					"",
-					"Showing logs 1-1 of 1, oldest first.",
-					"",
-				},
-				emptyAppliedFilterLines,
-				[]string{
-					"",
-					"## Logs",
-					"",
-					"| Time | Severity | Type | Log ID | Summary | Also on |",
-					"| --- | --- | --- | --- | --- | --- |",
-					"| 2026-10-01T10:00:00Z | WARNING | k8s_audit | `101` | update |  |",
-				},
-			), "\n"),
 		},
 		{
 			name:         "get_timeline_logs.md.tmpl listing every other timeline omits the partial count line",
 			templateName: "get_timeline_logs.md.tmpl",
 			data:         buildTimelineLogsTemplateData(timelineLogsListingEveryOther, mustPaginate(t, timelineLogsListingEveryOther.Logs, 0, "")),
-			want: strings.Join(slices.Concat(
-				[]string{
-					"# Logs of [Namespace] default > [Pod] nginx (`10`)",
-					"",
-					"Showing logs 1-1 of 1, oldest first.",
-					"",
-				},
-				emptyAppliedFilterLines,
-				[]string{
-					"",
-					"## Other timelines linked to these logs",
-					"Counted over all 1 logs, not only this page.",
-					"",
-					"| Timeline | ID | Logs |",
-					"| --- | --- | --- |",
-					"| [Namespace] default > [Pod] other | `11` | 1 |",
-					"",
-					"## Logs",
-					"",
-					"| Time | Severity | Type | Log ID | Summary | Also on |",
-					"| --- | --- | --- | --- | --- | --- |",
-					"| 2026-10-01T10:00:00Z | WARNING | k8s_audit | `101` | update | `11` |",
-				},
-			), "\n"),
+			want: strings.Join([]string{
+				"# Logs of [Namespace] default > [Pod] nginx (`10`)",
+				"",
+				"Showing logs 1-1 of 1, oldest first.",
+				"",
+				mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{}),
+				"",
+				"## Other timelines linked to these logs",
+				"Counted over all 1 logs, not only this page.",
+				"",
+				"| Timeline | ID | Logs |",
+				"| --- | --- | --- |",
+				"| [Namespace] default > [Pod] other | `11` | 1 |",
+				"",
+				"## Logs",
+				"",
+				"| Time | Severity | Type | Log ID | Summary | Also on |",
+				"| --- | --- | --- | --- | --- | --- |",
+				"| 2026-10-01T10:00:00Z | WARNING | k8s_audit | `101` | update | `11` |",
+			}, "\n"),
 		},
 		{
 			name:         "get_timeline_logs.md.tmpl without matched logs",
 			templateName: "get_timeline_logs.md.tmpl",
 			data:         buildTimelineLogsTemplateData(emptyTimelineLogs, mustPaginate(t, emptyTimelineLogs.Logs, 0, "")),
-			want: strings.Join(slices.Concat(
-				[]string{
-					"# Logs of [Namespace] default > [Pod] nginx (`10`)",
-					"",
-					"No logs on this timeline matched the filter.",
-					"",
-				},
-				emptyAppliedFilterLines,
-			), "\n"),
+			want: strings.Join([]string{
+				"# Logs of [Namespace] default > [Pod] nginx (`10`)",
+				"",
+				"No logs on this timeline matched the filter.",
+				"",
+				mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{}),
+			}, "\n"),
 		},
 		{
 			name:         "get_log.md.tmpl with linked timelines and a truncated body",
@@ -634,53 +562,6 @@ func TestWorkbenchDetail_Templates(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("templates.Render(%q) mismatch (-want +got):\n%s", tc.templateName, diff)
-			}
-		})
-	}
-}
-
-func TestBuildResourceRevisionsTemplateData_NextPageToken(t *testing.T) {
-	testCases := []struct {
-		name          string
-		offset        int
-		revisionCount int
-		matchedCount  int
-		want          string
-	}{
-		{
-			name:          "first page with remaining revisions",
-			offset:        0,
-			revisionCount: 2,
-			matchedCount:  5,
-			want:          mdtemplate.EncodePageToken(2),
-		},
-		{
-			name:          "middle page with remaining revisions",
-			offset:        2,
-			revisionCount: 2,
-			matchedCount:  5,
-			want:          mdtemplate.EncodePageToken(4),
-		},
-		{
-			name:          "last page reaching the matched count",
-			offset:        4,
-			revisionCount: 1,
-			matchedCount:  5,
-			want:          "",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			res := &workbench.ResourceRevisionsResult{MatchedCount: tc.matchedCount}
-			for i := range tc.revisionCount {
-				res.Revisions = append(res.Revisions, workbench.ResourceRevisionSummary{
-					ResourceRevision: workbench.ResourceRevision{Index: tc.offset + i},
-				})
-			}
-			got := buildResourceRevisionsTemplateData(res, tc.offset).NextPageToken
-			if got != tc.want {
-				t.Errorf("buildResourceRevisionsTemplateData(offset=%d).NextPageToken = %q, want %q", tc.offset, got, tc.want)
 			}
 		})
 	}

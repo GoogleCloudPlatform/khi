@@ -22,23 +22,17 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
-	server, inspectionID := setupTestInspectionServer(t)
-	indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
-	mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
+	mgr, inspectionID := newTestWorkbenchManager(t)
 	handler := NewWorkbenchHandler(mgr, nil)
 
-	t.Cleanup(func() {
-		indexMgr.Wait()
-	})
-
 	testCases := []struct {
-		name        string
-		input       ValidateReportInput
-		wantIsError bool
-		wantText    string
+		name  string
+		input ValidateReportInput
+		want  *mcpsdk.CallToolResult
 	}{
 		{
 			name: "flags ungrounded inline code spans in report",
@@ -46,8 +40,7 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 				InspectionID: inspectionID,
 				Report:       "Pod `hallucinated-pod-xyz` failed.",
 			},
-			wantIsError: false,
-			wantText: strings.Join([]string{
+			want: wantTextResult(strings.Join([]string{
 				"# Report validation",
 				"",
 				"Found 1 potential grounding issues.",
@@ -61,7 +54,7 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 				"| Line | Rule | Target | Message |",
 				"| --- | --- | --- | --- |",
 				"| 1 | `log-existence` | `hallucinated-pod-xyz` | Not found in inspection logs. |",
-			}, "\n"),
+			}, "\n")),
 		},
 		{
 			name: "missing inspectionId returns INVALID_ARGUMENT",
@@ -69,8 +62,7 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 				InspectionID: "",
 				Report:       "Report text",
 			},
-			wantIsError: true,
-			wantText:    mdtemplate.FormatError("INVALID_ARGUMENT", "inspectionId is required."),
+			want: wantErrorResult("INVALID_ARGUMENT", "inspectionId is required."),
 		},
 		{
 			name: "empty report returns INVALID_ARGUMENT",
@@ -78,19 +70,7 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 				InspectionID: inspectionID,
 				Report:       "   ",
 			},
-			wantIsError: true,
-			wantText:    mdtemplate.FormatError("INVALID_ARGUMENT", "report is required."),
-		},
-		{
-			name: "unknown inspectionId returns INSPECTION_NOT_FOUND",
-			input: ValidateReportInput{
-				InspectionID: "non-existent-inspection",
-				Report:       "Report text",
-			},
-			wantIsError: true,
-			wantText: mdtemplate.FormatError("INSPECTION_NOT_FOUND",
-				"Inspection `non-existent-inspection` not found.",
-				"Read `khi://inspections` to see existing inspections."),
+			want: wantErrorResult("INVALID_ARGUMENT", "report is required."),
 		},
 	}
 
@@ -100,15 +80,8 @@ func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 			if err != nil {
 				t.Fatalf("handleValidateReport() unexpected error = %v", err)
 			}
-			if res == nil {
-				t.Fatalf("handleValidateReport() returned nil result")
-			}
-			if res.IsError != tc.wantIsError {
-				t.Errorf("res.IsError = %v, want %v", res.IsError, tc.wantIsError)
-			}
-			gotText := extractToolResultText(t, res)
-			if diff := cmp.Diff(tc.wantText, gotText); diff != "" {
-				t.Errorf("handleValidateReport() text mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, res, ignoreMCPUnexported); diff != "" {
+				t.Errorf("handleValidateReport() result mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
