@@ -370,6 +370,12 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(clearedEmitted).toBeTrue();
   });
 
+  function queryCharts(): TimelineChartComponent[] {
+    return frameFixture.debugElement
+      .queryAll((el) => el.componentInstance instanceof TimelineChartComponent)
+      .map((el) => el.componentInstance as TimelineChartComponent);
+  }
+
   it('should hide legend and resizer handle when showLegend and showResizerHandle are false', () => {
     expect(frameFixture.nativeElement.querySelector('.legend')).not.toBeNull();
     expect(
@@ -384,44 +390,37 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(frameFixture.nativeElement.querySelector('.gutter-hint')).toBeNull();
   });
 
-  it('should report readyToRender true only when all child timeline charts are ready', () => {
-    const chartDebugEls = frameFixture.debugElement.queryAll(
-      (el) => el.componentInstance instanceof TimelineChartComponent,
-    );
-    expect(chartDebugEls.length).toBeGreaterThan(0);
-    expect(frameComponent.readyToRender()).toBeFalse();
+  for (const tc of [
+    { desc: 'no chart is ready', ready: [false, false], want: false },
+    { desc: 'only one chart is ready', ready: [true, false], want: false },
+    { desc: 'all charts are ready', ready: [true, true], want: true },
+  ]) {
+    it(`should compute readyToRender=${tc.want} when ${tc.desc}`, () => {
+      const charts = queryCharts();
+      expect(charts.length).toBe(tc.ready.length);
+      charts.forEach((chart, i) => chart.readyToRender.set(tc.ready[i]));
+      frameFixture.detectChanges();
 
-    for (const chartEl of chartDebugEls) {
-      (chartEl.componentInstance as TimelineChartComponent).readyToRender.set(
-        true,
-      );
-    }
-    frameFixture.detectChanges();
+      expect(frameComponent.readyToRender()).toBe(tc.want);
+    });
+  }
 
-    expect(frameComponent.readyToRender()).toBeTrue();
-  });
-
-  it('should synchronize container scroll position and invalidate child charts in syncViewportAndInvalidate', () => {
-    frameFixture.componentRef.setInput('minQueryLogTimeMS', 1000);
-    frameFixture.componentRef.setInput('maxQueryLogTimeMS', 5000);
-    frameFixture.componentRef.setInput('horizontalOverdrawInPx', 300);
-    frameFixture.detectChanges();
-
-    const chartDebugEls = frameFixture.debugElement.queryAll(
-      (el) => el.componentInstance instanceof TimelineChartComponent,
-    );
-    for (const chartEl of chartDebugEls) {
-      (chartEl.componentInstance as TimelineChartComponent).invalidate = false;
-    }
+  it('should update viewport models and invalidate all child charts in syncViewportAndInvalidate', () => {
+    const charts = queryCharts();
+    charts.forEach((chart) => {
+      chart.invalidate = false;
+    });
 
     frameComponent.syncViewportAndInvalidate(2000, 2);
 
-    expect(frameComponent.viewportLeftTimeMS()).toBe(2000);
-    expect(frameComponent.pixelsPerMs()).toBe(2);
-    for (const chartEl of chartDebugEls) {
-      expect(
-        (chartEl.componentInstance as TimelineChartComponent).invalidate,
-      ).toBeTrue();
-    }
+    expect({
+      viewportLeftTimeMS: frameComponent.viewportLeftTimeMS(),
+      pixelsPerMs: frameComponent.pixelsPerMs(),
+      invalidated: charts.map((chart) => chart.invalidate),
+    }).toEqual({
+      viewportLeftTimeMS: 2000,
+      pixelsPerMs: 2,
+      invalidated: charts.map(() => true),
+    });
   });
 });

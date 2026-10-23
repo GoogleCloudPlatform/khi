@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-import { Component, input, model, signal } from '@angular/core';
+import { Component, WritableSignal, input, model, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { TimelineRenderSmartComponent } from './timeline-render-smart.component';
+import { TimelineRenderSmartComponent } from 'src/app/pages/timeline-render/timeline-render-smart.component';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { StyleOverrideService } from 'src/app/services/style-override.service';
@@ -46,7 +47,7 @@ class StubTimelineFrameComponent {
   readonly styleStore = input<unknown>();
   readonly chartStyle = input<unknown>();
   readonly rulerStyle = input<unknown>();
-  readonly timelines = input<unknown>();
+  readonly timelines = input<readonly ReadonlyDomainElement<Timeline>[]>([]);
   readonly collapsedTimelineIds = input<unknown>();
   readonly timezoneShiftHours = input<unknown>();
   readonly minQueryLogTimeMS = input<unknown>();
@@ -59,7 +60,7 @@ class StubTimelineFrameComponent {
   readonly readyToRender = signal(true);
   readonly pixelsPerMs = model<number>(1.0);
   readonly viewportLeftTimeMS = model<number>(0);
-  public syncViewportAndInvalidate = jasmine.createSpy(
+  public readonly syncViewportAndInvalidate = jasmine.createSpy(
     'syncViewportAndInvalidate',
   );
 }
@@ -103,11 +104,12 @@ function createFakeTimeline(
 describe('TimelineRenderSmartComponent', () => {
   let component: TimelineRenderSmartComponent;
   let fixture: ComponentFixture<TimelineRenderSmartComponent>;
+  let stubFrame: StubTimelineFrameComponent;
   let mockLoader: jasmine.SpyObj<InspectionDataLoaderService>;
-  let inspectionDataSignal: ReturnType<typeof signal<InspectionData | null>>;
-  let timelineViewSignal: ReturnType<typeof signal<TimelineView | null>>;
-  let filteredTimelinesSignal: ReturnType<
-    typeof signal<ReadonlyDomainElement<Timeline>[]>
+  let inspectionDataSignal: WritableSignal<InspectionData | null>;
+  let timelineViewSignal: WritableSignal<TimelineView | null>;
+  let filteredTimelinesSignal: WritableSignal<
+    ReadonlyDomainElement<Timeline>[]
   >;
   let updateFilterParamsSpy: jasmine.Spy<(params: BackendFilterParams) => void>;
   let expandAllSpy: jasmine.Spy<() => void>;
@@ -206,6 +208,9 @@ describe('TimelineRenderSmartComponent', () => {
     fixture = TestBed.createComponent(TimelineRenderSmartComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+    stubFrame = fixture.debugElement.query(
+      By.directive(StubTimelineFrameComponent),
+    ).componentInstance as StubTimelineFrameComponent;
   });
 
   afterEach(() => {
@@ -237,13 +242,16 @@ describe('TimelineRenderSmartComponent', () => {
       filterStartTime: null,
       filterEndTime: null,
     });
-    expect(firstResult.totalMatched).toBe(5);
-    expect(firstResult.renderedCount).toBe(5);
-    expect(firstResult.hasMore).toBeFalse();
-    expect(firstResult.viewStartTimeMs).toBe(1000 * 1000);
-    expect(firstResult.viewEndTimeMs).toBe(2000 * 1000);
     // HEADER_HEIGHT (60) + 5 rows * (height 2 * BASE_ROW_HEIGHT 25 = 50) = 310
-    expect(firstResult.height).toBe(310);
+    expect(firstResult).toEqual({
+      width: 1600,
+      height: 310,
+      renderedCount: 5,
+      totalMatched: 5,
+      hasMore: false,
+      viewStartTimeMs: 1_000_000,
+      viewEndTimeMs: 2_000_000,
+    });
 
     await component.applyAndMeasure({
       inspectionId: 'insp-1',
@@ -252,30 +260,61 @@ describe('TimelineRenderSmartComponent', () => {
     expect(mockLoader.loadInspectionDataFromBackend).toHaveBeenCalledTimes(1);
   });
 
-  it('should include ancestor timelines when filtering by timelineIds and enforce maxDepth and maxNodes', async () => {
-    // Select containerTimelineA (id=4, path=[1, 2, 3, 4]), which should include ancestors 1, 2, 3 and exclude podTimelineB (id=5).
-    const resWithAncestors = await component.applyAndMeasure({
-      inspectionId: 'insp-1',
-      timelineIds: [4],
-    });
-    expect(resWithAncestors.totalMatched).toBe(4);
-    expect(resWithAncestors.renderedCount).toBe(4);
-    expect(component['renderedTimelines']().map((t) => t.id)).toEqual([
-      1, 2, 3, 4,
-    ]);
+  const selectionCases = [
+    {
+      desc: 'includes ancestor timelines when filtering by timelineIds',
+      params: { timelineIds: [4] },
+      wantIds: [1, 2, 3, 4],
+      wantResult: {
+        width: 1600,
+        height: 260,
+        totalMatched: 4,
+        renderedCount: 4,
+        hasMore: false,
+        viewStartTimeMs: 1_000_000,
+        viewEndTimeMs: 2_000_000,
+      },
+    },
+    {
+      desc: 'excludes timelines deeper than maxDepth',
+      params: { timelineIds: [4], maxDepth: 2 },
+      wantIds: [1, 2, 3],
+      wantResult: {
+        width: 1600,
+        height: 210,
+        totalMatched: 3,
+        renderedCount: 3,
+        hasMore: false,
+        viewStartTimeMs: 1_000_000,
+        viewEndTimeMs: 2_000_000,
+      },
+    },
+    {
+      desc: 'truncates rendered timelines to maxNodes and sets hasMore',
+      params: { timelineIds: [4], maxDepth: 2, maxNodes: 2 },
+      wantIds: [1, 2],
+      wantResult: {
+        width: 1600,
+        height: 160,
+        totalMatched: 3,
+        renderedCount: 2,
+        hasMore: true,
+        viewStartTimeMs: 1_000_000,
+        viewEndTimeMs: 2_000_000,
+      },
+    },
+  ];
 
-    // Apply maxDepth=2 (layers 0, 1, 2 -> ids 1, 2, 3) and maxNodes=2.
-    const resDepthAndMaxNodes = await component.applyAndMeasure({
-      inspectionId: 'insp-1',
-      timelineIds: [4],
-      maxDepth: 2,
-      maxNodes: 2,
+  for (const tc of selectionCases) {
+    it(`should ${tc.desc}`, async () => {
+      const res = await component.applyAndMeasure({
+        inspectionId: 'insp-1',
+        ...tc.params,
+      });
+      expect(res).toEqual(tc.wantResult);
+      expect(stubFrame.timelines().map((t) => t.id)).toEqual(tc.wantIds);
     });
-    expect(resDepthAndMaxNodes.totalMatched).toBe(3);
-    expect(resDepthAndMaxNodes.renderedCount).toBe(2);
-    expect(resDepthAndMaxNodes.hasMore).toBeTrue();
-    expect(component['renderedTimelines']().map((t) => t.id)).toEqual([1, 2]);
-  });
+  }
 
   it('should zoom horizontal viewport to requested viewStartTimeMs and viewEndTimeMs', async () => {
     const res = await component.applyAndMeasure({
@@ -285,11 +324,22 @@ describe('TimelineRenderSmartComponent', () => {
       viewEndTimeMs: 1400_000, // duration = 200_000ms -> pixelsPerMs = 1000 / 200_000 = 0.005
     });
 
-    expect(res.width).toBe(1308);
-    expect(res.viewStartTimeMs).toBe(1200_000);
-    expect(res.viewEndTimeMs).toBe(1400_000);
-    expect(component['viewportLeftTimeMs']()).toBe(1200_000);
-    expect(component['pixelsPerMs']()).toBeCloseTo(0.005, 6);
+    expect(res).toEqual({
+      width: 1308,
+      height: 310,
+      renderedCount: 5,
+      totalMatched: 5,
+      hasMore: false,
+      viewStartTimeMs: 1_200_000,
+      viewEndTimeMs: 1_400_000,
+    });
+    expect({
+      viewportLeftTimeMs: stubFrame.viewportLeftTimeMS(),
+      pixelsPerMs: stubFrame.pixelsPerMs(),
+    }).toEqual({
+      viewportLeftTimeMs: 1_200_000,
+      pixelsPerMs: 0.005,
+    });
   });
 
   it('should wait for frame readiness and restore viewport signals in waitForStableFrame', async () => {
@@ -300,8 +350,6 @@ describe('TimelineRenderSmartComponent', () => {
       viewEndTimeMs: 1400_000,
     });
 
-    const stubFrame = fixture.debugElement.children[0].children[0]
-      .componentInstance as StubTimelineFrameComponent;
     stubFrame.readyToRender.set(false);
     // Simulate a scroll event mutating the two-way bound model signal before waitForStableFrame runs.
     stubFrame.viewportLeftTimeMS.set(999_000);
@@ -320,20 +368,23 @@ describe('TimelineRenderSmartComponent', () => {
 
     await component.waitForStableFrame();
 
-    expect(component['viewportLeftTimeMs']()).toBe(1200_000);
-    expect(component['pixelsPerMs']()).toBeCloseTo(0.005, 6);
-    expect(stubFrame.syncViewportAndInvalidate).toHaveBeenCalledTimes(2);
-    expect(stubFrame.syncViewportAndInvalidate).toHaveBeenCalledWith(
-      1200_000,
-      0.005,
-    );
+    expect({
+      viewportLeftTimeMs: stubFrame.viewportLeftTimeMS(),
+      pixelsPerMs: stubFrame.pixelsPerMs(),
+    }).toEqual({
+      viewportLeftTimeMs: 1_200_000,
+      pixelsPerMs: 0.005,
+    });
+    expect(stubFrame.syncViewportAndInvalidate.calls.allArgs()).toEqual([
+      [1_200_000, 0.005],
+      [1_200_000, 0.005],
+    ]);
   });
 
-  it('should throw when loading a different inspection fails on a warm page without overwriting loadedInspectionId', async () => {
+  it('should throw when loading a different inspection fails on a warm page', async () => {
     await component.applyAndMeasure({
       inspectionId: 'insp-1',
     });
-    expect(mockLoader.loadInspectionDataFromBackend).toHaveBeenCalledTimes(1);
 
     // Simulate loadInspectionDataFromBackend('insp-2') catching an error internally without updating inspectionDataStore.
     mockLoader.loadInspectionDataFromBackend.and.callFake(async () => {
