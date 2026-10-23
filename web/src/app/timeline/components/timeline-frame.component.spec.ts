@@ -16,6 +16,7 @@
 
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { TimelineFrameComponent } from 'src/app/timeline/components/timeline-frame.component';
 import { Timeline, Event } from 'src/app/store/domain/timeline';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
@@ -104,7 +105,6 @@ class MockLog extends Log {
 @Component({
   selector: 'khi-testing-timeline-frame',
   standalone: true,
-  imports: [TimelineFrameComponent],
   template: '',
 })
 class TestingTimelineFrameComponent extends TimelineFrameComponent {
@@ -372,7 +372,7 @@ describe('TimelineFrameComponent - time range selection', () => {
 
   function queryCharts(): TimelineChartComponent[] {
     return frameFixture.debugElement
-      .queryAll((el) => el.componentInstance instanceof TimelineChartComponent)
+      .queryAll(By.directive(TimelineChartComponent))
       .map((el) => el.componentInstance as TimelineChartComponent);
   }
 
@@ -390,20 +390,20 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(frameFixture.nativeElement.querySelector('.gutter-hint')).toBeNull();
   });
 
-  for (const tc of [
-    { desc: 'no chart is ready', ready: [false, false], want: false },
-    { desc: 'only one chart is ready', ready: [true, false], want: false },
-    { desc: 'all charts are ready', ready: [true, true], want: true },
-  ]) {
-    it(`should compute readyToRender=${tc.want} when ${tc.desc}`, () => {
-      const charts = queryCharts();
+  it('should compute readyToRender only when all child charts are ready', () => {
+    const charts = queryCharts();
+    for (const tc of [
+      { ready: [false, false], want: false },
+      { ready: [true, false], want: false },
+      { ready: [true, true], want: true },
+    ]) {
       expect(charts.length).toBe(tc.ready.length);
       charts.forEach((chart, i) => chart.readyToRender.set(tc.ready[i]));
       frameFixture.detectChanges();
 
       expect(frameComponent.readyToRender()).toBe(tc.want);
-    });
-  }
+    }
+  });
 
   it('should update viewport models and invalidate all child charts in syncViewportAndInvalidate', () => {
     const charts = queryCharts();

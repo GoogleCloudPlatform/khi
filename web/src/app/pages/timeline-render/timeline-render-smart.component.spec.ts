@@ -311,6 +311,7 @@ describe('TimelineRenderSmartComponent', () => {
         inspectionId: 'insp-1',
         ...tc.params,
       });
+      fixture.detectChanges();
       expect(res).toEqual(tc.wantResult);
       expect(stubFrame.timelines().map((t) => t.id)).toEqual(tc.wantIds);
     });
@@ -323,6 +324,7 @@ describe('TimelineRenderSmartComponent', () => {
       viewStartTimeMs: 1200_000,
       viewEndTimeMs: 1400_000, // duration = 200_000ms -> pixelsPerMs = 1000 / 200_000 = 0.005
     });
+    fixture.detectChanges();
 
     expect(res).toEqual({
       width: 1308,
@@ -349,10 +351,12 @@ describe('TimelineRenderSmartComponent', () => {
       viewStartTimeMs: 1200_000,
       viewEndTimeMs: 1400_000,
     });
+    fixture.detectChanges();
 
     stubFrame.readyToRender.set(false);
     // Simulate a scroll event mutating the two-way bound model signal before waitForStableFrame runs.
     stubFrame.viewportLeftTimeMS.set(999_000);
+    fixture.detectChanges();
 
     let rafCount = 0;
     spyOn(window, 'requestAnimationFrame').and.callFake(
@@ -367,6 +371,7 @@ describe('TimelineRenderSmartComponent', () => {
     );
 
     await component.waitForStableFrame();
+    fixture.detectChanges();
 
     expect({
       viewportLeftTimeMs: stubFrame.viewportLeftTimeMS(),
