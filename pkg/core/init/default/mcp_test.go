@@ -18,6 +18,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -39,30 +40,21 @@ func TestMCPServerInitializer(t *testing.T) {
 		jobMode        bool
 		withCDPBrowser bool
 		basePath       string
-		wantMounted    bool
 		wantRenderTool bool
 		wantNotFound   []string
 	}{
 		{
-			name:        "skips initialization in job mode",
-			jobMode:     true,
-			basePath:    "",
-			wantMounted: false,
+			name:    "skips initialization in job mode",
+			jobMode: true,
 		},
 		{
-			name:           "mounts endpoints without render_timelines when CDPBrowserKey is absent",
-			jobMode:        false,
-			withCDPBrowser: false,
-			basePath:       "",
-			wantMounted:    true,
-			wantRenderTool: false,
+			name:     "mounts endpoints without render_timelines when CDPBrowserKey is absent",
+			basePath: "",
 		},
 		{
 			name:           "mounts endpoints with render_timelines when CDPBrowserKey is present",
-			jobMode:        false,
 			withCDPBrowser: true,
 			basePath:       "/khi-base",
-			wantMounted:    true,
 			wantRenderTool: true,
 			wantNotFound: []string{
 				"/mcp",
@@ -74,6 +66,9 @@ func TestMCPServerInitializer(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			engine := coreinit.NewEngine(context.Background())
+			t.Cleanup(func() {
+				_ = engine.Terminate()
+			})
 			ctx := engine.Context()
 
 			coreinit.Set(ctx, JobParametersKey, &parameters.JobParameters{
@@ -110,16 +105,14 @@ func TestMCPServerInitializer(t *testing.T) {
 				t.Fatalf("MCPServerInitializer.Init() failed: %v", err)
 			}
 
-			srv, found := coreinit.Get(ctx, MCPServerKey)
-			if found != tc.wantMounted {
-				t.Errorf("coreinit.Get(MCPServerKey) found = %v, want %v", found, tc.wantMounted)
+			wantMounted := !tc.jobMode
+			_, found := coreinit.Get(ctx, MCPServerKey)
+			if found != wantMounted {
+				t.Errorf("coreinit.Get(MCPServerKey) found = %v, want %v", found, wantMounted)
 			}
 
-			if !tc.wantMounted {
+			if !wantMounted {
 				return
-			}
-			if srv == nil {
-				t.Fatal("MCPServerKey is nil")
 			}
 
 			for _, path := range tc.wantNotFound {
@@ -172,16 +165,9 @@ func TestMCPServerInitializer(t *testing.T) {
 					if err != nil {
 						t.Fatalf("session.ListTools() failed for %s: %v", tr.name, err)
 					}
-					if tools == nil {
-						t.Fatalf("session.ListTools() returned nil for %s", tr.name)
-					}
-					hasRenderTool := false
-					for _, tool := range tools.Tools {
-						if tool.Name == "render_timelines" {
-							hasRenderTool = true
-							break
-						}
-					}
+					hasRenderTool := slices.ContainsFunc(tools.Tools, func(tool *mcpsdk.Tool) bool {
+						return tool.Name == "render_timelines"
+					})
 					if hasRenderTool != tc.wantRenderTool {
 						t.Errorf("render_timelines registered = %v, want %v", hasRenderTool, tc.wantRenderTool)
 					}

@@ -40,10 +40,11 @@ type uploadState struct {
 }
 
 type handlerTestEnv struct {
-	handler  *Handler
-	issuer   *Issuer
-	store    *upload.UploadFileStore
-	provider upload.UploadFileStoreProvider
+	handler   *Handler
+	issuer    *Issuer
+	store     *upload.UploadFileStore
+	provider  upload.UploadFileStoreProvider
+	uploadDir string
 }
 
 func newHandlerTestEnv(t *testing.T, ttl time.Duration) handlerTestEnv {
@@ -51,14 +52,16 @@ func newHandlerTestEnv(t *testing.T, ttl time.Duration) handlerTestEnv {
 	tempDir := t.TempDir()
 	provider := upload.NewLocalUploadFileStoreProvider(filepath.Join(tempDir, "store"))
 	store := upload.NewUploadFileStore(provider)
-	chunkManager := chunkedupload.NewChunkSessionManager(filepath.Join(tempDir, "upload"))
+	uploadDir := filepath.Join(tempDir, "upload")
+	chunkManager := chunkedupload.NewChunkSessionManager(uploadDir)
 	t.Cleanup(chunkManager.Close)
 	issuer := NewIssuer(testBaseURL, testMaxSizeBytes, ttl)
 	return handlerTestEnv{
-		handler:  NewHandler(issuer, upload.NewFileParameterUploadManager(store, chunkManager)),
-		issuer:   issuer,
-		store:    store,
-		provider: provider,
+		handler:   NewHandler(issuer, upload.NewFileParameterUploadManager(store, chunkManager)),
+		issuer:    issuer,
+		store:     store,
+		provider:  provider,
+		uploadDir: uploadDir,
 	}
 }
 
@@ -279,35 +282,23 @@ func TestHandler_ServeUploadAcceptsOneUploadPerURL(t *testing.T) {
 }
 
 func TestHandler_ServeUploadRecordsSessionStartFailure(t *testing.T) {
-	tempDir := t.TempDir()
-	store := upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(filepath.Join(tempDir, "store")))
+	env := newHandlerTestEnv(t, time.Hour)
 	// A regular file at the upload directory path makes creating the chunk session fail.
-	uploadDir := filepath.Join(tempDir, "upload")
-	if err := os.WriteFile(uploadDir, nil, 0o644); err != nil {
+	if err := os.WriteFile(env.uploadDir, nil, 0o644); err != nil {
 		t.Fatalf("WriteFile() returned an unexpected error: %v", err)
 	}
-	chunkManager := chunkedupload.NewChunkSessionManager(uploadDir)
-	t.Cleanup(chunkManager.Close)
-	issuer := NewIssuer(testBaseURL, testMaxSizeBytes, time.Hour)
-	handler := NewHandler(issuer, upload.NewFileParameterUploadManager(store, chunkManager))
-	uploadToken := store.GetUploadToken("upload-token-1", nil, "field-1")
-	grant := issuer.Issue(uploadToken.GetID(), "field-1")
+	uploadToken := env.store.GetUploadToken("upload-token-1", nil, "field-1")
+	grant := env.issuer.Issue(uploadToken.GetID(), "field-1")
 	req := httptest.NewRequest(http.MethodPut, grant.URL, strings.NewReader("hello"))
 	rec := httptest.NewRecorder()
 
-	handler.ServeUpload(rec, req, strings.TrimPrefix(grant.URL, testBaseURL))
+	env.handler.ServeUpload(rec, req, strings.TrimPrefix(grant.URL, testBaseURL))
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("status code = %d, want %d", rec.Code, http.StatusInternalServerError)
 	}
-	result, err := store.GetResult(uploadToken, nil)
-	if err != nil {
-		t.Fatalf("GetResult() returned an unexpected error: %v", err)
-	}
-	if result.Status != upload.UploadStatusWaiting {
-		t.Errorf("status = %v, want %v", result.Status, upload.UploadStatusWaiting)
-	}
-	if result.UploadError == nil || !strings.Contains(result.UploadError.Error(), "failed to create upload directory") {
-		t.Errorf("UploadError = %v, want the session start failure", result.UploadError)
+	wantState := uploadState{Status: upload.UploadStatusWaiting, HasUploadError: true}
+	if diff := cmp.Diff(wantState, env.state(t, uploadToken)); diff != "" {
+		t.Errorf("upload state mismatch (-want +got):\n%s", diff)
 	}
 }

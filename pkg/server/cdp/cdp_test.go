@@ -23,8 +23,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/net/websocket"
 )
 
@@ -122,9 +124,12 @@ func TestStartBrowser_InvalidChromeBinFailsFast(t *testing.T) {
 
 func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 	wantPNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
-	var gotMethods []string
-	var gotNavigateURL string
-	var gotWidth, gotHeight float64
+	type recordedRequest struct {
+		Method string
+		Params map[string]any
+	}
+	var mu sync.Mutex
+	var gotRequests []recordedRequest
 
 	wsServer := httptest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
 		for {
@@ -136,19 +141,19 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 			if err := json.Unmarshal([]byte(raw), &req); err != nil {
 				return
 			}
-			gotMethods = append(gotMethods, req.Method)
+			mu.Lock()
+			gotRequests = append(gotRequests, recordedRequest{
+				Method: req.Method,
+				Params: req.Params,
+			})
+			mu.Unlock()
 
 			var res any
 			switch req.Method {
-			case "Page.enable", "Runtime.enable":
+			case "Page.enable", "Runtime.enable", "Emulation.setDeviceMetricsOverride":
 				res = map[string]any{}
 			case "Page.navigate":
-				gotNavigateURL, _ = req.Params["url"].(string)
 				res = map[string]any{"frameId": "f1"}
-			case "Emulation.setDeviceMetricsOverride":
-				gotWidth, _ = req.Params["width"].(float64)
-				gotHeight, _ = req.Params["height"].(float64)
-				res = map[string]any{}
 			case "Runtime.evaluate":
 				res = map[string]any{
 					"result": map[string]any{
@@ -187,15 +192,9 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 	if err := client.Navigate(context.Background(), "http://127.0.0.1:8080/render/timeline"); err != nil {
 		t.Fatalf("client.Navigate() unexpected error = %v", err)
 	}
-	if gotNavigateURL != "http://127.0.0.1:8080/render/timeline" {
-		t.Errorf("navigated URL = %q, want %q", gotNavigateURL, "http://127.0.0.1:8080/render/timeline")
-	}
 
 	if err := client.SetViewportSize(context.Background(), 1600, 480); err != nil {
 		t.Fatalf("client.SetViewportSize() unexpected error = %v", err)
-	}
-	if gotWidth != 1600 || gotHeight != 480 {
-		t.Errorf("viewport = (%v, %v), want (1600, 480)", gotWidth, gotHeight)
 	}
 
 	var got int
@@ -214,16 +213,40 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 		t.Errorf("client.CapturePNGScreenshot() = %v, want %v", gotPNG, wantPNG)
 	}
 
-	wantMethods := []string{
-		"Page.enable",
-		"Runtime.enable",
-		"Page.navigate",
-		"Emulation.setDeviceMetricsOverride",
-		"Runtime.evaluate",
-		"Page.captureScreenshot",
+	wantRequests := []recordedRequest{
+		{Method: "Page.enable"},
+		{Method: "Runtime.enable"},
+		{
+			Method: "Page.navigate",
+			Params: map[string]any{"url": "http://127.0.0.1:8080/render/timeline"},
+		},
+		{
+			Method: "Emulation.setDeviceMetricsOverride",
+			Params: map[string]any{
+				"width":             float64(1600),
+				"height":            float64(480),
+				"deviceScaleFactor": float64(1),
+				"mobile":            false,
+			},
+		},
+		{
+			Method: "Runtime.evaluate",
+			Params: map[string]any{
+				"expression":    "21 * 2",
+				"returnByValue": true,
+				"awaitPromise":  false,
+			},
+		},
+		{
+			Method: "Page.captureScreenshot",
+			Params: map[string]any{"format": "png"},
+		},
 	}
-	if strings.Join(gotMethods, ",") != strings.Join(wantMethods, ",") {
-		t.Errorf("dispatched methods = %v, want %v", gotMethods, wantMethods)
+	mu.Lock()
+	diff := cmp.Diff(wantRequests, gotRequests)
+	mu.Unlock()
+	if diff != "" {
+		t.Errorf("dispatched requests mismatch (-want +got):\n%s", diff)
 	}
 
 	// Subsequent call after server closed the WebSocket must return a TransportError.

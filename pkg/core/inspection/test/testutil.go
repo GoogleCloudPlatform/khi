@@ -38,9 +38,10 @@ var TestInspectionCreationTime = time.Date(2025, time.January, 1, 1, 1, 1, 1, ti
 
 var writableMetadataContextKey = typedmap.NewTypedKey[*typedmap.TypedMap]("test-writable-metadata")
 
+var fakeTestTaskID = taskid.NewDefaultImplementationID[struct{}]("khi.google.com/fake-test-id")
+
 func newTestSummaryCollector(tasks ...coretask.UntypedTask) *summary.Collector {
-	fakeID := taskid.NewDefaultImplementationID[struct{}]("khi.google.com/fake-test-id")
-	fakeTask := coretask.DefineConstant(fakeID, struct{}{})
+	fakeTask := coretask.DefineConstant(fakeTestTaskID, struct{}{})
 	allTasks := make([]coretask.UntypedTask, 0, len(tasks)+1)
 	allTasks = append(allTasks, fakeTask)
 	for _, t := range tasks {
@@ -71,8 +72,7 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 
 	_, err := khictx.GetValue(taskCtx, core_contract.TaskImplementationIDContextKey)
 	if err != nil {
-		fakeTaskID := taskid.NewDefaultImplementationID[struct{}]("khi.google.com/fake-test-id")
-		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskImplementationIDContextKey, fakeTaskID.(taskid.UntypedTaskImplementationID))
+		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskImplementationIDContextKey, fakeTestTaskID.(taskid.UntypedTaskImplementationID))
 	}
 
 	ioConfig, err := inspectioncore.NewIOConfigForTest()

@@ -216,6 +216,18 @@ func TestDefineSetForm(t *testing.T) {
 		})
 	}
 
+	checkErrorHint := func(wantHint string) func(*testing.T, inspectionmetadata.SetParameterFormField) {
+		return func(t *testing.T, field inspectionmetadata.SetParameterFormField) {
+			t.Helper()
+			if field.HintType != inspectionmetadata.Error {
+				t.Errorf("field.HintType = %v, want %v", field.HintType, inspectionmetadata.Error)
+			}
+			if field.Hint != wantHint {
+				t.Errorf("field.Hint = %q, want %q", field.Hint, wantHint)
+			}
+		}
+	}
+
 	testCases := []struct {
 		name         string
 		task         coretask.Task[[]string]
@@ -299,14 +311,7 @@ func TestDefineSetForm(t *testing.T) {
 			requestValue: map[string]any{formID.ReferenceIDString(): []any{"bad"}},
 			sourceValue:  []string{"opt1"},
 			wantValue:    []string{"opt1"},
-			checkField: func(t *testing.T, field inspectionmetadata.SetParameterFormField) {
-				if field.HintType != inspectionmetadata.Error {
-					t.Errorf("field.HintType = %v, want %v", field.HintType, inspectionmetadata.Error)
-				}
-				if field.Hint != "bad value" {
-					t.Errorf("field.Hint = %q, want %q", field.Hint, "bad value")
-				}
-			},
+			checkField:   checkErrorHint("bad value"),
 		},
 		{
 			name: "run mode rejects invalid value",
@@ -337,14 +342,7 @@ func TestDefineSetForm(t *testing.T) {
 			requestValue: map[string]any{formID.ReferenceIDString(): "opt1 opt2"},
 			sourceValue:  []string{"opt1"},
 			wantValue:    []string{"opt1"},
-			checkField: func(t *testing.T, field inspectionmetadata.SetParameterFormField) {
-				if field.HintType != inspectionmetadata.Error {
-					t.Errorf("field.HintType = %v, want %v", field.HintType, inspectionmetadata.Error)
-				}
-				if field.Hint != setFormNotStringArrayHint {
-					t.Errorf("field.Hint = %q, want %q", field.Hint, setFormNotStringArrayHint)
-				}
-			},
+			checkField:   checkErrorHint(setFormNotStringArrayHint),
 		},
 		{
 			name:         "an array with a non-string element becomes a validation error in dry run",
@@ -353,14 +351,7 @@ func TestDefineSetForm(t *testing.T) {
 			requestValue: map[string]any{formID.ReferenceIDString(): []any{"opt1", 2.0}},
 			sourceValue:  []string{"opt1"},
 			wantValue:    []string{"opt1"},
-			checkField: func(t *testing.T, field inspectionmetadata.SetParameterFormField) {
-				if field.HintType != inspectionmetadata.Error {
-					t.Errorf("field.HintType = %v, want %v", field.HintType, inspectionmetadata.Error)
-				}
-				if field.Hint != setFormNotStringArrayHint {
-					t.Errorf("field.Hint = %q, want %q", field.Hint, setFormNotStringArrayHint)
-				}
-			},
+			checkField:   checkErrorHint(setFormNotStringArrayHint),
 		},
 		{
 			name:         "run mode rejects a value that is not an array",

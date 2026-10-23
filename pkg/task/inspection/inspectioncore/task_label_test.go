@@ -25,40 +25,25 @@ import (
 // TestFeatureTaskLabels tests FeatureTaskLabel.
 func TestFeatureTaskLabels(t *testing.T) {
 	testCases := []struct {
-		name               string
-		title              string
-		description        string
-		order              int
-		isDefault          bool
-		wantFeatureFlag    bool
-		wantTitle          string
-		wantDescription    string
-		wantOrder          int
-		wantDefaultFeature bool
+		name        string
+		title       string
+		description string
+		order       int
+		isDefault   bool
 	}{
 		{
-			name:               "FeatureTaskLabel sets all labels",
-			title:              "title",
-			description:        "description",
-			order:              100,
-			isDefault:          true,
-			wantFeatureFlag:    true,
-			wantTitle:          "title",
-			wantDescription:    "description",
-			wantOrder:          100,
-			wantDefaultFeature: true,
+			name:        "FeatureTaskLabel sets all labels",
+			title:       "title",
+			description: "description",
+			order:       100,
+			isDefault:   true,
 		},
 		{
-			name:               "FeatureTaskLabel with non-default feature",
-			title:              "non-default title",
-			description:        "non-default description",
-			order:              50,
-			isDefault:          false,
-			wantFeatureFlag:    true,
-			wantTitle:          "non-default title",
-			wantDescription:    "non-default description",
-			wantOrder:          50,
-			wantDefaultFeature: false,
+			name:        "FeatureTaskLabel with non-default feature",
+			title:       "non-default title",
+			description: "non-default description",
+			order:       50,
+			isDefault:   false,
 		},
 	}
 
@@ -93,13 +78,13 @@ func TestFeatureTaskLabels(t *testing.T) {
 			}
 
 			want := expectations{
-				FeatureFlag:        tc.wantFeatureFlag,
-				Title:              tc.wantTitle,
-				Description:        tc.wantDescription,
-				TaskTitle:          tc.wantTitle,
-				TaskDescription:    tc.wantDescription,
-				Order:              tc.wantOrder,
-				DefaultFeatureFlag: tc.wantDefaultFeature,
+				FeatureFlag:        true,
+				Title:              tc.title,
+				Description:        tc.description,
+				TaskTitle:          tc.title,
+				TaskDescription:    tc.description,
+				Order:              tc.order,
+				DefaultFeatureFlag: tc.isDefault,
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {

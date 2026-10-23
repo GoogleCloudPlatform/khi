@@ -26,12 +26,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/google/go-cmp/cmp"
 )
-
-func intPtr(v int) *int {
-	return &v
-}
 
 func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
 	formTask := newTestTask("form-cluster-name", inspectioncore.NewFormTaskLabelOpt("Cluster Name", "Form field"))
@@ -269,14 +266,38 @@ func TestReportAPI(t *testing.T) {
 					{
 						Title: "Kubernetes Audit Logs",
 						Queries: []Query{
-							{Name: "Query One", Text: "text one", LogCount: intPtr(42)},
-							{Name: "Query Two", Text: "text two", LogCount: intPtr(0)},
+							{Name: "Query One", Text: "text one", LogCount: testutil.P(42)},
+							{Name: "Query Two", Text: "text two", LogCount: testutil.P(0)},
 						},
 					},
 					{
 						Title: "Shared & Filter Context",
 						Queries: []Query{
 							{Name: "Shared Query", Text: "text shared"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "AddToSetProperty deduplicates and sorts set elements",
+			run: func(c *Collector) {
+				ctx := buildTaskContext(c, tasks["audit-log-mapper#default"])
+				for _, val := range []string{"banana", "apple", "banana", "cherry", "apple"} {
+					AddToSetProperty(ctx, "fruits", val)
+				}
+			},
+			want: Snapshot{
+				Sections: []Section{
+					{
+						Title: "Kubernetes Audit Logs",
+						TaskReports: []TaskReport{
+							{
+								Title: "Audit Log Mapper",
+								Properties: []KeyValue{
+									{Key: "fruits", Value: "apple, banana, cherry"},
+								},
+							},
 						},
 					},
 				},
@@ -317,21 +338,13 @@ func TestReportAPI_PanicsOnInvalidContext(t *testing.T) {
 		{
 			name: "missing task implementation ID in context",
 			ctx: func() context.Context {
-				collector := NewCollector(taskGraph)
-				metaMap := typedmap.NewTypedMap()
-				typedmap.Set(metaMap, MetadataKey, collector)
-				return khictx.WithValue(context.Background(), inspectionmetadata.MapContextKey, metaMap.AsReadonly())
+				return buildTaskContext(NewCollector(taskGraph), nil)
 			},
 		},
 		{
 			name: "unknown task implementation ID not in task graph",
 			ctx: func() context.Context {
-				collector := NewCollector(taskGraph)
-				metaMap := typedmap.NewTypedMap()
-				typedmap.Set(metaMap, MetadataKey, collector)
-				ctx := khictx.WithValue(context.Background(), inspectionmetadata.MapContextKey, metaMap.AsReadonly())
-				unknownID := taskid.NewDefaultImplementationID[any]("unknown-task")
-				return khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, unknownID.(taskid.UntypedTaskImplementationID))
+				return buildTaskContext(NewCollector(taskGraph), newTestTask("unknown-task"))
 			},
 		},
 	}
@@ -369,55 +382,22 @@ func TestReportAPI_ConcurrentAddIntProperty(t *testing.T) {
 	}
 	wg.Wait()
 
-	snapshot := c.Snapshot()
-	if len(snapshot.Sections) != 1 {
-		t.Fatalf("expected 1 section, got %d", len(snapshot.Sections))
-	}
-	if len(snapshot.Sections[0].TaskReports) != 1 {
-		t.Fatalf("expected 1 task report, got %d", len(snapshot.Sections[0].TaskReports))
-	}
-	props := snapshot.Sections[0].TaskReports[0].Properties
-	if len(props) != 1 {
-		t.Fatalf("expected 1 property, got %d", len(props))
-	}
-	gotVal := props[0].Value
-	wantVal := "10000"
-	if gotVal != wantVal {
-		t.Errorf("counter property = %q, want %q", gotVal, wantVal)
-	}
-}
-
-func TestReportAPI_AddToSetProperty(t *testing.T) {
-	taskGraph, tasks := buildTestGraph()
-	c := NewCollector(taskGraph)
-	taskCtx := buildTaskContext(c, tasks["audit-log-mapper#default"])
-
-	testCases := []struct {
-		name   string
-		writes []string
-		want   string
-	}{
-		{
-			name:   "deduplicates and sorts set elements",
-			writes: []string{"banana", "apple", "banana", "cherry", "apple"},
-			want:   "apple, banana, cherry",
+	want := Snapshot{
+		Sections: []Section{
+			{
+				Title: "Kubernetes Audit Logs",
+				TaskReports: []TaskReport{
+					{
+						Title: "Audit Log Mapper",
+						Properties: []KeyValue{
+							{Key: "counter", Value: "10000"},
+						},
+					},
+				},
+			},
 		},
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			for _, val := range tc.writes {
-				AddToSetProperty(taskCtx, "fruits", val)
-			}
-			snapshot := c.Snapshot()
-			props := snapshot.Sections[0].TaskReports[0].Properties
-			if len(props) != 1 {
-				t.Fatalf("expected 1 property, got %d", len(props))
-			}
-			got := props[0].Value
-			if got != tc.want {
-				t.Errorf("AddToSetProperty() = %q, want %q", got, tc.want)
-			}
-		})
+	if diff := cmp.Diff(want, c.Snapshot()); diff != "" {
+		t.Errorf("Snapshot() mismatch (-want +got):\n%s", diff)
 	}
 }

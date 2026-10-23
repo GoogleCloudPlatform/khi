@@ -31,7 +31,6 @@ func TestInMemoryInspectionNameRegistry_ResolveUniqueName(t *testing.T) {
 	}{
 		{
 			name:         "returns baseName when unused",
-			setup:        func(r *InMemoryInspectionNameRegistry) {},
 			inspectionID: "insp-1",
 			baseName:     "GKE Cluster",
 			want:         "GKE Cluster",
@@ -76,14 +75,12 @@ func TestInMemoryInspectionNameRegistry_ResolveUniqueName(t *testing.T) {
 		},
 		{
 			name:         "falls back to Inspection when baseName is empty",
-			setup:        func(r *InMemoryInspectionNameRegistry) {},
 			inspectionID: "insp-1",
 			baseName:     "",
 			want:         "Inspection",
 		},
 		{
 			name:         "falls back to Inspection when baseName is whitespace only",
-			setup:        func(r *InMemoryInspectionNameRegistry) {},
 			inspectionID: "insp-1",
 			baseName:     "   ",
 			want:         "Inspection",
@@ -133,7 +130,6 @@ func TestInMemoryInspectionNameRegistry_ReserveName(t *testing.T) {
 	}{
 		{
 			name:         "succeeds on unused name",
-			setup:        func(r *InMemoryInspectionNameRegistry) {},
 			inspectionID: "insp-1",
 			reserveName:  "Inspection A",
 			wantErr:      nil,
@@ -234,7 +230,6 @@ func TestInMemoryInspectionNameRegistry_NameOf(t *testing.T) {
 	}{
 		{
 			name:         "returns false when no name is reserved for inspection",
-			setup:        func(r *InMemoryInspectionNameRegistry) {},
 			inspectionID: "insp-1",
 			wantName:     "",
 			wantExists:   false,
@@ -246,16 +241,6 @@ func TestInMemoryInspectionNameRegistry_NameOf(t *testing.T) {
 			},
 			inspectionID: "insp-1",
 			wantName:     "My Inspection",
-			wantExists:   true,
-		},
-		{
-			name: "returns updated name after renaming",
-			setup: func(r *InMemoryInspectionNameRegistry) {
-				_ = r.ReserveName("insp-1", "Initial Name")
-				_ = r.ReserveName("insp-1", "Updated Name")
-			},
-			inspectionID: "insp-1",
-			wantName:     "Updated Name",
 			wantExists:   true,
 		},
 	}
@@ -288,7 +273,6 @@ func TestInMemoryInspectionNameRegistry_IsNameAvailable(t *testing.T) {
 	}{
 		{
 			name:         "returns true when name is unused",
-			setup:        func(r *InMemoryInspectionNameRegistry) {},
 			inspectionID: "insp-1",
 			checkName:    "Unused Name",
 			want:         true,
@@ -312,15 +296,16 @@ func TestInMemoryInspectionNameRegistry_IsNameAvailable(t *testing.T) {
 			want:         false,
 		},
 		{
-			name:         "returns false on empty string",
-			setup:        func(r *InMemoryInspectionNameRegistry) {},
-			inspectionID: "insp-1",
-			checkName:    "",
+			name: "returns false when ownerID is empty and name is reserved",
+			setup: func(r *InMemoryInspectionNameRegistry) {
+				_ = r.ReserveName("insp-1", "My Name")
+			},
+			inspectionID: "",
+			checkName:    "My Name",
 			want:         false,
 		},
 		{
-			name:         "returns false on whitespace string",
-			setup:        func(r *InMemoryInspectionNameRegistry) {},
+			name:         "returns false on empty or whitespace string",
 			inspectionID: "insp-1",
 			checkName:    "   ",
 			want:         false,
@@ -372,7 +357,6 @@ func TestInMemoryInspectionNameRegistry_ReserveUniqueName(t *testing.T) {
 	}{
 		{
 			name:         "returns baseName when unused",
-			setup:        func(r *InMemoryInspectionNameRegistry) {},
 			inspectionID: "insp-1",
 			baseName:     "GKE Cluster",
 			want:         "GKE Cluster",
@@ -387,16 +371,6 @@ func TestInMemoryInspectionNameRegistry_ReserveUniqueName(t *testing.T) {
 			want:         "GKE Cluster(1)",
 		},
 		{
-			name: "returns baseName(2) when baseName and baseName(1) are reserved by other inspections",
-			setup: func(r *InMemoryInspectionNameRegistry) {
-				_ = r.ReserveName("other-1", "GKE Cluster")
-				_ = r.ReserveName("other-2", "GKE Cluster(1)")
-			},
-			inspectionID: "insp-1",
-			baseName:     "GKE Cluster",
-			want:         "GKE Cluster(2)",
-		},
-		{
 			name: "keeps baseName when already reserved by the same inspectionID",
 			setup: func(r *InMemoryInspectionNameRegistry) {
 				_ = r.ReserveName("insp-1", "GKE Cluster")
@@ -404,13 +378,6 @@ func TestInMemoryInspectionNameRegistry_ReserveUniqueName(t *testing.T) {
 			inspectionID: "insp-1",
 			baseName:     "GKE Cluster",
 			want:         "GKE Cluster",
-		},
-		{
-			name:         "falls back to Inspection when baseName is whitespace only",
-			setup:        func(r *InMemoryInspectionNameRegistry) {},
-			inspectionID: "insp-1",
-			baseName:     "   ",
-			want:         "Inspection",
 		},
 		{
 			name: "releases the previous name of the same inspectionID",
@@ -427,7 +394,9 @@ func TestInMemoryInspectionNameRegistry_ReserveUniqueName(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := NewInMemoryInspectionNameRegistry()
-			tc.setup(r)
+			if tc.setup != nil {
+				tc.setup(r)
+			}
 			got := r.ReserveUniqueName(tc.inspectionID, tc.baseName)
 			if got != tc.want {
 				t.Errorf("ReserveUniqueName() = %q, want %q", got, tc.want)

@@ -797,13 +797,22 @@ timestamp < "2025-01-01T01:01:00+0000"`
 				if !found {
 					t.Fatalf("summary collector metadata not found")
 				}
-				snap := summaryCollector.Snapshot()
-				if len(snap.Sections) != 1 || len(snap.Sections[0].Queries) != len(tc.wantQueries) {
-					t.Fatalf("summary sections = %+v, want 1 section with %d query", snap.Sections, len(tc.wantQueries))
+				wantSnap := summary.Snapshot{
+					Sections: []summary.Section{
+						{
+							Title: "Shared & Filter Context",
+							Queries: []summary.Query{
+								{
+									Name:     "container-logs",
+									Text:     recordedQuery,
+									LogCount: ptr(len(tc.wantLogs)),
+								},
+							},
+						},
+					},
 				}
-				gotCount := snap.Sections[0].Queries[0].LogCount
-				if gotCount == nil || *gotCount != len(tc.wantLogs) {
-					t.Errorf("summary query LogCount = %v, want %d", gotCount, len(tc.wantLogs))
+				if diff := cmp.Diff(wantSnap, summaryCollector.Snapshot()); diff != "" {
+					t.Errorf("summary.Snapshot() mismatch (-want +got):\n%s", diff)
 				}
 			}
 
@@ -817,19 +826,24 @@ timestamp < "2025-01-01T01:01:00+0000"`
 			if diff := cmp.Diff([]string{"projects/test-project"}, queryResourceNames.CurrentResourceNames); diff != "" {
 				t.Errorf("current resource names mismatch (-want +got):\n%s", diff)
 			}
-			groupField, ok := formFields.DangerouslyGetField(InputLoggingFilterResourceNameTaskID.ReferenceIDString()).(inspectionmetadata.GroupParameterFormField)
-			if !ok || len(groupField.Children) != 1 {
-				t.Fatalf("expected 1 child in group field, got %#v", groupField)
+			wantGroupField := inspectionmetadata.GroupParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+					ID:   InputLoggingFilterResourceNameTaskID.ReferenceIDString(),
+					Type: inspectionmetadata.Group,
+				},
+				Children: []inspectionmetadata.ParameterFormField{
+					inspectionmetadata.TextParameterFormField{
+						ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+							ID:   inputID,
+							Type: inspectionmetadata.Text,
+						},
+						Default:     "projects/test-project",
+						Suggestions: []string{"projects/test-project"},
+					},
+				},
 			}
-			childField, ok := groupField.Children[0].(inspectionmetadata.TextParameterFormField)
-			if !ok {
-				t.Fatalf("expected TextParameterFormField, got %T", groupField.Children[0])
-			}
-			if childField.Default != "projects/test-project" {
-				t.Errorf("synced form field Default = %q, want %q", childField.Default, "projects/test-project")
-			}
-			if diff := cmp.Diff([]string{"projects/test-project"}, childField.Suggestions); diff != "" {
-				t.Errorf("synced form field Suggestions mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(wantGroupField, formFields.DangerouslyGetField(InputLoggingFilterResourceNameTaskID.ReferenceIDString())); diff != "" {
+				t.Errorf("synced form field mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

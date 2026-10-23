@@ -19,24 +19,37 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestFileParameterUploadManager_Lifecycle(t *testing.T) {
+func newTestUploadManager(t *testing.T) (*UploadFileStore, UploadFileStoreProvider, *FileParameterUploadManager) {
+	t.Helper()
 	tempDir := t.TempDir()
-	storeDir := filepath.Join(tempDir, "store")
-	uploadDir := filepath.Join(tempDir, "upload")
-
-	provider := NewLocalUploadFileStoreProvider(storeDir)
+	provider := NewLocalUploadFileStoreProvider(filepath.Join(tempDir, "store"))
 	uploadStore := NewUploadFileStore(provider)
-	chunkManager := chunkedupload.NewChunkSessionManager(uploadDir)
-	defer chunkManager.Close()
-
+	chunkManager := chunkedupload.NewChunkSessionManager(filepath.Join(tempDir, "upload"))
+	t.Cleanup(chunkManager.Close)
 	mgr := NewFileParameterUploadManager(uploadStore, chunkManager)
+	return uploadStore, provider, mgr
+}
+
+func assertUploadResult(t *testing.T, store *UploadFileStore, token UploadToken, want UploadResult) {
+	t.Helper()
+	got, err := store.GetResult(token, nil)
+	if err != nil {
+		t.Fatalf("GetResult() failed: %v", err)
+	}
+	if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(UploadResult{}, "Token", "StoreProvider"), cmpopts.EquateErrors()); diff != "" {
+		t.Errorf("GetResult() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestFileParameterUploadManager_Lifecycle(t *testing.T) {
+	uploadStore, provider, mgr := newTestUploadManager(t)
 
 	token := uploadStore.GetUploadToken("field-upload-1", nil, "field-1")
 
@@ -45,15 +58,11 @@ func TestFileParameterUploadManager_Lifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StartUploadSession failed: %v", err)
 	}
-
-	// Verify store status is uploading
-	res, err := uploadStore.GetResult(token, nil)
-	if err != nil {
-		t.Fatalf("GetResult failed: %v", err)
-	}
-	if res.Status != UploadStatusUploading {
-		t.Errorf("status mismatch: want UploadStatusUploading, got %v", res.Status)
-	}
+	assertUploadResult(t, uploadStore, token, UploadResult{
+		Status:    UploadStatusUploading,
+		FileName:  "sample.log",
+		SizeBytes: 10,
+	})
 
 	// 2. Write chunks
 	n1, err := mgr.WriteChunk(session.Token, 0, []byte("hello"))
@@ -61,7 +70,7 @@ func TestFileParameterUploadManager_Lifecycle(t *testing.T) {
 		t.Fatalf("WriteChunk 0 failed: %v", err)
 	}
 	if n1 != 5 {
-		t.Errorf("n1 mismatch (-want +got):\n%s", cmp.Diff(int64(5), n1))
+		t.Errorf("WriteChunk(0) = %d, want 5", n1)
 	}
 
 	n2, err := mgr.WriteChunk(session.Token, 5, []byte("world"))
@@ -69,7 +78,7 @@ func TestFileParameterUploadManager_Lifecycle(t *testing.T) {
 		t.Fatalf("WriteChunk 5 failed: %v", err)
 	}
 	if n2 != 10 {
-		t.Errorf("n2 mismatch (-want +got):\n%s", cmp.Diff(int64(10), n2))
+		t.Errorf("WriteChunk(5) = %d, want 10", n2)
 	}
 
 	// 3. Complete session
@@ -78,17 +87,13 @@ func TestFileParameterUploadManager_Lifecycle(t *testing.T) {
 		t.Fatalf("CompleteUploadSession failed: %v", err)
 	}
 	if fileSize != 10 {
-		t.Errorf("fileSize mismatch (-want +got):\n%s", cmp.Diff(int64(10), fileSize))
+		t.Errorf("CompleteUploadSession() = %d, want 10", fileSize)
 	}
-
-	// Verify store status is completed
-	res, err = uploadStore.GetResult(token, nil)
-	if err != nil {
-		t.Fatalf("GetResult after completion failed: %v", err)
-	}
-	if res.Status != UploadStatusCompleted {
-		t.Errorf("status mismatch: want UploadStatusCompleted, got %v", res.Status)
-	}
+	assertUploadResult(t, uploadStore, token, UploadResult{
+		Status:    UploadStatusCompleted,
+		FileName:  "sample.log",
+		SizeBytes: 10,
+	})
 
 	// Verify file content in provider
 	reader, err := provider.Read(token)
@@ -101,22 +106,13 @@ func TestFileParameterUploadManager_Lifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("io.ReadAll failed: %v", err)
 	}
-	if diff := cmp.Diff("helloworld", string(content)); diff != "" {
-		t.Errorf("file content mismatch (-want +got):\n%s", diff)
+	if string(content) != "helloworld" {
+		t.Errorf("file content = %q, want %q", string(content), "helloworld")
 	}
 }
 
 func TestFileParameterUploadManager_Errors(t *testing.T) {
-	tempDir := t.TempDir()
-	storeDir := filepath.Join(tempDir, "store")
-	uploadDir := filepath.Join(tempDir, "upload")
-
-	provider := NewLocalUploadFileStoreProvider(storeDir)
-	uploadStore := NewUploadFileStore(provider)
-	chunkManager := chunkedupload.NewChunkSessionManager(uploadDir)
-	defer chunkManager.Close()
-
-	mgr := NewFileParameterUploadManager(uploadStore, chunkManager)
+	uploadStore, _, mgr := newTestUploadManager(t)
 
 	token := uploadStore.GetUploadToken("field-upload-2", nil, "field-2")
 
@@ -174,79 +170,43 @@ func TestFileParameterUploadManager_Errors(t *testing.T) {
 			err := tc.run(t)
 			if tc.wantErrIs != nil {
 				if !errors.Is(err, tc.wantErrIs) {
-					t.Errorf("error mismatch: want %v, got %v", tc.wantErrIs, err)
+					t.Errorf("err = %v, want %v", err, tc.wantErrIs)
 				}
 			}
 		})
 	}
 }
 
-func TestFileParameterUploadManager_KeepsFileNameAndSizeThroughCompletion(t *testing.T) {
-	tempDir := t.TempDir()
-	uploadStore := NewUploadFileStore(NewLocalUploadFileStoreProvider(filepath.Join(tempDir, "store")))
-	chunkManager := chunkedupload.NewChunkSessionManager(filepath.Join(tempDir, "upload"))
-	defer chunkManager.Close()
-	mgr := NewFileParameterUploadManager(uploadStore, chunkManager)
-	token := uploadStore.GetUploadToken("field-upload-3", nil, "field-3")
-
-	session, err := mgr.StartUploadSession(token.GetID(), "audit.jsonl", 5)
-	if err != nil {
-		t.Fatalf("StartUploadSession failed: %v", err)
-	}
-	assertFileNameAndSize(t, uploadStore, token, "audit.jsonl", 5)
-
-	if _, err := mgr.WriteChunk(session.Token, 0, []byte("hello")); err != nil {
-		t.Fatalf("WriteChunk failed: %v", err)
-	}
-	if _, err := mgr.CompleteUploadSession(session.Token); err != nil {
-		t.Fatalf("CompleteUploadSession failed: %v", err)
-	}
-	assertFileNameAndSize(t, uploadStore, token, "audit.jsonl", 5)
-}
-
-func assertFileNameAndSize(t *testing.T, store *UploadFileStore, token UploadToken, wantFileName string, wantSizeBytes int64) {
-	t.Helper()
-	res, err := store.GetResult(token, nil)
-	if err != nil {
-		t.Fatalf("GetResult failed: %v", err)
-	}
-	if res.FileName != wantFileName {
-		t.Errorf("FileName = %q, want %q", res.FileName, wantFileName)
-	}
-	if res.SizeBytes != wantSizeBytes {
-		t.Errorf("SizeBytes = %d, want %d", res.SizeBytes, wantSizeBytes)
-	}
-}
-
 func TestFileParameterUploadManager_RecordUploadFailure(t *testing.T) {
 	cause := errors.New("connection reset")
 	testCases := []struct {
-		name            string
-		uploadTokenID   string
-		wantErrIs       error
-		wantStatus      UploadStatus
-		wantUploadError error
+		name          string
+		uploadTokenID string
+		wantErrIs     error
+		wantResult    UploadResult
 	}{
 		{
-			name:            "known upload token waits for another upload with the cause",
-			uploadTokenID:   "field-upload-4",
-			wantStatus:      UploadStatusWaiting,
-			wantUploadError: cause,
+			name:          "known upload token waits for another upload with the cause",
+			uploadTokenID: "field-upload-4",
+			wantResult: UploadResult{
+				Status:      UploadStatusWaiting,
+				UploadError: cause,
+			},
 		},
 		{
 			name:          "unknown upload token is rejected",
 			uploadTokenID: "non-existent-token-id",
 			wantErrIs:     ErrUploadTokenNotFound,
-			wantStatus:    UploadStatusUploading,
+			wantResult: UploadResult{
+				Status:    UploadStatusUploading,
+				FileName:  "test.log",
+				SizeBytes: 10,
+			},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tempDir := t.TempDir()
-			uploadStore := NewUploadFileStore(NewLocalUploadFileStoreProvider(filepath.Join(tempDir, "store")))
-			chunkManager := chunkedupload.NewChunkSessionManager(filepath.Join(tempDir, "upload"))
-			defer chunkManager.Close()
-			mgr := NewFileParameterUploadManager(uploadStore, chunkManager)
+			uploadStore, _, mgr := newTestUploadManager(t)
 			token := uploadStore.GetUploadToken("field-upload-4", nil, "field-4")
 			if _, err := mgr.StartUploadSession(token.GetID(), "test.log", 10); err != nil {
 				t.Fatalf("StartUploadSession failed: %v", err)
@@ -257,16 +217,7 @@ func TestFileParameterUploadManager_RecordUploadFailure(t *testing.T) {
 			if !errors.Is(err, tc.wantErrIs) {
 				t.Errorf("RecordUploadFailure() error = %v, want %v", err, tc.wantErrIs)
 			}
-			res, err := uploadStore.GetResult(token, nil)
-			if err != nil {
-				t.Fatalf("GetResult failed: %v", err)
-			}
-			if res.Status != tc.wantStatus {
-				t.Errorf("Status = %v, want %v", res.Status, tc.wantStatus)
-			}
-			if res.UploadError != tc.wantUploadError {
-				t.Errorf("UploadError = %v, want %v", res.UploadError, tc.wantUploadError)
-			}
+			assertUploadResult(t, uploadStore, token, tc.wantResult)
 		})
 	}
 }
@@ -284,18 +235,13 @@ func TestFileParameterUploadManager_StartUploadSessionRecordsSessionStartFailure
 	mgr := NewFileParameterUploadManager(uploadStore, chunkManager)
 	token := uploadStore.GetUploadToken("field-upload-5", nil, "field-5")
 
-	if _, err := mgr.StartUploadSession(token.GetID(), "test.log", 10); err == nil {
+	_, startErr := mgr.StartUploadSession(token.GetID(), "test.log", 10)
+	if startErr == nil {
 		t.Fatal("StartUploadSession() error = nil, want the session start failure")
 	}
 
-	res, err := uploadStore.GetResult(token, nil)
-	if err != nil {
-		t.Fatalf("GetResult failed: %v", err)
-	}
-	if res.Status != UploadStatusWaiting {
-		t.Errorf("Status = %v, want %v", res.Status, UploadStatusWaiting)
-	}
-	if res.UploadError == nil || !strings.Contains(res.UploadError.Error(), "failed to create upload directory") {
-		t.Errorf("UploadError = %v, want the session start failure", res.UploadError)
-	}
+	assertUploadResult(t, uploadStore, token, UploadResult{
+		Status:      UploadStatusWaiting,
+		UploadError: startErr,
+	})
 }
