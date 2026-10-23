@@ -35,10 +35,10 @@ type Server struct {
 
 // serverInstructions is the guidance that the initialize response gives to agents.
 // It stays within 500 characters because some clients truncate longer instructions, and detailed usage belongs to skills.
-const serverInstructions = "KHI builds K8s resource timelines from logs. " +
+const serverInstructions = "KHI builds K8s timelines from logs. " +
 	"Read khi://inspections or khi://inspection-types, call create_inspection and update_inspection_features, " +
-	"repeat dry_run_inspection until Errors: 0, then run_inspection and wait_inspection until not RUNNING. " +
-	"Investigate with search_timelines, search_logs, and render_timelines; drill down with get_timeline_logs, get_log, and get_resource_revisions/manifest/diff. " +
+	"repeat dry_run_inspection until Errors: 0, then run_inspection and wait_inspection. " +
+	"Investigate with search_timelines, search_logs, and render_timelines; drill down with get_timeline_logs, get_log, and get_resource_revisions/manifest/diff; verify with validate_report. " +
 	"Use Filter vocabulary CEL values, and show Applied filter values for the Web UI."
 
 // NewServer creates a new Server instance and registers the provided domain handlers.

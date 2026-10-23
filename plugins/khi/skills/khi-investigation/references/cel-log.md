@@ -6,7 +6,7 @@ Log CEL expressions filter individual log entries within timelines. Logs matchin
 
 The following variables are available in the log evaluation scope:
 
-- `logType` (`string`): The type identifier of the log entry (e.g. `"k8s audit"`, `"container"`).
+- `logType` (`string`): The type label of the log entry (e.g. `"k8s audit"`, `"container"`, `"k8s event"`). Available values for the current inspection are listed in the `Filter vocabulary` section of `search_timelines` and `search_logs` responses.
 - `severity` (`int`): The integer severity level of the log entry (`INFO`, `WARNING`, `ERROR`, `FATAL`).
 - `l` (`map<string, dyn>`): The root log object, exposing `l.logType` and `l.severity`.
 
@@ -22,31 +22,6 @@ Severity levels can be compared using standard comparison operators (`==`, `!=`,
 | `ERROR` | 3 | ERROR severity |
 | `FATAL` | 4 | FATAL severity |
 
-## Registered Log Types
-
-The following log types are registered in KHI:
-
-| `Label` | Description |
-| --- | --- |
-| `Asset Inventory` | Asset Inventory Resource Snapshot |
-| `CSM traffic` | Cloud Service Mesh Traffic Logs |
-| `GCE audit` | Compute API Audit Logs |
-| `GDC onprem audit` | GDC On-Prem API Audit Logs |
-| `GKE multicloud audit` | GKE MultiCloud API Audit Logs |
-| `KCP log` | Kubernetes Control Plane Component Logs |
-| `Managed Airflow API` | Managed Airflow API Logs |
-| `autoscaler` | GKE Autoscaler Logs |
-| `container` | Kubernetes Container Logs |
-| `csmcp` | CSM CP Logs |
-| `gke api audit log` | GKE API Audit Logs |
-| `k8s audit` | Kubernetes Audit Logs |
-| `k8s event` | Kubernetes Event Logs |
-| `k8s node` | Kubernetes Node Logs |
-| `managed airflow` | Managed Airflow Environment Logs |
-| `network api audit` | Network API Audit Logs |
-| `serial port` | Serial Port Output Logs |
-| `unknown` | Unknown Logs |
-
 ## Functions
 
 ### `body` / `B`
@@ -58,9 +33,9 @@ Matches contents within the log entry body against substrings or regular express
 - `body(values list<string>) bool` / `B(values list<string>) bool`:
   Checks if any field in the log body matches any pattern in `values`.
 - `body(fieldPath string, value string) bool` / `B(fieldPath string, value string) bool`:
-  Checks if the dot-separated field `fieldPath` in the log body matches `value`.
+  Checks if the single dot-separated field `fieldPath` in the log body matches `value` (combine multiple field paths with `||`).
 - `body(fieldPath string, values list<string>) bool` / `B(fieldPath string, values list<string>) bool`:
-  Checks if the dot-separated field `fieldPath` in the log body matches any pattern in `values`.
+  Checks if the single dot-separated field `fieldPath` in the log body matches any pattern in `values`.
 
 ## Common Patterns
 
