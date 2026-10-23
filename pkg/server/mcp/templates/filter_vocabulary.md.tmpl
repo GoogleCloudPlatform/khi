@@ -11,9 +11,9 @@ These are the values that filter CEL can match in this inspection.
 ## Filter vocabulary
 These are the values that filter CEL can match in this inspection.
 {{- if .TimelineTypes }}
-- Timeline names by timelineType, matched with `path.<key>`. Each line shows up to 5 example names and the number of distinct names.
+- Timeline names by timelineType, matched with `path["<key>"]`. Each line shows up to 5 example names and the number of distinct names.
 {{- range .TimelineTypes }}
-  - {{ code .Label }} → {{ code (printf "path.%s" .PathKey) }}: {{ range $i, $n := .ExampleNames }}{{ if $i }}, {{ end }}{{ code $n }}{{ end }}{{ if gt .NameCount (len .ExampleNames) }}, … ({{ .NameCount }} names){{ else }} (all {{ .NameCount }} {{ if eq .NameCount 1 }}name{{ else }}names{{ end }}){{ end }}
+  - {{ code .Label }} → {{ code (printf "path[%q]" .PathKey) }}: {{ range $i, $n := .ExampleNames }}{{ if $i }}, {{ end }}{{ code $n }}{{ end }}{{ if gt .NameCount (len .ExampleNames) }}, … ({{ .NameCount }} names){{ else }} (all {{ .NameCount }} {{ if eq .NameCount 1 }}name{{ else }}names{{ end }}){{ end }}
 {{- end }}
 {{- else }}
 - Timeline names by timelineType: none

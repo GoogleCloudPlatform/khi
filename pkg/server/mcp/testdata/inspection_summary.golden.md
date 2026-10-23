@@ -71,9 +71,9 @@ Split the query into 4 time ranges because of the log volume.
 
 ## Filter vocabulary
 These are the values that filter CEL can match in this inspection.
-- Timeline names by timelineType, matched with `path.<key>`. Each line shows up to 5 example names and the number of distinct names.
-  - `apiVersion` → `path.apiversion`: `core/v1` (all 1 name)
-  - `kind` → `path.kind`: `node`, `pod`, `service`, `replicaset`, `deployment`, … (6 names)
-  - `namespace` → `path.namespace`: `kube-system`, `default` (all 2 names)
+- Timeline names by timelineType, matched with `path["<key>"]`. Each line shows up to 5 example names and the number of distinct names.
+  - `apiVersion` → `path["apiversion"]`: `core/v1` (all 1 name)
+  - `kind` → `path["kind"]`: `node`, `pod`, `service`, `replicaset`, `deployment`, … (6 names)
+  - `namespace` → `path["namespace"]`: `kube-system`, `default` (all 2 names)
 - logType: `k8s audit`, `k8s event`
 - severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body("severity", "ERROR")` for the raw Cloud Logging field)

@@ -393,7 +393,7 @@ func TestInspectionHandler_E2E(t *testing.T) {
 		if !strings.Contains(readDone.Contents[0].Text, "# Inspection Summary: prod-cluster-1 restart investigation") {
 			t.Errorf("ReadResource DONE unexpected text: %s", readDone.Contents[0].Text)
 		}
-		if !strings.Contains(readDone.Contents[0].Text, "`kind` → `path.kind`: `node`, `pod` (all 2 names)") {
+		if !strings.Contains(readDone.Contents[0].Text, "`kind` → `path[\"kind\"]`: `node`, `pod` (all 2 names)") {
 			t.Errorf("ReadResource DONE missing timeline filter vocabulary: %s", readDone.Contents[0].Text)
 		}
 		if !strings.Contains(readDone.Contents[0].Text, "- logType: `k8s audit`") {
