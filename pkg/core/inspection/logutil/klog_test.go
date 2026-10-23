@@ -16,7 +16,9 @@ package logutil
 
 import (
 	"testing"
+	"time"
 
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/sync/errgroup"
@@ -218,5 +220,132 @@ func TestKlogTextParserWorker_Parse_WithoutHeader(t *testing.T) {
 				t.Errorf("parse() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestFormatKLogString(t *testing.T) {
+	baseTime := time.Date(2025, 9, 29, 8, 20, 24, 205299000, time.UTC)
+	testCases := []struct {
+		desc      string
+		severity  *pb.Severity
+		timestamp time.Time
+		threadID  int
+		file      string
+		line      int
+		message   string
+		want      string
+	}{
+		{
+			desc:      "info severity with structured message",
+			severity:  inspectioncore.SeverityInfo,
+			timestamp: baseTime,
+			file:      "scheduler.go",
+			line:      100,
+			message:   `"Starting watch" path="/apis"`,
+			want:      `I0929 08:20:24.205299 0 scheduler.go:100] "Starting watch" path="/apis"`,
+		},
+		{
+			desc:      "warning severity",
+			severity:  inspectioncore.SeverityWarning,
+			timestamp: baseTime,
+			file:      "scheduler.go",
+			line:      100,
+			message:   "msg",
+			want:      `W0929 08:20:24.205299 0 scheduler.go:100] msg`,
+		},
+		{
+			desc:      "error severity",
+			severity:  inspectioncore.SeverityError,
+			timestamp: baseTime,
+			file:      "scheduler.go",
+			line:      100,
+			message:   "msg",
+			want:      `E0929 08:20:24.205299 0 scheduler.go:100] msg`,
+		},
+		{
+			desc:      "fatal severity",
+			severity:  inspectioncore.SeverityFatal,
+			timestamp: baseTime,
+			file:      "scheduler.go",
+			line:      100,
+			message:   "msg",
+			want:      `F0929 08:20:24.205299 0 scheduler.go:100] msg`,
+		},
+		{
+			desc:      "unknown severity falls back to info",
+			severity:  inspectioncore.SeverityUnknown,
+			timestamp: baseTime,
+			file:      "scheduler.go",
+			line:      100,
+			message:   "msg",
+			want:      `I0929 08:20:24.205299 0 scheduler.go:100] msg`,
+		},
+		{
+			desc:      "nil severity falls back to info",
+			severity:  nil,
+			timestamp: baseTime,
+			file:      "scheduler.go",
+			line:      100,
+			message:   "msg",
+			want:      `I0929 08:20:24.205299 0 scheduler.go:100] msg`,
+		},
+		{
+			desc:      "non-UTC timestamp is converted to UTC",
+			severity:  inspectioncore.SeverityInfo,
+			timestamp: time.Date(2025, 9, 30, 3, 0, 0, 0, time.FixedZone("JST", 9*60*60)),
+			file:      "scheduler.go",
+			line:      100,
+			message:   "msg",
+			want:      `I0929 18:00:00.000000 0 scheduler.go:100] msg`,
+		},
+		{
+			desc:      "empty file is replaced with unknown",
+			severity:  inspectioncore.SeverityInfo,
+			timestamp: baseTime,
+			file:      "",
+			line:      0,
+			message:   "msg",
+			want:      `I0929 08:20:24.205299 0 unknown:0] msg`,
+		},
+		{
+			desc:      "thread ID is written as given",
+			severity:  inspectioncore.SeverityInfo,
+			timestamp: baseTime,
+			threadID:  1949,
+			file:      "scheduler.go",
+			line:      100,
+			message:   "msg",
+			want:      `I0929 08:20:24.205299 1949 scheduler.go:100] msg`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := FormatKLogString(tc.severity, tc.timestamp, tc.threadID, tc.file, tc.line, tc.message)
+			if got != tc.want {
+				t.Errorf("FormatKLogString() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatKLogString_ParsableByKLogTextParser(t *testing.T) {
+	line := FormatKLogString(inspectioncore.SeverityWarning, time.Date(2025, 9, 29, 8, 20, 24, 205299000, time.UTC), 0, "", 0, `"Starting watch" path="/apis" timeout="9m16s"`)
+	want := &ParseStructuredLogResult{
+		Fields: map[string]any{
+			OriginalMessageFieldKey:          line,
+			SeverityStructuredFieldKey:       inspectioncore.SeverityWarning,
+			KLogHeaderDateFieldKey:           "0929",
+			KLogHeaderTimeFieldKey:           "08:20:24.205299",
+			KLogHeaderThreadIDFieldKey:       "0",
+			KLogHeaderSourceLocationFieldKey: "unknown:0",
+			MainMessageStructuredFieldKey:    "Starting watch",
+			"path":                           "/apis",
+			"timeout":                        "9m16s",
+		},
+	}
+
+	got := NewKLogTextParser(true).TryParse(line)
+	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+		t.Errorf("TryParse(FormatKLogString(...)) mismatch (-want +got):\n%s", diff)
 	}
 }

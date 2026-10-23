@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -57,6 +58,9 @@ const KLogHeaderThreadIDFieldKey = "@threadid"
 const KLogHeaderSourceLocationFieldKey = "@source"
 
 var klogTimestampRegex = regexp.MustCompile(`^([IWEF])(\d{4})\s+(\d{2}:\d{2}:\d{2}\.\d{6})\s+(\d+)\s+([^:]+:\d+)]\s+(.*)$`)
+
+// klogTimestampLayout is the Go time layout of the klog header timestamp (mmdd hh:mm:ss.uuuuuu).
+const klogTimestampLayout = "0102 15:04:05.000000"
 
 type klogTextParserWorker struct {
 	builder   strings.Builder
@@ -227,4 +231,32 @@ func (w *klogTextParserWorker) parseFields(messagePart string, result *ParseStru
 		w.builder.Reset()
 	}
 	return nil
+}
+
+// toKLogSeverityLetter converts a KHI severity to its klog header letter.
+func toKLogSeverityLetter(severity *pb.Severity) string {
+	switch severity {
+	case inspectioncore.SeverityInfo:
+		return "I"
+	case inspectioncore.SeverityWarning:
+		return "W"
+	case inspectioncore.SeverityError:
+		return "E"
+	case inspectioncore.SeverityFatal:
+		return "F"
+	default:
+		return "I" // klog has no unknown level; use I so the line still matches klogTimestampRegex.
+	}
+}
+
+// FormatKLogString reconstructs a klog format line from structured log fields.
+func FormatKLogString(severity *pb.Severity, timestamp time.Time, threadID int, file string, line int, message string) string {
+	letter := toKLogSeverityLetter(severity)
+
+	if file == "" {
+		file = "unknown"
+	}
+
+	ts := timestamp.UTC().Format(klogTimestampLayout)
+	return fmt.Sprintf("%s%s %d %s:%d] %s", letter, ts, threadID, file, line, message)
 }
