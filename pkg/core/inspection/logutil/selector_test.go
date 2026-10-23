@@ -25,7 +25,7 @@ type testContext struct {
 }
 
 func TestSelectorLogParser_TryParse(t *testing.T) {
-	klogParser := NewKLogTextParser(true)
+	klogParser := NewKLogTextParser()
 	jsonlParser := NewJsonlTextParser()
 	fallbackParser := &FallbackRawTextLogParser{}
 

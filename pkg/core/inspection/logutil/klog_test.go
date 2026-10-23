@@ -43,7 +43,7 @@ func TestKLogTextParser(t *testing.T) {
 			"fieldWithoutQuotes":             "3.1415",
 		},
 	}
-	parser := NewKLogTextParser(true)
+	parser := NewKLogTextParser()
 	errgrp := errgroup.Group{}
 	for i := 0; i < count; i++ {
 		errgrp.Go(func() error {
@@ -62,7 +62,7 @@ func TestKLogTextParser(t *testing.T) {
 
 func BenchmarkKLogTextParser(b *testing.B) {
 	input := `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`
-	parser := NewKLogTextParser(false)
+	parser := NewKLogTextParser()
 	for i := 0; i < b.N; i++ {
 		parser.TryParse(input)
 	}
@@ -174,49 +174,9 @@ func TestKlogTextParserWorker_Parse(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			tc.want.Fields[OriginalMessageFieldKey] = tc.input
-			worker := newKLogTextParserWorker(true)
+			worker := newKLogTextParserWorker()
 			got := worker.parse(tc.input)
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
-				t.Errorf("parse() mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestKlogTextParserWorker_Parse_WithoutHeader(t *testing.T) {
-	testCases := []struct {
-		desc  string
-		input string
-		want  *ParseStructuredLogResult
-	}{
-		{
-			desc:  "simple klog message",
-			input: `"Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
-			want: &ParseStructuredLogResult{
-				Fields: map[string]any{
-					MainMessageStructuredFieldKey: "Main message",
-					"fieldWithQuotes":             "foo",
-					"fieldWithEscape":             `bar "qux"`,
-					"fieldWithoutQuotes":          "3.1415",
-				},
-			},
-		},
-		{
-			desc:  "klog message with no main message and fields",
-			input: `Some plain text message`,
-			want: &ParseStructuredLogResult{
-				Fields: map[string]any{
-					MainMessageStructuredFieldKey: "Some plain text message",
-				},
-			},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			tc.want.Fields[OriginalMessageFieldKey] = tc.input
-			worker := newKLogTextParserWorker(false)
-			got := worker.parse(tc.input)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("parse() mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -344,7 +304,7 @@ func TestFormatKLogString_ParsableByKLogTextParser(t *testing.T) {
 		},
 	}
 
-	got := NewKLogTextParser(true).TryParse(line)
+	got := NewKLogTextParser().TryParse(line)
 	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 		t.Errorf("TryParse(FormatKLogString(...)) mismatch (-want +got):\n%s", diff)
 	}

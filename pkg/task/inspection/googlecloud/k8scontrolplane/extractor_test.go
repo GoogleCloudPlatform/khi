@@ -17,6 +17,7 @@ package k8scontrolplane
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -25,6 +26,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+// parseControlplaneMessage parses a jsonPayload.message value the same way the extractors do, by reconstructing the klog header first.
+func parseControlplaneMessage(message string) *logutil.ParseStructuredLogResult {
+	return logutil.NewKLogTextParser().TryParse(logutil.FormatKLogString(nil, time.Time{}, 0, "", 0, message))
+}
 
 func TestExtractK8sControlplaneComponent(t *testing.T) {
 	testCases := []struct {
@@ -344,8 +350,7 @@ func TestK8sControllerManagerComponentExtractor_ReadController(t *testing.T) {
 					"namespace_controller.go": "namespace-controller",
 				},
 			}
-			klogParser := logutil.NewKLogTextParser(false)
-			controller, err := extractor.ReadController(klogParser.TryParse(tc.input), tc.inputSource)
+			controller, err := extractor.ReadController(parseControlplaneMessage(tc.input), tc.inputSource)
 			if err != nil {
 				t.Errorf("ReadController() returned an unexpected error: %v", err)
 			}
@@ -420,8 +425,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromKindF
 					},
 				},
 			}
-			klogParser := logutil.NewKLogTextParser(false)
-			paths := extractor.ReadResourceAssociationFromKindField(klogParser.TryParse(tc.input))
+			paths := extractor.ReadResourceAssociationFromKindField(parseControlplaneMessage(tc.input))
 			if diff := cmp.Diff(tc.want, paths); diff != "" {
 				t.Errorf("ReadResourceAssociationFromKindField() mismatch (-want +got):\n%s", diff)
 			}
@@ -514,8 +518,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromContr
 				},
 			}
 
-			klogParser := logutil.NewKLogTextParser(false)
-			paths := extractor.ReadResourceAssociationFromControllerSpecificField(klogParser.TryParse(tc.input))
+			paths := extractor.ReadResourceAssociationFromControllerSpecificField(parseControlplaneMessage(tc.input))
 			if diff := cmp.Diff(tc.want, paths, cmpopts.SortSlices(func(a, b *k8saudit.ResourceIdentity) int {
 				return strings.Compare(a.String(), b.String())
 			})); diff != "" {
@@ -580,8 +583,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromItems
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			extractor := &K8sControllerManagerComponentExtractor{}
-			klogParser := logutil.NewKLogTextParser(false)
-			path := extractor.ReadResourceAssociationFromItems(klogParser.TryParse(tc.input))
+			path := extractor.ReadResourceAssociationFromItems(parseControlplaneMessage(tc.input))
 
 			if diff := cmp.Diff(tc.want, path); diff != "" {
 				t.Errorf("ReadResourceAssociationFromItems() mismatch (-want +got):\n%s", diff)
