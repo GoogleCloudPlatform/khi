@@ -47,6 +47,10 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
    - Executing `make test-go` runs all backend tests.
    - For iterating on specific tests, `go test ./pkg/path/to/test -run TestName` is acceptable, provided a full `make test-go` ensures no regressions before finalizing work.
 4. **Test File Naming**: When adding tests for a file `A.go`, the test file **must** be named `A_test.go`. Do not create independent test files that group tests from multiple files.
+5. **Structuring `want` in Table-Driven Tests**:
+   - **Never Derive `want` from Inputs in the Test Loop**: Every expected value must be declared explicitly as a literal in the test case table. Never compute expected values from input fields inside the `for _, tc := range testCases` body (e.g., `wantMounted := !tc.jobMode`), as this duplicates production logic in the test.
+   - **Whole-Struct `want` for Data Outputs**: When testing a function that returns a struct or multiple data values, do not split fields into separate `wantLen`, `wantStart`, `wantEnd`, or `wantID` fields on the table struct. Define a single `want ReturnType` (or a local outcome struct) and compare it with a single `cmp.Diff(tc.want, got)`.
+   - **Multiple Side Effects or Staged Assertions**: When a test verifies multiple independent side effects or uses an early expectation to gate subsequent setup (e.g., checking whether a component was initialized before starting a test server), keep all expected values in the table case definition (either as explicit `want*` fields like `wantMCP` and `wantRenderTool`, or grouped in a nested `want` struct).
 
 > [!IMPORTANT]
 > Typical table-driven tests should follow these patterns:
@@ -117,5 +121,27 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 > ```go
 > if diff := cmp.Diff(tc.wantYAML, gotYAML); diff != "" {
 >  t.Errorf("RenderYAML() mismatch (-want +got):\n%s", diff)
+> }
+> ```
+>
+> ### 4. Anti-Patterns to Avoid in Table-Driven Tests
+>
+> ```go
+> // BAD 1: Splitting a returned struct into field-by-field want* scalars
+> testCases := []struct {
+>  name      string
+>  items     []int
+>  wantLen   int
+>  wantStart int
+>  wantEnd   int
+> }{...}
+>
+> // BAD 2: Computing an expected value from an input field inside the test loop
+> for _, tc := range testCases {
+>  t.Run(tc.name, func(t *testing.T) {
+>   _ = Init(ctx, tc.jobMode)
+>   wantMCP := !tc.jobMode // Re-implements production branching logic!
+>   if got := HasMCP(ctx); got != wantMCP { ... }
+>  })
 > }
 > ```
