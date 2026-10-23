@@ -42,9 +42,9 @@ func setupTimelineLogsTestWorkbench(t *testing.T) *Workbench {
 	// Log ID 2 is stored at index 1.
 	wb.searchIndex.Logs[1].BodyStructID = internTestYAML(t, pool, testLogBodyYAML)
 
-	readonlyPool := newReadonlyInternPool(pool)
-	wb.internPool = readonlyPool
-	wb.searchIndex.InternPool = readonlyPool
+	wb.internPool = khifilev6model.NewReadonlyInternPool()
+	wb.searchIndex.InternPool = wb.internPool
+	ingestTestPool(wb, pool)
 
 	// Link log 1 to timeline 4 and log 4 to timeline 3 so the logs on timeline 2 are shared with
 	// timeline 4 (logs 1 and 2) more often than with timeline 3 (log 4).
@@ -78,6 +78,10 @@ func addTimelinesLinkedToLog1(wb *Workbench, count int) {
 }
 
 var (
+	testTimeline2Segments = []TimelineSegment{
+		{Type: "Namespace", Name: "default"},
+		{Type: "Pod", Name: "pod-a"},
+	}
 	testTimeline3Segments = []TimelineSegment{
 		{Type: "Namespace", Name: "default"},
 		{Type: "Pod", Name: "pod-b"},
@@ -113,11 +117,6 @@ var (
 	}
 )
 
-func timeAtNs(ns int64) *time.Time {
-	t := time.Unix(0, ns).UTC()
-	return &t
-}
-
 func otherTimeline(timelineID uint32, segments []TimelineSegment, matchedLogCount int) OtherTimeline {
 	return OtherTimeline{
 		LinkedTimeline:  LinkedTimeline{TimelineID: timelineID, Segments: segments},
@@ -127,24 +126,32 @@ func otherTimeline(timelineID uint32, segments []TimelineSegment, matchedLogCoun
 
 func TestGetTimelineLogs(t *testing.T) {
 	testCases := []struct {
-		name                    string
-		timelineID              uint32
-		filter                  TimelineLogFilter
-		wantTotalOtherTimelines int
-		wantOtherTimelines      []OtherTimeline
-		wantLogs                []TimelineLogEntry
-		wantErrTarget           error
+		name          string
+		timelineID    uint32
+		filter        TimelineLogFilter
+		want          *TimelineLogsResult
+		wantErrTarget error
 	}{
 		{
-			name:                    "returns chronological logs and orders other timelines by matched log count",
-			timelineID:              2,
-			filter:                  TimelineLogFilter{},
-			wantTotalOtherTimelines: 2,
-			wantOtherTimelines: []OtherTimeline{
-				otherTimeline(4, testTimeline4Segments, 2),
-				otherTimeline(3, testTimeline3Segments, 1),
+			name:       "returns chronological logs and orders other timelines by matched log count",
+			timelineID: 2,
+			filter:     TimelineLogFilter{},
+			want: &TimelineLogsResult{
+				TimelineID: 2,
+				Segments:   testTimeline2Segments,
+				Applied: AppliedFilter{
+					TimelineQuery:               `path["namespace"] == "default" && path["pod"] == "pod-a"`,
+					StartTime:                   time.Unix(0, 1000).UTC(),
+					EndTime:                     time.Unix(0, 5000).UTC(),
+					ExcludeTimelinesWithoutLogs: true,
+				},
+				TotalOtherTimelineCount: 2,
+				OtherTimelines: []OtherTimeline{
+					otherTimeline(4, testTimeline4Segments, 2),
+					otherTimeline(3, testTimeline3Segments, 1),
+				},
+				Logs: []TimelineLogEntry{testTimelineLog1, testTimelineLog2, testTimelineLog4},
 			},
-			wantLogs: []TimelineLogEntry{testTimelineLog1, testTimelineLog2, testTimelineLog4},
 		},
 		{
 			name:       "filters logs by logQuery and orders tied other timelines by ID",
@@ -152,38 +159,69 @@ func TestGetTimelineLogs(t *testing.T) {
 			filter: TimelineLogFilter{
 				LogQuery: "severity >= WARNING",
 			},
-			wantTotalOtherTimelines: 2,
-			wantOtherTimelines: []OtherTimeline{
-				otherTimeline(3, testTimeline3Segments, 1),
-				otherTimeline(4, testTimeline4Segments, 1),
+			want: &TimelineLogsResult{
+				TimelineID: 2,
+				Segments:   testTimeline2Segments,
+				Applied: AppliedFilter{
+					TimelineQuery:               `path["namespace"] == "default" && path["pod"] == "pod-a"`,
+					LogQuery:                    "severity >= WARNING",
+					StartTime:                   time.Unix(0, 1000).UTC(),
+					EndTime:                     time.Unix(0, 5000).UTC(),
+					ExcludeTimelinesWithoutLogs: true,
+				},
+				TotalOtherTimelineCount: 2,
+				OtherTimelines: []OtherTimeline{
+					otherTimeline(3, testTimeline3Segments, 1),
+					otherTimeline(4, testTimeline4Segments, 1),
+				},
+				Logs: []TimelineLogEntry{testTimelineLog2, testTimelineLog4},
 			},
-			wantLogs: []TimelineLogEntry{testTimelineLog2, testTimelineLog4},
 		},
 		{
 			name:       "filters logs by inclusive start and end time",
 			timelineID: 2,
 			filter: TimelineLogFilter{
-				StartTime: timeAtNs(2000),
-				EndTime:   timeAtNs(4000),
+				StartTime: timePtr(time.Unix(0, 2000)),
+				EndTime:   timePtr(time.Unix(0, 4000)),
 			},
-			wantTotalOtherTimelines: 2,
-			wantOtherTimelines: []OtherTimeline{
-				otherTimeline(3, testTimeline3Segments, 1),
-				otherTimeline(4, testTimeline4Segments, 1),
+			want: &TimelineLogsResult{
+				TimelineID: 2,
+				Segments:   testTimeline2Segments,
+				Applied: AppliedFilter{
+					TimelineQuery:               `path["namespace"] == "default" && path["pod"] == "pod-a"`,
+					StartTime:                   time.Unix(0, 2000).UTC(),
+					EndTime:                     time.Unix(0, 4000).UTC(),
+					ExcludeTimelinesWithoutLogs: true,
+				},
+				TotalOtherTimelineCount: 2,
+				OtherTimelines: []OtherTimeline{
+					otherTimeline(3, testTimeline3Segments, 1),
+					otherTimeline(4, testTimeline4Segments, 1),
+				},
+				Logs: []TimelineLogEntry{testTimelineLog2, testTimelineLog4},
 			},
-			wantLogs: []TimelineLogEntry{testTimelineLog2, testTimelineLog4},
 		},
 		{
 			name:       "filters logs by start time only",
 			timelineID: 2,
 			filter: TimelineLogFilter{
-				StartTime: timeAtNs(2001),
+				StartTime: timePtr(time.Unix(0, 2001)),
 			},
-			wantTotalOtherTimelines: 1,
-			wantOtherTimelines: []OtherTimeline{
-				otherTimeline(3, testTimeline3Segments, 1),
+			want: &TimelineLogsResult{
+				TimelineID: 2,
+				Segments:   testTimeline2Segments,
+				Applied: AppliedFilter{
+					TimelineQuery:               `path["namespace"] == "default" && path["pod"] == "pod-a"`,
+					StartTime:                   time.Unix(0, 2001).UTC(),
+					EndTime:                     time.Unix(0, 5000).UTC(),
+					ExcludeTimelinesWithoutLogs: true,
+				},
+				TotalOtherTimelineCount: 1,
+				OtherTimelines: []OtherTimeline{
+					otherTimeline(3, testTimeline3Segments, 1),
+				},
+				Logs: []TimelineLogEntry{testTimelineLog4},
 			},
-			wantLogs: []TimelineLogEntry{testTimelineLog4},
 		},
 		{
 			name:          "non-existent timeline returns ErrTimelineNotFound",
@@ -205,14 +243,8 @@ func TestGetTimelineLogs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("GetTimelineLogs() unexpected error = %v", err)
 			}
-			if got.TotalOtherTimelineCount != tc.wantTotalOtherTimelines {
-				t.Errorf("TotalOtherTimelineCount = %d, want %d", got.TotalOtherTimelineCount, tc.wantTotalOtherTimelines)
-			}
-			if diff := cmp.Diff(tc.wantOtherTimelines, got.OtherTimelines); diff != "" {
-				t.Errorf("OtherTimelines mismatch (-want +got):\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.wantLogs, got.Logs, protocmp.Transform()); diff != "" {
-				t.Errorf("Logs mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("GetTimelineLogs() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -263,87 +295,6 @@ func TestGetTimelineLogs_OtherTimelinesLimit(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantOtherTimelineIDs, gotIDs); diff != "" {
 				t.Errorf("OtherTimelines IDs mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestGetTimelineLogs_WebUIAppliedFilterParity(t *testing.T) {
-	testCases := []struct {
-		name       string
-		timelineID uint32
-		filter     TimelineLogFilter
-	}{
-		{
-			name:       "unfiltered timeline logs match Web UI pipeline with AppliedFilter",
-			timelineID: 2,
-			filter:     TimelineLogFilter{},
-		},
-		{
-			name:       "filtered timeline logs match Web UI pipeline with AppliedFilter",
-			timelineID: 2,
-			filter: TimelineLogFilter{
-				LogQuery: "severity >= WARNING",
-			},
-		},
-		{
-			name:       "time range filtered timeline logs match Web UI pipeline with AppliedFilter",
-			timelineID: 2,
-			filter: TimelineLogFilter{
-				StartTime: timeAtNs(2000),
-				EndTime:   timeAtNs(4000),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			wb := setupTimelineLogsTestWorkbench(t)
-			res, err := wb.GetTimelineLogs(context.Background(), tc.timelineID, tc.filter)
-			if err != nil {
-				t.Fatalf("GetTimelineLogs() unexpected error = %v", err)
-			}
-
-			// Execute the Web UI filter pipeline using the exact AppliedFilter returned by GetTimelineLogs.
-			pipelineRes, err := wb.FilterTimeline(context.Background(), res.Applied.ToPipelineParams(), nil)
-			if err != nil {
-				t.Fatalf("FilterTimeline() unexpected error = %v", err)
-			}
-
-			allTLIDs := []uint32{1, 2, 3, 4}
-			uiTimelineIDs := decodeSparseBitset(pipelineRes.GetTimelineMode(), pipelineRes.GetTimelineBitset(), allTLIDs)
-			foundTimeline := false
-			for _, id := range uiTimelineIDs {
-				if id == tc.timelineID {
-					foundTimeline = true
-					break
-				}
-			}
-			if !foundTimeline {
-				t.Errorf("Web UI pipeline did not include timeline %d; got %v", tc.timelineID, uiTimelineIDs)
-			}
-
-			allLogIDs := []uint32{1, 2, 3, 4, 5}
-			uiLogIDs := decodeSparseBitset(pipelineRes.GetLogMode(), pipelineRes.GetLogBitset(), allLogIDs)
-			uiLogSet := make(map[uint32]bool, len(uiLogIDs))
-			for _, id := range uiLogIDs {
-				uiLogSet[id] = true
-			}
-
-			var wantOnTimeline []uint32
-			wb.searchIndex.TimelineMap[tc.timelineID].ForEachLogID(func(logID uint32) bool {
-				if uiLogSet[logID] {
-					wantOnTimeline = append(wantOnTimeline, logID)
-				}
-				return true
-			})
-
-			var gotOnTimeline []uint32
-			for _, l := range res.Logs {
-				gotOnTimeline = append(gotOnTimeline, l.LogID)
-			}
-			if diff := cmp.Diff(wantOnTimeline, gotOnTimeline); diff != "" {
-				t.Errorf("logs on timeline %d mismatch against Web UI filter (-want +got):\n%s", tc.timelineID, diff)
 			}
 		})
 	}

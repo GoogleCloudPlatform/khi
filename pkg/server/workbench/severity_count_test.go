@@ -23,14 +23,6 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-// The following severity definitions emulate the style chunk of a loaded inspection in the tests of this package.
-var (
-	testSeverityInfo    = &khifilev6.Severity{Id: proto.Uint32(1), Label: proto.String("INFO"), Order: proto.Int32(1)}
-	testSeverityWarning = &khifilev6.Severity{Id: proto.Uint32(2), Label: proto.String("WARNING"), Order: proto.Int32(2)}
-	testSeverityError   = &khifilev6.Severity{Id: proto.Uint32(3), Label: proto.String("ERROR"), Order: proto.Int32(3)}
-	testSeverityFatal   = &khifilev6.Severity{Id: proto.Uint32(4), Label: proto.String("FATAL"), Order: proto.Int32(4)}
-)
-
 func TestSeverityCounterSorted(t *testing.T) {
 	customSeverityA := &khifilev6.Severity{Id: proto.Uint32(5), Label: proto.String("CUSTOM_A"), Order: proto.Int32(3)}
 	customSeverityB := &khifilev6.Severity{Id: proto.Uint32(6), Label: proto.String("CUSTOM_B"), Order: proto.Int32(3)}

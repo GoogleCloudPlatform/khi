@@ -28,60 +28,77 @@ type stubValidationRule struct {
 	findings    []ValidationFinding
 }
 
+var _ ValidationRule = (*stubValidationRule)(nil)
+
 func (r *stubValidationRule) ID() string          { return r.id }
 func (r *stubValidationRule) Description() string { return r.description }
 func (r *stubValidationRule) Validate(_ context.Context, _ string, _ *Workbench) ([]ValidationFinding, error) {
 	return r.findings, nil
 }
 
-func TestValidateReport_MultipleRules(t *testing.T) {
-	wb := setupValidateReportTestWorkbench(t)
-
-	rules := []ValidationRule{
-		NewLogExistenceRule(),
-		&stubValidationRule{
-			id:          "custom-rule",
-			description: "Custom validation rule.",
-			findings: []ValidationFinding{
+func TestValidateReport(t *testing.T) {
+	customFinding := ValidationFinding{
+		RuleID:  "custom-rule",
+		Line:    1,
+		Target:  "line-1-target",
+		Message: "Custom finding on line 1.",
+	}
+	testCases := []struct {
+		name          string
+		report        string
+		rules         []ValidationRule
+		modify        func(*Workbench)
+		wantFindings  []ValidationFinding
+		wantErrTarget error
+	}{
+		{
+			name:   "combines findings across multiple validation rules",
+			report: "Line 1 `frontend-pod-7f8b9c`\nLine 2 `missing-pod`",
+			rules: []ValidationRule{
+				NewLogExistenceRule(),
+				&stubValidationRule{
+					id:          "custom-rule",
+					description: "Custom validation rule.",
+					findings:    []ValidationFinding{customFinding},
+				},
+			},
+			wantFindings: []ValidationFinding{
+				customFinding,
 				{
-					RuleID:  "custom-rule",
-					Line:    1,
-					Target:  "line-1-target",
-					Message: "Custom finding on line 1.",
+					RuleID:  RuleIDLogExistence,
+					Line:    2,
+					Target:  "missing-pod",
+					Message: "Not found in inspection logs.",
 				},
 			},
 		},
-	}
-
-	res, err := wb.ValidateReport(context.Background(), "Line 1 `frontend-pod-7f8b9c`\nLine 2 `missing-pod`", rules...)
-	if err != nil {
-		t.Fatalf("ValidateReport() unexpected error = %v", err)
-	}
-	want := []ValidationFinding{
 		{
-			RuleID:  "custom-rule",
-			Line:    1,
-			Target:  "line-1-target",
-			Message: "Custom finding on line 1.",
-		},
-		{
-			RuleID:  RuleIDLogExistence,
-			Line:    2,
-			Target:  "missing-pod",
-			Message: "Not found in inspection logs.",
+			name:          "closed workbench returns ErrWorkbenchClosed",
+			report:        "`frontend-pod-7f8b9c`",
+			modify:        func(wb *Workbench) { wb.Close() },
+			wantErrTarget: ErrWorkbenchClosed,
 		},
 	}
-	if diff := cmp.Diff(want, res.Findings); diff != "" {
-		t.Errorf("ValidateReport() Findings mismatch (-want +got):\n%s", diff)
-	}
-}
 
-func TestValidateReport_ClosedWorkbench(t *testing.T) {
-	wb := setupValidateReportTestWorkbench(t)
-	wb.Close()
-
-	_, err := wb.ValidateReport(context.Background(), "`frontend-pod-7f8b9c`")
-	if !errors.Is(err, ErrWorkbenchClosed) {
-		t.Errorf("ValidateReport() error = %v, want %v", err, ErrWorkbenchClosed)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			wb := setupValidateReportTestWorkbench(t)
+			if tc.modify != nil {
+				tc.modify(wb)
+			}
+			res, err := wb.ValidateReport(context.Background(), tc.report, tc.rules...)
+			if tc.wantErrTarget != nil {
+				if !errors.Is(err, tc.wantErrTarget) {
+					t.Fatalf("ValidateReport() error = %v, want %v", err, tc.wantErrTarget)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ValidateReport() unexpected error = %v", err)
+			}
+			if diff := cmp.Diff(tc.wantFindings, res.Findings); diff != "" {
+				t.Errorf("ValidateReport() Findings mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

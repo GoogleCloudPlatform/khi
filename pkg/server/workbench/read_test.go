@@ -16,6 +16,7 @@ package workbench
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -24,6 +25,21 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 )
+
+var testHeaderMetadataChunks = []*khifilev6.MetadataChunk{
+	{
+		Metadata: []*khifilev6.MetadataItem{
+			{
+				Payload: &khifilev6.MetadataItem_Header{
+					Header: &khifilev6.HeaderMetadata{
+						StartTimeUnixSeconds: proto.Int64(1700000000),
+						EndTimeUnixSeconds:   proto.Int64(1700003600),
+					},
+				},
+			},
+		},
+	},
+}
 
 func TestFormatTimelinePathAndBuildTimelineQuery(t *testing.T) {
 	testCases := []struct {
@@ -57,14 +73,6 @@ func TestFormatTimelinePathAndBuildTimelineQuery(t *testing.T) {
 			},
 			wantPath:  "[Namespace] kube-system > [node-component] kubelet",
 			wantQuery: `path["namespace"] == "kube-system" && path["node-component"] == "kubelet"`,
-		},
-		{
-			name: "escaping quotes and backslashes",
-			segments: []TimelineSegment{
-				{Type: "Resource", Name: `pod"s\name`},
-			},
-			wantPath:  `[Resource] pod"s\name`,
-			wantQuery: `path["resource"] == "pod\"s\\name"`,
 		},
 		{
 			name: "escaping quotes and backslashes in type and value",
@@ -153,23 +161,10 @@ func TestInspectionTimeRange(t *testing.T) {
 		wantEnd        time.Time
 	}{
 		{
-			name: "from HeaderMetadata",
-			metadataChunks: []*khifilev6.MetadataChunk{
-				{
-					Metadata: []*khifilev6.MetadataItem{
-						{
-							Payload: &khifilev6.MetadataItem_Header{
-								Header: &khifilev6.HeaderMetadata{
-									StartTimeUnixSeconds: proto.Int64(1700000000),
-									EndTimeUnixSeconds:   proto.Int64(1700003600),
-								},
-							},
-						},
-					},
-				},
-			},
-			wantStart: time.Unix(1700000000, 0).UTC(),
-			wantEnd:   time.Unix(1700003600, 0).UTC(),
+			name:           "from HeaderMetadata",
+			metadataChunks: testHeaderMetadataChunks,
+			wantStart:      time.Unix(1700000000, 0).UTC(),
+			wantEnd:        time.Unix(1700003600, 0).UTC(),
 		},
 		{
 			name:           "fallback to indexed timestamps",
@@ -196,20 +191,7 @@ func TestInspectionTimeRange(t *testing.T) {
 
 func TestResolveFilter(t *testing.T) {
 	wb := createSampleWorkbench()
-	wb.metadataChunks = []*khifilev6.MetadataChunk{
-		{
-			Metadata: []*khifilev6.MetadataItem{
-				{
-					Payload: &khifilev6.MetadataItem_Header{
-						Header: &khifilev6.HeaderMetadata{
-							StartTimeUnixSeconds: proto.Int64(1700000000),
-							EndTimeUnixSeconds:   proto.Int64(1700003600),
-						},
-					},
-				},
-			},
-		},
-	}
+	wb.metadataChunks = testHeaderMetadataChunks
 
 	testCases := []struct {
 		name        string
@@ -222,12 +204,9 @@ func TestResolveFilter(t *testing.T) {
 				TimelineQuery: "path.kind == 'Pod'",
 			},
 			wantApplied: AppliedFilter{
-				TimelineQuery:               "path.kind == 'Pod'",
-				TimelineExclusionQuery:      "",
-				LogQuery:                    "",
-				StartTime:                   time.Unix(1700000000, 0).UTC(),
-				EndTime:                     time.Unix(1700003600, 0).UTC(),
-				ExcludeTimelinesWithoutLogs: false,
+				TimelineQuery: "path.kind == 'Pod'",
+				StartTime:     time.Unix(1700000000, 0).UTC(),
+				EndTime:       time.Unix(1700003600, 0).UTC(),
 			},
 		},
 		{
@@ -236,8 +215,6 @@ func TestResolveFilter(t *testing.T) {
 				LogQuery: "severity >= ERROR",
 			},
 			wantApplied: AppliedFilter{
-				TimelineQuery:               "",
-				TimelineExclusionQuery:      "",
 				LogQuery:                    "severity >= ERROR",
 				StartTime:                   time.Unix(1700000000, 0).UTC(),
 				EndTime:                     time.Unix(1700003600, 0).UTC(),
@@ -251,12 +228,9 @@ func TestResolveFilter(t *testing.T) {
 				ExcludeTimelinesWithoutLogs: proto.Bool(false),
 			},
 			wantApplied: AppliedFilter{
-				TimelineQuery:               "",
-				TimelineExclusionQuery:      "",
-				LogQuery:                    "severity >= ERROR",
-				StartTime:                   time.Unix(1700000000, 0).UTC(),
-				EndTime:                     time.Unix(1700003600, 0).UTC(),
-				ExcludeTimelinesWithoutLogs: false,
+				LogQuery:  "severity >= ERROR",
+				StartTime: time.Unix(1700000000, 0).UTC(),
+				EndTime:   time.Unix(1700003600, 0).UTC(),
 			},
 		},
 	}
@@ -280,13 +254,6 @@ func TestValidateFilter(t *testing.T) {
 	}{
 		{
 			name: "valid empty filter",
-			filter: Filter{
-				TimelineQuery:          "",
-				TimelineExclusionQuery: "",
-				LogQuery:               "",
-			},
-			wantField: "",
-			wantErr:   false,
 		},
 		{
 			name: "invalid timeline query",
@@ -327,63 +294,85 @@ func TestValidateFilter(t *testing.T) {
 	}
 }
 
-func TestExecuteFilterParity(t *testing.T) {
-	wb := createSampleWorkbench()
-
+func TestExecuteFilter(t *testing.T) {
 	testCases := []struct {
-		name   string
-		filter Filter
+		name            string
+		filter          Filter
+		modify          func(*Workbench)
+		wantTimelineIDs []uint32
+		wantLogIDs      []uint32
+		wantErr         bool
+		wantErrTarget   error
 	}{
 		{
-			name:   "empty filter",
-			filter: Filter{},
+			name:            "empty filter matches all timelines and logs",
+			wantTimelineIDs: []uint32{1, 2, 3, 4},
+			wantLogIDs:      []uint32{1, 2, 3},
 		},
 		{
-			name: "timeline include query",
+			name: "timeline include query keeps matched timeline and ancestors",
 			filter: Filter{
 				TimelineQuery: "name == 'pod-a'",
 			},
+			wantTimelineIDs: []uint32{1, 2},
+			wantLogIDs:      []uint32{1, 2},
 		},
 		{
-			name: "timeline exclusion query",
+			name: "timeline exclusion query removes excluded subtree",
 			filter: Filter{
 				TimelineExclusionQuery: "name == 'pod-a'",
 			},
+			wantTimelineIDs: []uint32{1, 3, 4},
+			wantLogIDs:      []uint32{3},
 		},
 		{
 			name: "log query with default exclude timelines without logs",
 			filter: Filter{
 				LogQuery: "severity >= ERROR",
 			},
+			wantTimelineIDs: []uint32{1, 2},
+			wantLogIDs:      []uint32{2},
+		},
+		{
+			name: "invalid log query returns validation error",
+			filter: Filter{
+				LogQuery: "severity >",
+			},
+			wantErr: true,
+		},
+		{
+			name: "closed workbench returns ErrWorkbenchClosed",
+			modify: func(wb *Workbench) {
+				wb.Close()
+			},
+			wantErr:       true,
+			wantErrTarget: ErrWorkbenchClosed,
 		},
 	}
 
-	allTLIDs := []uint32{1, 2, 3, 4}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			wb := createSampleWorkbench()
+			if tc.modify != nil {
+				tc.modify(wb)
+			}
+
 			out, err := wb.ExecuteFilter(context.Background(), tc.filter)
-			if err != nil {
-				t.Fatalf("ExecuteFilter() unexpected error: %v", err)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ExecuteFilter() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				if tc.wantErrTarget != nil && !errors.Is(err, tc.wantErrTarget) {
+					t.Errorf("ExecuteFilter() error = %v, want %v", err, tc.wantErrTarget)
+				}
+				return
 			}
 
-			pipelineResult, err := wb.FilterTimeline(context.Background(), out.Applied.ToPipelineParams(), nil)
-			if err != nil {
-				t.Fatalf("FilterTimeline() unexpected error: %v", err)
+			if diff := cmp.Diff(tc.wantTimelineIDs, out.TimelineIDs.ToArray()); diff != "" {
+				t.Errorf("ExecuteFilter() timeline IDs mismatch (-want +got):\n%s", diff)
 			}
-
-			wantTimelineIDs := decodeSparseBitset(pipelineResult.GetTimelineMode(), pipelineResult.GetTimelineBitset(), allTLIDs)
-			gotTimelineIDs := out.TimelineIDs.ToArray()
-
-			if diff := cmp.Diff(wantTimelineIDs, gotTimelineIDs); diff != "" {
-				t.Errorf("ExecuteFilter timeline parity mismatch (-want +got):\n%s", diff)
-			}
-
-			allLogIDs := []uint32{1, 2, 3}
-			wantLogIDs := decodeSparseBitset(pipelineResult.GetLogMode(), pipelineResult.GetLogBitset(), allLogIDs)
-			gotLogIDs := out.LogIDs.ToArray()
-			if diff := cmp.Diff(wantLogIDs, gotLogIDs); diff != "" {
-				t.Errorf("ExecuteFilter log parity mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.wantLogIDs, out.LogIDs.ToArray()); diff != "" {
+				t.Errorf("ExecuteFilter() log IDs mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

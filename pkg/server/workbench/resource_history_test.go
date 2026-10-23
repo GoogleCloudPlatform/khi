@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
-	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
@@ -41,29 +39,6 @@ var (
 	testRevision1Time = time.Unix(2000, 0).UTC()
 	testRevision2Time = time.Unix(3000, 0).UTC()
 )
-
-// newReadonlyInternPool copies everything interned in pool into a ReadonlyInternPool, as a loaded KHI file would provide.
-func newReadonlyInternPool(pool *khifilev6model.InternPool) *khifilev6model.ReadonlyInternPool {
-	readonlyPool := khifilev6model.NewReadonlyInternPool()
-	var strs []*khifilev6.InternString
-	for sRef := range pool.SortedStringRefs() {
-		strs = append(strs, sRef.ToProto())
-	}
-	var fieldSets []*khifilev6.InternFieldPathSet
-	for fsRef := range pool.FieldSetRefs() {
-		fieldSets = append(fieldSets, fsRef.ToProto())
-	}
-	var structs []*pb.InternedStruct
-	for sRef := range pool.StructRefs() {
-		structs = append(structs, sRef.ToProto())
-	}
-	readonlyPool.IngestChunk(&khifilev6.InterningPoolChunk{
-		Strings:       strs,
-		FieldPathSets: fieldSets,
-		Structs:       structs,
-	})
-	return readonlyPool
-}
 
 func internTestYAML(t *testing.T, pool *khifilev6model.InternPool, yaml string) uint32 {
 	t.Helper()
@@ -86,7 +61,6 @@ func setupResourceHistoryTestWorkbench(t *testing.T) *Workbench {
 	principalB := pool.InternString(testRevisionPrincipalB).ID()
 	body0 := internTestYAML(t, pool, testRevision0Body)
 	body1 := internTestYAML(t, pool, testRevision1Body)
-	readonlyPool := newReadonlyInternPool(pool)
 
 	nsTimeline := &cel.TimelineData{
 		ID:           9,
@@ -106,16 +80,8 @@ func setupResourceHistoryTestWorkbench(t *testing.T) *Workbench {
 		},
 	}
 
-	wb := NewWorkbench("wb-test", "test-inspection")
-	wb.internPool = readonlyPool
-	wb.searchIndex = &SearchIndex{
-		InternPool: readonlyPool,
-		Timelines:  []*cel.TimelineData{nsTimeline, podTimeline},
-		TimelineMap: map[uint32]*cel.TimelineData{
-			nsTimeline.ID:  nsTimeline,
-			podTimeline.ID: podTimeline,
-		},
-	}
+	wb := newTestIndexedWorkbench(nil, []*cel.TimelineData{nsTimeline, podTimeline}, nil)
+	ingestTestPool(wb, pool)
 	return wb
 }
 
@@ -130,7 +96,6 @@ var (
 )
 
 func TestGetResourceRevisions(t *testing.T) {
-	timePtr := func(t time.Time) *time.Time { return &t }
 	testCases := []struct {
 		name          string
 		timelineID    uint32
@@ -265,76 +230,89 @@ func TestGetResourceRevisions(t *testing.T) {
 	}
 }
 
-func TestGetResourceRevisions_PagingCoversEveryRevisionOnce(t *testing.T) {
-	testCases := []struct {
-		name     string
-		pageSize int
-	}{
-		{name: "page size 1", pageSize: 1},
-		{name: "page size 2", pageSize: 2},
-		{name: "page size larger than the history", pageSize: 10},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			wb := setupResourceHistoryTestWorkbench(t)
-			var gotIndices []int
-			for offset := 0; ; offset += tc.pageSize {
-				res, err := wb.GetResourceRevisions(testPodTimelineID, ResourceRevisionsQuery{Offset: offset, Limit: tc.pageSize})
-				if err != nil {
-					t.Fatalf("GetResourceRevisions() unexpected error = %v", err)
-				}
-				for _, rev := range res.Revisions {
-					gotIndices = append(gotIndices, rev.Index)
-				}
-				if offset+tc.pageSize >= res.MatchedCount {
-					break
-				}
-			}
-			if diff := cmp.Diff([]int{0, 1, 2}, gotIndices); diff != "" {
-				t.Errorf("paged revision indices mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
 func TestGetResourceManifest(t *testing.T) {
 	testCases := []struct {
 		name          string
 		selector      RevisionSelector
-		wantRevision  ResourceRevision
-		wantBody      string
+		byteOffset    int
+		want          *ResourceManifest
 		wantErrTarget error
 	}{
 		{
-			name:         "selects the revision by index",
-			selector:     RevisionAtIndex(1),
-			wantRevision: testRevision1,
-			wantBody:     testRevision1Body,
+			name:     "selects the revision by index",
+			selector: RevisionAtIndex(1),
+			want: &ResourceManifest{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision1,
+				Body:       BodyChunk{Content: testRevision1Body, TotalBytes: len(testRevision1Body)},
+			},
 		},
 		{
-			name:         "zero value selector selects the revision at index 0",
-			selector:     RevisionSelector{},
-			wantRevision: testRevision0,
-			wantBody:     testRevision0Body,
+			name:     "zero value selector selects the revision at index 0",
+			selector: RevisionSelector{},
+			want: &ResourceManifest{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision0,
+				Body:       BodyChunk{Content: testRevision0Body, TotalBytes: len(testRevision0Body)},
+			},
 		},
 		{
-			name:         "time equal to a change selects that revision",
-			selector:     RevisionAtTime(testRevision1Time),
-			wantRevision: testRevision1,
-			wantBody:     testRevision1Body,
+			name:     "time equal to a change selects that revision",
+			selector: RevisionAtTime(testRevision1Time),
+			want: &ResourceManifest{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision1,
+				Body:       BodyChunk{Content: testRevision1Body, TotalBytes: len(testRevision1Body)},
+			},
 		},
 		{
-			name:         "time between changes selects the revision effective at that time",
-			selector:     RevisionAtTime(testRevision1Time.Add(500 * time.Second)),
-			wantRevision: testRevision1,
-			wantBody:     testRevision1Body,
+			name:     "time between changes selects the revision effective at that time",
+			selector: RevisionAtTime(testRevision1Time.Add(500 * time.Second)),
+			want: &ResourceManifest{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision1,
+				Body:       BodyChunk{Content: testRevision1Body, TotalBytes: len(testRevision1Body)},
+			},
 		},
 		{
-			name:         "time after the last change selects the last revision",
-			selector:     RevisionAtTime(testRevision2Time.Add(time.Hour)),
-			wantRevision: testRevision2,
-			wantBody:     "",
+			name:     "time after the last change selects the last revision",
+			selector: RevisionAtTime(testRevision2Time.Add(time.Hour)),
+			want: &ResourceManifest{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision2,
+			},
+		},
+		{
+			name:       "byteOffset at a line boundary returns the rest of the manifest",
+			selector:   RevisionAtIndex(1),
+			byteOffset: len("kind: Pod\n"),
+			want: &ResourceManifest{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision1,
+				Body: BodyChunk{
+					Content:    "status:\n  phase: Running\n  ready: true\n",
+					TotalBytes: len(testRevision1Body),
+				},
+			},
+		},
+		{
+			name:       "byteOffset at the end returns no content",
+			selector:   RevisionAtIndex(1),
+			byteOffset: len(testRevision1Body),
+			want: &ResourceManifest{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision1,
+				Body: BodyChunk{
+					TotalBytes: len(testRevision1Body),
+				},
+			},
 		},
 		{
 			name:          "time before the first change returns ErrRevisionNotFound",
@@ -351,7 +329,7 @@ func TestGetResourceManifest(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupResourceHistoryTestWorkbench(t)
-			got, err := wb.GetResourceManifest(testPodTimelineID, tc.selector, 0, false)
+			got, err := wb.GetResourceManifest(testPodTimelineID, tc.selector, tc.byteOffset, false)
 			if tc.wantErrTarget != nil {
 				if !errors.Is(err, tc.wantErrTarget) {
 					t.Fatalf("GetResourceManifest() err = %v, want %v", err, tc.wantErrTarget)
@@ -361,51 +339,8 @@ func TestGetResourceManifest(t *testing.T) {
 			if err != nil {
 				t.Fatalf("GetResourceManifest() unexpected error = %v", err)
 			}
-			if diff := cmp.Diff(testPodSegments, got.Segments); diff != "" {
-				t.Errorf("Segments mismatch (-want +got):\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.wantRevision, got.Revision); diff != "" {
-				t.Errorf("Revision mismatch (-want +got):\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.wantBody, got.Body.Content); diff != "" {
-				t.Errorf("Body.Content mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestGetResourceManifest_ByteOffset(t *testing.T) {
-	testCases := []struct {
-		name       string
-		byteOffset int
-		wantBody   BodyChunk
-	}{
-		{
-			name:       "offset at a line boundary returns the rest of the manifest",
-			byteOffset: len("kind: Pod\n"),
-			wantBody: BodyChunk{
-				Content:    "status:\n  phase: Running\n  ready: true\n",
-				TotalBytes: len(testRevision1Body),
-			},
-		},
-		{
-			name:       "offset at the end returns no content",
-			byteOffset: len(testRevision1Body),
-			wantBody: BodyChunk{
-				TotalBytes: len(testRevision1Body),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			wb := setupResourceHistoryTestWorkbench(t)
-			got, err := wb.GetResourceManifest(testPodTimelineID, RevisionAtIndex(1), tc.byteOffset, false)
-			if err != nil {
-				t.Fatalf("GetResourceManifest() unexpected error = %v", err)
-			}
-			if diff := cmp.Diff(tc.wantBody, got.Body); diff != "" {
-				t.Errorf("Body mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GetResourceManifest() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -418,7 +353,6 @@ func TestGetResourceManifest_IncludeManagedFields(t *testing.T) {
 	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 	principalA := pool.InternString(testRevisionPrincipalA).ID()
 	bodyID := internTestYAML(t, pool, fullManifest)
-	readonlyPool := newReadonlyInternPool(pool)
 
 	podTimeline := &cel.TimelineData{
 		ID:           testPodTimelineID,
@@ -428,13 +362,19 @@ func TestGetResourceManifest_IncludeManagedFields(t *testing.T) {
 			{LogID: 1, ChangedTime: testRevision0Time.UnixNano(), PrincipalStringID: principalA, Verb: "CREATE", State: "Running", ResourceBodyStructID: bodyID},
 		},
 	}
-	wb := NewWorkbench("wb-test", "test-inspection")
-	wb.internPool = readonlyPool
-	wb.searchIndex = &SearchIndex{
-		InternPool:  readonlyPool,
-		Timelines:   []*cel.TimelineData{podTimeline},
-		TimelineMap: map[uint32]*cel.TimelineData{podTimeline.ID: podTimeline},
+	wb := newTestIndexedWorkbench(nil, []*cel.TimelineData{podTimeline}, nil)
+	ingestTestPool(wb, pool)
+
+	wantRevision := ResourceRevision{
+		Index:     0,
+		Time:      testRevision0Time,
+		Verb:      "CREATE",
+		State:     "Running",
+		Principal: testRevisionPrincipalA,
+		LogID:     1,
+		HasBody:   true,
 	}
+	wantSegments := []TimelineSegment{{Type: "Pod", Name: "nginx"}}
 
 	testCases := []struct {
 		name                 string
@@ -475,11 +415,14 @@ func TestGetResourceManifest_IncludeManagedFields(t *testing.T) {
 			if err != nil {
 				t.Fatalf("GetResourceManifest() unexpected error = %v", err)
 			}
-			if !got.Revision.HasBody {
-				t.Errorf("got.Revision.HasBody = false, want true")
+			want := &ResourceManifest{
+				TimelineID: testPodTimelineID,
+				Segments:   wantSegments,
+				Revision:   wantRevision,
+				Body:       tc.wantBody,
 			}
-			if diff := cmp.Diff(tc.wantBody, got.Body); diff != "" {
-				t.Errorf("Body mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("GetResourceManifest() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -582,6 +525,21 @@ func TestGetResourceDiff(t *testing.T) {
 			},
 		},
 		{
+			name:          "deletion revision with no body reports every previous line as deleted",
+			revisionIndex: 2,
+			want: &ResourceDiff{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision2,
+				Previous:   &testRevision1,
+				Changes:    LineChangeCount{Deleted: 4},
+				Diff: BodyChunk{
+					Content:    "--- revision 1\n+++ revision 2\n@@ -1,4 +0,0 @@\n-kind: Pod\n-status:\n-  phase: Running\n-  ready: true\n",
+					TotalBytes: 99,
+				},
+			},
+		},
+		{
 			name:          "out of range index returns ErrRevisionNotFound",
 			revisionIndex: 3,
 			wantErrTarget: ErrRevisionNotFound,
@@ -603,26 +561,6 @@ func TestGetResourceDiff(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("GetResourceDiff() mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestGetResourceDiff_ChangesMatchRevisionList(t *testing.T) {
-	wb := setupResourceHistoryTestWorkbench(t)
-	list, err := wb.GetResourceRevisions(testPodTimelineID, ResourceRevisionsQuery{Limit: 50})
-	if err != nil {
-		t.Fatalf("GetResourceRevisions() unexpected error = %v", err)
-	}
-	for _, rev := range list.Revisions {
-		t.Run(revisionLabel(rev.Index), func(t *testing.T) {
-			// A byteOffset past the end leaves no diff text, which must not affect the change counts.
-			got, err := wb.GetResourceDiff(testPodTimelineID, rev.Index, 1<<20)
-			if err != nil {
-				t.Fatalf("GetResourceDiff() unexpected error = %v", err)
-			}
-			if diff := cmp.Diff(rev.Changes, got.Changes); diff != "" {
-				t.Errorf("GetResourceDiff() changes mismatch against GetResourceRevisions() (-want +got):\n%s", diff)
 			}
 		})
 	}

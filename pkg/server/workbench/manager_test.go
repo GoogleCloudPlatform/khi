@@ -17,69 +17,22 @@ package workbench
 import (
 	"context"
 	"errors"
-	"sort"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/inspectionserver"
 	"github.com/google/go-cmp/cmp"
 )
 
 func createTestInspectionServer(t *testing.T) (*coreinspection.InspectionTaskServer, string) {
-	logger.InitGlobalKHILogger()
-	ioConfig, err := inspectioncore.NewIOConfigForTest()
-	if err != nil {
-		t.Fatalf("failed to create test IOConfig: %v", err)
-	}
-	tempDir := t.TempDir()
-	ioConfig.DataDestination = tempDir
-	ioConfig.TemporaryFolder = tempDir
-	server, err := coreinspection.NewServer(ioConfig)
-	if err != nil {
-		t.Fatalf("failed to create inspection server: %v", err)
-	}
-
-	inspectionType := coreinspection.InspectionType{
-		Id:   "test-type",
-		Name: "Test Type",
-	}
-	if err := server.AddInspectionType(inspectionType); err != nil {
-		t.Fatalf("failed to add inspection type: %v", err)
-	}
-
-	dummyTaskID := taskid.NewDefaultImplementationID[any]("dummy-task")
-	dummyTask := coretask.DefineConstant[any](
-		dummyTaskID,
-		"success",
-		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
-		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
-	)
-	if err := server.AddTask(dummyTask); err != nil {
-		t.Fatalf("failed to add task: %v", err)
-	}
-
-	return server, runTestInspection(t, server)
-}
-
-// runTestInspection creates and runs one more inspection on the server and returns its ID.
-func runTestInspection(t *testing.T, server *coreinspection.InspectionTaskServer) string {
 	t.Helper()
-	inspectionID, err := server.CreateInspection("test-type")
-	if err != nil {
-		t.Fatalf("failed to create inspection: %v", err)
-	}
-	runner := server.GetInspection(inspectionID)
-	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
-		t.Fatalf("failed to run inspection: %v", err)
-	}
-	<-runner.Wait()
-	return inspectionID
+	logger.InitGlobalKHILogger()
+	return inspectionserver.NewServerWithInspection(t, inspectionserver.FeatureTask())
 }
 
 // newTestManager creates a manager whose background indexing is awaited before the test's temporary directories are removed.
@@ -226,33 +179,6 @@ func TestWorkbenchManager_SharesWorkbenchAcrossBrowsersAndMCP(t *testing.T) {
 	}
 }
 
-func TestWorkbenchManager_KeepsWorkbenchAfterLongInactivityBelowLimit(t *testing.T) {
-	inspectionServer, inspectionID := createTestInspectionServer(t)
-	secondInspectionID := runTestInspection(t, inspectionServer)
-	mgr := newTestManager(t, inspectionServer, 2)
-	clock := newFakeClock(mgr)
-
-	wb, err := mgr.Open(context.Background(), inspectionID, AccessorBrowser, noopProgress)
-	if err != nil {
-		t.Fatalf("Open() unexpected error: %v", err)
-	}
-	clock.Advance(30 * 24 * time.Hour)
-	if _, err := mgr.Open(context.Background(), secondInspectionID, AccessorMCP, noopProgress); err != nil {
-		t.Fatalf("Open(second) unexpected error: %v", err)
-	}
-
-	got, err := mgr.Get(inspectionID, AccessorBrowser)
-	if err != nil {
-		t.Fatalf("Get() after long inactivity unexpected error: %v", err)
-	}
-	if got != wb {
-		t.Errorf("Get() = %p, want %p", got, wb)
-	}
-	if wb.IsClosed() {
-		t.Errorf("workbench was closed after long inactivity below the retention limit")
-	}
-}
-
 func TestWorkbenchManager_EvictsOnNewLoadOverLimit(t *testing.T) {
 	const (
 		recent  = time.Second
@@ -335,10 +261,10 @@ func TestWorkbenchManager_EvictsOnNewLoadOverLimit(t *testing.T) {
 			wantRemaining: []string{"loading"},
 		},
 		{
-			name:           "does not evict below the limit",
+			name:           "does not evict below the limit even after long inactivity",
 			maxWorkbenches: 3,
 			seeds: []seed{
-				{id: "a", lastAccessAgo: 10 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
+				{id: "a", lastAccessAgo: 30 * 24 * time.Hour, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
 				{id: "b", lastAccessAgo: 5 * time.Minute, browserSeenAgo: longAgo, mcpUsedAgo: longAgo},
 			},
 			wantRemaining: []string{"a", "b"},
@@ -369,27 +295,20 @@ func TestWorkbenchManager_EvictsOnNewLoadOverLimit(t *testing.T) {
 			}
 
 			// The new inspection does not exist, so its own load fails and is discarded; only the eviction matters here.
-			mgr.Load("new-inspection", AccessorMCP)
+			_, _ = mgr.Open(context.Background(), "new-inspection", AccessorMCP, noopProgress)
 
 			mgr.mu.Lock()
 			var remaining []string
 			for id := range mgr.entries {
-				if id != "new-inspection" {
-					remaining = append(remaining, id)
-				}
+				remaining = append(remaining, id)
 			}
 			mgr.mu.Unlock()
-			sort.Strings(remaining)
+			slices.Sort(remaining)
 			if diff := cmp.Diff(tc.wantRemaining, remaining); diff != "" {
 				t.Errorf("remaining workbenches mismatch (-want +got):\n%s", diff)
 			}
 			for id, wb := range workbenches {
-				wantClosed := true
-				for _, kept := range tc.wantRemaining {
-					if kept == id {
-						wantClosed = false
-					}
-				}
+				wantClosed := !slices.Contains(tc.wantRemaining, id)
 				if wb.IsClosed() != wantClosed {
 					t.Errorf("workbench %q IsClosed() = %v, want %v", id, wb.IsClosed(), wantClosed)
 				}
@@ -477,7 +396,7 @@ func TestWorkbenchManager_Heartbeat(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			inspectionServer, inspectionID := createTestInspectionServer(t)
-			otherInspectionID := runTestInspection(t, inspectionServer)
+			otherInspectionID := inspectionserver.RunInspection(t, inspectionServer)
 			mgr := newTestManager(t, inspectionServer, 1)
 
 			target := tc.setup(t, mgr, inspectionID, otherInspectionID)
@@ -529,8 +448,8 @@ func TestWorkbenchManager_Get(t *testing.T) {
 
 func TestWorkbenchManager_MarkBrowserClosedMakesWorkbenchEvictable(t *testing.T) {
 	inspectionServer, closedInspectionID := createTestInspectionServer(t)
-	shownInspectionID := runTestInspection(t, inspectionServer)
-	newInspectionID := runTestInspection(t, inspectionServer)
+	shownInspectionID := inspectionserver.RunInspection(t, inspectionServer)
+	newInspectionID := inspectionserver.RunInspection(t, inspectionServer)
 	mgr := newTestManager(t, inspectionServer, 2)
 	clock := newFakeClock(mgr)
 
@@ -579,22 +498,16 @@ func TestWorkbenchManager_WithInspectionIndexManager(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			inspectionServer, validInspectionID := createTestInspectionServer(t)
-			indexMgr := NewInspectionIndexManager(inspectionServer, t.TempDir())
-			t.Cleanup(indexMgr.Wait)
+			wbMgr := newTestManager(t, inspectionServer, 3)
 
 			if tc.withPrebuiltIndex {
-				indexMgr.StartAsyncIndexing(context.Background(), validInspectionID)
-				deadline := time.Now().Add(5 * time.Second)
-				for time.Now().Before(deadline) {
-					state, _, _, _ := indexMgr.IndexStatus(validInspectionID)
-					if state == IndexStateReady {
-						break
-					}
-					time.Sleep(10 * time.Millisecond)
+				wbMgr.indexManager.StartAsyncIndexing(context.Background(), validInspectionID)
+				wbMgr.indexManager.Wait()
+				if state, _, _, _ := wbMgr.indexManager.IndexStatus(validInspectionID); state != IndexStateReady {
+					t.Fatalf("IndexStatus() = %v, want %v", state, IndexStateReady)
 				}
 			}
 
-			wbMgr := NewWorkbenchManager(inspectionServer, indexMgr, 3)
 			wb, err := wbMgr.Open(context.Background(), validInspectionID, AccessorBrowser, noopProgress)
 			if err != nil {
 				t.Fatalf("Open() failed: %v", err)

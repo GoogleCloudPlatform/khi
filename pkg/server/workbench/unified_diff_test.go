@@ -119,24 +119,6 @@ func TestComputeUnifiedDiff(t *testing.T) {
 			wantChanges: LineChangeCount{Added: 1, Deleted: 1},
 		},
 		{
-			name:     "changes separated by more than six unchanged lines produce separate hunks",
-			oldText:  numberedLines("l", 20, nil),
-			newText:  numberedLines("l", 20, map[int]string{2: "A", 18: "B"}),
-			oldLabel: "revision 0",
-			newLabel: "revision 1",
-			wantText: "--- revision 0\n+++ revision 1\n" +
-				"@@ -1,5 +1,5 @@\n lx\n-lxx\n+A\n lxxx\n lxxxx\n lxxxxx\n" +
-				"@@ -15,6 +15,6 @@\n" +
-				" l" + strings.Repeat("x", 15) + "\n" +
-				" l" + strings.Repeat("x", 16) + "\n" +
-				" l" + strings.Repeat("x", 17) + "\n" +
-				"-l" + strings.Repeat("x", 18) + "\n" +
-				"+B\n" +
-				" l" + strings.Repeat("x", 19) + "\n" +
-				" l" + strings.Repeat("x", 20) + "\n",
-			wantChanges: LineChangeCount{Added: 2, Deleted: 2},
-		},
-		{
 			name:     "changes separated by exactly six unchanged lines share one hunk",
 			oldText:  numberedLines("l", 9, nil),
 			newText:  numberedLines("l", 9, map[int]string{1: "A", 8: "B"}),

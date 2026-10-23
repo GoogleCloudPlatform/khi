@@ -16,6 +16,7 @@ package workbench
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -28,21 +29,7 @@ import (
 )
 
 func setupSearchTimelinesTestWorkbench() *Workbench {
-	wb := NewWorkbench("wb-test", "test-inspection")
-	wb.searchIndex = &SearchIndex{
-		TimelineMap: make(map[uint32]*cel.TimelineData),
-	}
-
-	wb.searchIndex.StyleResolver = &cel.SimpleStyleResolver{
-		LogTypes: map[uint32]string{1: "k8s-event"},
-		Severities: map[uint32]uint32{
-			1: 1, // INFO
-			2: 2, // WARN
-			3: 3, // ERROR
-		},
-	}
-
-	wb.searchIndex.Logs = []cel.LogData{
+	logs := []cel.LogData{
 		{ID: 1, LogTypeID: 1, SeverityTypeID: 1, Timestamp: 1000},
 		{ID: 2, LogTypeID: 1, SeverityTypeID: 2, Timestamp: 2000},
 		{ID: 3, LogTypeID: 1, SeverityTypeID: 2, Timestamp: 2500},
@@ -50,89 +37,73 @@ func setupSearchTimelinesTestWorkbench() *Workbench {
 		{ID: 5, LogTypeID: 1, SeverityTypeID: 3, Timestamp: 4000},
 		{ID: 6, LogTypeID: 1, SeverityTypeID: 3, Timestamp: 5000},
 	}
-
-	tl1 := &cel.TimelineData{
-		ID:           1,
-		ParentID:     0,
-		ChildrenIDs:  []uint32{2, 3},
-		Name:         "ns-1",
-		TimelineType: "Namespace",
-	}
-
-	tl2 := &cel.TimelineData{
-		ID:           2,
-		ParentID:     1,
-		ChildrenIDs:  []uint32{4},
-		Name:         "pod-a",
-		TimelineType: "Pod",
-		Events: []cel.EventInfo{
-			{LogID: 1, Timestamp: 1000},
-			{LogID: 2, Timestamp: 2000},
+	timelines := []*cel.TimelineData{
+		{
+			ID:           1,
+			ParentID:     0,
+			ChildrenIDs:  []uint32{2, 3},
+			Name:         "ns-1",
+			TimelineType: "Namespace",
 		},
-		Revisions: []cel.RevisionInfo{
-			{LogID: 3, ChangedTime: 2500},
+		{
+			ID:           2,
+			ParentID:     1,
+			ChildrenIDs:  []uint32{4},
+			Name:         "pod-a",
+			TimelineType: "Pod",
+			Events: []cel.EventInfo{
+				{LogID: 1, Timestamp: 1000},
+				{LogID: 2, Timestamp: 2000},
+			},
+			Revisions: []cel.RevisionInfo{
+				{LogID: 3, ChangedTime: 2500},
+			},
 		},
-	}
-
-	tl3 := &cel.TimelineData{
-		ID:           3,
-		ParentID:     1,
-		ChildrenIDs:  []uint32{5},
-		Name:         "pod-b",
-		TimelineType: "Pod",
-		Events: []cel.EventInfo{
-			{LogID: 4, Timestamp: 3000},
+		{
+			ID:           3,
+			ParentID:     1,
+			ChildrenIDs:  []uint32{5},
+			Name:         "pod-b",
+			TimelineType: "Pod",
+			Events: []cel.EventInfo{
+				{LogID: 4, Timestamp: 3000},
+			},
 		},
-	}
-
-	tl4 := &cel.TimelineData{
-		ID:           4,
-		ParentID:     2,
-		ChildrenIDs:  nil,
-		Name:         "container-a1",
-		TimelineType: "Container",
-		Events: []cel.EventInfo{
-			{LogID: 5, Timestamp: 4000},
+		{
+			ID:           4,
+			ParentID:     2,
+			Name:         "container-a1",
+			TimelineType: "Container",
+			Events: []cel.EventInfo{
+				{LogID: 5, Timestamp: 4000},
+			},
+			// The revision has no linked log, so it adds no severity count.
+			Revisions: []cel.RevisionInfo{
+				{LogID: 0, ChangedTime: 4500},
+			},
 		},
-		// The revision has no linked log, so it adds no severity count.
-		Revisions: []cel.RevisionInfo{
-			{LogID: 0, ChangedTime: 4500},
-		},
-	}
-
-	tl5 := &cel.TimelineData{
-		ID:           5,
-		ParentID:     3,
-		ChildrenIDs:  nil,
-		Name:         "container-b1",
-		TimelineType: "Container",
-		// The event and the revision link to the same log, so its severity is counted once.
-		Events: []cel.EventInfo{
-			{LogID: 6, Timestamp: 5000},
-		},
-		Revisions: []cel.RevisionInfo{
-			{LogID: 6, ChangedTime: 5000},
+		{
+			ID:           5,
+			ParentID:     3,
+			Name:         "container-b1",
+			TimelineType: "Container",
+			// The event and the revision link to the same log, so its severity is counted once.
+			Events: []cel.EventInfo{
+				{LogID: 6, Timestamp: 5000},
+			},
+			Revisions: []cel.RevisionInfo{
+				{LogID: 6, ChangedTime: 5000},
+			},
 		},
 	}
-
-	wb.searchIndex.Timelines = []*cel.TimelineData{tl1, tl2, tl3, tl4, tl5}
-	wb.searchIndex.TimelineMap[1] = tl1
-	wb.searchIndex.TimelineMap[2] = tl2
-	wb.searchIndex.TimelineMap[3] = tl3
-	wb.searchIndex.TimelineMap[4] = tl4
-	wb.searchIndex.TimelineMap[5] = tl5
-
-	wb.styleChunk = &khifilev6.TimelineStyleChunk{
-		Severities: []*khifilev6.Severity{testSeverityInfo, testSeverityWarning, testSeverityError},
-		TimelineTypes: []*khifilev6.TimelineType{
-			{Label: proto.String("Namespace"), Description: proto.String("Kubernetes namespace")},
-			{Label: proto.String("Pod"), Description: proto.String("Kubernetes pod")},
-			{Label: proto.String("Container"), Description: proto.String("Container inside pod")},
-		},
+	severities := []*khifilev6.Severity{testSeverityInfo, testSeverityWarning, testSeverityError}
+	wb := newTestIndexedWorkbench(logs, timelines, severities)
+	wb.styleChunk.TimelineTypes = []*khifilev6.TimelineType{
+		{Label: proto.String("Namespace"), Description: proto.String("Kubernetes namespace")},
+		{Label: proto.String("Pod"), Description: proto.String("Kubernetes pod")},
+		{Label: proto.String("Container"), Description: proto.String("Container inside pod")},
 	}
-	// Build the style maps from the style chunk as BuildBaseSearchIndex does when the workbench loads.
 	wb.styles = wb.buildStyleMaps()
-
 	return wb
 }
 
@@ -146,141 +117,98 @@ func TestSearchTimelines(t *testing.T) {
 		{Type: "Namespace", Description: "Kubernetes namespace"},
 		{Type: "Pod", Description: "Kubernetes pod"},
 	}
-	fullTreeNodes := []TimelineTreeNode{
-		{
-			ID:            1,
-			Depth:         0,
-			Type:          "Namespace",
-			Name:          "ns-1",
-			EventCount:    0,
-			RevisionCount: 0,
-			SeverityCounts: []SeverityCount{
-				{Severity: testSeverityError, Count: 2},
-				{Severity: testSeverityWarning, Count: 2},
-				{Severity: testSeverityInfo, Count: 2},
-			},
-			OmittedChildren: 0,
-			FirstMatchTime:  time.Time{},
-			LastMatchTime:   time.Time{},
-		},
-		{
-			ID:            2,
-			Depth:         1,
-			Type:          "Pod",
-			Name:          "pod-a",
-			EventCount:    2,
-			RevisionCount: 1,
-			SeverityCounts: []SeverityCount{
-				{Severity: testSeverityError, Count: 1},
-				{Severity: testSeverityWarning, Count: 2},
-				{Severity: testSeverityInfo, Count: 1},
-			},
-			OmittedChildren: 0,
-			FirstMatchTime:  time.Unix(0, 1000).UTC(),
-			LastMatchTime:   time.Unix(0, 2500).UTC(),
-		},
-		{
-			ID:            4,
-			Depth:         2,
-			Type:          "Container",
-			Name:          "container-a1",
-			EventCount:    1,
-			RevisionCount: 1,
-			SeverityCounts: []SeverityCount{
-				{Severity: testSeverityError, Count: 1},
-			},
-			OmittedChildren: 0,
-			FirstMatchTime:  time.Unix(0, 4000).UTC(),
-			LastMatchTime:   time.Unix(0, 4500).UTC(),
-		},
-		{
-			ID:            3,
-			Depth:         1,
-			Type:          "Pod",
-			Name:          "pod-b",
-			EventCount:    1,
-			RevisionCount: 0,
-			SeverityCounts: []SeverityCount{
-				{Severity: testSeverityError, Count: 1},
-				{Severity: testSeverityInfo, Count: 1},
-			},
-			OmittedChildren: 0,
-			FirstMatchTime:  time.Unix(0, 3000).UTC(),
-			LastMatchTime:   time.Unix(0, 3000).UTC(),
-		},
-		{
-			ID:            5,
-			Depth:         2,
-			Type:          "Container",
-			Name:          "container-b1",
-			EventCount:    1,
-			RevisionCount: 1,
-			SeverityCounts: []SeverityCount{
-				{Severity: testSeverityError, Count: 1},
-			},
-			OmittedChildren: 0,
-			FirstMatchTime:  time.Unix(0, 5000).UTC(),
-			LastMatchTime:   time.Unix(0, 5000).UTC(),
+
+	nsNode := TimelineTreeNode{
+		ID:   1,
+		Type: "Namespace",
+		Name: "ns-1",
+		SeverityCounts: []SeverityCount{
+			{Severity: testSeverityError, Count: 2},
+			{Severity: testSeverityWarning, Count: 2},
+			{Severity: testSeverityInfo, Count: 2},
 		},
 	}
-	truncatedNodes := []TimelineTreeNode{
-		{
-			ID:            1,
-			Depth:         0,
-			Type:          "Namespace",
-			Name:          "ns-1",
-			EventCount:    0,
-			RevisionCount: 0,
-			SeverityCounts: []SeverityCount{
-				{Severity: testSeverityError, Count: 2},
-				{Severity: testSeverityWarning, Count: 2},
-				{Severity: testSeverityInfo, Count: 2},
-			},
-			OmittedChildren: 0,
-			FirstMatchTime:  time.Time{},
-			LastMatchTime:   time.Time{},
+	podANode := TimelineTreeNode{
+		ID:            2,
+		Depth:         1,
+		Type:          "Pod",
+		Name:          "pod-a",
+		EventCount:    2,
+		RevisionCount: 1,
+		SeverityCounts: []SeverityCount{
+			{Severity: testSeverityError, Count: 1},
+			{Severity: testSeverityWarning, Count: 2},
+			{Severity: testSeverityInfo, Count: 1},
 		},
-		{
-			ID:            2,
-			Depth:         1,
-			Type:          "Pod",
-			Name:          "pod-a",
-			EventCount:    2,
-			RevisionCount: 1,
-			SeverityCounts: []SeverityCount{
-				{Severity: testSeverityError, Count: 1},
-				{Severity: testSeverityWarning, Count: 2},
-				{Severity: testSeverityInfo, Count: 1},
-			},
-			OmittedChildren: 1,
-			FirstMatchTime:  time.Unix(0, 1000).UTC(),
-			LastMatchTime:   time.Unix(0, 2500).UTC(),
+		FirstMatchTime: time.Unix(0, 1000).UTC(),
+		LastMatchTime:  time.Unix(0, 2500).UTC(),
+	}
+	containerA1Node := TimelineTreeNode{
+		ID:            4,
+		Depth:         2,
+		Type:          "Container",
+		Name:          "container-a1",
+		EventCount:    1,
+		RevisionCount: 1,
+		SeverityCounts: []SeverityCount{
+			{Severity: testSeverityError, Count: 1},
 		},
-		{
-			ID:            3,
-			Depth:         1,
-			Type:          "Pod",
-			Name:          "pod-b",
-			EventCount:    1,
-			RevisionCount: 0,
-			SeverityCounts: []SeverityCount{
-				{Severity: testSeverityError, Count: 1},
-				{Severity: testSeverityInfo, Count: 1},
-			},
-			OmittedChildren: 1,
-			FirstMatchTime:  time.Unix(0, 3000).UTC(),
-			LastMatchTime:   time.Unix(0, 3000).UTC(),
+		FirstMatchTime: time.Unix(0, 4000).UTC(),
+		LastMatchTime:  time.Unix(0, 4500).UTC(),
+	}
+	podBNode := TimelineTreeNode{
+		ID:         3,
+		Depth:      1,
+		Type:       "Pod",
+		Name:       "pod-b",
+		EventCount: 1,
+		SeverityCounts: []SeverityCount{
+			{Severity: testSeverityError, Count: 1},
+			{Severity: testSeverityInfo, Count: 1},
 		},
+		FirstMatchTime: time.Unix(0, 3000).UTC(),
+		LastMatchTime:  time.Unix(0, 3000).UTC(),
+	}
+	containerB1Node := TimelineTreeNode{
+		ID:            5,
+		Depth:         2,
+		Type:          "Container",
+		Name:          "container-b1",
+		EventCount:    1,
+		RevisionCount: 1,
+		SeverityCounts: []SeverityCount{
+			{Severity: testSeverityError, Count: 1},
+		},
+		FirstMatchTime: time.Unix(0, 5000).UTC(),
+		LastMatchTime:  time.Unix(0, 5000).UTC(),
 	}
 
+	fullTreeNodes := []TimelineTreeNode{nsNode, podANode, containerA1Node, podBNode, containerB1Node}
+
+	truncatedPodA := podANode
+	truncatedPodA.OmittedChildren = 1
+	truncatedPodB := podBNode
+	truncatedPodB.OmittedChildren = 1
+	truncatedNodes := []TimelineTreeNode{nsNode, truncatedPodA, truncatedPodB}
+
+	sharedLogPodA := podANode
+	sharedLogPodA.EventCount = 4
+	sharedLogPodA.SeverityCounts = []SeverityCount{
+		{Severity: testSeverityError, Count: 1},
+		{Severity: testSeverityWarning, Count: 2},
+		{Severity: testSeverityInfo, Count: 2},
+	}
+	sharedLogPodA.LastMatchTime = time.Unix(0, 4000).UTC()
+
 	testCases := []struct {
-		name           string
-		filter         Filter
-		maxDepth       int
-		maxNodes       int
-		setupWorkbench func() *Workbench
-		wantErr        bool
-		want           *TimelineTreeResult
+		name          string
+		filter        Filter
+		maxDepth      int
+		maxNodes      int
+		modify        func(*Workbench)
+		wantErr       bool
+		wantErrTarget error
+		want          *TimelineTreeResult
 	}{
 		{
 			name:     "full tree returned when maxNodes is large enough",
@@ -303,15 +231,13 @@ func TestSearchTimelines(t *testing.T) {
 			filter:   Filter{},
 			maxDepth: 0,
 			maxNodes: 10,
-			setupWorkbench: func() *Workbench {
-				wb := setupSearchTimelinesTestWorkbench()
+			modify: func(wb *Workbench) {
 				// Link log 5 (ERROR, already on child container-a1) and log 4 (INFO, already on sibling pod-b) to pod-a.
 				tl2 := wb.searchIndex.TimelineMap[2]
 				tl2.Events = append(tl2.Events,
 					cel.EventInfo{LogID: 4, Timestamp: 3000},
 					cel.EventInfo{LogID: 5, Timestamp: 4000},
 				)
-				return wb
 			},
 			want: &TimelineTreeResult{
 				MatchedTimelineCount: 5,
@@ -321,83 +247,7 @@ func TestSearchTimelines(t *testing.T) {
 				MaxDepth:             0,
 				MaxNodes:             10,
 				TimelineTypes:        allTimelineTypes,
-				Nodes: []TimelineTreeNode{
-					{
-						ID:            1,
-						Depth:         0,
-						Type:          "Namespace",
-						Name:          "ns-1",
-						EventCount:    0,
-						RevisionCount: 0,
-						SeverityCounts: []SeverityCount{
-							{Severity: testSeverityError, Count: 2},
-							{Severity: testSeverityWarning, Count: 2},
-							{Severity: testSeverityInfo, Count: 2},
-						},
-						OmittedChildren: 0,
-						FirstMatchTime:  time.Time{},
-						LastMatchTime:   time.Time{},
-					},
-					{
-						ID:            2,
-						Depth:         1,
-						Type:          "Pod",
-						Name:          "pod-a",
-						EventCount:    4,
-						RevisionCount: 1,
-						SeverityCounts: []SeverityCount{
-							{Severity: testSeverityError, Count: 1},
-							{Severity: testSeverityWarning, Count: 2},
-							{Severity: testSeverityInfo, Count: 2},
-						},
-						OmittedChildren: 0,
-						FirstMatchTime:  time.Unix(0, 1000).UTC(),
-						LastMatchTime:   time.Unix(0, 4000).UTC(),
-					},
-					{
-						ID:            4,
-						Depth:         2,
-						Type:          "Container",
-						Name:          "container-a1",
-						EventCount:    1,
-						RevisionCount: 1,
-						SeverityCounts: []SeverityCount{
-							{Severity: testSeverityError, Count: 1},
-						},
-						OmittedChildren: 0,
-						FirstMatchTime:  time.Unix(0, 4000).UTC(),
-						LastMatchTime:   time.Unix(0, 4500).UTC(),
-					},
-					{
-						ID:            3,
-						Depth:         1,
-						Type:          "Pod",
-						Name:          "pod-b",
-						EventCount:    1,
-						RevisionCount: 0,
-						SeverityCounts: []SeverityCount{
-							{Severity: testSeverityError, Count: 1},
-							{Severity: testSeverityInfo, Count: 1},
-						},
-						OmittedChildren: 0,
-						FirstMatchTime:  time.Unix(0, 3000).UTC(),
-						LastMatchTime:   time.Unix(0, 3000).UTC(),
-					},
-					{
-						ID:            5,
-						Depth:         2,
-						Type:          "Container",
-						Name:          "container-b1",
-						EventCount:    1,
-						RevisionCount: 1,
-						SeverityCounts: []SeverityCount{
-							{Severity: testSeverityError, Count: 1},
-						},
-						OmittedChildren: 0,
-						FirstMatchTime:  time.Unix(0, 5000).UTC(),
-						LastMatchTime:   time.Unix(0, 5000).UTC(),
-					},
-				},
+				Nodes:                []TimelineTreeNode{nsNode, sharedLogPodA, containerA1Node, podBNode, containerB1Node},
 			},
 		},
 		{
@@ -470,29 +320,29 @@ func TestSearchTimelines(t *testing.T) {
 			},
 		},
 		{
-			name:     "closed workbench returns error",
-			filter:   Filter{},
-			maxDepth: 0,
-			maxNodes: 10,
-			setupWorkbench: func() *Workbench {
-				wb := setupSearchTimelinesTestWorkbench()
-				wb.Close()
-				return wb
-			},
-			wantErr: true,
+			name:          "closed workbench returns error",
+			filter:        Filter{},
+			maxDepth:      0,
+			maxNodes:      10,
+			modify:        func(wb *Workbench) { wb.Close() },
+			wantErr:       true,
+			wantErrTarget: ErrWorkbenchClosed,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupSearchTimelinesTestWorkbench()
-			if tc.setupWorkbench != nil {
-				wb = tc.setupWorkbench()
+			if tc.modify != nil {
+				tc.modify(wb)
 			}
 
 			got, err := wb.SearchTimelines(context.Background(), tc.filter, tc.maxDepth, tc.maxNodes)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("SearchTimelines() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if tc.wantErrTarget != nil && !errors.Is(err, tc.wantErrTarget) {
+				t.Fatalf("SearchTimelines() error = %v, want %v", err, tc.wantErrTarget)
 			}
 			if tc.wantErr {
 				return

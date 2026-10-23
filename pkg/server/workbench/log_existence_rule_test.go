@@ -48,9 +48,9 @@ func setupValidateReportTestWorkbench(t *testing.T) *Workbench {
 		},
 	}
 
-	readonlyPool := newReadonlyInternPool(pool)
+	ingestTestPool(wb, pool)
 	trigramIdx := cel.NewTrigramIndex()
-	err := trigramIdx.BuildFromLogPool(readonlyPool, []cel.LogTrigramItem{
+	err := trigramIdx.BuildFromLogPool(wb.internPool, []cel.LogTrigramItem{
 		{ID: 1, SummaryStringID: logs[0].SummaryStringID, BodyStructID: logs[0].BodyStructID},
 		{ID: 2, SummaryStringID: logs[1].SummaryStringID, BodyStructID: logs[1].BodyStructID},
 	}, nil)
@@ -58,18 +58,15 @@ func setupValidateReportTestWorkbench(t *testing.T) *Workbench {
 		t.Fatalf("BuildFromLogPool() failed: %v", err)
 	}
 
-	wb.internPool = readonlyPool
 	wb.searchIndex = &SearchIndex{
 		Logs:         logs,
-		InternPool:   readonlyPool,
+		InternPool:   wb.internPool,
 		TrigramIndex: trigramIdx,
 	}
 	return wb
 }
 
 func TestLogExistenceRule(t *testing.T) {
-	wb := setupValidateReportTestWorkbench(t)
-
 	testCases := []struct {
 		name   string
 		report string
@@ -123,36 +120,27 @@ func TestLogExistenceRule(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			res, err := wb.ValidateReport(context.Background(), tc.report)
-			if err != nil {
-				t.Fatalf("ValidateReport() unexpected error = %v", err)
+	for _, withTrigram := range []bool{true, false} {
+		mode := "with trigram index"
+		if !withTrigram {
+			mode = "without trigram index"
+		}
+		t.Run(mode, func(t *testing.T) {
+			wb := setupValidateReportTestWorkbench(t)
+			if !withTrigram {
+				wb.searchIndex.TrigramIndex = nil
 			}
-			if diff := cmp.Diff(tc.want, res.Findings); diff != "" {
-				t.Errorf("ValidateReport() Findings mismatch (-want +got):\n%s", diff)
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					res, err := wb.ValidateReport(context.Background(), tc.report)
+					if err != nil {
+						t.Fatalf("ValidateReport() unexpected error = %v", err)
+					}
+					if diff := cmp.Diff(tc.want, res.Findings); diff != "" {
+						t.Errorf("ValidateReport() Findings mismatch (-want +got):\n%s", diff)
+					}
+				})
 			}
 		})
-	}
-}
-
-func TestLogExistenceRule_NilTrigramIndexFallback(t *testing.T) {
-	wb := setupValidateReportTestWorkbench(t)
-	wb.searchIndex.TrigramIndex = nil
-
-	res, err := wb.ValidateReport(context.Background(), "Valid `frontend-pod-7f8b9c` and missing `ghost-pod`")
-	if err != nil {
-		t.Fatalf("ValidateReport() unexpected error = %v", err)
-	}
-	want := []ValidationFinding{
-		{
-			RuleID:  RuleIDLogExistence,
-			Line:    1,
-			Target:  "ghost-pod",
-			Message: "Not found in inspection logs.",
-		},
-	}
-	if diff := cmp.Diff(want, res.Findings); diff != "" {
-		t.Errorf("ValidateReport() Findings mismatch (-want +got):\n%s", diff)
 	}
 }
