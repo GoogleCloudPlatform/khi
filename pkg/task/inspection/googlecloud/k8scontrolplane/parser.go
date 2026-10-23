@@ -26,8 +26,7 @@ type ControlplaneLogContext struct {
 // DefaultControlplaneLogParser is the default SelectorLogParser for GKE control plane logs.
 var DefaultControlplaneLogParser = logutil.NewSelectorLogParser[ControlplaneLogContext](
 	logutil.NewMultiTextLogParser(
-		logutil.NewKLogTextParser(true),
-		logutil.NewKLogTextParser(false),
+		logutil.NewKLogTextParser(),
 		logutil.NewJsonlTextParser(),
 		logutil.NewZapConsoleTextParser(),
 		logutil.NewLogfmtTextParser(),
@@ -38,8 +37,7 @@ var DefaultControlplaneLogParser = logutil.NewSelectorLogParser[ControlplaneLogC
 			return ctx.ComponentName == "scheduler" || ctx.ComponentName == "controller-manager"
 		},
 		Parser: logutil.NewMultiTextLogParser(
-			logutil.NewKLogTextParser(true),
-			logutil.NewKLogTextParser(false),
+			logutil.NewKLogTextParser(),
 		),
 	},
 )

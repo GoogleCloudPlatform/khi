@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -31,11 +32,11 @@ type KLogTextParser struct {
 	workers *sync.Pool
 }
 
-func NewKLogTextParser(hasHeader bool) *KLogTextParser {
+func NewKLogTextParser() *KLogTextParser {
 	return &KLogTextParser{
 		workers: &sync.Pool{
 			New: func() any {
-				return newKLogTextParserWorker(hasHeader)
+				return newKLogTextParserWorker()
 			},
 		},
 	}
@@ -58,15 +59,16 @@ const KLogHeaderSourceLocationFieldKey = "@source"
 
 var klogTimestampRegex = regexp.MustCompile(`^([IWEF])(\d{4})\s+(\d{2}:\d{2}:\d{2}\.\d{6})\s+(\d+)\s+([^:]+:\d+)]\s+(.*)$`)
 
+// klogTimestampLayout is the Go time layout of the klog header timestamp (mmdd hh:mm:ss.uuuuuu).
+const klogTimestampLayout = "0102 15:04:05.000000"
+
 type klogTextParserWorker struct {
-	builder   strings.Builder
-	hasHeader bool
+	builder strings.Builder
 }
 
-func newKLogTextParserWorker(hasHeader bool) *klogTextParserWorker {
+func newKLogTextParserWorker() *klogTextParserWorker {
 	return &klogTextParserWorker{
-		builder:   strings.Builder{},
-		hasHeader: hasHeader,
+		builder: strings.Builder{},
 	}
 }
 
@@ -76,13 +78,7 @@ func (w *klogTextParserWorker) parse(message string) *ParseStructuredLogResult {
 			OriginalMessageFieldKey: message,
 		},
 	}
-	if !w.hasHeader { // GKE control plane can omit the header of klog. example)"Starting watch" path="/apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations" resourceVersion="1759127820246769000" labels="" fields="" timeout="9m16s"
-		err := w.parseFields(message, result)
-		if err != nil {
-			return nil
-		}
-		return result
-	}
+
 	matches := klogTimestampRegex.FindStringSubmatch(message)
 	if matches == nil {
 		return nil
@@ -227,4 +223,50 @@ func (w *klogTextParserWorker) parseFields(messagePart string, result *ParseStru
 		w.builder.Reset()
 	}
 	return nil
+}
+
+// toKLogSeverityLetter converts a KHI severity to its klog header letter.
+func toKLogSeverityLetter(severity *pb.Severity) string {
+	switch severity {
+	case inspectioncore.SeverityInfo:
+		return "I"
+	case inspectioncore.SeverityWarning:
+		return "W"
+	case inspectioncore.SeverityError:
+		return "E"
+	case inspectioncore.SeverityFatal:
+		return "F"
+	default:
+		return "I" // klog has no unknown level; use I so the line still matches klogTimestampRegex.
+	}
+}
+
+// FormatKLogString reconstructs a klog format line from structured log fields.
+func FormatKLogString(severity *pb.Severity, timestamp time.Time, threadID int, file string, line int, message string) string {
+	letter := toKLogSeverityLetter(severity)
+
+	if file == "" {
+		file = "unknown"
+	}
+
+	ts := timestamp.UTC().Format(klogTimestampLayout)
+	return fmt.Sprintf("%s%s %d %s:%d] %s", letter, ts, threadID, file, line, message)
+}
+
+// HasKLogHeader reports whether the message starts with a klog header prefix (e.g. "I0929 ").
+func HasKLogHeader(message string) bool {
+	if len(message) < 6 {
+		return false
+	}
+	switch message[0] {
+	case 'I', 'W', 'E', 'F':
+	default:
+		return false
+	}
+	for i := 1; i <= 4; i++ {
+		if message[i] < '0' || message[i] > '9' {
+			return false
+		}
+	}
+	return message[5] == ' '
 }

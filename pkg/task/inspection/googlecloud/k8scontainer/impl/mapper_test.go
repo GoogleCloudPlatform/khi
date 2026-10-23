@@ -76,7 +76,7 @@ func TestProcessContainerLog(t *testing.T) {
 					PodName:       "kube-apiserver-pod",
 					ContainerName: "kube-apiserver",
 					Message:       `E0929 08:20:24.205299    1949 server.go:100] "Failed to reconcile" error="timeout"`,
-					ParsedMessage: logutil.NewKLogTextParser(true).TryParse(`E0929 08:20:24.205299    1949 server.go:100] "Failed to reconcile" error="timeout"`),
+					ParsedMessage: logutil.NewKLogTextParser().TryParse(`E0929 08:20:24.205299    1949 server.go:100] "Failed to reconcile" error="timeout"`),
 				},
 			),
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {

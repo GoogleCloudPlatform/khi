@@ -29,7 +29,7 @@ type ContainerLogContext struct {
 var DefaultContainerLogParser = logutil.NewSelectorLogParser[ContainerLogContext](
 	logutil.NewMultiTextLogParser(
 		logutil.NewJsonlTextParser(),
-		logutil.NewKLogTextParser(true),
+		logutil.NewKLogTextParser(),
 		logutil.NewLogfmtTextParser(),
 		&logutil.FallbackRawTextLogParser{},
 	),
