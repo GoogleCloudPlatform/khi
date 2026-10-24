@@ -409,15 +409,18 @@ func DefineCAIInitialResourceStateProviderTask[Identity any, Provider any](
 	return inspectiontaskbase.DefineInspectionTask(
 		taskID,
 		func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[Provider] {
-			logs := coretask.Use(b, suiteTaskIDs.RawLog.Ref())
-			coretask.After(b, suiteTaskIDs.TimelineMapper.Ref())
+			logs := coretask.UseOptional(b, suiteTaskIDs.RawLog.Ref(coretask.FromActiveGraph))
 			queryStartTime := coretask.Use(b, InputStartTimeTaskID.Ref())
 
 			return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (Provider, error) {
 				if taskMode == inspectioncore.TaskModeDryRun {
 					return buildProvider(nil), nil
 				}
-				states := ExtractCAIActiveAssetStates(ctx, logs.Get(ctx), queryStartTime.Get(ctx), extractIdentity, identityKey, extractBody)
+				rawLogs, ok := logs.Get(ctx)
+				if !ok {
+					return buildProvider(nil), nil
+				}
+				states := ExtractCAIActiveAssetStates(ctx, rawLogs, queryStartTime.Get(ctx), extractIdentity, identityKey, extractBody)
 				return buildProvider(states), nil
 			}
 		},
