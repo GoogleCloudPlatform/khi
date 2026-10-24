@@ -107,7 +107,7 @@ func (p *Pipeline) Execute(
 		)
 	}
 
-	tlMode, tlBitset := sparsebitset.EncodeFilterResult(len(index.Timelines), filterCtx.TimelineIDs)
+	tlMode, tlBitset := sparsebitset.EncodeFilterResult(int(index.MaxTimelineID()), filterCtx.TimelineIDs)
 	logMode, logBitset := sparsebitset.EncodeFilterResult(len(index.Logs), filterCtx.LogIDs)
 
 	totalDuration := time.Since(totalStart)

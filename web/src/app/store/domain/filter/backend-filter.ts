@@ -190,7 +190,7 @@ export class BackendFilter implements LogTimelineFilter {
         timelineIds: IdBitset.fromSparseBitset(
           res.timelineMode,
           res.timelineBitset,
-          timelineStore.timelines.length,
+          timelineStore.maxTimelineId,
         ),
         logIds: IdBitset.fromSparseBitset(
           res.logMode,

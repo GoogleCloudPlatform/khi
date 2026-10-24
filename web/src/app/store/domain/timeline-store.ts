@@ -111,6 +111,7 @@ export class TimelineStore {
   private eventCapacity = 0;
 
   private timelineCount = 0;
+  private _maxTimelineId = 0;
   private _revisionCount = 0;
   private _eventCount = 0;
   private relationshipsDirty = true;
@@ -461,6 +462,9 @@ export class TimelineStore {
     this.timelineIdToIndex[timeline.id] = tIndex;
     this.timelinesList.push(new Timeline(timeline.id, this));
     this.timelineCount++;
+    if (timeline.id > this._maxTimelineId) {
+      this._maxTimelineId = timeline.id;
+    }
     this.relationshipsDirty = true;
   }
 
@@ -580,6 +584,13 @@ export class TimelineStore {
    */
   public get timelines(): readonly ReadonlyDomainElement<Timeline>[] {
     return this.timelinesList;
+  }
+
+  /**
+   * Gets the maximum timeline ID in the store, or 0 if there are no timelines.
+   */
+  public get maxTimelineId(): number {
+    return this._maxTimelineId;
   }
 
   /**
