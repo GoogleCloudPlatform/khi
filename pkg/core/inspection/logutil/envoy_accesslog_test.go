@@ -30,11 +30,11 @@ func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {
 	}{
 		{
 			name:  "standard envoy log from user example with status 502 and no response flags",
-			input: `[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - "-" 0 0 6 5 "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "136.68.163.124" "136.68.163.124:80" PassthroughCluster 10.4.1.8:33606 136.68.163.124:80 10.4.1.8:59778 - allow_any`,
+			input: `[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - "-" 0 0 6 5 "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "192.0.2.1" "192.0.2.1:80" PassthroughCluster 10.4.1.8:33606 192.0.2.1:80 10.4.1.8:59778 - allow_any`,
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
-					OriginalMessageFieldKey:                       `[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - "-" 0 0 6 5 "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "136.68.163.124" "136.68.163.124:80" PassthroughCluster 10.4.1.8:33606 136.68.163.124:80 10.4.1.8:59778 - allow_any`,
-					MainMessageStructuredFieldKey:                 "502 HEAD http://136.68.163.124/",
+					OriginalMessageFieldKey:                       `[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - "-" 0 0 6 5 "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "192.0.2.1" "192.0.2.1:80" PassthroughCluster 10.4.1.8:33606 192.0.2.1:80 10.4.1.8:59778 - allow_any`,
+					MainMessageStructuredFieldKey:                 "502 HEAD http://192.0.2.1/",
 					SeverityStructuredFieldKey:                    inspectioncore.SeverityError,
 					EnvoyAccessLogTimestampFieldKey:               "2026-08-10T08:50:55.958Z",
 					EnvoyAccessLogMethodFieldKey:                  "HEAD",
@@ -42,14 +42,14 @@ func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {
 					EnvoyAccessLogProtocolFieldKey:                "HTTP/1.1",
 					EnvoyAccessLogStatusCodeFieldKey:              "502",
 					EnvoyAccessLogResponseFlagsFieldKey:           "-",
-					EnvoyAccessLogAuthorityFieldKey:               "136.68.163.124",
-					EnvoyAccessLogUpstreamHostFieldKey:            "136.68.163.124:80",
+					EnvoyAccessLogAuthorityFieldKey:               "192.0.2.1",
+					EnvoyAccessLogUpstreamHostFieldKey:            "192.0.2.1:80",
 					EnvoyAccessLogUpstreamClusterFieldKey:         "PassthroughCluster",
 					EnvoyAccessLogDurationFieldKey:                "6",
 					EnvoyAccessLogUserAgentFieldKey:               "curl/8.21.0",
 					EnvoyAccessLogRequestIDFieldKey:               "55667739-e394-4814-91b2-2cdd90744892",
 					EnvoyAccessLogUpstreamLocalAddressFieldKey:    "10.4.1.8:33606",
-					EnvoyAccessLogDownstreamLocalAddressFieldKey:  "136.68.163.124:80",
+					EnvoyAccessLogDownstreamLocalAddressFieldKey:  "192.0.2.1:80",
 					EnvoyAccessLogDownstreamRemoteAddressFieldKey: "10.4.1.8:59778",
 					EnvoyAccessLogRouteNameFieldKey:               "allow_any",
 				},
@@ -130,10 +130,10 @@ func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {
 		},
 		{
 			name:  "istio-proxy access log with failure details from container stdout",
-			input: `[2026-08-17T04:59:08.906Z] "GET / HTTP/1.1" 503 UF upstream_reset_before_response_started{remote_connection_failure,delayed_connect_error:_111} - "delayed_connect_error:_111" 0 152 0 - "-" "GoogleHC/1.0" "b8b3448c-05f3-4f65-aed2-9e63c89cc662" "10.4.0.5" "10.4.0.5:8080" inbound|8080|| - 10.4.0.5:8080 35.191.227.195:48158 - default`,
+			input: `[2026-08-17T04:59:08.906Z] "GET / HTTP/1.1" 503 UF upstream_reset_before_response_started{remote_connection_failure,delayed_connect_error:_111} - "delayed_connect_error:_111" 0 152 0 - "-" "GoogleHC/1.0" "b8b3448c-05f3-4f65-aed2-9e63c89cc662" "10.4.0.5" "10.4.0.5:8080" inbound|8080|| - 10.4.0.5:8080 198.51.100.1:48158 - default`,
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
-					OriginalMessageFieldKey:                       `[2026-08-17T04:59:08.906Z] "GET / HTTP/1.1" 503 UF upstream_reset_before_response_started{remote_connection_failure,delayed_connect_error:_111} - "delayed_connect_error:_111" 0 152 0 - "-" "GoogleHC/1.0" "b8b3448c-05f3-4f65-aed2-9e63c89cc662" "10.4.0.5" "10.4.0.5:8080" inbound|8080|| - 10.4.0.5:8080 35.191.227.195:48158 - default`,
+					OriginalMessageFieldKey:                       `[2026-08-17T04:59:08.906Z] "GET / HTTP/1.1" 503 UF upstream_reset_before_response_started{remote_connection_failure,delayed_connect_error:_111} - "delayed_connect_error:_111" 0 152 0 - "-" "GoogleHC/1.0" "b8b3448c-05f3-4f65-aed2-9e63c89cc662" "10.4.0.5" "10.4.0.5:8080" inbound|8080|| - 10.4.0.5:8080 198.51.100.1:48158 - default`,
 					MainMessageStructuredFieldKey:                 "【Upstream connection failure(UF)】503 GET http://10.4.0.5/",
 					SeverityStructuredFieldKey:                    inspectioncore.SeverityError,
 					EnvoyAccessLogTimestampFieldKey:               "2026-08-17T04:59:08.906Z",
@@ -149,7 +149,7 @@ func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {
 					EnvoyAccessLogUserAgentFieldKey:               "GoogleHC/1.0",
 					EnvoyAccessLogRequestIDFieldKey:               "b8b3448c-05f3-4f65-aed2-9e63c89cc662",
 					EnvoyAccessLogDownstreamLocalAddressFieldKey:  "10.4.0.5:8080",
-					EnvoyAccessLogDownstreamRemoteAddressFieldKey: "35.191.227.195:48158",
+					EnvoyAccessLogDownstreamRemoteAddressFieldKey: "198.51.100.1:48158",
 					EnvoyAccessLogRouteNameFieldKey:               "default",
 				},
 			},
