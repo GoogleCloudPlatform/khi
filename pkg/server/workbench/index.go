@@ -65,6 +65,17 @@ func (s *SearchIndex) GetTimelineIDsForLog(logID uint32) []uint32 {
 	return s.LogTimelineIndex.GetTimelineIDs(logID)
 }
 
+// MaxTimelineID returns the maximum timeline ID in the index, or 0 if there are no timelines.
+func (s *SearchIndex) MaxTimelineID() uint32 {
+	var maxID uint32
+	for _, tl := range s.Timelines {
+		if tl.ID > maxID {
+			maxID = tl.ID
+		}
+	}
+	return maxID
+}
+
 // styleMaps holds lookup maps derived from the style chunk.
 // The style chunk does not change while the workbench is open, so BuildBaseSearchIndex builds them once when the workbench loads.
 type styleMaps struct {

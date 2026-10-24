@@ -137,7 +137,7 @@ export class TimelineView {
 
     // Initialize context with all timelines/logs initially
     this._context.set({
-      timelineIds: IdBitset.fromSequential(this.store.timelines.length),
+      timelineIds: IdBitset.fromSequential(this.store.maxTimelineId),
       logIds: IdBitset.fromSequential(this.store.logStore.count),
     });
 
@@ -228,7 +228,7 @@ export class TimelineView {
     this._isFiltering.set(true);
 
     let ctx: LogTimelineFilterContext = {
-      timelineIds: IdBitset.fromSequential(this.store.timelines.length),
+      timelineIds: IdBitset.fromSequential(this.store.maxTimelineId),
       logIds: IdBitset.fromSequential(this.store.logStore.count),
     };
 
