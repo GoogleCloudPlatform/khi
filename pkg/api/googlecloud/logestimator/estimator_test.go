@@ -353,7 +353,7 @@ func TestLiveMetricEstimation(t *testing.T) {
 
 	projectID := os.Getenv("GCP_PROJECT_ID")
 	if projectID == "" {
-		projectID = "tse-kakeru"
+		projectID = "test-project"
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -466,8 +466,8 @@ func TestEstimateClusterLogs(t *testing.T) {
 		return
 	}
 
-	projectID := "khi-testing-with-auditlog"
-	clusterName := "p0-gke-basic-1"
+	projectID := "test-project"
+	clusterName := "test-cluster"
 
 	startTime, err := time.Parse(time.RFC3339, "2026-02-18T05:53:08Z")
 	if err != nil {
@@ -571,15 +571,15 @@ protoPayload.methodName=~"\.(deployments|replicasets|pods|nodes)\."`),
 	}
 }
 
-// TestEstimateTseKakeruClusterLogs tests log volume estimation for yesterday on tse-kakeru clusters.
-func TestEstimateTseKakeruClusterLogs(t *testing.T) {
+// TestEstimateRegionalClusterLogs tests log volume estimation for yesterday on a regional cluster.
+func TestEstimateRegionalClusterLogs(t *testing.T) {
 	if os.Getenv("RUN_LIVE_ESTIMATION_TESTS") != "true" || testutil.SkipCloudLogging() {
 		t.Skip("skipping live test: set RUN_LIVE_ESTIMATION_TESTS=true to run")
 		return
 	}
 
-	projectID := "tse-kakeru"
-	clusterName := "keigof-0804-cluster"
+	projectID := "test-project"
+	clusterName := "test-cluster"
 	location := "asia-northeast1"
 
 	// Yesterday: 2026-08-21 00:00:00 UTC to 2026-08-21 23:59:59 UTC
@@ -708,7 +708,7 @@ func TestAccuracyOneHourComparison(t *testing.T) {
 		return
 	}
 
-	projectID := "tse-kakeru"
+	projectID := "test-project"
 	clusterName := os.Getenv("TEST_CLUSTER_NAME")
 	if clusterName == "" {
 		clusterName = "csm-cluster"

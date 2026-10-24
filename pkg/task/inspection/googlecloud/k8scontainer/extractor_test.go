@@ -177,7 +177,7 @@ func TestExtractK8sContainerLog_IstioProxyParsedMessage(t *testing.T) {
     namespace_name: default
     pod_name: frontend-pod
     container_name: istio-proxy
-textPayload: '[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - "-" 0 0 6 5 "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "123.45.167.189" "123.45.167.189:80" PassthroughCluster 10.4.1.8:33606 123.45.167.189:80 10.4.1.8:59778 - allow_any'`
+textPayload: '[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - "-" 0 0 6 5 "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "192.0.2.1" "192.0.2.1:80" PassthroughCluster 10.4.1.8:33606 192.0.2.1:80 10.4.1.8:59778 - allow_any'`
 
 	node, err := structured.FromYAML(inputYAML)
 	if err != nil {
@@ -195,7 +195,7 @@ textPayload: '[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - 
 	if err != nil {
 		t.Fatalf("MainMessage() failed: %v", err)
 	}
-	wantMsg := "502 HEAD http://123.45.167.189/"
+	wantMsg := "502 HEAD http://192.0.2.1/"
 	if mainMsg != wantMsg {
 		t.Errorf("MainMessage() = %q, want %q", mainMsg, wantMsg)
 	}
@@ -203,9 +203,9 @@ textPayload: '[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - 
 
 func TestExtractK8sContainerLog_IstioProxyNonAccessLog(t *testing.T) {
 	inputYAML := `insertId: d041l2rc48z6lx5t
-logName: projects/tse-kakeru/logs/stdout
+logName: projects/test-project/logs/stdout
 labels:
-  compute.googleapis.com/resource_name: gke-keigof-0804-clus-keigof-0804-node-dc914732-d5fd
+  compute.googleapis.com/resource_name: gke-test-cluster-default-pool-dc914732-d5fd
   k8s-pod/app: nginx-server
   k8s-pod/pod-template-hash: 8646bbcd65
   k8s-pod/security_istio_io/tlsMode: istio
@@ -217,12 +217,12 @@ textPayload: "2026-08-20T04:46:31.353537Z\tinfo\txdsproxy\tconnected to upstream
 resource:
   type: k8s_container
   labels:
-    cluster_name: keigof-0804-cluster
+    cluster_name: test-cluster
     container_name: istio-proxy
     location: asia-northeast1
     namespace_name: default
     pod_name: nginx-server-8646bbcd65-6d969
-    project_id: tse-kakeru
+    project_id: test-project
 severity: INFO
 receiveTimestamp: '2026-08-20T04:46:34.341075649Z'
 timestamp: '2026-08-20T04:46:31.353884563Z'`
