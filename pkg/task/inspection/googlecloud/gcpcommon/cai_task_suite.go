@@ -410,7 +410,6 @@ func DefineCAIInitialResourceStateProviderTask[Identity any, Provider any](
 		taskID,
 		func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[Provider] {
 			logs := coretask.UseOptional(b, suiteTaskIDs.RawLog.Ref(coretask.FromActiveGraph))
-			coretask.After(b, suiteTaskIDs.TimelineMapper.Ref(coretask.FromActiveGraph))
 			queryStartTime := coretask.Use(b, InputStartTimeTaskID.Ref())
 
 			return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (Provider, error) {
