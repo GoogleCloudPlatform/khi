@@ -19,6 +19,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
@@ -44,3 +45,6 @@ var NEGToBackendServiceDiscoveryTaskID = taskid.NewDefaultImplementationID[k8sco
 
 // NodeNameDiscoveryTaskID is the task ID for the discovery task that extracts node names from Kubernetes Event logs.
 var NodeNameDiscoveryTaskID = taskid.NewDefaultImplementationID[[]string](GKEK8sEventLogTaskIDPrefix + "node-name-discovery")
+
+// ResourceUIDDiscoveryTaskID is the task ID for the discovery task that extracts resource UIDs from Kubernetes Event logs.
+var ResourceUIDDiscoveryTaskID = taskid.NewDefaultImplementationID[k8saudit.UIDToResourceIdentity](GKEK8sEventLogTaskIDPrefix + "resource-uid-discovery")
