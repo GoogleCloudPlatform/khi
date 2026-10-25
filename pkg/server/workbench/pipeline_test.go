@@ -343,7 +343,8 @@ func TestFilterTimelineWithGappedIDs(t *testing.T) {
 			}
 
 			var sequentialIDs []uint32
-			for id := uint32(1); id <= wb.searchIndex.MaxTimelineID(); id++ {
+			maxID := wb.searchIndex.MaxTimelineID()
+			for id := uint32(1); id <= maxID; id++ {
 				sequentialIDs = append(sequentialIDs, id)
 			}
 			gotMatchedIDs := decodeSparseBitset(res.GetTimelineMode(), res.GetTimelineBitset(), sequentialIDs)
