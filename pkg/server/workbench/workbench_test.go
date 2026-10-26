@@ -22,7 +22,45 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 )
+
+// The following severity definitions emulate the style chunk of a loaded inspection in the tests of this package.
+var (
+	testSeverityInfo    = &khifilev6.Severity{Id: proto.Uint32(1), Label: proto.String("INFO"), Order: proto.Int32(1)}
+	testSeverityWarning = &khifilev6.Severity{Id: proto.Uint32(2), Label: proto.String("WARNING"), Order: proto.Int32(2)}
+	testSeverityError   = &khifilev6.Severity{Id: proto.Uint32(3), Label: proto.String("ERROR"), Order: proto.Int32(3)}
+	testSeverityFatal   = &khifilev6.Severity{Id: proto.Uint32(4), Label: proto.String("FATAL"), Order: proto.Int32(4)}
+)
+
+// newTestIndexedWorkbench returns a workbench whose search index, style maps, and log-timeline index are built from the given data.
+func newTestIndexedWorkbench(logs []cel.LogData, timelines []*cel.TimelineData, severities []*khifilev6.Severity) *Workbench {
+	wb := NewWorkbench("wb-test", "test-inspection")
+	timelineMap := make(map[uint32]*cel.TimelineData, len(timelines))
+	for _, tl := range timelines {
+		timelineMap[tl.ID] = tl
+	}
+	severityRanks := make(map[uint32]uint32, len(severities))
+	for _, s := range severities {
+		severityRanks[s.GetId()] = uint32(s.GetOrder())
+	}
+	wb.searchIndex = &SearchIndex{
+		InternPool:  wb.internPool,
+		Logs:        logs,
+		Timelines:   timelines,
+		TimelineMap: timelineMap,
+		StyleResolver: &cel.SimpleStyleResolver{
+			LogTypes:   map[uint32]string{1: "k8s-event"},
+			Severities: severityRanks,
+		},
+		LogTimelineIndex: NewLogTimelineCSRIndex(uint32(len(logs)), timelines),
+	}
+	wb.styleChunk = &khifilev6.TimelineStyleChunk{
+		Severities: severities,
+	}
+	wb.styles = wb.buildStyleMaps()
+	return wb
+}
 
 func TestWorkbench_Lifecycle(t *testing.T) {
 	wb := NewWorkbench("user-session-1", "inspection-100")

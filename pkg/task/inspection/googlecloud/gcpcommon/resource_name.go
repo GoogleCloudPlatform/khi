@@ -23,6 +23,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typeddict"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -55,6 +57,27 @@ func (r *ResourceNamesInput) UpdateDefaultResourceNamesForQuery(queryID string, 
 	r.ensureQueryID(queryID)
 	queryResourceNames := typeddict.GetOrDefault(r.resourceNames, queryID, &QueryResourceNames{})
 	queryResourceNames.DefaultResourceNames = defaultResourceNames
+}
+
+// SyncFormFieldDefault updates the default value and suggestions of the query's form field in FormFieldSetMetadata if present in ctx.
+func (r *ResourceNamesInput) SyncFormFieldDefault(ctx context.Context, queryID string) {
+	r.ensureQueryID(queryID)
+	queryResourceNames := typeddict.GetOrDefault(r.resourceNames, queryID, &QueryResourceNames{})
+	metadata, err := khictx.GetValue(ctx, inspectionmetadata.MapContextKey)
+	if err != nil || metadata == nil {
+		return
+	}
+	formFields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
+	if !found || formFields == nil {
+		return
+	}
+	defaultValue := strings.Join(queryResourceNames.DefaultResourceNames, " ")
+	formFields.UpdateGroupChildTextFieldDefault(
+		InputLoggingFilterResourceNameTaskID.ReferenceIDString(),
+		queryResourceNames.GetInputID(),
+		defaultValue,
+		queryResourceNames.DefaultResourceNames,
+	)
 }
 
 // GetResourceNamesForQuery returns the resource names for a given query ID.

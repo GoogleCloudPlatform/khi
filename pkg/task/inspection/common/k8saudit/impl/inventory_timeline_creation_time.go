@@ -114,8 +114,8 @@ var resourceTimelineCreationTimeDiscoveryTask = inspectiontaskbase.DefineInspect
 	},
 	coretask.ProvidesTag(k8saudit.TagTimelineCreationTimeDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
-	progress.WithTitle("Discover resource timeline creation times"),
-	coretask.WithTaskDescription("Extracts resource timeline creation timestamps from Kubernetes audit logs."),
+	coretask.WithTitle("Discover resource timeline creation times"),
+	coretask.WithDescription("Extracts resource timeline creation timestamps from Kubernetes audit logs."),
 )
 
 // podPhaseTimelineCreationTimeDiscoveryTask extracts Pod phase timeline creation timestamps from audit logs.
@@ -167,6 +167,6 @@ var podPhaseTimelineCreationTimeDiscoveryTask = inspectiontaskbase.DefineInspect
 	},
 	coretask.ProvidesTag(k8saudit.TagTimelineCreationTimeDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
-	progress.WithTitle("Discover Pod phase timeline creation times"),
-	coretask.WithTaskDescription("Extracts Pod phase timeline creation timestamps from Kubernetes audit logs."),
+	coretask.WithTitle("Discover Pod phase timeline creation times"),
+	coretask.WithDescription("Extracts Pod phase timeline creation timestamps from Kubernetes audit logs."),
 )

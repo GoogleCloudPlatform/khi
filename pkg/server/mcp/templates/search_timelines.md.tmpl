@@ -1,0 +1,28 @@
+# Timeline tree
+
+Matched {{ .MatchedTimelineCount }} timelines{{ if gt .AncestorNodeCount 0 }} ({{ .DirectMatchCount }} with matched events/revisions + {{ .AncestorNodeCount }} ancestor nodes){{ end }}. Showing {{ .ReturnedNodeCount }} nodes ({{ if gt .MaxDepth 0 }}depth <= {{ .MaxDepth }}, {{ end }}maxNodes {{ .MaxNodes }}).
+{{- if lt .ReturnedNodeCount .MatchedTimelineCount }}
+Narrow with `filter.timelineQuery` (using path keys from Filter vocabulary below) or `filter.logQuery` (`severity`, `logType`) to inspect omitted nodes.
+{{- end }}
+
+{{ appliedFilter .Applied }}
+{{- if .TimelineTypes }}
+
+## Timeline types
+{{- range .TimelineTypes }}
+- {{ .Type }}: {{ .Description }}
+{{- end }}
+{{- end }}
+
+## Tree
+{{ if .TreeLines }}
+```text
+{{- range .TreeLines }}
+{{ . }}
+{{- end }}
+```
+{{- else }}
+No timelines matched the filter.
+{{- end }}
+
+{{ template "filterVocabulary" .FilterVocabulary }}

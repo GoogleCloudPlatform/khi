@@ -17,6 +17,7 @@ package khifilev6
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"sync"
@@ -59,6 +60,7 @@ type LogAccumulator struct {
 	batchBodyStructIDs []uint32
 	currentBatchSize   int
 	parserIDToID       []uint32
+	logTypeLabels      map[uint32]string
 	mu                 sync.Mutex
 }
 
@@ -80,6 +82,7 @@ func NewLogAccumulator(clientPool *InternPool, serverPool *InternPool, idGen *id
 		batchSummaryIDs:    make([]uint32, 0),
 		batchBodyStructIDs: make([]uint32, 0),
 		parserIDToID:       make([]uint32, 0),
+		logTypeLabels:      make(map[uint32]string),
 	}
 }
 
@@ -125,6 +128,10 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	if label := s.LogType.GetLabel(); label != "" {
+		a.logTypeLabels[logTypeID] = label
+	}
 
 	if needed := int(s.Log.ID) - len(a.parserIDToID); needed > 0 {
 		a.parserIDToID = slices.Grow(a.parserIDToID, needed)[:int(s.Log.ID)]
@@ -226,6 +233,17 @@ func (a *LogAccumulator) ResolveLogID(parserID uint32) (uint32, bool) {
 	return confirmedID, true
 }
 
+// LogTypes returns the sorted distinct labels of log types added so far.
+func (a *LogAccumulator) LogTypes() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	labels := make(map[string]struct{}, len(a.logTypeLabels))
+	for _, label := range a.logTypeLabels {
+		labels[label] = struct{}{}
+	}
+	return slices.Sorted(maps.Keys(labels))
+}
+
 // Dispose releases batch buffers and lookup arrays to allow GC to reclaim memory.
 func (a *LogAccumulator) Dispose() {
 	a.mu.Lock()
@@ -237,4 +255,5 @@ func (a *LogAccumulator) Dispose() {
 	a.batchSummaryIDs = nil
 	a.batchBodyStructIDs = nil
 	a.parserIDToID = nil
+	a.logTypeLabels = nil
 }

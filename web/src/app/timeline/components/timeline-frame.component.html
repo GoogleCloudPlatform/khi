@@ -211,14 +211,16 @@
           <p>{{ timezoneShiftLabel() }}</p>
         </div>
       </div>
-      <div class="sticky-chart">
-        <div class="legend">
-          <khi-timeline-legend
-            [timeline]="selectedTimeline()"
-            [expanded]="true"
-          ></khi-timeline-legend>
+      @if (showLegend()) {
+        <div class="sticky-chart">
+          <div class="legend">
+            <khi-timeline-legend
+              [timeline]="selectedTimeline()"
+              [expanded]="true"
+            ></khi-timeline-legend>
+          </div>
         </div>
-      </div>
+      }
     </div>
     <div class="resizer-pane">
       <as-split direction="horizontal" [gutterSize]="8" unit="pixel">
@@ -227,9 +229,11 @@
         </as-split-area>
         <as-split-area class="split-dummy-area"></as-split-area>
         <div *asSplitGutter>
-          <div class="gutter-hint">
-            <mat-icon>arrows_outward</mat-icon>
-          </div>
+          @if (showResizerHandle()) {
+            <div class="gutter-hint">
+              <mat-icon>arrows_outward</mat-icon>
+            </div>
+          }
         </div>
       </as-split>
     </div>

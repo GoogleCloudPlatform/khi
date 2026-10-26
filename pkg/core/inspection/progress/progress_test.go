@@ -37,7 +37,7 @@ func TestResolveTitle(t *testing.T) {
 			name:      "explicit progress title label",
 			baseID:    "khi.google.com/inspection/googlecloudcommon/list-log-entries",
 			hash:      "k8s_audit",
-			opts:      []coretask.LabelOpt{WithTitle("Fetch k8s_audit logs")},
+			opts:      []coretask.LabelOpt{coretask.WithTitle("Fetch k8s_audit logs")},
 			wantTitle: "Fetch k8s_audit logs",
 		},
 		{
@@ -192,7 +192,7 @@ func TestTaskInterceptor(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, prog := tc.setupCtx()
 			taskID := taskid.NewDefaultImplementationID[any]("test-task")
-			task := coretask.DefineConstant[any](taskID, nil, WithTitle("Test Task"))
+			task := coretask.DefineConstant[any](taskID, nil, coretask.WithTitle("Test Task"))
 
 			var capturedCtx context.Context
 			_, err := TaskInterceptor(ctx, task, func(tCtx context.Context) (any, error) {

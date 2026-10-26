@@ -23,12 +23,17 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 // TestSerializeTask verifies that serializerTask successfully converts accumulated
@@ -37,22 +42,58 @@ func TestSerializeTask(t *testing.T) {
 	testCases := []struct {
 		name     string
 		setup    func(ctx context.Context, b *khifilev6.Builder)
-		verify   func(t *testing.T, store *inspectioncore.FileSystemStore)
+		verify   func(t *testing.T, metadata *typedmap.ReadonlyTypedMap, store *inspectioncore.FileSystemStore)
 		wantErr  bool
 		taskMode inspectioncore.InspectionTaskModeType
 	}{
 		{
-			name: "successfully serializes v6 format containing metadata chunks",
+			name: "successfully serializes v6 format containing metadata chunks and filter vocabulary",
 			setup: func(ctx context.Context, b *khifilev6.Builder) {
 				// Add a dummy header metadata.
 				_ = b.MetadataAccumulator.AddMetadata(&inspectionmetadata.HeaderMetadata{
 					InspectionType: "test-type",
 					InspectionName: "test-name",
 				})
+
+				kindType := &pb.TimelineType{
+					Id:           proto.Uint32(1),
+					Label:        proto.String("kind"),
+					SortPriority: proto.Int32(200),
+				}
+				_ = b.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+					Name: "pod",
+					Type: kindType,
+				})
+
+				idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
+				node := structured.NewStandardMap(
+					[]string{"msg"},
+					[]structured.Node{structured.NewStandardScalarNode("test")},
+				)
+				_ = b.LogAccumulator.AddLog(&khifilev6.StagingLog{
+					Log:      log.NewLog(idGen, structured.NewNodeReader(node)),
+					Summary:  "summary",
+					Severity: &pb.Severity{Id: proto.Uint32(1)},
+					LogType:  &pb.LogType{Id: proto.Uint32(1), Label: proto.String("k8s_audit")},
+				})
 			},
-			verify: func(t *testing.T, store *inspectioncore.FileSystemStore) {
+			verify: func(t *testing.T, metadata *typedmap.ReadonlyTypedMap, store *inspectioncore.FileSystemStore) {
 				if store == nil {
 					t.Fatal("Store should not be nil.")
+				}
+
+				wantVocabulary := inspectionmetadata.FilterVocabulary{
+					TimelineTypes: []inspectionmetadata.TimelineTypeVocabulary{
+						{Label: "kind", NameCount: 1, ExampleNames: []string{"pod"}},
+					},
+					LogTypes: []string{"k8s_audit"},
+				}
+				vocabMeta, found := typedmap.Get(metadata, inspectionmetadata.FilterVocabularyMetadataKey)
+				if !found {
+					t.Fatal("Expected FilterVocabularyMetadata in metadata map.")
+				}
+				if diff := cmp.Diff(wantVocabulary, vocabMeta.Get()); diff != "" {
+					t.Errorf("FilterVocabularyMetadata mismatch (-want +got):\n%s", diff)
 				}
 
 				reader, err := store.GetReader()
@@ -68,6 +109,7 @@ func TestSerializeTask(t *testing.T) {
 
 				foundMetadata := false
 				foundTestHeader := false
+				var gotVocabProto *pb.FilterVocabularyMetadata
 
 				for {
 					chunk, err := khiReader.NextChunk()
@@ -88,8 +130,10 @@ func TestSerializeTask(t *testing.T) {
 							if header := item.GetHeader(); header != nil {
 								if header.GetInspectionType() == "test-type" && header.GetInspectionName() == "test-name" {
 									foundTestHeader = true
-									break
 								}
+							}
+							if vocab := item.GetFilterVocabulary(); vocab != nil {
+								gotVocabProto = vocab
 							}
 						}
 					}
@@ -100,6 +144,19 @@ func TestSerializeTask(t *testing.T) {
 				}
 				if !foundTestHeader {
 					t.Error("Could not find the expected header metadata with type 'test-type' and name 'test-name' inside the MetadataChunk.")
+				}
+				wantVocabProto := &pb.FilterVocabularyMetadata{
+					TimelineTypes: []*pb.TimelineTypeVocabulary{
+						{
+							Label:        proto.String("kind"),
+							NameCount:    proto.Uint32(1),
+							ExampleNames: []string{"pod"},
+						},
+					},
+					LogTypes: []string{"k8s_audit"},
+				}
+				if diff := cmp.Diff(wantVocabProto, gotVocabProto, protocmp.Transform()); diff != "" {
+					t.Errorf("FilterVocabularyMetadata proto mismatch (-want +got):\n%s", diff)
 				}
 			},
 			wantErr:  false,
@@ -113,7 +170,7 @@ func TestSerializeTask(t *testing.T) {
 					InspectionName: "test-name",
 				})
 			},
-			verify: func(t *testing.T, store *inspectioncore.FileSystemStore) {
+			verify: func(t *testing.T, metadata *typedmap.ReadonlyTypedMap, store *inspectioncore.FileSystemStore) {
 				if store != nil {
 					t.Errorf("Expected nil store in DryRun mode, got %v.", store)
 				}
@@ -154,13 +211,13 @@ func TestSerializeTask(t *testing.T) {
 			}
 
 			mode := tc.taskMode
-			store, _, err := inspectiontest.Run(t, taskCtx, serializerTask, mode, nil)
+			store, metadata, err := inspectiontest.Run(t, taskCtx, serializerTask, mode, nil)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("SerializeTask error = %v, wantErr %v", err, tc.wantErr)
 			}
 
 			if !tc.wantErr {
-				tc.verify(t, store)
+				tc.verify(t, metadata, store)
 				// Cleanup the generated file.
 				if store != nil {
 					reader, err := store.GetReader()

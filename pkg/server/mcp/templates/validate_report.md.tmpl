@@ -1,0 +1,22 @@
+# Report validation
+{{ if eq (len .Findings) 0 }}
+Found 0 issues.
+{{- else }}
+Found {{ len .Findings }} potential grounding issues.
+{{- end }}
+
+## Rules checked
+{{- range .Rules }}
+- {{ code .ID }}: {{ .Description }} ({{ .FindingCount }} findings)
+{{- end }}
+{{- if .Findings }}
+
+## Findings
+Verify each flagged item with `search_timelines`, `search_logs`, or `get_log`, and remove or correct values that do not exist in the inspection.
+
+| Line | Rule | Target | Message |
+| --- | --- | --- | --- |
+{{- range .Findings }}
+| {{ .Line }} | {{ code .RuleID }} | {{ cell (code .Target) }} | {{ cell .Message }} |
+{{- end }}
+{{- end }}

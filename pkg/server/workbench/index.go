@@ -18,12 +18,15 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"slices"
+	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
@@ -42,6 +45,8 @@ type SearchIndex struct {
 	TrigramIndex     *cel.TrigramIndex
 	StyleResolver    cel.StyleResolver
 	LogTimelineIndex *LogTimelineCSRIndex
+	// FilterVocabulary lists the timeline types and log types in the index for filter CEL.
+	FilterVocabulary FilterVocabulary
 }
 
 // GetLog retrieves a log entry by its 1-based log ID in O(1) time.
@@ -60,12 +65,18 @@ func (s *SearchIndex) GetTimelineIDsForLog(logID uint32) []uint32 {
 	return s.LogTimelineIndex.GetTimelineIDs(logID)
 }
 
+// styleMaps holds lookup maps derived from the style chunk.
+// The style chunk does not change while the workbench is open, so BuildBaseSearchIndex builds them once when the workbench loads.
 type styleMaps struct {
 	severityOrderMap     map[uint32]uint32
 	logTypeLabelMap      map[uint32]string
 	timelineTypeLabelMap map[uint32]string
 	verbLabelMap         map[uint32]string
 	stateLabelMap        map[uint32]string
+	// severityMap maps severity IDs to their definitions in the style chunk.
+	severityMap map[uint32]*pbv6.Severity
+	// timelineTypeDescriptionMap maps timeline type labels to their descriptions.
+	timelineTypeDescriptionMap map[string]string
 }
 
 // ResolveLogType returns the log type label corresponding to the given ID.
@@ -146,6 +157,7 @@ func (w *Workbench) BuildBaseSearchIndex() (*SearchIndex, error) {
 		TrigramIndex:     nil,
 		StyleResolver:    styles,
 		LogTimelineIndex: logTimelineIndex,
+		FilterVocabulary: buildFilterVocabulary(timelines, logs, styles),
 	}, nil
 }
 
@@ -232,23 +244,41 @@ func (w *Workbench) BuildAsyncIndexesWithProgress(ctx context.Context, targetInd
 	return nil
 }
 
+// defaultTimelineTypeDescriptions maps the labels of the built-in timeline types to their descriptions.
+// Descriptions in the style chunk of a loaded file take precedence, and these fill in the ones it lacks.
+var defaultTimelineTypeDescriptions = sync.OnceValue(func() map[string]string {
+	descMap := make(map[string]string)
+	for _, tt := range style.GenerateChunkWithoutIconAtlas().GetTimelineTypes() {
+		if tt.GetLabel() != "" && tt.GetDescription() != "" {
+			descMap[tt.GetLabel()] = tt.GetDescription()
+		}
+	}
+	return descMap
+})
+
 func (w *Workbench) buildStyleMaps() *styleMaps {
 	s := &styleMaps{
-		severityOrderMap:     make(map[uint32]uint32),
-		logTypeLabelMap:      make(map[uint32]string),
-		timelineTypeLabelMap: make(map[uint32]string),
-		verbLabelMap:         make(map[uint32]string),
-		stateLabelMap:        make(map[uint32]string),
+		severityOrderMap:           make(map[uint32]uint32),
+		logTypeLabelMap:            make(map[uint32]string),
+		timelineTypeLabelMap:       make(map[uint32]string),
+		verbLabelMap:               make(map[uint32]string),
+		stateLabelMap:              make(map[uint32]string),
+		severityMap:                make(map[uint32]*pbv6.Severity),
+		timelineTypeDescriptionMap: maps.Clone(defaultTimelineTypeDescriptions()),
 	}
 	if w.styleChunk != nil {
 		for _, sev := range w.styleChunk.Severities {
 			s.severityOrderMap[sev.GetId()] = uint32(sev.GetOrder())
+			s.severityMap[sev.GetId()] = sev
 		}
 		for _, lt := range w.styleChunk.LogTypes {
 			s.logTypeLabelMap[lt.GetId()] = lt.GetLabel()
 		}
 		for _, tt := range w.styleChunk.TimelineTypes {
 			s.timelineTypeLabelMap[tt.GetId()] = tt.GetLabel()
+			if tt.GetLabel() != "" && tt.GetDescription() != "" {
+				s.timelineTypeDescriptionMap[tt.GetLabel()] = tt.GetDescription()
+			}
 		}
 		for _, v := range w.styleChunk.Verbs {
 			s.verbLabelMap[v.GetId()] = v.GetLabel()
@@ -372,7 +402,6 @@ func (w *Workbench) indexTimelinesParallel(
 							events = append(events, cel.EventInfo{
 								LogID:     logID,
 								Timestamp: getLogTimestamp(logID),
-								Severity:  sev,
 							})
 						}
 						slices.SortFunc(events, func(a, b cel.EventInfo) int {
@@ -404,7 +433,6 @@ func (w *Workbench) indexTimelinesParallel(
 								Verb:                 verb,
 								State:                state,
 								ResourceBodyStructID: rev.resourceBodyStructID,
-								Severity:             sev,
 							})
 						}
 						slices.SortFunc(revisions, func(a, b cel.RevisionInfo) int {

@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -34,6 +35,29 @@ import (
 
 // TestInspectionCreationTime is a fixed time used across tests to ensure deterministic behavior.
 var TestInspectionCreationTime = time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
+
+var writableMetadataContextKey = typedmap.NewTypedKey[*typedmap.TypedMap]("test-writable-metadata")
+
+var fakeTestTaskID = taskid.NewDefaultImplementationID[struct{}]("khi.google.com/fake-test-id")
+
+func newTestSummaryCollector(tasks ...coretask.UntypedTask) *summary.Collector {
+	fakeTask := coretask.DefineConstant(fakeTestTaskID, struct{}{})
+	allTasks := make([]coretask.UntypedTask, 0, len(tasks)+1)
+	allTasks = append(allTasks, fakeTask)
+	for _, t := range tasks {
+		if t.UntypedID().String() == fakeTask.UntypedID().String() {
+			continue
+		}
+		allTasks = append(allTasks, t)
+	}
+	taskGraph := coretask.NewResolvedTaskSet(allTasks, nil, nil)
+	return summary.NewCollector(taskGraph)
+}
+
+func setTestSummaryCollector(ctx context.Context, tasks ...coretask.UntypedTask) {
+	writable := khictx.MustGetValue(ctx, writableMetadataContextKey)
+	typedmap.Set(writable, summary.MetadataKey, newTestSummaryCollector(tasks...))
+}
 
 // WithDefaultTestInspectionTaskContext returns a new context used for running inspection task.
 func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.Context {
@@ -48,8 +72,7 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 
 	_, err := khictx.GetValue(taskCtx, core_contract.TaskImplementationIDContextKey)
 	if err != nil {
-		fakeTaskID := taskid.NewDefaultImplementationID[struct{}]("khi.google.com/fake-test-id")
-		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskImplementationIDContextKey, fakeTaskID.(taskid.UntypedTaskImplementationID))
+		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskImplementationIDContextKey, fakeTestTaskID.(taskid.UntypedTaskImplementationID))
 	}
 
 	ioConfig, err := inspectioncore.NewIOConfigForTest()
@@ -60,7 +83,9 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.IDGenerator, idGen)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.CurrentIOConfig, ioConfig)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.Builder, khifilev6.NewTestBuilder(idGen))
-	taskCtx = khictx.WithValue(taskCtx, inspectionmetadata.MapContextKey, generateTestMetadata())
+	writableMetadata, readonlyMetadata := generateTestMetadata()
+	taskCtx = khictx.WithValue(taskCtx, writableMetadataContextKey, writableMetadata)
+	taskCtx = khictx.WithValue(taskCtx, inspectionmetadata.MapContextKey, readonlyMetadata)
 	return taskCtx
 }
 
@@ -80,9 +105,10 @@ func NextRunTaskContext(originalCtx context.Context, prevRunCtx context.Context)
 // It returns the task result, the inspection metadata and the error returned by the task.
 func Run[T any](t testing.TB, baseContext context.Context, task coretask.Task[T], mode inspectioncore.InspectionTaskModeType, inspectionInput map[string]any, inputs ...tasktest.InputValue) (T, *typedmap.ReadonlyTypedMap, error) {
 	t.Helper()
+	metadata := khictx.MustGetValue(baseContext, inspectionmetadata.MapContextKey)
+	setTestSummaryCollector(baseContext, task)
 	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionTaskInput, inspectionInput)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskMode, mode)
-	metadata := khictx.MustGetValue(taskCtx, inspectionmetadata.MapContextKey)
 
 	var result T
 	_, err := progress.TaskInterceptor(taskCtx, task, func(ctx context.Context) (any, error) {
@@ -95,19 +121,23 @@ func Run[T any](t testing.TB, baseContext context.Context, task coretask.Task[T]
 
 // RunInspectionTaskWithDependency execute a task as a graph. Supply dependencies needed to be used with the mainTask.
 func RunInspectionTaskWithDependency[T any](baseContext context.Context, mainTask coretask.Task[T], dependencies []coretask.UntypedTask, mode inspectioncore.InspectionTaskModeType, input map[string]any) (T, *typedmap.ReadonlyTypedMap, error) {
+	allTasks := append([]coretask.UntypedTask{mainTask}, dependencies...)
+	metadata := khictx.MustGetValue(baseContext, inspectionmetadata.MapContextKey)
+	setTestSummaryCollector(baseContext, allTasks...)
 	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionTaskInput, input)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskMode, mode)
-	metadata := khictx.MustGetValue(taskCtx, inspectionmetadata.MapContextKey)
 	result, err := tasktest.RunTaskWithDependency(taskCtx, mainTask, dependencies, progress.TaskInterceptor)
 	return result, metadata, err
 }
 
-func generateTestMetadata() *typedmap.ReadonlyTypedMap {
+func generateTestMetadata() (*typedmap.TypedMap, *typedmap.ReadonlyTypedMap) {
 	writableMetadata := typedmap.NewTypedMap()
 	typedmap.Set(writableMetadata, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
 	typedmap.Set(writableMetadata, inspectionmetadata.ErrorMessageSetMetadataKey, inspectionmetadata.NewErrorMessageSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
+	typedmap.Set(writableMetadata, inspectionmetadata.FilterVocabularyMetadataKey, inspectionmetadata.NewFilterVocabularyMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.ProgressMetadataKey, inspectionmetadata.NewProgress())
-	return writableMetadata.AsReadonly()
+	typedmap.Set(writableMetadata, summary.MetadataKey, newTestSummaryCollector())
+	return writableMetadata, writableMetadata.AsReadonly()
 }

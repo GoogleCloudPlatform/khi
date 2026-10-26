@@ -20,13 +20,21 @@ import (
 
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/cdp"
 )
 
 func TestDefaultInitializers_Resolution(t *testing.T) {
 	parameters.ResetStore()
 	defer parameters.ResetStore()
 
+	if _, err := cdp.FindChromeBinary(); err != nil {
+		t.Setenv("KHI_MCP_DISABLE_RENDERER", "true")
+	}
+
 	engine := coreinit.NewEngine(context.Background())
+	defer func() {
+		_ = engine.Terminate()
+	}()
 	ctx := engine.Context()
 
 	if err := engine.Init(); err != nil {

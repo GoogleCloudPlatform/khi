@@ -1,0 +1,8 @@
+# Logs ({{.Start}}-{{.End}} of {{.Total}})
+{{range .Items}}
+- {{.}}
+{{- end}}
+{{- with pageFooter .NextPageToken}}
+
+{{.}}
+{{- end}}

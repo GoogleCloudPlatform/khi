@@ -1,0 +1,11 @@
+## Applied filter
+Enter these values in the KHI Web UI filter to see the same data.
+
+```yaml
+timelineQuery: {{ yamlBlock .TimelineQuery }}
+timelineExclusionQuery: {{ yamlBlock .TimelineExclusionQuery }}
+logQuery: {{ yamlBlock .LogQuery }}
+startTime: {{ if not .StartTime.IsZero }}{{ time .StartTime }}{{ else }}""{{ end }}
+endTime: {{ if not .EndTime.IsZero }}{{ time .EndTime }}{{ else }}""{{ end }}
+excludeTimelinesWithoutLogs: {{ .ExcludeTimelinesWithoutLogs }}
+```

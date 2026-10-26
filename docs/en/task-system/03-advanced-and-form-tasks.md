@@ -316,7 +316,7 @@ var ClusterIdentityTask = inspectiontaskbase.DefineInspectionTask(
 
 Every task in KHI automatically has progress metadata attached to its execution `context.Context` by the task runner interceptor. You can report task progress dynamically to the frontend during execution using the `progress` package (`github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress`).
 
-By default, the runner displays a shortened task ID as the progress label. To provide a human-readable display title for the task in the progress bar, attach `progress.WithTitle("...")` to the task labels when defining the task:
+By default, the runner displays a shortened task ID as the progress label. To provide a human-readable display title for the task in the progress bar, attach `coretask.WithTitle("...")` to the task labels when defining the task:
 
 ```go
 var HeavyProcessingTask = inspectiontaskbase.DefineInspectionTask(
@@ -327,7 +327,7 @@ var HeavyProcessingTask = inspectiontaskbase.DefineInspectionTask(
             // Task implementation...
         }
     },
-    progress.WithTitle("Analyze Node Logs"),
+    coretask.WithTitle("Analyze Node Logs"),
 )
 ```
 
@@ -360,7 +360,7 @@ var HeavyProcessingTask = inspectiontaskbase.DefineInspectionTask(
             return result, nil
         }
     },
-    progress.WithTitle("Process Logs"),
+    coretask.WithTitle("Process Logs"),
 )
 ```
 
@@ -397,7 +397,7 @@ var UnknownLengthTask = inspectiontaskbase.DefineInspectionTask(
             return result, nil
         }
     },
-    progress.WithTitle("Fetch Dynamic Resources"),
+    coretask.WithTitle("Fetch Dynamic Resources"),
 )
 ```
 

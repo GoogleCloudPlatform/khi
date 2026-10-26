@@ -17,6 +17,7 @@ package k8scommon_impl
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
@@ -31,11 +32,25 @@ var clusterIdentityTask = inspectiontaskbase.DefineInspectionTask(k8scommon.Clus
 	location := coretask.Use(b, gcpcommon.InputLocationsTaskID.Ref())
 	prefixPolicy := coretask.Use(b, k8scommon.ClusterNamePrefixTaskRef)
 	return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8scommon.GoogleCloudClusterIdentity, error) {
+		pID := projectID.Get(ctx)
+		cName := clusterName.Get(ctx)
+		loc := location.Get(ctx)
+		if taskMode == inspectioncore.TaskModeRun {
+			if pID != "" {
+				summary.SetCoreLabel(ctx, "projectId", pID)
+			}
+			if cName != "" {
+				summary.SetCoreLabel(ctx, "clusterName", cName)
+			}
+			if loc != "" {
+				summary.SetCoreLabel(ctx, "location", loc)
+			}
+		}
 		return k8scommon.GoogleCloudClusterIdentity{
-			ProjectID:    projectID.Get(ctx),
+			ProjectID:    pID,
 			PrefixPolicy: prefixPolicy.Get(ctx),
-			ClusterName:  clusterName.Get(ctx),
-			Location:     location.Get(ctx),
+			ClusterName:  cName,
+			Location:     loc,
 		}, nil
 	}
 })

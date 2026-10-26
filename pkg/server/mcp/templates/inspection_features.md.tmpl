@@ -1,0 +1,15 @@
+# Inspection {{ code .ID }}
+{{ if .Name }}
+- Name: {{ .Name }}
+{{- end }}
+- Type: {{ .TypeName }} ({{ code .TypeID }})
+
+To change the enabled features, call `update_inspection_features` with the IDs of all features to enable. Then call `dry_run_inspection`.
+
+## Features
+
+| ID | Name | Description | Enabled |
+| --- | --- | --- | --- |
+{{ range .Features -}}
+| {{ code .ID }} | {{ cell .Name }} | {{ cell .Description }} | {{ cell .Enabled }} |
+{{ end -}}

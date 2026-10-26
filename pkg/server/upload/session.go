@@ -60,12 +60,16 @@ func (m *FileParameterUploadManager) StartUploadSession(uploadTokenID string, fi
 		return nil, fmt.Errorf("%w: %s", ErrUploadTokenNotFound, uploadTokenID)
 	}
 
-	if err := m.uploadStore.SetResultOnStartingUpload(token); err != nil {
+	if err := m.uploadStore.SetResultOnStartingUpload(token, fileName, totalSizeBytes); err != nil {
 		return nil, fmt.Errorf("failed to update upload status to starting: %w", err)
 	}
 
 	session, err := m.chunkManager.StartSession(fileName, totalSizeBytes)
 	if err != nil {
+		// The status is already Uploading, so record the failure to let the form accept another upload.
+		if recordErr := m.uploadStore.SetResultOnCompletedUpload(token, err); recordErr != nil {
+			return nil, errors.Join(err, recordErr)
+		}
 		return nil, err
 	}
 
@@ -134,4 +138,14 @@ func (m *FileParameterUploadManager) AbortUploadSession(sessionToken string) err
 	m.mu.Unlock()
 
 	return m.chunkManager.AbortSession(sessionToken)
+}
+
+// RecordUploadFailure marks the upload for uploadTokenID as failed with cause.
+// The file form then shows cause and waits for another upload instead of staying in the uploading state.
+func (m *FileParameterUploadManager) RecordUploadFailure(uploadTokenID string, cause error) error {
+	token, err := m.uploadStore.GetTokenByID(uploadTokenID)
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrUploadTokenNotFound, uploadTokenID)
+	}
+	return m.uploadStore.SetResultOnCompletedUpload(token, cause)
 }

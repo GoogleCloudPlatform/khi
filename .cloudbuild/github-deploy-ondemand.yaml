@@ -17,6 +17,7 @@ substitutions:
   # TODO(#21): Remove asia.gcr.io from the build targets.
   # The new repository is gcr.io, but we will keep the old one for a while.
   _DOCKER_TAGS: "-t gcr.io/kubernetes-history-inspector/develop:${COMMIT_SHA}"
+  _DOCKER_SLIM_TAGS: "-t gcr.io/kubernetes-history-inspector/develop:${COMMIT_SHA}-slim"
 
 steps:
   - name: "gcr.io/kubernetes-history-inspector/builder:latest"
@@ -44,7 +45,8 @@ steps:
       - "-c"
       - |
         docker buildx create --driver docker-container --name container --use
-        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile ${_DOCKER_TAGS} --push .
+        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile --target=default ${_DOCKER_TAGS} --push .
+        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile --target=slim ${_DOCKER_SLIM_TAGS} --push .
     id: build_container
     waitFor:
       - build_app

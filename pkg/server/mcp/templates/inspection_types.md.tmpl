@@ -1,0 +1,7 @@
+# Inspection types
+
+| ID | Name | Description |
+| --- | --- | --- |
+{{ range .Types -}}
+| {{ code .ID }} | {{ cell .Name }} | {{ cell .Description }} |
+{{ end -}}

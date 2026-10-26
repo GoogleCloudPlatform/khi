@@ -224,22 +224,27 @@ func TestWorkbench_BuildSearchIndex(t *testing.T) {
 }
 
 func TestBuildBaseSearchIndex(t *testing.T) {
+	type wantTimelineSummary struct {
+		Path         map[string]string
+		ChildrenIDs  []uint32
+		MaxSeverity  uint32
+		SeverityMask uint8
+		LogIDs       []uint32
+	}
+	type wantIndexSummary struct {
+		TotalLogs    int
+		TotalTLs     int
+		TL1          wantTimelineSummary
+		TL2          wantTimelineSummary
+		Log1Severity uint32
+		Log2Severity uint32
+	}
+
 	testCases := []struct {
-		name             string
-		setupWorkbench   func() *Workbench
-		wantTotalLogs    int
-		wantTotalTLs     int
-		wantTL1Path      map[string]string
-		wantTL2Path      map[string]string
-		wantTL1Children  []uint32
-		wantTL1MaxSev    uint32
-		wantTL1SevMask   uint8
-		wantTL2MaxSev    uint32
-		wantTL2SevMask   uint8
-		wantTL2LogIDs    []uint32
-		wantLog1Severity uint32
-		wantLog2Severity uint32
-		wantErr          bool
+		name           string
+		setupWorkbench func() *Workbench
+		want           wantIndexSummary
+		wantErr        bool
 	}{
 		{
 			name: "single namespace and pod hierarchy with events and revisions",
@@ -347,24 +352,51 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 
 				return wb
 			},
-			wantTotalLogs: 2,
-			wantTotalTLs:  2,
-			wantTL1Path: map[string]string{
-				"namespace": "default",
+			want: wantIndexSummary{
+				TotalLogs: 2,
+				TotalTLs:  2,
+				TL1: wantTimelineSummary{
+					Path: map[string]string{
+						"namespace": "default",
+					},
+					ChildrenIDs:  []uint32{2},
+					MaxSeverity:  1,
+					SeverityMask: 1 << 1,
+					LogIDs:       []uint32{1},
+				},
+				TL2: wantTimelineSummary{
+					Path: map[string]string{
+						"namespace": "default",
+						"pod":       "pod-sample",
+					},
+					MaxSeverity:  3,
+					SeverityMask: 1 << 3,
+					LogIDs:       []uint32{2},
+				},
+				Log1Severity: 1,
+				Log2Severity: 3,
 			},
-			wantTL2Path: map[string]string{
-				"namespace": "default",
-				"pod":       "pod-sample",
-			},
-			wantTL1Children:  []uint32{2},
-			wantTL1MaxSev:    1,
-			wantTL1SevMask:   1 << 1,
-			wantTL2MaxSev:    3,
-			wantTL2SevMask:   1 << 3,
-			wantTL2LogIDs:    []uint32{2},
-			wantLog1Severity: 1,
-			wantLog2Severity: 3,
 		},
+	}
+
+	summarizeTimeline := func(t *testing.T, idx *SearchIndex, id uint32) wantTimelineSummary {
+		t.Helper()
+		tl := idx.TimelineMap[id]
+		if tl == nil {
+			t.Fatalf("timeline %d not found in index", id)
+		}
+		var logIDs []uint32
+		tl.ForEachLogID(func(logID uint32) bool {
+			logIDs = append(logIDs, logID)
+			return true
+		})
+		return wantTimelineSummary{
+			Path:         tl.ComputePath(idx.TimelineMap),
+			ChildrenIDs:  tl.ChildrenIDs,
+			MaxSeverity:  tl.MaxSeverity,
+			SeverityMask: tl.SeverityMask,
+			LogIDs:       logIDs,
+		}
 	}
 
 	for _, tc := range testCases {
@@ -378,68 +410,25 @@ func TestBuildBaseSearchIndex(t *testing.T) {
 				return
 			}
 
-			if len(idx.Logs) != tc.wantTotalLogs {
-				t.Errorf("BuildBaseSearchIndex() total logs mismatch (-want +got):\n%s", cmp.Diff(tc.wantTotalLogs, len(idx.Logs)))
-			}
-			if len(idx.Timelines) != tc.wantTotalTLs {
-				t.Errorf("BuildBaseSearchIndex() total timelines mismatch (-want +got):\n%s", cmp.Diff(tc.wantTotalTLs, len(idx.Timelines)))
-			}
-
-			tl1 := idx.TimelineMap[1]
-			if tl1 == nil {
-				t.Fatal("timeline 1 not found in index")
-			}
-			if diff := cmp.Diff(tc.wantTL1Path, tl1.ComputePath(idx.TimelineMap)); diff != "" {
-				t.Errorf("timeline 1 Path mismatch (-want +got):\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.wantTL1Children, tl1.ChildrenIDs); diff != "" {
-				t.Errorf("timeline 1 ChildrenIDs mismatch (-want +got):\n%s", diff)
-			}
-			if tl1.MaxSeverity != tc.wantTL1MaxSev {
-				t.Errorf("timeline 1 MaxSeverity mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL1MaxSev, tl1.MaxSeverity))
-			}
-			if tl1.SeverityMask != tc.wantTL1SevMask {
-				t.Errorf("timeline 1 SeverityMask mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL1SevMask, tl1.SeverityMask))
-			}
-
-			tl2 := idx.TimelineMap[2]
-			if tl2 == nil {
-				t.Fatal("timeline 2 not found in index")
-			}
-			if diff := cmp.Diff(tc.wantTL2Path, tl2.ComputePath(idx.TimelineMap)); diff != "" {
-				t.Errorf("timeline 2 Path mismatch (-want +got):\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.wantTL2MaxSev, tl2.MaxSeverity); diff != "" {
-				t.Errorf("timeline 2 MaxSeverity mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL2MaxSev, tl2.MaxSeverity))
-			}
-			if tl2.SeverityMask != tc.wantTL2SevMask {
-				t.Errorf("timeline 2 SeverityMask mismatch (-want +got):\n%s", cmp.Diff(tc.wantTL2SevMask, tl2.SeverityMask))
-			}
-			var tl2LogIDs []uint32
-			tl2.ForEachLogID(func(id uint32) bool {
-				tl2LogIDs = append(tl2LogIDs, id)
-				return true
-			})
-			if diff := cmp.Diff(tc.wantTL2LogIDs, tl2LogIDs); diff != "" {
-				t.Errorf("timeline 2 LogIDs mismatch (-want +got):\n%s", diff)
-			}
-
 			log1 := idx.GetLog(1)
 			if log1 == nil {
 				t.Fatal("log 1 not found in index")
 			}
-			sev1 := idx.StyleResolver.ResolveSeverity(log1.SeverityTypeID)
-			if sev1 != tc.wantLog1Severity {
-				t.Errorf("log 1 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog1Severity, sev1))
-			}
-
 			log2 := idx.GetLog(2)
 			if log2 == nil {
 				t.Fatal("log 2 not found in index")
 			}
-			sev2 := idx.StyleResolver.ResolveSeverity(log2.SeverityTypeID)
-			if sev2 != tc.wantLog2Severity {
-				t.Errorf("log 2 Severity mismatch (-want +got):\n%s", cmp.Diff(tc.wantLog2Severity, sev2))
+
+			got := wantIndexSummary{
+				TotalLogs:    len(idx.Logs),
+				TotalTLs:     len(idx.Timelines),
+				TL1:          summarizeTimeline(t, idx, 1),
+				TL2:          summarizeTimeline(t, idx, 2),
+				Log1Severity: idx.StyleResolver.ResolveSeverity(log1.SeverityTypeID),
+				Log2Severity: idx.StyleResolver.ResolveSeverity(log2.SeverityTypeID),
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("BuildBaseSearchIndex() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

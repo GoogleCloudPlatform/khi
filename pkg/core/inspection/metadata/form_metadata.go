@@ -144,6 +144,10 @@ type FileParameterFormField struct {
 	Token upload.UploadToken `json:"token"`
 	// Status is the current status of the file.
 	Status upload.UploadStatus `json:"status"`
+	// FileName is the name of the uploaded file. It is empty when the client gave no name, such as uploads to upload URLs.
+	FileName string `json:"-"`
+	// SizeBytes is the size in bytes of the uploaded file.
+	SizeBytes int64 `json:"-"`
 }
 
 // CheckboxParameterFormField represents Checkbox type parameter specific data.
@@ -233,6 +237,30 @@ func (f *FormFieldSetMetadata) GetFileFieldIDs() []string {
 		}
 	}
 	return returnIDs
+}
+
+// UpdateGroupChildTextFieldDefault updates the default value and suggestions of a TextParameterFormField inside a GroupParameterFormField if present.
+func (f *FormFieldSetMetadata) UpdateGroupChildTextFieldDefault(groupID, childID, defaultVal string, suggestions []string) {
+	f.fieldsLock.Lock()
+	defer f.fieldsLock.Unlock()
+	for i, field := range f.fields {
+		group, ok := field.(GroupParameterFormField)
+		if !ok || group.ID != groupID {
+			continue
+		}
+		children := slices.Clone(group.Children)
+		for j, child := range children {
+			textField, ok := child.(TextParameterFormField)
+			if ok && textField.ID == childID {
+				textField.Default = defaultVal
+				textField.Suggestions = slices.Clone(suggestions)
+				children[j] = textField
+				group.Children = children
+				f.fields[i] = group
+				return
+			}
+		}
+	}
 }
 
 // GetParameterFormFieldBase returns the ParameterFormFieldBase from the given ParameterFormField.

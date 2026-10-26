@@ -41,7 +41,7 @@ func TestDefineLogFilterTask(t *testing.T) {
 		return func(ctx context.Context, l *log.Log) bool {
 			return slices.Contains(keepIDs.Get(ctx), l.ReadStringOrDefault(pathFilterTestID, "unknown"))
 		}
-	}, coretask.WithTaskDescription("filters logs by ID"))
+	}, coretask.WithDescription("filters logs by ID"))
 	if got := typedmap.GetOrDefault(task.Labels(), coretask.LabelKeyTaskDescription, ""); got != "filters logs by ID" {
 		t.Errorf("LabelKeyTaskDescription = %q, want %q", got, "filters logs by ID")
 	}

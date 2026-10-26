@@ -24,41 +24,72 @@ import (
 
 // TestFeatureTaskLabels tests FeatureTaskLabel.
 func TestFeatureTaskLabels(t *testing.T) {
-	t.Run("FeatureTaskLabel", func(t *testing.T) {
-		labelOpt := FeatureTaskLabel(
-			"title",
-			"description",
-			100,
-			true,
-		)
-		label := coretask.NewLabelSet(labelOpt)
+	testCases := []struct {
+		name        string
+		title       string
+		description string
+		order       int
+		isDefault   bool
+	}{
+		{
+			name:        "FeatureTaskLabel sets all labels",
+			title:       "title",
+			description: "description",
+			order:       100,
+			isDefault:   true,
+		},
+		{
+			name:        "FeatureTaskLabel with non-default feature",
+			title:       "non-default title",
+			description: "non-default description",
+			order:       50,
+			isDefault:   false,
+		},
+	}
 
-		type expectations struct {
-			FeatureFlag        bool
-			Title              string
-			Description        string
-			Order              int
-			DefaultFeatureFlag bool
-		}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			labelOpt := FeatureTaskLabel(
+				tc.title,
+				tc.description,
+				tc.order,
+				tc.isDefault,
+			)
+			label := coretask.NewLabelSet(labelOpt)
 
-		got := expectations{
-			FeatureFlag:        typedmap.GetOrDefault(label, LabelKeyInspectionFeatureFlag, false),
-			Title:              typedmap.GetOrDefault(label, LabelKeyFeatureTaskTitle, ""),
-			Description:        typedmap.GetOrDefault(label, LabelKeyFeatureTaskDescription, ""),
-			Order:              typedmap.GetOrDefault(label, LabelKeyFeatureTaskOrder, 0),
-			DefaultFeatureFlag: typedmap.GetOrDefault(label, LabelKeyInspectionDefaultFeatureFlag, false),
-		}
+			type expectations struct {
+				FeatureFlag        bool
+				Title              string
+				Description        string
+				TaskTitle          string
+				TaskDescription    string
+				Order              int
+				DefaultFeatureFlag bool
+			}
 
-		want := expectations{
-			FeatureFlag:        true,
-			Title:              "title",
-			Description:        "description",
-			Order:              100,
-			DefaultFeatureFlag: true,
-		}
+			got := expectations{
+				FeatureFlag:        typedmap.GetOrDefault(label, LabelKeyInspectionFeatureFlag, false),
+				Title:              typedmap.GetOrDefault(label, LabelKeyFeatureTaskTitle, ""),
+				Description:        typedmap.GetOrDefault(label, LabelKeyFeatureTaskDescription, ""),
+				TaskTitle:          typedmap.GetOrDefault(label, coretask.LabelKeyTaskTitle, ""),
+				TaskDescription:    typedmap.GetOrDefault(label, coretask.LabelKeyTaskDescription, ""),
+				Order:              typedmap.GetOrDefault(label, LabelKeyFeatureTaskOrder, 0),
+				DefaultFeatureFlag: typedmap.GetOrDefault(label, LabelKeyInspectionDefaultFeatureFlag, false),
+			}
 
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("FeatureTaskLabel label mismatch (-want +got):\n%s", diff)
-		}
-	})
+			want := expectations{
+				FeatureFlag:        true,
+				Title:              tc.title,
+				Description:        tc.description,
+				TaskTitle:          tc.title,
+				TaskDescription:    tc.description,
+				Order:              tc.order,
+				DefaultFeatureFlag: tc.isDefault,
+			}
+
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("FeatureTaskLabel label mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
 }

@@ -1,0 +1,52 @@
+# Dry run of {{ code .ID }}
+
+Errors: {{ .ErrorCount }}, warnings: {{ .WarningCount }}. {{ if gt .ErrorCount 0 }}Fix the fields with errors and call `dry_run_inspection` again.{{ else }}Ready to run with the values below. Call `run_inspection` with the parameters to start the inspection.{{ end }}
+{{- if and (eq .ErrorCount 0) .DefaultedFields }}
+These fields use default values because you did not specify them. Pass them explicitly if they are not what you intend:
+{{- range .DefaultedFields }}
+- {{ code .ID }}: {{ .Value }}
+{{- end }}
+{{- end }}
+
+## Fields
+
+Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`.
+{{ range .Groups }}
+### {{ .Title }}
+{{ range .Fields }}
+#### {{ code .ID }}
+- Label: {{ .Label }}
+{{- if .Description }}
+- Description: {{ .Description }}
+{{- end }}
+- Type: {{ .Type }}
+{{- if .UploadStatus }}
+- Upload: {{ .UploadStatus }}
+{{- end }}
+{{- if .Value }}
+- Value: {{ .Value }}{{ if .IsDefaulted }} (default){{ end }}
+{{- end }}
+{{- if and .Default (not .IsDefaulted) }}
+- Default: {{ .Default }}
+{{- end }}
+{{- if .Suggestions }}
+- Suggestions: {{ .Suggestions }}
+{{- end }}
+{{- if .Options }}
+- Options: {{ .Options }}
+{{- end }}
+{{- if .Hint }}
+- {{ .HintType }}: {{ .Hint }}
+{{- end }}
+{{ end -}}
+{{ end -}}
+{{ if .Queries }}
+## Queries
+{{ range .Queries }}
+### {{ .Name }} ({{ code .ID }})
+{{- if .EstimatedCount }}
+Estimated logs: {{ .EstimatedCount }}
+{{ end }}
+{{ fence "text" .Query }}
+{{ end -}}
+{{ end }}

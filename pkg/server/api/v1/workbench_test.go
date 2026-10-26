@@ -80,11 +80,20 @@ func createTestInspectionServerForWorkbench(t *testing.T) (*coreinspection.Inspe
 	return server, inspectionID
 }
 
-func setupTestWorkbenchServer(t *testing.T) (*httptest.Server, apiv1connect.WorkbenchServiceClient, *workbench.WorkbenchManager, string) {
+func setupTestWorkbenchServer(t *testing.T) (*httptest.Server, apiv1connect.WorkbenchServiceClient, string) {
 	inspectionServer, validInspID := createTestInspectionServerForWorkbench(t)
 
 	indexMgr := workbench.NewInspectionIndexManager(inspectionServer, t.TempDir())
-	manager := workbench.NewWorkbenchManager(inspectionServer, indexMgr, 100*time.Millisecond, 0)
+	manager := workbench.NewWorkbenchManager(inspectionServer, indexMgr, 3)
+	// Background indexing writes into the temporary directories, so it must finish before they are removed.
+	t.Cleanup(func() {
+		if wb, err := manager.Get(validInspID, workbench.AccessorBrowser); err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_ = wb.AwaitIndex(ctx)
+		}
+		indexMgr.Wait()
+	})
 	serverImpl := NewWorkbenchServiceServer(manager)
 	mux := http.NewServeMux()
 	path, handler := apiv1connect.NewWorkbenchServiceHandler(serverImpl)
@@ -92,13 +101,12 @@ func setupTestWorkbenchServer(t *testing.T) (*httptest.Server, apiv1connect.Work
 
 	ts := httptest.NewServer(mux)
 	client := apiv1connect.NewWorkbenchServiceClient(ts.Client(), ts.URL)
-	return ts, client, manager, validInspID
+	return ts, client, validInspID
 }
 
 func TestWorkbenchServiceServer_OpenWorkbench(t *testing.T) {
-	ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+	ts, client, validInspID := setupTestWorkbenchServer(t)
 	defer ts.Close()
-	defer manager.Stop()
 
 	testCases := []struct {
 		name        string
@@ -108,24 +116,18 @@ func TestWorkbenchServiceServer_OpenWorkbench(t *testing.T) {
 		{
 			name: "successfully opens workbench and streams stages",
 			req: &apiv1.OpenWorkbenchRequest{
-				UserId:       proto.String("user-1"),
-				SessionId:    proto.String("session-0"),
 				InspectionId: proto.String(validInspID),
 			},
 			wantErrCode: 0,
 		},
 		{
-			name: "fails with invalid arguments when missing parameters",
-			req: &apiv1.OpenWorkbenchRequest{
-				UserId: proto.String("user-1"),
-			},
+			name:        "fails with invalid arguments when inspection_id is missing",
+			req:         &apiv1.OpenWorkbenchRequest{},
 			wantErrCode: connect.CodeInvalidArgument,
 		},
 		{
 			name: "fails when inspection dataset not found",
 			req: &apiv1.OpenWorkbenchRequest{
-				UserId:       proto.String("user-1"),
-				SessionId:    proto.String("session-1"),
 				InspectionId: proto.String("unknown-insp"),
 			},
 			wantErrCode: connect.CodeInternal,
@@ -169,22 +171,19 @@ func TestWorkbenchServiceServer_OpenWorkbench(t *testing.T) {
 				t.Errorf("final stage = %v, want STAGE_READY", finalRes.GetStage())
 			}
 
-			if finalRes.GetWorkbenchId() != "user-1-session-0" {
-				t.Errorf("WorkbenchId = %q, want %q", finalRes.GetWorkbenchId(), "user-1-session-0")
+			if finalRes.GetWorkbenchId() != validInspID {
+				t.Errorf("WorkbenchId = %q, want the inspection ID %q", finalRes.GetWorkbenchId(), validInspID)
 			}
 		})
 	}
 }
 
 func TestWorkbenchServiceServer_HeartbeatAndClose(t *testing.T) {
-	ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+	ts, client, validInspID := setupTestWorkbenchServer(t)
 	defer ts.Close()
-	defer manager.Stop()
 
 	// 1. Open workbench first
 	openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
-		UserId:       proto.String("user-hb"),
-		SessionId:    proto.String("session-0"),
 		InspectionId: proto.String(validInspID),
 	}))
 	if err != nil {
@@ -196,11 +195,9 @@ func TestWorkbenchServiceServer_HeartbeatAndClose(t *testing.T) {
 		t.Fatalf("OpenWorkbench() stream error = %v", err)
 	}
 
-	workbenchID := "user-hb-session-0"
-
 	// 2. Heartbeat on active workbench
 	hbRes, err := client.HeartbeatWorkbench(context.Background(), connect.NewRequest(&apiv1.HeartbeatWorkbenchRequest{
-		WorkbenchId: proto.String(workbenchID),
+		WorkbenchId: proto.String(validInspID),
 	}))
 	if err != nil {
 		t.Fatalf("HeartbeatWorkbench() unexpected error: %v", err)
@@ -211,7 +208,7 @@ func TestWorkbenchServiceServer_HeartbeatAndClose(t *testing.T) {
 
 	// 3. Close workbench
 	closeRes, err := client.CloseWorkbench(context.Background(), connect.NewRequest(&apiv1.CloseWorkbenchRequest{
-		WorkbenchId: proto.String(workbenchID),
+		WorkbenchId: proto.String(validInspID),
 	}))
 	if err != nil {
 		t.Fatalf("CloseWorkbench() unexpected error: %v", err)
@@ -220,24 +217,35 @@ func TestWorkbenchServiceServer_HeartbeatAndClose(t *testing.T) {
 		t.Errorf("CloseWorkbench() closed = false, want true")
 	}
 
-	// 4. Heartbeat on closed workbench returns NotFound
-	_, err = client.HeartbeatWorkbench(context.Background(), connect.NewRequest(&apiv1.HeartbeatWorkbenchRequest{
-		WorkbenchId: proto.String(workbenchID),
+	// 4. Closing only marks the shared workbench as an eviction candidate, so it stays active.
+	hbRes, err = client.HeartbeatWorkbench(context.Background(), connect.NewRequest(&apiv1.HeartbeatWorkbenchRequest{
+		WorkbenchId: proto.String(validInspID),
 	}))
-	if connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("HeartbeatWorkbench() after close code = %v, want NotFound", connect.CodeOf(err))
+	if err != nil {
+		t.Fatalf("HeartbeatWorkbench() after close unexpected error: %v", err)
+	}
+	if !hbRes.Msg.GetActive() {
+		t.Errorf("HeartbeatWorkbench() after close active = false, want true")
+	}
+
+	// 5. An unknown or evicted workbench reports inactive instead of an error.
+	hbRes, err = client.HeartbeatWorkbench(context.Background(), connect.NewRequest(&apiv1.HeartbeatWorkbenchRequest{
+		WorkbenchId: proto.String("evicted-inspection"),
+	}))
+	if err != nil {
+		t.Fatalf("HeartbeatWorkbench() on unknown workbench unexpected error: %v", err)
+	}
+	if hbRes.Msg.GetActive() {
+		t.Errorf("HeartbeatWorkbench() on unknown workbench active = true, want false")
 	}
 }
 
 func TestWorkbenchServiceServer_ReadStructYAMLs(t *testing.T) {
-	ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+	ts, client, validInspID := setupTestWorkbenchServer(t)
 	defer ts.Close()
-	defer manager.Stop()
 
 	// 1. Open workbench
 	openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
-		UserId:       proto.String("user-struct"),
-		SessionId:    proto.String("session-0"),
 		InspectionId: proto.String(validInspID),
 	}))
 	if err != nil {
@@ -248,8 +256,6 @@ func TestWorkbenchServiceServer_ReadStructYAMLs(t *testing.T) {
 	if err := openStream.Err(); err != nil {
 		t.Fatalf("OpenWorkbench() stream error = %v", err)
 	}
-
-	workbenchID := "user-struct-session-0"
 
 	tooManyIDs := make([]uint32, maxStructIDsPerBatch+1)
 	for i := 0; i < len(tooManyIDs); i++ {
@@ -271,7 +277,7 @@ func TestWorkbenchServiceServer_ReadStructYAMLs(t *testing.T) {
 		},
 		{
 			name:        "fails with invalid argument when struct_ids exceeds 200 items",
-			workbenchID: workbenchID,
+			workbenchID: validInspID,
 			structIDs:   tooManyIDs,
 			wantErrCode: connect.CodeInvalidArgument,
 		},
@@ -283,14 +289,14 @@ func TestWorkbenchServiceServer_ReadStructYAMLs(t *testing.T) {
 		},
 		{
 			name:        "succeeds with empty response when struct IDs are not found or invalid",
-			workbenchID: workbenchID,
+			workbenchID: validInspID,
 			structIDs:   []uint32{9999, 0},
 			wantErrCode: 0,
 			wantCount:   0,
 		},
 		{
 			name:        "succeeds with empty response when struct_ids is empty",
-			workbenchID: workbenchID,
+			workbenchID: validInspID,
 			structIDs:   []uint32{},
 			wantErrCode: 0,
 			wantCount:   0,
@@ -323,14 +329,11 @@ func TestWorkbenchServiceServer_ReadStructYAMLs(t *testing.T) {
 }
 
 func TestWorkbenchServiceServer_FilterTimeline(t *testing.T) {
-	ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+	ts, client, validInspID := setupTestWorkbenchServer(t)
 	defer ts.Close()
-	defer manager.Stop()
 
 	// 1. Open workbench
 	openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
-		UserId:       proto.String("user-filter"),
-		SessionId:    proto.String("session-0"),
 		InspectionId: proto.String(validInspID),
 	}))
 	if err != nil {
@@ -342,8 +345,6 @@ func TestWorkbenchServiceServer_FilterTimeline(t *testing.T) {
 		t.Fatalf("OpenWorkbench() stream error = %v", err)
 	}
 
-	workbenchID := "user-filter-session-0"
-
 	testCases := []struct {
 		name        string
 		req         *apiv1.FilterTimelineRequest
@@ -352,7 +353,7 @@ func TestWorkbenchServiceServer_FilterTimeline(t *testing.T) {
 		{
 			name: "successfully filters timeline with streaming progress",
 			req: &apiv1.FilterTimelineRequest{
-				WorkbenchId:   proto.String(workbenchID),
+				WorkbenchId:   proto.String(validInspID),
 				TimelineQuery: proto.String(""),
 				LogQuery:      proto.String(""),
 				ExcludeNoLogs: proto.Bool(false),
@@ -415,14 +416,11 @@ func TestWorkbenchServiceServer_FilterTimeline(t *testing.T) {
 }
 
 func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
-	ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+	ts, client, validInspID := setupTestWorkbenchServer(t)
 	defer ts.Close()
-	defer manager.Stop()
 
 	// 1. Open workbench first
 	openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
-		UserId:       proto.String("user-watch"),
-		SessionId:    proto.String("session-0"),
 		InspectionId: proto.String(validInspID),
 	}))
 	if err != nil {
@@ -434,8 +432,6 @@ func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
 		t.Fatalf("OpenWorkbench() stream error = %v", err)
 	}
 
-	workbenchID := "user-watch-session-0"
-
 	testCases := []struct {
 		name        string
 		req         *apiv1.WatchIndexProgressRequest
@@ -444,7 +440,7 @@ func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
 		{
 			name: "success on valid workbench id",
 			req: &apiv1.WatchIndexProgressRequest{
-				WorkbenchId: proto.String(workbenchID),
+				WorkbenchId: proto.String(validInspID),
 			},
 			wantErrCode: 0,
 		},
@@ -501,16 +497,13 @@ func TestWorkbenchServiceServer_WatchIndexProgress(t *testing.T) {
 }
 
 func TestWorkbenchServiceServer_ProtoJSONClient(t *testing.T) {
-	ts, _, manager, validInspID := setupTestWorkbenchServer(t)
+	ts, _, validInspID := setupTestWorkbenchServer(t)
 	defer ts.Close()
-	defer manager.Stop()
 
 	// Client configured with connect.WithProtoJSON() to mimic frontend development mode.
 	jsonClient := apiv1connect.NewWorkbenchServiceClient(ts.Client(), ts.URL, connect.WithProtoJSON())
 
 	openStream, err := jsonClient.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
-		UserId:       proto.String("user-json"),
-		SessionId:    proto.String("session-0"),
 		InspectionId: proto.String(validInspID),
 	}))
 	if err != nil {
@@ -544,27 +537,21 @@ func TestWorkbenchServiceServer_OpenWorkbenchSync_And_Cancel(t *testing.T) {
 		wantErrCode connect.Code
 	}{
 		{
-			name: "opens workbench synchronously and completes",
-			req: &apiv1.OpenWorkbenchSyncRequest{
-				UserId:    proto.String("user-sync"),
-				SessionId: proto.String("session-sync"),
-			},
+			name:        "opens workbench synchronously and completes",
+			req:         &apiv1.OpenWorkbenchSyncRequest{},
 			wantErrCode: 0,
 		},
 		{
-			name: "fails with invalid argument when parameters missing",
-			req: &apiv1.OpenWorkbenchSyncRequest{
-				UserId: proto.String(""),
-			},
+			name:        "fails with invalid argument when inspection ID is missing",
+			req:         &apiv1.OpenWorkbenchSyncRequest{},
 			wantErrCode: connect.CodeInvalidArgument,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+			ts, client, validInspID := setupTestWorkbenchServer(t)
 			defer ts.Close()
-			defer manager.Stop()
 
 			if tc.wantErrCode == 0 {
 				tc.req.InspectionId = proto.String(validInspID)
@@ -597,8 +584,8 @@ func TestWorkbenchServiceServer_OpenWorkbenchSync_And_Cancel(t *testing.T) {
 				time.Sleep(10 * time.Millisecond)
 			}
 
-			if res.Msg.GetWorkbenchId() == "" {
-				t.Errorf("expected non-empty workbench ID on completion")
+			if got := res.Msg.GetWorkbenchId(); got != validInspID {
+				t.Errorf("OpenWorkbenchSync() workbench ID = %q, want %q", got, validInspID)
 			}
 		})
 	}
@@ -611,10 +598,9 @@ func TestWorkbenchServiceServer_PullIndexProgress(t *testing.T) {
 		wantErrCode connect.Code
 	}{
 		{
-			name: "pulls index progress successfully",
-			req: &apiv1.PullIndexProgressRequest{
-				WorkbenchId: proto.String("user-pull-idx-session-0"),
-			},
+			// WorkbenchId is set to the inspection ID after the test server is created.
+			name:        "pulls index progress successfully",
+			req:         &apiv1.PullIndexProgressRequest{},
 			wantErrCode: 0,
 		},
 		{
@@ -635,15 +621,13 @@ func TestWorkbenchServiceServer_PullIndexProgress(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+			ts, client, validInspID := setupTestWorkbenchServer(t)
 			defer ts.Close()
-			defer manager.Stop()
 
 			if tc.wantErrCode == 0 {
+				tc.req.WorkbenchId = proto.String(validInspID)
 				// Open workbench first
 				openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
-					UserId:       proto.String("user-pull-idx"),
-					SessionId:    proto.String("session-0"),
 					InspectionId: proto.String(validInspID),
 				}))
 				if err != nil {
@@ -683,10 +667,9 @@ func TestWorkbenchServiceServer_FilterTimelineSync_And_Cancel(t *testing.T) {
 		wantErrCode connect.Code
 	}{
 		{
-			name: "filters timeline synchronously",
-			req: &apiv1.FilterTimelineSyncRequest{
-				WorkbenchId: proto.String("user-filter-sync-session-0"),
-			},
+			// WorkbenchId is set to the inspection ID after the test server is created.
+			name:        "filters timeline synchronously",
+			req:         &apiv1.FilterTimelineSyncRequest{},
 			wantErrCode: 0,
 		},
 		{
@@ -700,15 +683,13 @@ func TestWorkbenchServiceServer_FilterTimelineSync_And_Cancel(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+			ts, client, validInspID := setupTestWorkbenchServer(t)
 			defer ts.Close()
-			defer manager.Stop()
 
 			if tc.wantErrCode == 0 {
+				tc.req.WorkbenchId = proto.String(validInspID)
 				// Open workbench first
 				openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
-					UserId:       proto.String("user-filter-sync"),
-					SessionId:    proto.String("session-0"),
 					InspectionId: proto.String(validInspID),
 				}))
 				if err != nil {
@@ -793,13 +774,10 @@ func TestWorkbenchServiceServer_GetArchitectureGraph(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+			ts, client, validInspID := setupTestWorkbenchServer(t)
 			defer ts.Close()
-			defer manager.Stop()
 
 			openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
-				UserId:       proto.String("user-graph"),
-				SessionId:    proto.String("session-graph"),
 				InspectionId: proto.String(validInspID),
 			}))
 			if err != nil {
@@ -876,13 +854,10 @@ func TestWorkbenchGetTimelineIDsForLogs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+			ts, client, validInspID := setupTestWorkbenchServer(t)
 			defer ts.Close()
-			defer manager.Stop()
 
 			openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
-				UserId:       proto.String("user-timeline-ids"),
-				SessionId:    proto.String("session-timeline-ids"),
 				InspectionId: proto.String(validInspID),
 			}))
 			if err != nil {

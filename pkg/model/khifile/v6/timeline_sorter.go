@@ -25,9 +25,10 @@ import (
 
 // CompareAlphabetical compares two timeline paths alphabetically, respecting any prioritized names map.
 func CompareAlphabetical(a, b *TimelinePath, prioritizedNames map[string]int) int {
-	aName := a.Name.Resolve()
-	bName := b.Name.Resolve()
+	return compareAlphabeticalNames(a.Name.Resolve(), b.Name.Resolve(), prioritizedNames)
+}
 
+func compareAlphabeticalNames(aName, bName string, prioritizedNames map[string]int) int {
 	if len(prioritizedNames) > 0 {
 		aIdx, aOk := prioritizedNames[aName]
 		bIdx, bOk := prioritizedNames[bName]

@@ -30,6 +30,7 @@ import {
   signal,
   untracked,
   viewChild,
+  viewChildren,
 } from '@angular/core';
 import { AngularSplitModule } from 'angular-split';
 import { TimelineIndexComponent } from './timeline-index.component';
@@ -145,6 +146,67 @@ export class TimelineFrameComponent implements AfterViewInit {
   private readonly container = viewChild<ElementRef<HTMLElement>>('container');
   private readonly indexSplitArea =
     viewChild<ElementRef<HTMLElement>>('indexSplitArea');
+  private readonly timelineCharts = viewChildren(TimelineChartComponent);
+
+  /**
+   * Whether to display the floating timeline legend in the bottom-left corner of the chart.
+   */
+  readonly showLegend = input<boolean>(true);
+  /**
+   * Whether to display the split pane resizer handle icon.
+   */
+  readonly showResizerHandle = input<boolean>(true);
+
+  /**
+   * Indicates whether all child timeline charts have initialized their WebGL contexts and are ready to render.
+   */
+  readonly readyToRender = computed(() => {
+    const charts = this.timelineCharts();
+    return charts.length > 0 && charts.every((chart) => chart.readyToRender());
+  });
+
+  /**
+   * Synchronizes the scroll container position with the target viewportLeftTimeMS and pixelsPerMs,
+   * and marks all child timeline charts as invalidated so they redraw on the next animation frame.
+   */
+  public syncViewportAndInvalidate(
+    viewportLeftTimeMS = this.viewportLeftTimeMS(),
+    pixelsPerMs = this.pixelsPerMs(),
+  ): void {
+    this.viewportLeftTimeMS.set(viewportLeftTimeMS);
+    this.pixelsPerMs.set(pixelsPerMs);
+    const container = this.container();
+    if (container) {
+      const rect = container.nativeElement.getBoundingClientRect();
+      if (rect.height > 0 && rect.width > 0) {
+        this.viewportHeight.set(rect.height - this.HEADER_HEIGHT);
+        this.containerWidth.set(rect.width);
+      }
+      const indexSplitArea = this.indexSplitArea();
+      if (indexSplitArea) {
+        const indexRect = indexSplitArea.nativeElement.getBoundingClientRect();
+        if (indexRect.width > 0) {
+          this.indexAreaWidthPixels.set(indexRect.width);
+        }
+      }
+      const calculator = this.horizontalScrollCalculator();
+      const targetScrollLeft = calculator.timeMSToOffsetLeft(
+        viewportLeftTimeMS,
+        pixelsPerMs,
+      );
+      this.currentAction = 'moving';
+      container.nativeElement.scrollTop = 0;
+      container.nativeElement.scrollLeft = targetScrollLeft;
+      this.viewportScrollTop.set(0);
+      this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
+        this.currentAction = 'none';
+      });
+    }
+    for (const chart of this.timelineCharts()) {
+      chart.syncCanvasSize();
+      chart.invalidate = true;
+    }
+  }
 
   /**
    * Style configuration for the timeline chart area.

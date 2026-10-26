@@ -33,7 +33,6 @@ type EventInfo struct {
 	LogID uint32
 	// Timestamp is the event occurrence time in Unix nanoseconds.
 	Timestamp int64
-	Severity  uint32
 }
 
 // RevisionInfo represents lightweight revision history metadata associated with a timeline for CEL evaluation.
@@ -44,7 +43,6 @@ type RevisionInfo struct {
 	Verb                 string
 	State                string
 	ResourceBodyStructID uint32
-	Severity             uint32
 }
 
 // TimelineData encapsulates the indexed timeline attributes and nested items required for CEL evaluation.

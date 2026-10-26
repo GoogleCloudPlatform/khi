@@ -33,6 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -721,11 +722,36 @@ timestamp < "2025-01-01T01:01:00+0000"`
 			if err != nil {
 				t.Fatalf("failed to create ClientFactory: %v", err)
 			}
-			// The resource names to query come from the previous default, and the task replaces the default with the one of the source.
+			// Even when the previous default was stale ("projects/"), the task resolves DefaultResourceNames first and syncs FormFieldSetMetadata in the same run.
 			resourceNamesInput := NewResourceNamesInput()
-			resourceNamesInput.UpdateDefaultResourceNamesForQuery(taskID.ReferenceIDString(), []string{"projects/previous-project"})
+			resourceNamesInput.UpdateDefaultResourceNamesForQuery(taskID.ReferenceIDString(), []string{"projects/"})
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+			formFields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
+			if !found {
+				t.Fatalf("FormFieldSetMetadata not found")
+			}
+			inputID := fmt.Sprintf(GoogleCloudCommonTaskIDPrefix+"input-query-resource-names/%s", taskID.ReferenceIDString())
+			if err := formFields.SetField(inspectionmetadata.GroupParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+					ID:   InputLoggingFilterResourceNameTaskID.ReferenceIDString(),
+					Type: inspectionmetadata.Group,
+				},
+				Children: []inspectionmetadata.ParameterFormField{
+					inspectionmetadata.TextParameterFormField{
+						ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+							ID:   inputID,
+							Type: inspectionmetadata.Text,
+						},
+						Default:     "projects/",
+						Suggestions: []string{"projects/"},
+					},
+				},
+			}); err != nil {
+				t.Fatalf("SetField() failed: %v", err)
+			}
+
 			gotLogs, _, err := inspectiontest.Run(t, ctx, task, tc.taskMode, map[string]any{},
 				tasktest.Given(InputStartTimeTaskID.Ref(), startTime),
 				tasktest.Given(InputEndTimeTaskID.Ref(), endTime),
@@ -757,7 +783,6 @@ timestamp < "2025-01-01T01:01:00+0000"`
 				t.Errorf("logs mismatch (-want +got):\n%s", diff)
 			}
 
-			metadata := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
 			queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 			if !found {
 				t.Fatalf("QueryMetadata not found")
@@ -767,12 +792,58 @@ timestamp < "2025-01-01T01:01:00+0000"`
 				t.Errorf("QueryItem mismatch (-want +got):\n%s", diff)
 			}
 
+			if tc.taskMode == inspectioncore.TaskModeRun && len(tc.wantQueries) > 0 {
+				summaryCollector, found := typedmap.Get(metadata, summary.MetadataKey)
+				if !found {
+					t.Fatalf("summary collector metadata not found")
+				}
+				wantSnap := summary.Snapshot{
+					Sections: []summary.Section{
+						{
+							Title: "Shared & Filter Context",
+							Queries: []summary.Query{
+								{
+									Name:     "container-logs",
+									Text:     recordedQuery,
+									LogCount: ptr(len(tc.wantLogs)),
+								},
+							},
+						},
+					},
+				}
+				if diff := cmp.Diff(wantSnap, summaryCollector.Snapshot()); diff != "" {
+					t.Errorf("summary.Snapshot() mismatch (-want +got):\n%s", diff)
+				}
+			}
+
 			queryResourceNames, found := typeddict.Get(resourceNamesInput.resourceNames, taskID.ReferenceIDString())
 			if !found {
 				t.Fatalf("resource names for %q not found", taskID.ReferenceIDString())
 			}
 			if diff := cmp.Diff([]string{"projects/test-project"}, queryResourceNames.DefaultResourceNames); diff != "" {
 				t.Errorf("default resource names mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff([]string{"projects/test-project"}, queryResourceNames.CurrentResourceNames); diff != "" {
+				t.Errorf("current resource names mismatch (-want +got):\n%s", diff)
+			}
+			wantGroupField := inspectionmetadata.GroupParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+					ID:   InputLoggingFilterResourceNameTaskID.ReferenceIDString(),
+					Type: inspectionmetadata.Group,
+				},
+				Children: []inspectionmetadata.ParameterFormField{
+					inspectionmetadata.TextParameterFormField{
+						ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+							ID:   inputID,
+							Type: inspectionmetadata.Text,
+						},
+						Default:     "projects/test-project",
+						Suggestions: []string{"projects/test-project"},
+					},
+				},
+			}
+			if diff := cmp.Diff(wantGroupField, formFields.DangerouslyGetField(InputLoggingFilterResourceNameTaskID.ReferenceIDString())); diff != "" {
+				t.Errorf("synced form field mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

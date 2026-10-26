@@ -21,8 +21,10 @@ import (
 	"testing"
 	"time"
 
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -119,6 +121,132 @@ func TestTimelineAccumulator_Streaming(t *testing.T) {
 			}
 			if !hasHierarchy {
 				t.Errorf("expected timeline hierarchy chunk to be written")
+			}
+		})
+	}
+}
+
+func TestTimelineAccumulator_TimelineTypeVocabulary(t *testing.T) {
+	kindType := &pb.TimelineType{
+		Id:           proto.Uint32(1),
+		Label:        proto.String("kind"),
+		SortPriority: proto.Int32(200),
+		SortPolicyConfig: &pb.TimelineType_AlphabeticalPolicy{
+			AlphabeticalPolicy: &pb.AlphabeticalSortPolicy{
+				PrioritizedNames: []string{"node", "pod", "service"},
+			},
+		},
+	}
+	namespaceType := &pb.TimelineType{
+		Id:           proto.Uint32(2),
+		Label:        proto.String("namespace"),
+		SortPriority: proto.Int32(300),
+		SortPolicyConfig: &pb.TimelineType_AlphabeticalPolicy{
+			AlphabeticalPolicy: &pb.AlphabeticalSortPolicy{
+				PrioritizedNames: []string{"kube-system", "default"},
+			},
+		},
+	}
+	resourceType := &pb.TimelineType{
+		Id:           proto.Uint32(3),
+		Label:        proto.String("resource"),
+		SortPriority: proto.Int32(1000),
+	}
+	apiVersionType := &pb.TimelineType{
+		Id:           proto.Uint32(4),
+		Label:        proto.String("apiVersion"),
+		SortPriority: proto.Int32(100),
+	}
+	samePriorityAType := &pb.TimelineType{
+		Id:           proto.Uint32(5),
+		Label:        proto.String("alpha"),
+		SortPriority: proto.Int32(500),
+	}
+	samePriorityBType := &pb.TimelineType{
+		Id:           proto.Uint32(6),
+		Label:        proto.String("beta"),
+		SortPriority: proto.Int32(500),
+	}
+
+	testCases := []struct {
+		name  string
+		limit int
+		setup func(acc *TimelineAccumulator)
+		want  []inspectionmetadata.TimelineTypeVocabulary
+	}{
+		{
+			name:  "orders types by priority and label, prioritizes configured names, deduplicates across parents, and caps examples",
+			limit: 3,
+			setup: func(acc *TimelineAccumulator) {
+				v1 := acc.GetPath(nil, PathSegment{Name: "core/v1", Type: apiVersionType})
+				podKind := acc.GetPath(v1, PathSegment{Name: "pod", Type: kindType})
+				svcKind := acc.GetPath(v1, PathSegment{Name: "service", Type: kindType})
+				nodeKind := acc.GetPath(v1, PathSegment{Name: "node", Type: kindType})
+				_ = acc.GetPath(v1, PathSegment{Name: "configmap", Type: kindType})
+				_ = acc.GetPath(v1, PathSegment{Name: "daemonset", Type: kindType})
+
+				// Same namespace names under two different kind parents should be counted once.
+				nsDefaultUnderPod := acc.GetPath(podKind, PathSegment{Name: "default", Type: namespaceType})
+				_ = acc.GetPath(svcKind, PathSegment{Name: "default", Type: namespaceType})
+				_ = acc.GetPath(podKind, PathSegment{Name: "kube-system", Type: namespaceType})
+				_ = acc.GetPath(podKind, PathSegment{Name: "app-ns", Type: namespaceType})
+
+				// Empty names are ignored.
+				_ = acc.GetPath(nodeKind, PathSegment{Name: "", Type: resourceType})
+				_ = acc.GetPath(nsDefaultUnderPod, PathSegment{Name: "zeta", Type: resourceType})
+				_ = acc.GetPath(nsDefaultUnderPod, PathSegment{Name: "alpha", Type: resourceType})
+
+				// Tie-breaker by label when sort priority is equal.
+				_ = acc.GetPath(nil, PathSegment{Name: "b1", Type: samePriorityBType})
+				_ = acc.GetPath(nil, PathSegment{Name: "a1", Type: samePriorityAType})
+			},
+			want: []inspectionmetadata.TimelineTypeVocabulary{
+				{
+					Label:        "apiVersion",
+					NameCount:    1,
+					ExampleNames: []string{"core/v1"},
+				},
+				{
+					Label:        "kind",
+					NameCount:    5,
+					ExampleNames: []string{"node", "pod", "service"},
+				},
+				{
+					Label:        "namespace",
+					NameCount:    3,
+					ExampleNames: []string{"kube-system", "default", "app-ns"},
+				},
+				{
+					Label:        "alpha",
+					NameCount:    1,
+					ExampleNames: []string{"a1"},
+				},
+				{
+					Label:        "beta",
+					NameCount:    1,
+					ExampleNames: []string{"b1"},
+				},
+				{
+					Label:        "resource",
+					NameCount:    2,
+					ExampleNames: []string{"alpha", "zeta"},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			idGen := id.NewGenerator()
+			clientPool := NewTestInternPool(idGen)
+			serverPool := NewTestServerInternPool(clientPool, idGen)
+			acc := NewTestTimelineAccumulator(idGen, clientPool, serverPool)
+
+			tc.setup(acc)
+
+			got := acc.TimelineTypeVocabulary(tc.limit)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("TimelineTypeVocabulary(%d) mismatch (-want +got):\n%s", tc.limit, diff)
 			}
 		})
 	}

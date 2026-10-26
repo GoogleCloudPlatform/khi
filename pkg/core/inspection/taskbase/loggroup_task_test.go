@@ -39,7 +39,7 @@ func TestDefineLogGrouperTask(t *testing.T) {
 		return func(ctx context.Context, l *log.Log) string {
 			return prefix.Get(ctx) + l.ReadStringOrDefault(pathGroupTestID, "unknown")[:1]
 		}
-	}, coretask.WithTaskDescription("groups logs by ID prefix"))
+	}, coretask.WithDescription("groups logs by ID prefix"))
 	if got := typedmap.GetOrDefault(task.Labels(), coretask.LabelKeyTaskDescription, ""); got != "groups logs by ID prefix" {
 		t.Errorf("LabelKeyTaskDescription = %q, want %q", got, "groups logs by ID prefix")
 	}

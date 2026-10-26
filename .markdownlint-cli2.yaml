@@ -21,6 +21,7 @@ ignores:
   - "docs/template/**"
   - "scripts/msdf-generator/vendor/**"
   - SECURITY.md
+  - "**/testdata/**/*.golden.md"  # Golden files hold exact program output and must not be auto-fixed.
 config:
   default: true
   MD013: false  # Line length

@@ -80,8 +80,8 @@ func createSampleWorkbench() *Workbench {
 		Name:         "pod-a",
 		TimelineType: "Pod",
 		Events: []cel.EventInfo{
-			{LogID: 1, Timestamp: 1000, Severity: 1},
-			{LogID: 2, Timestamp: 2000, Severity: 3},
+			{LogID: 1, Timestamp: 1000},
+			{LogID: 2, Timestamp: 2000},
 		},
 		MaxSeverity: 3,
 	}
@@ -93,7 +93,7 @@ func createSampleWorkbench() *Workbench {
 		Name:         "pod-b",
 		TimelineType: "Pod",
 		Events: []cel.EventInfo{
-			{LogID: 3, Timestamp: 3000, Severity: 1},
+			{LogID: 3, Timestamp: 3000},
 		},
 		MaxSeverity: 1,
 	}
@@ -105,7 +105,7 @@ func createSampleWorkbench() *Workbench {
 		Name:         "container-b",
 		TimelineType: "Container",
 		Events: []cel.EventInfo{
-			{LogID: 3, Timestamp: 3000, Severity: 1},
+			{LogID: 3, Timestamp: 3000},
 		},
 		MaxSeverity: 1,
 	}

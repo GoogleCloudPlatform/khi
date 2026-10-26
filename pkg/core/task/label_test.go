@@ -27,28 +27,43 @@ func TestWithLabelValue(t *testing.T) {
 
 	t.Run("string label", func(t *testing.T) {
 		testCases := []struct {
-			name  string
-			value string
-			want  string
+			name string
+			opt  LabelOpt
+			key  TaskLabelKey[string]
+			want string
 		}{
 			{
-				name:  "sets non-empty string value",
-				value: "hello",
-				want:  "hello",
+				name: "sets non-empty string value",
+				opt:  WithLabelValue(testStringKey, "hello"),
+				key:  testStringKey,
+				want: "hello",
 			},
 			{
-				name:  "sets empty string value",
-				value: "",
-				want:  "",
+				name: "sets empty string value",
+				opt:  WithLabelValue(testStringKey, ""),
+				key:  testStringKey,
+				want: "",
+			},
+			{
+				name: "WithTitle sets title label",
+				opt:  WithTitle("Sample Title"),
+				key:  LabelKeyTaskTitle,
+				want: "Sample Title",
+			},
+			{
+				name: "WithDescription sets description label",
+				opt:  WithDescription("Sample Description"),
+				key:  LabelKeyTaskDescription,
+				want: "Sample Description",
 			},
 		}
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				labels := NewLabelSet(WithLabelValue(testStringKey, tc.value))
-				got, found := typedmap.Get(labels, testStringKey)
+				labels := NewLabelSet(tc.opt)
+				got, found := typedmap.Get(labels, tc.key)
 				if !found {
-					t.Fatalf("key %q not found in label set", testStringKey)
+					t.Fatalf("key %q not found in label set", tc.key)
 				}
 				if got != tc.want {
 					t.Errorf("got %q, want %q", got, tc.want)

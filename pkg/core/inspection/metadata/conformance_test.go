@@ -77,3 +77,14 @@ func TestProgressConformance(t *testing.T) {
 func TestJobModeCommandMetadataConformance(t *testing.T) {
 	ConformanceMetadataTypeTest(t, &JobModeCommandMetadata{})
 }
+
+func TestFilterVocabularyMetadataConformance(t *testing.T) {
+	m := NewFilterVocabularyMetadata()
+	m.Set(FilterVocabulary{
+		TimelineTypes: []TimelineTypeVocabulary{
+			{Label: "kind", NameCount: 2, ExampleNames: []string{"node", "pod"}},
+		},
+		LogTypes: []string{"k8s_audit"},
+	})
+	ConformanceMetadataTypeTest(t, m)
+}

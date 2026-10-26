@@ -28,6 +28,10 @@ type UploadResult struct {
 	StoreProvider UploadFileStoreProvider
 	// Status is the current state of the upload.
 	Status UploadStatus
+	// FileName is the file name given by the client when the upload started. It is empty when the client gave none.
+	FileName string
+	// SizeBytes is the size in bytes of the file declared when the upload started.
+	SizeBytes int64
 	// UploadError contains any error that occurred during the upload process itself
 	UploadError error
 	// VerificationError contains any error returned by the UploadFileVerifier.

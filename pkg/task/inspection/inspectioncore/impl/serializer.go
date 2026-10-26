@@ -48,6 +48,14 @@ var serializerTask = inspectiontaskbase.DefineInspectionTask(
 			ioConfig := khictx.MustGetValue(ctx, inspectioncore.CurrentIOConfig)
 			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
 
+			vocabulary, found := typedmap.Get(metadataSet, inspectionmetadata.FilterVocabularyMetadataKey)
+			if found {
+				vocabulary.Set(inspectionmetadata.FilterVocabulary{
+					TimelineTypes: builder.TimelineAccumulator.TimelineTypeVocabulary(inspectionmetadata.TimelineExampleNameLimit),
+					LogTypes:      builder.LogAccumulator.LogTypes(),
+				})
+			}
+
 			// 1. Collect metadata to the v6 builder
 			for _, key := range metadataSet.Keys() {
 				metadata, found := typedmap.Get(metadataSet, inspectionmetadata.NewMetadataLabelsKey[inspectionmetadata.Metadata](key))

@@ -71,6 +71,22 @@ func ValidateAndExtractMetadata(filePath string) (*inspectionmetadata.HeaderMeta
 				}
 				typedmap.Set(metadataMap, inspectionmetadata.QueryMetadataKey, queryMetadata)
 			}
+			if pbVocab := item.GetFilterVocabulary(); pbVocab != nil {
+				timelineTypes := make([]inspectionmetadata.TimelineTypeVocabulary, len(pbVocab.GetTimelineTypes()))
+				for i, tt := range pbVocab.GetTimelineTypes() {
+					timelineTypes[i] = inspectionmetadata.TimelineTypeVocabulary{
+						Label:        tt.GetLabel(),
+						NameCount:    int(tt.GetNameCount()),
+						ExampleNames: tt.GetExampleNames(),
+					}
+				}
+				vocabMetadata := inspectionmetadata.NewFilterVocabularyMetadata()
+				vocabMetadata.Set(inspectionmetadata.FilterVocabulary{
+					TimelineTypes: timelineTypes,
+					LogTypes:      pbVocab.GetLogTypes(),
+				})
+				typedmap.Set(metadataMap, inspectionmetadata.FilterVocabularyMetadataKey, vocabMetadata)
+			}
 		}
 	}
 

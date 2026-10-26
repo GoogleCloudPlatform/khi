@@ -26,7 +26,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w -X github.com/GoogleCloudP
 RUN mkdir /built/data
 RUN mkdir -m 1777 /app.tmp
 
-FROM scratch
+FROM scratch AS slim
 WORKDIR /go/src/app
 COPY --from=builder /built /go/src/app
 COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
@@ -34,6 +34,28 @@ COPY --from=builder /app.tmp /tmp
 
 ENV GOMEMLIMIT=10000MiB
 ENV HOST=0.0.0.0
+ENV KHI_MCP_DISABLE_RENDERER=true
+
+EXPOSE 8080
+ENTRYPOINT ["/go/src/app/khi","--temporary-folder=/","--data-destination-folder=/"]
+
+FROM debian:trixie-slim AS default
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    chromium \
+    fonts-liberation \
+    libgl1 \
+    libegl1 \
+    libgles2 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /go/src/app
+COPY --from=builder /built /go/src/app
+
+ENV GOMEMLIMIT=10000MiB
+ENV HOST=0.0.0.0
+ENV CHROME_BIN=/usr/bin/chromium
 
 EXPOSE 8080
 ENTRYPOINT ["/go/src/app/khi","--temporary-folder=/","--data-destination-folder=/"]

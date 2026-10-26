@@ -1,0 +1,13 @@
+# Inspections
+
+{{ if eq (len .Rows) 0 -}}
+No inspections yet.
+{{- else -}}
+{{ len .Rows }} {{ if eq (len .Rows) 1 }}inspection{{ else }}inspections{{ end }}, newest first. Read `khi://inspections/{id}` for the summary of each inspection.
+
+| ID | Name | Type | Status | Time range | Labels |
+| --- | --- | --- | --- | --- | --- |
+{{ range .Rows -}}
+| {{ code .ID }} | {{ cell .Name }} | {{ cell .Type }} | {{ cell .Status }} | {{ cell .TimeRange }} | {{ cell .Labels }} |
+{{ end -}}
+{{- end }}

@@ -87,4 +87,5 @@ func SetupFrontendRoutes(router gin.IRouter, staticFolderPath string) {
 	// Frontend uses Angular router. Client-side routing paths should return the app html.
 	router.GET("/session/*wild", serveIndexHTML)
 	router.GET("/debug/*wild", serveIndexHTML)
+	router.GET("/render/*wild", serveIndexHTML)
 }

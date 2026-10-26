@@ -30,5 +30,5 @@ var defaultK8sResourceMergeConfigTask = coretask.Define(
 			return k8s.GenerateDefaultMergeConfig()
 		}
 	},
-	coretask.WithTaskDescription("Generates the default Kubernetes manifest patch request merge configuration."),
+	coretask.WithDescription("Generates the default Kubernetes manifest patch request merge configuration."),
 )

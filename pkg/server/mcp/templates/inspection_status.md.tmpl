@@ -1,0 +1,9 @@
+# Inspection {{ code .ID }}
+
+{{ if eq .Status "RUNNING" -}}
+Status: RUNNING. The summary is available after the inspection finishes. Call `wait_inspection` to wait for it.
+{{- else if eq .Status "ERROR" -}}
+Status: ERROR. No summary is available. Call `wait_inspection` to see which task failed.
+{{- else if eq .Status "CANCELLED" -}}
+Status: CANCELLED. No summary is available because the inspection was cancelled.
+{{- end }}

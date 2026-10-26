@@ -17,6 +17,7 @@ package parameters
 import (
 	"flag"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
@@ -25,9 +26,10 @@ import (
 
 func TestServerParameters(t *testing.T) {
 	testCases := []struct {
-		name   string
-		want   *ServerParameters
-		before func()
+		name            string
+		want            *ServerParameters
+		wantErrContains string
+		before          func()
 	}{
 		{
 			before: func() {
@@ -42,6 +44,8 @@ func TestServerParameters(t *testing.T) {
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
 				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
+				MaxLoadedInspections:     testutil.P(3),
+				MCPDisableRenderer:       testutil.P(false),
 			},
 		},
 		{
@@ -57,6 +61,8 @@ func TestServerParameters(t *testing.T) {
 				FrontendResourceBasePath: testutil.P("/foo/bar/"),
 				FrontendAssetFolder:      testutil.P(""),
 				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
+				MaxLoadedInspections:     testutil.P(3),
+				MCPDisableRenderer:       testutil.P(false),
 			},
 		},
 		{
@@ -72,7 +78,51 @@ func TestServerParameters(t *testing.T) {
 				FrontendResourceBasePath: testutil.P("/foo/"),
 				FrontendAssetFolder:      testutil.P(""),
 				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
+				MaxLoadedInspections:     testutil.P(3),
+				MCPDisableRenderer:       testutil.P(false),
 			},
+		},
+		{
+			before: func() {
+				os.Args = []string{os.Args[0], "--max-loaded-inspections", "1"}
+				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+			},
+			name: "MaxLoadedInspections accepts 1",
+			want: &ServerParameters{
+				Port:                     testutil.P(8080),
+				Host:                     testutil.P("127.0.0.1"),
+				BasePath:                 testutil.P("/"),
+				FrontendResourceBasePath: testutil.P("/"),
+				FrontendAssetFolder:      testutil.P(""),
+				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
+				MaxLoadedInspections:     testutil.P(1),
+				MCPDisableRenderer:       testutil.P(false),
+			},
+		},
+		{
+			before: func() {
+				os.Args = []string{os.Args[0], "--mcp-disable-renderer"}
+				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+			},
+			name: "MCPDisableRenderer can be enabled via flag",
+			want: &ServerParameters{
+				Port:                     testutil.P(8080),
+				Host:                     testutil.P("127.0.0.1"),
+				BasePath:                 testutil.P("/"),
+				FrontendResourceBasePath: testutil.P("/"),
+				FrontendAssetFolder:      testutil.P(""),
+				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
+				MaxLoadedInspections:     testutil.P(3),
+				MCPDisableRenderer:       testutil.P(true),
+			},
+		},
+		{
+			before: func() {
+				os.Args = []string{os.Args[0], "--max-loaded-inspections", "0"}
+				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+			},
+			name:            "MaxLoadedInspections rejects values below 1",
+			wantErrContains: "--max-loaded-inspections must be 1 or greater",
 		},
 	}
 
@@ -84,6 +134,15 @@ func TestServerParameters(t *testing.T) {
 			ResetStore()
 			AddStore(store)
 			err := Parse()
+			if tc.wantErrContains != "" {
+				if err == nil {
+					t.Fatal("Parse() returned nil error, want an error")
+				}
+				if !strings.Contains(err.Error(), tc.wantErrContains) {
+					t.Errorf("Parse() error = %q, want error containing %q", err.Error(), tc.wantErrContains)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatal(err)
 			}

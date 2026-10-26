@@ -34,6 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -90,7 +91,7 @@ func DefineStructuredListLogEntriesTask(taskID taskid.TaskImplementationID[[]*lo
 			}
 		},
 		coretask.WithLabelValue(RequestOptionalInputResourceNameTaskLabel, taskID.ReferenceIDString()),
-		progress.WithTitle(fmt.Sprintf("Fetch %s", queryName)),
+		coretask.WithTitle(fmt.Sprintf("Fetch %s", queryName)),
 	)
 }
 
@@ -272,6 +273,7 @@ func fetchLogsForStructuredQueries(
 	allLogs := kwaymerge.Merge(allLogSlices, func(a, b *log.Log) int {
 		return a.Timestamp.Compare(b.Timestamp)
 	})
+	summary.RecordQueryLogCount(ctx, taskID, len(allLogs))
 
 	tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 	if tracingActive {
@@ -316,6 +318,7 @@ func setStructuredQueryInfoWithPendingAndPreset(ctx context.Context, taskID, bas
 	default:
 		queryInfo.SetQuery(taskID, logFilterName, finalFilter)
 	}
+	summary.RecordQuery(ctx, taskID, logFilterName, finalFilter)
 	return nil
 }
 
@@ -342,16 +345,18 @@ func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogF
 	}()
 }
 
-// handleResourceNames retrieves and validates resource names for a given task, updating default values if necessary.
+// handleResourceNames retrieves and validates resource names for a given task, updating default values and syncing form metadata before resolving the effective resource names.
 func handleResourceNames(ctx context.Context, taskID taskid.TaskImplementationID[[]*log.Log], resourceNamesInput *ResourceNamesInput, getDefaultResourceNames func(ctx context.Context) ([]string, error)) ([]string, error) {
-	queryResourceNamePair := resourceNamesInput.GetResourceNamesForQuery(ctx, taskID.ReferenceIDString())
-
 	defaultResourceNames, err := getDefaultResourceNames(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ResourceNames returned an error: %w", err)
 	}
 
-	resourceNamesInput.UpdateDefaultResourceNamesForQuery(taskID.ReferenceIDString(), defaultResourceNames)
+	queryID := taskID.ReferenceIDString()
+	resourceNamesInput.UpdateDefaultResourceNamesForQuery(queryID, defaultResourceNames)
+	resourceNamesInput.SyncFormFieldDefault(ctx, queryID)
+
+	queryResourceNamePair := resourceNamesInput.GetResourceNamesForQuery(ctx, queryID)
 
 	return queryResourceNamePair.CurrentResourceNames, nil
 }

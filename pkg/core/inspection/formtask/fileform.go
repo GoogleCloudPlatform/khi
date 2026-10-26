@@ -59,8 +59,10 @@ func DefineFileForm(id taskid.TaskImplementationID[upload.UploadResult], priorit
 					HintType: inspectionmetadata.None,
 					Hint:     "",
 				},
-				Token:  token,
-				Status: uploadResult.Status,
+				Token:     token,
+				Status:    uploadResult.Status,
+				FileName:  uploadResult.FileName,
+				SizeBytes: uploadResult.SizeBytes,
 			}
 			form.setupBaseFormField(&field.ParameterFormFieldBase)
 

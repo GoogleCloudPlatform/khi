@@ -21,6 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
@@ -136,4 +137,84 @@ func (a *TimelineAccumulator) Flush() error {
 		}
 	}
 	return nil
+}
+
+type timelineTypeBucket struct {
+	timelineType     *pb.TimelineType
+	prioritizedNames map[string]int
+	seenNameIDs      map[uint32]struct{}
+	exampleNames     []string
+}
+
+// TimelineTypeVocabulary summarizes the distinct timeline names of each timeline type in the path pool.
+// Timeline types are ordered by their sort priority and then label. Within each type, up to limit example
+// names are ordered with the type's prioritized names first, then alphabetically.
+func (a *TimelineAccumulator) TimelineTypeVocabulary(limit int) []inspectionmetadata.TimelineTypeVocabulary {
+	bucketsByTypeID := make(map[uint32]*timelineTypeBucket)
+
+	for path := range a.pathPool.Paths() {
+		if path == nil || path.Type == nil || path.Type.Id == nil || path.Type.GetLabel() == "" {
+			continue
+		}
+		name := path.Name.Resolve()
+		if name == "" {
+			continue
+		}
+
+		typeID := path.Type.GetId()
+		bucket, ok := bucketsByTypeID[typeID]
+		if !ok {
+			var prioritized map[string]int
+			if policy := path.Type.GetAlphabeticalPolicy(); policy != nil && len(policy.PrioritizedNames) > 0 {
+				prioritized = make(map[string]int, len(policy.PrioritizedNames))
+				for i, n := range policy.PrioritizedNames {
+					prioritized[n] = i
+				}
+			}
+			bucket = &timelineTypeBucket{
+				timelineType:     path.Type,
+				prioritizedNames: prioritized,
+				seenNameIDs:      make(map[uint32]struct{}),
+			}
+			bucketsByTypeID[typeID] = bucket
+		}
+
+		if _, seen := bucket.seenNameIDs[path.Name.id]; seen {
+			continue
+		}
+		bucket.seenNameIDs[path.Name.id] = struct{}{}
+
+		if limit > 0 {
+			pos, _ := slices.BinarySearchFunc(bucket.exampleNames, name, func(existing, target string) int {
+				return compareAlphabeticalNames(existing, target, bucket.prioritizedNames)
+			})
+			if pos < limit {
+				bucket.exampleNames = slices.Insert(bucket.exampleNames, pos, name)
+				if len(bucket.exampleNames) > limit {
+					bucket.exampleNames = bucket.exampleNames[:limit]
+				}
+			}
+		}
+	}
+
+	buckets := make([]*timelineTypeBucket, 0, len(bucketsByTypeID))
+	for _, b := range bucketsByTypeID {
+		buckets = append(buckets, b)
+	}
+	slices.SortFunc(buckets, func(x, y *timelineTypeBucket) int {
+		return cmp.Or(
+			cmp.Compare(x.timelineType.GetSortPriority(), y.timelineType.GetSortPriority()),
+			cmp.Compare(x.timelineType.GetLabel(), y.timelineType.GetLabel()),
+		)
+	})
+
+	result := make([]inspectionmetadata.TimelineTypeVocabulary, len(buckets))
+	for i, b := range buckets {
+		result[i] = inspectionmetadata.TimelineTypeVocabulary{
+			Label:        b.timelineType.GetLabel(),
+			NameCount:    len(b.seenNameIDs),
+			ExampleNames: b.exampleNames,
+		}
+	}
+	return result
 }
