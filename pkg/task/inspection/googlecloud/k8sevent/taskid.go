@@ -41,3 +41,6 @@ var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](GKEK
 
 // NEGToBackendServiceDiscoveryTaskID is the task ID for the discovery task that extracts NEG to BackendService mappings from Kubernetes Event logs.
 var NEGToBackendServiceDiscoveryTaskID = taskid.NewDefaultImplementationID[k8scommon.NEGToBackendServiceMap](GKEK8sEventLogTaskIDPrefix + "neg-discovery")
+
+// NodeNameDiscoveryTaskID is the task ID for the discovery task that extracts node names from Kubernetes Event logs.
+var NodeNameDiscoveryTaskID = taskid.NewDefaultImplementationID[[]string](GKEK8sEventLogTaskIDPrefix + "node-name-discovery")

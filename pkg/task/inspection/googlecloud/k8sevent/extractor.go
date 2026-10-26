@@ -34,6 +34,7 @@ var (
 	pathReason       = structured.CompileFieldPath("jsonPayload.reason")
 	pathMessage      = structured.CompileFieldPath("jsonPayload.message")
 	pathAction       = structured.CompileFieldPath("jsonPayload.action")
+	pathSourceHost   = structured.CompileFieldPath("jsonPayload.source.host")
 )
 
 // KubernetesEventFieldSet contains the parsed fields for a Kubernetes event log.
@@ -46,6 +47,7 @@ type KubernetesEventFieldSet struct {
 	Resource     string
 	Reason       string
 	Message      string
+	SourceHost   string
 }
 
 // ExtractKubernetesEvent extracts KubernetesEventFieldSet from a NodeReader.
@@ -80,5 +82,6 @@ func ExtractKubernetesEvent(reader *structured.NodeReader) (KubernetesEventField
 	if result.Message == "" {
 		result.Message = reader.ReadStringOrDefault(pathAction, "")
 	}
+	result.SourceHost = reader.ReadStringOrDefault(pathSourceHost, "")
 	return result, nil
 }

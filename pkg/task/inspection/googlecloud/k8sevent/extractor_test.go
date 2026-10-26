@@ -42,6 +42,8 @@ jsonPayload:
     kind: Pod
     namespace: default
     name: test-pod
+  source:
+    host: node-1
   reason: Scheduled
   message: Successfully assigned default/test-pod to node-1`,
 			want: KubernetesEventFieldSet{
@@ -53,6 +55,7 @@ jsonPayload:
 				Resource:     "test-pod",
 				Reason:       "Scheduled",
 				Message:      "Successfully assigned default/test-pod to node-1",
+				SourceHost:   "node-1",
 			},
 		},
 		{
