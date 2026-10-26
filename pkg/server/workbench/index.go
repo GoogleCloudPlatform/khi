@@ -47,6 +47,7 @@ type SearchIndex struct {
 	LogTimelineIndex *LogTimelineCSRIndex
 	// FilterVocabulary lists the timeline types and log types in the index for filter CEL.
 	FilterVocabulary FilterVocabulary
+	maxTimelineID    uint32
 }
 
 // GetLog retrieves a log entry by its 1-based log ID in O(1) time.
@@ -67,13 +68,10 @@ func (s *SearchIndex) GetTimelineIDsForLog(logID uint32) []uint32 {
 
 // MaxTimelineID returns the maximum timeline ID in the index, or 0 if there are no timelines.
 func (s *SearchIndex) MaxTimelineID() uint32 {
-	var maxID uint32
-	for _, tl := range s.Timelines {
-		if tl.ID > maxID {
-			maxID = tl.ID
-		}
+	if s == nil {
+		return 0
 	}
-	return maxID
+	return s.maxTimelineID
 }
 
 // styleMaps holds lookup maps derived from the style chunk.
@@ -160,6 +158,13 @@ func (w *Workbench) BuildBaseSearchIndex() (*SearchIndex, error) {
 
 	logTimelineIndex := NewLogTimelineCSRIndex(w.maxLogID, timelines)
 
+	var maxTimelineID uint32
+	for _, tl := range timelines {
+		if tl.ID > maxTimelineID {
+			maxTimelineID = tl.ID
+		}
+	}
+
 	return &SearchIndex{
 		Timelines:        timelines,
 		TimelineMap:      timelineMap,
@@ -169,6 +174,7 @@ func (w *Workbench) BuildBaseSearchIndex() (*SearchIndex, error) {
 		StyleResolver:    styles,
 		LogTimelineIndex: logTimelineIndex,
 		FilterVocabulary: buildFilterVocabulary(timelines, logs, styles),
+		maxTimelineID:    maxTimelineID,
 	}, nil
 }
 

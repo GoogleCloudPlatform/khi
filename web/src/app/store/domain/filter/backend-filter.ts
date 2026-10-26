@@ -195,7 +195,7 @@ export class BackendFilter implements LogTimelineFilter {
         logIds: IdBitset.fromSparseBitset(
           res.logMode,
           res.logBitset,
-          timelineStore.logStore.count,
+          timelineStore.logStore.maxLogId,
         ),
       };
       this.lastResultContext = resultContext;

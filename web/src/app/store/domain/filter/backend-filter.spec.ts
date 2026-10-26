@@ -43,6 +43,7 @@ describe('BackendFilter', () => {
       maxTimelineId: 3,
       logStore: {
         count: 2,
+        maxLogId: 20,
         logs: function* () {
           yield { id: 10 } as unknown as Log;
           yield { id: 20 } as unknown as Log;
@@ -230,7 +231,7 @@ describe('BackendFilter', () => {
     expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalledTimes(3);
   });
 
-  it('should preserve timeline IDs exceeding timelines.length in EXCLUDE mode using maxTimelineId', async () => {
+  it('should preserve timeline and log IDs exceeding counts in EXCLUDE mode using maxTimelineId and maxLogId', async () => {
     mockWorkbenchClient.isWorkbenchActive.and.returnValue(true);
     mockWorkbenchClient.filterTimeline.and.resolveTo({
       timelineMode: FilterResultMode.EXCLUDE,
@@ -240,8 +241,8 @@ describe('BackendFilter', () => {
       }),
       logMode: FilterResultMode.EXCLUDE,
       logBitset: create(SparseBitsetSchema, {
-        indices: [],
-        masks: [],
+        indices: [0],
+        masks: [(1 << 2) | (1 << 3)],
       }),
     });
 
@@ -252,17 +253,22 @@ describe('BackendFilter', () => {
         { id: 5 } as unknown as Timeline,
       ],
       maxTimelineId: 5,
-      logStore: timelineStoreDummy.logStore,
+      logStore: {
+        count: 2,
+        maxLogId: 4,
+      },
     } as unknown as TimelineStore;
 
     const filter = new BackendFilter(mockWorkbenchClient);
     const initialContext: LogTimelineFilterContext = {
       timelineIds: IdBitset.fromSequential(5),
-      logIds: IdBitset.fromSequential(2),
+      logIds: IdBitset.fromSequential(4),
     };
 
     const res = await filter.process(initialContext, gappedStore);
     expect(Array.from(res.timelineIds.values())).toEqual([1, 2, 5]);
     expect(res.timelineIds.size).toBe(3);
+    expect(Array.from(res.logIds.values())).toEqual([1, 4]);
+    expect(res.logIds.size).toBe(2);
   });
 });

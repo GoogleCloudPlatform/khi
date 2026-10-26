@@ -190,10 +190,12 @@ describe('LogStore', () => {
     expect(() => store.getLog(99)).toThrowError('Log ID 99 not found');
   });
 
-  it('should return count and iterator correctly', () => {
+  it('should return count, maxLogId, and iterator correctly', () => {
+    expect(store.maxLogId).toBe(0);
+
     const logs: LogDTO[] = [
       { id: 1, ts: 1000n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
-      { id: 2, ts: 1005n, logTypeId: 2, severityTypeId: 2, summaryStringId: 2 },
+      { id: 5, ts: 1005n, logTypeId: 2, severityTypeId: 2, summaryStringId: 2 },
     ];
 
     store = LogStore.create(internPool, styleStore, 2);
@@ -201,11 +203,12 @@ describe('LogStore', () => {
     store.shrinkToFit();
 
     expect(store.count).toBe(2);
+    expect(store.maxLogId).toBe(5);
 
     const iteratedLogs = Array.from(store.logs());
     expect(iteratedLogs.length).toBe(2);
     expect(iteratedLogs[0].id).toBe(1);
-    expect(iteratedLogs[1].id).toBe(2);
+    expect(iteratedLogs[1].id).toBe(5);
   });
 
   describe('create and dynamic methods', () => {

@@ -115,6 +115,7 @@ func createSampleWorkbench() *Workbench {
 	wb.searchIndex.TimelineMap[2] = tl2
 	wb.searchIndex.TimelineMap[3] = tl3
 	wb.searchIndex.TimelineMap[4] = tl4
+	wb.searchIndex.maxTimelineID = 4
 
 	return wb
 }
@@ -326,6 +327,7 @@ func TestFilterTimelineWithGappedIDs(t *testing.T) {
 			wb.searchIndex.TimelineMap[3].ChildrenIDs = []uint32{5}
 			delete(wb.searchIndex.TimelineMap, 4)
 			wb.searchIndex.TimelineMap[5] = tl5
+			wb.searchIndex.maxTimelineID = 5
 
 			res, err := wb.FilterTimeline(context.Background(), tc.params, nil)
 			if err != nil {

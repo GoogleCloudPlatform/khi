@@ -422,12 +422,18 @@ describe('TimelineView', () => {
     expect(filteredIds.has(2)).toBeFalse();
   });
 
-  it('should retain timelines whose IDs exceed timelines.length when initialized with maxTimelineId', async () => {
+  it('should retain timelines and logs whose IDs exceed counts when initialized with maxTimelineId and maxLogId', async () => {
     const logStoreSpy = jasmine.createSpyObj<LogStore>('LogStore', [
       'getLog',
       'logs',
     ]);
     logStoreSpy.logs.and.returnValue([][Symbol.iterator]());
+    Object.defineProperty(logStoreSpy, 'count', {
+      get: () => 2,
+    });
+    Object.defineProperty(logStoreSpy, 'maxLogId', {
+      get: () => 4,
+    });
 
     const mockTimelines = [
       { id: 1, parentId: 0 } as unknown as Timeline,
@@ -452,5 +458,6 @@ describe('TimelineView', () => {
     await waitForFiltering(view);
 
     expect(view.filteredTimelines().map((t) => t.id)).toEqual([1, 2, 5]);
+    expect(view.filteredLogIds().has(4)).toBeTrue();
   });
 });
