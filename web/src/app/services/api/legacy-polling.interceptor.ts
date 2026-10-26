@@ -45,6 +45,15 @@ import {
   WatchServerStatResponseSchema,
 } from 'src/app/generated/api/v1/server_status_pb';
 import {
+  CreateMaskedInspectionRequest,
+  CreateMaskedInspectionResponse,
+  CreateMaskedInspectionResponseSchema,
+  MaskService,
+  WatchStringPoolIndexProgressRequest,
+  WatchStringPoolIndexProgressResponse,
+  WatchStringPoolIndexProgressResponseSchema,
+} from 'src/app/generated/api/v1/mask_pb';
+import {
   FilterTimelineRequest,
   FilterTimelineResponse,
   FilterTimelineResponseSchema,
@@ -202,6 +211,45 @@ async function* adaptWatchIndexProgress(
         },
       );
       yield create(WatchIndexProgressResponseSchema, {
+        state: res.state,
+        progressPercentage: res.progressPercentage,
+        message: res.message,
+      });
+      if (
+        res.state === WatchIndexProgressResponse_IndexState.READY ||
+        res.state === WatchIndexProgressResponse_IndexState.FAILED
+      ) {
+        return;
+      }
+    } catch {
+      if (req.signal.aborted) {
+        return;
+      }
+    }
+    await delayWithSignal(500, req.signal);
+  }
+}
+
+/**
+ * Adapts WatchStringPoolIndexProgress streaming RPC to unary PullStringPoolIndexProgress calls.
+ */
+async function* adaptWatchStringPoolIndexProgress(
+  req: StreamRequest,
+  transport: Transport,
+): AsyncIterable<WatchStringPoolIndexProgressResponse> {
+  const maskClient = createClient(MaskService, transport);
+  const input = (await getFirstMessage(
+    req.message,
+  )) as WatchStringPoolIndexProgressRequest;
+  while (!req.signal.aborted) {
+    try {
+      const res = await maskClient.pullStringPoolIndexProgress(
+        { workbenchId: input.workbenchId },
+        {
+          signal: req.signal,
+        },
+      );
+      yield create(WatchStringPoolIndexProgressResponseSchema, {
         state: res.state,
         progressPercentage: res.progressPercentage,
         message: res.message,
@@ -402,14 +450,86 @@ async function* adaptFilterTimeline(
   }
 }
 
+/**
+ * Adapts CreateMaskedInspection streaming RPC to CreateMaskedInspectionSync polling calls with cancellation support.
+ */
+async function* adaptCreateMaskedInspection(
+  req: StreamRequest,
+  transport: Transport,
+): AsyncIterable<CreateMaskedInspectionResponse> {
+  const maskClient = createClient(MaskService, transport);
+  const input = (await getFirstMessage(
+    req.message,
+  )) as CreateMaskedInspectionRequest;
+  let jobId = '';
+  let consecutiveErrors = 0;
+  try {
+    while (!req.signal.aborted) {
+      try {
+        const pollRes = await maskClient.createMaskedInspectionSync(
+          {
+            workbenchId: input.workbenchId,
+            rules: jobId ? [] : input.rules,
+            jobId,
+          },
+          { signal: req.signal },
+        );
+        consecutiveErrors = 0;
+        jobId = pollRes.jobId;
+        if (pollRes.progress) {
+          yield create(CreateMaskedInspectionResponseSchema, {
+            payload: { case: 'progress', value: pollRes.progress },
+          });
+        }
+        if (pollRes.isDone) {
+          if (pollRes.errorMessage) {
+            throw new Error(pollRes.errorMessage);
+          }
+          if (pollRes.result) {
+            yield create(CreateMaskedInspectionResponseSchema, {
+              payload: { case: 'result', value: pollRes.result },
+            });
+          }
+          return;
+        }
+      } catch (err) {
+        if (req.signal.aborted) {
+          return;
+        }
+        consecutiveErrors++;
+        if (
+          consecutiveErrors > MAX_CONSECUTIVE_POLL_ERRORS ||
+          !isRetryableError(err)
+        ) {
+          throw err;
+        }
+        console.warn(
+          `[LegacyPolling] CreateMaskedInspectionSync transient error (${consecutiveErrors}/${MAX_CONSECUTIVE_POLL_ERRORS}):`,
+          err,
+        );
+      }
+      await delayWithSignal(300, req.signal);
+    }
+  } finally {
+    if (req.signal.aborted && jobId) {
+      void maskClient.cancelCreateMaskedInspectionSync({
+        workbenchId: input.workbenchId,
+        jobId,
+      });
+    }
+  }
+}
+
 const STREAM_TO_POLL_ADAPTERS = new Map<string, StreamToPollAdapter>([
   ['WatchPopup', adaptWatchPopup],
   ['WatchServerStat', adaptWatchServerStat],
   ['WatchInspections', adaptWatchInspections],
   ['WatchIndexProgress', adaptWatchIndexProgress],
+  ['WatchStringPoolIndexProgress', adaptWatchStringPoolIndexProgress],
   ['WatchInspectionRunTaskGraph', adaptWatchInspectionRunTaskGraph],
   ['OpenWorkbench', adaptOpenWorkbench],
   ['FilterTimeline', adaptFilterTimeline],
+  ['CreateMaskedInspection', adaptCreateMaskedInspection],
 ]);
 
 /**

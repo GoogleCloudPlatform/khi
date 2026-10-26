@@ -410,6 +410,13 @@ export class InspectionClient {
  */
 export class BackendAPIUtil {
   /**
+   * Triggers a browser file download for a downloaded inspection archive Blob.
+   */
+  public static saveBlobAsFile(content: Blob, fileName: string): void {
+    downloadBlob(content, fileName);
+  }
+
+  /**
    * Save the inspection data as a file
    */
   public static downloadInspectionDataAsFile(
@@ -433,7 +440,7 @@ export class BackendAPIUtil {
       })
       .pipe(
         map(({ fileName, content }) => {
-          downloadBlob(content, fileName);
+          BackendAPIUtil.saveBlobAsFile(content, fileName);
           progress.dismiss();
           return fileName;
         }),
