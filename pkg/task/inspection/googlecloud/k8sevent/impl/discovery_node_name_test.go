@@ -15,7 +15,6 @@
 package k8sevent_impl
 
 import (
-	"slices"
 	"testing"
 
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
@@ -25,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 // TestNodeNameDiscoveryTask tests nodeNameDiscoveryTask.
@@ -90,9 +90,7 @@ func TestNodeNameDiscoveryTask(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			slices.Sort(result)
-			slices.Sort(tc.want)
-			if diff := cmp.Diff(tc.want, result); diff != "" {
+			if diff := cmp.Diff(tc.want, result, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
 				t.Errorf("result mismatch (-want +got):\n%s", diff)
 			}
 		})
