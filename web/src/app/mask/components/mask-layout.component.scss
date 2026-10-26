@@ -1,0 +1,686 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$pane-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$surface-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 100);
+$card-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$text-primary: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$text-secondary: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$accent-bg: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 50);
+$accent-border: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 200);
+$accent-text: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 800);
+$ready-bg: mat.m2-get-color-from-palette(mat.$m2-green-palette, 50);
+$ready-border: mat.m2-get-color-from-palette(mat.$m2-green-palette, 200);
+$ready-text: mat.m2-get-color-from-palette(mat.$m2-green-palette, 800);
+$warn-bg: mat.m2-get-color-from-palette(mat.$m2-amber-palette, 50);
+$warn-border: mat.m2-get-color-from-palette(mat.$m2-amber-palette, 300);
+$warn-text: mat.m2-get-color-from-palette(mat.$m2-amber-palette, 900);
+$delete-badge-bg: mat.m2-get-color-from-palette(mat.$m2-red-palette, 50);
+$delete-badge-text: mat.m2-get-color-from-palette(mat.$m2-red-palette, 800);
+$error-bg: mat.m2-get-color-from-palette(mat.$m2-red-palette, 50);
+$error-border: mat.m2-get-color-from-palette(mat.$m2-red-palette, 400);
+$error-text: mat.m2-get-color-from-palette(mat.$m2-red-palette, 700);
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background-color: $pane-bg;
+  color: $text-primary;
+}
+
+.mask-pane {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  grid-template:
+    'header' auto
+    'banners' auto
+    'tabs' 1fr
+    'footer' auto
+    / 1fr;
+}
+
+.pane-header {
+  grid-area: header;
+  display: grid;
+  grid-template:
+    'title toggle' auto
+    / 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid $border-color;
+}
+
+.header-title-group {
+  grid-area: title;
+  display: grid;
+  grid-template:
+    'icon label' auto
+    / auto 1fr;
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.header-icon {
+  grid-area: icon;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: $accent-text;
+}
+
+.header-title {
+  grid-area: label;
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-toggle {
+  grid-area: toggle;
+}
+
+.empty-workbench {
+  grid-area: tabs;
+  display: grid;
+  grid-template:
+    'icon' auto
+    'title' auto
+    'desc' auto
+    / 1fr;
+  justify-items: center;
+  align-content: center;
+  row-gap: 8px;
+  padding: 24px;
+  text-align: center;
+}
+
+.empty-icon {
+  grid-area: icon;
+  font-size: 36px;
+  width: 36px;
+  height: 36px;
+  color: $text-secondary;
+}
+
+.empty-title {
+  grid-area: title;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.empty-description {
+  grid-area: desc;
+  margin: 0;
+  max-width: 320px;
+  font-size: 12px;
+  color: $text-secondary;
+}
+
+.status-banners {
+  grid-area: banners;
+  display: grid;
+  grid-template:
+    'index' auto
+    / 1fr;
+  padding: 8px 12px 0;
+}
+
+.index-banner {
+  grid-area: index;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+
+  &.building {
+    background-color: $accent-bg;
+    border: 1px solid $accent-border;
+    color: $accent-text;
+    display: grid;
+    row-gap: 6px;
+    grid-template:
+      'top' auto
+      'bar' auto
+      'note' auto
+      / 1fr;
+  }
+
+  &.ready {
+    background-color: $ready-bg;
+    border: 1px solid $ready-border;
+    color: $ready-text;
+    padding: 5px 10px;
+  }
+
+  &.failed {
+    background-color: $warn-bg;
+    border: 1px solid $warn-border;
+    color: $warn-text;
+    padding: 5px 10px;
+  }
+}
+
+.index-banner-top {
+  grid-area: top;
+  display: grid;
+  grid-template:
+    'label pct' auto
+    / 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+}
+
+.index-banner-label {
+  grid-area: label;
+  display: grid;
+  grid-template:
+    'icon text' auto
+    / auto 1fr;
+  align-items: center;
+  column-gap: 6px;
+  font-weight: 500;
+}
+
+.index-percent {
+  grid-area: pct;
+  font-weight: 600;
+}
+
+.index-progress-bar {
+  grid-area: bar;
+}
+
+.index-banner-note {
+  grid-area: note;
+  font-size: 11px;
+  color: $text-secondary;
+}
+
+.index-ready-row {
+  display: grid;
+  grid-template:
+    'icon text' auto
+    / auto 1fr;
+  align-items: center;
+  column-gap: 6px;
+  font-weight: 500;
+}
+
+.banner-icon {
+  grid-area: icon;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.ready-icon {
+  color: $ready-text;
+}
+
+.warn-icon {
+  color: $warn-text;
+}
+
+.mask-tabs {
+  grid-area: tabs;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template:
+    'tab-header' auto
+    'tab-body' 1fr
+    / 1fr;
+
+  ::ng-deep {
+    .mat-mdc-tab-header {
+      grid-area: tab-header;
+    }
+
+    .mat-mdc-tab-body-wrapper {
+      grid-area: tab-body;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .mat-mdc-tab-body,
+    .mat-mdc-tab-body-content {
+      height: 100%;
+      overflow: hidden;
+    }
+  }
+}
+
+.tab-panel {
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.pool-panel {
+  display: grid;
+  grid-template:
+    'controls' auto
+    'list' 1fr
+    / 1fr;
+}
+
+.pool-controls {
+  grid-area: controls;
+  display: grid;
+  grid-template:
+    'search' auto
+    'custom' auto
+    'meta' auto
+    / 1fr;
+  row-gap: 8px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid $border-color;
+}
+
+.search-field-group {
+  grid-area: search;
+  display: grid;
+  grid-template:
+    'box' auto
+    / 1fr;
+
+  &.has-error {
+    row-gap: 4px;
+    grid-template:
+      'box' auto
+      'error' auto
+      / 1fr;
+  }
+}
+
+.search-box {
+  grid-area: box;
+  display: grid;
+  grid-template:
+    'icon input clear' auto
+    / auto 1fr auto;
+  align-items: center;
+  column-gap: 6px;
+  padding: 2px 6px 2px 8px;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  background-color: $card-bg;
+
+  &.has-error {
+    border-color: $error-border;
+  }
+}
+
+.search-icon {
+  grid-area: icon;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: $text-secondary;
+}
+
+.search-input {
+  grid-area: input;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 13px;
+  padding: 6px 0;
+  color: $text-primary;
+  min-width: 0;
+}
+
+.clear-search-btn {
+  grid-area: clear;
+}
+
+.search-regex-error {
+  grid-area: error;
+  display: grid;
+  grid-template:
+    'icon text' auto
+    / auto 1fr;
+  column-gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: $error-bg;
+  border: 1px solid $error-border;
+  color: $error-text;
+  font-size: 11px;
+  word-break: break-word;
+}
+
+.regex-error-icon {
+  grid-area: icon;
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.regex-error-text {
+  grid-area: text;
+}
+
+.custom-rule-box {
+  grid-area: custom;
+  display: grid;
+  grid-template:
+    'input button' auto
+    / 1fr auto;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.custom-input {
+  grid-area: input;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  background-color: $card-bg;
+  color: $text-primary;
+  min-width: 0;
+}
+
+.add-custom-btn {
+  grid-area: button;
+}
+
+.pool-meta-row {
+  grid-area: meta;
+  display: grid;
+  grid-template:
+    'count loading action' auto
+    / 1fr auto auto;
+  column-gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: $text-secondary;
+}
+
+.pool-count {
+  grid-area: count;
+}
+
+.loading-tag {
+  grid-area: loading;
+  color: $accent-text;
+  font-weight: 500;
+}
+
+.select-shown-btn {
+  grid-area: action;
+  height: 24px;
+  line-height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.candidate-list {
+  grid-area: list;
+  overflow-y: auto;
+  padding: 6px 12px 12px;
+}
+
+.candidate-row {
+  padding: 2px 6px;
+  border-radius: 4px;
+
+  &.selected {
+    background-color: $accent-bg;
+  }
+}
+
+.candidate-checkbox {
+  width: 100%;
+}
+
+.candidate-text {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.load-more-row {
+  display: grid;
+  justify-items: center;
+  padding: 10px 0 4px;
+}
+
+.rules-panel {
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.rules-list {
+  display: grid;
+  row-gap: 8px;
+}
+
+.rule-card {
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background-color: $card-bg;
+
+  &.disabled {
+    opacity: 0.65;
+    background-color: $surface-bg;
+  }
+}
+
+.rule-main-row {
+  display: grid;
+  grid-template:
+    'check target arrow replacement reset remove' auto
+    / auto minmax(72px, 1fr) auto minmax(96px, 1fr) auto auto;
+  column-gap: 6px;
+  align-items: center;
+}
+
+.rule-enable {
+  grid-area: check;
+}
+
+.rule-target {
+  grid-area: target;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background-color: $surface-bg;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rule-arrow {
+  grid-area: arrow;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: $text-secondary;
+}
+
+.replacement-group {
+  grid-area: replacement;
+  display: grid;
+  grid-template:
+    'input badge' auto
+    / 1fr auto;
+  column-gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
+
+.replacement-input {
+  grid-area: input;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  background-color: $pane-bg;
+  color: $text-primary;
+  min-width: 0;
+}
+
+.delete-badge {
+  grid-area: badge;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background-color: $delete-badge-bg;
+  color: $delete-badge-text;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rule-reset-btn {
+  grid-area: reset;
+}
+
+.rule-remove-btn {
+  grid-area: remove;
+}
+
+.empty-list-message {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: $text-secondary;
+}
+
+.pane-footer {
+  grid-area: footer;
+  display: grid;
+  grid-template:
+    'feedback' auto
+    'actions' auto
+    / 1fr;
+  row-gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid $border-color;
+  background-color: $pane-bg;
+}
+
+.export-progress-banner {
+  grid-area: feedback;
+  display: grid;
+  row-gap: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background-color: $accent-bg;
+  border: 1px solid $accent-border;
+  color: $accent-text;
+  font-size: 12px;
+  grid-template:
+    'top' auto
+    'bar' auto
+    'msg' auto
+    / 1fr;
+}
+
+.export-progress-top {
+  grid-area: top;
+  display: grid;
+  grid-template:
+    'label pct' auto
+    / 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+}
+
+.export-progress-label {
+  grid-area: label;
+  display: grid;
+  grid-template:
+    'icon text' auto
+    / auto 1fr;
+  align-items: center;
+  column-gap: 6px;
+  font-weight: 500;
+}
+
+.export-progress-icon {
+  grid-area: icon;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.export-progress-percent {
+  grid-area: pct;
+  font-weight: 600;
+}
+
+.export-progress-bar {
+  grid-area: bar;
+}
+
+.export-progress-message {
+  grid-area: msg;
+  font-size: 11px;
+  color: $text-secondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.footer-feedback {
+  grid-area: feedback;
+  font-size: 11px;
+
+  &.error {
+    color: $error-text;
+  }
+
+  &.status {
+    color: $ready-text;
+  }
+}
+
+.footer-actions {
+  grid-area: actions;
+  display: grid;
+  grid-template:
+    'clear export' auto
+    / auto 1fr;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.clear-btn {
+  grid-area: clear;
+}
+
+.export-btn {
+  grid-area: export;
+  justify-self: end;
+}

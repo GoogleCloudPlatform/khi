@@ -35,6 +35,7 @@ import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.componen
 import { LogSmartComponent } from 'src/app/log/log-smart.component';
 import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
 import { GraphSmartComponent } from 'src/app/graph/graph-smart.component';
+import { MaskSmartComponent } from 'src/app/mask/mask-smart.component';
 import {
   MenuManager,
   MenuItemType,
@@ -51,6 +52,7 @@ export enum LayoutComponentType {
   Log = 'log',
   History = 'history',
   Graph = 'graph',
+  Mask = 'mask',
 }
 
 /**
@@ -86,6 +88,8 @@ export class LayoutService implements OnDestroy {
   private readonly disableCreateLogPane = signal(false);
 
   private readonly disableCreateGraphPane = signal(false);
+
+  private readonly disableCreateMaskPane = signal(false);
 
   /** Flag indicating whether a layout switch is in progress. */
   private isSwitchingLayout = false;
@@ -254,6 +258,13 @@ export class LayoutService implements OnDestroy {
       tabIcon: 'family_history',
       disabledSignal: this.disableCreateGraphPane,
     });
+
+    this.registerComponent({
+      type: LayoutComponentType.Mask,
+      componentClass: MaskSmartComponent,
+      tabIcon: 'visibility_off',
+      disabledSignal: this.disableCreateMaskPane,
+    });
   }
 
   /**
@@ -354,6 +365,22 @@ export class LayoutService implements OnDestroy {
   }
 
   /**
+   * Opens the dockable Mask pane, or focuses the existing Mask tab if already open.
+   */
+  public openMaskPane(): void {
+    for (const [
+      container,
+      componentRef,
+    ] of this.activeComponentRefs.entries()) {
+      if (componentRef.instance instanceof MaskSmartComponent) {
+        container.focus();
+        return;
+      }
+    }
+    this.addPane(LayoutComponentType.Mask, 'Mask');
+  }
+
+  /**
    * Handles keyboard shortcuts for switching layout mode.
    */
   private readonly handleKeyDown = (event: KeyboardEvent) => {
@@ -420,9 +447,20 @@ export class LayoutService implements OnDestroy {
       },
     });
     this.menuManager.addItem('view', {
+      id: 'open-mask',
+      label: 'Open mask view',
+      type: MenuItemType.Button,
+      icon: 'visibility_off',
+      disabled: this.disableCreateMaskPane,
+      priority: 5,
+      action: () => {
+        this.openMaskPane();
+      },
+    });
+    this.menuManager.addItem('view', {
       id: 'view-separator',
       type: MenuItemType.Separator,
-      priority: 5,
+      priority: 6,
     });
     this.menuManager.addItem('view', {
       id: 'default-layout',
@@ -430,7 +468,7 @@ export class LayoutService implements OnDestroy {
       type: MenuItemType.Button,
       icon: 'dashboard',
       shortcut: 'Ctrl+1',
-      priority: 6,
+      priority: 7,
       action: () => {
         this.loadDefaultLayout();
       },
@@ -441,7 +479,7 @@ export class LayoutService implements OnDestroy {
       type: MenuItemType.Button,
       icon: 'conditions',
       shortcut: 'Ctrl+2',
-      priority: 7,
+      priority: 8,
       action: () => {
         this.loadStateAnalysisLayout();
       },
@@ -452,7 +490,7 @@ export class LayoutService implements OnDestroy {
       type: MenuItemType.Button,
       icon: 'hub',
       shortcut: 'Ctrl+3',
-      priority: 8,
+      priority: 9,
       action: () => {
         this.loadTopologyAnalysisLayout();
       },
