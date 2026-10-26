@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"regexp"
 	"sort"
 	"sync"
 	"testing"
@@ -874,6 +875,101 @@ reason: FailedScheduling
 			}
 			if diff := cmp.Diff(tc.wantLogIDs, gotLogIDs, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("FindCandidateLogsWithField(%q, %q) mismatch (-want +got):\n%s", tc.pathKey, tc.pattern, diff)
+			}
+		})
+	}
+}
+
+func TestTrigramIndex_BuildFromStrings(t *testing.T) {
+	values := []string{
+		"prod-gke-cluster-east1",
+		"kube-system/coredns[uid-123]",
+		"ab",
+		"serviceAccount:runner@my-secret-project.iam.gserviceaccount.com",
+	}
+
+	var mu sync.Mutex
+	var progressEvents []float64
+	idx := NewTrigramIndex()
+	err := idx.BuildFromStrings(context.Background(), values, func(progress float64, _ string) error {
+		mu.Lock()
+		progressEvents = append(progressEvents, progress)
+		mu.Unlock()
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("BuildFromStrings() unexpected error: %v", err)
+	}
+	if len(progressEvents) == 0 {
+		t.Fatalf("BuildFromStrings() emitted 0 progress events, want >= 1")
+	}
+	hasMergeProgress := false
+	for _, p := range progressEvents {
+		if p >= 0.80 && p <= 0.99 {
+			hasMergeProgress = true
+		}
+	}
+	if !hasMergeProgress {
+		t.Errorf("BuildFromStrings() progress events %v did not include merge-phase progress in [0.80, 0.99]", progressEvents)
+	}
+	if last := progressEvents[len(progressEvents)-1]; last != 1.0 {
+		t.Errorf("final progress = %v, want 1.0", last)
+	}
+
+	type queryResult struct {
+		Unconstrained bool
+		Candidates    []uint32
+	}
+
+	testCases := []struct {
+		name    string
+		pattern string
+		want    queryResult
+	}{
+		{
+			name:    "short query under 3 runes returns unconstrained nil bitmap",
+			pattern: regexp.QuoteMeta("ab"),
+			want: queryResult{
+				Unconstrained: true,
+			},
+		},
+		{
+			name:    "quoted literal substring with regex metacharacters",
+			pattern: regexp.QuoteMeta("COREDNS[UID"),
+			want: queryResult{
+				Unconstrained: false,
+				Candidates:    []uint32{1},
+			},
+		},
+		{
+			name:    "anchored regular expression with alternation",
+			pattern: `^(prod-gke|serviceAccount:runner).*`,
+			want: queryResult{
+				Unconstrained: false,
+				Candidates:    []uint32{0, 3},
+			},
+		},
+		{
+			name:    "non-existent pattern returns empty constrained bitmap",
+			pattern: regexp.QuoteMeta("does-not-exist"),
+			want: queryResult{
+				Unconstrained: false,
+				Candidates:    []uint32{},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			bm := idx.FindCandidateLogs(tc.pattern)
+			got := queryResult{
+				Unconstrained: bm == nil,
+			}
+			if bm != nil {
+				got.Candidates = bm.ToArray()
+			}
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("FindCandidateLogs(%q) mismatch (-want +got):\n%s", tc.pattern, diff)
 			}
 		})
 	}

@@ -257,6 +257,79 @@ type workerTrigramData struct {
 	localMap map[TrigramKey]*roaring.Bitmap
 }
 
+// mergeWorkerTrigramData merges per-worker trigram bitmap maps in parallel across key shards.
+func mergeWorkerTrigramData(
+	ctx context.Context,
+	workerResults []*workerTrigramData,
+	onProgress TrigramProgressCallback,
+	opts worker.ProgressOptions,
+) (map[TrigramKey]*roaring.Bitmap, error) {
+	keySet := make(map[TrigramKey]struct{})
+	for _, wRes := range workerResults {
+		if wRes != nil {
+			for k := range wRes.localMap {
+				keySet[k] = struct{}{}
+			}
+		}
+	}
+
+	finalMap := make(map[TrigramKey]*roaring.Bitmap, len(keySet))
+	if len(keySet) == 0 {
+		return finalMap, nil
+	}
+
+	allKeys := make([]TrigramKey, 0, len(keySet))
+	for k := range keySet {
+		allKeys = append(allKeys, k)
+	}
+
+	shardResults, err := worker.ParallelChunkMap(
+		ctx,
+		allKeys,
+		func(ctx context.Context, workerIdx int, chunk []TrigramKey, onProcessed func(int)) (map[TrigramKey]*roaring.Bitmap, error) {
+			shardMap := make(map[TrigramKey]*roaring.Bitmap, len(chunk))
+			for _, key := range chunk {
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				default:
+				}
+				var merged *roaring.Bitmap
+				for _, wRes := range workerResults {
+					if wRes == nil {
+						continue
+					}
+					if bm, ok := wRes.localMap[key]; ok {
+						if merged == nil {
+							merged = bm
+						} else {
+							merged.Or(bm)
+						}
+					}
+				}
+				if merged != nil {
+					merged.RunOptimize()
+				}
+				shardMap[key] = merged
+				onProcessed(1)
+			}
+			return shardMap, nil
+		},
+		onProgress,
+		opts,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, shard := range shardResults {
+		for k, bm := range shard {
+			finalMap[k] = bm
+		}
+	}
+	return finalMap, nil
+}
+
 // BuildFromLogPool indexes trigrams from an InternPool and a slice of LogTrigramItems in streaming parallel chunks.
 func (t *TrigramIndex) BuildFromLogPool(pool *khifilev6model.ReadonlyInternPool, logs []LogTrigramItem, onProgress TrigramProgressCallback) error {
 	if pool == nil || len(logs) == 0 {
@@ -306,48 +379,9 @@ func (t *TrigramIndex) BuildFromLogPool(pool *khifilev6model.ReadonlyInternPool,
 		return err
 	}
 
-	// Collect unique trigram keys across all workers.
-	keySet := make(map[TrigramKey]struct{})
-	for _, wRes := range workerResults {
-		if wRes != nil {
-			for k := range wRes.localMap {
-				keySet[k] = struct{}{}
-			}
-		}
-	}
-	allKeys := make([]TrigramKey, 0, len(keySet))
-	for k := range keySet {
-		allKeys = append(allKeys, k)
-	}
-
-	// Step 2: Key-partitioned parallel merge across workers (90% - 100%)
-	shardResults, err := worker.ParallelChunkMap(
+	finalMap, err := mergeWorkerTrigramData(
 		context.Background(),
-		allKeys,
-		func(ctx context.Context, workerIdx int, chunk []TrigramKey, onProcessed func(int)) (map[TrigramKey]*roaring.Bitmap, error) {
-			shardMap := make(map[TrigramKey]*roaring.Bitmap, len(chunk))
-			for _, key := range chunk {
-				var merged *roaring.Bitmap
-				for _, wRes := range workerResults {
-					if wRes == nil {
-						continue
-					}
-					if bm, ok := wRes.localMap[key]; ok {
-						if merged == nil {
-							merged = bm
-						} else {
-							merged.Or(bm)
-						}
-					}
-				}
-				if merged != nil {
-					merged.RunOptimize()
-				}
-				shardMap[key] = merged
-				onProcessed(1)
-			}
-			return shardMap, nil
-		},
+		workerResults,
 		onProgress,
 		worker.ProgressOptions{
 			MessageFmt:  "Merging text search index (%d/%d)...",
@@ -357,13 +391,6 @@ func (t *TrigramIndex) BuildFromLogPool(pool *khifilev6model.ReadonlyInternPool,
 	)
 	if err != nil {
 		return err
-	}
-
-	finalMap := make(map[TrigramKey]*roaring.Bitmap, len(allKeys))
-	for _, shard := range shardResults {
-		for k, bm := range shard {
-			finalMap[k] = bm
-		}
 	}
 
 	t.trigramToBitmap = finalMap
@@ -449,6 +476,82 @@ func (t *TrigramIndex) BuildFromStructYAMLs(ctx context.Context, structYAMLs map
 	t.candidateCache = make(map[string]*roaring.Bitmap)
 	if onProgress != nil {
 		_ = onProgress(1.0, "Text search index complete.")
+	}
+	return nil
+}
+
+// BuildFromStrings indexes lowercase 3-rune trigrams over a 0-based string slice and reports progress across extraction and merge phases.
+func (t *TrigramIndex) BuildFromStrings(ctx context.Context, values []string, onProgress TrigramProgressCallback) error {
+	if len(values) == 0 {
+		t.mu.Lock()
+		t.trigramToBitmap = make(map[TrigramKey]*roaring.Bitmap)
+		t.candidateCache = make(map[string]*roaring.Bitmap)
+		t.mu.Unlock()
+		if onProgress != nil {
+			if err := onProgress(1.0, "String pool index complete."); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	indices := make([]uint32, len(values))
+	for i := range values {
+		indices[i] = uint32(i)
+	}
+
+	workerResults, err := worker.ParallelChunkMap(
+		ctx,
+		indices,
+		func(ctx context.Context, workerIdx int, chunk []uint32, onProcessed func(int)) (*workerTrigramData, error) {
+			data := &workerTrigramData{
+				localMap: make(map[TrigramKey]*roaring.Bitmap),
+			}
+			for _, idx := range chunk {
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				default:
+				}
+				extractTrigramsToBitmap(values[idx], idx, data.localMap)
+				onProcessed(1)
+			}
+			return data, nil
+		},
+		onProgress,
+		worker.ProgressOptions{
+			MessageFmt:  "Extracting string trigrams (%d/%d)...",
+			MinProgress: 0.0,
+			MaxProgress: 0.80,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	finalMap, err := mergeWorkerTrigramData(
+		ctx,
+		workerResults,
+		onProgress,
+		worker.ProgressOptions{
+			MessageFmt:  "Merging string pool index (%d/%d)...",
+			MinProgress: 0.80,
+			MaxProgress: 0.99,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	t.mu.Lock()
+	t.trigramToBitmap = finalMap
+	t.candidateCache = make(map[string]*roaring.Bitmap)
+	t.mu.Unlock()
+
+	if onProgress != nil {
+		if err := onProgress(1.0, "String pool index complete."); err != nil {
+			return err
+		}
 	}
 	return nil
 }

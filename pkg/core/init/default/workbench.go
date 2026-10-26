@@ -50,7 +50,7 @@ var InspectionIndexManagerInitializer = &coreinit.Initializer{
 // InitializerIDWorkbenchService identifies the Initializer that mounts the WorkbenchService.
 const InitializerIDWorkbenchService coreinit.InitializerID = "khi.default/workbench-service"
 
-// WorkbenchServiceInitializer mounts the WorkbenchService Connect-RPC handler onto the Gin router.
+// WorkbenchServiceInitializer mounts the WorkbenchService and MaskService Connect-RPC handlers onto the Gin router.
 var WorkbenchServiceInitializer = &coreinit.Initializer{
 	ID: InitializerIDWorkbenchService,
 	Dependencies: []coreinit.InitializerID{
@@ -78,6 +78,9 @@ var WorkbenchServiceInitializer = &coreinit.Initializer{
 
 		workbenchPath, workbenchHandler := apiv1connect.NewWorkbenchServiceHandler(apiv1impl.NewWorkbenchServiceServer(workbenchManager), connectOpts...)
 		coreinit.RegisterConnectServiceHandler(router, basePath, workbenchPath, workbenchHandler)
+
+		maskPath, maskHandler := apiv1connect.NewMaskServiceHandler(apiv1impl.NewMaskServiceServer(workbenchManager), connectOpts...)
+		coreinit.RegisterConnectServiceHandler(router, basePath, maskPath, maskHandler)
 		return nil
 	},
 }
