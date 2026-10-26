@@ -104,7 +104,7 @@ func (f *caiFetcher) SearchResources(ctx context.Context, scope, query string, a
 			if callCtx.Err() != nil {
 				return nil, callCtx.Err()
 			}
-			return nil, fmt.Errorf("error iterating search resources: %w", err)
+			return nil, fmt.Errorf("error iterating search resources: %w", googlecloud.WrapPermissionDenied(err, scope, "cloudasset.assets.searchAllResources"))
 		}
 		results = append(results, res)
 		if onProgress != nil {
@@ -161,7 +161,7 @@ func (f *caiFetcher) fetchAssetHistoryChunk(callCtx context.Context, client *ass
 		if callCtx.Err() != nil {
 			return nil, callCtx.Err()
 		}
-		return nil, fmt.Errorf("failed during batch get assets history: %w", err)
+		return nil, fmt.Errorf("failed during batch get assets history: %w", googlecloud.WrapPermissionDenied(err, parent, "cloudasset.assets.exportResource"))
 	}
 	return resp.Assets, nil
 }

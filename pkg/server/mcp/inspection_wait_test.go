@@ -22,27 +22,62 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestInspectionWait_Golden(t *testing.T) {
-	verifyTemplateGolden(t, "wait_inspection.md.tmpl", waitInspectionData{
-		ID:            "2026-09-24-0130-a1b2",
-		Phase:         "RUNNING",
-		ProgressRatio: 0.42,
-		RunningTasks: []runningTaskRow{
-			{
-				Label:    "Query K8s audit logs",
-				Progress: "60%",
-				Message:  "91200 logs fetched",
+	t.Run("running", func(t *testing.T) {
+		verifyTemplateGolden(t, "wait_inspection.md.tmpl", waitInspectionData{
+			ID:            "2026-09-24-0130-a1b2",
+			Phase:         "RUNNING",
+			ProgressRatio: 0.42,
+			RunningTasks: []runningTaskRow{
+				{
+					Label:    "Query K8s audit logs",
+					Progress: "60%",
+					Message:  "91200 logs fetched",
+				},
 			},
-		},
-	}, "testdata/wait_inspection_running.golden.md")
+		}, "testdata/wait_inspection_running.golden.md")
+	})
+
+	t.Run("permission denied error", func(t *testing.T) {
+		taskImplID := "k8s-audit-logs#default"
+		rawErr := status.Error(codes.PermissionDenied, "Permission 'logging.logEntries.list' denied on resource (or it may not exist).")
+		wrappedErr := googlecloud.WrapPermissionDenied(rawErr, "projects/my-gcp-project", "logging.logEntries.list")
+		rows := failedTaskRows(&coreinspection.RunTaskGraphSnapshot{
+			DAG: &apiv1.TaskDAGInfo{
+				Nodes: []*apiv1.TaskDAGNode{
+					{
+						TaskImplementationId: &taskImplID,
+						Labels: map[string]string{
+							coretask.LabelKeyTaskTitle.Key(): "Fetch Kubernetes Audit Logs",
+						},
+					},
+				},
+			},
+			TaskRunStatuses: map[string]coretask.TaskRunStatus{
+				taskImplID: {
+					Phase: coretask.TaskRunPhaseError,
+					Error: wrappedErr,
+				},
+			},
+		})
+		verifyTemplateGolden(t, "wait_inspection.md.tmpl", waitInspectionData{
+			ID:          "2026-09-24-0130-a1b2",
+			Phase:       "ERROR",
+			FailedTasks: rows,
+		}, "testdata/wait_inspection_permission_error.golden.md")
+	})
 }
 
 // waitBlockingTaskStarted waits until the blocking feature task reports progress in run mode.

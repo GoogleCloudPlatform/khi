@@ -68,7 +68,7 @@ func (f *MonitoringClientFetcher) QueryMetricCount(ctx context.Context, containe
 			break
 		}
 		if err != nil {
-			return 0, fmt.Errorf("failed to query time series: %w", err)
+			return 0, fmt.Errorf("failed to query time series: %w", googlecloud.WrapPermissionDenied(err, container.Identifier(), "monitoring.timeSeries.list"))
 		}
 		for _, pt := range resp.GetPoints() {
 			if pt == nil || pt.GetValue() == nil {
@@ -108,7 +108,7 @@ func (f *LoggingClientProbeFetcher) ProbeLogTimestamps(ctx context.Context, cont
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to probe log entries: %w", err)
+			return nil, fmt.Errorf("failed to probe log entries: %w", googlecloud.WrapPermissionDenied(err, container.Identifier(), "logging.logEntries.list"))
 		}
 		timestamps = append(timestamps, resp.GetTimestamp().AsTime())
 		if int32(len(timestamps)) >= maxEntries {

@@ -24,6 +24,7 @@ import (
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestLogFetcherImpl_FetchLogs(t *testing.T) {
@@ -108,4 +109,59 @@ func TestLogFetcherImpl_FetchLogsIsCancellable(t *testing.T) {
 		t.Errorf("the request wasn't ended with canceled but got %v", err)
 	}
 	close(fetchLogFinished)
+}
+
+func TestDefaultLogPermissionTarget(t *testing.T) {
+	t.Parallel()
+
+	type targetOutcome struct {
+		Resource   string
+		Permission string
+	}
+
+	testCases := []struct {
+		name               string
+		container          googlecloud.ResourceContainer
+		resourceContainers []string
+		want               targetOutcome
+	}{
+		{
+			name:               "single project resource container",
+			container:          googlecloud.Project("test-project"),
+			resourceContainers: []string{"projects/test-project"},
+			want: targetOutcome{
+				Resource:   "projects/test-project",
+				Permission: "logging.logEntries.list",
+			},
+		},
+		{
+			name:               "single custom log view resource container",
+			container:          googlecloud.Project("test-project"),
+			resourceContainers: []string{"projects/test-project/locations/global/buckets/my-bucket/views/my-view"},
+			want: targetOutcome{
+				Resource:   "projects/test-project/locations/global/buckets/my-bucket/views/my-view",
+				Permission: "logging.views.access",
+			},
+		},
+		{
+			name:               "multiple resource containers fall back to billing container",
+			container:          googlecloud.Project("test-project"),
+			resourceContainers: []string{"projects/test-project/locations/global/buckets/my-bucket/views/my-view", "projects/test-project"},
+			want: targetOutcome{
+				Resource:   "projects/test-project",
+				Permission: "logging.logEntries.list",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			gotResource, gotPerm := defaultLogPermissionTarget(tc.container, tc.resourceContainers)
+			got := targetOutcome{Resource: gotResource, Permission: gotPerm}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("defaultLogPermissionTarget() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
 }

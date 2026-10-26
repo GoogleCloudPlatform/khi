@@ -46,7 +46,7 @@ func (l *locationFetcherImpl) FetchRegions(ctx context.Context, projectId string
 			if err == iterator.Done {
 				break
 			}
-			return nil, err
+			return nil, googlecloud.WrapPermissionDenied(err, googlecloud.Project(projectId).Identifier(), "compute.regions.list")
 		}
 		if region != nil {
 			result = append(result, *region.Name)
