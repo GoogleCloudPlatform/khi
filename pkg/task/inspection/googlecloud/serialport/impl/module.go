@@ -31,6 +31,7 @@ var Module = coreinspection.Module{
 	},
 	Tasks: []coretask.UntypedTask{
 		clusterIdentityAliasTask,
+		cgroupPodUIDPatternFinderTask,
 		logIngesterTask,
 		logGrouperTask,
 		logFilterTask,

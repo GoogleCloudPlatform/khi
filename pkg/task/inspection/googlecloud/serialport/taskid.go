@@ -15,9 +15,11 @@
 package serialport
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
@@ -25,6 +27,9 @@ const TaskIDPrefix = "cloud.google.com/log/serialport/"
 
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.
 var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[k8scommon.GoogleCloudClusterIdentity](TaskIDPrefix + "cluster-identity")
+
+// CgroupPodUIDPatternFinderTaskID is the task id for building an underscore-separated Pod UID pattern finder for cgroup paths in serial port logs.
+var CgroupPodUIDPatternFinderTaskID = taskid.NewDefaultImplementationID[patternfinder.PatternFinder[*k8saudit.ResourceIdentity]](TaskIDPrefix + "cgroup-pod-uid-pattern-finder")
 
 // LogQueryTaskID is the task id for the task that queries serial port logs from GCE nodes.
 var LogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")

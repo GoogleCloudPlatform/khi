@@ -34,6 +34,7 @@ var Module = coreinspection.Module{
 		logToTimelineMapperTask,
 		eventLogNEGDiscoveryTask,
 		nodeNameDiscoveryTask,
+		resourceUIDDiscoveryTask,
 	},
 	SubModules: []coreinspection.Module{
 		{

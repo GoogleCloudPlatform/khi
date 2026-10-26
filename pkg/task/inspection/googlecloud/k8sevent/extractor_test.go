@@ -42,6 +42,7 @@ jsonPayload:
     kind: Pod
     namespace: default
     name: test-pod
+    uid: 8b04c24f-b9f7-49dd-ab67-f55568b07817
   source:
     host: node-1
   reason: Scheduled
@@ -53,6 +54,7 @@ jsonPayload:
 				ResourceKind: "pod",
 				Namespace:    "default",
 				Resource:     "test-pod",
+				ResourceUID:  "8b04c24f-b9f7-49dd-ab67-f55568b07817",
 				Reason:       "Scheduled",
 				Message:      "Successfully assigned default/test-pod to node-1",
 				SourceHost:   "node-1",
