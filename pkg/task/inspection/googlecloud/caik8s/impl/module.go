@@ -67,6 +67,7 @@ var Module = coreinspection.Module{
 		[]coretask.UntypedTask{
 			clusterResourceInitialStateProviderTask,
 			gkeResourceInitialStateProviderTask,
+			tailTask,
 		},
 	),
 }
