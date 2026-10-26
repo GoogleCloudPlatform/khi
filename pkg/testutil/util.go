@@ -20,6 +20,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/google/go-cmp/cmp"
 )
 
 /**
@@ -30,6 +33,25 @@ func GlobResultToChildTestName(filePath string, basePath string) string {
 	result := strings.TrimPrefix(filePath, basePath)
 	result = strings.ReplaceAll(result, "/", "_")
 	return result
+}
+
+// CompareStructuredNode returns a cmp.Option that compares two structured.Node instances by their serialized YAML representation.
+func CompareStructuredNode() cmp.Option {
+	return cmp.Comparer(func(x, y structured.Node) bool {
+		if x == nil && y == nil {
+			return true
+		}
+		if x == nil || y == nil {
+			return false
+		}
+		s := &structured.YAMLNodeSerializer{}
+		bx, errX := s.Serialize(x)
+		by, errY := s.Serialize(y)
+		if errX != nil || errY != nil {
+			return false
+		}
+		return bytes.Equal(bx, by)
+	})
 }
 
 // Removes timestamps from slog logs

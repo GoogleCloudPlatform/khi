@@ -26,6 +26,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -35,18 +36,6 @@ import (
 func TestEndpointLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 	task := &endpointResourceLogToTimelineMapperTaskSetting{}
 	timestamp := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
-		if a == nil || b == nil {
-			return a == b
-		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		if errA != nil || errB != nil {
-			return false
-		}
-		return string(aYAML) == string(bYAML)
-	})
 
 	parseYAML := func(yamlStr string) structured.Node {
 		if yamlStr == "" {
@@ -191,21 +180,21 @@ endpoints:
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: parseYAML("conditions:\n  ready: true\ntargetRef:\n  kind: Pod\n  name: my-pod\n  namespace: default\n  uid: pod-uid-1\n"),
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(expectedEpsPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbUpdate,
 						StateType:    k8saudit.RevisionStateEndpointReady,
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: parseYAML("conditions:\n  ready: true\ntargetRef:\n  kind: Pod\n  name: my-pod\n  namespace: default\n  uid: pod-uid-1\n"),
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(expectedSvcPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbUpdate,
 						StateType:    k8saudit.RevisionStateEndpointReady,
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: parseYAML("endpoints:\n- conditions:\n    ready: true\n  targetRef:\n    kind: Pod\n    name: my-pod\n    namespace: default\n    uid: pod-uid-1\n"),
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -255,7 +244,7 @@ endpoints:
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: parseYAML("conditions:\n  terminating: true\ntargetRef:\n  kind: Pod\n  name: my-pod\n  namespace: default\n  uid: pod-uid-1\n"),
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -305,7 +294,7 @@ endpoints:
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: parseYAML("conditions:\n  ready: false\ntargetRef:\n  kind: Pod\n  name: my-pod\n  namespace: default\n  uid: pod-uid-1\n"),
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -344,7 +333,7 @@ endpoints:
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: parseYAML("endpoints:\n- conditions:\n    ready: true\n"),
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -383,7 +372,7 @@ endpoints:
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: parseYAML("endpoints:\n- conditions:\n    terminating: true\n"),
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -422,7 +411,7 @@ endpoints:
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: parseYAML("endpoints:\n- conditions:\n    ready: false\n"),
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -465,7 +454,7 @@ endpoints: []
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: nil,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -515,14 +504,14 @@ metadata:
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: nil,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(expectedSvcPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleted,
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: nil,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{

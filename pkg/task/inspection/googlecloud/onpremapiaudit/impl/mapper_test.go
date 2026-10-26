@@ -28,9 +28,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/onpremapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/google/go-cmp/cmp"
 )
 
 func testReaderFromYAML(t *testing.T, yaml string) *structured.NodeReader {
@@ -94,22 +94,6 @@ func TestOnPremAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	// 1. Initialize the Builder.
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
-
-	cmpNode := cmp.Comparer(func(x, y structured.Node) bool {
-		if x == nil && y == nil {
-			return true
-		}
-		if x == nil || y == nil {
-			return false
-		}
-		serializer := &structured.YAMLNodeSerializer{}
-		xBytes, errX := serializer.Serialize(x)
-		yBytes, errY := serializer.Serialize(y)
-		if errX != nil || errY != nil {
-			return false
-		}
-		return string(xBytes) == string(yBytes)
-	})
 
 	// 2. Construct expected timeline paths independently.
 	wantProjPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
@@ -201,14 +185,14 @@ func TestOnPremAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sClusterProvisioning,
-					}, cmpNode).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantClusterOpPath1, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: opNode,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationStart,
 						StateType:    gcpcommon.RevisionStateOperationStarted,
-					}, cmpNode)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -236,14 +220,14 @@ func TestOnPremAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sClusterExisting,
-					}, cmpNode).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantClusterOpPath2, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationFinish,
 						StateType:    gcpcommon.RevisionStateOperationSucceed,
-					}, cmpNode)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -271,14 +255,14 @@ func TestOnPremAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sClusterExisting,
-					}, cmpNode).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantClusterOpPath3, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationFinish,
 						StateType:    gcpcommon.RevisionStateOperationSucceed,
-					}, cmpNode)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -317,14 +301,14 @@ func TestOnPremAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sNodepoolProvisioning,
-					}, cmpNode).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodePoolOpPath1, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: opNode,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationStart,
 						StateType:    gcpcommon.RevisionStateOperationStarted,
-					}, cmpNode)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -352,21 +336,21 @@ func TestOnPremAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sNodepoolProvisioningLogNotFound,
-					}, cmpNode).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sNodepoolExisting,
-					}, cmpNode).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodePoolOpPath2, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationFinish,
 						StateType:    gcpcommon.RevisionStateOperationSucceed,
-					}, cmpNode)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -394,21 +378,21 @@ func TestOnPremAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sNodepoolDeletingLogNotFound,
-					}, cmpNode).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sNodepoolDeleted,
-					}, cmpNode).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodePoolOpPath3, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationFinish,
 						StateType:    gcpcommon.RevisionStateOperationSucceed,
-					}, cmpNode)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -436,21 +420,21 @@ func TestOnPremAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sNodepoolDeletingLogNotFound,
-					}, cmpNode).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sNodepoolDeleted,
-					}, cmpNode).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodePoolOpPath4, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationFinish,
 						StateType:    gcpcommon.RevisionStateOperationSucceed,
-					}, cmpNode)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -500,7 +484,7 @@ func TestOnPremAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationStart,
 						StateType:    gcpcommon.RevisionStateOperationStarted,
-					}, cmpNode)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 	}

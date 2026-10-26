@@ -27,25 +27,13 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestPodPhaseLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T) {
 	baseTime := time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)
-
-	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
-		if a == nil || b == nil {
-			return a == b
-		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		if errA != nil || errB != nil {
-			return false
-		}
-		return string(aYAML) == string(bYAML)
-	})
 
 	parseYAML := func(yamlStr string) structured.Node {
 		if yamlStr == "" {
@@ -637,7 +625,7 @@ status:
 					VerbType:     want.verbType,
 					StateType:    want.stateType,
 				}
-				testchangeset.AssertTimeline(t, mergedCS).HasRevision(path, wantStagingRev, nodeComparer)
+				testchangeset.AssertTimeline(t, mergedCS).HasRevision(path, wantStagingRev, testutil.CompareStructuredNode())
 			}
 		})
 	}
