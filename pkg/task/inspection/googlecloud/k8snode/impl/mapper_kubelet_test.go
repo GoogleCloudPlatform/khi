@@ -192,7 +192,7 @@ func TestKubeletLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-			klogParser := logutil.NewKLogTextParser(true)
+			klogParser := logutil.NewKLogTextParser()
 			message := klogParser.TryParse(tc.inputMessage)
 			tc.inputNodeLogFieldSet.Message = message
 

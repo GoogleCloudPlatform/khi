@@ -28,7 +28,7 @@ type NodeLogContext struct {
 var DefaultNodeLogParser = logutil.NewSelectorLogParser[NodeLogContext](
 	logutil.NewMultiTextLogParser(
 		logutil.NewJsonlTextParser(),
-		logutil.NewKLogTextParser(true),
+		logutil.NewKLogTextParser(),
 		logutil.NewLogfmtTextParser(),
 		&logutil.FallbackRawTextLogParser{},
 	),
@@ -36,7 +36,7 @@ var DefaultNodeLogParser = logutil.NewSelectorLogParser[NodeLogContext](
 		Match: func(ctx NodeLogContext) bool {
 			return ctx.SyslogIdentifier == "kubelet"
 		},
-		Parser: logutil.NewKLogTextParser(true),
+		Parser: logutil.NewKLogTextParser(),
 	},
 	logutil.ParserRule[NodeLogContext]{
 		Match: func(ctx NodeLogContext) bool {

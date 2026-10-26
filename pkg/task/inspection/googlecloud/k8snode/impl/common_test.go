@@ -283,7 +283,7 @@ func TestProcessK8sNodeLog(t *testing.T) {
 			var message *logutil.ParseStructuredLogResult
 			switch tc.inputNodeLogFieldSet.Component {
 			case "kubelet":
-				klogParser := logutil.NewKLogTextParser(true)
+				klogParser := logutil.NewKLogTextParser()
 				message = klogParser.TryParse(tc.inputMessage)
 			case "containerd":
 				logfmtParser := logutil.NewLogfmtTextParser()

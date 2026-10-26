@@ -17,6 +17,7 @@ package k8scontrolplane
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -25,6 +26,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+// parseControlplaneMessage parses a jsonPayload.message value the same way the extractors do, by reconstructing the klog header first.
+func parseControlplaneMessage(message string) *logutil.ParseStructuredLogResult {
+	return logutil.NewKLogTextParser().TryParse(logutil.FormatKLogString(nil, time.Time{}, 0, "", 0, message))
+}
 
 func TestExtractK8sControlplaneComponent(t *testing.T) {
 	testCases := []struct {
@@ -205,6 +211,59 @@ jsonPayload:
 	}
 }
 
+func TestReconstructKLogLine(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		inputYAML string
+		want      string
+	}{
+		{
+			desc: "all fields present",
+			inputYAML: `
+timestamp: "2025-09-29T08:20:24.205299Z"
+severity: WARNING
+sourceLocation:
+  file: scheduler.go
+  line: "100"
+jsonPayload:
+  message: '"Attempting to schedule pod" pod="foo/bar"'
+`,
+			want: `W0929 08:20:24.205299 0 scheduler.go:100] "Attempting to schedule pod" pod="foo/bar"`,
+		},
+		{
+			desc: "only jsonPayload.message present",
+			inputYAML: `
+jsonPayload:
+  message: '"Attempting to schedule pod" pod="foo/bar"'
+`,
+			want: `I0101 00:00:00.000000 0 unknown:0] "Attempting to schedule pod" pod="foo/bar"`,
+		},
+		{
+			desc: "message with klog header is returned as is",
+			inputYAML: `
+timestamp: "2025-09-29T08:20:24.205299Z"
+severity: WARNING
+sourceLocation:
+  file: scheduler.go
+  line: "100"
+jsonPayload:
+  message: 'E0930 01:02:03.000004    1949 other.go:7] "Attempting to schedule pod" pod="foo/bar"'
+`,
+			want: `E0930 01:02:03.000004    1949 other.go:7] "Attempting to schedule pod" pod="foo/bar"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := testlog.MustLogFromYAML(tc.inputYAML)
+			got := reconstructKLogLine(l.NodeReader)
+			if got != tc.want {
+				t.Errorf("reconstructKLogLine() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestExtractK8sSchedulerComponent(t *testing.T) {
 	testCases := []struct {
 		desc      string
@@ -304,8 +363,7 @@ func TestK8sControllerManagerComponentExtractor_ReadController(t *testing.T) {
 					"namespace_controller.go": "namespace-controller",
 				},
 			}
-			klogParser := logutil.NewKLogTextParser(false)
-			controller, err := extractor.ReadController(klogParser.TryParse(tc.input), tc.inputSource)
+			controller, err := extractor.ReadController(parseControlplaneMessage(tc.input), tc.inputSource)
 			if err != nil {
 				t.Errorf("ReadController() returned an unexpected error: %v", err)
 			}
@@ -380,8 +438,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromKindF
 					},
 				},
 			}
-			klogParser := logutil.NewKLogTextParser(false)
-			paths := extractor.ReadResourceAssociationFromKindField(klogParser.TryParse(tc.input))
+			paths := extractor.ReadResourceAssociationFromKindField(parseControlplaneMessage(tc.input))
 			if diff := cmp.Diff(tc.want, paths); diff != "" {
 				t.Errorf("ReadResourceAssociationFromKindField() mismatch (-want +got):\n%s", diff)
 			}
@@ -474,8 +531,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromContr
 				},
 			}
 
-			klogParser := logutil.NewKLogTextParser(false)
-			paths := extractor.ReadResourceAssociationFromControllerSpecificField(klogParser.TryParse(tc.input))
+			paths := extractor.ReadResourceAssociationFromControllerSpecificField(parseControlplaneMessage(tc.input))
 			if diff := cmp.Diff(tc.want, paths, cmpopts.SortSlices(func(a, b *k8saudit.ResourceIdentity) int {
 				return strings.Compare(a.String(), b.String())
 			})); diff != "" {
@@ -540,8 +596,7 @@ func TestK8sControllerManagerComponentExtractor_ReadResourceAssociationFromItems
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			extractor := &K8sControllerManagerComponentExtractor{}
-			klogParser := logutil.NewKLogTextParser(false)
-			path := extractor.ReadResourceAssociationFromItems(klogParser.TryParse(tc.input))
+			path := extractor.ReadResourceAssociationFromItems(parseControlplaneMessage(tc.input))
 
 			if diff := cmp.Diff(tc.want, path); diff != "" {
 				t.Errorf("ReadResourceAssociationFromItems() mismatch (-want +got):\n%s", diff)
