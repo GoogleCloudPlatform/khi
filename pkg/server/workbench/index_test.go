@@ -16,6 +16,7 @@ package workbench
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -639,6 +640,73 @@ func TestWorkbench_BuildBaseSearchIndex_EventTimestampSorting(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantEvents, tl.Events); diff != "" {
 				t.Errorf("Timeline.Events mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSearchIndex_GetLog(t *testing.T) {
+	log1 := cel.LogData{ID: 1, Timestamp: 1000}
+	log2 := cel.LogData{ID: 2, Timestamp: 2000}
+	idx := &SearchIndex{
+		Logs: []cel.LogData{log1, log2},
+	}
+
+	testCases := []struct {
+		name  string
+		index *SearchIndex
+		id    uint32
+		want  *cel.LogData
+	}{
+		{
+			name:  "nil receiver returns nil",
+			index: nil,
+			id:    1,
+			want:  nil,
+		},
+		{
+			name:  "zero ID returns nil",
+			index: idx,
+			id:    0,
+			want:  nil,
+		},
+		{
+			name:  "first log ID returns first entry",
+			index: idx,
+			id:    1,
+			want:  &log1,
+		},
+		{
+			name:  "last log ID returns last entry",
+			index: idx,
+			id:    2,
+			want:  &log2,
+		},
+		{
+			name:  "out-of-range ID returns nil",
+			index: idx,
+			id:    3,
+			want:  nil,
+		},
+		{
+			name:  "ID exceeding MaxInt32 returns nil without signed overflow",
+			index: idx,
+			id:    uint32(math.MaxInt32) + 1,
+			want:  nil,
+		},
+		{
+			name:  "MaxUint32 ID returns nil",
+			index: idx,
+			id:    math.MaxUint32,
+			want:  nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.index.GetLog(tc.id)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GetLog(%d) mismatch (-want +got):\n%s", tc.id, diff)
 			}
 		})
 	}
