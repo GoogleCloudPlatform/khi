@@ -556,27 +556,39 @@ func TestDefineCAIInitialResourceStateProviderTask(t *testing.T) {
 	testCases := []struct {
 		name     string
 		taskMode inspectioncore.InspectionTaskModeType
+		bindLogs bool
 		want     []string
 	}{
 		{
 			name:     "dryrun mode returns nil",
 			taskMode: inspectioncore.TaskModeDryRun,
+			bindLogs: true,
 			want:     nil,
 		},
 		{
 			name:     "run mode builds provider from active asset states",
 			taskMode: inspectioncore.TaskModeRun,
+			bindLogs: true,
 			want:     []string{"pod-1"},
+		},
+		{
+			name:     "run mode returns empty provider when CAI raw logs are not in active graph",
+			taskMode: inspectioncore.TaskModeRun,
+			bindLogs: false,
+			want:     nil,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.Run(t, ctx, providerTask, tc.taskMode, map[string]any{},
-				tasktest.Given(suiteTaskIDs.RawLog.Ref(), logs),
+			inputs := []tasktest.InputValue{
 				tasktest.Given(InputStartTimeTaskID.Ref(), queryStartTime),
-			)
+			}
+			if tc.bindLogs {
+				inputs = append(inputs, tasktest.Given(suiteTaskIDs.RawLog.Ref(), logs))
+			}
+			got, _, err := inspectiontest.Run(t, ctx, providerTask, tc.taskMode, map[string]any{}, inputs...)
 			if err != nil {
 				t.Fatalf("inspectiontest.Run() error: %v", err)
 			}

@@ -70,13 +70,13 @@ func TestTeeHandler(t *testing.T) {
 		buf1.Reset()
 		buf2.Reset()
 
-		loggerWithAttrs := logger.With(slog.String("user", "kakeru"))
+		loggerWithAttrs := logger.With(slog.String("user", "test-user"))
 		loggerWithAttrs.Warn("a warning message")
 
 		output1 := buf1.String()
 		output2 := buf2.String()
 
-		expected := `level=WARN msg="a warning message" user=kakeru`
+		expected := `level=WARN msg="a warning message" user=test-user`
 		if !strings.Contains(output1, expected) {
 			t.Errorf("handler 1: expected output to contain %q, but got %q", expected, output1)
 		}

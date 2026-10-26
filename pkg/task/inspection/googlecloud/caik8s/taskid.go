@@ -15,6 +15,7 @@
 package caik8s
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
@@ -29,3 +30,6 @@ var ClusterResourceTaskIDs = gcpcommon.NewCAITaskIDSet(ClusterResourceTaskIDPref
 
 // GKEResourceTaskIDs contains the task implementation IDs for the CAI GKE cluster and nodepool pipeline.
 var GKEResourceTaskIDs = gcpcommon.NewCAITaskIDSet(GKEResourceTaskIDPrefix)
+
+// TailTaskID is the task implementation ID for the CAI resource snapshots feature task.
+var TailTaskID = taskid.NewDefaultImplementationID[struct{}](ClusterResourceTaskIDPrefix + "tail")
