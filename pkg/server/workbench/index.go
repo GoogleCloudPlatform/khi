@@ -51,7 +51,7 @@ type SearchIndex struct {
 
 // GetLog retrieves a log entry by its 1-based log ID in O(1) time.
 func (s *SearchIndex) GetLog(id uint32) *cel.LogData {
-	if s == nil || id == 0 || int(id) > len(s.Logs) {
+	if s == nil || id == 0 || uint64(id) > uint64(len(s.Logs)) {
 		return nil
 	}
 	return &s.Logs[id-1]

@@ -15,6 +15,7 @@
 package workbench
 
 import (
+	"math"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
@@ -69,13 +70,15 @@ func TestLogTimelineCSRIndex(t *testing.T) {
 				},
 			},
 			queries: map[uint32][]uint32{
-				0: nil,
-				1: {100},
-				2: {100, 200, 300},
-				3: {100},
-				4: {200},
-				5: nil,
-				6: nil,
+				0:                         nil,
+				1:                         {100},
+				2:                         {100, 200, 300},
+				3:                         {100},
+				4:                         {200},
+				5:                         nil,
+				6:                         nil,
+				uint32(math.MaxInt32) + 1: nil,
+				math.MaxUint32:            nil,
 			},
 		},
 	}

@@ -102,12 +102,12 @@ func NewLogTimelineCSRIndex(maxLogID uint32, timelines []*cel.TimelineData) *Log
 
 // GetTimelineIDs retrieves all unique timeline IDs containing the specified log ID in O(1) time.
 func (idx *LogTimelineCSRIndex) GetTimelineIDs(logID uint32) []uint32 {
-	if idx == nil || logID == 0 || int(logID)+1 >= len(idx.offsets) {
+	if idx == nil || logID == 0 || uint64(logID)+1 >= uint64(len(idx.offsets)) {
 		return nil
 	}
 	start := idx.offsets[logID]
 	end := idx.offsets[logID+1]
-	if start >= end || end > uint32(len(idx.timelineIDs)) {
+	if start >= end || uint64(end) > uint64(len(idx.timelineIDs)) {
 		return nil
 	}
 	return idx.timelineIDs[start:end]
