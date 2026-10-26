@@ -20,108 +20,71 @@ import (
 	"testing"
 	"time"
 
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/inspectionserver"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func setupTestInspectionServer(t *testing.T) (*coreinspection.InspectionTaskServer, string) {
+var ignoreMCPUnexported = cmpopts.IgnoreUnexported(
+	mcpsdk.CallToolResult{},
+	mcpsdk.ImageContent{},
+	mcpsdk.TextContent{},
+)
+
+func newTestWorkbenchManager(t *testing.T) (*workbench.WorkbenchManager, string) {
 	t.Helper()
-	ioConfig, err := inspectioncore.NewIOConfigForTest()
-	if err != nil {
-		t.Fatalf("failed to create test IOConfig: %v", err)
-	}
-	tempDir := t.TempDir()
-	ioConfig.DataDestination = tempDir
-	ioConfig.TemporaryFolder = tempDir
-	server, err := coreinspection.NewServer(ioConfig)
-	if err != nil {
-		t.Fatalf("failed to create inspection server: %v", err)
-	}
-
-	inspectionType := coreinspection.InspectionType{
-		Id:   "test-type",
-		Name: "Test Type",
-	}
-	if err := server.AddInspectionType(inspectionType); err != nil {
-		t.Fatalf("failed to add inspection type: %v", err)
-	}
-
-	dummyTaskID := taskid.NewDefaultImplementationID[any]("dummy-task")
-	dummyTask := coretask.DefineConstant[any](
-		dummyTaskID,
-		"success",
-		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionDefaultFeatureFlag, true),
-		coretask.WithLabelValue(inspectioncore.LabelKeyInspectionFeatureFlag, true),
-	)
-	if err := server.AddTask(dummyTask); err != nil {
-		t.Fatalf("failed to add task: %v", err)
-	}
-
-	inspectionID, err := server.CreateInspection("test-type")
-	if err != nil {
-		t.Fatalf("failed to create inspection: %v", err)
-	}
-	runner := server.GetInspection(inspectionID)
-	if err := runner.Run(context.Background(), &inspectioncore.InspectionRequest{Values: map[string]any{}}); err != nil {
-		t.Fatalf("failed to run inspection: %v", err)
-	}
-	<-runner.Wait()
-	return server, inspectionID
+	server, inspectionID := inspectionserver.NewServerWithInspection(t, inspectionserver.FeatureTask())
+	indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
+	mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
+	t.Cleanup(indexMgr.Wait)
+	return mgr, inspectionID
 }
 
-func extractToolResultText(t *testing.T, res *mcpsdk.CallToolResult) string {
+func closeWorkbench(t *testing.T, wb *workbench.Workbench) {
 	t.Helper()
-	if len(res.Content) != 1 {
-		t.Fatalf("len(res.Content) = %d, want 1", len(res.Content))
+	t.Cleanup(func() {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if state, _, _, _ := wb.IndexStatus(); state == workbench.IndexStateBuilding {
+			_ = wb.AwaitIndex(cleanupCtx)
+		}
+		wb.Close()
+	})
+}
+
+func wantTextResult(text string) *mcpsdk.CallToolResult {
+	return &mcpsdk.CallToolResult{
+		Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: text}},
 	}
-	tc, ok := res.Content[0].(*mcpsdk.TextContent)
-	if !ok {
-		t.Fatalf("res.Content[0] type = %T, want *mcpsdk.TextContent", res.Content[0])
-	}
-	return tc.Text
+}
+
+func wantErrorResult(code string, bullets ...string) *mcpsdk.CallToolResult {
+	res, _, _ := mdtemplate.ErrorResult(code, bullets...)
+	return res
 }
 
 func TestWorkbenchHandler_Golden(t *testing.T) {
-	testCases := []struct {
-		name       string
-		template   string
-		goldenFile string
-		data       workbenchLoadingData
-	}{
-		{
-			name:       "WorkbenchLoading",
-			template:   "workbench_loading.md.tmpl",
-			goldenFile: "testdata/workbench_loading.golden.md",
-			data: workbenchLoadingData{
-				ID:            "2026-09-24-0130-a1b2",
-				Stage:         "BUILDING_INDEX",
-				ProgressRatio: 0.65,
-			},
+	templates := mdtemplate.MustParse(templateFS, "templates/*.md.tmpl")
+	res, _, err := templates.ErrorToolResult("workbench_loading.md.tmpl", workbenchLoadingData{
+		ID:            "2026-09-24-0130-a1b2",
+		Stage:         "BUILDING_INDEX",
+		ProgressRatio: 0.65,
+	})
+	if err != nil {
+		t.Fatalf("ErrorToolResult() unexpected error = %v", err)
+	}
+	want := &mcpsdk.CallToolResult{
+		IsError: true,
+		Content: []mcpsdk.Content{
+			&mcpsdk.TextContent{Text: readGolden(t, "testdata/workbench_loading.golden.md")},
 		},
 	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			templates := mdtemplate.MustParse(templateFS, "templates/*.md.tmpl")
-			res, _, err := templates.ErrorToolResult(tc.template, tc.data)
-			if err != nil {
-				t.Fatalf("ErrorToolResult() unexpected error = %v", err)
-			}
-			if !res.IsError {
-				t.Errorf("res.IsError = %v, want true", res.IsError)
-			}
-			got := extractToolResultText(t, res)
-			want := readGolden(t, tc.goldenFile)
-			if diff := cmp.Diff(want, got); diff != "" {
-				t.Errorf("%s mismatch (-want +got):\n%s", tc.template, diff)
-			}
-		})
+	if diff := cmp.Diff(want, res, ignoreMCPUnexported); diff != "" {
+		t.Errorf("workbench_loading.md.tmpl mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -133,9 +96,7 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 		{
 			name: "shares workbench opened by browser without reloading",
 			run: func(t *testing.T) {
-				server, inspectionID := setupTestInspectionServer(t)
-				indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
-				mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
+				mgr, inspectionID := newTestWorkbenchManager(t)
 				handler := NewWorkbenchHandler(mgr, nil)
 
 				ctx := context.Background()
@@ -143,19 +104,10 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 				if err != nil {
 					t.Fatalf("mgr.Open() unexpected error = %v", err)
 				}
+				closeWorkbench(t, browserWB)
 				if err := browserWB.AwaitIndex(ctx); err != nil {
 					t.Fatalf("browserWB.AwaitIndex() unexpected error = %v", err)
 				}
-
-				t.Cleanup(func() {
-					cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-					defer cancel()
-					if state, _, _, _ := browserWB.IndexStatus(); state == workbench.IndexStateBuilding {
-						_ = browserWB.AwaitIndex(cleanupCtx)
-					}
-					browserWB.Close()
-					indexMgr.Wait()
-				})
 
 				gotWB, toolRes, err := handler.acquireWorkbench(ctx, inspectionID)
 				if err != nil {
@@ -172,59 +124,30 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 		{
 			name: "returns inspection not found for unknown inspection ID",
 			run: func(t *testing.T) {
-				server, _ := setupTestInspectionServer(t)
-				indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
-				mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
+				mgr, _ := newTestWorkbenchManager(t)
 				handler := NewWorkbenchHandler(mgr, nil)
 
-				t.Cleanup(func() {
-					indexMgr.Wait()
-				})
-
-				ctx := context.Background()
-				gotWB, toolRes, err := handler.acquireWorkbench(ctx, "unknown-id")
+				gotWB, toolRes, err := handler.acquireWorkbench(context.Background(), "unknown-id")
 				if err != nil {
 					t.Fatalf("acquireWorkbench() unexpected error = %v", err)
 				}
 				if gotWB != nil {
 					t.Errorf("gotWB = %v, want nil", gotWB)
 				}
-				if toolRes == nil {
-					t.Fatalf("toolRes = nil, want non-nil")
-				}
-				if !toolRes.IsError {
-					t.Errorf("toolRes.IsError = %v, want true", toolRes.IsError)
-				}
-				gotText := extractToolResultText(t, toolRes)
-				wantText := mdtemplate.FormatError("INSPECTION_NOT_FOUND",
+				wantRes := wantErrorResult("INSPECTION_NOT_FOUND",
 					"Inspection `unknown-id` not found.",
 					"Read `khi://inspections` to see existing inspections.")
-				if diff := cmp.Diff(wantText, gotText); diff != "" {
-					t.Errorf("acquireWorkbench() error text mismatch (-want +got):\n%s", diff)
+				if diff := cmp.Diff(wantRes, toolRes, ignoreMCPUnexported); diff != "" {
+					t.Errorf("acquireWorkbench() toolRes mismatch (-want +got):\n%s", diff)
 				}
 			},
 		},
 		{
 			name: "returns WORKBENCH_LOADING when wait timeout expires and succeeds on retry",
 			run: func(t *testing.T) {
-				server, inspectionID := setupTestInspectionServer(t)
-				indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
-				mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
+				mgr, inspectionID := newTestWorkbenchManager(t)
 				handler := NewWorkbenchHandler(mgr, nil)
 				handler.waitTimeout = 0
-
-				var loadedWB *workbench.Workbench
-				t.Cleanup(func() {
-					cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-					defer cancel()
-					if loadedWB != nil {
-						if state, _, _, _ := loadedWB.IndexStatus(); state == workbench.IndexStateBuilding {
-							_ = loadedWB.AwaitIndex(cleanupCtx)
-						}
-						loadedWB.Close()
-					}
-					indexMgr.Wait()
-				})
 
 				ctx := context.Background()
 				gotWB, toolRes, err := handler.acquireWorkbench(ctx, inspectionID)
@@ -234,13 +157,10 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 				if gotWB != nil {
 					t.Errorf("first acquireWorkbench() gotWB = %v, want nil", gotWB)
 				}
-				if toolRes == nil {
-					t.Fatalf("first acquireWorkbench() toolRes = nil, want non-nil")
+				gotText, isErr := toolResultText(t, "acquireWorkbench", toolRes)
+				if !isErr {
+					t.Errorf("first toolRes.IsError = false, want true")
 				}
-				if !toolRes.IsError {
-					t.Errorf("first toolRes.IsError = %v, want true", toolRes.IsError)
-				}
-				gotText := extractToolResultText(t, toolRes)
 				if !strings.HasPrefix(gotText, "Error: WORKBENCH_LOADING") {
 					t.Errorf("gotText = %q, want prefix 'Error: WORKBENCH_LOADING'", gotText)
 				}
@@ -259,7 +179,7 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 				if retryWB == nil {
 					t.Fatalf("retry acquireWorkbench() gotWB = nil, want non-nil")
 				}
-				loadedWB = retryWB
+				closeWorkbench(t, retryWB)
 			},
 		},
 	}

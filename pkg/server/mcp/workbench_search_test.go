@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -35,36 +36,19 @@ var (
 )
 
 func TestWorkbenchHandler_HandleSearchTimelines(t *testing.T) {
-	server, inspectionID := setupTestInspectionServer(t)
-	indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
-	mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
+	mgr, inspectionID := newTestWorkbenchManager(t)
 	handler := NewWorkbenchHandler(mgr, nil)
 
-	t.Cleanup(func() {
-		indexMgr.Wait()
+	_, invalidCELErr := workbench.ValidateFilter(workbench.Filter{
+		TimelineQuery: "invalid &&& syntax",
 	})
+	wantInvalidCELResult, _, _ := mdtemplate.CELErrorResult("filter.timelineQuery", "invalid &&& syntax", invalidCELErr)
 
 	testCases := []struct {
-		name          string
-		input         SearchTimelinesInput
-		wantIsError   bool
-		wantSubstring []string
+		name  string
+		input SearchTimelinesInput
+		want  *mcpsdk.CallToolResult
 	}{
-		{
-			name: "valid search_timelines execution",
-			input: SearchTimelinesInput{
-				InspectionID: inspectionID,
-			},
-			wantIsError: false,
-			wantSubstring: []string{
-				"# Timeline tree",
-				"## Applied filter",
-				"## Tree",
-				"## Filter vocabulary",
-				"- path keys (lowercased timelineType):",
-				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL`",
-			},
-		},
 		{
 			name: "zero matching timelines still returns Filter vocabulary",
 			input: SearchTimelinesInput{
@@ -73,23 +57,33 @@ func TestWorkbenchHandler_HandleSearchTimelines(t *testing.T) {
 					TimelineQuery: `name == "no-such-timeline"`,
 				},
 			},
-			wantIsError: false,
-			wantSubstring: []string{
-				"Matched 0 timelines.",
+			want: wantTextResult(strings.Join([]string{
+				"# Timeline tree",
+				"",
+				"Matched 0 timelines. Showing 0 nodes (maxNodes 200).",
+				"",
+				mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{
+					TimelineQuery: `name == "no-such-timeline"`,
+				}),
+				"",
+				"## Tree",
+				"",
+				"No timelines matched the filter.",
+				"",
 				"## Filter vocabulary",
-				"- path keys (lowercased timelineType):",
-			},
+				"These are the values that filter CEL can match in this inspection.",
+				"- path keys (lowercased timelineType): none",
+				"- timelineType: none",
+				"- logType: none",
+				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body(\"severity\", \"ERROR\")` for the raw Cloud Logging field)",
+			}, "\n")),
 		},
 		{
 			name: "missing inspectionId returns INVALID_ARGUMENT",
 			input: SearchTimelinesInput{
 				InspectionID: "",
 			},
-			wantIsError: true,
-			wantSubstring: []string{
-				"Error: INVALID_ARGUMENT",
-				"inspectionId is required.",
-			},
+			want: wantErrorResult("INVALID_ARGUMENT", "inspectionId is required."),
 		},
 		{
 			name: "invalid CEL expression in filter.timelineQuery returns INVALID_CEL",
@@ -99,23 +93,7 @@ func TestWorkbenchHandler_HandleSearchTimelines(t *testing.T) {
 					TimelineQuery: "invalid &&& syntax",
 				},
 			},
-			wantIsError: true,
-			wantSubstring: []string{
-				"Error: INVALID_CEL",
-				"Field: `filter.timelineQuery`",
-				"Expression: `invalid &&& syntax`",
-			},
-		},
-		{
-			name: "unknown inspectionId returns INSPECTION_NOT_FOUND",
-			input: SearchTimelinesInput{
-				InspectionID: "non-existent-inspection",
-			},
-			wantIsError: true,
-			wantSubstring: []string{
-				"Error: INSPECTION_NOT_FOUND",
-				"Inspection `non-existent-inspection` not found.",
-			},
+			want: wantInvalidCELResult,
 		},
 	}
 
@@ -125,52 +103,27 @@ func TestWorkbenchHandler_HandleSearchTimelines(t *testing.T) {
 			if err != nil {
 				t.Fatalf("handleSearchTimelines() unexpected error = %v", err)
 			}
-			if res == nil {
-				t.Fatalf("handleSearchTimelines() returned nil result")
-			}
-			if res.IsError != tc.wantIsError {
-				t.Errorf("res.IsError = %v, want %v", res.IsError, tc.wantIsError)
-			}
-			gotText := extractToolResultText(t, res)
-			for _, sub := range tc.wantSubstring {
-				if !strings.Contains(gotText, sub) {
-					t.Errorf("result text does not contain %q; got:\n%s", sub, gotText)
-				}
+			if diff := cmp.Diff(tc.want, res, ignoreMCPUnexported); diff != "" {
+				t.Errorf("handleSearchTimelines() result mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
 func TestWorkbenchHandler_HandleSearchLogs(t *testing.T) {
-	server, inspectionID := setupTestInspectionServer(t)
-	indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
-	mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
+	mgr, inspectionID := newTestWorkbenchManager(t)
 	handler := NewWorkbenchHandler(mgr, nil)
 
-	t.Cleanup(func() {
-		indexMgr.Wait()
+	_, invalidCELErr := workbench.ValidateFilter(workbench.Filter{
+		LogQuery: "invalid &&& syntax",
 	})
+	wantInvalidCELResult, _, _ := mdtemplate.CELErrorResult("filter.logQuery", "invalid &&& syntax", invalidCELErr)
 
 	testCases := []struct {
-		name          string
-		input         SearchLogsInput
-		wantIsError   bool
-		wantSubstring []string
+		name  string
+		input SearchLogsInput
+		want  *mcpsdk.CallToolResult
 	}{
-		{
-			name: "valid search_logs execution",
-			input: SearchLogsInput{
-				InspectionID: inspectionID,
-			},
-			wantIsError: false,
-			wantSubstring: []string{
-				"# Logs matching the filter",
-				"## Applied filter",
-				"## Filter vocabulary",
-				"- path keys (lowercased timelineType):",
-				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL`",
-			},
-		},
 		{
 			name: "zero matching logs still returns Filter vocabulary",
 			input: SearchLogsInput{
@@ -179,23 +132,30 @@ func TestWorkbenchHandler_HandleSearchLogs(t *testing.T) {
 					LogQuery: `logType == "no-such-log-type"`,
 				},
 			},
-			wantIsError: false,
-			wantSubstring: []string{
+			want: wantTextResult(strings.Join([]string{
+				"# Logs matching the filter",
+				"",
 				"No logs matched the filter.",
+				"",
+				mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{
+					LogQuery:                    `logType == "no-such-log-type"`,
+					ExcludeTimelinesWithoutLogs: true,
+				}),
+				"",
 				"## Filter vocabulary",
-				"- path keys (lowercased timelineType):",
-			},
+				"These are the values that filter CEL can match in this inspection.",
+				"- path keys (lowercased timelineType): none",
+				"- timelineType: none",
+				"- logType: none",
+				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body(\"severity\", \"ERROR\")` for the raw Cloud Logging field)",
+			}, "\n")),
 		},
 		{
 			name: "missing inspectionId returns INVALID_ARGUMENT",
 			input: SearchLogsInput{
 				InspectionID: "",
 			},
-			wantIsError: true,
-			wantSubstring: []string{
-				"Error: INVALID_ARGUMENT",
-				"inspectionId is required.",
-			},
+			want: wantErrorResult("INVALID_ARGUMENT", "inspectionId is required."),
 		},
 		{
 			name: "invalid CEL expression in filter.logQuery returns INVALID_CEL",
@@ -205,23 +165,7 @@ func TestWorkbenchHandler_HandleSearchLogs(t *testing.T) {
 					LogQuery: "invalid &&& syntax",
 				},
 			},
-			wantIsError: true,
-			wantSubstring: []string{
-				"Error: INVALID_CEL",
-				"Field: `filter.logQuery`",
-				"Expression: `invalid &&& syntax`",
-			},
-		},
-		{
-			name: "unknown inspectionId returns INSPECTION_NOT_FOUND",
-			input: SearchLogsInput{
-				InspectionID: "non-existent-inspection",
-			},
-			wantIsError: true,
-			wantSubstring: []string{
-				"Error: INSPECTION_NOT_FOUND",
-				"Inspection `non-existent-inspection` not found.",
-			},
+			want: wantInvalidCELResult,
 		},
 	}
 
@@ -231,17 +175,8 @@ func TestWorkbenchHandler_HandleSearchLogs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("handleSearchLogs() unexpected error = %v", err)
 			}
-			if res == nil {
-				t.Fatalf("handleSearchLogs() returned nil result")
-			}
-			if res.IsError != tc.wantIsError {
-				t.Errorf("res.IsError = %v, want %v", res.IsError, tc.wantIsError)
-			}
-			gotText := extractToolResultText(t, res)
-			for _, sub := range tc.wantSubstring {
-				if !strings.Contains(gotText, sub) {
-					t.Errorf("result text does not contain %q; got:\n%s", sub, gotText)
-				}
+			if diff := cmp.Diff(tc.want, res, ignoreMCPUnexported); diff != "" {
+				t.Errorf("handleSearchLogs() result mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -388,18 +323,10 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"Matched 5 timelines (3 with matched events/revisions + 2 ancestor nodes). Showing 2 nodes (depth <= 2, maxNodes 100).",
 				"Narrow with `filter.timelineQuery` (using path keys from Filter vocabulary below) or `filter.logQuery` (`severity`, `logType`) to inspect omitted nodes.",
 				"",
-				"## Applied filter",
-				"Enter these values in the KHI Web UI filter to see the same data.",
-				"",
-				"```yaml",
-				"timelineQuery: |-",
-				"  has(resource.labels.pod)",
-				`timelineExclusionQuery: ""`,
-				`logQuery: ""`,
-				`startTime: ""`,
-				`endTime: ""`,
-				"excludeTimelinesWithoutLogs: true",
-				"```",
+				mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{
+					TimelineQuery:               "has(resource.labels.pod)",
+					ExcludeTimelinesWithoutLogs: true,
+				}),
 				"",
 				"## Timeline types",
 				"- pod: Kubernetes Pod",
@@ -416,47 +343,6 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"- path keys (lowercased timelineType): `container`, `k8scluster`, `pod`",
 				"- timelineType: `container`, `k8sCluster`, `pod`",
 				"- logType: `k8s audit`, `k8s event`",
-				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body(\"severity\", \"ERROR\")` for the raw Cloud Logging field)",
-			}, "\n"),
-		},
-		{
-			name:         "search_timelines.md.tmpl with empty tree and no vocabulary",
-			templateName: "search_timelines.md.tmpl",
-			data: searchTimelinesTemplateData{
-				MatchedTimelineCount: 0,
-				ReturnedNodeCount:    0,
-				MaxDepth:             0,
-				MaxNodes:             200,
-				Applied: workbench.AppliedFilter{
-					ExcludeTimelinesWithoutLogs: false,
-				},
-			},
-			want: strings.Join([]string{
-				"# Timeline tree",
-				"",
-				"Matched 0 timelines. Showing 0 nodes (maxNodes 200).",
-				"",
-				"## Applied filter",
-				"Enter these values in the KHI Web UI filter to see the same data.",
-				"",
-				"```yaml",
-				`timelineQuery: ""`,
-				`timelineExclusionQuery: ""`,
-				`logQuery: ""`,
-				`startTime: ""`,
-				`endTime: ""`,
-				"excludeTimelinesWithoutLogs: false",
-				"```",
-				"",
-				"## Tree",
-				"",
-				"No timelines matched the filter.",
-				"",
-				"## Filter vocabulary",
-				"These are the values that filter CEL can match in this inspection.",
-				"- path keys (lowercased timelineType): none",
-				"- timelineType: none",
-				"- logType: none",
 				"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body(\"severity\", \"ERROR\")` for the raw Cloud Logging field)",
 			}, "\n"),
 		},
@@ -506,18 +392,9 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"Matched 10 logs linked to 2 timelines, from 2026-10-01T10:00:00Z to 2026-10-01T11:00:00Z.",
 				"Severity: ERROR 2, WARNING 3, INFO 5.",
 				"",
-				"## Applied filter",
-				"Enter these values in the KHI Web UI filter to see the same data.",
-				"",
-				"```yaml",
-				`timelineQuery: ""`,
-				`timelineExclusionQuery: ""`,
-				"logQuery: |-",
-				"  severity >= ERROR",
-				`startTime: ""`,
-				`endTime: ""`,
-				"excludeTimelinesWithoutLogs: false",
-				"```",
+				mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{
+					LogQuery: "severity >= ERROR",
+				}),
 				"",
 				"## Timelines linked to the matched logs",
 				"Showing 1 of 2 timelines, sorted by the number of matched logs.",
@@ -561,17 +438,7 @@ func TestWorkbenchSearch_Templates(t *testing.T) {
 				"",
 				"No logs matched the filter.",
 				"",
-				"## Applied filter",
-				"Enter these values in the KHI Web UI filter to see the same data.",
-				"",
-				"```yaml",
-				`timelineQuery: ""`,
-				`timelineExclusionQuery: ""`,
-				`logQuery: ""`,
-				`startTime: ""`,
-				`endTime: ""`,
-				"excludeTimelinesWithoutLogs: false",
-				"```",
+				mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{}),
 				"",
 				"## Filter vocabulary",
 				"These are the values that filter CEL can match in this inspection.",

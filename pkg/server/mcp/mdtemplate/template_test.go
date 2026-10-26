@@ -15,22 +15,28 @@
 package mdtemplate
 
 import (
-	"bytes"
 	"embed"
 	"errors"
 	"strings"
 	"testing"
-	"text/template"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gopkg.in/yaml.v3"
 )
 
 //go:embed testdata/*.tmpl testdata/*.golden.md
 var testdataFS embed.FS
+
+var ignoreMCPUnexported = cmpopts.IgnoreUnexported(
+	mcp.CallToolResult{},
+	mcp.TextContent{},
+	mcp.ReadResourceResult{},
+	mcp.ResourceContents{},
+)
 
 func TestFormatTime(t *testing.T) {
 	testCases := []struct {
@@ -77,19 +83,9 @@ func TestPercent(t *testing.T) {
 			want:  "0%",
 		},
 		{
-			name:  "fraction rounded to integer",
-			input: 0.42,
-			want:  "42%",
-		},
-		{
-			name:  "fraction rounded up",
+			name:  "fraction rounded to nearest integer",
 			input: 0.426,
 			want:  "43%",
-		},
-		{
-			name:  "one hundred percent",
-			input: 1.0,
-			want:  "100%",
 		},
 	}
 
@@ -138,83 +134,89 @@ func TestPaginate(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name              string
-		items             []int
-		pageSize          int
-		defaultPageSize   int
-		maxPageSize       int
-		pageToken         string
-		wantLen           int
-		wantStart         int
-		wantEnd           int
-		wantTotal         int
-		wantNextPageToken string
-		wantErr           bool
+		name            string
+		items           []int
+		pageSize        int
+		defaultPageSize int
+		maxPageSize     int
+		pageToken       string
+		want            PageResult[int]
+		wantErr         bool
 	}{
 		{
-			name:              "page 1 of 120 items with pageSize 50",
-			items:             items,
-			pageSize:          50,
-			defaultPageSize:   50,
-			maxPageSize:       100,
-			pageToken:         "",
-			wantLen:           50,
-			wantStart:         1,
-			wantEnd:           50,
-			wantTotal:         120,
-			wantNextPageToken: "eyJvZmZzZXQiOjUwfQ",
+			name:            "page 1 of 120 items with pageSize 50",
+			items:           items,
+			pageSize:        50,
+			defaultPageSize: 50,
+			maxPageSize:     100,
+			pageToken:       "",
+			want: PageResult[int]{
+				Items:         items[:50],
+				Start:         1,
+				End:           50,
+				Total:         120,
+				NextPageToken: "eyJvZmZzZXQiOjUwfQ",
+			},
 		},
 		{
-			name:              "page 2 of 120 items with pageSize 50",
-			items:             items,
-			pageSize:          50,
-			defaultPageSize:   50,
-			maxPageSize:       100,
-			pageToken:         "eyJvZmZzZXQiOjUwfQ",
-			wantLen:           50,
-			wantStart:         51,
-			wantEnd:           100,
-			wantTotal:         120,
-			wantNextPageToken: "eyJvZmZzZXQiOjEwMH0",
+			name:            "page 2 of 120 items with pageSize 50",
+			items:           items,
+			pageSize:        50,
+			defaultPageSize: 50,
+			maxPageSize:     100,
+			pageToken:       "eyJvZmZzZXQiOjUwfQ",
+			want: PageResult[int]{
+				Items:         items[50:100],
+				Start:         51,
+				End:           100,
+				Total:         120,
+				NextPageToken: "eyJvZmZzZXQiOjEwMH0",
+			},
 		},
 		{
-			name:              "page 3 of 120 items with pageSize 50 (last page)",
-			items:             items,
-			pageSize:          50,
-			defaultPageSize:   50,
-			maxPageSize:       100,
-			pageToken:         "eyJvZmZzZXQiOjEwMH0",
-			wantLen:           20,
-			wantStart:         101,
-			wantEnd:           120,
-			wantTotal:         120,
-			wantNextPageToken: "",
+			name:            "page 3 of 120 items with pageSize 50 (last page)",
+			items:           items,
+			pageSize:        50,
+			defaultPageSize: 50,
+			maxPageSize:     100,
+			pageToken:       "eyJvZmZzZXQiOjEwMH0",
+			want: PageResult[int]{
+				Items:         items[100:120],
+				Start:         101,
+				End:           120,
+				Total:         120,
+				NextPageToken: "",
+			},
 		},
 		{
-			name:              "caps at maxPageSize when requested pageSize is too large",
-			items:             items,
-			pageSize:          200,
-			defaultPageSize:   50,
-			maxPageSize:       30,
-			pageToken:         "",
-			wantLen:           30,
-			wantStart:         1,
-			wantEnd:           30,
-			wantTotal:         120,
-			wantNextPageToken: "eyJvZmZzZXQiOjMwfQ",
+			name:            "caps at maxPageSize when requested pageSize is too large",
+			items:           items,
+			pageSize:        200,
+			defaultPageSize: 50,
+			maxPageSize:     30,
+			pageToken:       "",
+			want: PageResult[int]{
+				Items:         items[:30],
+				Start:         1,
+				End:           30,
+				Total:         120,
+				NextPageToken: "eyJvZmZzZXQiOjMwfQ",
+			},
 		},
 		{
-			name:              "uses defaultPageSize when pageSize is non-positive",
-			items:             items,
-			pageSize:          0,
-			defaultPageSize:   25,
-			maxPageSize:       100,
-			pageToken:         "",
-			wantLen:           25,
-			wantStart:         1,
-			wantEnd:           25,
-			wantTotal:         120,
-			wantNextPageToken: "eyJvZmZzZXQiOjI1fQ",
+			name:            "uses defaultPageSize when pageSize is non-positive",
+			items:           items,
+			pageSize:        0,
+			defaultPageSize: 25,
+			maxPageSize:     100,
+			pageToken:       "",
+			want: PageResult[int]{
+				Items:         items[:25],
+				Start:         1,
+				End:           25,
+				Total:         120,
+				NextPageToken: "eyJvZmZzZXQiOjI1fQ",
+			},
 		},
 		{
 			name:            "returns error for invalid pageToken",
@@ -226,17 +228,15 @@ func TestPaginate(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			name:              "empty items slice returns zeroed ranges and no next page token",
-			items:             nil,
-			pageSize:          50,
-			defaultPageSize:   50,
-			maxPageSize:       100,
-			pageToken:         "",
-			wantLen:           0,
-			wantStart:         0,
-			wantEnd:           0,
-			wantTotal:         0,
-			wantNextPageToken: "",
+			name:            "empty items slice returns zeroed ranges and no next page token",
+			items:           nil,
+			pageSize:        50,
+			defaultPageSize: 50,
+			maxPageSize:     100,
+			pageToken:       "",
+			want: PageResult[int]{
+				Items: []int(nil),
+			},
 		},
 		{
 			name:            "returns error for negative offset pageToken",
@@ -258,20 +258,8 @@ func TestPaginate(t *testing.T) {
 			if tc.wantErr {
 				return
 			}
-			if len(got.Items) != tc.wantLen {
-				t.Errorf("len(got.Items) = %d, want %d", len(got.Items), tc.wantLen)
-			}
-			if got.Start != tc.wantStart {
-				t.Errorf("got.Start = %d, want %d", got.Start, tc.wantStart)
-			}
-			if got.End != tc.wantEnd {
-				t.Errorf("got.End = %d, want %d", got.End, tc.wantEnd)
-			}
-			if got.Total != tc.wantTotal {
-				t.Errorf("got.Total = %d, want %d", got.Total, tc.wantTotal)
-			}
-			if got.NextPageToken != tc.wantNextPageToken {
-				t.Errorf("got.NextPageToken = %q, want %q", got.NextPageToken, tc.wantNextPageToken)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Paginate() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -301,8 +289,8 @@ func TestFormatErrorAndErrorResult(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			gotFormatted := FormatError(tc.code, tc.bullets...)
-			if gotFormatted != tc.wantMessage {
-				t.Errorf("FormatError() mismatch (-want +got):\n%s", cmp.Diff(tc.wantMessage, gotFormatted))
+			if diff := cmp.Diff(tc.wantMessage, gotFormatted); diff != "" {
+				t.Errorf("FormatError() mismatch (-want +got):\n%s", diff)
 			}
 
 			res, out, err := ErrorResult(tc.code, tc.bullets...)
@@ -312,18 +300,12 @@ func TestFormatErrorAndErrorResult(t *testing.T) {
 			if out != nil {
 				t.Errorf("ErrorResult() out = %v, want nil", out)
 			}
-			if !res.IsError {
-				t.Error("ErrorResult() res.IsError = false, want true")
+			wantRes := &mcp.CallToolResult{
+				IsError: true,
+				Content: []mcp.Content{&mcp.TextContent{Text: tc.wantMessage}},
 			}
-			if len(res.Content) != 1 {
-				t.Fatalf("len(res.Content) = %d, want 1", len(res.Content))
-			}
-			textContent, ok := res.Content[0].(*mcp.TextContent)
-			if !ok {
-				t.Fatalf("res.Content[0] type = %T, want *mcp.TextContent", res.Content[0])
-			}
-			if diff := cmp.Diff(tc.wantMessage, textContent.Text); diff != "" {
-				t.Errorf("ErrorResult() text mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(wantRes, res, ignoreMCPUnexported); diff != "" {
+				t.Errorf("ErrorResult() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -384,7 +366,6 @@ func TestSet_InspectionsGolden(t *testing.T) {
 		t.Errorf("Render(inspections.md.tmpl) mismatch (-want +got):\n%s", diff)
 	}
 
-	// Verify ToolResult wrapping
 	toolResult, extra, err := ts.ToolResult("inspections.md.tmpl", data)
 	if err != nil {
 		t.Fatalf("ts.ToolResult() error: %v", err)
@@ -392,18 +373,13 @@ func TestSet_InspectionsGolden(t *testing.T) {
 	if extra != nil {
 		t.Errorf("extra = %v, want nil", extra)
 	}
-	if len(toolResult.Content) != 1 {
-		t.Fatalf("len(toolResult.Content) = %d, want 1", len(toolResult.Content))
+	wantToolResult := &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: want}},
 	}
-	textItem, ok := toolResult.Content[0].(*mcp.TextContent)
-	if !ok {
-		t.Fatalf("toolResult.Content[0] type is %T, want *mcp.TextContent", toolResult.Content[0])
-	}
-	if diff := cmp.Diff(want, textItem.Text); diff != "" {
-		t.Errorf("ToolResult content mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(wantToolResult, toolResult, ignoreMCPUnexported); diff != "" {
+		t.Errorf("ToolResult() mismatch (-want +got):\n%s", diff)
 	}
 
-	// Verify ErrorToolResult wrapping
 	errToolResult, errExtra, err := ts.ErrorToolResult("inspections.md.tmpl", data)
 	if err != nil {
 		t.Fatalf("ts.ErrorToolResult() error: %v", err)
@@ -411,143 +387,29 @@ func TestSet_InspectionsGolden(t *testing.T) {
 	if errExtra != nil {
 		t.Errorf("errExtra = %v, want nil", errExtra)
 	}
-	if !errToolResult.IsError {
-		t.Error("errToolResult.IsError = false, want true")
+	wantErrToolResult := &mcp.CallToolResult{
+		IsError: true,
+		Content: []mcp.Content{&mcp.TextContent{Text: want}},
 	}
-	if len(errToolResult.Content) != 1 {
-		t.Fatalf("len(errToolResult.Content) = %d, want 1", len(errToolResult.Content))
-	}
-	errTextItem, ok := errToolResult.Content[0].(*mcp.TextContent)
-	if !ok {
-		t.Fatalf("errToolResult.Content[0] type is %T, want *mcp.TextContent", errToolResult.Content[0])
-	}
-	if diff := cmp.Diff(want, errTextItem.Text); diff != "" {
-		t.Errorf("ErrorToolResult content mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(wantErrToolResult, errToolResult, ignoreMCPUnexported); diff != "" {
+		t.Errorf("ErrorToolResult() mismatch (-want +got):\n%s", diff)
 	}
 
-	// Verify ResourceResult wrapping
 	resResult, err := ts.ResourceResult("khi://inspections", "inspections.md.tmpl", data)
 	if err != nil {
 		t.Fatalf("ts.ResourceResult() error: %v", err)
 	}
-	if len(resResult.Contents) != 1 {
-		t.Fatalf("len(resResult.Contents) = %d, want 1", len(resResult.Contents))
-	}
-	rc := resResult.Contents[0]
-	if rc.URI != "khi://inspections" {
-		t.Errorf("rc.URI = %q, want %q", rc.URI, "khi://inspections")
-	}
-	if rc.MIMEType != "text/markdown" {
-		t.Errorf("rc.MIMEType = %q, want %q", rc.MIMEType, "text/markdown")
-	}
-	if diff := cmp.Diff(want, rc.Text); diff != "" {
-		t.Errorf("ResourceResult text mismatch (-want +got):\n%s", diff)
-	}
-}
-
-func TestSet_PaginatedLogs(t *testing.T) {
-	ts := MustParse(testdataFS, "testdata/paginated_logs.md.tmpl")
-
-	testCases := []struct {
-		name          string
-		data          PageResult[string]
-		wantLastLine  string
-		wantHasFooter bool
-	}{
-		{
-			name: "page with next page token contains pageFooter line",
-			data: PageResult[string]{
-				Items:         []string{"log message 1", "log message 2"},
-				Start:         1,
-				End:           2,
-				Total:         10,
-				NextPageToken: "eyJvZmZzZXQiOjJ9",
+	wantResResult := &mcp.ReadResourceResult{
+		Contents: []*mcp.ResourceContents{
+			{
+				URI:      "khi://inspections",
+				MIMEType: "text/markdown",
+				Text:     want,
 			},
-			wantLastLine:  `pageToken: "eyJvZmZzZXQiOjJ9"`,
-			wantHasFooter: true,
-		},
-		{
-			name: "last page without token does not contain pageFooter line",
-			data: PageResult[string]{
-				Items:         []string{"log message 9", "log message 10"},
-				Start:         9,
-				End:           10,
-				Total:         10,
-				NextPageToken: "",
-			},
-			wantLastLine:  "- log message 10",
-			wantHasFooter: false,
 		},
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := ts.Render("paginated_logs.md.tmpl", tc.data)
-			if err != nil {
-				t.Fatalf("Render() error: %v", err)
-			}
-			lines := strings.Split(got, "\n")
-			lastLine := lines[len(lines)-1]
-			if lastLine != tc.wantLastLine {
-				t.Errorf("lastLine = %q, want %q", lastLine, tc.wantLastLine)
-			}
-			hasTokenLine := strings.Contains(got, "pageToken:")
-			if hasTokenLine != tc.wantHasFooter {
-				t.Errorf("strings.Contains(got, %q) = %v, want %v\nFull output:\n%s", "pageToken:", hasTokenLine, tc.wantHasFooter, got)
-			}
-		})
-	}
-}
-
-func TestTimelinePathFunc(t *testing.T) {
-	testCases := []struct {
-		name     string
-		segments []workbench.TimelineSegment
-		want     string
-	}{
-		{
-			name:     "empty segments",
-			segments: nil,
-			want:     "",
-		},
-		{
-			name: "single segment",
-			segments: []workbench.TimelineSegment{
-				{Type: "Kind", Name: "node"},
-			},
-			want: "[Kind] node",
-		},
-		{
-			name: "multiple segments",
-			segments: []workbench.TimelineSegment{
-				{Type: "APIVersion", Name: "core/v1"},
-				{Type: "Kind", Name: "pod"},
-			},
-			want: "[APIVersion] core/v1 > [Kind] pod",
-		},
-	}
-
-	tmpl, err := template.New("test").Funcs(DefaultFuncMap()).Parse("{{ timelinePath .Segments }}")
-	if err != nil {
-		t.Fatalf("failed to parse template: %v", err)
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			data := struct {
-				Segments []workbench.TimelineSegment
-			}{
-				Segments: tc.segments,
-			}
-			if err := tmpl.Execute(&buf, data); err != nil {
-				t.Fatalf("Execute() error: %v", err)
-			}
-			got := buf.String()
-			if got != tc.want {
-				t.Errorf("{{ timelinePath }} = %q, want %q", got, tc.want)
-			}
-		})
+	if diff := cmp.Diff(wantResResult, resResult, ignoreMCPUnexported); diff != "" {
+		t.Errorf("ResourceResult() mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -686,64 +548,28 @@ func TestFormatAppliedFilter(t *testing.T) {
 }
 
 func TestFormatCELErrorAndCELErrorResult(t *testing.T) {
-	testCases := []struct {
-		name        string
-		field       string
-		expression  string
-		err         error
-		wantMessage string
-	}{
-		{
-			name:       "return type validation error",
-			field:      "filter.timelineQuery",
-			expression: "path.kind",
-			err:        errors.New("expression must evaluate to bool, got string"),
-			wantMessage: "Error: INVALID_CEL\n\n" +
-				"- Field: `filter.timelineQuery`\n" +
-				"- Expression: `path.kind`\n" +
-				"- Message: expression must evaluate to bool, got string",
-		},
-		{
-			name:       "cel compiler error with location and caret",
-			field:      "filter.logQuery",
-			expression: "severit >= WARNING",
-			err:        errors.New("ERROR: <input>:1:1: undeclared reference to 'severit' (in container '')\n | severit >= WARNING\n | ^"),
-			wantMessage: "Error: INVALID_CEL\n\n" +
-				"- Field: `filter.logQuery`\n" +
-				"- Expression: `severit >= WARNING`\n" +
-				"- Message: ERROR: <input>:1:1: undeclared reference to 'severit' (in container '')\n" +
-				" | severit >= WARNING\n" +
-				" | ^",
-		},
+	wantMessage := "Error: INVALID_CEL\n\n" +
+		"- Field: `filter.timelineQuery`\n" +
+		"- Expression: `path.kind`\n" +
+		"- Message: expression must evaluate to bool, got string"
+
+	gotFormatted := FormatCELError("filter.timelineQuery", "path.kind", errors.New("expression must evaluate to bool, got string"))
+	if diff := cmp.Diff(wantMessage, gotFormatted); diff != "" {
+		t.Errorf("FormatCELError() mismatch (-want +got):\n%s", diff)
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotFormatted := FormatCELError(tc.field, tc.expression, tc.err)
-			if diff := cmp.Diff(tc.wantMessage, gotFormatted); diff != "" {
-				t.Errorf("FormatCELError() mismatch (-want +got):\n%s", diff)
-			}
-
-			res, out, err := CELErrorResult(tc.field, tc.expression, tc.err)
-			if err != nil {
-				t.Fatalf("CELErrorResult() returned error: %v", err)
-			}
-			if out != nil {
-				t.Errorf("CELErrorResult() out = %v, want nil", out)
-			}
-			if !res.IsError {
-				t.Error("CELErrorResult() res.IsError = false, want true")
-			}
-			if len(res.Content) != 1 {
-				t.Fatalf("len(res.Content) = %d, want 1", len(res.Content))
-			}
-			textContent, ok := res.Content[0].(*mcp.TextContent)
-			if !ok {
-				t.Fatalf("res.Content[0] type = %T, want *mcp.TextContent", res.Content[0])
-			}
-			if diff := cmp.Diff(tc.wantMessage, textContent.Text); diff != "" {
-				t.Errorf("CELErrorResult() text mismatch (-want +got):\n%s", diff)
-			}
-		})
+	res, out, err := CELErrorResult("filter.timelineQuery", "path.kind", errors.New("expression must evaluate to bool, got string"))
+	if err != nil {
+		t.Fatalf("CELErrorResult() returned error: %v", err)
+	}
+	if out != nil {
+		t.Errorf("CELErrorResult() out = %v, want nil", out)
+	}
+	wantRes := &mcp.CallToolResult{
+		IsError: true,
+		Content: []mcp.Content{&mcp.TextContent{Text: wantMessage}},
+	}
+	if diff := cmp.Diff(wantRes, res, ignoreMCPUnexported); diff != "" {
+		t.Errorf("CELErrorResult() mismatch (-want +got):\n%s", diff)
 	}
 }

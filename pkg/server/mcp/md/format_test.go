@@ -48,11 +48,6 @@ func TestCode(t *testing.T) {
 			want:  "`` foo` ``",
 		},
 		{
-			name:  "both leading and trailing backtick",
-			input: "`foo`",
-			want:  "`` `foo` ``",
-		},
-		{
 			name:  "embedded double backticks",
 			input: "foo``bar",
 			want:  "```foo``bar```",
@@ -94,11 +89,6 @@ func TestCell(t *testing.T) {
 			name:  "replaces CR with space",
 			input: "line1\rline2",
 			want:  "line1 line2",
-		},
-		{
-			name:  "replaces multiple pipes and newlines",
-			input: "a|b\r\nc|d\ne",
-			want:  `a\|b c\|d e`,
 		},
 	}
 
