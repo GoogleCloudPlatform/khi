@@ -123,5 +123,21 @@ describe('InternPoolStore', () => {
         'String ID 11 not found in pool',
       );
     });
+
+    it('should apply maskTransform to getString while preserving getRawString', () => {
+      store.addStrings([
+        { id: 1, value: 'prod-secret-node' },
+        { id: 2, value: 'public-info' },
+      ]);
+
+      store.setMaskTransform((val) => val.replace('secret', 'xxxxxx'));
+
+      expect(store.getString(1)).toBe('prod-xxxxxx-node');
+      expect(store.getRawString(1)).toBe('prod-secret-node');
+      expect(store.getString(2)).toBe('public-info');
+
+      store.setMaskTransform(null);
+      expect(store.getString(1)).toBe('prod-secret-node');
+    });
   });
 });

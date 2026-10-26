@@ -37,6 +37,7 @@ import {
   ViewStateService,
 } from 'src/app/services/view-state.service';
 import { StyleOverrideService } from 'src/app/services/style-override.service';
+import { StringMaskService } from 'src/app/services/mask/string-mask.service';
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
 /**
@@ -62,6 +63,7 @@ export class LogSmartComponent {
   private readonly viewState = inject(ViewStateService);
   private readonly styleOverrideService = inject(StyleOverrideService);
   private readonly workbenchClientService = inject(WorkbenchClientService);
+  private readonly stringMaskService = inject(StringMaskService);
   private readonly logBodyResource = resource({
     params: () => this.selectionManager.selectedLog()?.structId,
     loader: async ({ params: structId }) => {
@@ -235,7 +237,9 @@ export class LogSmartComponent {
 
       return {
         logEntry: log,
-        logBody: this.logBodyResource.value() ?? '',
+        logBody: this.stringMaskService.applyMask(
+          this.logBodyResource.value() ?? '',
+        ),
         resourceRefs,
       };
     },

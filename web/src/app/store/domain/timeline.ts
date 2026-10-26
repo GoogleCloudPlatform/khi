@@ -32,6 +32,7 @@ export interface TimelinePathNode {
   readonly id: number;
   readonly type: TimelineType;
   readonly label: string;
+  readonly rawLabel: string;
 }
 
 /**
@@ -245,6 +246,13 @@ export class Timeline {
    */
   get name(): string {
     return this.timelineStore._getTimelineName(this.id);
+  }
+
+  /**
+   * Gets the unmasked original string name label for the timeline.
+   */
+  get rawName(): string {
+    return this.timelineStore._getTimelineRawName(this.id);
   }
 
   /**

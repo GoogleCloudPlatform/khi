@@ -31,6 +31,7 @@ import {
   SearchScope,
   ViewStateService,
 } from 'src/app/services/view-state.service';
+import { StringMaskService } from 'src/app/services/mask/string-mask.service';
 import { DiffListHeaderComponent } from './components/diff-list-header.component';
 import { DiffListComponent } from './components/diff-list.component';
 import { DiffContentComponent } from './components/diff-content.component';
@@ -77,6 +78,7 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
   private readonly selectionManager = inject(SelectionManager);
   private readonly viewState = inject(ViewStateService);
   private readonly workbenchClientService = inject(WorkbenchClientService);
+  private readonly stringMaskService = inject(StringMaskService);
   private readonly revisionYamlsResource = resource({
     params: (): RevisionYamlParams | undefined => {
       const currentStructId =
@@ -186,7 +188,9 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
    * Computed raw string of the current revision's content before stripping managed fields.
    */
   protected readonly currentRevisionRawBody = computed(() => {
-    return this.revisionYamlsResource.value()?.current ?? '';
+    return this.stringMaskService.applyMask(
+      this.revisionYamlsResource.value()?.current ?? '',
+    );
   });
 
   /**
@@ -194,9 +198,10 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
    */
   protected readonly currentRevisionContent = computed(() => {
     const content = this.revisionYamlsResource.value()?.current ?? '';
-    return this.showManagedFields()
+    const formatted = this.showManagedFields()
       ? content
       : this.removeManagedField(content);
+    return this.stringMaskService.applyMask(formatted);
   });
 
   /**
@@ -213,9 +218,10 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
     if (content === undefined || content === null) {
       return null;
     }
-    return this.showManagedFields()
+    const formatted = this.showManagedFields()
       ? content
       : this.removeManagedField(content);
+    return this.stringMaskService.applyMask(formatted);
   });
 
   /**

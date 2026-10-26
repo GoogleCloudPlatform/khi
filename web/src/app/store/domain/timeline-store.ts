@@ -604,6 +604,16 @@ export class TimelineStore {
   }
 
   /**
+   * Gets the original unmasked name of a timeline by its ID.
+   * @note Intended solely for internal retrieval inside the {@link Timeline} domain adapter.
+   */
+  public _getTimelineRawName(id: number): string {
+    return this.internPool.getRawString(
+      this.timelineNameStringIds[this.getTimelineIndex(id)],
+    );
+  }
+
+  /**
    * Gets the categorization style classification of a timeline by its ID.
    * @note Intended solely for internal retrieval inside the {@link Timeline} domain adapter.
    */
@@ -633,10 +643,20 @@ export class TimelineStore {
 
     while (currentId && currentId !== 0) {
       const idx = this.getTimelineIndex(currentId);
+      const nodeId = currentId;
+      const nodeType = this.styleStore.getTimelineType(
+        this.timelineTypeIds[idx],
+      );
+      const nameStrId = this.timelineNameStringIds[idx];
+      const rawLabel = this.internPool.getRawString(nameStrId);
+      const resolveLabel = () => this.internPool.getString(nameStrId);
       path.push({
-        id: currentId,
-        type: this.styleStore.getTimelineType(this.timelineTypeIds[idx]),
-        label: this.internPool.getString(this.timelineNameStringIds[idx]),
+        id: nodeId,
+        type: nodeType,
+        rawLabel,
+        get label(): string {
+          return resolveLabel();
+        },
       });
       currentId = this.timelineParentIds[idx];
     }
