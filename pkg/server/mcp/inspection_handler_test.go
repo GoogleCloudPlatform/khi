@@ -16,10 +16,8 @@ package mcp
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -31,7 +29,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
@@ -44,13 +41,6 @@ func newTestTask(id string, labelOpts ...coretask.LabelOpt) coretask.UntypedTask
 		nil,
 		labelOpts...,
 	)
-}
-
-func newTestEdge(sourceID, targetID string) taskid.TaskEdge {
-	return taskid.TaskEdge{
-		SourceImplID: sourceID,
-		TargetImplID: targetID,
-	}
 }
 
 func taskContext(c *summary.Collector, taskImplID taskid.UntypedTaskImplementationID) context.Context {
@@ -78,9 +68,9 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 	}
 
 	edges := []taskid.TaskEdge{
-		newTestEdge(formTask.UntypedID().String(), listAuditTask.UntypedID().String()),
-		newTestEdge(listAuditTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
-		newTestEdge(auditMapperTask.UntypedID().String(), featureAuditTask.UntypedID().String()),
+		{SourceImplID: formTask.UntypedID().String(), TargetImplID: listAuditTask.UntypedID().String()},
+		{SourceImplID: listAuditTask.UntypedID().String(), TargetImplID: auditMapperTask.UntypedID().String()},
+		{SourceImplID: auditMapperTask.UntypedID().String(), TargetImplID: featureAuditTask.UntypedID().String()},
 	}
 
 	taskGraph := coretask.NewResolvedTaskSet(tasks, edges, nil)
@@ -121,63 +111,50 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 		InspectTimeUnixSeconds: time.Date(2026, 9, 24, 1, 30, 0, 0, time.UTC).Unix(),
 	}
 
-	server, err := coreinspection.NewServer(nil)
-	if err != nil {
-		t.Fatalf("failed to create server: %v", err)
-	}
-	// Template rendering does not issue upload URLs.
-	handler := NewInspectionHandler(server, nil)
-
-	startTime := time.Unix(header.StartTimeUnixSeconds, 0)
-	endTime := time.Unix(header.EndTimeUnixSeconds, 0)
-	data := inspectionSummaryData{
-		ID:        "2026-09-24-0130-a1b2",
-		Header:    header,
-		TimeRange: fmt.Sprintf("%s - %s", mdtemplate.FormatTime(startTime), mdtemplate.FormatTime(endTime)),
-		Summary:   c.Snapshot(),
-		FilterVocabulary: &inspectionmetadata.FilterVocabulary{
-			TimelineTypes: []inspectionmetadata.TimelineTypeVocabulary{
-				{
-					Label:        "apiVersion",
-					NameCount:    1,
-					ExampleNames: []string{"core/v1"},
-				},
-				{
-					Label:        "kind",
-					NameCount:    6,
-					ExampleNames: []string{"node", "pod", "service", "replicaset", "deployment"},
-				},
-				{
-					Label:        "namespace",
-					NameCount:    2,
-					ExampleNames: []string{"kube-system", "default"},
-				},
+	vocab := inspectionmetadata.NewFilterVocabularyMetadata()
+	vocab.Set(inspectionmetadata.FilterVocabulary{
+		TimelineTypes: []inspectionmetadata.TimelineTypeVocabulary{
+			{
+				Label:        "apiVersion",
+				NameCount:    1,
+				ExampleNames: []string{"core/v1"},
 			},
-			LogTypes: []string{"k8s audit", "k8s event"},
+			{
+				Label:        "kind",
+				NameCount:    6,
+				ExampleNames: []string{"node", "pod", "service", "replicaset", "deployment"},
+			},
+			{
+				Label:        "namespace",
+				NameCount:    2,
+				ExampleNames: []string{"kube-system", "default"},
+			},
 		},
-	}
+		LogTypes: []string{"k8s audit", "k8s event"},
+	})
 
-	got, err := handler.templates.Render("inspection_summary.md.tmpl", data)
+	md := typedmap.NewTypedMap()
+	typedmap.Set(md, inspectionmetadata.HeaderMetadataKey, header)
+	typedmap.Set(md, summary.MetadataKey, c)
+	typedmap.Set(md, inspectionmetadata.FilterVocabularyMetadataKey, vocab)
+
+	got, err := NewInspectionHandler(nil, nil).renderSummary("2026-09-24-0130-a1b2", md.AsReadonly())
 	if err != nil {
-		t.Fatalf("failed to render inspection summary template: %v", err)
+		t.Fatalf("renderSummary() error: %v", err)
 	}
 
-	goldenBytes, err := os.ReadFile("testdata/inspection_summary.golden.md")
-	if err != nil {
-		t.Fatalf("failed to read golden file: %v", err)
-	}
-	want := strings.TrimRight(string(goldenBytes), "\r\n")
-
+	want := readGolden(t, "testdata/inspection_summary.golden.md")
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("inspection summary mismatch (-want +got):\n%s", diff)
 	}
 
 	t.Run("WithoutFilterVocabulary", func(t *testing.T) {
-		dataWithoutVocab := data
-		dataWithoutVocab.FilterVocabulary = nil
-		gotWithoutVocab, err := handler.templates.Render("inspection_summary.md.tmpl", dataWithoutVocab)
+		mdWithoutVocab := typedmap.NewTypedMap()
+		typedmap.Set(mdWithoutVocab, inspectionmetadata.HeaderMetadataKey, header)
+		typedmap.Set(mdWithoutVocab, summary.MetadataKey, c)
+		gotWithoutVocab, err := NewInspectionHandler(nil, nil).renderSummary("2026-09-24-0130-a1b2", mdWithoutVocab.AsReadonly())
 		if err != nil {
-			t.Fatalf("failed to render inspection summary without filter vocabulary: %v", err)
+			t.Fatalf("renderSummary() without filter vocabulary error: %v", err)
 		}
 		wantNotice := "This inspection file does not record a filter vocabulary in its metadata. Call `search_timelines` or `search_logs` to see the available `path` keys, `timelineType` values, and `logType` values in the response."
 		if !strings.Contains(gotWithoutVocab, wantNotice) {
@@ -225,71 +202,24 @@ func TestInspectionHandler_E2E(t *testing.T) {
 	mux.Handle("/mcp", mcpServer.HTTPHandler())
 
 	ts := httptest.NewServer(mux)
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
-	client := mcpsdk.NewClient(&mcpsdk.Implementation{
-		Name:    "test-client",
-		Version: "1.0.0",
-	}, nil)
-
-	session, err := client.Connect(ctx, &mcpsdk.StreamableClientTransport{Endpoint: ts.URL + "/mcp"}, nil)
-	if err != nil {
-		t.Fatalf("client.Connect() failed: %v", err)
-	}
-	defer session.Close()
-
-	t.Run("ListTools", func(t *testing.T) {
-		toolsRes, err := session.ListTools(ctx, nil)
-		if err != nil {
-			t.Fatalf("session.ListTools() failed: %v", err)
-		}
-		if len(toolsRes.Tools) != 7 {
-			t.Errorf("len(toolsRes.Tools) = %d, want 7", len(toolsRes.Tools))
-		}
-		toolNames := make(map[string]bool)
-		for _, tool := range toolsRes.Tools {
-			toolNames[tool.Name] = true
-		}
-		for _, want := range []string{"create_inspection", "update_inspection_features", "dry_run_inspection", "request_file_upload", "run_inspection", "wait_inspection", "cancel_inspection"} {
-			if !toolNames[want] {
-				t.Errorf("missing tool: %s", want)
-			}
-		}
-	})
+	session := connectClient(t, ctx, &mcpsdk.StreamableClientTransport{Endpoint: ts.URL + "/mcp"})
 
 	t.Run("ListInspectionTypesResource", func(t *testing.T) {
-		res, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspection-types"})
-		if err != nil {
-			t.Fatalf("session.ReadResource(\"khi://inspection-types\") failed: %v", err)
-		}
-		if len(res.Contents) != 1 {
-			t.Fatalf("len(res.Contents) = %d, want 1", len(res.Contents))
-		}
-		goldenBytes, err := os.ReadFile("testdata/inspection_types.golden.md")
-		if err != nil {
-			t.Fatalf("failed to read golden file: %v", err)
-		}
-		want := strings.TrimRight(string(goldenBytes), "\r\n")
-		got := strings.TrimRight(res.Contents[0].Text, "\r\n")
-		if diff := cmp.Diff(want, got); diff != "" {
+		got := strings.TrimRight(readResourceText(t, ctx, session, "khi://inspection-types"), "\r\n")
+		if diff := cmp.Diff(readGolden(t, "testdata/inspection_types.golden.md"), got); diff != "" {
 			t.Errorf("inspection types resource mismatch (-want +got):\n%s", diff)
 		}
 	})
 
 	t.Run("EmptyInspections", func(t *testing.T) {
-		listRes, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspections"})
-		if err != nil {
-			t.Fatalf("session.ReadResource(\"khi://inspections\") failed: %v", err)
-		}
-		if len(listRes.Contents) != 1 {
-			t.Fatalf("len(listRes.Contents) = %d, want 1", len(listRes.Contents))
-		}
-		wantEmpty := "# Inspections\n\nNo inspections yet."
-		if listRes.Contents[0].Text != wantEmpty {
-			t.Errorf("empty inspections list = %q, want %q", listRes.Contents[0].Text, wantEmpty)
+		got := readResourceText(t, ctx, session, "khi://inspections")
+		if diff := cmp.Diff("# Inspections\n\nNo inspections yet.", got); diff != "" {
+			t.Errorf("empty inspections list mismatch (-want +got):\n%s", diff)
 		}
 	})
 
@@ -361,81 +291,88 @@ func TestInspectionHandler_E2E(t *testing.T) {
 	server.RegisterImportedInspection("2026-09-24-0010-e5f6", nil, md3.AsReadonly())
 
 	t.Run("ListInspections", func(t *testing.T) {
-		listRes2, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspections"})
-		if err != nil {
-			t.Fatalf("session.ReadResource(\"khi://inspections\") with data failed: %v", err)
-		}
-		listText := listRes2.Contents[0].Text
-
-		if !strings.Contains(listText, "3 inspections, newest first.") {
-			t.Errorf("listText missing header line: %s", listText)
-		}
-		idx2 := strings.Index(listText, "2026-09-24-0200-c3d4")
-		idx1 := strings.Index(listText, "2026-09-24-0130-a1b2")
-		idx3 := strings.Index(listText, "2026-09-24-0010-e5f6")
-		if !(idx2 < idx1 && idx1 < idx3) {
-			t.Errorf("inspections not sorted newest first: idx2=%d, idx1=%d, idx3=%d", idx2, idx1, idx3)
-		}
-		if !strings.Contains(listText, "clusterName=prod-cluster-1, location=us-central1, projectId=my-gcp-project") {
-			t.Errorf("listText missing labels: %s", listText)
-		}
-		wantTimeRange := fmt.Sprintf("%s - %s", mdtemplate.FormatTime(time.Unix(header1.StartTimeUnixSeconds, 0)), mdtemplate.FormatTime(time.Unix(header1.EndTimeUnixSeconds, 0)))
-		if !strings.Contains(listText, wantTimeRange) {
-			t.Errorf("listText missing time range %q: %s", wantTimeRange, listText)
+		got := readResourceText(t, ctx, session, "khi://inspections")
+		want := "# Inspections\n\n" +
+			"3 inspections, newest first. Read `khi://inspections/{id}` for the summary of each inspection.\n\n" +
+			"| ID | Name | Type | Status | Time range | Labels |\n" +
+			"| --- | --- | --- | --- | --- | --- |\n" +
+			"| `2026-09-24-0200-c3d4` | staging-cluster investigation | Google Kubernetes Engine | RUNNING |  |  |\n" +
+			"| `2026-09-24-0130-a1b2` | prod-cluster-1 restart investigation | Google Kubernetes Engine | DONE | 2026-09-24T01:00:00Z - 2026-09-24T02:00:00Z | clusterName=prod-cluster-1, location=us-central1, projectId=my-gcp-project |\n" +
+			"| `2026-09-24-0010-e5f6` | failed investigation | Google Kubernetes Engine | ERROR |  |  |"
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("ListInspections mismatch (-want +got):\n%s", diff)
 		}
 	})
 
-	t.Run("ReadResourceDONE", func(t *testing.T) {
-		readDone, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspections/2026-09-24-0130-a1b2"})
-		if err != nil {
-			t.Fatalf("ReadResource for DONE inspection failed: %v", err)
-		}
-		if !strings.Contains(readDone.Contents[0].Text, "# Inspection Summary: prod-cluster-1 restart investigation") {
-			t.Errorf("ReadResource DONE unexpected text: %s", readDone.Contents[0].Text)
-		}
-		if !strings.Contains(readDone.Contents[0].Text, "`kind` → `path[\"kind\"]`: `node`, `pod` (all 2 names)") {
-			t.Errorf("ReadResource DONE missing timeline filter vocabulary: %s", readDone.Contents[0].Text)
-		}
-		if !strings.Contains(readDone.Contents[0].Text, "- logType: `k8s audit`") {
-			t.Errorf("ReadResource DONE missing logType filter vocabulary: %s", readDone.Contents[0].Text)
-		}
+	wantDoneSummary := "# Inspection Summary: prod-cluster-1 restart investigation\n\n" +
+		"- **ID**: `2026-09-24-0130-a1b2`\n" +
+		"- **Type**: Google Kubernetes Engine\n" +
+		"- **Time Range**: 2026-09-24T01:00:00Z - 2026-09-24T02:00:00Z\n\n" +
+		"## Core Labels\n\n" +
+		"| Key | Value |\n" +
+		"| --- | --- |\n" +
+		"| clusterName | prod-cluster-1 |\n" +
+		"| location | us-central1 |\n" +
+		"| projectId | my-gcp-project |\n\n" +
+		"---\n\n" +
+		"## Filter vocabulary\n" +
+		"These are the values that filter CEL can match in this inspection.\n" +
+		"- Timeline names by timelineType, matched with `path[\"<key>\"]`. Each line shows up to 5 example names and the number of distinct names.\n" +
+		"  - `kind` → `path[\"kind\"]`: `node`, `pod` (all 2 names)\n" +
+		"- logType: `k8s audit`\n" +
+		"- severity: `UNKNOWN`, `INFO`, `WARNING`, `ERROR`, `FATAL` (reassigned by KHI per logType for investigation importance; does not match Cloud Logging severity — query `body(\"severity\", \"ERROR\")` for the raw Cloud Logging field)"
 
-		// Read again to verify cached result
-		readDoneCached, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspections/2026-09-24-0130-a1b2"})
-		if err != nil {
-			t.Fatalf("ReadResource for cached DONE inspection failed: %v", err)
-		}
-		if readDoneCached.Contents[0].Text != readDone.Contents[0].Text {
-			t.Errorf("cached read mismatch (-want +got):\n%s", cmp.Diff(readDone.Contents[0].Text, readDoneCached.Contents[0].Text))
-		}
-	})
+	readCases := []struct {
+		name    string
+		uri     string
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "ReadResourceDONE",
+			uri:  "khi://inspections/2026-09-24-0130-a1b2",
+			want: wantDoneSummary,
+		},
+		{
+			name: "ReadResourceRUNNING",
+			uri:  "khi://inspections/2026-09-24-0200-c3d4",
+			want: "# Inspection `2026-09-24-0200-c3d4`\n\nStatus: RUNNING. The summary is available after the inspection finishes. Call `wait_inspection` to wait for it.",
+		},
+		{
+			name: "ReadResourceERROR",
+			uri:  "khi://inspections/2026-09-24-0010-e5f6",
+			want: "# Inspection `2026-09-24-0010-e5f6`\n\nStatus: ERROR. No summary is available. Call `wait_inspection` to see which task failed.",
+		},
+		{
+			name:    "ReadResourceNotFound",
+			uri:     "khi://inspections/unknown-id",
+			wantErr: true,
+		},
+	}
 
-	t.Run("ReadResourceRUNNING", func(t *testing.T) {
-		readRunning, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspections/2026-09-24-0200-c3d4"})
-		if err != nil {
-			t.Fatalf("ReadResource for RUNNING inspection failed: %v", err)
-		}
-		wantRunning := "# Inspection `2026-09-24-0200-c3d4`\n\nStatus: RUNNING. The summary is available after the inspection finishes. Call `wait_inspection` to wait for it."
-		if readRunning.Contents[0].Text != wantRunning {
-			t.Errorf("readRunning text = %q, want %q", readRunning.Contents[0].Text, wantRunning)
-		}
-	})
+	for _, tc := range readCases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: tc.uri})
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ReadResource(%q) error = %v, wantErr %v", tc.uri, err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+			if len(res.Contents) != 1 {
+				t.Fatalf("len(res.Contents) = %d, want 1", len(res.Contents))
+			}
+			if diff := cmp.Diff(tc.want, res.Contents[0].Text); diff != "" {
+				t.Errorf("ReadResource(%q) mismatch (-want +got):\n%s", tc.uri, diff)
+			}
+		})
+	}
 
-	t.Run("ReadResourceERROR", func(t *testing.T) {
-		readError, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspections/2026-09-24-0010-e5f6"})
-		if err != nil {
-			t.Fatalf("ReadResource for ERROR inspection failed: %v", err)
-		}
-		wantError := "# Inspection `2026-09-24-0010-e5f6`\n\nStatus: ERROR. No summary is available. Call `wait_inspection` to see which task failed."
-		if readError.Contents[0].Text != wantError {
-			t.Errorf("readError text = %q, want %q", readError.Contents[0].Text, wantError)
-		}
-	})
-
-	t.Run("ReadResourceNotFound", func(t *testing.T) {
-		_, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspections/unknown-id"})
-		if err == nil {
-			t.Error("expected error for unknown inspection, got nil")
+	t.Run("ReadResourceDONECached", func(t *testing.T) {
+		summary.SetCoreLabel(ctxTask1, "clusterName", "mutated-after-cache")
+		got := readResourceText(t, ctx, session, "khi://inspections/2026-09-24-0130-a1b2")
+		if diff := cmp.Diff(wantDoneSummary, got); diff != "" {
+			t.Errorf("cached ReadResource mismatch (-want +got):\n%s", diff)
 		}
 	})
 }

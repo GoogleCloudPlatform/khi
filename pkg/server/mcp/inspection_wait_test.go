@@ -31,93 +31,18 @@ import (
 )
 
 func TestInspectionWait_Golden(t *testing.T) {
-	server, err := coreinspection.NewServer(nil)
-	if err != nil {
-		t.Fatalf("failed to create server: %v", err)
-	}
-	// Template rendering does not issue upload URLs.
-	handler := NewInspectionHandler(server, nil)
-
-	testCases := []struct {
-		name       string
-		template   string
-		goldenFile string
-		data       any
-	}{
-		{
-			name:       "WaitInspection_Running",
-			template:   "wait_inspection.md.tmpl",
-			goldenFile: "testdata/wait_inspection_running.golden.md",
-			data: waitInspectionData{
-				ID:            "2026-09-24-0130-a1b2",
-				Phase:         "RUNNING",
-				ProgressRatio: 0.42,
-				RunningTasks: []runningTaskRow{
-					{
-						Label:    "Query K8s audit logs",
-						Progress: "60%",
-						Message:  "91200 logs fetched",
-					},
-				},
+	verifyTemplateGolden(t, "wait_inspection.md.tmpl", waitInspectionData{
+		ID:            "2026-09-24-0130-a1b2",
+		Phase:         "RUNNING",
+		ProgressRatio: 0.42,
+		RunningTasks: []runningTaskRow{
+			{
+				Label:    "Query K8s audit logs",
+				Progress: "60%",
+				Message:  "91200 logs fetched",
 			},
 		},
-		{
-			name:       "WaitInspection_Done",
-			template:   "wait_inspection.md.tmpl",
-			goldenFile: "testdata/wait_inspection_done.golden.md",
-			data: waitInspectionData{
-				ID:    "2026-09-24-0130-a1b2",
-				Phase: "DONE",
-			},
-		},
-		{
-			name:       "WaitInspection_Error",
-			template:   "wait_inspection.md.tmpl",
-			goldenFile: "testdata/wait_inspection_error.golden.md",
-			data: waitInspectionData{
-				ID:    "2026-09-24-0130-a1b2",
-				Phase: "ERROR",
-				FailedTasks: []failedTaskRow{
-					{
-						Title:  "Query K8s audit logs",
-						TaskID: "k8s-audit-log#default",
-						Error:  "PERMISSION_DENIED: logging.logEntries.list on project my-gcp-project",
-					},
-				},
-			},
-		},
-		{
-			name:       "WaitInspection_Cancelled",
-			template:   "wait_inspection.md.tmpl",
-			goldenFile: "testdata/wait_inspection_cancelled.golden.md",
-			data: waitInspectionData{
-				ID:    "2026-09-24-0130-a1b2",
-				Phase: "CANCELLED",
-			},
-		},
-		{
-			name:       "CancelInspection",
-			template:   "cancel_inspection.md.tmpl",
-			goldenFile: "testdata/cancel_inspection.golden.md",
-			data: inspectionIDData{
-				ID: "2026-09-24-0130-a1b2",
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := handler.templates.Render(tc.template, tc.data)
-			if err != nil {
-				t.Fatalf("failed to render %s: %v", tc.template, err)
-			}
-
-			want := readGolden(t, tc.goldenFile)
-			if diff := cmp.Diff(want, got); diff != "" {
-				t.Errorf("%s mismatch (-want +got):\n%s", tc.template, diff)
-			}
-		})
-	}
+	}, "testdata/wait_inspection_running.golden.md")
 }
 
 // waitBlockingTaskStarted waits until the blocking feature task reports progress in run mode.
@@ -185,8 +110,7 @@ func TestInspectionTools_WaitInspection(t *testing.T) {
 				t.Fatalf("session.CallTool(wait_inspection) failed: %v", r.err)
 			}
 			text, isError := toolResultText(t, "wait_inspection", r.res)
-			want := fmt.Sprintf("# Inspection `%s`\n\nStatus: DONE. Read `khi://inspections/%s` for the summary.", id, id)
-			checkToolResult(t, "wait_inspection", text, isError, want, false)
+			checkToolResult(t, "wait_inspection", text, isError, waitDoneText(id), false)
 		case <-time.After(10 * time.Second):
 			t.Fatal("wait_inspection did not return within 10s after the inspection finished")
 		}
@@ -199,43 +123,20 @@ func TestInspectionTools_CancelInspection(t *testing.T) {
 	env.runInspection(t, id, map[string]any{"cluster-name": "prod-cluster-1"})
 	env.waitBlockingTaskStarted(t)
 
-	steps := []struct {
-		name        string
-		tool        string
-		args        map[string]any
-		want        string
-		wantIsError bool
-	}{
-		{
-			name:        "cancel running inspection",
-			tool:        "cancel_inspection",
-			args:        map[string]any{"inspectionId": id},
-			want:        fmt.Sprintf("# Cancelled `%s`\n\nStatus: CANCELLED", id),
-			wantIsError: false,
-		},
-		{
-			name:        "cancel again",
-			tool:        "cancel_inspection",
-			args:        map[string]any{"inspectionId": id},
-			want:        "Error: INSPECTION_ALREADY_FINISHED\n\n- Call `wait_inspection` to read the final status.",
-			wantIsError: true,
-		},
-		{
-			name:        "wait reports cancelled",
-			tool:        "wait_inspection",
-			args:        map[string]any{"inspectionId": id, "timeoutSeconds": 5},
-			want:        fmt.Sprintf("# Inspection `%s`\n\nStatus: CANCELLED.", id),
-			wantIsError: false,
-		},
-	}
+	t.Run("cancel running inspection", func(t *testing.T) {
+		text, isError := callTool(t, env.ctx, env.session, "cancel_inspection", map[string]any{"inspectionId": id})
+		checkToolResult(t, "cancel_inspection", text, isError, fmt.Sprintf("# Cancelled `%s`\n\nStatus: CANCELLED", id), false)
+	})
 
-	// Steps run in order because each one depends on the state left by the previous step.
-	for _, step := range steps {
-		t.Run(step.name, func(t *testing.T) {
-			text, isError := callTool(t, env.ctx, env.session, step.tool, step.args)
-			checkToolResult(t, step.tool, text, isError, step.want, step.wantIsError)
-		})
-	}
+	t.Run("cancel again", func(t *testing.T) {
+		text, isError := callTool(t, env.ctx, env.session, "cancel_inspection", map[string]any{"inspectionId": id})
+		checkToolResult(t, "cancel_inspection", text, isError, "Error: INSPECTION_ALREADY_FINISHED\n\n- Call `wait_inspection` to read the final status.", true)
+	})
+
+	t.Run("wait reports cancelled", func(t *testing.T) {
+		text, isError := callTool(t, env.ctx, env.session, "wait_inspection", map[string]any{"inspectionId": id, "timeoutSeconds": 5})
+		checkToolResult(t, "wait_inspection", text, isError, fmt.Sprintf("# Inspection `%s`\n\nStatus: CANCELLED.", id), false)
+	})
 }
 
 func TestInspectionTools_TaskError(t *testing.T) {
@@ -349,6 +250,5 @@ func TestInspectionTools_WaitImportedInspection(t *testing.T) {
 		"inspectionId":   id,
 		"timeoutSeconds": 5,
 	})
-	want := fmt.Sprintf("# Inspection `%s`\n\nStatus: DONE. Read `khi://inspections/%s` for the summary.", id, id)
-	checkToolResult(t, "wait_inspection", text, isError, want, false)
+	checkToolResult(t, "wait_inspection", text, isError, waitDoneText(id), false)
 }

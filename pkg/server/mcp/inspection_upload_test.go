@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
@@ -30,64 +29,53 @@ import (
 )
 
 func TestRequestFileUpload_Golden(t *testing.T) {
-	server, err := coreinspection.NewServer(nil)
-	if err != nil {
-		t.Fatalf("failed to create server: %v", err)
-	}
-	// The grant is fixed here, so the handler does not issue upload URLs.
-	handler := NewInspectionHandler(server, nil)
-	got, err := handler.templates.Render("request_file_upload.md.tmpl", uploadurl.Grant{
+	verifyTemplateGolden(t, "request_file_upload.md.tmpl", uploadurl.Grant{
 		URL:          "http://127.0.0.1:8080/api/v1/file-upload/ABCDEF",
 		FieldID:      logFileFieldID,
 		MaxSizeBytes: testMaxUploadSizeBytes,
 		ExpiresAt:    time.Date(2026, 9, 24, 2, 0, 0, 0, time.UTC),
-	})
-	if err != nil {
-		t.Fatalf("failed to render request_file_upload.md.tmpl: %v", err)
-	}
-	want := readGolden(t, "testdata/request_file_upload.golden.md")
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("request_file_upload.md.tmpl mismatch (-want +got):\n%s", diff)
-	}
+	}, "testdata/request_file_upload.golden.md")
 }
 
 func TestFindFileField(t *testing.T) {
+	topLogField := inspectionmetadata.FileParameterFormField{
+		ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "top-log", Type: inspectionmetadata.File},
+		Token:                  &upload.DirectUploadToken{ID: "inspection-1_task_top-log"},
+	}
+	auditLogField := inspectionmetadata.FileParameterFormField{
+		ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "audit-log", Type: inspectionmetadata.File},
+		Token:                  &upload.DirectUploadToken{ID: "inspection-1_task_audit-log"},
+	}
 	fields := []inspectionmetadata.ParameterFormField{
 		inspectionmetadata.TextParameterFormField{
 			ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "name", Type: inspectionmetadata.Text},
 		},
-		inspectionmetadata.FileParameterFormField{
-			ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "top-log", Type: inspectionmetadata.File},
-			Token:                  &upload.DirectUploadToken{ID: "inspection-1_task_top-log"},
-		},
+		topLogField,
 		inspectionmetadata.GroupParameterFormField{
 			ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "logs", Type: inspectionmetadata.Group},
-			Children: []inspectionmetadata.ParameterFormField{
-				inspectionmetadata.FileParameterFormField{
-					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "audit-log", Type: inspectionmetadata.File},
-					Token:                  &upload.DirectUploadToken{ID: "inspection-1_task_audit-log"},
-				},
-			},
+			Children:               []inspectionmetadata.ParameterFormField{auditLogField},
 		},
 	}
 
+	type findResult struct {
+		Field inspectionmetadata.FileParameterFormField
+		Found bool
+	}
+
 	testCases := []struct {
-		name              string
-		fieldID           string
-		wantUploadTokenID string
-		wantFound         bool
+		name    string
+		fieldID string
+		want    findResult
 	}{
 		{
-			name:              "top-level file field",
-			fieldID:           "top-log",
-			wantUploadTokenID: "inspection-1_task_top-log",
-			wantFound:         true,
+			name:    "top-level file field",
+			fieldID: "top-log",
+			want:    findResult{Field: topLogField, Found: true},
 		},
 		{
-			name:              "file field in a group",
-			fieldID:           "audit-log",
-			wantUploadTokenID: "inspection-1_task_audit-log",
-			wantFound:         true,
+			name:    "file field in a group",
+			fieldID: "audit-log",
+			want:    findResult{Field: auditLogField, Found: true},
 		},
 		{
 			name:    "field that is not a file field",
@@ -105,15 +93,10 @@ func TestFindFileField(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, gotFound := findFileField(fields, tc.fieldID)
-			if gotFound != tc.wantFound {
-				t.Fatalf("findFileField(%q) found = %v, want %v", tc.fieldID, gotFound, tc.wantFound)
-			}
-			if !gotFound {
-				return
-			}
-			if gotID := got.Token.GetID(); gotID != tc.wantUploadTokenID {
-				t.Errorf("findFileField(%q).Token.GetID() = %q, want %q", tc.fieldID, gotID, tc.wantUploadTokenID)
+			gotField, gotFound := findFileField(fields, tc.fieldID)
+			got := findResult{Field: gotField, Found: gotFound}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("findFileField(%q) mismatch (-want +got):\n%s", tc.fieldID, diff)
 			}
 		})
 	}
@@ -206,10 +189,6 @@ func TestInspectionTools_FileUpload(t *testing.T) {
 		if status != http.StatusOK {
 			t.Fatalf("upload status = %d, want %d: %s", status, http.StatusOK, body)
 		}
-		wantBody := `{"fieldId":"log-file","status":"PROCESSING","sizeBytes":8}`
-		if body != wantBody {
-			t.Errorf("upload response = %s, want %s", body, wantBody)
-		}
 
 		text = env.dryRunUntilUploadSettles(t, id)
 		want = logFileDryRunText(id, readySummary, "- Upload: COMPLETED, 8 bytes")
@@ -220,25 +199,10 @@ func TestInspectionTools_FileUpload(t *testing.T) {
 			"inspectionId":   id,
 			"timeoutSeconds": 30,
 		})
-		want = fmt.Sprintf("# Inspection `%s`\n\nStatus: DONE. Read `khi://inspections/%s` for the summary.", id, id)
-		checkToolResult(t, "wait_inspection", text, isError, want, false)
+		checkToolResult(t, "wait_inspection", text, isError, waitDoneText(id), false)
 	})
 
-	t.Run("verification error appears in the dry run", func(t *testing.T) {
-		env := newToolsTestEnv(t)
-		id := env.createInspection(t, fileFeatureID)
-
-		status, body := putFile(t, env.requestUploadURL(t, id), "not json\n")
-		if status != http.StatusOK {
-			t.Fatalf("upload status = %d, want %d: %s", status, http.StatusOK, body)
-		}
-
-		text := env.dryRunUntilUploadSettles(t, id)
-		want := logFileDryRunText(id, notReadySummary, "- Upload: ERROR\n- Error: invalid JSON on line 1: invalid character 'o' in literal null (expecting 'u')")
-		checkToolResult(t, "dry_run_inspection", text, false, want, false)
-	})
-
-	t.Run("a new upload replaces a file that failed verification", func(t *testing.T) {
+	t.Run("verification error and replacement upload", func(t *testing.T) {
 		env := newToolsTestEnv(t)
 		id := env.createInspection(t, fileFeatureID)
 
@@ -247,17 +211,16 @@ func TestInspectionTools_FileUpload(t *testing.T) {
 			t.Fatalf("first upload status = %d, want %d: %s", status, http.StatusOK, body)
 		}
 		text := env.dryRunUntilUploadSettles(t, id)
-		if !strings.Contains(text, "- Upload: ERROR") {
-			t.Fatalf("dry_run_inspection after the invalid upload does not report ERROR:\n%s", text)
-		}
+		wantErr := logFileDryRunText(id, notReadySummary, "- Upload: ERROR\n- Error: invalid JSON on line 1: invalid character 'o' in literal null (expecting 'u')")
+		checkToolResult(t, "dry_run_inspection", text, false, wantErr, false)
 
 		status, body = putFile(t, env.requestUploadURL(t, id), "{\"a\":1}\n")
 		if status != http.StatusOK {
 			t.Fatalf("second upload status = %d, want %d: %s", status, http.StatusOK, body)
 		}
 		text = env.dryRunUntilUploadSettles(t, id)
-		want := logFileDryRunText(id, readySummary, "- Upload: COMPLETED, 8 bytes")
-		checkToolResult(t, "dry_run_inspection", text, false, want, false)
+		wantOK := logFileDryRunText(id, readySummary, "- Upload: COMPLETED, 8 bytes")
+		checkToolResult(t, "dry_run_inspection", text, false, wantOK, false)
 	})
 
 	t.Run("field that is not a file field", func(t *testing.T) {

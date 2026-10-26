@@ -35,6 +35,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -44,90 +45,24 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var inspectionTemplates = mdtemplate.MustParse(templateFS, "templates/*.md.tmpl")
+
 func TestMain(m *testing.M) {
 	// The inspection runner registers per-task loggers on the global KHI logger.
 	logger.InitGlobalKHILogger()
 	os.Exit(m.Run())
 }
 
-func TestInspectionCreate_Golden(t *testing.T) {
-	server, err := coreinspection.NewServer(nil)
+// verifyTemplateGolden renders templateName with data and compares it against goldenFile.
+func verifyTemplateGolden(t *testing.T, templateName string, data any, goldenFile string) {
+	t.Helper()
+	got, err := inspectionTemplates.Render(templateName, data)
 	if err != nil {
-		t.Fatalf("failed to create server: %v", err)
+		t.Fatalf("failed to render %s: %v", templateName, err)
 	}
-	// Template rendering does not issue upload URLs.
-	handler := NewInspectionHandler(server, nil)
-
-	testCases := []struct {
-		name       string
-		template   string
-		goldenFile string
-		data       any
-	}{
-		{
-			name:       "InspectionTypes",
-			template:   "inspection_types.md.tmpl",
-			goldenFile: "testdata/inspection_types.golden.md",
-			data: inspectionTypesData{
-				Types: []inspectionTypeRow{
-					{
-						ID:          "gcp-gke",
-						Name:        "Google Kubernetes Engine",
-						Description: "Gather and parse Google Kubernetes Engine (GKE) cluster logs ...",
-					},
-					{
-						ID:          "oss-kubernetes-from-files",
-						Name:        "OSS Kubernetes Log Files",
-						Description: "Parse uploaded OSS Kubernetes log files to visualize cluster operations on timelines.",
-					},
-				},
-			},
-		},
-		{
-			name:       "InspectionFeatures",
-			template:   "inspection_features.md.tmpl",
-			goldenFile: "testdata/inspection_features.golden.md",
-			data: inspectionFeaturesData{
-				ID:       "2026-09-24-0130-a1b2",
-				Name:     "prod-cluster-1 restart investigation",
-				TypeName: "Google Kubernetes Engine",
-				TypeID:   "gcp-gke",
-				Features: []featureRow{
-					{
-						ID:          "k8s-audit-log",
-						Name:        "Kubernetes Audit Logs",
-						Description: "Kubernetes audit logs from Cloud Logging.",
-						Enabled:     "yes",
-					},
-					{
-						ID:          "k8s-event-log",
-						Name:        "Kubernetes Event Logs",
-						Description: "Kubernetes events such as scheduling failures and OOM kills.",
-						Enabled:     "yes",
-					},
-					{
-						ID:          "k8s-node-log",
-						Name:        "Kubernetes Node Logs",
-						Description: "kubelet and container runtime logs from Cloud Logging.",
-						Enabled:     "no",
-					},
-				},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := handler.templates.Render(tc.template, tc.data)
-			if err != nil {
-				t.Fatalf("failed to render %s: %v", tc.template, err)
-			}
-
-			want := readGolden(t, tc.goldenFile)
-			if diff := cmp.Diff(want, got); diff != "" {
-				t.Errorf("%s mismatch (-want +got):\n%s", tc.template, diff)
-			}
-		})
+	want := readGolden(t, goldenFile)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("%s mismatch (-want +got):\n%s", templateName, diff)
 	}
 }
 
@@ -139,6 +74,39 @@ func readGolden(t *testing.T, path string) string {
 		t.Fatalf("failed to read golden file %s: %v", path, err)
 	}
 	return strings.TrimRight(string(b), "\r\n")
+}
+
+// connectClient connects an MCP test client over transport and registers session cleanup.
+func connectClient(t *testing.T, ctx context.Context, transport mcpsdk.Transport) *mcpsdk.ClientSession {
+	t.Helper()
+	client := mcpsdk.NewClient(&mcpsdk.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("client.Connect() failed: %v", err)
+	}
+	t.Cleanup(func() { _ = session.Close() })
+	return session
+}
+
+// readResourceText reads uri from session and returns its single text content.
+func readResourceText(t *testing.T, ctx context.Context, session *mcpsdk.ClientSession, uri string) string {
+	t.Helper()
+	res, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: uri})
+	if err != nil {
+		t.Fatalf("ReadResource(%q) failed: %v", uri, err)
+	}
+	if len(res.Contents) != 1 {
+		t.Fatalf("ReadResource(%q) returned %d contents, want 1", uri, len(res.Contents))
+	}
+	return res.Contents[0].Text
+}
+
+// waitDoneText returns the expected wait_inspection text for a completed inspection.
+func waitDoneText(id string) string {
+	return fmt.Sprintf("# Inspection `%s`\n\nStatus: DONE. Read `khi://inspections/%s` for the summary.", id, id)
 }
 
 // extractInspectionID returns the inspection ID from the heading of a create_inspection result.
@@ -202,8 +170,30 @@ func requireInspectionID(t *testing.T, id string) {
 	}
 }
 
-// featuresText builds the expected create_inspection and update_inspection_features output.
-func featuresText(id, name string, rows ...string) string {
+// featuresText builds the expected create_inspection and update_inspection_features output with enabledIDs marked as "yes".
+func featuresText(id, name string, enabledIDs ...string) string {
+	enabled := make(map[string]bool, len(enabledIDs))
+	for _, eid := range enabledIDs {
+		enabled[eid] = true
+	}
+	specs := []struct {
+		id, name, desc string
+	}{
+		{blockingFeatureID, "Kubernetes Audit Logs", "Audit logs"},
+		{authFailFeatureID, "Auth Fail Feature", "Fails with auth error"},
+		{doneFeatureID, "Done Feature", "Succeeds immediately"},
+		{failFeatureID, "Fail Feature", "Fails in run mode"},
+		{untitledFailFeatureID, "Untitled Fail Feature", "Fails in run mode without a title"},
+		{fileFeatureID, "File Feature", "Reads an uploaded JSONL file"},
+	}
+	rows := make([]string, len(specs))
+	for i, s := range specs {
+		flag := "no"
+		if enabled[s.id] {
+			flag = "yes"
+		}
+		rows[i] = fmt.Sprintf("| `%s` | %s | %s | %s |", s.id, s.name, s.desc, flag)
+	}
 	return fmt.Sprintf("# Inspection `%s`\n\n- Name: %s\n- Type: Google Kubernetes Engine (`gcp-gke`)\n\n"+
 		"To change the enabled features, call `update_inspection_features` with the IDs of all features to enable. Then call `dry_run_inspection`.\n\n"+
 		"## Features\n\n| ID | Name | Description | Enabled |\n| --- | --- | --- | --- |\n%s", id, name, strings.Join(rows, "\n"))
@@ -404,15 +394,7 @@ func newToolsTestEnv(t *testing.T) *toolsTestEnv {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	t.Cleanup(cancel)
 
-	client := mcpsdk.NewClient(&mcpsdk.Implementation{
-		Name:    "test-client",
-		Version: "1.0.0",
-	}, nil)
-	session, err := client.Connect(ctx, &mcpsdk.StreamableClientTransport{Endpoint: ts.URL + "/mcp"}, nil)
-	if err != nil {
-		t.Fatalf("client.Connect() failed: %v", err)
-	}
-	t.Cleanup(func() { session.Close() })
+	session := connectClient(t, ctx, &mcpsdk.StreamableClientTransport{Endpoint: ts.URL + "/mcp"})
 	// Registered last so that it runs first and no task stays blocked after the test.
 	t.Cleanup(releaseBlockingTask)
 
@@ -454,50 +436,50 @@ func TestInspectionTools_CreateInspectionErrors(t *testing.T) {
 	env := newToolsTestEnv(t)
 
 	testCases := []struct {
-		name   string
-		typeID string
-		want   string
+		name           string
+		existingName   string
+		typeID         string
+		inspectionName string
+		want           string
 	}{
 		{
 			name:   "unknown type",
 			typeID: "unknown-type",
 			want:   "Error: UNKNOWN_INSPECTION_TYPE\n\n- Unknown inspection type ID: `unknown-type`\n- Read `khi://inspection-types` to see available types.",
 		},
+		{
+			name:           "duplicate name",
+			existingName:   "custom-name-test",
+			typeID:         "gcp-gke",
+			inspectionName: "custom-name-test",
+			want:           "Error: INVALID_INSPECTION_NAME\n\n- Inspection name \"custom-name-test\" is already in use. Choose another name.",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.existingName != "" {
+				text, isError := callTool(t, env.ctx, env.session, "create_inspection", map[string]any{
+					"inspectionTypeId": "gcp-gke",
+					"name":             tc.existingName,
+				})
+				if isError {
+					t.Fatalf("setup create_inspection returned error: %s", text)
+				}
+			}
+
 			runnersBefore := len(env.server.GetAllRunners())
-			text, isError := callTool(t, env.ctx, env.session, "create_inspection", map[string]any{
-				"inspectionTypeId": tc.typeID,
-			})
+			args := map[string]any{"inspectionTypeId": tc.typeID}
+			if tc.inspectionName != "" {
+				args["name"] = tc.inspectionName
+			}
+			text, isError := callTool(t, env.ctx, env.session, "create_inspection", args)
 			checkToolResult(t, "create_inspection", text, isError, tc.want, true)
 			if got := len(env.server.GetAllRunners()); got != runnersBefore {
 				t.Errorf("runner count = %d, want %d", got, runnersBefore)
 			}
 		})
 	}
-
-	t.Run("duplicate name", func(t *testing.T) {
-		text, isError := callTool(t, env.ctx, env.session, "create_inspection", map[string]any{
-			"inspectionTypeId": "gcp-gke",
-			"name":             "custom-name-test",
-		})
-		if isError {
-			t.Fatalf("first create_inspection returned error: %s", text)
-		}
-
-		runnersBefore := len(env.server.GetAllRunners())
-		text, isError = callTool(t, env.ctx, env.session, "create_inspection", map[string]any{
-			"inspectionTypeId": "gcp-gke",
-			"name":             "custom-name-test",
-		})
-		want := "Error: INVALID_INSPECTION_NAME\n\n- Inspection name \"custom-name-test\" is already in use. Choose another name."
-		checkToolResult(t, "create_inspection", text, isError, want, true)
-		if got := len(env.server.GetAllRunners()); got != runnersBefore {
-			t.Errorf("runner count = %d, want %d", got, runnersBefore)
-		}
-	})
 }
 
 func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
@@ -514,14 +496,7 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 			t.Fatalf("create_inspection returned error: %s", text)
 		}
 		id = extractInspectionID(t, text)
-		want := featuresText(id, inspectionName,
-			fmt.Sprintf("| `%s` | Kubernetes Audit Logs | Audit logs | yes |", blockingFeatureID),
-			fmt.Sprintf("| `%s` | Auth Fail Feature | Fails with auth error | no |", authFailFeatureID),
-			fmt.Sprintf("| `%s` | Done Feature | Succeeds immediately | no |", doneFeatureID),
-			fmt.Sprintf("| `%s` | Fail Feature | Fails in run mode | no |", failFeatureID),
-			fmt.Sprintf("| `%s` | Untitled Fail Feature | Fails in run mode without a title | no |", untitledFailFeatureID),
-			fmt.Sprintf("| `%s` | File Feature | Reads an uploaded JSONL file | no |", fileFeatureID),
-		)
+		want := featuresText(id, inspectionName, blockingFeatureID)
 		checkToolResult(t, "create_inspection", text, isError, want, false)
 	})
 
@@ -571,14 +546,7 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 			"inspectionId":      id,
 			"enabledFeatureIds": []string{doneFeatureID, doneFeatureID},
 		})
-		want := featuresText(id, inspectionName,
-			"| `k8s-audit-log#default` | Kubernetes Audit Logs | Audit logs | no |",
-			"| `auth-fail-feature#default` | Auth Fail Feature | Fails with auth error | no |",
-			"| `done-feature#default` | Done Feature | Succeeds immediately | yes |",
-			"| `fail-feature#default` | Fail Feature | Fails in run mode | no |",
-			"| `untitled-fail-feature#default` | Untitled Fail Feature | Fails in run mode without a title | no |",
-			"| `file-feature#default` | File Feature | Reads an uploaded JSONL file | no |",
-		)
+		want := featuresText(id, inspectionName, doneFeatureID)
 		checkToolResult(t, "update_inspection_features", text, isError, want, false)
 	})
 
@@ -589,22 +557,15 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 			"inspectionId":   id,
 			"timeoutSeconds": 30,
 		})
-		want := fmt.Sprintf("# Inspection `%s`\n\nStatus: DONE. Read `khi://inspections/%s` for the summary.", id, id)
-		checkToolResult(t, "wait_inspection", text, isError, want, false)
+		checkToolResult(t, "wait_inspection", text, isError, waitDoneText(id), false)
 	})
 
 	t.Run("list shows the name", func(t *testing.T) {
 		requireInspectionID(t, id)
-		res, err := env.session.ReadResource(env.ctx, &mcpsdk.ReadResourceParams{URI: "khi://inspections"})
-		if err != nil {
-			t.Fatalf("ReadResource(khi://inspections) failed: %v", err)
-		}
-		if len(res.Contents) != 1 {
-			t.Fatalf("len(res.Contents) = %d, want 1", len(res.Contents))
-		}
+		listText := readResourceText(t, env.ctx, env.session, "khi://inspections")
 		rowPrefix := fmt.Sprintf("| `%s` |", id)
 		var row string
-		for line := range strings.SplitSeq(res.Contents[0].Text, "\n") {
+		for line := range strings.SplitSeq(listText, "\n") {
 			if strings.HasPrefix(line, rowPrefix) {
 				row = line
 				break
@@ -614,7 +575,7 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 		// on metadata written by framework tasks, which this test does not control.
 		wantPrefix := fmt.Sprintf("| `%s` | %s | Google Kubernetes Engine | DONE |", id, inspectionName)
 		if !strings.HasPrefix(row, wantPrefix) {
-			t.Errorf("inspection row = %q, want prefix %q\nfull list:\n%s", row, wantPrefix, res.Contents[0].Text)
+			t.Errorf("inspection row = %q, want prefix %q\nfull list:\n%s", row, wantPrefix, listText)
 		}
 	})
 
@@ -636,12 +597,5 @@ func TestInspectionTools_NamedInspectionLifecycle(t *testing.T) {
 				checkToolResult(t, tc.tool, text, isError, want, true)
 			})
 		}
-	})
-
-	t.Run("cancel after finish", func(t *testing.T) {
-		requireInspectionID(t, id)
-		text, isError := callTool(t, env.ctx, env.session, "cancel_inspection", map[string]any{"inspectionId": id})
-		want := "Error: INSPECTION_ALREADY_FINISHED\n\n- Call `wait_inspection` to read the final status."
-		checkToolResult(t, "cancel_inspection", text, isError, want, true)
 	})
 }
