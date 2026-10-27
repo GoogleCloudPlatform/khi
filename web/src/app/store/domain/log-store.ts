@@ -65,6 +65,7 @@ export class LogStore {
   private idToIndex: (number | undefined)[] = [];
 
   private logCount = 0;
+  private _maxLogId = 0;
 
   private constructor(
     private readonly internPool: InternPoolStore,
@@ -206,6 +207,9 @@ export class LogStore {
 
     this.idToIndex[log.id] = index;
     this.logCount++;
+    if (log.id > this._maxLogId) {
+      this._maxLogId = log.id;
+    }
   }
 
   /**
@@ -227,6 +231,13 @@ export class LogStore {
    */
   public get count(): number {
     return this.logCount;
+  }
+
+  /**
+   * Gets the maximum log ID in the store, or 0 if there are no logs.
+   */
+  public get maxLogId(): number {
+    return this._maxLogId;
   }
 
   /**

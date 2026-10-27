@@ -31,9 +31,11 @@ var (
 	pathInvolvedKind = structured.CompileFieldPath("jsonPayload.involvedObject.kind")
 	pathNamespace    = structured.CompileFieldPath("jsonPayload.involvedObject.namespace")
 	pathResourceName = structured.CompileFieldPath("jsonPayload.involvedObject.name")
+	pathResourceUID  = structured.CompileFieldPath("jsonPayload.involvedObject.uid")
 	pathReason       = structured.CompileFieldPath("jsonPayload.reason")
 	pathMessage      = structured.CompileFieldPath("jsonPayload.message")
 	pathAction       = structured.CompileFieldPath("jsonPayload.action")
+	pathSourceHost   = structured.CompileFieldPath("jsonPayload.source.host")
 )
 
 // KubernetesEventFieldSet contains the parsed fields for a Kubernetes event log.
@@ -44,8 +46,10 @@ type KubernetesEventFieldSet struct {
 	ResourceKind string
 	Namespace    string
 	Resource     string
+	ResourceUID  string
 	Reason       string
 	Message      string
+	SourceHost   string
 }
 
 // ExtractKubernetesEvent extracts KubernetesEventFieldSet from a NodeReader.
@@ -75,10 +79,12 @@ func ExtractKubernetesEvent(reader *structured.NodeReader) (KubernetesEventField
 	result.ResourceKind = strings.ToLower(reader.ReadStringOrDefault(pathInvolvedKind, ""))
 	result.Namespace = reader.ReadStringOrDefault(pathNamespace, "cluster-scope")
 	result.Resource = reader.ReadStringOrDefault(pathResourceName, "")
+	result.ResourceUID = reader.ReadStringOrDefault(pathResourceUID, "")
 	result.Reason = reader.ReadStringOrDefault(pathReason, "")
 	result.Message = reader.ReadStringOrDefault(pathMessage, "")
 	if result.Message == "" {
 		result.Message = reader.ReadStringOrDefault(pathAction, "")
 	}
+	result.SourceHost = reader.ReadStringOrDefault(pathSourceHost, "")
 	return result, nil
 }

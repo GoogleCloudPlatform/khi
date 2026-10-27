@@ -16,6 +16,7 @@
 
 import { TimelineView } from 'src/app/store/domain/timeline-view';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
+import { Timeline } from 'src/app/store/domain/timeline';
 import { LogStore } from 'src/app/store/domain/log-store';
 import {
   LogTimelineFilter,
@@ -55,6 +56,9 @@ describe('TimelineView', () => {
     });
     Object.defineProperty(timelineStoreSpy, 'timelines', {
       get: () => [],
+    });
+    Object.defineProperty(timelineStoreSpy, 'maxTimelineId', {
+      get: () => 0,
     });
 
     const filter1 = jasmine.createSpyObj<LogTimelineFilter>('Filter1', [
@@ -96,6 +100,9 @@ describe('TimelineView', () => {
     });
     Object.defineProperty(timelineStoreSpy, 'timelines', {
       get: () => [],
+    });
+    Object.defineProperty(timelineStoreSpy, 'maxTimelineId', {
+      get: () => 0,
     });
 
     const filter = jasmine.createSpyObj<LogTimelineFilter>('Filter', [
@@ -143,6 +150,9 @@ describe('TimelineView', () => {
     Object.defineProperty(timelineStoreSpy, 'timelines', {
       get: () => [],
     });
+    Object.defineProperty(timelineStoreSpy, 'maxTimelineId', {
+      get: () => 0,
+    });
 
     const view = new TimelineView(timelineStoreSpy);
 
@@ -173,6 +183,9 @@ describe('TimelineView', () => {
     });
     Object.defineProperty(timelineStoreSpy, 'timelines', {
       get: () => [],
+    });
+    Object.defineProperty(timelineStoreSpy, 'maxTimelineId', {
+      get: () => 0,
     });
 
     const processSignals: AbortSignal[] = [];
@@ -220,6 +233,9 @@ describe('TimelineView', () => {
     });
     Object.defineProperty(timelineStoreSpy, 'timelines', {
       get: () => [],
+    });
+    Object.defineProperty(timelineStoreSpy, 'maxTimelineId', {
+      get: () => 0,
     });
 
     let resolveProcess: (ctx: LogTimelineFilterContext) => void = () => {};
@@ -284,6 +300,9 @@ describe('TimelineView', () => {
     Object.defineProperty(timelineStoreSpy, 'timelines', {
       get: () => [],
     });
+    Object.defineProperty(timelineStoreSpy, 'maxTimelineId', {
+      get: () => 0,
+    });
 
     const mockWorkbenchClient = jasmine.createSpyObj<WorkbenchClientService>(
       'WorkbenchClientService',
@@ -332,6 +351,9 @@ describe('TimelineView', () => {
     Object.defineProperty(timelineStoreSpy, 'timelines', {
       get: () => [],
     });
+    Object.defineProperty(timelineStoreSpy, 'maxTimelineId', {
+      get: () => 0,
+    });
 
     const consoleSpy = spyOn(console, 'error');
     const mockWorkbenchClient = jasmine.createSpyObj<WorkbenchClientService>(
@@ -373,6 +395,9 @@ describe('TimelineView', () => {
     Object.defineProperty(timelineStoreSpy, 'timelines', {
       get: () => [],
     });
+    Object.defineProperty(timelineStoreSpy, 'maxTimelineId', {
+      get: () => 0,
+    });
 
     const view = new TimelineView(timelineStoreSpy);
     const filter = jasmine.createSpyObj<LogTimelineFilter>('Filter', [
@@ -395,5 +420,44 @@ describe('TimelineView', () => {
     expect(filteredIds.has(10)).toBeTrue();
     expect(filteredIds.has(5)).toBeTrue();
     expect(filteredIds.has(2)).toBeFalse();
+  });
+
+  it('should retain timelines and logs whose IDs exceed counts when initialized with maxTimelineId and maxLogId', async () => {
+    const logStoreSpy = jasmine.createSpyObj<LogStore>('LogStore', [
+      'getLog',
+      'logs',
+    ]);
+    logStoreSpy.logs.and.returnValue([][Symbol.iterator]());
+    Object.defineProperty(logStoreSpy, 'count', {
+      get: () => 2,
+    });
+    Object.defineProperty(logStoreSpy, 'maxLogId', {
+      get: () => 4,
+    });
+
+    const mockTimelines = [
+      { id: 1, parentId: 0 } as unknown as Timeline,
+      { id: 2, parentId: 1 } as unknown as Timeline,
+      { id: 5, parentId: 1 } as unknown as Timeline,
+    ];
+    const timelineStoreSpy = jasmine.createSpyObj<TimelineStore>(
+      'TimelineStore',
+      ['getTimeline'],
+    );
+    Object.defineProperty(timelineStoreSpy, 'logStore', {
+      get: () => logStoreSpy,
+    });
+    Object.defineProperty(timelineStoreSpy, 'timelines', {
+      get: () => mockTimelines,
+    });
+    Object.defineProperty(timelineStoreSpy, 'maxTimelineId', {
+      get: () => 5,
+    });
+
+    const view = new TimelineView(timelineStoreSpy);
+    await waitForFiltering(view);
+
+    expect(view.filteredTimelines().map((t) => t.id)).toEqual([1, 2, 5]);
+    expect(view.filteredLogIds().has(4)).toBeTrue();
   });
 });

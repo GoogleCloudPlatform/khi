@@ -115,6 +115,7 @@ func createSampleWorkbench() *Workbench {
 	wb.searchIndex.TimelineMap[2] = tl2
 	wb.searchIndex.TimelineMap[3] = tl3
 	wb.searchIndex.TimelineMap[4] = tl4
+	wb.searchIndex.maxTimelineID = 4
 
 	return wb
 }
@@ -286,6 +287,73 @@ func TestFilterTimelineCancellation(t *testing.T) {
 	_, err := wb.FilterTimeline(ctx, FilterPipelineParams{}, nil)
 	if err == nil {
 		t.Errorf("FilterTimeline() expected context cancellation error but got nil")
+	}
+}
+
+func TestFilterTimelineWithGappedIDs(t *testing.T) {
+	testCases := []struct {
+		name            string
+		params          FilterPipelineParams
+		wantMode        apiv1.FilterResultMode
+		wantExcludedIDs []uint32
+		wantMatchedIDs  []uint32
+	}{
+		{
+			name: "no filter in EXCLUDE mode marks gap IDs as excluded and preserves timeline ID exceeding count",
+			params: FilterPipelineParams{
+				TimelineQuery: "",
+			},
+			wantMode:        apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE,
+			wantExcludedIDs: []uint32{4},
+			wantMatchedIDs:  []uint32{1, 2, 3, 5},
+		},
+		{
+			name: "excluding timeline with ID exceeding timeline count includes its ID in EXCLUDE bitset",
+			params: FilterPipelineParams{
+				TimelineExclusionQuery: `name == "container-b"`,
+			},
+			wantMode:        apiv1.FilterResultMode_FILTER_RESULT_MODE_EXCLUDE,
+			wantExcludedIDs: []uint32{4, 5},
+			wantMatchedIDs:  []uint32{1, 2, 3},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			wb := createSampleWorkbench()
+			// Replace timeline 4 with timeline 5 to simulate a discarded ID 4 during concurrent path creation.
+			tl5 := wb.searchIndex.TimelineMap[4]
+			tl5.ID = 5
+			wb.searchIndex.TimelineMap[3].ChildrenIDs = []uint32{5}
+			delete(wb.searchIndex.TimelineMap, 4)
+			wb.searchIndex.TimelineMap[5] = tl5
+			wb.searchIndex.maxTimelineID = 5
+
+			res, err := wb.FilterTimeline(context.Background(), tc.params, nil)
+			if err != nil {
+				t.Fatalf("FilterTimeline() unexpected error = %v", err)
+			}
+
+			if res.GetTimelineMode() != tc.wantMode {
+				t.Errorf("FilterTimeline() mode = %v, want %v", res.GetTimelineMode(), tc.wantMode)
+			}
+
+			excludedBM := sparsebitset.Decode(res.GetTimelineBitset())
+			gotExcludedIDs := excludedBM.ToArray()
+			if diff := cmp.Diff(tc.wantExcludedIDs, gotExcludedIDs); diff != "" {
+				t.Errorf("FilterTimeline() excluded timeline IDs mismatch (-want +got):\n%s", diff)
+			}
+
+			var sequentialIDs []uint32
+			maxID := wb.searchIndex.MaxTimelineID()
+			for id := uint32(1); id <= maxID; id++ {
+				sequentialIDs = append(sequentialIDs, id)
+			}
+			gotMatchedIDs := decodeSparseBitset(res.GetTimelineMode(), res.GetTimelineBitset(), sequentialIDs)
+			if diff := cmp.Diff(tc.wantMatchedIDs, gotMatchedIDs); diff != "" {
+				t.Errorf("FilterTimeline() decoded timeline IDs from 1..MaxTimelineID mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 

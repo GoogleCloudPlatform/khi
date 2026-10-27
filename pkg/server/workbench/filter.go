@@ -129,7 +129,7 @@ func (p *Pipeline) Execute(
 		return nil, err
 	}
 
-	tlMode, tlBitset := sparsebitset.EncodeFilterResult(len(index.Timelines), filterCtx.TimelineIDs)
+	tlMode, tlBitset := sparsebitset.EncodeFilterResult(int(index.MaxTimelineID()), filterCtx.TimelineIDs)
 	logMode, logBitset := sparsebitset.EncodeFilterResult(len(index.Logs), filterCtx.LogIDs)
 
 	return &apiv1.FilterResult{
