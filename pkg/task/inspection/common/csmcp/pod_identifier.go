@@ -57,8 +57,11 @@ func ParsePodIdentifier(word string) *PodIdentifier {
 	}
 }
 
-// IsXDSLog checks if the message starts with an xDS prefix (e.g., ADS:, CDS:).
+// IsXDSLog checks if the message starts with an xDS prefix (e.g., ADS:, CDS:) or an xDS connection status prefix.
 func IsXDSLog(msg string) bool {
+	if strings.HasPrefix(msg, "Timeout writing ") || strings.HasPrefix(msg, "Client closed connection ") {
+		return true
+	}
 	idx := strings.IndexByte(msg, ':')
 	if idx <= 0 || idx > 10 {
 		return false
@@ -80,7 +83,7 @@ func IsConnectionLog(msg string) bool {
 
 // IsDisconnectionLog checks if the message indicates a terminated xDS connection.
 func IsDisconnectionLog(msg string) bool {
-	return strings.Contains(msg, "terminated")
+	return strings.Contains(msg, "terminated") || strings.HasPrefix(msg, "Client closed connection ")
 }
 
 // ConnectionKey returns a unique key for identifying a pod's connection instance.

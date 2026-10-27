@@ -16,9 +16,11 @@ package csm
 
 import (
 	"testing"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
+	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -173,6 +175,128 @@ resource:
 		}
 		if diff := cmp.Diff(mockFS, got); diff != "" {
 			t.Errorf("ExtractIstioAccessLog mismatch (-want +got):\n%s", diff)
+		}
+	})
+}
+
+func TestExtractCSMControlPlaneLog(t *testing.T) {
+	parsedTS := time.Date(2026, time.July, 3, 15, 46, 12, 0, time.UTC)
+	testCases := []struct {
+		desc    string
+		input   string
+		want    CSMControlPlaneLogFieldSet
+		wantErr bool
+	}{
+		{
+			desc: "jsonPayload.message with full resource labels",
+			input: `
+resource:
+  type: istio_control_plane
+  labels:
+    project_id: "fleet-project"
+    location: "us-central1"
+    revision: "asm-managed"
+    build_id: "build-1234"
+    mesh_uid: "proj-1234"
+    owner: "helm"
+jsonPayload:
+  message: "ads: connections 42"
+`,
+			want: CSMControlPlaneLogFieldSet{
+				ProjectID: "fleet-project",
+				Location:  "us-central1",
+				Revision:  "asm-managed",
+				Message:   "ads: connections 42",
+			},
+		},
+		{
+			desc: "jsonPayload with pods and timestamp",
+			input: `
+resource:
+  type: istio_control_plane
+  labels:
+    project_id: "fleet-project"
+    location: "us-central1"
+    revision: "asm-managed"
+jsonPayload:
+  message: "ADS: new delta connection for node:my-pod.default-12 and other-pod.kube-system"
+  timestamp: "2026-07-03T15:46:12Z"
+`,
+			want: CSMControlPlaneLogFieldSet{
+				ProjectID: "fleet-project",
+				Location:  "us-central1",
+				Revision:  "asm-managed",
+				Message:   "ADS: new delta connection for node:my-pod.default-12 and other-pod.kube-system",
+				Timestamp: &parsedTS,
+				Pods: []commoncsmcp.PodIdentifier{
+					{Name: "my-pod", Namespace: "default", ConnectionID: "12"},
+					{Name: "other-pod", Namespace: "kube-system"},
+				},
+			},
+		},
+		{
+			desc: "textPayload fallback when jsonPayload.message is absent",
+			input: `
+resource:
+  type: istio_control_plane
+  labels:
+    project_id: "fleet-project"
+    location: "us-central1"
+    revision: "asm-managed"
+textPayload: "warning starting istiod"
+`,
+			want: CSMControlPlaneLogFieldSet{
+				ProjectID: "fleet-project",
+				Location:  "us-central1",
+				Revision:  "asm-managed",
+				Message:   "warning starting istiod",
+			},
+		},
+		{
+			desc: "missing labels and payload returning empty fields",
+			input: `
+resource:
+  type: istio_control_plane
+`,
+			want: CSMControlPlaneLogFieldSet{
+				ProjectID: "",
+				Location:  "",
+				Revision:  "",
+				Message:   "",
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			node, err := structured.FromYAML(tc.input)
+			if err != nil {
+				t.Fatalf("failed to parse YAML test input: %v", err)
+			}
+			reader := structured.NewNodeReader(node)
+			got, err := ExtractCSMControlPlaneLog(reader)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ExtractCSMControlPlaneLog() error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtractCSMControlPlaneLog() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+
+	t.Run("mock node returns mock values", func(t *testing.T) {
+		mockFS := CSMControlPlaneLogFieldSet{
+			ProjectID: "mock-project",
+			Location:  "mock-location",
+			Revision:  "mock-rev",
+			Message:   "mock-message",
+		}
+		reader := structured.NewNodeReader(structured.NewMockNode(mockFS))
+		got, err := ExtractCSMControlPlaneLog(reader)
+		if err != nil {
+			t.Fatalf("ExtractCSMControlPlaneLog() error = %v", err)
+		}
+		if diff := cmp.Diff(mockFS, got); diff != "" {
+			t.Errorf("ExtractCSMControlPlaneLog() mismatch (-want +got):\n%s", diff)
 		}
 	})
 }

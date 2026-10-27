@@ -17,10 +17,12 @@ package csm
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
+	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
 )
 
 var (
@@ -35,6 +37,12 @@ var (
 	pathNamespaceName          = structured.CompileFieldPath("resource.labels.namespace_name")
 	pathContainerName          = structured.CompileFieldPath("resource.labels.container_name")
 	pathLogName                = structured.CompileFieldPath("logName")
+	pathProjectID              = structured.CompileFieldPath("resource.labels.project_id")
+	pathLocation               = structured.CompileFieldPath("resource.labels.location")
+	pathRevision               = structured.CompileFieldPath("resource.labels.revision")
+	pathJSONPayloadMessage     = structured.CompileFieldPath("jsonPayload.message")
+	pathJSONPayloadTimestamp   = structured.CompileFieldPath("jsonPayload.timestamp")
+	pathTextPayload            = structured.CompileFieldPath("textPayload")
 )
 
 type AccessLogType string
@@ -100,4 +108,43 @@ func ExtractIstioAccessLog(reader *structured.NodeReader) (IstioAccessLogFieldSe
 	}
 
 	return result, nil
+}
+
+// CSMControlPlaneLogFieldSet holds structured fields extracted from CSM control plane logs.
+type CSMControlPlaneLogFieldSet struct {
+	ProjectID string
+	Location  string
+	Revision  string
+	Message   string
+	Timestamp *time.Time
+	Pods      []commoncsmcp.PodIdentifier
+}
+
+// ExtractCSMControlPlaneLog extracts CSM control plane log fields from a NodeReader.
+func ExtractCSMControlPlaneLog(reader *structured.NodeReader) (CSMControlPlaneLogFieldSet, error) {
+	if mock, ok := structured.GetMock[CSMControlPlaneLogFieldSet](reader); ok {
+		return mock, nil
+	}
+	message := reader.ReadStringOrDefault(pathJSONPayloadMessage, "")
+	if message == "" {
+		message = reader.ReadStringOrDefault(pathTextPayload, "")
+	}
+	var pods []commoncsmcp.PodIdentifier
+	for _, word := range strings.Fields(message) {
+		if p := commoncsmcp.ParsePodIdentifier(word); p != nil {
+			pods = append(pods, *p)
+		}
+	}
+	var timestamp *time.Time
+	if ts, err := reader.ReadTimestamp(pathJSONPayloadTimestamp); err == nil {
+		timestamp = &ts
+	}
+	return CSMControlPlaneLogFieldSet{
+		ProjectID: reader.ReadStringOrDefault(pathProjectID, ""),
+		Location:  reader.ReadStringOrDefault(pathLocation, ""),
+		Revision:  reader.ReadStringOrDefault(pathRevision, ""),
+		Message:   message,
+		Timestamp: timestamp,
+		Pods:      pods,
+	}, nil
 }
