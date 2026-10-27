@@ -26,6 +26,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -36,18 +37,6 @@ func TestContainerStateWalker(t *testing.T) {
 	podName := "nginx"
 	containerName := "nginx-container"
 	baseTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
-		if a == nil || b == nil {
-			return a == b
-		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		if errA != nil || errB != nil {
-			return false
-		}
-		return string(aYAML) == string(bYAML)
-	})
 
 	parseYAML := func(yamlStr string) structured.Node {
 		if yamlStr == "" {
@@ -382,7 +371,7 @@ state:
 				testchangeset.AssertTimeline(t, cs).HasNoRevision(containerPath)
 			} else {
 				for _, want := range tt.wantRevisions {
-					testchangeset.AssertTimeline(t, cs).HasRevision(containerPath, want, nodeComparer)
+					testchangeset.AssertTimeline(t, cs).HasRevision(containerPath, want, testutil.CompareStructuredNode())
 				}
 			}
 		})
@@ -394,18 +383,6 @@ func TestContainerLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 	podNamespace := "default"
 	podName := "nginx"
 	testTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
-		if a == nil || b == nil {
-			return a == b
-		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		if errA != nil || errB != nil {
-			return false
-		}
-		return string(aYAML) == string(bYAML)
-	})
 
 	parseYAML := func(yamlStr string) structured.Node {
 		if yamlStr == "" {
@@ -703,7 +680,7 @@ status:
 					testchangeset.AssertTimeline(t, cs).HasNoRevision(containerPath)
 				} else {
 					for _, want := range tc.wantRevisions {
-						testchangeset.AssertTimeline(t, cs).HasRevision(containerPath, want, nodeComparer)
+						testchangeset.AssertTimeline(t, cs).HasRevision(containerPath, want, testutil.CompareStructuredNode())
 					}
 				}
 			}

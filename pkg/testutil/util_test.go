@@ -20,8 +20,72 @@ import (
 	"os"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/google/go-cmp/cmp"
 )
+
+func TestCompareStructuredNode(t *testing.T) {
+	nodeA, err := structured.FromYAML("baz: 1\nfoo: bar\n")
+	if err != nil {
+		t.Fatalf("failed to parse nodeA: %v", err)
+	}
+	nodeAEquivalent, err := structured.FromGoValue(map[string]any{"foo": "bar", "baz": 1}, &structured.AlphabeticalGoMapKeyOrderProvider{})
+	if err != nil {
+		t.Fatalf("failed to create nodeAEquivalent: %v", err)
+	}
+	nodeB, err := structured.FromYAML("foo: different\n")
+	if err != nil {
+		t.Fatalf("failed to parse nodeB: %v", err)
+	}
+
+	testCases := []struct {
+		name      string
+		x         structured.Node
+		y         structured.Node
+		wantEqual bool
+	}{
+		{
+			name:      "both nil",
+			x:         nil,
+			y:         nil,
+			wantEqual: true,
+		},
+		{
+			name:      "first nil second non-nil",
+			x:         nil,
+			y:         nodeA,
+			wantEqual: false,
+		},
+		{
+			name:      "first non-nil second nil",
+			x:         nodeA,
+			y:         nil,
+			wantEqual: false,
+		},
+		{
+			name:      "equivalent YAML nodes",
+			x:         nodeA,
+			y:         nodeAEquivalent,
+			wantEqual: true,
+		},
+		{
+			name:      "different YAML nodes",
+			x:         nodeA,
+			y:         nodeB,
+			wantEqual: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			diff := cmp.Diff(tc.x, tc.y, CompareStructuredNode())
+			gotEqual := diff == ""
+			if gotEqual != tc.wantEqual {
+				t.Errorf("cmp.Diff() equal = %v, want %v (diff: %s)", gotEqual, tc.wantEqual, diff)
+			}
+		})
+	}
+}
 
 func TestRemoveSlogTimestampFromLine(t *testing.T) {
 	testCases := []struct {

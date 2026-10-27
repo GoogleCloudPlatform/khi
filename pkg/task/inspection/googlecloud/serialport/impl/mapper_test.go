@@ -22,7 +22,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
@@ -31,6 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/serialport"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -273,25 +273,6 @@ func TestMapSerialPortLog(t *testing.T) {
 	logTime1 := time.Date(2025, 9, 29, 6, 39, 24, 0, time.UTC)
 	logTime2 := time.Date(2025, 9, 29, 6, 39, 25, 0, time.UTC)
 
-	nodeComparer := cmp.Comparer(func(x, y structured.Node) bool {
-		if x == nil && y == nil {
-			return true
-		}
-		if x == nil || y == nil {
-			return false
-		}
-		serializer := &structured.JSONNodeSerializer{}
-		xBytes, err := serializer.Serialize(x)
-		if err != nil {
-			return false
-		}
-		yBytes, err := serializer.Serialize(y)
-		if err != nil {
-			return false
-		}
-		return string(xBytes) == string(yBytes)
-	})
-
 	wantPodNode, err := makePodManifestNode(podIdentity.Namespace, podIdentity.Name, nodeName, uidHyphen)
 	if err != nil {
 		t.Fatalf("makePodManifestNode() failed: %v", err)
@@ -361,21 +342,21 @@ func TestMapSerialPortLog(t *testing.T) {
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbUnknown,
 						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantPodPhasePath, &khifilev6.StagingRevision{
 						ChangedTime:  epochTime,
 						ResourceBody: wantPodNode,
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbUnknown,
 						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantBindingPath, &khifilev6.StagingRevision{
 						ChangedTime:  epochTime,
 						ResourceBody: wantBindingNode,
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbUnknown,
 						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 
 				testchangeset.AssertTimeline(t, changeSets[1]).
 					HasEvent(wantSerialPortPath).

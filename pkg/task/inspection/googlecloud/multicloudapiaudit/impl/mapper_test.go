@@ -27,9 +27,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/multicloudapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/google/go-cmp/cmp"
 )
 
 func testReaderFromYAML(t *testing.T, yaml string) *structured.NodeReader {
@@ -46,23 +46,6 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 	builder := khifilev6.NewTestBuilder(id.NewGenerator())
 
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
-
-	// Custom comparer for structured.Node interface.
-	nodeComparer := cmp.Comparer(func(x, y structured.Node) bool {
-		if x == nil && y == nil {
-			return true
-		}
-		if x == nil || y == nil {
-			return false
-		}
-		serializer := &structured.YAMLNodeSerializer{}
-		xBytes, err1 := serializer.Serialize(x)
-		yBytes, err2 := serializer.Serialize(y)
-		if err1 != nil || err2 != nil {
-			return false
-		}
-		return string(xBytes) == string(yBytes)
-	})
 
 	// Resolve comparative path instances independently using low-level accumulator.
 	wantProjPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
@@ -138,7 +121,7 @@ name: test-cluster`).Node,
 						Principal: "foobar@qux.test",
 						VerbType:  k8saudit.VerbCreate,
 						StateType: k8saudit.RevisionStateK8sClusterProvisioning,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantOp1ClusterPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `cluster:
@@ -147,7 +130,7 @@ name: test-cluster`).Node,
 						Principal: "foobar@qux.test",
 						VerbType:  gcpcommon.VerbOperationStart,
 						StateType: gcpcommon.RevisionStateOperationStarted,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -175,14 +158,14 @@ name: test-cluster`).Node,
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sClusterExisting,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantOp1AzureClusterPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationFinish,
 						StateType:    gcpcommon.RevisionStateOperationSucceed,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -213,7 +196,7 @@ name: test-nodepool`).Node,
 						Principal: "foobar@qux.test",
 						VerbType:  k8saudit.VerbCreate,
 						StateType: k8saudit.RevisionStateK8sNodepoolProvisioning,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantOp2NodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `nodePool:
@@ -222,7 +205,7 @@ name: test-nodepool`).Node,
 						Principal: "foobar@qux.test",
 						VerbType:  gcpcommon.VerbOperationStart,
 						StateType: gcpcommon.RevisionStateOperationStarted,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -250,21 +233,21 @@ name: test-nodepool`).Node,
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sNodepoolProvisioningLogNotFound,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sNodepoolExisting,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantOp2AzureNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationFinish,
 						StateType:    gcpcommon.RevisionStateOperationSucceed,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -292,21 +275,21 @@ name: test-nodepool`).Node,
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sNodepoolDeletingLogNotFound,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sNodepoolDeleted,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantOp2DeleteNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationFinish,
 						StateType:    gcpcommon.RevisionStateOperationSucceed,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -356,7 +339,7 @@ name: test-nodepool`).Node,
 						Principal:    "foobar@qux.test",
 						VerbType:     gcpcommon.VerbOperationStart,
 						StateType:    gcpcommon.RevisionStateOperationStarted,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 	}

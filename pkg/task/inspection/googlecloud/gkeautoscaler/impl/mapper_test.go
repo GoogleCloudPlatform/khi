@@ -15,7 +15,6 @@
 package gkeautoscaler_impl
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -29,9 +28,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeautoscaler"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestProcessAutoscalerLog(t *testing.T) {
@@ -206,18 +205,6 @@ func TestProcessAutoscalerLog(t *testing.T) {
 		})
 	}
 }
-
-var nodeCmpOpt = cmp.Transformer("StructuredNodeToJSON", func(n structured.Node) string {
-	if n == nil {
-		return "nil"
-	}
-	serializer := &structured.JSONNodeSerializer{}
-	bytes, err := serializer.Serialize(n)
-	if err != nil {
-		return fmt.Sprintf("error serializing structured node: %v", err)
-	}
-	return string(bytes)
-})
 
 func TestAutoscalerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -479,7 +466,7 @@ results:
 						StateType:    gkeautoscaler.RevisionAutoscalerNoError,
 						ResourceBody: bodyNode,
 						VerbType:     inspectioncore.VerbUnknown,
-					}, nodeCmpOpt)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -517,7 +504,7 @@ results:
 						StateType:    gkeautoscaler.RevisionAutoscalerHasErrors,
 						ResourceBody: bodyNode,
 						VerbType:     inspectioncore.VerbUnknown,
-					}, nodeCmpOpt)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 	}

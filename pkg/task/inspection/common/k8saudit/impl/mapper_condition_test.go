@@ -26,9 +26,9 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestConditionWalker(t *testing.T) {
@@ -47,18 +47,6 @@ func TestConditionWalker(t *testing.T) {
 		Verb:      k8saudit.VerbUpdate,
 		Principal: "user-1",
 	}
-
-	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
-		if a == nil || b == nil {
-			return a == b
-		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		if errA != nil || errB != nil {
-			return false
-		}
-		return string(aYAML) == string(bYAML)
-	})
 
 	parseYAML := func(yamlStr string) structured.Node {
 		if yamlStr == "" {
@@ -237,7 +225,7 @@ func TestConditionWalker(t *testing.T) {
 					if tt.want == nil {
 						testchangeset.AssertTimeline(t, cs).HasNoRevision(conditionPath)
 					} else {
-						testchangeset.AssertTimeline(t, cs).HasRevision(conditionPath, tt.want, nodeComparer)
+						testchangeset.AssertTimeline(t, cs).HasRevision(conditionPath, tt.want, testutil.CompareStructuredNode())
 					}
 				})
 			}
@@ -249,18 +237,6 @@ func TestConditionLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 	taskSetting := &conditionLogToTimelineMapperTaskSetting{
 		minimumDeltaTimeToCreateInferredCreationRevision: 10 * time.Second,
 	}
-
-	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
-		if a == nil || b == nil {
-			return a == b
-		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		if errA != nil || errB != nil {
-			return false
-		}
-		return string(aYAML) == string(bYAML)
-	})
 
 	parseYAML := func(yamlStr string) structured.Node {
 		if yamlStr == "" {
@@ -364,7 +340,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionTrue,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 	})
 
 	t.Run("PreProcessLog and ProcessLog inferred creation", func(t *testing.T) {
@@ -445,7 +421,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2023, 12, 31, 23, 59, 0, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionNoAvailableInfo,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 	})
 
 	t.Run("PreProcessLog and ProcessLog inferred creation with UID tracking", func(t *testing.T) {
@@ -553,7 +529,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2023, 12, 31, 23, 59, 0, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionNoAvailableInfo,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 	})
 
 	t.Run("PreProcessLog and ProcessLog deletion", func(t *testing.T) {
@@ -628,7 +604,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateK8sResourceDeleted,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 	})
 
 	t.Run("DryRun log should be ignored", func(t *testing.T) {
@@ -798,7 +774,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionTrue,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 
 		// ProcessLog 2 (t=20s, truncated) -> Must NOT emit ConditionNotGiven, status continuity is preserved
 		cs2, state, err := taskSetting.ProcessLog(ctx, event2, state)
@@ -912,7 +888,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionTrue,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 
 		// ProcessLog 2 (t=20s, truncated) -> Emits False at t=20s because lastTransitionTime is 20s
 		cs2, state, err := taskSetting.ProcessLog(ctx, event2, state)
@@ -926,7 +902,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 20, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionFalse,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 
 		// ProcessLog 3 (t=30s) -> Already recorded False at t=20s, no duplicate revision
 		cs3, _, err := taskSetting.ProcessLog(ctx, event3, state)
@@ -1032,7 +1008,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionTrue,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 
 		// ProcessLog 2 (t=20s, truncated) -> Emits False because parsed timezone offset 09:00 matches 00:00:20Z
 		cs2, state, err := taskSetting.ProcessLog(ctx, event2, state)
@@ -1046,7 +1022,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 20, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionFalse,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 
 		// ProcessLog 3 (t=30s) -> Already recorded, no duplicate revision
 		cs3, _, err := taskSetting.ProcessLog(ctx, event3, state)
@@ -1137,7 +1113,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionTrue,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 	})
 
 	t.Run("Creation within minimumDeltaTimeToCreateInferredCreationRevision does not emit inferred unavailable state", func(t *testing.T) {
@@ -1220,7 +1196,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 1, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionFalse,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 	})
 
 	t.Run("Static Pod deletion and recreation clamps retained lastTransitionTime and sub-second creationTimestamp after deletionTime", func(t *testing.T) {
@@ -1371,7 +1347,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC),
 				StateType:    k8saudit.RevisionStateConditionTrue,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 
 		// ProcessLog 2
 		cs2, state, err := taskSetting.ProcessLog(ctx, event2, state)
@@ -1388,7 +1364,7 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  delTime,
 				StateType:    k8saudit.RevisionStateK8sResourceDeleted,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 
 		// ProcessLog 3
 		cs3, _, err := taskSetting.ProcessLog(ctx, event3, state)
@@ -1405,6 +1381,6 @@ status:
 				Principal:    "user-1",
 				ChangedTime:  delTime.Add(time.Nanosecond),
 				StateType:    k8saudit.RevisionStateConditionTrue,
-			}, nodeComparer)
+			}, testutil.CompareStructuredNode())
 	})
 }
