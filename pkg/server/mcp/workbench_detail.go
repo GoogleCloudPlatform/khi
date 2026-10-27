@@ -156,12 +156,8 @@ func (h *WorkbenchHandler) handleGetResourceRevisions(ctx context.Context, _ *mc
 	if err != nil {
 		return invalidPageTokenResult(err)
 	}
-	pageSize := input.PageSize
-	if pageSize <= 0 {
-		pageSize = defaultDetailPageSize
-	}
-	pageSize = min(pageSize, maxDetailPageSize)
 
+	pageSize := mdtemplate.NormalizePageSize(input.PageSize, defaultDetailPageSize, maxDetailPageSize)
 	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
 	if err != nil || errRes != nil {
 		return errRes, nil, err
